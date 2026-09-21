@@ -623,14 +623,14 @@
   - `Acta.Runtime.Services.Locks.ILockStore.TryAcquireSlotAsync`
 
 ### A definition's rate limit admits at the rate and books every early job a turn
-- **Contract:** A rate key admits its burst at once and then one per interval, booking each early job exactly one re-arm.
+- **Contract:** A rate key admits its burst at once and then one per interval, booking each early job a turn it waits for or returns to.
 - **Arrange:** Definitions declaring a rate, alone and sharing a key, plus meters driven through the lock store.
 - **Act:** Real handlers drain a backlog through the rate, and store-level requests spend and stage turns.
-- **Assert:** Admissions stay inside the rate, each denied job re-arms once at its reserved instant, and one key means one bucket.
+- **Assert:** Admissions stay inside the rate, a booked turn is honoured for a second, and one key means one bucket.
 - **Guarantees:**
   - A fresh meter admits its burst at once and then one per interval
   - A booked turn is handed back unchanged until it arrives, and the meter stays put
-  - A turn returned on time admits once, is spent, and never moves the meter
+  - A turn returned inside the second admits once, is spent, and never moves the meter
   - A turn gone stale is re-metered rather than honoured
   - A backlog of turns gone stale releases at most one burst at once
   - A booked turn outlives the lock expiry sweep until its grace runs out

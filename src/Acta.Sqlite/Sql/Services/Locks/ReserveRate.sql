@@ -1,6 +1,6 @@
 -- GCRA with a reservation; the full contract is on ILockStore.ReserveRateAsync. A turn is honoured
--- only while it is fresh, at most one interval past its instant; one that went stale while executors
--- were busy goes back through the meter, so a queue of overdue jobs cannot all start at once.
+-- while it is fresh, one second past its instant (one interval when that is longer); a stale one goes
+-- back through the meter, so a queue of overdue jobs cannot all start at once after a long stall.
 
 -- The batch runs inside the session's immediate write transaction, SQLite's single writer, so every
 -- statement here sees one serialized meter without a row hint or a separate create-or-lock step: the
@@ -23,7 +23,7 @@ SELECT
     now_ms,
     consumed_due,
     CASE
-        WHEN consumed_due IS NOT NULL AND consumed_due >= now_ms - @p_rate_interval_ms THEN 0
+        WHEN consumed_due IS NOT NULL AND consumed_due >= now_ms - MAX(@p_rate_interval_ms, 1000) THEN 0
         WHEN consumed_due IS NULL AND future_due IS NOT NULL THEN 0
         ELSE 1
     END AS meter
@@ -79,7 +79,7 @@ SET
     hold_token = excluded.hold_token;
 
 -- Whether a reservation survived the statements above is the whole answer: none left means the turn
--- is now.
+-- is now. The wait is measured on this clock so the caller never subtracts a host reading from it.
 SELECT
     COALESCE(
         (SELECT r.expires_at_utc - @p_grace_seconds * 1000
@@ -91,4 +91,12 @@ SELECT
     CASE
         WHEN EXISTS (SELECT 1 FROM {{schema}}.locks r WHERE r.lock_key = @p_lock_key || '.' || @p_job_id) THEN 0
         ELSE 1
-    END AS admitted;
+    END AS admitted,
+    MAX(
+        0,
+        COALESCE(
+            (SELECT r.expires_at_utc - @p_grace_seconds * 1000
+                FROM {{schema}}.locks r
+                WHERE r.lock_key = @p_lock_key || '.' || @p_job_id),
+            0) - (SELECT s.now_ms FROM _rate_step s)
+    ) AS wait_ms;

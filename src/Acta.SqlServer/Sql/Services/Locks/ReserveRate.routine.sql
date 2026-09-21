@@ -1,6 +1,6 @@
 -- GCRA with a reservation; the full contract is on ILockStore.ReserveRateAsync. A turn is honoured
--- only while it is fresh, at most one interval past its instant; one that went stale while executors
--- were busy goes back through the meter, so a queue of overdue jobs cannot all start at once.
+-- while it is fresh, one second past its instant (one interval when that is longer); a stale one goes
+-- back through the meter, so a queue of overdue jobs cannot all start at once after a long stall.
 
 -- The IF NOT EXISTS probe below takes UPDLOCK, HOLDLOCK before the row exists and holds it to commit;
 -- the sweep's WITH (UPDLOCK, READPAST) then skips rather than races it, so the charge this call books
@@ -27,6 +27,9 @@ BEGIN
         -- How far behind now an idle meter is allowed to be, which is what hands out the burst: one
         -- interval short of a whole period, so the burst-th request lands on now and the next waits.
         DECLARE @lookback_ms INT = (@p_rate_burst - 1) * @p_rate_interval_ms;
+        -- How long a booked turn stays valid past its instant: a second covers the claim-path pickup
+        -- at any rate, and a slower meter keeps its whole interval, so the window is the larger.
+        DECLARE @window_ms INT = CASE WHEN @p_rate_interval_ms > 1000 THEN @p_rate_interval_ms ELSE 1000 END;
         DECLARE @consumed TABLE (expires_at_utc DATETIME2(7));
         DECLARE @stored DATETIME2(7);
         DECLARE @due DATETIME2(7);
@@ -54,10 +57,10 @@ BEGIN
 
         SELECT @due = DATEADD(SECOND, -@p_grace_seconds, c.expires_at_utc) FROM @consumed AS c;
 
-        IF @due IS NOT NULL AND @due >= DATEADD(MILLISECOND, -@p_rate_interval_ms, @now)
+        IF @due IS NOT NULL AND @due >= DATEADD(MILLISECOND, -@window_ms, @now)
             -- Back on time: the bucket counted this job when it allocated the turn, so charging it
             -- again would meter one job twice.
-            SELECT @due AS resume_at_utc, CAST(1 AS INT) AS admitted;
+            SELECT @due AS resume_at_utc, CAST(1 AS INT) AS admitted, CAST(0 AS BIGINT) AS wait_ms;
         ELSE
             BEGIN
                 IF @due IS NULL
@@ -67,7 +70,7 @@ BEGIN
                     WHERE r.lock_key = @reservation;
 
                 IF @turn IS NOT NULL
-                    SELECT @turn AS resume_at_utc, CAST(0 AS INT) AS admitted;
+                    SELECT @turn AS resume_at_utc, CAST(0 AS INT) AS admitted, DATEDIFF_BIG(MILLISECOND, @now, @turn) AS wait_ms;
                 ELSE
                     BEGIN
                         IF @stored < @now
@@ -82,7 +85,7 @@ BEGIN
                         WHERE lock_key = @p_lock_key;
 
                         IF @turn <= @now
-                            SELECT @turn AS resume_at_utc, CAST(1 AS INT) AS admitted;
+                            SELECT @turn AS resume_at_utc, CAST(1 AS INT) AS admitted, CAST(0 AS BIGINT) AS wait_ms;
                         ELSE
                             BEGIN
                                 UPDATE {{schema}}.locks
@@ -96,7 +99,8 @@ BEGIN
                                     INSERT INTO {{schema}}.locks (lock_key, job_id, expires_at_utc, hold_token)
                                     VALUES (@reservation, @p_job_id, DATEADD(SECOND, @p_grace_seconds, @turn), @p_hold_token);
 
-                                SELECT @turn AS resume_at_utc, CAST(0 AS INT) AS admitted;
+                                -- Measured on this clock so the caller never subtracts a host reading from a database one.
+                                SELECT @turn AS resume_at_utc, CAST(0 AS INT) AS admitted, DATEDIFF_BIG(MILLISECOND, @now, @turn) AS wait_ms;
                             END;
                     END;
             END;

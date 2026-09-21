@@ -35,6 +35,13 @@ public sealed class BenchSink
     /// <summary>One sample per executed job: the carried enqueue stamp and the handler-entry stamp, both Stopwatch ticks.</summary>
     public ConcurrentQueue<(long Enqueued, long Entry)> Samples { get; } = new();
 
+    /// <summary>
+    /// The same sample shape for the rate-metered workload, kept in its own queue so a cell that drains
+    /// metered and unmetered jobs together can read the two latency distributions apart. Empty for every
+    /// scenario that does not run <c>bench-rate</c>.
+    /// </summary>
+    public ConcurrentQueue<(long Enqueued, long Entry)> MeteredSamples { get; } = new();
+
     /// <summary>Completes once the expected number of jobs have run.</summary>
     public Task Completed => _done.Task;
 
@@ -50,6 +57,21 @@ public sealed class BenchSink
     public void Record(long enqueuedTicks)
     {
         Samples.Enqueue((enqueuedTicks, Stopwatch.GetTimestamp()));
+        Complete();
+    }
+
+    /// <summary>
+    /// Records one rate-metered execution into <see cref="MeteredSamples"/>. Counts toward the same
+    /// armed barrier as <see cref="Record"/>, so one cell can wait on both workloads at once.
+    /// </summary>
+    public void RecordMetered(long enqueuedTicks)
+    {
+        MeteredSamples.Enqueue((enqueuedTicks, Stopwatch.GetTimestamp()));
+        Complete();
+    }
+
+    private void Complete()
+    {
         if (Interlocked.Decrement(ref _remaining) == 0)
         {
             _done.TrySetResult();
@@ -132,6 +154,27 @@ public sealed class BenchAuditHandler(BenchSink sink)
     public async Task<BenchResultPayload> Run(BenchInput input, CancellationToken ct)
     {
         sink.Record(input.EnqueuedTicks);
+        if (input.WorkMs > 0)
+        {
+            await Task.Delay(input.WorkMs, ct);
+        }
+
+        return new BenchResultPayload(1);
+    }
+}
+
+/// <summary>
+/// The rate-metered twin of <see cref="BenchHandler"/>: the same trivial body, declared with a rate so
+/// the definition owns a meter, and audited so every admission and every rate re-arm lands in
+/// <c>events</c> where the cell reads them back. The declared rate is only what makes the meter exist;
+/// a rate cell retunes it to its own rate through the operator override before enqueueing.
+/// </summary>
+public sealed class BenchRateHandler(BenchSink sink)
+{
+    [Job(BenchHost.RateJobName, AuditLevel = JobAuditLevelCode.Audit, RateLimit = BenchHost.DeclaredRate)]
+    public async Task<BenchResultPayload> Run(BenchInput input, CancellationToken ct)
+    {
+        sink.RecordMetered(input.EnqueuedTicks);
         if (input.WorkMs > 0)
         {
             await Task.Delay(input.WorkMs, ct);

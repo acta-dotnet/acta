@@ -63,16 +63,21 @@ written down.
 - The meter is GCRA with reservations, in the lock store and with no schema of its own. One bucket
   row per key carries the theoretical arrival time; every request advances it by exactly one
   interval and receives its own instant. An instant that has come admits the job; a later one books
-  the job a turn, and the attempt settles as a budget-neutral re-arm at exactly that instant with the
-  new reason `job.rate-limited`, which is neither a failure nor alertable. When the job returns on
-  time it is admitted on its booked turn without touching the bucket, so a hot queue drains at the
-  configured rate with one re-arm per waiting job and no re-race. A job that returns more than one
-  interval late goes back through the meter, so a backlog of overdue turns releases at most one
-  burst at once; a turn that its job never takes is swept fifteen minutes after it came due and costs
-  that job one more re-arm at the tail. An idle meter's burst is one second's worth of the rate, at
+  the job a turn. A turn under a quarter second away is slept out in process, on a wait the meter measured
+  on the database clock, and taken to the millisecond; a farther turn settles the attempt as a
+  budget-neutral re-arm at exactly that instant with the new reason `job.rate-limited`, which is
+  neither a failure nor alertable. A booked turn stays valid for one second past its instant (one
+  interval when that is longer), which covers the worker's pickup latency at any rate, so a
+  returning job is admitted on its turn without touching the bucket and a hot queue drains at the
+  configured rate with at most one re-arm per job and no re-race. A job that returns later than
+  that goes back through the meter, so a backlog of overdue turns releases at most one burst at
+  once; a turn that its job never takes is swept fifteen minutes after it came due and costs that
+  job one more re-arm at the tail. An idle meter's burst is one second's worth of the rate, at
   least one: `600/m` admits ten at once and then one per 100 ms, never six hundred at once. Contract:
-  the meter allocates at most `R*T + B` turns in any `T` seconds for that burst `B`, and a turn may
-  be taken up to one interval late, so any window sees at most `R*T + B + 1` admissions; under
+  the meter allocates at most `R*T + B` turns in any `T` seconds for that burst `B`, and a booked turn
+  may be taken up to its validity window `W` late (a second, or one interval when longer), so any
+  window sees at most `R*(T + W) + B` admissions; a process that dies inside an in-process wait is
+  reclaimed like one that died in its handler, one attempt of budget for at most a quarter second; under
   continuous demand with idle executors the admitted rate is within 10% of `R` over a minute.
 - Admission takes the concurrency slot first and the rate second, and a rate denial gives the slot
   straight back. A provider error during either admission bounces the attempt instead of stranding

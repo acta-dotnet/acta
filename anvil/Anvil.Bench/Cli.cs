@@ -20,6 +20,9 @@ public static class CellSummary
             "recovery" => $"recovered in {Ex(m, "recoveryMs"):F0}ms  (lease {Ex(m, "leaseTtlSeconds"):F0}s)",
             "wakeup" => $"pickup p50 in-proc {Ex(m, "pickupInProcP50Ms"):F1}ms vs no-op {Ex(m, "pickupNoOpP50Ms"):F1}ms",
             "query" => $"list p95 {m.LatencyP95Ms:F2}ms over {Ex(m, "rows"):F0} rows",
+            "rate" =>
+                $"admitted {m.EndToEndRatePerSec, 8:F1} jobs/s  (declared {Ex(m, "declaredPerSec"):F0}/s, max 1s window {Ex(m, "maxStartsIn1s"):F0}, "
+                    + $"excess 1s {Ex(m, "contractExcess1s"):F0}, rearms/job {Ex(m, "rearmsPerJob"):F2})",
             "purge" =>
                 $"purged {Ex(m, "purgeRows"):F0} in {Ex(m, "purgeSeconds"):F1}s ({Ex(m, "purgeRowsPerSec"):F0}/s, probe p95 {Ex(m, "contendedEnqueueP95Ms"):F1}ms)",
             "loadprofile" => m.Extra switch

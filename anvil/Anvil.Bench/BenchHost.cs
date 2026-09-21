@@ -211,6 +211,74 @@ public static class ProviderConn
         }
     }
 
+    /// <summary>
+    /// Reads what a rate cell's meter did, on the database clock the event rows are stamped with: the
+    /// instant of every admitted execution start, plus the attempt and re-arm totals behind them. The
+    /// meter is asked after the runtime is already Executing, so a denied attempt writes a start event
+    /// too; an admission is therefore a start with no rate-limited re-arm on the same (job, execution)
+    /// pair, and a claim always takes a fresh execution number so that pair names exactly one attempt.
+    /// </summary>
+    public static async Task<BenchRateAdmissions> ReadRateAdmissionsAsync(string provider, string schema, CancellationToken ct)
+    {
+        var q = Qualifier(provider, schema);
+        var started = (int)EventCode.JobExecutionStarted;
+        var rescheduled = (int)EventCode.JobRescheduled;
+        var rateLimited = (int)JobEventReasonCode.JobRateLimited;
+        try
+        {
+            await using var connection = await OpenAsync(provider, schema, ct);
+
+            await using var counts = connection.CreateCommand();
+            counts.CommandText =
+                $"SELECT (SELECT COUNT(*) FROM {q}events WHERE event_code = {started}), "
+                + $"(SELECT COUNT(*) FROM {q}events WHERE event_code = {rescheduled} AND reason_code = {rateLimited}), "
+                + $"(SELECT COUNT(DISTINCT job_id) FROM {q}events WHERE event_code = {started})";
+            counts.CommandTimeout = 0;
+            long attempts = 0;
+            long rearms = 0;
+            long jobs = 0;
+            await using (var reader = await counts.ExecuteReaderAsync(ct))
+            {
+                if (await reader.ReadAsync(ct))
+                {
+                    attempts = Convert.ToInt64(reader.GetValue(0), CultureInfo.InvariantCulture);
+                    rearms = Convert.ToInt64(reader.GetValue(1), CultureInfo.InvariantCulture);
+                    jobs = Convert.ToInt64(reader.GetValue(2), CultureInfo.InvariantCulture);
+                }
+            }
+
+            await using var admitted = connection.CreateCommand();
+            admitted.CommandText = $"""
+                SELECT e.created_at_utc
+                  FROM {q}events e
+                 WHERE e.event_code = {started}
+                   AND NOT EXISTS (
+                       SELECT 1
+                         FROM {q}events b
+                        WHERE b.job_id = e.job_id
+                          AND b.execution_number = e.execution_number
+                          AND b.event_code = {rescheduled}
+                          AND b.reason_code = {rateLimited})
+                 ORDER BY e.created_at_utc
+                """;
+            admitted.CommandTimeout = 0;
+            var instants = new List<DateTime>();
+            await using (var reader = await admitted.ExecuteReaderAsync(ct))
+            {
+                while (await reader.ReadAsync(ct))
+                {
+                    instants.Add(InstantOf(reader.GetValue(0)));
+                }
+            }
+
+            return new BenchRateAdmissions(instants, attempts, rearms, jobs);
+        }
+        catch (Exception ex) when (ex is SqliteException or NpgsqlException or SqlException or SocketException or TimeoutException)
+        {
+            throw new BenchDbUnavailableException(provider, ex);
+        }
+    }
+
     // SQLite keeps the bench file's one schema unqualified; the server providers scope every table
     // to the cell's own schema.
     private static string Qualifier(string provider, string schema) => LocalDatabase.IsSqlite(provider) ? "" : $"{schema}.";
@@ -218,6 +286,10 @@ public static class ProviderConn
     // SQLite stores instants as epoch milliseconds; Postgres and SQL Server bind the DateTime.
     private static object Instant(string provider, DateTime utc) =>
         LocalDatabase.IsSqlite(provider) ? (long)(utc - DateTime.UnixEpoch).TotalMilliseconds : utc;
+
+    // The read side of the same split: SQLite hands back the epoch milliseconds it stored.
+    private static DateTime InstantOf(object value) =>
+        value is long ms ? DateTime.UnixEpoch.AddMilliseconds(ms) : Convert.ToDateTime(value, CultureInfo.InvariantCulture);
 
     private static string SeedHistorySql(string provider, string schema, int spreadDays)
     {
@@ -490,6 +562,12 @@ internal static class BenchHistory
     }
 }
 
+/// <summary>
+/// What a rate cell's meter left in the ledger: the instant of every admitted execution start, the
+/// attempts behind them (admitted plus denied), the rate re-arms, and how many jobs were metered.
+/// </summary>
+public sealed record BenchRateAdmissions(IReadOnlyList<DateTime> AdmittedAtUtc, long Attempts, long Rearms, long MeteredJobs);
+
 /// <summary>Cumulative server locking counters at one instant; deltas around a cell are the cell's cost.</summary>
 public sealed record BenchLockStats(
     long Deadlocks,
@@ -653,6 +731,15 @@ public sealed class BenchHost : IAsyncDisposable
 
     /// <summary>The workload handler for a run: the audit-on twin when comparing audit cost, else the audit-off default.</summary>
     public static string WorkloadJobName(bool auditOn) => auditOn ? AuditJobName : JobName;
+
+    /// <summary>The rate-metered job name used by the rate scenario, matching <see cref="BenchRateHandler"/>.</summary>
+    public const string RateJobName = "bench-rate";
+
+    /// <summary>
+    /// The rate <see cref="BenchRateHandler"/> declares. It exists so the definition owns a meter at
+    /// registration; every rate cell overrides it to the rate that cell measures.
+    /// </summary>
+    public const string DeclaredRate = "1000/s";
 
     /// <summary>The blocking probe job name used by the recovery scenario.</summary>
     public const string BlockJobName = "bench-block";

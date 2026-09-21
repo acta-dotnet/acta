@@ -74,6 +74,110 @@ public sealed class JobExecutionRateAdmissionTests
     }
 
     [Fact]
+    public async Task A_turn_inside_the_next_quarter_second_is_waited_out_in_process_and_then_taken()
+    {
+        // The meter books a turn 40ms away, inside the quarter-second horizon: the runner sleeps the
+        // wait the meter measured, asks again, is admitted on the booked turn, and runs the handler
+        // with no re-arm and no second claim.
+        var harness = new JobExecutionHarness(
+            concurrencyKey: "customer-1",
+            concurrencyLimit: 4,
+            rateLimit: "10/s",
+            rateWaitMilliseconds: 40
+        );
+
+        var outcome = await harness.RunAsync();
+
+        Assert.Equal(RunOnceOutcome.Completed, outcome);
+        Assert.True(harness.HandlerRan);
+        Assert.Equal(2, harness.RateRequests.Count);
+        Assert.Equal(ExecutionOutcome.Succeeded, harness.Completion.Outcome);
+        Assert.Null(harness.Completion.RescheduleResumeAtUtc);
+        // The slot taken before the meter is kept through the wait and released after the handler.
+        Assert.Single(harness.SlotRequests);
+        Assert.Equal(1, harness.SlotReleases);
+    }
+
+    [Fact]
+    public async Task An_attempt_cancelled_during_the_wait_never_runs_its_handler()
+    {
+        // The attempt token is cancelled while the runner sleeps out a near turn (an operator cancel,
+        // a stolen lease, the timeout): the sleep ends at once, the meter is not asked again, the
+        // handler never runs, and the attempt settles through the cancellation path, not as a success.
+        var harness = new JobExecutionHarness(
+            concurrencyKey: "customer-1",
+            concurrencyLimit: 4,
+            rateLimit: "10/s",
+            rateWaitMilliseconds: 200,
+            cancelAttemptDuringRateWait: true
+        );
+
+        var started = System.Diagnostics.Stopwatch.StartNew();
+        await harness.RunAsync();
+
+        Assert.True(started.ElapsedMilliseconds < 150, "the cancelled wait was slept out in full");
+        Assert.False(harness.HandlerRan);
+        Assert.Single(harness.RateRequests);
+        Assert.NotEqual(ExecutionOutcome.Succeeded, harness.Completion.Outcome);
+        Assert.Equal(1, harness.SlotReleases);
+    }
+
+    [Fact]
+    public async Task A_worker_shutdown_during_the_wait_returns_the_slot_and_leaves_the_row_for_recovery()
+    {
+        // The worker token is cancelled while the runner sleeps out a near turn: the cancellation
+        // propagates as it does for any attempt shutdown interrupts, no completion is written, but the
+        // slot this process holds is released now rather than at lease expiry.
+        var harness = new JobExecutionHarness(
+            concurrencyKey: "customer-1",
+            concurrencyLimit: 4,
+            rateLimit: "10/s",
+            rateWaitMilliseconds: 200,
+            cancelWorkerDuringRateWait: true
+        );
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => harness.RunAsync());
+
+        Assert.False(harness.HandlerRan);
+        Assert.Single(harness.RateRequests);
+        Assert.Empty(harness.Submitted);
+        Assert.Equal(1, harness.SlotReleases);
+    }
+
+    [Fact]
+    public async Task A_strict_deadline_that_passes_during_the_wait_cancels_before_the_handler()
+    {
+        // The deadline was still ahead at admission but passes during the 200ms wait: the re-arm path
+        // would have rechecked it on the next attempt, so the in-process path rechecks it after the
+        // wait, settles as deadline exceeded without a handler run, and returns the slot it held.
+        var harness = new JobExecutionHarness(
+            concurrencyKey: "customer-1",
+            concurrencyLimit: 4,
+            rateLimit: "10/s",
+            rateWaitMilliseconds: 200,
+            deadlineAtUtc: DateTime.UtcNow.AddMilliseconds(100)
+        );
+
+        var outcome = await harness.RunAsync();
+
+        Assert.Equal(RunOnceOutcome.Completed, outcome);
+        Assert.False(harness.HandlerRan);
+        Assert.Equal(ExecutionOutcome.Cancelled, harness.Completion.Outcome);
+        Assert.Equal(JobEventReasonCode.JobDeadlineExceeded, harness.Completion.JobEventReasonCode);
+        Assert.Equal(1, harness.SlotReleases);
+    }
+
+    [Fact]
+    public void The_in_process_wait_is_a_quarter_second_and_inside_the_turn_validity_window()
+    {
+        // A turn farther than the wait goes back through the claim path and must still be valid when
+        // the worker picks it up, so the wait can never exceed the second a turn stays honoured; and
+        // it stays short, about the pickup latency, so executors are not held for metered backlogs.
+        Assert.Equal(250, JobExecution.RateTurnWaitMilliseconds);
+        Assert.True(JobExecution.RateTurnWaitMilliseconds <= 1000);
+    }
+
+    [Fact]
     public async Task A_denied_rate_gives_back_the_concurrency_slot_it_just_took()
     {
         // Both gates declared: the slot is taken first, so a rate denial must hand it straight back

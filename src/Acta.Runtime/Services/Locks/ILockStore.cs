@@ -28,15 +28,15 @@ internal interface ILockStore
     /// time; every request moves it forward by <paramref name="intervalMilliseconds"/>, and an idle
     /// bucket is treated as far enough behind to hand out exactly <paramref name="burst"/> admissions
     /// back to back, which is what makes the burst a burst. Admitted means the returned instant has
-    /// passed and the caller may run now. Not admitted means the caller must re-arm at the returned
-    /// instant, where a reservation row is already waiting for this job: the turn is booked, so the
-    /// caller bounces once rather than racing the meter again. Both rows carry an instant rather than a
-    /// lease, offset so each expires only once it stops mattering: the bucket's when an idle meter
-    /// stops differing from a missing one, a reservation's <paramref name="graceSeconds"/> past its
-    /// turn, a fixed grace longer than any lease so a live job keeps a turn it is coming back for.
-    /// A turn is honoured only while it is fresh - at most one interval past its instant - so jobs whose
-    /// turns went stale while executors were busy are re-metered rather than released at once, at the
-    /// cost of a second re-arm each.
+    /// passed and the caller may run now. Not admitted means the turn is booked: a reservation row is
+    /// waiting for this job at the returned instant, and the wait to it is measured on the store's
+    /// clock, so a caller may sleep it out in process or re-arm at the instant without racing the meter.
+    /// Both rows carry an instant rather than a lease, offset so each expires only once it stops
+    /// mattering: the bucket's when an idle meter stops differing from a missing one, a reservation's
+    /// <paramref name="graceSeconds"/> past its turn, a fixed grace longer than any lease so a live job
+    /// keeps a turn it is coming back for. A turn is honoured while it is fresh - one second past its
+    /// instant, or one interval when that is longer - so jobs whose turns went stale while executors
+    /// were busy are re-metered rather than released at once, at the cost of a second re-arm each.
     /// </summary>
     Task<RateReservation> ReserveRateAsync(
         string bucketKey,
@@ -69,6 +69,7 @@ internal readonly record struct LockToken(string Key, Guid HoldToken);
 /// <summary>
 /// One rate-meter answer. <paramref name="ResumeAtUtc"/> is the instant this job's turn comes and is
 /// meaningful only when <paramref name="Admitted"/> is false; an admitted request reads back the
-/// store's clock, because the turn is now.
+/// store's clock, because the turn is now. <paramref name="WaitMilliseconds"/> is that instant minus
+/// the store's clock, zero when admitted, so a caller that sleeps it out never imports host skew.
 /// </summary>
-internal readonly record struct RateReservation(bool Admitted, DateTime ResumeAtUtc);
+internal readonly record struct RateReservation(bool Admitted, DateTime ResumeAtUtc, long WaitMilliseconds);

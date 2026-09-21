@@ -16,18 +16,19 @@ namespace Acta.Tests.Conformance.Scenarios;
 /// <summary>
 /// Per-definition rate-limit spec. The meter is a GCRA bucket row <c>{ns}.rate.{key}</c> whose
 /// instant is the next theoretical arrival time; a request that arrives early books a reservation row
-/// <c>{ns}.rate.{key}.{job_id}</c> and the attempt re-arms at exactly that instant, so a backlog
-/// drains at the rate with one re-arm per job and no re-race. Neither row is a hold: nothing extends
+/// <c>{ns}.rate.{key}.{job_id}</c>; the attempt sleeps a turn inside the next quarter second out in process and
+/// re-arms at the exact instant for a farther one, so a backlog drains at the rate with no re-race.
+/// A booked turn stays valid for a second past its instant. Neither row is a hold: nothing extends
 /// or releases them, and the expiry sweep collects them once their instant is past.
 /// </summary>
 [ConformanceSpec(
     "rate-limit.meter",
     "A definition's rate limit admits at the rate and books every early job a turn",
     Area = "Concurrency",
-    Contract = "A rate key admits its burst at once and then one per interval, booking each early job exactly one re-arm.",
+    Contract = "A rate key admits its burst at once and then one per interval, booking each early job a turn it waits for or returns to.",
     Arrange = "Definitions declaring a rate, alone and sharing a key, plus meters driven through the lock store.",
     Act = "Real handlers drain a backlog through the rate, and store-level requests spend and stage turns.",
-    Assert = "Admissions stay inside the rate, each denied job re-arms once at its reserved instant, and one key means one bucket."
+    Assert = "Admissions stay inside the rate, a booked turn is honoured for a second, and one key means one bucket."
 )]
 [CoversStoreMethod(typeof(ILockStore), nameof(ILockStore.ReserveRateAsync))]
 public abstract class RateLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
@@ -68,10 +69,10 @@ public abstract class RateLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, Te
         var ct = TestContext.Current.CancellationToken;
         var bucket = Bucket(TestKey("rl-booked"));
 
-        // Parked minutes ahead so the first request has to wait, and so the row stays well clear of
+        // Parked thirty days ahead so the first request has to wait, and so the row stays well clear of
         // any concurrent sweep in this shared database: a charge below must be the only thing that
         // moves it.
-        Assert.NotNull(await Locks.TryAcquireAsync(bucket, TimeSpan.FromMinutes(5), 1201, ct));
+        Assert.NotNull(await Locks.TryAcquireAsync(bucket, TimeSpan.FromDays(30), 1201, ct));
 
         var booked = await ReserveAsync(bucket, jobId, ct);
         Assert.False(booked.Admitted);
@@ -83,9 +84,16 @@ public abstract class RateLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, Te
         Assert.False(again.Admitted);
         Assert.Equal(booked.ResumeAtUtc, again.ResumeAtUtc);
         Assert.Equal(meterAfterBooking, await MeterAsync(bucket, ct));
+
+        // The wait is the turn minus the store's own now, so the runner never subtracts a host reading
+        // from a database one; parked thirty days ahead, it reads about thirty days, past int.MaxValue,
+        // which a backlog on a slow meter can reach and a 32-bit wait would overflow.
+        Assert.InRange(booked.WaitMilliseconds, 29L * 86_400_000, 30L * 86_400_000);
+        Assert.True(booked.WaitMilliseconds > int.MaxValue);
+        Assert.InRange(again.WaitMilliseconds, 1, booked.WaitMilliseconds);
     }
 
-    [Fact(DisplayName = "A turn returned on time admits once, is spent, and never moves the meter")]
+    [Fact(DisplayName = "A turn returned inside the second admits once, is spent, and never moves the meter")]
     public async Task A_turn_returned_on_time_admits_once_and_never_moves_the_meter()
     {
         const long jobId = 1400;
@@ -93,15 +101,19 @@ public abstract class RateLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, Te
         var bucket = Bucket(TestKey("rl-ontime"));
         var reservation = $"{bucket}.{jobId}";
 
-        // The meter is parked minutes ahead, so an admission below can only come from the turn.
+        // The meter is parked minutes ahead, so an admission below can only come from the turn. Nine
+        // intervals late at 100ms, which is how late a claim-path pickup can be after a re-arm at the
+        // exact instant: inside the one-second window the turn still counts, so a fast meter is not
+        // defeated by the worker's poll floor and jitter.
         Assert.NotNull(await Locks.TryAcquireAsync(bucket, TimeSpan.FromMinutes(5), 1401, ct));
-        await StageTurnAsync(reservation, jobId, TimeSpan.FromMilliseconds(-IntervalMilliseconds / 2), ct);
+        await StageTurnAsync(reservation, jobId, TimeSpan.FromMilliseconds(-900), ct);
         var meterBefore = await MeterAsync(bucket, ct);
 
         var admitted = await ReserveAsync(bucket, jobId, ct);
 
         // The meter counted this job when it allocated the turn; charging it again would meter it twice.
-        Assert.True(admitted.Admitted, "a turn barely past its instant was not honoured");
+        Assert.True(admitted.Admitted, "a turn 900ms past its instant was not honoured");
+        Assert.Equal(0, admitted.WaitMilliseconds);
         Assert.Equal(meterBefore, await MeterAsync(bucket, ct));
         Assert.Null(await ReadLockAsync(reservation, ct));
     }
@@ -115,7 +127,7 @@ public abstract class RateLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, Te
         var reservation = $"{bucket}.{jobId}";
 
         // A turn that went by while every executor was busy: still inside its grace, so the row is
-        // there, but further past its instant than one interval.
+        // there, but further past its instant than the second a turn stays valid for.
         Assert.NotNull(await Locks.TryAcquireAsync(bucket, TimeSpan.FromMinutes(5), 1451, ct));
         await StageTurnAsync(reservation, jobId, TimeSpan.FromSeconds(-5), ct);
         var meterBefore = await MeterAsync(bucket, ct);

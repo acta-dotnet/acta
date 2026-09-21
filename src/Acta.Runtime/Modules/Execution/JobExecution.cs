@@ -49,6 +49,20 @@ internal sealed class JobExecution(
     private readonly int _maxInlinePayloadBytes = options.Value.MaxInlinePayloadBytes;
     private readonly int _leaseTtlSeconds = options.Value.LeaseTtlSeconds;
     private readonly int _concurrencyKeyBounceDelaySeconds = options.Value.ConcurrencyKeyBounceDelaySeconds;
+
+    /// <summary>
+    /// The longest rate turn an executor sleeps out in process rather than re-arming for: a quarter of
+    /// a second, about the claim-path pickup latency, so a nearer turn is taken to the millisecond at
+    /// no more executor time than a re-arm would cost, while a farther one re-arms and frees the
+    /// executor for other work; a fleet of executors each holding a metered job for a whole second
+    /// starved unmetered jobs enqueued beside the backlog. Well inside the second a booked turn stays
+    /// valid past its instant, so a re-armed turn is still honoured when the worker returns for it.
+    /// </summary>
+    internal const int RateTurnWaitMilliseconds = 250;
+
+    private static bool IsNearTurn(RateReservation reservation) =>
+        !reservation.Admitted && reservation.WaitMilliseconds > 0 && reservation.WaitMilliseconds <= RateTurnWaitMilliseconds;
+
     private readonly ILogger _log = log ?? NullLogger.Instance;
     private readonly JobMetrics? _metrics = metrics;
 
@@ -169,6 +183,44 @@ internal sealed class JobExecution(
             try
             {
                 reservation = await jobContext.ReserveRateAsync(descriptor.RateKey ?? descriptor.JobName, rate, ct);
+                if (IsNearTurn(reservation))
+                {
+                    // A turn inside the next quarter second is slept out here, on the wait the meter measured on
+                    // its own clock, and then collected: no re-arm, no claim round trip, and the turn is
+                    // taken to the millisecond. A farther turn goes back through the claim path, where a
+                    // one-second validity window covers the worker's pickup latency when it returns.
+                    _log.LogDebug(
+                        "WorkerRuntime: ({Operation}) ({Outcome}) job {JobId} ({Reason}); rate key ({Detail}) admits it in {DurationMs}ms, waiting in process.",
+                        "rate-admission",
+                        "Waiting",
+                        job.JobId,
+                        "turn-near",
+                        descriptor.RateKey ?? descriptor.JobName,
+                        reservation.WaitMilliseconds
+                    );
+                    using var turnWait = CancellationTokenSource.CreateLinkedTokenSource(ct, jobContext.CancellationToken);
+                    try
+                    {
+                        await Task.Delay((int)reservation.WaitMilliseconds, turnWait.Token);
+                        reservation = await jobContext.ReserveRateAsync(descriptor.RateKey ?? descriptor.JobName, rate, turnWait.Token);
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        // Worker shutdown mid-wait: the row stays Executing for recovery like any attempt
+                        // shutdown interrupts, but the slot this process holds goes back now rather than
+                        // at lease expiry, since nothing below will run to release it.
+                        await jobContext.ReleaseConcurrencySlotAsync(CancellationToken.None);
+                        throw;
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // The attempt was cancelled while it waited: an operator cancel, a stolen lease, or
+                        // the timeout. Admitted on paper, so the handler block below settles it the way it
+                        // settles any attempt cancelled before its handler ran; the booked turn stays on
+                        // the row for a return inside the window or for the sweep.
+                        reservation = new RateReservation(true, reservation.ResumeAtUtc, 0);
+                    }
+                }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -188,7 +240,7 @@ internal sealed class JobExecution(
                     descriptor.RateKey ?? descriptor.JobName,
                     _concurrencyKeyBounceDelaySeconds * 1000
                 );
-                reservation = new RateReservation(true, DateTime.UtcNow);
+                reservation = new RateReservation(true, DateTime.UtcNow, 0);
             }
             rateLimited = !admissionFailed && !reservation.Admitted;
             if (rateLimited)
@@ -207,6 +259,22 @@ internal sealed class JobExecution(
             }
         }
 
+        // A rate wait can outlast a Strict deadline that was still ahead at admission; the re-arm
+        // path rechecked it on the next attempt, so the in-process path rechecks it here. The slot
+        // goes back now, since the deadline branch below never took one.
+        if (
+            !deadlineHitAtAdmission
+            && !concurrencyBounced
+            && !rateLimited
+            && descriptor.DeadlineBehavior == DeadlineBehaviorCode.Strict
+            && jobContext.DeadlineAtUtc is { } waitedPastDue
+            && waitedPastDue <= DateTime.UtcNow
+        )
+        {
+            deadlineHitAtAdmission = true;
+            await jobContext.ReleaseConcurrencySlotAsync(CancellationToken.None);
+        }
+
         if (!deadlineHitAtAdmission && !concurrencyBounced && !rateLimited)
         {
             var sw = Stopwatch.StartNew();
@@ -214,6 +282,10 @@ internal sealed class JobExecution(
 
             try
             {
+                // An attempt cancelled between the start CAS and here - during a rate wait, or in the
+                // instant before - settles through the cancellation path below without invoking a
+                // handler that may not take the token.
+                jobContext.CancellationToken.ThrowIfCancellationRequested();
                 var requestObject = DeserializeInput(descriptor, job);
                 inputDeserialized = true;
                 ValueTask<JobHandlerInvocationResult> handlerInvocation()

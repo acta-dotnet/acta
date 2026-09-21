@@ -82,7 +82,8 @@ internal sealed class RelationalLockStore(IDbSession session, ISqlDialect dialec
             },
             static reader => new RateReservation(
                 Convert.ToBoolean(reader.GetValue(1), CultureInfo.InvariantCulture),
-                reader.GetDateTimeUtc(0)
+                reader.GetDateTimeUtc(0),
+                Convert.ToInt64(reader.GetValue(2), CultureInfo.InvariantCulture)
             ),
             ct
         );

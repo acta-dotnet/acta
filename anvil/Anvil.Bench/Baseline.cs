@@ -63,7 +63,11 @@ public sealed record BaselineCellKey(
     int PayloadBytes,
     int Workers,
     int Rows,
-    int Iterations
+    int Iterations,
+    // The rate scenario's two dimensions. Default so every other scenario's key is unchanged and a
+    // baseline captured before the scenario existed still reads back.
+    string? Rate = null,
+    int SideJobs = 0
 );
 
 public sealed record BaselineMetrics(
@@ -129,6 +133,26 @@ public static class BaselineSuite
         QueryRows: 100_000,
         FullMatrix: true
     );
+
+    /// <summary>One rate cell: the rate its meter is overridden to, and the load put through it.</summary>
+    private sealed record RateCell(string Rate, int Jobs, int Workers, int SideJobs, bool QuickToo);
+
+    // A metered cell's length is its job count divided by its rate, so the rate picks the count rather
+    // than the preset's shared one. Quick runs the two short ones; full adds the hot meter and the cell
+    // that drains unmetered jobs beside the metered backlog.
+    private static readonly RateCell[] RateCells =
+    [
+        // About thirty seconds at 100/s, three workers pushing on one meter.
+        new("100/s", Jobs: 3_000, Workers: 3, SideJobs: 0, QuickToo: true),
+        // The fastest rate the format allows, one admission per millisecond: is the bucket row's lock
+        // what sets the pace rather than the rate?
+        new("1000/s", Jobs: 20_000, Workers: 3, SideJobs: 0, QuickToo: false),
+        // Ten at once and then one per 100ms: the same interval as 10/s, written per minute, so the
+        // cell shows a per-minute rate metering as a smooth rate rather than a minute's worth at once.
+        new("600/m", Jobs: 600, Workers: 1, SideJobs: 0, QuickToo: true),
+        // A metered backlog and an unmetered one released together: what a busy meter costs its neighbours.
+        new("100/s", Jobs: 3_000, Workers: 3, SideJobs: 3_000, QuickToo: false),
+    ];
 
     private static readonly string[] Providers = ["sqlite", "pg", "mssql"];
     private static readonly ExecutionProfile[] ExecutionProfiles =
@@ -295,6 +319,33 @@ public static class BaselineSuite
                 actualExecutors: 1,
                 actualClaimBatch: 2
             );
+
+            foreach (var cell in RateCells)
+            {
+                if (!preset.FullMatrix && !cell.QuickToo)
+                {
+                    continue;
+                }
+
+                Add(
+                    specs,
+                    scenario: "rate",
+                    actualScenario: "rate",
+                    provider,
+                    dbVersion,
+                    keyProfile: null,
+                    actualProfile: ExecutionProfile.Direct,
+                    jobs: cell.Jobs,
+                    executors: 16,
+                    claimBatch: 32,
+                    payloadBytes: 0,
+                    workers: cell.Workers,
+                    rows: 0,
+                    iterations: 200,
+                    rate: cell.Rate,
+                    sideJobs: cell.SideJobs
+                );
+            }
         }
 
         return scenarios is null ? specs : [.. specs.Where(s => scenarios.Any(token => MatchesScenarioToken(s, token)))];
@@ -352,7 +403,9 @@ public static class BaselineSuite
         int rows,
         int iterations,
         int? actualExecutors = null,
-        int? actualClaimBatch = null
+        int? actualClaimBatch = null,
+        string? rate = null,
+        int sideJobs = 0
     )
     {
         var key = new BaselineCellKey(
@@ -366,7 +419,9 @@ public static class BaselineSuite
             payloadBytes,
             workers,
             rows,
-            iterations
+            iterations,
+            rate,
+            sideJobs
         );
         var actual = new CellParams(
             provider,
@@ -377,7 +432,9 @@ public static class BaselineSuite
             iterations,
             Math.Max(1, workers),
             rows,
-            actualProfile
+            actualProfile,
+            rate,
+            sideJobs
         );
         specs.Add(new BaselineCellSpec(scenario, actualScenario, provider, keyProfile, actual, key));
     }
@@ -772,6 +829,7 @@ public static class BaselineReport
         AppendEnqueue(sb, baseline.Cells);
         AppendEnqueueBatch(sb, baseline.Cells);
         AppendQuery(sb, baseline.Cells);
+        AppendRate(sb, baseline.Cells);
         return sb.ToString();
     }
 
@@ -785,6 +843,10 @@ public static class BaselineReport
         if (c.ExecutionProfile is { } profile)
         {
             parts.Add(profile.ToLowerInvariant());
+        }
+        if (c.Rate is { } rate)
+        {
+            parts.Add(rate);
         }
         if (c.Jobs > 0)
         {
@@ -805,6 +867,10 @@ public static class BaselineReport
         if (c.Rows > 0)
         {
             parts.Add($"r={c.Rows}");
+        }
+        if (c.SideJobs > 0)
+        {
+            parts.Add($"s={c.SideJobs}");
         }
         return string.Join(' ', parts);
     }
@@ -1073,6 +1139,63 @@ public static class BaselineReport
             );
         }
         sb.AppendLine();
+    }
+
+    // Skipped unless the run measured rate cells, so every report that never asked for one is
+    // byte-for-byte what this harness always wrote.
+    private static void AppendRate(StringBuilder sb, IReadOnlyList<BaselineCellResult> cells)
+    {
+        var rows = cells
+            .Where(c => c.Key.Scenario == "rate")
+            .OrderBy(c => c.Key.Provider, StringComparer.Ordinal)
+            .ThenBy(c => Extra(c, "declaredPerSec"))
+            .ThenBy(c => c.Key.SideJobs)
+            .ToArray();
+        if (rows.Length == 0)
+        {
+            return;
+        }
+
+        sb.AppendLine("## Rate limit: what the meter admitted");
+        sb.AppendLine();
+        sb.AppendLine("A backlog released at once against one meter. Admitted jobs/s is measured over the first-to-last admission span.");
+        sb.AppendLine(
+            "Excess is max(admissions in the window) - (R*(T+W) + burst), W being how long a booked turn stays valid: one second, or one interval when longer. At most 0 is inside the contract."
+        );
+        sb.AppendLine("Re-arms/job counts the turns each job had to book before it ran.");
+        sb.AppendLine();
+        sb.AppendLine(
+            "| provider | rate | jobs | workers | side jobs | admitted/s | max 1s | excess 1s | excess 5s | excess 10s | re-arms/job |"
+        );
+        sb.AppendLine("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+        foreach (var row in rows)
+        {
+            var k = row.Key;
+            sb.AppendLine(
+                CultureInfo.InvariantCulture,
+                $"| {k.Provider} | {k.Rate} | {k.Jobs} | {k.Workers} | {k.SideJobs} | {row.MedianMetrics.JobsPerSecond:F1} "
+                    + $"| {FormatWhole(Extra(row, "maxStartsIn1s"))} | {Extra(row, "contractExcess1s"):F0} "
+                    + $"| {Extra(row, "contractExcess5s"):F0} | {Extra(row, "contractExcess10s"):F0} | {Extra(row, "rearmsPerJob"):F2} |"
+            );
+        }
+        sb.AppendLine();
+
+        var side = rows.Where(r => r.Key.SideJobs > 0).ToArray();
+        if (side.Length > 0)
+        {
+            sb.AppendLine("Unmetered jobs drained beside the metered backlog, queue residence in ms:");
+            sb.AppendLine();
+            sb.AppendLine("| provider | rate | side jobs | p50 | p99 |");
+            sb.AppendLine("| --- | --- | ---: | ---: | ---: |");
+            foreach (var row in side)
+            {
+                sb.AppendLine(
+                    CultureInfo.InvariantCulture,
+                    $"| {row.Key.Provider} | {row.Key.Rate} | {row.Key.SideJobs} | {Extra(row, "sideP50Ms"):F2} | {Extra(row, "sideP99Ms"):F2} |"
+                );
+            }
+            sb.AppendLine();
+        }
     }
 
     private static string PolicyText(BaselinePolicy policy)

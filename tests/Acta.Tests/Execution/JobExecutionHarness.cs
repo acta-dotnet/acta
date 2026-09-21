@@ -35,6 +35,10 @@ internal sealed class JobExecutionHarness(
     string? rateLimit = null,
     string? rateKey = null,
     DateTime? rateResumeAtUtc = null,
+    int? rateWaitMilliseconds = null,
+    bool cancelAttemptDuringRateWait = false,
+    bool cancelWorkerDuringRateWait = false,
+    DateTime? deadlineAtUtc = null,
     bool slotThrows = false,
     bool rateThrows = false,
     string jobName = "harness-job"
@@ -47,11 +51,14 @@ internal sealed class JobExecutionHarness(
 
     private readonly CancellationTokenSource _attemptCts = new();
 
+    // The worker token the runner is handed, cancelled by the script when a fact wants a shutdown.
+    private readonly CancellationTokenSource _workerCts = new();
+
     // The execution-timeout source, handed to the RunningAttempt so a cancellation can be told from an
     // external one. Unlinked from _attemptCts here; TimeOutAttempt cancels both.
     private readonly CancellationTokenSource _timeoutCts = new();
     private readonly ScriptedExecutionStore _store = new(stepOutcome, completionAction, startAction, startFailsOnce, startAfterFailure);
-    private readonly ScriptedLockStore _locks = new(slotGranted, rateResumeAtUtc, slotThrows, rateThrows);
+    private readonly ScriptedLockStore _locks = new(slotGranted, rateResumeAtUtc, rateWaitMilliseconds, slotThrows, rateThrows);
     private readonly RecordingLogger _log = new();
 
     /// <summary>Every concurrency-slot acquire the runner issued, in order.</summary>
@@ -103,6 +110,10 @@ internal sealed class JobExecutionHarness(
     {
         handler ??= static (ctx, token) => ctx.RunStepAsync(StepName, static _ => Task.CompletedTask, ct: token);
         _store.OnStepCompletion = cancelAttemptOnStepCompletion ? _attemptCts.Cancel : null;
+        _locks.OnRateRequest =
+            cancelAttemptDuringRateWait ? _attemptCts.Cancel
+            : cancelWorkerDuringRateWait ? _workerCts.Cancel
+            : null;
 
         var options = Options.Create(new JobsOptions());
         if (maxInlinePayloadBytes is { } configuredCap)
@@ -127,7 +138,7 @@ internal sealed class JobExecutionHarness(
             _locks,
             cancellationToken: _attemptCts.Token,
             triggeringScheduleNames: [],
-            deadlineAtUtc: null,
+            deadlineAtUtc: deadlineAtUtc,
             // The two the production JobExecutor supplies and this harness used to default away:
             // without the cap a handler write is unbounded here but bounded in production, and
             // without the attempt every timeout reads as a plain external cancel.
@@ -155,7 +166,7 @@ internal sealed class JobExecutionHarness(
             isRecurring: false,
             fireOutcome: null,
             alreadyStarted: false,
-            CancellationToken.None
+            _workerCts.Token
         );
     }
 
@@ -390,7 +401,9 @@ internal sealed class JobExecutionHarness(
         public Task RecordJobNoteAsync(long jobId, int executionNumber, string message, JobPayload? detail, CancellationToken ct) =>
             throw new NotSupportedException();
 
-        public Task<IReadOnlyList<long>> GetChildJobIdsAsync(long parentJobId, CancellationToken ct) => throw new NotSupportedException();
+        // The deadline path cancels descendants, and a harness job has none.
+        public Task<IReadOnlyList<long>> GetChildJobIdsAsync(long parentJobId, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<long>>([]);
 
         public Task<IReadOnlyList<StaleChildLatch>> GetStaleChildLatchesAsync(int namespaceId, CancellationToken ct) =>
             throw new NotSupportedException();
@@ -459,7 +472,13 @@ internal sealed class JobExecutionHarness(
     // a handler fault.
     private sealed class ProviderDown() : System.Data.Common.DbException("connection dropped");
 
-    private sealed class ScriptedLockStore(bool slotGranted, DateTime? rateResumeAtUtc, bool slotThrows, bool rateThrows) : ILockStore
+    private sealed class ScriptedLockStore(
+        bool slotGranted,
+        DateTime? rateResumeAtUtc,
+        int? rateWaitMilliseconds,
+        bool slotThrows,
+        bool rateThrows
+    ) : ILockStore
     {
         private readonly List<SlotRequest> _slotRequests = [];
         private readonly List<RateRequest> _rateRequests = [];
@@ -467,6 +486,9 @@ internal sealed class JobExecutionHarness(
         public IReadOnlyList<SlotRequest> SlotRequests => _slotRequests;
 
         public IReadOnlyList<RateRequest> RateRequests => _rateRequests;
+
+        /// <summary>Runs after the first reservation is recorded: the script's way to cancel the attempt mid-wait.</summary>
+        public Action? OnRateRequest { get; set; }
 
         public int SlotReleases { get; private set; }
 
@@ -493,12 +515,24 @@ internal sealed class JobExecutionHarness(
         )
         {
             _rateRequests.Add(new RateRequest(bucketKey, intervalMilliseconds, burst, graceSeconds));
+            if (_rateRequests.Count == 1)
+            {
+                OnRateRequest?.Invoke();
+            }
             if (rateThrows)
             {
                 throw new ProviderDown();
             }
+            // A scripted far turn re-arms (its wait is past the in-process window); a scripted near turn
+            // is handed back with its wait once, and the call that follows the sleep finds it admitted.
+            if (rateWaitMilliseconds is { } wait && _rateRequests.Count == 1)
+            {
+                return Task.FromResult(new RateReservation(false, DateTime.UtcNow.AddMilliseconds(wait), wait));
+            }
             return Task.FromResult(
-                rateResumeAtUtc is { } resumeAt ? new RateReservation(false, resumeAt) : new RateReservation(true, DateTime.UtcNow)
+                rateResumeAtUtc is { } resumeAt
+                    ? new RateReservation(false, resumeAt, JobExecution.RateTurnWaitMilliseconds + 1)
+                    : new RateReservation(true, DateTime.UtcNow, 0)
             );
         }
 

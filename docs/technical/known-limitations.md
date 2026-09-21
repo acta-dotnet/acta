@@ -49,6 +49,17 @@ A provider outage longer than that leaves the attempt's row Executing under a le
 heartbeat keeps renewing, until that worker process restarts and its rows are reclaimed as a dead
 worker's.
 
+A rate meter paces starts, not what a handler does after it starts, and one meter is one row lock:
+every admission is a round trip that serializes on that row, so a single key tops out around a
+thousand admissions per second cluster-wide, which is also the fastest rate the parser accepts. An
+executor that draws a turn under a quarter second away holds its slot while it sleeps it out, so a fleet
+saturated with rate-limited jobs spends up to a quarter second of executor time per job waiting; the
+alternative, a re-arm and a claim per turn, costs more and paces worse. A process that dies inside
+that wait leaves the job Executing under its lease, and recovery reclaims it as it would one that
+died in its handler: one attempt of retry budget charged for a handler that never ran, bounded to
+the quarter second the wait can last. A turn farther away re-arms Ready durably, costs nothing, and
+leaves the executor to other work, which is why the wait is short.
+
 A shared rate meter is kept to one rate by registration and by the override write, which applies a
 rate to every participant at once; two shapes can still leave a meter's participants at different
 effective rates. A definition whose manifest moves it onto another meter keeps the override it

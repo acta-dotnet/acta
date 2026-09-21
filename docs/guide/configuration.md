@@ -252,21 +252,27 @@ due. A job that arrives after that instant runs immediately. A job that arrives 
 next free instant, and the attempt re-arms Ready at exactly that instant without spending retry
 budget, carrying the reason `job.rate-limited`; that is never a failure, so it writes no
 `Failures`-level event and raises no alert. Because the turn is booked rather than contended for, a
-backlog costs **one re-arm per job** and drains in arrival order at the rate, with no re-racing.
+backlog drains in arrival order at the rate, with no re-racing. A turn under a quarter of a second away is not
+re-armed at all: the executor keeps the job and sleeps until the exact instant, on a wait the meter
+measured on the database clock, then takes the turn; only a farther turn goes back through the claim
+path, and it costs that job **one re-arm**, never more.
 
-**A turn is honoured only while it is fresh**: up to one interval past its instant. A job that comes
-back inside that window runs without touching the meter, because the meter already counted it when it
-booked the turn. A job whose turn went stale - every executor was busy when its instant came round -
-goes back through the meter and is given a new one, which costs it a second re-arm. That is what
-stops a queue of overdue jobs from all starting the moment executors free up: after an idle stretch
-they are released at the burst, not in one crowd.
+**A booked turn stays valid for one second past its instant**, or one interval when the interval is
+longer. A job that comes back inside that window runs without touching the meter, because the meter
+already counted it when it booked the turn, and a second covers the worker's pickup latency at any
+rate. A job whose turn went stale - every executor was busy for longer than that when its instant came
+round - goes back through the meter and is given a new one, which costs it a second re-arm. That is
+what stops a queue of overdue jobs from all starting the moment executors free up: after a long stall
+they are released at the burst, not in one crowd. One meter is one row lock, so a single key tops out
+around a thousand admissions per second cluster-wide, which is also the fastest rate the parser accepts.
 
 The contract: the meter allocates at most `R*T + B` turns in any `T` seconds, where `B` is the burst an
 idle meter hands out back to back: one second's worth of the rate, at least one, so `10/s` and `600/m`
 both admit ten at once and then one per 100 ms, and `5/m` admits one and then one every twelve seconds.
 A per-minute or per-hour rate therefore reads as a smooth rate with a small cushion, never a whole
-period's worth released at once. A turn may be taken up to one interval late, so any window of
-admissions can see one more than that: at most `R*T + B + 1`. Within 10% of `R` over 60
+period's worth released at once. A booked turn may be taken up to its validity window `W` late, one
+second or one interval when the interval is longer, so a window of `T` seconds can hold that much of
+late turns on top: at most `R*(T + W) + B`. Within 10% of `R` over 60
 seconds of continuous demand holds as long as executors are free - the other half of the contract, since
 the rate caps how fast jobs *start*, so if every executor is busy the realized rate is lower.
 

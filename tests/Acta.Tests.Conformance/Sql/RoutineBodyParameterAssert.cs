@@ -87,11 +87,13 @@ public static partial class RoutineBodyParameterAssert
     }
 
     // pg: parameters are the leading identifier of each top-level item in the "FUNCTION name(...)"
-    // parameter list (the file's first '(': nothing before it in a CREATE FUNCTION header can carry
-    // one); the body is the text between the first and second "$$" dollar-quote delimiters.
+    // parameter list, the first '(' after the CREATE (a DROP of a retired signature may precede it,
+    // and its type list is not a declaration); the body is the text between the first and second
+    // "$$" dollar-quote delimiters.
     private static (IReadOnlyList<string> Declared, string Body) SplitPg(string masked)
     {
-        var open = masked.IndexOf('(');
+        var create = masked.IndexOf("CREATE", StringComparison.OrdinalIgnoreCase);
+        var open = masked.IndexOf('(', Math.Max(0, create));
         var close = MatchingParen(masked, open);
         var paramList = open >= 0 && close > open ? masked[(open + 1)..close] : "";
 
@@ -105,7 +107,9 @@ public static partial class RoutineBodyParameterAssert
             }
         }
 
-        var firstDollar = masked.IndexOf("$$", StringComparison.Ordinal);
+        // The body is the first dollar-quoted block after the CREATE, so a DO block that precedes the
+        // function (a conditional drop of a retired shape) is not mistaken for it.
+        var firstDollar = masked.IndexOf("$$", Math.Max(0, create), StringComparison.Ordinal);
         var secondDollar = firstDollar >= 0 ? masked.IndexOf("$$", firstDollar + 2, StringComparison.Ordinal) : -1;
         var body = firstDollar >= 0 && secondDollar > firstDollar ? masked[(firstDollar + 2)..secondDollar] : "";
 

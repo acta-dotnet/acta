@@ -171,9 +171,11 @@ It is mutual exclusion, never ordering: an older job can be overtaken while the 
 `[Job("send-invoice", RateLimit = "10/s")]` caps how OFTEN attempts start, which is a different
 gate from how many run at once, and a job passes both. `RateKey` names the meter when several
 definitions should share one; omitted, the meter is the definition name. Definitions on one meter must
-declare the same rate. A job that arrives early is BOOKED the next free instant and re-arms Ready at
-exactly that instant without spending retry budget (reason `job.rate-limited`, never a failure and
-never an alert), so a backlog costs one re-arm per job and drains in arrival order at the rate.
+declare the same rate. A job that arrives early is BOOKED the next free instant: under a quarter second away
+the executor sleeps it out and takes it, farther away the job re-arms Ready at exactly that instant
+without spending retry budget (reason `job.rate-limited`, never a failure and never an alert), and a
+booked turn stays valid for a second, so a backlog drains in arrival order at the rate with at most
+one re-arm per job.
 
 ## Payloads
 
