@@ -17,11 +17,12 @@ nuget.org via Trusted Publishing (`publish-nuget` job in `ci.yml`, gated on the 
 - Dashboard `npm ci`, `npm test`, `npm run build`.
 - `dotnet run --project tools/Acta.Emit -- check`
 - `dotnet csharpier check .`
-- Schema guard, pre-1.0: a re-cut `M001` is allowed. When the release diff contains one, the stamp
-  reads `baseline-<yyyymmdd>` for the day it was cut, in both `SqlDdlDialect.BaselineStamp` and
-  `SchemaMigrationRunner.RequiredBaselineStamp`, so a database from any earlier cut refuses to start
-  instead of taking the re-cut as a no-op. Re-cutting again on a later day moves the stamp again;
-  there is no per-release budget, because the date is the identity.
+- Schema guard, pre-1.0: a re-cut `M001` is allowed. `schema amend` stamps each provider's `M001`
+  with a hash of its own content and writes `src/Acta.Relational/Schema/BaselineStamps.g.cs` in the
+  same pass, so a database from any earlier cut refuses to start instead of taking the re-cut as a
+  no-op, and `Acta.Emit check` fails on a hand-edited `M001`. Nothing about the stamp is settled by
+  hand; it moves with every re-cut, however small, so the last re-cut of a release happens before
+  certification, never after.
 - The release notes name the changed objects and say that every provider's database must be dropped
   and reprovisioned, since there is no upgrade path between generations before 1.0.
 - Schema/code-freeze guard, from 1.0.0: the release diff contains no M001 edits and no destructive
@@ -30,7 +31,7 @@ nuget.org via Trusted Publishing (`publish-nuget` job in `ci.yml`, gated on the 
 
 ## Frozen contracts
 
-Four baselines fail a test on drift, so the suite above already catches an accidental change. What a
+Five baselines fail a test on drift, so the suite above already catches an accidental change. What a
 release adds is the judgement the test cannot make: **read each moved baseline and confirm the move was
 intended.** A regenerated baseline is indistinguishable from a deliberate one once committed.
 
@@ -40,6 +41,7 @@ intended.** A regenerated baseline is indistinguishable from a deliberate one on
 | HTTP surface | `docs/reference/openapi.json` | `ACTA_EMIT_OPENAPI=1 dotnet test tests/Acta.Tests --filter OpenApiContractTests` |
 | Persisted codes | hash in `PersistedCodeContractTests` | re-pin the hash by hand |
 | Conformance docs | `docs/reference/conformance-contracts.md` | `ACTA_EMIT_DOCS=1 dotnet test tests/Acta.Tests --filter DocsContractTests` |
+| Baseline stamps | `src/Acta.Relational/Schema/BaselineStamps.g.cs`, one hash per provider `M001` | `dotnet run --project tools/Acta.Emit -- schema amend` (pre-1.0 only; from 1.0.0 a moved stamp means `M001` was edited and blocks the release) |
 
 Before 1.0 a moved surface is allowed and belongs in the release notes. From 1.0 the .NET and HTTP
 surfaces are additive-only, so a diff that removes or renames a member is a 2.0 change and blocks the
@@ -57,6 +59,24 @@ per-release gate run locally.
 - SQLite is single-node, so its run is reduced and its seal states which properties were out of scope.
 - File the JSON/MD seal under `docs/certification/`.
 
+Two commits carry a release, and their roles do not mix:
+
+- **The certified code commit, A**, is the last commit that touches code, schema, routines, tests,
+  tools, anvil, project files, or a generated artifact. The format check, `Acta.Emit check`, the unit
+  suite, every provider conformance suite, the benchmarks, and, when the release certifies, the
+  certification quartet and the coverage run all execute against exactly A. Every seal records A as
+  the certified commit. A release may skip certification by decision when the execution model did not
+  change; the release notes say so, and the benchmark round is then the gate.
+- **The tag commit, B**, is the last of the documentation-only commits after A that file whatever
+  evidence the release produced (seals, the benchmark and coverage pages, the certification index)
+  and the release-notes header flip.
+  `tools/release-guard.ps1 -CertifiedCommit <A> -TagCommit HEAD` runs before tagging and fails when
+  `A..B` touches anything outside `docs/certification/`, `docs/benchmarks/`, `docs/release-notes.md`,
+  `docs/README.md`, `site/` (the useacta.net benchmark strip cites the round), or this page.
+- A defect found by any of A's runs abandons A: the fix goes back through its slice, a new candidate is
+  cut, and every piece of evidence is re-run against it. Evidence from an abandoned candidate is never
+  reused for the next one.
+
 ## Coverage
 
 Published, never gated. The `build-test` CI job runs `tools/coverage.ps1`, which instruments
@@ -67,8 +87,8 @@ purpose: a target invites tests written to colour lines rather than to falsify b
 The deliverable is [the blind-spot list](../certification/coverage-baseline-rc1.md) — the recorded
 baseline plus, for ten failure areas, which code paths nothing executes — and, per release round, a
 baseline page beside it that records the new numbers with `tools/coverage.ps1` and says which
-entries moved; a blind spot that a new test closed should leave the list, and a new one should join
-it.
+entries moved ([coverage-baseline-rc2.md](../certification/coverage-baseline-rc2.md) is the current
+one); a blind spot that a new test closed should leave the list, and a new one should join it.
 
 ## Packaging
 
@@ -111,11 +131,21 @@ Each line names the evidence that asserts it; none is checked by hand.
   to end. The demos consume the published packages, so this is the release verification that the packaged
   artifacts work in a real multi-project app: analyzers and the `[Job]` generator flowing from package
   assets, the dashboard serving from the embedded assets, providers resolving transitively.
+- Review useacta.net for staleness before the site deploys, and only once the packages resolve from
+  nuget.org, because the site's install line names the version a visitor will restore. Mandatory,
+  not "when applicable": a release once shipped with the site still naming the previous candidate in two places. Run
+  `node tools/site-check.mjs --version <released version>`; it fails when the install line names
+  another version, when a nav or footer differs between pages, and on horizontal overflow at phone
+  and tablet widths, and it lists every other version literal under `site/` for the hand read,
+  since benchmark provenance may legitimately cite an earlier round. Then read the pages once by hand for what a script cannot
+  judge: the benchmark strip cites the round the release notes cite, the concept count is current,
+  and every claim about semantics still matches the guide.
 
 ## Final checks
 
 - No generated docs drift.
 - No generated migration snapshot drift.
+- No baseline stamp drift: `Acta.Emit check` rehashes every provider's `M001` against its generated constant.
 - No accidental dashboard build artifacts.
 - No local benchmark output committed unless intentionally included.
 - Public examples still match current package names and startup APIs.

@@ -1,5 +1,159 @@
 # Release notes
 
+## 1.0.0-rc.3
+
+Unreleased. The last re-cut of the baseline before 1.0.0. Two features the data model was missing
+land on the existing lock store, the persisted model gains the row-shape constraints it lacked, the
+claim seeks on PostgreSQL instead of sorting, and five defects on the recovery and completion paths
+are fixed. Nothing changes in the execution model; an alerting redesign is deferred, with its design
+written down.
+
+### What a consumer must change
+
+- **Drop and reprovision every database.** `M001` is re-cut: `definitions` gains the concurrency
+  and rate policy columns, `jobs.exclusive_key` is renamed, five CHECK constraints are added and one
+  tightened, and two SQL Server indexes gain a physical option. There is no upgrade path between
+  baseline generations before 1.0.0; a database from any earlier build refuses to start with a
+  message naming both stamps. rc.3 ships:
+
+  | Provider | Stamp |
+  | --- | --- |
+  | PostgreSQL | `baseline-e1a1f3207caf5a295743ba88d8c3ca26` |
+  | SQL Server | `baseline-2978ad1ccb8de123488c4581477c134d` |
+  | SQLite | `baseline-ae203e66a1801dbadb6af7d799f352b6` |
+
+- **The baseline stamp is a content hash, one per provider.** Each provider's `M001` records
+  `baseline-<32 hex>` of its own emitted text, and the runtime requires the matching generated
+  constant. A hand-edited baseline fails `Acta.Emit check`. An operator who adapts the applied script
+  keeps the recorded row; the live database is never hashed.
+- **`ExclusiveKey` is `ConcurrencyKey`.** The enqueue request, the enqueue options, both builders,
+  and `JobDetail` carry the new name; the `jobs` column and the published `jobs` view column are
+  `concurrency_key`; the reason code keeps its value under the name `job.concurrency-key-held`. The
+  outbox staging table created in your own database by the `AddActaOutboxStaging` DDL helpers has
+  the renamed column too, so drop and recreate it along with the ledger. Behaviour is unchanged.
+- **The `alerts-cursor` variable is a pair.** The projector checkpoints `{"ticks":..,"eventId":..}`
+  instead of a number. Nothing migrates it, because no rc.2 database can start on the rc.3 stamp.
+
+### Concurrency limits
+
+- `[Job("sync-crm", ConcurrencyLimit = 4)]` lets at most four attempts of a key run at once across
+  the whole fleet. The key is the enqueue's `ConcurrencyKey` when it gave one, else the definition
+  name once the definition declares a limit, so a limit declared later applies to jobs enqueued
+  earlier; a key without a limit means one, which is what the exclusive key always was.
+- Admission is one round trip regardless of the limit: a new `acquire_slot` routine takes the first
+  free of N slot rows `{ns}.sem.{key}.{i}` in the lock store in a single statement, steals an expired
+  one the way `acquire_lock` does, and the primary key keeps two racers off one slot. The slot is held
+  and heartbeat-extended like the exclusive lease and released with it, so a dead worker's slot
+  expires with its lease. A loser re-arms budget-neutral after the bounce delay, as before.
+- The limit is a policy slot like the others: an operator override tightens it live, workers pick
+  it up on their next policy reload. Rules that follow from the slot scheme, stated in the
+  configuration guide: a shared key's capacity is the largest limit among its participants, a
+  smaller-limit definition competes for the first N slots only, lowering one definition never
+  reduces another participant's slots, and a lowered limit takes effect per worker as each observes
+  it, so a rollout is bounded by the larger of the two limits and never exceeds it.
+
+### Rate limits
+
+- `[Job("send-invoice", RateLimit = "10/s", RateKey = "stripe")]` meters how often attempts of a
+  key may start, fleet-wide: N per second, minute, or hour, N at most 1,000 per second, the interval
+  rounded up to whole milliseconds. The key defaults to the definition name; definitions that share a
+  key must declare the same rate, registration rejects a mismatch, and a rate override on a shared
+  meter applies to every participant in one write, so the meter never carries two rates; a
+  definition joining a meter must declare the meter's effective rate, override included.
+- The meter is GCRA with reservations, in the lock store and with no schema of its own. One bucket
+  row per key carries the theoretical arrival time; every request advances it by exactly one
+  interval and receives its own instant. An instant that has come admits the job; a later one books
+  the job a turn, and the attempt settles as a budget-neutral re-arm at exactly that instant with the
+  new reason `job.rate-limited`, which is neither a failure nor alertable. When the job returns on
+  time it is admitted on its booked turn without touching the bucket, so a hot queue drains at the
+  configured rate with one re-arm per waiting job and no re-race. A job that returns more than one
+  interval late goes back through the meter, so a backlog of overdue turns releases at most one
+  burst at once; a turn that its job never takes is swept fifteen minutes after it came due and costs
+  that job one more re-arm at the tail. An idle meter's burst is one second's worth of the rate, at
+  least one: `600/m` admits ten at once and then one per 100 ms, never six hundred at once. Contract:
+  the meter allocates at most `R*T + B` turns in any `T` seconds for that burst `B`, and a turn may
+  be taken up to one interval late, so any window sees at most `R*T + B + 1` admissions; under
+  continuous demand with idle executors the admitted rate is within 10% of `R` over a minute.
+- Admission takes the concurrency slot first and the rate second, and a rate denial gives the slot
+  straight back. A provider error during either admission bounces the attempt instead of stranding
+  the row; known limitations records the one slot such an error can leave held for a lease TTL.
+
+### Claiming: a Ready row always carries its due instant
+
+The claim admitted a Ready row with no `next_run_at_utc` as due now and ordered by
+`next_run_at_utc ASC NULLS FIRST` on PostgreSQL, whose index defaults to NULLS LAST on an ascending
+key; the planner therefore could not walk the claim index in the claim's order and sorted every
+ready row on each claim, 3.5 ms against 0.19 ms at 10,000 ready rows, as an incremental sort on a
+fresh table and a sequential scan plus sort once statistics landed. Every write that lands Ready
+already carried an instant; the one way to lose it was the sleep-timer consume writing NULL with no
+status guard, which a stale worker could issue after its row had been reclaimed. The timer write now
+requires Executing, the Ready arm of the claim is `next_run_at_utc <= now()` on every provider,
+PostgreSQL's ORDER BY drops the nulls clause, and `ck_runtimes_ready_due` pins the invariant.
+Suspended keeps NULL for an unbounded wait and stays unclaimable. The index is unchanged; the plan
+on a populated schema is an Index Only Scan under a Limit with dueness as an index condition.
+
+### Schema
+
+- `ck_runtimes_inflight_leased`: a `Dispatched` or `Executing` row must carry a lease. With the
+  existing one-way check, in flight and a complete lease pair are now the same fact.
+- `ck_checkpoints_kind_shape`: a timer must carry its due instant.
+- `ck_steps_terminal_no_retry`, `ck_steps_result_succeeded`, `ck_steps_reason_pair`: a terminal step
+  carries no retry instant, only a `Succeeded` step carries a result, and a reason message needs a
+  reason code. Adding them exposed two routine defects, both fixed: an at-most-once step interrupted
+  before completion kept its due retry instant, and a step that failed then succeeded kept the earlier
+  failure's reason on its `Succeeded` row.
+- SQL Server: `pk_results` and `ix_runtimes_retention` gain `OPTIMIZE_FOR_SEQUENTIAL_KEY`, after a
+  per-index page-latch attribution the bench harness now records showed both as insert convoys; the
+  single-worker `Buffered` ceiling is the clustered `runtimes` key itself and stays as documented.
+- Counter widths stay Int32 by decision; the margin is documented on the runtime entity.
+
+### Recovery and completion
+
+- A claim the worker has no handler for is released instead of held: the row returns to Ready one
+  safety-poll interval later, budget-neutral, with a warning per bounce and an event under `Audit`.
+  A rolling deploy or a manifest that dropped a definition used to leave such a job Dispatched under
+  a lease the heartbeat renewed until the process restarted.
+- The completion write of an attempt, the release above, and the Bulk sink's batch flush and its
+  per-job fallback retry a provider error five times over about fifteen seconds before giving up. A
+  write whose first try committed and then lost its response is settled on the retry; a start that
+  committed and lost its response is still released through the guarded completion. Beyond the
+  retry window the row stays Executing under a renewed lease until the process restarts, which known
+  limitations records.
+- One recovery pass, shared by the `sys.recovery` handler and the test host, and the production
+  startup order lives in one helper shared with the test host. The recovery-slot guardian checks
+  the slot every seven minutes instead of every hour. Conformance specs execute the real handler and
+  start and stop the real host.
+
+### Alerting
+
+- The projector's cursor is the pair `(created_at_utc, id)`, stored as one variable. A cursor keyed
+  on the event id alone could step over an event whose stamp and id inverted, which happens when a
+  slow writer commits a low stamp under a high id; the id half stays for the tie-break within one
+  stamp. The walk assumes a database clock that does not step backwards; known limitations records
+  the cost of a step and the manual rewind.
+- Unchanged, and now written down as a limitation: under `AuditLevel.Failures` a success writes no
+  event, so an incident opened under `Failures` does not resolve on its own. The events-only design
+  that fixes it without a schema change is written up for a later release.
+
+### Testing package
+
+- `Acta.Testing`'s query builders bound a `DateTime` untyped, which SQL Server inferred as legacy
+  `datetime` and rounded to 1/300 s before it reached a `datetime2(3)` column. They bind
+  `datetime2` there now. A test that staged an instant to the millisecond could land one millisecond
+  off on SQL Server and pass or fail on timing.
+
+### Certification and benchmarks
+
+The release gate is a full-matrix benchmark round on all three providers against a same-hour rc.2
+control and the certification quartet on the certified commit; the pages and seals are filed under
+`docs/benchmarks` and `docs/certification`.
+
+### Deferred
+
+Three designs are written up for a later release, in this order: alerting under `Failures` from
+events only, rolling deploys (the retire window and the bounce set), and pools as per-namespace
+dedicated worker capacity.
+
 ## 1.0.0-rc.2
 
 Tagged 2026-09-10. A correctness round over the paths a release candidate has to get right before
