@@ -3,7 +3,10 @@
 A seal is the durable record of one chaos-certification run: the shape (jobs, slots, kill cadence,
 processes), the commit it ran against, every asserted property, and the verdict. Seals are evidence,
 not marketing — a seal that found a defect says so, and the re-run against the fix is a separate
-seal. The current gate definitions live in [releasing.md](../internals/releasing.md).
+seal. The current gate definitions live in [releasing.md](../internals/releasing.md). The ensemble
+gate's workload carries a rate-limited shape (`metered`, declared `600/m`), so its seal also reports
+the rate contract: how many handler starts the meter admitted, the busiest one-second and ten-second
+windows, and the budget each was measured against.
 
 Superseded seals are pruned: when a certification round is re-cut on a later commit at the same
 shapes, the earlier round's seals leave the tree (git history keeps them). What remains is the

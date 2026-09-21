@@ -274,3 +274,32 @@ LEFT   JOIN {s}tenants t ON t.id = j.tenant_id
 WHERE  e.event_code = 90
   AND  e.reason_message LIKE 'tenant %'
   AND  e.reason_message <> CONCAT('tenant ', COALESCE(t.tenant_key, '-'));
+
+-- ---------------------------------------------------------------------------------------------
+-- 14. the rate meter never over-admitted                 [COMPUTED IN PROCESS: see CertifyVerdict]
+-- ---------------------------------------------------------------------------------------------
+-- The rate-limit claim: a definition declaring `600/m` never starts more handlers inside a window
+-- than its meter allows, while workers are being killed and their attempts reclaimed and re-run.
+--
+-- The witness is the `metered-admitted` note each metered body writes as its first action (event
+-- code 90), one per admitted attempt. Admission is metered per attempt, after start_execution and
+-- before the body, so a reclaimed attempt that runs again is metered again; `steps` keeps one row
+-- per (job, name) and updates it in place, so it cannot count starts at all.
+--
+-- The contract is an upper envelope, not a smooth rate. For a declared rate of R admissions per
+-- second with burst B, a window of T seconds holds at most R*(T + W) + B admitted starts, W being
+-- how long a booked turn stays valid past its instant: one second, or the emission interval when
+-- that is longer. `600/m` parses to a 100ms interval, so R = 10/s, B = 10, W = 1s, and the budgets
+-- are 30 starts in any one-second window and 120 in any ten-second window.
+--
+-- This is the one check that is not SQL. Counting a sliding window needs timestamp arithmetic, and
+-- date addition has three different spellings across the providers this file runs on unchanged.
+-- CertifyVerdict reads the note instants over the same connection, counts the windows in process,
+-- and prints the result beside these checks as `rate-contract`: one failure line per window over
+-- budget, plus a note line carrying the admitted total and the busiest window of each length, so a
+-- passing run shows its numbers too.
+--
+-- Read those numbers with check 9 beside them. A note blocked on locks lands with the stamp its
+-- routine captured at entry, so a run whose recorded clock stepped backwards can bunch admissions
+-- into a window they did not belong to. The envelope absorbs a little of that; a violation of a few
+-- starts over budget on a run with many backsteps is worth re-reading before it is called a defect.

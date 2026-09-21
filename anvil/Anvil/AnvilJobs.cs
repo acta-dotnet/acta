@@ -39,6 +39,13 @@ public sealed record FanOut(string Label, int ChildCount);
 /// </summary>
 public sealed record AtMostOnceCharge(string Label, int WorkMs);
 
+/// <summary>
+/// A job whose definition declares a rate limit, so the engine meters how often its attempts may start
+/// cluster-wide. Seeded into the crash workload so the meter is certified while workers are being killed
+/// and their attempts reclaimed and re-run.
+/// </summary>
+public sealed record Metered(string Label);
+
 public static class SteadySuccessJob
 {
     [Job("steady-success")]
@@ -189,6 +196,25 @@ public static class AtMostOnceChargeJob
     }
 }
 
+public static class MeteredJob
+{
+    /// <summary>The declared meter, read back by the verdict to derive the window budgets it checks.</summary>
+    internal const string Rate = "600/m";
+
+    // The note is the whole evidence for the rate contract, and it is written before anything else so
+    // it stands for the instant the handler was admitted. Admission is metered per attempt, after
+    // start_execution and before this body, so a reclaimed attempt that runs again is metered again -
+    // which makes admitted handler starts the quantity the contract bounds. `steps` cannot count them:
+    // it keeps one row per (job, name) and updates it in place. Every event carries the database's own
+    // stamp, so the windows are measured on one clock rather than on each worker's.
+    [Job("metered", RateLimit = Rate)]
+    public static async Task<string> Handle(Metered input, JobContext ctx, CancellationToken ct)
+    {
+        await ctx.NoteAsync("metered-admitted", ct);
+        return $"metered: {input.Label}";
+    }
+}
+
 /// <summary>Payload-less recurring pulse: keeps the schedules view alive even with no workload seeded.</summary>
 public readonly record struct Pulse;
 
@@ -225,6 +251,8 @@ internal static class AnvilPayloads
     public static JobPayload Json(FanOut v) => JobPayload.Json(v, AnvilPayloadJsonContext.Default.FanOut);
 
     public static JobPayload Json(AtMostOnceCharge v) => JobPayload.Json(v, AnvilPayloadJsonContext.Default.AtMostOnceCharge);
+
+    public static JobPayload Json(Metered v) => JobPayload.Json(v, AnvilPayloadJsonContext.Default.Metered);
 }
 
 /// <summary>
@@ -249,6 +277,7 @@ internal static class AnvilPayloads
 [JsonSerializable(typeof(OutboxReceipt))]
 [JsonSerializable(typeof(FanOut))]
 [JsonSerializable(typeof(AtMostOnceCharge))]
+[JsonSerializable(typeof(Metered))]
 [JsonSerializable(typeof(Pulse))]
 // Job outputs.
 [JsonSerializable(typeof(string))]

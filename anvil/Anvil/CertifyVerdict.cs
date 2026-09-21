@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Globalization;
 using System.Reflection;
 using Acta;
 using Microsoft.Data.SqlClient;
@@ -64,6 +65,11 @@ internal static class CertifyVerdict
             Console.WriteLine($"  [{verdict}] {check.Name, -28} {detail}");
         }
 
+        if (!await RateContractAsync(connection, prefix, ct))
+        {
+            failures.Add("rate-contract");
+        }
+
         Console.WriteLine();
         if (failures.Count == 0)
         {
@@ -88,6 +94,129 @@ internal static class CertifyVerdict
         Console.WriteLine("  wait until no runtimes row is Dispatched or Executing, then re-run.");
         Console.WriteLine();
         return 1;
+    }
+
+    // How many over-budget windows are printed by name before the rest are summed up. A meter that
+    // over-admits does it in a run of adjacent windows, so the first few carry the finding and the
+    // hundreds behind them would only bury the checks above.
+    private const int ReportedWindows = 10;
+
+    /// <summary>
+    /// Check 14, the rate contract, computed here rather than in <c>certify.sql</c>: counting a sliding
+    /// window needs timestamp arithmetic with a different spelling on each provider that file runs on.
+    /// Prints one line per over-budget window and always a note line carrying the numbers, and returns
+    /// whether the meter held.
+    /// </summary>
+    private static async Task<bool> RateContractAsync(DbConnection connection, string prefix, CancellationToken ct)
+    {
+        var (perSecond, burst, validitySeconds) = Meter(MeteredJob.Rate);
+        var instants = await AdmissionsAsync(connection, prefix, ct);
+        var budget1 = Budget(perSecond, burst, validitySeconds, 1);
+        var budget10 = Budget(perSecond, burst, validitySeconds, 10);
+        var (max1, over1) = Scan(instants, 1, budget1);
+        var (max10, over10) = Scan(instants, 10, budget10);
+        var violations = over1.Concat(over10).ToList();
+
+        foreach (var window in violations.Take(ReportedWindows))
+        {
+            Console.WriteLine($"  [FAIL] {"rate-contract", -28} {window}");
+        }
+        if (violations.Count > ReportedWindows)
+        {
+            Console.WriteLine($"  [FAIL] {"rate-contract", -28} and {violations.Count - ReportedWindows} further window(s) over budget");
+        }
+
+        // Printed on a passing run too: the seal's claim is the measured envelope, not the absence of
+        // a failure line, and a reader cannot judge the margin without the busiest window beside it.
+        Console.WriteLine(
+            $"  [note] {"rate-contract", -28} rate={MeteredJob.Rate} admitted={instants.Count}"
+                + $" max_1s={max1} budget_1s={budget1} max_10s={max10} budget_10s={budget10}"
+        );
+        return violations.Count == 0;
+    }
+
+    // The two numbers the meter is built from, derived from the declared rate exactly as RateLimitSpec
+    // derives them: the emission interval is the period divided by the count and rounded up, and the
+    // burst is one second's worth of the rate, floored, never below one. Also the validity: a booked
+    // turn stays good for a second past its instant, or for one interval when that is longer, which is
+    // how many extra admissions a window may hold on top of its own share.
+    private static (double PerSecond, int Burst, double ValiditySeconds) Meter(string rate)
+    {
+        var count = int.Parse(rate[..rate.IndexOf('/', StringComparison.Ordinal)], CultureInfo.InvariantCulture);
+        var periodMilliseconds = rate[^1] switch
+        {
+            's' => 1_000,
+            'm' => 60_000,
+            _ => 3_600_000,
+        };
+        var intervalMilliseconds = (periodMilliseconds + count - 1) / count;
+        return (
+            1_000.0 / intervalMilliseconds,
+            (int)Math.Max(1, count * 1_000L / periodMilliseconds),
+            Math.Max(1.0, intervalMilliseconds / 1_000.0)
+        );
+    }
+
+    // The contract in one line: R*(T + W) + B admitted starts in any window of T seconds, floored,
+    // because a budget is a count and a fractional turn cannot be taken.
+    private static int Budget(double perSecond, int burst, double validitySeconds, double seconds) =>
+        (int)Math.Floor((perSecond * (seconds + validitySeconds)) + burst);
+
+    // Every admission opens a window of its own, so scanning [t, t + T) from each one covers every
+    // window that can hold a maximum. The end pointer never walks backwards as the start advances,
+    // which is what keeps this linear over a run's worth of notes.
+    private static (int Max, List<string> Violations) Scan(IReadOnlyList<DateTime> instants, double seconds, int budget)
+    {
+        var window = TimeSpan.FromSeconds(seconds);
+        var violations = new List<string>();
+        var max = 0;
+        var end = 0;
+        for (var start = 0; start < instants.Count; start++)
+        {
+            end = Math.Max(end, start);
+            while (end < instants.Count && instants[end] - instants[start] < window)
+            {
+                end++;
+            }
+
+            var admitted = end - start;
+            max = Math.Max(max, admitted);
+            if (admitted > budget)
+            {
+                var from = instants[start].ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture);
+                violations.Add($"{seconds:0}s window from {from} admitted {admitted}, budget {budget}");
+            }
+        }
+        return (max, violations);
+    }
+
+    // The witness: one note per admitted attempt, written by the metered body before it does anything
+    // else. Joined through definitions rather than trusted to the note text alone, so another shape
+    // writing the same words could not be read as an admission.
+    private static async Task<IReadOnlyList<DateTime>> AdmissionsAsync(DbConnection connection, string prefix, CancellationToken ct)
+    {
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = $"""
+            SELECT e.created_at_utc
+            FROM   {prefix}events e
+            JOIN   {prefix}jobs j ON j.id = e.job_id
+            JOIN   {prefix}definitions d ON d.id = j.definition_id
+            WHERE  e.event_code = 90
+              AND  e.reason_message = 'metered-admitted'
+              AND  d.name = 'metered'
+            ORDER  BY e.created_at_utc
+            """;
+        var instants = new List<DateTime>();
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            // SQLite stores an instant as epoch milliseconds; the server providers hand back a DateTime.
+            var value = reader.GetValue(0);
+            instants.Add(
+                value is long ms ? DateTime.UnixEpoch.AddMilliseconds(ms) : Convert.ToDateTime(value, CultureInfo.InvariantCulture)
+            );
+        }
+        return instants;
     }
 
     private static async Task<(int Rows, string? First)> CountAsync(DbConnection connection, string sql, CancellationToken ct)

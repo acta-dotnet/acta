@@ -39,14 +39,22 @@ public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
     // slow-success land inside a body that must never run twice. Marked as expected-to-fail: an
     // interrupted AtMostOnce step terminalizes the ambiguity rather than retrying, which is the
     // contract, so those failures are the shape working and the board's target must include them.
+    //
+    // Another tenth is the metered shape, and both tenths come out of slow-success so the workload
+    // keeps its requested size. Metered jobs are due with the bulk rather than timed like the charges:
+    // the meter, not the enqueue, decides when each one starts, and the slice is sized so those
+    // admissions are still being handed out while workers are dying (a tenth of 4,000 at ten a second
+    // is about forty seconds of meter-bound work inside a seven-minute chaos window).
     private static IReadOnlyList<SeedLine> CrashRecoveryPlan(AnvilRunSpec spec)
     {
         var charges = Math.Max(1, spec.Load / 10);
-        var slow = spec.Load - charges;
+        var metered = Math.Max(1, spec.Load / 10);
+        var slow = Math.Max(0, spec.Load - charges - metered);
         var spread = Math.Max(1, spec.EffectSpreadSeconds);
         return
         [
             new("slow-success", slow, false, i => AnvilPayloads.Json(new SlowSuccess($"slow-{i}", 5, spec.StepDelayMs))),
+            new("metered", metered, false, i => AnvilPayloads.Json(new Metered($"metered-{i}"))),
             new(
                 "at-most-once-charge",
                 charges,
