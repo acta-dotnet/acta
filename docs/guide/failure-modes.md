@@ -80,13 +80,16 @@ migration plan. Search retained failed jobs too: an operator restart can make th
 A worker that claims such a job hands it straight back. Claims are selected by namespace, not by
 what a process can run, so during a rolling deploy either version can claim either version's jobs.
 A worker with no handler for a claimed job returns it to `Ready` with the lease cleared, no failure
-charged and no retry consumed, due again one safety-poll interval later, and logs a warning naming
-the job ref and definition id. Under audit level `Audit` the bounce writes one
-`job.execution-finished` row with reason `job.unclassified` whose message names the definition;
-under `Failures` it writes nothing, because nothing failed. A job whose definition no live worker
-carries bounces indefinitely at that cadence and sits `Ready` without progressing; that is the
-symptom to look for, and the fix is still to keep the old definition registered until the rows
-drain.
+charged and no retry consumed, due again one safety-poll interval later, and stops claiming that
+definition for the rest of its process life; the first hand-back logs a warning naming the job ref
+and definition id, the rest of the same claimed batch log at debug. Under audit level `Audit` the
+hand-back writes one `job.execution-finished` row with reason `job.unclassified` whose message names
+the definition; under `Failures` it writes nothing, because nothing failed. A job whose definition
+no live worker carries sits `Ready` without progressing, and its definition page shows it `Active`
+with queued work and no worker that carries it; the fix is to redeploy a build that carries the
+handler, or to retire the definition from the dashboard, which cancels its parked jobs. Removing a
+handler from a deploy never cancels anything by itself; see
+[Production § rolling deploys](./production.md#rolling-deploys).
 
 ## …a checkpoint name changes during a deployment?
 

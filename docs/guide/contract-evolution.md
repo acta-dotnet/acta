@@ -106,7 +106,9 @@ public Task Handle(SendInvoiceV2 input, CancellationToken ct)
 ```
 
 Keep `send-invoice-v1` registered while old rows can still run, including during rolling deploys
-and until retention has removed old in-flight or retryable jobs.
+and until retention has removed old in-flight or retryable jobs. Dropping the handler does not
+cancel those rows: they stay `Ready` until a build that carries the handler registers again or an
+operator retires the definition, which cancels its parked jobs.
 
 ## Job names are durable routes
 

@@ -37,12 +37,12 @@ Administrative actions can also make work run again. An operator restart deliber
 job, and a database restore can rewind Acta state to a point where work appears runnable even if
 external side effects already happened.
 
-A claim carries no capability check. The claim selects by namespace and the descriptor index is
-process-side, so a worker can claim a job it has no handler for; it releases the claim
-budget-neutral, due again one safety-poll interval later, instead of running it. While no live
-worker carries the definition the job cycles `Ready`, claimed, `Ready` at that cadence, writing one
-warning per cycle (and one event under `Audit`) and never progressing. Claim-time filtering on the polling worker's
-supported set would remove the bounce; it is not in 1.0.
+A claim carries no capability check up front. The claim selects by namespace and the descriptor
+index is process-side, so a worker can claim a job it has no handler for; it releases the claim
+budget-neutral, due again one safety-poll interval later, and from then on excludes that definition
+from its own claims for the rest of the process. While no live worker carries the definition the
+job sits `Ready`, each worker having handed it back once (one event under `Audit` per hand-back)
+and never progressing; the way out is a build that carries the handler or the operator retire verb.
 
 A completion write that fails on a provider error is retried, five tries over about fifteen seconds.
 A provider outage longer than that leaves the attempt's row Executing under a lease the worker's
@@ -222,7 +222,17 @@ Acta's contract drift guard is not a full JSON schema compatibility checker. It 
 definition-level input/output type and payload-format changes; the application owns JSON wire
 compatibility.
 
-See [`contract-evolution.md`](../guide/contract-evolution.md).
+Rolling deploys are covered by three rules and nothing persisted: registration never retires a
+definition the manifest omits, a worker excludes a definition it bounced for the rest of its
+process, and retiring is an operator verb. The boundaries of that: the exclusion is per process, so
+every worker of a build bounces each unknown definition once before excluding it; while a worker's
+exclusion set is non-empty, each of its claims looks up `jobs.definition_id` for every excluded row
+ahead of the first claimable one, so a long run of jobs no running worker can execute makes every
+such claim walk it until the definition is retired or its build returns; and retiring a definition
+cancels its parked jobs but not their descendants, which finish into a cancelled parent.
+
+See [`contract-evolution.md`](../guide/contract-evolution.md) and
+[Production § rolling deploys](../guide/production.md#rolling-deploys).
 
 ## Dashboard and API exposure
 

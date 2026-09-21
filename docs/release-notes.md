@@ -4,12 +4,24 @@
 
 Unreleased. The last re-cut of the baseline before 1.0.0. Two features the data model was missing
 land on the existing lock store, the persisted model gains the row-shape constraints it lacked, the
-claim seeks on PostgreSQL instead of sorting, and five defects on the recovery and completion paths
-are fixed. Nothing changes in the execution model; an alerting redesign is deferred, with its design
-written down.
+claim seeks on PostgreSQL instead of sorting, five defects on the recovery and completion paths are
+fixed, and rolling deploys become a documented shape: registration never retires, a worker stops
+claiming a definition it cannot run, and retiring is an operator verb. An alerting redesign is
+deferred, with its design written down.
 
 ### What a consumer must change
 
+- **Removing a handler no longer cancels its queued jobs.** `register_job_definitions` used to
+  retire every definition the registering worker did not carry and cancel its parked jobs in the
+  same call. It now leaves such a definition `Active` with its jobs. Retiring is an operator verb:
+  `IActaOperations.Definitions.RetireAsync`, `POST /definitions/{namespace}/{name}/retire`, or the
+  button on the dashboard definition page. It cancels the definition's `Ready`, `Suspended`, and
+  `Paused` jobs with reason `job.definition-retired`, releases a parent waiting on one of them,
+  leaves executing jobs to finish, rejects new enqueues, and writes one `definition.retired` event.
+  A build that carries the handler at an equal or newer manifest generation re-activates it.
+- **`claim_batch` takes a sixth parameter.** The set of definition ids the calling worker has
+  bounced, defaulted to empty on PostgreSQL and SQL Server; the five-argument PostgreSQL signature
+  is dropped by the routine install. No migration: routines are not baseline content.
 - **Drop and reprovision every database.** `M001` is re-cut: `definitions` gains the concurrency
   and rate policy columns, `jobs.exclusive_key` is renamed, five CHECK constraints are added and one
   tightened, and two SQL Server indexes gain a physical option. There is no upgrade path between
@@ -97,6 +109,31 @@ PostgreSQL's ORDER BY drops the nulls clause, and `ck_runtimes_ready_due` pins t
 Suspended keeps NULL for an unbounded wait and stays unclaimable. The index is unchanged; the plan
 on a populated schema is an Index Only Scan under a Limit with dueness as an index condition.
 
+### Rolling deploys
+
+Two builds share a namespace while a deploy is in progress, and a rollback is the same picture in
+reverse. Three rules cover it, with no schema change; the production guide's "Rolling deploys"
+section is the home.
+
+- A worker that claims a job whose definition it carries no handler for hands it back to `Ready`
+  one safety-poll interval later, budget-neutral as before, and from then on excludes that
+  definition from its claims for the rest of its process life. Every row of the batch it already
+  claimed is handed back the same way; only the first hand-back of a definition logs a warning. An
+  empty claim's horizon ignores excluded rows too, so a worker whose only due rows belong to
+  another build sleeps out the safety-poll interval instead of retrying at the anti-spin floor.
+- The exclusion is in memory and never persisted; a process that carries the handler is a new
+  process. While it is non-empty, each claim on that worker looks up `jobs.definition_id` for every
+  excluded row ahead of the first claimable one. On a healthy fleet the set is empty and the claim
+  plan is unchanged.
+- A manifest that declares no scheduled job into a namespace that has some no longer fails worker
+  startup: the schedule reconcile sent an empty batch to the register verb, which read its namespace
+  from the first row.
+
+The ensemble certification workload gains a `metered` shape at `600/m` and the verdict a
+`rate-contract` check: no one-second or ten-second window of admissions past `R*(T+W)+B`, with W
+the one-second turn validity, reported with its busiest windows on every seal.
+
+
 ### Schema
 
 - `ck_runtimes_inflight_leased`: a `Dispatched` or `Executing` row must carry a lease. With the
@@ -155,9 +192,9 @@ control and the certification quartet on the certified commit; the pages and sea
 
 ### Deferred
 
-Three designs are written up for a later release, in this order: alerting under `Failures` from
-events only, rolling deploys (the retire window and the bounce set), and pools as per-namespace
-dedicated worker capacity.
+The two designs that were withdrawn from this release are written up for a later release, in this
+order: alerting under `Failures` from events only, and pools as per-namespace dedicated worker
+capacity.
 
 ## 1.0.0-rc.2
 

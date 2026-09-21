@@ -92,6 +92,10 @@ public static class ShippingHandlers
   it does not need the handler assembly.
 - Never enable `ApplyMigrationsOnStartup` outside an explicitly local or development
   configuration. Production schema comes from a deploy step.
+- Rolling deploys need no special handling: apply migrations, start the new build, stop the old
+  one. A worker hands back a job whose handler it lacks and stops claiming that definition;
+  registration never retires a definition the new build omits, so a rollback just works. Retiring
+  a dropped definition and cancelling its queue is an operator action on the definition.
 
 ## Steps
 

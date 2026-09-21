@@ -13,6 +13,8 @@ are declared.
 - Apply Acta migrations in a deployment step before workers start. Keep
   `ApplyMigrationsOnStartup = false` outside development.
 - Pin one Acta package version across all workers in a namespace.
+- Deploy with a rolling restart: apply migrations, start the new build, stop the old one. See
+  [Rolling deploys](#rolling-deploys) for what each build does with the other's jobs.
 - Set `DeploymentVersion` to a build id or git SHA. Set `ManifestGenerationUtc` only when you need
   deterministic definition promotion across packaged or single-file deployments.
 - Keep `HeartbeatInterval` identical across replicas of a namespace; the lease and dead-worker windows
@@ -101,6 +103,46 @@ upgrade. It is idempotent, so re-running it is always safe.
 
 See [`migrations.md`](../internals/migrations.md) for the migration model and `tools/Acta.Emit`
 commands.
+
+## Rolling deploys
+
+Two builds of the application share a namespace while a deploy is in progress: the old build keeps
+working while the new one starts, and the old one stops once the new one is up. A rollback is the
+same picture in reverse. Acta needs nothing from the orchestrator beyond that order.
+
+What holds while both builds run:
+
+- Claims are by namespace, so either build can claim a job of a definition only the other carries.
+  The worker without the handler hands the job back to `Ready` one `SafetyPollInterval` later with
+  no failure charged, and stops claiming that definition for the rest of its process life. Every row
+  of the batch it already claimed is handed back the same way; only the first hand-back logs a
+  warning. A worker with the handler picks the job up next.
+- Registration never retires. A definition the new build does not carry stays `Active` with its
+  jobs, so the old fleet finishes them and a rollback finds nothing missing. Policy still moves only
+  forward: an older `ManifestGenerationUtc` cannot overwrite a newer build's definition row.
+- Schedules follow the last build that registered. A schedule the new build no longer declares is
+  orphaned when the new build registers and comes back when a build that declares it registers
+  again, which is what a rollback does.
+- Migrations are forward-only and additive, so an older worker runs against a newer schema. Apply
+  the migration before the new build starts.
+
+Deploy: apply migrations, start the new workers, stop the old ones once the new ones are healthy.
+Rollback: start the old build, stop the new one. Jobs of a definition only the withdrawn build
+carried stay `Ready`, excluded from every running worker's claims; they run when a build with the
+handler returns, or an operator retires the definition.
+
+Retiring a definition is an operator decision: `IActaOperations.Definitions.RetireAsync`,
+`POST /definitions/{namespace}/{name}/retire`, or the button on the dashboard definition page. It
+marks the definition `Retired`, cancels its parked (`Ready`, `Suspended`, `Paused`) jobs with reason
+`job.definition-retired`, releases a parent waiting on a cancelled child, leaves executing jobs to
+finish their attempt, and rejects new enqueues. Descendants of a cancelled job are not cancelled. A
+build that carries the handler at an equal or newer manifest generation re-activates the definition
+when it registers; an older build cannot.
+
+One cost to know: while a worker's exclusion set is non-empty, each of its claims looks up
+`jobs.definition_id` for every excluded row ahead of the first claimable one. A long run of jobs no
+running worker can execute, such as a rollback after many enqueues of a new definition, makes every
+old worker's claim walk it. Retire the definition, or redeploy the build that carries it.
 
 ## Coexisting with your application's packages
 
