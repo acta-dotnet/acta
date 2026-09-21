@@ -313,21 +313,18 @@
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Tenants.ITenantStore.GetTenantAsync`
 
-### Newer-or-equal generation promotes policy; older cannot downgrade or retire
-- **Contract:** Writes a definition only when the incoming manifest generation is at or above the stored one, never downgrading or retiring on an older generation.
+### Newer-or-equal generation promotes policy; older cannot downgrade
+- **Contract:** Writes a definition only when the incoming manifest generation is at or above the stored one, and never touches a definition the manifest omits.
 - **Arrange:** A job definition is stored at a known manifest generation.
-- **Act:** The definition is re-registered at newer, equal, and older manifest generations.
-- **Assert:** Newer or equal generations update policy and retirement while older generations leave the stored row unchanged.
+- **Act:** Definitions are re-registered at newer, equal, and older manifest generations, and with one of them omitted.
+- **Assert:** Newer or equal generations update policy, older generations leave the stored row unchanged, and an omitted definition stays Active with its jobs.
 - **Guarantees:**
   - Newer generation updates policy and bumps version
   - Older generation does not change policy or version
   - Equal generation with a real difference is applied
   - Unchanged restart writes nothing
-  - Older generation does not retire a newer definition it omits
-  - Equal or newer generation retires a genuinely removed definition
+  - A definition absent from the manifest stays Active with its jobs
   - Older generation cannot reactivate or rewrite a newer retired definition
-  - Retirement cancels the definition's parked jobs with reason definition-retired
-  - A later registration does not re-cancel a re-armed job under an already-retired definition
   - Fail-mode contract drift blocks before any registration write
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Definitions.IDefinitionStore.GetDefinitionContractsAsync`
@@ -2665,9 +2662,9 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IAlertStore.ResolveJobAlertsAsync` | A replayed alert batch neither inflates an incident nor opens a ghost one<br>Alert profiles gate emission and severity per profile<br>Deliverable alerts read due rows, remind open incidents, and settle by version<br>Reclaiming a crashed timeout resolution costs the job no retry budget<br>The alerts projector classifies failures off events and resolves on success<br>ThresholdReached fires once per incident at the exact occurrence |
 | `IAlertStore.UpdateAlertDeliveryAsync` | Alert delivery retries with backoff, goes terminal, and reminds open incidents<br>Deliverable alerts read due rows, remind open incidents, and settle by version |
 | `IDefinitionStore.GetDefinitionAsync` | GetJobDefinition returns one definition by id and null for an unknown id |
-| `IDefinitionStore.GetDefinitionContractsAsync` | Newer-or-equal generation promotes policy; older cannot downgrade or retire |
+| `IDefinitionStore.GetDefinitionContractsAsync` | Newer-or-equal generation promotes policy; older cannot downgrade |
 | `IDefinitionStore.ListDefinitionsAsync` | ListJobDefinitions filter-matrix selects exactly matching rows per dimension<br>ListJobDefinitions pages the catalog by name order without duplicates |
-| `IDefinitionStore.RegisterDefinitionsAsync` | Init auto-registers system definitions, slots and schedules<br>Init writes namespace worker and full definition policy idempotently<br>Newer-or-equal generation promotes policy; older cannot downgrade or retire |
+| `IDefinitionStore.RegisterDefinitionsAsync` | Init auto-registers system definitions, slots and schedules<br>Init writes namespace worker and full definition policy idempotently<br>Newer-or-equal generation promotes policy; older cannot downgrade |
 | `IDefinitionStore.SetDefinitionOverridesAsync` | Definition override bind matrix: all 13 slots<br>Override writes are version-guarded, recompute effective, and audited |
 | `IExecutionStore.ArmOrConsumeSleepTimerAsync` | Reschedule re-arms Ready and durable sleep arms an idempotent timer |
 | `IExecutionStore.CheckpointSlotAsync` | A bounded group wait spends one stored deadline across every child and replay<br>Job variables round-trip through the context API with versioning and validation |

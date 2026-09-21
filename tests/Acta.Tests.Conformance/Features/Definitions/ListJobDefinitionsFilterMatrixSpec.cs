@@ -1,3 +1,4 @@
+using Acta.Relational.Entities;
 using Acta.Runtime.Modules.Execution.Definitions;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
@@ -68,8 +69,10 @@ public abstract class ListJobDefinitionsFilterMatrixSpec<TFixture> : ActaRuntime
         var defAId = firstMap[defAName];
         var defBId = firstMap[defBName];
 
-        // Re-register with only def-b: def-a is absent from manifest → def-a gets Retired
-        await DefinitionTestOps.RegisterAsync(Services, nsId, Gen, [Def(defBName)], ct);
+        // Retire def-a the way the operator verb leaves it; registration never writes Retired.
+        await Db.From<JobDefinition>()
+            .Where(d => d.Id == defAId)
+            .UpdateOnlyAsync(() => new JobDefinition { Status = JobDefinitionStatusCode.Retired }, ct);
 
         var activeIds = new HashSet<int> { defBId };
         var retiredIds = new HashSet<int> { defAId };

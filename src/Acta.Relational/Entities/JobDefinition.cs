@@ -49,8 +49,10 @@ internal sealed class JobDefinition : IEntity<int>
     public string Name { get; init; } = default!;
 
     /// <summary>
-    /// Lifecycle of this definition (<c>Active</c> / <c>Retired</c>), code/sync-owned; enqueue is
-    /// rejected at the DB boundary by <c>enqueue_batch</c> when not <c>Active</c>. No override.
+    /// Lifecycle of this definition (<c>Active</c> / <c>Retired</c>); enqueue is rejected at the DB
+    /// boundary by <c>enqueue_batch</c> when not <c>Active</c>. No override. Registration writes
+    /// <c>Active</c> and nothing else: <c>Retired</c> is written only by the operator retire verb, never
+    /// by registration, so a definition absent from a manifest keeps running.
     /// </summary>
     [DbColumn("status_code")]
     public JobDefinitionStatusCode Status { get; internal set; }

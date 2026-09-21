@@ -28,8 +28,9 @@ internal interface IDefinitionStore
 
     /// <summary>
     /// Upserts the namespace's whole definitions set in one round trip and returns a name-to-id map
-    /// with exactly one row per input definition. The per-row generation/hash gate and
-    /// retire-by-absence live in the database so they hold under concurrent registrars.
+    /// with exactly one row per input definition. A definition absent from the set is left alone,
+    /// Active and with its jobs. The per-row generation/hash gate lives in the database so it holds
+    /// under concurrent registrars.
     /// </summary>
     Task<IReadOnlyDictionary<string, int>> RegisterDefinitionsAsync(RegisterDefinitionsCommand command, CancellationToken ct);
 

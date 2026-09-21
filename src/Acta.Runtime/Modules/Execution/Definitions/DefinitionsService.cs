@@ -11,7 +11,7 @@ namespace Acta.Runtime.Modules.Execution.Definitions;
 /// write rules (canonicalization, backoff rejection, actor shaping), and the registration policy
 /// (descriptor-to-row resolution, the definition hash, and the C#-side write gate that lets a
 /// steady-state restart issue zero writes). Provider stores receive resolved rows and validated
-/// commands; the database keeps the per-row generation/hash gate and retire-by-absence.
+/// commands; the database keeps the per-row generation/hash gate.
 /// </summary>
 internal sealed class DefinitionsService(IDefinitionStore store)
 {
@@ -258,8 +258,8 @@ internal sealed class DefinitionsService(IDefinitionStore store)
 
     /// <summary>
     /// Registers the namespace's whole definitions set: resolves descriptors to rows, then skips the
-    /// upsert entirely when nothing is new, changed, or needs retiring - a steady-state restart issues
-    /// zero writes and takes no locks. Returns a name-to-id map for every descriptor.
+    /// upsert entirely when nothing is new or changed - a steady-state restart issues zero writes and
+    /// takes no locks. Returns a name-to-id map for every descriptor.
     /// </summary>
     public async Task<IReadOnlyDictionary<string, int>> RegisterAsync(
         int namespaceId,
@@ -291,11 +291,9 @@ internal sealed class DefinitionsService(IDefinitionStore store)
 
         ValidateJoiningRatesMatchOverriddenMeters(rows, storedByName, namespaceId);
 
-        var manifestNames = new HashSet<string>(rows.Count, StringComparer.Ordinal);
         var anyChange = false;
         foreach (var row in rows)
         {
-            manifestNames.Add(row.Name);
             if (!storedByName.TryGetValue(row.Name, out var s))
             {
                 anyChange = true; // new
@@ -303,18 +301,6 @@ internal sealed class DefinitionsService(IDefinitionStore store)
             else if (s.DefinitionHash != row.DefinitionHash || s.Status != JobDefinitionStatusCode.Active)
             {
                 anyChange = true; // changed or needs reactivation
-            }
-        }
-
-        if (!anyChange)
-        {
-            foreach (var s in stored)
-            {
-                if (s.Status == JobDefinitionStatusCode.Active && !manifestNames.Contains(s.Name))
-                {
-                    anyChange = true; // an active definition absent from the manifest must be retired
-                    break;
-                }
             }
         }
 

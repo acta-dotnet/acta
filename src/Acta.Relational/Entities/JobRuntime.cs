@@ -64,7 +64,7 @@ namespace Acta.Relational.Entities;
 // are the same fact. ClaimOne, ClaimBatch and StartExecution are the only routines that enter 40/50,
 // and each writes the lease in the same statement. Every routine that nulls the lease leaves 40/50 in
 // the same statement: CompleteExecution, CompleteExecutionsBatch, ReclaimStuckJobs, RepairRecoverySlot,
-// CancelJob, RestartJob, RegisterJobDefinitions.
+// CancelJob, RestartJob.
 [DbCheck(Name = "ck_runtimes_status_lease", Sql = "status_code IN (40, 50) OR leased_by_worker_id IS NULL")]
 [DbCheck(Name = "ck_runtimes_inflight_leased", Sql = "status_code NOT IN (40, 50) OR leased_by_worker_id IS NOT NULL")]
 // A Ready row is due at a known instant, which is what lets the claim seek ix_runtimes_claim_ready in

@@ -109,11 +109,13 @@ internal sealed class WorkerRuntimeInitializer(
         }
         manifests.AddRange(_workerRegistration.Manifests.Select(r => r.GetDescriptors()));
 
-        // Register every manifest's descriptors in ONE batch: register_job_definitions retires the
-        // namespace's definitions that are absent from its batch, so the batch must be the namespace's
-        // complete set (system + all user manifests), not one manifest at a time, or each
-        // call would retire the others' jobs. An empty combined set skips the call entirely (the
-        // RegisterJobDefinitions.Run early-return), so an enqueue-only / manifest-less worker never sweeps.
+        // Register every manifest's descriptors in ONE batch (system + all user manifests): one round
+        // trip, one set for the shape checks below, and every definition arrives with its complete
+        // schedule set, which register_scheduled_jobs needs because it orphans, on each slot it is
+        // given, the definition-origin schedules that slot's batch omits. Registration touches nothing
+        // the batch does not name, so a definition absent from it keeps running. An empty combined set
+        // skips the call entirely (the RegisterJobDefinitions.Run early-return), so an enqueue-only /
+        // manifest-less worker writes no catalog at all.
         // The shape checks run before the worker row below is written: a catalog that fails them
         // must leave no Active worker and no worker.started event behind for a process that will
         // never heartbeat.

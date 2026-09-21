@@ -140,7 +140,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `Active` | 10 | `active` | Enqueue allowed; claim allowed. | Active |
-| `Retired` | 240 | `retired` | Enqueue REJECTED; parked rows (Ready/Paused/Suspended) cancelled with ReasonCode = 'job.definition-retired'; in-flight executions finish their attempt. | Active |
+| `Retired` | 240 | `retired` | Enqueue REJECTED; an operator decision, never written by registration (a definition absent from a manifest stays Active). Retiring cancels parked rows (Ready/Paused/Suspended) with ReasonCode = 'job.definition-retired'; in-flight executions finish their attempt. | Active |
 
 ### Events
 
@@ -206,7 +206,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `JobSchedulesExhausted` | 30 | `job.schedules-exhausted` | Recurring slot has no live JobSchedule yielding a next instant; row is system-paused. | Active |
 | `JobControlManual` | 40 | `job.control-manual` | Operator-initiated control transition via an IJobs control verb (Cancel/Pause/Resume/Restart). | Active |
 | `JobParentCancelled` | 41 | `job.parent-cancelled` | Job was cancelled because an ancestor job in its lineage was cancelled (recursive cascade). | Active |
-| `JobDefinitionRetired` | 42 | `job.definition-retired` | Job was cancelled because its definition was retired by registration; parked rows (Ready/Paused/Suspended) are cancelled set-wise, in-flight executions finish their attempt. | Active |
+| `JobDefinitionRetired` | 42 | `job.definition-retired` | Job was cancelled because an operator retired its definition; parked rows (Ready/Paused/Suspended) are cancelled set-wise, in-flight executions finish their attempt. | Active |
 | `JobHandlerRescheduled` | 50 | `job.handler-rescheduled` | Handler called ctx.RescheduleAsync; attempt finalized as Rescheduled. | Active |
 | `JobHandlerSuspended` | 51 | `job.handler-suspended` | Handler called ctx.SleepAsync or ctx.WaitSignalAsync; attempt suspended (budget-neutral) until the sleep timer's due instant or a matching signal is raised. | Active |
 | `JobHandlerFailed` | 52 | `job.handler-failed` | Handler called ctx.FailAsync; the attempt was finalized as a deliberate terminal Failed (no retry, budget untouched). | Active |
