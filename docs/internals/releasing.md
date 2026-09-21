@@ -77,6 +77,40 @@ Two commits carry a release, and their roles do not mix:
   cut, and every piece of evidence is re-run against it. Evidence from an abandoned candidate is never
   reused for the next one.
 
+## Benchmark round
+
+A round is evidence only when its files record the commit with `gitDirty = false` and every number
+that looks like a finding has a same-hour control on the previous tag beside it. The rules below are
+what the rounds on this machine cost to learn.
+
+- Measure from a clean `git worktree` of the exact commit. The harness records `git status`, and an
+  untracked file in the main tree marks every JSON of the round dirty.
+- Clean the bench databases first. `Anvil.Bench` creates a fresh schema per cell and never drops the
+  previous one, on PostgreSQL and SQL Server alike, so `acta-dev` accumulates thousands of
+  `anvil_bench_*` schemas after one `full` matrix (tens of gigabytes), and autovacuum then writes into
+  the drive for hours after the round ends. Drop them before and after a round: on PostgreSQL generate
+  `DROP SCHEMA ... CASCADE` from `pg_namespace` and run it through `psql -f`; on SQL Server a cursor
+  over `sys.schemas` that drops foreign keys, views, procedures, functions, tables, table types, and
+  sequences before the schema. Delete the SQLite bench files from the temp folder. Fixing the leak in
+  the harness is the better answer and is open.
+- Check the drive at the host, not only `pg_test_fsync` inside the container: two hundred 8 KB writes
+  each followed by `Flush(true)` in the temp folder give flushes per second for the drive the Docker
+  disk image lives on. The bench machine's C: drive is QLC and drops from about 2,800 to 300-500
+  flushes per second after sustained writes, stays there for hours, and flaps between the two states,
+  so take readings minutes apart and start only when several agree. A probe in a tight loop is itself
+  a write load and keeps the drive from recovering.
+- Interleave the trees: candidate, control on the previous tag, candidate again, per provider, so all
+  three share the drive's state. A pair split across states is discarded whichever way it points.
+- One chain at a time. A stopped background chain leaves its child script alive, and that script starts
+  its next cell the moment the harness process is killed; list processes by command line
+  (`Win32_Process`) and confirm `pg_stat_activity` is empty before starting another round.
+- The `quick` preset's `throughput` cells are bimodal in every tree measured (the enqueue phase
+  runs at about 480 jobs/s or at tens of thousands); read drain and enqueue for the verdict.
+- `--seed-history N` measures the minute after a million-row bulk change, not a populated steady state,
+  until the harness gets a settle step after seeding; report it as informational.
+- Docker Desktop keeps its disk image on C: by default and applies a new location only through its own
+  Settings dialog (Resources, Advanced, Disk image location); editing the settings file does nothing.
+
 ## Coverage
 
 Published, never gated. The `build-test` CI job runs `tools/coverage.ps1`, which instruments
