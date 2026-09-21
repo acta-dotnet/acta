@@ -54,6 +54,15 @@ public enum EventCode : byte
     [Code("definition.overrides-updated", "An operator changed a job definition's policy overrides; ReasonMessage summarizes the change.")]
     JobDefinitionOverridesUpdated = 30,
 
+    /// <summary>
+    /// job_id / job_ref are null; definition_id carries the identity. Emitted when an operator retires
+    /// a definition; each job the retire cancelled carries its own job.cancelled event with
+    /// <see cref="JobEventReasonCode.JobDefinitionRetired"/>. Always emitted regardless of audit level:
+    /// config governance is low-volume.
+    /// </summary>
+    [Code("definition.retired", "An operator retired a job definition; enqueue is rejected and its parked jobs were cancelled.")]
+    JobDefinitionRetired = 31,
+
     [Code("job.execution-started", "Handler invocation began; paired with job.execution-finished on (JobId, ExecutionNumber).")]
     JobExecutionStarted = 40,
 

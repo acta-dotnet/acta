@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Acta.Relational.Entities;
+using Acta.Runtime.Modules.Execution.Api;
 using Acta.Runtime.Modules.Execution.Definitions;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
@@ -175,11 +176,18 @@ public abstract class MonotonicDefinitionPromotionSpec<TFixture> : ActaStorageTe
     }
 
     // Retirement is an operator verb, never something registration does, so the Retired row this
-    // generation gate has to hold against is arranged directly.
-    private Task RetireAsync(string name, CancellationToken ct) =>
-        Db.From<JobDefinition>()
-            .Where(d => d.NamespaceId == TestNamespaceId && d.Name == name)
-            .UpdateOnlyAsync(() => new JobDefinition { Status = JobDefinitionStatusCode.Retired }, ct);
+    // generation gate has to hold against is arranged through that verb.
+    private async Task RetireAsync(string name, CancellationToken ct)
+    {
+        var definition = await ReadAsync(name, ct);
+        var outcome = await Services
+            .GetRequiredService<IDefinitionStore>()
+            .RetireDefinitionAsync(
+                new RetireDefinitionCommand(definition.Id, definition.Version, new JobControlActor(ActorCode.Operator, "tester"), null),
+                ct
+            );
+        Assert.Equal(DefinitionOverrideAction.Applied, outcome.Action);
+    }
 
     [Fact(DisplayName = "Fail-mode contract drift blocks before any registration write")]
     public async Task Fail_mode_blocks_before_any_registration_write()

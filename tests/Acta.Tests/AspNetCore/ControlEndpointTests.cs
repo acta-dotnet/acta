@@ -1064,6 +1064,27 @@ public sealed class ControlEndpointTests
     }
 
     [Theory]
+    [InlineData("send-invoice", 1, HttpStatusCode.OK, "applied")]
+    [InlineData("send-invoice", 999, HttpStatusCode.Conflict, "rejected")]
+    [InlineData("missing", 1, HttpStatusCode.NotFound, "notFound")]
+    public async Task Definition_retire_maps_the_verb_outcome(string jobName, int expectedVersion, HttpStatusCode status, string action)
+    {
+        var (app, client) = await StartWithControlsAsync();
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/definitions/billing/{jobName}/retire")
+        {
+            Content = JsonContent.Create(new { expectedVersion, reasonMessage = "handler dropped" }),
+        };
+        request.Headers.Add(Confirm, "true");
+        var response = await client.SendAsync(request, ct);
+
+        Assert.Equal(status, response.StatusCode);
+        Assert.Contains($"\"action\":\"{action}\"", await response.Content.ReadAsStringAsync(ct), StringComparison.Ordinal);
+    }
+
+    [Theory]
     [InlineData("acknowledge")]
     [InlineData("resolve")]
     public async Task Alert_verb_dispatches_and_applies(string verb)

@@ -350,6 +350,22 @@ export async function setDefinitionOverrides(
   );
 }
 
+// POST a definition retire, addressed by its natural key. The body carries the expectedVersion CAS
+// token and a note; the verb cancels the definition's parked jobs server-side. Applied (200),
+// rejected/version-conflict (409), and not-found (404) all return a DefinitionControlResponse.
+export async function retireDefinition(
+  jobNamespace: string,
+  jobName: string,
+  expectedVersion: number,
+  note?: string
+): Promise<DefinitionControlResponse> {
+  return controlRequest<DefinitionControlResponse>(
+    `definitions/${encodeURIComponent(jobNamespace)}/${encodeURIComponent(jobName)}/retire`,
+    { expectedVersion, reasonMessage: note?.trim() || null },
+    { jobNamespace, jobName, action: 'notFound', message: 'Definition not found.' }
+  );
+}
+
 export interface ScheduleControlResponse {
   action: ControlAction;
   status: string | null;

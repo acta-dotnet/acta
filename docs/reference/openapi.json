@@ -1674,6 +1674,134 @@
         }
       }
     },
+    "/acta/api/v1/definitions/{jobNamespace}/{jobName}/retire": {
+      "post": {
+        "tags": [
+          "Definitions"
+        ],
+        "summary": "Retire the definition and cancel its parked jobs.",
+        "parameters": [
+          {
+            "name": "jobNamespace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "jobName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetireDefinitionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefinitionControlResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefinitionControlResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DefinitionControlResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/acta/api/v1/alerts/{alertRef}/acknowledge": {
       "post": {
         "tags": [
@@ -6477,6 +6605,7 @@
                 "namespace.resumed",
                 "namespace.updated",
                 "definition.overrides-updated",
+                "definition.retired",
                 "job.execution-started",
                 "job.execution-finished",
                 "job.recurring-rolled-over",
@@ -6723,6 +6852,7 @@
                 "namespace.resumed",
                 "namespace.updated",
                 "definition.overrides-updated",
+                "definition.retired",
                 "job.execution-started",
                 "job.execution-finished",
                 "job.recurring-rolled-over",
@@ -7008,6 +7138,7 @@
                 "namespace.resumed",
                 "namespace.updated",
                 "definition.overrides-updated",
+                "definition.retired",
                 "job.execution-started",
                 "job.execution-finished",
                 "job.recurring-rolled-over",
@@ -11114,6 +11245,25 @@
             ]
           },
           "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "RetireDefinitionRequest": {
+        "type": "object",
+        "properties": {
+          "expectedVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "reasonMessage": {
             "type": [
               "null",
               "string"

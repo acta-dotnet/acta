@@ -73,7 +73,7 @@ public sealed class RollingGenerationBManifest : IJobManifest
 /// worker rather than one per job per safety-poll interval.
 /// <para>The catalog side of the same window: registering a manifest that omits a definition leaves
 /// that definition Active, so a rolled-back deployment still runs its jobs with the policy it
-/// registered.</para>
+/// registered. Clearing what the withdrawn generation left behind is the operator's retire verb.</para>
 /// </summary>
 [ConformanceSpec(
     "runtime.rolling-deploy",
@@ -81,8 +81,8 @@ public sealed class RollingGenerationBManifest : IJobManifest
     Area = "Runtime",
     Contract = "A worker hands back a claim it has no handler for, stops claiming that definition, and leaves the catalog entry Active.",
     Arrange = "Two runtimes register different manifest generations into one namespace, and one job of each generation's definitions is enqueued.",
-    Act = "The old generation ticks the namespace, then the new one, then a fresh old-generation process takes over after a rollback.",
-    Assert = "Each generation runs what it carries, leaves the other's job Ready and excluded, and the rollback still runs the omitted definition."
+    Act = "The old generation ticks, then the new one, a rolled-back process takes over, and an operator retires the definition the fleet dropped.",
+    Assert = "Each generation runs what it carries, the rollback still runs the omitted definition, and the retire cancels the stranded row and closes enqueue."
 )]
 public abstract class RollingDeploySpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobsManifest>
     where TFixture : IConformanceFixture, new()
@@ -181,6 +181,28 @@ public abstract class RollingDeploySpec<TFixture> : ActaRuntimeTestBase<TFixture
         Assert.Equal(JobStatusCode.Ready, stranded.Status);
         Assert.Equal((short)0, stranded.FailureCount);
         Assert.Contains(stranded.DefinitionId, rollbackRuntime.UnsupportedDefinitionIdsSnapshot);
+
+        // --- 5. The stranded row waits until an operator says so. Retiring the definition the fleet
+        // no longer carries is what clears it, and it closes the definition to new work too.
+        var newOnlyDefinition = await ReadDefinitionAsync(NewJob, ct);
+        var retire = await Operations.Definitions.RetireAsync(
+            TestNamespace,
+            NewJob,
+            newOnlyDefinition.Version,
+            "rollback-operator",
+            "rolled back",
+            ct
+        );
+        Assert.Equal(ControlAction.Applied, retire.Action);
+
+        Assert.Equal(JobStatusCode.Cancelled, (await ReadJobAsync(strandedNew.JobId, ct)).Status);
+        var cancelEvent = await ReadLatestEventAsync(strandedNew.JobId, EventCode.JobCancelled, ct);
+        Assert.Equal(JobEventReasonCode.JobDefinitionRetired, cancelEvent.ReasonCode);
+
+        var rejected = await Assert.ThrowsAsync<EnqueueRejectedException>(async () =>
+            await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, NewJob, JobPayload.None), ct)
+        );
+        Assert.Equal(EnqueueRejectionReason.DefinitionRetired, rejected.Reason);
     }
 
     /// <summary>

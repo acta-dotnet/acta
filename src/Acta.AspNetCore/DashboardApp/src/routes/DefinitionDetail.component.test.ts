@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/svelte';
+import { fireEvent, render, screen } from '@testing-library/svelte';
 import { describe, expect, it, vi } from 'vitest';
 import DefinitionDetailHarness from '../test/DefinitionDetailHarness.svelte';
 
@@ -76,6 +76,15 @@ const overrideEvent = {
   reasonMessage: 'Raised max attempts for the holiday backlog'
 };
 
+const retiredEvent = {
+  jobEventId: 3,
+  eventCode: 'definition.retired',
+  createdAtUtc: '2026-07-15T08:00:00Z',
+  actorCode: 'operator',
+  actorKey: 'marko',
+  reasonMessage: 'Handler left the build'
+};
+
 const executionEvent = {
   jobEventId: 2,
   eventCode: 'job.execution-finished',
@@ -93,7 +102,7 @@ function stubFetch(handler: (url: URL) => Response) {
 }
 
 describe('DefinitionDetail change history', () => {
-  it('requests the definition-change event code, not the unfiltered job-lineage stream', async () => {
+  it('requests each definition-change event code, not the unfiltered job-lineage stream', async () => {
     const calls: URL[] = [];
     stubFetch((url) => {
       calls.push(url);
@@ -104,19 +113,21 @@ describe('DefinitionDetail change history', () => {
     render(DefinitionDetailHarness, { jobNamespace, jobName });
     await screen.findByText(jobName);
 
-    const eventsCall = calls.find((url) => url.pathname.endsWith('/events'));
-    expect(eventsCall).toBeTruthy();
-    expect(eventsCall!.searchParams.get('eventCode')).toBe('definition.overrides-updated');
+    const codes = calls.filter((url) => url.pathname.endsWith('/events')).map((url) => url.searchParams.get('eventCode'));
+    expect(codes).toContain('definition.overrides-updated');
+    expect(codes).toContain('definition.retired');
+    expect(codes).not.toContain(null);
   });
 
-  it('renders the override event and none of the execution noise for the same definition', async () => {
+  it('renders the definition-change events and none of the execution noise for the same definition', async () => {
     stubFetch((url) => {
       if (url.pathname.endsWith('/events')) {
-        // The unfiltered URL is what the flooded panel used to hit; only the filtered request
-        // should ever be issued, and only it returns the override row.
-        return url.searchParams.get('eventCode') === 'definition.overrides-updated'
-          ? pagedResponse([overrideEvent])
-          : pagedResponse([executionEvent]);
+        // The unfiltered URL is what the flooded panel used to hit; only the two filtered requests
+        // should ever be issued, and only they return definition-change rows.
+        const code = url.searchParams.get('eventCode');
+        if (code === 'definition.overrides-updated') return pagedResponse([overrideEvent]);
+        if (code === 'definition.retired') return pagedResponse([retiredEvent]);
+        return pagedResponse([executionEvent]);
       }
       return new Response(JSON.stringify(definition), { status: 200 });
     });
@@ -124,6 +135,7 @@ describe('DefinitionDetail change history', () => {
     render(DefinitionDetailHarness, { jobNamespace, jobName });
 
     expect(await screen.findByText('Raised max attempts for the holiday backlog')).toBeTruthy();
+    expect(await screen.findByText('Handler left the build')).toBeTruthy();
     expect(screen.queryByText('job.execution-finished')).toBeNull();
   });
 
@@ -136,5 +148,57 @@ describe('DefinitionDetail change history', () => {
     render(DefinitionDetailHarness, { jobNamespace, jobName });
 
     expect(await screen.findByText('No recorded policy changes.')).toBeTruthy();
+  });
+});
+
+describe('DefinitionDetail retire', () => {
+  function stubDetail(row: Record<string, unknown>, calls: { url: URL; init?: RequestInit }[] = []) {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = new URL(input as string | URL);
+        calls.push({ url, init });
+        if (url.pathname.endsWith('/retire')) {
+          return new Response(
+            JSON.stringify({ jobNamespace, jobName, action: 'applied', message: 'Definition retired.' }),
+            { status: 200 }
+          );
+        }
+        if (url.pathname.endsWith('/events')) return pagedResponse([]);
+        return new Response(JSON.stringify(row), { status: 200 });
+      })
+    );
+    return calls;
+  }
+
+  it('offers the retire action on an active definition', async () => {
+    stubDetail(definition);
+    render(DefinitionDetailHarness, { jobNamespace, jobName });
+
+    const button = (await screen.findByText('Retire definition')) as HTMLButtonElement;
+    expect(button.disabled).toBe(false);
+  });
+
+  it('disables the retire action once the definition is retired', async () => {
+    stubDetail({ ...definition, status: 'retired' });
+    render(DefinitionDetailHarness, { jobNamespace, jobName });
+
+    const button = (await screen.findByText('Retire definition')) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+  });
+
+  it('posts the retire with the version it read and the typed reason', async () => {
+    const calls = stubDetail(definition);
+    render(DefinitionDetailHarness, { jobNamespace, jobName });
+
+    await fireEvent.click(await screen.findByText('Retire definition'));
+    await fireEvent.input(screen.getByLabelText(/Reason \(required/), { target: { value: 'handler dropped' } });
+    await fireEvent.click(screen.getByText('Retire and cancel queued jobs'));
+
+    await screen.findByText('Definition retired.');
+    const retire = calls.find((call) => call.url.pathname.endsWith('/retire'));
+    expect(retire).toBeTruthy();
+    expect(retire!.init?.method).toBe('POST');
+    expect(JSON.parse(String(retire!.init?.body))).toEqual({ expectedVersion: 3, reasonMessage: 'handler dropped' });
   });
 });

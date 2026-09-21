@@ -4,6 +4,7 @@
     typeof(global::Acta.Runtime.Modules.Alerting.DeliverableAlert),
     typeof(global::Acta.Runtime.Modules.Alerting.JobAlertListProjectionRow),
     typeof(global::Acta.Runtime.Modules.Execution.Definitions.DefinitionOverrideOutcome),
+    typeof(global::Acta.Runtime.Modules.Execution.Definitions.DefinitionRetireRow),
     typeof(global::Acta.Runtime.Modules.Execution.Definitions.JobDefinitionDetailRow),
     typeof(global::Acta.Runtime.Modules.Execution.Definitions.JobDefinitionListRow),
     typeof(global::Acta.Runtime.Modules.Execution.Definitions.RegisteredJobDefinition),

@@ -17,4 +17,6 @@ public sealed class PgListJobDefinitionsSpec : ListJobDefinitionsSpec<PgConforma
 
 public sealed class PgMonotonicDefinitionPromotionSpec : MonotonicDefinitionPromotionSpec<PgConformanceFixture>;
 
+public sealed class PgRetireDefinitionSpec : RetireDefinitionSpec<PgConformanceFixture>;
+
 public sealed class PgSetJobDefinitionOverridesSpec : SetJobDefinitionOverridesSpec<PgConformanceFixture>;

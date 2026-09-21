@@ -563,7 +563,7 @@ sealed class Acta.CodeManifestEntry
     System.String Description { get;init; }
 static class Acta.CodeManifests
     System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> All { get; }
-    System.String MarkdownReport = <26219 chars, sha256:F221E433>
+    System.String MarkdownReport = <26355 chars, sha256:D9793AE0>
 enum Acta.ControlAction
     Accepted = 4
     Applied = 1
@@ -676,6 +676,7 @@ enum Acta.EventCode
     AlertResolved = 141
     JobCancelled = 70
     JobDefinitionOverridesUpdated = 30
+    JobDefinitionRetired = 31
     JobExecutionFinished = 41
     JobExecutionStarted = 40
     JobInputAmended = 76
@@ -828,6 +829,7 @@ interface Acta.IAlerts
     System.Threading.Tasks.ValueTask<Acta.AlertDetail> GetAsync(Acta.AlertRef alertRef, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.AlertListItem>> ListAsync(Acta.ListAlertsQuery query, System.Threading.CancellationToken ct = default)
 interface Acta.IDefinitions
+    System.Threading.Tasks.ValueTask<Acta.DefinitionControlResult> RetireAsync(System.String jobNamespace, System.String jobName, System.Int32 expectedVersion, System.String actorKey = default, System.String reasonMessage = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.DefinitionControlResult> UpdateOverridesAsync(System.String jobNamespace, System.String jobName, System.Int32 expectedVersion, Acta.JobDefinitionPolicyOverrides overrides, System.String actorKey = default, System.String reasonMessage = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.JobDefinitionDetail> GetAsync(System.String jobNamespace, System.String jobName, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.JobDefinitionListItem>> ListAsync(Acta.ListDefinitionsQuery query, System.Threading.CancellationToken ct = default)

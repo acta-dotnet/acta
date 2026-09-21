@@ -13,6 +13,13 @@ internal sealed record SetDefinitionOverridesRequest(
 );
 
 /// <summary>
+/// Body of a <c>POST /definitions/{jobNamespace}/{jobName}/retire</c> request: the
+/// optimistic-concurrency <c>Version</c> the operator last read and an optional note. The actor is
+/// stamped server-side from the authenticated principal; the body never carries it.
+/// </summary>
+internal sealed record RetireDefinitionRequest(int ExpectedVersion = 0, string? ReasonMessage = null);
+
+/// <summary>
 /// Response of a definition override write: the targeted definition's natural key echoed from the
 /// route, the coarse outcome, and a human-readable message. The catalog id never reaches the wire.
 /// </summary>

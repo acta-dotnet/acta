@@ -53,7 +53,7 @@ public sealed class DefinitionOverrideValidationTests
     private static (DefinitionsService Service, RecordingDefinitionStore Store) Build()
     {
         var store = new RecordingDefinitionStore([Row(1, "invoice")]);
-        return (new DefinitionsService(store), store);
+        return (new DefinitionsService(store, null!, null!), store);
     }
 
     [Fact]
@@ -104,7 +104,7 @@ public sealed class DefinitionOverrideValidationTests
         // a C#-side comparison before it. See RateLimitSpec's per-provider facts for the propagation
         // itself (it cannot be observed through this store fake, which only records one command).
         var store = new RecordingDefinitionStore([Row(1, "invoice", "10/s", "billing-api"), Row(2, "receipt", "10/s", "billing-api")]);
-        var service = new DefinitionsService(store);
+        var service = new DefinitionsService(store, null!, null!);
 
         var outcome = await UpdateAsync(service, new JobDefinitionPolicyOverrides(RateLimit: "5/s"));
 
@@ -163,6 +163,9 @@ public sealed class DefinitionOverrideValidationTests
             OverrideWrites.Add(command);
             return Task.FromResult(new DefinitionOverrideOutcome(DefinitionOverrideAction.Applied));
         }
+
+        public Task<DefinitionRetireOutcome> RetireDefinitionAsync(RetireDefinitionCommand command, CancellationToken ct) =>
+            throw new NotSupportedException();
 
         public ValueTask<JobDefinitionDetail?> GetDefinitionAsync(int definitionId, CancellationToken ct) =>
             throw new NotSupportedException();

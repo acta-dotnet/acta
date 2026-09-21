@@ -41,7 +41,7 @@ public class RegisterJobDefinitionsTests
         var descriptors = ImmutableArray.Create(Desc("bad-job", "garbage"));
 
         var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
-            new DefinitionsService(null!).RegisterAsync(
+            new DefinitionsService(null!, null!, null!).RegisterAsync(
                 namespaceId: 1,
                 DateTime.UtcNow,
                 descriptors,
@@ -61,7 +61,7 @@ public class RegisterJobDefinitionsTests
         var descriptors = ImmutableArray.Create(Desc("bad-length", tooLong));
 
         var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
-            new DefinitionsService(null!).RegisterAsync(
+            new DefinitionsService(null!, null!, null!).RegisterAsync(
                 namespaceId: 1,
                 DateTime.UtcNow,
                 descriptors,

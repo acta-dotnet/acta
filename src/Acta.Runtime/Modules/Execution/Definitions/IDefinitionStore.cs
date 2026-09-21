@@ -5,7 +5,7 @@ namespace Acta.Runtime.Modules.Execution.Definitions;
 /// <summary>
 /// Persistence port for the definitions catalog: the contract/policy read used by worker startup and
 /// the policy reload tick, the dashboard detail and grid reads, the whole-namespace registration
-/// upsert, and the operator override write. Requests arrive validated with rows already resolved and
+/// upsert, and the operator override and retire writes. Requests arrive validated with rows already resolved and
 /// cursors already decoded; implementations own command creation, parameter binding, batch shapes,
 /// row mapping, and transactions.
 /// </summary>
@@ -41,6 +41,14 @@ internal interface IDefinitionStore
     /// definition sharing it, unguarded by a version of their own.
     /// </summary>
     Task<DefinitionOverrideOutcome> SetDefinitionOverridesAsync(SetDefinitionOverridesCommand command, CancellationToken ct);
+
+    /// <summary>
+    /// Retires a definition and cancels its parked jobs (Ready, Suspended, Paused) in one transaction,
+    /// version-guarded: each cancelled job gets its own job-cancelled event at audit level, and the
+    /// definition gets the retired event. A running attempt is left alone. Returns the ids of the jobs
+    /// the sweep actually cancelled so the caller can wake their waiters.
+    /// </summary>
+    Task<DefinitionRetireOutcome> RetireDefinitionAsync(RetireDefinitionCommand command, CancellationToken ct);
 }
 
 /// <summary>Validated, cursor-decoded request for one definitions grid page.</summary>
@@ -70,3 +78,6 @@ internal sealed record SetDefinitionOverridesCommand(
     JobControlActor Actor,
     string? ReasonMessage
 );
+
+/// <summary>Validated retire write: the resolved definition, the version gate, and the audit actor and reason.</summary>
+internal sealed record RetireDefinitionCommand(int DefinitionId, int ExpectedVersion, JobControlActor Actor, string? ReasonMessage);

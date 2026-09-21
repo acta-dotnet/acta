@@ -45,7 +45,7 @@ public sealed class DefinitionRegistrationValidationTests
     private static Task RegisterAsync(params JobDescriptor[] descriptors) => RegisterAsync([.. descriptors], []);
 
     private static Task RegisterAsync(JobDescriptor[] descriptors, StoredDefinitionContract[] stored) =>
-        new DefinitionsService(new RejectingDefinitionStore()).RegisterAsync(
+        new DefinitionsService(new RejectingDefinitionStore(), null!, null!).RegisterAsync(
             1,
             Gen,
             [.. descriptors],
@@ -277,6 +277,9 @@ public sealed class DefinitionRegistrationValidationTests
             throw new NotSupportedException();
 
         public Task<DefinitionOverrideOutcome> SetDefinitionOverridesAsync(SetDefinitionOverridesCommand command, CancellationToken ct) =>
+            throw new NotSupportedException();
+
+        public Task<DefinitionRetireOutcome> RetireDefinitionAsync(RetireDefinitionCommand command, CancellationToken ct) =>
             throw new NotSupportedException();
 
         public ValueTask<JobDefinitionDetail?> GetDefinitionAsync(int definitionId, CancellationToken ct) =>

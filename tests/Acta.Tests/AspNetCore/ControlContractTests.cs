@@ -105,6 +105,7 @@ public sealed class ControlContractTests
         .. ScheduleVerb("trigger"),
         .. ScheduleOverrides(),
         .. DefinitionOverrides(),
+        .. DefinitionRetire(),
         .. AlertVerb("acknowledge"),
         .. AlertVerb("resolve"),
         .. OutboxVerb("requeue"),
@@ -350,6 +351,29 @@ public sealed class ControlContractTests
             Row("applied", "/definitions/billing/send-invoice", StatusCodes.Status200OK, "applied", 1),
             Row("rejected", "/definitions/billing/send-invoice", StatusCodes.Status409Conflict, "rejected", 999),
             Row("notFound", "/definitions/billing/missing", StatusCodes.Status404NotFound, "notFound", 1),
+        ];
+    }
+
+    private static IEnumerable<Case> DefinitionRetire()
+    {
+        const string route = "/definitions/{jobNamespace}/{jobName}/retire";
+        static Case Row(string outcome, string path, int status, string action, int expectedVersion) =>
+            new(
+                "definitions",
+                route,
+                "POST",
+                outcome,
+                path,
+                status,
+                typeof(DefinitionControlResponse),
+                action,
+                new { expectedVersion, reasonMessage = "because" }
+            );
+        return
+        [
+            Row("applied", "/definitions/billing/send-invoice/retire", StatusCodes.Status200OK, "applied", 1),
+            Row("rejected", "/definitions/billing/send-invoice/retire", StatusCodes.Status409Conflict, "rejected", 999),
+            Row("notFound", "/definitions/billing/missing/retire", StatusCodes.Status404NotFound, "notFound", 1),
         ];
     }
 

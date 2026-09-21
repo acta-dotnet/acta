@@ -47,6 +47,7 @@ namespace Acta.AspNetCore.Web;
 [JsonSerializable(typeof(ScheduleControlResponse))]
 [JsonSerializable(typeof(SchedulePreview))]
 [JsonSerializable(typeof(SetDefinitionOverridesRequest))]
+[JsonSerializable(typeof(RetireDefinitionRequest))]
 [JsonSerializable(typeof(DefinitionControlResponse))]
 [JsonSerializable(typeof(AlertControlRequest))]
 [JsonSerializable(typeof(AlertControlResponse))]

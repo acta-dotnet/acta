@@ -17,4 +17,6 @@ public sealed class SqlServerListJobDefinitionsSpec : ListJobDefinitionsSpec<Sql
 
 public sealed class SqlServerMonotonicDefinitionPromotionSpec : MonotonicDefinitionPromotionSpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerRetireDefinitionSpec : RetireDefinitionSpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerSetJobDefinitionOverridesSpec : SetJobDefinitionOverridesSpec<SqlServerConformanceFixture>;

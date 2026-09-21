@@ -301,6 +301,23 @@
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Definitions.IDefinitionStore.SetDefinitionOverridesAsync`
 
+### Retire flips a definition and cancels its parked jobs
+- **Contract:** Retiring a definition cancels its Ready, Suspended and Paused jobs with reason JobDefinitionRetired, leaves a running attempt alone, and refuses enqueue.
+- **Arrange:** A definition carries one job in each parked status, one running attempt, and a Suspended parent waiting on a child of it.
+- **Act:** An operator retires the definition by its natural key and version, then enqueues again and re-registers the manifest.
+- **Assert:** Parked jobs are Cancelled with retention and one audited event each, the attempt still completes, enqueue is rejected, and an equal generation reactivates.
+- **Guarantees:**
+  - Every parked job of the retired definition is cancelled with retention, no lease, and one audited event
+  - The retire writes one definition-scoped retired event and leaves the definition Retired
+  - A running attempt keeps its lease through the retire and still completes
+  - A Suspended parent waiting on a child of the retired definition is released without a recovery pass
+  - Enqueue against a retired definition is rejected with DefinitionRetired
+  - An unknown name is NotFound and a stale version is Rejected, and neither writes
+  - Retiring an already retired definition is applied and writes no further events
+  - An equal manifest generation reactivates a retired definition and an older one cannot
+- **Store methods:**
+  - `Acta.Runtime.Modules.Execution.Definitions.IDefinitionStore.RetireDefinitionAsync`
+
 ### GetTenant returns the tenant for a known key or id and null for an unknown one
 - **Contract:** GetTenant returns the TenantListItem projection for a matching key or internal id regardless of status and null when no row matches.
 - **Arrange:** A tenant is registered and optionally suspended so a known key and id exist.
@@ -2089,8 +2106,8 @@
 ### Two generations share a namespace and the rollback still runs
 - **Contract:** A worker hands back a claim it has no handler for, stops claiming that definition, and leaves the catalog entry Active.
 - **Arrange:** Two runtimes register different manifest generations into one namespace, and one job of each generation's definitions is enqueued.
-- **Act:** The old generation ticks the namespace, then the new one, then a fresh old-generation process takes over after a rollback.
-- **Assert:** Each generation runs what it carries, leaves the other's job Ready and excluded, and the rollback still runs the omitted definition.
+- **Act:** The old generation ticks, then the new one, a rolled-back process takes over, and an operator retires the definition the fleet dropped.
+- **Assert:** Each generation runs what it carries, the rollback still runs the omitted definition, and the retire cancels the stranded row and closes enqueue.
 - **Guarantees:**
   - Two generations in one namespace hand back each other's work, learn it, and the rollback still runs the definition the new generation omitted
 
@@ -2679,6 +2696,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IDefinitionStore.GetDefinitionContractsAsync` | Newer-or-equal generation promotes policy; older cannot downgrade |
 | `IDefinitionStore.ListDefinitionsAsync` | ListJobDefinitions filter-matrix selects exactly matching rows per dimension<br>ListJobDefinitions pages the catalog by name order without duplicates |
 | `IDefinitionStore.RegisterDefinitionsAsync` | Init auto-registers system definitions, slots and schedules<br>Init writes namespace worker and full definition policy idempotently<br>Newer-or-equal generation promotes policy; older cannot downgrade |
+| `IDefinitionStore.RetireDefinitionAsync` | Retire flips a definition and cancels its parked jobs |
 | `IDefinitionStore.SetDefinitionOverridesAsync` | Definition override bind matrix: all 13 slots<br>Override writes are version-guarded, recompute effective, and audited |
 | `IExecutionStore.ArmOrConsumeSleepTimerAsync` | Reschedule re-arms Ready and durable sleep arms an idempotent timer |
 | `IExecutionStore.CheckpointSlotAsync` | A bounded group wait spends one stored deadline across every child and replay<br>Job variables round-trip through the context API with versioning and validation |
@@ -2798,6 +2816,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `Execution/Definitions/GetJobDefinition` | yes | yes | yes |
 | `Execution/Definitions/ListJobDefinitions` | yes | yes | yes |
 | `Execution/Definitions/RegisterJobDefinitions` | yes | yes | yes |
+| `Execution/Definitions/RetireJobDefinition` | yes | yes | yes |
 | `Execution/Definitions/SetJobDefinitionOverrides` | yes | yes | yes |
 | `Execution/Jobs/CancelJob` | yes | yes | yes |
 | `Execution/Jobs/EnqueueBatch` | yes | yes | yes |

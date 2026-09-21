@@ -17,4 +17,6 @@ public sealed class SqliteListJobDefinitionsSpec : ListJobDefinitionsSpec<Sqlite
 
 public sealed class SqliteMonotonicDefinitionPromotionSpec : MonotonicDefinitionPromotionSpec<SqliteConformanceFixture>;
 
+public sealed class SqliteRetireDefinitionSpec : RetireDefinitionSpec<SqliteConformanceFixture>;
+
 public sealed class SqliteSetJobDefinitionOverridesSpec : SetJobDefinitionOverridesSpec<SqliteConformanceFixture>;

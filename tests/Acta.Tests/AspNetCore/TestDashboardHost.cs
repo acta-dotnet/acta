@@ -1027,6 +1027,24 @@ internal static class TestDashboardHost
                 );
             }
 
+            // Same two stagings the override write answers to: "missing" has no definition row and
+            // expectedVersion 999 is the stale CAS token.
+            public ValueTask<DefinitionControlResult> RetireAsync(
+                string jobNamespace,
+                string jobName,
+                int expectedVersion,
+                string? actorKey = null,
+                string? reasonMessage = null,
+                CancellationToken ct = default
+            ) =>
+                ValueTask.FromResult(
+                    new DefinitionControlResult(
+                        jobName == "missing" ? ControlAction.NotFound
+                        : expectedVersion == 999 ? ControlAction.Rejected
+                        : ControlAction.Applied
+                    )
+                );
+
             /// <summary>
             /// Only billing/send-invoice exists; every other natural key reads as absent. Mirrors the
             /// production guard first: DefinitionsService validates the key before it resolves, so a

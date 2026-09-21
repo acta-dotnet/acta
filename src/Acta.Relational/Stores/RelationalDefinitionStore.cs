@@ -112,6 +112,42 @@ internal sealed class RelationalDefinitionStore(IDbSession session, ISqlDialect 
             );
     }
 
+    public async Task<DefinitionRetireOutcome> RetireDefinitionAsync(RetireDefinitionCommand command, CancellationToken ct)
+    {
+        var rows = await session.ExecuteAsync(
+            new StoreCommand("Execution", "Definitions/RetireJobDefinition"),
+            cmd =>
+            {
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.Id, command.DefinitionId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.Version, command.ExpectedVersion));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorCode, command.Actor.ActorCode));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorKey, command.Actor.ActorKey));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonCode, JobEventReasonCode.JobControlManual));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonMessage, command.ReasonMessage));
+            },
+            DbProjectionResolver.Resolve<DefinitionRetireRow>(),
+            ct
+        );
+
+        if (rows.Count == 0)
+        {
+            throw new InvalidOperationException("retire_job_definition returned no rows; it must return at least one (action) row.");
+        }
+
+        // Every row repeats the action; the cancelled jobs are the rows that carry a job id, and a
+        // retire that cancelled nothing is the single row whose job id is null.
+        var cancelled = new List<RetiredJobCancellation>(rows.Count);
+        foreach (var row in rows)
+        {
+            if (row.JobId is { } jobId)
+            {
+                cancelled.Add(new RetiredJobCancellation(jobId, row.ParentId));
+            }
+        }
+
+        return new DefinitionRetireOutcome(rows[0].Action, cancelled);
+    }
+
     private void AddOverrideParameters(DbCommand cmd, SetDefinitionOverridesCommand command)
     {
         var o = command.Overrides;

@@ -207,6 +207,9 @@ public sealed class LoopTickCancellationFilterTests
 
         public Task<DefinitionOverrideOutcome> SetDefinitionOverridesAsync(SetDefinitionOverridesCommand command, CancellationToken ct) =>
             throw new NotSupportedException();
+
+        public Task<DefinitionRetireOutcome> RetireDefinitionAsync(RetireDefinitionCommand command, CancellationToken ct) =>
+            throw new NotSupportedException();
     }
 
     private sealed class RecordingLogger : ILogger
@@ -261,6 +264,9 @@ public sealed class LoopTickCancellationFilterTests
             throw new NotSupportedException();
 
         public Task<DefinitionOverrideOutcome> SetDefinitionOverridesAsync(SetDefinitionOverridesCommand command, CancellationToken ct) =>
+            throw new NotSupportedException();
+
+        public Task<DefinitionRetireOutcome> RetireDefinitionAsync(RetireDefinitionCommand command, CancellationToken ct) =>
             throw new NotSupportedException();
     }
 }

@@ -301,7 +301,7 @@ public abstract class RateLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, Te
     public async Task Definitions_that_share_a_rate_key_must_declare_the_same_rate()
     {
         var ct = TestContext.Current.CancellationToken;
-        var service = new DefinitionsService(Services.GetRequiredService<IDefinitionStore>());
+        var service = Services.GetRequiredService<DefinitionsService>();
 
         var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
             service.RegisterAsync(

@@ -1,6 +1,6 @@
 <script>
   import { createQuery } from '@tanstack/svelte-query';
-  import { api, setDefinitionOverrides } from '../api';
+  import { api, retireDefinition, setDefinitionOverrides } from '../api';
   import { keys } from '../query';
   import Page from '../components/Page.svelte';
   import Icon from '../components/Icon.svelte';
@@ -8,6 +8,8 @@
   import StateView from '../components/StateView.svelte';
   import StatusBadge from '../components/StatusBadge.svelte';
   import ChangeHistory from '../components/ChangeHistory.svelte';
+  import ConfirmAction from '../components/ConfirmAction.svelte';
+  import { mergeHistory } from '../components/changeHistory.ts';
   import PageFreshness from '../components/PageFreshness.svelte';
   import TagEditor from '../components/TagEditor.svelte';
   import { routes } from '../routes';
@@ -38,6 +40,8 @@
     { key: 'description', label: 'Description', kind: 'str' }
   ];
 
+  const HISTORY_CODES = ['definition.overrides-updated', 'definition.retired'];
+
   // An editor must never have its in-progress inputs clobbered by a background refresh, so this
   // query neither polls nor refetches on window focus or network reconnect; it refetches only after a successful save.
   const detail = createQuery(() => ({
@@ -49,11 +53,15 @@
       try {
         // definition_id on events is job lineage: it is stamped on every execution event for jobs
         // under this definition, not just definition-change events. An unfiltered read is the
-        // definition's jobs' timelines, not its history. The definition-change family has exactly
-        // one member (definition.overrides-updated), so filter to it.
-        history = (
-          await api(definitionPath + '/events', { eventCode: 'definition.overrides-updated', pageSize: 20 }, { signal })
-        ).items;
+        // definition's jobs' timelines, not its history. The definition-change family is the two
+        // codes below, and the wire filter takes one code per read, so each gets its own small
+        // query and the pages merge newest-first.
+        const pages = await Promise.all(
+          HISTORY_CODES.map((eventCode) =>
+            api(definitionPath + '/events', { eventCode, pageSize: 20 }, { signal }).then((page) => page.items)
+          )
+        );
+        history = mergeHistory(pages);
       } catch (e) {
         if (e?.name === 'AbortError') throw e;
         // history is best-effort; the editor still works without it
@@ -74,6 +82,8 @@
   let message = $state('');
   let messageKind = $state('');
   let note = $state('');
+  let retiring = $state(false);
+  let confirmingRetire = $state(false);
   // The editable override inputs, keyed by field key. '' = inherit (clear the override).
   let inputs = $state({});
 
@@ -140,6 +150,27 @@
     inputs = next;
   }
 
+  async function retire(reason) {
+    confirmingRetire = false;
+    if (!def) return;
+    retiring = true;
+    message = '';
+    try {
+      const res = await retireDefinition(def.jobNamespace, def.jobName, def.version, reason);
+      message = res.message;
+      messageKind = res.action === 'applied' ? 'ok' : 'warn';
+      if (res.action === 'applied') {
+        note = '';
+        await detail.refetch(); // refresh status + version + the change history
+      }
+    } catch (e) {
+      message = e instanceof Error ? e.message : String(e);
+      messageKind = 'warn';
+    } finally {
+      retiring = false;
+    }
+  }
+
   const jobsHref = (d) => routes.jobs({ jobName: d.jobName, namespace: d.jobNamespace });
 </script>
 
@@ -196,8 +227,12 @@
             <input bind:value={note} placeholder="Why are you changing this?" disabled={saving} />
           </label>
           <div class="detail-form-actions">
-            <button class="primary" onclick={save} disabled={saving}>{saving ? 'Saving...' : 'Save overrides'}</button>
-            <button onclick={clearAll} disabled={saving}>Clear all</button>
+            <button class="primary" onclick={save} disabled={saving || retiring}>{saving ? 'Saving...' : 'Save overrides'}</button>
+            <button onclick={clearAll} disabled={saving || retiring}>Clear all</button>
+            <button
+              class="danger-outline"
+              onclick={() => (confirmingRetire = true)}
+              disabled={saving || retiring || def.status === 'retired'}>Retire definition</button>
           </div>
           {#if message}<div class="control-message {messageKind}" role="status">{message}</div>{/if}
         </section>
@@ -232,6 +267,17 @@
     </div>
   {/if}
 </Page>
+
+{#if confirmingRetire && def}
+  <ConfirmAction
+    title={'Retire ' + def.jobName + '?'}
+    body="Marks the definition retired and cancels its queued, suspended, and paused jobs. A running attempt finishes; enqueue is rejected until a build that still carries the definition registers again."
+    confirmLabel="Retire and cancel queued jobs"
+    danger={true}
+    requireReason={true}
+    onConfirm={retire}
+    onCancel={() => (confirmingRetire = false)} />
+{/if}
 
 <style>
   /* Inline override inputs sit in the policy table cells, so they keep a compact local style rather

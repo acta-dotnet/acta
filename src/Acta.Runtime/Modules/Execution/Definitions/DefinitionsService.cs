@@ -2,18 +2,21 @@ using System.Collections.Immutable;
 using System.Globalization;
 using Acta.Runtime.Kernel;
 using Acta.Runtime.Modules.Execution.Api;
+using Acta.Runtime.Modules.Execution.ChildLatches;
+using Acta.Runtime.Modules.Execution.Signals;
+using Acta.Runtime.Modules.Execution.Workers;
 using Acta.Runtime.Querying;
 
 namespace Acta.Runtime.Modules.Execution.Definitions;
 
 /// <summary>
 /// Definitions feature behavior: dashboard read validation and cursor math, the operator override
-/// write rules (canonicalization, backoff rejection, actor shaping), and the registration policy
+/// write rules (canonicalization, backoff rejection, actor shaping, the retire sweep's wake-ups), and the registration policy
 /// (descriptor-to-row resolution, the definition hash, and the C#-side write gate that lets a
 /// steady-state restart issue zero writes). Provider stores receive resolved rows and validated
 /// commands; the database keeps the per-row generation/hash gate.
 /// </summary>
-internal sealed class DefinitionsService(IDefinitionStore store)
+internal sealed class DefinitionsService(IDefinitionStore store, WorkerWakeupPublisher wakeupPublisher, ISignalStore signalStore)
 {
     private const string OrderDefinitions = "namespace asc, name asc, id asc";
     private const string ListOperationName = "ListJobDefinitions";
@@ -254,6 +257,64 @@ internal sealed class DefinitionsService(IDefinitionStore store)
                 _ => ControlAction.Rejected,
             }
         );
+    }
+
+    /// <summary>
+    /// Retires a definition and cancels its parked jobs in one store call, then wakes what the sweep
+    /// left waiting: a completion wake per cancelled job, and the child latch of every cancelled job
+    /// that has a parent. Descendants of a cancelled job are left alone, because a child of a job of
+    /// the retired definition usually belongs to a definition the operator did not retire.
+    /// </summary>
+    public async ValueTask<DefinitionControlResult> RetireAsync(
+        string jobNamespace,
+        string jobName,
+        int expectedVersion,
+        string? actorKey,
+        string? reasonMessage,
+        CancellationToken ct
+    )
+    {
+        var actor = new JobControlActor(ActorCode.Operator, actorKey.Truncate(ActaTextLimits.ActorKey));
+
+        var definitionId = await ResolveDefinitionIdAsync(jobNamespace, jobName, ct);
+        if (definitionId is null)
+        {
+            return new DefinitionControlResult(ControlAction.NotFound);
+        }
+
+        var outcome = await store.RetireDefinitionAsync(
+            new RetireDefinitionCommand(definitionId.Value, expectedVersion, actor, reasonMessage.Truncate(ActaTextLimits.ReasonMessage)),
+            ct
+        );
+
+        var action = outcome.Action switch
+        {
+            DefinitionOverrideAction.Applied => ControlAction.Applied,
+            DefinitionOverrideAction.NotFound => ControlAction.NotFound,
+            _ => ControlAction.Rejected,
+        };
+
+        if (action != ControlAction.Applied)
+        {
+            return new DefinitionControlResult(action);
+        }
+
+        var released = false;
+        foreach (var (jobId, parentId) in outcome.CancelledJobs)
+        {
+            await wakeupPublisher.WakeAsync(WorkerWakeupChannel.JobCompletion(jobId), WorkerWakeupReason.JobFinished, ct);
+            if (parentId is { } parent && await RaiseChildLatch.Run(signalStore, jobId, parent, JobStatusCode.Cancelled, ct))
+            {
+                released = true;
+            }
+        }
+
+        if (released)
+        {
+            await wakeupPublisher.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct);
+        }
+
+        return new DefinitionControlResult(action);
     }
 
     /// <summary>
