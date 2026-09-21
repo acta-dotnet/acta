@@ -33,6 +33,68 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
     public ConcurrentDictionary<int, JobDescriptor> DescriptorByDefinitionId { get; } = new();
 
     /// <summary>
+    /// definitions.id values this worker bounced for want of a handler, and therefore stops claiming.
+    /// Per process and never persisted: a build that carries the handler is a new process, so the set
+    /// never shrinks in production and an operator needs no way to clear it. Claims are by namespace,
+    /// so during a rolling deploy an old worker keeps claiming a definition only the new build can run
+    /// and hands it straight back; learning the definition bounds that to the batch already claimed
+    /// (every row of it still bounces, and only the first bounce warns): the next claim skips it.
+    /// </summary>
+    public ConcurrentDictionary<int, byte> UnsupportedDefinitionIds { get; } = new();
+
+    private readonly object _unsupportedGate = new();
+
+    private volatile int[] _unsupportedDefinitionIdsSnapshot = [];
+
+    /// <summary>
+    /// The excluded set as an array to bind into a claim, rebuilt on each change. Readers take the
+    /// whole array, so a claim binds a set that was coherent at some instant rather than one
+    /// enumerated while a bounce was adding to it.
+    /// </summary>
+    public int[] UnsupportedDefinitionIdsSnapshot => _unsupportedDefinitionIdsSnapshot;
+
+    /// <summary>
+    /// Excludes <paramref name="definitionId"/> from this worker's claims. Returns true only for the
+    /// first worker thread to add it, which is what makes the bounce warn once per definition.
+    /// </summary>
+    public bool ExcludeDefinition(int definitionId)
+    {
+        if (!UnsupportedDefinitionIds.TryAdd(definitionId, 0))
+        {
+            return false;
+        }
+        RebuildUnsupportedSnapshot();
+        return true;
+    }
+
+    /// <summary>
+    /// Drops <paramref name="definitionId"/> from the excluded set so this worker claims it again.
+    /// A test seam: production never forgets, because the deployment that carries the handler is a
+    /// different process.
+    /// </summary>
+    public bool ForgetUnsupportedDefinition(int definitionId)
+    {
+        if (!UnsupportedDefinitionIds.TryRemove(definitionId, out _))
+        {
+            return false;
+        }
+        RebuildUnsupportedSnapshot();
+        return true;
+    }
+
+    /// <summary>
+    /// Republishes the snapshot, reading the set and storing it under one lock: two concurrent changes
+    /// could otherwise interleave so the one that read the smaller set publishes last, hiding an id.
+    /// </summary>
+    private void RebuildUnsupportedSnapshot()
+    {
+        lock (_unsupportedGate)
+        {
+            _unsupportedDefinitionIdsSnapshot = [.. UnsupportedDefinitionIds.Keys];
+        }
+    }
+
+    /// <summary>
     /// Slot job ids (one per recurring definition) returned by the startup schedule upsert.
     /// Consulted on the execution hot path to branch a claimed slot fire into the recurring path.
     /// </summary>

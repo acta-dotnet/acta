@@ -250,6 +250,18 @@ internal sealed class WorkerRuntime
     internal ConcurrentDictionary<int, JobDescriptor> Descriptors => _context.DescriptorByDefinitionId;
 
     /// <summary>
+    /// The definition ids this runtime has bounced for want of a handler and no longer claims, as the
+    /// array its claims bind.
+    /// </summary>
+    internal int[] UnsupportedDefinitionIdsSnapshot => _context.UnsupportedDefinitionIdsSnapshot;
+
+    /// <summary>
+    /// Drops a definition from the excluded set so this runtime claims it again. A test seam: a
+    /// production process that carries the handler is a different process.
+    /// </summary>
+    internal bool ForgetUnsupportedDefinition(int definitionId) => _context.ForgetUnsupportedDefinition(definitionId);
+
+    /// <summary>
     /// Claim and run exactly one Ready job: descriptor dispatch and the start/execute/complete
     /// lifecycle (including the concurrency-key lock). Deterministic single-shot primitive for loop and tests.
     /// </summary>

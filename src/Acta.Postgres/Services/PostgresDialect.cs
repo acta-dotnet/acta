@@ -102,6 +102,14 @@ internal sealed class PostgresDialect : ISqlDialect
             _ => throw new InvalidOperationException($"Unmapped DbKind '{parameter.Kind}' for Postgres parameter '{parameter.Name}'."),
         };
 
+    /// <summary>
+    /// Bound as an empty array rather than NULL: the routine short-circuits on <c>cardinality</c>, which
+    /// a NULL answers NULL for, so the term would then reach the <c>jobs</c> lookup on every row to
+    /// arrive at the same "no filter" answer.
+    /// </summary>
+    public void BindExcludedDefinitionIds(DbCommand command, int[]? definitionIds) =>
+        AddArray((NpgsqlCommand)command, "@p_excluded_definition_ids", NpgsqlDbType.Integer, definitionIds ?? []);
+
     public void BindEnqueueBatch(DbCommand command, IReadOnlyList<JobEnqueueRow> rows, IReadOnlyList<Guid> jobRefs, string schema)
     {
         var postgres = (NpgsqlCommand)command;

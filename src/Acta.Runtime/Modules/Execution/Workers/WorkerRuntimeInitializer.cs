@@ -467,6 +467,15 @@ internal sealed class WorkerRuntimeInitializer(
             );
         }
 
+        // Every in-scope definition came from persisted state alone, so this manifest declares no slot
+        // at all: a rolling deploy whose new generation carries no scheduled job into a namespace that
+        // has some. There is nothing to reconcile, and the register verb reads its namespace from the
+        // first row, so an empty batch has no namespace to send either.
+        if (definitions.Count == 0)
+        {
+            return;
+        }
+
         // A C#-allocated public ref per slot, consumed only when the slot job row is freshly
         // inserted; an existing slot keeps its stored ref (the upsert never overwrites job_ref).
         var slotRefs = new Guid[definitions.Count];

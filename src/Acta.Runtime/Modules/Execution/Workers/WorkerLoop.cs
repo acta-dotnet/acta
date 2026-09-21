@@ -155,7 +155,12 @@ internal sealed class WorkerLoop(
             try
             {
                 var result = await _execution.ClaimBatchAsync(
-                    new ClaimRequest(namespaceId, workerId, MaxBatch: batchSize),
+                    new ClaimRequest(
+                        namespaceId,
+                        workerId,
+                        MaxBatch: batchSize,
+                        ExcludedDefinitionIds: _context.UnsupportedDefinitionIdsSnapshot
+                    ),
                     _leaseTtlSeconds,
                     ct
                 );
@@ -312,7 +317,13 @@ internal sealed class WorkerLoop(
                 try
                 {
                     result = await _execution.ClaimBatchAsync(
-                        new ClaimRequest(namespaceId, workerId, MaxBatch: acquired, StartExecuting: true),
+                        new ClaimRequest(
+                            namespaceId,
+                            workerId,
+                            MaxBatch: acquired,
+                            StartExecuting: true,
+                            ExcludedDefinitionIds: _context.UnsupportedDefinitionIdsSnapshot
+                        ),
                         _leaseTtlSeconds,
                         claimCt
                     );

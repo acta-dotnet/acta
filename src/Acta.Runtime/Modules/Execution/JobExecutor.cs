@@ -77,9 +77,16 @@ internal sealed class JobExecutor(
         ArgumentException.ThrowIfNullOrWhiteSpace(namespaceName);
         var (namespaceId, workerId) = _context.ResolveWorker(namespaceName);
 
+        // Only the scanning claim carries the exclusion: a caller naming a job id asked for that row,
+        // and gets the bounce rather than an empty claim it cannot tell from a locked-away one.
         var claim = explicitJobId is { } id
             ? await _execution.ClaimOneAsync(new ClaimRequest(namespaceId, workerId, MaxBatch: 1), _leaseTtlSeconds, id, ct)
-            : await _execution.ClaimOneAsync(new ClaimRequest(namespaceId, workerId, MaxBatch: 1), _leaseTtlSeconds, null, ct);
+            : await _execution.ClaimOneAsync(
+                new ClaimRequest(namespaceId, workerId, MaxBatch: 1, ExcludedDefinitionIds: _context.UnsupportedDefinitionIdsSnapshot),
+                _leaseTtlSeconds,
+                null,
+                ct
+            );
         if (claim.Jobs.Count == 0)
         {
             _metrics?.RecordClaim(namespaceName, "nothing-claimed");
@@ -108,7 +115,8 @@ internal sealed class JobExecutor(
     {
         if (!_context.DescriptorByDefinitionId.TryGetValue(job.DefinitionId, out var descriptor))
         {
-            return await ReleaseUnsupportedClaimAsync(job, namespaceName, workerId, alreadyStarted, ct);
+            var firstBounce = _context.ExcludeDefinition(job.DefinitionId);
+            return await ReleaseUnsupportedClaimAsync(job, namespaceName, workerId, alreadyStarted, firstBounce, ct);
         }
 
         // One scope per attempt carrying the job identity. Opened on the runtime logger, which shares
@@ -247,7 +255,8 @@ internal sealed class JobExecutor(
     /// again after <see cref="JobsOptions.SafetyPollInterval"/>, so a worker that carries the
     /// definition can take it. Claims are selected by namespace, so a namespace that still holds jobs
     /// for a definition dropped from the manifest - and every rolling deploy - hands some worker a job
-    /// it cannot run.
+    /// it cannot run. The caller has already excluded the definition from this worker's claims, so
+    /// each definition costs this worker one bounce rather than one per job per safety-poll interval.
     /// <para>The claim was never an attempt: nothing is registered in
     /// <c>WorkerContext.RunningAttempts</c>, no per-attempt scope is opened, and no handler is
     /// invoked. Refusing the claim by throwing instead would strand the row - the claim has already
@@ -260,6 +269,7 @@ internal sealed class JobExecutor(
         string namespaceName,
         int workerId,
         bool alreadyStarted,
+        bool firstBounce,
         CancellationToken ct
     )
     {
@@ -318,12 +328,14 @@ internal sealed class JobExecutor(
             RescheduleDelaySeconds = _unsupportedClaimDelaySeconds,
         };
 
-        // One warning per bounce: the ping-pong between an incapable worker and the queue is bounded
-        // by the delay but otherwise invisible, and this is the only place the pair (namespace,
-        // definition id) is known. The job name is not - resolving it is what the missing descriptor
-        // would have done - so the ref is what an operator takes to `jobs explain`.
-        _log.LogWarning(
-            "WorkerRuntime: ({Namespace}) job {JobId} ({Detail}) claimed with no handler in this deployment; returned to Ready in {DurationMs}ms.",
+        // One warning per definition, not per bounce: the exclusion makes the first bounce the whole
+        // story, and the rest of an already-claimed batch would otherwise repeat it once per row.
+        // This is the only place the pair (namespace, definition id) is known. The job name is not -
+        // resolving it is what the missing descriptor would have done - so the ref is what an operator
+        // takes to `jobs explain`.
+        _log.Log(
+            firstBounce ? LogLevel.Warning : LogLevel.Debug,
+            "WorkerRuntime: ({Namespace}) job {JobId} ({Detail}) claimed with no handler in this deployment; returned to Ready in {DurationMs}ms; excluded from this worker's claims until restart.",
             namespaceName,
             job.JobId,
             $"ref {job.JobRef}, definition_id {job.DefinitionId}",
@@ -331,8 +343,8 @@ internal sealed class JobExecutor(
         );
 
         // No wakeup publish, deliberately: every claim loop re-polls within SafetyPollInterval, which
-        // is the delay itself, and waking this namespace would wake this worker's own loops first and
-        // tighten the bounce into a spin.
+        // is the delay itself, and waking this namespace would wake this worker's own loops first -
+        // the loops that have just excluded this definition and so are the least able to use the wake.
         var (complete, _) = await CompletionWrite.RetryAsync(
             token => _execution.CompleteExecutionAsync(request, token),
             _log,

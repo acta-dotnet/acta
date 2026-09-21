@@ -91,6 +91,19 @@ internal sealed class SqlServerDialect : ISqlDialect
             _ => throw new InvalidOperationException($"Unmapped DbKind '{parameter.Kind}' for SqlServer parameter '{parameter.Name}'."),
         };
 
+    /// <summary>
+    /// JSON array text the procedure expands with OPENJSON. An empty set binds NULL, which skips the
+    /// expansion, leaves the count at zero, and so settles the claim's filter term before any
+    /// <c>jobs</c> lookup.
+    /// </summary>
+    public void BindExcludedDefinitionIds(DbCommand command, int[]? definitionIds) =>
+        AddScalar(
+            (SqlCommand)command,
+            "@p_excluded_definition_ids",
+            SqlDbType.NVarChar,
+            (object?)DbParams.JsonIdArray(definitionIds) ?? DBNull.Value
+        );
+
     public void BindEnqueueBatch(DbCommand command, IReadOnlyList<JobEnqueueRow> rows, IReadOnlyList<Guid> jobRefs, string schema)
     {
         var sql = (SqlCommand)command;

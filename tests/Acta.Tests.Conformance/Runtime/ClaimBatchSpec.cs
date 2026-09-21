@@ -20,15 +20,19 @@ namespace Acta.Tests.Conformance.Runtime;
 /// included, so a claim that found due work it could not take reports a horizon at/before now rather
 /// than "nothing scheduled". System jobs are disabled so the namespace's only Ready rows are the
 /// enqueued ones.
+/// <para>The same tick carries the rolling-deploy exclusion: a claim given a set of definition ids
+/// skips their rows in both halves of the routine, the candidate scan and the empty-claim horizon, so
+/// a worker whose only due work is excluded sleeps on the horizon instead of retrying at the
+/// anti-spin floor.</para>
 /// </summary>
 [ConformanceSpec(
     "claim-batch.size-cap",
-    "Claim caps at the batch size, drains the backlog, and reports the empty horizon",
+    "Claim caps at the batch size, reports the horizon, and skips excluded rows",
     Area = "Claim",
-    Contract = "A claim returns up to ClaimBatchSize rows with a null horizon, and an empty claim returns one sentinel carrying db_now and the earliest Ready run time.",
-    Arrange = "ClaimBatchSize is set to 5, system jobs are disabled, and a surplus backlog plus one delayed job are enqueued.",
-    Act = "Single claim ticks run against the surplus and the drained namespace, then the dispatch loop drains the backlog.",
-    Assert = "A claim caps at 5 rows, an empty claim returns one sentinel with db_now and the delayed row's run time, and the backlog lands Succeeded."
+    Contract = "A claim returns up to ClaimBatchSize rows, an empty claim returns one horizon sentinel, and an excluded definition is invisible to both.",
+    Arrange = "ClaimBatchSize is set to 5, system jobs are disabled, and a backlog, a delayed job, and two definitions' rows are enqueued.",
+    Act = "Single claim ticks run against the surplus, the drained namespace, and an excluded definition set, then the loop drains the backlog.",
+    Assert = "A claim caps at 5 rows, the empty sentinel carries db_now and the delayed row's time, and an all-excluded namespace reports none."
 )]
 [CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.ClaimBatchAsync))]
 public abstract class ClaimBatchSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
@@ -135,6 +139,127 @@ public abstract class ClaimBatchSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
             $"next_ready {nextReady:O} should be ahead of db_now {delayedHorizon.DbNowUtc:O}."
         );
         Assert.True(nextReady <= dueAt.AddMinutes(1), $"next_ready {nextReady:O} should be bounded by the planted row's {dueAt:O}.");
+    }
+
+    [Fact(
+        DisplayName = "An excluded definition is skipped while the rest of the namespace claims in priority order, and an empty set claims it again"
+    )]
+    public async Task An_excluded_definition_is_skipped_and_the_rest_claims_in_priority_order()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (_, _, leaseTtl, ns, workerId) = await ClaimDepsAsync(ct);
+        var excludedDefinitionId = DefinitionId(ExcludedJob);
+
+        var excludedJobs = new List<long>();
+        for (var i = 0; i < 3; i++)
+        {
+            excludedJobs.Add((await EnqueueExcludedAsync(ct)).JobId);
+        }
+        var normal = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, SupportedJob, JobPayload.None), ct);
+        var high = await Jobs.EnqueueAsync(
+            new JobEnqueueRequest(TestNamespace, SupportedJob, JobPayload.None, Priority: JobPriorityCode.High),
+            ct
+        );
+
+        // The exclusion narrows the candidate set and nothing else: a one-row claim still takes the
+        // last-enqueued High row ahead of the Normal one it was enqueued after.
+        var firstFiltered = await Services
+            .GetRequiredService<IExecutionStore>()
+            .ClaimBatchAsync(new ClaimRequest(ns, workerId, MaxBatch: 1, ExcludedDefinitionIds: [excludedDefinitionId]), leaseTtl, ct);
+
+        Assert.Equal(high.JobId, Assert.Single(firstFiltered.Jobs).JobId);
+
+        var restFiltered = await Services
+            .GetRequiredService<IExecutionStore>()
+            .ClaimBatchAsync(new ClaimRequest(ns, workerId, MaxBatch: Batch, ExcludedDefinitionIds: [excludedDefinitionId]), leaseTtl, ct);
+
+        Assert.Equal(normal.JobId, Assert.Single(restFiltered.Jobs).JobId);
+        Assert.DoesNotContain(excludedDefinitionId, restFiltered.Jobs.Select(j => j.DefinitionId));
+
+        // Same rows, no filter: the excluded definition was never unclaimable, only invisible to a
+        // worker that asked not to see it.
+        var unfiltered = await Services
+            .GetRequiredService<IExecutionStore>()
+            .ClaimBatchAsync(new ClaimRequest(ns, workerId, MaxBatch: Batch), leaseTtl, ct);
+
+        Assert.Equal(excludedJobs.Order(), unfiltered.Jobs.Select(j => j.JobId).Order());
+    }
+
+    [Fact(
+        DisplayName = "An empty claim's horizon skips excluded rows: a supported row bounds it, and an all-excluded namespace reports none"
+    )]
+    public async Task An_empty_claims_horizon_ignores_excluded_rows()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (_, _, leaseTtl, ns, workerId) = await ClaimDepsAsync(ct);
+        var excludedDefinitionId = DefinitionId(ExcludedJob);
+
+        // Overdue rows of the excluded definition: without the horizon term these would report a
+        // due-now instant, which the loop reads as "retry at the floor" - the spin this prevents.
+        await EnqueueExcludedAsync(ct);
+        await EnqueueExcludedAsync(ct);
+        var dbNow = await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct);
+        var dueAt = dbNow.AddMinutes(2);
+        await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, SupportedJob, JobPayload.None, NextRunAtUtc: dueAt), ct);
+
+        var bounded = await ReadClaimUntilAsync(
+            () =>
+                Services
+                    .GetRequiredService<IExecutionStore>()
+                    .ClaimBatchAsync(
+                        new ClaimRequest(ns, workerId, MaxBatch: Batch, ExcludedDefinitionIds: [excludedDefinitionId]),
+                        leaseTtl,
+                        ct
+                    ),
+            r => r.Horizon?.NextReadyAtUtc is { } seen && seen <= dueAt.AddMinutes(1),
+            ct
+        );
+        Assert.Empty(bounded.Jobs);
+        var boundedHorizon = Assert.NotNull(bounded.Horizon);
+        var nextReady = Assert.NotNull(boundedHorizon.NextReadyAtUtc);
+        Assert.True(
+            nextReady > boundedHorizon.DbNowUtc,
+            $"next_ready {nextReady:O} should be ahead of db_now {boundedHorizon.DbNowUtc:O}."
+        );
+        Assert.True(nextReady <= dueAt.AddMinutes(1), $"next_ready {nextReady:O} should be bounded by the supported row's {dueAt:O}.");
+
+        // Exclude every definition the namespace holds waiting rows for (the manifest's parked schedule
+        // slots included): nothing is left for this worker, and the sentinel says so with a NULL rather
+        // than an instant it would sleep to for no reason.
+        var allWaiting = await WaitingDefinitionIdsAsync(ns, ct);
+        var silent = await Services
+            .GetRequiredService<IExecutionStore>()
+            .ClaimBatchAsync(new ClaimRequest(ns, workerId, MaxBatch: Batch, ExcludedDefinitionIds: allWaiting), leaseTtl, ct);
+
+        Assert.Empty(silent.Jobs);
+        Assert.Null(Assert.NotNull(silent.Horizon).NextReadyAtUtc);
+    }
+
+    private const string ExcludedJob = "add-numbers";
+
+    private const string SupportedJob = "failures-audit-probe";
+
+    private async Task<JobEnqueueOutcome> EnqueueExcludedAsync(CancellationToken ct) =>
+        await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, ExcludedJob, JobPayload.Json(new AddNumbers(2, 3))), ct);
+
+    private int DefinitionId(string jobName) =>
+        Runtime.TryGetDefinitionId(TestNamespace, jobName, out var id)
+            ? id
+            : throw new InvalidOperationException($"'{jobName}' is not registered in the test namespace.");
+
+    /// <summary>
+    /// Every definition the namespace currently holds a claimable-or-waiting runtime row for: what a
+    /// caller must exclude for the horizon to have nothing left to report.
+    /// </summary>
+    private async Task<int[]> WaitingDefinitionIdsAsync(int namespaceId, CancellationToken ct)
+    {
+        var runtimes = await Db.From<JobRuntime>().Where(r => r.NamespaceId == namespaceId).ToListAsync(ct);
+        var waiting = runtimes
+            .Where(r => r.Status == JobStatusCode.Ready || (r.Status == JobStatusCode.Suspended && r.NextRunAtUtc is not null))
+            .Select(r => r.Id)
+            .ToHashSet();
+        var jobs = await Db.From<Job>().Where(j => j.NamespaceId == namespaceId).ToListAsync(ct);
+        return [.. jobs.Where(j => waiting.Contains(j.Id)).Select(j => j.DefinitionId).Distinct()];
     }
 
     /// <summary>

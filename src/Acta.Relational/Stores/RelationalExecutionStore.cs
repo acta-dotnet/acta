@@ -116,6 +116,7 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ClaimLimit, request.MaxBatch));
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeaseTtlSeconds, leaseTtlSeconds));
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.StartExecuting, request.StartExecuting));
+                    dialect.BindExcludedDefinitionIds(cmd, request.ExcludedDefinitionIds);
                 },
                 rows => ClaimResultMapper.Map(rows),
                 ct

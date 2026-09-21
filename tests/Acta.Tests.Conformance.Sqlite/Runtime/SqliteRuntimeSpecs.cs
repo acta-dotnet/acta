@@ -76,3 +76,5 @@ public sealed class SqliteWorkerRuntimeRegistrationSpec : WorkerRuntimeRegistrat
 public sealed class SqliteWorkerRuntimeDescriptorGateSpec : WorkerRuntimeDescriptorGateSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteCompletionSinkBulkFallbackSpec : CompletionSinkBulkFallbackSpec<SqliteConformanceFixture>;
+
+public sealed class SqliteRollingDeploySpec : RollingDeploySpec<SqliteConformanceFixture>;

@@ -384,6 +384,8 @@ public class DbSessionRetryRegionTests
 
         public DbParameter CreateParameter(DbParameterSpec spec) => throw new NotSupportedException();
 
+        public void BindExcludedDefinitionIds(DbCommand command, int[]? definitionIds) => throw new NotSupportedException();
+
         public void BindEnqueueOne(DbCommand command, JobEnqueueRow row, Guid jobRef, string schema) => throw new NotSupportedException();
 
         public void BindEnqueueBatch(DbCommand command, IReadOnlyList<JobEnqueueRow> rows, IReadOnlyList<Guid> jobRefs, string schema) =>

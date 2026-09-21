@@ -76,6 +76,13 @@ internal interface ISqlDialect
     /// <summary>Binds parameters required by a provider's non-recurring completion implementation.</summary>
     void BindNonRecurringCompletionDefaults(DbCommand command, CompleteExecutionRequest request) { }
 
+    /// <summary>
+    /// Binds the batch claim's excluded-definition set in the provider-native shape (typed array or
+    /// JSON array text). The parameter is always bound, because every dialect's claim text names it;
+    /// a null or empty set binds the provider's "no filter" value.
+    /// </summary>
+    void BindExcludedDefinitionIds(DbCommand command, int[]? definitionIds);
+
     /// <summary>Binds a one-row enqueue in the provider-native shape (typed arrays / TVP / JSON).</summary>
     void BindEnqueueOne(DbCommand command, JobEnqueueRow row, Guid jobRef, string schema);
 

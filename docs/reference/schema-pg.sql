@@ -1379,7 +1379,8 @@ CREATE OR REPLACE FUNCTION acta.claim_batch(
     p_leased_by_worker_id INT,
     p_claim_limit INT,
     p_lease_ttl_seconds INT,
-    p_start_executing BOOLEAN
+    p_start_executing BOOLEAN,
+    p_excluded_definition_ids INT[] DEFAULT '{}'
 )
 RETURNS TABLE (
     id BIGINT,
@@ -1404,9 +1405,9 @@ RETURNS TABLE (
 LANGUAGE sql
 AS $$
     WITH candidates AS (
-        /* Pure claim-index scan on ix_runtimes_claim_ready via the denormalized namespace; concurrency-key
-           admission is executor-owned (lock store) after the start CAS, so no jobs join here. A Ready row
-           always carries its due instant (ck_runtimes_ready_due); a Suspended NULL is an unbounded wait. */
+        /* Pure claim-index scan on ix_runtimes_claim_ready via the denormalized namespace; concurrency-key admission is executor-owned
+           (lock store) after the start CAS, and the one jobs lookup is the exclusion below. A Ready row always carries its due instant
+           (ck_runtimes_ready_due); a Suspended NULL is an unbounded wait. */
         SELECT r.job_id AS id, r.status_code AS from_status
         FROM acta.runtimes r
         WHERE
@@ -1418,6 +1419,17 @@ AS $$
             AND (
                 (r.status_code = 10 /* JobStatusCode.Ready */ AND r.next_run_at_utc <= now())
                 OR (r.status_code = 20 /* JobStatusCode.Suspended */ AND r.next_run_at_utc IS NOT NULL AND r.next_run_at_utc <= now())
+            )
+            /* Rolling-deploy exclusion: definitions this worker already bounced for want of a handler.
+               Empty on a healthy fleet, and the cardinality test is evaluated first, so a healthy claim
+               never reaches the jobs lookup. */
+            AND (
+                cardinality(p_excluded_definition_ids) = 0
+                OR NOT EXISTS (
+                    SELECT 1
+                    FROM acta.jobs j
+                    WHERE j.id = r.job_id AND j.definition_id = ANY (p_excluded_definition_ids)
+                )
             )
         ORDER BY
             r.priority_code DESC,
@@ -1553,11 +1565,27 @@ AS $$
                 AND (
                     r.status_code = 10 /* JobStatusCode.Ready */
                     OR (r.status_code = 20 /* JobStatusCode.Suspended */ AND r.next_run_at_utc IS NOT NULL)
+                )
+                /* Excluded rows are invisible to this worker's horizon too: a horizon at or before now
+                   is what tells the caller to retry at the anti-spin floor, so counting rows this
+                   worker will never claim would spin it. */
+                AND (
+                    cardinality(p_excluded_definition_ids) = 0
+                    OR NOT EXISTS (
+                        SELECT 1
+                        FROM acta.jobs j
+                        WHERE j.id = r.job_id AND j.definition_id = ANY (p_excluded_definition_ids)
+                    )
                 ))
     FROM clock c
     WHERE NOT EXISTS (SELECT 1 FROM updated)
     ORDER BY id NULLS LAST;
 $$;
+
+-- CREATE OR REPLACE across arities creates an overload instead of replacing; drop the retired
+-- signature (without the excluded-definition set) so a five-argument call resolves to the new
+-- function's default rather than to a stale form left by an earlier install.
+DROP FUNCTION IF EXISTS acta.claim_batch(INT, INT, INT, INT, BOOLEAN);
 
 CREATE OR REPLACE FUNCTION acta.claim_one(
     p_namespace_id INT,

@@ -20,15 +20,19 @@ namespace Acta.Tests.Conformance.Features.Execution;
 /// strand the row instead, because the claim has already stamped the lease and the heartbeat renews
 /// every leased row from database state alone, so the lease would never lapse for <c>sys.recovery</c>
 /// to reclaim.
+/// <para>The bounce also teaches the worker: the definition is excluded from its later claims, so the
+/// cost of an incapable deployment is one bounce per definition rather than one per job per
+/// safety-poll interval. The exclusion is per process and reaches the scanning claim only - a caller
+/// naming a job id still gets the bounce.</para>
 /// </summary>
 [ConformanceSpec(
     "execution.unsupported-definition-claim",
-    "A claim with no handler in this deployment is handed back, not stranded",
+    "A claim with no handler is handed back, and its definition is not claimed again",
     Area = "Execution",
-    Contract = "A claimed job this worker carries no descriptor for returns to Ready with the lease cleared and the retry budget untouched.",
-    Arrange = "A job is enqueued, then its descriptor is dropped from the live worker index the way a deployment that removed the handler would.",
-    Act = "The worker claims the job and runs one tick.",
-    Assert = "The job is Ready with no lease, failure_count unchanged, next_run_at_utc pushed by the re-arm delay, and no renewed lease at the next heartbeat."
+    Contract = "A claimed job this worker has no descriptor for returns to Ready budget-neutral, and the worker stops claiming that definition.",
+    Arrange = "Jobs are enqueued, then their descriptors are dropped from the live worker index the way a deployment that removed the handler would.",
+    Act = "The worker claims and ticks, by job id for the hand-back facts and namespace-wide for the exclusion.",
+    Assert = "The job is Ready with no lease and failure_count untouched, nothing renews its lease, and later namespace claims skip it."
 )]
 [CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.CompleteExecutionAsync))]
 public abstract class UnsupportedDefinitionClaimSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
@@ -136,13 +140,114 @@ public abstract class UnsupportedDefinitionClaimSpec<TFixture> : ActaRuntimeTest
 
         // What the bounce is for: the row is claimable again, and a process that carries the handler
         // runs it with no operator intervention and no retry spent. The re-arm delay is short enough
-        // that the by-id drive helper's claim retries outlast it.
+        // that the by-id drive helper's claim retries outlast it. Restoring the descriptor without
+        // clearing the exclusion is not a state production reaches - the deployment that carries the
+        // handler is a different process, with an empty exclusion set - so the seam clears it here.
         Runtime.Descriptors[definitionId] = descriptor;
+        Assert.True(Runtime.ForgetUnsupportedDefinition(definitionId));
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Succeeded, job.Status);
         Assert.Equal((short)0, job.FailureCount);
+    }
+
+    [Fact(
+        DisplayName = "After one bounce the worker's namespace claims skip that definition and still take the rest of the namespace's work"
+    )]
+    public async Task A_bounced_definition_is_not_claimed_again_by_this_worker()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var firstUnsupported = await EnqueueAndForgetDescriptorAsync(AuditedJob, ct);
+        var secondUnsupported = await Jobs.EnqueueAsync(
+            new JobEnqueueRequest(TestNamespace, AuditedJob, JobPayload.Json(new AddNumbers(2, 3))),
+            ct
+        );
+        var supported = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, FailuresAuditedJob, JobPayload.None), ct);
+
+        // Namespace-level ticks, because the exclusion lives on the scanning claim: the by-id path
+        // still hands a named row back.
+        var outcomes = await TickUntilNothingClaimedAsync(ct);
+        Assert.Contains(RunOnceOutcome.Rearmed, outcomes);
+        Assert.Contains(RunOnceOutcome.Completed, outcomes);
+
+        Assert.Contains(DefinitionId(AuditedJob), Runtime.UnsupportedDefinitionIdsSnapshot);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(supported.JobId, ct)).Status);
+
+        // One bounce for the definition, not one per job: the second row was never claimed, which its
+        // untouched execution_number is the evidence for. Both are Ready and due, so nothing but the
+        // exclusion is holding them back.
+        var first = await ReadJobAsync(firstUnsupported.JobId, ct);
+        var second = await ReadJobAsync(secondUnsupported.JobId, ct);
+        Assert.Equal(JobStatusCode.Ready, first.Status);
+        Assert.Equal(JobStatusCode.Ready, second.Status);
+        Assert.Equal((short)0, first.FailureCount);
+        Assert.Equal((short)0, second.FailureCount);
+        Assert.Equal(1, first.ExecutionNumber + second.ExecutionNumber);
+    }
+
+    [Fact(
+        DisplayName = "Every unsupported definition in a namespace is bounced once and then excluded, whatever order the claims arrive in"
+    )]
+    public async Task Several_unsupported_definitions_in_one_batch_are_all_released_and_learned()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var jobs = new List<long>();
+        foreach (var jobName in new[] { AuditedJob, FailuresAuditedJob })
+        {
+            jobs.Add((await EnqueueAndForgetDescriptorAsync(jobName, ct)).JobId);
+            var payload = jobName == AuditedJob ? JobPayload.Json(new AddNumbers(2, 3)) : JobPayload.None;
+            jobs.Add((await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, jobName, payload), ct)).JobId);
+            jobs.Add((await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, jobName, payload), ct)).JobId);
+        }
+
+        await TickUntilNothingClaimedAsync(ct);
+
+        Assert.Contains(DefinitionId(AuditedJob), Runtime.UnsupportedDefinitionIdsSnapshot);
+        Assert.Contains(DefinitionId(FailuresAuditedJob), Runtime.UnsupportedDefinitionIdsSnapshot);
+
+        var rows = new List<TestJobRow>();
+        foreach (var jobId in jobs)
+        {
+            rows.Add(await ReadJobAsync(jobId, ct));
+        }
+        Assert.All(
+            rows,
+            row =>
+            {
+                Assert.Equal(JobStatusCode.Ready, row.Status);
+                Assert.Equal((short)0, row.FailureCount);
+                Assert.Null(row.LeasedByWorkerId);
+            }
+        );
+
+        // Two definitions, two bounces, each claimed exactly once: the claim that taught the worker
+        // about the second definition is the only one the first definition's exclusion let through,
+        // and no row was claimed again after its bounce.
+        Assert.Equal(2, rows.Count(row => row.ExecutionNumber == 1));
+        Assert.DoesNotContain(rows, row => row.ExecutionNumber > 1);
+    }
+
+    /// <summary>
+    /// Drives namespace-level ticks (the claim path the exclusion filters) until one claims nothing,
+    /// and returns what each tick answered. Bounded so a claim that never settles fails the test
+    /// instead of hanging it.
+    /// </summary>
+    private async Task<IReadOnlyList<RunOnceOutcome>> TickUntilNothingClaimedAsync(CancellationToken ct)
+    {
+        var outcomes = new List<RunOnceOutcome>();
+        for (var tick = 0; tick < 32; tick++)
+        {
+            var outcome = await Runtime.RunOnceAsync(TestNamespace, ct);
+            if (outcome == RunOnceOutcome.NothingClaimed)
+            {
+                return outcomes;
+            }
+            outcomes.Add(outcome);
+        }
+
+        Assert.Fail($"the namespace still claimed work after 32 ticks: {string.Join(", ", outcomes)}.");
+        return outcomes;
     }
 
     /// <summary>

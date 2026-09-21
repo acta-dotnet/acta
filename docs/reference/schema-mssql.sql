@@ -1662,7 +1662,8 @@ CREATE OR ALTER PROCEDURE acta.claim_batch
     @p_leased_by_worker_id INT,
     @p_claim_limit INT,
     @p_lease_ttl_seconds INT,
-    @p_start_executing BIT
+    @p_start_executing BIT,
+    @p_excluded_definition_ids NVARCHAR(MAX) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -1679,6 +1680,15 @@ BEGIN
            0.5 ms into the future, so a full-precision @now can transiently see a just-enqueued row as
            not yet due. Rounding is monotonic, so the same-precision comparison never can. */
         DECLARE @due_now DATETIME2(3) = @now;
+
+        /* Rolling-deploy exclusion: the definitions this worker already bounced for want of a handler,
+           passed as JSON array text. Expanded once here so neither the claim nor the horizon pays for
+           OPENJSON per row, and counted so the healthy fleet's empty set short-circuits both. */
+        DECLARE @excluded TABLE (definition_id INT NOT NULL PRIMARY KEY);
+        IF @p_excluded_definition_ids IS NOT NULL
+            INSERT INTO @excluded (definition_id)
+            SELECT CAST(value AS INT) FROM OPENJSON(@p_excluded_definition_ids);
+        DECLARE @excluded_count INT = (SELECT COUNT(*) FROM @excluded);
 
         DECLARE
             @claimed TABLE
@@ -1704,9 +1714,9 @@ BEGIN
             );
 
         WITH candidates AS (
-            /* Pure claim-index scan on ix_runtimes_claim_ready via the denormalized namespace; concurrency-key
-               admission is executor-owned (lock store) after the start CAS, so no jobs join here. A Ready
-               row always carries its due instant (ck_runtimes_ready_due); a Suspended NULL is unbounded. */
+            /* Pure claim-index scan on ix_runtimes_claim_ready via the denormalized namespace; concurrency-key admission is
+               executor-owned (lock store) after the start CAS, and the one jobs lookup is the exclusion below. A Ready row always
+               carries its due instant (ck_runtimes_ready_due); a Suspended NULL is unbounded. */
             /* The status IN is redundant by the OR below but load-bearing: filtered-index subsumption
                matches top-level AND-terms only, so without this exact restatement of the index filter
                the claim scans every runtimes row and widens its UPDLOCK footprint to match. */
@@ -1721,6 +1731,16 @@ BEGIN
                         r.status_code = 20 /* JobStatusCode.Suspended */
                         AND r.next_run_at_utc IS NOT NULL
                         AND r.next_run_at_utc <= @due_now
+                    )
+                )
+                /* Empty on a healthy fleet, so the count test settles it before the jobs lookup and
+                   the scan above stays as it was. */
+                AND (
+                    @excluded_count = 0
+                    OR NOT EXISTS (
+                        SELECT 1
+                        FROM acta.jobs j
+                        WHERE j.id = r.job_id AND j.definition_id IN (SELECT e.definition_id FROM @excluded e)
                     )
                 )
             ORDER BY
@@ -1856,6 +1876,17 @@ BEGIN
                             AND (
                                 r.status_code = 10 /* JobStatusCode.Ready */
                                 OR (r.status_code = 20 /* JobStatusCode.Suspended */ AND r.next_run_at_utc IS NOT NULL)
+                            )
+                            /* Excluded rows are invisible to this worker's horizon too: a horizon at or
+                               before now is what tells the caller to retry at the anti-spin floor, so
+                               counting rows this worker will never claim would spin it. */
+                            AND (
+                                @excluded_count = 0
+                                OR NOT EXISTS (
+                                    SELECT 1
+                                    FROM acta.jobs j
+                                    WHERE j.id = r.job_id AND j.definition_id IN (SELECT e.definition_id FROM @excluded e)
+                                )
                             )
                     ) AS next_ready_at_utc;
             END

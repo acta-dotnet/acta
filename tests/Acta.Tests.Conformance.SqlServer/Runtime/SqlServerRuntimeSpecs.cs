@@ -74,3 +74,5 @@ public sealed class SqlServerWorkerRuntimeRegistrationSpec : WorkerRuntimeRegist
 public sealed class SqlServerWorkerRuntimeDescriptorGateSpec : WorkerRuntimeDescriptorGateSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerCompletionSinkBulkFallbackSpec : CompletionSinkBulkFallbackSpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerRollingDeploySpec : RollingDeploySpec<SqlServerConformanceFixture>;

@@ -1,5 +1,6 @@
 using System.Data.Common;
 using System.Globalization;
+using System.Text;
 using Acta.Relational.Schema;
 
 namespace Acta.Relational.Commands;
@@ -62,6 +63,29 @@ internal static class DbParams
             DateTimeKind.Local => value.ToUniversalTime(),
             _ => DateTime.SpecifyKind(value, DateTimeKind.Utc),
         };
+
+    /// <summary>
+    /// JSON array text (<c>[1,2]</c>) for the dialects whose SQL expands an id set with OPENJSON or
+    /// json_each; null for an empty set, which those bodies bind as DBNull and read as "no filter".
+    /// </summary>
+    public static string? JsonIdArray(int[]? values)
+    {
+        if (values is not { Length: > 0 })
+        {
+            return null;
+        }
+
+        var text = new StringBuilder("[");
+        for (var i = 0; i < values.Length; i++)
+        {
+            if (i > 0)
+            {
+                text.Append(',');
+            }
+            text.Append(values[i].ToString(CultureInfo.InvariantCulture));
+        }
+        return text.Append(']').ToString();
+    }
 
     public static void Validate(DbParameterSpec p)
     {

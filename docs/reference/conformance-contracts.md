@@ -567,14 +567,16 @@
 
 ## Claim
 
-### Claim caps at the batch size, drains the backlog, and reports the empty horizon
-- **Contract:** A claim returns up to ClaimBatchSize rows with a null horizon, and an empty claim returns one sentinel carrying db_now and the earliest Ready run time.
-- **Arrange:** ClaimBatchSize is set to 5, system jobs are disabled, and a surplus backlog plus one delayed job are enqueued.
-- **Act:** Single claim ticks run against the surplus and the drained namespace, then the dispatch loop drains the backlog.
-- **Assert:** A claim caps at 5 rows, an empty claim returns one sentinel with db_now and the delayed row's run time, and the backlog lands Succeeded.
+### Claim caps at the batch size, reports the horizon, and skips excluded rows
+- **Contract:** A claim returns up to ClaimBatchSize rows, an empty claim returns one horizon sentinel, and an excluded definition is invisible to both.
+- **Arrange:** ClaimBatchSize is set to 5, system jobs are disabled, and a backlog, a delayed job, and two definitions' rows are enqueued.
+- **Act:** Single claim ticks run against the surplus, the drained namespace, and an excluded definition set, then the loop drains the backlog.
+- **Assert:** A claim caps at 5 rows, the empty sentinel carries db_now and the delayed row's time, and an all-excluded namespace reports none.
 - **Guarantees:**
   - A single claim is capped at the batch size and a non-empty claim carries no horizon
   - A drained sentinel reports no due work and a delayed row bounds the horizon
+  - An excluded definition is skipped while the rest of the namespace claims in priority order, and an empty set claims it again
+  - An empty claim's horizon skips excluded rows: a supported row bounds it, and an all-excluded namespace reports none
   - The loop drains the whole backlog to Succeeded
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.ClaimBatchAsync`
@@ -1165,16 +1167,18 @@
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
 
-### A claim with no handler in this deployment is handed back, not stranded
-- **Contract:** A claimed job this worker carries no descriptor for returns to Ready with the lease cleared and the retry budget untouched.
-- **Arrange:** A job is enqueued, then its descriptor is dropped from the live worker index the way a deployment that removed the handler would.
-- **Act:** The worker claims the job and runs one tick.
-- **Assert:** The job is Ready with no lease, failure_count unchanged, next_run_at_utc pushed by the re-arm delay, and no renewed lease at the next heartbeat.
+### A claim with no handler is handed back, and its definition is not claimed again
+- **Contract:** A claimed job this worker has no descriptor for returns to Ready budget-neutral, and the worker stops claiming that definition.
+- **Arrange:** Jobs are enqueued, then their descriptors are dropped from the live worker index the way a deployment that removed the handler would.
+- **Act:** The worker claims and ticks, by job id for the hand-back facts and namespace-wide for the exclusion.
+- **Assert:** The job is Ready with no lease and failure_count untouched, nothing renews its lease, and later namespace claims skip it.
 - **Guarantees:**
   - A claimed job with no handler in this deployment returns to Ready with the lease cleared, failure_count untouched, and next_run_at_utc pushed by the re-arm delay
   - The worker heartbeat renews no lease for a job it handed back
   - Under Audit the bounce writes one execution-finished row naming the definition; under Failures it writes none
   - A handed-back job runs to completion on the next tick once a descriptor for it is back
+  - After one bounce the worker's namespace claims skip that definition and still take the rest of the namespace's work
+  - Every unsupported definition in a namespace is bounced once and then excluded, whatever order the claims arrive in
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
 
@@ -2080,6 +2084,16 @@
   - `Acta.Runtime.Modules.Execution.Workers.IWorkerStore.StopWorkerAsync`
   - `Acta.Runtime.Modules.Operations.Events.IEventStore.ListEventsAsync`
 
+## Runtime
+
+### Two generations share a namespace and the rollback still runs
+- **Contract:** A worker hands back a claim it has no handler for, stops claiming that definition, and leaves the catalog entry Active.
+- **Arrange:** Two runtimes register different manifest generations into one namespace, and one job of each generation's definitions is enqueued.
+- **Act:** The old generation ticks the namespace, then the new one, then a fresh old-generation process takes over after a rollback.
+- **Assert:** Each generation runs what it carries, leaves the other's job Ready and excluded, and the rollback still runs the omitted definition.
+- **Guarantees:**
+  - Two generations in one namespace hand back each other's work, learn it, and the rollback still runs the definition the new generation omitted
+
 ## Scheduling
 
 ### GetScheduleState returns live cursors for the namespace, empty when none exist
@@ -2668,9 +2682,9 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IDefinitionStore.SetDefinitionOverridesAsync` | Definition override bind matrix: all 13 slots<br>Override writes are version-guarded, recompute effective, and audited |
 | `IExecutionStore.ArmOrConsumeSleepTimerAsync` | Reschedule re-arms Ready and durable sleep arms an idempotent timer |
 | `IExecutionStore.CheckpointSlotAsync` | A bounded group wait spends one stored deadline across every child and replay<br>Job variables round-trip through the context API with versioning and validation |
-| `IExecutionStore.ClaimBatchAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>A paused slot does not fire and a timed pause auto-resumes at its expiry<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>At most one same-key handler executes, admitted at execution time<br>Claim caps at the batch size, drains the backlog, and reports the empty horizon<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire |
+| `IExecutionStore.ClaimBatchAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>A paused slot does not fire and a timed pause auto-resumes at its expiry<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>At most one same-key handler executes, admitted at execution time<br>Claim caps at the batch size, reports the horizon, and skips excluded rows<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire |
 | `IExecutionStore.ClaimOneAsync` | CLI verbs map onto IJobs and debug runs the targeted job in-process |
-| `IExecutionStore.CompleteExecutionAsync` | A bounded child wait expires, cancels its subtree, and leaves the parent running<br>A claim with no handler in this deployment is handed back, not stranded<br>A job registers, enqueues, claims, executes, persists and reads back<br>A paused slot does not fire and a timed pause auto-resumes at its expiry<br>A raise inside the suspend handoff lands the job Ready, not Suspended<br>A recurring job whose handler throws raises an alert<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>An operator pause landing inside a planned fire keeps the schedule paused<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Completing an in-flight attempt respects schedule changes made while it ran<br>Handler Fail Cancel Pause finalize the attempt without returning to user code<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Reschedule re-arms Ready and durable sleep arms an idempotent timer<br>StartExecution and CompleteExecution no-op outcomes return exact action enums |
+| `IExecutionStore.CompleteExecutionAsync` | A bounded child wait expires, cancels its subtree, and leaves the parent running<br>A claim with no handler is handed back, and its definition is not claimed again<br>A job registers, enqueues, claims, executes, persists and reads back<br>A paused slot does not fire and a timed pause auto-resumes at its expiry<br>A raise inside the suspend handoff lands the job Ready, not Suspended<br>A recurring job whose handler throws raises an alert<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>An operator pause landing inside a planned fire keeps the schedule paused<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Completing an in-flight attempt respects schedule changes made while it ran<br>Handler Fail Cancel Pause finalize the attempt without returning to user code<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Reschedule re-arms Ready and durable sleep arms an idempotent timer<br>StartExecution and CompleteExecution no-op outcomes return exact action enums |
 | `IExecutionStore.CompleteExecutionsBatchAsync` | CompleteExecutionsBatch self-filters and aligns outcomes to original ordinals |
 | `IExecutionStore.CompleteStepAsync` | At-most-once step re-entered before completion is interrupted<br>Nonzero backoff defers the parent to the retry instant and re-invokes the body<br>RunStepAsync runs once, replays results, and retries until exhausted<br>Step exhausts by retry-window and re-entry replays without body invocation |
 | `IExecutionStore.GetChildJobIdsAsync` | A bounded child wait expires, cancels its subtree, and leaves the parent running<br>Child jobs start deduped, join on completion latches, and cancel cascades |

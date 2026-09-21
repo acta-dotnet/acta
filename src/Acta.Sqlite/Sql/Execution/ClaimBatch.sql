@@ -2,8 +2,8 @@ DROP TABLE IF EXISTS temp._claimed;
 
 CREATE TEMP TABLE _claimed AS
 /* Pure claim-index scan; concurrency-key admission is executor-owned (lock store) after the start CAS,
-   so no jobs join here. A Ready row always carries its due instant, enforced by ck_runtimes_ready_due,
-   so the claim compares it directly; Suspended keeps a NULL for an unbounded wait and is excluded. */
+   and the one jobs lookup is the exclusion below, which an empty set short-circuits. A Ready row always
+   carries its due instant (ck_runtimes_ready_due); Suspended keeps a NULL for an unbounded wait. */
 /* The status IN is redundant by the OR below but load-bearing: SQLite matches a partial index only
    when a top-level AND-term implies the index filter, so without this exact restatement of
    ix_runtimes_claim_ready's filter every claim degrades to a full runtimes scan and sort. */
@@ -15,6 +15,16 @@ WHERE
     AND (
         (r.status_code = 10 /* JobStatusCode.Ready */ AND r.next_run_at_utc <= {{now}})
         OR (r.status_code = 20 /* JobStatusCode.Suspended */ AND r.next_run_at_utc IS NOT NULL AND r.next_run_at_utc <= {{now}})
+    )
+    /* The definitions this worker already bounced for want of a handler, as JSON array text. NULL on a
+       healthy fleet, and the NULL test settles the term before the jobs lookup. */
+    AND (
+        @p_excluded_definition_ids IS NULL
+        OR NOT EXISTS (
+            SELECT 1
+            FROM {{schema}}.jobs j
+            WHERE j.id = r.job_id AND j.definition_id IN (SELECT value FROM json_each(@p_excluded_definition_ids))
+        )
     )
 ORDER BY
     r.priority_code DESC,
@@ -113,6 +123,17 @@ SELECT
             AND (
                 r.status_code = 10 /* JobStatusCode.Ready */
                 OR (r.status_code = 20 /* JobStatusCode.Suspended */ AND r.next_run_at_utc IS NOT NULL)
+            )
+            /* Excluded rows are invisible to this worker's horizon too: a horizon at or before now is
+               what tells the caller to retry at the anti-spin floor, so counting rows this worker will
+               never claim would spin it. */
+            AND (
+                @p_excluded_definition_ids IS NULL
+                OR NOT EXISTS (
+                    SELECT 1
+                    FROM {{schema}}.jobs j
+                    WHERE j.id = r.job_id AND j.definition_id IN (SELECT value FROM json_each(@p_excluded_definition_ids))
+                )
             )
     )
 WHERE NOT EXISTS (SELECT 1 FROM temp._claimed)

@@ -174,6 +174,13 @@ internal sealed class SqliteDialect : ISqlDialect
 
     internal static long ToUnixMs(DateTime value) => (long)(DbParams.ToUtc(value) - UnixEpoch).TotalMilliseconds;
 
+    /// <summary>
+    /// JSON array text the claim expands with json_each. An empty set binds NULL, the form the claim's
+    /// exclusion term short-circuits on.
+    /// </summary>
+    public void BindExcludedDefinitionIds(DbCommand command, int[]? definitionIds) =>
+        AddNullableText(command, "@p_excluded_definition_ids", DbParams.JsonIdArray(definitionIds));
+
     public void BindEnqueueBatch(DbCommand command, IReadOnlyList<JobEnqueueRow> rows, IReadOnlyList<Guid> jobRefs, string schema)
     {
         var jsonRows = JsonArray(
