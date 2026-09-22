@@ -41,6 +41,20 @@ internal sealed record CompleteExecutionRequest(
 )
 {
     /// <summary>
+    /// Trims <c>results</c> to the newest N on a recurring completion, and is read nowhere else. The
+    /// zero default belongs to the non-recurring paths, where the branch reading it is unreachable; a
+    /// recurring request carrying zero is refused here rather than silently keeping every result row,
+    /// because retention never reaches a live recurring slot and this is the only thing bounding it.
+    /// </summary>
+    public int RecurringResultCap { get; init; } =
+        ScheduleAdvances is { Count: > 0 } && RecurringResultCap <= 0
+            ? throw new ArgumentOutOfRangeException(
+                nameof(RecurringResultCap),
+                $"Job {JobId} completed a recurring fire with a result cap of {RecurringResultCap}."
+            )
+            : RecurringResultCap;
+
+    /// <summary>
     /// Non-null selects the re-arm branch: the execution-row status (<c>8</c> Rescheduled / <c>9</c>
     /// Suspended). The Job flips to <c>Ready</c> instead of a terminal status. Set on the non-recurring
     /// path only; re-arm never advances recurring schedule cursors.
