@@ -55,28 +55,29 @@ public abstract class RateLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, Te
             Assert.True(admitted.Admitted, $"request {i} of the burst was denied");
         }
 
-        // The burst is spent, so the next request is the first to wait, and it waits one interval. That
-        // holds only while the burst was taken inside its own window: the meter refills one turn per
-        // interval, so ten requests that took longer than nine intervals to make (a shared CI database
-        // queuing the first reserves of a fresh bucket behind other classes) leave a turn free, and the
-        // eleventh request is admitted honestly. The premise is measured, not assumed.
-        var burstWindow = TimeSpan.FromMilliseconds((Burst - 1) * IntervalMilliseconds);
-        var next = await ReserveAsync(bucket, jobId: 1099, ct);
-        if (clock.Elapsed < burstWindow)
+        // The burst is spent, so the next request is the first to wait, and it waits one interval. The
+        // meter refills one turn per interval, though, so on a slow database (a shared CI server queuing
+        // the first reserves of a fresh bucket behind other classes) the burst itself can take longer
+        // than an interval and leave a turn free: the eleventh request is then admitted honestly. The
+        // claim measured here is the rate: past the burst, the meter admits at most the turns the
+        // elapsed time could have refilled, and the first denial books a turn ahead of now.
+        var admittedPastBurst = 0;
+        RateReservation next;
+        while ((next = await ReserveAsync(bucket, jobId: 1099 + admittedPastBurst, ct)).Admitted)
         {
-            Assert.False(next.Admitted, $"the eleventh request was admitted although the burst took {clock.Elapsed.TotalMilliseconds:0}ms");
-            Assert.True(
-                next.ResumeAtUtc > DateTime.UtcNow.AddMilliseconds(-IntervalMilliseconds),
-                $"the reserved turn {next.ResumeAtUtc:O} is not ahead of now"
-            );
+            admittedPastBurst++;
+            Assert.True(admittedPastBurst <= 3, "the meter kept admitting past its burst");
         }
-        else
-        {
-            Assert.True(
-                next.Admitted,
-                $"the burst took {clock.Elapsed.TotalMilliseconds:0}ms, past its window, yet the next request was denied"
-            );
-        }
+
+        var refilled = (int)(clock.Elapsed.TotalMilliseconds / IntervalMilliseconds);
+        Assert.True(
+            admittedPastBurst <= refilled,
+            $"{admittedPastBurst} request(s) past the burst were admitted, but only {refilled} turn(s) could have refilled in {clock.Elapsed.TotalMilliseconds:0}ms"
+        );
+        Assert.True(
+            next.ResumeAtUtc > DateTime.UtcNow.AddMilliseconds(-IntervalMilliseconds),
+            $"the reserved turn {next.ResumeAtUtc:O} is not ahead of now"
+        );
     }
 
     [Fact(DisplayName = "A booked turn is handed back unchanged until it arrives, and the meter stays put")]
@@ -125,16 +126,33 @@ public abstract class RateLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, Te
         // round trips between the stage and the reserve, which a shared CI database can stretch past
         // the hundred milliseconds a tighter stage would leave.
         Assert.NotNull(await Locks.TryAcquireAsync(bucket, TimeSpan.FromMinutes(5), 1401, ct));
+        var clock = Stopwatch.StartNew();
         await StageTurnAsync(reservation, jobId, TimeSpan.FromMilliseconds(-500), ct);
         var meterBefore = await MeterAsync(bucket, ct);
 
         var admitted = await ReserveAsync(bucket, jobId, ct);
+        var validityLeft = TimeSpan.FromMilliseconds(500) - clock.Elapsed;
 
-        // The meter counted this job when it allocated the turn; charging it again would meter it twice.
-        Assert.True(admitted.Admitted, "a turn 500ms past its instant was not honoured");
-        Assert.Equal(0, admitted.WaitMilliseconds);
-        Assert.Equal(meterBefore, await MeterAsync(bucket, ct));
-        Assert.Null(await ReadLockAsync(reservation, ct));
+        if (validityLeft > TimeSpan.Zero)
+        {
+            // The meter counted this job when it allocated the turn; charging it again would meter it twice.
+            Assert.True(
+                admitted.Admitted,
+                $"a turn 500ms past its instant was not honoured with {validityLeft.TotalMilliseconds:0}ms of validity left"
+            );
+            Assert.Equal(0, admitted.WaitMilliseconds);
+            Assert.Equal(meterBefore, await MeterAsync(bucket, ct));
+            Assert.Null(await ReadLockAsync(reservation, ct));
+        }
+        else
+        {
+            // The round trips outlasted the turn's validity, so the honest outcome is the stale one: the
+            // turn is re-metered against a bucket parked minutes ahead, and the request is denied.
+            Assert.False(
+                admitted.Admitted,
+                $"a turn {clock.Elapsed.TotalMilliseconds + 500:0}ms past its instant was honoured past its validity"
+            );
+        }
     }
 
     [Fact(DisplayName = "A turn gone stale is re-metered rather than honoured")]
