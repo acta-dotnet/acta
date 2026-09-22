@@ -157,6 +157,10 @@ Each line names the evidence that asserts it; none is checked by hand.
 
 ## After publishing
 
+- Create the GitHub pre-release from the tag (`gh release create v<version> --verify-tag --prerelease`),
+  titled with the bare version and carrying the notes' summary paragraph, the upgrade paragraph, the
+  highlights, the evidence, and a link to the release-notes section at the tag, in the shape of the
+  earlier releases. The packages publish without it; the release page is what a visitor reads.
 - `dotnet nuget locals http-cache --clear` first. The local index is cached for roughly half an hour,
   so a restore straight after publishing resolves the previous version and the demo bump below silently
   verifies the wrong artifact.
