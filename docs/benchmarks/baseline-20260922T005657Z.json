@@ -1,0 +1,4392 @@
+{
+  "schemaVersion": 2,
+  "preset": "full",
+  "capturedAtUtc": "2026-09-22T00:56:57Z",
+  "engineVersion": "1.0.0-rc.2\u002B4c19e61bb2a4d7be63e583f54123ba7240ae4cd1",
+  "gitCommit": "4c19e61b",
+  "gitDirty": false,
+  "policy": {
+    "warmupIterations": 1,
+    "measuredRepeats": 3,
+    "aggregation": "median"
+  },
+  "environment": {
+    "dotnetVersion": ".NET 10.0.12",
+    "os": "Microsoft Windows 10.0.26200",
+    "cpuModel": "Intel(R) Core(TM) i9-14900K",
+    "logicalProcessorCount": 32,
+    "totalMemoryBytes": 102818476032,
+    "disk": "NVMe SOLIDIGM SSDPFKKW010X7 [SSD]; NVMe SOLIDIGM SSDPFKKW020X7 [SSD]"
+  },
+  "databases": [
+    {
+      "provider": "mssql",
+      "databaseServerVersion": "16.0.4265.3",
+      "databaseEngineMajorVersion": "16",
+      "databaseProviderVersion": "7.0.0.0",
+      "databaseLocation": "mssql:127.0.0.1,1433/acta-dev",
+      "connectionStringFingerprint": "f50432219b8e7b7b"
+    }
+  ],
+  "cells": [
+    {
+      "key": {
+        "scenario": "throughput",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Buffered",
+        "jobs": 10000,
+        "executors": 1,
+        "claimBatch": 2,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 446.1222786100459,
+        "enqueuePerSecond": 29472.09581967793,
+        "drainPerSecond": 0,
+        "durationMs": 22415.3791,
+        "p50LatencyMs": 11101.5719,
+        "p95LatencyMs": 21016.3852,
+        "p99LatencyMs": 21905.4961,
+        "maxLatencyMs": 22122.9738,
+        "meanLatencyMs": 11095.172185029991,
+        "enqueueDurationMs": 339.304,
+        "drainDurationMs": 22415.3791,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 0,
+          "lockWaits": 0,
+          "pageLatchWaitMs": 4,
+          "writeLogWaitMs": 12184
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 446.1222786100459,
+          "enqueuePerSecond": 30642.953514945948,
+          "drainPerSecond": 0,
+          "durationMs": 22415.3791,
+          "p50LatencyMs": 11101.5719,
+          "p95LatencyMs": 21016.3852,
+          "p99LatencyMs": 21905.4961,
+          "maxLatencyMs": 22122.9738,
+          "meanLatencyMs": 11095.172185029991,
+          "enqueueDurationMs": 326.3393,
+          "drainDurationMs": 22415.3791,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 0,
+            "lockWaitMs": 0,
+            "pageLatchWaitMs": 5,
+            "writeLogWaitMs": 12184
+          }
+        },
+        {
+          "jobsPerSecond": 446.70084955577727,
+          "enqueuePerSecond": 28366.927339817637,
+          "drainPerSecond": 0,
+          "durationMs": 22386.3465,
+          "p50LatencyMs": 11062.5254,
+          "p95LatencyMs": 20960.5925,
+          "p99LatencyMs": 21845.4487,
+          "maxLatencyMs": 22065.8836,
+          "meanLatencyMs": 11076.160005790047,
+          "enqueueDurationMs": 352.5232,
+          "drainDurationMs": 22386.3465,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 0,
+            "lockWaitMs": 0,
+            "pageLatchWaitMs": 3,
+            "writeLogWaitMs": 12125
+          }
+        },
+        {
+          "jobsPerSecond": 229.77694187377278,
+          "enqueuePerSecond": 29472.09581967793,
+          "drainPerSecond": 0,
+          "durationMs": 43520.4678,
+          "p50LatencyMs": 20175.6026,
+          "p95LatencyMs": 40950.0558,
+          "p99LatencyMs": 42776.5387,
+          "maxLatencyMs": 43230.4803,
+          "meanLatencyMs": 20269.60945025,
+          "enqueueDurationMs": 339.304,
+          "drainDurationMs": 43520.4678,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 0,
+            "lockWaitMs": 0,
+            "pageLatchWaitMs": 4,
+            "writeLogWaitMs": 45629
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "throughput",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Buffered",
+        "jobs": 10000,
+        "executors": 2,
+        "claimBatch": 4,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 346.42151579969817,
+        "enqueuePerSecond": 27456.121685531307,
+        "drainPerSecond": 0,
+        "durationMs": 28866.5673,
+        "p50LatencyMs": 14158.2476,
+        "p95LatencyMs": 27107.2684,
+        "p99LatencyMs": 28217.4023,
+        "maxLatencyMs": 28539.5333,
+        "meanLatencyMs": 14281.964112950009,
+        "enqueueDurationMs": 364.21750000000003,
+        "drainDurationMs": 28866.5673,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 43,
+          "lockWaits": 1,
+          "pageLatchWaitMs": 117,
+          "writeLogWaitMs": 52908
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 339.7861209465979,
+          "enqueuePerSecond": 27456.121685531307,
+          "drainPerSecond": 0,
+          "durationMs": 29430.278000000002,
+          "p50LatencyMs": 14759.2034,
+          "p95LatencyMs": 27729.7436,
+          "p99LatencyMs": 28842.8601,
+          "maxLatencyMs": 29110.4126,
+          "meanLatencyMs": 14649.688506510014,
+          "enqueueDurationMs": 364.21750000000003,
+          "drainDurationMs": 29430.278000000002,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 1,
+            "lockWaitMs": 43,
+            "pageLatchWaitMs": 117,
+            "writeLogWaitMs": 53619
+          }
+        },
+        {
+          "jobsPerSecond": 346.42151579969817,
+          "enqueuePerSecond": 27063.32845922788,
+          "drainPerSecond": 0,
+          "durationMs": 28866.5673,
+          "p50LatencyMs": 14158.2476,
+          "p95LatencyMs": 27107.2684,
+          "p99LatencyMs": 28217.4023,
+          "maxLatencyMs": 28539.5333,
+          "meanLatencyMs": 14281.964112950009,
+          "enqueueDurationMs": 369.5037,
+          "drainDurationMs": 28866.5673,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 1,
+            "lockWaitMs": 21,
+            "pageLatchWaitMs": 124,
+            "writeLogWaitMs": 52908
+          }
+        },
+        {
+          "jobsPerSecond": 785.8791968503218,
+          "enqueuePerSecond": 31397.992475157123,
+          "drainPerSecond": 0,
+          "durationMs": 12724.602,
+          "p50LatencyMs": 6483.4787,
+          "p95LatencyMs": 11848.2509,
+          "p99LatencyMs": 12316.0921,
+          "maxLatencyMs": 12434.7874,
+          "meanLatencyMs": 6443.885152889976,
+          "enqueueDurationMs": 318.4917,
+          "drainDurationMs": 12724.602,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 1,
+            "lockWaitMs": 43,
+            "pageLatchWaitMs": 70,
+            "writeLogWaitMs": 14507
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "throughput",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Buffered",
+        "jobs": 10000,
+        "executors": 4,
+        "claimBatch": 8,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 636.1432861606156,
+        "enqueuePerSecond": 21659.68178028722,
+        "drainPerSecond": 0,
+        "durationMs": 15719.7289,
+        "p50LatencyMs": 7967.1853,
+        "p95LatencyMs": 14564.0894,
+        "p99LatencyMs": 15145.0992,
+        "maxLatencyMs": 15282.7627,
+        "meanLatencyMs": 7870.033570610015,
+        "enqueueDurationMs": 461.68730000000005,
+        "drainDurationMs": 15719.7289,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 150,
+          "lockWaits": 3,
+          "pageLatchWaitMs": 605,
+          "writeLogWaitMs": 52620
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 622.8683731383181,
+          "enqueuePerSecond": 26681.330726033695,
+          "drainPerSecond": 0,
+          "durationMs": 16054.756399999998,
+          "p50LatencyMs": 8255.4376,
+          "p95LatencyMs": 15007.0381,
+          "p99LatencyMs": 15583.6673,
+          "maxLatencyMs": 15721.6071,
+          "meanLatencyMs": 8086.676849549994,
+          "enqueueDurationMs": 374.7939,
+          "drainDurationMs": 16054.756399999998,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 3,
+            "lockWaitMs": 63,
+            "pageLatchWaitMs": 568,
+            "writeLogWaitMs": 53800
+          }
+        },
+        {
+          "jobsPerSecond": 636.1432861606156,
+          "enqueuePerSecond": 20696.220870069126,
+          "drainPerSecond": 0,
+          "durationMs": 15719.7289,
+          "p50LatencyMs": 7967.1853,
+          "p95LatencyMs": 14564.0894,
+          "p99LatencyMs": 15145.0992,
+          "maxLatencyMs": 15282.7627,
+          "meanLatencyMs": 7870.033570610015,
+          "enqueueDurationMs": 483.18,
+          "drainDurationMs": 15719.7289,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 7,
+            "lockWaitMs": 256,
+            "pageLatchWaitMs": 605,
+            "writeLogWaitMs": 52620
+          }
+        },
+        {
+          "jobsPerSecond": 670.4139993491486,
+          "enqueuePerSecond": 21659.68178028722,
+          "drainPerSecond": 0,
+          "durationMs": 14916.1563,
+          "p50LatencyMs": 7447.4329,
+          "p95LatencyMs": 13774.4169,
+          "p99LatencyMs": 14357.2538,
+          "maxLatencyMs": 14498.3769,
+          "meanLatencyMs": 7398.911050019993,
+          "enqueueDurationMs": 461.68730000000005,
+          "drainDurationMs": 14916.1563,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 3,
+            "lockWaitMs": 150,
+            "pageLatchWaitMs": 714,
+            "writeLogWaitMs": 49085
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "throughput",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Buffered",
+        "jobs": 10000,
+        "executors": 8,
+        "claimBatch": 16,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 1099.717270387804,
+        "enqueuePerSecond": 23286.031641059795,
+        "drainPerSecond": 0,
+        "durationMs": 9093.2463,
+        "p50LatencyMs": 4490.4115,
+        "p95LatencyMs": 8270.1902,
+        "p99LatencyMs": 8617.5044,
+        "maxLatencyMs": 8704.9013,
+        "meanLatencyMs": 4452.775105349999,
+        "enqueueDurationMs": 429.442,
+        "drainDurationMs": 9093.2463,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 367,
+          "lockWaits": 10,
+          "pageLatchWaitMs": 1652,
+          "writeLogWaitMs": 56485
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 1099.717270387804,
+          "enqueuePerSecond": 23286.031641059795,
+          "drainPerSecond": 0,
+          "durationMs": 9093.2463,
+          "p50LatencyMs": 4490.4115,
+          "p95LatencyMs": 8270.1902,
+          "p99LatencyMs": 8617.5044,
+          "maxLatencyMs": 8704.6721,
+          "meanLatencyMs": 4452.775105349999,
+          "enqueueDurationMs": 429.442,
+          "drainDurationMs": 9093.2463,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 7,
+            "lockWaitMs": 154,
+            "pageLatchWaitMs": 1274,
+            "writeLogWaitMs": 57144
+          }
+        },
+        {
+          "jobsPerSecond": 1108.0156600728506,
+          "enqueuePerSecond": 28236.479385393493,
+          "drainPerSecond": 0,
+          "durationMs": 9025.1432,
+          "p50LatencyMs": 4425.8599,
+          "p95LatencyMs": 8263.2375,
+          "p99LatencyMs": 8616.3221,
+          "maxLatencyMs": 8704.9013,
+          "meanLatencyMs": 4444.777339760015,
+          "enqueueDurationMs": 354.15180000000004,
+          "drainDurationMs": 9025.1432,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 10,
+            "lockWaitMs": 367,
+            "pageLatchWaitMs": 1652,
+            "writeLogWaitMs": 55474
+          }
+        },
+        {
+          "jobsPerSecond": 1074.7402068113984,
+          "enqueuePerSecond": 20399.72444052226,
+          "drainPerSecond": 0,
+          "durationMs": 9304.5742,
+          "p50LatencyMs": 4670.4853,
+          "p95LatencyMs": 8424.3703,
+          "p99LatencyMs": 8782.0775,
+          "maxLatencyMs": 8861.6979,
+          "meanLatencyMs": 4601.017895249987,
+          "enqueueDurationMs": 490.2027,
+          "drainDurationMs": 9304.5742,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 17,
+            "lockWaitMs": 498,
+            "pageLatchWaitMs": 1828,
+            "writeLogWaitMs": 56485
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "throughput",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Buffered",
+        "jobs": 10000,
+        "executors": 16,
+        "claimBatch": 32,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 2003.9437211643772,
+        "enqueuePerSecond": 21379.654778438362,
+        "drainPerSecond": 0,
+        "durationMs": 4990.1601,
+        "p50LatencyMs": 2444.2375,
+        "p95LatencyMs": 4380.5187,
+        "p99LatencyMs": 4542.455,
+        "maxLatencyMs": 4569.5195,
+        "meanLatencyMs": 2442.3045715799967,
+        "enqueueDurationMs": 467.7344,
+        "drainDurationMs": 4990.1601,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 438,
+          "lockWaits": 18,
+          "pageLatchWaitMs": 2272,
+          "writeLogWaitMs": 57150
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 1943.8699012972843,
+          "enqueuePerSecond": 20422.49652358053,
+          "drainPerSecond": 0,
+          "durationMs": 5144.3772,
+          "p50LatencyMs": 2561.4322,
+          "p95LatencyMs": 4465.289,
+          "p99LatencyMs": 4649.7872,
+          "maxLatencyMs": 4696.5102,
+          "meanLatencyMs": 2549.2998221200032,
+          "enqueueDurationMs": 489.6561,
+          "drainDurationMs": 5144.3772,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 18,
+            "lockWaitMs": 438,
+            "pageLatchWaitMs": 2271,
+            "writeLogWaitMs": 59240
+          }
+        },
+        {
+          "jobsPerSecond": 2003.9437211643772,
+          "enqueuePerSecond": 21379.654778438362,
+          "drainPerSecond": 0,
+          "durationMs": 4990.1601,
+          "p50LatencyMs": 2444.2375,
+          "p95LatencyMs": 4380.5187,
+          "p99LatencyMs": 4542.455,
+          "maxLatencyMs": 4569.5195,
+          "meanLatencyMs": 2442.3045715799967,
+          "enqueueDurationMs": 467.7344,
+          "drainDurationMs": 4990.1601,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 31,
+            "lockWaitMs": 1269,
+            "pageLatchWaitMs": 2272,
+            "writeLogWaitMs": 57150
+          }
+        },
+        {
+          "jobsPerSecond": 3743.89146668296,
+          "enqueuePerSecond": 23773.942142783442,
+          "drainPerSecond": 0,
+          "durationMs": 2671.0175999999997,
+          "p50LatencyMs": 1204.8957,
+          "p95LatencyMs": 2165.8228,
+          "p99LatencyMs": 2262.624,
+          "maxLatencyMs": 2289.818,
+          "meanLatencyMs": 1220.0262041399972,
+          "enqueueDurationMs": 420.6286,
+          "drainDurationMs": 2671.0175999999997,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 17,
+            "lockWaitMs": 357,
+            "pageLatchWaitMs": 2683,
+            "writeLogWaitMs": 19235
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "throughput",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Buffered",
+        "jobs": 10000,
+        "executors": 32,
+        "claimBatch": 64,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 4012.24102639224,
+        "enqueuePerSecond": 18745.18248810056,
+        "drainPerSecond": 0,
+        "durationMs": 2492.3727000000003,
+        "p50LatencyMs": 1028.9404,
+        "p95LatencyMs": 1905.0378,
+        "p99LatencyMs": 1985.19,
+        "maxLatencyMs": 2004.2813,
+        "meanLatencyMs": 1090.220167889997,
+        "enqueueDurationMs": 533.4704,
+        "drainDurationMs": 2492.3727000000003,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 1354,
+          "lockWaits": 32,
+          "pageLatchWaitMs": 14449,
+          "writeLogWaitMs": 23551
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 3916.364316814135,
+          "enqueuePerSecond": 18499.063669892348,
+          "drainPerSecond": 0,
+          "durationMs": 2553.3885999999998,
+          "p50LatencyMs": 1140.389,
+          "p95LatencyMs": 1960.9729,
+          "p99LatencyMs": 2044.3376,
+          "maxLatencyMs": 2061.291,
+          "meanLatencyMs": 1172.1790007800046,
+          "enqueueDurationMs": 540.5679,
+          "drainDurationMs": 2553.3885999999998,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 32,
+            "lockWaitMs": 1354,
+            "pageLatchWaitMs": 14449,
+            "writeLogWaitMs": 23551
+          }
+        },
+        {
+          "jobsPerSecond": 4430.0255971309025,
+          "enqueuePerSecond": 18970.224146477445,
+          "drainPerSecond": 0,
+          "durationMs": 2257.3233,
+          "p50LatencyMs": 975.6323,
+          "p95LatencyMs": 1672.8335,
+          "p99LatencyMs": 1765.8572,
+          "maxLatencyMs": 1781.8758,
+          "meanLatencyMs": 963.7261728000052,
+          "enqueueDurationMs": 527.1419000000001,
+          "drainDurationMs": 2257.3233,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 32,
+            "lockWaitMs": 1354,
+            "pageLatchWaitMs": 12069,
+            "writeLogWaitMs": 25256
+          }
+        },
+        {
+          "jobsPerSecond": 4012.24102639224,
+          "enqueuePerSecond": 18745.18248810056,
+          "drainPerSecond": 0,
+          "durationMs": 2492.3727000000003,
+          "p50LatencyMs": 1028.9404,
+          "p95LatencyMs": 1905.0378,
+          "p99LatencyMs": 1985.19,
+          "maxLatencyMs": 2004.2813,
+          "meanLatencyMs": 1090.220167889997,
+          "enqueueDurationMs": 533.4704,
+          "drainDurationMs": 2492.3727000000003,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 84,
+            "lockWaitMs": 2467,
+            "pageLatchWaitMs": 16971,
+            "writeLogWaitMs": 22003
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "throughput",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Direct",
+        "jobs": 10000,
+        "executors": 1,
+        "claimBatch": 2,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 209.8003707302627,
+        "enqueuePerSecond": 27569.64989577294,
+        "drainPerSecond": 0,
+        "durationMs": 47664.3581,
+        "p50LatencyMs": 23620.1487,
+        "p95LatencyMs": 44959.0581,
+        "p99LatencyMs": 46869.1632,
+        "maxLatencyMs": 47343.481,
+        "meanLatencyMs": 23662.341243620012,
+        "enqueueDurationMs": 362.7177,
+        "drainDurationMs": 47664.3581,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 21,
+          "lockWaits": 1,
+          "pageLatchWaitMs": 0,
+          "writeLogWaitMs": 32936
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 203.86699066785394,
+          "enqueuePerSecond": 27569.64989577294,
+          "drainPerSecond": 0,
+          "durationMs": 49051.5898,
+          "p50LatencyMs": 24048.7289,
+          "p95LatencyMs": 46304.9145,
+          "p99LatencyMs": 48247.3159,
+          "maxLatencyMs": 48726.58,
+          "meanLatencyMs": 24305.96880798001,
+          "enqueueDurationMs": 362.7177,
+          "drainDurationMs": 49051.5898,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 0,
+            "lockWaitMs": 0,
+            "pageLatchWaitMs": 0,
+            "writeLogWaitMs": 38189
+          }
+        },
+        {
+          "jobsPerSecond": 209.8003707302627,
+          "enqueuePerSecond": 27842.558129692865,
+          "drainPerSecond": 0,
+          "durationMs": 47664.3581,
+          "p50LatencyMs": 23620.1487,
+          "p95LatencyMs": 44959.0581,
+          "p99LatencyMs": 46869.1632,
+          "maxLatencyMs": 47343.481,
+          "meanLatencyMs": 23662.341243620012,
+          "enqueueDurationMs": 359.1624,
+          "drainDurationMs": 47664.3581,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 1,
+            "lockWaitMs": 21,
+            "pageLatchWaitMs": 1,
+            "writeLogWaitMs": 32936
+          }
+        },
+        {
+          "jobsPerSecond": 345.13383059548386,
+          "enqueuePerSecond": 27329.632536692767,
+          "drainPerSecond": 0,
+          "durationMs": 28974.2677,
+          "p50LatencyMs": 16069.3249,
+          "p95LatencyMs": 27384.0981,
+          "p99LatencyMs": 28394.0338,
+          "maxLatencyMs": 28647.1999,
+          "meanLatencyMs": 15888.190448909974,
+          "enqueueDurationMs": 365.90319999999997,
+          "drainDurationMs": 28974.2677,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 1,
+            "lockWaitMs": 22,
+            "pageLatchWaitMs": 0,
+            "writeLogWaitMs": 13692
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "throughput",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Direct",
+        "jobs": 10000,
+        "executors": 2,
+        "claimBatch": 4,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 275.07057141812663,
+        "enqueuePerSecond": 27212.891073056002,
+        "drainPerSecond": 0,
+        "durationMs": 36354.307,
+        "p50LatencyMs": 18160.5027,
+        "p95LatencyMs": 34217.1892,
+        "p99LatencyMs": 35668.6511,
+        "maxLatencyMs": 36024.2052,
+        "meanLatencyMs": 18052.627069690036,
+        "enqueueDurationMs": 367.4729,
+        "drainDurationMs": 36354.307,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 43,
+          "lockWaits": 1,
+          "pageLatchWaitMs": 20,
+          "writeLogWaitMs": 44333
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 585.1672244958537,
+          "enqueuePerSecond": 32881.08686459766,
+          "drainPerSecond": 0,
+          "durationMs": 17089.1321,
+          "p50LatencyMs": 7817.2029,
+          "p95LatencyMs": 15538.7836,
+          "p99LatencyMs": 16520.9975,
+          "maxLatencyMs": 16814.8612,
+          "meanLatencyMs": 7947.516957760006,
+          "enqueueDurationMs": 304.12620000000004,
+          "drainDurationMs": 17089.1321,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 1,
+            "lockWaitMs": 21,
+            "pageLatchWaitMs": 20,
+            "writeLogWaitMs": 10617
+          }
+        },
+        {
+          "jobsPerSecond": 275.07057141812663,
+          "enqueuePerSecond": 27212.891073056002,
+          "drainPerSecond": 0,
+          "durationMs": 36354.307,
+          "p50LatencyMs": 18293.4865,
+          "p95LatencyMs": 34217.1892,
+          "p99LatencyMs": 35668.6511,
+          "maxLatencyMs": 36024.2052,
+          "meanLatencyMs": 18052.627069690036,
+          "enqueueDurationMs": 367.4729,
+          "drainDurationMs": 36354.307,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 1,
+            "lockWaitMs": 43,
+            "pageLatchWaitMs": 20,
+            "writeLogWaitMs": 44333
+          }
+        },
+        {
+          "jobsPerSecond": 266.48970542140023,
+          "enqueuePerSecond": 26326.27841724308,
+          "drainPerSecond": 0,
+          "durationMs": 37524.9017,
+          "p50LatencyMs": 18160.5027,
+          "p95LatencyMs": 35310.9798,
+          "p99LatencyMs": 36808.599,
+          "maxLatencyMs": 37179.724,
+          "meanLatencyMs": 18327.212207330034,
+          "enqueueDurationMs": 379.8486,
+          "drainDurationMs": 37524.9017,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 2,
+            "lockWaitMs": 64,
+            "pageLatchWaitMs": 46,
+            "writeLogWaitMs": 47041
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "throughput",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Direct",
+        "jobs": 10000,
+        "executors": 4,
+        "claimBatch": 8,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 1105.8491491049251,
+        "enqueuePerSecond": 30785.93095269834,
+        "drainPerSecond": 0,
+        "durationMs": 9042.824700000001,
+        "p50LatencyMs": 4247.1247,
+        "p95LatencyMs": 8338.5509,
+        "p99LatencyMs": 8678.576,
+        "maxLatencyMs": 8759.5114,
+        "meanLatencyMs": 4325.67580926001,
+        "enqueueDurationMs": 324.8237,
+        "drainDurationMs": 9042.824700000001,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 129,
+          "lockWaits": 3,
+          "pageLatchWaitMs": 146,
+          "writeLogWaitMs": 8862
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 608.5228666037186,
+          "enqueuePerSecond": 26920.052558710617,
+          "drainPerSecond": 0,
+          "durationMs": 16433.2362,
+          "p50LatencyMs": 10176.4421,
+          "p95LatencyMs": 15670.7698,
+          "p99LatencyMs": 16017.4697,
+          "maxLatencyMs": 16102.3738,
+          "meanLatencyMs": 9512.598065239996,
+          "enqueueDurationMs": 371.47029999999995,
+          "drainDurationMs": 16433.2362,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 3,
+            "lockWaitMs": 195,
+            "pageLatchWaitMs": 146,
+            "writeLogWaitMs": 30745
+          }
+        },
+        {
+          "jobsPerSecond": 1150.0870500888213,
+          "enqueuePerSecond": 30785.93095269834,
+          "drainPerSecond": 0,
+          "durationMs": 8694.993999999999,
+          "p50LatencyMs": 4241.4143,
+          "p95LatencyMs": 7967.2801,
+          "p99LatencyMs": 8316.847,
+          "maxLatencyMs": 8403.5556,
+          "meanLatencyMs": 4225.309669860015,
+          "enqueueDurationMs": 324.8237,
+          "drainDurationMs": 8694.993999999999,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 3,
+            "lockWaitMs": 129,
+            "pageLatchWaitMs": 153,
+            "writeLogWaitMs": 8635
+          }
+        },
+        {
+          "jobsPerSecond": 1105.8491491049251,
+          "enqueuePerSecond": 31730.277411469353,
+          "drainPerSecond": 0,
+          "durationMs": 9042.824700000001,
+          "p50LatencyMs": 4247.1247,
+          "p95LatencyMs": 8338.5509,
+          "p99LatencyMs": 8678.576,
+          "maxLatencyMs": 8759.5114,
+          "meanLatencyMs": 4325.67580926001,
+          "enqueueDurationMs": 315.1564,
+          "drainDurationMs": 9042.824700000001,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 3,
+            "lockWaitMs": 129,
+            "pageLatchWaitMs": 131,
+            "writeLogWaitMs": 8862
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "throughput",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Direct",
+        "jobs": 10000,
+        "executors": 8,
+        "claimBatch": 16,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 1893.7812201670279,
+        "enqueuePerSecond": 29214.387150811384,
+        "drainPerSecond": 0,
+        "durationMs": 5280.441,
+        "p50LatencyMs": 2279.9409,
+        "p95LatencyMs": 4621.5276,
+        "p99LatencyMs": 4893.5704,
+        "maxLatencyMs": 4968.2904,
+        "meanLatencyMs": 2414.3446405399905,
+        "enqueueDurationMs": 342.2971,
+        "drainDurationMs": 5280.441,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 301,
+          "lockWaits": 7,
+          "pageLatchWaitMs": 435,
+          "writeLogWaitMs": 7933
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 1920.6394838304434,
+          "enqueuePerSecond": 26164.83900905382,
+          "drainPerSecond": 0,
+          "durationMs": 5206.599200000001,
+          "p50LatencyMs": 2371.4721,
+          "p95LatencyMs": 4567.9726,
+          "p99LatencyMs": 4807.7824,
+          "maxLatencyMs": 4867.7923,
+          "meanLatencyMs": 2414.3446405399905,
+          "enqueueDurationMs": 382.1923,
+          "drainDurationMs": 5206.599200000001,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 7,
+            "lockWaitMs": 301,
+            "pageLatchWaitMs": 397,
+            "writeLogWaitMs": 8241
+          }
+        },
+        {
+          "jobsPerSecond": 1797.3617999974515,
+          "enqueuePerSecond": 32164.714214905965,
+          "drainPerSecond": 0,
+          "durationMs": 5563.710099999999,
+          "p50LatencyMs": 2279.9409,
+          "p95LatencyMs": 4947.8507,
+          "p99LatencyMs": 5212.6145,
+          "maxLatencyMs": 5280.0142,
+          "meanLatencyMs": 2433.9335370699964,
+          "enqueueDurationMs": 310.8997,
+          "drainDurationMs": 5563.710099999999,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 7,
+            "lockWaitMs": 301,
+            "pageLatchWaitMs": 435,
+            "writeLogWaitMs": 7933
+          }
+        },
+        {
+          "jobsPerSecond": 1893.7812201670279,
+          "enqueuePerSecond": 29214.387150811384,
+          "drainPerSecond": 0,
+          "durationMs": 5280.441,
+          "p50LatencyMs": 2131.44,
+          "p95LatencyMs": 4621.5276,
+          "p99LatencyMs": 4893.5704,
+          "maxLatencyMs": 4968.2904,
+          "meanLatencyMs": 2276.662907489992,
+          "enqueueDurationMs": 342.2971,
+          "drainDurationMs": 5280.441,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 7,
+            "lockWaitMs": 154,
+            "pageLatchWaitMs": 503,
+            "writeLogWaitMs": 7620
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "throughput",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Direct",
+        "jobs": 10000,
+        "executors": 16,
+        "claimBatch": 32,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 3176.514528773917,
+        "enqueuePerSecond": 30053.30554805058,
+        "drainPerSecond": 0,
+        "durationMs": 3148.1046,
+        "p50LatencyMs": 1310.0947,
+        "p95LatencyMs": 2660.7761,
+        "p99LatencyMs": 2807.8451,
+        "maxLatencyMs": 2845.4437,
+        "meanLatencyMs": 1382.9728195300017,
+        "enqueueDurationMs": 332.7421,
+        "drainDurationMs": 3148.1046,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 351,
+          "lockWaits": 15,
+          "pageLatchWaitMs": 935,
+          "writeLogWaitMs": 7892
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 3033.645095983772,
+          "enqueuePerSecond": 28696.883145430926,
+          "drainPerSecond": 0,
+          "durationMs": 3296.3645,
+          "p50LatencyMs": 1272.9868,
+          "p95LatencyMs": 2794.2894,
+          "p99LatencyMs": 2945.2011,
+          "maxLatencyMs": 2981.0551,
+          "meanLatencyMs": 1376.067849200002,
+          "enqueueDurationMs": 348.4699,
+          "drainDurationMs": 3296.3645,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 15,
+            "lockWaitMs": 330,
+            "pageLatchWaitMs": 935,
+            "writeLogWaitMs": 7892
+          }
+        },
+        {
+          "jobsPerSecond": 3176.514528773917,
+          "enqueuePerSecond": 30053.30554805058,
+          "drainPerSecond": 0,
+          "durationMs": 3148.1046,
+          "p50LatencyMs": 1310.0947,
+          "p95LatencyMs": 2660.7761,
+          "p99LatencyMs": 2807.8451,
+          "maxLatencyMs": 2845.4437,
+          "meanLatencyMs": 1382.9728195300017,
+          "enqueueDurationMs": 332.7421,
+          "drainDurationMs": 3148.1046,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 15,
+            "lockWaitMs": 425,
+            "pageLatchWaitMs": 920,
+            "writeLogWaitMs": 7396
+          }
+        },
+        {
+          "jobsPerSecond": 3338.994487186542,
+          "enqueuePerSecond": 31797.54376693418,
+          "drainPerSecond": 0,
+          "durationMs": 2994.9136,
+          "p50LatencyMs": 1336.9676,
+          "p95LatencyMs": 2583.9364,
+          "p99LatencyMs": 2683.3207,
+          "maxLatencyMs": 2706.7853,
+          "meanLatencyMs": 1392.8830113799988,
+          "enqueueDurationMs": 314.48969999999997,
+          "drainDurationMs": 2994.9136,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 16,
+            "lockWaitMs": 351,
+            "pageLatchWaitMs": 1071,
+            "writeLogWaitMs": 8010
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "throughput",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Direct",
+        "jobs": 10000,
+        "executors": 32,
+        "claimBatch": 64,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 2679.327884169869,
+        "enqueuePerSecond": 25739.992612622118,
+        "drainPerSecond": 0,
+        "durationMs": 3732.2793,
+        "p50LatencyMs": 1819.6562,
+        "p95LatencyMs": 3198.4773,
+        "p99LatencyMs": 3351.91,
+        "maxLatencyMs": 3390.1535,
+        "meanLatencyMs": 1748.9245765100009,
+        "enqueueDurationMs": 388.50050000000005,
+        "drainDurationMs": 3732.2793,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 1354,
+          "lockWaits": 31,
+          "pageLatchWaitMs": 4040,
+          "writeLogWaitMs": 35668
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 2514.2949611442114,
+          "enqueuePerSecond": 27717.768808307792,
+          "drainPerSecond": 0,
+          "durationMs": 3977.2581,
+          "p50LatencyMs": 1905.3535,
+          "p95LatencyMs": 3445.8205,
+          "p99LatencyMs": 3612.5747,
+          "maxLatencyMs": 3649.4552,
+          "meanLatencyMs": 1889.4071655499959,
+          "enqueueDurationMs": 360.77939999999995,
+          "drainDurationMs": 3977.2581,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 32,
+            "lockWaitMs": 1354,
+            "pageLatchWaitMs": 4532,
+            "writeLogWaitMs": 33479
+          }
+        },
+        {
+          "jobsPerSecond": 2687.970011716324,
+          "enqueuePerSecond": 23408.41504430745,
+          "drainPerSecond": 0,
+          "durationMs": 3720.2796,
+          "p50LatencyMs": 1819.6562,
+          "p95LatencyMs": 3155.1467,
+          "p99LatencyMs": 3302.3055,
+          "maxLatencyMs": 3341.3602,
+          "meanLatencyMs": 1748.9245765100009,
+          "enqueueDurationMs": 427.1968,
+          "drainDurationMs": 3720.2796,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 31,
+            "lockWaitMs": 2015,
+            "pageLatchWaitMs": 4040,
+            "writeLogWaitMs": 35668
+          }
+        },
+        {
+          "jobsPerSecond": 2679.327884169869,
+          "enqueuePerSecond": 25739.992612622118,
+          "drainPerSecond": 0,
+          "durationMs": 3732.2793,
+          "p50LatencyMs": 1619.8987,
+          "p95LatencyMs": 3198.4773,
+          "p99LatencyMs": 3351.91,
+          "maxLatencyMs": 3390.1535,
+          "meanLatencyMs": 1704.7531120300002,
+          "enqueueDurationMs": 388.50050000000005,
+          "drainDurationMs": 3732.2793,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 31,
+            "lockWaitMs": 1333,
+            "pageLatchWaitMs": 3235,
+            "writeLogWaitMs": 35898
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "throughput",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Bulk",
+        "jobs": 10000,
+        "executors": 1,
+        "claimBatch": 2,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 378.35250826998185,
+        "enqueuePerSecond": 26223.950438831584,
+        "drainPerSecond": 0,
+        "durationMs": 26430.3785,
+        "p50LatencyMs": 13001.0142,
+        "p95LatencyMs": 24777.6979,
+        "p99LatencyMs": 25819.9869,
+        "maxLatencyMs": 26086.8019,
+        "meanLatencyMs": 13032.659809990027,
+        "enqueueDurationMs": 381.3308,
+        "drainDurationMs": 26430.3785,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 21,
+          "lockWaits": 1,
+          "pageLatchWaitMs": 3,
+          "writeLogWaitMs": 17755
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 372.0475427798216,
+          "enqueuePerSecond": 27632.255574047675,
+          "drainPerSecond": 0,
+          "durationMs": 26878.285300000003,
+          "p50LatencyMs": 13091.3366,
+          "p95LatencyMs": 25270.8954,
+          "p99LatencyMs": 26303.0769,
+          "maxLatencyMs": 26557.0104,
+          "meanLatencyMs": 13170.175903420026,
+          "enqueueDurationMs": 361.8959,
+          "drainDurationMs": 26878.285300000003,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 1,
+            "lockWaitMs": 21,
+            "pageLatchWaitMs": 2,
+            "writeLogWaitMs": 17784
+          }
+        },
+        {
+          "jobsPerSecond": 379.17397268556584,
+          "enqueuePerSecond": 26223.950438831584,
+          "drainPerSecond": 0,
+          "durationMs": 26373.1182,
+          "p50LatencyMs": 12736.4913,
+          "p95LatencyMs": 24651.4482,
+          "p99LatencyMs": 25757.5591,
+          "maxLatencyMs": 26032.2637,
+          "meanLatencyMs": 12886.522978990022,
+          "enqueueDurationMs": 381.3308,
+          "drainDurationMs": 26373.1182,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 0,
+            "lockWaitMs": 0,
+            "pageLatchWaitMs": 3,
+            "writeLogWaitMs": 17163
+          }
+        },
+        {
+          "jobsPerSecond": 378.35250826998185,
+          "enqueuePerSecond": 25847.788062612646,
+          "drainPerSecond": 0,
+          "durationMs": 26430.3785,
+          "p50LatencyMs": 13001.0142,
+          "p95LatencyMs": 24777.6979,
+          "p99LatencyMs": 25819.9869,
+          "maxLatencyMs": 26086.8019,
+          "meanLatencyMs": 13032.659809990027,
+          "enqueueDurationMs": 386.88030000000003,
+          "drainDurationMs": 26430.3785,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 1,
+            "lockWaitMs": 22,
+            "pageLatchWaitMs": 3,
+            "writeLogWaitMs": 17755
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "throughput",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Bulk",
+        "jobs": 10000,
+        "executors": 2,
+        "claimBatch": 4,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 1094.2348486224566,
+        "enqueuePerSecond": 29834.39523890787,
+        "drainPerSecond": 0,
+        "durationMs": 9138.806,
+        "p50LatencyMs": 3704.2988,
+        "p95LatencyMs": 8401.7396,
+        "p99LatencyMs": 8791.5588,
+        "maxLatencyMs": 8851.4294,
+        "meanLatencyMs": 4007.760406810017,
+        "enqueueDurationMs": 335.1836,
+        "drainDurationMs": 9138.806,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 0,
+          "lockWaits": 0,
+          "pageLatchWaitMs": 8,
+          "writeLogWaitMs": 2995
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 966.5370939925622,
+          "enqueuePerSecond": 26598.270101709128,
+          "drainPerSecond": 0,
+          "durationMs": 10346.214399999999,
+          "p50LatencyMs": 5405.8449,
+          "p95LatencyMs": 9653.8011,
+          "p99LatencyMs": 9937.2792,
+          "maxLatencyMs": 10008.8798,
+          "meanLatencyMs": 5441.994381470009,
+          "enqueueDurationMs": 375.9643,
+          "drainDurationMs": 10346.214399999999,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 0,
+            "lockWaitMs": 0,
+            "pageLatchWaitMs": 3,
+            "writeLogWaitMs": 4684
+          }
+        },
+        {
+          "jobsPerSecond": 1126.042801494948,
+          "enqueuePerSecond": 29834.39523890787,
+          "drainPerSecond": 0,
+          "durationMs": 8880.6571,
+          "p50LatencyMs": 3704.2988,
+          "p95LatencyMs": 8253.3237,
+          "p99LatencyMs": 8507.3815,
+          "maxLatencyMs": 8580.202,
+          "meanLatencyMs": 3992.645734850003,
+          "enqueueDurationMs": 335.1836,
+          "drainDurationMs": 8880.6571,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 0,
+            "lockWaitMs": 0,
+            "pageLatchWaitMs": 8,
+            "writeLogWaitMs": 2995
+          }
+        },
+        {
+          "jobsPerSecond": 1094.2348486224566,
+          "enqueuePerSecond": 31093.647536714605,
+          "drainPerSecond": 0,
+          "durationMs": 9138.806,
+          "p50LatencyMs": 3689.9467,
+          "p95LatencyMs": 8401.7396,
+          "p99LatencyMs": 8791.5588,
+          "maxLatencyMs": 8851.4294,
+          "meanLatencyMs": 4007.760406810017,
+          "enqueueDurationMs": 321.60909999999996,
+          "drainDurationMs": 9138.806,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 0,
+            "lockWaitMs": 0,
+            "pageLatchWaitMs": 9,
+            "writeLogWaitMs": 2898
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "throughput",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Bulk",
+        "jobs": 10000,
+        "executors": 4,
+        "claimBatch": 8,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 2113.9855065999263,
+        "enqueuePerSecond": 30944.90260091906,
+        "drainPerSecond": 0,
+        "durationMs": 4730.4014,
+        "p50LatencyMs": 1945.2958,
+        "p95LatencyMs": 4234.0422,
+        "p99LatencyMs": 4392.8902,
+        "maxLatencyMs": 4431.5328,
+        "meanLatencyMs": 2106.210948370002,
+        "enqueueDurationMs": 323.15500000000003,
+        "drainDurationMs": 4730.4014,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 0,
+          "lockWaits": 0,
+          "pageLatchWaitMs": 13,
+          "writeLogWaitMs": 1945
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 2113.9855065999263,
+          "enqueuePerSecond": 30250.037736922077,
+          "drainPerSecond": 0,
+          "durationMs": 4730.4014,
+          "p50LatencyMs": 1952.9352,
+          "p95LatencyMs": 4234.0422,
+          "p99LatencyMs": 4392.8902,
+          "maxLatencyMs": 4431.5328,
+          "meanLatencyMs": 2106.210948370002,
+          "enqueueDurationMs": 330.5781,
+          "drainDurationMs": 4730.4014,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 0,
+            "lockWaitMs": 0,
+            "pageLatchWaitMs": 13,
+            "writeLogWaitMs": 2071
+          }
+        },
+        {
+          "jobsPerSecond": 2011.75767751106,
+          "enqueuePerSecond": 30944.90260091906,
+          "drainPerSecond": 0,
+          "durationMs": 4970.7776,
+          "p50LatencyMs": 1945.2958,
+          "p95LatencyMs": 4371.1715,
+          "p99LatencyMs": 4621.6453,
+          "maxLatencyMs": 4682.3362,
+          "meanLatencyMs": 2112.699205480001,
+          "enqueueDurationMs": 323.15500000000003,
+          "drainDurationMs": 4970.7776,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 0,
+            "lockWaitMs": 0,
+            "pageLatchWaitMs": 13,
+            "writeLogWaitMs": 1599
+          }
+        },
+        {
+          "jobsPerSecond": 2317.3616596499273,
+          "enqueuePerSecond": 31039.946859610976,
+          "drainPerSecond": 0,
+          "durationMs": 4315.2522,
+          "p50LatencyMs": 1877.2663,
+          "p95LatencyMs": 3808.584,
+          "p99LatencyMs": 3976.1801,
+          "maxLatencyMs": 4028.9225,
+          "meanLatencyMs": 1981.7645893900026,
+          "enqueueDurationMs": 322.1655,
+          "drainDurationMs": 4315.2522,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 0,
+            "lockWaitMs": 0,
+            "pageLatchWaitMs": 13,
+            "writeLogWaitMs": 1945
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "throughput",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Bulk",
+        "jobs": 10000,
+        "executors": 8,
+        "claimBatch": 16,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 2208.9304983654242,
+        "enqueuePerSecond": 26626.81874485437,
+        "drainPerSecond": 0,
+        "durationMs": 4527.077700000001,
+        "p50LatencyMs": 2030.5254,
+        "p95LatencyMs": 3977.8338,
+        "p99LatencyMs": 4153.9266,
+        "maxLatencyMs": 4196.9913,
+        "meanLatencyMs": 2092.3584504100086,
+        "enqueueDurationMs": 375.5612,
+        "drainDurationMs": 4527.077700000001,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 43,
+          "lockWaits": 1,
+          "pageLatchWaitMs": 10,
+          "writeLogWaitMs": 3622
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 2198.3261241426417,
+          "enqueuePerSecond": 25509.390644430983,
+          "drainPerSecond": 0,
+          "durationMs": 4548.9156,
+          "p50LatencyMs": 2045.9238,
+          "p95LatencyMs": 3977.8338,
+          "p99LatencyMs": 4153.9266,
+          "maxLatencyMs": 4196.9913,
+          "meanLatencyMs": 2100.502443860006,
+          "enqueueDurationMs": 392.0125,
+          "drainDurationMs": 4548.9156,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 1,
+            "lockWaitMs": 43,
+            "pageLatchWaitMs": 19,
+            "writeLogWaitMs": 3968
+          }
+        },
+        {
+          "jobsPerSecond": 2208.9304983654242,
+          "enqueuePerSecond": 29692.040098506313,
+          "drainPerSecond": 0,
+          "durationMs": 4527.077700000001,
+          "p50LatencyMs": 2030.5254,
+          "p95LatencyMs": 3979.1075,
+          "p99LatencyMs": 4175.2917,
+          "maxLatencyMs": 4223.0837,
+          "meanLatencyMs": 2092.3584504100086,
+          "enqueueDurationMs": 336.7906,
+          "drainDurationMs": 4527.077700000001,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 1,
+            "lockWaitMs": 43,
+            "pageLatchWaitMs": 10,
+            "writeLogWaitMs": 3147
+          }
+        },
+        {
+          "jobsPerSecond": 2376.597153497304,
+          "enqueuePerSecond": 26626.81874485437,
+          "drainPerSecond": 0,
+          "durationMs": 4207.6966999999995,
+          "p50LatencyMs": 1879.4501,
+          "p95LatencyMs": 3658.387,
+          "p99LatencyMs": 3836.4797,
+          "maxLatencyMs": 3874.4028,
+          "meanLatencyMs": 1931.5183280200026,
+          "enqueueDurationMs": 375.5612,
+          "drainDurationMs": 4207.6966999999995,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 2,
+            "lockWaitMs": 64,
+            "pageLatchWaitMs": 7,
+            "writeLogWaitMs": 3622
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "throughput",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Bulk",
+        "jobs": 10000,
+        "executors": 16,
+        "claimBatch": 32,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 3719.913571528079,
+        "enqueuePerSecond": 24786.550619341542,
+        "drainPerSecond": 0,
+        "durationMs": 2688.2345,
+        "p50LatencyMs": 1233.8003,
+        "p95LatencyMs": 2190.3579,
+        "p99LatencyMs": 2299.4086,
+        "maxLatencyMs": 2327.3472,
+        "meanLatencyMs": 1244.9733895900026,
+        "enqueueDurationMs": 403.4446,
+        "drainDurationMs": 2688.2345,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 129,
+          "lockWaits": 3,
+          "pageLatchWaitMs": 231,
+          "writeLogWaitMs": 2659
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 3740.9021260294962,
+          "enqueuePerSecond": 25074.119096047918,
+          "drainPerSecond": 0,
+          "durationMs": 2673.152,
+          "p50LatencyMs": 1233.8003,
+          "p95LatencyMs": 2185.5597,
+          "p99LatencyMs": 2289.2106,
+          "maxLatencyMs": 2313.5057,
+          "meanLatencyMs": 1244.9733895900026,
+          "enqueueDurationMs": 398.81759999999997,
+          "drainDurationMs": 2673.152,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 3,
+            "lockWaitMs": 129,
+            "pageLatchWaitMs": 237,
+            "writeLogWaitMs": 2659
+          }
+        },
+        {
+          "jobsPerSecond": 3547.749371658109,
+          "enqueuePerSecond": 20873.54534871658,
+          "drainPerSecond": 0,
+          "durationMs": 2818.6884,
+          "p50LatencyMs": 1268.0683,
+          "p95LatencyMs": 2300.1541,
+          "p99LatencyMs": 2395.329,
+          "maxLatencyMs": 2417.1164,
+          "meanLatencyMs": 1300.071599500002,
+          "enqueueDurationMs": 479.07529999999997,
+          "drainDurationMs": 2818.6884,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 3,
+            "lockWaitMs": 129,
+            "pageLatchWaitMs": 231,
+            "writeLogWaitMs": 5155
+          }
+        },
+        {
+          "jobsPerSecond": 3719.913571528079,
+          "enqueuePerSecond": 24786.550619341542,
+          "drainPerSecond": 0,
+          "durationMs": 2688.2345,
+          "p50LatencyMs": 1052.8429,
+          "p95LatencyMs": 2190.3579,
+          "p99LatencyMs": 2299.4086,
+          "maxLatencyMs": 2327.3472,
+          "meanLatencyMs": 1146.0052097699986,
+          "enqueueDurationMs": 403.4446,
+          "drainDurationMs": 2688.2345,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 3,
+            "lockWaitMs": 63,
+            "pageLatchWaitMs": 223,
+            "writeLogWaitMs": 2583
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "throughput",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Bulk",
+        "jobs": 10000,
+        "executors": 32,
+        "claimBatch": 64,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 6959.46771207151,
+        "enqueuePerSecond": 24765.17659552127,
+        "drainPerSecond": 0,
+        "durationMs": 1436.8915,
+        "p50LatencyMs": 557.6596,
+        "p95LatencyMs": 1006.2918,
+        "p99LatencyMs": 1066.6295,
+        "maxLatencyMs": 1079.3153,
+        "meanLatencyMs": 573.2631684399975,
+        "enqueueDurationMs": 403.7928,
+        "drainDurationMs": 1436.8915,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 344,
+          "lockWaits": 9,
+          "pageLatchWaitMs": 472,
+          "writeLogWaitMs": 1515
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 6959.46771207151,
+          "enqueuePerSecond": 24765.17659552127,
+          "drainPerSecond": 0,
+          "durationMs": 1436.8915,
+          "p50LatencyMs": 556.5768,
+          "p95LatencyMs": 1000.5762,
+          "p99LatencyMs": 1059.0323,
+          "maxLatencyMs": 1074.5608,
+          "meanLatencyMs": 573.2631684399975,
+          "enqueueDurationMs": 403.7928,
+          "drainDurationMs": 1436.8915,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 9,
+            "lockWaitMs": 344,
+            "pageLatchWaitMs": 472,
+            "writeLogWaitMs": 1457
+          }
+        },
+        {
+          "jobsPerSecond": 4605.630456923676,
+          "enqueuePerSecond": 18348.647420281093,
+          "drainPerSecond": 0,
+          "durationMs": 2171.2554,
+          "p50LatencyMs": 1107.381,
+          "p95LatencyMs": 1609.8275,
+          "p99LatencyMs": 1671.752,
+          "maxLatencyMs": 1684.1045,
+          "meanLatencyMs": 1040.4792311700005,
+          "enqueueDurationMs": 544.9993,
+          "drainDurationMs": 2171.2554,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 10,
+            "lockWaitMs": 512,
+            "pageLatchWaitMs": 407,
+            "writeLogWaitMs": 3798
+          }
+        },
+        {
+          "jobsPerSecond": 6966.618125593774,
+          "enqueuePerSecond": 25189.90036134912,
+          "drainPerSecond": 0,
+          "durationMs": 1435.4167,
+          "p50LatencyMs": 557.6596,
+          "p95LatencyMs": 1006.2918,
+          "p99LatencyMs": 1066.6295,
+          "maxLatencyMs": 1079.3153,
+          "meanLatencyMs": 570.6951974300025,
+          "enqueueDurationMs": 396.9845,
+          "drainDurationMs": 1435.4167,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 7,
+            "lockWaitMs": 147,
+            "pageLatchWaitMs": 707,
+            "writeLogWaitMs": 1515
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "latency",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Buffered",
+        "jobs": 0,
+        "executors": 1,
+        "claimBatch": 2,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 56.83242867473369,
+        "enqueuePerSecond": 0,
+        "drainPerSecond": 0,
+        "durationMs": 3519.1178999999997,
+        "p50LatencyMs": 8.3926,
+        "p95LatencyMs": 9.7407,
+        "p99LatencyMs": 16.3711,
+        "maxLatencyMs": 17.1177,
+        "meanLatencyMs": 8.1940385,
+        "enqueueDurationMs": 0,
+        "drainDurationMs": 3519.1178999999997,
+        "jobsObserved": 200,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 0,
+          "lockWaits": 0,
+          "pageLatchWaitMs": 1,
+          "writeLogWaitMs": 2140
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 49.55335946628852,
+          "enqueuePerSecond": 0,
+          "drainPerSecond": 0,
+          "durationMs": 4036.0541000000003,
+          "p50LatencyMs": 8.8188,
+          "p95LatencyMs": 17.7442,
+          "p99LatencyMs": 33.9438,
+          "maxLatencyMs": 37.7655,
+          "meanLatencyMs": 9.867758500000004,
+          "enqueueDurationMs": 0,
+          "drainDurationMs": 4036.0541000000003,
+          "jobsObserved": 200,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 0,
+            "lockWaitMs": 0,
+            "pageLatchWaitMs": 5,
+            "writeLogWaitMs": 7756
+          }
+        },
+        {
+          "jobsPerSecond": 57.20768161865703,
+          "enqueuePerSecond": 0,
+          "drainPerSecond": 0,
+          "durationMs": 3496.0344,
+          "p50LatencyMs": 8.3926,
+          "p95LatencyMs": 9.7407,
+          "p99LatencyMs": 16.3711,
+          "maxLatencyMs": 17.1177,
+          "meanLatencyMs": 8.1940385,
+          "enqueueDurationMs": 0,
+          "drainDurationMs": 3496.0344,
+          "jobsObserved": 200,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 0,
+            "lockWaitMs": 0,
+            "pageLatchWaitMs": 1,
+            "writeLogWaitMs": 2140
+          }
+        },
+        {
+          "jobsPerSecond": 56.83242867473369,
+          "enqueuePerSecond": 0,
+          "drainPerSecond": 0,
+          "durationMs": 3519.1178999999997,
+          "p50LatencyMs": 8.0403,
+          "p95LatencyMs": 9.5119,
+          "p99LatencyMs": 15.2434,
+          "maxLatencyMs": 17.0303,
+          "meanLatencyMs": 8.035931,
+          "enqueueDurationMs": 0,
+          "drainDurationMs": 3519.1178999999997,
+          "jobsObserved": 200,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 0,
+            "lockWaitMs": 0,
+            "pageLatchWaitMs": 1,
+            "writeLogWaitMs": 1928
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "latency",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Direct",
+        "jobs": 0,
+        "executors": 1,
+        "claimBatch": 2,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 62.11951795254069,
+        "enqueuePerSecond": 0,
+        "drainPerSecond": 0,
+        "durationMs": 3219.6003,
+        "p50LatencyMs": 5.5492,
+        "p95LatencyMs": 6.7205,
+        "p99LatencyMs": 8.0918,
+        "maxLatencyMs": 13.8623,
+        "meanLatencyMs": 5.526383000000002,
+        "enqueueDurationMs": 0,
+        "drainDurationMs": 3219.6003,
+        "jobsObserved": 200,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 0,
+          "lockWaits": 0,
+          "pageLatchWaitMs": 1,
+          "writeLogWaitMs": 1629
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 59.902717387934814,
+          "enqueuePerSecond": 0,
+          "drainPerSecond": 0,
+          "durationMs": 3338.7470000000003,
+          "p50LatencyMs": 5.6822,
+          "p95LatencyMs": 6.7205,
+          "p99LatencyMs": 8.0918,
+          "maxLatencyMs": 13.8623,
+          "meanLatencyMs": 5.526383000000002,
+          "enqueueDurationMs": 0,
+          "drainDurationMs": 3338.7470000000003,
+          "jobsObserved": 200,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 0,
+            "lockWaitMs": 0,
+            "pageLatchWaitMs": 1,
+            "writeLogWaitMs": 1629
+          }
+        },
+        {
+          "jobsPerSecond": 62.59969392505652,
+          "enqueuePerSecond": 0,
+          "drainPerSecond": 0,
+          "durationMs": 3194.9041,
+          "p50LatencyMs": 5.545,
+          "p95LatencyMs": 6.5931,
+          "p99LatencyMs": 7.5038,
+          "maxLatencyMs": 9.2966,
+          "meanLatencyMs": 5.3678405000000025,
+          "enqueueDurationMs": 0,
+          "drainDurationMs": 3194.9041,
+          "jobsObserved": 200,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 1,
+            "lockWaitMs": 22,
+            "pageLatchWaitMs": 0,
+            "writeLogWaitMs": 1488
+          }
+        },
+        {
+          "jobsPerSecond": 62.11951795254069,
+          "enqueuePerSecond": 0,
+          "drainPerSecond": 0,
+          "durationMs": 3219.6003,
+          "p50LatencyMs": 5.5492,
+          "p95LatencyMs": 7.9101,
+          "p99LatencyMs": 18.8943,
+          "maxLatencyMs": 19.3145,
+          "meanLatencyMs": 5.735000499999997,
+          "enqueueDurationMs": 0,
+          "drainDurationMs": 3219.6003,
+          "jobsObserved": 200,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 0,
+            "lockWaitMs": 0,
+            "pageLatchWaitMs": 1,
+            "writeLogWaitMs": 1811
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "latency",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Bulk",
+        "jobs": 0,
+        "executors": 1,
+        "claimBatch": 2,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 61.68842705368176,
+        "enqueuePerSecond": 0,
+        "drainPerSecond": 0,
+        "durationMs": 3242.0996,
+        "p50LatencyMs": 5.7262,
+        "p95LatencyMs": 7.5064,
+        "p99LatencyMs": 13.8163,
+        "maxLatencyMs": 18.6085,
+        "meanLatencyMs": 5.7306555,
+        "enqueueDurationMs": 0,
+        "drainDurationMs": 3242.0996,
+        "jobsObserved": 200,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 0,
+          "lockWaits": 0,
+          "pageLatchWaitMs": 3,
+          "writeLogWaitMs": 1194
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 61.33349631687755,
+          "enqueuePerSecond": 0,
+          "drainPerSecond": 0,
+          "durationMs": 3260.8613,
+          "p50LatencyMs": 6.2498,
+          "p95LatencyMs": 9.2322,
+          "p99LatencyMs": 13.7158,
+          "maxLatencyMs": 22.5146,
+          "meanLatencyMs": 6.328134000000002,
+          "enqueueDurationMs": 0,
+          "drainDurationMs": 3260.8613,
+          "jobsObserved": 200,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 0,
+            "lockWaitMs": 0,
+            "pageLatchWaitMs": 234,
+            "writeLogWaitMs": 1290
+          }
+        },
+        {
+          "jobsPerSecond": 61.68842705368176,
+          "enqueuePerSecond": 0,
+          "drainPerSecond": 0,
+          "durationMs": 3242.0996,
+          "p50LatencyMs": 5.7262,
+          "p95LatencyMs": 7.5064,
+          "p99LatencyMs": 16.2693,
+          "maxLatencyMs": 18.6085,
+          "meanLatencyMs": 5.7306555,
+          "enqueueDurationMs": 0,
+          "drainDurationMs": 3242.0996,
+          "jobsObserved": 200,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 1,
+            "lockWaitMs": 21,
+            "pageLatchWaitMs": 3,
+            "writeLogWaitMs": 1194
+          }
+        },
+        {
+          "jobsPerSecond": 61.77240408652868,
+          "enqueuePerSecond": 0,
+          "drainPerSecond": 0,
+          "durationMs": 3237.6922,
+          "p50LatencyMs": 3.948,
+          "p95LatencyMs": 4.8128,
+          "p99LatencyMs": 13.8163,
+          "maxLatencyMs": 14.0897,
+          "meanLatencyMs": 3.975732,
+          "enqueueDurationMs": 0,
+          "drainDurationMs": 3237.6922,
+          "jobsObserved": 200,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 0,
+            "lockWaitMs": 0,
+            "pageLatchWaitMs": 3,
+            "writeLogWaitMs": 448
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "drain",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Buffered",
+        "jobs": 10000,
+        "executors": 16,
+        "claimBatch": 32,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 0,
+        "enqueuePerSecond": 28819.307552733568,
+        "drainPerSecond": 4037.645879640926,
+        "durationMs": 2476.6906999999997,
+        "p50LatencyMs": 1312.6896,
+        "p95LatencyMs": 2368.7994,
+        "p99LatencyMs": 2458.4995,
+        "maxLatencyMs": 2481.1236,
+        "meanLatencyMs": 1317.759693390001,
+        "enqueueDurationMs": 346.9896,
+        "drainDurationMs": 2476.6906999999997,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 330,
+          "lockWaits": 15,
+          "overheadUsPerJob": 247.66907,
+          "pageLatchWaitMs": 2134,
+          "workers": 1,
+          "writeLogWaitMs": 17597
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 28758.912027350878,
+          "drainPerSecond": 4097.145784846174,
+          "durationMs": 2440.7234999999996,
+          "p50LatencyMs": 1304.7171,
+          "p95LatencyMs": 2323.9772,
+          "p99LatencyMs": 2418.6068,
+          "maxLatencyMs": 2441.6952,
+          "meanLatencyMs": 1306.140448020002,
+          "enqueueDurationMs": 347.7183,
+          "drainDurationMs": 2440.7234999999996,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "overheadUsPerJob": 244.07234999999997,
+            "workers": 1,
+            "deadlocks": 0,
+            "lockWaits": 15,
+            "lockWaitMs": 315,
+            "pageLatchWaitMs": 2121,
+            "writeLogWaitMs": 16947
+          }
+        },
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 28819.307552733568,
+          "drainPerSecond": 4037.645879640926,
+          "durationMs": 2476.6906999999997,
+          "p50LatencyMs": 1316.8007,
+          "p95LatencyMs": 2368.7994,
+          "p99LatencyMs": 2458.4995,
+          "maxLatencyMs": 2481.1236,
+          "meanLatencyMs": 1326.6833477299988,
+          "enqueueDurationMs": 346.9896,
+          "drainDurationMs": 2476.6906999999997,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "overheadUsPerJob": 247.66907,
+            "workers": 1,
+            "deadlocks": 0,
+            "lockWaits": 17,
+            "lockWaitMs": 666,
+            "pageLatchWaitMs": 2134,
+            "writeLogWaitMs": 17597
+          }
+        },
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 30487.368016372937,
+          "drainPerSecond": 4027.976066088453,
+          "durationMs": 2482.6364,
+          "p50LatencyMs": 1312.6896,
+          "p95LatencyMs": 2380.4306,
+          "p99LatencyMs": 2474.223,
+          "maxLatencyMs": 2497.1144,
+          "meanLatencyMs": 1317.759693390001,
+          "enqueueDurationMs": 328.00469999999996,
+          "drainDurationMs": 2482.6364,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "overheadUsPerJob": 248.26364,
+            "workers": 1,
+            "deadlocks": 0,
+            "lockWaits": 15,
+            "lockWaitMs": 330,
+            "pageLatchWaitMs": 2251,
+            "writeLogWaitMs": 17799
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "drain",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Buffered",
+        "jobs": 10000,
+        "executors": 16,
+        "claimBatch": 32,
+        "payloadBytes": 0,
+        "workers": 4,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 0,
+        "enqueuePerSecond": 23668.711880060222,
+        "drainPerSecond": 6242.221411843167,
+        "durationMs": 1601.9938,
+        "p50LatencyMs": 866.1274,
+        "p95LatencyMs": 1529.9556,
+        "p99LatencyMs": 1586.0959,
+        "maxLatencyMs": 1606.0228,
+        "meanLatencyMs": 870.8352801099995,
+        "enqueueDurationMs": 422.4987,
+        "drainDurationMs": 1601.9938,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 1360,
+          "lockWaits": 46,
+          "overheadUsPerJob": 160.19938,
+          "pageLatchWaitMs": 41024,
+          "workers": 4,
+          "writeLogWaitMs": 24868
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 23668.711880060222,
+          "drainPerSecond": 6214.882032216706,
+          "durationMs": 1609.041,
+          "p50LatencyMs": 866.1274,
+          "p95LatencyMs": 1535.9627,
+          "p99LatencyMs": 1593.8104,
+          "maxLatencyMs": 1622.5678,
+          "meanLatencyMs": 870.8352801099995,
+          "enqueueDurationMs": 422.4987,
+          "drainDurationMs": 1609.041,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "overheadUsPerJob": 160.9041,
+            "workers": 4,
+            "deadlocks": 0,
+            "lockWaits": 49,
+            "lockWaitMs": 1360,
+            "pageLatchWaitMs": 41269,
+            "writeLogWaitMs": 24668
+          }
+        },
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 20967.740920915763,
+          "drainPerSecond": 6242.221411843167,
+          "durationMs": 1601.9938,
+          "p50LatencyMs": 868.7904,
+          "p95LatencyMs": 1529.9556,
+          "p99LatencyMs": 1586.0959,
+          "maxLatencyMs": 1606.0228,
+          "meanLatencyMs": 872.9537652199982,
+          "enqueueDurationMs": 476.9231,
+          "drainDurationMs": 1601.9938,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "overheadUsPerJob": 160.19938,
+            "workers": 4,
+            "deadlocks": 0,
+            "lockWaits": 13,
+            "lockWaitMs": 277,
+            "pageLatchWaitMs": 41024,
+            "writeLogWaitMs": 24868
+          }
+        },
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 29933.317548497216,
+          "drainPerSecond": 6386.686262723238,
+          "durationMs": 1565.7572,
+          "p50LatencyMs": 826.636,
+          "p95LatencyMs": 1488.7952,
+          "p99LatencyMs": 1550.1495,
+          "maxLatencyMs": 1567.9931,
+          "meanLatencyMs": 833.0755711899988,
+          "enqueueDurationMs": 334.0759,
+          "drainDurationMs": 1565.7572,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "overheadUsPerJob": 156.57572,
+            "workers": 4,
+            "deadlocks": 0,
+            "lockWaits": 46,
+            "lockWaitMs": 1453,
+            "pageLatchWaitMs": 40848,
+            "writeLogWaitMs": 25204
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "drain",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Buffered",
+        "jobs": 10000,
+        "executors": 16,
+        "claimBatch": 32,
+        "payloadBytes": 0,
+        "workers": 16,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 0,
+        "enqueuePerSecond": 21298.310958747727,
+        "drainPerSecond": 6299.945971663347,
+        "durationMs": 1587.3152,
+        "p50LatencyMs": 871.9108,
+        "p95LatencyMs": 1513.1644,
+        "p99LatencyMs": 1569.1276,
+        "maxLatencyMs": 1592.7376,
+        "meanLatencyMs": 876.9771914399987,
+        "enqueueDurationMs": 469.5208,
+        "drainDurationMs": 1587.3152,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 3882,
+          "lockWaits": 115,
+          "overheadUsPerJob": 158.73152,
+          "pageLatchWaitMs": 37489,
+          "workers": 16,
+          "writeLogWaitMs": 25261
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 27756.836786468873,
+          "drainPerSecond": 6299.945971663347,
+          "durationMs": 1587.3152,
+          "p50LatencyMs": 881.3911,
+          "p95LatencyMs": 1513.1644,
+          "p99LatencyMs": 1569.1276,
+          "maxLatencyMs": 1592.7376,
+          "meanLatencyMs": 876.9771914399987,
+          "enqueueDurationMs": 360.27160000000003,
+          "drainDurationMs": 1587.3152,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "overheadUsPerJob": 158.73152,
+            "workers": 16,
+            "deadlocks": 0,
+            "lockWaits": 99,
+            "lockWaitMs": 2796,
+            "pageLatchWaitMs": 38982,
+            "writeLogWaitMs": 25219
+          }
+        },
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 18826.626724095408,
+          "drainPerSecond": 6230.321529449235,
+          "durationMs": 1605.0536,
+          "p50LatencyMs": 871.9108,
+          "p95LatencyMs": 1527.8643,
+          "p99LatencyMs": 1586.5192,
+          "maxLatencyMs": 1608.5217,
+          "meanLatencyMs": 878.133320540001,
+          "enqueueDurationMs": 531.1626,
+          "drainDurationMs": 1605.0536,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "overheadUsPerJob": 160.50536,
+            "workers": 16,
+            "deadlocks": 0,
+            "lockWaits": 115,
+            "lockWaitMs": 4417,
+            "pageLatchWaitMs": 37489,
+            "writeLogWaitMs": 25261
+          }
+        },
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 21298.310958747727,
+          "drainPerSecond": 6430.561733360488,
+          "durationMs": 1555.0740999999998,
+          "p50LatencyMs": 848.5968,
+          "p95LatencyMs": 1477.7837,
+          "p99LatencyMs": 1539.0446,
+          "maxLatencyMs": 1563.7629,
+          "meanLatencyMs": 853.5844767800019,
+          "enqueueDurationMs": 469.5208,
+          "drainDurationMs": 1555.0740999999998,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "overheadUsPerJob": 155.50741,
+            "workers": 16,
+            "deadlocks": 0,
+            "lockWaits": 115,
+            "lockWaitMs": 3882,
+            "pageLatchWaitMs": 36563,
+            "writeLogWaitMs": 25684
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "drain",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Direct",
+        "jobs": 10000,
+        "executors": 16,
+        "claimBatch": 32,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 0,
+        "enqueuePerSecond": 30254.183548501085,
+        "drainPerSecond": 3018.621969488433,
+        "durationMs": 3312.7699000000002,
+        "p50LatencyMs": 1646.5451,
+        "p95LatencyMs": 3128.6975,
+        "p99LatencyMs": 3286.8171,
+        "maxLatencyMs": 3326.9536,
+        "meanLatencyMs": 1683.859637539996,
+        "enqueueDurationMs": 330.5328,
+        "drainDurationMs": 3312.7699000000002,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 689,
+          "lockWaits": 15,
+          "overheadUsPerJob": 331.27699,
+          "pageLatchWaitMs": 954,
+          "workers": 1,
+          "writeLogWaitMs": 8067
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 29656.509411048413,
+          "drainPerSecond": 2752.2512589622934,
+          "durationMs": 3633.3892,
+          "p50LatencyMs": 1911.5765,
+          "p95LatencyMs": 3446.3783,
+          "p99LatencyMs": 3600.8905,
+          "maxLatencyMs": 3638.4574,
+          "meanLatencyMs": 1951.4055073700115,
+          "enqueueDurationMs": 337.1941,
+          "drainDurationMs": 3633.3892,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "overheadUsPerJob": 363.33892000000003,
+            "workers": 1,
+            "deadlocks": 0,
+            "lockWaits": 15,
+            "lockWaitMs": 960,
+            "pageLatchWaitMs": 1765,
+            "writeLogWaitMs": 9500
+          }
+        },
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 30254.183548501085,
+          "drainPerSecond": 3287.021717385357,
+          "durationMs": 3042.2677,
+          "p50LatencyMs": 1646.5451,
+          "p95LatencyMs": 2916.0193,
+          "p99LatencyMs": 3022.3863,
+          "maxLatencyMs": 3047.8476,
+          "meanLatencyMs": 1671.3521036900027,
+          "enqueueDurationMs": 330.5328,
+          "drainDurationMs": 3042.2677,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "overheadUsPerJob": 304.22677,
+            "workers": 1,
+            "deadlocks": 0,
+            "lockWaits": 17,
+            "lockWaitMs": 689,
+            "pageLatchWaitMs": 923,
+            "writeLogWaitMs": 8067
+          }
+        },
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 30496.879559283494,
+          "drainPerSecond": 3018.621969488433,
+          "durationMs": 3312.7699000000002,
+          "p50LatencyMs": 1620.2233,
+          "p95LatencyMs": 3128.6975,
+          "p99LatencyMs": 3286.8171,
+          "maxLatencyMs": 3326.9536,
+          "meanLatencyMs": 1683.859637539996,
+          "enqueueDurationMs": 327.9024,
+          "drainDurationMs": 3312.7699000000002,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "overheadUsPerJob": 331.27699,
+            "workers": 1,
+            "deadlocks": 0,
+            "lockWaits": 15,
+            "lockWaitMs": 609,
+            "pageLatchWaitMs": 954,
+            "writeLogWaitMs": 7614
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "drain",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Direct",
+        "jobs": 10000,
+        "executors": 16,
+        "claimBatch": 32,
+        "payloadBytes": 0,
+        "workers": 4,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 0,
+        "enqueuePerSecond": 30950.524657818736,
+        "drainPerSecond": 5307.496158965029,
+        "durationMs": 1884.1276,
+        "p50LatencyMs": 962.7885,
+        "p95LatencyMs": 1788.5788,
+        "p99LatencyMs": 1869.913,
+        "maxLatencyMs": 1891.6466,
+        "meanLatencyMs": 974.2683607599996,
+        "enqueueDurationMs": 323.0963,
+        "drainDurationMs": 1884.1276,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 1845,
+          "lockWaits": 47,
+          "overheadUsPerJob": 188.41276,
+          "pageLatchWaitMs": 14629,
+          "workers": 4,
+          "writeLogWaitMs": 10018
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 31154.414362434258,
+          "drainPerSecond": 5320.532557642251,
+          "durationMs": 1879.5111,
+          "p50LatencyMs": 962.7885,
+          "p95LatencyMs": 1782.294,
+          "p99LatencyMs": 1865.6853,
+          "maxLatencyMs": 1884.8881,
+          "meanLatencyMs": 974.2683607599996,
+          "enqueueDurationMs": 320.98179999999996,
+          "drainDurationMs": 1879.5111,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "overheadUsPerJob": 187.95111,
+            "workers": 4,
+            "deadlocks": 0,
+            "lockWaits": 47,
+            "lockWaitMs": 1845,
+            "pageLatchWaitMs": 14629,
+            "writeLogWaitMs": 10018
+          }
+        },
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 30580.637624642855,
+          "drainPerSecond": 5307.496158965029,
+          "durationMs": 1884.1276,
+          "p50LatencyMs": 945.2766,
+          "p95LatencyMs": 1788.5788,
+          "p99LatencyMs": 1869.913,
+          "maxLatencyMs": 1891.6466,
+          "meanLatencyMs": 971.9795864099978,
+          "enqueueDurationMs": 327.0043,
+          "drainDurationMs": 1884.1276,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "overheadUsPerJob": 188.41276,
+            "workers": 4,
+            "deadlocks": 0,
+            "lockWaits": 47,
+            "lockWaitMs": 1141,
+            "pageLatchWaitMs": 14132,
+            "writeLogWaitMs": 9995
+          }
+        },
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 30950.524657818736,
+          "drainPerSecond": 5039.507978725414,
+          "durationMs": 1984.3207,
+          "p50LatencyMs": 1043.429,
+          "p95LatencyMs": 1883.0728,
+          "p99LatencyMs": 1964.1238,
+          "maxLatencyMs": 1990.5632,
+          "meanLatencyMs": 1058.2476091699966,
+          "enqueueDurationMs": 323.0963,
+          "drainDurationMs": 1984.3207,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "overheadUsPerJob": 198.43207,
+            "workers": 4,
+            "deadlocks": 0,
+            "lockWaits": 48,
+            "lockWaitMs": 2883,
+            "pageLatchWaitMs": 15978,
+            "writeLogWaitMs": 12534
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "drain",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Direct",
+        "jobs": 10000,
+        "executors": 16,
+        "claimBatch": 32,
+        "payloadBytes": 0,
+        "workers": 16,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 0,
+        "enqueuePerSecond": 28835.371080948673,
+        "drainPerSecond": 6879.0443191373015,
+        "durationMs": 1453.6903000000002,
+        "p50LatencyMs": 743.5697,
+        "p95LatencyMs": 1369.8556,
+        "p99LatencyMs": 1442.3964,
+        "maxLatencyMs": 1454.8876,
+        "meanLatencyMs": 757.5588886899986,
+        "enqueueDurationMs": 346.7963,
+        "drainDurationMs": 1453.6903000000002,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 2908,
+          "lockWaits": 98,
+          "overheadUsPerJob": 145.36903,
+          "pageLatchWaitMs": 47700,
+          "workers": 16,
+          "writeLogWaitMs": 12182
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 21909.457414478078,
+          "drainPerSecond": 6982.317699365419,
+          "durationMs": 1432.1892,
+          "p50LatencyMs": 722.8566,
+          "p95LatencyMs": 1359.1154,
+          "p99LatencyMs": 1423.9836,
+          "maxLatencyMs": 1440.0893,
+          "meanLatencyMs": 740.5927489299994,
+          "enqueueDurationMs": 456.4239,
+          "drainDurationMs": 1432.1892,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "overheadUsPerJob": 143.21892,
+            "workers": 16,
+            "deadlocks": 0,
+            "lockWaits": 98,
+            "lockWaitMs": 2908,
+            "pageLatchWaitMs": 46561,
+            "writeLogWaitMs": 12182
+          }
+        },
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 28835.371080948673,
+          "drainPerSecond": 6665.872094712977,
+          "durationMs": 1500.1788000000001,
+          "p50LatencyMs": 774.3345,
+          "p95LatencyMs": 1433.497,
+          "p99LatencyMs": 1487.1209,
+          "maxLatencyMs": 1503.4319,
+          "meanLatencyMs": 792.2944973599988,
+          "enqueueDurationMs": 346.7963,
+          "drainDurationMs": 1500.1788000000001,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "overheadUsPerJob": 150.01788,
+            "workers": 16,
+            "deadlocks": 0,
+            "lockWaits": 100,
+            "lockWaitMs": 3046,
+            "pageLatchWaitMs": 50182,
+            "writeLogWaitMs": 12908
+          }
+        },
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 29820.15168318355,
+          "drainPerSecond": 6879.0443191373015,
+          "durationMs": 1453.6903000000002,
+          "p50LatencyMs": 743.5697,
+          "p95LatencyMs": 1369.8556,
+          "p99LatencyMs": 1442.3964,
+          "maxLatencyMs": 1454.8876,
+          "meanLatencyMs": 757.5588886899986,
+          "enqueueDurationMs": 335.3437,
+          "drainDurationMs": 1453.6903000000002,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "overheadUsPerJob": 145.36903,
+            "workers": 16,
+            "deadlocks": 0,
+            "lockWaits": 79,
+            "lockWaitMs": 2319,
+            "pageLatchWaitMs": 47700,
+            "writeLogWaitMs": 11582
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "drain",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Bulk",
+        "jobs": 10000,
+        "executors": 16,
+        "claimBatch": 32,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 0,
+        "enqueuePerSecond": 30353.085300061495,
+        "drainPerSecond": 5455.868949154902,
+        "durationMs": 1832.8886,
+        "p50LatencyMs": 974.8993,
+        "p95LatencyMs": 1745.7086,
+        "p99LatencyMs": 1822.9399,
+        "maxLatencyMs": 1842.4783,
+        "meanLatencyMs": 981.0796862399993,
+        "enqueueDurationMs": 329.4558,
+        "drainDurationMs": 1832.8886,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 192,
+          "lockWaits": 3,
+          "overheadUsPerJob": 183.28886,
+          "pageLatchWaitMs": 292,
+          "workers": 1,
+          "writeLogWaitMs": 1225
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 27781.204126286688,
+          "drainPerSecond": 5650.371616465657,
+          "durationMs": 1769.7951,
+          "p50LatencyMs": 974.8993,
+          "p95LatencyMs": 1689.3182,
+          "p99LatencyMs": 1758.9647,
+          "maxLatencyMs": 1775.7952,
+          "meanLatencyMs": 975.4124724599988,
+          "enqueueDurationMs": 359.9556,
+          "drainDurationMs": 1769.7951,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "overheadUsPerJob": 176.97951,
+            "workers": 1,
+            "deadlocks": 0,
+            "lockWaits": 3,
+            "lockWaitMs": 192,
+            "pageLatchWaitMs": 292,
+            "writeLogWaitMs": 1225
+          }
+        },
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 32023.579602132642,
+          "drainPerSecond": 5228.261997619573,
+          "durationMs": 1912.6815,
+          "p50LatencyMs": 1082.5106,
+          "p95LatencyMs": 1825.9332,
+          "p99LatencyMs": 1899.6681,
+          "maxLatencyMs": 1915.5827,
+          "meanLatencyMs": 1061.6970159700008,
+          "enqueueDurationMs": 312.2699,
+          "drainDurationMs": 1912.6815,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "overheadUsPerJob": 191.26815,
+            "workers": 1,
+            "deadlocks": 0,
+            "lockWaits": 3,
+            "lockWaitMs": 192,
+            "pageLatchWaitMs": 267,
+            "writeLogWaitMs": 1453
+          }
+        },
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 30353.085300061495,
+          "drainPerSecond": 5455.868949154902,
+          "durationMs": 1832.8886,
+          "p50LatencyMs": 960.6503,
+          "p95LatencyMs": 1745.7086,
+          "p99LatencyMs": 1822.9399,
+          "maxLatencyMs": 1842.4783,
+          "meanLatencyMs": 981.0796862399993,
+          "enqueueDurationMs": 329.4558,
+          "drainDurationMs": 1832.8886,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "overheadUsPerJob": 183.28886,
+            "workers": 1,
+            "deadlocks": 0,
+            "lockWaits": 3,
+            "lockWaitMs": 195,
+            "pageLatchWaitMs": 425,
+            "writeLogWaitMs": 994
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "drain",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Bulk",
+        "jobs": 10000,
+        "executors": 16,
+        "claimBatch": 32,
+        "payloadBytes": 0,
+        "workers": 4,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 0,
+        "enqueuePerSecond": 29280.553379034423,
+        "drainPerSecond": 8521.012903028997,
+        "durationMs": 1173.5694,
+        "p50LatencyMs": 611.348,
+        "p95LatencyMs": 1151.25,
+        "p99LatencyMs": 1172.9693,
+        "maxLatencyMs": 1177.4725,
+        "meanLatencyMs": 662.9511945800004,
+        "enqueueDurationMs": 341.5236,
+        "drainDurationMs": 1173.5694,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 231,
+          "lockWaits": 10,
+          "overheadUsPerJob": 117.35694000000001,
+          "pageLatchWaitMs": 1298,
+          "workers": 4,
+          "writeLogWaitMs": 2821
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 25596.35016523724,
+          "drainPerSecond": 8029.092291846585,
+          "durationMs": 1245.4708,
+          "p50LatencyMs": 762.4523,
+          "p95LatencyMs": 1212.1328,
+          "p99LatencyMs": 1241.8326,
+          "maxLatencyMs": 1251.098,
+          "meanLatencyMs": 722.9517230499985,
+          "enqueueDurationMs": 390.6807,
+          "drainDurationMs": 1245.4708,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "overheadUsPerJob": 124.54708000000001,
+            "workers": 4,
+            "deadlocks": 0,
+            "lockWaits": 4,
+            "lockWaitMs": 85,
+            "pageLatchWaitMs": 947,
+            "writeLogWaitMs": 3261
+          }
+        },
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 29280.553379034423,
+          "drainPerSecond": 8521.012903028997,
+          "durationMs": 1173.5694,
+          "p50LatencyMs": 611.348,
+          "p95LatencyMs": 1151.25,
+          "p99LatencyMs": 1172.9693,
+          "maxLatencyMs": 1177.4725,
+          "meanLatencyMs": 662.9511945800004,
+          "enqueueDurationMs": 341.5236,
+          "drainDurationMs": 1173.5694,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "overheadUsPerJob": 117.35694000000001,
+            "workers": 4,
+            "deadlocks": 0,
+            "lockWaits": 10,
+            "lockWaitMs": 231,
+            "pageLatchWaitMs": 1683,
+            "writeLogWaitMs": 2821
+          }
+        },
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 30304.517979367472,
+          "drainPerSecond": 15771.410438812685,
+          "durationMs": 634.0586999999999,
+          "p50LatencyMs": 370.1244,
+          "p95LatencyMs": 610.1751,
+          "p99LatencyMs": 630.2557,
+          "maxLatencyMs": 634.8511,
+          "meanLatencyMs": 365.37230226999975,
+          "enqueueDurationMs": 329.9838,
+          "drainDurationMs": 634.0586999999999,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "overheadUsPerJob": 63.40587,
+            "workers": 4,
+            "deadlocks": 0,
+            "lockWaits": 15,
+            "lockWaitMs": 381,
+            "pageLatchWaitMs": 1298,
+            "writeLogWaitMs": 949
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "drain",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Bulk",
+        "jobs": 10000,
+        "executors": 16,
+        "claimBatch": 32,
+        "payloadBytes": 0,
+        "workers": 16,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 0,
+        "enqueuePerSecond": 23633.25350020301,
+        "drainPerSecond": 18696.187697758924,
+        "durationMs": 534.8684000000001,
+        "p50LatencyMs": 298.92,
+        "p95LatencyMs": 506.5456,
+        "p99LatencyMs": 523.984,
+        "maxLatencyMs": 543.541,
+        "meanLatencyMs": 312.79302921000027,
+        "enqueueDurationMs": 423.1326,
+        "drainDurationMs": 534.8684000000001,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 131,
+          "lockWaits": 6,
+          "overheadUsPerJob": 53.48684,
+          "pageLatchWaitMs": 4386,
+          "workers": 16,
+          "writeLogWaitMs": 2128
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 23633.25350020301,
+          "drainPerSecond": 18696.187697758924,
+          "durationMs": 534.8684000000001,
+          "p50LatencyMs": 298.92,
+          "p95LatencyMs": 506.5456,
+          "p99LatencyMs": 523.984,
+          "maxLatencyMs": 543.541,
+          "meanLatencyMs": 312.79302921000027,
+          "enqueueDurationMs": 423.1326,
+          "drainDurationMs": 534.8684000000001,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "overheadUsPerJob": 53.48684,
+            "workers": 16,
+            "deadlocks": 0,
+            "lockWaits": 6,
+            "lockWaitMs": 130,
+            "pageLatchWaitMs": 4386,
+            "writeLogWaitMs": 2128
+          }
+        },
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 28834.43154071595,
+          "drainPerSecond": 20528.531682401444,
+          "durationMs": 487.1269,
+          "p50LatencyMs": 259.2822,
+          "p95LatencyMs": 463.764,
+          "p99LatencyMs": 481.9657,
+          "maxLatencyMs": 493.9009,
+          "meanLatencyMs": 269.5575894300004,
+          "enqueueDurationMs": 346.8076,
+          "drainDurationMs": 487.1269,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "overheadUsPerJob": 48.712689999999995,
+            "workers": 16,
+            "deadlocks": 0,
+            "lockWaits": 5,
+            "lockWaitMs": 131,
+            "pageLatchWaitMs": 4089,
+            "writeLogWaitMs": 1868
+          }
+        },
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 19932.11917493783,
+          "drainPerSecond": 14901.470730456684,
+          "durationMs": 671.0747,
+          "p50LatencyMs": 414.5465,
+          "p95LatencyMs": 640.6859,
+          "p99LatencyMs": 664.5411,
+          "maxLatencyMs": 670.9294,
+          "meanLatencyMs": 397.4101130999996,
+          "enqueueDurationMs": 501.7028,
+          "drainDurationMs": 671.0747,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "overheadUsPerJob": 67.10746999999999,
+            "workers": 16,
+            "deadlocks": 0,
+            "lockWaits": 9,
+            "lockWaitMs": 322,
+            "pageLatchWaitMs": 5841,
+            "writeLogWaitMs": 3039
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "enqueue",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": null,
+        "jobs": 10000,
+        "executors": 0,
+        "claimBatch": 0,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 0,
+        "enqueuePerSecond": 851.5117394560048,
+        "drainPerSecond": 0,
+        "durationMs": 11743.819300000001,
+        "p50LatencyMs": 1.1233,
+        "p95LatencyMs": 1.2947,
+        "p99LatencyMs": 2.1017,
+        "maxLatencyMs": 16.873,
+        "meanLatencyMs": 1.1743417800000033,
+        "enqueueDurationMs": 11743.819300000001,
+        "drainDurationMs": 0,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 0,
+          "lockWaits": 0,
+          "pageLatchWaitMs": 10,
+          "producers": 1,
+          "writeLogWaitMs": 5141
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 851.5117394560048,
+          "drainPerSecond": 0,
+          "durationMs": 11743.819300000001,
+          "p50LatencyMs": 1.1233,
+          "p95LatencyMs": 1.2947,
+          "p99LatencyMs": 2.1017,
+          "maxLatencyMs": 16.873,
+          "meanLatencyMs": 1.1743417800000033,
+          "enqueueDurationMs": 11743.819300000001,
+          "drainDurationMs": 0,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "producers": 1,
+            "deadlocks": 0,
+            "lockWaits": 0,
+            "lockWaitMs": 0,
+            "pageLatchWaitMs": 10,
+            "writeLogWaitMs": 5205
+          }
+        },
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 866.5450591992388,
+          "drainPerSecond": 0,
+          "durationMs": 11540.0808,
+          "p50LatencyMs": 1.1181,
+          "p95LatencyMs": 1.2679,
+          "p99LatencyMs": 1.9292,
+          "maxLatencyMs": 16.0731,
+          "meanLatencyMs": 1.153976609999999,
+          "enqueueDurationMs": 11540.0808,
+          "drainDurationMs": 0,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "producers": 1,
+            "deadlocks": 0,
+            "lockWaits": 0,
+            "lockWaitMs": 0,
+            "pageLatchWaitMs": 10,
+            "writeLogWaitMs": 4906
+          }
+        },
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 847.5732849579185,
+          "drainPerSecond": 0,
+          "durationMs": 11798.3898,
+          "p50LatencyMs": 1.1309,
+          "p95LatencyMs": 1.3849,
+          "p99LatencyMs": 2.2703,
+          "maxLatencyMs": 17.3587,
+          "meanLatencyMs": 1.1798042500000028,
+          "enqueueDurationMs": 11798.3898,
+          "drainDurationMs": 0,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "producers": 1,
+            "deadlocks": 0,
+            "lockWaits": 0,
+            "lockWaitMs": 0,
+            "pageLatchWaitMs": 10,
+            "writeLogWaitMs": 5141
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "enqueue",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": null,
+        "jobs": 10000,
+        "executors": 0,
+        "claimBatch": 0,
+        "payloadBytes": 0,
+        "workers": 4,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 0,
+        "enqueuePerSecond": 1398.4576215108289,
+        "drainPerSecond": 0,
+        "durationMs": 7150.735100000001,
+        "p50LatencyMs": 2.8355,
+        "p95LatencyMs": 4.1071,
+        "p99LatencyMs": 4.7144,
+        "maxLatencyMs": 21.6451,
+        "meanLatencyMs": 2.852561960000001,
+        "enqueueDurationMs": 7150.735100000001,
+        "drainDurationMs": 0,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 63,
+          "lockWaits": 3,
+          "pageLatchWaitMs": 267,
+          "producers": 4,
+          "writeLogWaitMs": 20969
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 3143.227576717384,
+          "drainPerSecond": 0,
+          "durationMs": 3181.4431999999997,
+          "p50LatencyMs": 1.243,
+          "p95LatencyMs": 1.4437,
+          "p99LatencyMs": 1.7062,
+          "maxLatencyMs": 21.6451,
+          "meanLatencyMs": 1.2702219300000002,
+          "enqueueDurationMs": 3181.4431999999997,
+          "drainDurationMs": 0,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "producers": 4,
+            "deadlocks": 0,
+            "lockWaits": 1,
+            "lockWaitMs": 22,
+            "pageLatchWaitMs": 50,
+            "writeLogWaitMs": 5760
+          }
+        },
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 1398.4576215108289,
+          "drainPerSecond": 0,
+          "durationMs": 7150.735100000001,
+          "p50LatencyMs": 3.0498,
+          "p95LatencyMs": 4.3838,
+          "p99LatencyMs": 4.7144,
+          "maxLatencyMs": 19.7101,
+          "meanLatencyMs": 2.852561960000001,
+          "enqueueDurationMs": 7150.735100000001,
+          "drainDurationMs": 0,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "producers": 4,
+            "deadlocks": 0,
+            "lockWaits": 3,
+            "lockWaitMs": 63,
+            "pageLatchWaitMs": 267,
+            "writeLogWaitMs": 20969
+          }
+        },
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 1310.5425785192583,
+          "drainPerSecond": 0,
+          "durationMs": 7630.4274000000005,
+          "p50LatencyMs": 2.8355,
+          "p95LatencyMs": 4.1071,
+          "p99LatencyMs": 5.194,
+          "maxLatencyMs": 23.2979,
+          "meanLatencyMs": 3.0481836299999983,
+          "enqueueDurationMs": 7630.4274000000005,
+          "drainDurationMs": 0,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "producers": 4,
+            "deadlocks": 0,
+            "lockWaits": 4,
+            "lockWaitMs": 88,
+            "pageLatchWaitMs": 552,
+            "writeLogWaitMs": 22605
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "enqueue",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": null,
+        "jobs": 10000,
+        "executors": 0,
+        "claimBatch": 0,
+        "payloadBytes": 0,
+        "workers": 16,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 0,
+        "enqueuePerSecond": 3928.9123038092735,
+        "drainPerSecond": 0,
+        "durationMs": 2545.2336999999998,
+        "p50LatencyMs": 3.5735,
+        "p95LatencyMs": 5.4652,
+        "p99LatencyMs": 7.0503,
+        "maxLatencyMs": 38.7462,
+        "meanLatencyMs": 4.020476390000004,
+        "enqueueDurationMs": 2545.2336999999998,
+        "drainDurationMs": 0,
+        "jobsObserved": 10000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 315,
+          "lockWaits": 15,
+          "pageLatchWaitMs": 2060,
+          "producers": 16,
+          "writeLogWaitMs": 27981
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 3720.2034951311834,
+          "drainPerSecond": 0,
+          "durationMs": 2688.025,
+          "p50LatencyMs": 3.5716,
+          "p95LatencyMs": 5.4492,
+          "p99LatencyMs": 7.0128,
+          "maxLatencyMs": 81.6379,
+          "meanLatencyMs": 4.020476390000004,
+          "enqueueDurationMs": 2688.025,
+          "drainDurationMs": 0,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "producers": 16,
+            "deadlocks": 0,
+            "lockWaits": 0,
+            "lockWaitMs": 0,
+            "pageLatchWaitMs": 1931,
+            "writeLogWaitMs": 27981
+          }
+        },
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 3928.9123038092735,
+          "drainPerSecond": 0,
+          "durationMs": 2545.2336999999998,
+          "p50LatencyMs": 3.5847,
+          "p95LatencyMs": 5.473,
+          "p99LatencyMs": 7.0807,
+          "maxLatencyMs": 38.7462,
+          "meanLatencyMs": 4.035089800000008,
+          "enqueueDurationMs": 2545.2336999999998,
+          "drainDurationMs": 0,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "producers": 16,
+            "deadlocks": 0,
+            "lockWaits": 15,
+            "lockWaitMs": 315,
+            "pageLatchWaitMs": 2060,
+            "writeLogWaitMs": 28080
+          }
+        },
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 3961.536805311343,
+          "drainPerSecond": 0,
+          "durationMs": 2524.2729,
+          "p50LatencyMs": 3.5735,
+          "p95LatencyMs": 5.4652,
+          "p99LatencyMs": 7.0503,
+          "maxLatencyMs": 24.5458,
+          "meanLatencyMs": 3.9969890600000095,
+          "enqueueDurationMs": 2524.2729,
+          "drainDurationMs": 0,
+          "jobsObserved": 10000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "producers": 16,
+            "deadlocks": 0,
+            "lockWaits": 16,
+            "lockWaitMs": 337,
+            "pageLatchWaitMs": 2341,
+            "writeLogWaitMs": 27124
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "enqueue-batch",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": null,
+        "jobs": 500000,
+        "executors": 0,
+        "claimBatch": 0,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 0,
+        "enqueuePerSecond": 33340.82701761381,
+        "drainPerSecond": 0,
+        "durationMs": 14996.6286,
+        "p50LatencyMs": 0,
+        "p95LatencyMs": 0,
+        "p99LatencyMs": 0,
+        "maxLatencyMs": 0,
+        "meanLatencyMs": 0,
+        "enqueueDurationMs": 14996.6286,
+        "drainDurationMs": 0,
+        "jobsObserved": 500000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 21,
+          "lockWaits": 1,
+          "pageLatchWaitMs": 16,
+          "producers": 1,
+          "writeLogWaitMs": 2008
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 34813.92403223001,
+          "drainPerSecond": 0,
+          "durationMs": 14362.0696,
+          "p50LatencyMs": 0,
+          "p95LatencyMs": 0,
+          "p99LatencyMs": 0,
+          "maxLatencyMs": 0,
+          "meanLatencyMs": 0,
+          "enqueueDurationMs": 14362.0696,
+          "drainDurationMs": 0,
+          "jobsObserved": 500000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "producers": 1,
+            "deadlocks": 0,
+            "lockWaits": 1,
+            "lockWaitMs": 21,
+            "pageLatchWaitMs": 16,
+            "writeLogWaitMs": 1645
+          }
+        },
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 33340.82701761381,
+          "drainPerSecond": 0,
+          "durationMs": 14996.6286,
+          "p50LatencyMs": 0,
+          "p95LatencyMs": 0,
+          "p99LatencyMs": 0,
+          "maxLatencyMs": 0,
+          "meanLatencyMs": 0,
+          "enqueueDurationMs": 14996.6286,
+          "drainDurationMs": 0,
+          "jobsObserved": 500000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "producers": 1,
+            "deadlocks": 0,
+            "lockWaits": 1,
+            "lockWaitMs": 22,
+            "pageLatchWaitMs": 17,
+            "writeLogWaitMs": 2008
+          }
+        },
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 31535.86393420095,
+          "drainPerSecond": 0,
+          "durationMs": 15854.9644,
+          "p50LatencyMs": 0,
+          "p95LatencyMs": 0,
+          "p99LatencyMs": 0,
+          "maxLatencyMs": 0,
+          "meanLatencyMs": 0,
+          "enqueueDurationMs": 15854.9644,
+          "drainDurationMs": 0,
+          "jobsObserved": 500000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "producers": 1,
+            "deadlocks": 0,
+            "lockWaits": 0,
+            "lockWaitMs": 0,
+            "pageLatchWaitMs": 11,
+            "writeLogWaitMs": 2038
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "enqueue-batch",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": null,
+        "jobs": 500000,
+        "executors": 0,
+        "claimBatch": 0,
+        "payloadBytes": 0,
+        "workers": 4,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 0,
+        "enqueuePerSecond": 27575.346089758295,
+        "drainPerSecond": 0,
+        "durationMs": 18132.1387,
+        "p50LatencyMs": 0,
+        "p95LatencyMs": 0,
+        "p99LatencyMs": 0,
+        "maxLatencyMs": 0,
+        "meanLatencyMs": 0,
+        "enqueueDurationMs": 18132.1387,
+        "drainDurationMs": 0,
+        "jobsObserved": 500000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 258,
+          "lockWaits": 4,
+          "pageLatchWaitMs": 44607,
+          "producers": 4,
+          "writeLogWaitMs": 691
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 27575.346089758295,
+          "drainPerSecond": 0,
+          "durationMs": 18132.1387,
+          "p50LatencyMs": 0,
+          "p95LatencyMs": 0,
+          "p99LatencyMs": 0,
+          "maxLatencyMs": 0,
+          "meanLatencyMs": 0,
+          "enqueueDurationMs": 18132.1387,
+          "drainDurationMs": 0,
+          "jobsObserved": 500000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "producers": 4,
+            "deadlocks": 0,
+            "lockWaits": 7,
+            "lockWaitMs": 450,
+            "pageLatchWaitMs": 44607,
+            "writeLogWaitMs": 649
+          }
+        },
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 27625.014059060282,
+          "drainPerSecond": 0,
+          "durationMs": 18099.5383,
+          "p50LatencyMs": 0,
+          "p95LatencyMs": 0,
+          "p99LatencyMs": 0,
+          "maxLatencyMs": 0,
+          "meanLatencyMs": 0,
+          "enqueueDurationMs": 18099.5383,
+          "drainDurationMs": 0,
+          "jobsObserved": 500000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "producers": 4,
+            "deadlocks": 0,
+            "lockWaits": 4,
+            "lockWaitMs": 258,
+            "pageLatchWaitMs": 44149,
+            "writeLogWaitMs": 766
+          }
+        },
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 21353.840764793786,
+          "drainPerSecond": 0,
+          "durationMs": 23414.9915,
+          "p50LatencyMs": 0,
+          "p95LatencyMs": 0,
+          "p99LatencyMs": 0,
+          "maxLatencyMs": 0,
+          "meanLatencyMs": 0,
+          "enqueueDurationMs": 23414.9915,
+          "drainDurationMs": 0,
+          "jobsObserved": 500000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "producers": 4,
+            "deadlocks": 0,
+            "lockWaits": 4,
+            "lockWaitMs": 216,
+            "pageLatchWaitMs": 50962,
+            "writeLogWaitMs": 691
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "enqueue-batch",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": null,
+        "jobs": 500000,
+        "executors": 0,
+        "claimBatch": 0,
+        "payloadBytes": 0,
+        "workers": 16,
+        "rows": 0,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 0,
+        "enqueuePerSecond": 24911.762661212797,
+        "drainPerSecond": 0,
+        "durationMs": 20070.8399,
+        "p50LatencyMs": 0,
+        "p95LatencyMs": 0,
+        "p99LatencyMs": 0,
+        "maxLatencyMs": 0,
+        "meanLatencyMs": 0,
+        "enqueueDurationMs": 20070.8399,
+        "drainDurationMs": 0,
+        "jobsObserved": 500000,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 118427,
+          "lockWaits": 182,
+          "pageLatchWaitMs": 35735,
+          "producers": 16,
+          "writeLogWaitMs": 1724
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 22187.605908376627,
+          "drainPerSecond": 0,
+          "durationMs": 22535.1037,
+          "p50LatencyMs": 0,
+          "p95LatencyMs": 0,
+          "p99LatencyMs": 0,
+          "maxLatencyMs": 0,
+          "meanLatencyMs": 0,
+          "enqueueDurationMs": 22535.1037,
+          "drainDurationMs": 0,
+          "jobsObserved": 500000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "producers": 16,
+            "deadlocks": 0,
+            "lockWaits": 232,
+            "lockWaitMs": 107671,
+            "pageLatchWaitMs": 99143,
+            "writeLogWaitMs": 1724
+          }
+        },
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 25725.29219970244,
+          "drainPerSecond": 0,
+          "durationMs": 19436.1252,
+          "p50LatencyMs": 0,
+          "p95LatencyMs": 0,
+          "p99LatencyMs": 0,
+          "maxLatencyMs": 0,
+          "meanLatencyMs": 0,
+          "enqueueDurationMs": 19436.1252,
+          "drainDurationMs": 0,
+          "jobsObserved": 500000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "producers": 16,
+            "deadlocks": 0,
+            "lockWaits": 155,
+            "lockWaitMs": 121340,
+            "pageLatchWaitMs": 28004,
+            "writeLogWaitMs": 812
+          }
+        },
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 24911.762661212797,
+          "drainPerSecond": 0,
+          "durationMs": 20070.8399,
+          "p50LatencyMs": 0,
+          "p95LatencyMs": 0,
+          "p99LatencyMs": 0,
+          "maxLatencyMs": 0,
+          "meanLatencyMs": 0,
+          "enqueueDurationMs": 20070.8399,
+          "drainDurationMs": 0,
+          "jobsObserved": 500000,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "producers": 16,
+            "deadlocks": 0,
+            "lockWaits": 182,
+            "lockWaitMs": 118427,
+            "pageLatchWaitMs": 35735,
+            "writeLogWaitMs": 1887
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "query-list",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": null,
+        "jobs": 0,
+        "executors": 0,
+        "claimBatch": 0,
+        "payloadBytes": 0,
+        "workers": 0,
+        "rows": 100000,
+        "iterations": 200
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 0,
+        "enqueuePerSecond": 0,
+        "drainPerSecond": 0,
+        "durationMs": 0,
+        "p50LatencyMs": 7.8503,
+        "p95LatencyMs": 15.8727,
+        "p99LatencyMs": 196.1185,
+        "maxLatencyMs": 196.1185,
+        "meanLatencyMs": 12.748055000000003,
+        "enqueueDurationMs": 0,
+        "drainDurationMs": 0,
+        "jobsObserved": 40,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 42,
+          "lockWaits": 2,
+          "pageLatchWaitMs": 3,
+          "queryP95Ms": 15.8727,
+          "rows": 100000,
+          "writeLogWaitMs": 1186
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 0,
+          "drainPerSecond": 0,
+          "durationMs": 0,
+          "p50LatencyMs": 8.1586,
+          "p95LatencyMs": 28.432,
+          "p99LatencyMs": 199.6181,
+          "maxLatencyMs": 199.6181,
+          "meanLatencyMs": 14.345992500000003,
+          "enqueueDurationMs": 0,
+          "drainDurationMs": 0,
+          "jobsObserved": 40,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "rows": 100000,
+            "queryP95Ms": 28.432,
+            "deadlocks": 0,
+            "lockWaits": 2,
+            "lockWaitMs": 44,
+            "pageLatchWaitMs": 10,
+            "writeLogWaitMs": 1066
+          }
+        },
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 0,
+          "drainPerSecond": 0,
+          "durationMs": 0,
+          "p50LatencyMs": 7.8503,
+          "p95LatencyMs": 11.7359,
+          "p99LatencyMs": 196.1185,
+          "maxLatencyMs": 196.1185,
+          "meanLatencyMs": 12.748055000000003,
+          "enqueueDurationMs": 0,
+          "drainDurationMs": 0,
+          "jobsObserved": 40,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "rows": 100000,
+            "queryP95Ms": 11.7359,
+            "deadlocks": 0,
+            "lockWaits": 1,
+            "lockWaitMs": 22,
+            "pageLatchWaitMs": 3,
+            "writeLogWaitMs": 1397
+          }
+        },
+        {
+          "jobsPerSecond": 0,
+          "enqueuePerSecond": 0,
+          "drainPerSecond": 0,
+          "durationMs": 0,
+          "p50LatencyMs": 7.8405,
+          "p95LatencyMs": 15.8727,
+          "p99LatencyMs": 179.2037,
+          "maxLatencyMs": 179.2037,
+          "meanLatencyMs": 12.433557500000001,
+          "enqueueDurationMs": 0,
+          "drainDurationMs": 0,
+          "jobsObserved": 40,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "rows": 100000,
+            "queryP95Ms": 15.8727,
+            "deadlocks": 0,
+            "lockWaits": 2,
+            "lockWaitMs": 42,
+            "pageLatchWaitMs": 3,
+            "writeLogWaitMs": 1186
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    }
+  ]
+}

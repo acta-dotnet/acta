@@ -19,54 +19,30 @@ page says what nothing has ever run. [burst-rc1.md](./burst-rc1.md) is a third k
 burst certification — five runs proving a 10,000-event backlog projects in one invocation and
 drains in seconds, and a 100,000 backlog drains under bounded memory.
 
+The 2026-09-21 quartet is the `1.0.0-rc.3` round: all four gates on the certified commit
+`d3def975`, the first round whose workload carries the `metered` shape, so every seal reports the
+rate contract beside the chaos figures. Every seal from the rc.2, rc.1, and 0.9.0-beta.1 rounds left
+the tree when this round replaced them, as the policy above describes; the two 2026-08-12 seals stay
+for what only they show, the million-job scale runs on PostgreSQL and SQL Server.
+
 ## Index
 
 | Seal | Shape | Released in |
 | --- | --- | --- |
-| [seal-20260910T175005Z](./seal-20260910T175005Z.md) | Ensemble: 3 participants, 2 namespaces, one run id | `v1.0.0-rc.2` (final tree `22d74be6`) |
-| [seal-20260910T173838Z](./seal-20260910T173838Z.md) | SQLite reduced, one WAL file, 48 slots | `v1.0.0-rc.2` (final tree `22d74be6`) |
-| [seal-20260910T172124Z](./seal-20260910T172124Z.md) | SQL Server standard, 10,000 jobs, 64 slots | `v1.0.0-rc.2` (final tree `22d74be6`) |
-| [seal-20260910T170809Z](./seal-20260910T170809Z.md) | PostgreSQL standard, 10,000 jobs, 64 slots | `v1.0.0-rc.2` (final tree `22d74be6`) |
-| [seal-20260822T115015Z](./seal-20260822T115015Z.md) | Ensemble: 3 participants, 2 namespaces, one run id | `v1.0.0-rc.1` (near-final commit) |
-| [seal-20260822T113834Z](./seal-20260822T113834Z.md) | SQLite standard, one WAL file, 48 slots | `v1.0.0-rc.1` (near-final commit) |
-| [seal-20260822T092143Z](./seal-20260822T092143Z.md) | SQL Server standard, 10,000 jobs, 64 slots | `v1.0.0-rc.1` (near-final commit) |
-| [seal-20260822T090713Z](./seal-20260822T090713Z.md) | PostgreSQL standard, 10,000 jobs, 64 slots | `v1.0.0-rc.1` (near-final commit) |
-| [seal-20260816T090216Z](./seal-20260816T090216Z.md) | Ensemble: 3 participants, 2 namespaces, one run id | `v0.9.0-beta.1` (release commit) |
-| [seal-20260816T085003Z](./seal-20260816T085003Z.md) | SQLite standard, one WAL file, 48 slots | `v0.9.0-beta.1` (release commit) |
-| [seal-20260816T083231Z](./seal-20260816T083231Z.md) | SQL Server standard, 10,000 jobs, 64 slots | `v0.9.0-beta.1` (release commit) |
-| [seal-20260816T081858Z](./seal-20260816T081858Z.md) | PostgreSQL standard, 10,000 jobs, 64 slots | `v0.9.0-beta.1` (release commit) |
-| [seal-20260812T182418Z](./seal-20260812T182418Z.md) | First SQL Server ensemble: 2 processes, one queue | `v0.9.0-beta.1` (pre-release commit) |
-| [seal-20260812T162619Z](./seal-20260812T162619Z.md) | First ensemble: 2 processes, one run id, PostgreSQL | `v0.9.0-beta.1` (pre-release commit) |
+| [seal-20260922T002305Z](./seal-20260922T002305Z.md) | Ensemble: 3 participants, 2 namespaces, one run id, `metered` shape | `v1.0.0-rc.3` (certified commit `d3def975`) |
+| [seal-20260922T001241Z](./seal-20260922T001241Z.md) | SQLite reduced, one WAL file, 48 slots, `metered` shape | `v1.0.0-rc.3` (certified commit `d3def975`) |
+| [seal-20260921T235527Z](./seal-20260921T235527Z.md) | SQL Server standard, 10,000 jobs, 64 slots, `metered` shape | `v1.0.0-rc.3` (certified commit `d3def975`) |
+| [seal-20260921T234152Z](./seal-20260921T234152Z.md) | PostgreSQL standard, 10,000 jobs, 64 slots, `metered` shape | `v1.0.0-rc.3` (certified commit `d3def975`) |
 | [seal-20260812T130035Z](./seal-20260812T130035Z.md) | 1,000,000 jobs, SQL Server | `v0.9.0-beta.1` (pre-release commit) |
 | [seal-20260812T101351Z](./seal-20260812T101351Z.md) | 1,000,000 jobs, PostgreSQL | `v0.9.0-beta.1` (pre-release commit) |
 
-The 2026-09-10 quartet is the `v1.0.0-rc.2` round: all four gates on the final tree `22d74be6`,
-the tree the tag is cut from, stamped `baseline-20260910`. Two earlier rc.2 rounds the same week
-were superseded and left the tree: the first stalled its SQL Server gate at 14,429 of 15,000 with
-the recovery slot itself stranded under a lapsed lease, which is the defect the recovery-slot
-monitor closes; the second passed all four gates on a tree that then changed again, for the
-schedule-version column the advance batch type now carries and the completion and registration
-guards beside it. What this round shows that the earlier ones could not: every worker's guarded
-repair of the recovery slot under real kills on all three providers, the re-cut table type carried
-through every recurring completion, and the ensemble's at-most-once and namespace-isolation checks
-holding with 830 orphaned attempts across 152 killed workers.
+What this round shows: the quartet holding on the tree that changed the claim, registration, and
+admission paths, with orphaned attempts in the hundreds and dead workers in the dozens on every
+gate; the ensemble's at-most-once and namespace-isolation checks holding with 772 orphaned attempts
+across 162 killed workers; and the rate meter admitting at its declared rate on every provider while
+the workers holding its turns were killed, never past twenty-one in a second against a budget of
+thirty.
 
-[coverage-baseline-rc2.md](./coverage-baseline-rc2.md) is this round's coverage page: the same two
-suites at 88.4% line and 70.7% branch, and the blind-spot entry the round's own defect landed in.
-
-The 2026-08-22 quartet is the `v1.0.0-rc.1` round: all four gates on the near-final commit
-`a38af45`, after the release candidate's adversarial review wave and the namespace-id decision that
-wave forced — the rc's own quorum found worker restarts burning namespace-sequence ids on
-PostgreSQL and SQLite, the fix and the smallint-to-int widening re-cut the baseline to stamp
-`baseline-1.0.1`, and this round certifies the widened tree. Its distinctive evidence is the
-three-provider burn table (allocator 81→2 on PostgreSQL, 79→2 on SQLite, 2→2 on the never-burned
-SQL Server as negative control), and its ensemble carries the strongest at-most-once evidence yet:
-43 of 400 charges killed mid-body, none ever run twice. An earlier same-day round on the
-pre-widening tree passed the same four gates; its seals were superseded by this round and left the
-tree, as the policy above describes.
-
-The 2026-08-16 quartet is the `v0.9.0-beta.1` release evidence: all four gates on the release
-commit, the SQLite gate having caught a real one-in-ten-thousand defect on its first run and passed
-on the re-run against the fix. The 2026-08-12 seals are kept for what only they show: the
-million-job scale runs and the first ensemble shapes, certified on commits that shipped in
-`v0.9.0-beta.1`.
+[coverage-baseline-rc2.md](./coverage-baseline-rc2.md) is the current coverage page: the unit and
+SQLite suites at 88.4% line and 70.7% branch, and the blind-spot entry the rc.2 round's own defect
+landed in.

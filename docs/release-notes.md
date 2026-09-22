@@ -2,7 +2,7 @@
 
 ## 1.0.0-rc.3
 
-Unreleased. The last re-cut of the baseline before 1.0.0. Two features the data model was missing
+Tagged 2026-09-22. The last re-cut of the baseline before 1.0.0. Two features the data model was missing
 land on the existing lock store, the persisted model gains the row-shape constraints it lacked, the
 claim seeks on PostgreSQL instead of sorting, five defects on the recovery and completion paths are
 fixed, and rolling deploys become a documented shape: registration never retires, a worker stops
@@ -186,9 +186,15 @@ the one-second turn validity, reported with its busiest windows on every seal.
 
 ### Certification and benchmarks
 
-The release gate is a full-matrix benchmark round on all three providers against a same-hour rc.2
-control and the certification quartet on the certified commit; the pages and seals are filed under
-`docs/benchmarks` and `docs/certification`.
+The release gate is [a full-matrix round](./benchmarks/rc3-full-matrix-20260921.md) on all three
+providers against a same-hour `v1.0.0-rc.2` control, candidate, control, candidate per server
+provider from clean worktrees of the certified commit: no Direct, Bulk, drain, enqueue, or query
+cell regresses beyond the machine's own movement between two runs of the same tree, PostgreSQL and
+SQLite read ahead on most of them, and the one SQL Server pair that read as a regression was a
+control run in a different drive state, replaced by a second pair. The
+[certification quartet](./certification/README.md) ran on the same commit: PostgreSQL, SQL Server,
+SQLite, and the three-participant ensemble all PASS with real chaos, and every seal reports the
+rate contract for the `metered` shape the workload now carries.
 
 ### Deferred
 
