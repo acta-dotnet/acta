@@ -63,7 +63,7 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
         var sink = MakeSink(spy);
         await sink.EnqueueAsync(new BufferedCompletion(MakeRequest(claimedChild, workerId), TestNamespace, "add-numbers", child.Id, 0));
         sink.CompleteWriter();
-        await sink.RunFlusherAsync();
+        await sink.RunFlusherAsync(ct);
 
         // Primary assertions: DB state is the source of truth.
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(child.Id, ct)).Status);
@@ -107,7 +107,7 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
         var sink = MakeSink(new WakeupSpy());
         await sink.EnqueueAsync(new BufferedCompletion(MakeRequest(claimed, workerId), TestNamespace, "add-numbers", child.Id, 0));
         sink.CompleteWriter();
-        await sink.RunFlusherAsync();
+        await sink.RunFlusherAsync(ct);
 
         // Exact terminal status: same as scalar CompleteExecution.Run would produce.
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(child.Id, ct)).Status);
@@ -144,7 +144,7 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
         var sink = MakeSink(spy);
         await sink.EnqueueAsync(new BufferedCompletion(MakeRequest(claimed, workerId), TestNamespace, "add-numbers", enq.JobId, 0));
         sink.CompleteWriter();
-        await sink.RunFlusherAsync();
+        await sink.RunFlusherAsync(ct);
 
         // Primary: job reaches Succeeded via batch.
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enq.JobId, ct)).Status);
@@ -202,7 +202,7 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
         );
         await sink.EnqueueAsync(new BufferedCompletion(MakeRequest(plain.Claimed, workerId), TestNamespace, "add-numbers", plain.JobId, 0));
         sink.CompleteWriter();
-        await sink.RunFlusherAsync();
+        await sink.RunFlusherAsync(ct);
 
         // The injected failure strands its own job and nothing else.
         Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(JobId, ct)).Status);

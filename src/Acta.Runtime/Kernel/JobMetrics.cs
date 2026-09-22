@@ -35,6 +35,7 @@ internal sealed class JobMetrics : IDisposable
     private readonly Counter<long> _wakeupPublishes;
     private readonly Counter<long> _wakeupPublishFailures;
     private readonly Counter<long> _wakeupWaits;
+    private readonly UpDownCounter<long> _unsettledCompletions;
 
     /// <summary>
     /// Each worker registers its namespace's live in-flight count; the observable gauge reads them
@@ -70,6 +71,11 @@ internal sealed class JobMetrics : IDisposable
             "Wake publishes the transport failed to deliver."
         );
         _wakeupWaits = Meter.CreateCounter<long>("acta.wakeup.waits", "{wait}", "Idle claim-loop waits, tagged by how they returned.");
+        _unsettledCompletions = Meter.CreateUpDownCounter<long>(
+            "acta.completions.unsettled",
+            "{completion}",
+            "Completion writes still repeating after a failure."
+        );
         Meter.CreateObservableGauge("acta.executing", ObserveExecuting, "{job}", "Currently executing jobs per namespace.");
     }
 
@@ -164,6 +170,13 @@ internal sealed class JobMetrics : IDisposable
                 { "exception_type", exceptionType },
             }
         );
+
+    /// <summary>
+    /// Moves the live count of completion writes that have failed and are still being repeated.
+    /// Untagged: the reading is the size of a provider outage this worker is riding out, and every
+    /// tag that would slice it (namespace, job name) is already on the log lines the retry emits.
+    /// </summary>
+    public void RecordUnsettledCompletion(int delta) => _unsettledCompletions.Add(delta);
 
     public void RecordAlertProjectionSkip(string @namespace, string reason) =>
         _alertProjectionSkips.Add(1, new TagList { { "namespace", @namespace }, { "reason", reason } });

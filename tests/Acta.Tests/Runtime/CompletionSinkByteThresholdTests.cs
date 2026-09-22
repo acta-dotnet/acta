@@ -38,7 +38,7 @@ public sealed class CompletionSinkByteThresholdTests
             await sink.EnqueueAsync(new BufferedCompletion(Request(jobId), "ns", "load-echo", jobId, perItem));
         }
         sink.CompleteWriter();
-        await sink.RunFlusherAsync();
+        await sink.RunFlusherAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(3, store.BatchSizes.Sum());
         Assert.All(store.BatchSizes, size => Assert.True(size <= 2, $"byte threshold did not flush: batch of {size}"));

@@ -278,13 +278,16 @@ internal sealed class JobExecutor(
         // execution in the claim itself.
         if (!alreadyStarted)
         {
-            // Retried like the completion below: a provider error here would otherwise escape to the
-            // worker loop and leave the Dispatched row under a lease the heartbeat keeps renewing.
+            // Retried like the completion below: a failure here would otherwise escape to the worker loop
+            // and leave the Dispatched row under a lease the heartbeat keeps renewing. ct is the worker's
+            // host token; no per-attempt token exists on this path, and none should, because the retry has
+            // to outlive whatever cancelled the attempt.
             var (start, retried) = await CompletionWrite.RetryAsync(
                 token => _execution.StartExecutionAsync(job.JobId, workerId, job.ExecutionNumber, job.Version, _leaseTtlSeconds, token),
                 _log,
                 job.JobId,
-                ct
+                ct,
+                _metrics
             );
             // A retried start that answers LostClaim is ambiguous: the first try may have committed and
             // lost only its response, in which case this worker holds the Executing row and the version
@@ -349,7 +352,8 @@ internal sealed class JobExecutor(
             token => _execution.CompleteExecutionAsync(request, token),
             _log,
             job.JobId,
-            ct
+            ct,
+            _metrics
         );
         return complete.Action == CompleteExecutionAction.Completed ? RunOnceOutcome.Rearmed : RunOnceOutcome.NothingClaimed;
     }

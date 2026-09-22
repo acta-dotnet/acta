@@ -31,19 +31,23 @@ public sealed class CompletionSinkDegradedFlushTests
         // One statement, one commit: nothing landed. The batch must not then be picked apart per job
         // (that would re-complete rows the transaction may yet have written) and must not publish a
         // wakeup for a job that is still Executing. This is the only path allowed to claim a rollback.
+        // The set call is repeated until it lands or the worker stops, so the only way it loses a batch is
+        // the stop, and cancelling from inside the scripted failure is production's hard stop.
+        using var stop = new CancellationTokenSource();
         var store = new ScriptedExecutionStore { BatchFailure = new InvalidOperationException("deadlock victim") };
+        store.OnFailure = stop.Cancel;
         var wakes = new WakeupSpy();
         var log = new RecordingLogger();
         var sink = Sink(store, wakes, log);
 
-        await FlushAsync(sink, Buffered(11), Buffered(12), Buffered(13));
+        await FlushAsync(sink, stop.Token, Buffered(11), Buffered(12), Buffered(13));
 
         Assert.Empty(store.FallbackRequests);
         Assert.Empty(wakes.Wakes);
         var entry = Assert.Single(log.Entries);
         Assert.Equal(LogLevel.Error, entry.Level);
         Assert.Contains("Bulk completion flush of 3 jobs failed", entry.Message, StringComparison.Ordinal);
-        Assert.Contains("remain Executing under this worker's lease", entry.Message, StringComparison.Ordinal);
+        Assert.Contains("remain Executing for recovery", entry.Message, StringComparison.Ordinal);
         Assert.Same(store.BatchFailure, entry.Exception);
     }
 
@@ -57,7 +61,7 @@ public sealed class CompletionSinkDegradedFlushTests
         var wakes = new WakeupSpy();
         var sink = Sink(store, wakes, new RecordingLogger());
 
-        await FlushAsync(sink, Buffered(21), Buffered(22));
+        await FlushAsync(sink, TestContext.Current.CancellationToken, Buffered(21), Buffered(22));
 
         var fallback = Assert.Single(store.FallbackRequests);
         Assert.Equal(22, fallback.JobId);
@@ -65,25 +69,52 @@ public sealed class CompletionSinkDegradedFlushTests
     }
 
     [Fact]
-    public async Task A_failed_fallback_names_only_its_own_job_and_lets_the_rest_of_the_batch_finish()
+    public async Task A_fallback_that_keeps_failing_holds_up_nothing_but_itself()
     {
-        // The contract the old single-catch flush broke: one failing fallback must not strand the rows
-        // after it, must not be reported as a rollback, and the log must name the jobs that are actually
-        // unfinalized. Job 32 fails; 31 was already committed by the set call and 33 completes after it.
+        // The contract the old sequential flush broke: one failing fallback must not strand the rows after
+        // it, must not be reported as a rollback, and the log must name the jobs that are actually
+        // unfinalized. Job 32 keeps failing; 31 was already committed by the set call and 33 must complete
+        // while 32 is still repeating. The stop is staged on 32's second throw, because a repeat that never
+        // lands ends only when the worker does.
+        using var stop = new CancellationTokenSource();
+        var throws = 0;
+        var settled33 = false;
+        var settled33BeforeTheSecondThrow = false;
         var store = new ScriptedExecutionStore
         {
             Finalized = [true, false, false],
             Fallback = request =>
-                request.JobId == 32 ? throw new InvalidOperationException("connection reset") : Completed(parentReleased: false),
+            {
+                if (request.JobId == 33)
+                {
+                    settled33 = true;
+                    return Completed(parentReleased: false);
+                }
+
+                if (request.JobId != 32)
+                {
+                    return Completed(parentReleased: false);
+                }
+
+                // The first throw starts a backoff wait. Whether 33 got through during that wait is the
+                // whole subject: settled side by side it does, settled in sequence it cannot.
+                if (++throws >= 2)
+                {
+                    settled33BeforeTheSecondThrow = settled33;
+                    stop.Cancel();
+                }
+
+                throw new InvalidOperationException("connection reset");
+            },
         };
         var wakes = new WakeupSpy();
         var log = new RecordingLogger();
         var sink = Sink(store, wakes, log);
 
-        await FlushAsync(sink, Buffered(31), Buffered(32), Buffered(33));
+        await FlushAsync(sink, stop.Token, Buffered(31), Buffered(32), Buffered(33));
 
-        // Iteration did not stop at the failure: the row after it still went through the fallback.
-        Assert.Equal(new long[] { 32, 33 }, store.FallbackRequests.Select(r => r.JobId).ToArray());
+        Assert.True(throws >= 2, $"job 32 was tried {throws} times; the repeat is what 33 has to get past");
+        Assert.True(settled33BeforeTheSecondThrow, "job 33 waited for job 32's repeat instead of settling beside it");
 
         // The committed row still got its deferred wake, and so did the one that completed after the fail.
         Assert.Equal(2, wakes.Wakes.Count(w => w.Channel.Kind == WorkerWakeupChannelKind.JobCompletion));
@@ -91,9 +122,9 @@ public sealed class CompletionSinkDegradedFlushTests
         Assert.Contains(wakes.Wakes, w => w.Channel == WorkerWakeupChannel.JobCompletion(33));
         Assert.DoesNotContain(wakes.Wakes, w => w.Channel == WorkerWakeupChannel.JobCompletion(32));
 
-        // One error, naming one job out of three - not "the batch failed".
-        var entry = Assert.Single(log.Entries);
-        Assert.Equal(LogLevel.Error, entry.Level);
+        // One error, naming one job out of three - not "the batch failed". The warnings beside it are the
+        // repeat announcing each try, which is what a stuck entry is supposed to sound like.
+        var entry = Assert.Single(log.Entries, e => e.Level == LogLevel.Error);
         Assert.Contains("Bulk completion left 1 jobs unfinalized", entry.Message, StringComparison.Ordinal);
         Assert.Contains("of 3 in the batch: 32", entry.Message, StringComparison.Ordinal);
         Assert.DoesNotContain("31", entry.Message, StringComparison.Ordinal);
@@ -123,7 +154,7 @@ public sealed class CompletionSinkDegradedFlushTests
         var log = new RecordingLogger();
         var sink = Sink(store, wakes, log);
 
-        await FlushAsync(sink, Buffered(41));
+        await FlushAsync(sink, TestContext.Current.CancellationToken, Buffered(41));
 
         Assert.Empty(wakes.Wakes);
         var entry = Assert.Single(log.Entries);
@@ -144,7 +175,7 @@ public sealed class CompletionSinkDegradedFlushTests
         var wakes = new WakeupSpy();
         var sink = Sink(store, wakes, new RecordingLogger());
 
-        await FlushAsync(sink, Buffered(51));
+        await FlushAsync(sink, TestContext.Current.CancellationToken, Buffered(51));
 
         Assert.Equal(2, wakes.Wakes.Count);
         Assert.Contains(wakes.Wakes, w => w.Channel == WorkerWakeupChannel.JobCompletion(51) && w.Reason == WorkerWakeupReason.JobFinished);
@@ -175,7 +206,7 @@ public sealed class CompletionSinkDegradedFlushTests
         var log = new RecordingLogger();
         var sink = Sink(store, wakes, log);
 
-        await FlushAsync(sink, Buffered(61));
+        await FlushAsync(sink, TestContext.Current.CancellationToken, Buffered(61));
 
         Assert.Empty(wakes.Wakes);
         Assert.Empty(log.Entries);
@@ -204,7 +235,7 @@ public sealed class CompletionSinkDegradedFlushTests
             new RecordingLogger()
         );
 
-        var flusher = sink.RunFlusherAsync();
+        var flusher = sink.RunFlusherAsync(TestContext.Current.CancellationToken);
         await sink.EnqueueAsync(Buffered(71));
 
         // Completing the writer only after the window fired proves the flush was the window's doing.
@@ -237,7 +268,7 @@ public sealed class CompletionSinkDegradedFlushTests
             new RecordingLogger()
         );
 
-        var flushers = sink.RunFlushersAsync(4);
+        var flushers = sink.RunFlushersAsync(4, TestContext.Current.CancellationToken);
         for (var jobId = 100L; jobId < 140; jobId++)
         {
             await sink.EnqueueAsync(Buffered(jobId));
@@ -259,14 +290,14 @@ public sealed class CompletionSinkDegradedFlushTests
 
     // One drain of exactly the buffered set: the writer is completed before the flusher starts, so the
     // whole batch is read in one pass and the loop exits without waiting out the interval window.
-    private static async Task FlushAsync(CompletionSink sink, params BufferedCompletion[] completions)
+    private static async Task FlushAsync(CompletionSink sink, CancellationToken stopCt, params BufferedCompletion[] completions)
     {
         foreach (var completion in completions)
         {
             await sink.EnqueueAsync(completion);
         }
         sink.CompleteWriter();
-        await sink.RunFlusherAsync();
+        await sink.RunFlusherAsync(stopCt);
     }
 
     private static BufferedCompletion Buffered(long jobId) =>
@@ -298,6 +329,13 @@ public sealed class CompletionSinkDegradedFlushTests
 
         public IReadOnlyList<bool>? Finalized { get; init; }
         public Exception? BatchFailure { get; init; }
+
+        /// <summary>
+        /// Raised as the scripted failure is handed back. A write that keeps failing is now repeated
+        /// until the worker stops, so a fact about the failed path has to stage that stop, and this is
+        /// where production's hard stop goes in.
+        /// </summary>
+        public Action? OnFailure { get; set; }
         public Func<CompleteExecutionRequest, CompleteExecutionResult>? Fallback { get; init; }
         public Action<IReadOnlyList<CompleteExecutionRequest>>? OnBatch { get; set; }
 
@@ -312,6 +350,7 @@ public sealed class CompletionSinkDegradedFlushTests
         {
             if (BatchFailure is { } failure)
             {
+                OnFailure?.Invoke();
                 return Task.FromException<IReadOnlyList<bool>>(failure);
             }
 
