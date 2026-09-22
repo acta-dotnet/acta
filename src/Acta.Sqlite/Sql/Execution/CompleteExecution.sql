@@ -263,7 +263,11 @@ WHERE
     OR (d.audit_level_code = 10 /* JobAuditLevelCode.Failures */
         AND @p_execution_succeeded = 0
         AND @p_reschedule_status_code IS NULL
-        AND NOT (@p_handler_status_code IN (220 /* JobStatusCode.Cancelled */, 30 /* JobStatusCode.Paused */)));
+        -- The handler status is NULL for every completion the handler did not declare, which is every
+        -- ordinary failure. Testing it against the two declared statuses directly yields NULL there,
+        -- and NOT NULL is NULL, so the whole branch would drop the row this level exists to record.
+        AND NOT (@p_handler_status_code IS NOT NULL
+            AND @p_handler_status_code IN (220 /* JobStatusCode.Cancelled */, 30 /* JobStatusCode.Paused */)));
 
 INSERT INTO {{schema}}.events (
     event_code,
