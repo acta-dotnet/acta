@@ -142,26 +142,23 @@ public abstract class RateLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, Te
         var meterBefore = await MeterAsync(bucket, ct);
 
         var admitted = await ReserveAsync(bucket, jobId, ct);
-        var validityLeft = TimeSpan.FromMilliseconds(500) - clock.Elapsed;
 
-        if (validityLeft > TimeSpan.Zero)
+        // The turn's age is judged on the database clock, which the host clock around two round trips
+        // can only overestimate: a host reading past the validity does not prove the database saw a
+        // stale turn, but a host reading inside it proves the turn was live. So an admission is always
+        // held to its invariants, and a denial is accepted only when the host clock allows staleness.
+        if (admitted.Admitted)
         {
             // The meter counted this job when it allocated the turn; charging it again would meter it twice.
-            Assert.True(
-                admitted.Admitted,
-                $"a turn 500ms past its instant was not honoured with {validityLeft.TotalMilliseconds:0}ms of validity left"
-            );
             Assert.Equal(0, admitted.WaitMilliseconds);
             Assert.Equal(meterBefore, await MeterAsync(bucket, ct));
             Assert.Null(await ReadLockAsync(reservation, ct));
         }
         else
         {
-            // The round trips outlasted the turn's validity, so the honest outcome is the stale one: the
-            // turn is re-metered against a bucket parked minutes ahead, and the request is denied.
-            Assert.False(
-                admitted.Admitted,
-                $"a turn {clock.Elapsed.TotalMilliseconds + 500:0}ms past its instant was honoured past its validity"
+            Assert.True(
+                clock.Elapsed >= TimeSpan.FromMilliseconds(500),
+                $"a turn 500ms past its instant was not honoured with {(500 - clock.Elapsed.TotalMilliseconds):0}ms of validity left"
             );
         }
     }
