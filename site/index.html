@@ -677,14 +677,15 @@
             <li><b>Durable sleeps &amp; signals</b>: wait days, hold no thread</li>
             <li><b>Checkpoint slots</b>: resume with intermediate results</li>
             <li><b>Child jobs</b>: fan-out / fan-in, lineage</li>
-            <li><b>Concurrency keys &amp; locks</b></li>
+            <li><b>Concurrency keys, limits &amp; locks</b></li>
+            <li><b>Rate limits</b>: <code>600/m</code> per definition, one meter per key</li>
           </ul>
         </div>
         <div class="fcol" id="recovery">
           <h3>Failure &amp; recovery</h3>
           <ul>
             <li><b>Leases with automatic lapse</b>: leaderless reclaim &amp; retry</li>
-            <li><b>Survives crashes,</b> deployments, restarts</li>
+            <li><b>Survives crashes, rolling deploys,</b> restarts: two builds share a namespace, a rollback just works</li>
             <li><b>Explain</b>: a job tells you why, and what next</li>
             <li><b>Restart month-old failures</b> with stored input</li>
             <li><b>Failure alerts</b>: queryable rows</li>
@@ -743,6 +744,8 @@
           <div class="ref-row"><dt>Signals</dt><dd>A job can suspend until a named signal arrives: a webhook, an approval, another job finishing. Deliver the signal from anywhere: code, CLI, or dashboard. No worker is held while waiting.</dd></div>
           <div class="ref-row" id="lineage"><dt>Child jobs, fan-out / fan-in</dt><dd>Spawn jobs from a handler; parent lineage is recorded, so a batch that fans out into a thousand items stays traceable, and the parent can wait on the children's results.</dd></div>
           <div class="ref-row"><dt>Concurrency keys &amp; locks</dt><dd>Serialize work that shares a key: one settlement run per account at a time. A <code>ConcurrencyKey</code> bounces the losing job back to the queue so no worker waits on it; <code>RunWithLockAsync</code> waits inside the running handler instead, for the small critical section that wants it. Exclusion rides the lease, and admission order is unspecified: exclusive, unordered work.</dd></div>
+          <div class="ref-row"><dt>Concurrency limits</dt><dd><code>[Job(ConcurrencyLimit = 8)]</code> bounds how many jobs of a definition run at once across the whole fleet, admitted through slot rows in the same lock store. A job the limit turns away bounces back to the queue budget-neutral, so no worker waits on it, and the limit is an operator-overridable policy slot on a running system.</dd></div>
+          <div class="ref-row"><dt>Rate limits</dt><dd><code>[Job(RateLimit = "600/m")]</code> meters how often a definition may start. An idle meter admits one second's worth of the rate at once and then one per interval; every job that arrives early books a turn and comes back for it, so a backlog drains at the rate with no re-race, and definitions that share a key share one meter. The contract is the upper envelope, measured under chaos on every provider: never more than the rate plus its burst over any window.</dd></div>
           <div class="ref-row"><dt>Job results</dt><dd>Return a value from a handler and fetch it later by job reference: the result is durable state like everything else.</dd></div>
           <div class="ref-row"><dt>Handler-directed outcomes</dt><dd>A handler can end its own run deliberately: reschedule itself to a chosen instant, fail with a stated reason, cancel, or pause for an operator. The outcome is policy stated in code, not an exception dressed up as control flow.</dd></div>
         </dl>
@@ -751,6 +754,7 @@
         <dl>
           <div class="ref-row"><dt>Worker leases &amp; heartbeats</dt><dd>A claimed job carries a lease held by a live, heartbeating worker. Kill the process: the lease lapses on its own. You can watch it happen in the workers table.</dd></div>
           <div class="ref-row"><dt>Leaderless recovery</dt><dd>Any surviving worker reclaims lapsed jobs and retries them. There is no coordinator, no leader election, no recovery service to run: recovery is itself ordinary durable work.</dd></div>
+          <div class="ref-row"><dt>Rolling deploys</dt><dd>Two builds share a namespace while a deploy runs, and a rollback is the same picture in reverse. A worker that claims a job it has no handler for hands it back and stops claiming that definition; registration never retires a definition the new build omits, so the old fleet finishes its work and a rollback is just starting the old build. Retiring a definition and cancelling its queue is an operator verb, on the API and the dashboard.</dd></div>
           <div class="ref-row"><dt>Explain</dt><dd>Ask any job why it is in its current state and what happens next. The answer comes from its recorded rows, not from log archaeology.</dd></div>
           <div class="ref-row"><dt>Restart with stored input</dt><dd>A job that failed a month ago is still a row, with its input. Restart it as-is: no re-constructing the payload from logs. The restart runs whatever the row holds now, so if an operator amended the input first, the amendment is what runs.</dd></div>
           <div class="ref-row"><dt>Job repair, beyond restart</dt><dd>Reschedule a job to run now or at a chosen instant, amend its stored input (bounded metadata records that you did), or purge it outright: the repair verbs operators actually reach for, durable and audited like everything else.</dd></div>
