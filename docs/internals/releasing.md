@@ -85,14 +85,16 @@ what the rounds on this machine cost to learn.
 
 - Measure from a clean `git worktree` of the exact commit. The harness records `git status`, and an
   untracked file in the main tree marks every JSON of the round dirty.
-- Clean the bench databases first. `Anvil.Bench` creates a fresh schema per cell and never drops the
-  previous one, on PostgreSQL and SQL Server alike, so `acta-dev` accumulates thousands of
-  `anvil_bench_*` schemas after one `full` matrix (tens of gigabytes), and autovacuum then writes into
-  the drive for hours after the round ends. Drop them before and after a round: on PostgreSQL generate
-  `DROP SCHEMA ... CASCADE` from `pg_namespace` and run it through `psql -f`; on SQL Server a cursor
-  over `sys.schemas` that drops foreign keys, views, procedures, functions, tables, table types, and
-  sequences before the schema. Delete the SQLite bench files from the temp folder. Fixing the leak in
-  the harness is the better answer and is open.
+- Leave PostgreSQL autovacuum on. A round that needed the server's own maintenance disabled to look
+  good is not a round worth publishing, and the reason anyone wanted it off was a harness leak that is
+  now fixed: each cell drops its schema when its measurement is recorded, so a `full` matrix leaves
+  the reusable preflight probe and nothing else. Dropping is best effort, because a round that
+  measured cleanly must not be failed by its own cleanup; the harness says which schema it could not
+  drop, and a round interrupted part way can still leave some behind. Sweeping by hand is then the
+  same job it always was: on PostgreSQL generate `DROP SCHEMA ... CASCADE` from `pg_namespace` and run
+  it through `psql -f`; on SQL Server a cursor over `sys.schemas` that drops foreign keys, views,
+  procedures, functions, tables, table types, and sequences before the schema; and delete the
+  `acta-anvil-bench-*.db` files from the temp folder.
 - Check the drive at the host, not only `pg_test_fsync` inside the container: two hundred 8 KB writes
   each followed by `Flush(true)` in the temp folder give flushes per second for the drive the Docker
   disk image lives on. The bench machine's C: drive is QLC and drops from about 2,800 to 300-500
