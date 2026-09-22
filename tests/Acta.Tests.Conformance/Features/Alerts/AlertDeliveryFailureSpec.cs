@@ -502,8 +502,9 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
             Options.Create(new JobsOptions { AlertDeliveryMaxRetries = maxRetries, AlertReminderInterval = ReminderInterval })
         );
 
+        var ctx = await BuildAlertsCtxAsync(ct);
         var started = Stopwatch.GetTimestamp();
-        await alerts.Handle(BuildAlertsCtx(), ct);
+        await alerts.Handle(ctx, ct);
         return Stopwatch.GetElapsedTime(started);
     }
 
@@ -538,10 +539,17 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
         );
     }
 
-    private RuntimeJobContext BuildAlertsCtx()
+    // The projector checkpoints its cursor as a variable of the job it runs as, and a checkpoint row
+    // references its job, so the context is built on a job this spec seeds in its own namespace rather
+    // than on a borrowed id: on a fresh shared schema the borrowed row need not exist yet, and on a
+    // long-lived one a retention pass can have purged it.
+    private long? _slotJobId;
+
+    private async Task<RuntimeJobContext> BuildAlertsCtxAsync(CancellationToken ct)
     {
+        _slotJobId ??= (await Seeder.SeedJobAsync(TestNamespaceId, ct: ct)).JobId;
         var slot = new ClaimedJob(
-            JobId: 1L,
+            JobId: _slotJobId.Value,
             JobRef: Guid.Empty,
             NamespaceId: TestNamespaceId,
             DefinitionId: 0,

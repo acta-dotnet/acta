@@ -1,3 +1,4 @@
+using Acta.Relational.Commands;
 using Acta.Relational.Entities;
 using Acta.Runtime.Modules.Execution;
 using Acta.Runtime.Modules.Execution.Workers;
@@ -77,16 +78,45 @@ public abstract class ActaRuntimeTestBase<TFixture, TManifest> : ActaTestBase<TF
             // At this point the namespace's only Ready rows are the seeded schedule slots.
             var parked = DateTime.UtcNow.AddDays(1);
             var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+            var dialect = Services.GetRequiredService<ISqlDialect>();
             // A non-Orphaned status matches ix_schedules_namespace_next's filter so SQL Server seeks
             // instead of scanning pk_schedules into unrelated fixtures' purge locks.
-            await Db.From<JobSchedule>()
-                .Where(s => s.NamespaceId == ns && s.Status != ScheduleStatusCode.Orphaned)
-                .UpdateOnlyAsync(() => new JobSchedule { NextRunAtUtc = parked }, ct);
-            await Db.From<JobRuntime>()
-                .Where(r => r.NamespaceId == ns && r.Status == JobStatusCode.Ready)
-                .UpdateOnlyAsync(() => new JobRuntime { NextRunAtUtc = parked }, ct);
+            await RetryTransientConflictAsync(
+                dialect,
+                () =>
+                    Db.From<JobSchedule>()
+                        .Where(s => s.NamespaceId == ns && s.Status != ScheduleStatusCode.Orphaned)
+                        .UpdateOnlyAsync(() => new JobSchedule { NextRunAtUtc = parked }, ct),
+                ct
+            );
+            await RetryTransientConflictAsync(
+                dialect,
+                () =>
+                    Db.From<JobRuntime>()
+                        .Where(r => r.NamespaceId == ns && r.Status == JobStatusCode.Ready)
+                        .UpdateOnlyAsync(() => new JobRuntime { NextRunAtUtc = parked }, ct),
+                ct
+            );
         }
     }
+
+    /// <summary>
+    /// Repeats a testing-layer write the database aborted as a deadlock victim, through the same bounded,
+    /// jittered retry the stores use. The testing query layer issues each write once, and every class in
+    /// the suite parks its slots at the same instant on one shared schema, which on a small SQL Server
+    /// picks a victim among them; the victim's transaction is rolled back whole, so repeating is safe.
+    /// </summary>
+    private static Task RetryTransientConflictAsync(ISqlDialect dialect, Func<Task> write, CancellationToken ct) =>
+        DeadlockRetry.RunAsync(
+            async _ =>
+            {
+                await write();
+                return true;
+            },
+            dialect.IsTransientConflict,
+            maxAttempts: 8,
+            ct
+        );
 
     /// <summary>
     /// Enqueues <paramref name="input"/> as <paramref name="jobName"/> in the test namespace, drives one
