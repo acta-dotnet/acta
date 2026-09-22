@@ -46,10 +46,34 @@ from its own claims for the rest of the process. While no live worker carries th
 job sits `Ready`, each worker having handed it back once (one event under `Audit` per hand-back)
 and never progressing; the way out is a build that carries the handler or the operator retire verb.
 
-A completion write that fails on a provider error is retried, five tries over about fifteen seconds.
-A provider outage longer than that leaves the attempt's row Executing under a lease the worker's
-heartbeat keeps renewing, until that worker process restarts and its rows are reclaimed as a dead
-worker's.
+A completion write that fails is repeated until it lands or the worker stops, backing off from one
+second to a thirty-second ceiling with jitter. Every failure is repeated, a provider error and a
+defect alike: the write is a compare-and-swap that is safe to resubmit, and a completion abandoned
+part way leaves the row `Executing` under a lease the worker's heartbeat keeps renewing, which
+recovery can never reclaim. A defect in the completion path therefore loops instead of surfacing
+once, so it is logged at `Warning` for the first three tries and at `Error` after, always naming the
+job id, and `acta.completions.unsettled` counts the writes in that state. The start write on the
+hand-back path is repeated the same way and for the same reason: a claim this deployment cannot run
+has already stamped its lease and its in-flight status.
+
+The attempt holds its executor slot for as long as it repeats. That is deliberate backpressure, not
+a free ride: a completion that keeps failing reduces the worker's execution capacity, and enough of
+them occupy every slot and stop the worker claiming work whose own completion might have succeeded.
+Acta keeps the finalization it owes rather than abandoning it to run more handlers whose completions
+would be abandoned in turn. Repairing the underlying database failure lets the pending completions
+land without restarting the worker, as long as each attempt still owns its row. Recovery itself is
+unaffected, because the slot monitor runs the sweep outside the executor pool.
+
+`Bulk` pays that cost per entry, never per batch. A flush settles its entries side by side, four
+completions in flight at a time, so an entry whose write keeps failing holds up neither its
+siblings' completions nor any deferred wakeup, including the wakeups for rows the batch statement
+already committed. What it does hold is its own flusher, which is the executor trade again: a worker
+runs several flushers, so the others keep draining.
+
+A worker that dies mid-repeat still loses the write. The row stays `Executing` until its lease
+lapses, `sys.recovery` reclaims it, and the handler runs again. A graceful drain keeps repeating
+while the host's shutdown budget lasts, so completions land; a hard stop ends the repeat and leaves
+the row for recovery.
 
 A rate meter paces starts, not what a handler does after it starts, and one meter is one row lock:
 every admission is a round trip that serializes on that row, so a single key tops out around a
@@ -86,10 +110,14 @@ including the other system slots, but it cannot free the slot it runs from, beca
 Every worker watches that one slot: one guarded statement at startup and then every seven minutes,
 each worker offset by a random slice of that window, that re-arms the slot only if it is in flight
 under a lapsed lease. The check runs on the worker's own timer rather than through an executor, so
-saturated executors cannot starve it. Whichever worker's check falls next finds a stranded slot, so
-a fleet finds it sooner and a lone worker can take the whole seven minutes; that bounds detection
-and re-arming, not the sweep itself, which is claimed like any other job and runs at `Critical`
-priority. The other stranded jobs in the namespace wait behind it. Nothing sweeps the namespace outside `sys.recovery` itself, by design.
+saturated executors cannot starve it, and having re-armed the slot the same check offers to run it,
+claiming that one job id and executing it outside the executor pool. Ordinary claiming still takes
+the slot as it always did and remains the usual path, so with executors free the slot's own
+once-a-minute schedule governs and nothing here changes; the slot's lease decides between them, so
+only one runs a pass. Whichever worker's check falls next finds a stranded slot, so a fleet finds it
+sooner and a lone worker can take the whole seven minutes. That interval is the bound for the case
+it exists for, a worker with nothing free to claim the slot: detection, re-arming, and now the sweep
+too. The other stranded jobs in the namespace wait behind it. Nothing sweeps the namespace outside `sys.recovery` itself, by design.
 
 Acta does not provide deterministic workflow replay. The model is checkpoints, not replay: durable
 slots record completed work and return stored results on re-entry, but the handler can re-enter from

@@ -7,10 +7,13 @@ namespace Acta.Runtime.Modules.Execution.Workers;
 /// Keeps crash recovery from depending on the one job that can be stranded. The reclaim sweep runs
 /// from the <c>sys.recovery</c> slot, and a worker can die holding that slot; the sweep that would free
 /// it is then the one that never runs, and everything stranded from then on queues behind it. This loop
-/// checks only that slot, on its own timer, and re-arms it when its lease has lapsed. Normal claiming
-/// then decides which worker runs the sweep. It never sweeps the namespace itself, so a hundred workers
-/// cost a hundred point statements every seven minutes rather than a hundred sweeps, and it never
-/// recreates a slot an operator removed.
+/// checks only that slot, on its own timer, and re-arms it when its lease has lapsed. It then offers to
+/// run that exact slot itself, through the ordinary execution lifecycle but outside the executor pool,
+/// so a worker whose executors are all busy can still sweep. Ordinary claiming keeps the slot too and
+/// remains the usual path: the slot's own lease decides which of them gets it, so the monitor is a
+/// backstop for saturation rather than a replacement. It never sweeps the namespace itself, so a
+/// hundred workers cost a hundred point statements every seven minutes rather than a hundred sweeps,
+/// and it never recreates a slot an operator removed.
 /// </summary>
 internal sealed class RecoverySlotMonitor(
     IExecutionStore execution,
@@ -18,7 +21,8 @@ internal sealed class RecoverySlotMonitor(
     WorkerRegistration? workerRegistration,
     WorkerContext context,
     ILogger log,
-    TimeProvider? time = null
+    TimeProvider? time = null,
+    Func<string, long, CancellationToken, Task<RunOnceOutcome>>? runRecovery = null
 )
 {
     /// <summary>
@@ -26,7 +30,9 @@ internal sealed class RecoverySlotMonitor(
     /// window. A slot that strands is found within the interval by whichever worker's check falls next,
     /// so more workers find it sooner; a lone worker can take the whole seven minutes. That is a bound
     /// on delay, not a promised recovery deadline, and the trade is deliberate: no cross-worker
-    /// coordination and no schema.
+    /// coordination and no schema. The interval bounds the saturated case only, where nothing ordinary
+    /// is free to claim the slot; with executors available the slot's own once-a-minute schedule still
+    /// governs, because ordinary claiming never stopped taking it.
     /// </summary>
     internal static readonly TimeSpan Interval = TimeSpan.FromMinutes(7);
 
@@ -36,6 +42,7 @@ internal sealed class RecoverySlotMonitor(
     private readonly WorkerContext _context = context;
     private readonly ILogger _log = log;
     private readonly TimeProvider _time = time ?? TimeProvider.System;
+    private readonly Func<string, long, CancellationToken, Task<RunOnceOutcome>>? _runRecovery = runRecovery;
 
     public async Task RunAsync(CancellationToken ct)
     {
@@ -77,9 +84,35 @@ internal sealed class RecoverySlotMonitor(
     {
         foreach (var (namespaceName, namespaceId) in _context.NamespaceIds)
         {
-            if (_context.RecoverySlotJobIdByNamespace.TryGetValue(namespaceId, out var slotJobId))
+            if (!_context.RecoverySlotJobIdByNamespace.TryGetValue(namespaceId, out var slotJobId))
             {
-                await CheckAndRepairAsync(_execution, _publisher, namespaceId, namespaceName, slotJobId, _log, ct);
+                continue;
+            }
+
+            await CheckAndRepairAsync(_execution, _publisher, namespaceId, namespaceName, slotJobId, _log, ct);
+
+            if (_runRecovery is null)
+            {
+                continue;
+            }
+
+            // Offer to run the slot from here, outside the executor pool, so a worker with every
+            // executor busy still sweeps. The claim names this one job id and is fenced by the slot's
+            // own lease, so a worker that already holds it simply answers nothing-claimed, and a slot
+            // that is not due yet is not taken early.
+            try
+            {
+                await _runRecovery(namespaceName, slotJobId, ct);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                // A pass that throws is an ordinary job outcome; the slot's own retry decides what
+                // happens next, and this loop must live to make its next check.
+                _log.LogError(ex, "Namespace ({Namespace}): the recovery pass this monitor started failed.", namespaceName);
             }
         }
     }

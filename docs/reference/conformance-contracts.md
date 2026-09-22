@@ -1179,6 +1179,7 @@
   - A heartbeat renewal that commits while the repair waits on the row wins; the repair declines
   - A recovery slot whose row is gone is reported missing and never recreated
   - A worker starting over a lapsed recovery slot re-arms it before the catalog is read
+  - A survivor's monitor repairs the slot and runs the sweep itself, with no executor free and nothing restarted
   - The monitor's own periodic loop repairs a stranded slot once its first delay elapses
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.RepairRecoverySlotAsync`

@@ -205,6 +205,64 @@ public abstract class RecoverySlotMonitorSpec<TFixture> : ActaRuntimeTestBase<TF
         Assert.Null(after.LeasedByWorkerId);
     }
 
+    [Fact(DisplayName = "A survivor's monitor repairs the slot and runs the sweep itself, with no executor free and nothing restarted")]
+    public async Task Monitor_runs_the_sweep_on_capacity_that_is_not_the_executor_pool()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var slotId = await RecoverySlotIdAsync(ct);
+
+        // A worker died holding the recovery slot, and an ordinary job was stranded behind it. Nothing
+        // here runs a claim loop, so there is no executor to take either one: that is the saturated case
+        // the seven-minute bound is about, staged by having no pool at all rather than by filling one.
+        var stranded = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "chaos-counting", JobPayload.None), ct);
+        await StrandAsync(stranded.JobId, JobStatusCode.Executing, DateTime.UtcNow.AddMinutes(-5), ct);
+        await StrandAsync(slotId, JobStatusCode.Executing, DateTime.UtcNow.AddMinutes(-5), ct);
+
+        var registration = new WorkerRegistration(TestNamespace, null, null, [], []);
+        var context = new WorkerContext(registration);
+        context.NamespaceIds[TestNamespace] = TestNamespaceId;
+        context.RecoverySlotJobIdByNamespace[TestNamespaceId] = slotId;
+
+        var time = new ManualTimeProvider();
+        var monitor = new RecoverySlotMonitor(
+            Execution,
+            new WorkerWakeupPublisher(new RecordingWakeup()),
+            registration,
+            context,
+            NullLogger.Instance,
+            time,
+            runRecovery: (ns, jobId, token) => Runtime.RunOnceAsync(ns, jobId, token)
+        );
+
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var loop = monitor.RunAsync(stop.Token);
+        await time.FirstTimerArmed.WaitAsync(SpecWaits.Gate, ct);
+        time.Advance(RecoverySlotMonitor.Interval);
+
+        // Re-arming the slot is not recovery; running the sweep is. The stranded job returning to Ready is
+        // the only thing that proves the pass actually executed on this worker.
+        var deadline = DateTime.UtcNow + SpecWaits.Converge;
+        JobStatusCode strandedStatus;
+        do
+        {
+            strandedStatus = (await RuntimeAsync(stranded.JobId, ct)).Status;
+            if (strandedStatus == JobStatusCode.Ready)
+            {
+                break;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(50), ct);
+        } while (DateTime.UtcNow < deadline);
+
+        Assert.Equal(JobStatusCode.Ready, strandedStatus);
+
+        var slot = await RuntimeAsync(slotId, ct);
+        Assert.Null(slot.LeasedByWorkerId);
+
+        await stop.CancelAsync();
+        await loop.WaitAsync(SpecWaits.Gate, ct);
+    }
+
     [Fact(DisplayName = "The monitor's own periodic loop repairs a stranded slot once its first delay elapses")]
     public async Task Periodic_loop_repairs_a_stranded_slot()
     {
