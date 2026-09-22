@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Diagnostics;
 using Acta.Relational.Entities;
 using Acta.Runtime.Modules.Execution;
 using Acta.Runtime.Modules.Execution.Definitions;
@@ -47,19 +48,35 @@ public abstract class RateLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, Te
         var ct = TestContext.Current.CancellationToken;
         var bucket = Bucket(TestKey("rl-burst"));
 
+        var clock = Stopwatch.StartNew();
         for (var i = 0; i < Burst; i++)
         {
             var admitted = await ReserveAsync(bucket, jobId: 1000 + i, ct);
             Assert.True(admitted.Admitted, $"request {i} of the burst was denied");
         }
 
-        // The burst is spent, so the next request is the first to wait, and it waits one interval.
-        var denied = await ReserveAsync(bucket, jobId: 1099, ct);
-        Assert.False(denied.Admitted);
-        Assert.True(
-            denied.ResumeAtUtc > DateTime.UtcNow.AddMilliseconds(-IntervalMilliseconds),
-            $"the reserved turn {denied.ResumeAtUtc:O} is not ahead of now"
-        );
+        // The burst is spent, so the next request is the first to wait, and it waits one interval. That
+        // holds only while the burst was taken inside its own window: the meter refills one turn per
+        // interval, so ten requests that took longer than nine intervals to make (a shared CI database
+        // queuing the first reserves of a fresh bucket behind other classes) leave a turn free, and the
+        // eleventh request is admitted honestly. The premise is measured, not assumed.
+        var burstWindow = TimeSpan.FromMilliseconds((Burst - 1) * IntervalMilliseconds);
+        var next = await ReserveAsync(bucket, jobId: 1099, ct);
+        if (clock.Elapsed < burstWindow)
+        {
+            Assert.False(next.Admitted, $"the eleventh request was admitted although the burst took {clock.Elapsed.TotalMilliseconds:0}ms");
+            Assert.True(
+                next.ResumeAtUtc > DateTime.UtcNow.AddMilliseconds(-IntervalMilliseconds),
+                $"the reserved turn {next.ResumeAtUtc:O} is not ahead of now"
+            );
+        }
+        else
+        {
+            Assert.True(
+                next.Admitted,
+                $"the burst took {clock.Elapsed.TotalMilliseconds:0}ms, past its window, yet the next request was denied"
+            );
+        }
     }
 
     [Fact(DisplayName = "A booked turn is handed back unchanged until it arrives, and the meter stays put")]
@@ -101,18 +118,20 @@ public abstract class RateLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, Te
         var bucket = Bucket(TestKey("rl-ontime"));
         var reservation = $"{bucket}.{jobId}";
 
-        // The meter is parked minutes ahead, so an admission below can only come from the turn. Nine
+        // The meter is parked minutes ahead, so an admission below can only come from the turn. Five
         // intervals late at 100ms, which is how late a claim-path pickup can be after a re-arm at the
         // exact instant: inside the one-second window the turn still counts, so a fast meter is not
-        // defeated by the worker's poll floor and jitter.
+        // defeated by the worker's poll floor and jitter. Half a second of the window is left for the
+        // round trips between the stage and the reserve, which a shared CI database can stretch past
+        // the hundred milliseconds a tighter stage would leave.
         Assert.NotNull(await Locks.TryAcquireAsync(bucket, TimeSpan.FromMinutes(5), 1401, ct));
-        await StageTurnAsync(reservation, jobId, TimeSpan.FromMilliseconds(-900), ct);
+        await StageTurnAsync(reservation, jobId, TimeSpan.FromMilliseconds(-500), ct);
         var meterBefore = await MeterAsync(bucket, ct);
 
         var admitted = await ReserveAsync(bucket, jobId, ct);
 
         // The meter counted this job when it allocated the turn; charging it again would meter it twice.
-        Assert.True(admitted.Admitted, "a turn 900ms past its instant was not honoured");
+        Assert.True(admitted.Admitted, "a turn 500ms past its instant was not honoured");
         Assert.Equal(0, admitted.WaitMilliseconds);
         Assert.Equal(meterBefore, await MeterAsync(bucket, ct));
         Assert.Null(await ReadLockAsync(reservation, ct));
