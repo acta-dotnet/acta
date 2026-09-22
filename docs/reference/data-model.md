@@ -354,7 +354,7 @@ Service-owned execution boundary. One deployable service owns one `JobNamespace`
 
 ### `acta.results` <a id="entity-acta-results"></a>
 
-Cold payload table: one row per Job attempt that produced a durable result, keyed by the composite `(JobId, ExecutionNumber)`. Result bytes never live on the hot `Job` row, and recurring Jobs accumulate one cold row per terminal firing instead of overwriting a single hot LOB slot. The latest retained result for a Job is a single-row seek against the clustered PK (`WHERE JobId = @id ORDER BY ExecutionNumber DESC`).
+Cold payload table: one row per Job attempt that produced a durable result, keyed by the composite `(JobId, ExecutionNumber)`. Result bytes never live on the hot `Job` row, and recurring Jobs write one cold row per terminal firing instead of overwriting a single hot LOB slot. That history is bounded by the definition's `RecurringResultCap`, which defaults to 1: `complete_execution` trims the Job's result rows to the newest N inline on every recurring completion, so a slot that fires forever does not accumulate forever. The latest retained result for a Job is a single-row seek against the clustered PK (`WHERE JobId = @id ORDER BY ExecutionNumber DESC`).
 
 **CLR type** `Acta.Relational.Entities.JobResult` · **Primary key** `pk_results` (`job_id`, `execution_number`)
 

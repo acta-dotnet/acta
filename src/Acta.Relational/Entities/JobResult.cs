@@ -5,15 +5,18 @@ namespace Acta.Relational.Entities;
 /// <summary>
 /// Cold payload table: one row per Job attempt that produced a durable result, keyed by the composite
 /// <c>(JobId, ExecutionNumber)</c>. Result bytes never live on the hot <c>Job</c> row, and recurring Jobs
-/// accumulate one cold row per terminal firing instead of overwriting a single hot LOB slot. The latest
-/// retained result for a Job is a single-row seek against the clustered PK
-/// (<c>WHERE JobId = @id ORDER BY ExecutionNumber DESC</c>).
+/// write one cold row per terminal firing instead of overwriting a single hot LOB slot. That history is
+/// bounded by the definition's <c>RecurringResultCap</c>, which defaults to 1: <c>complete_execution</c>
+/// trims the Job's result rows to the newest N inline on every recurring completion, so a slot that fires
+/// forever does not accumulate forever. The latest retained result for a Job is a single-row seek against
+/// the clustered PK (<c>WHERE JobId = @id ORDER BY ExecutionNumber DESC</c>).
 /// </summary>
 /// <remarks>
 /// Retention cascades from <c>Job</c>: <c>fk_results_jobs ON DELETE CASCADE</c> sweeps every result row
-/// when its parent Job is retention-deleted, so there is no per-row retention column. <c>JobEvent</c>
-/// records the <c>job.execution-finished</c> event whose <c>JobId + ExecutionNumber</c> pair points at
-/// this row; the event ledger has its own retention.
+/// when its parent Job is retention-deleted, so there is no per-row retention column. A live recurring
+/// slot is never terminal, so retention never reaches it and <c>RecurringResultCap</c> is what bounds it;
+/// raise the cap to keep a deeper history. <c>JobEvent</c> records the <c>job.execution-finished</c> event
+/// whose <c>JobId + ExecutionNumber</c> pair points at this row; the event ledger has its own retention.
 /// </remarks>
 [DbTable("results", PageCompression = true)]
 // OptimizeForSequentialKey: results arrive by ascending job id, so they insert at this key's tail; a

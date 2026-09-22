@@ -503,6 +503,11 @@ batches, along with `events` / `alerts` / terminal-worker rows past their `JobsO
 `retention_until_utc` is never purged; only terminal rows ever carry one. Substrate rows
 (checkpoints, steps, results) delete with their job.
 
+A recurring slot is never terminal, so retention never reaches it. Its result rows are bounded
+instead by the definition's `RecurringResultCap`, which defaults to 1: every recurring completion
+trims that job's results to the newest N in the same statement. Raise the cap on the definition to
+keep a deeper history; there is no window in which an uncapped recurring slot grows without bound.
+
 Retention purge and manual purge are different operations with different guards. The `sys.retention`
 sweep is deadline-driven: it deletes terminal rows past `retention_until_utc` in batches and emits no
 per-job event. The manual verb (`IJobs.PurgeAsync`, `POST /jobs/{jobRef}/purge`, or the confirmed

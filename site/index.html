@@ -566,8 +566,8 @@
         </div>
         <div class="build">
           <h3>Orders, billing, and payments</h3>
-          <p>When they share a database transaction, the job and the business row commit together or not at all, so there is no window where the order exists and the work to fulfil it does not. Then one customer's work runs in order, without a queue per customer.</p>
-          <span class="carries"><b>Transactional enqueue</b> in your own commit<br /><b>DeduplicationKey</b> makes a retry free<br /><b>ConcurrencyKey</b> serializes per customer</span>
+          <p>When they share a database transaction, the job and the business row commit together or not at all, so there is no window where the order exists and the work to fulfil it does not. Then one customer's work never overlaps itself, without a queue per customer.</p>
+          <span class="carries"><b>Transactional enqueue</b> in your own commit<br /><b>DeduplicationKey</b> makes a retry free<br /><b>ConcurrencyKey</b> one at a time per customer</span>
         </div>
         <div class="build">
           <h3>Pipelines, backfills, and ETL</h3>

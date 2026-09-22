@@ -16,17 +16,19 @@ built from a different baseline generation fails loudly instead of taking a sche
 for; old renumbered code values are intentionally incompatible, and there is no translation
 migration.
 
-The stamp names the day the baseline was cut. rc.2 cuts `baseline-20260910`, so a database
-provisioned by rc.1, or by any earlier rc.2 build, refuses to start rather than running on a schema
-nobody chose. That refusal is the point: every `M001` statement is
+The stamp is a content hash: `baseline-` followed by 32 hex characters of the SHA-256 of that
+provider's emitted `M001`, so each provider carries its own. A database provisioned by an earlier
+build refuses to start rather than running on a schema nobody chose. That refusal is the point:
+every `M001` statement is
 existence-guarded, so without it an rc.1 database would take the re-cut as a no-op and keep
 `events.actor_key` as `varchar(128)` on SQL Server, folding an operator's non-ASCII name to `?`, and
 would keep the old `ix_runtimes_worker_inflight` key and none of the three row-shape constraints.
 
 Reprovisioning is still a manual step, and it is destructive: there is no upgrade path between
 generations before 1.0, and the refusal tells an operator to take one rather than silently
-diverging. The residual gap is one day wide: two cuts between the same midnights share a stamp, so a
-database provisioned from an earlier build made on the cut date is not detected.
+diverging. The residual gap is that the stamp records the script that was applied, not the schema
+that resulted: the live database is never hashed, so an operator who adapts the applied script
+keeps the recorded row and carries the difference themselves.
 
 ## Execution model
 
@@ -81,12 +83,13 @@ lapsed to `Ready`, runs from the `sys.recovery` recurring slot, and that slot is
 worker claims it and can die holding it. Reclaim covers every other stranded row in the namespace,
 including the other system slots, but it cannot free the slot it runs from, because a stranded
 `sys.recovery` means the sweep never executes. Every later stranded job then queues behind it.
-Every worker watches that one slot: one guarded statement at startup and then once an hour, each
-worker offset by a random slice of the hour, that re-arms the slot only if it is in flight under a
-lapsed lease. Whichever worker's check falls next finds a stranded slot, so a fleet finds
-it within minutes and a lone worker can take the whole hour; that is a bound on the delay, not a
-promised recovery deadline, and the other stranded jobs in the namespace wait behind it for that
-long. Nothing sweeps the namespace outside `sys.recovery` itself, by design.
+Every worker watches that one slot: one guarded statement at startup and then every seven minutes,
+each worker offset by a random slice of that window, that re-arms the slot only if it is in flight
+under a lapsed lease. The check runs on the worker's own timer rather than through an executor, so
+saturated executors cannot starve it. Whichever worker's check falls next finds a stranded slot, so
+a fleet finds it sooner and a lone worker can take the whole seven minutes; that bounds detection
+and re-arming, not the sweep itself, which is claimed like any other job and runs at `Critical`
+priority. The other stranded jobs in the namespace wait behind it. Nothing sweeps the namespace outside `sys.recovery` itself, by design.
 
 Acta does not provide deterministic workflow replay. The model is checkpoints, not replay: durable
 slots record completed work and return stored results on re-entry, but the handler can re-enter from
@@ -151,6 +154,16 @@ an incident only from a success event, so an incident opened for a job at that l
 resolve on its own; an operator resolves it, or the job runs under `Audit`. `sys.alerts` itself runs
 under `Failures`, so its own `SysCritical` incident has the same shape. The design that fixes this
 from events alone, without a schema change, is written up for a later release.
+
+A one-shot job's retries are also invisible at that level, which surprises people more than the
+resolution gap does. An in-budget retry re-arm carries a reschedule as far as `complete_execution` is
+concerned, and the level records a failed attempt only when it carries none, so a job that throws
+four times and succeeds on the fifth writes nothing, and one that exhausts its budget writes a single
+terminal `Failed`. `AlertProfile.FirstFailure` and `AlertProfile.ThresholdReached` therefore never
+fire for a one-shot's own throws under `Failures`; `FinalFailure` does. A recurring slot is the
+opposite shape, because its failed fire carries no reschedule and is written, which is what makes an
+unwatched nightly job audible at this level. Run one-shot work under `Audit` when you want to hear
+about attempts rather than outcomes.
 
 The alert projector walks `events` by `(created_at_utc, id)` behind a horizon on the database clock,
 and assumes that clock does not step backwards (slewing, the way NTP corrects small drift, is fine).
