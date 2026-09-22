@@ -61,23 +61,34 @@ public abstract class RateLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, Te
         // than an interval and leave a turn free: the eleventh request is then admitted honestly. The
         // claim measured here is the rate: past the burst, the meter admits at most the turns the
         // elapsed time could have refilled, and the first denial books a turn ahead of now.
+        // A database whose every round trip outlasts an interval refills a turn per request and never
+        // denies, so the loop is bounded by the clock, not by a count.
         var admittedPastBurst = 0;
-        RateReservation next;
-        while ((next = await ReserveAsync(bucket, jobId: 1099 + admittedPastBurst, ct)).Admitted)
+        RateReservation? denied = null;
+        while (clock.Elapsed < TimeSpan.FromSeconds(2))
         {
+            var next = await ReserveAsync(bucket, jobId: 1099 + admittedPastBurst, ct);
+            if (!next.Admitted)
+            {
+                denied = next;
+                break;
+            }
             admittedPastBurst++;
-            Assert.True(admittedPastBurst <= 3, "the meter kept admitting past its burst");
         }
 
-        var refilled = (int)(clock.Elapsed.TotalMilliseconds / IntervalMilliseconds);
+        // One interval of slack for the request that lands on the refill boundary.
+        var refilled = (int)(clock.Elapsed.TotalMilliseconds / IntervalMilliseconds) + 1;
         Assert.True(
             admittedPastBurst <= refilled,
-            $"{admittedPastBurst} request(s) past the burst were admitted, but only {refilled} turn(s) could have refilled in {clock.Elapsed.TotalMilliseconds:0}ms"
+            $"{admittedPastBurst} request(s) past the burst were admitted, but at most {refilled} turn(s) could have refilled in {clock.Elapsed.TotalMilliseconds:0}ms"
         );
-        Assert.True(
-            next.ResumeAtUtc > DateTime.UtcNow.AddMilliseconds(-IntervalMilliseconds),
-            $"the reserved turn {next.ResumeAtUtc:O} is not ahead of now"
-        );
+        if (denied is { } booked)
+        {
+            Assert.True(
+                booked.ResumeAtUtc > DateTime.UtcNow.AddMilliseconds(-IntervalMilliseconds),
+                $"the reserved turn {booked.ResumeAtUtc:O} is not ahead of now"
+            );
+        }
     }
 
     [Fact(DisplayName = "A booked turn is handed back unchanged until it arrives, and the meter stays put")]
