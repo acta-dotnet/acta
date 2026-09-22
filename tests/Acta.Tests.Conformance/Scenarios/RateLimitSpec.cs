@@ -524,6 +524,7 @@ public abstract class RateLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, Te
         // ahead, so an admission here can only come from the turn, and the slot has to be taken again.
         // The runner's grace is a fixed constant, so the row is stamped relative to that.
         var reservation = $"{bucket}.{enqueued.JobId}";
+        var clock = Stopwatch.StartNew();
         var justPast = DateTime.UtcNow.AddSeconds(RuntimeJobContext.RateReservationGraceSeconds).AddMilliseconds(-50);
         Assert.Equal(
             1,
@@ -531,8 +532,30 @@ public abstract class RateLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, Te
         );
         Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(enqueued, ct: ct)).Action);
 
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(TestNamespace, enqueued.JobId, ct));
-        Assert.Single(RateLimitProbes.AdmittedAt(TestNamespace));
+        // The turn is honoured for a second past its instant, and the stamp, the restart, the claim, the
+        // start, and the admission all have to fit inside the 950ms of it that are left. The database
+        // judges that on its own clock, which the host clock around those round trips can only
+        // overestimate, so a completion is always held to its invariants and a re-arm is accepted only
+        // when the host clock allows the turn to have gone stale, in which case it was re-metered against
+        // a bucket parked minutes ahead and booked again.
+        var outcome = await Runtime.RunOnceAsync(TestNamespace, enqueued.JobId, ct);
+        if (outcome == RunOnceOutcome.Completed)
+        {
+            Assert.Single(RateLimitProbes.AdmittedAt(TestNamespace));
+        }
+        else
+        {
+            Assert.Equal(RunOnceOutcome.Rearmed, outcome);
+            Assert.True(
+                clock.Elapsed >= TimeSpan.FromMilliseconds(950),
+                $"the turn was re-armed with {950 - clock.Elapsed.TotalMilliseconds:0}ms of its validity left"
+            );
+            Assert.Equal(
+                JobEventReasonCode.JobRateLimited,
+                (await ReadLatestEventAsync(enqueued.JobId, EventCode.JobRescheduled, ct)).ReasonCode
+            );
+            Assert.Empty(RateLimitProbes.AdmittedAt(TestNamespace));
+        }
         Assert.Null(await ReadLockAsync($"{slotPrefix}.0", ct));
     }
 
