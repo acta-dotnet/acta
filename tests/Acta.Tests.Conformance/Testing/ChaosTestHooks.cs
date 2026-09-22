@@ -25,6 +25,20 @@ internal sealed class StoreFaultPlan
 
     public void ThrowAfterCompleteOnce() => Interlocked.Exchange(ref _throwAfterComplete, 1);
 
+    /// <summary>
+    /// Turns back every completion until cleared, and counts the refusals. The write is repeated until it
+    /// lands or the worker stops, so a fact about a completion that does not land has to keep refusing it:
+    /// a single throw is now just a blip the repeat rides out.
+    /// </summary>
+    public void ThrowBeforeCompleteUntilCleared() => Interlocked.Exchange(ref _throwBeforeCompleteUntilCleared, 1);
+
+    public void StopThrowingBeforeComplete() => Interlocked.Exchange(ref _throwBeforeCompleteUntilCleared, 0);
+
+    public int CompletionRefusals => Volatile.Read(ref _completionRefusals);
+
+    private int _throwBeforeCompleteUntilCleared;
+    private int _completionRefusals;
+
     public void SkewGetUtcNowBy(TimeSpan skew) => _getUtcNowSkew = skew;
 
     /// <summary>
@@ -49,6 +63,12 @@ internal sealed class StoreFaultPlan
         if (Interlocked.Exchange(ref _beforeComplete, null) is { } action)
         {
             action().GetAwaiter().GetResult();
+        }
+
+        if (Volatile.Read(ref _throwBeforeCompleteUntilCleared) == 1)
+        {
+            Interlocked.Increment(ref _completionRefusals);
+            throw new InjectedProviderError();
         }
 
         switch (Interlocked.Exchange(ref _throwBeforeComplete, 0))

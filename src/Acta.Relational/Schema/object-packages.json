@@ -1,0 +1,20 @@
+[
+  {
+    "Provider": "mssql",
+    "Major": 1,
+    "Revision": 1,
+    "Hash": "b51502fe69dbf8cfc0f677a2382cd2a1"
+  },
+  {
+    "Provider": "pg",
+    "Major": 1,
+    "Revision": 1,
+    "Hash": "e01a04e9499ab2c8ff4cd73b5e764328"
+  },
+  {
+    "Provider": "sqlite",
+    "Major": 1,
+    "Revision": 1,
+    "Hash": "fa7744573f6ec85034943f82b43de4e6"
+  }
+]

@@ -474,9 +474,9 @@
 - **Act:** The runtime runs the job through the injected completion failure, and the before-commit case is then reclaimed and rerun.
 - **Assert:** A before-commit failure reruns to one Succeeded finish, a provider error is retried in place, and an after-commit failure leaves Succeeded with no rerun.
 - **Guarantees:**
-  - A complete before-commit failure leaves Executing with no success event, and reclaim reruns to a single Succeeded finish
+  - A worker that stops while its completion is still failing leaves Executing with no success event, and reclaim reruns to a single Succeeded finish
   - A provider error before the completion commit is retried and the attempt lands once
-  - A complete after-commit failure leaves Succeeded with one success event and is not rerun
+  - A complete after-commit failure is reconciled by the repeat itself and is not rerun
 
 ### Duplicated maintenance registration still has one slot and one claimant
 - **Contract:** Repeated runtime initialization for system maintenance jobs is idempotent, and the recurring maintenance slot is claimed by only one worker.
@@ -2391,6 +2391,7 @@
   - A database from another baseline generation is refused with reprovisioning guidance
   - A migration this build ships that the database never applied is refused by version
   - A history carrying migrations this build has never heard of still passes
+  - A newer object package in the same major starts, and a foreign major or a missing row does not
 
 ### Schema bootstrap installs curated operator views
 - **Contract:** Schema bootstrap installs curated plural _view surfaces while jobs_view decodes status plus tenant key and tags_view decodes exact target scope.

@@ -65,6 +65,7 @@ internal static class MigrationHistoryPreflight
     {
         SchemaMigrationRunner.VerifyBaselineStamp(applied, requiredStamp);
         SchemaMigrationRunner.VerifyAppliedNames(migrations, applied);
+        VerifyObjectPackage(applied.GetValueOrDefault(ObjectPackageStamp.HistoryVersion), ObjectPackageStamp.Required, dialectToken);
 
         var missing = migrations.Where(m => !applied.ContainsKey(m.Version)).ToList();
         if (missing.Count == 0)
@@ -82,6 +83,49 @@ internal static class MigrationHistoryPreflight
                 + "workers; it applies exactly what is missing and skips what is present. Migrations are never applied at "
                 + "startup while ApplyMigrationsOnStartup is false."
         );
+    }
+
+    /// <summary>
+    /// Whether the versionless object package installed here is one this build can call. Runs after the
+    /// three history verdicts, because an operator holding both a missing migration and a stale package
+    /// has one action and it is the migration one.
+    /// </summary>
+    internal static void VerifyObjectPackage(string? recorded, ObjectPackageRequirement required, string dialectToken)
+    {
+        if (!ObjectPackageStamp.TryParse(recorded, out var major, out var revision))
+        {
+            throw new InvalidOperationException(
+                (
+                    recorded is null
+                        ? "This database records no Acta object package. "
+                        : $"This database records its Acta object package as '{recorded}', which this build cannot read. "
+                )
+                    + "Operator views and stored routines carry no migration version of their own, so without that row "
+                    + "nothing here can tell whether the routines this build calls are the ones it was built against. Run "
+                    + $"the current provisioning script ({ProvisionScript(dialectToken)}) against the database; it installs "
+                    + "the current objects and records the package. It is idempotent, and re-running it is not a reprovision."
+            );
+        }
+
+        if (major != required.ContractMajor)
+        {
+            throw new InvalidOperationException(
+                $"This database has Acta object package contract major {major} installed, but this build calls major "
+                    + $"{required.ContractMajor}. The two are not interchangeable in either direction, which is what the "
+                    + "major is for. Run the provisioning script that ships with the build you are deploying "
+                    + $"({ProvisionScript(dialectToken)}) before starting these workers."
+            );
+        }
+
+        if (revision < required.MinimumPackageRevision)
+        {
+            throw new InvalidOperationException(
+                $"This database has Acta object package {major}.{revision} installed, but this build requires revision "
+                    + $"{required.MinimumPackageRevision} or above within major {major}. Run the current provisioning script "
+                    + $"({ProvisionScript(dialectToken)}) against the database before starting these workers; it is "
+                    + "idempotent and rewrites the objects to the definitions this build calls."
+            );
+        }
     }
 
     /// <summary>

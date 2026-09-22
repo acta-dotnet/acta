@@ -272,7 +272,9 @@ public abstract class SchedulesChangedDuringExecutionSpec<TFixture> : ActaRuntim
                     ScheduleAdvances: advances,
                     FinalStatus: plannedStatus,
                     JobNextRunAtUtc: plannedNextRun,
-                    FailureCount: 0
+                    FailureCount: 0,
+                    // The slot keeps one result, the attribute default: this fact is about cursors.
+                    RecurringResultCap: 1
                 ),
                 ct
             );

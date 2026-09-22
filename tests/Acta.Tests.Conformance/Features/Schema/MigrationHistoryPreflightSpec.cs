@@ -79,6 +79,44 @@ public abstract class MigrationHistoryPreflightSpec<TFixture> : IntegrationSpec<
         await RunAsync(probe);
     }
 
+    [Fact(DisplayName = "A newer object package in the same major starts, and a foreign major or a missing row does not")]
+    public async Task Object_package_decides_by_major_and_minimum()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var shipped = ShippedHistory();
+
+        // The rolling-deploy shape: a newer deploy installed a later package and this worker keeps
+        // running against it, because the revision only has to clear the minimum.
+        await using (
+            var newer = await Fixture.CreateHistoryProbeAsync(WithPackage(shipped, $"objects-{ObjectPackageStamp.ContractMajor}.99-{Hash}"))
+        )
+        {
+            await RunAsync(newer);
+        }
+
+        await using (var foreign = await Fixture.CreateHistoryProbeAsync(WithPackage(shipped, $"objects-{ObjectPackageStamp.ContractMajor + 1}.1-{Hash}")))
+        {
+            var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => RunAsync(foreign));
+            Assert.Contains("not interchangeable in either direction", refused.Message, StringComparison.Ordinal);
+        }
+
+        // A database provisioned before the package existed: complete history, no package row.
+        await using (var missing = await Fixture.CreateHistoryProbeAsync([.. shipped.Where(row => row.Version != ObjectPackageStamp.HistoryVersion)]))
+        {
+            var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => RunAsync(missing));
+            Assert.Contains("records no Acta object package", refused.Message, StringComparison.Ordinal);
+            Assert.Contains($"docs/reference/schema-{Fixture.DialectToken}.sql", refused.Message, StringComparison.Ordinal);
+        }
+
+        Assert.True(ct.CanBeCanceled);
+    }
+
+    // The verdict never reads the hash, so any well-formed one serves.
+    private const string Hash = "00000000000000000000000000000000";
+
+    private static List<(int Version, string Name)> WithPackage(IReadOnlyList<(int Version, string Name)> shipped, string stamp) =>
+        [.. shipped.Select(row => row.Version == ObjectPackageStamp.HistoryVersion ? (row.Version, stamp) : row)];
+
     private Task RunAsync(IMigrationHistoryProbe probe) =>
         Fixture.RunBootstrapPreflightAsync(probe.ConnectionString, probe.SchemaName, TestContext.Current.CancellationToken);
 
@@ -90,6 +128,9 @@ public abstract class MigrationHistoryPreflightSpec<TFixture> : IntegrationSpec<
     private IReadOnlyList<(int Version, string Name)> ShippedHistory() =>
         [
             (0, BaselineStamps.ForDialect(Fixture.DialectToken)),
+            // The object package the install records. These facts are about the history verdicts, and a
+            // database missing this row is refused by the fourth for reasons of its own.
+            (ObjectPackageStamp.HistoryVersion, ObjectPackageStamp.Format(ObjectPackageHashes.ForDialect(Fixture.DialectToken))),
             .. SchemaMigrationDiscovery
                 .Discover(Assembly.Load(ProviderSqlResources.ProviderAssemblyName(Fixture.DialectToken)))
                 .Select(migration => (migration.Version, Name: migration.Name[5..])),

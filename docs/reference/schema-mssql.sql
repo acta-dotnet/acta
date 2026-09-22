@@ -8338,5 +8338,11 @@ BEGIN
     END CATCH;
 END;
 GO
+-- ===== installed object package (names the versionless objects above) =====
+GO
+DELETE FROM acta.migrations WHERE version = -1;
+INSERT INTO acta.migrations (version, name, installed_schema)
+VALUES (-1, 'objects-1.1-b51502fe69dbf8cfc0f677a2382cd2a1', 'acta');
+GO
 COMMIT TRANSACTION;
 GO

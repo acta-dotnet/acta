@@ -201,6 +201,12 @@ internal static class ProvisionScriptEmitter
             Append(Render(body));
         }
 
+        // A host with migrations disabled is provisioned by this script and never runs the installer, so
+        // a script that stayed silent would leave the package unrecorded for exactly the deployment the
+        // startup check exists for.
+        Append("-- ===== installed object package (names the versionless objects above) =====");
+        Append(string.Join("\n", SqlObjectInstaller.StampStatements(schema, token)));
+
         Append(mssql ? "COMMIT TRANSACTION;" : "COMMIT;");
         return script.ToString().ReplaceLineEndings("\n");
     }

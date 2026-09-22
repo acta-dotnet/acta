@@ -84,7 +84,7 @@ public sealed class ProvisionScriptChainTests : IDisposable
             + "(SELECT COUNT(*) FROM main.jobs_view)";
         await using var reader = await probe.ExecuteReaderAsync(ct);
         Assert.True(await reader.ReadAsync(ct));
-        Assert.Equal(3, reader.GetInt64(0));
+        Assert.Equal(4, reader.GetInt64(0)); // baseline, two migrations, and the object package row
         Assert.Equal(0, reader.GetInt64(1));
         Assert.Equal(0, reader.GetInt64(2));
     }

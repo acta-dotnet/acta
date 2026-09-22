@@ -91,6 +91,38 @@ internal static class CheckCommand
             Console.WriteLine($"  ok:      {stampsPath}");
         }
 
+        foreach (var problem in ObjectPackageLedger.Verify(repoRoot))
+        {
+            Console.Error.WriteLine($"  DRIFT:   {problem}");
+            drifted++;
+        }
+
+        if (ObjectPackageLedger.Verify(repoRoot).Count == 0)
+        {
+            foreach (var provider in Acta.Emit.Shared.ProviderCatalog.All)
+            {
+                Console.WriteLine(
+                    $"  ok:      object package {provider.Token} {Acta.Relational.Schema.ObjectPackageStamp.ContractMajor}.{Acta.Relational.Schema.ObjectPackageStamp.PackageRevision} {ObjectPackageEmitter.HashFor(repoRoot, provider.Suffix)}"
+                );
+            }
+        }
+
+        var hashesPath = ObjectPackageEmitter.PathFor(repoRoot);
+        if (!File.Exists(hashesPath))
+        {
+            Console.Error.WriteLine($"  MISSING: {hashesPath}");
+            drifted++;
+        }
+        else if (!NewlineEqual(File.ReadAllText(hashesPath), ObjectPackageEmitter.Emit(repoRoot)))
+        {
+            Console.Error.WriteLine($"  DRIFT:   {hashesPath} (run `Acta.Emit objects record`)");
+            drifted++;
+        }
+        else
+        {
+            Console.WriteLine($"  ok:      {hashesPath}");
+        }
+
         var snapshotPath = SnapshotFile.Path(repoRoot);
         if (!File.Exists(snapshotPath))
         {
