@@ -11,13 +11,12 @@ SELECT
     d.name AS job_name,
     -- Held by lineage: a child row still points here, or this is a completed child of a live parent,
     -- whose replay dedupes onto this row and reads its result.
-    CASE
-        WHEN EXISTS (SELECT 1 FROM {{schema}}.jobs c WHERE c.parent_id = j.id) THEN 1
-        WHEN EXISTS (
+    CASE WHEN EXISTS (SELECT 1 FROM {{schema}}.jobs c WHERE c.parent_id = j.id)
+        OR EXISTS (
             SELECT 1 FROM {{schema}}.runtimes p
             WHERE p.job_id = j.parent_id
-              AND p.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)) THEN 1
-        ELSE 0 END AS lineage_hold
+              AND p.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
+        THEN 1 ELSE 0 END AS lineage_hold
 FROM {{schema}}.jobs j
 JOIN {{schema}}.runtimes r ON r.job_id = j.id
 JOIN {{schema}}.definitions d ON d.id = j.definition_id

@@ -246,19 +246,18 @@ BEGIN
         END IF;
     END IF;
 
+    -- At Failures a failure carrying no reschedule is written, and a success only when it answers a
+    -- recorded failure, which is what closes the incident: the job's newest finished event is not a
+    -- success. Never failed, or already answered, writes nothing. One seek on the timeline index.
     IF v_audit = 20 /* JobAuditLevelCode.Audit */
-        OR (v_audit = 10 /* JobAuditLevelCode.Failures */ AND NOT p_execution_succeeded AND NOT v_rearm
-            AND NOT (v_handler AND p_handler_status_code IN (220 /* JobStatusCode.Cancelled */, 30 /* JobStatusCode.Paused */)))
-        -- A success at this level is written only when it answers a recorded failure, which is what closes
-        -- the incident that failure opened: the job's newest finished event is not a success. A job that
-        -- never failed, or already answered, writes nothing. One ordered seek on the job's timeline index.
-        OR (v_audit = 10 /* JobAuditLevelCode.Failures */ AND p_execution_succeeded AND NOT v_rearm
+        OR (v_audit = 10 /* JobAuditLevelCode.Failures */ AND NOT v_rearm
             AND NOT (v_handler AND p_handler_status_code IN (220 /* JobStatusCode.Cancelled */, 30 /* JobStatusCode.Paused */))
-            AND COALESCE((
-                SELECT e.execution_status_code FROM {{schema}}.events e
-                WHERE e.job_id = p_id AND e.event_code = 41 /* EventCode.JobExecutionFinished */
-                ORDER BY e.created_at_utc DESC, e.id DESC
-                LIMIT 1), 100) <> 100 /* ExecutionStatusCode.Succeeded */) THEN
+            AND (NOT p_execution_succeeded
+                OR COALESCE((
+                    SELECT e.execution_status_code FROM {{schema}}.events e
+                    WHERE e.job_id = p_id AND e.event_code = 41 /* EventCode.JobExecutionFinished */
+                    ORDER BY e.created_at_utc DESC, e.id DESC
+                    LIMIT 1), 100) <> 100 /* ExecutionStatusCode.Succeeded */)) THEN
         INSERT INTO {{schema}}.events (
             event_code,
             created_at_utc,

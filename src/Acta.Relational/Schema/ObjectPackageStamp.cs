@@ -30,7 +30,7 @@ internal static class ObjectPackageStamp
     /// An ordered revision within <see cref="ContractMajor"/>, moved whenever the installed content
     /// changes. <c>Acta.Emit check</c> refuses a released revision carrying different content.
     /// </summary>
-    internal const int PackageRevision = 3;
+    internal const int PackageRevision = 4;
 
     /// <summary>
     /// The oldest revision this build can call, which is deliberately not the revision it ships. A
@@ -38,7 +38,7 @@ internal static class ObjectPackageStamp
     /// that package keeps starting; raising this narrows the supported deploy window and is a decision,
     /// not a side effect of shipping.
     /// </summary>
-    internal const int MinimumPackageRevision = 3;
+    internal const int MinimumPackageRevision = 4;
 
     /// <summary>
     /// The <c>migrations.version</c> the stamp row occupies. Negative so it sits outside the migration

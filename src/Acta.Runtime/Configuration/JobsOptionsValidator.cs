@@ -48,11 +48,14 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
             failures.Add("JobsOptions.AlertRetention must be a whole number of days: retention is applied in day granularity.");
         }
 
-        // A success closes an incident only by answering the failure event that opened it, so the
-        // events must outlive the alerts they explain, or an old incident could never close.
+        // A success closes an incident only by answering the failure event that opened it, so the alert
+        // window must not outlast the events window. This bounds the two settings; an incident that
+        // stays open longer than the events window still needs an operator.
         if (options.AlertRetention > options.JobEventsRetention)
         {
-            failures.Add("JobsOptions.AlertRetention must not exceed JobEventsRetention: an incident is closed by the events that explain it.");
+            failures.Add(
+                "JobsOptions.AlertRetention must not exceed JobEventsRetention: an incident is closed by the events that explain it."
+            );
         }
 
         if (options.SafetyPollInterval < TimeSpan.FromSeconds(1))

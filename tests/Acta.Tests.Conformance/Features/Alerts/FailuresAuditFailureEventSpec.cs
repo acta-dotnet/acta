@@ -113,6 +113,9 @@ public abstract class FailuresAuditFailureEventSpec<TFixture> : ActaRuntimeTestB
         // The two throws were re-arms, which this level drops, so the success has no failure to answer.
         Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(job, ct));
         Assert.Empty(await FinishedEventsAsync(job.JobId, ct));
+
+        await RunAlertsAsync(job.JobId, ct);
+        Assert.Empty(await ReadAlertsAsync(NamespaceId, ct));
     }
 
     [Fact(DisplayName = "A recurring slot that fails one fire raises, its next fire resolves, and the fires after that write nothing")]
@@ -149,19 +152,8 @@ public abstract class FailuresAuditFailureEventSpec<TFixture> : ActaRuntimeTestB
         Assert.Equal(2, (await FinishedEventsAsync(slotId, ct)).Count);
     }
 
-    /// <summary>
-    /// One fire of the slot, driven by the handler's own fire count because a claim can be lost to
-    /// provider timing; the handler counts the fire before it throws, so the count says the attempt ran.
-    /// </summary>
-    private async Task FireAsync(long slotId, int expectedFires, CancellationToken ct)
-    {
-        await AlertTestOps.MakeSlotClaimableAsync(Services, slotId, ct);
-        for (var i = 0; i < 12 && FailuresAuditSlot.Fires(TestNamespace) < expectedFires; i++)
-        {
-            await Runtime.RunOnceAsync(slotId, ct);
-        }
-        Assert.Equal(expectedFires, FailuresAuditSlot.Fires(TestNamespace));
-    }
+    private Task FireAsync(long slotId, int expectedFires, CancellationToken ct) =>
+        AlertTestOps.FireSlotUntilAsync(Services, Runtime, slotId, () => FailuresAuditSlot.Fires(TestNamespace), expectedFires, ct);
 
     private async Task<List<JobEventRecord>> FinishedEventsAsync(long jobId, CancellationToken ct) =>
         (await GetEventsByJobId.Run(Services, jobId, ct))

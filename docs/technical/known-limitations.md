@@ -178,8 +178,9 @@ each failure transition, and incident identity collapses a repeating nightly fai
 rather than one per night.
 
 Under `AuditLevel.Failures` a success is recorded only when it answers a recorded failure, which is
-the one success the projector needs to close the incident; the events that opened it are the
-evidence, so `AlertRetention` may not exceed `JobEventsRetention`.
+the one success the projector needs to close the incident. `AlertRetention` may not exceed
+`JobEventsRetention`; the alerting guide says why. An incident that stays open longer than the
+events window has lost the failure it would be answered against, and needs an operator.
 
 A one-shot job's in-budget retries are invisible at that level, so `FirstFailure` and
 `ThresholdReached` never fire for its own throws while a recurring slot's failed fire is heard;

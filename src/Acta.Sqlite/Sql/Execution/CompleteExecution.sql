@@ -260,27 +260,22 @@ SELECT
 FROM _ce_done d
 WHERE
     d.audit_level_code = 20 /* JobAuditLevelCode.Audit */
+    -- At Failures a failure carrying no reschedule is written, and a success only when it answers a
+    -- recorded failure, which is what closes the incident: the job's newest finished event is not a
+    -- success. Never failed, or already answered, writes nothing. One seek on the timeline index.
     OR (d.audit_level_code = 10 /* JobAuditLevelCode.Failures */
-        AND @p_execution_succeeded = 0
         AND @p_reschedule_status_code IS NULL
         -- The handler status is NULL for every completion the handler did not declare, which is every
         -- ordinary failure. Testing it against the two declared statuses directly yields NULL there,
         -- and NOT NULL is NULL, so the whole branch would drop the row this level exists to record.
         AND NOT (@p_handler_status_code IS NOT NULL
-            AND @p_handler_status_code IN (220 /* JobStatusCode.Cancelled */, 30 /* JobStatusCode.Paused */)))
-    -- A success at this level is written only when it answers a recorded failure, which is what closes
-    -- the incident that failure opened: the job's newest finished event is not a success. A job that
-    -- never failed, or already answered, writes nothing. One ordered seek on the job's timeline index.
-    OR (d.audit_level_code = 10 /* JobAuditLevelCode.Failures */
-        AND @p_execution_succeeded = 1
-        AND @p_reschedule_status_code IS NULL
-        AND NOT (@p_handler_status_code IS NOT NULL
             AND @p_handler_status_code IN (220 /* JobStatusCode.Cancelled */, 30 /* JobStatusCode.Paused */))
-        AND COALESCE((
-            SELECT e.execution_status_code FROM {{schema}}.events e
-            WHERE e.job_id = @p_id AND e.event_code = 41 /* EventCode.JobExecutionFinished */
-            ORDER BY e.created_at_utc DESC, e.id DESC
-            LIMIT 1), 100) <> 100 /* ExecutionStatusCode.Succeeded */);
+        AND (@p_execution_succeeded = 0
+            OR COALESCE((
+                SELECT e.execution_status_code FROM {{schema}}.events e
+                WHERE e.job_id = @p_id AND e.event_code = 41 /* EventCode.JobExecutionFinished */
+                ORDER BY e.created_at_utc DESC, e.id DESC
+                LIMIT 1), 100) <> 100 /* ExecutionStatusCode.Succeeded */));
 
 INSERT INTO {{schema}}.events (
     event_code,

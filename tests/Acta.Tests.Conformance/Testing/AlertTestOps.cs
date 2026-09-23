@@ -339,4 +339,26 @@ internal static class AlertTestOps
 
         Assert.Equal(target, attempts());
     }
+
+    /// <summary>
+    /// Fires a recurring slot until its handler has counted <paramref name="target"/> fires: the same
+    /// count-driven loop as <see cref="RunUntilAttemptsAsync"/>, after pulling the parked slot back to due.
+    /// </summary>
+    public static async Task FireSlotUntilAsync(
+        IServiceProvider services,
+        WorkerRuntime runtime,
+        long slotId,
+        Func<int> fires,
+        int target,
+        CancellationToken ct
+    )
+    {
+        await MakeSlotClaimableAsync(services, slotId, ct);
+        for (var i = 0; i < target + 12 && fires() < target; i++)
+        {
+            await runtime.RunOnceAsync(slotId, ct);
+        }
+
+        Assert.Equal(target, fires());
+    }
 }

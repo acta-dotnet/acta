@@ -2302,26 +2302,23 @@ BEGIN
                             END
                     END
 
+                -- At Failures a failure carrying no reschedule is written, and a success only when it answers
+                -- a recorded failure, which is what closes the incident: the job's newest finished event is
+                -- not a success. Never failed, or already answered, writes nothing. One seek on the timeline index.
                 IF
                     @c_audit = 20 /* JobAuditLevelCode.Audit */
                     OR (
-                        @c_audit = 10 /* JobAuditLevelCode.Failures */ AND @p_execution_succeeded = 0 AND @rearm = 0
+                        @c_audit = 10 /* JobAuditLevelCode.Failures */ AND @rearm = 0
                         AND NOT (
                             @handler = 1 AND @p_handler_status_code IN (220 /* JobStatusCode.Cancelled */, 30 /* JobStatusCode.Paused */)
                         )
-                    )
-                    -- A success at this level is written only when it answers a recorded failure, which is
-                    -- what closes the incident that failure opened: the job's newest finished event is not a
-                    -- success. Never failed, or already answered, writes nothing. One seek on the timeline index.
-                    OR (
-                        @c_audit = 10 /* JobAuditLevelCode.Failures */ AND @p_execution_succeeded = 1 AND @rearm = 0
-                        AND NOT (
-                            @handler = 1 AND @p_handler_status_code IN (220 /* JobStatusCode.Cancelled */, 30 /* JobStatusCode.Paused */)
+                        AND (
+                            @p_execution_succeeded = 0
+                            OR COALESCE((
+                                SELECT TOP (1) e.execution_status_code FROM acta.events e
+                                WHERE e.job_id = @p_id AND e.event_code = 41 /* EventCode.JobExecutionFinished */
+                                ORDER BY e.created_at_utc DESC, e.id DESC), 100) <> 100 /* ExecutionStatusCode.Succeeded */
                         )
-                        AND COALESCE((
-                            SELECT TOP (1) e.execution_status_code FROM acta.events e
-                            WHERE e.job_id = @p_id AND e.event_code = 41 /* EventCode.JobExecutionFinished */
-                            ORDER BY e.created_at_utc DESC, e.id DESC), 100) <> 100 /* ExecutionStatusCode.Succeeded */
                     )
                     BEGIN
                         INSERT INTO acta.events (
@@ -2739,16 +2736,47 @@ BEGIN
         INNER JOIN @p_batch b ON b.ordinal = u.ordinal
         WHERE
             u.audit_level_code = 20 /* JobAuditLevelCode.Audit */
-            OR (u.audit_level_code = 10 /* JobAuditLevelCode.Failures */ AND b.succeeded = 0)
-            -- A success at this level is written only when it answers a recorded failure: the job's
-            -- newest finished event is not a success. Same rule as complete_execution.
-            OR (
-                u.audit_level_code = 10 /* JobAuditLevelCode.Failures */ AND b.succeeded = 1
-                AND COALESCE((
-                    SELECT TOP (1) e.execution_status_code FROM acta.events e
-                    WHERE e.job_id = u.job_id AND e.event_code = 41 /* EventCode.JobExecutionFinished */
-                    ORDER BY e.created_at_utc DESC, e.id DESC), 100) <> 100 /* ExecutionStatusCode.Succeeded */
-            );
+            OR (u.audit_level_code = 10 /* JobAuditLevelCode.Failures */ AND b.succeeded = 0);
+
+        -- At Failures a success is written only when it answers a recorded failure: the job's newest
+        -- finished event is not a success, same rule as complete_execution. Its own statement, so the
+        -- optimizer cannot hoist the timeline seek above the cheap gate and run it for every Audit row.
+        INSERT INTO acta.events (
+            event_code, created_at_utc, namespace_id, actor_code, actor_key,
+            job_id, job_ref, execution_number, lineage_root_id, definition_id, tenant_id,
+            worker_id, from_status_code, to_status_code, execution_status_code, duration_ms,
+            reason_code, reason_message
+        )
+        SELECT
+            41 /* EventCode.JobExecutionFinished */,
+            @now,
+            u.namespace_id,
+            70 /* ActorCode.Worker */,
+            NULL,
+            u.job_id,
+            u.job_ref,
+            u.execution_number,
+            COALESCE(u.lineage_root_id, u.job_id),
+            u.definition_id,
+            u.tenant_id,
+            b.worker_id,
+            50 /* JobStatusCode.Executing */,
+            100 /* JobStatusCode.Succeeded */,
+            100 /* ExecutionStatusCode.Succeeded */,
+            b.duration_ms,
+            b.reason_code,
+            b.reason_message
+        FROM @updated u
+        INNER JOIN @p_batch b ON b.ordinal = u.ordinal
+        CROSS APPLY (
+            SELECT TOP (1) e.execution_status_code FROM acta.events e
+            WHERE e.job_id = u.job_id AND e.event_code = 41 /* EventCode.JobExecutionFinished */
+            ORDER BY e.created_at_utc DESC, e.id DESC
+        ) newest
+        WHERE
+            u.audit_level_code = 10 /* JobAuditLevelCode.Failures */
+            AND b.succeeded = 1
+            AND newest.execution_status_code <> 100 /* ExecutionStatusCode.Succeeded */;
 
         SELECT
             b.ordinal,
@@ -8379,7 +8407,7 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.3-e22cec8d66b8808220c8dda74a54fae3', 'acta');
+VALUES (-1, 'objects-1.4-bc7ec9593820321bce2cf95fa3b3b5b6', 'acta');
 GO
 COMMIT TRANSACTION;
 GO
