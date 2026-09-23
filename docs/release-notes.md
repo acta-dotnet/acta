@@ -1,5 +1,97 @@
 # Release notes
 
+## 1.0.0-rc.4 (unreleased)
+
+The answer to an external review of rc.3. No baseline re-cut and no migration: the data model is
+the rc.3 model. What changes is on the execution and alerting paths, in the installed routines, and
+in what a release has to prove. A completion write is repeated until it lands, the recovery sweep
+runs on capacity the executors cannot exhaust, the installed routines carry a version that startup
+checks, an incident opened at the failures-only audit level closes on its own, a completed child is
+kept while its parent is live, and three evidence harnesses join the release checklist.
+
+### What a consumer must change
+
+- **Run the provisioning script once on every database, before deploying this build.** The install
+  now records the object package it installed, as a sentinel row beside the baseline stamp, and
+  startup refuses a database that carries no such row, naming the script. A database provisioned by
+  rc.3 has no row. Running `docs/reference/schema-<provider>.sql` installs the current views and
+  routines and records the package; it is idempotent, destroys nothing, and is not a reprovision. A
+  host with `ApplyMigrationsOnStartup = true` does the same on its own. From here on, the script is
+  part of every upgrade, and a build whose package is older than the one a deploy requires is
+  refused at startup instead of failing at its first affected call.
+- **`AlertRetention` may not exceed `JobEventsRetention`.** Startup refuses the pair. A success closes
+  an incident by answering the failure event that opened it, so the events must outlive the alerts.
+  The defaults, 90 and 365 days, already satisfy it.
+- **A scheduled job with `RecurringResultCap` below one is refused at startup.** Zero meant keep
+  every result forever, and a live recurring slot is never terminal, so nothing else bounded that
+  history. The attribute default of one is unchanged.
+
+### Completion and recovery
+
+- A completion write that keeps failing is repeated until it lands or the worker stops, backing off
+  from one second to thirty with jitter, on the worker's host token. It used to give up after five
+  tries and leave the row Executing under a lease the heartbeat kept renewing, which recovery could
+  never see; only a restart or an operator cancel freed it. The write is a compare-and-swap, so a
+  repeat is safe. The held executor slot is the deliberate cost, and `acta.completions.unsettled`
+  counts writes in that state. Bulk settles its batch entries side by side, so one stuck entry holds
+  up neither its siblings nor their wakeups.
+- The recovery slot monitor, which re-arms a stranded `sys.recovery` every seven minutes, now also
+  runs the sweep it re-armed, outside the executor pool. A worker with every executor busy could
+  detect the stranded slot and then fail to claim it; the bound on the limitations page covered
+  detection and not the pass.
+- A lost completion response is reconciled, not rerun: the repeat finds the lease already cleared,
+  reports a settled write, and never advances a recurring slot twice.
+
+### Alerting
+
+- **An incident at `AuditLevel.Failures` closes on its own.** Completion at that level now writes a
+  success exactly when the job's newest finished event is not a success: the one that follows a
+  recorded failure, and none of the healthy ones. A job that never failed writes nothing, a healthy
+  recurring slot writes nothing occurrence after occurrence, a restarted job's success answers the
+  terminal failure that restart left on the stream, and `sys.alerts` closes its own incident. One
+  seek on the existing job timeline index, taken only on a success at that level.
+- SQLite recorded no failure at all at that level, because the gate's guard on the handler status
+  was not three-valued. It now matches PostgreSQL and SQL Server, and a spec on all three providers
+  pins the gate.
+- The alerting guide now says lag rather than loss about the projection walk, describes the
+  failures-only gate as it is, and no longer claims a statement cannot commit after its timeout.
+
+### Retention
+
+- A completed child keeps its row and result while its parent is not terminal, in the sweep and in
+  the manual purge. A parent replays by starting its named child again, which dedupes onto that row
+  and reads its result; a child purged first ran a second time. The tree drains from the leaves up
+  once the parent is terminal. A parent that waits, sleeps, or stays paused for a long time holds
+  its finished children for that long.
+
+### Installed objects
+
+- Three values name the installed object package: a contract major that must match, a package
+  revision that must be at or above the minimum a build declares, and a content hash that binds the
+  build's bookkeeping and never enters the startup decision. `Acta.Emit objects record` records a
+  released identity and `check` refuses a recorded identity whose content moved. rc.4 ships package
+  1.4 and requires 4; nothing before rc.4 carried a package.
+
+### Release evidence
+
+- `tests/RollingUpgradeSmoke` runs the previous tag's binary and the current tree against one
+  upgraded database on both servers: the previous binary provisions, the current one is refused on
+  the old objects, provisions, and then both run under every execution profile with migrations off.
+- `tests/DeploymentSmoke` restores the packed packages from a local feed and runs the dashboard
+  behind a real nginx proxy with a path base and an authorization policy, checking that anonymous
+  and spoofed requests are refused and binary payloads read back exactly.
+- `tests/HardeningSoak` runs a bounded load with autovacuum on and retention sweeping under it,
+  recording oldest-ready age and tail pickup. The benchmark harness drops each cell's schema when
+  its measurement is recorded, so a round leaves nothing behind and autovacuum stays on.
+- The release checklist names, per boundary the review questioned, the spec or harness that carries
+  it.
+
+### Test suite
+
+- The run-once test helper stops polling as soon as a row can no longer be claimed, instead of
+  waiting out a five-second budget on every fact that expects an empty claim. The server legs run
+  in twelve to sixteen seconds.
+
 ## 1.0.0-rc.3
 
 Tagged 2026-09-22. The last re-cut of the baseline before 1.0.0. Two features the data model was missing
