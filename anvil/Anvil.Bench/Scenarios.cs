@@ -989,7 +989,11 @@ public sealed class PurgeScenario : IScenario
         long remaining = events;
         while (remaining > 0 && purge.Elapsed < budget)
         {
-            await host.Jobs.EnqueueAsync(new JobEnqueueRequest(BenchHost.Namespace, BenchHost.RetentionJobName), ct);
+            // sys.retention is a reserved name the public enqueue refuses; the sweep runs by triggering its own slot.
+            await host.Queries.Schedules.TriggerNowAsync(
+                new ScheduleLookup(JobLookup.ByDeduplicationKey(BenchHost.Namespace, BenchHost.RetentionJobName), "default"),
+                ct: ct
+            );
             await Task.Delay(500, ct);
             remaining = await host.CountExpiredEventsAsync(olderThanDays: 1, ct);
         }
