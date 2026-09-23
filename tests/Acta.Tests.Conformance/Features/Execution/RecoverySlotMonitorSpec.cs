@@ -241,6 +241,10 @@ public abstract class RecoverySlotMonitorSpec<TFixture> : ActaRuntimeTestBase<TF
 
         // Re-arming the slot is not recovery; running the sweep is. The stranded job returning to Ready is
         // the only thing that proves the pass actually executed on this worker.
+        // Each tick makes one by-id claim, and on SQL Server READPAST can skip that claim while another
+        // connection touches the row, so a tick occasionally runs no sweep. Production simply gets the
+        // next tick; the clock is moved on here for the same reason, so the fact tests that behaviour
+        // rather than one lucky claim. The bound stays the converge budget, not a tick count.
         var deadline = DateTime.UtcNow + SpecWaits.Converge;
         JobStatusCode strandedStatus;
         do
@@ -252,6 +256,7 @@ public abstract class RecoverySlotMonitorSpec<TFixture> : ActaRuntimeTestBase<TF
             }
 
             await Task.Delay(TimeSpan.FromMilliseconds(50), ct);
+            time.Advance(RecoverySlotMonitor.Interval);
         } while (DateTime.UtcNow < deadline);
 
         Assert.Equal(JobStatusCode.Ready, strandedStatus);

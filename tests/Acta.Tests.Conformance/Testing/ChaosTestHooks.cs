@@ -36,8 +36,16 @@ internal sealed class StoreFaultPlan
 
     public int CompletionRefusals => Volatile.Read(ref _completionRefusals);
 
+    /// <summary>
+    /// Narrows every completion fault to one job. A flush settles its entries side by side, so a fault
+    /// that matched by call order would land on whichever entry reached the store first and a fact about
+    /// one stranded job could name a different one on the next run.
+    /// </summary>
+    public void FailOnlyJob(long jobId) => Interlocked.Exchange(ref _failOnlyJob, jobId);
+
     private int _throwBeforeCompleteUntilCleared;
     private int _completionRefusals;
+    private long _failOnlyJob;
 
     public void SkewGetUtcNowBy(TimeSpan skew) => _getUtcNowSkew = skew;
 
@@ -53,9 +61,15 @@ internal sealed class StoreFaultPlan
     /// </remarks>
     public void RunBeforeCompleteOnce(Func<Task> action) => Interlocked.Exchange(ref _beforeComplete, action);
 
-    public void MaybeThrowBefore(string operation)
+    public void MaybeThrowBefore(string operation, long? jobId = null)
     {
         if (operation != "CompleteExecution")
+        {
+            return;
+        }
+
+        var only = Interlocked.Read(ref _failOnlyJob);
+        if (only != 0 && jobId is { } id && id != only)
         {
             return;
         }
@@ -108,7 +122,7 @@ internal sealed class FaultInjectingExecutionStore(IExecutionStore inner, StoreF
 {
     public async Task<CompleteExecutionResult> CompleteExecutionAsync(CompleteExecutionRequest request, CancellationToken ct)
     {
-        plan.MaybeThrowBefore("CompleteExecution");
+        plan.MaybeThrowBefore("CompleteExecution", request.JobId);
         var result = await inner.CompleteExecutionAsync(request, ct);
         plan.MaybeThrowAfter("CompleteExecution");
         return result;

@@ -186,9 +186,12 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
         var secondChild = await StartedChildAsync(leaseTtl, ns, workerId, ct);
         var plain = await StartedPlainAsync(leaseTtl, ns, workerId, ct);
 
-        // Fail the first scalar fallback only. The set call is untouched, so it commits the plain row.
+        // Keep refusing one child's fallback, named by job id rather than by call order: the entries
+        // settle side by side, so a fault matched by order would land on whichever reached the store
+        // first. One throw would prove nothing now, because the repeat rides a single failure out.
         var plan = new StoreFaultPlan();
-        plan.ThrowBeforeCompleteOnce();
+        plan.FailOnlyJob(JobId);
+        plan.ThrowBeforeCompleteUntilCleared();
         var spy = new WakeupSpy();
         var sink = new CompletionSink(
             new FaultInjectingExecutionStore(Services.GetRequiredService<IExecutionStore>(), plan),
@@ -202,22 +205,33 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
         );
         await sink.EnqueueAsync(new BufferedCompletion(MakeRequest(plain.Claimed, workerId), TestNamespace, "add-numbers", plain.JobId, 0));
         sink.CompleteWriter();
-        await sink.RunFlusherAsync(ct);
 
-        // The injected failure strands its own job and nothing else.
-        Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(JobId, ct)).Status);
+        // The flush runs in the background because the refused entry repeats until the worker stops, and
+        // the subject is what the others do while it is still repeating.
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var flush = sink.RunFlusherAsync(stop.Token);
 
-        // The fallback after it still ran: iteration does not stop at the first failure.
+        while (plan.CompletionRefusals < 2)
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(20), ct);
+        }
+
+        // Asserted while the refused entry is still being repeated: the sibling fallback and the row the
+        // set call committed have both landed, and the committed row's deferred wake has been published.
+        // Settled in sequence none of this could be true yet.
+        Assert.False(flush.IsCompleted, "the flush finished before the refused entry could hold anything up");
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(secondChild.JobId, ct)).Status);
-
-        // The set call committed the plain row before the failure, so it is terminal, not rolled back.
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(plain.JobId, ct)).Status);
-
-        // And it still got its deferred wake, which the old single-catch flush skipped.
         Assert.Contains(
             spy.Wakes,
             w => w.Channel.Kind == WorkerWakeupChannelKind.JobCompletion && w.Reason == WorkerWakeupReason.JobFinished
         );
+
+        // Stopping the worker is the only thing that ends the repeat, and only then is the entry's own
+        // job left for recovery.
+        await stop.CancelAsync();
+        await flush;
+        Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(JobId, ct)).Status);
     }
 
     // A child of a Suspended parent, claimed and started: the batch routine self-filters it (it has a
