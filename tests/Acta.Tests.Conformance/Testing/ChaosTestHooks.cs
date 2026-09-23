@@ -8,7 +8,8 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Acta.Tests.Conformance.Testing;
 
-internal sealed class InjectedProviderError() : System.Data.Common.DbException("Injected provider error before CompleteExecution.");
+internal sealed class InjectedProviderError(string where = "before CompleteExecution")
+    : System.Data.Common.DbException($"Injected provider error {where}.");
 
 internal sealed class StoreFaultPlan
 {
@@ -48,6 +49,31 @@ internal sealed class StoreFaultPlan
     private long _failOnlyJob;
 
     public void SkewGetUtcNowBy(TimeSpan skew) => _getUtcNowSkew = skew;
+
+    private Func<Task>? _beforeStart;
+    private int _throwAfterStart;
+    private int _throwGetUtcNow;
+
+    /// <summary>Runs <paramref name="action"/> once, between an attempt's claim and its start write.</summary>
+    public void RunBeforeStartOnce(Func<Task> action) => Interlocked.Exchange(ref _beforeStart, action);
+
+    /// <summary>Lets the next start write commit and then loses its answer, the way a dropped connection would.</summary>
+    public void ThrowAfterStartOnce() => Interlocked.Exchange(ref _throwAfterStart, 1);
+
+    /// <summary>Fails the next database clock read with a provider error.</summary>
+    public void ThrowGetUtcNowOnce() => Interlocked.Exchange(ref _throwGetUtcNow, 1);
+
+    public Task RunBeforeStartAsync() => Interlocked.Exchange(ref _beforeStart, null) is { } action ? action() : Task.CompletedTask;
+
+    public void MaybeThrowAfterStart()
+    {
+        if (Interlocked.Exchange(ref _throwAfterStart, 0) == 1)
+        {
+            throw new InjectedProviderError("after StartExecution");
+        }
+    }
+
+    public bool TakeGetUtcNowFault() => Interlocked.Exchange(ref _throwGetUtcNow, 0) == 1;
 
     /// <summary>
     /// Runs <paramref name="action"/> once, inside the window between an attempt deciding its outcome
@@ -153,14 +179,20 @@ internal sealed class FaultInjectingExecutionStore(IExecutionStore inner, StoreF
     public Task<ClaimResult> ClaimOneAsync(ClaimRequest request, int leaseTtlSeconds, long? jobId, CancellationToken ct) =>
         inner.ClaimOneAsync(request, leaseTtlSeconds, jobId, ct);
 
-    public Task<StartExecutionAction> StartExecutionAsync(
+    public async Task<StartExecutionAction> StartExecutionAsync(
         long jobId,
         int workerId,
         int expectedExecutionNumber,
         int expectedVersion,
         int leaseTtlSeconds,
         CancellationToken ct
-    ) => inner.StartExecutionAsync(jobId, workerId, expectedExecutionNumber, expectedVersion, leaseTtlSeconds, ct);
+    )
+    {
+        await plan.RunBeforeStartAsync();
+        var action = await inner.StartExecutionAsync(jobId, workerId, expectedExecutionNumber, expectedVersion, leaseTtlSeconds, ct);
+        plan.MaybeThrowAfterStart();
+        return action;
+    }
 
     public Task<IReadOnlyList<bool>> CompleteExecutionsBatchAsync(IReadOnlyList<CompleteExecutionRequest> requests, CancellationToken ct) =>
         inner.CompleteExecutionsBatchAsync(requests, ct);
@@ -182,7 +214,9 @@ internal sealed class FaultInjectingExecutionStore(IExecutionStore inner, StoreF
 internal sealed class FaultInjectingClock(IServerClock inner, StoreFaultPlan plan) : IServerClock
 {
     public ValueTask<DateTime> GetUtcNowAsync(CancellationToken ct) =>
-        plan.TryReadSkewedGetUtcNow(out var skewed) ? new ValueTask<DateTime>(skewed) : inner.GetUtcNowAsync(ct);
+        plan.TakeGetUtcNowFault() ? throw new InjectedProviderError("on the clock read")
+        : plan.TryReadSkewedGetUtcNow(out var skewed) ? new ValueTask<DateTime>(skewed)
+        : inner.GetUtcNowAsync(ct);
 }
 
 internal static class ChaosServiceCollectionExtensions

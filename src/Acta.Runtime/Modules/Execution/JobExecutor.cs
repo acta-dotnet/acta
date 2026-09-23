@@ -164,29 +164,76 @@ internal sealed class JobExecutor(
             // MIN apply at completion. Non-slot jobs keep the unchanged one-shot path.
             var isRecurring = _context.RecurringSlotJobIds.Contains(job.JobId);
             RecurringFireOutcome? fireOutcome = null;
-            if (isRecurring)
+            StepRetryDefaults stepRetryDefaults;
+            string? tenantKey;
+            // The claim is this worker's from here until something settles it, so the reads the handler
+            // needs are repeated like the writes are, on the host token, and anything else that fails
+            // before the handler runs hands the claim back rather than leaving it leased and unowned.
+            try
             {
-                var nowUtc = await _clock.GetUtcNowAsync(ct);
-                var live = await _rootServices.GetRequiredService<IScheduleStore>().GetLiveSchedulesAsync(job.JobId, ct);
-                fireOutcome = ScheduleWalker.PlanFire(live, nowUtc);
+                if (isRecurring)
+                {
+                    var (nowUtc, _) = await CompletionWrite.RetryAsync(
+                        async token => await _clock.GetUtcNowAsync(token),
+                        _log,
+                        job.JobId,
+                        ct,
+                        _metrics
+                    );
+                    var scheduleStore = _rootServices.GetRequiredService<IScheduleStore>();
+                    var (live, _) = await CompletionWrite.RetryAsync(
+                        async token => await scheduleStore.GetLiveSchedulesAsync(job.JobId, token),
+                        _log,
+                        job.JobId,
+                        ct,
+                        _metrics
+                    );
+                    fireOutcome = ScheduleWalker.PlanFire(live, nowUtc);
+                }
+
+                var backoff = Backoff.Parse(descriptor.Backoff ?? JobDefinitionRegistration.DefaultBackoffExpression);
+                stepRetryDefaults = new StepRetryDefaults(
+                    descriptor.MaxAttempts,
+                    DurationSyntax.ToWholeSeconds(backoff.InitialDelay, nameof(backoff)),
+                    DurationSyntax.ToWholeSeconds(backoff.MaxDelay, nameof(backoff)),
+                    (decimal)backoff.Multiplier,
+                    (decimal)backoff.Jitter
+                );
+
+                // Resolve the external tenant key off the process-lifetime cache (one point read per
+                // distinct tenant); the claim projection itself stays join-free.
+                if (job.TenantId is { } jobTenantId)
+                {
+                    var tenants = _rootServices.GetRequiredService<Acta.Runtime.Modules.Execution.Tenants.TenantKeyCache>();
+                    (tenantKey, _) = await CompletionWrite.RetryAsync(
+                        async token => await tenants.ResolveAsync(jobTenantId, token),
+                        _log,
+                        job.JobId,
+                        ct,
+                        _metrics
+                    );
+                }
+                else
+                {
+                    tenantKey = null;
+                }
             }
-
-            var backoff = Backoff.Parse(descriptor.Backoff ?? JobDefinitionRegistration.DefaultBackoffExpression);
-            var stepRetryDefaults = new StepRetryDefaults(
-                descriptor.MaxAttempts,
-                DurationSyntax.ToWholeSeconds(backoff.InitialDelay, nameof(backoff)),
-                DurationSyntax.ToWholeSeconds(backoff.MaxDelay, nameof(backoff)),
-                (decimal)backoff.Multiplier,
-                (decimal)backoff.Jitter
-            );
-
-            // Resolve the external tenant key off the process-lifetime cache (one point read per
-            // distinct tenant); the claim projection itself stays join-free.
-            var tenantKey = job.TenantId is { } jobTenantId
-                ? await _rootServices
-                    .GetRequiredService<Acta.Runtime.Modules.Execution.Tenants.TenantKeyCache>()
-                    .ResolveAsync(jobTenantId, ct)
-                : null;
+            catch (Exception ex) when (!ct.IsCancellationRequested)
+            {
+                _log.LogError(
+                    ex,
+                    "WorkerRuntime: attempt setup failed before the handler ran for job {JobId}; returning it to Ready.",
+                    job.JobId
+                );
+                await ReleaseClaimAsync(
+                    job,
+                    workerId,
+                    alreadyStarted,
+                    $"Attempt setup failed before the handler ran ({ex.GetType().Name}); returned to Ready.",
+                    ct
+                );
+                throw;
+            }
 
             var jobContext = new RuntimeJobContext(
                 job,
@@ -273,28 +320,64 @@ internal sealed class JobExecutor(
         CancellationToken ct
     )
     {
+        // One warning per definition, not per bounce: the exclusion makes the first bounce the whole
+        // story, and the rest of an already-claimed batch would otherwise repeat it once per row.
+        // This is the only place the pair (namespace, definition id) is known. The job name is not -
+        // resolving it is what the missing descriptor would have done - so the ref is what an operator
+        // takes to `jobs explain`.
+        _log.Log(
+            firstBounce ? LogLevel.Warning : LogLevel.Debug,
+            "WorkerRuntime: ({Namespace}) job {JobId} ({Detail}) claimed with no handler in this deployment; returned to Ready in {DurationMs}ms; excluded from this worker's claims until restart.",
+            namespaceName,
+            job.JobId,
+            $"ref {job.JobRef}, definition_id {job.DefinitionId}",
+            _unsupportedClaimDelaySeconds * 1000
+        );
+
+        // No wakeup publish, deliberately: every claim loop re-polls within SafetyPollInterval, which
+        // is the delay itself, and waking this namespace would wake this worker's own loops first -
+        // the loops that have just excluded this definition and so are the least able to use the wake.
+        return await ReleaseClaimAsync(
+            job,
+            workerId,
+            alreadyStarted,
+            $"No handler for definition_id={job.DefinitionId} in this deployment; returned to Ready for a worker that has one.",
+            ct
+        );
+    }
+
+    /// <summary>
+    /// Returns a claim this worker will not run to Ready, budget-neutral, lease cleared, due again after
+    /// <see cref="JobsOptions.SafetyPollInterval"/>. Both writes are repeated until they land, because a
+    /// claim nothing settles stays leased for as long as this worker lives.
+    /// </summary>
+    private async Task<RunOnceOutcome> ReleaseClaimAsync(
+        ClaimedJob job,
+        int workerId,
+        bool alreadyStarted,
+        string reasonMessage,
+        CancellationToken ct
+    )
+    {
         // complete_execution's CAS matches an Executing row only, so the claim is walked through the
-        // start CAS first even though nothing will run. The combined claim loop already started the
+        // start first even though nothing will run. The combined claim loop already started the
         // execution in the claim itself.
         if (!alreadyStarted)
         {
-            // Retried like the completion below: a failure here would otherwise escape to the worker loop
-            // and leave the Dispatched row under a lease the heartbeat keeps renewing. ct is the host token.
-            var (start, retried) = await CompletionWrite.RetryAsync(
-                token => _execution.StartExecutionAsync(job.JobId, workerId, job.ExecutionNumber, job.Version, _leaseTtlSeconds, token),
+            var start = await JobExecution.StartReconciledAsync(
+                _execution,
+                _rootServices.GetRequiredService<IJobStore>(),
+                job,
+                workerId,
+                _leaseTtlSeconds,
                 _log,
-                job.JobId,
-                ct,
-                _metrics
+                _metrics,
+                ct
             );
-            // A retried start that answers LostClaim is ambiguous: the first try may have committed and
-            // lost only its response, in which case this worker holds the Executing row and the version
-            // it resubmitted is stale. The completion below is the reconciliation, because its CAS
-            // matches only a row this worker holds at this execution number and mutates nothing else.
-            if (start != StartExecutionAction.Started && !(retried && start == StartExecutionAction.LostClaim))
+            if (start != StartExecutionAction.Started)
             {
-                // The claim was lost before the bounce: reclaimed on lease expiry, reassigned, or moved
-                // out of Dispatched by a control verb. The CAS guard means nothing was mutated.
+                // Reclaimed on lease expiry, reassigned, or moved out of Dispatched by a control verb:
+                // the row is no longer this worker's to release.
                 _log.LogInformation(
                     "WorkerRuntime: lost claim on job {JobId} ({Detail}) before releasing it: ({Outcome}); skipping.",
                     job.JobId,
@@ -319,33 +402,13 @@ internal sealed class JobExecutor(
             0,
             ReadOnlyMemory<byte>.Empty,
             JobEventReasonCode.Unclassified,
-            $"No handler for definition_id={job.DefinitionId} in this deployment; returned to Ready for a worker that has one.".Truncate(
-                ActaTextLimits.ReasonMessage
-            ),
+            reasonMessage.Truncate(ActaTextLimits.ReasonMessage),
             DurationMs: 0
         )
         {
             RescheduleStatusCode = (byte)ExecutionStatusCode.Rescheduled,
             RescheduleDelaySeconds = _unsupportedClaimDelaySeconds,
         };
-
-        // One warning per definition, not per bounce: the exclusion makes the first bounce the whole
-        // story, and the rest of an already-claimed batch would otherwise repeat it once per row.
-        // This is the only place the pair (namespace, definition id) is known. The job name is not -
-        // resolving it is what the missing descriptor would have done - so the ref is what an operator
-        // takes to `jobs explain`.
-        _log.Log(
-            firstBounce ? LogLevel.Warning : LogLevel.Debug,
-            "WorkerRuntime: ({Namespace}) job {JobId} ({Detail}) claimed with no handler in this deployment; returned to Ready in {DurationMs}ms; excluded from this worker's claims until restart.",
-            namespaceName,
-            job.JobId,
-            $"ref {job.JobRef}, definition_id {job.DefinitionId}",
-            _unsupportedClaimDelaySeconds * 1000
-        );
-
-        // No wakeup publish, deliberately: every claim loop re-polls within SafetyPollInterval, which
-        // is the delay itself, and waking this namespace would wake this worker's own loops first -
-        // the loops that have just excluded this definition and so are the least able to use the wake.
         var (complete, _) = await CompletionWrite.RetryAsync(
             token => _execution.CompleteExecutionAsync(request, token),
             _log,

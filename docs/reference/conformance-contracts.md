@@ -2140,6 +2140,19 @@
 - **Guarantees:**
   - Two generations in one namespace hand back each other's work, learn it, and the rollback still runs the definition the new generation omitted
 
+### A claim survives what happens between its claim and its handler
+- **Contract:** A start is reconciled against the row on LostClaim, a committed start that lost its answer is not made twice, and a failing setup read is repeated.
+- **Arrange:** A counting one-shot and a recurring slot, with faults staged between the claim and the start write and on the database clock read.
+- **Act:** The row is reprioritized between claim and start, a start commits and loses its answer, and a recurring fire's clock read fails once.
+- **Assert:** Each attempt runs once to Succeeded with one started event, and the recurring fire completes with its slot Ready and unleased.
+- **Guarantees:**
+  - A reprioritize between the claim and the start does not strand the job: the start is retried against the moved version
+  - A start that fails before it commits, with a reprioritize in its retry window, is retried against the moved version
+  - A start that commits and loses its answer runs the handler once and writes one started event
+  - A clock read that fails once after the claim is repeated, and the recurring fire completes
+- **Store methods:**
+  - `Acta.Runtime.Modules.Execution.IExecutionStore.StartExecutionAsync`
+
 ## Scheduling
 
 ### GetScheduleState returns live cursors for the namespace, empty when none exist
@@ -2740,7 +2753,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IExecutionStore.ReclaimStuckJobsAsync` | Child jobs start deduped, join on completion latches, and cancel cascades<br>One sys.recovery tick reclaims, releases, and wakes<br>Reclaim returns an expired-lease job to Ready or fails it at MaxAttempts<br>Reclaiming a crashed timeout resolution costs the job no retry budget |
 | `IExecutionStore.RecordJobNoteAsync` | A handler writes application-authored notes onto the job's own timeline |
 | `IExecutionStore.RepairRecoverySlotAsync` | A stranded recovery slot is repaired under a guard by any worker |
-| `IExecutionStore.StartExecutionAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>Heartbeat extends a live lease and stamps last_seen<br>Start execution honors the version CAS and the live-lease guard<br>StartExecution and CompleteExecution no-op outcomes return exact action enums |
+| `IExecutionStore.StartExecutionAsync` | A claim survives what happens between its claim and its handler<br>A job registers, enqueues, claims, executes, persists and reads back<br>Heartbeat extends a live lease and stamps last_seen<br>Start execution honors the version CAS and the live-lease guard<br>StartExecution and CompleteExecution no-op outcomes return exact action enums |
 | `IExecutionStore.StartStepAsync` | At-most-once step re-entered before completion is interrupted<br>Nonzero backoff defers the parent to the retry instant and re-invokes the body<br>RunStepAsync runs once, replays results, and retries until exhausted<br>Step exhausts by retry-window and re-entry replays without body invocation |
 | `IJobStore.CancelJobAsync` | A bounded child wait expires, cancels its subtree, and leaves the parent running<br>A bounded group wait spends one stored deadline across every child and replay<br>CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Cancel Pause Resume Restart apply legal transitions and audit<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Control verbs apply per-status guards and correct side effects<br>Control verbs transition unconditionally but emit events only at full audit |
 | `IJobStore.EnqueueBatchAsync` | A Reference-only host typed-enqueues without running a worker<br>A job registers, enqueues, claims, executes, persists and reads back<br>Acta keys normalize to lowercase while Acta names reject mixed case<br>Batch enqueue lands one job row per input ordinal with no enqueue event<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Contract enqueue names the job explicitly and resolves its route<br>Enqueue assigns a job ref that resolves to the job; unknown refs return null<br>Enqueue rejects a suspended namespace and resumes once reactivated<br>Enqueue resolves, inherits, rejects, and filters by tenant<br>Relative delay resolves on the DB clock; absolute run-at is preserved<br>Same-batch duplicate deduplication keys or malformed rows reject the batch<br>Tenant suspension is admission control, not work closure<br>The definition's tenant requirement is enforced at the enqueue boundary<br>Typed enqueue rejection reasons for namespace, tenant, route, and definition<br>Typed enqueue resolves the route and delayed jobs gate on next_run |

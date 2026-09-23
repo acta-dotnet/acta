@@ -63,6 +63,68 @@ internal sealed class JobExecution(
     private static bool IsNearTurn(RateReservation reservation) =>
         !reservation.Admitted && reservation.WaitMilliseconds > 0 && reservation.WaitMilliseconds <= RateTurnWaitMilliseconds;
 
+    /// <summary>
+    /// Moves a claimed row to Executing and answers what the row is, not what one write said. The write
+    /// is repeated like the completion, on the host token, since a failure after the claim would
+    /// otherwise leave the Dispatched row under a lease the heartbeat keeps renewing. A LostClaim means
+    /// only that the version moved, and the row decides what that was: Executing under this worker at
+    /// this execution number is a start that committed and lost its answer, so the attempt proceeds;
+    /// Dispatched under this worker is an operator verb that bumped the version under the claim, and the
+    /// start is made again against the version the row carries now; anything else belongs to another
+    /// owner or a control verb, and the claim is gone.
+    /// </summary>
+    internal static async Task<StartExecutionAction> StartReconciledAsync(
+        IExecutionStore execution,
+        IJobStore jobStore,
+        ClaimedJob job,
+        int workerId,
+        int leaseTtlSeconds,
+        ILogger log,
+        JobMetrics? metrics,
+        CancellationToken ct
+    )
+    {
+        var version = job.Version;
+        while (true)
+        {
+            var (start, _) = await CompletionWrite.RetryAsync(
+                token => execution.StartExecutionAsync(job.JobId, workerId, job.ExecutionNumber, version, leaseTtlSeconds, token),
+                log,
+                job.JobId,
+                ct,
+                metrics
+            );
+            if (start != StartExecutionAction.LostClaim)
+            {
+                return start;
+            }
+
+            var (row, _) = await CompletionWrite.RetryAsync(
+                async token => await jobStore.GetJobAsync(job.JobId, token),
+                log,
+                job.JobId,
+                ct,
+                metrics
+            );
+            if (row is null || row.LeasedByWorkerId != workerId || row.ExecutionNumber != job.ExecutionNumber)
+            {
+                return StartExecutionAction.LostClaim;
+            }
+            switch (row.Status)
+            {
+                case JobStatusCode.Executing:
+                    return StartExecutionAction.Started;
+                // A version the write was just refused at cannot be retried: the row and the refusal
+                // disagree, which is a store that answers inconsistently, and looping on it would never end.
+                case JobStatusCode.Dispatched when row.Version != version:
+                    version = row.Version;
+                    break;
+                default:
+                    return StartExecutionAction.LostClaim;
+            }
+        }
+    }
+
     private readonly ILogger _log = log ?? NullLogger.Instance;
     private readonly JobMetrics? _metrics = metrics;
 
@@ -78,21 +140,10 @@ internal sealed class JobExecution(
         CancellationToken ct
     )
     {
-        // Repeated like the completion write below, for the same reason: a failure here would otherwise
-        // leave the Dispatched row under a lease the heartbeat keeps renewing, which recovery never sees.
-        // ct is the host token. A retried start answering LostClaim is ambiguous, because the first try
-        // may have committed and lost only its response, so it proceeds; the completion's CAS is the
-        // reconciliation, since it matches only a row this worker holds at this execution number.
-        var (start, startRetried) = alreadyStarted
-            ? (StartExecutionAction.Started, false)
-            : await CompletionWrite.RetryAsync(
-                token => _execution.StartExecutionAsync(job.JobId, workerId, job.ExecutionNumber, job.Version, _leaseTtlSeconds, token),
-                _log,
-                job.JobId,
-                ct,
-                _metrics
-            );
-        if (start != StartExecutionAction.Started && !(startRetried && start == StartExecutionAction.LostClaim))
+        var start = alreadyStarted
+            ? StartExecutionAction.Started
+            : await StartReconciledAsync(_execution, _jobStore, job, workerId, _leaseTtlSeconds, _log, _metrics, ct);
+        if (start != StartExecutionAction.Started)
         {
             // The claim was lost before execution began: reclaimed (lease expiry), reassigned, or
             // moved out of Dispatched by an operator control verb between claim and start. The CAS
