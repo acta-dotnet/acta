@@ -41,6 +41,19 @@ kept while its parent is live, and three evidence harnesses join the release che
   detection and not the pass.
 - A lost completion response is reconciled, not rerun: the repeat finds the lease already cleared,
   reports a settled write, and never advances a recurring slot twice.
+- The start write is repeated the same way and reconciled against the row. An operator verb that
+  bumps the version of a claimed row between its claim and its start, a reprioritize for one, used to
+  make the start answer LostClaim while this worker's heartbeat kept the lease, which stranded the job
+  until the worker restarted. The start now reads the row on LostClaim: Executing under this worker
+  is a start that committed and lost its answer, Dispatched under this worker is retried against the
+  version the row carries now, and anything else is another owner's. On SQLite a replayed start no
+  longer reports a second start or writes a second started event.
+- The reads an attempt needs before its handler runs, the database clock and the live schedules for a
+  recurring slot and the tenant key, are repeated like the writes, and anything else that fails
+  before the handler runs hands the claim back to Ready instead of leaving it leased with nothing
+  left to progress it.
+- A graceful drain waits for a recovery pass the slot monitor started, so shutdown no longer strands
+  the recovery job itself.
 
 ### Alerting
 
@@ -71,6 +84,9 @@ kept while its parent is live, and three evidence harnesses join the release che
   build's bookkeeping and never enters the startup decision. `Acta.Emit objects record` records a
   released identity and `check` refuses a recorded identity whose content moved. rc.4 ships package
   1.4 and requires 4; nothing before rc.4 carried a package.
+- The published scripts record the package only when every named view and routine exists, and say
+  in their header to run them with a client that stops at the first error, which is what makes their
+  transaction the guarantee that a failed replacement leaves no stamp.
 
 ### Release evidence
 

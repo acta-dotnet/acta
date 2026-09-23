@@ -718,6 +718,7 @@
     </section>
 
     <section class="wrap" id="reference">
+      <a id="capabilities"></a>
       <p class="record">Capabilities · in full</p>
       <h2>Every capability, in plain terms.</h2>
       <p class="lede">The quick reference above, expanded: what each piece does, how it behaves when things fail, and the API that does it.</p>
@@ -835,6 +836,17 @@ Hello, World!</span>
     </footer>
   </main>
   <script>
+    // Two short links for the outside. useacta.net/#capabilities is the anchor on the full reference
+    // above; useacta.net/#concepts hands off to the runnable concepts in the repository, since the
+    // site has no page of its own for them.
+    const handOffConcepts = () => {
+      if (location.hash === '#concepts') {
+        location.replace('https://github.com/acta-dotnet/acta/tree/main/concepts');
+      }
+    };
+    handOffConcepts();
+    addEventListener('hashchange', handOffConcepts);
+
     // Copy buttons on the install commands. Progressive enhancement: without JS the command is
     // still selectable text, and the button simply does nothing rather than lying about it.
     for (const button of document.querySelectorAll('.copy')) {
