@@ -67,6 +67,23 @@ internal static class ProvisionScriptEmitter
         script.AppendLine("-- exactly what is missing and skips what is present. Re-running it is a no-op. Views and");
         script.AppendLine("-- routines carry no version and are always rewritten to the definitions shipped here.");
         script.AppendLine("--");
+        script.AppendLine("-- Run it with a client that stops at the first error, which is what makes the transaction below a");
+        script.AppendLine(
+            token switch
+            {
+                "pg" => "-- guarantee: psql -v ON_ERROR_STOP=1. A client that runs on past a failed statement would reach the",
+                "mssql" => "-- guarantee: sqlcmd -b, or SQLCMD mode with stop-on-error in SSMS. A client that runs on past a failed",
+                _ => "-- guarantee: sqlite3 -bail. A client that runs on past a failed statement would reach the package",
+            }
+        );
+        script.AppendLine(
+            token switch
+            {
+                "pg" => "-- package stamp inside an aborted transaction, which then rolls back on commit.",
+                "mssql" => "-- batch would reach the package stamp with an object it failed to replace still in place.",
+                _ => "-- stamp with an object it failed to replace still in place.",
+            }
+        );
         script.AppendLine("-- Run it under a DDL-capable principal; the application principal then needs only DML and");
         script.AppendLine("-- EXECUTE, with ApplyMigrationsOnStartup left false. Because the history rows (and the");
         script.AppendLine("-- baseline stamp) are recorded by the script itself, a bootstrap with migrations enabled also");

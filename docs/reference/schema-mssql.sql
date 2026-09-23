@@ -14,6 +14,9 @@
 -- exactly what is missing and skips what is present. Re-running it is a no-op. Views and
 -- routines carry no version and are always rewritten to the definitions shipped here.
 --
+-- Run it with a client that stops at the first error, which is what makes the transaction below a
+-- guarantee: sqlcmd -b, or SQLCMD mode with stop-on-error in SSMS. A client that runs on past a failed
+-- batch would reach the package stamp with an object it failed to replace still in place.
 -- Run it under a DDL-capable principal; the application principal then needs only DML and
 -- EXECUTE, with ApplyMigrationsOnStartup left false. Because the history rows (and the
 -- baseline stamp) are recorded by the script itself, a bootstrap with migrations enabled also

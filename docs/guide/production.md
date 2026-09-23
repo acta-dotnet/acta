@@ -117,6 +117,11 @@ longer describes it. The check also reads the database once at startup, so a wor
 when someone reinstalls an incompatible package finds out at its next affected call. Running the
 current full provisioning script as part of every upgrade remains the rule that keeps bodies and
 binary together; it is idempotent, so re-running it is always safe, and it is what writes the row.
+Run it with a client that stops at the first error (`psql -v ON_ERROR_STOP=1`, `sqlcmd -b`,
+`sqlite3 -bail`): the script records the package only when every named object exists, which catches
+a fresh install that lost an object, but a client that runs on past a failed replacement leaves the
+old body in place under a name the count still finds. Stopping at the error is what turns the
+script's transaction into the guarantee.
 A database provisioned before the package existed carries no row and is refused at startup, naming
 that script. That is not a reprovision and destroys nothing.
 
