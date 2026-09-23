@@ -830,6 +830,27 @@ public sealed class BenchHost : IAsyncDisposable
     private string Schema { get; }
 
     /// <summary>
+    /// Runs one system slot now, by triggering its default schedule, and returns once that execution
+    /// has finished: the slot shows it by advancing its execution number and standing Ready again.
+    /// The supported way to run a sweep on demand, since a reserved name cannot be enqueued.
+    /// </summary>
+    public async Task TriggerSlotAsync(string jobName, CancellationToken ct)
+    {
+        var slot = JobLookup.ByDeduplicationKey(Namespace, jobName);
+        var before = await Jobs.GetAsync(slot, ct) ?? throw new InvalidOperationException($"The {jobName} slot is missing.");
+        await Queries.Schedules.TriggerNowAsync(new ScheduleLookup(slot, "default"), ct: ct);
+        while (true)
+        {
+            var after = await Jobs.GetAsync(slot, ct) ?? throw new InvalidOperationException($"The {jobName} slot was lost.");
+            if (after.ExecutionNumber > before.ExecutionNumber && after.Status == JobStatusCode.Ready)
+            {
+                return;
+            }
+            await Task.Delay(25, ct);
+        }
+    }
+
+    /// <summary>
     /// Backdates every <c>events</c> row by <paramref name="days"/> so the rows fall outside the
     /// retention window and the purge sweep deletes them. Returns the number of rows aged.
     /// </summary>
