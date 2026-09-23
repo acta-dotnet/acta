@@ -362,12 +362,22 @@ internal sealed class CompletionSink
     /// a buffered completion can still lose its CAS or fail to flush, and "acta.executions" must
     /// count what the store confirmed, matching the Direct/Buffered post-CAS semantics.
     /// </summary>
-    private void RecordDurableCompletion(BufferedCompletion b) =>
-        _metrics?.RecordExecution(
-            b.JobNamespace,
-            b.JobName,
-            JobExecution.OutcomeTag(b.Request.Outcome),
-            b.Request.JobEventReasonCode?.Code,
-            b.Request.DurationMs ?? 0
-        );
+    private void RecordDurableCompletion(BufferedCompletion b)
+    {
+        // A metrics listener that throws must not end a flusher: the completion is already durable.
+        try
+        {
+            _metrics?.RecordExecution(
+                b.JobNamespace,
+                b.JobName,
+                JobExecution.OutcomeTag(b.Request.Outcome),
+                b.Request.JobEventReasonCode?.Code,
+                b.Request.DurationMs ?? 0
+            );
+        }
+        catch (Exception)
+        {
+            // Swallowed on purpose.
+        }
+    }
 }

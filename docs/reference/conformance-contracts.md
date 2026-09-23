@@ -1196,6 +1196,7 @@
   - A worker starting over a lapsed recovery slot re-arms it before the catalog is read
   - A survivor's monitor repairs the slot and runs the sweep itself, with no executor free and nothing restarted
   - The monitor's own periodic loop repairs a stranded slot once its first delay elapses
+  - A graceful drain lets a recovery pass the monitor started finish, and then ends the loop
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.RepairRecoverySlotAsync`
 

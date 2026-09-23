@@ -12,6 +12,7 @@ public sealed class SqlServerScenarioSessionSpec : ScenarioSessionSpec<SqlServer
 public sealed class SqlServerChildJobCrossNamespaceSpec : ChildJobCrossNamespaceSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerChildJobSpec : ChildJobSpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerChildRetentionSpec : ChildRetentionSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerChildTimeoutSpec : ChildTimeoutSpec<SqlServerConformanceFixture>;

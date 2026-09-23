@@ -58,21 +58,29 @@ internal static class CompletionWrite
                 // so whatever the write threw propagates as it is and the row falls to recovery.
                 catch (Exception ex) when (!ct.IsCancellationRequested)
                 {
-                    if (!counted)
-                    {
-                        counted = true;
-                        metrics?.RecordUnsettledCompletion(1);
-                    }
-
                     var delay = TimeSpan.FromSeconds(BackoffSchedule.ComputeDelaySeconds(attempt, backoff));
-                    log.Log(
-                        attempt <= WarningTries ? LogLevel.Warning : LogLevel.Error,
-                        ex,
-                        "WorkerRuntime: completion write for job {JobId} failed on try {Count}; retrying in {DurationMs}ms until it lands or this worker stops.",
-                        jobId,
-                        attempt,
-                        (long)delay.TotalMilliseconds
-                    );
+                    // Diagnostics cannot be allowed to end the repeat: a metrics listener or a logger that
+                    // throws would abandon the row the repeat exists to keep.
+                    try
+                    {
+                        if (!counted)
+                        {
+                            counted = true;
+                            metrics?.RecordUnsettledCompletion(1);
+                        }
+                        log.Log(
+                            attempt <= WarningTries ? LogLevel.Warning : LogLevel.Error,
+                            ex,
+                            "WorkerRuntime: completion write for job {JobId} failed on try {Count}; retrying in {DurationMs}ms until it lands or this worker stops.",
+                            jobId,
+                            attempt,
+                            (long)delay.TotalMilliseconds
+                        );
+                    }
+                    catch (Exception)
+                    {
+                        // Swallowed on purpose; the write's own failure is the one being handled.
+                    }
 
                     try
                     {
@@ -91,7 +99,14 @@ internal static class CompletionWrite
         {
             if (counted)
             {
-                metrics?.RecordUnsettledCompletion(-1);
+                try
+                {
+                    metrics?.RecordUnsettledCompletion(-1);
+                }
+                catch (Exception)
+                {
+                    // A listener that throws must not turn a settled write into a failure.
+                }
             }
         }
     }

@@ -196,16 +196,17 @@ internal sealed class WorkerRuntime
     /// </summary>
     public Task RunAsync(CancellationToken ct)
     {
-        // The loop's producer stops on _drainCts (graceful drain) or ct (hard stop); the renewers, watchdog
-        // and in-flight execution run on ct, so a drain finishes in-flight work before the loop returns. The
-        // loop task is held so the host can await that drain via DrainCompletion.
-        DrainCompletion = _loop.RunLoopAsync(ct, _drainCts.Token);
+        // The loop's producer and the recovery monitor's checks stop on _drainCts (graceful drain) or ct
+        // (hard stop); the renewers, watchdog and in-flight execution run on ct, so a drain finishes
+        // in-flight work, including a recovery pass the monitor started, before DrainCompletion completes.
+        var loop = _loop.RunLoopAsync(ct, _drainCts.Token);
+        var monitor = _recoveryMonitor.RunAsync(ct, _drainCts.Token);
+        DrainCompletion = Task.WhenAll(loop, monitor);
         return Task.WhenAll(
             DrainCompletion,
             _heartbeat.RunAsync(ct),
             _lockHeartbeat.RunAsync(ct),
             _watchdog.RunAsync(ct),
-            _recoveryMonitor.RunAsync(ct),
             _policyReloader.RunAsync(ct)
         );
     }

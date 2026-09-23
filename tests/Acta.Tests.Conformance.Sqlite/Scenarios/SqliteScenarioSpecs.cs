@@ -16,6 +16,7 @@ public sealed class SqliteRateLimitSpec : RateLimitSpec<SqliteConformanceFixture
 public sealed class SqliteChildJobCrossNamespaceSpec : ChildJobCrossNamespaceSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteChildJobSpec : ChildJobSpec<SqliteConformanceFixture>;
+
 public sealed class SqliteChildRetentionSpec : ChildRetentionSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteChildTimeoutSpec : ChildTimeoutSpec<SqliteConformanceFixture>;

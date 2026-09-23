@@ -1,5 +1,6 @@
 using System.Data.Common;
 using Acta.Runtime.Modules.Execution;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -143,5 +144,42 @@ public sealed class CompletionWriteTests
         Assert.Equal(1, calls);
     }
 
+    [Fact(DisplayName = "A logger that throws while the repeat reports a failure does not end the repeat")]
+    public async Task A_throwing_logger_does_not_end_the_repeat()
+    {
+        var calls = 0;
+        var (result, retried) = await CompletionWrite.RetryAsync<string>(
+            _ =>
+            {
+                calls++;
+                return calls < 2 ? throw new ProviderDown() : Task.FromResult("landed");
+            },
+            new ThrowingLogger(),
+            jobId: 7,
+            TestContext.Current.CancellationToken,
+            firstDelay: TimeSpan.Zero
+        );
+
+        Assert.Equal("landed", result);
+        Assert.True(retried);
+    }
+
     private sealed class ProviderDown() : DbException("connection dropped");
+
+    // Stands in for any diagnostic sink that fails: the repeat's job is the row, not the log line.
+    private sealed class ThrowingLogger : ILogger
+    {
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter
+        ) => throw new InvalidOperationException("the log sink is down");
+    }
 }

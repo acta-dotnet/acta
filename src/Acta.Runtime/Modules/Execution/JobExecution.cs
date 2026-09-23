@@ -78,10 +78,21 @@ internal sealed class JobExecution(
         CancellationToken ct
     )
     {
-        var start = alreadyStarted
-            ? StartExecutionAction.Started
-            : await _execution.StartExecutionAsync(job.JobId, workerId, job.ExecutionNumber, job.Version, _leaseTtlSeconds, ct);
-        if (start != StartExecutionAction.Started)
+        // Repeated like the completion write below, for the same reason: a failure here would otherwise
+        // leave the Dispatched row under a lease the heartbeat keeps renewing, which recovery never sees.
+        // ct is the host token. A retried start answering LostClaim is ambiguous, because the first try
+        // may have committed and lost only its response, so it proceeds; the completion's CAS is the
+        // reconciliation, since it matches only a row this worker holds at this execution number.
+        var (start, startRetried) = alreadyStarted
+            ? (StartExecutionAction.Started, false)
+            : await CompletionWrite.RetryAsync(
+                token => _execution.StartExecutionAsync(job.JobId, workerId, job.ExecutionNumber, job.Version, _leaseTtlSeconds, token),
+                _log,
+                job.JobId,
+                ct,
+                _metrics
+            );
+        if (start != StartExecutionAction.Started && !(startRetried && start == StartExecutionAction.LostClaim))
         {
             // The claim was lost before execution began: reclaimed (lease expiry), reassigned, or
             // moved out of Dispatched by an operator control verb between claim and start. The CAS

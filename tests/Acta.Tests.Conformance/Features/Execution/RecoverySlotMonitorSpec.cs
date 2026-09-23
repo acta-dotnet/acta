@@ -315,6 +315,52 @@ public abstract class RecoverySlotMonitorSpec<TFixture> : ActaRuntimeTestBase<TF
         await loop.WaitAsync(SpecWaits.Gate, ct);
     }
 
+    [Fact(DisplayName = "A graceful drain lets a recovery pass the monitor started finish, and then ends the loop")]
+    public async Task Drain_finishes_a_running_pass_before_the_loop_ends()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var slotId = await RecoverySlotIdAsync(ct);
+
+        var registration = new WorkerRegistration(TestNamespace, null, null, [], []);
+        var context = new WorkerContext(registration);
+        context.NamespaceIds[TestNamespace] = TestNamespaceId;
+        context.RecoverySlotJobIdByNamespace[TestNamespaceId] = slotId;
+
+        // The pass is a stand-in that reports when it starts and finishes only when told to, so the
+        // fact can drain while it is running.
+        var passStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finishPass = new TaskCompletionSource<RunOnceOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var time = new ManualTimeProvider();
+        var monitor = new RecoverySlotMonitor(
+            Execution,
+            new WorkerWakeupPublisher(new RecordingWakeup()),
+            registration,
+            context,
+            NullLogger.Instance,
+            (_, _, _) =>
+            {
+                passStarted.TrySetResult();
+                return finishPass.Task;
+            },
+            time
+        );
+
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        using var drain = new CancellationTokenSource();
+        var loop = monitor.RunAsync(stop.Token, drain.Token);
+        await time.FirstTimerArmed.WaitAsync(SpecWaits.Gate, ct);
+        time.Advance(RecoverySlotMonitor.Interval);
+        await passStarted.Task.WaitAsync(SpecWaits.Gate, ct);
+
+        // Draining mid-pass must not end the loop, because the pass is still running on the host token.
+        await drain.CancelAsync();
+        await Task.Delay(TimeSpan.FromMilliseconds(200), ct);
+        Assert.False(loop.IsCompleted);
+
+        finishPass.SetResult(RunOnceOutcome.Completed);
+        await loop.WaitAsync(SpecWaits.Gate, ct);
+    }
+
     private Task<RecoverySlotRepair> CheckAsync(long slotId, CancellationToken ct) =>
         RecoverySlotMonitor.CheckAndRepairAsync(
             Execution,

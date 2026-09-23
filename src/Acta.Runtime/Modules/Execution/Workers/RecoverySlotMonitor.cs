@@ -44,18 +44,24 @@ internal sealed class RecoverySlotMonitor(
     private readonly TimeProvider _time = time ?? TimeProvider.System;
     private readonly Func<string, long, CancellationToken, Task<RunOnceOutcome>> _runRecovery = runRecovery;
 
-    public async Task RunAsync(CancellationToken ct)
+    /// <summary>
+    /// Runs the periodic check until <paramref name="ct"/> stops it hard. <paramref name="drainCt"/> is a
+    /// graceful stop: it ends the waits between checks and starts no further check, while a pass already
+    /// running keeps <paramref name="ct"/> and finishes, so a drain never strands the recovery job itself.
+    /// </summary>
+    public async Task RunAsync(CancellationToken ct, CancellationToken drainCt = default)
     {
         if (_workerRegistration is null)
         {
             return;
         }
 
+        using var waits = CancellationTokenSource.CreateLinkedTokenSource(ct, drainCt);
         try
         {
             // The startup check already ran in the initializer, so the first periodic one waits out a
             // random slice of the interval; that is what staggers a fleet started together.
-            await Task.Delay(TimeSpan.FromTicks((long)(Interval.Ticks * Random.Shared.NextDouble())), _time, ct);
+            await Task.Delay(TimeSpan.FromTicks((long)(Interval.Ticks * Random.Shared.NextDouble())), _time, waits.Token);
 
             using var timer = new PeriodicTimer(Interval, _time);
             do
@@ -72,11 +78,11 @@ internal sealed class RecoverySlotMonitor(
                 {
                     _log.LogError(ex, "WorkerRuntime: recovery slot check failed; retrying next interval.");
                 }
-            } while (await timer.WaitForNextTickAsync(ct));
+            } while (!drainCt.IsCancellationRequested && await timer.WaitForNextTickAsync(waits.Token));
         }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        catch (OperationCanceledException) when (waits.IsCancellationRequested)
         {
-            // Normal shutdown.
+            // Normal shutdown, hard or drained.
         }
     }
 
