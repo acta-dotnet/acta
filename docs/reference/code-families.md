@@ -289,7 +289,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `Off` | 0 | `off` | No audit-filtered per-job events; always-on system/catalog events still emit. | Active |
-| `Failures` | 10 | `failures` | Emit failed job.execution-finished only; suppress other audit-filtered per-job events. | Active |
+| `Failures` | 10 | `failures` | Emit job.execution-finished for a failed attempt and for the success that answers one; suppress other audit-filtered per-job events. | Active |
 | `Audit` | 20 | `audit` | Emit all audit-filtered per-job events. User Jobs default. | Active |
 
 #### `JobPriorityCode` · `job-priority` <a id="code-family-jobprioritycode"></a>

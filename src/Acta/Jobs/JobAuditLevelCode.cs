@@ -9,7 +9,7 @@ public enum JobAuditLevelCode : byte
     [Code("off", "No audit-filtered per-job events; always-on system/catalog events still emit.")]
     Off = 0,
 
-    [Code("failures", "Emit failed job.execution-finished only; suppress other audit-filtered per-job events.")]
+    [Code("failures", "Emit job.execution-finished for a failed attempt and for the success that answers one; suppress other audit-filtered per-job events.")]
     Failures = 10,
 
     [Code("audit", "Emit all audit-filtered per-job events. User Jobs default.")]

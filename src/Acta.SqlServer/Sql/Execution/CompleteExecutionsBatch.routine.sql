@@ -94,7 +94,16 @@ BEGIN
         INNER JOIN @p_batch b ON b.ordinal = u.ordinal
         WHERE
             u.audit_level_code = 20 /* JobAuditLevelCode.Audit */
-            OR (u.audit_level_code = 10 /* JobAuditLevelCode.Failures */ AND b.succeeded = 0);
+            OR (u.audit_level_code = 10 /* JobAuditLevelCode.Failures */ AND b.succeeded = 0)
+            -- A success at this level is written only when it answers a recorded failure: the job's
+            -- newest finished event is not a success. Same rule as complete_execution.
+            OR (
+                u.audit_level_code = 10 /* JobAuditLevelCode.Failures */ AND b.succeeded = 1
+                AND COALESCE((
+                    SELECT TOP (1) e.execution_status_code FROM {{schema}}.events e
+                    WHERE e.job_id = u.job_id AND e.event_code = 41 /* EventCode.JobExecutionFinished */
+                    ORDER BY e.created_at_utc DESC, e.id DESC), 100) <> 100 /* ExecutionStatusCode.Succeeded */
+            );
 
         SELECT
             b.ordinal,

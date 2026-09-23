@@ -119,6 +119,14 @@ BEGIN
         WHERE
             u.audit_level_code = 20 /* JobAuditLevelCode.Audit */
             OR (u.audit_level_code = 10 /* JobAuditLevelCode.Failures */ AND NOT u.succeeded)
+            -- A success at this level is written only when it answers a recorded failure: the job's
+            -- newest finished event is not a success. Same rule as complete_execution.
+            OR (u.audit_level_code = 10 /* JobAuditLevelCode.Failures */ AND u.succeeded
+                AND COALESCE((
+                    SELECT e.execution_status_code FROM {{schema}}.events e
+                    WHERE e.job_id = u.job_id AND e.event_code = 41 /* EventCode.JobExecutionFinished */
+                    ORDER BY e.created_at_utc DESC, e.id DESC
+                    LIMIT 1), 100) <> 100 /* ExecutionStatusCode.Succeeded */)
         RETURNING 1
     )
     SELECT b.ordinal, CAST(CASE WHEN u.ordinal IS NOT NULL THEN 1 ELSE 0 END AS SMALLINT)

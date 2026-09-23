@@ -1965,7 +1965,17 @@ BEGIN
 
     IF v_audit = 20 /* JobAuditLevelCode.Audit */
         OR (v_audit = 10 /* JobAuditLevelCode.Failures */ AND NOT p_execution_succeeded AND NOT v_rearm
-            AND NOT (v_handler AND p_handler_status_code IN (220 /* JobStatusCode.Cancelled */, 30 /* JobStatusCode.Paused */))) THEN
+            AND NOT (v_handler AND p_handler_status_code IN (220 /* JobStatusCode.Cancelled */, 30 /* JobStatusCode.Paused */)))
+        -- A success at this level is written only when it answers a recorded failure, which is what closes
+        -- the incident that failure opened: the job's newest finished event is not a success. A job that
+        -- never failed, or already answered, writes nothing. One ordered seek on the job's timeline index.
+        OR (v_audit = 10 /* JobAuditLevelCode.Failures */ AND p_execution_succeeded AND NOT v_rearm
+            AND NOT (v_handler AND p_handler_status_code IN (220 /* JobStatusCode.Cancelled */, 30 /* JobStatusCode.Paused */))
+            AND COALESCE((
+                SELECT e.execution_status_code FROM acta.events e
+                WHERE e.job_id = p_id AND e.event_code = 41 /* EventCode.JobExecutionFinished */
+                ORDER BY e.created_at_utc DESC, e.id DESC
+                LIMIT 1), 100) <> 100 /* ExecutionStatusCode.Succeeded */) THEN
         INSERT INTO acta.events (
             event_code,
             created_at_utc,
@@ -2419,6 +2429,14 @@ BEGIN
         WHERE
             u.audit_level_code = 20 /* JobAuditLevelCode.Audit */
             OR (u.audit_level_code = 10 /* JobAuditLevelCode.Failures */ AND NOT u.succeeded)
+            -- A success at this level is written only when it answers a recorded failure: the job's
+            -- newest finished event is not a success. Same rule as complete_execution.
+            OR (u.audit_level_code = 10 /* JobAuditLevelCode.Failures */ AND u.succeeded
+                AND COALESCE((
+                    SELECT e.execution_status_code FROM acta.events e
+                    WHERE e.job_id = u.job_id AND e.event_code = 41 /* EventCode.JobExecutionFinished */
+                    ORDER BY e.created_at_utc DESC, e.id DESC
+                    LIMIT 1), 100) <> 100 /* ExecutionStatusCode.Succeeded */)
         RETURNING 1
     )
     SELECT b.ordinal, CAST(CASE WHEN u.ordinal IS NOT NULL THEN 1 ELSE 0 END AS SMALLINT)
@@ -3748,9 +3766,8 @@ BEGIN
     END IF;
 
     -- parent_id carries no DB FK/cascade; purging a job that has child jobs would orphan the child's
-    -- lineage (parent_id / lineage_root_id would point at a row that no longer exists), so reject.
-    -- A completed child of a live parent is kept too: the parent's replay dedupes onto this row and
-    -- reads its result, so purging it would run the child again.
+    -- lineage (parent_id / lineage_root_id would point at a row that no longer exists), so reject. A
+    -- completed child of a live parent is kept too: the parent's replay dedupes onto it and reads its result.
     IF EXISTS (SELECT 1 FROM acta.jobs c WHERE c.parent_id = p_id)
         OR EXISTS (
             SELECT 1 FROM acta.runtimes p
@@ -7648,7 +7665,7 @@ DROP FUNCTION IF EXISTS acta.reserve_rate(VARCHAR, BIGINT, INT, INT, UUID);
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.2-87603b253df7e1765b5f52e0250f49a2', 'acta');
+VALUES (-1, 'objects-1.3-97658e4a64a98c152723d537df2c2a9e', 'acta');
 
 COMMIT;
 

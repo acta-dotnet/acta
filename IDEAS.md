@@ -322,46 +322,6 @@ and any earlier attempt. That would give operators an honest trace while still s
 relationship between the pieces of work. A live flow diagram could then link directly to the relevant
 external traces.
 
-## Alerting under Failures
-
-Under `AuditLevel.Failures` the completion writes an `events` row only when the attempt failed, and
-the alert projector closes an incident only from a success event, so an incident opened under
-`Failures` never closes. `sys.alerts` itself runs under `Failures` with the `SysCritical` profile, so
-even the projector's own incident is unresolvable. The rc.3 experimentation branch fixed this by
-reading recovery from the runtime row, which cost two columns, an index, and three resolve routines;
-that was withdrawn. The design that costs no DDL:
-
-- A failed attempt is defined explicitly in `complete_execution`: not succeeded, not a handler
-  cancel or pause, and either terminal or a re-arm whose reason is an unhandled exception, a lost
-  lease, or an execution timeout. That records every retryable failure and excludes sleep, signal
-  waits, deliberate reschedules, and concurrency and rate denials, none of which is a failure.
-- A success writes its event when the job's newest `job.execution-finished` row is a failure, read
-  with one ordered seek on `ix_events_job_timeline` before the runtime row is updated. That fact is
-  durable, survives an operator restart (which writes nothing under `Failures`), and does not depend
-  on how far the projector has got. An open-incident probe was considered and rejected: fail, restart,
-  succeed before the projector runs would find no incident yet, write nothing, and the incident
-  opened later would never close. `execution_number` was rejected because it counts claims, so a
-  healthy recurring job would write a success on every occurrence after its first. `failure_count`
-  alone was rejected because restart zeroes it. The batch completion routine sends a `Failures` job
-  whose newest event is a failure through the per-job path.
-- `cancel_job` writes `job.cancelled` under `Failures` as well as `Audit`, for an executing and for
-  a parked job; the projector's read selects cancellations and resolves through the existing
-  `resolve_job_alerts`, so a cancelled job stops paging without an execution-finished row.
-- `JobsOptionsValidator` requires `AlertRetention <= JobEventsRetention`, so the evidence outlives the
-  incident it would close.
-- Startup warns for `Off` paired with an alerting profile (nothing per job is recorded, so nothing
-  can alert) and for a scheduled definition with `OnTerminal` or `Info` (silent for a slot's ordinary
-  failures).
-
-Facts to hold: a success on the first claim writes nothing; a healthy recurring job writes nothing
-over three occurrences; sleep, signal wait, deliberate reschedule, concurrency denial, and rate
-denial each write nothing; a retryable failure writes; fail, retry, fail, succeed resolves; restart
-alone does not resolve and the restarted success does; fail, restart, succeed with no projection
-pass in between, the success event present before any projection, both events aged behind the
-horizon, ends raised and resolved after one pass; handler cancellation of an executing job and
-operator cancellation of a parked job each close the incident; `sys.alerts`' own incident resolves.
-The gate is the three provider conformance suites, not the fast gate.
-
 ## Rolling deploys
 
 Landed after rc.3 as three rules and no schema change: registration never retires a definition

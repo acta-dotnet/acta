@@ -252,6 +252,19 @@ BEGIN
                             @handler = 1 AND @p_handler_status_code IN (220 /* JobStatusCode.Cancelled */, 30 /* JobStatusCode.Paused */)
                         )
                     )
+                    -- A success at this level is written only when it answers a recorded failure, which is
+                    -- what closes the incident that failure opened: the job's newest finished event is not a
+                    -- success. Never failed, or already answered, writes nothing. One seek on the timeline index.
+                    OR (
+                        @c_audit = 10 /* JobAuditLevelCode.Failures */ AND @p_execution_succeeded = 1 AND @rearm = 0
+                        AND NOT (
+                            @handler = 1 AND @p_handler_status_code IN (220 /* JobStatusCode.Cancelled */, 30 /* JobStatusCode.Paused */)
+                        )
+                        AND COALESCE((
+                            SELECT TOP (1) e.execution_status_code FROM {{schema}}.events e
+                            WHERE e.job_id = @p_id AND e.event_code = 41 /* EventCode.JobExecutionFinished */
+                            ORDER BY e.created_at_utc DESC, e.id DESC), 100) <> 100 /* ExecutionStatusCode.Succeeded */
+                    )
                     BEGIN
                         INSERT INTO {{schema}}.events (
                             event_code, created_at_utc, namespace_id,

@@ -95,12 +95,14 @@ raises `FirstFailure`, which is the unwatched-nightly-job case working as intend
 that dies holding a job is heard. Everything else stays quiet: a handler that sleeps, waits on a
 signal, or reschedules itself, and a handler that cancels or pauses its own job.
 
-Completion writes no success event at `Failures`, and resolution has no other source, so
-**an incident raised for a job at that level does not resolve on its own**. An operator resolves it,
-or the job runs under `Audit`. That includes a `FinalFailure` for a job someone later restarts to
-success, and it includes `sys.alerts`, which runs at `Failures` itself. The design that closes an
-incident from events alone, without a schema change, is written up for a later release. The full
-alert lifecycle requires the default audit level.
+A success at `Failures` is written when it answers a recorded failure: completion reads the job's
+newest `job.execution-finished` row and writes the success only when that row is not itself a
+success. So a job that never failed writes nothing, a healthy recurring slot writes nothing
+occurrence after occurrence, and the one success that follows a recorded failure is on the stream
+for the projector to resolve the incident from. That covers a `FinalFailure` for a job someone later
+restarts to success, a recurring slot's `FirstFailure` once the next fire succeeds, and `sys.alerts`'
+own incident, since it runs at `Failures` itself. The evidence is the failure event, so
+`AlertRetention` may not exceed `JobEventsRetention`; startup refuses the pair otherwise.
 
 Everything else is invisible to alerting. Two exclusions are worth stating outright:
 
@@ -199,9 +201,9 @@ A successful execution resolves that job's open automatic alerts and writes noth
   success, where the second failure opens a fresh incident on the same key (the first is already
   resolved); resolving each success is what keeps that second incident from lingering unresolved
   (`AlertsJob.ProjectAsync`).
-- **Dependent on the success event existing.** `AuditLevel = Failures` suppresses success events at the
-  source (see [What projects an alert](#what-projects-an-alert)), so under it nothing ever drives this
-  path — recovery does not resolve, whatever the profile's description promises.
+- **Dependent on the success event existing.** `AuditLevel = Failures` writes a success only when
+  it answers a recorded failure (see [What projects an alert](#what-projects-an-alert)), which is
+  exactly the success this path needs; the healthy successes it drops had nothing to resolve.
 
 Manual alerts are a separate path throughout — separate by key, not by wall. `ctx.AlertAsync`
 writes `origin = Manual`, `kind = Manual` (`JobContext.AlertAsync`,

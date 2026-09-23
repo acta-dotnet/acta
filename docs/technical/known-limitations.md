@@ -177,13 +177,11 @@ to hear about**; it alerts on
 each failure transition, and incident identity collapses a repeating nightly failure onto one row
 rather than one per night.
 
-Under `AuditLevel.Failures` a successful attempt writes no `events` row, and the projector closes
-an incident only from a success event, so an incident opened for a job at that level does not
-resolve on its own; an operator resolves it, or the job runs under `Audit`. `sys.alerts` itself runs
-under `Failures`, so its own `SysCritical` incident has the same shape. The design that fixes this
-from events alone, without a schema change, is written up for a later release.
+Under `AuditLevel.Failures` a success is recorded only when it answers a recorded failure, which is
+the one success the projector needs to close the incident; the events that opened it are the
+evidence, so `AlertRetention` may not exceed `JobEventsRetention`.
 
-A one-shot job's in-budget retries are also invisible at that level, so `FirstFailure` and
+A one-shot job's in-budget retries are invisible at that level, so `FirstFailure` and
 `ThresholdReached` never fire for its own throws while a recurring slot's failed fire is heard;
 [the alerting guide](../guide/alerting.md#what-projects-an-alert) owns the full account of what
 that level records and what it drops.

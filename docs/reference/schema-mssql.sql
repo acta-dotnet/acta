@@ -2310,6 +2310,19 @@ BEGIN
                             @handler = 1 AND @p_handler_status_code IN (220 /* JobStatusCode.Cancelled */, 30 /* JobStatusCode.Paused */)
                         )
                     )
+                    -- A success at this level is written only when it answers a recorded failure, which is
+                    -- what closes the incident that failure opened: the job's newest finished event is not a
+                    -- success. Never failed, or already answered, writes nothing. One seek on the timeline index.
+                    OR (
+                        @c_audit = 10 /* JobAuditLevelCode.Failures */ AND @p_execution_succeeded = 1 AND @rearm = 0
+                        AND NOT (
+                            @handler = 1 AND @p_handler_status_code IN (220 /* JobStatusCode.Cancelled */, 30 /* JobStatusCode.Paused */)
+                        )
+                        AND COALESCE((
+                            SELECT TOP (1) e.execution_status_code FROM acta.events e
+                            WHERE e.job_id = @p_id AND e.event_code = 41 /* EventCode.JobExecutionFinished */
+                            ORDER BY e.created_at_utc DESC, e.id DESC), 100) <> 100 /* ExecutionStatusCode.Succeeded */
+                    )
                     BEGIN
                         INSERT INTO acta.events (
                             event_code, created_at_utc, namespace_id,
@@ -2726,7 +2739,16 @@ BEGIN
         INNER JOIN @p_batch b ON b.ordinal = u.ordinal
         WHERE
             u.audit_level_code = 20 /* JobAuditLevelCode.Audit */
-            OR (u.audit_level_code = 10 /* JobAuditLevelCode.Failures */ AND b.succeeded = 0);
+            OR (u.audit_level_code = 10 /* JobAuditLevelCode.Failures */ AND b.succeeded = 0)
+            -- A success at this level is written only when it answers a recorded failure: the job's
+            -- newest finished event is not a success. Same rule as complete_execution.
+            OR (
+                u.audit_level_code = 10 /* JobAuditLevelCode.Failures */ AND b.succeeded = 1
+                AND COALESCE((
+                    SELECT TOP (1) e.execution_status_code FROM acta.events e
+                    WHERE e.job_id = u.job_id AND e.event_code = 41 /* EventCode.JobExecutionFinished */
+                    ORDER BY e.created_at_utc DESC, e.id DESC), 100) <> 100 /* ExecutionStatusCode.Succeeded */
+            );
 
         SELECT
             b.ordinal,
@@ -8357,7 +8379,7 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.2-ce6fecefe67ec1af4898a73834ce2b41', 'acta');
+VALUES (-1, 'objects-1.3-e22cec8d66b8808220c8dda74a54fae3', 'acta');
 GO
 COMMIT TRANSACTION;
 GO

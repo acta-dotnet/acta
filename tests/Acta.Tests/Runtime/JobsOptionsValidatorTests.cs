@@ -28,6 +28,18 @@ public sealed class JobsOptionsValidatorTests
     }
 
     [Fact]
+    public void AlertRetention_longer_than_JobEventsRetention_fails()
+    {
+        var result = Validate(o =>
+        {
+            o.JobEventsRetention = TimeSpan.FromDays(30);
+            o.AlertRetention = TimeSpan.FromDays(31);
+        });
+        Assert.True(result.Failed);
+        Assert.Contains("AlertRetention must not exceed JobEventsRetention", result.FailureMessage);
+    }
+
+    [Fact]
     public void ClaimBatchSize_below_one_fails()
     {
         var result = Validate(o => o.ClaimBatchSize = 0);

@@ -44,9 +44,10 @@ certified commit.
 - The recovery sweep runs while every executor is busy, because it runs outside the executor pool,
   and a stranded `sys.recovery` slot is re-armed under a guard by any live worker:
   `RecoverySlotMonitorSpec`.
-- Incidents at the failures-only audit level stay open by design and the page says so:
-  `FailuresAuditFailureEventSpec` pins that a success at that level writes no event and resolves
-  nothing, so the documented limitation cannot change by accident.
+- Incidents at the failures-only audit level close on the success that answers the failure, and
+  only that one: `FailuresAuditFailureEventSpec` pins a first-claim success writing nothing, a
+  restarted success resolving, and a recurring slot resolving on its next fire and then staying
+  silent.
 - A build refuses a database whose installed object package it cannot call, and an older worker keeps
   running on the upgraded objects: `ObjectPackagePreflightTests` and `MigrationHistoryPreflightSpec`
   for the verdicts, and `tests/RollingUpgradeSmoke/run.ps1` against the previous tag on both servers

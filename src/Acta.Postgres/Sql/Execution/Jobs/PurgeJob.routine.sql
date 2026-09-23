@@ -35,9 +35,8 @@ BEGIN
     END IF;
 
     -- parent_id carries no DB FK/cascade; purging a job that has child jobs would orphan the child's
-    -- lineage (parent_id / lineage_root_id would point at a row that no longer exists), so reject.
-    -- A completed child of a live parent is kept too: the parent's replay dedupes onto this row and
-    -- reads its result, so purging it would run the child again.
+    -- lineage (parent_id / lineage_root_id would point at a row that no longer exists), so reject. A
+    -- completed child of a live parent is kept too: the parent's replay dedupes onto it and reads its result.
     IF EXISTS (SELECT 1 FROM {{schema}}.jobs c WHERE c.parent_id = p_id)
         OR EXISTS (
             SELECT 1 FROM {{schema}}.runtimes p
