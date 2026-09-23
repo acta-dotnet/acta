@@ -200,6 +200,12 @@ await Task.WhenAll(probes);
 await monitorStop.CancelAsync();
 await monitor;
 var final = await CountsAsync(ct);
+
+// A run that swept nothing observed nothing about retention under load, whatever else it did.
+if (retentionPasses == 0)
+{
+    throw new InvalidOperationException("No retention pass completed during the run; lengthen it or check the sweep.");
+}
 if (host.Sink.Samples.Count != emitted || final.WorkloadFailed != 0 || final.Results != beginning.Results + emitted)
 {
     throw new InvalidOperationException("Missing, duplicated, failed, or unretained workload results.");

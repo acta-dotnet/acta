@@ -940,6 +940,9 @@ public sealed class BenchHost : IAsyncDisposable
                 if (opt.JobEventsRetentionDays is { } days)
                 {
                     o.JobEventsRetention = TimeSpan.FromDays(days);
+                    // The alert window may not outlast the events window; a short events window for a
+                    // retention cell pulls the alert window down with it.
+                    o.AlertRetention = TimeSpan.FromDays(Math.Min(days, (int)o.AlertRetention.TotalDays));
                 }
             });
 

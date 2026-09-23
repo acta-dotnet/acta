@@ -73,7 +73,10 @@ try {
     $checkpoint = $detail.checkpoints | Where-Object name -eq 'binary-checkpoint'
     if ($checkpoint.value.base64 -ne 'CQoLDA==') { throw 'Binary checkpoint download-source bytes differ.' }
     $checks += @{ Path = 'input/detail'; Authenticated = $true; Status = 200; InputResultCheckpointBytesVerified = $true }
-    $capabilities = (& $request "$base/api/v1/capabilities" $auth).Content | ConvertFrom-Json
+    $capabilitiesResponse = & $request "$base/api/v1/capabilities" $auth
+    if ([int]$capabilitiesResponse.StatusCode -ne 200) { throw "Capabilities returned $($capabilitiesResponse.StatusCode), expected 200." }
+    $capabilities = $capabilitiesResponse.Content | ConvertFrom-Json
+    if (-not ($capabilities.PSObject.Properties.Name -contains 'controlsEnabled')) { throw 'Capabilities carried no controlsEnabled property.' }
     if ($capabilities.controlsEnabled) { throw 'Read-only deployment unexpectedly enabled controls.' }
     $checks += @{ Path = 'capabilities'; Authenticated = $true; Status = 200; ControlsEnabled = $false }
     $control = & $request "$base/api/v1/jobs/$($ready.JobRef)/cancel" $auth 'POST'
