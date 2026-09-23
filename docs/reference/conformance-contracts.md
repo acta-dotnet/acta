@@ -544,6 +544,18 @@
   - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.GetJobLineageMapAsync`
   - `Acta.Runtime.Modules.Execution.Signals.ISignalStore.WaitSignalAsync`
 
+### A completed child outlives its retention deadline while its parent is live
+- **Contract:** Retention and manual purge keep a completed child whose parent is not terminal, and release it, leaves first, once the parent is.
+- **Arrange:** A parent starts one named child, the child completes, and the child's retention deadline is moved into the past while the parent is still live.
+- **Act:** The retention sweep runs, a manual purge of the child is attempted, the parent replays, and the sweep runs again once the whole tree is terminal and expired.
+- **Assert:** The child survives the sweep and the purge, the replay reads its result without running it again, and the terminal tree drains child first, then parent.
+- **Guarantees:**
+  - A completed child past its deadline survives the sweep and the purge under a live parent, and the replay reads it
+  - Manual purge refuses a child under a live parent and a parent with children, and takes the tree leaves first once it is terminal
+- **Store methods:**
+  - `Acta.Runtime.Maintenance.IRetentionStore.PurgeBatchAsync`
+  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.PurgeJobAsync`
+
 ### Child jobs start deduped, join on completion latches, and cancel cascades
 - **Contract:** StartChildAsync dedupes by name per parent and a terminal child raises a durable latch that releases a waiting parent while cancel cascades to the live subtree.
 - **Arrange:** A parent job and named child definitions are registered, with the parent set to wait on its children.
@@ -2696,7 +2708,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 
 | Store method | Covering conformance specs |
 | --- | --- |
-| `IRetentionStore.PurgeBatchAsync` | A purged job's public ref still resolves to its surviving event timeline<br>Aged projector skip variables are pruned on the alert window<br>Events outlive a purged worker with a canonical actor key<br>Purge reaps expired jobs events alerts and terminal workers within batches |
+| `IRetentionStore.PurgeBatchAsync` | A completed child outlives its retention deadline while its parent is live<br>A purged job's public ref still resolves to its surviving event timeline<br>Aged projector skip variables are pruned on the alert window<br>Events outlive a purged worker with a canonical actor key<br>Purge reaps expired jobs events alerts and terminal workers within batches |
 | `IAlertStore.AcknowledgeJobAlertAsync` | Operator acknowledge/resolve verbs on IAlerts. |
 | `IAlertStore.GetAlertableEventsAsync` | A recurring job whose handler throws raises an alert<br>A replayed alert batch neither inflates an incident nor opens a ghost one<br>Alert profiles gate emission and severity per profile<br>Reclaiming a crashed timeout resolution costs the job no retry budget<br>The alerts projector classifies failures off events and resolves on success<br>The alerts projector drains a backlog in bounded batches within one invocation<br>The alerts projector reads behind a safe horizon rather than up to the present<br>The failures-only audit level records a failure and stays silent otherwise<br>ThresholdReached fires once per incident at the exact occurrence |
 | `IAlertStore.GetDeliverableAlertsAsync` | Alert delivery retries with backoff, goes terminal, and reminds open incidents<br>Deliverable alerts read due rows, remind open incidents, and settle by version |
@@ -2740,7 +2752,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IJobStore.GetJobStatusAsync` | GetJobStatus returns the status for a known id and null for an unknown id |
 | `IJobStore.ListJobsAsync` | ListJobs filter-matrix selects exactly matching rows per dimension<br>ListJobs pages newest first by keyset cursor without duplicates |
 | `IJobStore.PauseJobAsync` | A job control verb takes an optional expected version and refuses a stale one.<br>CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Cancel Pause Resume Restart apply legal transitions and audit<br>Control verbs apply per-status guards and correct side effects<br>Control verbs transition unconditionally but emit events only at full audit |
-| `IJobStore.PurgeJobAsync` | Operator purge hard-deletes a terminal job. |
+| `IJobStore.PurgeJobAsync` | A completed child outlives its retention deadline while its parent is live<br>Operator purge hard-deletes a terminal job. |
 | `IJobStore.ReprioritizeJobAsync` | Operator reprioritize changes claim priority, rejecting only terminal jobs. |
 | `IJobStore.RescheduleJobAsync` | A job control verb takes an optional expected version and refuses a stale one.<br>Operator reschedule moves a job's cursor, rejecting in-flight or terminal jobs. |
 | `IJobStore.ResetJobStateAsync` | Reset clears one job's substrate and emits an audit-gated state-reset event |

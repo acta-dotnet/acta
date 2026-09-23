@@ -3727,9 +3727,10 @@ DECLARE
     v_tenant INT;
     v_job_ref UUID;
     v_job_name VARCHAR;
+    v_parent_id BIGINT;
 BEGIN
-    SELECT r.status_code, j.namespace_id, j.definition_id, j.tenant_id, j.job_ref, d.name
-    INTO v_from_status, v_namespace_id, v_definition, v_tenant, v_job_ref, v_job_name
+    SELECT r.status_code, j.namespace_id, j.definition_id, j.tenant_id, j.job_ref, d.name, j.parent_id
+    INTO v_from_status, v_namespace_id, v_definition, v_tenant, v_job_ref, v_job_name, v_parent_id
     FROM acta.jobs j
     JOIN acta.runtimes r ON r.job_id = j.id
     JOIN acta.definitions d ON d.id = j.definition_id
@@ -3748,7 +3749,13 @@ BEGIN
 
     -- parent_id carries no DB FK/cascade; purging a job that has child jobs would orphan the child's
     -- lineage (parent_id / lineage_root_id would point at a row that no longer exists), so reject.
-    IF EXISTS (SELECT 1 FROM acta.jobs c WHERE c.parent_id = p_id) THEN
+    -- A completed child of a live parent is kept too: the parent's replay dedupes onto this row and
+    -- reads its result, so purging it would run the child again.
+    IF EXISTS (SELECT 1 FROM acta.jobs c WHERE c.parent_id = p_id)
+        OR EXISTS (
+            SELECT 1 FROM acta.runtimes p
+            WHERE p.job_id = v_parent_id
+              AND p.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)) THEN
         RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status;
         RETURN;
     END IF;
@@ -7160,6 +7167,13 @@ BEGIN
                 -- exist would orphan their lineage (same rule as the manual purge_job). Only leaves
                 -- delete; a fully-expired subtree drains bottom-up across iterations.
                 AND NOT EXISTS (SELECT 1 FROM acta.jobs c WHERE c.parent_id = j.id)
+                -- A completed child of a live parent is kept: the parent's replay dedupes onto its row and
+                -- reads its result, so purging it would run the child again. The tree drains once the
+                -- parent is terminal.
+                AND NOT EXISTS (
+                    SELECT 1 FROM acta.runtimes p
+                    WHERE p.job_id = j.parent_id
+                      AND p.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
             ORDER BY r.retention_until_utc, r.job_id
             LIMIT p_batch_size
             FOR UPDATE OF j, r SKIP LOCKED) q;
@@ -7634,7 +7648,7 @@ DROP FUNCTION IF EXISTS acta.reserve_rate(VARCHAR, BIGINT, INT, INT, UUID);
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.1-e01a04e9499ab2c8ff4cd73b5e764328', 'acta');
+VALUES (-1, 'objects-1.2-87603b253df7e1765b5f52e0250f49a2', 'acta');
 
 COMMIT;
 

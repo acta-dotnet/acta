@@ -166,7 +166,8 @@ await jobs.PurgeAsync(job);                              // hard-delete a termin
 Cancel of a parent cancels the whole non-terminal subtree (descendants carry reason
 `parent-cancelled`). Restart leaves a terminal row's history intact and re-arms the same id; there
 is never a replacement row. Reschedule applies to Paused/Suspended/Ready rows and re-arms them
-Ready; purge refuses a non-terminal job and a job that has child jobs (purge the children first).
+Ready; purge refuses a non-terminal job, a job that has child jobs, and a child whose parent is not
+terminal (finish or cancel the tree, then purge the leaves first).
 Every verb returns Applied / Rejected / NotFound rather than throwing on an illegal transition.
 
 Cancel, pause, resume, restart, reschedule, and reprioritize also take an optional `expectedVersion`
@@ -225,7 +226,9 @@ Three rules the table cannot show:
 
 - **`purge` also rejects a job that has children**, whatever its status. `parent_id` carries no
   database cascade, so purging a parent would leave a child pointing at a row that no longer exists.
-  Purge the leaves first.
+  It also rejects a completed child whose parent is not terminal: the parent's replay dedupes onto
+  that child and reads its result, so purging it would run the child again. Once the tree is
+  terminal, purge the leaves first.
 - **`cancel` on an Executing job** marks the row Cancelled and cancels the running attempt's token;
   the handler still has to return. The row is terminal before the process notices.
 - **`signal` on a Paused job** records the slot and leaves the job Paused. The signal is not lost;
@@ -536,13 +539,13 @@ At a glance:
 | --- | --- | --- |
 | Trigger | `sys.retention` finds terminal jobs past `retention_until_utc` | Operator calls `IJobs.PurgeAsync` or the enabled HTTP/dashboard control |
 | Eligible job | Terminal and past its retention deadline | Terminal now |
-| Child-job guard | Normal deadline-driven deletion behavior | Rejects a parent that still has child jobs; purge children first |
+| Child-job guard | Keeps a completed child while its parent is live; a terminal tree drains leaves first | Rejects a parent that still has child jobs and a child whose parent is live; finish the tree, then purge the leaves first |
 | Job event | No per-job purge event | Emits `job.purged` after removing the job history |
 | Existing job events | Age out on their own event-retention window | Deleted immediately for that job |
 | Existing alerts | Age out on their own alert-retention window | Deleted immediately for that job |
 | Intended use | Routine bounded storage | Immediate removal of one known terminal job |
 
-Before a manual purge: confirm the job is terminal and has no child jobs; copy any incident summary
+Before a manual purge: confirm the job is terminal, has no child jobs, and has no live parent; copy any incident summary
 or required audit evidence; confirm no caller still needs `GetResultAsync`; record a reason that
 explains the administrative decision; remember that purge removes Acta state only (related business
 data and database backups are outside its reach). Do not use manual purge as backlog control:

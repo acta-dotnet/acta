@@ -813,7 +813,7 @@ LEFT JOIN main.namespaces AS ns ON ns.id = t.namespace_id;
 
 DELETE FROM main.migrations WHERE version = -1;
 INSERT INTO main.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.1-fa7744573f6ec85034943f82b43de4e6', 'main');
+VALUES (-1, 'objects-1.2-fa7744573f6ec85034943f82b43de4e6', 'main');
 
 COMMIT;
 

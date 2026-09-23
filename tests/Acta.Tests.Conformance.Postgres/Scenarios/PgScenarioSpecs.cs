@@ -12,6 +12,7 @@ public sealed class PgScenarioSessionSpec : ScenarioSessionSpec<PgConformanceFix
 public sealed class PgChildJobCrossNamespaceSpec : ChildJobCrossNamespaceSpec<PgConformanceFixture>;
 
 public sealed class PgChildJobSpec : ChildJobSpec<PgConformanceFixture>;
+public sealed class PgChildRetentionSpec : ChildRetentionSpec<PgConformanceFixture>;
 
 public sealed class PgChildTimeoutSpec : ChildTimeoutSpec<PgConformanceFixture>;
 

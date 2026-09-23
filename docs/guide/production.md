@@ -333,6 +333,12 @@ Set retention long enough for audit, incident response, delayed restarts, and op
 Shorter retention reduces storage growth but removes old job inputs, results, checkpoints, steps,
 and lineage.
 
+A completed child keeps its row and result past its own deadline while its parent is not terminal,
+because the parent's replay dedupes onto that child and reads its result. A parent that waits,
+sleeps, or stays paused for a long time therefore holds its finished children for that long; once
+it is terminal the tree drains from the leaves up. A parent restarted after its children were purged
+runs them again.
+
 ## Process behavior on failure
 
 What an operator should expect to see, per surface, when something goes wrong, and whether the

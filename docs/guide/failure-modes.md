@@ -113,8 +113,9 @@ again. Fix or understand the original cause before confirming restart.
 ## …an operator purges a job?
 
 Purge permanently removes the terminal job, result, checkpoints, steps, tags, alerts, and prior
-events, then emits a standalone `job.purged` audit event. It rejects non-terminal jobs and parents
-with child jobs. See [Operator guide § retention and purge](./operator-guide.md).
+events, then emits a standalone `job.purged` audit event. It rejects non-terminal jobs, parents
+with child jobs, and children whose parent is not terminal; finish or cancel the tree, then purge
+from the leaves up. See [Operator guide § retention and purge](./operator-guide.md).
 
 ## …the dashboard backend goes offline?
 

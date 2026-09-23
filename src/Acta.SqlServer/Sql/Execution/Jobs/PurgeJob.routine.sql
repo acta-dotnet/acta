@@ -17,7 +17,7 @@ BEGIN
         DECLARE
             @from_status TINYINT, @namespace_id INT,
             @definition_id INT, @tenant_id INT,
-            @job_ref UNIQUEIDENTIFIER, @job_name VARCHAR(128);
+            @job_ref UNIQUEIDENTIFIER, @job_name VARCHAR(128), @parent_id BIGINT;
 
         /* Lock the jobs row too: child enqueue locks jobs (not runtimes), and under RCSI the
            child guard below only serializes if we hold the same resource. */
@@ -27,7 +27,8 @@ BEGIN
             @definition_id = j.definition_id,
             @tenant_id = j.tenant_id,
             @job_ref = j.job_ref,
-            @job_name = d.name
+            @job_name = d.name,
+            @parent_id = j.parent_id
         FROM {{schema}}.runtimes r WITH (UPDLOCK, ROWLOCK)
         INNER JOIN {{schema}}.jobs j WITH (UPDLOCK, ROWLOCK) ON j.id = r.job_id
         INNER JOIN {{schema}}.definitions d ON d.id = j.definition_id
@@ -57,11 +58,17 @@ BEGIN
             END;
 
         -- parent_id carries no DB FK/cascade; purging a job that has child jobs would orphan the child's
-        -- lineage, so reject.
+        -- lineage, so reject. A completed child of a live parent is kept too: the parent's replay
+        -- dedupes onto this row and reads its result, so purging it would run the child again.
         IF
             EXISTS (
                 SELECT 1 FROM {{schema}}.jobs c
                 WHERE c.parent_id = @p_id
+            )
+            OR EXISTS (
+                SELECT 1 FROM {{schema}}.runtimes p
+                WHERE p.job_id = @parent_id
+                    AND p.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
             )
             BEGIN
 
