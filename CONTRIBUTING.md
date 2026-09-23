@@ -209,11 +209,11 @@ written beside it; see the `[concepts/**/*.cs]` and `[demos/**/*.cs]` blocks for
 `[SuppressMessage]` attribute to production code — the ruling belongs where the next reader will look for
 it, not at the site.
 
-Two trees are exempt on purpose. `concepts/` and `tests/PackageSmoke/` carry their own
-`Directory.Build.props` that does not chain to the root: concepts are executable documentation whose
-shape is dictated by what they teach, and `PackageSmoke` exists to build the way a real external consumer
-would, untouched by this repository's build conventions. Holding either to the repo's analyzer tier would
-defeat the reason it exists.
+Three trees are exempt on purpose. `concepts/`, `tests/PackageSmoke/` and `tests/DeploymentSmoke/` carry
+their own `Directory.Build.props` that does not chain to the root: concepts are executable documentation
+whose shape is dictated by what they teach, and the two smoke consumers exist to build the way a real
+external consumer would, untouched by this repository's build conventions. Holding any of them to the
+repo's analyzer tier would defeat the reason it exists.
 
 ## SQL style
 
