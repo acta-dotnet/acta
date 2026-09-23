@@ -202,9 +202,11 @@ internal static class ProvisionScriptEmitter
 
         // A host with migrations disabled is provisioned by this script and never runs the installer, so
         // a script that stayed silent would leave the package unrecorded for exactly the deployment the
-        // startup check exists for.
-        Append("-- ===== installed object package (names the versionless objects above) =====");
-        Append(string.Join("\n", SqlObjectInstaller.StampStatements(schema, token)));
+        // startup check exists for. The stamp names every object above and is written only when all of
+        // them exist, so a client that ran on past a failed batch leaves no stamp rather than a false one.
+        Append("-- ===== installed object package (names the versionless objects above; recorded only when all exist) =====");
+        var installed = SqlObjects(providerDir, ".view.sql").Concat(routines).Select(o => o.Name).ToList();
+        Append(string.Join("\n", SqlObjectInstaller.StampStatements(schema, token, installed)));
 
         Append(mssql ? "COMMIT TRANSACTION;" : "COMMIT;");
         return script.ToString().ReplaceLineEndings("\n");

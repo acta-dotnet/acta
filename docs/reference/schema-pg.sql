@@ -7660,7 +7660,7 @@ $$;
 -- signature (without the grace) so pre-existing installs cannot resolve the stale form.
 DROP FUNCTION IF EXISTS acta.reserve_rate(VARCHAR, BIGINT, INT, INT, UUID);
 
--- ===== installed object package (names the versionless objects above) =====
+-- ===== installed object package (names the versionless objects above; recorded only when all exist) =====
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)

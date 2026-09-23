@@ -809,11 +809,12 @@ SELECT
 FROM main.tags AS t
 LEFT JOIN main.namespaces AS ns ON ns.id = t.namespace_id;
 
--- ===== installed object package (names the versionless objects above) =====
+-- ===== installed object package (names the versionless objects above; recorded only when all exist) =====
 
 DELETE FROM main.migrations WHERE version = -1;
 INSERT INTO main.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.4-fa7744573f6ec85034943f82b43de4e6', 'main');
+SELECT -1, 'objects-1.4-fa7744573f6ec85034943f82b43de4e6', 'main'
+WHERE (SELECT COUNT(*) FROM sqlite_master WHERE type = 'view' AND name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'jobs_view', 'schedules_view', 'steps_view', 'workers_view', 'events_view', 'tags_view')) = 9;
 
 COMMIT;
 
