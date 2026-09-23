@@ -29,6 +29,35 @@ nuget.org via Trusted Publishing (`publish-nuget` job in `ci.yml`, gated on the 
   migration statements, renumbered code pairs, retired-id reuse, or closed-family `255` assignments;
   schema changes ship only as additive `Mnnn` migrations.
 
+## Failure-boundary acceptance
+
+Throughput does not stand in for these, and neither does a clean rerun of a stall nobody explained.
+Each line names the evidence that carries it; a candidate ships with all of it recorded against the
+certified commit.
+
+- A completion write that keeps failing while the heartbeat still renews the lease settles once the
+  provider returns, on the same worker, with no restart: `CompleteAndClockChaosSpec` and
+  `WorkerCrashRecoveryChaosSpec` on every provider, `CompletionWriteTests` for the repeat itself, and
+  `CompletionSinkBulkFallbackSpec` for a Bulk batch whose failing entry holds up nobody else.
+- A completion that commits and loses its response is reconciled by the repeat, not rerun, and never
+  advances a recurring slot twice: the after-commit case in `CompleteAndClockChaosSpec`.
+- The recovery sweep runs while every executor is busy, because it runs outside the executor pool,
+  and a stranded `sys.recovery` slot is re-armed under a guard by any live worker:
+  `RecoverySlotMonitorSpec`.
+- Incidents at the failures-only audit level stay open by design and the page says so:
+  `FailuresAuditFailureEventSpec` pins that a success at that level writes no event and resolves
+  nothing, so the documented limitation cannot change by accident.
+- A build refuses a database whose installed object package it cannot call, and an older worker keeps
+  running on the upgraded objects: `ObjectPackagePreflightTests` and `MigrationHistoryPreflightSpec`
+  for the verdicts, and `tests/RollingUpgradeSmoke/run.ps1` against the previous tag on both servers
+  for the real pair of binaries. Its `evidence.json` must record a clean worktree and matching commits.
+- The packed packages deploy: `tests/PackageSmoke/run.ps1` on the final feed, then
+  `tests/DeploymentSmoke/run.ps1` on the same feed for the dashboard behind a real proxy with a path
+  base and an authorization policy. Its README says what the run does not cover.
+- Load with maintenance on: a `tests/HardeningSoak` run per server provider with autovacuum on and
+  retention sweeping under the workload, kept with its progress sidecar. Its README says how to read
+  the numbers; they are not a benchmark round.
+
 ## Frozen contracts
 
 Five baselines fail a test on drift, so the suite above already catches an accidental change. What a
