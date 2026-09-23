@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using Acta.Emit.Features.Migrations;
+using Acta.Emit.Shared;
 using Acta.Relational.Resources;
 using Acta.Relational.Schema;
 
@@ -23,9 +24,7 @@ internal static class ProvisionScriptEmitter
 
     internal static readonly (string Token, string Project, string Schema)[] Providers =
     [
-        ("pg", "Acta.Postgres", "acta"),
-        ("mssql", "Acta.SqlServer", "acta"),
-        ("sqlite", "Acta.Sqlite", "main"),
+        .. ProviderCatalog.All.Select(p => (p.Token, p.Project, p.Schema)),
     ];
 
     internal static string Emit(string repoRoot, string token)
@@ -211,7 +210,13 @@ internal static class ProvisionScriptEmitter
         return script.ToString().ReplaceLineEndings("\n");
     }
 
-    private static IEnumerable<(string Name, string Body)> SqlObjects(string providerDir, string suffix) =>
+    /// <summary>
+    /// The objects one provider installs, in the order the installer applies them: views first, then
+    /// routines, each set in resource-name order, named the way the installer names them. Shared with
+    /// the object-package hash, which is only meaningful if it covers exactly this set in exactly this
+    /// order.
+    /// </summary>
+    internal static IEnumerable<(string Name, string Body)> SqlObjects(string providerDir, string suffix) =>
         Directory
             .EnumerateFiles(Path.Combine(providerDir, "Sql"), "*" + suffix, SearchOption.AllDirectories)
             .Select(path => (Path: path, Resource: Path.GetRelativePath(providerDir, path).Replace('\\', '.').Replace('/', '.')))

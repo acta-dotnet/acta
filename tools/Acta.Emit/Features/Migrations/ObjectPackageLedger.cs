@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using Acta.Emit.Shared;
 using Acta.Relational.Schema;
 
@@ -12,15 +11,13 @@ internal sealed record ObjectPackageRelease(string Provider, int Major, int Revi
 /// <summary>
 /// The retained record of every released object package. Regenerating a checked-in hash in place would
 /// enforce nothing, because the edit and its new hash land together; keeping the released identities and
-/// refusing to rewrite one is what forces changed content to take a new revision before it ships.
+/// refusing to rewrite one is what forces changed content to take a new revision before it ships. An
+/// identity is frozen the moment it is recorded, deliberately: before the first release that costs a
+/// revision bump per pre-release edit, and the release guide says so rather than tracking what shipped.
 /// </summary>
 internal static class ObjectPackageLedger
 {
-    private static readonly JsonSerializerOptions Json = new()
-    {
-        WriteIndented = true,
-        DefaultIgnoreCondition = JsonIgnoreCondition.Never,
-    };
+    private static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
 
     internal static string PathFor(string repoRoot) => Path.Combine(repoRoot, "src", "Acta.Relational", "Schema", "object-packages.json");
 
@@ -31,23 +28,19 @@ internal static class ObjectPackageLedger
     }
 
     /// <summary>
-    /// Whether every provider's live content matches what the ledger recorded for the identity this build
-    /// declares. Returns the verdicts an operator can act on, one line per provider that disagrees.
+    /// Every way the recorded ledger and the constants can disagree with the live sources, one line per
+    /// problem an operator can act on. Checks the identity this build ships against its content, and the
+    /// hand-maintained minimum against the ledger, because the minimum is what startup gates on and
+    /// nothing else would stop it naming a revision that was never recorded.
     /// </summary>
-    internal static IReadOnlyList<string> Verify(string repoRoot)
+    internal static IReadOnlyList<string> Verify(string repoRoot, IReadOnlyDictionary<string, string> hashes)
     {
         var released = Read(repoRoot);
         var problems = new List<string>();
 
         foreach (var provider in ProviderCatalog.All)
         {
-            var live = ObjectPackageEmitter.HashFor(repoRoot, provider.Suffix);
-            var recorded = released.FirstOrDefault(r =>
-                string.Equals(r.Provider, provider.Token, StringComparison.Ordinal)
-                && r.Major == ObjectPackageStamp.ContractMajor
-                && r.Revision == ObjectPackageStamp.PackageRevision
-            );
-
+            var recorded = released.FirstOrDefault(r => IsCurrent(r, provider));
             if (recorded is null)
             {
                 problems.Add(
@@ -56,15 +49,23 @@ internal static class ObjectPackageLedger
                         $"object package {provider.Token} {ObjectPackageStamp.ContractMajor}.{ObjectPackageStamp.PackageRevision} is not recorded; run `Acta.Emit objects record`"
                     )
                 );
-                continue;
             }
-
-            if (!string.Equals(recorded.Hash, live, StringComparison.Ordinal))
+            else if (!string.Equals(recorded.Hash, hashes[provider.Token], StringComparison.Ordinal))
             {
                 problems.Add(
                     string.Create(
                         CultureInfo.InvariantCulture,
-                        $"object package {provider.Token} {recorded.Major}.{recorded.Revision} was released as {recorded.Hash} but its objects now hash to {live}; a released identity is immutable, so raise ObjectPackageStamp.PackageRevision and run `Acta.Emit objects record`"
+                        $"object package {provider.Token} {recorded.Major}.{recorded.Revision} was released as {recorded.Hash} but its objects now hash to {hashes[provider.Token]}; a released identity is immutable, so raise ObjectPackageStamp.PackageRevision and run `Acta.Emit objects record`"
+                    )
+                );
+            }
+
+            if (!released.Any(r => Names(r, provider, ObjectPackageStamp.MinimumPackageRevision)))
+            {
+                problems.Add(
+                    string.Create(
+                        CultureInfo.InvariantCulture,
+                        $"ObjectPackageStamp.MinimumPackageRevision names {provider.Token} {ObjectPackageStamp.ContractMajor}.{ObjectPackageStamp.MinimumPackageRevision}, which the ledger never recorded; the accepted floor must be a released identity"
                     )
                 );
             }
@@ -74,42 +75,44 @@ internal static class ObjectPackageLedger
     }
 
     /// <summary>
-    /// Records this build's identity for every provider. Refuses to rewrite a released identity that
-    /// named different content, which is the whole point of retaining it.
+    /// Records this build's identity for every provider. Refuses to rewrite a recorded identity that named
+    /// different content, which is the whole point of retaining it.
     /// </summary>
-    internal static void Record(string repoRoot)
+    internal static void Record(string repoRoot, IReadOnlyDictionary<string, string> hashes)
     {
         var released = Read(repoRoot).ToList();
 
         foreach (var provider in ProviderCatalog.All)
         {
-            var live = ObjectPackageEmitter.HashFor(repoRoot, provider.Suffix);
-            var existing = released.FindIndex(r =>
-                string.Equals(r.Provider, provider.Token, StringComparison.Ordinal)
-                && r.Major == ObjectPackageStamp.ContractMajor
-                && r.Revision == ObjectPackageStamp.PackageRevision
-            );
-
-            if (existing >= 0)
+            var live = hashes[provider.Token];
+            var existing = released.FirstOrDefault(r => IsCurrent(r, provider));
+            if (existing is null)
             {
-                if (!string.Equals(released[existing].Hash, live, StringComparison.Ordinal))
-                {
-                    throw new InvalidOperationException(
-                        string.Create(
-                            CultureInfo.InvariantCulture,
-                            $"Object package {provider.Token} {ObjectPackageStamp.ContractMajor}.{ObjectPackageStamp.PackageRevision} was already released as {released[existing].Hash}. A released identity is immutable: raise ObjectPackageStamp.PackageRevision and record that instead."
-                        )
-                    );
-                }
-
-                continue;
+                released.Add(
+                    new ObjectPackageRelease(provider.Token, ObjectPackageStamp.ContractMajor, ObjectPackageStamp.PackageRevision, live)
+                );
             }
-
-            released.Add(new ObjectPackageRelease(provider.Token, ObjectPackageStamp.ContractMajor, ObjectPackageStamp.PackageRevision, live));
+            else if (!string.Equals(existing.Hash, live, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    string.Create(
+                        CultureInfo.InvariantCulture,
+                        $"Object package {provider.Token} {ObjectPackageStamp.ContractMajor}.{ObjectPackageStamp.PackageRevision} was already released as {existing.Hash}. A released identity is immutable: raise ObjectPackageStamp.PackageRevision and record that instead."
+                    )
+                );
+            }
         }
 
         var path = PathFor(repoRoot);
         File.WriteAllText(path, JsonSerializer.Serialize(released, Json).ReplaceLineEndings("\n") + "\n");
         Console.WriteLine($"  wrote {path}");
     }
+
+    private static bool IsCurrent(ObjectPackageRelease release, ProviderInfo provider) =>
+        Names(release, provider, ObjectPackageStamp.PackageRevision);
+
+    private static bool Names(ObjectPackageRelease release, ProviderInfo provider, int revision) =>
+        string.Equals(release.Provider, provider.Token, StringComparison.Ordinal)
+        && release.Major == ObjectPackageStamp.ContractMajor
+        && release.Revision == revision;
 }

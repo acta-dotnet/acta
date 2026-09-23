@@ -122,10 +122,17 @@ internal static class SchemaMigrationRunner
         CancellationToken ct
     )
     {
-        var sql = new SqlResourceCatalog(hooks.ProviderAssembly, schemaName);
-        await SchemaCommands.DropSchema(conn, hooks, sql, ct);
+        await DropSchemaAsync(conn, schemaName, hooks, ct);
         await ApplyAsync(conn, schemaName, hooks, ct);
     }
+
+    /// <summary>
+    /// Drops everything the provider's schema drop script covers, the schema included, and applies
+    /// nothing after. The drop half of a reset, exposed for callers that want a schema gone rather than
+    /// fresh, such as a benchmark cell that has recorded its measurement.
+    /// </summary>
+    public static Task DropSchemaAsync(DbConnection conn, string schemaName, SchemaMigrationProviderHooks hooks, CancellationToken ct) =>
+        SchemaCommands.DropSchema(conn, hooks, new SqlResourceCatalog(hooks.ProviderAssembly, schemaName), ct);
 }
 
 /// <summary>

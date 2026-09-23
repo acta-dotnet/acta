@@ -7,13 +7,13 @@ namespace Acta.Runtime.Modules.Execution.Workers;
 /// Keeps crash recovery from depending on the one job that can be stranded. The reclaim sweep runs
 /// from the <c>sys.recovery</c> slot, and a worker can die holding that slot; the sweep that would free
 /// it is then the one that never runs, and everything stranded from then on queues behind it. This loop
-/// checks only that slot, on its own timer, and re-arms it when its lease has lapsed. It then offers to
-/// run that exact slot itself, through the ordinary execution lifecycle but outside the executor pool,
-/// so a worker whose executors are all busy can still sweep. Ordinary claiming keeps the slot too and
-/// remains the usual path: the slot's own lease decides which of them gets it, so the monitor is a
-/// backstop for saturation rather than a replacement. It never sweeps the namespace itself, so a
-/// hundred workers cost a hundred point statements every seven minutes rather than a hundred sweeps,
-/// and it never recreates a slot an operator removed.
+/// checks only that slot, on its own timer, and re-arms it when its lease has lapsed. It then runs that
+/// exact slot itself, through the ordinary execution lifecycle but outside the executor pool, so a
+/// worker whose executors are all busy can still sweep. Ordinary claiming keeps the slot too and remains
+/// the usual path: the slot's own lease decides which of them gets it, so the monitor is a backstop for
+/// saturation rather than a replacement. It never sweeps the namespace itself, so a hundred workers
+/// cost a hundred point statements every seven minutes rather than a hundred sweeps, and it never
+/// recreates a slot an operator removed.
 /// </summary>
 internal sealed class RecoverySlotMonitor(
     IExecutionStore execution,
@@ -21,8 +21,8 @@ internal sealed class RecoverySlotMonitor(
     WorkerRegistration? workerRegistration,
     WorkerContext context,
     ILogger log,
-    TimeProvider? time = null,
-    Func<string, long, CancellationToken, Task<RunOnceOutcome>>? runRecovery = null
+    Func<string, long, CancellationToken, Task<RunOnceOutcome>> runRecovery,
+    TimeProvider? time = null
 )
 {
     /// <summary>
@@ -42,7 +42,7 @@ internal sealed class RecoverySlotMonitor(
     private readonly WorkerContext _context = context;
     private readonly ILogger _log = log;
     private readonly TimeProvider _time = time ?? TimeProvider.System;
-    private readonly Func<string, long, CancellationToken, Task<RunOnceOutcome>>? _runRecovery = runRecovery;
+    private readonly Func<string, long, CancellationToken, Task<RunOnceOutcome>> _runRecovery = runRecovery;
 
     public async Task RunAsync(CancellationToken ct)
     {
@@ -89,17 +89,19 @@ internal sealed class RecoverySlotMonitor(
                 continue;
             }
 
-            await CheckAndRepairAsync(_execution, _publisher, namespaceId, namespaceName, slotJobId, _log, ct);
-
-            if (_runRecovery is null)
+            // A slot row that is gone cannot be claimed, so there is nothing to run.
+            if (
+                await CheckAndRepairAsync(_execution, _publisher, namespaceId, namespaceName, slotJobId, _log, ct)
+                == RecoverySlotRepair.Missing
+            )
             {
                 continue;
             }
 
-            // Offer to run the slot from here, outside the executor pool, so a worker with every
-            // executor busy still sweeps. The claim names this one job id and is fenced by the slot's
-            // own lease, so a worker that already holds it simply answers nothing-claimed, and a slot
-            // that is not due yet is not taken early.
+            // Run the slot from here, outside the executor pool, so a worker with every executor busy
+            // still sweeps. The claim names this one job id and is fenced by the slot's own lease, so a
+            // worker that already holds it simply answers nothing-claimed, and a slot that is not due yet
+            // is not taken early.
             try
             {
                 await _runRecovery(namespaceName, slotJobId, ct);
@@ -123,7 +125,7 @@ internal sealed class RecoverySlotMonitor(
     /// stranded slot commit one repair and one event between them; the second sees a healthy slot.
     /// Shared with the initializer, which runs it once at startup ahead of any periodic check.
     /// </summary>
-    internal static async Task<bool> CheckAndRepairAsync(
+    internal static async Task<RecoverySlotRepair> CheckAndRepairAsync(
         IExecutionStore execution,
         WorkerWakeupPublisher? publisher,
         int namespaceId,
@@ -141,9 +143,9 @@ internal sealed class RecoverySlotMonitor(
                     "Namespace ({Namespace}): the sys.recovery slot row is gone; the recovery monitor will not recreate it.",
                     namespaceName
                 );
-                return false;
+                return RecoverySlotRepair.Missing;
             case RecoverySlotRepair.Healthy:
-                return false;
+                return RecoverySlotRepair.Healthy;
             default:
                 break;
         }
@@ -155,6 +157,6 @@ internal sealed class RecoverySlotMonitor(
             await publisher.WakeAsync(WorkerWakeupChannel.WorkerNamespace(namespaceName), WorkerWakeupReason.WorkAvailable, ct);
         }
 
-        return true;
+        return RecoverySlotRepair.Repaired;
     }
 }

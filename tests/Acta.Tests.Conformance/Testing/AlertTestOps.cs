@@ -5,6 +5,7 @@ using Acta.Runtime.Modules.Execution;
 using Acta.Runtime.Modules.Execution.Api;
 using Acta.Runtime.Modules.Execution.Jobs;
 using Acta.Runtime.Modules.Execution.Signals;
+using Acta.Runtime.Modules.Execution.Workers;
 using Acta.Runtime.Services.Locks;
 using Acta.Runtime.Services.Time;
 using Microsoft.Extensions.DependencyInjection;
@@ -315,5 +316,27 @@ internal static class AlertTestOps
             triggeringScheduleNames: [],
             deadlineAtUtc: null
         );
+    }
+
+    /// <summary>
+    /// Runs a job by id until its handler has counted <paramref name="target"/> attempts. RunOnceAsync can
+    /// no-op when a claim is lost to provider timing, so the loop is driven by the probe's own count rather
+    /// than by ticks, which is what makes the projected event count deterministic; three alert specs used to
+    /// carry their own copy of this.
+    /// </summary>
+    public static async Task RunUntilAttemptsAsync(
+        WorkerRuntime runtime,
+        JobEnqueueOutcome job,
+        Func<int> attempts,
+        int target,
+        CancellationToken ct
+    )
+    {
+        for (var i = 0; i < target + 12 && attempts() < target; i++)
+        {
+            await runtime.RunOnceAsync(job, ct);
+        }
+
+        Assert.Equal(target, attempts());
     }
 }

@@ -279,9 +279,7 @@ internal sealed class JobExecutor(
         if (!alreadyStarted)
         {
             // Retried like the completion below: a failure here would otherwise escape to the worker loop
-            // and leave the Dispatched row under a lease the heartbeat keeps renewing. ct is the worker's
-            // host token; no per-attempt token exists on this path, and none should, because the retry has
-            // to outlive whatever cancelled the attempt.
+            // and leave the Dispatched row under a lease the heartbeat keeps renewing. ct is the host token.
             var (start, retried) = await CompletionWrite.RetryAsync(
                 token => _execution.StartExecutionAsync(job.JobId, workerId, job.ExecutionNumber, job.Version, _leaseTtlSeconds, token),
                 _log,

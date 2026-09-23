@@ -38,19 +38,8 @@ public abstract class CompleteAndClockChaosSpec<TFixture> : ActaRuntimeTestBase<
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-counting", ct);
 
-        // --- 1. The store refuses the completion and keeps refusing it, so the only way the write is lost
-        // is the worker stopping mid-repeat. That is what the token cancel stages.
-        _faults.ThrowBeforeCompleteUntilCleared();
-        using var worker = new CancellationTokenSource();
-        var run = Runtime.RunOnceAsync(enqueued, worker.Token);
-        while (_faults.CompletionRefusals == 0)
-        {
-            await Task.Delay(TimeSpan.FromMilliseconds(20), ct);
-        }
-
-        await worker.CancelAsync();
-        await Assert.ThrowsAnyAsync<Exception>(() => run);
-        _faults.StopThrowingBeforeComplete();
+        // --- 1. The only way the write is lost is the worker stopping while the store still refuses it.
+        await ChaosSpecHelpers.StopWorkerMidCompletionRetryAsync(Runtime, _faults, enqueued, ct);
 
         Assert.Equal(JobStatusCode.Executing, await Jobs.GetStatusAsync(enqueued, ct));
         Assert.Empty(

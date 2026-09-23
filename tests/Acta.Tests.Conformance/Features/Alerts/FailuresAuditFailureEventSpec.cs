@@ -45,7 +45,7 @@ public abstract class FailuresAuditFailureEventSpec<TFixture> : ActaRuntimeTestB
         FailuresAuditProbe.Reset(TestNamespace, failingAttempts: Budget);
 
         var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, JobName, JobPayload.None), ct);
-        await RunUntilAttemptsAsync(job, () => FailuresAuditProbe.Attempts(TestNamespace), Budget, ct);
+        await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => FailuresAuditProbe.Attempts(TestNamespace), Budget, ct);
 
         // Exactly one, not one per attempt: the five in-budget re-arms each carry a reschedule, which
         // this level excludes, so the terminal attempt is the only one that writes. The count is what
@@ -73,7 +73,7 @@ public abstract class FailuresAuditFailureEventSpec<TFixture> : ActaRuntimeTestB
         FailuresAuditProbe.Reset(TestNamespace, failingAttempts: 0);
 
         var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, JobName, JobPayload.None), ct);
-        await RunUntilAttemptsAsync(job, () => FailuresAuditProbe.Attempts(TestNamespace), 1, ct);
+        await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => FailuresAuditProbe.Attempts(TestNamespace), 1, ct);
 
         // The status is asserted beside the silence, because an attempt that never ran would also write
         // nothing. This is the asymmetry a fix applied too widely would break.
@@ -82,18 +82,6 @@ public abstract class FailuresAuditFailureEventSpec<TFixture> : ActaRuntimeTestB
 
         await RunAlertsAsync(job.JobId, ct);
         Assert.Empty(await ReadAlertsAsync(NamespaceId, ct));
-    }
-
-    // RunOnceAsync can no-op when a claim is lost to provider timing, so the loop is driven by the
-    // probe's own attempt count rather than by its return.
-    private async Task RunUntilAttemptsAsync(JobEnqueueOutcome job, Func<int> attempts, int target, CancellationToken ct)
-    {
-        for (var i = 0; i < target + 12 && attempts() < target; i++)
-        {
-            await Runtime.RunOnceAsync(job, ct);
-        }
-
-        Assert.Equal(target, attempts());
     }
 
     private Task RunAlertsAsync(long cursorOwnerJobId, CancellationToken ct) =>

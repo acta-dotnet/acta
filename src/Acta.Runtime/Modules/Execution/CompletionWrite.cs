@@ -6,23 +6,28 @@ namespace Acta.Runtime.Modules.Execution;
 
 /// <summary>
 /// Repeats the one write an attempt cannot afford to lose until it settles or the worker stops. The
-/// heartbeat renews every row this worker leases from database state alone, so a completion that is
-/// abandoned leaves the row Executing under a lease that never lapses and a recovery that never
-/// reclaims it; a process restart or an operator cancel frees it, nothing else. The write is a
-/// compare-and-swap on the attempt, so repeating it is safe; a row someone else moved reports that
-/// rather than double-completing. Every failure is repeated, not only a provider error: a defect that
-/// loops loudly in the log costs less than a row nothing can reclaim. Cancelling <c>ct</c> is the one
-/// way out, which is why callers pass a token that outlives the attempt rather than the attempt's own.
-/// The caller learns whether a retry happened, because a write whose first try committed and then
-/// failed on the way back reports the lease as already cleared on the second, and that is a settled
-/// write, not a loss.
+/// heartbeat renews every row this worker leases from database state alone, so an abandoned completion
+/// leaves the row Executing under a lease that never lapses; a restart or an operator cancel frees it,
+/// nothing else. The write is a compare-and-swap on the attempt, so repeating it is safe, and every
+/// failure is repeated, not only a provider error: a defect that loops loudly in the log costs less than
+/// a row nothing can reclaim. The caller learns whether a retry happened, because a write that committed
+/// and then failed on the way back reports the lease as already cleared on the second try, and that is
+/// a settled write, not a loss. The token is the one way out, so it must be the worker's host token and
+/// never the attempt's: an external cancel, the attempt deadline, and the watchdog all cancel the
+/// attempt token, the last of them on the very lease-renewal outage that makes the write fail. A
+/// graceful drain leaves the host token live, so completions keep landing while the shutdown budget
+/// lasts; only a hard stop ends the repeat. The token bounds only the waits between tries, never the
+/// store call itself.
 /// </summary>
 internal static class CompletionWrite
 {
-    // One second doubling to a thirty-second ceiling: a dropped connection costs almost nothing, and a
-    // failover measured in minutes is ridden out without hammering the provider that is coming back.
-    private static readonly TimeSpan DefaultFirstDelay = TimeSpan.FromSeconds(1);
-    private static readonly TimeSpan MaxDelay = TimeSpan.FromSeconds(30);
+    // One second doubling to a thirty-second ceiling, on the runtime's one retry curve: a dropped
+    // connection costs almost nothing, and a failover measured in minutes is ridden out without
+    // hammering the provider that is coming back. A quarter of jitter keeps a fleet whose writes failed
+    // together from coming back in lockstep.
+    private static readonly Backoff DefaultBackoff = Backoff
+        .Exponential(TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(30))
+        .WithJitter(0.25);
 
     // Warning while a blip is still the likely story, Error once the failure has outlived one.
     private const int WarningTries = 3;
@@ -36,7 +41,10 @@ internal static class CompletionWrite
         TimeSpan? firstDelay = null
     )
     {
-        var delay = firstDelay ?? DefaultFirstDelay;
+        // A zero first delay is the test seam: the curve stays at zero however many tries it takes.
+        var backoff = firstDelay is { } first
+            ? Backoff.Exponential(first, first > DefaultBackoff.MaxDelay ? first : DefaultBackoff.MaxDelay)
+            : DefaultBackoff;
         var counted = false;
         try
         {
@@ -56,6 +64,7 @@ internal static class CompletionWrite
                         metrics?.RecordUnsettledCompletion(1);
                     }
 
+                    var delay = TimeSpan.FromSeconds(BackoffSchedule.ComputeDelaySeconds(attempt, backoff));
                     log.Log(
                         attempt <= WarningTries ? LogLevel.Warning : LogLevel.Error,
                         ex,
@@ -67,7 +76,7 @@ internal static class CompletionWrite
 
                     try
                     {
-                        await Task.Delay(Jittered(delay), ct);
+                        await Task.Delay(delay, ct);
                     }
                     catch (OperationCanceledException)
                     {
@@ -75,9 +84,6 @@ internal static class CompletionWrite
                         // the retry ended; the failure says why the row is still Executing.
                         ExceptionDispatchInfo.Capture(ex).Throw();
                     }
-
-                    var doubled = delay * 2;
-                    delay = doubled > MaxDelay ? MaxDelay : doubled;
                 }
             }
         }
@@ -89,9 +95,4 @@ internal static class CompletionWrite
             }
         }
     }
-
-    // Up to a quarter of the wait again, so a fleet whose writes failed together does not come back in
-    // lockstep and re-fail together. A zero delay (the test seam) stays exactly zero.
-    private static TimeSpan Jittered(TimeSpan delay) =>
-        delay <= TimeSpan.Zero ? delay : delay + TimeSpan.FromTicks(Random.Shared.NextInt64((delay.Ticks / 4) + 1));
 }

@@ -12,8 +12,9 @@ internal static class ObjectsRecordCommand
     internal static int Run()
     {
         var repoRoot = RepoRoot.Find();
-        ObjectPackageLedger.Record(repoRoot);
-        ObjectPackageEmitter.Write(repoRoot);
+        var hashes = ObjectPackageEmitter.HashAll(repoRoot);
+        ObjectPackageLedger.Record(repoRoot, hashes);
+        ObjectPackageEmitter.Write(repoRoot, hashes);
         return 0;
     }
 }

@@ -522,8 +522,6 @@ public static class BaselineCapture
         }
         finally
         {
-            // Every cell provisions its own schema, so dropping it here is what keeps a full matrix from
-            // leaving thousands behind and giving autovacuum hours of work after the round.
             await ProviderConn.TryDropSchemaAsync(spec.Provider, schema, ct).ConfigureAwait(false);
         }
     }
@@ -1259,8 +1257,12 @@ public static class BaselineEnvironment
         var location = DatabaseLocation(provider, connectionString);
         var fingerprint = Fingerprint(provider, location);
         var serverVersion = await TryServerVersionAsync(provider, connectionString, ct).ConfigureAwait(false);
-        // Naming a schema is enough to create SQLite's file, and this probe only ever reads a version.
-        await ProviderConn.TryDropSchemaAsync(provider, schema, ct).ConfigureAwait(false);
+        // Naming a schema is enough to create SQLite's file, and this probe only ever reads a version;
+        // the servers never provisioned it, so there is nothing of theirs to drop.
+        if (LocalDatabase.IsSqlite(provider))
+        {
+            await ProviderConn.TryDropSchemaAsync(provider, schema, ct).ConfigureAwait(false);
+        }
         return new BaselineDatabaseInfo(
             provider,
             serverVersion,

@@ -30,22 +30,26 @@ public sealed class ObjectPackagePreflightTests
         Assert.Contains("schema-pg.sql", ex.Message, StringComparison.Ordinal);
     }
 
-    [Fact(DisplayName = "A higher installed major is refused rather than accepted as newer")]
-    public void Higher_major_is_refused()
+    // The half a single ordered counter gets wrong: a higher major is the break the number exists to
+    // signal, so accepting anything at or above the requirement would accept exactly that break, and no
+    // revision within the wrong major rescues it.
+    [Theory(DisplayName = "A higher installed major is refused rather than accepted as newer, whatever its revision")]
+    [InlineData("objects-2.1-")]
+    [InlineData("objects-2.99-")]
+    public void Higher_major_is_refused(string stamp)
     {
-        // The half a single ordered counter gets wrong: a higher major is the break the number exists to
-        // signal, so accepting anything at or above the requirement would accept exactly that break.
-        var ex = Refused("objects-2.1-" + Hash, new ObjectPackageRequirement(1, 1));
+        var ex = Refused(stamp + Hash, new ObjectPackageRequirement(1, 1));
         Assert.Contains("contract major 2 installed", ex.Message, StringComparison.Ordinal);
         Assert.Contains("not interchangeable in either direction", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact(DisplayName = "A lower installed major is refused too")]
-    public void Lower_major_is_refused() => Assert.Contains("contract major 1 installed", Refused("objects-1.9-" + Hash, new ObjectPackageRequirement(2, 1)).Message, StringComparison.Ordinal);
-
-    [Fact(DisplayName = "A high revision never compensates for the wrong major")]
-    public void A_high_revision_does_not_rescue_a_wrong_major() =>
-        Assert.Contains("major", Refused("objects-2.99-" + Hash, new ObjectPackageRequirement(1, 1)).Message, StringComparison.Ordinal);
+    public void Lower_major_is_refused() =>
+        Assert.Contains(
+            "contract major 1 installed",
+            Refused("objects-1.9-" + Hash, new ObjectPackageRequirement(2, 1)).Message,
+            StringComparison.Ordinal
+        );
 
     [Fact(DisplayName = "A database carrying no package row is refused, and told to run the script rather than reprovision")]
     public void A_missing_package_is_refused()
@@ -62,6 +66,10 @@ public sealed class ObjectPackagePreflightTests
     [Fact(DisplayName = "This build's own package satisfies this build's own requirement")]
     public void The_shipped_package_satisfies_the_shipped_requirement() =>
         Verify(ObjectPackageStamp.Format(ObjectPackageHashes.ForDialect(Dialect)), ObjectPackageStamp.Required);
+
+    [Fact(DisplayName = "The hand-maintained minimum lies between the first revision and the one this build ships")]
+    public void The_minimum_lies_within_the_shipped_range() =>
+        Assert.InRange(ObjectPackageStamp.MinimumPackageRevision, 1, ObjectPackageStamp.PackageRevision);
 
     // The hash is never read by the verdict, so every case above can carry the same one; that it does not
     // matter is itself the property under test.

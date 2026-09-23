@@ -49,7 +49,7 @@ public abstract class RecoverySlotMonitorSpec<TFixture> : ActaRuntimeTestBase<TF
         await StrandAsync(slotId, JobStatusCode.Executing, DateTime.UtcNow.AddMinutes(5), ct);
         var before = await RuntimeAsync(slotId, ct);
 
-        Assert.False(await CheckAsync(slotId, ct));
+        Assert.Equal(RecoverySlotRepair.Healthy, await CheckAsync(slotId, ct));
 
         var after = await RuntimeAsync(slotId, ct);
         Assert.Equal(JobStatusCode.Executing, after.Status);
@@ -65,7 +65,7 @@ public abstract class RecoverySlotMonitorSpec<TFixture> : ActaRuntimeTestBase<TF
         await StrandAsync(slotId, JobStatusCode.Executing, DateTime.UtcNow.AddMinutes(-5), ct);
         var before = await RuntimeAsync(slotId, ct);
 
-        Assert.True(await CheckAsync(slotId, ct));
+        Assert.Equal(RecoverySlotRepair.Repaired, await CheckAsync(slotId, ct));
 
         var after = await RuntimeAsync(slotId, ct);
         Assert.Equal(JobStatusCode.Ready, after.Status);
@@ -84,7 +84,7 @@ public abstract class RecoverySlotMonitorSpec<TFixture> : ActaRuntimeTestBase<TF
         Assert.Equal(JobStatusCode.Ready, lost.ToStatus);
 
         // A second check sees a Ready slot and does nothing.
-        Assert.False(await CheckAsync(slotId, ct));
+        Assert.Equal(RecoverySlotRepair.Healthy, await CheckAsync(slotId, ct));
     }
 
     [Fact(DisplayName = "A slot claimed but not yet started when its worker died is recorded as lost from Dispatched")]
@@ -95,7 +95,7 @@ public abstract class RecoverySlotMonitorSpec<TFixture> : ActaRuntimeTestBase<TF
         await StrandAsync(slotId, JobStatusCode.Dispatched, DateTime.UtcNow.AddMinutes(-5), ct);
         var before = await RuntimeAsync(slotId, ct);
 
-        Assert.True(await CheckAsync(slotId, ct));
+        Assert.Equal(RecoverySlotRepair.Repaired, await CheckAsync(slotId, ct));
 
         Assert.Equal(JobStatusCode.Ready, (await RuntimeAsync(slotId, ct)).Status);
         var finished = await Db.From<JobEvent>()
@@ -185,7 +185,7 @@ public abstract class RecoverySlotMonitorSpec<TFixture> : ActaRuntimeTestBase<TF
         var missingId = long.MaxValue;
 
         Assert.Equal(RecoverySlotRepair.Missing, await Execution.RepairRecoverySlotAsync(TestNamespaceId, missingId, ct));
-        Assert.False(await CheckAsync(missingId, ct));
+        Assert.Equal(RecoverySlotRepair.Missing, await CheckAsync(missingId, ct));
 
         Assert.Empty(await Db.From<JobRuntime>().Where(r => r.Id == missingId).ToListAsync(ct));
         Assert.Empty(await Db.From<JobEvent>().Where(e => e.JobId == missingId).ToListAsync(ct));
@@ -230,8 +230,8 @@ public abstract class RecoverySlotMonitorSpec<TFixture> : ActaRuntimeTestBase<TF
             registration,
             context,
             NullLogger.Instance,
-            time,
-            runRecovery: (ns, jobId, token) => Runtime.RunOnceAsync(ns, jobId, token)
+            (ns, jobId, token) => Runtime.RunOnceAsync(ns, jobId, token),
+            time
         );
 
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -290,6 +290,8 @@ public abstract class RecoverySlotMonitorSpec<TFixture> : ActaRuntimeTestBase<TF
             registration,
             context,
             NullLogger.Instance,
+            // Repair only: this fact is about the re-arm, and running the slot is a sibling fact's subject.
+            static (_, _, _) => Task.FromResult(RunOnceOutcome.NothingClaimed),
             time
         );
 
@@ -313,7 +315,7 @@ public abstract class RecoverySlotMonitorSpec<TFixture> : ActaRuntimeTestBase<TF
         await loop.WaitAsync(SpecWaits.Gate, ct);
     }
 
-    private Task<bool> CheckAsync(long slotId, CancellationToken ct) =>
+    private Task<RecoverySlotRepair> CheckAsync(long slotId, CancellationToken ct) =>
         RecoverySlotMonitor.CheckAndRepairAsync(
             Execution,
             publisher: null,

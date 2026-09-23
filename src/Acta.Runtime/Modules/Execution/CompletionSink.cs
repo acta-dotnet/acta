@@ -30,12 +30,6 @@ internal sealed record BufferedCompletion(
 /// </summary>
 internal sealed class CompletionSink
 {
-    // Per-job completions a flush issues at once. Four rather than the whole batch, because a flusher
-    // stands in for a handful of executors and should not open a connection per buffered row; four
-    // rather than one, because an entry whose completion keeps failing must not be able to hold its
-    // siblings up, and at four it cannot even when several entries are failing at once.
-    private const int FallbackParallelism = 4;
-
     private readonly Acta.Runtime.Modules.Execution.IExecutionStore _execution;
     private readonly WorkerWakeupPublisher _wakeupPublisher;
     private readonly int _batchSize;
@@ -85,13 +79,13 @@ internal sealed class CompletionSink
     /// One flusher serializes its round-trips, so several run in parallel to keep completion throughput up
     /// while each still group-commits its own batches. Each exits when the writer is completed and drained.
     /// </summary>
-    public Task RunFlushersAsync(int parallelism, CancellationToken stopCt)
+    public Task RunFlushersAsync(int parallelism, int executorsPerFlusher, CancellationToken stopCt)
     {
         var n = Math.Max(1, parallelism);
         var flushers = new Task[n];
         for (var i = 0; i < n; i++)
         {
-            flushers[i] = Task.Run(() => RunFlusherAsync(stopCt), CancellationToken.None);
+            flushers[i] = Task.Run(() => RunFlusherAsync(executorsPerFlusher, stopCt), CancellationToken.None);
         }
 
         return Task.WhenAll(flushers);
@@ -101,16 +95,17 @@ internal sealed class CompletionSink
     /// Drains the buffer until the writer is completed, group-committing each batch on a size, byte, or
     /// time trigger. Started by <see cref="WorkerLoop"/> in the Bulk branch; stops when
     /// <see cref="CompleteWriter"/> is called after the dispatch loop has drained its in-flight handlers.
-    /// <paramref name="stopCt"/> is the worker's host token: it bounds only how long a failing completion
-    /// is repeated, never the reading or the writes themselves, and a graceful drain leaves it live so the
-    /// buffer still lands.
+    /// <paramref name="executorsPerFlusher"/> is how many executors this flusher stands in for, and bounds
+    /// how many per-job completions it has in flight at once, so fallback connections never exceed the
+    /// executors they replace. <paramref name="stopCt"/> is the worker's host token, which bounds only the
+    /// repeat of a failing completion and never the reading.
     /// </summary>
-    public async Task RunFlusherAsync(CancellationToken stopCt)
+    public async Task RunFlusherAsync(int executorsPerFlusher, CancellationToken stopCt)
     {
         var reader = _channel.Reader;
         var buffer = new List<BufferedCompletion>(_batchSize);
         // No token on the read: a hard stop must still let the already-buffered completions be written,
-        // because their handlers ran. stopCt only ends a repeat that cannot land.
+        // because their handlers ran.
         while (await reader.WaitToReadAsync(CancellationToken.None).ConfigureAwait(false))
         {
             buffer.Clear();
@@ -143,11 +138,11 @@ internal sealed class CompletionSink
                 }
             }
 
-            await FlushAsync(buffer, stopCt).ConfigureAwait(false);
+            await FlushAsync(buffer, executorsPerFlusher, stopCt).ConfigureAwait(false);
         }
     }
 
-    private async Task FlushAsync(List<BufferedCompletion> batch, CancellationToken stopCt)
+    private async Task FlushAsync(List<BufferedCompletion> batch, int executorsPerFlusher, CancellationToken stopCt)
     {
         if (batch.Count == 0)
         {
@@ -169,9 +164,7 @@ internal sealed class CompletionSink
         try
         {
             // One set-based round trip finalizes the simple terminal rows; it self-filters and reports
-            // which ordinals it did NOT finalize (a parent, or a lost lease). The write itself is
-            // uncancellable because the handlers already ran; the stop token bounds only the waits
-            // between tries, so a repeat that cannot land does not outlive the process it belongs to.
+            // which ordinals it did NOT finalize (a parent, or a lost lease).
             (finalized, _) = await CompletionWrite
                 .RetryAsync(
                     _ => _execution.CompleteExecutionsBatchAsync(requests, CancellationToken.None),
@@ -197,10 +190,10 @@ internal sealed class CompletionSink
         // entries settle side by side because every handler in this batch has already run: a per-job
         // completion that keeps failing is repeated until the worker stops, and run in sequence it would
         // hold the rest of the batch's completions, and every deferred wakeup, behind it for that time.
-        //
-        // The gate is not disposed: nothing ever touches its WaitHandle, so it holds no unmanaged
-        // resource, and every task that captured it has completed by the time the flush returns anyway.
-        var gate = new SemaphoreSlim(FallbackParallelism, FallbackParallelism);
+        // The gate exists only when some entry needs the per-job write, and is sized to the executors
+        // this flusher stands in for, so fallback connections never exceed the executors they replace.
+        // It is not disposed: nothing touches its WaitHandle, so it holds no unmanaged resource.
+        var gate = finalized.Contains(false) ? new SemaphoreSlim(executorsPerFlusher, executorsPerFlusher) : null;
         var settling = new Task<FlushOutcome>[batch.Count];
         for (var i = 0; i < batch.Count; i++)
         {
@@ -209,8 +202,6 @@ internal sealed class CompletionSink
 
         var settled = await Task.WhenAll(settling).ConfigureAwait(false);
 
-        // Reported in batch order rather than in the order the entries landed, so the same failure reads
-        // the same way on every flush.
         List<long>? unresolved = null;
         for (var i = 0; i < batch.Count; i++)
         {
@@ -251,95 +242,84 @@ internal sealed class CompletionSink
     /// never mistaken for an unfinalized job. Never throws: a failure on either step is the entry's own
     /// and is carried back for the batch-level report.
     /// </summary>
-    private async Task<FlushOutcome> SettleAsync(BufferedCompletion entry, bool alreadyFinalized, SemaphoreSlim gate, CancellationToken stopCt)
+    private async Task<FlushOutcome> SettleAsync(
+        BufferedCompletion entry,
+        bool alreadyFinalized,
+        SemaphoreSlim? gate,
+        CancellationToken stopCt
+    )
     {
-        CompleteExecutionResult? result = null;
-        Exception? completionFailure = null;
-
         if (alreadyFinalized)
         {
+            // Finalized simple terminal: no parent latch by construction, so only the job-finished wakeup
+            // applies (for a colocated RunAndWaitAsync caller).
             RecordDurableCompletion(entry);
-        }
-        else
-        {
-            try
-            {
-                // The gate is held for the round trip alone and released before the repeat's backoff wait,
-                // so an entry that keeps failing sits outside it almost all of the time and its siblings
-                // keep flowing. Without one, a batch of self-filtered rows would open a connection per row.
-                (result, _) = await WriteThroughGateAsync(
-                        gate,
-                        token => _execution.CompleteExecutionAsync(entry.Request, token),
-                        entry.JobId,
-                        stopCt
+            return new FlushOutcome(
+                null,
+                await TryWakeAsync(() =>
+                        _wakeupPublisher.WakeAsync(
+                            WorkerWakeupChannel.JobCompletion(entry.JobId),
+                            WorkerWakeupReason.JobFinished,
+                            CancellationToken.None
+                        )
                     )
-                    .ConfigureAwait(false);
-                if (result is { Action: CompleteExecutionAction.Completed })
-                {
-                    RecordDurableCompletion(entry);
-                }
-            }
-            catch (Exception ex)
-            {
-                completionFailure = ex;
-            }
+                    .ConfigureAwait(false)
+            );
         }
 
-        Exception? wakeFailure = null;
+        CompleteExecutionResult result;
         try
         {
-            if (alreadyFinalized)
-            {
-                // Finalized simple terminal: no parent latch by construction, so only the job-finished
-                // wakeup applies (for a colocated RunAndWaitAsync caller).
-                await _wakeupPublisher
-                    .WakeAsync(WorkerWakeupChannel.JobCompletion(entry.JobId), WorkerWakeupReason.JobFinished, CancellationToken.None)
-                    .ConfigureAwait(false);
-            }
-            else if (result is { } r)
-            {
-                await PublishWakeupsAsync(r, entry).ConfigureAwait(false);
-            }
+            // The gate is held for the round trip alone and released before the repeat's backoff wait, so
+            // an entry that keeps failing sits outside it almost all of the time and its siblings keep
+            // flowing. The store call is never cancelled once the handler has run.
+            (result, _) = await CompletionWrite
+                .RetryAsync(
+                    async _ =>
+                    {
+                        await gate!.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                        try
+                        {
+                            return await _execution.CompleteExecutionAsync(entry.Request, CancellationToken.None).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            gate.Release();
+                        }
+                    },
+                    _log,
+                    entry.JobId,
+                    stopCt,
+                    _metrics
+                )
+                .ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            wakeFailure = ex;
+            return new FlushOutcome(ex, null);
         }
 
-        return new FlushOutcome(completionFailure, wakeFailure);
+        if (result.Action == CompleteExecutionAction.Completed)
+        {
+            RecordDurableCompletion(entry);
+        }
+
+        return new FlushOutcome(null, await TryWakeAsync(() => new ValueTask(PublishWakeupsAsync(result, entry))).ConfigureAwait(false));
     }
 
-    /// <summary>
-    /// One completion round trip, admitted through <paramref name="gate"/> and repeated until it lands or
-    /// the worker stops. The write itself is uncancellable because the handler already ran; the stop token
-    /// bounds only the waits between tries.
-    /// </summary>
-    private async Task<(CompleteExecutionResult Result, bool Retried)> WriteThroughGateAsync(
-        SemaphoreSlim gate,
-        Func<CancellationToken, Task<CompleteExecutionResult>> write,
-        long jobId,
-        CancellationToken stopCt
-    ) =>
-        await CompletionWrite
-            .RetryAsync(
-                async _ =>
-                {
-                    await gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
-                    try
-                    {
-                        return await write(CancellationToken.None).ConfigureAwait(false);
-                    }
-                    finally
-                    {
-                        gate.Release();
-                    }
-                },
-                _log,
-                jobId,
-                stopCt,
-                _metrics
-            )
-            .ConfigureAwait(false);
+    // A wakeup failure is the entry's own and never masquerades as an unfinalized job.
+    private static async Task<Exception?> TryWakeAsync(Func<ValueTask> wake)
+    {
+        try
+        {
+            await wake().ConfigureAwait(false);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            return ex;
+        }
+    }
 
     /// <summary>
     /// Buffered completions are always plain terminal landings (Succeeded/Failed), never Ready:

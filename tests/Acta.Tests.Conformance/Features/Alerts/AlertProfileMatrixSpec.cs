@@ -39,12 +39,12 @@ public abstract class AlertProfileMatrixSpec<TFixture> : ActaRuntimeTestBase<TFi
         var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "on-terminal-probe", JobPayload.None), ct);
 
         // Attempt 1: non-terminal failure. OnTerminal suppresses it: zero alerts.
-        await RunUntilAttemptsAsync(job, () => OnTerminalProbe.Attempts(TestNamespace), 1, ct);
+        await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => OnTerminalProbe.Attempts(TestNamespace), 1, ct);
         await RunAlertsAsync(job.JobId, ct);
         Assert.Empty(await ReadAlertsAsync(NamespaceId, ct));
 
         // Attempt 2: terminal Failed. OnTerminal emits exactly one FinalFailure at Error.
-        await RunUntilAttemptsAsync(job, () => OnTerminalProbe.Attempts(TestNamespace), 2, ct);
+        await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => OnTerminalProbe.Attempts(TestNamespace), 2, ct);
         await RunAlertsAsync(job.JobId, ct);
 
         var alerts = await ReadAlertsAsync(NamespaceId, ct);
@@ -64,12 +64,12 @@ public abstract class AlertProfileMatrixSpec<TFixture> : ActaRuntimeTestBase<TFi
         var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "info-alert-probe", JobPayload.None), ct);
 
         // Attempt 1: non-terminal failure. Info suppresses it: zero alerts.
-        await RunUntilAttemptsAsync(job, () => InfoAlertProbe.Attempts(TestNamespace), 1, ct);
+        await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => InfoAlertProbe.Attempts(TestNamespace), 1, ct);
         await RunAlertsAsync(job.JobId, ct);
         Assert.Empty(await ReadAlertsAsync(NamespaceId, ct));
 
         // Attempt 2: terminal Failed. Info emits exactly one FinalFailure at Info severity (not Error).
-        await RunUntilAttemptsAsync(job, () => InfoAlertProbe.Attempts(TestNamespace), 2, ct);
+        await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => InfoAlertProbe.Attempts(TestNamespace), 2, ct);
         await RunAlertsAsync(job.JobId, ct);
 
         var alerts = await ReadAlertsAsync(NamespaceId, ct);
@@ -89,7 +89,7 @@ public abstract class AlertProfileMatrixSpec<TFixture> : ActaRuntimeTestBase<TFi
         var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "sys-critical-probe", JobPayload.None), ct);
 
         // Attempt 1: non-terminal failure. SysCritical emits a FirstFailure at Critical.
-        await RunUntilAttemptsAsync(job, () => SysCriticalProbe.Attempts(TestNamespace), 1, ct);
+        await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => SysCriticalProbe.Attempts(TestNamespace), 1, ct);
         await RunAlertsAsync(job.JobId, ct);
 
         var afterFirst = await ReadAlertsAsync(NamespaceId, ct);
@@ -99,7 +99,7 @@ public abstract class AlertProfileMatrixSpec<TFixture> : ActaRuntimeTestBase<TFi
         Assert.Equal(1, firstFailure.OccurrenceCount);
 
         // Attempt 2: terminal Failed. SysCritical adds a FinalFailure at Critical; FirstFailure stays.
-        await RunUntilAttemptsAsync(job, () => SysCriticalProbe.Attempts(TestNamespace), 2, ct);
+        await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => SysCriticalProbe.Attempts(TestNamespace), 2, ct);
         await RunAlertsAsync(job.JobId, ct);
 
         var afterTerminal = await ReadAlertsAsync(NamespaceId, ct);
@@ -119,7 +119,7 @@ public abstract class AlertProfileMatrixSpec<TFixture> : ActaRuntimeTestBase<TFi
 
         // Drive to terminal (2 attempts) to produce a FinalFailure alert.
         var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "on-terminal-probe", JobPayload.None), ct);
-        await RunUntilAttemptsAsync(job, () => OnTerminalProbe.Attempts(TestNamespace), 2, ct);
+        await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => OnTerminalProbe.Attempts(TestNamespace), 2, ct);
         await RunAlertsAsync(job.JobId, ct);
 
         // Capture the emitted alert's incident identity.
@@ -167,17 +167,6 @@ public abstract class AlertProfileMatrixSpec<TFixture> : ActaRuntimeTestBase<TFi
         Assert.Null(incidents[1].ResolvedAtUtc);
         Assert.Equal(1, incidents[1].OccurrenceCount);
         Assert.NotEqual(seeded.AlertRef, incidents[1].AlertRef);
-    }
-
-    // RunOnceAsync can no-op when a claim is lost to provider timing (notably MSSQL); loop until the probe
-    // has actually executed `target` attempts so the projected event count is deterministic.
-    private async Task RunUntilAttemptsAsync(JobEnqueueOutcome job, Func<int> attempts, int target, CancellationToken ct)
-    {
-        for (var i = 0; i < target + 12 && attempts() < target; i++)
-        {
-            await Runtime.RunOnceAsync(job, ct);
-        }
-        Assert.Equal(target, attempts());
     }
 
     private Task RunAlertsAsync(long cursorOwnerJobId, CancellationToken ct) =>

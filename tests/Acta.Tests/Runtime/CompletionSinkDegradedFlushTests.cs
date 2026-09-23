@@ -85,14 +85,9 @@ public sealed class CompletionSinkDegradedFlushTests
             Finalized = [true, false, false],
             Fallback = request =>
             {
-                if (request.JobId == 33)
-                {
-                    settled33 = true;
-                    return Completed(parentReleased: false);
-                }
-
                 if (request.JobId != 32)
                 {
+                    settled33 |= request.JobId == 33;
                     return Completed(parentReleased: false);
                 }
 
@@ -235,7 +230,7 @@ public sealed class CompletionSinkDegradedFlushTests
             new RecordingLogger()
         );
 
-        var flusher = sink.RunFlusherAsync(TestContext.Current.CancellationToken);
+        var flusher = sink.RunFlusherAsync(4, TestContext.Current.CancellationToken);
         await sink.EnqueueAsync(Buffered(71));
 
         // Completing the writer only after the window fired proves the flush was the window's doing.
@@ -268,7 +263,7 @@ public sealed class CompletionSinkDegradedFlushTests
             new RecordingLogger()
         );
 
-        var flushers = sink.RunFlushersAsync(4, TestContext.Current.CancellationToken);
+        var flushers = sink.RunFlushersAsync(4, 4, TestContext.Current.CancellationToken);
         for (var jobId = 100L; jobId < 140; jobId++)
         {
             await sink.EnqueueAsync(Buffered(jobId));
@@ -297,7 +292,7 @@ public sealed class CompletionSinkDegradedFlushTests
             await sink.EnqueueAsync(completion);
         }
         sink.CompleteWriter();
-        await sink.RunFlusherAsync(stopCt);
+        await sink.RunFlusherAsync(4, stopCt);
     }
 
     private static BufferedCompletion Buffered(long jobId) =>

@@ -79,9 +79,11 @@ internal sealed class WorkerLoop(
                 // Several flushers run in parallel so group commit does not serialize all completions
                 // through one connection (that would lose the parallelism Direct gets from N executors).
                 var flusherCount = Math.Clamp(executorCount / 4, 1, 16);
-                // hostCt, not claimCt: a drain leaves it live, so the flusher still repeats a failing
-                // completion while the shutdown budget lasts, and only a hard stop abandons the repeat.
-                var flusher = sink.RunFlushersAsync(flusherCount, hostCt);
+                // Each flusher stands in for this many executors, which is what bounds the per-job
+                // completions it has in flight, so fallback connections never exceed the executors they
+                // replace. hostCt rather than claimCt, so a drain keeps a failing completion repeating.
+                var executorsPerFlusher = (executorCount + flusherCount - 1) / flusherCount;
+                var flusher = sink.RunFlushersAsync(flusherCount, executorsPerFlusher, hostCt);
                 try
                 {
                     await CombinedLoopAsync(ns, namespaceId, workerId, executorCount, claimBatchSize, hostCt, claimStop.Token);

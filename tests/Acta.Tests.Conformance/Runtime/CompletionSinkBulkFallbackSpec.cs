@@ -63,7 +63,7 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
         var sink = MakeSink(spy);
         await sink.EnqueueAsync(new BufferedCompletion(MakeRequest(claimedChild, workerId), TestNamespace, "add-numbers", child.Id, 0));
         sink.CompleteWriter();
-        await sink.RunFlusherAsync(ct);
+        await sink.RunFlusherAsync(4, ct);
 
         // Primary assertions: DB state is the source of truth.
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(child.Id, ct)).Status);
@@ -107,7 +107,7 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
         var sink = MakeSink(new WakeupSpy());
         await sink.EnqueueAsync(new BufferedCompletion(MakeRequest(claimed, workerId), TestNamespace, "add-numbers", child.Id, 0));
         sink.CompleteWriter();
-        await sink.RunFlusherAsync(ct);
+        await sink.RunFlusherAsync(4, ct);
 
         // Exact terminal status: same as scalar CompleteExecution.Run would produce.
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(child.Id, ct)).Status);
@@ -144,7 +144,7 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
         var sink = MakeSink(spy);
         await sink.EnqueueAsync(new BufferedCompletion(MakeRequest(claimed, workerId), TestNamespace, "add-numbers", enq.JobId, 0));
         sink.CompleteWriter();
-        await sink.RunFlusherAsync(ct);
+        await sink.RunFlusherAsync(4, ct);
 
         // Primary: job reaches Succeeded via batch.
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enq.JobId, ct)).Status);
@@ -209,7 +209,7 @@ public abstract class CompletionSinkBulkFallbackSpec<TFixture> : ActaRuntimeTest
         // The flush runs in the background because the refused entry repeats until the worker stops, and
         // the subject is what the others do while it is still repeating.
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        var flush = sink.RunFlusherAsync(stop.Token);
+        var flush = sink.RunFlusherAsync(4, stop.Token);
 
         while (plan.CompletionRefusals < 2)
         {

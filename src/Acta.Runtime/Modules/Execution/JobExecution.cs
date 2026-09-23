@@ -802,10 +802,7 @@ internal sealed class JobExecution(
             };
         }
 
-        // ct, never jobContext.CancellationToken: the attempt token is cancelled by an external cancel, by
-        // the attempt deadline, and by the watchdog on the very lease-renewal outage that makes the write
-        // fail, so retrying on it would give up exactly when the retry is needed. ct is the worker's host
-        // token, which a graceful drain leaves live and only a hard stop ends.
+        // ct is the worker's host token, never jobContext.CancellationToken; CompletionWrite says why.
         var (complete, retried) = await CompletionWrite.RetryAsync(
             token => _execution.CompleteExecutionAsync(completeCommand, token),
             _log,

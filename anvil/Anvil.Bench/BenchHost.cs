@@ -42,10 +42,13 @@ public static class ProviderConn
     /// for Postgres/SQL Server, a bench-private SQLite temp file per schema, else throws.
     /// </summary>
     public static string Resolve(string provider, string? schema = null) =>
-        LocalDatabase.IsSqlite(provider) ? $"Data Source={Path.Combine(Path.GetTempPath(), $"acta-anvil-bench-{schema ?? "default"}.db")}"
+        LocalDatabase.IsSqlite(provider) ? $"Data Source={SqlitePath(schema)}"
         : LocalDatabase.IsPostgres(provider) || LocalDatabase.IsSqlServer(provider)
             ? LocalDatabase.ResolveConnectionString(s_config, provider, schema)
         : throw new ArgumentException($"Unknown provider '{provider}'.");
+
+    // The one place the bench's SQLite file is named, so the drop deletes the file the connection opened.
+    private static string SqlitePath(string? schema) => Path.Combine(Path.GetTempPath(), $"acta-anvil-bench-{schema ?? "default"}.db");
 
     /// <summary>Opens the selected database once so the CLI can fail before running a useless matrix.</summary>
     public static async Task CheckAvailableAsync(string provider, CancellationToken ct)
@@ -135,8 +138,10 @@ public static class ProviderConn
         {
             if (LocalDatabase.IsSqlite(provider))
             {
-                SqliteConnection.ClearAllPools();
-                var path = Path.Combine(Path.GetTempPath(), $"acta-anvil-bench-{schema}.db");
+                // Only this file's pool: clearing every pool would rebuild connections nothing here owns.
+                using var probe = new SqliteConnection(Resolve(provider, schema));
+                SqliteConnection.ClearPool(probe);
+                var path = SqlitePath(schema);
                 foreach (var file in new[] { path, path + "-wal", path + "-shm" })
                 {
                     File.Delete(file);
@@ -145,54 +150,25 @@ public static class ProviderConn
                 return;
             }
 
+            // The migrators own the drop script per provider, so the bench cannot drift from it.
             var conn = Resolve(provider, schema);
             if (LocalDatabase.IsPostgres(provider))
             {
                 await using var c = new NpgsqlConnection(conn);
-                await c.OpenAsync(ct);
-                await using var cmd = c.CreateCommand();
-                cmd.CommandText = $"DROP SCHEMA IF EXISTS \"{schema}\" CASCADE;";
-                await cmd.ExecuteNonQueryAsync(ct);
+                await PostgresSchemaMigrator.DropSchemaAsync(c, schema, ct);
             }
             else
             {
-                // SQL Server refuses to drop a schema that still owns anything, and has no CASCADE, so
-                // its objects come out first in dependency order. The migrator's reset is not usable
-                // here: it drops and then re-applies, which is the opposite of what a cell wants.
                 await using var c = new SqlConnection(conn);
-                await c.OpenAsync(ct);
-                await using var cmd = c.CreateCommand();
-                cmd.CommandText = $"""
-                    DECLARE @sql NVARCHAR(MAX) = N'';
-                    SELECT @sql += N'ALTER TABLE ' + QUOTENAME(s.name) + N'.' + QUOTENAME(t.name) + N' DROP CONSTRAINT ' + QUOTENAME(f.name) + N';'
-                      FROM sys.foreign_keys f
-                      JOIN sys.tables t ON t.object_id = f.parent_object_id
-                      JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE s.name = @schema;
-                    SELECT @sql += N'DROP VIEW ' + QUOTENAME(s.name) + N'.' + QUOTENAME(v.name) + N';'
-                      FROM sys.views v JOIN sys.schemas s ON s.schema_id = v.schema_id WHERE s.name = @schema;
-                    SELECT @sql += N'DROP PROCEDURE ' + QUOTENAME(s.name) + N'.' + QUOTENAME(p.name) + N';'
-                      FROM sys.procedures p JOIN sys.schemas s ON s.schema_id = p.schema_id WHERE s.name = @schema;
-                    SELECT @sql += N'DROP FUNCTION ' + QUOTENAME(s.name) + N'.' + QUOTENAME(o.name) + N';'
-                      FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
-                     WHERE s.name = @schema AND o.type IN ('FN', 'IF', 'TF');
-                    SELECT @sql += N'DROP TABLE ' + QUOTENAME(s.name) + N'.' + QUOTENAME(t.name) + N';'
-                      FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE s.name = @schema;
-                    SELECT @sql += N'DROP TYPE ' + QUOTENAME(s.name) + N'.' + QUOTENAME(tt.name) + N';'
-                      FROM sys.table_types tt JOIN sys.schemas s ON s.schema_id = tt.schema_id WHERE s.name = @schema;
-                    SELECT @sql += N'DROP SEQUENCE ' + QUOTENAME(s.name) + N'.' + QUOTENAME(q.name) + N';'
-                      FROM sys.sequences q JOIN sys.schemas s ON s.schema_id = q.schema_id WHERE s.name = @schema;
-                    IF @sql <> N'' EXEC sp_executesql @sql;
-                    IF EXISTS (SELECT 1 FROM sys.schemas WHERE name = @schema)
-                        EXEC sp_executesql N'DROP SCHEMA ' + QUOTENAME(@schema) + N';';
-                    """;
-                cmd.Parameters.AddWithValue("@schema", schema);
-                await cmd.ExecuteNonQueryAsync(ct);
+                await SqlServerSchemaMigrator.DropSchemaAsync(c, schema, ct);
             }
         }
         catch (Exception ex)
             when (ex is SqliteException or NpgsqlException or SqlException or SocketException or TimeoutException or IOException)
         {
-            Console.Error.WriteLine($"  bench: could not drop schema {schema} ({ex.GetType().Name}); drop it by hand before the next round.");
+            Console.Error.WriteLine(
+                $"  bench: could not drop schema {schema} ({ex.GetType().Name}); drop it by hand before the next round."
+            );
         }
     }
 

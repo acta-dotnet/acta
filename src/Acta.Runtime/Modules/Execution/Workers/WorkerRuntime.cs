@@ -138,10 +138,9 @@ internal sealed class WorkerRuntime
             workerRegistration,
             _context,
             logger,
-            time: null,
             // RunOnceAsync claims and executes without taking an executor permit, which is what lets the
             // sweep run on a worker whose executors are all busy.
-            runRecovery: (namespaceName, slotJobId, token) => _executor.RunOnceAsync(namespaceName, slotJobId, token)
+            (namespaceName, slotJobId, token) => _executor.RunOnceAsync(namespaceName, slotJobId, token)
         );
         _policyReloader = new DefinitionPolicyReloader(
             rootServices.GetRequiredService<IDefinitionStore>(),

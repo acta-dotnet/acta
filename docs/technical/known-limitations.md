@@ -64,10 +64,10 @@ would be abandoned in turn. Repairing the underlying database failure lets the p
 land without restarting the worker, as long as each attempt still owns its row. Recovery itself is
 unaffected, because the slot monitor runs the sweep outside the executor pool.
 
-`Bulk` pays that cost per entry, never per batch. A flush settles its entries side by side, four
-completions in flight at a time, so an entry whose write keeps failing holds up neither its
-siblings' completions nor any deferred wakeup, including the wakeups for rows the batch statement
-already committed. What it does hold is its own flusher, which is the executor trade again: a worker
+`Bulk` pays that cost per entry, never per batch. A flush settles its entries side by side, with as
+many completions in flight as the executors each flusher stands in for, so an entry whose write keeps
+failing holds up neither its siblings' completions nor any deferred wakeup, including the wakeups for
+rows the batch statement already committed. What it does hold is its own flusher, which is the executor trade again: a worker
 runs several flushers, so the others keep draining.
 
 A worker that dies mid-repeat still loses the write. The row stays `Executing` until its lease
@@ -183,15 +183,10 @@ resolve on its own; an operator resolves it, or the job runs under `Audit`. `sys
 under `Failures`, so its own `SysCritical` incident has the same shape. The design that fixes this
 from events alone, without a schema change, is written up for a later release.
 
-A one-shot job's retries are also invisible at that level, which surprises people more than the
-resolution gap does. An in-budget retry re-arm carries a reschedule as far as `complete_execution` is
-concerned, and the level records a failed attempt only when it carries none, so a job that throws
-four times and succeeds on the fifth writes nothing, and one that exhausts its budget writes a single
-terminal `Failed`. `AlertProfile.FirstFailure` and `AlertProfile.ThresholdReached` therefore never
-fire for a one-shot's own throws under `Failures`; `FinalFailure` does. A recurring slot is the
-opposite shape, because its failed fire carries no reschedule and is written, which is what makes an
-unwatched nightly job audible at this level. Run one-shot work under `Audit` when you want to hear
-about attempts rather than outcomes.
+A one-shot job's in-budget retries are also invisible at that level, so `FirstFailure` and
+`ThresholdReached` never fire for its own throws while a recurring slot's failed fire is heard;
+[the alerting guide](../guide/alerting.md#what-projects-an-alert) owns the full account of what
+that level records and what it drops.
 
 The alert projector walks `events` by `(created_at_utc, id)` behind a horizon on the database clock,
 and assumes that clock does not step backwards (slewing, the way NTP corrects small drift, is fine).

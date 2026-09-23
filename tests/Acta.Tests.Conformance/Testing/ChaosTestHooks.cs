@@ -61,7 +61,7 @@ internal sealed class StoreFaultPlan
     /// </remarks>
     public void RunBeforeCompleteOnce(Func<Task> action) => Interlocked.Exchange(ref _beforeComplete, action);
 
-    public void MaybeThrowBefore(string operation, long? jobId = null)
+    public void MaybeThrowBefore(string operation, long jobId)
     {
         if (operation != "CompleteExecution")
         {
@@ -69,7 +69,7 @@ internal sealed class StoreFaultPlan
         }
 
         var only = Interlocked.Read(ref _failOnlyJob);
-        if (only != 0 && jobId is { } id && id != only)
+        if (only != 0 && jobId != only)
         {
             return;
         }

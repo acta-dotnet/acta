@@ -104,8 +104,25 @@ internal static class SqliteSchemaMigrator
             await connection.OpenAsync(ct);
         }
 
-        await DropAllAsync(connection, ct);
+        await DropSchemaAsync(connection, schemaName, ct);
         await ApplyAsync(connection, schemaName, ct);
+    }
+
+    /// <summary>
+    /// Drops everything Acta installed, applying nothing after. The drop half of
+    /// <see cref="ResetSchemaAsync"/>, kept for symmetry with the server providers; a caller that owns
+    /// the file usually deletes it instead.
+    /// </summary>
+    public static async Task DropSchemaAsync(SqliteConnection connection, string schemaName, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+        IdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
+        if (connection.State != ConnectionState.Open)
+        {
+            await connection.OpenAsync(ct);
+        }
+
+        await DropAllAsync(connection, ct);
     }
 
     private static async Task DropAllAsync(SqliteConnection connection, CancellationToken ct)

@@ -82,7 +82,6 @@ public abstract class MigrationHistoryPreflightSpec<TFixture> : IntegrationSpec<
     [Fact(DisplayName = "A newer object package in the same major starts, and a foreign major or a missing row does not")]
     public async Task Object_package_decides_by_major_and_minimum()
     {
-        var ct = TestContext.Current.CancellationToken;
         var shipped = ShippedHistory();
 
         // The rolling-deploy shape: a newer deploy installed a later package and this worker keeps
@@ -94,21 +93,25 @@ public abstract class MigrationHistoryPreflightSpec<TFixture> : IntegrationSpec<
             await RunAsync(newer);
         }
 
-        await using (var foreign = await Fixture.CreateHistoryProbeAsync(WithPackage(shipped, $"objects-{ObjectPackageStamp.ContractMajor + 1}.1-{Hash}")))
+        await using (
+            var foreign = await Fixture.CreateHistoryProbeAsync(
+                WithPackage(shipped, $"objects-{ObjectPackageStamp.ContractMajor + 1}.1-{Hash}")
+            )
+        )
         {
             var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => RunAsync(foreign));
             Assert.Contains("not interchangeable in either direction", refused.Message, StringComparison.Ordinal);
         }
 
         // A database provisioned before the package existed: complete history, no package row.
-        await using (var missing = await Fixture.CreateHistoryProbeAsync([.. shipped.Where(row => row.Version != ObjectPackageStamp.HistoryVersion)]))
+        await using (
+            var missing = await Fixture.CreateHistoryProbeAsync([.. shipped.Where(row => row.Version != ObjectPackageStamp.HistoryVersion)])
+        )
         {
             var refused = await Assert.ThrowsAsync<InvalidOperationException>(() => RunAsync(missing));
             Assert.Contains("records no Acta object package", refused.Message, StringComparison.Ordinal);
             Assert.Contains($"docs/reference/schema-{Fixture.DialectToken}.sql", refused.Message, StringComparison.Ordinal);
         }
-
-        Assert.True(ct.CanBeCanceled);
     }
 
     // The verdict never reads the hash, so any well-formed one serves.
