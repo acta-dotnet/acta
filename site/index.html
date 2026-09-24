@@ -23,9 +23,18 @@
   <meta name="twitter:image" content="https://useacta.net/assets/social-card.png" />
   <meta name="twitter:image:alt" content="Acta: the durable work ledger for .NET. Postgres, SQL Server, SQLite." />
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="preload" href="assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="assets/fonts/ibm-plex-mono-400-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <style>
+    /* Self-hosted latin subsets of the three families, preloaded and served immutable (see _headers),
+       so a reload paints them from cache with no swap and a first visit swaps them in as they land. Fraunces and Plex Sans are variable files. */
+    @font-face { font-family: "Fraunces"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(assets/fonts/fraunces-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "Fraunces"; font-style: italic; font-weight: 400 500; font-display: swap; src: url(assets/fonts/fraunces-italic-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(assets/fonts/ibm-plex-sans-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(assets/fonts/ibm-plex-mono-400-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url(assets/fonts/ibm-plex-mono-500-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  </style>
   <style>
     :root {
       --bg: #0B0E15;
@@ -44,7 +53,7 @@
       --mono: "IBM Plex Mono", Consolas, monospace;
     }
     * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; scroll-padding-top: 4rem; }
+    html { background: var(--bg); color-scheme: dark; scroll-behavior: smooth; scroll-padding-top: 4rem; }
     body {
       margin: 0; background: var(--bg); color: var(--text);
       font-family: var(--sans); font-size: 16px; line-height: 1.65;
@@ -386,15 +395,6 @@
     footer a:hover { color: var(--verdi); }
     footer .sep { margin: 0 0.9em; opacity: 0.5; }
 
-    /* entrance: one orchestrated moment, then quiet */
-    @media (prefers-reduced-motion: no-preference) {
-      .hero > * , .hero-grid > * { animation: rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
-      .hero > .record { animation-delay: 0.05s; }
-      .hero > .mast-row { animation-delay: 0.1s; }
-      .hero-grid > div { animation-delay: 0.32s; }
-      .hero-grid > nav { animation-delay: 0.42s; }
-      @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-    }
     @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .skip-link { transition: none; } }
   </style>
   <script type="application/ld+json">
@@ -512,21 +512,21 @@
       <div class="install">
         <div class="install-row primary">
           <div class="install-meta"><b>Zero setup</b><span>embedded SQLite, single node</span></div>
-          <code>dotnet add package Acta.Sqlite --prerelease</code>
-          <button type="button" class="copy" data-copy="dotnet add package Acta.Sqlite --prerelease" aria-label="Copy the SQLite install command">Copy</button>
+          <code>dotnet add package Acta.Sqlite</code>
+          <button type="button" class="copy" data-copy="dotnet add package Acta.Sqlite" aria-label="Copy the SQLite install command">Copy</button>
         </div>
         <div class="install-row">
           <div class="install-meta"><b>Postgres</b><span>production</span></div>
-          <code>dotnet add package Acta.Postgres --prerelease</code>
-          <button type="button" class="copy" data-copy="dotnet add package Acta.Postgres --prerelease" aria-label="Copy the Postgres install command">Copy</button>
+          <code>dotnet add package Acta.Postgres</code>
+          <button type="button" class="copy" data-copy="dotnet add package Acta.Postgres" aria-label="Copy the Postgres install command">Copy</button>
         </div>
         <div class="install-row">
           <div class="install-meta"><b>SQL Server</b><span>production</span></div>
-          <code>dotnet add package Acta.SqlServer --prerelease</code>
-          <button type="button" class="copy" data-copy="dotnet add package Acta.SqlServer --prerelease" aria-label="Copy the SQL Server install command">Copy</button>
+          <code>dotnet add package Acta.SqlServer</code>
+          <button type="button" class="copy" data-copy="dotnet add package Acta.SqlServer" aria-label="Copy the SQL Server install command">Copy</button>
         </div>
       </div>
-      <p class="hiw-note">Requires .NET 10. <code>--prerelease</code> until 1.0, and the release candidate line is <code>1.0.0-rc.3</code>. The schema is a precondition, not a side effect: apply it with the committed provisioning script, or set <code>ApplyMigrationsOnStartup</code> for local work. Use Acta when the work must outlive the process that started it.</p>
+      <p class="hiw-note">Requires .NET 10. The schema is a precondition, not a side effect: apply it with the committed provisioning script, or set <code>ApplyMigrationsOnStartup</code> for local work. Use Acta when the work must outlive the process that started it.</p>
     </section>
 
     <section class="wrap" id="model">
@@ -557,7 +557,7 @@
         <div class="build">
           <h3>Media and video encoding</h3>
           <p>A render measured in hours, several renditions per source, and a publish step where doing it twice is worse than reconciling an uncertain outcome, even though the encode around it may be attempted many times.</p>
-          <span class="carries"><b>ParallelAsync</b> per rendition<br /><b>AtMostOnce()</b> on the publish<br />leases reclaimed when the encoder box dies</span>
+          <span class="carries"><b>MapAsync</b> fans out one encode per rendition<br /><b>AtMostOnce()</b> on the publish<br />leases reclaimed when the encoder box dies</span>
         </div>
         <div class="build">
           <h3>Manufacturing and physical processes</h3>
@@ -586,6 +586,69 @@
           <a class="architecture-source" href="https://github.com/acta-dotnet/acta/blob/main/docs/designs/incident-response.md">Read the proposed design →</a>
         </figcaption>
       </figure>
+    </section>
+
+    <section class="wrap" id="labs">
+      <p class="record">Engineering labs</p>
+      <div class="example-head">
+        <div>
+          <h2>The decisions behind it, each one runnable.</h2>
+          <p class="example-subtitle">Nine questions, answered in rows</p>
+          <p class="lede">An Engineering Lab is a small project in the repository whose README carries the whole loop: the question, the alternatives, what the design costs, the exact rows that prove the behavior, and what happens when a worker dies at the worst moment. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">The field guide</a> sequences them into a 45-minute tour.</p>
+        </div>
+        <aside class="example-note">
+          <b>How to read one</b>
+          <p>Every lab prints the rows that prove its claim and names the source files behind them. Run it from a fresh clone on embedded SQLite; the two crash labs ask for a real server so the kill is real.</p>
+        </aside>
+      </div>
+
+      <div class="builds">
+        <div class="build">
+          <h3>Can recurring work run forever on one row?</h3>
+          <p>One reusable job identity and one cursor per schedule. Due schedules re-arm the same slot instead of inserting a job per tick, coincident schedules coalesce into one execution that names which of them fired, and a missed window is a per-schedule decision, skip or catch up once, never an accident of the worker loop.</p>
+          <span class="carries"><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/103-multiple-schedules"><b>103-multiple-schedules</b></a><br /><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/106-schedule-misfire"><b>106-schedule-misfire</b></a></span>
+        </div>
+        <div class="build">
+          <h3>Can real-database tests take milliseconds and run in parallel?</h3>
+          <p><code>Acta.Testing</code> drives the real runtime one tick at a time: a tick is one claim plus one handler run, with no polling, no sleeps, and no background worker racing your assertions. Each test host owns its own schema, so one database serves many tests at once, and an end-to-end job test finishes in tens of milliseconds.</p>
+          <span class="carries"><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/800-testing/802-testing-durable-jobs"><b>802-testing-durable-jobs</b></a><br /><a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/testing.md"><b>docs/guide/testing.md</b></a></span>
+        </div>
+        <div class="build">
+          <h3>Can SQL replace a job queue, without a leader?</h3>
+          <p>Claim, heartbeat, lease, and recovery are SQL operations, and recovery itself is an ordinary competitively claimed recurring job, so no worker is ever the leader. The lab kills worker A in the middle of an attempt and lets worker B recover the same durable identity from the rows A left behind.</p>
+          <span class="carries"><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/700-topology-and-deployment/705-worker-crash-recovery"><b>705-worker-crash-recovery</b></a><br />PostgreSQL or SQL Server</span>
+        </div>
+        <div class="build">
+          <h3>Can the worker binary be the admin tool, and can a job explain itself?</h3>
+          <p>Start the same app with <code>jobs …</code> and it runs Acta's CLI with the app's real manifest, dependency injection, and database. <code>info</code> is the snapshot, <code>events</code> the path to it, <code>explain</code> turns durable state into operator guidance, and <code>jobs debug</code> claims one persisted job and runs it under your debugger's breakpoint.</p>
+          <span class="carries"><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/000-fundamentals/021-jobs-cli"><b>021-jobs-cli</b></a></span>
+        </div>
+        <div class="build">
+          <h3>Can hot keys stop blocking workers?</h3>
+          <p>Admission happens after the claim and before the handler. The loser of a concurrency key re-arms with a short delay and hands its executor back instead of waiting on a lock, <code>ConcurrencyLimit</code> sizes the gate to N at once, and <code>RateLimit</code> books each job the next free instant rather than letting a crowd re-race a counter.</p>
+          <span class="carries"><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/209-concurrency-key"><b>209-concurrency-key</b></a></span>
+        </div>
+        <div class="build">
+          <h3>Can a job refuse unsafe replay?</h3>
+          <p><code>AtMostOnce()</code> records the intent before the body runs. Re-entering a slot that is still pending marks it interrupted and throws instead of calling the body a second time, so the handler reconciles a charge that may or may not have happened rather than repeating it and hoping.</p>
+          <span class="carries"><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/220-at-most-once-step"><b>220-at-most-once-step</b></a></span>
+        </div>
+        <div class="build">
+          <h3>Can fan-out be ordinary jobs?</h3>
+          <p>Children are normal jobs with their own retries, workers, results, and events. The parent suspends without holding a lease, and each child's terminal outcome sets a checkpoint the parent owns, so the join is a durable latch in a row, not a thread waiting on a task.</p>
+          <span class="carries"><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/211-child-jobs"><b>211-child-jobs</b></a></span>
+        </div>
+        <div class="build">
+          <h3>Can the schema be the runtime?</h3>
+          <p>One checkout identity is a handful of relational facts: completed step outcomes, a durable variable, a signal latch, a timer, a terminal result, and an append-only event ledger. The worker executes from those rows and operators read the same rows through curated views. The hot runtime row is split from the job row, so it stays tiny.</p>
+          <span class="carries"><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/201-durable-checkout"><b>201-durable-checkout</b></a></span>
+        </div>
+        <div class="build">
+          <h3>Can the data model stay this small?</h3>
+          <p>Every persisted code family is one byte, a <code>tinyint</code> or <code>smallint</code> rather than a status string, with the names generated beside it. The immutable job row is never updated; the hot runtime row carries only what changes, keeps the definition behind a surrogate id, and stores no JSON. Column widths come from one fixed ladder, so a hot row stays narrow, an index stays dense, and an update rewrites bytes, not pages. The model is frozen at 1.0: no renames, drops, retypes, or renumbered codes, ever, and anything new arrives as an additive migration a rolling deploy can run.</p>
+          <span class="carries"><a href="https://github.com/acta-dotnet/acta/blob/main/docs/reference/data-model.md"><b>docs/reference/data-model.md</b></a><br /><a href="https://github.com/acta-dotnet/acta/blob/main/docs/internals/design.md"><b>docs/internals/design.md</b></a></span>
+        </div>
+      </div>
     </section>
 
     <section class="wrap" id="compare">
@@ -645,7 +708,7 @@
         <div><b><a href="https://github.com/acta-dotnet/acta/tree/main/docs/certification" style="text-decoration:none">1,000,000 / 1,000,000</a></b><span>jobs succeeded while a worker was killed every 5 s · on Postgres <em>and</em> SQL Server</span></div>
         <div><b>0 Docker</b><span>one package reference → a durable job on embedded SQLite</span></div>
       </div>
-      <p class="bench-note">One rig (32 logical cores, NVMe), one warmup, median of three runs, engine 1.0.0-rc.3 on the certified tree, for regression tracking and rough sizing, not capacity claims.</p>
+      <p class="bench-note">One rig (32 logical cores, NVMe), one warmup, median of three runs, engine 1.0.0 on the certified tree, for regression tracking and rough sizing, not capacity claims.</p>
       <ul class="nots">
         <li><b>No deterministic replay</b>, checkpoints instead; completed slots don't re-run.</li>
         <li><b>No BPMN, no visual designer, no message bus, no hosted control plane.</b></li>

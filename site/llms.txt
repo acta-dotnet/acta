@@ -23,8 +23,8 @@ called twice with the same input, and put every external side effect behind a st
 
 ```bash
 dotnet new web -n Shipping && cd Shipping
-dotnet add package Acta.Sqlite --prerelease
-dotnet add package Acta.AspNetCore --prerelease
+dotnet add package Acta.Sqlite
+dotnet add package Acta.AspNetCore
 ```
 
 Replace `Program.cs` with this, all of it:
@@ -159,7 +159,7 @@ and `record-response` re-sends with the same key, which is the at-least-once con
 | calling an API directly in the body | `await ctx.RunStepAsync("charge", ct => ...)` | a step records its outcome, so a retry does not repeat recorded work |
 | `catch { }` around the body | let it throw, or `await ctx.FailAsync(reason)` | swallowing turns a retryable failure into a silent success |
 | polling a flag in a loop | `await ctx.WaitSignalAsync("approved", timeout)` | polling burns a worker; a signal parks the job, and the timeout keeps it from parking forever |
-| starting children and looping until done | `await ctx.WaitChildrenAsync(ids)` (or with a timeout) | the parent parks instead of occupying a worker |
+| starting children and looping until done | `await ctx.WaitChildrenAsync(ids)` (or with a timeout), or `MapAsync` when the children come from a list | the parent parks instead of occupying a worker |
 | `DateTime.Now` | `DateTime.UtcNow`, or a value from the input | the ledger is UTC throughout |
 
 ## Limiting how much runs at once
