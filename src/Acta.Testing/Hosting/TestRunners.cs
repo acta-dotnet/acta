@@ -55,11 +55,15 @@ internal static class TestRunners
     {
         var jobNamespace = runtime.RegisteredNamespaceIds.Keys.Single();
         s_facades.TryGetValue(runtime, out var jobs);
-        var elapsed = Stopwatch.StartNew();
+        // The budget covers the retries, not the first drive: a drive that reconciles a refused start
+        // paces its own retry and can outlast the budget on a loaded box, and the row it leaves Ready
+        // still deserves the re-claim this loop exists for.
+        Stopwatch? elapsed = null;
         var lastProbe = -ProbeEvery;
         while (true)
         {
             var outcome = await runtime.RunOnceAsync(jobNamespace, jobId, ct);
+            elapsed ??= Stopwatch.StartNew();
             if (outcome != RunOnceOutcome.NothingClaimed || elapsed.Elapsed > Budget)
             {
                 return outcome;

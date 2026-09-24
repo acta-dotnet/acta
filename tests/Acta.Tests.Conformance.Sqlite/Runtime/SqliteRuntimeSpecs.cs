@@ -19,6 +19,14 @@ public sealed class SqliteCompleteAndClockChaosSpec : CompleteAndClockChaosSpec<
 
 public sealed class SqliteStartReconciliationChaosSpec : StartReconciliationChaosSpec<SqliteConformanceFixture>;
 
+public sealed class SqliteOrphanedClaimChaosSpec : OrphanedClaimChaosSpec<SqliteConformanceFixture>;
+
+public sealed class SqliteBulkPendingCompletionOwnershipSpec : BulkPendingCompletionOwnershipSpec<SqliteConformanceFixture>;
+
+public sealed class SqliteRecoveryUnderSaturationSpec : RecoveryUnderSaturationSpec<SqliteConformanceFixture>;
+
+public sealed class SqliteBufferedBackpressureOwnershipSpec : BufferedBackpressureOwnershipSpec<SqliteConformanceFixture>;
+
 public sealed class SqliteCombinedDispatchParitySpec : CombinedDispatchParitySpec<SqliteConformanceFixture>;
 
 public sealed class SqliteBulkCompletionParitySpec : BulkCompletionParitySpec<SqliteConformanceFixture>;

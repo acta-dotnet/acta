@@ -1,5 +1,6 @@
 using Acta.Relational.Entities;
 using Acta.Runtime.Modules.Execution;
+using Acta.Runtime.Modules.Execution.Workers;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,9 +21,9 @@ namespace Acta.Tests.Conformance.Runtime;
     "runtime.start-reconciliation",
     "A claim survives what happens between its claim and its handler",
     Area = "Runtime",
-    Contract = "A start is reconciled against the row on LostClaim, a committed start that lost its answer is not made twice, and a failing setup read is repeated.",
+    Contract = "A start is reconciled against the row on LostClaim or LeaseExpired, a committed start is not made twice, and a failing setup read is repeated.",
     Arrange = "A counting one-shot and a recurring slot, with faults staged between the claim and the start write and on the database clock read.",
-    Act = "The row is reprioritized between claim and start, a start commits and loses its answer, and a recurring fire's clock read fails once.",
+    Act = "The row is reprioritized or its lease lapses between claim and start, a start commits and loses its answer, and a recurring fire's clock read fails once.",
     Assert = "Each attempt runs once to Succeeded with one started event, and the recurring fire completes with its slot Ready and unleased."
 )]
 [CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.StartExecutionAsync))]
@@ -89,6 +90,64 @@ public abstract class StartReconciliationChaosSpec<TFixture> : ActaRuntimeTestBa
         _faults.ThrowAfterStartOnce();
 
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(1, ChaosProbes.CountingInvocations[enqueued.JobId]);
+        Assert.Single(await GetEventsByJobId.Run(Services, enqueued.JobId, ct), e => e.EventCode == EventCode.JobExecutionStarted);
+    }
+
+    [Fact(DisplayName = "A lease that lapsed before the start, on a row still this worker's, is started once the heartbeat renews it")]
+    public async Task Expired_lease_at_start_with_the_heartbeat_before_recovery_is_absorbed()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-counting", ct);
+        var namespaceId = await ChaosSpecHelpers.NamespaceIdAsync(Db, TestNamespace, ct);
+        var workers = Services.GetRequiredService<IWorkerStore>();
+
+        // The first start answers LeaseExpired on a row that is still this worker's Dispatched execution;
+        // the heartbeat's renewal is staged before the second start and after no recovery pass, the
+        // ordering that used to leave the row leased, renewed on every beat, and progressed by nothing.
+        // Staging it before the second start rather than on a timer means it cannot land before the
+        // first start is refused, so the fact cannot pass without the reconciliation.
+        var renewed = false;
+        _faults.RunBeforeStartOnce(async () =>
+        {
+            var workerId = await ChaosSpecHelpers.WorkerIdAsync(Db, namespaceId, ct);
+            await ChaosSpecHelpers.ExpireLeaseAsync(Db, enqueued.JobId, ct);
+            _faults.RunBeforeStartOnce(async () =>
+            {
+                await workers.ExtendWorkerLeasesAsync(workerId, 60, false, ct);
+                renewed = true;
+            });
+        });
+
+        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.True(renewed);
+        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(1, ChaosProbes.CountingInvocations[enqueued.JobId]);
+        Assert.Single(await GetEventsByJobId.Run(Services, enqueued.JobId, ct), e => e.EventCode == EventCode.JobExecutionStarted);
+    }
+
+    [Fact(DisplayName = "A lease that lapsed before the start and was reclaimed by recovery in the retry window is a clean skip")]
+    public async Task Expired_lease_reclaimed_before_start_is_a_clean_skip()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-counting", ct);
+        var namespaceId = await ChaosSpecHelpers.NamespaceIdAsync(Db, TestNamespace, ct);
+
+        // The positive control: the first start is refused on the lapsed lease and the reconciliation
+        // paces a retry, recovery reclaims the row in that window, and the second start answers NotOwner
+        // on a row that is Ready and unowned, so the attempt is skipped without a read. The run-once
+        // helper then claims the row again within its budget; one handler run and one started event say
+        // the refused starts wrote nothing and the skipped attempt was not made twice.
+        var reclaimed = 0;
+        _faults.RunBeforeStartOnce(async () =>
+        {
+            await ChaosSpecHelpers.ExpireLeaseAsync(Db, enqueued.JobId, ct);
+            _faults.RunBeforeStartOnce(async () => reclaimed = await ChaosSpecHelpers.ReclaimAsync(Services, namespaceId, ct));
+        });
+
+        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(1, reclaimed);
         Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
         Assert.Equal(1, ChaosProbes.CountingInvocations[enqueued.JobId]);
         Assert.Single(await GetEventsByJobId.Run(Services, enqueued.JobId, ct), e => e.EventCode == EventCode.JobExecutionStarted);

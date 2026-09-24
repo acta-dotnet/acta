@@ -116,6 +116,40 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
     /// </summary>
     public ConcurrentDictionary<long, RunningAttempt> RunningAttempts { get; } = new();
 
+    /// <summary>
+    /// Jobs the Buffered claim loop holds between their claim and their executor: registered as the
+    /// claim returns, removed as an executor takes the row. With <see cref="RunningAttempts"/> this is
+    /// every claim this process can account for; a row the heartbeat renews that is in neither is a
+    /// claim whose answer was lost after the store committed it.
+    /// </summary>
+    public ConcurrentDictionary<long, byte> BufferedClaims { get; } = new();
+
+    /// <summary>
+    /// The executions some actor in this process is starting, running, or releasing right now, keyed
+    /// by job and execution number. An executor takes the entry before it registers the attempt and
+    /// holds it until the attempt is unwound; the orphan release takes it once the row has told it
+    /// the execution and holds it through the reschedule. Whoever fails to take it leaves the
+    /// execution to the holder. The store's version guard cannot tell the two apart on its own: a
+    /// start that lands after another actor's start reads as this worker's own lost answer, since
+    /// both carry the same worker and execution number, and the row would then be run by one and
+    /// rescheduled by the other. Keyed by execution rather than by job so a replacement attempt can
+    /// start while a stale one is still unwinding.
+    /// </summary>
+    public ConcurrentDictionary<(long JobId, int ExecutionNumber), byte> AttemptOwners { get; } = new();
+
+    /// <summary>
+    /// The Bulk completions this process has buffered whose write has not settled, keyed by job and
+    /// execution number. The completion sink registers an entry as the executor hands it over, while
+    /// the executor still holds the attempt, and removes it only once the write lands, is refused, or
+    /// is abandoned at shutdown; a batch row that falls back to the per-job write is still pending.
+    /// Past the attempt this entry is all that says the execution is still this worker's, so the
+    /// orphan release leaves a row alone whose current execution number has one: a flush held across
+    /// two heartbeats would otherwise see its job rescheduled and run again. An entry for an older
+    /// execution accounts for nothing, and removal is by entry, so a stale settle never drops a newer
+    /// execution's entry.
+    /// </summary>
+    public ConcurrentDictionary<(long JobId, int ExecutionNumber), BufferedCompletion> PendingCompletions { get; } = new();
+
     public IReadOnlyDictionary<string, int> RegisteredNamespaceIds => NamespaceIds;
 
     public bool TryGetDefinitionId(string namespaceName, string jobName, out int definitionId)

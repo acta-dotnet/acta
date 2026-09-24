@@ -103,7 +103,14 @@ internal sealed class WorkerRuntime
         // (SQL Server, Postgres) get a sink - Bulk degrades to Direct on inline-only providers (SQLite),
         // which have no batched-completion routine.
         var completionSink = provider.SupportsBatchCompletion
-            ? new CompletionSink(rootServices.GetRequiredService<IExecutionStore>(), publisher, options, logger, metrics)
+            ? new CompletionSink(
+                rootServices.GetRequiredService<IExecutionStore>(),
+                publisher,
+                options,
+                logger,
+                metrics,
+                _context.PendingCompletions
+            )
             : null;
 
         var jobExecution = new JobExecution(
@@ -129,7 +136,21 @@ internal sealed class WorkerRuntime
             metrics,
             completionSink
         );
-        _heartbeat = new WorkerHeartbeat(rootServices.GetRequiredService<IWorkerStore>(), options, workerRegistration, _context, logger);
+        _heartbeat = new WorkerHeartbeat(
+            rootServices.GetRequiredService<IWorkerStore>(),
+            options,
+            workerRegistration,
+            _context,
+            logger,
+            // A renewed row nothing in this process accounts for is a claim whose answer was lost after
+            // it committed; the executor walks it back to Ready the way it releases an unsupported claim.
+            (jobIds, token) =>
+                _executor.ReleaseOrphanedClaimsAsync(
+                    jobIds,
+                    "The claim's answer was lost after it committed; nothing ran, and the job returns to Ready.",
+                    token
+                )
+        );
         _lockHeartbeat = new LockLeaseHeartbeat(lockStore, options, workerRegistration, _context, logger);
         _watchdog = new AttemptWatchdog(options, workerRegistration, _context, logger);
         _recoveryMonitor = new RecoverySlotMonitor(

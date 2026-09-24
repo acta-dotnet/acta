@@ -16,7 +16,8 @@ namespace Acta.Tests.Runtime;
 /// the jobs that are actually unfinalized rather than the whole batch. Every fact here is that sentence
 /// cut into pieces: the one path that may claim a whole-batch rollback, the per-job fallback for rows the
 /// set call self-filtered, the <c>unresolved</c> bookkeeping, the fallback CAS that matched nothing, and
-/// the two wakeups a released parent depends on.
+/// the two wakeups a released parent depends on. The last facts pin the pending entry that keeps each
+/// buffered completion this worker's until it settles, however the write ends.
 /// </summary>
 /// <remarks>
 /// The equivalent facts against a real ledger live in <c>CompletionSinkBulkFallbackSpec</c>, which skips
@@ -275,12 +276,157 @@ public sealed class CompletionSinkDegradedFlushTests
         Assert.Equal(Enumerable.Range(100, 40).Select(i => (long)i).ToArray(), committed);
     }
 
-    private static CompletionSink Sink(ScriptedExecutionStore store, WakeupSpy wakes, RecordingLogger log) =>
+    [Fact]
+    public async Task A_completion_stays_pending_while_its_set_call_is_held_and_leaves_once_it_lands()
+    {
+        // The executor has already let go of the attempt, so while the set call is held this entry is all
+        // that tells the orphan release the row is still this worker's.
+        var pending = new ConcurrentDictionary<(long JobId, int ExecutionNumber), BufferedCompletion>();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var store = new ScriptedExecutionStore
+        {
+            HoldBatch = async _ =>
+            {
+                entered.TrySetResult();
+                await release.Task;
+            },
+        };
+        var sink = Sink(store, new WakeupSpy(), new RecordingLogger(), pending);
+        var ct = TestContext.Current.CancellationToken;
+
+        await sink.EnqueueAsync(Buffered(81));
+        Assert.Contains((81L, 1), pending.Keys);
+
+        sink.CompleteWriter();
+        var flush = Task.Run(() => sink.RunFlusherAsync(4, ct), ct);
+        await entered.Task.WaitAsync(HangGuard, ct);
+        Assert.Contains((81L, 1), pending.Keys);
+
+        release.SetResult();
+        await flush.WaitAsync(HangGuard, ct);
+        Assert.Empty(pending);
+    }
+
+    [Fact]
+    public async Task A_row_the_set_call_turned_back_stays_pending_through_its_per_job_write()
+    {
+        // A false from the set call is not a refusal: the per-job write that follows repeats until it
+        // lands, and the row stays this worker's the whole time.
+        var pending = new ConcurrentDictionary<(long JobId, int ExecutionNumber), BufferedCompletion>();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var store = new ScriptedExecutionStore
+        {
+            Finalized = [false],
+            Fallback = _ => Completed(parentReleased: false),
+            HoldFallback = async _ =>
+            {
+                entered.TrySetResult();
+                await release.Task;
+            },
+        };
+        var sink = Sink(store, new WakeupSpy(), new RecordingLogger(), pending);
+        var ct = TestContext.Current.CancellationToken;
+
+        await sink.EnqueueAsync(Buffered(82));
+        sink.CompleteWriter();
+        var flush = Task.Run(() => sink.RunFlusherAsync(4, ct), ct);
+        await entered.Task.WaitAsync(HangGuard, ct);
+        Assert.Contains((82L, 1), pending.Keys);
+
+        release.SetResult();
+        await flush.WaitAsync(HangGuard, ct);
+        Assert.Empty(pending);
+    }
+
+    [Fact]
+    public async Task A_refused_per_job_write_settles_the_entry_too()
+    {
+        // NotOwner is final: some other actor owns the row now, and nothing is left pending here.
+        var pending = new ConcurrentDictionary<(long JobId, int ExecutionNumber), BufferedCompletion>();
+        var pendingDuringWrite = false;
+        var store = new ScriptedExecutionStore
+        {
+            Finalized = [false],
+            Fallback = _ =>
+            {
+                pendingDuringWrite = pending.ContainsKey((83, 1));
+                return new CompleteExecutionResult(
+                    CompleteExecutionAction.NotOwner,
+                    (byte)JobStatusCode.Ready,
+                    null,
+                    DateTime.UtcNow,
+                    false
+                );
+            },
+        };
+        var sink = Sink(store, new WakeupSpy(), new RecordingLogger(), pending);
+
+        await FlushAsync(sink, TestContext.Current.CancellationToken, Buffered(83));
+
+        Assert.True(pendingDuringWrite, "the entry was not pending while its write was in flight");
+        Assert.Empty(pending);
+    }
+
+    [Fact]
+    public async Task A_batch_abandoned_at_shutdown_leaves_nothing_pending()
+    {
+        // The stop ends the repeat and the jobs fall to recovery; an entry left behind would shield the
+        // row from the orphan release for as long as the process lives.
+        using var stop = new CancellationTokenSource();
+        var pending = new ConcurrentDictionary<(long JobId, int ExecutionNumber), BufferedCompletion>();
+        var pendingDuringWrite = false;
+        var store = new ScriptedExecutionStore
+        {
+            BatchFailure = new InvalidOperationException("deadlock victim"),
+            OnFailure = () =>
+            {
+                pendingDuringWrite = pending.ContainsKey((84, 1)) && pending.ContainsKey((85, 1));
+                stop.Cancel();
+            },
+        };
+        var sink = Sink(store, new WakeupSpy(), new RecordingLogger(), pending);
+
+        await FlushAsync(sink, stop.Token, Buffered(84), Buffered(85));
+
+        Assert.True(pendingDuringWrite, "the entries were not pending while their write was in flight");
+        Assert.Empty(pending);
+    }
+
+    [Fact]
+    public async Task Settling_an_older_execution_leaves_a_newer_executions_entry_in_place()
+    {
+        var pending = new ConcurrentDictionary<(long JobId, int ExecutionNumber), BufferedCompletion>();
+        var newer = Buffered(86, executionNumber: 2);
+        pending[(86, 2)] = newer;
+        var olderPendingDuringWrite = false;
+        var store = new ScriptedExecutionStore { OnBatch = _ => olderPendingDuringWrite = pending.ContainsKey((86, 1)) };
+        var sink = Sink(store, new WakeupSpy(), new RecordingLogger(), pending);
+
+        await FlushAsync(sink, TestContext.Current.CancellationToken, Buffered(86));
+
+        Assert.True(olderPendingDuringWrite, "the older execution's entry was not pending while its write was in flight");
+        var left = Assert.Single(pending);
+        Assert.Equal((86L, 2), left.Key);
+        Assert.Same(newer, left.Value);
+    }
+
+    // A hang guard, not a measurement: every wait is on a gate the fact itself opens.
+    private static readonly TimeSpan HangGuard = TimeSpan.FromSeconds(30);
+
+    private static CompletionSink Sink(
+        ScriptedExecutionStore store,
+        WakeupSpy wakes,
+        RecordingLogger log,
+        ConcurrentDictionary<(long JobId, int ExecutionNumber), BufferedCompletion>? pending = null
+    ) =>
         new(
             store,
             new WorkerWakeupPublisher(wakes),
             Options.Create(new JobsOptions { BatchCompletionSize = 100, BatchCompletionInterval = TimeSpan.FromMilliseconds(20) }),
-            log
+            log,
+            pending: pending
         );
 
     // One drain of exactly the buffered set: the writer is completed before the flusher starts, so the
@@ -295,12 +441,12 @@ public sealed class CompletionSinkDegradedFlushTests
         await sink.RunFlusherAsync(4, stopCt);
     }
 
-    private static BufferedCompletion Buffered(long jobId) =>
+    private static BufferedCompletion Buffered(long jobId, int executionNumber = 1) =>
         new(
             new CompleteExecutionRequest(
                 JobId: jobId,
                 WorkerId: 1,
-                ExpectedExecutionNumber: 1,
+                ExpectedExecutionNumber: executionNumber,
                 Outcome: ExecutionOutcome.Succeeded,
                 ResultFormatId: 0,
                 Result: ReadOnlyMemory<byte>.Empty
@@ -334,19 +480,28 @@ public sealed class CompletionSinkDegradedFlushTests
         public Func<CompleteExecutionRequest, CompleteExecutionResult>? Fallback { get; init; }
         public Action<IReadOnlyList<CompleteExecutionRequest>>? OnBatch { get; set; }
 
+        // Awaited as each write is entered and before it answers, so a fact can hold the write open.
+        public Func<IReadOnlyList<CompleteExecutionRequest>, Task>? HoldBatch { get; init; }
+        public Func<CompleteExecutionRequest, Task>? HoldFallback { get; init; }
+
         public IReadOnlyList<CompleteExecutionRequest> BatchRequests => [.. _batch];
         public IReadOnlyList<CompleteExecutionRequest> FallbackRequests => [.. _fallback];
         public IReadOnlyList<int> BatchSizes => [.. _batchSizes];
 
-        public Task<IReadOnlyList<bool>> CompleteExecutionsBatchAsync(
+        public async Task<IReadOnlyList<bool>> CompleteExecutionsBatchAsync(
             IReadOnlyList<CompleteExecutionRequest> requests,
             CancellationToken ct
         )
         {
+            if (HoldBatch is { } hold)
+            {
+                await hold(requests);
+            }
+
             if (BatchFailure is { } failure)
             {
                 OnFailure?.Invoke();
-                return Task.FromException<IReadOnlyList<bool>>(failure);
+                throw failure;
             }
 
             foreach (var request in requests)
@@ -355,16 +510,18 @@ public sealed class CompletionSinkDegradedFlushTests
             }
             _batchSizes.Enqueue(requests.Count);
             OnBatch?.Invoke(requests);
-            IReadOnlyList<bool> finalized = Finalized ?? [.. requests.Select(_ => true)];
-            return Task.FromResult(finalized);
+            return Finalized ?? [.. requests.Select(_ => true)];
         }
 
-        public Task<CompleteExecutionResult> CompleteExecutionAsync(CompleteExecutionRequest request, CancellationToken ct)
+        public async Task<CompleteExecutionResult> CompleteExecutionAsync(CompleteExecutionRequest request, CancellationToken ct)
         {
             _fallback.Enqueue(request);
-            return Task.FromResult(
-                Fallback is null ? throw new NotSupportedException("no fallback scripted for this test") : Fallback(request)
-            );
+            if (HoldFallback is { } hold)
+            {
+                await hold(request);
+            }
+
+            return Fallback is null ? throw new NotSupportedException("no fallback scripted for this test") : Fallback(request);
         }
 
         public Task<ClaimResult> ClaimBatchAsync(ClaimRequest request, int leaseTtlSeconds, CancellationToken ct) =>

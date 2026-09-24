@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Threading.Channels;
 using Acta.Runtime.Kernel;
 using Acta.Runtime.Modules.Execution.Workers;
@@ -39,15 +40,20 @@ internal sealed class CompletionSink
     private readonly JobMetrics? _metrics;
     private readonly Channel<BufferedCompletion> _channel;
 
+    /// <summary>The worker's <c>WorkerContext.PendingCompletions</c>; a private registry when the sink is built alone.</summary>
+    private readonly ConcurrentDictionary<(long JobId, int ExecutionNumber), BufferedCompletion> _pending;
+
     public CompletionSink(
         Acta.Runtime.Modules.Execution.IExecutionStore execution,
         WorkerWakeupPublisher wakeupPublisher,
         IOptions<JobsOptions> options,
         ILogger? log = null,
-        JobMetrics? metrics = null
+        JobMetrics? metrics = null,
+        ConcurrentDictionary<(long JobId, int ExecutionNumber), BufferedCompletion>? pending = null
     )
     {
         _execution = execution;
+        _pending = pending ?? new();
         _wakeupPublisher = wakeupPublisher;
         _metrics = metrics;
         var o = options.Value;
@@ -66,10 +72,29 @@ internal sealed class CompletionSink
     }
 
     /// <summary>
-    /// Buffers a completed job. Uses an uncancellable write: the handler already ran, so the completion
-    /// must not be dropped on shutdown; backpressure (a full channel) just delays the executor's next claim.
+    /// Buffers a completed job and registers it pending until it settles. Uses an uncancellable write:
+    /// the handler already ran, so the completion must not be dropped on shutdown; backpressure (a full
+    /// channel) just delays the executor's next claim.
     /// </summary>
-    public ValueTask EnqueueAsync(BufferedCompletion completion) => _channel.Writer.WriteAsync(completion, CancellationToken.None);
+    public async ValueTask EnqueueAsync(BufferedCompletion completion)
+    {
+        _pending[Key(completion)] = completion;
+        try
+        {
+            await _channel.Writer.WriteAsync(completion, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch
+        {
+            Settled(completion);
+            throw;
+        }
+    }
+
+    private static (long JobId, int ExecutionNumber) Key(BufferedCompletion completion) =>
+        (completion.Request.JobId, completion.Request.ExpectedExecutionNumber);
+
+    private void Settled(BufferedCompletion completion) =>
+        _pending.TryRemove(new KeyValuePair<(long JobId, int ExecutionNumber), BufferedCompletion>(Key(completion), completion));
 
     /// <summary>Signals no more completions will be buffered, so the flushers drain and exit.</summary>
     public void CompleteWriter() => _channel.Writer.TryComplete();
@@ -182,6 +207,10 @@ internal sealed class CompletionSink
             // and sys.recovery reclaims them once it lapses. Log and take the next batch. This is the only
             // path that may claim the whole batch rolled back.
             _log.LogError(ex, "Bulk completion flush of {Count} jobs failed; they remain Executing for recovery.", batch.Count);
+            foreach (var entry in batch)
+            {
+                Settled(entry);
+            }
             return;
         }
 
@@ -237,12 +266,30 @@ internal sealed class CompletionSink
     /// <summary>What one entry of a flush left for the report: at most one failure on each of its steps.</summary>
     private readonly record struct FlushOutcome(Exception? CompletionFailure, Exception? WakeFailure);
 
+    /// <summary>Settles one entry of a flush, and only then drops it from the pending registry.</summary>
+    private async Task<FlushOutcome> SettleAsync(
+        BufferedCompletion entry,
+        bool alreadyFinalized,
+        SemaphoreSlim? gate,
+        CancellationToken stopCt
+    )
+    {
+        try
+        {
+            return await FinalizeAsync(entry, alreadyFinalized, gate, stopCt).ConfigureAwait(false);
+        }
+        finally
+        {
+            Settled(entry);
+        }
+    }
+
     /// <summary>
     /// Finalizes one entry of a flush and then publishes its wakeup, in that order so a failed wakeup is
     /// never mistaken for an unfinalized job. Never throws: a failure on either step is the entry's own
     /// and is carried back for the batch-level report.
     /// </summary>
-    private async Task<FlushOutcome> SettleAsync(
+    private async Task<FlushOutcome> FinalizeAsync(
         BufferedCompletion entry,
         bool alreadyFinalized,
         SemaphoreSlim? gate,
