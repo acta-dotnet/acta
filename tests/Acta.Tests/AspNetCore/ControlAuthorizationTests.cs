@@ -188,6 +188,32 @@ public sealed class ControlAuthorizationTests
         Assert.Equal("enqueue", Assert.Single(authorizer.Requests).Verb);
     }
 
+    // The outbox controls are a family of their own; their verbs carry the entity, and a denial stops
+    // the requeue before the store sees it.
+    [Fact]
+    public async Task Outbox_control_routes_derive_outbox_verbs_and_honor_a_denial()
+    {
+        var jobs = new TestDashboardHost.FakeJobs();
+        var authorizer = new FakeAuthorizer(request =>
+            request.Verb == "outbox.discard" ? ActaControlDecision.Denied("not on your shift") : ActaControlDecision.Allowed
+        );
+        var (app, client) = await TestDashboardHost.StartAsync(
+            options => options.EnableControls = true,
+            configureBuilder: b => b.Services.AddSingleton<IActaControlAuthorizer>(authorizer),
+            jobs: jobs
+        );
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var requeue = await client.SendAsync(Post("/acta/api/v1/outbox/billing/requeue"), ct);
+        var discard = await client.SendAsync(Post("/acta/api/v1/outbox/billing/discard"), ct);
+
+        Assert.NotEqual(HttpStatusCode.Forbidden, requeue.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, discard.StatusCode);
+        Assert.Equal(["outbox.requeue", "outbox.discard"], authorizer.Requests.Select(r => r.Verb));
+        Assert.Equal("requeue", Assert.Single(jobs.OutboxFake.ControlCalls).Verb);
+    }
+
     // A worker-tag control route keeps its `workers` entity even though the mount prefix contains `jobs`.
     [Fact]
     public async Task Worker_tag_control_route_derives_a_workers_verb()
