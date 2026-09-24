@@ -54,9 +54,13 @@ try {
     $html = & $request $base $auth
     if ([int]$html.StatusCode -ne 200) { throw 'Authorized dashboard HTML failed.' }
     $checks += @{ Path = ''; Authenticated = $true; Status = 200 }
+    $baseHref = [regex]::Match($html.Content, '<base href="([^"]+)">').Groups[1].Value
+    if ($baseHref -ne '/operations/acta/') { throw "Packaged dashboard HTML base href was '$baseHref', expected '/operations/acta/' (the proxy prefix must be part of it)." }
+    $checks += @{ Path = '<base href>'; Authenticated = $true; Status = 200; BaseHref = $baseHref }
     $asset = [regex]::Match($html.Content, 'src="([^"]+\.js)"').Groups[1].Value
     if (-not $asset) { throw 'Packaged dashboard HTML had no JavaScript asset.' }
-    $assetUrl = if ($asset.StartsWith('/')) { "http://$binding$asset" } else { "$base/$asset" }
+    # Resolved the way a browser resolves it: relative to the base element, never to the request URL.
+    $assetUrl = if ($asset.StartsWith('/')) { "http://$binding$asset" } else { "http://$binding$baseHref" + ($asset -replace '^\./', '') }
     $assetResponse = & $request $assetUrl $auth
     if ([int]$assetResponse.StatusCode -ne 200 -or $assetResponse.RawContentLength -lt 1000) { throw 'Authorized packaged JavaScript asset failed.' }
     $checks += @{ Path = $asset; Authenticated = $true; Status = 200; Bytes = $assetResponse.RawContentLength }

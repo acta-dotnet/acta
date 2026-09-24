@@ -18,7 +18,17 @@ internal static class ControlAuthorizationFilter
     /// chooses, the control routes always end in one of these, so this stays stable regardless of where
     /// the API is mounted. Extend this list alongside a new control-endpoint family.
     /// </summary>
-    private static readonly string[] Entities = ["jobs", "tenants", "namespaces", "schedules", "definitions", "alerts", "workers"];
+    private static readonly string[] Entities =
+    [
+        "jobs",
+        "tenants",
+        "namespaces",
+        "schedules",
+        "definitions",
+        "alerts",
+        "workers",
+        "outbox",
+    ];
 
     public static void Attach(RouteGroupBuilder controls)
     {

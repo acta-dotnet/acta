@@ -84,8 +84,10 @@ public static class ActaEndpointRouteBuilderExtensions
 
         if (options.Enabled)
         {
-            var basePath = pattern.TrimEnd('/');
-            group.MapGet("", () => ServeIndex(options, basePath));
+            // Rooted, so it composes with the request's path base; a pattern written without the
+            // leading slash is a valid route but not a valid path segment.
+            var basePath = pattern.Trim('/') is { Length: > 0 } trimmed ? "/" + trimmed : "";
+            group.MapGet("", (HttpContext http) => ServeIndex(http, options, basePath));
             group.MapGet("/assets/{**assetPath}", (string assetPath) => ServeAsset("assets/" + assetPath, options));
             group.Map(
                 "/{**spaPath}",
@@ -94,7 +96,7 @@ public static class ActaEndpointRouteBuilderExtensions
                     || spaPath.StartsWith("api/", StringComparison.OrdinalIgnoreCase)
                     || spaPath.Equals("api", StringComparison.OrdinalIgnoreCase)
                         ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Unknown endpoint.")
-                        : ServeIndex(options, basePath)
+                        : ServeIndex(http, options, basePath)
             );
         }
 
@@ -154,11 +156,17 @@ public static class ActaEndpointRouteBuilderExtensions
         );
     }
 
-    private static IResult ServeIndex(ActaDashboardOptions options, string basePath)
+    // The base href carries the request's path base in front of the mount pattern: behind a reverse
+    // proxy that strips a prefix, UsePathBase puts it back on the request, and relative asset URLs in
+    // the page must resolve under it.
+    private static IResult ServeIndex(HttpContext http, ActaDashboardOptions options, string basePath)
     {
+        // Escaped as a URI component: a path base taken from a forwarded-prefix header is request input
+        // and lands inside an attribute.
+        var baseHref = http.Request.PathBase.Add(basePath).ToUriComponent();
         if (options.UseViteDevServer)
         {
-            var dev = DevIndex(options.ViteDevServerUrl, basePath);
+            var dev = DevIndex(options.ViteDevServerUrl, baseHref);
             return Headers(Results.Text(dev, "text/html; charset=utf-8"), options, isIndex: true, isDev: true);
         }
 
@@ -174,7 +182,7 @@ public static class ActaEndpointRouteBuilderExtensions
 
         var html = Encoding
             .UTF8.GetString(bytes)
-            .Replace("<head>", $"<head><base href=\"{basePath}/\">", StringComparison.OrdinalIgnoreCase);
+            .Replace("<head>", $"<head><base href=\"{baseHref}/\">", StringComparison.OrdinalIgnoreCase);
         return Headers(Results.Text(html, "text/html; charset=utf-8"), options, isIndex: true, isDev: false);
     }
 

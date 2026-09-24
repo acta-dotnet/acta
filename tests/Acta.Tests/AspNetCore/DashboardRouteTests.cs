@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Builder;
 using Xunit;
 
 namespace Acta.Tests.AspNetCore;
@@ -31,6 +32,22 @@ public sealed partial class DashboardRouteTests
         Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
         Assert.Contains("default-src 'self'", response.Headers.GetValues("Content-Security-Policy").Single());
         Assert.Equal("DENY", response.Headers.GetValues("X-Frame-Options").Single());
+    }
+
+    // Behind a proxy that strips a prefix, UsePathBase restores it on the request and the base element
+    // must carry it, or the page's relative asset URLs resolve above the prefix and 404.
+    [Fact]
+    public async Task Base_tag_includes_the_request_path_base()
+    {
+        Assert.SkipUnless(AssetsEmbedded, "Dashboard assets are not embedded in this build.");
+        var (app, client) = await TestDashboardHost.StartAsync(configureApp: app => app.UsePathBase("/operations"));
+        await using var _ = app;
+
+        var response = await client.GetAsync("/operations/acta", TestContext.Current.CancellationToken);
+        var html = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("<base href=\"/operations/acta/\">", html);
     }
 
     [Fact]
