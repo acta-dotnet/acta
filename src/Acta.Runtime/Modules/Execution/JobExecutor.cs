@@ -113,6 +113,39 @@ internal sealed class JobExecutor(
         CancellationToken ct
     )
     {
+        // A claim whose answer arrived late enough for the heartbeat to be releasing the row is left
+        // to that release: it reads as this worker's row all the way through, so only the in-process
+        // owner entry tells the two actors apart.
+        var execution = (job.JobId, job.ExecutionNumber);
+        if (!_context.AttemptOwners.TryAdd(execution, 0))
+        {
+            _log.LogInformation(
+                "WorkerRuntime: ({Namespace}) job {JobId} is being released as an orphaned claim; the late claim answer is skipped.",
+                namespaceName,
+                job.JobId
+            );
+            return RunOnceOutcome.NothingClaimed;
+        }
+
+        try
+        {
+            return await ExecuteOwnedClaimAsync(job, namespaceName, namespaceId, workerId, alreadyStarted, ct);
+        }
+        finally
+        {
+            _context.AttemptOwners.TryRemove(execution, out _);
+        }
+    }
+
+    private async Task<RunOnceOutcome> ExecuteOwnedClaimAsync(
+        ClaimedJob job,
+        string namespaceName,
+        int namespaceId,
+        int workerId,
+        bool alreadyStarted,
+        CancellationToken ct
+    )
+    {
         if (!_context.DescriptorByDefinitionId.TryGetValue(job.DefinitionId, out var descriptor))
         {
             var firstBounce = _context.ExcludeDefinition(job.DefinitionId);
@@ -351,6 +384,134 @@ internal sealed class JobExecutor(
     /// <see cref="JobsOptions.SafetyPollInterval"/>. Both writes are repeated until they land, because a
     /// claim nothing settles stays leased for as long as this worker lives.
     /// </summary>
+    /// <summary>
+    /// Returns to Ready the rows the heartbeat found leased by this process with no attempt behind
+    /// them: claims whose answer was lost after the store committed them. Each row is read again
+    /// first, and only one still leased by one of this process's workers, still Dispatched or
+    /// Executing, and still unaccounted for is released, through the same start-then-reschedule walk
+    /// an unsupported claim takes, so the ledger shows an attempt that ran nothing and re-armed.
+    /// </summary>
+    public async Task ReleaseOrphanedClaimsAsync(IReadOnlyList<long> jobIds, string reason, CancellationToken ct)
+    {
+        var jobStore = _rootServices.GetRequiredService<IJobStore>();
+        var workerIds = _context.WorkerIdByNamespace.Values.ToHashSet();
+        foreach (var jobId in jobIds)
+        {
+            await ReleaseOrphanedClaimAsync(jobId, jobStore, workerIds, reason, ct);
+        }
+    }
+
+    private async Task ReleaseOrphanedClaimAsync(
+        long jobId,
+        IJobStore jobStore,
+        HashSet<int> workerIds,
+        string reason,
+        CancellationToken ct
+    )
+    {
+        if (_context.RunningAttempts.ContainsKey(jobId) || _context.BufferedClaims.ContainsKey(jobId))
+        {
+            return;
+        }
+
+        var (row, _) = await CompletionWrite.RetryAsync(async token => await jobStore.GetJobAsync(jobId, token), _log, jobId, ct, _metrics);
+        // The ownership check repeats after the read: the claim loop registers a row the instant its
+        // claim answers, so a row unaccounted for at the first check may be buffered by now.
+        if (
+            row is null
+            || row.LeasedByWorkerId is not { } workerId
+            || !workerIds.Contains(workerId)
+            || row.Status is not (JobStatusCode.Dispatched or JobStatusCode.Executing)
+            || _context.RunningAttempts.ContainsKey(jobId)
+            || _context.BufferedClaims.ContainsKey(jobId)
+        )
+        {
+            return;
+        }
+
+        // The owner entry for this execution is held from here until the reschedule lands, so a claim
+        // answer that arrives meanwhile finds the execution taken and skips it.
+        var execution = (jobId, row.ExecutionNumber);
+        if (!_context.AttemptOwners.TryAdd(execution, 0))
+        {
+            return;
+        }
+
+        try
+        {
+            await ReleaseOwnedClaimAsync(row, jobId, workerId, jobStore, reason, ct);
+        }
+        finally
+        {
+            _context.AttemptOwners.TryRemove(execution, out _);
+        }
+    }
+
+    private async Task ReleaseOwnedClaimAsync(
+        JobDetail row,
+        long jobId,
+        int workerId,
+        IJobStore jobStore,
+        string reason,
+        CancellationToken ct
+    )
+    {
+        if (row.Status == JobStatusCode.Dispatched)
+        {
+            var start = await JobExecution.StartReconciledAsync(
+                _execution,
+                jobStore,
+                jobId,
+                row.ExecutionNumber,
+                row.Version,
+                workerId,
+                _leaseTtlSeconds,
+                _log,
+                _metrics,
+                ct
+            );
+            if (start != StartExecutionAction.Started)
+            {
+                _log.LogInformation(
+                    "WorkerRuntime: lost claim on job {JobId} ({Detail}) before releasing it: ({Outcome}); skipping.",
+                    jobId,
+                    $"execution number {row.ExecutionNumber}",
+                    start.ToString()
+                );
+                return;
+            }
+        }
+
+        var request = new CompleteExecutionRequest(
+            jobId,
+            workerId,
+            row.ExecutionNumber,
+            ExecutionOutcome.Rescheduled,
+            0,
+            ReadOnlyMemory<byte>.Empty,
+            JobEventReasonCode.Unclassified,
+            reason.Truncate(ActaTextLimits.ReasonMessage),
+            DurationMs: 0
+        )
+        {
+            RescheduleStatusCode = (byte)ExecutionStatusCode.Rescheduled,
+            RescheduleDelaySeconds = _unsupportedClaimDelaySeconds,
+        };
+        var (complete, _) = await CompletionWrite.RetryAsync(
+            token => _execution.CompleteExecutionAsync(request, token),
+            _log,
+            jobId,
+            ct,
+            _metrics
+        );
+        _log.LogWarning(
+            "WorkerRuntime: released job {JobId} ({Detail}): ({Outcome}).",
+            jobId,
+            $"execution number {row.ExecutionNumber}; {reason}",
+            complete.Action.ToString()
+        );
+    }
+
     private async Task<RunOnceOutcome> ReleaseClaimAsync(
         ClaimedJob job,
         int workerId,

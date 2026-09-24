@@ -20,12 +20,19 @@ internal sealed class WorkerHeartbeat(
     IOptions<JobsOptions> options,
     WorkerRegistration? workerRegistration,
     WorkerContext context,
-    ILogger log
+    ILogger log,
+    Func<IReadOnlyList<long>, CancellationToken, Task>? releaseOrphanedClaims = null
 )
 {
     private readonly IWorkerStore _workers = workers;
     private readonly WorkerRegistration? _workerRegistration = workerRegistration;
     private readonly WorkerContext _context = context;
+    private readonly Func<IReadOnlyList<long>, CancellationToken, Task>? _releaseOrphanedClaims = releaseOrphanedClaims;
+
+    // The ids the previous authoritative tick renewed with nothing in this process behind them; an id
+    // still unaccounted for on the next tick is released. Touched only under the tick gate.
+    private HashSet<long> _orphanCandidates = [];
+    private Task? _orphanRelease;
     private readonly TimeSpan _interval = options.Value.HeartbeatInterval;
     private readonly int _leaseTtlSeconds = options.Value.LeaseTtlSeconds;
 
@@ -178,11 +185,68 @@ internal sealed class WorkerHeartbeat(
             }
 
             FeedJobLeases(snapshot, live, renewRequestedAt);
+            ReleaseOrphanedClaims(snapshot, live, ct);
         }
         finally
         {
             _tickGate.Release();
         }
+    }
+
+    /// <summary>
+    /// The rows this tick renewed that no attempt and no buffered claim of this process accounts for.
+    /// A claim's answer can be lost after the store committed it: the rows are this worker's, the
+    /// refresh renews them from database state, and nothing would ever start or reclaim them. An id
+    /// must be unaccounted for on two consecutive authoritative ticks before it is released, so a
+    /// claim whose executor has not registered it yet is never mistaken for one. The release runs
+    /// detached: its writes repeat through an outage, and the heartbeat must keep beating meanwhile.
+    /// </summary>
+    private void ReleaseOrphanedClaims(KeyValuePair<long, RunningAttempt>[] snapshot, HashSet<long>? live, CancellationToken ct)
+    {
+        if (live is null || _releaseOrphanedClaims is null)
+        {
+            return;
+        }
+
+        var unaccounted = new HashSet<long>(live);
+        foreach (var (jobId, _) in snapshot)
+        {
+            unaccounted.Remove(jobId);
+        }
+        unaccounted.ExceptWith(_context.RunningAttempts.Keys);
+        unaccounted.ExceptWith(_context.BufferedClaims.Keys);
+
+        var confirmed = unaccounted.Where(_orphanCandidates.Contains).ToList();
+        _orphanCandidates = unaccounted;
+        if (confirmed.Count == 0 || _orphanRelease is { IsCompleted: false })
+        {
+            return;
+        }
+
+        _log.LogWarning(
+            "WorkerRuntime: {Count} leased rows have had no attempt on this worker for two heartbeats; returning them to Ready ({Detail}).",
+            confirmed.Count,
+            string.Join(", ", confirmed)
+        );
+        var release = _releaseOrphanedClaims;
+        _orphanRelease = Task.Run(
+            async () =>
+            {
+                try
+                {
+                    await release(confirmed, ct);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    // Shutdown: whatever was not released falls to recovery once its lease lapses.
+                }
+                catch (Exception ex)
+                {
+                    _log.LogError(ex, "WorkerRuntime: releasing leased rows with no attempt failed; the next heartbeat retries.");
+                }
+            },
+            CancellationToken.None
+        );
     }
 
     /// <summary>

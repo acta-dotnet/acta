@@ -261,7 +261,20 @@ public abstract class RecoverySlotMonitorSpec<TFixture> : ActaRuntimeTestBase<TF
 
         Assert.Equal(JobStatusCode.Ready, strandedStatus);
 
-        var slot = await RuntimeAsync(slotId, ct);
+        // A tick that was already in flight when the stranded job turned Ready holds the slot's lease
+        // until its own sweep completes, so the slot is judged once that pass has settled.
+        JobRuntime slot;
+        do
+        {
+            slot = await RuntimeAsync(slotId, ct);
+            if (slot.LeasedByWorkerId is null)
+            {
+                break;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(50), ct);
+        } while (DateTime.UtcNow < deadline);
+
         Assert.Null(slot.LeasedByWorkerId);
 
         await stop.CancelAsync();

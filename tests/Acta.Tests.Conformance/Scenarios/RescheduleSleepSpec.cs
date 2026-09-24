@@ -201,19 +201,22 @@ public abstract class RescheduleSleepSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(enqueued.JobId, ct)).Status);
     }
 
-    [Fact(DisplayName = "Unknown control exception is rethrown, not translated to a reschedule or suspend")]
-    public async Task Unknown_control_exception_is_rethrown_not_translated_to_a_rearm()
+    [Fact(DisplayName = "Unknown control exception fails the attempt like a handler exception, not a reschedule or suspend")]
+    public async Task Unknown_control_exception_fails_the_attempt_not_translated_to_a_rearm()
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-control-unknown", JobPayload.None), ct);
 
-        // An unrecognized JobControlException propagates (the worker loop logs it; lease expiry reclaims
-        // the row) rather than being silently translated into a reschedule / suspend.
-        await Assert.ThrowsAsync<FakeControlException>(async () => await Runtime.RunOnceAsync(enqueued, ct));
+        // An unrecognized JobControlException is a handler exception to the runtime: the attempt fails
+        // under the retry budget and re-arms, rather than being translated into a reschedule / suspend
+        // or escaping the attempt and leaving the row Executing under a lease the heartbeat renews.
+        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
-        Assert.Equal(JobStatusCode.Executing, job.Status);
-        Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobRescheduled, ct));
+        Assert.Equal(JobStatusCode.Ready, job.Status);
+        var events = await Db.From<JobEvent>().Where(e => e.JobId == enqueued.JobId).ToListAsync(ct);
+        Assert.Contains(events, e => e.ReasonCode == JobEventReasonCode.JobUnhandledException);
+        Assert.DoesNotContain(events, e => e.ReasonCode == JobEventReasonCode.JobHandlerRescheduled);
         Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobSuspended, ct));
     }
 

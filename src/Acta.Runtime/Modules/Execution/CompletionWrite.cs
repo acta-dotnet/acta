@@ -32,6 +32,9 @@ internal static class CompletionWrite
     // Warning while a blip is still the likely story, Error once the failure has outlived one.
     private const int WarningTries = 3;
 
+    /// <summary>The wait before try <paramref name="attempt"/> + 1 on the runtime's retry curve.</summary>
+    public static TimeSpan Delay(int attempt) => TimeSpan.FromSeconds(BackoffSchedule.ComputeDelaySeconds(attempt, DefaultBackoff));
+
     public static async Task<(T Result, bool Retried)> RetryAsync<T>(
         Func<CancellationToken, Task<T>> write,
         ILogger log,

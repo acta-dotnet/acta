@@ -665,6 +665,16 @@
 - **Store methods:**
   - `Acta.Runtime.Services.Locks.ILockStore.TryAcquireSlotAsync`
 
+### A meter freed after a lock convoy admits its burst, not every queued call
+- **Contract:** Reservations delayed behind a held bucket row are judged at the clock when the row frees, so the release admits the burst and books the rest.
+- **Arrange:** A primed meter whose bucket row is held by an outside transaction while reservations arrive every fifty milliseconds.
+- **Act:** The outside transaction commits and the queued reservations execute.
+- **Assert:** The admissions among them are bounded by the burst and the interval, not by the queue's length.
+- **Guarantees:**
+  - Reservations queued behind a held bucket row are admitted at the burst when it frees, not all at once
+- **Store methods:**
+  - `Acta.Runtime.Services.Locks.ILockStore.ReserveRateAsync`
+
 ### A definition's rate limit admits at the rate and books every early job a turn
 - **Contract:** A rate key admits its burst at once and then one per interval, booking each early job a turn it waits for or returns to.
 - **Arrange:** Definitions declaring a rate, alone and sharing a key, plus meters driven through the lock store.
@@ -2007,6 +2017,16 @@
   - `Acta.Runtime.Modules.Alerting.IAlertStore.ResolveJobAlertsAsync`
   - `Acta.Runtime.Modules.Execution.IExecutionStore.ReclaimStuckJobsAsync`
 
+### A Buffered worker with every executor held still runs the recovery sweep
+- **Contract:** A recovery slot claimed by the Buffered loop runs outside the channel, so a stranded job is reclaimed while every executor is held.
+- **Arrange:** A Buffered worker with one executor held by a blocking job, a job stranded under a lapsed lease, and the recovery slot due.
+- **Act:** The claim loop takes the due slot while the executor is still held.
+- **Assert:** The stranded job returns to Ready before the executor is released.
+- **Guarantees:**
+  - A stranded job is reclaimed while the Buffered worker's only executor is held by another job
+- **Store methods:**
+  - `Acta.Runtime.Modules.Execution.IExecutionStore.ClaimBatchAsync`
+
 ### Bulk drain finishes the in-flight job, then Active to Draining to Stopped
 - **Contract:** Under the Bulk profile a graceful stop flips the worker Active to Draining, runs the in-flight handler to completion and group-commits it, then stamps Stopped.
 - **Arrange:** A worker runs the Bulk profile with a one-row completion batch and a gate handler that holds its job in-flight until released.
@@ -2132,6 +2152,28 @@
 
 ## Runtime
 
+### Rows waiting behind a full Buffered channel are not released as orphans
+- **Contract:** A row claimed but not written to a full Buffered channel is left alone by the heartbeat and handed back to Ready by a drain.
+- **Arrange:** A Buffered worker with one executor held by a blocking job, a claim batch larger than the channel's free space, and several claimable jobs.
+- **Act:** The heartbeat ticks twice while the claim loop is blocked on the full channel, or a drain begins there.
+- **Assert:** No waiting row is rescheduled by the heartbeats, and the drain reschedules the rows it never wrote.
+- **Guarantees:**
+  - Two heartbeats against a claim loop blocked on a full channel reschedule none of the rows it holds
+  - A drain that lands on a blocked channel write hands the rows it never wrote back to Ready
+- **Store methods:**
+  - `Acta.Runtime.Modules.Execution.IExecutionStore.ClaimBatchAsync`
+
+### A claim whose answer was lost is returned to Ready by the heartbeat
+- **Contract:** A row leased by this worker with no attempt behind it for two heartbeats is re-armed Ready, and a row an attempt or the buffer holds is left alone.
+- **Arrange:** A counting one-shot claimed by the runtime, with the claim's answer lost after the store committed it.
+- **Act:** The heartbeat ticks twice with nothing running, then the job is run once.
+- **Assert:** The row is Ready and unleased after the second tick, and the attempt then runs once to Succeeded.
+- **Guarantees:**
+  - A Dispatched row whose claim answer was lost is returned to Ready after two heartbeats and then runs once
+  - An Executing row whose combined claim answer was lost is returned to Ready after two heartbeats
+- **Store methods:**
+  - `Acta.Runtime.Modules.Execution.IExecutionStore.ClaimOneAsync`
+
 ### Two generations share a namespace and the rollback still runs
 - **Contract:** A worker hands back a claim it has no handler for, stops claiming that definition, and leaves the catalog entry Active.
 - **Arrange:** Two runtimes register different manifest generations into one namespace, and one job of each generation's definitions is enqueued.
@@ -2141,14 +2183,16 @@
   - Two generations in one namespace hand back each other's work, learn it, and the rollback still runs the definition the new generation omitted
 
 ### A claim survives what happens between its claim and its handler
-- **Contract:** A start is reconciled against the row on LostClaim, a committed start that lost its answer is not made twice, and a failing setup read is repeated.
+- **Contract:** A start is reconciled against the row on LostClaim or LeaseExpired, a committed start is not made twice, and a failing setup read is repeated.
 - **Arrange:** A counting one-shot and a recurring slot, with faults staged between the claim and the start write and on the database clock read.
-- **Act:** The row is reprioritized between claim and start, a start commits and loses its answer, and a recurring fire's clock read fails once.
+- **Act:** The row is reprioritized or its lease lapses between claim and start, a start commits and loses its answer, and a recurring fire's clock read fails once.
 - **Assert:** Each attempt runs once to Succeeded with one started event, and the recurring fire completes with its slot Ready and unleased.
 - **Guarantees:**
   - A reprioritize between the claim and the start does not strand the job: the start is retried against the moved version
   - A start that fails before it commits, with a reprioritize in its retry window, is retried against the moved version
   - A start that commits and loses its answer runs the handler once and writes one started event
+  - A lease that lapsed before the start, on a row still this worker's, is started once the heartbeat renews it
+  - A lease that lapsed before the start and was reclaimed by recovery in the retry window is a clean skip
   - A clock read that fails once after the claim is repeated, and the recurring fire completes
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.StartExecutionAsync`
@@ -2204,7 +2248,7 @@
   - Zero-delay sleep continues without arming a timer
   - Sleep validation rejects invalid names, reserved names and negative delay
   - A second distinct pending sleep is rejected and re-arms without touching the existing timer
-  - Unknown control exception is rethrown, not translated to a reschedule or suspend
+  - Unknown control exception fails the attempt like a handler exception, not a reschedule or suspend
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.ArmOrConsumeSleepTimerAsync`
   - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
@@ -2743,8 +2787,8 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IDefinitionStore.SetDefinitionOverridesAsync` | Definition override bind matrix: all 13 slots<br>Override writes are version-guarded, recompute effective, and audited |
 | `IExecutionStore.ArmOrConsumeSleepTimerAsync` | Reschedule re-arms Ready and durable sleep arms an idempotent timer |
 | `IExecutionStore.CheckpointSlotAsync` | A bounded group wait spends one stored deadline across every child and replay<br>Job variables round-trip through the context API with versioning and validation |
-| `IExecutionStore.ClaimBatchAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>A paused slot does not fire and a timed pause auto-resumes at its expiry<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>At most one same-key handler executes, admitted at execution time<br>Claim caps at the batch size, reports the horizon, and skips excluded rows<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire |
-| `IExecutionStore.ClaimOneAsync` | CLI verbs map onto IJobs and debug runs the targeted job in-process |
+| `IExecutionStore.ClaimBatchAsync` | A Buffered worker with every executor held still runs the recovery sweep<br>A job registers, enqueues, claims, executes, persists and reads back<br>A paused slot does not fire and a timed pause auto-resumes at its expiry<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>At most one same-key handler executes, admitted at execution time<br>Claim caps at the batch size, reports the horizon, and skips excluded rows<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Rows waiting behind a full Buffered channel are not released as orphans |
+| `IExecutionStore.ClaimOneAsync` | A claim whose answer was lost is returned to Ready by the heartbeat<br>CLI verbs map onto IJobs and debug runs the targeted job in-process |
 | `IExecutionStore.CompleteExecutionAsync` | A bounded child wait expires, cancels its subtree, and leaves the parent running<br>A claim with no handler is handed back, and its definition is not claimed again<br>A job registers, enqueues, claims, executes, persists and reads back<br>A paused slot does not fire and a timed pause auto-resumes at its expiry<br>A raise inside the suspend handoff lands the job Ready, not Suspended<br>A recurring job whose handler throws raises an alert<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>An operator pause landing inside a planned fire keeps the schedule paused<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Completing an in-flight attempt respects schedule changes made while it ran<br>Handler Fail Cancel Pause finalize the attempt without returning to user code<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Reschedule re-arms Ready and durable sleep arms an idempotent timer<br>StartExecution and CompleteExecution no-op outcomes return exact action enums<br>The failures-only audit level records a failure and the success that answers it |
 | `IExecutionStore.CompleteExecutionsBatchAsync` | CompleteExecutionsBatch self-filters and aligns outcomes to original ordinals |
 | `IExecutionStore.CompleteStepAsync` | At-most-once step re-entered before completion is interrupted<br>Nonzero backoff defers the parent to the retry instant and re-invokes the body<br>RunStepAsync runs once, replays results, and retries until exhausted<br>Step exhausts by retry-window and re-entry replays without body invocation |
@@ -2827,7 +2871,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IOutboxSignalStore.RecordAppliedAsync` | An applied operator command leaves an always-emitted evidence event |
 | `ILockStore.ExtendAsync` | A held lock renews while owned and misses after release |
 | `ILockStore.ReleaseAsync` | Release removes the lease row and a stale token misses on version CAS |
-| `ILockStore.ReserveRateAsync` | A definition's rate limit admits at the rate and books every early job a turn |
+| `ILockStore.ReserveRateAsync` | A definition's rate limit admits at the rate and books every early job a turn<br>A meter freed after a lock convoy admits its burst, not every queued call |
 | `ILockStore.TryAcquireAsync` | Acquire lands a lease row and blocks a competing acquire on a live key |
 | `ILockStore.TryAcquireSlotAsync` | A definition's concurrency limit is how many of its key's slots exist |
 

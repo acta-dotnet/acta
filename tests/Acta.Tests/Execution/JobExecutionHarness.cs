@@ -7,6 +7,7 @@ using Acta.Runtime.Modules.Execution.Timers;
 using Acta.Runtime.Modules.Execution.Workers;
 using Acta.Runtime.Services.Locks;
 using Acta.Runtime.Services.Time;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Xunit;
@@ -217,15 +218,64 @@ internal sealed class JobExecutionHarness(
     /// </summary>
     public async Task<RunOnceOutcome> RunWithNoDescriptorAsync()
     {
+        var executor = Executor(new WorkerContext(null));
+        return await executor.ExecuteClaimedJobAsync(
+            Job(failureCount, concurrencyKey),
+            namespaceName: "harness",
+            namespaceId: 1,
+            WorkerId,
+            alreadyStarted: false,
+            CancellationToken.None
+        );
+    }
+
+    /// <summary>
+    /// The heartbeat's orphan release on the row, with the claim's late answer landing while the
+    /// release's start write is in flight: the executor is handed the claimed job inside that window,
+    /// as a Buffered channel or a Direct loop would hand it after a delayed store response. Returns
+    /// the outcome the executor reported for that late claim; the release's own writes are read off
+    /// <see cref="Submitted"/> and <see cref="StartAttempts"/>.
+    /// </summary>
+    public async Task<RunOnceOutcome> ReleaseOrphanWithLateClaimAnswerAsync()
+    {
+        var context = new WorkerContext(null);
+        context.WorkerIdByNamespace["harness"] = WorkerId;
+        context.DescriptorByDefinitionId[1] = Descriptor(
+            jobName,
+            static (ctx, token) => ctx.RunStepAsync(StepName, static _ => Task.CompletedTask, ct: token),
+            maxAttempts,
+            concurrencyLimit,
+            rateLimit,
+            rateKey
+        );
+        var executor = Executor(context);
+
+        var lateClaim = RunOnceOutcome.NothingClaimed;
+        _store.BeforeFirstStart = async () =>
+            lateClaim = await executor.ExecuteClaimedJobAsync(
+                Job(failureCount, concurrencyKey),
+                namespaceName: "harness",
+                namespaceId: 1,
+                WorkerId,
+                alreadyStarted: false,
+                CancellationToken.None
+            );
+
+        await executor.ReleaseOrphanedClaimsAsync([Job(failureCount, concurrencyKey).JobId], "lost answer", CancellationToken.None);
+        return lateClaim;
+    }
+
+    private JobExecutor Executor(WorkerContext context)
+    {
         var options = Options.Create(new JobsOptions());
         var serializers = new HarnessSerializers();
-        var executor = new JobExecutor(
+        return new JobExecutor(
             _locks,
             new HarnessClock(),
             serializers,
             new StoreOnlyServices(_store, _jobs),
             options,
-            new WorkerContext(null),
+            context,
             new JobExecution(
                 _jobs,
                 _store,
@@ -236,15 +286,6 @@ internal sealed class JobExecutionHarness(
                 _log
             ),
             _log
-        );
-
-        return await executor.ExecuteClaimedJobAsync(
-            Job(failureCount, concurrencyKey),
-            namespaceName: "harness",
-            namespaceId: 1,
-            WorkerId,
-            alreadyStarted: false,
-            CancellationToken.None
         );
     }
 
@@ -334,7 +375,11 @@ internal sealed class JobExecutionHarness(
         // token the instant the slot is proven stolen.
         public Action? OnStepCompletion { get; set; }
 
-        public Task<StartExecutionAction> StartExecutionAsync(
+        // Fires once, before the first start write answers, so a test can land another actor's move
+        // inside the window a start is in flight.
+        public Func<Task>? BeforeFirstStart { get; set; }
+
+        public async Task<StartExecutionAction> StartExecutionAsync(
             long jobId,
             int workerId,
             int expectedExecutionNumber,
@@ -343,6 +388,12 @@ internal sealed class JobExecutionHarness(
             CancellationToken ct
         )
         {
+            if (BeforeFirstStart is { } hook)
+            {
+                BeforeFirstStart = null;
+                await hook();
+            }
+
             StartAttempts++;
             _startVersions.Add(expectedVersion);
             if (_startFailsOnce)
@@ -352,7 +403,7 @@ internal sealed class JobExecutionHarness(
             }
             // startAfterFailure models a first try that committed and lost only its response: the retry
             // resubmits a stale version and the CAS answers LostClaim although this worker holds the row.
-            return Task.FromResult(StartAttempts > 1 && startAfterFailure is { } after ? after : startAction);
+            return StartAttempts > 1 && startAfterFailure is { } after ? after : startAction;
         }
 
         public Task<StartStepDecision> StartStepAsync(long jobId, string name, bool atMostOnce, CancellationToken ct)
@@ -571,12 +622,69 @@ internal sealed class JobExecutionHarness(
 
     // The root provider JobExecutor resolves its store from. Only the store is answered, so a path
     // that starts resolving anything else fails loudly instead of silently taking a null.
-    private sealed class StoreOnlyServices(IExecutionStore store, IJobStore jobs) : IServiceProvider
+    // The services the executor resolves for an attempt, and a scope that is the provider itself: the
+    // stores are the scripted ones, the signal store and the alert sink are never reached by a handler
+    // that runs one step, and anything else resolves to null.
+    private sealed class StoreOnlyServices(IExecutionStore store, IJobStore jobs)
+        : IServiceProvider,
+            IServiceScopeFactory,
+            IServiceScope,
+            IAsyncDisposable
     {
+        private readonly WorkerWakeupPublisher _wakeup = new(new InProcessWakeup());
+        private readonly JobContextAccessor _accessor = new();
+
+        public IServiceProvider ServiceProvider => this;
+
         public object? GetService(Type serviceType) =>
             serviceType == typeof(IExecutionStore) ? store
             : serviceType == typeof(IJobStore) ? jobs
+            : serviceType == typeof(IServiceScopeFactory) ? this
+            : serviceType == typeof(WorkerWakeupPublisher) ? _wakeup
+            : serviceType == typeof(IJobContextAccessor) ? _accessor
+            : serviceType == typeof(Acta.Runtime.Modules.Execution.Signals.ISignalStore) ? NoSignals.Instance
+            : serviceType == typeof(IAlertSink) ? NoAlerts.Instance
             : null;
+
+        public IServiceScope CreateScope() => this;
+
+        public void Dispose() { }
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+
+        private sealed class NoSignals : Acta.Runtime.Modules.Execution.Signals.ISignalStore
+        {
+            public static readonly NoSignals Instance = new();
+
+            public Task<JobControlOutcome> RaiseSignalAsync(
+                Acta.Runtime.Modules.Execution.Signals.RaiseSignalCommand command,
+                CancellationToken ct
+            ) => throw new NotSupportedException();
+
+            public Task<Acta.Runtime.Modules.Execution.Signals.SignalWaitDecision> WaitSignalAsync(
+                long jobId,
+                JobCheckpointKindCode kind,
+                string name,
+                int? timeoutSeconds,
+                CancellationToken ct
+            ) => throw new NotSupportedException();
+        }
+
+        private sealed class NoAlerts : IAlertSink
+        {
+            public static readonly NoAlerts Instance = new();
+
+            public Task RaiseManualAsync(
+                string jobNamespace,
+                long jobId,
+                AlertSeverityCode severityCode,
+                string title,
+                string message,
+                string? channelName,
+                string? deduplicationKey,
+                CancellationToken ct
+            ) => throw new NotSupportedException();
+        }
     }
 
     private sealed class HarnessClock : IActaClock
