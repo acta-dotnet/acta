@@ -22,6 +22,9 @@
   <ItemGroup>
     <!-- The Svelte sources travel with the project but are not compile inputs. -->
     <None Include="DashboardApp\**\*.*" Exclude="DashboardApp\node_modules\**;DashboardApp\dist\**" />
+    <!-- The licenses of the components bundled into the embedded dashboard travel with the package;
+         the dashboard build generates the file from the modules that land in the bundle. -->
+    <None Include="DashboardApp\dist\THIRD-PARTY-NOTICES.txt" Pack="true" PackagePath="\" Visible="false" />
   </ItemGroup>
 
   <!-- Consumers of the NuGet package never need Node: the dist files are embedded at pack time.

@@ -114,6 +114,19 @@ foreach ($package in Get-ChildItem $feed -Filter '*.nupkg') {
         if ($meta.repository.url -ne 'https://github.com/acta-dotnet/acta') { $failures += "repository url '$($meta.repository.url)'" }
         if (-not $meta.readme -or $entries -notcontains $meta.readme) { $failures += 'readme not declared or not packed' }
         if ($meta.version -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') { $failures += "version '$($meta.version)' is not a MinVer semver" }
+        # The dashboard bundles open-source components; the notices generated from the bundle ship at
+        # the package root and must name the packages known to survive minification.
+        if ($package.Name -like 'Acta.AspNetCore.*') {
+            $noticesEntry = $zip.Entries | Where-Object { $_.FullName -eq 'THIRD-PARTY-NOTICES.txt' }
+            if (-not $noticesEntry) { $failures += 'THIRD-PARTY-NOTICES.txt not packed' }
+            else {
+                $noticesReader = New-Object System.IO.StreamReader($noticesEntry.Open())
+                try { $notices = $noticesReader.ReadToEnd() } finally { $noticesReader.Dispose() }
+                foreach ($bundled in @('svelte', '@tanstack/query-core', '@tanstack/svelte-query', '@tanstack/svelte-virtual', '@tanstack/virtual-core', 'clsx')) {
+                    if ($notices -notmatch [regex]::Escape($bundled)) { $failures += "THIRD-PARTY-NOTICES.txt does not name $bundled" }
+                }
+            }
+        }
 
         # Dependencies are floors and nothing else (see Test-UpperBoundedRange above for why, and for
         # the self-test that keeps this honest). Group-agnostic, so every target-framework group of
