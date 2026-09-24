@@ -150,6 +150,8 @@ namespace Acta.Concepts.ChildJobs
     {
         // StartChildAsync enqueues name-deduped child jobs; WaitChildrenAsync suspends the parent
         // (holding no executor) until every child is terminal; cancelling the parent cascades to children.
+        // MapAsync and ParallelAsync do this same start-then-join in one call (lab 215); it is spelled
+        // out here so each latch the join arms stays visible.
         [Job("build-snowman")]
         public async Task<FinishedSnowman> Handle(BuildSnowman input, JobContext context, CancellationToken ct)
         {
