@@ -24,8 +24,8 @@
        ever rises above one of them, restore reports NU1608 and SmokeCpm.csproj promotes it to an
        error, so this file cannot drift below what the provider package needs in silence. -->
   <ItemGroup>
-    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.11" Condition="'$(ActaProvider)' == 'Acta.Sqlite'" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.12" Condition="'$(ActaProvider)' == 'Acta.Sqlite'" />
     <PackageVersion Include="Npgsql" Version="10.0.3" Condition="'$(ActaProvider)' == 'Acta.Postgres'" />
-    <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.0.2" Condition="'$(ActaProvider)' == 'Acta.SqlServer'" />
+    <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.1.0" Condition="'$(ActaProvider)' == 'Acta.SqlServer'" />
   </ItemGroup>
 </Project>
