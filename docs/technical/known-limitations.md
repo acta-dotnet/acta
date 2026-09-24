@@ -6,29 +6,29 @@ Known boundaries to review before using Acta in production-like environments.
 
 ## Stability status
 
-Acta is at the release-candidate line: the public API, schema, and persisted codes are closing, and
-release candidates change only for correctness, security, and documentation. The migration history
-freezes at 1.0.0: from there, schema changes ship only as additive `Mnnn` migrations. Until then the
-baseline (`M001`) can still be re-cut, release candidates included, so a database provisioned by any
-earlier build may need one reprovision on the way in. Bootstrap compares the baseline stamp recorded
-in the database against the one this build ships and refuses to start on a mismatch, so a database
-built from a different baseline generation fails loudly instead of taking a schema it was not built
-for; old renumbered code values are intentionally incompatible, and there is no translation
-migration.
+Acta is at 1.0: the public API, schema, and persisted codes are frozen. The migration history is
+frozen with them: schema changes ship only as additive `Mnnn` migrations, and the baseline (`M001`)
+is never re-cut, so a database provisioned by a 1.x build upgrades by migration alone. A database
+provisioned by rc.3 carries the 1.0 model and upgrades in place by running the provisioning
+script once; a database from any earlier build needs one reprovision on the way in. Bootstrap compares the baseline
+stamp recorded in the database against the one this build ships and refuses to start on a mismatch,
+so a database built from a different baseline generation fails loudly instead of taking a schema it
+was not built for; old renumbered code values are intentionally incompatible, and there is no
+translation migration.
 
 The stamp is a content hash: `baseline-` followed by 32 hex characters of the SHA-256 of that
 provider's emitted `M001`, so each provider carries its own. A database provisioned by an earlier
 build refuses to start rather than running on a schema nobody chose. That refusal is the point:
 every `M001` statement is
-existence-guarded, so without it an rc.1 database would take the re-cut as a no-op and keep
+existence-guarded, so without it a pre-1.0 database would take a later baseline as a no-op and keep
 `events.actor_key` as `varchar(128)` on SQL Server, folding an operator's non-ASCII name to `?`, and
 would keep the old `ix_runtimes_worker_inflight` key and none of the three row-shape constraints.
 
-Reprovisioning is still a manual step, and it is destructive: there is no upgrade path between
-generations before 1.0, and the refusal tells an operator to take one rather than silently
-diverging. The residual gap is that the stamp records the script that was applied, not the schema
-that resulted: the live database is never hashed, so an operator who adapts the applied script
-keeps the recorded row and carries the difference themselves.
+Reprovisioning is a manual step, and it is destructive: there is no upgrade path from a database
+provisioned before rc.3, and the refusal tells an operator to take one rather than silently diverging. The
+residual gap is that the stamp records the script that was applied, not the schema that resulted:
+the live database is never hashed, so an operator who adapts the applied script keeps the recorded
+row and carries the difference themselves.
 
 ## Execution model
 
@@ -143,7 +143,7 @@ deterministically on every such replay loops without consuming budget. The loop 
 over — each uncharged reclaim projects a non-terminal failure into the job's own alert incident,
 which re-notifies on the reminder interval for as long as the loop runs, and the job visibly
 ping-pongs between suspended and claimed — and an operator cancel ends it at any phase. Bounding
-it automatically would require persisting which overload armed the wait; rc.1 chooses the loud
+it automatically would require persisting which overload armed the wait; 1.0 chooses the loud
 unbounded loop over a budget charge that would break the promise for every ordinary crash.
 
 No durable executor can guarantee exactly-once effects against arbitrary external systems. Acta gives
@@ -202,7 +202,10 @@ from there idempotently.
 Acta orders claims, not work. The claim scan reads ready rows by priority (highest first), then by
 next-run instant, then by `JobId`, and that is a claim-time sort, not a queue discipline. `JobId` is
 a stable tie-breaker inside one claim, not a multi-producer FIFO guarantee: database identities are
-allocation order, not commit order.
+allocation order, not commit order. For one producer that is what FIFO means: its items on one key,
+at one priority and due, are claimed in the order it enqueued them, and on the Direct and Bulk
+profiles they start the instant they are claimed. Two workers claiming at the same instant start
+their items within that instant, in claim order but not measurably so.
 
 The alert projector does not trust that identity to mean committed: it walks by `(created_at_utc, id)`
 and withholds events until they are older than a safe horizon. The horizon is twice the
@@ -318,7 +321,7 @@ with no lock, so a concurrent reclaim can fault inside the driver. A plain user 
 dictionary is empty unless `CreateFunction` was called — but Acta registers its `acta_blob` and
 `acta_error` functions on every open, which makes the upstream race reachable. Acta makes it
 reachable; it does not cause it. Observed only as a rare test-suite fault under heavy cross-process
-parallelism, never reproduced in isolation, and rc.1 deliberately changes nothing for it: the
+parallelism, never reproduced in isolation, and 1.0 deliberately changes nothing for it: the
 fault sits in the driver's pool, and `Pooling=false` would trade it for a fresh native open per
 connection, a real cost that would need benchmarking first.
 

@@ -153,11 +153,11 @@ that writes a file for only that provider (a leading hole for the others is fine
 ### Starting over: `schema reset`
 
 `schema reset --force` deletes every migration and the snapshot. The next `schema add` recreates the
-baseline. The one destructive command, hence `--force`-gated and pre-1.0 only.
+baseline. The one destructive command, hence `--force`-gated.
 
-The migration history freezes at 1.0.0, and from there `schema reset` remains only as a
-rebuild-and-compare tool for verifying that the emitters still reproduce the committed baseline.
-Until then a re-cut is a supported move rather than a last resort, and each one identifies itself:
+The migration history is frozen from 1.0.0, so `schema reset` is a rebuild-and-compare tool for
+verifying that the emitters still reproduce the committed baseline, never a re-cut: a rebuilt `M001`
+that differs from the committed one is a finding, not a release. Each baseline identifies itself:
 the stamp is `baseline-` followed by the first 32 hex characters of the SHA-256 of that provider's
 emitted `M001`. The hash is taken over the body with a fixed token in the stamp's own position, in
 UTF-8 without a byte-order mark and with LF line endings; nothing else is normalized, so every other

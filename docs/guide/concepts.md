@@ -123,7 +123,10 @@ by `JobId`. Priority is strict — no aging, no fairness budget — so a sustain
 defers the low-priority tail; workloads that must not wait behind each other belong in separate
 namespaces, which claim and execute independently. `JobId` is a stable tie-breaker inside a single claim, **not** a multi-producer FIFO
 guarantee: database identities are allocation order, not commit order, so two producers can commit
-their rows in the opposite order to the ids they were given.
+their rows in the opposite order to the ids they were given. For one producer that is what FIFO
+means: its items on one key, at one priority and due, are claimed in the order it enqueued them, and
+on the Direct and Bulk profiles they start the instant they are claimed. Two workers claiming at the
+same instant start their items within that instant, in claim order but not measurably so.
 
 **`ConcurrencyKey` provides mutual exclusion, not ordering.** While a worker holds a valid lease on the
 key, no other job with that `(namespace, ConcurrencyKey)` is admitted — the exclusion is as strong as
@@ -176,7 +179,7 @@ retry, cancellation, and event lifecycle.
 | Variable | `checkpoints` (kind `variable`) | Durable per-job value and compute-once cache. |
 | Signal | `checkpoints` (kind `signal`) | External release point. `WaitSignalAsync` parks until `IJobs.RaiseSignalAsync` sets the named slot. |
 | Timer/Sleep | `checkpoints` (kind `timer`) | Durable wait slot. `SleepAsync` / `SleepUntilAsync` free the executor and resume when due. |
-| Lock | `leases` | Handler-facing mutual exclusion through `RunWithLockAsync`. |
+| Lock | `locks` | Handler-facing mutual exclusion through `RunWithLockAsync`. |
 | Alert | `alerts` | Operator-facing incident row raised manually or projected from failures. |
 
 Use a child job when work needs its own claim, retry, status, cancellation, lineage, or operator

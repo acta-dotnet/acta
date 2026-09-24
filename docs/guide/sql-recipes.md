@@ -31,7 +31,7 @@ Never enforced, by design:
 
 - Audit/history rows (`events`, `alerts`): audit outlives its subjects. Queries against them must
   use their denormalized columns (e.g. `alerts.job_ref`), never joins to possibly-purged rows.
-- Ephemeral/operational references (`leases.job_id`, `runtimes.leased_by_worker_id`): reaped by
+- Ephemeral/operational references (`locks.job_id`, `runtimes.leased_by_worker_id`): reaped by
   their own lifecycles.
 - Lineage self-references (`jobs.parent_id`, `jobs.lineage_root_id`): retention deletes parents in
   retention order and dangling lineage refs are tolerated everywhere; a RESTRICT self-FK would fail

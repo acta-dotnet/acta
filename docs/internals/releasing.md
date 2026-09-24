@@ -17,15 +17,7 @@ nuget.org via Trusted Publishing (`publish-nuget` job in `ci.yml`, gated on the 
 - Dashboard `npm ci`, `npm test`, `npm run build`.
 - `dotnet run --project tools/Acta.Emit -- check`
 - `dotnet csharpier check .`
-- Schema guard, pre-1.0: a re-cut `M001` is allowed. `schema amend` stamps each provider's `M001`
-  with a hash of its own content and writes `src/Acta.Relational/Schema/BaselineStamps.g.cs` in the
-  same pass, so a database from any earlier cut refuses to start instead of taking the re-cut as a
-  no-op, and `Acta.Emit check` fails on a hand-edited `M001`. Nothing about the stamp is settled by
-  hand; it moves with every re-cut, however small, so the last re-cut of a release happens before
-  certification, never after.
-- The release notes name the changed objects and say that every provider's database must be dropped
-  and reprovisioned, since there is no upgrade path between generations before 1.0.
-- Schema/code-freeze guard, from 1.0.0: the release diff contains no M001 edits and no destructive
+- Schema/code-freeze guard: the release diff contains no M001 edits and no destructive
   migration statements, renumbered code pairs, retired-id reuse, or closed-family `255` assignments;
   schema changes ship only as additive `Mnnn` migrations.
 
@@ -71,7 +63,7 @@ intended.** A regenerated baseline is indistinguishable from a deliberate one on
 | HTTP surface | `docs/reference/openapi.json` | `ACTA_EMIT_OPENAPI=1 dotnet test tests/Acta.Tests --filter OpenApiContractTests` |
 | Persisted codes | hash in `PersistedCodeContractTests` | re-pin the hash by hand |
 | Conformance docs | `docs/reference/conformance-contracts.md` | `ACTA_EMIT_DOCS=1 dotnet test tests/Acta.Tests --filter DocsContractTests` |
-| Baseline stamps | `src/Acta.Relational/Schema/BaselineStamps.g.cs`, one hash per provider `M001` | `dotnet run --project tools/Acta.Emit -- schema amend` (pre-1.0 only; from 1.0.0 a moved stamp means `M001` was edited and blocks the release) |
+| Baseline stamps | `src/Acta.Relational/Schema/BaselineStamps.g.cs`, one hash per provider `M001` | `dotnet run --project tools/Acta.Emit -- schema amend` (never after 1.0.0: a moved stamp means `M001` was edited, and that blocks the release) |
 | Object package | `src/Acta.Relational/Schema/ObjectPackageHashes.g.cs` and `object-packages.json`, one content hash per provider's installed views and routines | `dotnet run --project tools/Acta.Emit -- objects record` after any view or routine edit; `check` refuses a recorded identity whose content moved. An identity is frozen the moment it is recorded, deliberately: before the first release that costs a revision bump per edit rather than tracking what shipped |
 
 Before 1.0 a moved surface is allowed and belongs in the release notes. From 1.0 the .NET and HTTP
@@ -186,11 +178,12 @@ Each line names the evidence that asserts it; none is checked by hand.
   commit the tag points at. A tag is an immutable snapshot, so a header the tag captures as
   "(unreleased)" says that forever — `v1.0.0-rc.1` ships with exactly that wart, and the GitHub
   release links straight to it.
-- Preview compatibility policy stated in known limitations still matches the release.
+- The stability statement in known limitations still matches the release.
 
 ## After publishing
 
-- Create the GitHub pre-release from the tag (`gh release create v<version> --verify-tag --prerelease`),
+- Create the GitHub release from the tag (`gh release create v<version> --verify-tag`, adding
+  `--prerelease` only for a pre-release tag),
   titled with the bare version and carrying the notes' summary paragraph, the upgrade paragraph, the
   highlights, the evidence, and a link to the release-notes section at the tag, in the shape of the
   earlier releases. The packages publish without it; the release page is what a visitor reads.

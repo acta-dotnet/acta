@@ -2,9 +2,9 @@
 
 ## Purpose
 
-Production-facing checklist for running Acta safely. Acta is at the release-candidate line, so treat
-this as production-like evaluation guidance until migration compatibility and public API stability
-are declared.
+Production-facing checklist for running Acta safely. The public API, the schema, and the persisted
+codes are frozen at 1.0, and schema changes ship only as additive migrations, so this is the guidance
+for production deployments, not for an evaluation.
 
 ## Production checklist
 

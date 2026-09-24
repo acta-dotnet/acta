@@ -2,8 +2,8 @@
 
 What is supported, on what, and how fixes ship.
 
-> Acta has not reached 1.0. Until then, the latest-version-only rule in [SECURITY.md](../SECURITY.md)
-> governs; this page states the policy that takes effect at 1.0.
+> The latest-version-only rule in [SECURITY.md](../SECURITY.md) governs fixes; this page states the
+> support policy in force from 1.0.
 
 ## Support matrix
 

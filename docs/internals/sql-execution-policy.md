@@ -3,9 +3,9 @@
 PostgreSQL and SQL Server execute Acta ledger mutations through atomic routines; reads use embedded
 SQL and installed views; SQLite implements the same store contracts with transactional inline SQL.
 
-This is the rc.2 execution policy referenced by [the design decisions](design.md). The server
-providers each install 57 routines: the existing 54 mutation operations plus `UpdateAlertDelivery`,
-`ResolveJobAlerts`, and `RepairRecoverySlot`. Hot paths, control operations, catalog registration,
+This is the execution policy referenced by [the design decisions](design.md). The server
+providers each install 59 routines: the 54 mutation operations plus `UpdateAlertDelivery`,
+`ResolveJobAlerts`, `RepairRecoverySlot`, `AcquireSlot`, and `ReserveRate`. Hot paths, control operations, catalog registration,
 recovery, and maintenance all follow the same rule. Routine placement is a compatibility decision,
 not an inference from SQL size.
 
@@ -121,7 +121,8 @@ replaces across arities nor changes a return type. A retired arity is dropped af
 changed return type must be dropped before it, and that leading drop names no argument list, because
 the routine-body parameter gate reads the file's first parenthesis as the parameter list. The
 routine layer therefore reinstalls onto a database from the previous release. Reprovisioning is
-still required where a table definition moved, which for rc.2 is the SQL Server Unicode actor key.
+required only where a table definition moved, which last happened before 1.0 for the SQL Server
+Unicode actor key and cannot happen again under the frozen baseline.
 From 1.0 onward, an installed routine remains a routine. An inline operation may be promoted
 deliberately; routine-to-inline demotion is outside the 1.x policy.
 

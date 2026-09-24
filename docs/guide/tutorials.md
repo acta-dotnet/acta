@@ -161,14 +161,14 @@ independent jobs through enqueue operations.
 | 209 | [concurrency-key](../../concepts/200-durable-execution/209-concurrency-key/) | **Engineering Lab.** Whole-job admission: inspect the named lease and a budget-neutral competitor bounce |
 | 210 | [step-retry](../../concepts/200-durable-execution/210-step-retry/) | A step retries on its own curve, sparing the job's budget |
 | 211 | [child-jobs](../../concepts/200-durable-execution/211-child-jobs/) | **Engineering Lab.** Independent child rows plus parent-owned latches; suspended parent holds no worker |
-| 212 | [fan-out-join](../../concepts/200-durable-execution/212-fan-out-join/) | Map-reduce: chunk children compute partial sums in parallel, the parent merges |
+| 212 | [fan-out-join](../../concepts/200-durable-execution/212-fan-out-join/) | Map-reduce with `MapAsync`: chunk children compute partial sums in parallel, the parent merges their results |
 | 213 | [execute-child](../../concepts/200-durable-execution/213-execute-child/) | `ExecuteChildAsync` delegates to an existing job and waits for its result (vs an step) |
 | 214 | [reset-state](../../concepts/200-durable-execution/214-reset-state/) | A recurring monitor uses durable state, then `ctx.ResetStateAsync` so the next fire starts blank |
 | 215 | [map-parallel-join](../../concepts/200-durable-execution/215-map-parallel-join/) | `ParallelAsync`, `MapAsync`, and `JoinAsync` fan out child jobs and wait, all over the same latches |
 | 216 | [variable-lifecycle](../../concepts/200-durable-execution/216-variable-lifecycle/) | Durable-variable lifecycle: `GetOrSet` (compute-once), `Exists`, `Delete`, defaults, raw `JobPayload` |
 | 217 | [absolute-time-controls](../../concepts/200-durable-execution/217-absolute-time-controls/) | Absolute-instant timing: `NextRunAt`, `SleepUntilAsync`, `RescheduleUntilAsync` |
 | 218 | [global-lock](../../concepts/200-durable-execution/218-global-lock/) | A `LockScope.Global` lock serializes jobs across namespaces (vs 207's namespace scope) |
-| 219 | [child-failure-outcomes](../../concepts/200-durable-execution/219-child-failure-outcomes/) | Child-group failure handling: `JoinOutcome`/`MapOutcome` and `ThrowIfAnyFailed` |
+| 219 | [child-failure-outcomes](../../concepts/200-durable-execution/219-child-failure-outcomes/) | Child-group failure handling: `MapOutcome`/`ParallelOutcome`/`JoinOutcome` and `ThrowIfAnyFailed` |
 | 220 | [at-most-once-step](../../concepts/200-durable-execution/220-at-most-once-step/) | **Engineering Lab.** Real process loss after a side effect: refuse body replay, surface ambiguity, reconcile |
 | 301 | [fail-job](../../concepts/300-failure-and-recovery/301-fail-job/) | `ctx.FailAsync` ends the job permanently - no retries (unlike throwing) |
 | 302 | [cancel-job](../../concepts/300-failure-and-recovery/302-cancel-job/) | `ctx.CancelAsync` ends the job as Cancelled |
@@ -195,7 +195,7 @@ independent jobs through enqueue operations.
 | 411 | [alert-escalation](../../concepts/400-observability-and-alerts/411-alert-escalation/) | Alert escalation stages: FirstFailure -> ThresholdReached -> FinalFailure |
 | 412 | [tenant-scope](../../concepts/400-observability-and-alerts/412-tenant-scope/) | **Engineering Lab.** Tenant catalog resolution, child inheritance, filtering, and unknown/suspended rejection |
 | 501 | [payload-formats](../../concepts/500-payloads/501-payload-formats/) | **Engineering Lab.** Custom formats compared by serialization time, enqueue time, readability, and stored bytes |
-| 601 | [fan-out](../../concepts/600-job-composition/601-fan-out/) | A handler injects `IJobs` and enqueues many child jobs |
+| 601 | [fan-out](../../concepts/600-job-composition/601-fan-out/) | A handler injects `IJobs` and enqueues many independent jobs: no lineage and no join (compare 212's `MapAsync`) |
 | 602 | [chained-jobs](../../concepts/600-job-composition/602-chained-jobs/) | A linear pipeline: each stage enqueues the next |
 | 701 | [enqueue-only-reference](../../concepts/700-topology-and-deployment/701-enqueue-only-reference/) | `Reference<TManifest>()` enqueues without a worker; `Run<TManifest>()` drains (one process, two roles) |
 | 703 | [multi-worker-process](../../concepts/700-topology-and-deployment/703-multi-worker-process/) | Two workers (two namespaces) in one process |

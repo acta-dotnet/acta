@@ -9,8 +9,8 @@ Three commands from an empty folder. The only prerequisite is the .NET 10 SDK.
 
 ```bash
 dotnet new web -n Shipping && cd Shipping
-dotnet add package Acta.Sqlite --prerelease
-dotnet add package Acta.AspNetCore --prerelease
+dotnet add package Acta.Sqlite
+dotnet add package Acta.AspNetCore
 ```
 
 A single provider package reference delivers everything: the runtime, the `[Job]` source generator,
@@ -61,7 +61,7 @@ dotnet run
 ```
 
 The program enqueues a job, a worker in the same process claims and runs it, and `acta-local.db`
-holds the row. Open the dashboard URL and the completed job is the first thing you see.
+holds the row. Open the dashboard URL: the Jobs count reads 1, and the Jobs screen lists `ship-order` as completed.
 
 > **The `using Shipping;` line is not decoration.** The manifest is generated into your project's
 > root namespace, while top-level statements live in the global namespace, so without it

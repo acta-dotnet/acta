@@ -148,7 +148,7 @@ the principles above. Reopening an entry means writing a proposal, not editing t
 - **`JobResult` is keyed by `(JobId, ExecutionNumber)`** with CASCADE FK. *Reason:* the natural identity callers already address by.
 - **Timer checkpoints are arm/consume only.** `Pending → Consumed`; no `Cancelled` state; `ResetJobState` deletes rows outright. *Reason:* a state the runtime cannot reach is schema debt.
 - **`Lease` carries no acquisition timestamp.** Lifecycle is `expires_at_utc` + `version` alone. *Reason:* no code path ever consulted the acquire instant.
-- **`jobs` + `runtimes` split: immutable identity vs mutable state.** `jobs` is never UPDATEd; the 1:1 `runtimes` row owns every mutable column with `runtimes.version` as the CAS token, and execution ownership lives on it, not in `leases` (a lease-table variant cost ~30-40% drain throughput and was reverted). *Reason:* the hot path rewrites a narrow row, and identity is immutable by construction.
+- **`jobs` + `runtimes` split: immutable identity vs mutable state.** `jobs` is never UPDATEd; the 1:1 `runtimes` row owns every mutable column with `runtimes.version` as the CAS token, and execution ownership lives on it, not in a lease table (that variant cost ~30-40% drain throughput and was reverted). *Reason:* the hot path rewrites a narrow row, and identity is immutable by construction.
 - **Reasons are events, not row state.** Why a job failed/paused lives on `JobEvent`, never on a `runtimes` reason column; snapshots and outcomes expose state only. *Reason:* a denormalized current-reason goes stale on re-arm; an append-only event cannot.
 
 ### Boundaries
@@ -163,7 +163,7 @@ the principles above. Reopening an entry means writing a proposal, not editing t
 ### Behavior
 
 - **`MaxAttempts` is the unified cap** on jobs and steps; `Reschedule`/`Suspend`/`Pause` never consume the budget. *Reason:* one retry mental model across both tiers.
-- **Strict priority ordering** in the claim path; no aging, no weighted fairness. *Reason:* predictable semantics; fairness = separate namespaces.
+- **Strict priority ordering** in the claim path; no aging, no weighted fairness; within a priority the claim is FIFO by job id, per producer. *Reason:* predictable semantics; fairness = separate namespaces.
 - **`ConcurrencyKey` is execution-time mutual exclusion (size 1), not rate limiting or ordering.** Enforced by a lock taken after claim; losers bounce budget-neutrally. *Reason:* claim-time gating collapsed namespace claim throughput under a hot-key backlog (~20/s vs 500-2,500/s exec-time).
 - **Delayed enqueue: relative delay is DB-clock; absolute is the only caller-instant path.** The two are mutually exclusive. *Reason:* an enqueue-only frontend must not silently depend on its own clock.
 - **Recurring schedules are a single slot job per `(namespace, definition)`** carrying many `schedules` rows; due schedules coalesce into one execution; cursors computed in C#, applied in SQL. *Reason:* single-cursor claim scan, no per-firing row inflation, no Cronos in SQL.
@@ -179,7 +179,7 @@ the principles above. Reopening an entry means writing a proposal, not editing t
 
 ### Storage and naming
 
-- **The migration history freezes at 1.0.0, not before.** Until then the baseline stays re-cuttable: `schema reset` is available at any time, and an `Mnnn` landed to exercise an upgrade path can be folded back into a fresh baseline later. From 1.0.0 every schema change is an additive `Mnnn` migration (new columns/tables): no renames, drops, retypes, or renumbered code values. *Reason:* closing the public, physical, and numeric vocabulary together is the 1.0 promise, so a preview build re-cuts rather than accumulating migrations nobody will run.
+- **The migration history is frozen from 1.0.0.** Every schema change is an additive `Mnnn` migration (new columns/tables): no renames, drops, retypes, or renumbered code values, and the baseline is never re-cut; `schema reset` remains only as a rebuild-and-compare check that the emitters still reproduce the committed baseline. *Reason:* closing the public, physical, and numeric vocabulary together is the 1.0 promise, and a migration a deployed database has run is history that cannot be folded away.
 - **Tag scope is exact attachment, setting scope is fallback configuration.** A tag scope identifies the exact target to which searchable metadata is attached. Tag scopes do not inherit, fall back, propagate, or participate in precedence resolution. A setting scope identifies where configuration applies and participates in definition-to-namespace-to-global fallback resolution. *Reason:* independent code families prevent searchable annotations from acquiring configuration precedence semantics.
 - **Database schema is an install-time option per deployment**, default `acta`. *Reason:* co-deployment per DB without dynamic routing.
 - **Identifier convention:** plural, prefix-free, underscore-free tables; `lower_snake_case` columns; `ix_`/`ux_`/`pk_`/`ck_`/`fk_` prefixes; every persisted name explicit on its attribute; no quoted identifiers; CLR entities keep domain names (`Job*`). *Reason:* unquoted names work on every target DB and survive convention renames.

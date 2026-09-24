@@ -9,7 +9,7 @@ namespace Acta.Relational.Entities;
 /// <see cref="Version"/>, the CAS token for job state transitions. Execution ownership/TTL lives
 /// here too (<see cref="LeasedByWorkerId"/> / <see cref="LeaseExpiresAtUtc"/>): a claim is one
 /// UPDATE of this row, and the heartbeat pushes <see cref="LeaseExpiresAtUtc"/> without bumping
-/// <see cref="Version"/>. The <c>leases</c> table carries named locks only.
+/// <see cref="Version"/>. The <c>locks</c> table carries named locks only.
 /// </summary>
 /// <remarks>
 /// Carries <see cref="ModifiedAtUtc"/> but no <c>created_at_utc</c>, unlike every other timestamped

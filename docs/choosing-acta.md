@@ -31,7 +31,7 @@ uses.
 For concrete migration patterns from `BackgroundService`, cron, Hangfire, Quartz, TickerQ, platform
 schedulers, and custom task tables, see [Scheduler migration](./guide/scheduler-migration.md).
 
-## The Real Split
+## The real split
 
 The question is not **scheduler or no scheduler**. The question is what kind of work you are
 scheduling.
@@ -44,23 +44,26 @@ scheduling.
 | Distributed messaging, pub/sub, event streaming, or fan-out transport | a message bus or streaming platform |
 | Deterministic event-history replay, BPMN, or visual workflow orchestration | a workflow engine, not Acta |
 
-## Who Reaches For Acta
+## Who reaches for Acta
 
 - App developers whose retries stopped being enough: the job's state became application state.
 - Platform teams who need evidence and intervention: what ran, what is stuck, pause, restart, signal.
 - AI and agent developers whose steps are expensive, long-running, tool-using, human-gated, or unsafe to restart from the top.
 
-## Use Acta When
+## Use Acta when
 
 - The work belongs to the application, not only to the host or platform.
 - The work must survive process restarts, deployments, or worker crashes.
 - A missed, failed, duplicated, or stuck run needs to be visible.
 - Operators need to pause, resume, cancel, restart, signal, explain, or debug jobs.
 - Retries, delayed execution, recurring schedules, durable waits, or child jobs should share one model.
-- SQL Server, PostgreSQL, or SQLite is already part of the system and can own the durable state.
+- Work from one producer should run in the order it was enqueued, within a priority; strict
+  completion order is the coordinator described below.
+- SQL Server or PostgreSQL is already part of the system and can own the durable state, or the
+  deployment is one process and SQLite can.
 - You want background work to be inspectable as rows, events, schedules, leases, and checkpoints.
 
-## Do Not Use Acta When
+## Do not use Acta when
 
 - Losing a tick is harmless and no one will ask what happened.
 - The work is host maintenance better owned by the OS, container platform, or cloud scheduler.
@@ -71,8 +74,12 @@ scheduling.
 - You need BPMN, a visual process designer, or hosted workflow SaaS.
 - A duplicate external side effect would be unrecoverable, and you cannot make it idempotent,
   guarded, or reconciled with durable step semantics.
+- Items must run in strict order behind one key. A concurrency key promises that two jobs on the
+  key never overlap, not the order they run in; strict ordering is a coordinator job you write, and
+  it carries head-of-line blocking.
+- Workers in more than one language share the orchestration. Acta is .NET only.
 
-## What Acta Adds Over A Scheduler
+## What Acta adds over a scheduler
 
 | Pain | Acta's answer |
 | --- | --- |
@@ -84,7 +91,7 @@ scheduling.
 | Operators need control | Pause, resume, cancel, restart, signal, debug, explain, and schedule pause/resume |
 | Teams do not want more infrastructure | The worker is the app process; durable state is the app database |
 
-## Atomic Enqueue With Business Data
+## Atomic enqueue with business data
 
 When a business-data change and an Acta enqueue must commit or roll back together, the path depends on
 where the two live:
@@ -100,7 +107,7 @@ where the two live:
 Full walkthrough, including the canonical table, cadence, and quarantine policy:
 [Transactional enqueue and the external outbox](./guide/transactional-enqueue-and-outbox.md).
 
-## If You Already Use Hangfire, Quartz, Or TickerQ
+## If you already use Hangfire, Quartz, or TickerQ
 
 If Hangfire, Quartz, or TickerQ already makes your background work boring, visible, and consistent,
 keep it. Acta is not here to replace every scheduler in every codebase.
@@ -123,7 +130,7 @@ The migration trigger is not **we need cron**. The migration trigger is one of t
 - We do not want a broker, sidecar, hosted scheduler, or separate control plane.
 - We want the application database to be the source of truth.
 
-## AI And Agent Steps
+## AI and agent steps
 
 A retried agent step repeats latency, tokens, tool calls, and a human approval, and a
 nondeterministic model does not repeat the same output. Your AI can reason again; it should not have
@@ -139,7 +146,7 @@ holding a worker, and `MapAsync` fans a batch out with lineage. Durable variable
 process: another worker can resume the job and find the plan, the partial results, and how far it
 got.
 
-## Physical Processes And Layered Systems
+## Physical processes and layered systems
 
 The same shape holds where the work is physical. The layering is ERP -> Acta (durable
 business/process coordination) -> MES / SCADA / APIs / operators -> machines. Acta is not an MES,
@@ -154,7 +161,7 @@ When a step is physically consequential, a repeated step is a physical event: a 
 command, a second label. For those steps, see
 [At-most-once steps](./guide/handler-contract.md#at-most-once-steps).
 
-## The Smallest Scheduled Job
+## The smallest scheduled job
 
 Use a scheduled Acta job when the interval matters enough to be durable and visible:
 
@@ -176,7 +183,7 @@ business cadence: `5m`, `1h`, or a cron expression.
 For a runnable first pass, start with [Quickstart](./quickstart.md). For the unusual implementation
 ideas Acta can demonstrate live, read [Acta Engineering Labs](./engineering-labs.md).
 
-## Rule Of Thumb
+## Rule of thumb
 
 Use `BackgroundService` or platform scheduling for disposable local loops.
 
