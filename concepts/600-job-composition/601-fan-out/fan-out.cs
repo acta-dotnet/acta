@@ -30,7 +30,7 @@ namespace Acta.Concepts.FanOut
 
     // Inject IJobs to fan a big task out into many small durable jobs the worker drains in parallel.
     //
-    // Every child carries a deduplication key derived from what it is, not from when it was created.
+    // Every enqueued job carries a deduplication key derived from what it is, not from when it was created.
     // This handler is retryable, and the fan-out happens before it completes: a crash mid-loop replays
     // the whole loop, so without a stable key the album would grow a second copy of every thumbnail
     // already enqueued. With one, the replay re-enqueues and Acta returns the existing job instead.

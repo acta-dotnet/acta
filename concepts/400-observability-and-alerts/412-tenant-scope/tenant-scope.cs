@@ -158,8 +158,7 @@ namespace Acta.Concepts.TenantScope
         public static async Task Handle(ExportAccount input, JobContext context, CancellationToken ct)
         {
             // No TenantKey override: the child inherits the parent's resolved tenant_id.
-            var child = await context.StartChildAsync("write-export", new WriteExport(input.TenantKey), ct);
-            await context.WaitChildrenAsync([child.JobId], ct);
+            await context.ExecuteChildAsync("write-export", new WriteExport(input.TenantKey), ct);
         }
 
         [Job("write-export")]

@@ -16,10 +16,10 @@ await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
 
-// Acta routes each enqueue to a handler by its input type.
-await jobs.EnqueueAsync<string>("acta"); // -> shout
-await jobs.EnqueueAsync<int>(21); // -> double-it
-await jobs.EnqueueAsync<double>(9.0); // -> halve
+// Each [Job] method gets its own generated contract, named after the job.
+await jobs.EnqueueAsync(ManyJobsOneClassJobs.Shout, "acta");
+await jobs.EnqueueAsync(ManyJobsOneClassJobs.DoubleIt, 21);
+await jobs.EnqueueAsync(ManyJobsOneClassJobs.Halve, 9.0);
 Console.WriteLine("Enqueued 3 jobs. Worker is running - press Ctrl+C to stop.");
 
 await host.WaitForShutdownAsync();

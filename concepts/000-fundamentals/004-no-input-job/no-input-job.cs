@@ -16,8 +16,8 @@ await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
 
-// NoInput enqueues a job that takes no input.
-await jobs.EnqueueAsync<NoInput>(default);
+// The generated contract names the job; a job without input takes no payload.
+await jobs.EnqueueAsync(NoInputJobJobs.Heartbeat);
 Console.WriteLine("Enqueued. Worker is running - press Ctrl+C to stop.");
 
 await host.WaitForShutdownAsync();

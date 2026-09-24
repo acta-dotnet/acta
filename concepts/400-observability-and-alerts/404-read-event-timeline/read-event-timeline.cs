@@ -62,9 +62,8 @@ namespace Acta.Concepts.ReadEventTimeline
         public static async Task HandleParent(RunReport input, JobContext context, CancellationToken ct)
         {
             Console.WriteLine($"[run-report] starting data collection for {input.Period}");
-            var child = await context.StartChildAsync("collect", new CollectData(input.Period), ct);
-            var childOutcome = await context.WaitChildAsync(child.JobId, ct);
-            if (!childOutcome.Succeeded)
+            var collected = await context.ExecuteChildAsync("collect", new CollectData(input.Period), ct);
+            if (!collected.IsSuccess)
             {
                 await context.FailAsync($"data collection failed for {input.Period}", ct);
             }
