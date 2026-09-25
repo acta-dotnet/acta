@@ -12,9 +12,9 @@ namespace Acta;
 /// Operator-stable kebab-case schedule name, unique within the definition.
 /// </param>
 /// <param name="expression">
-/// Cron expression (Cronos dialect; 6 fields enables seconds) or an ISO 8601 duration (e.g.
-/// <c>"PT5M"</c>). The generator infers the kind from the leading token (a <c>P</c> or <c>PT</c>
-/// prefix means ISO).
+/// Cron expression (Cronos dialect; 6 fields enables seconds), an ISO 8601 duration (<c>"PT5M"</c>),
+/// or a plain duration (<c>"5m"</c>, <c>"10s"</c>, <c>"1h"</c>); the generator tells them apart by
+/// the leading token.
 /// </param>
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
 public sealed class JobScheduleAttribute(string name, string expression) : Attribute

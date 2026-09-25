@@ -17,7 +17,7 @@ namespace Acta.Tests.Conformance.Scenarios;
 /// Conformance for <c>sys.retention</c>'s sweep sections (<c>purge_expired_data</c>):
 /// terminal jobs past <c>retention_until_utc</c> (with CASCADE), <c>events</c> rows past the events
 /// window, <c>alerts</c> rows past the alert window whether or not delivery settled, terminal (Stopped
-/// or Dead) <c>workers</c> rows past the worker window, and expired <c>leases</c> lock rows. Event/alert/worker windows are driven to deterministic boundaries by passing a window
+/// or Dead) <c>workers</c> rows past the worker window, and expired <c>locks</c> rows. Event/alert/worker windows are driven to deterministic boundaries by passing a window
 /// wide enough to exclude everything (large positive) or a cutoff in the future (negative), so no
 /// real-time wait is needed; deletable terminal jobs are produced through the real
 /// enqueue/execute/complete path via the zero-retention <c>purge-now</c> probe.

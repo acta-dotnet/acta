@@ -12,6 +12,9 @@ public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
     private const int ChunkSize = 5_000;
     private const int FanOutChildCount = 5;
 
+    // The metered slice's ceiling; see CrashRecoveryPlan.
+    private const int MeteredCap = 10_000;
+
     private readonly IJobs _jobs = jobs;
     private readonly AnvilSession _session = session;
 
@@ -40,15 +43,18 @@ public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
     // interrupted AtMostOnce step terminalizes the ambiguity rather than retrying, which is the
     // contract, so those failures are the shape working and the board's target must include them.
     //
-    // Another tenth is the metered shape, and both tenths come out of slow-success so the workload
-    // keeps its requested size. Metered jobs are due with the bulk rather than timed like the charges:
-    // the meter, not the enqueue, decides when each one starts, and the slice is sized so those
-    // admissions are still being handed out while workers are dying (a tenth of 4,000 at ten a second
-    // is about forty seconds of meter-bound work inside a seven-minute chaos window).
+    // Another tenth is the metered shape, capped at ten thousand, and both slices come out of
+    // slow-success so the workload keeps its requested size. Metered jobs are due with the bulk rather
+    // than timed like the charges: the meter, not the enqueue, decides when each one starts, and the
+    // slice is sized so those admissions are still being handed out while workers are dying (a tenth
+    // of 4,000 at ten a second is about forty seconds of meter-bound work inside a seven-minute chaos
+    // window). The cap is what keeps a million-job run a run of the ledger rather than of the meter:
+    // its tenth would be 100,000 turns at ten a second, and the ledger would sit drained for the last
+    // two and a half hours while the meter paid them out.
     private static IReadOnlyList<SeedLine> CrashRecoveryPlan(AnvilRunSpec spec)
     {
         var charges = Math.Max(1, spec.Load / 10);
-        var metered = Math.Max(1, spec.Load / 10);
+        var metered = Math.Min(Math.Max(1, spec.Load / 10), MeteredCap);
         var slow = Math.Max(0, spec.Load - charges - metered);
         var spread = Math.Max(1, spec.EffectSpreadSeconds);
         return

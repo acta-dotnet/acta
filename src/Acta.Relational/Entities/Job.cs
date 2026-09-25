@@ -5,7 +5,7 @@ namespace Acta.Relational.Entities;
 /// <summary>
 /// One row in <c>acta.jobs</c>, Acta's only work unit: the append-mostly identity/input record.
 /// Hot mutable state (status, next run, counters, retention) lives on the 1:1 <c>runtimes</c> row,
-/// which also carries execution ownership/TTL (<c>leases</c> holds named locks only); result
+/// which also carries execution ownership/TTL (<c>locks</c> holds named locks only); result
 /// history lives in <c>results</c>, keyed by the composite <c>(job_id, execution_number)</c>
 /// clustered PK. Recurring Jobs are a single reusable row whose runtime <c>next_run_at_utc</c>
 /// rolls forward on terminal completion (no per-firing row inflation).

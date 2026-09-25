@@ -665,6 +665,16 @@
 - **Store methods:**
   - `Acta.Runtime.Services.Locks.ILockStore.TryAcquireSlotAsync`
 
+### A meter freed after a lock convoy admits its burst, not every queued call
+- **Contract:** Reservations delayed behind a held bucket row are judged at the clock when the row frees, so the release admits the burst and books the rest.
+- **Arrange:** A primed meter whose bucket row is held by an outside transaction while reservations arrive every fifty milliseconds.
+- **Act:** The outside transaction commits and the queued reservations execute.
+- **Assert:** The admissions among them are bounded by the burst and the interval, not by the queue's length.
+- **Guarantees:**
+  - Reservations queued behind a held bucket row are admitted at the burst when it frees, not all at once
+- **Store methods:**
+  - `Acta.Runtime.Services.Locks.ILockStore.ReserveRateAsync`
+
 ### A definition's rate limit admits at the rate and books every early job a turn
 - **Contract:** A rate key admits its burst at once and then one per interval, booking each early job a turn it waits for or returns to.
 - **Arrange:** Definitions declaring a rate, alone and sharing a key, plus meters driven through the lock store.
@@ -2872,7 +2882,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IOutboxSignalStore.RecordAppliedAsync` | An applied operator command leaves an always-emitted evidence event |
 | `ILockStore.ExtendAsync` | A held lock renews while owned and misses after release |
 | `ILockStore.ReleaseAsync` | Release removes the lease row and a stale token misses on version CAS |
-| `ILockStore.ReserveRateAsync` | A definition's rate limit admits at the rate and books every early job a turn |
+| `ILockStore.ReserveRateAsync` | A definition's rate limit admits at the rate and books every early job a turn<br>A meter freed after a lock convoy admits its burst, not every queued call |
 | `ILockStore.TryAcquireAsync` | Acquire lands a lease row and blocks a competing acquire on a live key |
 | `ILockStore.TryAcquireSlotAsync` | A definition's concurrency limit is how many of its key's slots exist |
 

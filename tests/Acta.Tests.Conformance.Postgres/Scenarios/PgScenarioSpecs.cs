@@ -25,6 +25,8 @@ public sealed class PgConcurrencyLimitSpec : ConcurrencyLimitSpec<PgConformanceF
 
 public sealed class PgRateLimitSpec : RateLimitSpec<PgConformanceFixture>;
 
+public sealed class PgRateLimitConvoySpec : RateLimitConvoySpec<PgConformanceFixture>;
+
 public sealed class PgControlVerbsSpec : ControlVerbsSpec<PgConformanceFixture>;
 
 public sealed class PgGoldenPathSpec : GoldenPathSpec<PgConformanceFixture>;

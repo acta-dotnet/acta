@@ -8295,6 +8295,10 @@ GO
 -- The IF NOT EXISTS probe below takes UPDLOCK, HOLDLOCK before the row exists and holds it to commit;
 -- the sweep's WITH (UPDLOCK, READPAST) then skips rather than races it, so the charge this call books
 -- is always persisted before it admits anything.
+
+-- The clock is read once the bucket row is locked, not when the call began: judged against a stale
+-- instant, every call a convoy on this meter delayed would be admitted together the moment the lock
+-- freed, four times the contract in one second under a flood of metered claims.
 CREATE OR ALTER PROCEDURE acta.reserve_rate
     @p_lock_key VARCHAR(256),
     @p_job_id BIGINT,
@@ -8312,7 +8316,7 @@ BEGIN
         IF @entry_trancount = 0
             BEGIN TRANSACTION;
 
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @now DATETIME2(7);
         DECLARE @reservation VARCHAR(256) = @p_lock_key + '.' + CAST(@p_job_id AS VARCHAR(20));
         -- How far behind now an idle meter is allowed to be, which is what hands out the burst: one
         -- interval short of a whole period, so the burst-th request lands on now and the next waits.
@@ -8329,13 +8333,15 @@ BEGIN
         -- idle meter stops saying anything a missing one would not. A missing meter starts at now.
         IF NOT EXISTS (SELECT 1 FROM acta.locks WITH (UPDLOCK, HOLDLOCK) WHERE lock_key = @p_lock_key)
             INSERT INTO acta.locks (lock_key, job_id, expires_at_utc, hold_token)
-            VALUES (@p_lock_key, @p_job_id, @now, @p_hold_token);
+            VALUES (@p_lock_key, @p_job_id, SYSUTCDATETIME(), @p_hold_token);
 
         -- Held for the rest of the call, so consume, hand back and allocate all decide against one
         -- serialized meter and no instant is ever handed to two jobs.
         SELECT @stored = b.expires_at_utc
         FROM acta.locks AS b WITH (UPDLOCK, HOLDLOCK)
         WHERE b.lock_key = @p_lock_key;
+
+        SET @now = SYSUTCDATETIME();
 
         -- The OUTPUT decides consumption, never a later absence: the sweep cannot slip between a read
         -- and the delete and give away a free admission. A stale turn is spent here too, then re-metered.
@@ -8410,7 +8416,7 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.4-bc7ec9593820321bce2cf95fa3b3b5b6', 'acta'
+SELECT -1, 'objects-1.5-ae6eaecf6cb8883aa3721209cec353de', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
     WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'jobs_view', 'schedules_view', 'steps_view', 'workers_view', 'events_view', 'tags_view', 'acknowledge_job_alert', 'raise_job_alert', 'resolve_job_alert_manual', 'resolve_job_alerts', 'update_alert_delivery', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_executions_batch', 'complete_step', 'register_job_definitions', 'set_job_definition_overrides', 'cancel_job', 'enqueue_batch', 'enqueue_one', 'pause_job', 'purge_job', 'reprioritize_job', 'reschedule_job', 'reset_job_state', 'restart_job', 'resume_job', 'update_job_input', 'resume_namespace', 'suspend_namespace', 'update_namespace', 'record_job_note', 'reclaim_stuck_jobs', 'repair_recovery_slot', 'pause_schedule', 'register_scheduled_jobs', 'resume_schedule', 'set_schedule_overrides', 'trigger_schedule_now', 'set_setting', 'consume_outbox_signal', 'park_outbox_signal', 'raise_signal', 'record_outbox_event', 'wait_signal', 'start_execution', 'start_step', 'register_tenant', 'resume_tenant', 'suspend_tenant', 'update_tenant', 'arm_or_consume_sleep_timer', 'extend_worker_leases', 'mark_dead_workers', 'start_worker', 'stop_worker', 'purge_expired_data', 'apply_tags', 'acquire_lock', 'acquire_slot', 'extend_lock', 'release_lock', 'reserve_rate')) = 68;
 GO

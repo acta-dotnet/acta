@@ -7574,7 +7574,7 @@ RETURNS TABLE (resume_at_utc TIMESTAMPTZ, admitted BOOLEAN, wait_ms BIGINT)
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_now TIMESTAMPTZ := now();
+    v_now TIMESTAMPTZ;
     v_interval INTERVAL := p_rate_interval_ms * INTERVAL '1 millisecond';
     -- How long a booked turn stays valid past its instant: a second covers the claim-path pickup at
     -- any rate, and a slower meter keeps its whole interval, so the window is the larger of the two.
@@ -7596,9 +7596,14 @@ BEGIN
     -- Create-or-lock in one statement: the DO UPDATE (a no-op assignment) takes the row lock, and
     -- RETURNING hands back whichever value is now locked in - freshly inserted, or already there.
     INSERT INTO acta.locks (lock_key, job_id, expires_at_utc, hold_token)
-    VALUES (p_lock_key, p_job_id, v_now, p_hold_token)
+    VALUES (p_lock_key, p_job_id, clock_timestamp(), p_hold_token)
     ON CONFLICT (lock_key) DO UPDATE SET lock_key = EXCLUDED.lock_key
     RETURNING expires_at_utc INTO v_stored;
+
+    -- The wall clock, read once the row is locked, never the transaction's start: judged against a
+    -- stale instant, every call a convoy on this meter delayed would be admitted together the moment
+    -- the lock freed, several times the contract in one second under a flood of metered claims.
+    v_now := clock_timestamp();
 
     -- The row count decides consumption, never a later absence: the sweep cannot slip between a read
     -- and the delete and give away a free admission. A stale turn is spent here too, then re-metered.
@@ -7667,7 +7672,7 @@ DROP FUNCTION IF EXISTS acta.reserve_rate(VARCHAR, BIGINT, INT, INT, UUID);
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.4-ab31025ea7725a150057c783e56b161e', 'acta');
+VALUES (-1, 'objects-1.5-be37e59570f1eebb00ef47daf22e5f3c', 'acta');
 
 COMMIT;
 
