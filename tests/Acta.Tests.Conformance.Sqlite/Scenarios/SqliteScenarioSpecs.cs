@@ -13,6 +13,8 @@ public sealed class SqliteConcurrencyLimitSpec : ConcurrencyLimitSpec<SqliteConf
 
 public sealed class SqliteRateLimitSpec : RateLimitSpec<SqliteConformanceFixture>;
 
+public sealed class SqliteRateLimitConvoySpec : RateLimitConvoySpec<SqliteConformanceFixture>;
+
 public sealed class SqliteChildJobCrossNamespaceSpec : ChildJobCrossNamespaceSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteChildJobSpec : ChildJobSpec<SqliteConformanceFixture>;

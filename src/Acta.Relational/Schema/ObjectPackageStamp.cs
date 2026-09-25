@@ -30,7 +30,7 @@ internal static class ObjectPackageStamp
     /// An ordered revision within <see cref="ContractMajor"/>, moved whenever the installed content
     /// changes. <c>Acta.Emit check</c> refuses a released revision carrying different content.
     /// </summary>
-    internal const int PackageRevision = 4;
+    internal const int PackageRevision = 5;
 
     /// <summary>
     /// The oldest revision this build can call, which is deliberately not the revision it ships. A

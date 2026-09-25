@@ -25,6 +25,8 @@ public sealed class SqlServerConcurrencyLimitSpec : ConcurrencyLimitSpec<SqlServ
 
 public sealed class SqlServerRateLimitSpec : RateLimitSpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerRateLimitConvoySpec : RateLimitConvoySpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerControlVerbsSpec : ControlVerbsSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerGoldenPathSpec : GoldenPathSpec<SqlServerConformanceFixture>;
