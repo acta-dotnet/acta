@@ -1,0 +1,813 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Learn Acta · build a report service that survives a crash · Acta</title>
+  <meta name="description" content="A first-time Acta tutorial for .NET developers. Build a small ASP.NET Core report service on embedded SQLite, watch a job retry, record progress with steps, kill the process, and see the same job finish after a restart." />
+  <link rel="canonical" href="https://useacta.net/learn" />
+  <meta name="theme-color" content="#0B0E15" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="Acta for .NET" />
+  <meta property="og:title" content="Learn Acta · build a report service that survives a crash" />
+  <meta property="og:description" content="A first-time tutorial: one ASP.NET Core app, embedded SQLite, a background job that retries, records its progress, and finishes after the process is killed." />
+  <meta property="og:url" content="https://useacta.net/learn" />
+  <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Acta: the durable work ledger for .NET. Postgres, SQL Server, SQLite." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
+  <link rel="preload" href="assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="assets/fonts/ibm-plex-mono-400-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <style>
+    /* Self-hosted latin subsets of the three families, preloaded and served immutable (see _headers),
+       so a reload paints them from cache with no swap and a first visit swaps them in as they land.
+       Fraunces and Plex Sans are variable files. */
+    @font-face { font-family: "Fraunces"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(assets/fonts/fraunces-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "Fraunces"; font-style: italic; font-weight: 400 500; font-display: swap; src: url(assets/fonts/fraunces-italic-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(assets/fonts/ibm-plex-sans-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(assets/fonts/ibm-plex-mono-400-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url(assets/fonts/ibm-plex-mono-500-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  </style>
+  <style>
+    :root {
+      --bg: #0B0E15;
+      --panel: #10151F;
+      --panel-2: #151B28;
+      --text: #E8EDF5;
+      --muted: #9BA7BA;
+      --faint: #7A899F;
+      --verdi: #2FD6A8;
+      --oxide: #D08A45;
+      --hair: rgba(232, 237, 245, 0.10);
+      --hair-soft: rgba(232, 237, 245, 0.06);
+      --serif: "Fraunces", Georgia, serif;
+      --sans: "IBM Plex Sans", system-ui, sans-serif;
+      --mono: "IBM Plex Mono", Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 4rem; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font-family: var(--sans); font-size: 16px; line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+    }
+    ::selection { background: rgba(47, 214, 168, 0.3); color: #fff; }
+    :focus-visible { outline: 2px solid var(--verdi); outline-offset: 3px; border-radius: 2px; }
+    a { color: inherit; }
+    code { font-family: var(--mono); font-size: 0.9em; color: #CBD6E5; }
+
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+    .skip-link {
+      position: fixed; top: 0.7rem; left: 0.7rem; z-index: 100;
+      padding: 0.55rem 0.9rem; border-radius: 6px; background: var(--verdi); color: #06231A;
+      font-family: var(--mono); font-size: 0.78rem; font-weight: 600; text-decoration: none;
+      transform: translateY(-180%); transition: transform 0.15s ease;
+    }
+    .skip-link:focus { transform: translateY(0); }
+
+    /* ---- chrome (shared with the other pages) ---- */
+    .chrome {
+      position: sticky; top: 0; z-index: 10;
+      display: flex; align-items: baseline; gap: 1.4rem;
+      padding: 0.6rem clamp(20px, 2.5vw, 40px);
+      background: rgba(11, 14, 21, 0.9); backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--hair);
+      font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint);
+    }
+    .chrome .brand { font-family: var(--serif); font-weight: 600; font-size: 1.15rem; color: var(--text); text-decoration: none; letter-spacing: 0; text-transform: none; }
+    .chrome .brand .dot { color: var(--verdi); }
+    .chrome nav { margin-left: auto; display: flex; gap: 1.6rem; }
+    .chrome nav a { text-decoration: none; }
+    .chrome nav a:hover { color: var(--verdi); }
+    @media (max-width: 700px) {
+      .chrome .meta { display: none; }
+      .chrome nav { gap: 1rem; }
+      .chrome nav .nav-more { display: none; }
+    }
+
+    .record {
+      display: flex; align-items: center; gap: 1.1rem;
+      font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--faint);
+      margin: 0 0 1.6rem;
+    }
+    .record::after { content: ""; flex: 1; border-top: 1px solid var(--hair); }
+
+    /* ---- long-form article ---- */
+    .article { max-width: 47rem; margin: 0 auto; padding: 0 20px 2rem; }
+    .article-head { padding-top: clamp(2.4rem, 6vh, 4rem); }
+    h1 {
+      font-family: var(--serif); font-weight: 500;
+      font-size: clamp(2.2rem, 5vw, 3.3rem); line-height: 1.08;
+      margin: 0 0 1.2rem; text-wrap: balance;
+    }
+    .standfirst { color: var(--muted); font-size: 1.14rem; line-height: 1.6; margin: 0 0 1.2rem; }
+    .byline { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); margin: 0; }
+
+    .contents { margin: 2.4rem 0 1rem; padding: 1.2rem 1.4rem; background: var(--panel); border: 1px solid var(--hair); border-radius: 12px; }
+    .article .contents h2 { font-family: var(--mono); line-height: 1.4; font-size: 0.72rem; font-weight: 400; letter-spacing: 0.18em; text-transform: uppercase; color: var(--faint); margin: 0 0 0.8rem; }
+    .contents ol { margin: 0; padding-left: 1.4rem; columns: 2; column-gap: 2.2rem; font-size: 0.95rem; }
+    .contents li { margin: 0 0 0.35rem; break-inside: avoid; color: var(--faint); }
+    .contents a { color: var(--text); text-decoration: none; }
+    .contents a:hover { color: var(--verdi); text-decoration: underline; }
+    @media (max-width: 640px) { .contents ol { columns: 1; } }
+
+    .article section { scroll-margin-top: 4rem; padding-top: 1.4rem; }
+    .article h2 {
+      font-family: var(--serif); font-weight: 500;
+      font-size: clamp(1.6rem, 3vw, 2.05rem); line-height: 1.15;
+      margin: 2.2rem 0 1rem; text-wrap: balance;
+    }
+    .article h3 { font-family: var(--serif); font-weight: 500; font-size: 1.25rem; margin: 1.8rem 0 0.6rem; }
+    .article p, .article li { font-size: 1.05rem; line-height: 1.75; }
+    .article p { margin: 0 0 1.15rem; }
+    .article p a, .article li a { color: var(--verdi); text-underline-offset: 3px; }
+    .article p a:hover, .article li a:hover { color: #6BE8C5; }
+    .article ul.plain { padding-left: 1.2rem; margin: 0 0 1.2rem; }
+    .article ul.plain li { margin: 0 0 0.5rem; }
+    .article strong { color: #fff; font-weight: 600; }
+
+    /* code listings */
+    .listing { margin: 1.4rem 0 1.6rem; background: var(--panel); border: 1px solid var(--hair); border-radius: 10px; overflow: hidden; }
+    .listing figcaption {
+      display: flex; align-items: center; gap: 0.7rem; min-height: 2.6rem;
+      padding: 0.35rem 0.6rem 0.35rem 1.1rem; border-bottom: 1px solid var(--hair);
+      font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; color: var(--faint);
+    }
+    .listing figcaption::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--verdi); opacity: 0.8; }
+    .listing.output figcaption::before { background: var(--oxide); }
+    .listing figcaption .file { color: var(--text); letter-spacing: 0.02em; }
+    .listing figcaption .note { flex: 1; }
+    .copy {
+      margin-left: auto; flex: none; cursor: pointer;
+      min-height: 2rem; padding: 0.25rem 0.8rem; border: 1px solid var(--hair); border-radius: 999px;
+      background: transparent; color: var(--muted);
+      font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase;
+    }
+    .copy:hover { border-color: var(--verdi); color: var(--verdi); }
+    .listing pre { margin: 0; padding: 1.1rem 1.2rem; overflow-x: auto; font-family: var(--mono); font-size: 0.84rem; line-height: 1.65; color: #D3DCEA; tab-size: 4; }
+    .listing pre code { font-size: inherit; color: inherit; }
+    .listing.output pre { color: #B9C4D4; }
+
+    /* sidebars */
+    .sidebar { margin: 1.8rem 0; padding: 1.1rem 1.3rem; background: var(--panel-2); border-left: 3px solid var(--verdi); border-radius: 0 10px 10px 0; }
+    .sidebar h3 { margin: 0 0 0.5rem; font-size: 1.1rem; }
+    .sidebar p { font-size: 0.98rem; margin: 0 0 0.7rem; }
+    .sidebar p:last-child { margin-bottom: 0; }
+
+    /* screenshots */
+    .shot { margin: 1.6rem 0 1.8rem; }
+    .shot a { display: block; border-radius: 10px; }
+    .shot img { display: block; width: 100%; height: auto; border: 1px solid var(--hair); border-radius: 10px; }
+    .shot figcaption { margin-top: 0.6rem; font-size: 0.9rem; color: var(--muted); line-height: 1.55; }
+
+    .next-links { list-style: none; padding: 0; margin: 0 0 1.2rem; border-top: 1px solid var(--hair); }
+    .next-links li { padding: 0.9rem 0; border-bottom: 1px solid var(--hair-soft); font-size: 1rem; }
+    .next-links a { font-weight: 600; }
+    .next-links span { color: var(--muted); }
+
+    footer {
+      padding: 2.4rem 0 3rem; color: var(--faint); text-align: center;
+      font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase;
+    }
+    footer a { text-decoration: none; }
+    footer a:hover { color: var(--verdi); }
+    footer .sep { margin: 0 0.9em; opacity: 0.5; }
+
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .skip-link { transition: none; } }
+
+    @media print {
+      :root { --text: #111; --muted: #333; --faint: #555; --panel: #fff; --panel-2: #f4f4f4; --hair: #ccc; --hair-soft: #ddd; --verdi: #0a6b52; }
+      body { background: #fff; color: #111; font-size: 11pt; }
+      .chrome, .skip-link, .copy, footer { display: none; }
+      .article { max-width: none; padding: 0; }
+      code, .listing pre, .listing pre code, .listing.output pre { color: #111; }
+      .listing pre { white-space: pre-wrap; }
+      .listing figcaption .file { color: #111; }
+      .listing, .sidebar, .shot { break-inside: avoid; }
+      .article strong { color: #000; }
+      .article p a::after { content: " (" attr(href) ")"; font-size: 0.85em; color: #555; }
+    }
+  </style>
+  <script type="application/ld+json">
+    {"@context":"https://schema.org","@type":"TechArticle","headline":"Build a report service that survives a crash","description":"A first-time Acta tutorial: an ASP.NET Core report service on embedded SQLite with retries, durable steps, and crash recovery.","url":"https://useacta.net/learn","proficiencyLevel":"Beginner","inLanguage":"en","about":{"@type":"SoftwareSourceCode","name":"Acta","codeRepository":"https://github.com/acta-dotnet/acta"}}
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="chrome">
+    <a class="brand" href="/">Acta<span class="dot">.</span></a>
+    <span class="meta">apache-2.0 · .net 10 · pg / mssql / sqlite</span>
+    <nav aria-label="Primary links">
+      <a href="/">Home</a>
+      <a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Concepts</a>
+      <a href="/#compare" class="nav-more">Compare</a>
+      <a href="https://github.com/acta-dotnet/acta">GitHub</a>
+      <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md" class="nav-more">Labs</a>
+    </nav>
+  </div>
+
+  <main id="content">
+    <article class="article">
+      <header class="article-head">
+        <p class="record">learn acta · a first-time tutorial</p>
+        <h1>Build a report service that survives a crash.</h1>
+        <p class="standfirst">In about an hour you will build a small ASP.NET Core application that generates sales reports in the background, watch a job fail and retry on its own, and then kill the process halfway through a report and see the same job finish after a restart. Along the way you will learn what Acta is, what each line of setup is for, and exactly what it does and does not promise.</p>
+        <p class="byline">.NET 10 · ASP.NET Core · embedded SQLite · no Docker</p>
+      </header>
+
+      <nav class="contents" aria-labelledby="contents-title">
+        <h2 id="contents-title">In this article</h2>
+        <ol>
+          <li><a href="#why">Work that should not vanish</a></li>
+          <li><a href="#build">What you are going to build</a></li>
+          <li><a href="#create">Create the project</a></li>
+          <li><a href="#data">Some sales to report on</a></li>
+          <li><a href="#job">Describing the work</a></li>
+          <li><a href="#wiring">Wiring Acta into the app</a></li>
+          <li><a href="#first-report">The first report</a></li>
+          <li><a href="#dashboard">The job in the dashboard</a></li>
+          <li><a href="#retries">When the data is late</a></li>
+          <li><a href="#steps">Recording progress with steps</a></li>
+          <li><a href="#shutdown">Ctrl+C is a polite request</a></li>
+          <li><a href="#crash">Pulling the plug</a></li>
+          <li><a href="#promises">What Acta promised</a></li>
+          <li><a href="#your-app">From tutorial to your application</a></li>
+          <li><a href="#next">Further reading</a></li>
+        </ol>
+      </nav>
+
+      <section id="why" aria-labelledby="why-title">
+        <h2 id="why-title">Work that should not vanish</h2>
+        <p>Most web applications eventually grow a request that should not do its work while the user waits. Somebody clicks "Generate the August sales report", and the report takes half a minute to build. You do not want the browser spinning for thirty seconds, so you answer straight away with "Your report is on its way" and do the work in the background.</p>
+        <p>The easy version of that is a <code>Task.Run</code> or an in-memory queue feeding a hosted service. It works on your machine. Then one day the application restarts in the middle of a report, because of a deploy, a crash, or a container being moved, and the report simply never arrives. Nothing failed loudly. The work lived in memory, and memory is gone.</p>
+        <p>Acta is a .NET library for exactly this problem. It writes each piece of background work to your application's own SQL database as a row before anything runs, and it treats that row, not the running thread, as the truth. A worker inside your application claims the row, runs your code, and records the outcome. If the code throws, the row says so and schedules another try. If the process disappears, the row still says the work is unfinished, and Acta hands it to the next process that comes along. There is no message broker to install and no separate server: PostgreSQL, SQL Server, or an embedded SQLite file is enough.</p>
+        <p>That is the idea. The rest of this article makes it concrete, one small piece at a time.</p>
+      </section>
+
+      <section id="build" aria-labelledby="build-title">
+        <h2 id="build-title">What you are going to build</h2>
+        <p>The project is a tiny report service called <code>Reports</code>. It exposes two endpoints: <code>POST /reports?month=2026-08</code> asks for a monthly sales report and returns immediately, and <code>GET /reports/{id}</code> tells you how that request is doing and, when it is done, where the finished report is. The sales figures come from small CSV files in the project, and the report is a plain text file written next to them, so everything you need to see is on your own disk. There are no accounts, API keys, or cloud services involved.</p>
+        <p>You need the <a href="https://dotnet.microsoft.com/download/dotnet/10.0">.NET 10 SDK</a>, a terminal, a browser, and <code>curl</code>, which ships with Windows 10 and later, macOS, and most Linux distributions. You should be comfortable reading C# and have seen an ASP.NET Core minimal API before. You do not need to know anything about job queues, workers, or durable execution. The code targets Acta 1.0 and uses its SQLite provider, so there is no database server to install.</p>
+        <p>The app grows in three stages. First it generates a report. Then it copes with a report whose data has not arrived yet. Finally it records its progress so that a report interrupted by a crash picks up where the record says it left off. You will keep the same project and the same database the whole way through.</p>
+      </section>
+
+      <section id="create" aria-labelledby="create-title">
+        <h2 id="create-title">Create the project</h2>
+        <p>Start from the empty ASP.NET Core template and add two packages:</p>
+        <figure class="listing">
+          <figcaption><span class="note">Terminal</span><button class="copy" type="button" aria-label="Copy the project commands">Copy</button></figcaption>
+          <pre><code>dotnet new web -n Reports
+cd Reports
+dotnet add package Acta.Sqlite
+dotnet add package Acta.AspNetCore</code></pre>
+        </figure>
+        <p><code>Acta.Sqlite</code> brings in everything that runs your jobs: the engine, the SQLite storage provider, a source generator that finds your job handlers at compile time, and analyzers that catch common mistakes as you type. <code>Acta.AspNetCore</code> adds an operator dashboard and a small JSON API that you will map into your app. The dashboard's web assets are embedded in the package, so there is nothing else to install or build.</p>
+      </section>
+
+      <section id="data" aria-labelledby="data-title">
+        <h2 id="data-title">Some sales to report on</h2>
+        <p>Before any Acta code, the application needs something to do. Create a folder called <code>data</code> in the project and put August's sales export in it:</p>
+        <figure class="listing">
+          <figcaption><span class="file">data/sales-2026-08.csv</span><button class="copy" type="button" aria-label="Copy data/sales-2026-08.csv">Copy</button></figcaption>
+          <pre><code>order,region,amount
+1001,North,1250.00
+1002,South,830.50
+1003,North,410.25
+1004,West,2200.00
+1005,South,95.75
+1006,West,640.00</code></pre>
+        </figure>
+        <p>Next comes the part of the program that knows about sales and knows nothing about Acta. <code>SalesFiles</code> reads a month's CSV into totals, and writes those totals out as a text report. Add it to the project root:</p>
+        <figure class="listing">
+          <figcaption><span class="file">SalesFiles.cs</span><button class="copy" type="button" aria-label="Copy SalesFiles.cs">Copy</button></figcaption>
+          <pre><code>using System.Globalization;
+using System.Text;
+
+namespace Reports;
+
+public sealed record RegionTotal(string Region, decimal Amount);
+
+public sealed record SalesFigures(string Month, int Orders, decimal Total, List&lt;RegionTotal&gt; Regions);
+
+public sealed class SalesFiles(IWebHostEnvironment env)
+{
+    private string DataFolder =&gt; Path.Combine(env.ContentRootPath, "data");
+    private string ReportFolder =&gt; Path.Combine(env.ContentRootPath, "reports");
+
+    public static bool IsValidMonth(string month) =&gt;
+        DateOnly.TryParseExact(month, "yyyy-MM", CultureInfo.InvariantCulture, DateTimeStyles.None, out _);
+
+    public async Task&lt;SalesFigures&gt; LoadAsync(string month, CancellationToken ct)
+    {
+        // Throws FileNotFoundException when this month's export has not arrived yet.
+        var lines = await File.ReadAllLinesAsync(Path.Combine(DataFolder, $"sales-{month}.csv"), ct);
+
+        var rows = lines
+            .Skip(1)
+            .Where(line =&gt; line.Length &gt; 0)
+            .Select(line =&gt; line.Split(','))
+            .Select(cells =&gt; new RegionTotal(cells[1], decimal.Parse(cells[2], CultureInfo.InvariantCulture)))
+            .ToList();
+
+        var regions = rows
+            .GroupBy(row =&gt; row.Region)
+            .OrderBy(group =&gt; group.Key)
+            .Select(group =&gt; new RegionTotal(group.Key, group.Sum(row =&gt; row.Amount)))
+            .ToList();
+
+        return new SalesFigures(month, rows.Count, rows.Sum(row =&gt; row.Amount), regions);
+    }
+
+    public async Task&lt;string&gt; WriteAsync(string fileName, SalesFigures figures, CancellationToken ct)
+    {
+        var report = new StringBuilder()
+            .AppendLine($"Sales report for {figures.Month}")
+            .AppendLine($"Orders: {figures.Orders}")
+            .AppendLine($"Total:  {figures.Total.ToString("N2", CultureInfo.InvariantCulture)}")
+            .AppendLine();
+        foreach (var region in figures.Regions)
+        {
+            report.AppendLine($"  {region.Region,-8}{region.Amount.ToString("N2", CultureInfo.InvariantCulture),12}");
+        }
+
+        // Write to a temporary file, then move it into place. Running this twice leaves the same file.
+        Directory.CreateDirectory(ReportFolder);
+        var path = Path.Combine(ReportFolder, fileName);
+        await File.WriteAllTextAsync(path + ".tmp", report.ToString(), ct);
+        File.Move(path + ".tmp", path, overwrite: true);
+        return path;
+    }
+}</code></pre>
+        </figure>
+        <p>Two details in this ordinary-looking class will matter later. <code>LoadAsync</code> throws when the CSV for a month does not exist, which is how the app will meet its first failure. And <code>WriteAsync</code> never appends or half-writes: it writes a temporary file and moves it over the final name in one operation, so writing the same report twice leaves exactly the same file behind. Keep that second property in mind; it turns out to be the most important line in the program.</p>
+      </section>
+
+      <section id="job" aria-labelledby="job-title">
+        <h2 id="job-title">Describing the work: the job</h2>
+        <p>In Acta, a unit of background work is a <strong>job</strong>. A job has an input, which is the instruction written to the database, and a handler, which is the method that carries it out. Create <code>SalesReportJobs.cs</code>:</p>
+        <figure class="listing">
+          <figcaption><span class="file">SalesReportJobs.cs</span><span class="note">first version</span><button class="copy" type="button" aria-label="Copy SalesReportJobs.cs, first version">Copy</button></figcaption>
+          <pre><code>using Acta;
+
+namespace Reports;
+
+public sealed record MonthlySalesReport(string Month);
+
+public sealed record ReportResult(string Month, int Orders, decimal Total, string File);
+
+public sealed class SalesReportJobs(SalesFiles files, ILogger&lt;SalesReportJobs&gt; log)
+{
+    [Job("monthly-sales-report")]
+    public async Task&lt;ReportResult&gt; Handle(MonthlySalesReport input, JobContext ctx, CancellationToken ct)
+    {
+        log.LogInformation("{Job} execution {Execution}: building the {Month} report", ctx.JobRef, ctx.ExecutionNumber, input.Month);
+
+        var figures = await files.LoadAsync(input.Month, ct);
+        var file = await files.WriteAsync($"sales-{input.Month}-{ctx.JobRef}.txt", figures, ct);
+
+        log.LogInformation("{Job} wrote {File}", ctx.JobRef, file);
+        return new ReportResult(input.Month, figures.Orders, figures.Total, file);
+    }
+}</code></pre>
+        </figure>
+        <p><code>MonthlySalesReport</code> is the input. It is a plain record, and Acta stores it as JSON in the job's row, so it should hold what the work needs to know and nothing else: here, just the month. Because it is stored, it is also a small contract. A job enqueued today may run after tomorrow's deploy, so change input records the way you would change a public API.</p>
+        <p>The <code>[Job("monthly-sales-report")]</code> attribute turns the method into a handler. The string is the job's <strong>durable name</strong>, the name that goes into the database, the dashboard, logs, and alerts. It must be kebab-case, and once jobs with that name exist you should treat it as permanent, because rows written under the old name will not follow a rename. The class and method names, by contrast, are yours to refactor.</p>
+        <p>The handler's parameters are the input, a <code>JobContext</code>, and a <code>CancellationToken</code>. The context tells the handler which job it is running. <code>ctx.JobRef</code> is the job's public identifier, a string like <code>job_01m3f3jf65ettsq0k29zbzjk0h</code> that is created when the job is enqueued and never changes. <code>ctx.ExecutionNumber</code> counts how many times this handler has been started for this job, starting at 1. We log both because they will tell the story when things go wrong.</p>
+        <p>The report file is named after the job ref, not after the time or a random value. Whatever happens to this job, every attempt at it writes to the same file name. The handler returns a <code>ReportResult</code>, which Acta also stores, so the API can later answer "where is my report?" from the database. <code>SalesReportJobs</code> itself is an ordinary class: Acta creates it through dependency injection for each run, which is why it can ask for <code>SalesFiles</code> and a logger in its constructor.</p>
+      </section>
+
+      <section id="wiring" aria-labelledby="wiring-title">
+        <h2 id="wiring-title">Wiring Acta into the application</h2>
+        <p>Now replace the template's <code>Program.cs</code> with this:</p>
+        <figure class="listing">
+          <figcaption><span class="file">Program.cs</span><span class="note">first version</span><button class="copy" type="button" aria-label="Copy Program.cs, first version">Copy</button></figcaption>
+          <pre><code>using Acta;
+using Acta.AspNetCore;
+using Acta.Sqlite;
+using Reports;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddSingleton&lt;SalesFiles&gt;();
+
+builder.Services.UseActa(acta =&gt;
+{
+    acta.UseSqlite(sqlite =&gt;
+    {
+        sqlite.ConnectionString = "Data Source=reports.db";
+        // A local-development convenience. In production, a deploy step applies the schema.
+        sqlite.ApplyMigrationsOnStartup = builder.Environment.IsDevelopment();
+    });
+    acta.Run&lt;ReportsJobs&gt;("reports");
+});
+
+var app = builder.Build();
+
+app.MapActa("/acta");
+
+app.MapPost("/reports", async (string month, IJobs jobs, CancellationToken ct) =&gt;
+{
+    if (!SalesFiles.IsValidMonth(month))
+    {
+        return Results.BadRequest("Ask for a month such as 2026-08.");
+    }
+
+    var job = await jobs.EnqueueAsync(new MonthlySalesReport(month), ct: ct);
+    return Results.Accepted($"/reports/{job.JobRef}", new { job = job.JobRef.ToString() });
+});
+
+app.MapGet("/reports/{id}", async (string id, IJobs jobs, CancellationToken ct) =&gt;
+{
+    if (!JobRef.TryParse(id, out var jobRef) || await jobs.GetAsync(jobRef, ct) is not { } job)
+    {
+        return Results.NotFound();
+    }
+
+    var report = job.Status == JobStatusCode.Succeeded ? await jobs.GetResultAsync&lt;ReportResult&gt;(jobRef, ct) : null;
+    return Results.Ok(new
+    {
+        job = job.JobRef.ToString(),
+        status = job.Status.ToString(),
+        executions = job.ExecutionNumber,
+        failures = job.FailureCount,
+        report,
+    });
+});
+
+app.Run();</code></pre>
+        </figure>
+        <p>Read it from the top. <code>UseActa</code> registers Acta with the host, and inside it <code>UseSqlite</code> says where the durable record lives: a file called <code>reports.db</code> in the project folder. Acta keeps its tables in that database, the same way it would keep them in your PostgreSQL or SQL Server database in a larger system. <code>ApplyMigrationsOnStartup</code> lets the app create those tables itself the first time it runs. That is handy on your machine and inappropriate in production, where schema changes should come from a deployment step, so the line only switches it on in the Development environment that <code>dotnet run</code> uses.</p>
+        <p>The next line needs the most explanation. <code>ReportsJobs</code> is a class you did not write. At build time, Acta's source generator finds every <code>[Job]</code> method in the project and generates a <strong>manifest</strong> listing them. It names the manifest after the last segment of the project's root namespace plus <code>Jobs</code>, so a project called <code>Reports</code> gets <code>ReportsJobs</code>, and it puts the class in that root namespace. That is why the file starts with <code>using Reports;</code>: <code>Program.cs</code> uses top-level statements, which live in the global namespace and would not otherwise see it.</p>
+        <p><code>Run&lt;ReportsJobs&gt;("reports")</code> then does two things. It registers every job in the manifest under an Acta <strong>namespace</strong> called <code>reports</code>, and it starts a worker in this process that claims and runs jobs from that namespace. That makes three different things with similar names, and it helps to keep them apart. <code>Reports</code> is the C# namespace of your code. <code>reports</code> is the Acta namespace, a label in the database that says which service owns these jobs; a second service would run its own jobs under its own namespace. <code>monthly-sales-report</code> is the durable name of one job within it.</p>
+        <p>There is no separate worker process: the application that serves HTTP requests also runs the jobs, on background threads managed by the host. You can split the two later without changing the handler.</p>
+        <p><code>MapActa("/acta")</code> serves the dashboard and its JSON API. Out of the box it only answers requests from the local machine, and it is read-only until you deliberately enable its controls behind authentication.</p>
+        <p>The two endpoints are the application's own. <code>POST /reports</code> calls <code>jobs.EnqueueAsync</code> with a <code>MonthlySalesReport</code>; Acta picks the job from the input's type, writes the row, and hands back the new job's ref, which the endpoint returns with <code>202 Accepted</code> before any report exists. <code>GET /reports/{id}</code> reads the job's current status from the database and includes the stored result once the job has succeeded.</p>
+      </section>
+
+      <section id="first-report" aria-labelledby="first-report-title">
+        <h2 id="first-report-title">The first report</h2>
+        <p>Start the app. The <code>--urls</code> switch pins the address so the commands in this article work as written; without it, the app uses the random port from <code>Properties/launchSettings.json</code>.</p>
+        <figure class="listing">
+          <figcaption><span class="note">Terminal 1</span><button class="copy" type="button" aria-label="Copy the run command">Copy</button></figcaption>
+          <pre><code>dotnet run --urls http://localhost:5080</code></pre>
+        </figure>
+        <p>Among the startup lines you should see <code>Now listening on: http://localhost:5080</code>, and a few lines from <code>WorkerRuntime</code> saying the claim loop and heartbeat have started: that is the worker. You will also see a warning about "manifest generation" being derived from a file's last-write time. It matters when you deploy containers, and it is harmless here. A new <code>reports.db</code> file has appeared in the project folder.</p>
+        <p>In a second terminal, ask for August. On Windows PowerShell, type <code>curl.exe</code> rather than <code>curl</code>, because <code>curl</code> there is an alias for a different command.</p>
+        <figure class="listing">
+          <figcaption><span class="note">Terminal 2</span><button class="copy" type="button" aria-label="Copy the report request">Copy</button></figcaption>
+          <pre><code>curl -i -X POST "http://localhost:5080/reports?month=2026-08"</code></pre>
+        </figure>
+        <figure class="listing output">
+          <figcaption><span class="note">Output from our test run (trimmed). Your job ref will differ.</span></figcaption>
+          <pre><code>HTTP/1.1 202 Accepted
+Content-Type: application/json; charset=utf-8
+Location: /reports/job_01m3f3jf65ettsq0k29zbzjk0h
+
+{"job":"job_01m3f3jf65ettsq0k29zbzjk0h"}</code></pre>
+        </figure>
+        <p>The request came back at once with a job ref. Use your own ref to ask how it went:</p>
+        <figure class="listing">
+          <figcaption><span class="note">Terminal 2, with your job ref</span><button class="copy" type="button" aria-label="Copy the status request">Copy</button></figcaption>
+          <pre><code>curl http://localhost:5080/reports/job_01m3f3jf65ettsq0k29zbzjk0h</code></pre>
+        </figure>
+        <figure class="listing output">
+          <figcaption><span class="note">Output from our test run, formatted for reading</span></figcaption>
+          <pre><code>{
+  "job": "job_01m3f3jf65ettsq0k29zbzjk0h",
+  "status": "Succeeded",
+  "executions": 1,
+  "failures": 0,
+  "report": {
+    "month": "2026-08",
+    "orders": 6,
+    "total": 5426.50,
+    "file": "D:\\tmp\\acta-learn\\walk\\Reports\\reports\\sales-2026-08-job_01m3f3jf65ettsq0k29zbzjk0h.txt"
+  }
+}</code></pre>
+        </figure>
+        <p>Open the file it names, in the new <code>reports</code> folder:</p>
+        <figure class="listing output">
+          <figcaption><span class="file">reports/sales-2026-08-job_01m3f3jf65ettsq0k29zbzjk0h.txt</span></figcaption>
+          <pre><code>Sales report for 2026-08
+Orders: 6
+Total:  5,426.50
+
+  North       1,660.25
+  South         926.25
+  West        2,840.00</code></pre>
+        </figure>
+        <p>Terminal 1 shows the handler's two log lines, <code>execution 1: building the 2026-08 report</code> and <code>wrote ...</code>, followed by Acta noting the job as completed. It is worth pausing on the order of events, because everything later depends on it. The endpoint wrote a row describing the job and returned. The worker, polling the same database, claimed the row, which marked it as taken by this process for a limited time called a <strong>lease</strong>. It ran the handler, then wrote the outcome and the result back to the row. At every moment, the question "what happened to that report?" had an answer in <code>reports.db</code>, not just in the memory of a running process.</p>
+      </section>
+
+      <section id="dashboard" aria-labelledby="dashboard-title">
+        <h2 id="dashboard-title">The job in the dashboard</h2>
+        <p>Open <a href="http://localhost:5080/acta">http://localhost:5080/acta</a> in your browser. The Overview page summarises everything Acta knows about this database. Choose <strong>Jobs</strong> in the sidebar and you will see your report and three others:</p>
+        <figure class="shot">
+          <a href="assets/learn-jobs.webp" title="Open the full-size screenshot"><img src="assets/learn-jobs.webp" width="1600" height="511" loading="lazy" alt="The Acta dashboard Jobs page listing one monthly-sales-report job as Succeeded with 1 attempt, and three jobs named sys.retention, sys.recovery, and sys.alerts, marked System and Ready, all in the reports namespace." /></a>
+          <figcaption>The Jobs page after the first report. The three System jobs are Acta's own housekeeping.</figcaption>
+        </figure>
+        <p>The rows marked System are jobs Acta registers in every namespace. <code>sys.recovery</code> is the one that rescues work from processes that have died; you will watch it do that shortly. <code>sys.alerts</code> turns failures into alert records, and <code>sys.retention</code> deletes finished jobs after their retention period, 90 days by default. They are ordinary jobs, stored and scheduled the same way as yours.</p>
+        <p>Click your report's ref. The detail page shows the job's name, namespace, and status, an Attempts line reading "1 started, 0 consecutive failures", and a timeline with two events: execution started, and a completion a few milliseconds later. The Input and Result tabs show the stored JSON. The Actions panel says "Job controls are disabled on this host", and the sidebar shows a READ-ONLY badge: that is the safe default mentioned earlier, not an error. Every screen in the dashboard is a view of rows in <code>reports.db</code>. Nothing here is kept in the browser or in a separate service.</p>
+        <aside class="sidebar" aria-label="Sidebar: the same facts from the terminal">
+          <h3>The same facts, from the terminal</h3>
+          <p>An application that uses Acta also answers a small set of <code>jobs</code> commands. Run the app a second time with <code>--no-build</code>, so the command does not try to rebuild files the running copy is using: <code>dotnet run --no-build -- jobs events &lt;job-ref&gt;</code> prints the timeline, and <code>jobs explain &lt;job-ref&gt;</code> describes the job's state in plain English. The command reads the database and exits without starting the web server or a worker. You will use it in a moment.</p>
+        </aside>
+      </section>
+
+      <section id="retries" aria-labelledby="retries-title">
+        <h2 id="retries-title">When the data is late</h2>
+        <p>Real report services spend a surprising amount of time waiting for their inputs. Ask for September, whose export does not exist yet, and <code>LoadAsync</code> will throw <code>FileNotFoundException</code>.</p>
+        <p>Acta treats an exception escaping the handler as a failed attempt and schedules another. How many attempts and how far apart is the job's <strong>retry policy</strong>. The defaults suit production: up to 15 attempts, starting a minute apart and doubling each time up to a day. For this tutorial they are far too patient, so give the job its own policy. Stop the app with Ctrl+C and change the attribute in <code>SalesReportJobs.cs</code>:</p>
+        <figure class="listing">
+          <figcaption><span class="file">SalesReportJobs.cs</span><span class="note">replace the [Job] line</span><button class="copy" type="button" aria-label="Copy the new Job attribute line">Copy</button></figcaption>
+          <pre><code>    [Job("monthly-sales-report", MaxAttempts = 10, Backoff = "10s")]</code></pre>
+        </figure>
+        <p><code>MaxAttempts = 10</code> allows ten consecutive failures before the job is marked Failed for good. <code>Backoff = "10s"</code> waits a fixed ten seconds between attempts. Backoff also accepts growing schedules such as <code>"1m..8h x2"</code>, one minute doubling up to eight hours, which is what you would choose for a real upstream dependency. Start the app again with the same <code>dotnet run</code> command, then request September:</p>
+        <figure class="listing">
+          <figcaption><span class="note">Terminal 2</span><button class="copy" type="button" aria-label="Copy the September request">Copy</button></figcaption>
+          <pre><code>curl -X POST "http://localhost:5080/reports?month=2026-09"</code></pre>
+        </figure>
+        <p>Terminal 1 now shows the handler starting, a warning with the <code>FileNotFoundException</code> and its stack trace, and a line saying the job was re-armed. Ten seconds later the same thing happens with <code>execution 2</code>, then <code>execution 3</code>. Open the job in the dashboard:</p>
+        <figure class="shot">
+          <a href="assets/learn-retrying.webp" title="Open the full-size screenshot"><img src="assets/learn-retrying.webp" width="1600" height="1162" loading="lazy" alt="The dashboard's detail page for the September job. The header reads Ready, scheduled to run in 8s, with the message Could not find file sales-2026-09.csv. The summary shows Status Ready, Next run in 7s, and Attempts: 4 started, 4 consecutive failures, fails permanently at 10." /></a>
+          <figcaption>The September job between attempts. Ready, with a next-run time, is how a waiting retry looks.</figcaption>
+        </figure>
+        <p>This is the page to learn to read. Ready with a next-run time means "waiting for the next attempt", not "stuck". The reason is the stored exception message, and "4 started, 4 consecutive failures (fails permanently at 10)" says exactly how much patience is left. Further down, the timeline lists every attempt. The terminal tells the same story:</p>
+        <figure class="listing">
+          <figcaption><span class="note">Terminal 2, with your September job ref</span><button class="copy" type="button" aria-label="Copy the events command">Copy</button></figcaption>
+          <pre><code>dotnet run --no-build -- jobs events job_01m3f3kp47edm8t13hb0xyk6t0 --take 3</code></pre>
+        </figure>
+        <figure class="listing output">
+          <figcaption><span class="note">Output from our test run (trimmed)</span></figcaption>
+          <pre><code>Events for job job_01m3f3kp47edm8t13hb0xyk6t0 (newest first)
+
+2026-09-26T14:59:28.3810000Z  job.rescheduled  executing -&gt; ready  worker wrk_01m3f3knjcfhcr6end0t5xjeyw  exec 5
+  reason: job.unhandled-exception
+  message: Could not find file 'D:\tmp\acta-learn\walk\Reports\data\sales-2026-09.csv'.
+2026-09-26T14:59:28.3810000Z  job.execution-finished  executing -&gt; ready  worker wrk_01m3f3knjcfhcr6end0t5xjeyw  exec 5
+  reason: job.unhandled-exception
+  message: Could not find file 'D:\tmp\acta-learn\walk\Reports\data\sales-2026-09.csv'.
+2026-09-26T14:59:28.3800000Z  job.execution-started  dispatched -&gt; executing  worker wrk_01m3f3knjcfhcr6end0t5xjeyw  exec 5</code></pre>
+        </figure>
+        <p>Now play the part of the upstream system and deliver the export. Create <code>data/sales-2026-09.csv</code> while the job is still retrying:</p>
+        <figure class="listing">
+          <figcaption><span class="file">data/sales-2026-09.csv</span><button class="copy" type="button" aria-label="Copy data/sales-2026-09.csv">Copy</button></figcaption>
+          <pre><code>order,region,amount
+1101,North,980.00
+1102,West,1520.40
+1103,South,310.00
+1104,North,2045.60</code></pre>
+        </figure>
+        <p>Within ten seconds the next attempt finds the file, the log shows <code>wrote ...</code>, and the status endpoint reports the job as Succeeded, in our run with <code>"executions": 6</code> and <code>"failures": 5</code>. Nobody resubmitted anything. The request made earlier was kept as a row, the row remembered it was unfinished, and the retry policy kept offering it to the handler until the world outside had caught up. You may also notice a log line starting <code>ACTA ALERT</code>: by default a failing job raises an alert, and without a configured channel the alert is written to the log.</p>
+        <p>Had the file never arrived, the tenth failure would have left the job in the Failed state, still in the database with its whole history, for an operator to inspect and, with controls enabled, restart.</p>
+      </section>
+
+      <section id="steps" aria-labelledby="steps-title">
+        <h2 id="steps-title">Recording progress with steps</h2>
+        <p>So far the handler is all-or-nothing. If an attempt dies halfway through, the next attempt starts from the top and does everything again. For this report that costs little, but real jobs are often a chain of expensive or externally visible operations: query a warehouse for ten minutes, render a PDF, upload it, email the finance team. Redoing the query because the upload failed is wasteful. Redoing the email is worse.</p>
+        <p>Acta's answer is the <strong>step</strong>. <code>ctx.RunStepAsync("name", ...)</code> runs a piece of the handler and records its outcome in the database under that name. When the handler runs again for the same job, a step that already succeeded does not run its code; it returns the recorded result instead. Replace <code>SalesReportJobs.cs</code> with this version, which splits the work into two steps:</p>
+        <figure class="listing">
+          <figcaption><span class="file">SalesReportJobs.cs</span><span class="note">final version</span><button class="copy" type="button" aria-label="Copy SalesReportJobs.cs, final version">Copy</button></figcaption>
+          <pre><code>using Acta;
+
+namespace Reports;
+
+public sealed record MonthlySalesReport(string Month);
+
+public sealed record ReportResult(string Month, int Orders, decimal Total, string File);
+
+public sealed class SalesReportJobs(SalesFiles files, ILogger&lt;SalesReportJobs&gt; log)
+{
+    [Job("monthly-sales-report", MaxAttempts = 10, Backoff = "10s")]
+    public async Task&lt;ReportResult&gt; Handle(MonthlySalesReport input, JobContext ctx, CancellationToken ct)
+    {
+        log.LogInformation("{Job} execution {Execution}: building the {Month} report", ctx.JobRef, ctx.ExecutionNumber, input.Month);
+
+        var figures = await ctx.RunStepAsync("load-sales", async token =&gt;
+        {
+            log.LogInformation("{Job} loading sales for {Month}", ctx.JobRef, input.Month);
+            return await files.LoadAsync(input.Month, token);
+        }, ct);
+
+        var file = await ctx.RunStepAsync("write-report", async token =&gt;
+        {
+            // Demo only: a pause long enough to stop the app halfway. Delete it when you are done.
+            await Task.Delay(TimeSpan.FromSeconds(15), token);
+            return await files.WriteAsync($"sales-{input.Month}-{ctx.JobRef}.txt", figures, token);
+        }, ct);
+
+        log.LogInformation("{Job} wrote {File}", ctx.JobRef, file);
+        return new ReportResult(input.Month, figures.Orders, figures.Total, file);
+    }
+}</code></pre>
+        </figure>
+        <p>The <code>load-sales</code> step reads the CSV and returns the totals, which Acta stores as JSON in its step record. The <code>write-report</code> step writes the file. The fifteen-second <code>Task.Delay</code> is there only to give you time to interrupt the program in the next two sections; it is marked as demo code and you should remove it afterwards. The log line inside <code>load-sales</code> is our evidence: it prints only when that step's code actually runs.</p>
+        <p>One more change makes the crash demonstration quick. A worker proves it is alive by renewing its leases on a regular heartbeat, every 45 seconds by default, and a lease lasts four heartbeats, so a live worker can miss a few without losing its work. That is sensible in production and slow for a tutorial, so shorten the heartbeat in Development. Replace <code>Program.cs</code> with this final version, whose only change is the <code>if</code> block inside <code>UseActa</code>:</p>
+        <figure class="listing">
+          <figcaption><span class="file">Program.cs</span><span class="note">final version</span><button class="copy" type="button" aria-label="Copy Program.cs, final version">Copy</button></figcaption>
+          <pre><code>using Acta;
+using Acta.AspNetCore;
+using Acta.Sqlite;
+using Reports;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddSingleton&lt;SalesFiles&gt;();
+
+builder.Services.UseActa(acta =&gt;
+{
+    acta.UseSqlite(sqlite =&gt;
+    {
+        sqlite.ConnectionString = "Data Source=reports.db";
+        // A local-development convenience. In production, a deploy step applies the schema.
+        sqlite.ApplyMigrationsOnStartup = builder.Environment.IsDevelopment();
+    });
+    acta.Run&lt;ReportsJobs&gt;("reports");
+
+    if (builder.Environment.IsDevelopment())
+    {
+        // Notice a vanished process in seconds rather than minutes, so the restart demo is quick.
+        acta.ConfigureOptions(options =&gt; options.HeartbeatInterval = TimeSpan.FromSeconds(2));
+    }
+});
+
+var app = builder.Build();
+
+app.MapActa("/acta");
+
+app.MapPost("/reports", async (string month, IJobs jobs, CancellationToken ct) =&gt;
+{
+    if (!SalesFiles.IsValidMonth(month))
+    {
+        return Results.BadRequest("Ask for a month such as 2026-08.");
+    }
+
+    var job = await jobs.EnqueueAsync(new MonthlySalesReport(month), ct: ct);
+    return Results.Accepted($"/reports/{job.JobRef}", new { job = job.JobRef.ToString() });
+});
+
+app.MapGet("/reports/{id}", async (string id, IJobs jobs, CancellationToken ct) =&gt;
+{
+    if (!JobRef.TryParse(id, out var jobRef) || await jobs.GetAsync(jobRef, ct) is not { } job)
+    {
+        return Results.NotFound();
+    }
+
+    var report = job.Status == JobStatusCode.Succeeded ? await jobs.GetResultAsync&lt;ReportResult&gt;(jobRef, ct) : null;
+    return Results.Ok(new
+    {
+        job = job.JobRef.ToString(),
+        status = job.Status.ToString(),
+        executions = job.ExecutionNumber,
+        failures = job.FailureCount,
+        report,
+    });
+});
+
+app.Run();</code></pre>
+        </figure>
+        <p>With a two-second heartbeat the lease lasts eight seconds, and a dead process's jobs become reclaimable almost immediately. <code>SalesFiles.cs</code> and the CSV files stay as they are. That is the complete program.</p>
+        <aside class="sidebar" aria-label="Sidebar: step retries and job retries">
+          <h3>Step retries are not job retries</h3>
+          <p>Steps change how failures are counted. If September's file were missing now, the exception would happen inside <code>load-sales</code>, and the step would retry on its own: the job goes back to Ready with the reason <code>job.step-retry-scheduled</code>, the execution number still goes up, but the job's failure count stays at zero. A step inherits <code>MaxAttempts</code> and <code>Backoff</code> from the <code>[Job]</code> attribute unless you pass it its own settings. If the step runs out of attempts, it is marked exhausted, and from then on each execution of the handler fails at that line, spending the job's budget until the job itself is Failed.</p>
+        </aside>
+      </section>
+
+      <section id="shutdown" aria-labelledby="shutdown-title">
+        <h2 id="shutdown-title">Ctrl+C is a polite request</h2>
+        <p>Before crashing anything, see what a normal stop looks like. Start the app, request August again, and press Ctrl+C in Terminal 1 within a few seconds, while the report is in its fifteen-second pause:</p>
+        <figure class="listing output">
+          <figcaption><span class="note">Terminal 1 after Ctrl+C, from our test run (trimmed)</span></figcaption>
+          <pre><code>info: Reports.SalesReportJobs[0]
+      job_01m3f3phvdfsma84tn5r1h1py8 execution 1: building the 2026-08 report
+info: Reports.SalesReportJobs[0]
+      job_01m3f3phvdfsma84tn5r1h1py8 loading sales for 2026-08
+info: Microsoft.Hosting.Lifetime[0]
+      Application is shutting down...
+info: Reports.SalesReportJobs[0]
+      job_01m3f3phvdfsma84tn5r1h1py8 wrote D:\tmp\acta-learn\walk\Reports\reports\sales-2026-08-job_01m3f3phvdfsma84tn5r1h1py8.txt</code></pre>
+        </figure>
+        <p>The application did not stop at once. Ctrl+C asks the .NET host to shut down gracefully, and Acta takes part: the worker stops claiming new jobs, keeps its leases alive, and waits for handlers already running to finish before the process exits. In our run the process lingered for about eleven seconds, the rest of the demo pause, and the report was written before it went. The wait is bounded by the host's shutdown timeout, 30 seconds unless you configure otherwise. A job still running when that runs out is cancelled and later reclaimed like one from a crashed process.</p>
+        <p>This is the behaviour you want during a deploy, and it is also why Ctrl+C proves nothing about crashes. A crash does not ask.</p>
+      </section>
+
+      <section id="crash" aria-labelledby="crash-title">
+        <h2 id="crash-title">Pulling the plug</h2>
+        <p>Start the app once more and request September. Watch Terminal 1: when <code>loading sales for 2026-09</code> appears, the first step has finished and the handler is inside the fifteen-second pause in <code>write-report</code>. Within that window, kill the process from Terminal 2 without giving it any chance to clean up:</p>
+        <figure class="listing">
+          <figcaption><span class="note">Windows PowerShell</span><button class="copy" type="button" aria-label="Copy the Windows kill command">Copy</button></figcaption>
+          <pre><code>Stop-Process -Name Reports -Force</code></pre>
+        </figure>
+        <figure class="listing">
+          <figcaption><span class="note">macOS or Linux</span><button class="copy" type="button" aria-label="Copy the macOS or Linux kill command">Copy</button></figcaption>
+          <pre><code>pkill -KILL -x Reports</code></pre>
+        </figure>
+        <p>These end the <code>Reports</code> process immediately, the way a power cut or an out-of-memory kill would. <code>dotnet run</code> in Terminal 1 exits too. No shutdown code ran, no "I'm leaving" message was written anywhere, and the report file does not exist.</p>
+        <p>With the application down, ask the database what it thinks is going on. Use the job ref that <code>POST</code> returned:</p>
+        <figure class="listing">
+          <figcaption><span class="note">Terminal 2, with your job ref</span><button class="copy" type="button" aria-label="Copy the explain command">Copy</button></figcaption>
+          <pre><code>dotnet run --no-build -- jobs explain job_01m3f3qa4df1jr2fjdfn52g9qv</code></pre>
+        </figure>
+        <figure class="listing output">
+          <figcaption><span class="note">Output from our test run, a few seconds after the kill</span></figcaption>
+          <pre><code>job_01m3f3qa4df1jr2fjdfn52g9qv  reports/monthly-sales-report
+Executing, but its lease expired 1s ago.
+
+Worker:
+- Worker 1.0.0 (wrk_01m3f3q9fneq0svyyy2j88dh22), lease expired at 2026-09-26T15:00:58.2790000Z.
+- Last heartbeat at 2026-09-26T15:00:50.2790000Z.
+- Recovery should return it to Ready on the next maintenance tick.
+
+Durable work:
+- Step "load-sales" succeeded and will not rerun.
+- Step "write-report" is in progress.
+
+Next actions:
+- Wait for sys.recovery to reclaim the job on the next maintenance tick.
+- Cancel the job if it should not continue.</code></pre>
+        </figure>
+        <p>The job still claims to be executing, because the process running it never said otherwise, but its lease has expired and nothing has renewed it. The first step's outcome is recorded; the second step started and never finished. Run the command in the first seconds after the kill and you will see "Lease expires in 5s" instead: until the lease runs out, a dead process and a slow one look the same, and Acta waits before deciding.</p>
+        <p>Now restart the app in Terminal 1 with the same command, against the same <code>reports.db</code>. Enqueue nothing. <code>sys.recovery</code> runs once a minute, so within about a minute it finds the expired lease, marks the old attempt as orphaned, and returns the job to Ready, and the new process's worker claims it:</p>
+        <figure class="listing output">
+          <figcaption><span class="note">Terminal 1 after the restart, from our test run (trimmed)</span></figcaption>
+          <pre><code>info: Reports.SalesReportJobs[0]
+      job_01m3f3qa4df1jr2fjdfn52g9qv execution 2: building the 2026-09 report
+info: Reports.SalesReportJobs[0]
+      job_01m3f3qa4df1jr2fjdfn52g9qv wrote D:\tmp\acta-learn\walk\Reports\reports\sales-2026-09-job_01m3f3qa4df1jr2fjdfn52g9qv.txt</code></pre>
+        </figure>
+        <p>Look at what is there and what is missing. It is the same job ref as before the crash. It says <code>execution 2</code>, because the handler was started again from its first line: the opening log statement ran a second time. The <code>loading sales</code> line did not appear, because <code>load-sales</code> had a recorded result, and <code>RunStepAsync</code> returned it instead of reading the CSV again. <code>write-report</code> had no recorded outcome, so it ran in full, pause included, and wrote the file. In our run the app came back a few seconds after 15:01 UTC, just missing that minute's recovery pass; the 15:02 pass reclaimed the job, and the report was written fifteen seconds later.</p>
+        <figure class="shot">
+          <a href="assets/learn-recovered.webp" title="Open the full-size screenshot"><img src="assets/learn-recovered.webp" width="1600" height="1068" loading="lazy" alt="The dashboard's Executions tab for the recovered job. Execution 2 succeeded in about 15 seconds on one worker. Execution 1, on a different worker, is marked Orphaned with the reason job.lease-expired: Worker lease expired; reclaimed by the sys.recovery system job." /></a>
+          <figcaption>One job, two executions on two different worker processes. The first was orphaned by the kill and reclaimed by <code>sys.recovery</code>.</figcaption>
+        </figure>
+        <p>The Executions tab tells the story in two rows, each with its own worker ref, because every run of the application registers as a new worker. The Details tab lists both steps as "succeeded and will not rerun", and the failure count is 1: an attempt lost to a dead process counts against the retry budget like any other failed attempt.</p>
+        <p>Now remove the <code>Task.Delay</code> line and its comment from <code>write-report</code>. Its work is done.</p>
+      </section>
+
+      <section id="promises" aria-labelledby="promises-title">
+        <h2 id="promises-title">What Acta promised, and what it did not</h2>
+        <p>It is tempting to say Acta resumed the job where it stopped. It did not, and the difference is the most important thing in this article. Acta started the handler again, from the top, as a fresh call in a new process. The local variable <code>figures</code> in execution 2 did not survive from execution 1; nothing in memory did. It was filled in by <code>RunStepAsync</code> from the step record in the database. Any code outside a step, like the first log line, simply runs again. Acta's model is checkpoints, not replay: named steps are the checkpoints, and everything between them is ordinary code that must be safe to run more than once.</p>
+        <p>The name for this is <strong>at-least-once</strong> execution. Acta guarantees that the job's work will be attempted until it succeeds or its budget runs out. It does not guarantee that each piece runs exactly once, and no system that talks to the outside world can. Consider the worst moment for our report: the process dies after <code>File.Move</code> has put the report in place but before the step's success has been written to the database. On the next execution, <code>write-report</code> has no recorded outcome, so it runs again.</p>
+        <p>In this program that is harmless, and not by luck. The file name comes from the job ref, which is the same in every execution. The content comes from the recorded figures, which are the same too. The write replaces the whole file in one move. Running the step twice produces exactly what running it once did. Code with that property is called <strong>idempotent</strong>, and it is what makes at-least-once execution safe.</p>
+        <p>Now imagine a third step that emails the report to the finance team. The same worst moment means the email might go out twice, and no amount of care in Acta can prevent it, because the mail server is not in your database. The usual cure is to give the external system a key that stays the same across attempts, such as the job ref, and let it discard duplicates. When a duplicate is truly worse than a missing action, a step can be declared <code>AtMostOnce()</code>: it will never run twice, and if it was interrupted, the handler is told so and must check the outside world before deciding what to do. Either way, the protection belongs in your design, next to the side effect, not in a hope that crashes are rare.</p>
+      </section>
+
+      <section id="your-app" aria-labelledby="your-app-title">
+        <h2 id="your-app-title">From tutorial to your application</h2>
+        <p>You have now used the everyday surface of Acta: an input and a <code>[Job]</code> handler, the generated manifest, <code>EnqueueAsync</code> to request work, <code>GetAsync</code> and <code>GetResultAsync</code> to read it back, a retry policy, steps, and two ways to inspect it all. An existing application uses the same pieces. Keep your host and your database, add the provider package that matches it, register with your existing connection string, and move one piece of background work behind a <code>[Job]</code> attribute; its constructor can ask for your existing services.</p>
+        <p>A few choices in this tutorial were made for a laptop and deserve a second look before real traffic arrives.</p>
+        <ul class="plain">
+          <li><strong>Schema.</strong> Leave <code>ApplyMigrationsOnStartup</code> off outside Development and apply Acta's schema from your deployment pipeline, as described in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/production.md#migration-ownership">the production guide</a>.</li>
+          <li><strong>Heartbeat and demo code.</strong> The two-second heartbeat is for demonstrations; with the default, a crashed process's jobs are reclaimed within a few minutes rather than a minute. The <code>Task.Delay</code> should already be gone.</li>
+          <li><strong>The dashboard.</strong> It stays local-only and read-only until you change it. To reach it from other machines, turn off <code>LocalOnly</code> and put it behind your own authentication and authorization; enable controls only there. The guide's section on <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/production.md#dashboard-exposure-and-auth">dashboard exposure</a> shows how.</li>
+          <li><strong>The database.</strong> SQLite is an embedded, single-machine store. When the application runs on more than one server, switch to <code>Acta.Postgres</code> or <code>Acta.SqlServer</code> and <code>UsePostgres</code> or <code>UseSqlServer</code>; the jobs themselves do not change.</li>
+          <li><strong>Where results go.</strong> Our reports land on the local disk, which is fine for one machine. Across several servers, write them to shared storage and keep only a reference in the job's result.</li>
+          <li><strong>Duplicate requests.</strong> Two clicks on the button create two jobs. If one report per month is the rule, give the enqueue a deduplication key; the <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/concepts.md">concepts guide</a> explains how, and why a key prevents a second row but not a second side effect.</li>
+        </ul>
+      </section>
+
+      <section id="next" aria-labelledby="next-title">
+        <h2 id="next-title">Further reading</h2>
+        <p>You know enough now to use Acta in a real project and to read its documentation with the right picture in your head. These are the pages worth reading next, in roughly this order:</p>
+        <ul class="next-links">
+          <li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/concepts.md">Concepts and glossary</a> <span>covers the vocabulary: executions, attempts, namespaces, refs, and durable slots.</span></li>
+          <li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/handler-contract.md">The handler contract</a> <span>lists every handler shape, the rules for inputs and results, and exactly how exceptions and cancellation are treated.</span></li>
+          <li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/failure-modes.md">What happens if…</a> <span>answers the crash, timeout, and database-outage questions this article only started.</span></li>
+          <li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/testing.md">Testing jobs</a> <span>shows how to cover handlers, steps, and retries in fast automated tests.</span></li>
+          <li><a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/production.md">The production guide</a> <span>is the checklist for migrations, dashboard security, worker sizing, and rolling deploys.</span></li>
+        </ul>
+        <p>If you would rather have your coding assistant add Acta to an existing project, point it at <a href="/start">useacta.net/start</a>, which has prompts written for that.</p>
+      </section>
+    </article>
+
+    <footer>
+      Apache-2.0 · built in the open
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta">GitHub</a>
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/tree/main/docs">Docs</a>
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/blob/main/docs/support.md">Support</a>
+      <span class="sep">·</span>Created by <a href="https://www.linkedin.com/in/marko-voncina">Marko Vončina</a>
+    </footer>
+  </main>
+  <p class="sr-only" id="copy-status" aria-live="polite"></p>
+  <script>
+    const status = document.getElementById("copy-status");
+    for (const button of document.querySelectorAll(".listing .copy")) {
+      button.addEventListener("click", async () => {
+        const code = button.closest(".listing").querySelector("pre code");
+        try {
+          await navigator.clipboard.writeText(code.textContent);
+          button.textContent = "Copied";
+          status.textContent = "Copied to the clipboard.";
+        } catch {
+          button.textContent = "Select and copy";
+        }
+        setTimeout(() => { button.textContent = "Copy"; status.textContent = ""; }, 1600);
+      });
+    }
+  </script>
+</body>
+</html>
