@@ -25,6 +25,14 @@ $allowed = @(
     '^docs/release-notes\.md$',
     '^docs/README\.md$',
     '^docs/internals/releasing\.md$',
+    # Prose a reader or a coding agent reads, never compiled or packed into a binary: a correction
+    # found after certification lands without moving A. The package README is packed as text only.
+    '^docs/.+\.md$',
+    '^README\.md$',
+    '^llms\.txt$',
+    # The release checks themselves, which run against the tree and ship nothing.
+    '^tools/release-guard\.ps1$',
+    '^tools/site-check\.mjs$',
     '^site/'
 )
 

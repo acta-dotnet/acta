@@ -47,6 +47,8 @@ const navs = new Map();
 const footers = new Map();
 for (const file of pages) {
   const text = readFileSync(resolve(siteDir, file), "utf8");
+  // A redirect stub (concepts.html) carries no nav or footer to align; no reader ever sees it.
+  if (/<meta http-equiv="refresh"/.test(text)) continue;
   navs.set(file, block(text, '<nav aria-label="Primary links">', "</nav>"));
   footers.set(file, block(text, "<footer>", "</footer>"));
 }
