@@ -1,13 +1,17 @@
 # Release notes
 
-## 1.0.0-rc.4 (unreleased)
+## 1.0.0 (unreleased)
 
-The answer to an external review of rc.3. No baseline re-cut and no migration: the data model is
-the rc.3 model. What changes is on the execution and alerting paths, in the installed routines, and
-in what a release has to prove. A completion write is repeated until it lands, the recovery sweep
-runs on capacity the executors cannot exhaust, the installed routines carry a version that startup
-checks, an incident opened at the failures-only audit level closes on its own, a completed child is
-kept while its parent is live, and three evidence harnesses join the release checklist.
+The first stable release. The public API, the schema, and the persisted codes are frozen from this
+tag: schema changes ship only as additive migrations, the baseline is never re-cut, and the release
+guard refuses a diff that would. The data model is the rc.3 model, unchanged, and no migration ships.
+What changed since rc.3 answers three external reviews of it: the execution and alerting paths, the
+installed routines, and what a release has to prove. A completion write is repeated until it lands,
+a claim is kept through a lost start answer or a lapsed lease while the row is still this worker's,
+the recovery sweep runs on capacity the executors cannot exhaust, the installed routines carry a
+version that startup checks, an incident opened at the failures-only audit level closes on its own,
+a completed child is kept while its parent is live, and three evidence harnesses join the release
+checklist.
 
 ### What a consumer must change
 
@@ -19,6 +23,10 @@ kept while its parent is live, and three evidence harnesses join the release che
   host with `ApplyMigrationsOnStartup = true` does the same on its own. From here on, the script is
   part of every upgrade, and a build whose package is older than the one a deploy requires is
   refused at startup instead of failing at its first affected call.
+  During the rollout from rc.3, no rc.3 node may run with `ApplyMigrationsOnStartup = true`: its
+  installer would put the rc.3 routines back under the package row this build recorded, and startup
+  checks the row, not the bodies. Production deployments keep that setting off, as the production
+  guide says; a development host that had it on is reprovisioned by this build's script.
 - **`AlertRetention` may not exceed `JobEventsRetention`.** Startup refuses the pair. A success closes
   an incident by answering the failure event that opened it, so the events must outlive the alerts.
   The defaults, 90 and 365 days, already satisfy it.
@@ -46,14 +54,72 @@ kept while its parent is live, and three evidence harnesses join the release che
   make the start answer LostClaim while this worker's heartbeat kept the lease, which stranded the job
   until the worker restarted. The start now reads the row on LostClaim: Executing under this worker
   is a start that committed and lost its answer, Dispatched under this worker is retried against the
-  version the row carries now, and anything else is another owner's. On SQLite a replayed start no
-  longer reports a second start or writes a second started event.
+  version the row carries now, and anything else is another owner's. A start refused because the
+  claim's lease lapsed in an outage is reconciled the same way: the heartbeat renews every row this
+  worker holds, so the row is still this worker's, and the start is retried, paced on the retry
+  curve, until it lands or recovery takes the row. Before, that refusal was a skip that left the row
+  leased, renewed on every beat, and progressed by nothing until the worker restarted. On SQLite a
+  replayed start no longer reports a second start or writes a second started event.
+- A claim that commits and loses its answer is returned to Ready by the heartbeat. The rows were
+  leased by this worker, renewed on every beat from database state, and progressed by nothing, the
+  `sys.recovery` slot included. The heartbeat now sets the ids it renewed against every attempt and
+  buffered claim the process can account for, and an id unaccounted for on two consecutive beats is
+  walked back to Ready through the same start-then-reschedule an unsupported claim takes. A Buffered
+  claim loop registers every row of a batch as buffered before it writes the first one to its
+  channel: a write blocks while every executor is held, and a row registered only when its turn
+  came could be released as a lost answer while it waited behind the blocked write. A drain that
+  lands on a blocked write hands the rows it never wrote back to Ready at once, instead of leaving
+  them leased to a worker that will not run them until the lease lapses after it exits, and the
+  recovery slot in a batch now starts before any write that could block it. The release and
+  an executor now take a per-execution owner entry in the process before either touches the row,
+  held through the start and the completion: a claim answer that arrived after the heartbeat had begun
+  releasing the row used to reach an executor, whose start read as this worker's own lost answer,
+  so one actor ran the job while the other rescheduled it and a second attempt could claim the row
+  while the first still ran. The late answer is now skipped and the release completes alone.
+- Under the Buffered profile the claim loop claims ahead of its executors into a channel, so the
+  `sys.recovery` slot could be buffered behind jobs no executor would take while every executor was
+  held, under a lease the heartbeat renewed, and nothing swept until an executor came free. The loop
+  now runs the slot on its own task the moment it claims it, so the one job that reclaims what the
+  executors hold never waits behind them.
+- On PostgreSQL, a start that waited on a row lock held by a concurrent reprioritize answered
+  AlreadyTerminal for a row that was still this worker's, because the routine classifies against
+  its statement snapshot. That answer is now reconciled against the row like LostClaim.
+- A control signal the runtime does not recognize, a handler's own subclass of the public
+  `JobControlException`, used to be rethrown out of the attempt and left the row Executing under a
+  renewed lease. It now lands as a handler exception: a retried Failed with the type in the reason.
 - The reads an attempt needs before its handler runs, the database clock and the live schedules for a
   recurring slot and the tenant key, are repeated like the writes, and anything else that fails
   before the handler runs hands the claim back to Ready instead of leaving it leased with nothing
   left to progress it.
 - A graceful drain waits for a recovery pass the slot monitor started, so shutdown no longer strands
   the recovery job itself.
+
+### Dashboard and API
+
+- The `outbox` control family is authorized like the others: an `IActaControlAuthorizer` sees
+  `outbox.requeue` and `outbox.discard`, and a denial stops the verb before the store sees it. The
+  filter derived its verb from a fixed list of entity names that did not include the outbox routes.
+- The dashboard page's base element carries the request's path base in front of the mount pattern,
+  so a host behind a reverse proxy that strips a prefix and restores it with `UsePathBase` serves
+  a page whose relative asset URLs resolve under that prefix. The deployment smoke asserts the base
+  element under its proxy instead of resolving the asset by hand. A mount pattern written without
+  its leading slash is rooted before it is composed, and the value is escaped as a URI component,
+  since a path base taken from a forwarded-prefix header is request input.
+- `Acta.AspNetCore` ships `THIRD-PARTY-NOTICES.txt` at the package root, generated by the dashboard
+  build from the modules that land in the bundle, transitive ones included. The package smoke checks
+  it is packed and names every package known to survive minification.
+
+### Rate limits
+
+- The meter reads its clock once it holds the bucket row, not when the call began. Every reservation
+  on one key serializes on that row, so a flood of metered claims queues behind whichever call holds
+  it, and a call that waited judged its turn against a stale instant: every call the convoy delayed
+  read as due and was admitted together the moment the lock freed. The million-job certification on
+  SQL Server read 46 handler starts in one second against a contract of 30 that way. PostgreSQL read
+  the transaction start as now, the same instant in principle, and stayed inside the contract in the
+  same run; both now read the wall clock after the lock, and a conformance fact holds the bucket row
+  under a queue of fifty reservations and counts what the release admits. SQLite reads its clock
+  inside its single write lock already. Object package 1.5.
 
 ### Alerting
 
@@ -82,8 +148,8 @@ kept while its parent is live, and three evidence harnesses join the release che
 - Three values name the installed object package: a contract major that must match, a package
   revision that must be at or above the minimum a build declares, and a content hash that binds the
   build's bookkeeping and never enters the startup decision. `Acta.Emit objects record` records a
-  released identity and `check` refuses a recorded identity whose content moved. rc.4 ships package
-  1.4 and requires 4; nothing before rc.4 carried a package.
+  released identity and `check` refuses a recorded identity whose content moved. 1.0.0 ships package
+  1.5 and requires 4; no release candidate carried a package.
 - The published scripts record the package only when every named view and routine exists, and say
   in their header to run them with a client that stops at the first error, which is what makes their
   transaction the guarantee that a failed replacement leaves no stamp.
@@ -102,11 +168,22 @@ kept while its parent is live, and three evidence harnesses join the release che
 - The release checklist names, per boundary the review questioned, the spec or harness that carries
   it.
 
+### Documentation
+
+- The ordering pages state what FIFO means in Acta instead of only what it does not: one producer's
+  items on one key, at one priority and due, are claimed in the order it enqueued them, and on the
+  Direct and Bulk profiles they start the instant they are claimed; two workers claiming at the
+  same instant start their items within that instant, in claim order but not measurably so. The
+  existing caveat stands: identities are allocation order, not commit order, so the promise is per
+  producer. Strict completion order remains the coordinator job the concepts guide describes.
+
 ### Test suite
 
 - The run-once test helper stops polling as soon as a row can no longer be claimed, instead of
   waiting out a five-second budget on every fact that expects an empty claim. The server legs run
-  in twelve to sixteen seconds.
+  in twelve to sixteen seconds. The budget of that helper now covers only the retries, not the
+  first drive: a drive that reconciles a refused start paces its own retry and could outlast the
+  budget on a loaded box, and the fact then heard an empty claim for a row it had left Ready.
 
 ## 1.0.0-rc.3
 
