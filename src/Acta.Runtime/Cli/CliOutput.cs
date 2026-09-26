@@ -29,6 +29,11 @@ internal static class CliOutput
                     {
                         w.WriteNull("status");
                     }
+
+                    if (result.RedriveJobRef is { } redrive)
+                    {
+                        w.WriteString("redriveJobRef", redrive.ToString());
+                    }
                 }
             );
             return;
@@ -37,6 +42,10 @@ internal static class CliOutput
         writer.WriteLine($"job: {jobRef}");
         writer.WriteLine($"action: {result.Action}");
         writer.WriteLine($"status: {(result.Status is { } s ? s.ToString() : "(none)")}");
+        if (result.RedriveJobRef is { } redriven)
+        {
+            writer.WriteLine($"redriven as: {redriven}");
+        }
     }
 
     public static void WriteSnapshot(TextWriter writer, JobDetail snapshot, bool json)

@@ -22,6 +22,10 @@ test('jobsListSql emits tenant_key as a quoted literal', () => {
   assert.equal(jobsListSql({ tenantKey: '' }), 'SELECT * FROM acta.jobs_view ORDER BY created_at_utc DESC LIMIT 100;');
 });
 
+test('jobsListSql filters the view by lane', () => {
+  assert.equal(jobsListSql({ lane: 'customer-42' }), "SELECT * FROM acta.jobs_view WHERE lane = 'customer-42' ORDER BY created_at_utc DESC LIMIT 100;");
+});
+
 test('jobsListSql escapes single quotes in interpolated values', () => {
   assert.equal(
     jobsListSql({ correlationKey: "o'brien" }),

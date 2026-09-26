@@ -1,3 +1,5 @@
+-- Lock order: the batch's lanes in id order, then job rows (docs/internals/sql-execution-policy.md,
+-- "Lane lock order").
 CREATE OR ALTER PROCEDURE {{schema}}.enqueue_batch
     @p_batch {{schema}}.job_enqueue_batch READONLY,
     @p_tag_batch {{schema}}.job_enqueue_tag_batch READONLY
@@ -26,10 +28,12 @@ BEGIN
             def_audit_level TINYINT NOT NULL,
             def_status TINYINT NOT NULL,
             def_tenant_req TINYINT NOT NULL,
-            tenant_id INT NULL
+            tenant_id INT NULL,
+            lane VARCHAR(128) NULL,
+            lane_id BIGINT NULL
         );
 
-        INSERT INTO @resolved (ordinal, ns_id, ns_status, def_id, def_priority, def_audit_level, def_status, def_tenant_req)
+        INSERT INTO @resolved (ordinal, ns_id, ns_status, def_id, def_priority, def_audit_level, def_status, def_tenant_req, lane)
         SELECT
             b.ordinal,
             ns.id,
@@ -38,7 +42,8 @@ BEGIN
             jd.priority_code_effective,
             jd.audit_level_code_effective,
             jd.status_code,
-            jd.tenant_requirement_code
+            jd.tenant_requirement_code,
+            COALESCE(b.lane, jd.lane)
         FROM @p_batch b
         INNER JOIN {{schema}}.namespaces ns ON ns.name = b.namespace_name
         INNER JOIN {{schema}}.definitions jd
@@ -110,6 +115,88 @@ BEGIN
                         THROW 50006, 'ACTA:ENQ_TENANT_SUSPENDED:Enqueue rejected: one or more rows reference a suspended tenant.', 1;
                     END;
             END;
+
+        -- The lane rows are the lanes' mutexes, taken before any job row: missing names are inserted in
+        -- name order without a range lock, then every lane is locked one row at a time in id order. A
+        -- concurrent insert of the same name, or retention deleting a lane before its lock, sends the
+        -- loop round again.
+        DECLARE @lanes TABLE (
+            ns_id INT NOT NULL,
+            name VARCHAR(128) NOT NULL,
+            id BIGINT NULL,
+            PRIMARY KEY (ns_id, name)
+        );
+
+        INSERT INTO @lanes (ns_id, name)
+        SELECT DISTINCT r.ns_id, r.lane
+        FROM @resolved r
+        WHERE r.lane IS NOT NULL;
+
+        DECLARE @lanes_pending BIT = CASE WHEN EXISTS (SELECT 1 FROM @lanes) THEN 1 ELSE 0 END;
+        DECLARE @lane_cursor BIGINT, @lane_next BIGINT, @lane_locked BIGINT;
+
+        WHILE @lanes_pending = 1
+            BEGIN
+                SET XACT_ABORT OFF;
+                BEGIN TRY
+                    INSERT INTO {{schema}}.lanes (namespace_id, name, created_at_utc)
+                    SELECT e.ns_id, e.name, @now
+                    FROM @lanes e
+                    WHERE NOT EXISTS (
+                        SELECT 1
+                        FROM {{schema}}.lanes l
+                        WHERE
+                            l.namespace_id = e.ns_id
+                            AND l.name = e.name
+                    )
+                    ORDER BY e.name;
+                END TRY
+                BEGIN CATCH
+                    SET XACT_ABORT ON;
+                    IF ERROR_NUMBER() NOT IN (2601, 2627)
+                        THROW;
+                END CATCH;
+                SET XACT_ABORT ON;
+
+                UPDATE e
+                SET id = l.id
+                FROM @lanes e
+                LEFT JOIN {{schema}}.lanes l
+                    ON
+                        l.namespace_id = e.ns_id
+                        AND l.name = e.name;
+
+                SET @lanes_pending = CASE WHEN EXISTS (SELECT 1 FROM @lanes WHERE id IS NULL) THEN 1 ELSE 0 END;
+                SET @lane_cursor = 0;
+                WHILE @lanes_pending = 0
+                    BEGIN
+                        SET @lane_next = NULL;
+                        SELECT TOP (1) @lane_next = e.id
+                        FROM @lanes e
+                        WHERE e.id > @lane_cursor
+                        ORDER BY e.id;
+
+                        IF @lane_next IS NULL
+                            BREAK;
+
+                        SET @lane_locked = NULL;
+                        SELECT @lane_locked = l.id
+                        FROM {{schema}}.lanes l WITH (UPDLOCK, ROWLOCK)
+                        WHERE l.id = @lane_next;
+
+                        IF @lane_locked IS NULL
+                            SET @lanes_pending = 1;
+                        SET @lane_cursor = @lane_next;
+                    END;
+            END;
+
+        UPDATE r
+        SET lane_id = e.id
+        FROM @resolved r
+        INNER JOIN @lanes e
+            ON
+                e.ns_id = r.ns_id
+                AND e.name = r.lane;
 
         DECLARE @existing TABLE (
             ordinal INT PRIMARY KEY,
@@ -237,6 +324,49 @@ BEGIN
                 THROW 50009, @tenant_msg, 1;
             END;
 
+        -- A child may not wait behind an unfinished ancestor in its own lane: the ancestor waits for it.
+        DECLARE @ancestor_lane_hits INT = 0;
+        IF
+            EXISTS (
+                SELECT 1
+                FROM @resolved r
+                INNER JOIN @p_batch b ON b.ordinal = r.ordinal
+                WHERE
+                    r.lane_id IS NOT NULL
+                    AND b.parent_id IS NOT NULL
+            )
+            BEGIN
+                WITH ancestors AS (
+                    SELECT r.lane_id, a.id, a.parent_id
+                    FROM @resolved r
+                    INNER JOIN @p_batch b ON b.ordinal = r.ordinal
+                    INNER JOIN {{schema}}.jobs a ON a.id = b.parent_id
+                    WHERE r.lane_id IS NOT NULL
+                    UNION ALL
+                    SELECT c.lane_id, a.id, a.parent_id
+                    FROM {{schema}}.jobs a
+                    INNER JOIN ancestors c ON a.id = c.parent_id
+                )
+
+                SELECT @ancestor_lane_hits = COUNT(*)
+                FROM ancestors c
+                INNER JOIN {{schema}}.runtimes ar ON ar.job_id = c.id
+                WHERE
+                    ar.lane_id = c.lane_id
+                    AND ar.status_code IN (
+                        10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                        30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                    );
+            END;
+
+        IF @ancestor_lane_hits > 0
+            BEGIN
+                DECLARE
+                    @ancestor_msg NVARCHAR(2048) = 'ACTA:ENQ_ANCESTOR_LANE:Enqueue rejected: one or more child rows name the lane of'
+                    + ' an unfinished ancestor, so they would wait behind the ancestor that waits for them.';
+                THROW 50010, @ancestor_msg, 1;
+            END;
+
         DECLARE @map TABLE (
             job_ref UNIQUEIDENTIFIER PRIMARY KEY,
             id BIGINT NOT NULL
@@ -272,17 +402,43 @@ BEGIN
         INNER JOIN @resolved r ON r.ordinal = b.ordinal
         LEFT JOIN @parents p ON p.ordinal = b.ordinal
         LEFT JOIN @existing e ON e.ordinal = b.ordinal
-        WHERE e.ordinal IS NULL;
+        WHERE e.ordinal IS NULL
+        -- Identity values follow this order, so job-id order equals the caller's batch order, which is
+        -- the order a lane runs in.
+        ORDER BY b.ordinal;
 
+        -- A laned row enters Ready only as the first inserted row of its lane with no unfinished member
+        -- already there; every later one waits as Blocked. The existence probe is spooled ahead of the
+        -- insert, so this batch's own rows are ranked by the window instead.
         INSERT INTO {{schema}}.runtimes (
-            job_id, namespace_id, status_code, priority_code, next_run_at_utc,
+            job_id, namespace_id, lane_id, status_code, priority_code, next_run_at_utc,
             execution_number, failure_count, retention_until_utc,
             modified_at_utc, version
         )
         SELECT
             m.id,
             r.ns_id,
-            10 /* JobStatusCode.Ready */,
+            r.lane_id,
+            CASE
+                WHEN
+                    r.lane_id IS NOT NULL
+                    AND (
+                        ROW_NUMBER() OVER (PARTITION BY r.lane_id ORDER BY m.id) > 1
+                        OR EXISTS (
+                            SELECT 1
+                            FROM {{schema}}.runtimes x
+                            WHERE
+                                x.lane_id = r.lane_id
+                                AND x.lane_id IS NOT NULL
+                                AND x.status_code IN (
+                                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                                    30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                                )
+                        )
+                    )
+                    THEN 15 /* JobStatusCode.Blocked */
+                ELSE 10 /* JobStatusCode.Ready */
+            END,
             COALESCE(b.priority_override, r.def_priority),
             COALESCE(b.next_run_at_utc, DATEADD(SECOND, COALESCE(b.delay_seconds, 0), @now)),
             0,

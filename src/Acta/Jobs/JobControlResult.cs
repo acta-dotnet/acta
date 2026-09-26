@@ -1,9 +1,10 @@
+using System.Text.Json.Serialization;
+
 namespace Acta;
 
 /// <summary>
-/// Outcome of an <see cref="IJobs"/> control verb (Cancel / Pause / Resume / Restart): the targeted
-/// <see cref="JobId"/>, the coarse <see cref="ControlAction"/>, and the job's <see cref="Status"/>
-/// and row <see cref="Version"/> after the attempt.
+/// Outcome of an <see cref="IJobs"/> control verb: the targeted <see cref="JobId"/>, the coarse
+/// <see cref="ControlAction"/>, and the job's <see cref="Status"/> and row <see cref="Version"/> after the attempt.
 /// </summary>
 /// <remarks>
 /// <see cref="Status"/> carries the new target status on <see cref="ControlAction.Applied"/> and the
@@ -11,12 +12,20 @@ namespace Acta;
 /// <see cref="Version"/> carries the new version on <c>Applied</c> and the row's current version on those
 /// two. Both are <c>null</c> wherever the verb settled without reading the row, <c>NotFound</c> included.
 /// Pass <c>Version</c> as a subsequent call's expectedVersion to make that call a compare-and-set.
+/// A restart of a finished laned job redrives it instead: the finished row stays as history, so Status and
+/// Version stay its own, and <see cref="RedriveJobRef"/> names the new job at the lane's tail.
 /// </remarks>
-/// <param name="JobId">The targeted job's id; <c>0</c> when the lookup matched no row.</param>
-/// <param name="Action">Whether the control transition was applied, rejected, conflicted, or the job was absent.</param>
-/// <param name="Status">The job's status after the attempt; see remarks.</param>
-/// <param name="Version">The job runtime row's version after the attempt; see remarks.</param>
-public sealed record JobControlResult(long JobId, ControlAction Action, JobStatusCode? Status, int? Version);
+/// <param name="JobId">The targeted job's id; <c>0</c> when the lookup matched no row.</param> <param name="Action">Whether the control transition was applied, rejected, conflicted, or the job was absent.</param>
+/// <param name="Status">The job's status after the attempt; see remarks.</param> <param name="Version">The job runtime row's version after the attempt; see remarks.</param>
+/// <param name="RedriveJobId">The redriven job's id, or null.</param> <param name="RedriveJobRef">The redriven job's public ref, or null unless a restart redrove the job.</param>
+public sealed record JobControlResult(
+    long JobId,
+    ControlAction Action,
+    JobStatusCode? Status,
+    int? Version,
+    [property: JsonIgnore] long? RedriveJobId = null,
+    JobRef? RedriveJobRef = null
+);
 
 /// <summary>
 /// Coarse outcome of an <see cref="IJobs"/> control verb.

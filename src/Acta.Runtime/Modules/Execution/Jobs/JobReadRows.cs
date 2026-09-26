@@ -30,7 +30,10 @@ internal sealed record JobSnapshotRow(
     string? TenantKey,
     int DefinitionId,
     Guid? LeasedByWorkerRef,
-    int Version
+    int Version,
+    string? Lane,
+    long? BlockedBehindJobId,
+    Guid? BlockedBehindJobRef
 )
 {
     /// <summary>
@@ -57,6 +60,9 @@ internal sealed record JobSnapshotRow(
             CreatedAtUtc: CreatedAtUtc,
             Status: Status,
             Priority: Priority,
+            Lane: Lane,
+            BlockedBehindJobId: BlockedBehindJobId,
+            BlockedBehindJobRef: BlockedBehindJobRef is { } headRef ? new JobRef(headRef) : null,
             NextRunAtUtc: NextRunAtUtc,
             ExecutionNumber: ExecutionNumber,
             FailureCount: FailureCount,
@@ -221,6 +227,7 @@ internal sealed record JobListRow(
     string? CorrelationKey,
     JobStatusCode Status,
     JobPriorityCode Priority,
+    string? Lane,
     DateTime CreatedAtUtc,
     DateTime ModifiedAtUtc,
     DateTime? NextRunAtUtc,
@@ -250,7 +257,8 @@ internal sealed record JobListProjectionRow(
     Guid? ParentJobRef,
     Guid? LineageRootJobRef,
     int? TenantId,
-    string? TenantKey
+    string? TenantKey,
+    string? Lane
 )
 {
     public JobListRow ToListRow() =>
@@ -269,6 +277,7 @@ internal sealed record JobListProjectionRow(
             CorrelationKey,
             Status,
             Priority,
+            Lane,
             CreatedAtUtc,
             ModifiedAtUtc,
             NextRunAtUtc,
@@ -302,6 +311,7 @@ internal static class JobListRowMapping
             row.CorrelationKey,
             row.Status,
             row.Priority,
+            row.Lane,
             row.CreatedAtUtc,
             row.ModifiedAtUtc,
             row.NextRunAtUtc,

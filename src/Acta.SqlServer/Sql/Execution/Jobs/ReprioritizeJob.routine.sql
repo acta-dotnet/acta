@@ -21,6 +21,18 @@ BEGIN
             @from_status TINYINT, @namespace_id INT,
             @lineage_root_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number INT, @audit_level TINYINT,
             @job_ref UNIQUEIDENTIFIER, @version INT;
+        DECLARE @lane_id BIGINT;
+
+        /* Lock order: the lane, then the job's rows (docs/internals/sql-execution-policy.md, "Lane lock
+           order"). lane_id never changes, so the unlocked read is safe. */
+        SELECT @lane_id = r.lane_id
+        FROM {{schema}}.runtimes r
+        WHERE r.job_id = @p_id;
+
+        IF @lane_id IS NOT NULL
+            SELECT @lane_id = l.id
+            FROM {{schema}}.lanes l WITH (UPDLOCK, ROWLOCK)
+            WHERE l.id = @lane_id;
 
         SELECT
             @from_status = r.status_code,

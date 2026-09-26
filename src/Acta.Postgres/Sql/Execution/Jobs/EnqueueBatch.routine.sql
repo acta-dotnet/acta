@@ -1,3 +1,5 @@
+-- Lock order: the batch's lanes in id order, then the parent rows (docs/internals/sql-execution-policy.md,
+-- "Lane lock order").
 CREATE OR REPLACE FUNCTION {{schema}}.enqueue_batch(
     p_b_ordinal INT [],
     p_b_job_ref UUID [],
@@ -17,7 +19,8 @@ CREATE OR REPLACE FUNCTION {{schema}}.enqueue_batch(
     p_t_ordinal INT [],
     p_t_name VARCHAR [],
     p_t_value VARCHAR [],
-    p_t_value_search VARCHAR []
+    p_t_value_search VARCHAR [],
+    p_b_lane VARCHAR [] DEFAULT NULL
 )
 RETURNS TABLE (ordinal INT, job_id BIGINT, job_ref UUID, action INT)
 LANGUAGE plpgsql
@@ -28,6 +31,9 @@ DECLARE
     ns_active_count INT;
     parent_count INT;
     parent_live INT;
+    lane_count INT;
+    locked_count INT;
+    locked_lane RECORD;
 BEGIN
 
     batch_count := COALESCE(array_length(p_b_ordinal, 1), 0);
@@ -67,6 +73,60 @@ BEGIN
     ) THEN
         RAISE EXCEPTION 'ACTA:ENQ_DEF_RETIRED:Enqueue rejected: the job definition is retired.'
             USING ERRCODE = 'P0001';
+    END IF;
+
+    -- Each row's effective lane is its own, else its definition's. The lane rows are the lanes' mutexes,
+    -- taken before any parent row: missing names are inserted first in name order without locking the
+    -- existing ones, then the whole set is locked in id order. A lane that retention deletes between the
+    -- two steps is inserted again on the next pass.
+    CREATE TEMP TABLE IF NOT EXISTS _enq_lanes (
+        namespace_id INT NOT NULL,
+        name VARCHAR NOT NULL,
+        id BIGINT,
+        PRIMARY KEY (namespace_id, name)
+    ) ON COMMIT DROP;
+    TRUNCATE _enq_lanes;
+
+    INSERT INTO _enq_lanes (namespace_id, name)
+    SELECT DISTINCT ns.id, COALESCE(b.lane, jd.lane)
+    FROM unnest(p_b_namespace_name, p_b_job_name, p_b_lane) AS b(namespace_name, job_name, lane)
+    INNER JOIN {{schema}}.namespaces ns ON ns.name = b.namespace_name
+    INNER JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = b.job_name
+    WHERE COALESCE(b.lane, jd.lane) IS NOT NULL;
+
+    SELECT COUNT(*) INTO lane_count FROM _enq_lanes;
+
+    IF lane_count > 0 THEN
+        LOOP
+            INSERT INTO {{schema}}.lanes (namespace_id, name, created_at_utc)
+            SELECT e.namespace_id, e.name, now()
+            FROM _enq_lanes e
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM {{schema}}.lanes l
+                WHERE l.namespace_id = e.namespace_id AND l.name = e.name
+            )
+            ORDER BY e.name
+            ON CONFLICT (namespace_id, name) DO NOTHING;
+
+            -- Only a row this loop locked records its id, so a lane that another transaction creates
+            -- after the lock statement cannot pass for a locked one.
+            UPDATE _enq_lanes SET id = NULL;
+            FOR locked_lane IN
+                SELECT l.id, l.namespace_id, l.name
+                FROM {{schema}}.lanes l
+                INNER JOIN _enq_lanes e ON e.namespace_id = l.namespace_id AND e.name = l.name
+                ORDER BY l.id
+                FOR UPDATE OF l
+            LOOP
+                UPDATE _enq_lanes e
+                SET id = locked_lane.id
+                WHERE e.namespace_id = locked_lane.namespace_id AND e.name = locked_lane.name;
+            END LOOP;
+
+            SELECT COUNT(*) INTO locked_count FROM _enq_lanes e WHERE e.id IS NOT NULL;
+            EXIT WHEN locked_count = lane_count;
+        END LOOP;
     END IF;
 
     SELECT COUNT(*) INTO parent_count
@@ -176,10 +236,35 @@ BEGIN
         audit_level_code SMALLINT NOT NULL,
         priority_code SMALLINT NOT NULL,
         next_run_at_utc TIMESTAMPTZ NOT NULL,
-        is_child BOOLEAN NOT NULL
+        is_child BOOLEAN NOT NULL,
+        lane_id BIGINT
     ) ON COMMIT DROP;
     TRUNCATE _enq_batch;
 
+    -- Ids are drawn first and handed out by rank, so job-id order equals ordinal order however the
+    -- sequence calls interleave: a lane runs in job-id order, which must be the caller's batch order.
+    WITH drawn AS (
+        SELECT nextval(pg_get_serial_sequence('{{schema}}.jobs', 'id')) AS id
+        FROM generate_series(1, batch_count)
+    ),
+    ranked_ids AS (
+        SELECT d.id, row_number() OVER (ORDER BY d.id) AS rn
+        FROM drawn d
+    ),
+    batch_rows AS (
+        SELECT
+            b.*,
+            row_number() OVER (ORDER BY b.ordinal) AS rn
+        FROM unnest(
+            p_b_ordinal, p_b_job_ref, p_b_namespace_name, p_b_job_name,
+            p_b_deduplication_key, p_b_correlation_key, p_b_priority_override,
+            p_b_input_format_id, p_b_input, p_b_concurrency_key, p_b_next_run_at_utc,
+            p_b_delay_seconds, p_b_parent_id, p_b_tenant_key, p_b_lane
+        ) AS b(ordinal, job_ref, namespace_name, job_name,
+            deduplication_key, correlation_key, priority_override,
+            input_format_id, input, concurrency_key, next_run_at_utc,
+            delay_seconds, parent_id, tenant_key, lane)
+    )
     INSERT INTO _enq_batch (
         id,
         ordinal,
@@ -197,9 +282,10 @@ BEGIN
         audit_level_code,
         priority_code,
         next_run_at_utc,
-        is_child)
+        is_child,
+        lane_id)
     SELECT
-        nextval(pg_get_serial_sequence('{{schema}}.jobs', 'id')),
+        ri.id,
         b.ordinal,
         b.job_ref,
         b.parent_id,
@@ -216,20 +302,41 @@ BEGIN
         jd.audit_level_code_effective,
         COALESCE(b.priority_override, jd.priority_code_effective),
         COALESCE(b.next_run_at_utc, now() + make_interval(secs => COALESCE(b.delay_seconds, 0))),
-        (b.parent_id IS NOT NULL)
-    FROM unnest(
-        p_b_ordinal, p_b_job_ref, p_b_namespace_name, p_b_job_name,
-        p_b_deduplication_key, p_b_correlation_key, p_b_priority_override,
-        p_b_input_format_id, p_b_input, p_b_concurrency_key, p_b_next_run_at_utc,
-        p_b_delay_seconds, p_b_parent_id, p_b_tenant_key
-    ) AS b(ordinal, job_ref, namespace_name, job_name,
-        deduplication_key, correlation_key, priority_override,
-        input_format_id, input, concurrency_key, next_run_at_utc,
-        delay_seconds, parent_id, tenant_key)
+        (b.parent_id IS NOT NULL),
+        el.id
+    FROM batch_rows b
+    INNER JOIN ranked_ids ri ON ri.rn = b.rn
     INNER JOIN {{schema}}.namespaces ns ON ns.name = b.namespace_name AND ns.status_code = 10 /* NamespaceStatusCode.Active */
     INNER JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = b.job_name
     LEFT JOIN {{schema}}.tenants t ON t.tenant_key = b.tenant_key AND t.status_code = 10 /* TenantStatusCode.Active */
-    LEFT JOIN {{schema}}.jobs pj ON pj.id = b.parent_id;
+    LEFT JOIN {{schema}}.jobs pj ON pj.id = b.parent_id
+    LEFT JOIN _enq_lanes el ON el.namespace_id = ns.id AND el.name = COALESCE(b.lane, jd.lane);
+
+    -- A child may not wait behind an unfinished ancestor in its own lane: the ancestor waits for it.
+    IF EXISTS (
+        WITH RECURSIVE ancestors AS (
+            SELECT e.lane_id, a.id, a.parent_id
+            FROM _enq_batch e
+            INNER JOIN {{schema}}.jobs a ON a.id = e.parent_id
+            WHERE e.lane_id IS NOT NULL
+            UNION ALL
+            SELECT c.lane_id, a.id, a.parent_id
+            FROM {{schema}}.jobs a
+            INNER JOIN ancestors c ON a.id = c.parent_id
+        )
+        SELECT 1
+        FROM ancestors c
+        INNER JOIN {{schema}}.runtimes ar ON ar.job_id = c.id
+        WHERE
+            ar.lane_id = c.lane_id
+            AND ar.status_code IN (
+                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+            )
+    ) THEN
+        RAISE EXCEPTION 'ACTA:ENQ_ANCESTOR_LANE:Enqueue rejected: one or more child rows name the lane of an unfinished ancestor, so they would wait behind the ancestor that waits for them.'
+            USING ERRCODE = 'P0001';
+    END IF;
 
     -- Give the planner real row counts for the staged set so the inserts below stay hash/index joins.
     ANALYZE _enq_batch;
@@ -318,10 +425,14 @@ BEGIN
         UNION ALL
         SELECT id FROM inserted_child
     ),
+    -- A laned row enters Ready only as the first inserted row of its lane with no unfinished member
+    -- already there; every later one waits as Blocked. The subquery reads the pre-statement snapshot, so
+    -- this batch's own rows are ranked by the window instead.
     runtime_insert AS (
         INSERT INTO {{schema}}.runtimes (
             job_id,
             namespace_id,
+            lane_id,
             status_code,
             priority_code,
             next_run_at_utc,
@@ -333,7 +444,25 @@ BEGIN
         SELECT
             e.id,
             e.namespace_id,
-            10 /* JobStatusCode.Ready */,
+            e.lane_id,
+            CASE
+                WHEN e.lane_id IS NOT NULL AND (
+                    row_number() OVER (PARTITION BY e.lane_id ORDER BY e.id) > 1
+                    OR EXISTS (
+                        SELECT 1
+                        FROM {{schema}}.runtimes m
+                        WHERE
+                            m.lane_id = e.lane_id
+                            AND m.lane_id IS NOT NULL
+                            AND m.status_code IN (
+                                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                                30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                            )
+                    )
+                )
+                    THEN 15 /* JobStatusCode.Blocked */
+                ELSE 10 /* JobStatusCode.Ready */
+            END,
             e.priority_code,
             e.next_run_at_utc,
             0,
@@ -386,7 +515,11 @@ END;
 $$;
 
 -- CREATE OR REPLACE across arities creates an overload instead of replacing; drop the retired
--- signature (without p_b_tenant_override) so pre-existing installs cannot resolve the stale form.
+-- signatures (without p_b_lane, and without p_b_tenant_override) so a call resolves to this form.
+DROP FUNCTION IF EXISTS {{schema}}.enqueue_batch(
+    INT [], UUID [], VARCHAR [], VARCHAR [], VARCHAR [], VARCHAR [], SMALLINT [], SMALLINT [], BYTEA [],
+    VARCHAR [], TIMESTAMPTZ [], INT [], BIGINT [], VARCHAR [], BOOLEAN [], INT [], VARCHAR [], VARCHAR [], VARCHAR []
+);
 DROP FUNCTION IF EXISTS {{schema}}.enqueue_batch(
     INT [], UUID [], VARCHAR [], VARCHAR [], VARCHAR [], VARCHAR [], SMALLINT [], SMALLINT [], BYTEA [],
     VARCHAR [], TIMESTAMPTZ [], INT [], BIGINT [], VARCHAR [], INT [], VARCHAR [], VARCHAR [], VARCHAR []

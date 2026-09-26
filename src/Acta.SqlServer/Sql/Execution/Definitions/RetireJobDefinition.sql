@@ -17,6 +17,9 @@ DECLARE @cancelled TABLE (
     job_id BIGINT NOT NULL PRIMARY KEY,
     from_status_code TINYINT NOT NULL,
     execution_number INT NOT NULL);
+DECLARE @laned TABLE (
+    job_id BIGINT NOT NULL PRIMARY KEY,
+    parent_id BIGINT NULL);
 
 BEGIN TRY
     IF @entry_trancount = 0
@@ -69,7 +72,22 @@ BEGIN TRY
         INNER JOIN {{schema}}.runtimes r ON r.job_id = j.id
         WHERE
             j.definition_id = @p_id
-            AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */);
+            AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */)
+            AND r.lane_id IS NULL;
+
+        /* A laned parked job is cancelled through cancel_job instead, which takes its lane first and
+           hands the lane on (docs/internals/sql-execution-policy.md, "Lane lock order"); this sweep only
+           names them. */
+        INSERT INTO @laned (job_id, parent_id)
+        SELECT j.id, j.parent_id
+        FROM {{schema}}.jobs j
+        INNER JOIN {{schema}}.runtimes r ON r.job_id = j.id
+        WHERE
+            j.definition_id = @p_id
+            AND r.status_code IN (
+                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */
+            )
+            AND r.lane_id IS NOT NULL;
 
         UPDATE r
         SET
@@ -170,15 +188,26 @@ BEGIN TRY
     SELECT
         @action AS action,
         c.job_id,
-        p.parent_id
+        p.parent_id,
+        CAST(0 AS BIT) AS laned
     FROM @cancelled c
     INNER JOIN @parked p ON p.job_id = c.job_id
     UNION ALL
     SELECT
         @action,
+        l.job_id,
+        l.parent_id,
+        CAST(1 AS BIT)
+    FROM @laned l
+    UNION ALL
+    SELECT
+        @action,
         CAST(NULL AS BIGINT),
-        CAST(NULL AS BIGINT)
-    WHERE NOT EXISTS (SELECT 1 FROM @cancelled);
+        CAST(NULL AS BIGINT),
+        CAST(NULL AS BIT)
+    WHERE
+        NOT EXISTS (SELECT 1 FROM @cancelled)
+        AND NOT EXISTS (SELECT 1 FROM @laned);
 
     IF @entry_trancount = 0
         COMMIT TRANSACTION;

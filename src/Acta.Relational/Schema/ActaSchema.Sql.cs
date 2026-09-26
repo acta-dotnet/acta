@@ -582,6 +582,39 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
+        /// <summary>The job a restart redrove a finished laned job into; its event names the finished job.</summary>
+        public static readonly DbValueSpec<long> RedriveJobId = new(
+            ParameterName: "p_redrive_job_id",
+            Kind: DbKind.Int64,
+            Size: null,
+            Precision: null,
+            Scale: null,
+            IsNullable: false
+        );
+
+        /// <summary>JSON detail of the redriven job's job.redriven event; the finished job's rides p_detail.</summary>
+        public static readonly DbValueSpec<byte[]> RedriveDetail = new(
+            ParameterName: "p_redrive_detail",
+            Kind: DbKind.BinaryPayload,
+            Size: null,
+            Precision: null,
+            Scale: null,
+            IsNullable: false
+        );
+
+        /// <summary>
+        /// List-read lane filter: non-null restricts to jobs in lanes of this name. Sized to lanes.name
+        /// (128) and bound canonical, as the name is stored.
+        /// </summary>
+        public static readonly DbValueSpec<string?> LaneFilter = new(
+            ParameterName: "p_lane_filter",
+            Kind: DbKind.AsciiString,
+            Size: 128,
+            Precision: null,
+            Scale: null,
+            IsNullable: true
+        );
+
         /// <summary>
         /// List-read tag filters encoded as JSON rows with canonical tag name and internal value_search.
         /// NULL means no tag filter. The operation SQL parses this provider-locally.

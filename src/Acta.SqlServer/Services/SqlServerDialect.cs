@@ -144,6 +144,7 @@ internal sealed class SqlServerDialect : ISqlDialect
         AddScalar(sql, "@p_parent_id", SqlDbType.BigInt, (object?)row.ParentId ?? DBNull.Value);
         AddScalar(sql, "@p_tenant_key", SqlDbType.VarChar, (object?)row.TenantKey ?? DBNull.Value);
         AddScalar(sql, "@p_tenant_override", SqlDbType.Bit, row.OverrideParentTenant);
+        AddScalar(sql, "@p_lane", SqlDbType.VarChar, (object?)row.Lane ?? DBNull.Value);
         sql.Parameters.Add(
             new SqlParameter
             {
@@ -223,7 +224,7 @@ internal sealed class SqlServerDialect : ISqlDialect
             }
             SetNullableString(record, 13, row.TenantKey);
             record.SetBoolean(14, row.OverrideParentTenant);
-            record.SetDBNull(15);
+            SetNullableString(record, 15, row.Lane);
             yield return record;
         }
     }
@@ -351,7 +352,7 @@ internal sealed class SqlServerDialect : ISqlDialect
                 SetNullableString(record, 22, row.Description);
                 record.SetString(23, row.DefinitionHash);
                 record.SetByte(24, row.TenantRequirementCode);
-                record.SetDBNull(25);
+                SetNullableString(record, 25, row.Lane);
                 yield return record;
             }
         }

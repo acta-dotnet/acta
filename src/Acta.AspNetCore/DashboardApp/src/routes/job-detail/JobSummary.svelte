@@ -27,6 +27,10 @@
   <p class="detail-kicker">Execution</p>
   <dl class="kv">
     <dt>Status</dt><dd><StatusBadge status={job.status} /></dd>
+    <dt>Lane</dt><dd>{#if job.lane}<a href={routes.jobs({ lane: job.lane, namespace: job.jobNamespace })} class="mono">{job.lane}</a>{:else}-{/if}</dd>
+    {#if job.status === 'blocked' && job.blockedBehindJobRef}
+      <dt>Blocked behind</dt><dd><JobRef value={job.blockedBehindJobRef} href={routes.job(job.blockedBehindJobRef, { namespace: job.jobNamespace })} /></dd>
+    {/if}
     {#if !TERMINAL_STATUSES.includes(job.status)}
       <dt>Next run</dt><dd><RelativeTime value={job.nextRunAtUtc} /></dd>
     {/if}

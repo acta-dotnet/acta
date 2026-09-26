@@ -11,7 +11,7 @@ namespace Acta;
 /// <param name="JobNamespace">Owning namespace name.</param> <param name="JobName">Job definition name.</param> <param name="TenantId">Resolved tenant id, or null; internal, never serialized.</param> <param name="TenantKey">Tenant's caller-supplied key resolved from the catalog, or null.</param>
 /// <param name="ParentJobId">Parent job id for child jobs, or null for roots.</param> <param name="ParentJobRef">Parent job's public ref, or null for roots.</param>
 /// <param name="LineageRootId">Root id of the job's lineage tree, or null.</param> <param name="LineageRootJobRef">Lineage root's public ref, or null.</param>
-/// <param name="DeduplicationKey">Caller-supplied deduplication key, or null.</param> <param name="CorrelationKey">Caller-supplied correlation id (trace / request / order id), or null.</param> <param name="Status">Current lifecycle status.</param> <param name="Priority">Claim priority.</param>
+/// <param name="DeduplicationKey">Caller-supplied deduplication key, or null.</param> <param name="CorrelationKey">Caller-supplied correlation id (trace / request / order id), or null.</param> <param name="Status">Current lifecycle status.</param> <param name="Priority">Claim priority.</param> <param name="Lane">The lane the job runs in, or null.</param>
 /// <param name="CreatedAtUtc">Row insert instant.</param> <param name="ModifiedAtUtc">Last row change instant.</param> <param name="NextRunAtUtc">Next due instant, or null.</param>
 /// <param name="ExecutionNumber">Attempt counter.</param> <param name="FailureCount">Consecutive-failure count behind the retry budget.</param>
 public sealed record JobListItem(
@@ -29,6 +29,7 @@ public sealed record JobListItem(
     string? CorrelationKey,
     JobStatusCode Status,
     JobPriorityCode Priority,
+    string? Lane,
     DateTime CreatedAtUtc,
     DateTime ModifiedAtUtc,
     DateTime? NextRunAtUtc,

@@ -1,5 +1,6 @@
 using System.Data.Common;
 using System.Globalization;
+using System.Text;
 using Acta.Relational.Commands;
 using Acta.Relational.Connections;
 using Acta.Relational.Schema;
@@ -186,6 +187,7 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagFiltersJson, request.TagFiltersJson));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TerminalOnlyFlag, request.TerminalOnly));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.RecurringOnlyFlag, request.RecurringOnly));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LaneFilter, request.Lane));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorCreatedAtUtc, request.CursorCreatedAtUtc));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorId, request.CursorId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, request.Take));
@@ -384,6 +386,29 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
 
     public Task<JobControlOutcome> PurgeJobAsync(long jobId, JobControlInput input, CancellationToken ct) =>
         ControlAsync("Jobs/PurgeJob", cmd => AddControlParameters(cmd, jobId, input, includeReasonMessage: false), ct);
+
+    public Task RecordJobRedriveAsync(
+        long jobId,
+        JobRef jobRef,
+        long redriveJobId,
+        JobRef redriveJobRef,
+        JobControlInput input,
+        CancellationToken ct
+    ) =>
+        session.ExecuteAsync(
+            new StoreCommand("Execution", "Jobs/RecordJobRedrive"),
+            cmd =>
+            {
+                AddControlParameters(cmd, jobId, input, includeReasonMessage: true);
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.RedriveJobId, redriveJobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.Detail, RedriveDetail("redriveJobRef", redriveJobRef)));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.RedriveDetail, RedriveDetail("redrivenFromJobRef", jobRef)));
+            },
+            ct
+        );
+
+    // A ref's text is the job_ prefix and base32 digits, so it needs no JSON escaping.
+    private static byte[] RedriveDetail(string key, JobRef other) => Encoding.UTF8.GetBytes($"{{\"{key}\":\"{other}\"}}");
 
     public Task ResetJobStateAsync(long jobId, CancellationToken ct) =>
         session.ExecuteAsync(

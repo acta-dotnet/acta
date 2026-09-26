@@ -125,6 +125,7 @@ internal static class TestDashboardHost
             CorrelationKey: "trace-1",
             Status: JobStatusCode.Ready,
             Priority: JobPriorityCode.Normal,
+            Lane: null,
             CreatedAtUtc: new DateTime(2026, 6, 12, 6, 0, 0, DateTimeKind.Utc),
             ModifiedAtUtc: new DateTime(2026, 6, 12, 6, 0, 0, DateTimeKind.Utc),
             NextRunAtUtc: null,
@@ -386,6 +387,9 @@ internal static class TestDashboardHost
                 TenantKey: tenantId == 1 ? "cust-001" : null,
                 Status: JobStatusCode.Ready,
                 Priority: JobPriorityCode.Normal,
+                Lane: null,
+                BlockedBehindJobId: null,
+                BlockedBehindJobRef: null,
                 ExecutionNumber: 0,
                 FailureCount: 0,
                 InputFormatId: 0,
@@ -641,13 +645,26 @@ internal static class TestDashboardHost
             CancellationToken ct = default
         ) => Control("resume", job, reasonMessage, actorKey, expectedVersion);
 
-        public ValueTask<JobControlResult> RestartAsync(
+        public async ValueTask<JobControlResult> RestartAsync(
             JobLookup job,
             string? reasonMessage = null,
             string? actorKey = null,
             int? expectedVersion = null,
             CancellationToken ct = default
-        ) => Control("restart", job, reasonMessage, actorKey, expectedVersion);
+        )
+        {
+            var result = await Control("restart", job, reasonMessage, actorKey, expectedVersion);
+            return RedriveRef is { } redrive && result.Action == ControlAction.Applied
+                ? result with
+                {
+                    RedriveJobId = 77,
+                    RedriveJobRef = redrive,
+                }
+                : result;
+        }
+
+        /// <summary>When set, an applied restart reports a redrive to this ref, as for a finished laned job.</summary>
+        public JobRef? RedriveRef { get; set; }
 
         public ValueTask<JobControlResult> RescheduleAsync(
             JobLookup job,
@@ -1082,6 +1099,7 @@ internal static class TestDashboardHost
                             RateLimitOverride: null,
                             RateLimitEffective: null,
                             RateKey: null,
+                            Lane: null,
                             Backoff: "1s..1m x2",
                             BackoffOverride: null,
                             BackoffEffective: "1s..1m x2",
@@ -1156,6 +1174,7 @@ internal static class TestDashboardHost
                                     JobPriorityCode.Normal,
                                     null,
                                     3,
+                                    null,
                                     null,
                                     null,
                                     null,

@@ -163,7 +163,8 @@ internal sealed class JobsApi(
             DelaySeconds: options?.DelaySeconds,
             ParentJobId: options?.ParentJobId,
             TenantKey: options?.TenantKey,
-            OverrideParentTenant: options?.OverrideParentTenant ?? false
+            OverrideParentTenant: options?.OverrideParentTenant ?? false,
+            Lane: options?.Lane
         );
     }
 
@@ -267,7 +268,8 @@ internal sealed class JobsApi(
             Tags: options?.Tags,
             ParentJobId: options?.ParentJobId,
             TenantKey: options?.TenantKey,
-            OverrideParentTenant: options?.OverrideParentTenant ?? false
+            OverrideParentTenant: options?.OverrideParentTenant ?? false,
+            Lane: options?.Lane
         );
     }
 

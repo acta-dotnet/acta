@@ -21,6 +21,22 @@ public sealed class PgChildGroupTimeoutSpec : ChildGroupTimeoutSpec<PgConformanc
 
 public sealed class PgConcurrencyKeyMutexSpec : ConcurrencyKeyMutexSpec<PgConformanceFixture>;
 
+public sealed class PgLaneAncestorGuardSpec : LaneAncestorGuardSpec<PgConformanceFixture>;
+
+public sealed class PgLaneOrderingSpec : LaneOrderingSpec<PgConformanceFixture>;
+
+public sealed class PgLaneSettlePathsSpec : LaneSettlePathsSpec<PgConformanceFixture>;
+
+public sealed class PgLaneControlVerbsSpec : LaneControlVerbsSpec<PgConformanceFixture>;
+
+public sealed class PgLaneRepairSpec : LaneRepairSpec<PgConformanceFixture>;
+
+public sealed class PgLaneReadSpec : LaneReadSpec<PgConformanceFixture>;
+
+public sealed class PgLaneRedriveSpec : LaneRedriveSpec<PgConformanceFixture>;
+
+public sealed class PgLaneLockOrderSpec : LaneLockOrderSpec<PgConformanceFixture>;
+
 public sealed class PgConcurrencyLimitSpec : ConcurrencyLimitSpec<PgConformanceFixture>;
 
 public sealed class PgRateLimitSpec : RateLimitSpec<PgConformanceFixture>;

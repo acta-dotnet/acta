@@ -100,12 +100,14 @@ internal enum CompleteExecutionAction : byte
 /// <param name="FinalNextRunAtUtc">The job's <c>next_run_at_utc</c> after this call, on the same produced-vs-current basis as <paramref name="FinalStatusCode"/>.</param>
 /// <param name="DbNowUtc">The routine's clock reading, for due-now comparison against <paramref name="FinalNextRunAtUtc"/> with no host-clock assumption.</param>
 /// <param name="ParentReleased">True when this terminal landing's child-done raise flipped a Suspended parent to Ready; the caller wakes all worker namespaces (the parent may live in another namespace).</param>
+/// <param name="LanePromoted">True when this terminal landing handed its lane to the next member, which is now Ready; the caller wakes its namespace.</param>
 internal sealed record CompleteExecutionResult(
     CompleteExecutionAction Action,
     byte? FinalStatusCode,
     DateTime? FinalNextRunAtUtc,
     DateTime DbNowUtc,
-    bool ParentReleased
+    bool ParentReleased,
+    bool LanePromoted = false
 );
 
 /// <summary>One <c>complete_executions_batch</c> outcome row: the request ordinal and whether it was finalized here.</summary>

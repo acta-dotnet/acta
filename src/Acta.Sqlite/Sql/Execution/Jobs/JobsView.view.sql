@@ -43,7 +43,8 @@ SELECT
     r.retention_until_utc,
     j.created_at_utc,
     r.modified_at_utc,
-    r.version
+    r.version,
+    lane.name AS lane
 FROM {{schema}}.jobs AS j
 JOIN {{schema}}.runtimes AS r ON r.job_id = j.id
 JOIN {{schema}}.namespaces AS ns ON ns.id = j.namespace_id
@@ -51,6 +52,7 @@ JOIN {{schema}}.definitions AS d ON d.id = j.definition_id
 LEFT JOIN {{schema}}.jobs AS root ON root.id = COALESCE(j.lineage_root_id, j.id)
 LEFT JOIN {{schema}}.tenants AS t ON t.id = j.tenant_id
 LEFT JOIN {{schema}}.workers AS w ON w.id = r.leased_by_worker_id
+LEFT JOIN {{schema}}.lanes AS lane ON lane.id = r.lane_id
 LEFT JOIN {{schema}}.results AS lr
     ON
         lr.job_id = j.id

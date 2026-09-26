@@ -46,6 +46,7 @@ BEGIN
         DECLARE @final_next_run DATETIME2(3);
         DECLARE @parent_id BIGINT;
         DECLARE @parent_released TINYINT = 0;
+        DECLARE @lane_promoted TINYINT = 0;
 
         DECLARE @matched BIT = 0;
         DECLARE
@@ -53,6 +54,19 @@ BEGIN
             @c_audit TINYINT,
             @c_next_existing DATETIME2(3), @c_retention_existing DATETIME2(3), @c_failcount_existing INT;
         DECLARE @c_next DATETIME2(3), @c_retention DATETIME2(3), @c_failcount INT;
+        DECLARE @lane_id BIGINT;
+
+        /* Lock order: the lane, then the checkpoint, runtime, and parent rows
+           (docs/internals/sql-execution-policy.md, "Lane lock order"). lane_id never changes, so the
+           unlocked read is safe. */
+        SELECT @lane_id = r.lane_id
+        FROM {{schema}}.runtimes r
+        WHERE r.job_id = @p_id;
+
+        IF @lane_id IS NOT NULL
+            SELECT @lane_id = l.id
+            FROM {{schema}}.lanes l WITH (UPDLOCK, ROWLOCK)
+            WHERE l.id = @lane_id;
 
         IF @signal_suspend = 1
             BEGIN
@@ -538,6 +552,50 @@ BEGIN
                             END
                     END
 
+                /* Promotion under the lane lock (docs/internals/sql-execution-policy.md, "Lane lock order"):
+                   the lowest-id unfinished member becomes Ready when it is Blocked, at its own due instant
+                   or now, whichever is later; any other head keeps the lane. The loop re-reads rather than
+                   trusting an update that matched nothing. */
+                IF
+                    @lane_id IS NOT NULL
+                    AND @to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+                    BEGIN
+                        DECLARE @head_id BIGINT, @head_status TINYINT, @promoted INT = 0;
+                        WHILE @promoted = 0
+                            BEGIN
+                                SET @head_id = NULL;
+                                SET @head_status = NULL;
+
+                                SELECT TOP (1)
+                                    @head_id = m.job_id,
+                                    @head_status = m.status_code
+                                FROM {{schema}}.runtimes m
+                                WHERE
+                                    m.lane_id = @lane_id
+                                    AND m.lane_id IS NOT NULL
+                                    AND m.status_code IN (
+                                        10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                                        30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                                    )
+                                ORDER BY m.job_id;
+
+                                IF @head_status IS NULL OR @head_status <> 15 /* JobStatusCode.Blocked */
+                                    BREAK;
+
+                                UPDATE {{schema}}.runtimes
+                                SET
+                                    status_code = 10 /* JobStatusCode.Ready */,
+                                    next_run_at_utc = CASE WHEN next_run_at_utc > @now THEN next_run_at_utc ELSE @now END,
+                                    modified_at_utc = @now,
+                                    version = version + 1
+                                WHERE
+                                    job_id = @head_id
+                                    AND status_code = 15 /* JobStatusCode.Blocked */;
+
+                                SET @promoted = @@ROWCOUNT;
+                                SET @lane_promoted = CASE WHEN @promoted > 0 THEN 1 ELSE 0 END;
+                            END;
+                    END;
             END
         ELSE
             BEGIN
@@ -570,7 +628,8 @@ BEGIN
             @final_status,
             @final_next_run,
             @now,
-            @parent_released;
+            @parent_released,
+            @lane_promoted;
 
         IF @entry_trancount = 0
             COMMIT TRANSACTION;

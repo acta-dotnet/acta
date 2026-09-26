@@ -96,7 +96,7 @@ WHERE
     j.id = @p_id
     AND j.audit_level_code = 20 /* JobAuditLevelCode.Audit */
     AND (@p_expected_version IS NULL OR r.version = @p_expected_version)
-    AND r.status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
+    AND r.status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
 
 UPDATE {{schema}}.runtimes
 SET
@@ -114,26 +114,48 @@ SET
 WHERE
     job_id = @p_id
     AND (@p_expected_version IS NULL OR version = @p_expected_version)
-    AND status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
+    AND status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
+
+-- A cancelled head hands its lane to the next member; a cancelled Blocked follower leaves the head where
+-- it is, which the promotion reads for itself. The immediate transaction is the lane's mutex on SQLite.
+UPDATE {{schema}}.runtimes
+SET
+    status_code = 10 /* JobStatusCode.Ready */,
+    next_run_at_utc = MAX(next_run_at_utc, {{now}}),
+    modified_at_utc = {{now}},
+    version = version + 1
+WHERE
+    status_code = 15 /* JobStatusCode.Blocked */
+    AND job_id = (
+        SELECT m.job_id
+        FROM {{schema}}.runtimes m
+        JOIN {{schema}}.runtimes cancelled ON cancelled.lane_id = m.lane_id
+        WHERE
+            cancelled.job_id = @p_id
+            AND m.lane_id IS NOT NULL
+            AND m.status_code IN (10, 15, 20, 30, 40, 50)
+        ORDER BY m.job_id
+        LIMIT 1
+    );
 
 SELECT
     CASE
         WHEN s.id IS NULL THEN 2 /* ControlAction.NotFound */
         WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN 5 /* ControlAction.VersionConflict */
-        WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */) THEN 1 /* ControlAction.Applied */
+        WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */) THEN 1 /* ControlAction.Applied */
         ELSE 3 /* ControlAction.Rejected */
     END AS action,
     CASE
         WHEN s.id IS NULL THEN NULL
         WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN s.from_status
-        WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */) THEN 220 /* JobStatusCode.Cancelled */
+        WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */) THEN 220 /* JobStatusCode.Cancelled */
         ELSE s.from_status
     END AS status_code,
     s.parent_id AS parent_id,
     CASE
         WHEN s.id IS NULL THEN NULL
         WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN s.from_version
-        WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */) THEN s.from_version + 1
+        WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */) THEN s.from_version + 1
         ELSE s.from_version
     END AS version
 FROM (SELECT @p_id AS qid) q

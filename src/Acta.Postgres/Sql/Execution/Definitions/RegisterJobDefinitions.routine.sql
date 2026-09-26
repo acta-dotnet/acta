@@ -25,7 +25,8 @@ CREATE OR REPLACE FUNCTION {{schema}}.register_job_definitions(
     p_d_runbook_url VARCHAR [],
     p_d_display_name VARCHAR [],
     p_d_description VARCHAR [],
-    p_d_definition_hash VARCHAR []
+    p_d_definition_hash VARCHAR [],
+    p_d_lane VARCHAR [] DEFAULT NULL
 )
 
 RETURNS TABLE (def_name VARCHAR, def_id INT)
@@ -42,7 +43,8 @@ BEGIN
             p_d_input_type_name, p_d_output_type_name,
             p_d_input_format_id, p_d_input_format_name, p_d_output_format_id, p_d_output_format_name,
             p_d_audit_level_code, p_d_alert_profile_code, p_d_tenant_requirement,
-            p_d_alert_channel_name, p_d_runbook_url, p_d_display_name, p_d_description, p_d_definition_hash
+            p_d_alert_channel_name, p_d_runbook_url, p_d_display_name, p_d_description, p_d_definition_hash,
+            p_d_lane
         ) AS b(name, priority_code, max_attempts, concurrency_limit,
             rate_limit, rate_key,
             backoff,
@@ -51,7 +53,7 @@ BEGIN
             input_type_name, output_type_name,
             input_format_id, input_format_name, output_format_id, output_format_name,
             audit_level_code, alert_profile_code, tenant_requirement_code,
-            alert_channel_name, runbook_url, display_name, description, definition_hash)
+            alert_channel_name, runbook_url, display_name, description, definition_hash, lane)
     ),
     upserted AS (
         INSERT INTO {{schema}}.definitions (
@@ -69,6 +71,7 @@ BEGIN
             concurrency_limit,
             rate_limit,
             rate_key,
+            lane,
             backoff,
             execution_timeout_seconds,
             deadline_seconds,
@@ -101,6 +104,7 @@ BEGIN
             b.concurrency_limit,
             b.rate_limit,
             b.rate_key,
+            b.lane,
             b.backoff,
             b.execution_timeout_seconds,
             b.deadline_seconds,
@@ -132,6 +136,7 @@ BEGIN
             concurrency_limit = EXCLUDED.concurrency_limit,
             rate_limit = EXCLUDED.rate_limit,
             rate_key = EXCLUDED.rate_key,
+            lane = EXCLUDED.lane,
             backoff = EXCLUDED.backoff,
             execution_timeout_seconds = EXCLUDED.execution_timeout_seconds,
             deadline_seconds = EXCLUDED.deadline_seconds,
@@ -167,7 +172,12 @@ END;
 $$;
 
 -- CREATE OR REPLACE across arities creates an overload instead of replacing; drop the retired
--- signature (without rate_limit and rate_key) so pre-existing installs cannot resolve the stale form.
+-- signatures (without the lane, and without rate_limit and rate_key) so a call resolves to this form.
+DROP FUNCTION IF EXISTS {{schema}}.register_job_definitions(
+    INT, TIMESTAMPTZ, VARCHAR [], SMALLINT [], INT [], SMALLINT [], VARCHAR [], VARCHAR [], VARCHAR [], INT [], INT [],
+    SMALLINT [], INT [], VARCHAR [], VARCHAR [], SMALLINT [], VARCHAR [], SMALLINT [], VARCHAR [], SMALLINT [], SMALLINT [],
+    SMALLINT [], VARCHAR [], VARCHAR [], VARCHAR [], VARCHAR [], VARCHAR []
+);
 DROP FUNCTION IF EXISTS {{schema}}.register_job_definitions(
     INT, TIMESTAMPTZ, VARCHAR [], SMALLINT [], SMALLINT [], SMALLINT [], VARCHAR [], INT [], INT [], SMALLINT [], INT [],
     VARCHAR [], VARCHAR [], SMALLINT [], VARCHAR [], SMALLINT [], VARCHAR [], SMALLINT [], SMALLINT [], SMALLINT [],

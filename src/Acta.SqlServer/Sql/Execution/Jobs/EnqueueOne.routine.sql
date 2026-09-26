@@ -1,6 +1,7 @@
 -- Only @p_namespace_name and @p_job_name are required; other scalars default (@p_job_ref is
 -- server-generated when omitted; @p_input_format_id defaults json/none by input presence). The tag TVP
 -- has no default (SQL Server TVPs cannot); pass an empty table variable for a tag-free enqueue.
+-- Lock order: the lane, then job rows (docs/internals/sql-execution-policy.md, "Lane lock order").
 CREATE OR ALTER PROCEDURE {{schema}}.enqueue_one
     @p_job_ref UNIQUEIDENTIFIER = NULL,
     @p_namespace_name VARCHAR(128) = NULL,
@@ -16,7 +17,8 @@ CREATE OR ALTER PROCEDURE {{schema}}.enqueue_one
     @p_parent_id BIGINT = NULL,
     @p_tenant_key VARCHAR(128) = NULL,
     @p_tenant_override BIT = 0,
-    @p_tag_batch {{schema}}.job_enqueue_tag_batch READONLY
+    @p_tag_batch {{schema}}.job_enqueue_tag_batch READONLY,
+    @p_lane VARCHAR(128) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -32,6 +34,7 @@ BEGIN
         DECLARE @def_audit TINYINT, @def_status TINYINT, @def_tenant_req TINYINT;
         DECLARE @tenant_id INT, @tenant_status TINYINT, @lineage BIGINT, @parent_corr VARCHAR(64), @parent_tenant INT;
         DECLARE @existing_id BIGINT, @existing_ref UNIQUEIDENTIFIER, @job_id BIGINT;
+        DECLARE @lane VARCHAR(128), @lane_id BIGINT, @ancestor_lane_hits INT;
 
         -- Own a local transaction only when invoked outside one. Inside a caller's transaction (direct
         -- transactional enqueue) the entry count is > 0: run the work but neither commit nor roll back it;
@@ -47,7 +50,8 @@ BEGIN
             @def_priority = jd.priority_code_effective,
             @def_audit = jd.audit_level_code_effective,
             @def_status = jd.status_code,
-            @def_tenant_req = jd.tenant_requirement_code
+            @def_tenant_req = jd.tenant_requirement_code,
+            @lane = COALESCE(@p_lane, jd.lane)
         FROM {{schema}}.namespaces ns
         INNER JOIN {{schema}}.definitions jd
             ON
@@ -97,6 +101,43 @@ BEGIN
                 THROW 50008, 'ACTA:ENQ_TENANT_FORBIDDEN:Enqueue rejected: the job definition forbids a tenant and the row names one.', 1;
             END;
 
+        -- The lane row is the lane's mutex, taken before any job row: held to commit, it serializes this
+        -- enqueue against every settle and enqueue in the lane, so Ready versus Blocked below is decided
+        -- on a stable member set. The name only resolves the id; the lock is taken by id, on the clustered
+        -- key every other lane lock takes, because a lock through ux_lanes_namespace_name would land on
+        -- that index's key alone. A missing lane is inserted without a range lock; a concurrent insert of
+        -- the same name, or retention deleting it before the lock, sends the loop round again.
+        DECLARE @lane_found BIGINT;
+        WHILE @lane IS NOT NULL AND @lane_id IS NULL
+            BEGIN
+                SET @lane_found = NULL;
+                SELECT @lane_found = l.id
+                FROM {{schema}}.lanes l
+                WHERE
+                    l.namespace_id = @ns_id
+                    AND l.name = @lane;
+
+                IF @lane_found IS NOT NULL
+                    SELECT @lane_id = l.id
+                    FROM {{schema}}.lanes l WITH (UPDLOCK, ROWLOCK)
+                    WHERE l.id = @lane_found;
+
+                IF @lane_found IS NULL
+                    BEGIN
+                        SET XACT_ABORT OFF;
+                        BEGIN TRY
+                            INSERT INTO {{schema}}.lanes (namespace_id, name, created_at_utc)
+                            VALUES (@ns_id, @lane, @now);
+                        END TRY
+                        BEGIN CATCH
+                            SET XACT_ABORT ON;
+                            IF ERROR_NUMBER() NOT IN (2601, 2627)
+                                THROW;
+                        END CATCH;
+                        SET XACT_ABORT ON;
+                    END;
+            END;
+
         IF @p_deduplication_key IS NOT NULL
             BEGIN
                 IF @p_parent_id IS NOT NULL
@@ -137,6 +178,37 @@ BEGIN
                 IF @lineage IS NULL
                     BEGIN
                         THROW 50002, 'Enqueue rejected: one or more child rows reference a missing or terminal parent job.', 1;
+                    END;
+
+                IF @lane_id IS NOT NULL
+                    BEGIN
+                        WITH ancestors AS (
+                            SELECT a.id, a.parent_id
+                            FROM {{schema}}.jobs a
+                            WHERE a.id = @p_parent_id
+                            UNION ALL
+                            SELECT a.id, a.parent_id
+                            FROM {{schema}}.jobs a
+                            INNER JOIN ancestors c ON a.id = c.parent_id
+                        )
+
+                        SELECT @ancestor_lane_hits = COUNT(*)
+                        FROM ancestors c
+                        INNER JOIN {{schema}}.runtimes ar ON ar.job_id = c.id
+                        WHERE
+                            ar.lane_id = @lane_id
+                            AND ar.status_code IN (
+                                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                                30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                            );
+
+                        IF @ancestor_lane_hits > 0
+                            BEGIN
+                                DECLARE
+                                    @ancestor_msg NVARCHAR(2048) = 'ACTA:ENQ_ANCESTOR_LANE:Enqueue rejected: a child names the lane of an'
+                                    + ' unfinished ancestor, so it would wait behind the ancestor that waits for it.';
+                                THROW 50010, @ancestor_msg, 1;
+                            END;
                     END;
             END;
 
@@ -181,13 +253,31 @@ BEGIN
 
                 SET @job_id = SCOPE_IDENTITY();
 
+                -- A laned job enters Ready only when no member of its lane is unfinished; otherwise it waits
+                -- as Blocked, keeping its due instant for when the settle ahead of it promotes it.
+                DECLARE @status TINYINT = 10 /* JobStatusCode.Ready */;
+                IF
+                    @lane_id IS NOT NULL
+                    AND EXISTS (
+                        SELECT 1
+                        FROM {{schema}}.runtimes m
+                        WHERE
+                            m.lane_id = @lane_id
+                            AND m.lane_id IS NOT NULL
+                            AND m.status_code IN (
+                                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                                30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                            )
+                    )
+                    SET @status = 15 /* JobStatusCode.Blocked */;
+
                 INSERT INTO {{schema}}.runtimes (
-                    job_id, namespace_id, status_code, priority_code, next_run_at_utc,
+                    job_id, namespace_id, lane_id, status_code, priority_code, next_run_at_utc,
                     execution_number, failure_count, retention_until_utc,
                     modified_at_utc, version
                 )
                 VALUES (
-                    @job_id, @ns_id, 10 /* JobStatusCode.Ready */,
+                    @job_id, @ns_id, @lane_id, @status,
                     COALESCE(@p_priority_override, @def_priority),
                     COALESCE(@p_next_run_at_utc, DATEADD(SECOND, COALESCE(@p_delay_seconds, 0), @now)),
                     0, 0, NULL,

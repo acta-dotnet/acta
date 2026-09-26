@@ -99,6 +99,48 @@ WHERE
             AND pj.tenant_id <> t.id
     );
 
+-- The immediate transaction is the lane's mutex on SQLite: it serializes this enqueue against every
+-- settle and enqueue, so Ready versus Blocked below is decided on a stable member set.
+INSERT INTO {{schema}}.lanes (namespace_id, name)
+SELECT ns.id, COALESCE(@p_lane, jd.lane)
+FROM {{schema}}.namespaces ns
+JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = @p_job_name
+WHERE
+    ns.name = @p_namespace_name
+    AND COALESCE(@p_lane, jd.lane) IS NOT NULL
+ON CONFLICT (namespace_id, name) DO NOTHING;
+
+SELECT
+    ACTA_ERROR(
+        'ACTA:ENQ_ANCESTOR_LANE:Enqueue rejected: a child names the lane of an unfinished ancestor,'
+        || ' so it would wait behind the ancestor that waits for it.'
+    )
+WHERE
+    @p_parent_id IS NOT NULL
+    AND EXISTS (
+        WITH RECURSIVE ancestors (id, parent_id) AS (
+            SELECT a.id, a.parent_id
+            FROM {{schema}}.jobs a
+            WHERE a.id = @p_parent_id
+            UNION ALL
+            SELECT a.id, a.parent_id
+            FROM {{schema}}.jobs a
+            JOIN ancestors c ON a.id = c.parent_id
+        )
+        SELECT 1
+        FROM ancestors c
+        JOIN {{schema}}.runtimes ar ON ar.job_id = c.id
+        JOIN {{schema}}.lanes l ON l.id = ar.lane_id
+        JOIN {{schema}}.namespaces ns ON ns.id = l.namespace_id AND ns.name = @p_namespace_name
+        JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = @p_job_name
+        WHERE
+            l.name = COALESCE(@p_lane, jd.lane)
+            AND ar.status_code IN (
+                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+            )
+    );
+
 INSERT INTO {{schema}}.jobs (
     job_ref, lineage_root_id, parent_id, deduplication_key, correlation_key,
     namespace_id, definition_id, tenant_id,
@@ -162,9 +204,12 @@ WHERE
     AND @p_parent_id IS NOT NULL
 ON CONFLICT (parent_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_id IS NOT NULL DO NOTHING;
 
+-- A laned job enters Ready only when no member of its lane is unfinished; otherwise it waits as
+-- Blocked, keeping its due instant for when the settle ahead of it promotes it.
 INSERT INTO {{schema}}.runtimes (
     job_id,
     namespace_id,
+    lane_id,
     status_code,
     priority_code,
     next_run_at_utc,
@@ -177,7 +222,24 @@ INSERT INTO {{schema}}.runtimes (
 SELECT
     j.id,
     j.namespace_id,
-    10 /* JobStatusCode.Ready */,
+    l.id,
+    CASE
+        WHEN
+            l.id IS NOT NULL
+            AND EXISTS (
+                SELECT 1
+                FROM {{schema}}.runtimes m
+                WHERE
+                    m.lane_id = l.id
+                    AND m.lane_id IS NOT NULL
+                    AND m.status_code IN (
+                        10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                        30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                    )
+            )
+            THEN 15 /* JobStatusCode.Blocked */
+        ELSE 10 /* JobStatusCode.Ready */
+    END,
     COALESCE(@p_priority_override, jd.priority_code_effective),
     COALESCE(@p_next_run_at_utc, {{now}} + (COALESCE(@p_delay_seconds, 0)) * 1000),
     0,
@@ -187,6 +249,7 @@ SELECT
     0
 FROM {{schema}}.jobs j
 JOIN {{schema}}.definitions jd ON jd.id = j.definition_id
+LEFT JOIN {{schema}}.lanes l ON l.namespace_id = j.namespace_id AND l.name = COALESCE(@p_lane, jd.lane)
 WHERE
     j.job_ref = @p_job_ref
     AND NOT EXISTS (

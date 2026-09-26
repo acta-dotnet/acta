@@ -1,7 +1,28 @@
 DROP TABLE IF EXISTS temp._reschedule_job;
 
 CREATE TEMP TABLE _reschedule_job AS
-SELECT j.id, r.status_code AS from_status, r.version AS from_version
+SELECT
+    j.id,
+    r.status_code AS from_status,
+    r.version AS from_version,
+    -- A laned job goes Ready only as its lane's lowest-id unfinished member; behind an older one it
+    -- waits Blocked, and its new instant applies once it is promoted. The immediate transaction is the
+    -- lane's mutex on SQLite.
+    CASE
+        WHEN
+            r.lane_id IS NOT NULL
+            AND EXISTS (
+                SELECT 1
+                FROM {{schema}}.runtimes o
+                WHERE
+                    o.lane_id = r.lane_id
+                    AND o.lane_id IS NOT NULL
+                    AND o.status_code IN (10, 15, 20, 30, 40, 50)
+                    AND o.job_id < r.job_id
+            )
+            THEN 15 /* JobStatusCode.Blocked */
+        ELSE 10 /* JobStatusCode.Ready */
+    END AS to_status
 FROM {{schema}}.jobs j
 JOIN {{schema}}.runtimes r ON r.job_id = j.id
 WHERE j.id = @p_id;
@@ -39,7 +60,7 @@ SELECT
     j.tenant_id,
     NULL,
     r.status_code,
-    10 /* JobStatusCode.Ready */,
+    (SELECT s.to_status FROM temp._reschedule_job s),
     NULL,
     NULL,
     @p_reason_code,
@@ -50,36 +71,36 @@ WHERE
     j.id = @p_id
     AND j.audit_level_code = 20 /* JobAuditLevelCode.Audit */
     AND (@p_expected_version IS NULL OR r.version = @p_expected_version)
-    AND r.status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */);
+    AND r.status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */);
 
 UPDATE {{schema}}.runtimes
 SET
     next_run_at_utc = @p_next_run_at_utc,
-    status_code = 10 /* JobStatusCode.Ready */,
+    status_code = (SELECT s.to_status FROM temp._reschedule_job s),
     modified_at_utc = {{now}},
     version = version + 1
 WHERE
     job_id = @p_id
     AND (@p_expected_version IS NULL OR version = @p_expected_version)
-    AND status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */);
+    AND status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */);
 
 SELECT
     CASE
         WHEN s.id IS NULL THEN 2 /* ControlAction.NotFound */
         WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN 5 /* ControlAction.VersionConflict */
-        WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */) THEN 1 /* ControlAction.Applied */
+        WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */) THEN 1 /* ControlAction.Applied */
         ELSE 3 /* ControlAction.Rejected */
     END AS action,
     CASE
         WHEN s.id IS NULL THEN NULL
         WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN s.from_status
-        WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */) THEN 10 /* JobStatusCode.Ready */
+        WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */) THEN s.to_status
         ELSE s.from_status
     END AS status_code,
     CASE
         WHEN s.id IS NULL THEN NULL
         WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN s.from_version
-        WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */) THEN s.from_version + 1
+        WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */) THEN s.from_version + 1
         ELSE s.from_version
     END AS version
 FROM (SELECT @p_id AS qid) q

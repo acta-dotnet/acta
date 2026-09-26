@@ -27,6 +27,7 @@ public sealed record JobDefinitionListItem(
     string? RateLimitOverride,
     string? RateLimitEffective,
     string? RateKey,
+    string? Lane,
     DateTime ModifiedAtUtc,
     int Version
 );

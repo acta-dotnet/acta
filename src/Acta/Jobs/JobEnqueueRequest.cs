@@ -29,5 +29,6 @@ public sealed record JobEnqueueRequest(
     IReadOnlyList<TagInput>? Tags = null,
     long? ParentJobId = null,
     string? TenantKey = null,
-    bool OverrideParentTenant = false
+    bool OverrideParentTenant = false,
+    string? Lane = null
 );

@@ -45,7 +45,7 @@ public sealed class DefinitionRegistrationValidationTests
     private static Task RegisterAsync(params JobDescriptor[] descriptors) => RegisterAsync([.. descriptors], []);
 
     private static Task RegisterAsync(JobDescriptor[] descriptors, StoredDefinitionContract[] stored) =>
-        new DefinitionsService(new RejectingDefinitionStore(), null!, null!).RegisterAsync(
+        new DefinitionsService(new RejectingDefinitionStore(), null!, null!, null!).RegisterAsync(
             1,
             Gen,
             [.. descriptors],
@@ -157,6 +157,39 @@ public sealed class DefinitionRegistrationValidationTests
         );
 
         Assert.Contains("RateKey", ex.Message);
+    }
+
+    [Fact]
+    public async Task A_lane_outside_the_lane_rule_fails_registration()
+    {
+        await Assert.ThrowsAnyAsync<ArgumentException>(() => RegisterAsync(Descriptor("laned") with { Lane = "has space" }));
+    }
+
+    [Fact]
+    public async Task A_laned_definition_with_a_schedule_is_refused()
+    {
+        var scheduled = Descriptor("laned-tick") with
+        {
+            Lane = "orders",
+            Schedules =
+            [
+                new ScheduleDescriptor(
+                    "laned-tick",
+                    "tick",
+                    "0 * * * *",
+                    null,
+                    MisfireStrategyCode.Skip,
+                    ScheduleExpressionKindCode.Cron,
+                    null,
+                    []
+                ),
+            ],
+        };
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => RegisterAsync(scheduled));
+
+        Assert.Contains("lane", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("schedule", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

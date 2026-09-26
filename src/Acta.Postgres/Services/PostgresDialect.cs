@@ -193,6 +193,7 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_t_name", NpgsqlDbType.Varchar, tagNames);
         AddArray(postgres, "@p_t_value", NpgsqlDbType.Varchar, tagValues);
         AddArray(postgres, "@p_t_value_search", NpgsqlDbType.Varchar, tagValueSearches);
+        AddArray(postgres, "@p_b_lane", NpgsqlDbType.Varchar, rows.Select(row => row.Lane).ToArray());
     }
 
     public void BindEnqueueOne(DbCommand command, JobEnqueueRow row, Guid jobRef, string schema)
@@ -237,6 +238,7 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_t_name", NpgsqlDbType.Varchar, tagNames);
         AddArray(postgres, "@p_t_value", NpgsqlDbType.Varchar, tagValues);
         AddArray(postgres, "@p_t_value_search", NpgsqlDbType.Varchar, tagValueSearches);
+        AddScalar(postgres, "@p_lane", NpgsqlDbType.Varchar, (object?)row.Lane ?? DBNull.Value);
     }
 
     public void BindRegisterJobDefinitions(
@@ -333,6 +335,7 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_d_display_name", NpgsqlDbType.Varchar, displayNames);
         AddArray(postgres, "@p_d_description", NpgsqlDbType.Varchar, descriptions);
         AddArray(postgres, "@p_d_definition_hash", NpgsqlDbType.Varchar, definitionHashes);
+        AddArray(postgres, "@p_d_lane", NpgsqlDbType.Varchar, rows.Select(row => row.Lane).ToArray());
     }
 
     public void BindRegisterScheduledJobs(

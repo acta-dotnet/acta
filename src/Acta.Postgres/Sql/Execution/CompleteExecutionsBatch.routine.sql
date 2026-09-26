@@ -15,9 +15,24 @@ CREATE OR REPLACE FUNCTION {{schema}}.complete_executions_batch(
 RETURNS TABLE (ordinal INT, finalized SMALLINT)
 LANGUAGE plpgsql
 AS $$
+DECLARE
+    v_lane_id BIGINT;
+    v_head_id BIGINT;
+    v_head_status SMALLINT;
 BEGIN
-    -- Take the row locks in job_id order first; extend_worker_leases takes the same order, so a
-    -- heartbeat and a flush cannot cross on an overlapping set. See docs/internals/sql-execution-policy.md.
+    -- Lock order: the batch's lanes in id order, then its runtime rows in job_id order
+    -- (docs/internals/sql-execution-policy.md, "Lane lock order"). extend_worker_leases takes the same
+    -- row order and never a lane, so a heartbeat and a flush cannot cross on an overlapping set.
+    PERFORM 1
+    FROM {{schema}}.lanes l
+    WHERE l.id IN (
+        SELECT r.lane_id
+        FROM {{schema}}.runtimes r
+        WHERE r.job_id = ANY(p_b_job_id) AND r.lane_id IS NOT NULL
+    )
+    ORDER BY l.id
+    FOR UPDATE;
+
     PERFORM 1
     FROM {{schema}}.runtimes r
     WHERE r.job_id = ANY(p_b_job_id)
@@ -133,5 +148,50 @@ BEGIN
     FROM batch b
     LEFT JOIN updated u ON u.ordinal = b.ordinal
     ORDER BY b.ordinal;
+
+    FOR v_lane_id IN
+        SELECT DISTINCT r.lane_id
+        FROM {{schema}}.runtimes r
+        WHERE
+            r.job_id = ANY(p_b_job_id)
+            AND r.lane_id IS NOT NULL
+            AND r.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */)
+        ORDER BY r.lane_id
+    LOOP
+        -- Promotion under the lane lock (docs/internals/sql-execution-policy.md, "Lane lock order"): the
+        -- lowest-id unfinished member becomes Ready when it is Blocked, at its own due instant or now,
+        -- whichever is later; any other head keeps the lane. The loop re-reads rather than trusting an
+        -- update that matched nothing.
+        LOOP
+            v_head_id := NULL;
+            v_head_status := NULL;
+
+            SELECT m.job_id, m.status_code INTO v_head_id, v_head_status
+            FROM {{schema}}.runtimes m
+            WHERE
+                m.lane_id = v_lane_id
+                AND m.lane_id IS NOT NULL
+                AND m.status_code IN (
+                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                    30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                )
+            ORDER BY m.job_id
+            LIMIT 1;
+
+            EXIT WHEN v_head_status IS DISTINCT FROM 15 /* JobStatusCode.Blocked */;
+
+            UPDATE {{schema}}.runtimes pr
+            SET
+                status_code = 10 /* JobStatusCode.Ready */,
+                next_run_at_utc = GREATEST(pr.next_run_at_utc, now()),
+                modified_at_utc = now(),
+                version = pr.version + 1
+            WHERE
+                pr.job_id = v_head_id
+                AND pr.status_code = 15 /* JobStatusCode.Blocked */;
+
+            EXIT WHEN FOUND;
+        END LOOP;
+    END LOOP;
 END;
 $$;

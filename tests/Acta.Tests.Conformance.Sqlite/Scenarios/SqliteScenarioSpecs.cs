@@ -9,6 +9,20 @@ public sealed class SqliteScenarioSessionSpec : ScenarioSessionSpec<SqliteConfor
 
 public sealed class SqliteConcurrencyKeyMutexSpec : ConcurrencyKeyMutexSpec<SqliteConformanceFixture>;
 
+public sealed class SqliteLaneAncestorGuardSpec : LaneAncestorGuardSpec<SqliteConformanceFixture>;
+
+public sealed class SqliteLaneOrderingSpec : LaneOrderingSpec<SqliteConformanceFixture>;
+
+public sealed class SqliteLaneSettlePathsSpec : LaneSettlePathsSpec<SqliteConformanceFixture>;
+
+public sealed class SqliteLaneControlVerbsSpec : LaneControlVerbsSpec<SqliteConformanceFixture>;
+
+public sealed class SqliteLaneRepairSpec : LaneRepairSpec<SqliteConformanceFixture>;
+
+public sealed class SqliteLaneReadSpec : LaneReadSpec<SqliteConformanceFixture>;
+
+public sealed class SqliteLaneRedriveSpec : LaneRedriveSpec<SqliteConformanceFixture>;
+
 public sealed class SqliteConcurrencyLimitSpec : ConcurrencyLimitSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteRateLimitSpec : RateLimitSpec<SqliteConformanceFixture>;

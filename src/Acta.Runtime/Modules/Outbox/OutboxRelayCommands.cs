@@ -17,6 +17,7 @@ internal sealed record OutboxRow(
     string DeduplicationKey,
     string? CorrelationKey,
     string? ConcurrencyKey,
+    string? Lane,
     byte? PriorityCode,
     DateTime? NextRunAtUtc,
     int? DelaySeconds,

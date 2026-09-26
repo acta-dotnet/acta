@@ -505,6 +505,10 @@ internal static class ActaControlEndpoints
     {
         var (statusCode, message) = result.Action switch
         {
+            ControlAction.Applied when result.RedriveJobRef is not null => (
+                StatusCodes.Status200OK,
+                $"{Title(verb)} applied: the finished job stays as history and a new job joined the end of its lane."
+            ),
             ControlAction.Applied => (StatusCodes.Status200OK, $"{Title(verb)} applied."),
             ControlAction.Rejected => (
                 StatusCodes.Status409Conflict,
@@ -518,7 +522,7 @@ internal static class ActaControlEndpoints
         };
 
         return Results.Json(
-            new JobControlResponse(jobRef, result.Action, result.Status, message, result.Version),
+            new JobControlResponse(jobRef, result.Action, result.Status, message, result.Version, result.RedriveJobRef),
             DashboardJsonContext.Default.JobControlResponse,
             statusCode: statusCode
         );

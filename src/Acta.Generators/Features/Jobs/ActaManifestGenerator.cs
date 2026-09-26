@@ -235,6 +235,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             ConcurrencyLimit: policy.ConcurrencyLimit,
             RateLimit: policy.RateLimit,
             RateKey: policy.RateKey,
+            Lane: policy.Lane,
             AuditLevelName: auditLevelName,
             AlertProfileName: policy.AlertProfileName,
             TenantRequirementId: policy.TenantRequirementId,
@@ -283,6 +284,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         short? concurrencyLimit = null;
         string? rateLimit = null;
         string? rateKey = null;
+        string? lane = null;
         string? auditLevelName = null;
         var alertProfileName = DefaultAlertProfileName;
         byte tenantRequirementId = 0;
@@ -488,6 +490,27 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                     }
                     break;
 
+                case "Lane":
+                    if (named.Value.Value is string ln)
+                    {
+                        if (TryCanonicalizeLane(ln, out var canonicalLane))
+                        {
+                            lane = canonicalLane;
+                        }
+                        else
+                        {
+                            diagnostics.Add(
+                                Diagnostics.InvalidPolicyValue(
+                                    named.Key,
+                                    $"\"{ln}\"",
+                                    "Lanes follow the concurrency-key rule: 1 to 128 key characters (a-z, A-Z, 0-9, '.', '-', '_', ':', '/', '@', '+', '=') after trimming, and not under the reserved `sys.` prefix.",
+                                    location
+                                )
+                            );
+                        }
+                    }
+                    break;
+
                 case "Backoff":
                     backoffExpression = ReadBackoff(named, diagnostics, location);
                     break;
@@ -579,6 +602,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             concurrencyLimit,
             rateLimit,
             rateKey,
+            lane,
             auditLevelName,
             alertProfileName,
             tenantRequirementId,
@@ -593,6 +617,33 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             displayName,
             description
         );
+    }
+
+    /// <summary>
+    /// The key rule the runtime enforces in <c>IdentifierSyntax.NormalizeKey</c>: trimmed, 1 to 128 key
+    /// characters, lowercased, and not under the reserved <c>sys.</c> prefix. The descriptor carries the
+    /// canonical form, the same value registration would store.
+    /// </summary>
+    private static bool TryCanonicalizeLane(string lane, out string canonical)
+    {
+        var trimmed = lane.Trim();
+        canonical = trimmed.ToLowerInvariant();
+        if (trimmed.Length is 0 or > 128 || canonical.StartsWith("sys.", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        foreach (var c in trimmed)
+        {
+            var keyChar =
+                c is >= 'a' and <= 'z' or >= 'A' and <= 'Z' or >= '0' and <= '9' or '.' or '-' or '_' or ':' or '/' or '@' or '+' or '=';
+            if (!keyChar)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -782,6 +833,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         short? ConcurrencyLimit,
         string? RateLimit,
         string? RateKey,
+        string? Lane,
         string? AuditLevelName,
         string AlertProfileName,
         byte TenantRequirementId,
@@ -1388,6 +1440,12 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         }
 
         var ok = true;
+        if (job.Lane is not null)
+        {
+            ReportDiagnostic(spc, Diagnostics.LanedSchedule(job));
+            ok = false;
+        }
+
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var duplicated = new HashSet<string>(StringComparer.Ordinal);
         foreach (var schedule in job.Schedules)
@@ -1602,6 +1660,11 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             if (j.RateKey is { } rateKeyRaw)
             {
                 policyLines.Add($"RateKey = {FormatString(rateKeyRaw)},");
+            }
+
+            if (j.Lane is { } laneRaw)
+            {
+                policyLines.Add($"Lane = {FormatString(laneRaw)},");
             }
 
             if (j.Backoff is { } backoffRaw)
@@ -2218,6 +2281,13 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                 job.Location
             );
 
+        public static DiagnosticRecord LanedSchedule(DiscoveredJob job) =>
+            new(
+                "ACTA0121",
+                $"`[Job(\"{job.JobName}\")]` declares a `Lane` and a `[JobSchedule]`. A recurring slot never finishes, so it would hold its lane forever; drop the lane, or enqueue laned work from the scheduled job.",
+                job.Location
+            );
+
         public static DiagnosticRecord BlankScheduleEnvironment(DiscoveredJob job, string scheduleName) =>
             new(
                 "ACTA0121",
@@ -2340,6 +2410,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         short? ConcurrencyLimit,
         string? RateLimit,
         string? RateKey,
+        string? Lane,
         string AuditLevelName,
         string AlertProfileName,
         byte TenantRequirementId,

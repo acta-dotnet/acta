@@ -28,7 +28,8 @@ public sealed class OutboxStagingCoreTests
             DelaySeconds: 45,
             Tags: [new TagInput("env", "prod"), new TagInput("flag", null)],
             ParentJobId: null,
-            TenantKey: "tenant-9"
+            TenantKey: "tenant-9",
+            Lane: "lane-9"
         );
 
     private static JobEnqueueRequest Reconstruct(OutboxStagingRow row)
@@ -47,7 +48,8 @@ public sealed class OutboxStagingCoreTests
             row.DelaySeconds,
             OutboxMetaReader.Parse(row.Meta),
             ParentJobId: null,
-            row.TenantKey
+            row.TenantKey,
+            Lane: row.Lane
         );
     }
 
@@ -69,6 +71,7 @@ public sealed class OutboxStagingCoreTests
         Assert.Equal(request.NextRunAtUtc, rebuilt.NextRunAtUtc);
         Assert.Equal(request.DelaySeconds, rebuilt.DelaySeconds);
         Assert.Equal(request.TenantKey, rebuilt.TenantKey);
+        Assert.Equal(request.Lane, rebuilt.Lane);
         Assert.Null(rebuilt.ParentJobId);
         Assert.Collection(
             rebuilt.Tags!,

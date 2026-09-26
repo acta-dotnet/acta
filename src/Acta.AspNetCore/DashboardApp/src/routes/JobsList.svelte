@@ -33,11 +33,11 @@
     failureCount: number;
   }
 
-  const statuses = ['', 'Paused', 'Suspended', 'Ready', 'Dispatched', 'Executing', 'Done', 'Failed', 'Cancelled'];
+  const statuses = ['', 'Paused', 'Suspended', 'Ready', 'Blocked', 'Dispatched', 'Executing', 'Done', 'Failed', 'Cancelled'];
   const initial = hashParams();
   const filters = createUrlFilters(
-    { status: 'status', jobName: 'jobName', correlationKey: 'correlationKey', tenantKey: 'tenantKey', tags: 'tags', view: 'view' },
-    { status: '', jobName: '', correlationKey: '', tenantKey: '', tags: '', view: '' }
+    { status: 'status', jobName: 'jobName', correlationKey: 'correlationKey', tenantKey: 'tenantKey', lane: 'lane', tags: 'tags', view: 'view' },
+    { status: '', jobName: '', correlationKey: '', tenantKey: '', lane: '', tags: '', view: '' }
   );
   // Nav-alias views: the sidebar's Recurring jobs / Job history entries are this screen with a
   // baked-in view filter (schedule-attached rows / terminal rows).
@@ -79,6 +79,7 @@
       $scope && $filters.jobName.trim() ? { label: 'Job name', value: $filters.jobName.trim(), onRemove: () => filters.patch({ jobName: '' }) } : null,
       $filters.correlationKey.trim() ? { label: 'Correlation', value: $filters.correlationKey.trim(), onRemove: () => filters.patch({ correlationKey: '' }) } : null,
       $filters.tenantKey ? { label: 'Tenant', value: $filters.tenantKey, onRemove: clearTenant } : null,
+      $filters.lane ? { label: 'Lane', value: $filters.lane, onRemove: () => filters.patch({ lane: '' }) } : null,
       $filters.tags.trim() ? { label: 'Tags', value: $filters.tags.trim(), onRemove: () => filters.patch({ tags: '' }) } : null
     ].filter((chip): chip is { label: string; value: string; onRemove: () => void } => chip !== null)
   );
@@ -97,7 +98,8 @@
         status: $filters.status,
         jobName: $scope ? $filters.jobName.trim() : '',
         correlationKey: $filters.correlationKey.trim(),
-        tenantKey: $filters.tenantKey
+        tenantKey: $filters.tenantKey,
+        lane: $filters.lane
       },
       { provider: capabilities.data?.provider, schema: capabilities.data?.schema }
     )
@@ -221,6 +223,7 @@
         correlationKey: $filters.correlationKey.trim(),
         jobNamespace: $scope,
         tenantKey: $filters.tenantKey,
+        lane: $filters.lane,
         tag: parseTagTokens($filters.tags),
         terminalOnly: view === 'history' ? 'true' : '',
         recurringOnly: view === 'recurring' ? 'true' : ''

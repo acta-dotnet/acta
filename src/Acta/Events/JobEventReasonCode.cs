@@ -134,6 +134,12 @@ public enum JobEventReasonCode : byte
     )]
     JobRateLimited = 66,
 
+    [Code(
+        "job.lane-repaired",
+        "The Job's lane had no live head: its lowest-id unfinished member was Blocked with nothing ahead to settle. The sys.recovery system job released that member to Ready."
+    )]
+    JobLaneRepaired = 67,
+
     /// <summary>
     /// worker.* events carry job_id = null; the reason lives on events, never on a job row.
     /// </summary>

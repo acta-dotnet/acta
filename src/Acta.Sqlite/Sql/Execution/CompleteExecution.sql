@@ -561,6 +561,30 @@ WHERE
     AND p.latch_expired = 0
     AND p.parent_audit = 20 /* JobAuditLevelCode.Audit */;
 
+-- A laned job that settled hands its lane to the lowest-id unfinished member when that member is
+-- Blocked; any other head keeps the lane. The immediate transaction is the lane's mutex on SQLite.
+UPDATE {{schema}}.runtimes
+SET
+    status_code = 10 /* JobStatusCode.Ready */,
+    next_run_at_utc = MAX(next_run_at_utc, {{now}}),
+    modified_at_utc = {{now}},
+    version = version + 1
+WHERE
+    status_code = 15 /* JobStatusCode.Blocked */
+    AND job_id = (
+        SELECT m.job_id
+        FROM {{schema}}.runtimes m
+        JOIN {{schema}}.runtimes settled ON settled.lane_id = m.lane_id
+        WHERE
+            settled.job_id = @p_id
+            AND settled.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+            AND EXISTS (SELECT 1 FROM _ce_done)
+            AND m.lane_id IS NOT NULL
+            AND m.status_code IN (10, 15, 20, 30, 40, 50)
+        ORDER BY m.job_id
+        LIMIT 1
+    );
+
 SELECT
     CASE
         WHEN NOT EXISTS (SELECT 1 FROM _ce_pre) THEN 3 /* CompleteExecutionAction.AlreadyTerminal */
@@ -586,4 +610,6 @@ SELECT
             WHERE parent_status = 20 /* JobStatusCode.Suspended */ AND latch_expired = 0
         ) THEN 1
         ELSE 0
-    END AS parent_released;
+    END AS parent_released,
+    -- The promotion UPDATE above is the statement changes() reports on.
+    CASE WHEN changes() > 0 THEN 1 ELSE 0 END AS lane_promoted;

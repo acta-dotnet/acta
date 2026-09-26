@@ -46,6 +46,7 @@ public abstract class OutboxStagingSpec<TFixture> : ActaTestBase<TFixture>
         Assert.Equal(request.DeduplicationKey, rebuilt.DeduplicationKey);
         Assert.Equal(request.CorrelationKey, rebuilt.CorrelationKey);
         Assert.Equal(request.Priority, rebuilt.Priority);
+        Assert.Equal("customer-42", rebuilt.Lane);
         Assert.Equal(request.Input.Format.Id, rebuilt.Input.Format.Id);
         Assert.Equal(request.Input.Data.ToArray(), rebuilt.Input.Data.ToArray());
         Assert.NotNull(rebuilt.Tags);
@@ -75,6 +76,7 @@ public abstract class OutboxStagingSpec<TFixture> : ActaTestBase<TFixture>
             DeduplicationKey: "stage-" + TestId,
             CorrelationKey: "corr-1",
             Priority: JobPriorityCode.High,
+            Lane: "Customer-42",
             Tags: [new TagInput("tenant", "acme"), new TagInput("urgent", null)]
         );
 }

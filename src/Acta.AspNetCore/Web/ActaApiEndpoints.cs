@@ -242,7 +242,8 @@ internal static class ActaApiEndpoints
                             IncludeTotal: includeTotal ?? false,
                             Tags: QueryBinding.Tags(http.Request.Query),
                             TerminalOnly: terminalOnly,
-                            RecurringOnly: recurringOnly
+                            RecurringOnly: recurringOnly,
+                            Lane: QueryBinding.Text(http.Request.Query, "lane")
                         );
                         return Results.Json(
                             await operations.Ledger.ListJobsAsync(query, ct),
@@ -262,6 +263,7 @@ internal static class ActaApiEndpoints
                 new QueryParameterDoc("parentJobRef", QueryParameterKind.String, "Only direct children of this parent job ref."),
                 new QueryParameterDoc("correlationKey", QueryParameterKind.String, "Only jobs stamped with this correlation key."),
                 new QueryParameterDoc("tenantKey", QueryParameterKind.String, "Only jobs admitted under this tenant key."),
+                new QueryParameterDoc("lane", QueryParameterKind.String, "Only jobs in this lane."),
                 .. QueryParameterDocExtensions.PagingCore,
                 .. QueryParameterDocExtensions.IncludeTotal,
                 .. QueryParameterDocExtensions.TagFilter,

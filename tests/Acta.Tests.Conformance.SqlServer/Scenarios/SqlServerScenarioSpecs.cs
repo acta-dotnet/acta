@@ -21,6 +21,22 @@ public sealed class SqlServerChildGroupTimeoutSpec : ChildGroupTimeoutSpec<SqlSe
 
 public sealed class SqlServerConcurrencyKeyMutexSpec : ConcurrencyKeyMutexSpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerLaneAncestorGuardSpec : LaneAncestorGuardSpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerLaneOrderingSpec : LaneOrderingSpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerLaneSettlePathsSpec : LaneSettlePathsSpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerLaneControlVerbsSpec : LaneControlVerbsSpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerLaneRepairSpec : LaneRepairSpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerLaneReadSpec : LaneReadSpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerLaneRedriveSpec : LaneRedriveSpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerLaneLockOrderSpec : LaneLockOrderSpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerConcurrencyLimitSpec : ConcurrencyLimitSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerRateLimitSpec : RateLimitSpec<SqlServerConformanceFixture>;

@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 namespace Acta.Runtime.Modules.Execution;
 
 /// <summary>What one recovery pass changed, for the caller that wants to assert on a single pass.</summary>
-internal readonly record struct RecoveryPassOutcome(int DeadWorkersMarked, int ReclaimedJobs, int ReleasedChildLatches);
+internal readonly record struct RecoveryPassOutcome(int DeadWorkersMarked, int ReclaimedJobs, int ReleasedChildLatches, int RepairedLanes);
 
 /// <summary>
 /// One recovery pass, and the only implementation of one: the <c>sys.recovery</c> handler and the
@@ -18,9 +18,9 @@ internal readonly record struct RecoveryPassOutcome(int DeadWorkersMarked, int R
 /// it retires <c>workers</c> rows whose process stopped heartbeating past
 /// <c>JobsOptions.WorkerDeadAfter</c>. Then <c>reclaim_stuck_jobs</c> and the child-latch backstop
 /// operate on the <em>firing namespace only</em>: reclaim recovers jobs whose lease expired past the
-/// heartbeat margin, and the latch passes re-raise terminal statuses lost to a crash. Dead workers are
-/// swept first; the two signals (worker <c>last_seen</c> vs per-job lease expiry) are independent so
-/// order is not otherwise load-bearing.
+/// heartbeat margin and releases the Blocked member of a stranded lane, and the latch passes re-raise
+/// terminal statuses lost to a crash. Dead workers are swept first; the two signals (worker
+/// <c>last_seen</c> vs per-job lease expiry) are independent so order is not otherwise load-bearing.
 /// </remarks>
 internal sealed class RecoveryPass(
     ISignalStore signals,
@@ -38,16 +38,16 @@ internal sealed class RecoveryPass(
 
     /// <summary>
     /// Sweeps dead workers globally, then reclaims stuck jobs and raises stale child latches for
-    /// <paramref name="namespaceId"/>. A pass that reclaimed jobs publishes a wakeup: the reclaimed rows
-    /// are claimable - Ready, or Suspended on a deadline already past for the one arm that re-arms a
-    /// resolved wait uncharged - and their original worker is gone, so a live worker should pick them up
-    /// without waiting out the safety poll.
+    /// <paramref name="namespaceId"/>. A pass that reclaimed jobs or repaired a lane publishes a wakeup:
+    /// the rows are claimable - Ready, or Suspended on a deadline already past for the one arm that
+    /// re-arms a resolved wait uncharged - and nothing else will announce them, so a live worker should
+    /// pick them up without waiting out the safety poll.
     /// </summary>
     public async Task<RecoveryPassOutcome> RunAsync(int namespaceId, string namespaceName, CancellationToken ct)
     {
         var deadWorkers = await workers.MarkDeadWorkersAsync(_deadAfterSeconds, ct);
         var result = await execution.ReclaimStuckJobsAsync(namespaceId, ct);
-        if (result.Reclaimed > 0)
+        if (result.Reclaimed > 0 || result.RepairedLanes > 0)
         {
             await wakeupPublisher.WakeAsync(WorkerWakeupChannel.WorkerNamespace(namespaceName), WorkerWakeupReason.WorkAvailable, ct);
         }
@@ -79,6 +79,6 @@ internal sealed class RecoveryPass(
             await wakeupPublisher.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct);
         }
 
-        return new RecoveryPassOutcome(deadWorkers, result.Reclaimed, released);
+        return new RecoveryPassOutcome(deadWorkers, result.Reclaimed, released, result.RepairedLanes);
     }
 }

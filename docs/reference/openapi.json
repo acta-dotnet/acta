@@ -1361,6 +1361,14 @@
             }
           },
           {
+            "name": "lane",
+            "in": "query",
+            "description": "Only jobs in this lane.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "pageSize",
             "in": "query",
             "description": "Rows per page; the server clamps to its bounds.",
@@ -6619,6 +6627,7 @@
                 "job.reprioritized",
                 "job.purged",
                 "job.input-amended",
+                "job.redriven",
                 "job.signal-raised",
                 "job.state-reset",
                 "job.note-recorded",
@@ -6683,6 +6692,7 @@
                 "job.result-oversized",
                 "job.wait-timed-out",
                 "job.rate-limited",
+                "job.lane-repaired",
                 "worker.clean-shutdown",
                 "worker.heartbeat-stale"
               ],
@@ -6866,6 +6876,7 @@
                 "job.reprioritized",
                 "job.purged",
                 "job.input-amended",
+                "job.redriven",
                 "job.signal-raised",
                 "job.state-reset",
                 "job.note-recorded",
@@ -7152,6 +7163,7 @@
                 "job.reprioritized",
                 "job.purged",
                 "job.input-amended",
+                "job.redriven",
                 "job.signal-raised",
                 "job.state-reset",
                 "job.note-recorded",
@@ -8675,7 +8687,8 @@
               "string"
             ],
             "format": "int32"
-          }
+          },
+          "redriveJobRef": { }
         }
       },
       "JobDefinitionDetail": {
@@ -8704,6 +8717,7 @@
           "rateLimitOverride",
           "rateLimitEffective",
           "rateKey",
+          "lane",
           "backoff",
           "backoffOverride",
           "backoffEffective",
@@ -8877,6 +8891,12 @@
             ]
           },
           "rateKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lane": {
             "type": [
               "null",
               "string"
@@ -9124,6 +9144,7 @@
           "rateLimitOverride",
           "rateLimitEffective",
           "rateKey",
+          "lane",
           "modifiedAtUtc",
           "version"
         ],
@@ -9208,6 +9229,12 @@
             ]
           },
           "rateKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lane": {
             "type": [
               "null",
               "string"
@@ -9336,6 +9363,8 @@
           "inputFormatId",
           "status",
           "priority",
+          "lane",
+          "blockedBehindJobRef",
           "nextRunAtUtc",
           "executionNumber",
           "failureCount",
@@ -9414,6 +9443,22 @@
           },
           "priority": {
             "$ref": "#/components/schemas/JobPriorityCode"
+          },
+          "lane": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "blockedBehindJobRef": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobRef"
+              }
+            ]
           },
           "nextRunAtUtc": {
             "type": [
@@ -10090,6 +10135,7 @@
           "correlationKey",
           "status",
           "priority",
+          "lane",
           "createdAtUtc",
           "modifiedAtUtc",
           "nextRunAtUtc",
@@ -10160,6 +10206,13 @@
           "priority": {
             "description": "Claim priority.",
             "$ref": "#/components/schemas/JobPriorityCode"
+          },
+          "lane": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The lane the job runs in, or null."
           },
           "createdAtUtc": {
             "type": "string",

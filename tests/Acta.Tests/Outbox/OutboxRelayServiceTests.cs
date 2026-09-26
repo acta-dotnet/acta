@@ -39,6 +39,7 @@ public sealed class OutboxRelayServiceTests
             null,
             null,
             null,
+            null,
             meta,
             created ?? Now,
             failureCount

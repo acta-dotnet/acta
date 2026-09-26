@@ -50,7 +50,8 @@ internal static class OutboxRequestReconstruction
             DelaySeconds: row.DelaySeconds,
             Tags: tags,
             ParentJobId: null,
-            TenantKey: row.TenantKey
+            TenantKey: row.TenantKey,
+            Lane: row.Lane
         );
     }
 }

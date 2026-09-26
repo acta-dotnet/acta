@@ -206,6 +206,8 @@ export interface JobControlResponse {
   status: string | null;
   message: string;
   version: number | null;
+  // Set when a restart redrove a finished laned job: the new job at the end of its lane.
+  redriveJobRef?: string | null;
 }
 
 // Alert-control POST response (acknowledge/resolve, at alerts/{alertRef}/{action}). AlertsList and

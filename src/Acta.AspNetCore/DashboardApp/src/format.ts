@@ -323,6 +323,7 @@ export function statusIcon(status: string): string {
     case 'retry-after':
       return 'warn';
     case 'ready':
+    case 'blocked':
     case 'pending':
     case 'scheduled':
       return 'clock';

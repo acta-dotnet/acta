@@ -30,7 +30,27 @@ WHERE
         FROM temp._retire_job_definition s
         WHERE s.version = @p_version AND s.status_code <> 240 /* JobDefinitionStatusCode.Retired */
     )
-    AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */);
+    AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */)
+    AND r.lane_id IS NULL;
+
+DROP TABLE IF EXISTS temp._retire_laned_jobs;
+
+-- A laned parked job is cancelled through CancelJob instead, which hands its lane on; this sweep only
+-- names them.
+CREATE TEMP TABLE _retire_laned_jobs AS
+SELECT j.id AS job_id, j.parent_id
+FROM {{schema}}.jobs j
+JOIN {{schema}}.runtimes r ON r.job_id = j.id
+WHERE
+    j.definition_id IN (
+        SELECT s.id
+        FROM temp._retire_job_definition s
+        WHERE s.version = @p_version AND s.status_code <> 240 /* JobDefinitionStatusCode.Retired */
+    )
+    AND r.status_code IN (
+        10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */
+    )
+    AND r.lane_id IS NOT NULL;
 
 UPDATE {{schema}}.definitions
 SET
@@ -141,7 +161,14 @@ SELECT
         ELSE 1 /* DefinitionOverrideAction.Applied */
     END AS action,
     p.job_id,
-    p.parent_id
+    p.parent_id,
+    p.laned
 FROM (SELECT @p_id AS qid) q
 LEFT JOIN temp._retire_job_definition s ON s.id = q.qid
-LEFT JOIN temp._retire_parked_jobs p ON 1 = 1;
+LEFT JOIN (
+    SELECT c.job_id, c.parent_id, 0 AS laned
+    FROM temp._retire_parked_jobs c
+    UNION ALL
+    SELECT l.job_id, l.parent_id, 1
+    FROM temp._retire_laned_jobs l
+) p ON 1 = 1;

@@ -396,6 +396,13 @@ internal sealed class CompletionSink
                 .ConfigureAwait(false);
         }
 
+        if (result.LanePromoted)
+        {
+            await _wakeupPublisher
+                .WakeAsync(WorkerWakeupChannel.WorkerNamespace(b.JobNamespace), WorkerWakeupReason.WorkAvailable, CancellationToken.None)
+                .ConfigureAwait(false);
+        }
+
         if (result.ParentReleased)
         {
             await _wakeupPublisher

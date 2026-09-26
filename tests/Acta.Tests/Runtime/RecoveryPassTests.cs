@@ -36,7 +36,7 @@ public sealed class RecoveryPassTests
 
         var outcome = await pass.RunAsync(namespaceId: 1, namespaceName: "payments", TestContext.Current.CancellationToken);
 
-        Assert.Equal(new RecoveryPassOutcome(0, 0, 0), outcome);
+        Assert.Equal(new RecoveryPassOutcome(0, 0, 0, 0), outcome);
         Assert.Empty(wakeups.Channels);
     }
 
@@ -46,18 +46,31 @@ public sealed class RecoveryPassTests
         var wakeups = new RecordingWakeup();
         var execution = new FakeExecutionStore
         {
-            Reclaim = new ReclaimStuckJobsResult(Reclaimed: 2, FailedChildren: [(ChildId: 7, ParentId: 8)]),
+            Reclaim = new ReclaimStuckJobsResult(Reclaimed: 2, FailedChildren: [(ChildId: 7, ParentId: 8)], RepairedLanes: 0),
             StaleLatches = [new StaleChildLatch(ParentJobId: 9, ChildJobId: 10, ChildStatus: JobStatusCode.Cancelled)],
         };
         var pass = Pass(new FakeWorkerStore { Marked = 3 }, execution, new FakeSignalStore { Releases = true }, wakeup: wakeups);
 
         var outcome = await pass.RunAsync(namespaceId: 1, namespaceName: "payments", TestContext.Current.CancellationToken);
 
-        Assert.Equal(new RecoveryPassOutcome(3, 2, 2), outcome);
+        Assert.Equal(new RecoveryPassOutcome(3, 2, 2, 0), outcome);
         Assert.Equal(
             [WorkerWakeupChannelKind.WorkerNamespace, WorkerWakeupChannelKind.AllWorkerNamespaces],
             wakeups.Channels.Select(c => c.Kind)
         );
+    }
+
+    [Fact]
+    public async Task A_repaired_lane_alone_wakes_the_namespace()
+    {
+        var wakeups = new RecordingWakeup();
+        var execution = new FakeExecutionStore { Reclaim = new ReclaimStuckJobsResult(Reclaimed: 0, FailedChildren: [], RepairedLanes: 1) };
+        var pass = Pass(new FakeWorkerStore(), execution, new FakeSignalStore(), wakeup: wakeups);
+
+        var outcome = await pass.RunAsync(namespaceId: 1, namespaceName: "payments", TestContext.Current.CancellationToken);
+
+        Assert.Equal(new RecoveryPassOutcome(0, 0, 0, 1), outcome);
+        Assert.Equal([WorkerWakeupChannelKind.WorkerNamespace], wakeups.Channels.Select(c => c.Kind));
     }
 
     private static RecoveryPass Pass(
@@ -137,7 +150,7 @@ public sealed class RecoveryPassTests
 
     private sealed class FakeExecutionStore : IExecutionStore
     {
-        public ReclaimStuckJobsResult Reclaim { get; init; } = new(Reclaimed: 0, FailedChildren: []);
+        public ReclaimStuckJobsResult Reclaim { get; init; } = new(Reclaimed: 0, FailedChildren: [], RepairedLanes: 0);
 
         public IReadOnlyList<StaleChildLatch> StaleLatches { get; init; } = [];
 

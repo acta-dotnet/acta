@@ -22,7 +22,23 @@ DECLARE
     v_parent_id BIGINT;
     v_job_ref UUID;
     v_retention_seconds INT;
+    v_lane_id BIGINT;
+    v_head_id BIGINT;
+    v_head_status SMALLINT;
 BEGIN
+    -- Lock order: the lane, then the job's rows (docs/internals/sql-execution-policy.md, "Lane lock
+    -- order"). lane_id never changes, so the unlocked read is safe.
+    SELECT r.lane_id INTO v_lane_id
+    FROM {{schema}}.runtimes r
+    WHERE r.job_id = p_id;
+
+    IF v_lane_id IS NOT NULL THEN
+        PERFORM 1
+        FROM {{schema}}.lanes l
+        WHERE l.id = v_lane_id
+        FOR UPDATE;
+    END IF;
+
     SELECT
         r.status_code,
         j.namespace_id,
@@ -55,6 +71,7 @@ BEGIN
         30 /* JobStatusCode.Paused */,
         20 /* JobStatusCode.Suspended */,
         10 /* JobStatusCode.Ready */,
+        15 /* JobStatusCode.Blocked */,
         40 /* JobStatusCode.Dispatched */,
         50 /* JobStatusCode.Executing */
     ) THEN
@@ -76,6 +93,43 @@ BEGIN
         modified_at_utc = now(),
         version = r.version + 1
     WHERE r.job_id = p_id;
+
+    -- A cancelled head hands its lane to the next member; a cancelled Blocked follower leaves the head
+    -- where it is, which the promotion reads for itself. Promotion runs under the lane lock
+    -- (docs/internals/sql-execution-policy.md, "Lane lock order") and re-reads rather than trusting an
+    -- update that matched nothing.
+    IF v_lane_id IS NOT NULL THEN
+        LOOP
+            v_head_id := NULL;
+            v_head_status := NULL;
+
+            SELECT m.job_id, m.status_code INTO v_head_id, v_head_status
+            FROM {{schema}}.runtimes m
+            WHERE
+                m.lane_id = v_lane_id
+                AND m.lane_id IS NOT NULL
+                AND m.status_code IN (
+                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                    30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                )
+            ORDER BY m.job_id
+            LIMIT 1;
+
+            EXIT WHEN v_head_status IS DISTINCT FROM 15 /* JobStatusCode.Blocked */;
+
+            UPDATE {{schema}}.runtimes pr
+            SET
+                status_code = 10 /* JobStatusCode.Ready */,
+                next_run_at_utc = GREATEST(pr.next_run_at_utc, now()),
+                modified_at_utc = now(),
+                version = pr.version + 1
+            WHERE
+                pr.job_id = v_head_id
+                AND pr.status_code = 15 /* JobStatusCode.Blocked */;
+
+            EXIT WHEN FOUND;
+        END LOOP;
+    END IF;
 
     IF v_audit_level = 20 /* JobAuditLevelCode.Audit */ THEN
         IF v_from_status = 50 /* JobStatusCode.Executing */ THEN

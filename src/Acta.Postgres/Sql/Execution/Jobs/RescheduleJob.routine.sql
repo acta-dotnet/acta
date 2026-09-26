@@ -20,7 +20,22 @@ DECLARE
     v_en INT;
     v_audit SMALLINT;
     v_job_ref UUID;
+    v_lane_id BIGINT;
+    v_to_status SMALLINT := 10 /* JobStatusCode.Ready */;
 BEGIN
+    -- Lock order: the lane, then the job's rows (docs/internals/sql-execution-policy.md, "Lane lock
+    -- order"). lane_id never changes, so the unlocked read is safe.
+    SELECT r.lane_id INTO v_lane_id
+    FROM {{schema}}.runtimes r
+    WHERE r.job_id = p_id;
+
+    IF v_lane_id IS NOT NULL THEN
+        PERFORM 1
+        FROM {{schema}}.lanes l
+        WHERE l.id = v_lane_id
+        FOR UPDATE;
+    END IF;
+
     SELECT r.status_code, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id, r.execution_number, j.audit_level_code, j.job_ref, r.version
     INTO v_from_status, v_namespace_id, v_lineage, v_definition, v_tenant, v_en, v_audit, v_job_ref, v_version
     FROM {{schema}}.jobs j
@@ -38,15 +53,34 @@ BEGIN
         RETURN;
     END IF;
 
-    IF v_from_status NOT IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */) THEN
+    IF v_from_status NOT IN (
+        30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */
+    ) THEN
         RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status, v_version;
         RETURN;
+    END IF;
+
+    -- A laned job is rescheduled Ready only as its lane's lowest-id unfinished member; behind an older
+    -- one it waits Blocked, and its new instant applies once it is promoted.
+    IF v_lane_id IS NOT NULL AND EXISTS (
+        SELECT 1
+        FROM {{schema}}.runtimes o
+        WHERE
+            o.lane_id = v_lane_id
+            AND o.lane_id IS NOT NULL
+            AND o.status_code IN (
+                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+            )
+            AND o.job_id < p_id
+    ) THEN
+        v_to_status := 15 /* JobStatusCode.Blocked */;
     END IF;
 
     UPDATE {{schema}}.runtimes AS r
     SET
         next_run_at_utc = p_next_run_at_utc,
-        status_code = 10 /* JobStatusCode.Ready */,
+        status_code = v_to_status,
         modified_at_utc = now(),
         version = r.version + 1
     WHERE r.job_id = p_id;
@@ -85,13 +119,13 @@ BEGIN
             v_tenant,
             NULL,
             v_from_status,
-            10 /* JobStatusCode.Ready */,
+            v_to_status,
             NULL,
             NULL,
             p_reason_code,
             p_reason_message);
     END IF;
 
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, 10 /* JobStatusCode.Ready */::SMALLINT, v_version + 1;
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_to_status, v_version + 1;
 END;
 $$;

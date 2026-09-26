@@ -36,6 +36,7 @@ public sealed class DefinitionKeyResolutionTests
             RateLimitOverride: null,
             RateLimitEffective: null,
             RateKey: null,
+            Lane: null,
             ModifiedAtUtc: new DateTime(2026, 8, 15, 8, 0, 0, DateTimeKind.Utc),
             Version: 1
         );
@@ -50,7 +51,7 @@ public sealed class DefinitionKeyResolutionTests
     [InlineData("bulk-invoice", 3)]
     public async Task A_name_resolves_to_its_own_definition_even_when_the_store_over_matches(string jobName, int expectedId)
     {
-        var service = new DefinitionsService(new OverMatchingDefinitionStore(Catalog), null!, null!);
+        var service = new DefinitionsService(new OverMatchingDefinitionStore(Catalog), null!, null!, null!);
 
         var definition = await service.GetAsync(Namespace, jobName, TestContext.Current.CancellationToken);
 
@@ -61,7 +62,7 @@ public sealed class DefinitionKeyResolutionTests
     [Fact]
     public async Task A_name_no_definition_carries_resolves_to_null_rather_than_a_sibling()
     {
-        var service = new DefinitionsService(new OverMatchingDefinitionStore(Catalog), null!, null!);
+        var service = new DefinitionsService(new OverMatchingDefinitionStore(Catalog), null!, null!, null!);
         var ct = TestContext.Current.CancellationToken;
 
         // "invoic" is a prefix of a registered name and "invoice-retry-2" extends one; neither exists.
@@ -73,7 +74,7 @@ public sealed class DefinitionKeyResolutionTests
     public async Task An_override_write_addressed_by_a_sibling_prefix_is_not_found_and_writes_nothing()
     {
         var store = new OverMatchingDefinitionStore(Catalog);
-        var service = new DefinitionsService(store, null!, null!);
+        var service = new DefinitionsService(store, null!, null!, null!);
 
         var outcome = await service.UpdateOverridesAsync(
             Namespace,
@@ -117,7 +118,7 @@ public sealed class DefinitionKeyResolutionTests
         public Task<DefinitionRetireOutcome> RetireDefinitionAsync(RetireDefinitionCommand command, CancellationToken ct)
         {
             RetireWrites.Add(command);
-            return Task.FromResult(new DefinitionRetireOutcome(DefinitionOverrideAction.Applied, []));
+            return Task.FromResult(new DefinitionRetireOutcome(DefinitionOverrideAction.Applied, [], []));
         }
 
         public Task<IReadOnlyList<StoredDefinitionContract>> GetDefinitionContractsAsync(int namespaceId, CancellationToken ct) =>
@@ -153,6 +154,7 @@ public sealed class DefinitionKeyResolutionTests
                 RateLimitOverride: null,
                 RateLimitEffective: null,
                 RateKey: null,
+                Lane: null,
                 Backoff: "1s..1m x2",
                 BackoffOverride: null,
                 BackoffEffective: "1s..1m x2",

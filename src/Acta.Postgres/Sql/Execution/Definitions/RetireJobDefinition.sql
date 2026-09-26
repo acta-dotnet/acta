@@ -34,8 +34,22 @@ parked AS (
     WHERE
         j.definition_id IN (SELECT d.id FROM retired d)
         AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */)
+        AND r.lane_id IS NULL
     -- Locked here so the from_status the event records is the status the sweep below moves.
     FOR UPDATE OF r
+),
+-- A laned parked job is cancelled through cancel_job instead, which takes its lane first and hands the
+-- lane on (docs/internals/sql-execution-policy.md, "Lane lock order"); this sweep only names them.
+laned AS (
+    SELECT j.id AS job_id, j.parent_id
+    FROM {{schema}}.jobs j
+    INNER JOIN {{schema}}.runtimes r ON r.job_id = j.id
+    WHERE
+        j.definition_id IN (SELECT d.id FROM retired d)
+        AND r.status_code IN (
+            10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */
+        )
+        AND r.lane_id IS NOT NULL
 ),
 swept AS (
     UPDATE {{schema}}.runtimes r
@@ -150,7 +164,14 @@ SELECT
         ELSE 1 /* DefinitionOverrideAction.Applied */
     END AS action,
     c.job_id,
-    c.parent_id
+    c.parent_id,
+    c.laned
 FROM (SELECT 1 AS probe) q
 LEFT JOIN target t ON TRUE
-LEFT JOIN cancelled c ON TRUE;
+LEFT JOIN (
+    SELECT s.job_id, s.parent_id, FALSE AS laned
+    FROM cancelled s
+    UNION ALL
+    SELECT l.job_id, l.parent_id, TRUE
+    FROM laned l
+) c ON TRUE;

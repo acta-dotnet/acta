@@ -103,6 +103,19 @@ internal interface IJobStore
     /// <summary>Hard-deletes a terminal job; the surviving events carry the public ref.</summary>
     Task<JobControlOutcome> PurgeJobAsync(long jobId, JobControlInput input, CancellationToken ct);
 
+    /// <summary>
+    /// Links a finished laned job and the job its restart re-enqueued with a job.redriven event on each,
+    /// whose detail names the other job.
+    /// </summary>
+    Task RecordJobRedriveAsync(
+        long jobId,
+        JobRef jobRef,
+        long redriveJobId,
+        JobRef redriveJobRef,
+        JobControlInput input,
+        CancellationToken ct
+    );
+
     /// <summary>Clears a job's durable step/checkpoint state ahead of a fresh attempt.</summary>
     Task ResetJobStateAsync(long jobId, CancellationToken ct);
 }
@@ -119,6 +132,7 @@ internal sealed record JobPageRequest(
     string? TagFiltersJson,
     bool? TerminalOnly,
     bool? RecurringOnly,
+    string? Lane,
     DateTime? CursorCreatedAtUtc,
     long? CursorId,
     int Take,

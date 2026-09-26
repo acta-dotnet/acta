@@ -21,6 +21,18 @@ BEGIN
             @from_status TINYINT, @namespace_id INT,
             @lineage_root_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number INT, @audit_level TINYINT,
             @job_ref UNIQUEIDENTIFIER, @version INT;
+        DECLARE @lane_id BIGINT, @to_status TINYINT = 10 /* JobStatusCode.Ready */;
+
+        /* Lock order: the lane, then the job's rows (docs/internals/sql-execution-policy.md, "Lane lock
+           order"). lane_id never changes, so the unlocked read is safe. */
+        SELECT @lane_id = r.lane_id
+        FROM {{schema}}.runtimes r
+        WHERE r.job_id = @p_id;
+
+        IF @lane_id IS NOT NULL
+            SELECT @lane_id = l.id
+            FROM {{schema}}.lanes l WITH (UPDLOCK, ROWLOCK)
+            WHERE l.id = @lane_id;
 
         SELECT
             @from_status = r.status_code,
@@ -66,9 +78,27 @@ BEGIN
                 GOTO Finish;
             END;
 
+        /* A laned job resumes Ready only as its lane's lowest-id unfinished member; behind an older one
+           it waits Blocked for the promotion. */
+        IF
+            @lane_id IS NOT NULL
+            AND EXISTS (
+                SELECT 1
+                FROM {{schema}}.runtimes o
+                WHERE
+                    o.lane_id = @lane_id
+                    AND o.lane_id IS NOT NULL
+                    AND o.status_code IN (
+                        10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                        30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                    )
+                    AND o.job_id < @p_id
+            )
+            SET @to_status = 15 /* JobStatusCode.Blocked */;
+
         UPDATE {{schema}}.runtimes
         SET
-            status_code = 10 /* JobStatusCode.Ready */,
+            status_code = @to_status,
             next_run_at_utc = COALESCE(@p_next_run_at_utc, @now),
             modified_at_utc = @now,
             version = version + 1
@@ -93,7 +123,7 @@ BEGIN
                     @p_id, @job_ref, @execution_number,
                     COALESCE(@lineage_root_id, @p_id), @definition_id, @tenant_id,
                     NULL,
-                    30 /* JobStatusCode.Paused */, 10 /* JobStatusCode.Ready */,
+                    30 /* JobStatusCode.Paused */, @to_status,
                     NULL, NULL,
                     @p_reason_code, @p_reason_message
                 );
@@ -101,7 +131,7 @@ BEGIN
 
         SELECT
             CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
-            CAST(10 /* JobStatusCode.Ready */ AS TINYINT) AS status_code,
+            @to_status AS status_code,
             @version AS version;
 
     Finish:

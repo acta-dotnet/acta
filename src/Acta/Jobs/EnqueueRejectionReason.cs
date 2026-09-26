@@ -29,4 +29,7 @@ public enum EnqueueRejectionReason : byte
 
     /// <summary>A child names a tenant that differs from the parent's without the explicit override opt-in.</summary>
     TenantMismatch = 8,
+
+    /// <summary>A child names the lane of an unfinished ancestor, so it would wait behind the ancestor that waits for it.</summary>
+    AncestorLane = 9,
 }

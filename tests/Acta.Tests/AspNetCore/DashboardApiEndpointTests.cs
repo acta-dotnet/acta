@@ -685,6 +685,20 @@ public sealed class DashboardApiEndpointTests
     }
 
     [Fact]
+    public async Task Jobs_accepts_a_lane_filter()
+    {
+        var jobs = new TestDashboardHost.FakeJobs();
+        var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var ok = await client.GetAsync("/acta/api/v1/jobs?lane=customer-42", ct);
+
+        Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
+        Assert.Equal("customer-42", jobs.LastJobsQuery!.Lane);
+    }
+
+    [Fact]
     public async Task JobByKey_resolves_to_snapshot()
     {
         var (app, client) = await TestDashboardHost.StartAsync();

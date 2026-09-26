@@ -12,6 +12,35 @@ BEGIN
 
         DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
 
+        /* Lock order: the batch's lanes one row at a time in id order, then its runtime rows
+           (docs/internals/sql-execution-policy.md, "Lane lock order"). extend_worker_leases never takes
+           a lane, so a heartbeat holding runtime rows never waits on anything a flush holds first. */
+        DECLARE @lanes TABLE (id BIGINT NOT NULL PRIMARY KEY);
+        INSERT INTO @lanes (id)
+        SELECT DISTINCT r.lane_id
+        FROM {{schema}}.runtimes r
+        INNER JOIN @p_batch b ON b.job_id = r.job_id
+        WHERE r.lane_id IS NOT NULL;
+
+        DECLARE @lane_cursor BIGINT = 0, @lane_next BIGINT, @head_id BIGINT, @head_status TINYINT, @promoted INT;
+        WHILE 1 = 1
+            BEGIN
+                SET @lane_next = NULL;
+                SELECT TOP (1) @lane_next = e.id
+                FROM @lanes e
+                WHERE e.id > @lane_cursor
+                ORDER BY e.id;
+
+                IF @lane_next IS NULL
+                    BREAK;
+
+                SELECT @lane_cursor = l.id
+                FROM {{schema}}.lanes l WITH (UPDLOCK, ROWLOCK)
+                WHERE l.id = @lane_next;
+
+                SET @lane_cursor = @lane_next;
+            END;
+
         DECLARE @updated TABLE (
             ordinal INT NOT NULL PRIMARY KEY,
             job_id BIGINT NOT NULL,
@@ -135,6 +164,60 @@ BEGIN
             u.audit_level_code = 10 /* JobAuditLevelCode.Failures */
             AND b.succeeded = 1
             AND newest.execution_status_code <> 100 /* ExecutionStatusCode.Succeeded */;
+
+        SET @lane_cursor = 0;
+        WHILE 1 = 1
+            BEGIN
+                SET @lane_next = NULL;
+                SELECT TOP (1) @lane_next = e.id
+                FROM @lanes e
+                WHERE e.id > @lane_cursor
+                ORDER BY e.id;
+
+                IF @lane_next IS NULL
+                    BREAK;
+
+                /* Promotion under the lane lock (docs/internals/sql-execution-policy.md, "Lane lock
+                   order"): the lowest-id unfinished member becomes Ready when it is Blocked; any other
+                   head keeps the lane. The loop re-reads rather than trusting an update that matched
+                   nothing. */
+                SET @promoted = 0;
+                WHILE @promoted = 0
+                    BEGIN
+                        SET @head_id = NULL;
+                        SET @head_status = NULL;
+
+                        SELECT TOP (1)
+                            @head_id = m.job_id,
+                            @head_status = m.status_code
+                        FROM {{schema}}.runtimes m
+                        WHERE
+                            m.lane_id = @lane_next
+                            AND m.lane_id IS NOT NULL
+                            AND m.status_code IN (
+                                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                                30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                            )
+                        ORDER BY m.job_id;
+
+                        IF @head_status IS NULL OR @head_status <> 15 /* JobStatusCode.Blocked */
+                            BREAK;
+
+                        UPDATE {{schema}}.runtimes
+                        SET
+                            status_code = 10 /* JobStatusCode.Ready */,
+                            next_run_at_utc = CASE WHEN next_run_at_utc > @now THEN next_run_at_utc ELSE @now END,
+                            modified_at_utc = @now,
+                            version = version + 1
+                        WHERE
+                            job_id = @head_id
+                            AND status_code = 15 /* JobStatusCode.Blocked */;
+
+                        SET @promoted = @@ROWCOUNT;
+                    END;
+
+                SET @lane_cursor = @lane_next;
+            END;
 
         SELECT
             b.ordinal,

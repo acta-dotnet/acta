@@ -660,7 +660,8 @@ public abstract class JobContext
             Tags: options.Tags,
             ParentJobId: JobId,
             TenantKey: options.TenantKey,
-            OverrideParentTenant: options.OverrideParentTenant
+            OverrideParentTenant: options.OverrideParentTenant,
+            Lane: options.Lane
         );
 
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
@@ -1161,6 +1162,7 @@ public abstract class JobContext
             DeduplicationKey = name,
             CorrelationKey = configured?.CorrelationKey,
             ConcurrencyKey = configured?.ConcurrencyKey,
+            Lane = configured?.Lane,
             Priority = configured?.Priority,
             Tags = configured?.Tags,
             NextRunAtUtc = configured?.NextRunAtUtc,

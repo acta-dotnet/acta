@@ -13,6 +13,9 @@ export interface JobDetail {
   inputFormatId: number;
   status: string;
   priority: string;
+  // The lane the job runs in, and while it is Blocked the lane member it waits behind.
+  lane: string | null;
+  blockedBehindJobRef: string | null;
   nextRunAtUtc: string | null;
   executionNumber: number;
   failureCount: number;

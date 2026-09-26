@@ -1,10 +1,177 @@
+-- CREATE OR REPLACE cannot change a return type, and the result carries lane_repaired.
+DROP FUNCTION IF EXISTS {{schema}}.reclaim_stuck_jobs;
+
 CREATE OR REPLACE FUNCTION {{schema}}.reclaim_stuck_jobs(
     p_namespace_id INT
 )
-RETURNS TABLE (job_id BIGINT, to_status SMALLINT, parent_id BIGINT)
+RETURNS TABLE (job_id BIGINT, to_status SMALLINT, parent_id BIGINT, lane_repaired SMALLINT)
 LANGUAGE plpgsql
 AS $$
+DECLARE
+    v_lanes BIGINT [] := '{}';
+    v_stranded BIGINT [] := '{}';
+    v_repaired BIGINT [] := '{}';
+    v_lane_id BIGINT;
+    v_head_id BIGINT;
+    v_head_status SMALLINT;
 BEGIN
+    -- A stranded lane's lowest-id unfinished member is Blocked, so nothing ahead of it will settle and
+    -- promote it. The probe stops at the namespace's first Blocked row; only then does the walk visit
+    -- each active lane's head, one seek per lane through ix_runtimes_lane.
+    IF EXISTS (
+        SELECT 1
+        FROM {{schema}}.runtimes b
+        WHERE
+            b.lane_id IS NOT NULL
+            AND b.status_code = 15 /* JobStatusCode.Blocked */
+            AND b.namespace_id = p_namespace_id
+    ) THEN
+        v_stranded := ARRAY(
+            WITH RECURSIVE heads AS (
+                (
+                    SELECT m.lane_id, m.status_code, m.namespace_id
+                    FROM {{schema}}.runtimes m
+                    WHERE
+                        m.lane_id IS NOT NULL
+                        AND m.status_code IN (
+                            10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                            30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                        )
+                    ORDER BY m.lane_id, m.job_id
+                    LIMIT 1
+                )
+                UNION ALL
+                SELECT n.lane_id, n.status_code, n.namespace_id
+                FROM heads h
+                CROSS JOIN LATERAL (
+                    SELECT m.lane_id, m.status_code, m.namespace_id
+                    FROM {{schema}}.runtimes m
+                    WHERE
+                        m.lane_id > h.lane_id
+                        AND m.lane_id IS NOT NULL
+                        AND m.status_code IN (
+                            10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                            30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                        )
+                    ORDER BY m.lane_id, m.job_id
+                    LIMIT 1
+                ) n
+            )
+            SELECT h.lane_id
+            FROM heads h
+            WHERE
+                h.status_code = 15 /* JobStatusCode.Blocked */
+                AND h.namespace_id = p_namespace_id
+            LIMIT 100
+        );
+    END IF;
+
+    -- Lock order: the stuck rows' lanes and the stranded lanes in id order, then the runtime rows
+    -- (docs/internals/sql-execution-policy.md, "Lane lock order"). A laned row whose lease expires after
+    -- the lanes are taken waits for the next pass rather than being reclaimed without its lane.
+    FOR v_lane_id IN
+        SELECT l.id
+        FROM {{schema}}.lanes l
+        WHERE
+            l.id IN (
+                SELECT r.lane_id
+                FROM {{schema}}.runtimes r
+                WHERE
+                    r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+                    AND r.lease_expires_at_utc < now()
+                    AND r.namespace_id = p_namespace_id
+                    AND r.lane_id IS NOT NULL
+            )
+            OR l.id = ANY (v_stranded)
+        ORDER BY l.id
+        FOR UPDATE
+    LOOP
+        v_lanes := v_lanes || v_lane_id;
+    END LOOP;
+
+    -- The walk read without locks, so each stranded lane is re-read under its lock and repaired only
+    -- when its lowest-id unfinished member is still Blocked.
+    FOREACH v_lane_id IN ARRAY v_stranded
+    LOOP
+        LOOP
+            v_head_id := NULL;
+            v_head_status := NULL;
+
+            SELECT m.job_id, m.status_code INTO v_head_id, v_head_status
+            FROM {{schema}}.runtimes m
+            WHERE
+                m.lane_id = v_lane_id
+                AND m.lane_id IS NOT NULL
+                AND m.status_code IN (
+                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                    30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                )
+            ORDER BY m.job_id
+            LIMIT 1;
+
+            EXIT WHEN v_head_status IS DISTINCT FROM 15 /* JobStatusCode.Blocked */;
+
+            UPDATE {{schema}}.runtimes pr
+            SET
+                status_code = 10 /* JobStatusCode.Ready */,
+                next_run_at_utc = GREATEST(pr.next_run_at_utc, now()),
+                modified_at_utc = now(),
+                version = pr.version + 1
+            WHERE
+                pr.job_id = v_head_id
+                AND pr.status_code = 15 /* JobStatusCode.Blocked */;
+
+            IF FOUND THEN
+                v_repaired := v_repaired || v_head_id;
+                EXIT;
+            END IF;
+        END LOOP;
+    END LOOP;
+
+    INSERT INTO {{schema}}.events (
+        event_code,
+        created_at_utc,
+        namespace_id,
+        actor_code,
+        actor_key,
+        job_id,
+        job_ref,
+        execution_number,
+        lineage_root_id,
+        definition_id,
+        tenant_id,
+        worker_id,
+        from_status_code,
+        to_status_code,
+        execution_status_code,
+        duration_ms,
+        reason_code,
+        reason_message)
+    SELECT
+        72 /* EventCode.JobResumed */,
+        now(),
+        j.namespace_id,
+        10 /* ActorCode.Sys */,
+        NULL,
+        j.id,
+        j.job_ref,
+        r.execution_number,
+        COALESCE(j.lineage_root_id, j.id),
+        j.definition_id,
+        j.tenant_id,
+        NULL,
+        15 /* JobStatusCode.Blocked */,
+        10 /* JobStatusCode.Ready */,
+        NULL,
+        NULL,
+        67 /* JobEventReasonCode.JobLaneRepaired */,
+        'Lane had no live head; the sys.recovery system job released its lowest Blocked member.'
+    FROM {{schema}}.jobs j
+    INNER JOIN {{schema}}.runtimes r ON r.job_id = j.id
+    WHERE
+        j.id = ANY (v_repaired)
+        AND j.audit_level_code IN (10 /* JobAuditLevelCode.Failures */, 20 /* JobAuditLevelCode.Audit */);
+
     RETURN QUERY
     WITH stuck AS (
         SELECT
@@ -45,6 +212,7 @@ BEGIN
             r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
             AND r.lease_expires_at_utc < now()
             AND r.namespace_id = p_namespace_id
+            AND (r.lane_id IS NULL OR r.lane_id = ANY (v_lanes))
         FOR UPDATE OF r SKIP LOCKED
     ),
     reclaimed AS (
@@ -125,7 +293,47 @@ BEGIN
         FROM reclaimed r
         WHERE r.audit_level_code IN (10 /* JobAuditLevelCode.Failures */, 20 /* JobAuditLevelCode.Audit */)
     )
-    SELECT r.id, r.new_status, r.job_parent_id
+    SELECT r.id, r.new_status, r.job_parent_id, 0::SMALLINT
     FROM reclaimed r;
+
+    -- A head reclaimed to Failed hands its lane on; a head re-armed Ready keeps it. Promotion runs under
+    -- the lane lock and re-reads rather than trusting an update that matched nothing.
+    FOREACH v_lane_id IN ARRAY v_lanes
+    LOOP
+        LOOP
+            v_head_id := NULL;
+            v_head_status := NULL;
+
+            SELECT m.job_id, m.status_code INTO v_head_id, v_head_status
+            FROM {{schema}}.runtimes m
+            WHERE
+                m.lane_id = v_lane_id
+                AND m.lane_id IS NOT NULL
+                AND m.status_code IN (
+                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                    30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                )
+            ORDER BY m.job_id
+            LIMIT 1;
+
+            EXIT WHEN v_head_status IS DISTINCT FROM 15 /* JobStatusCode.Blocked */;
+
+            UPDATE {{schema}}.runtimes pr
+            SET
+                status_code = 10 /* JobStatusCode.Ready */,
+                next_run_at_utc = GREATEST(pr.next_run_at_utc, now()),
+                modified_at_utc = now(),
+                version = pr.version + 1
+            WHERE
+                pr.job_id = v_head_id
+                AND pr.status_code = 15 /* JobStatusCode.Blocked */;
+
+            EXIT WHEN FOUND;
+        END LOOP;
+    END LOOP;
+
+    RETURN QUERY
+    SELECT x.id, 10::SMALLINT /* JobStatusCode.Ready */, NULL::BIGINT, 1::SMALLINT
+    FROM unnest(v_repaired) AS x (id);
 END;
 $$;

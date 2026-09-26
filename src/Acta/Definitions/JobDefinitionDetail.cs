@@ -37,6 +37,7 @@ public sealed record JobDefinitionDetail(
     string? RateLimitOverride,
     string? RateLimitEffective,
     string? RateKey,
+    string? Lane,
     string Backoff,
     string? BackoffOverride,
     string BackoffEffective,

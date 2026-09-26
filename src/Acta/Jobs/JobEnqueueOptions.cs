@@ -34,6 +34,19 @@ public class JobEnqueueOptions
     public string? ConcurrencyKey { get; init; }
 
     /// <summary>
+    /// Lane id: the Jobs of one lane in one namespace run one at a time, in enqueue order, while
+    /// different lanes run in parallel, the equivalent of an SQS FIFO message group. A laned Job waits
+    /// as <see cref="JobStatusCode.Blocked"/> until every older Job of its lane has finished, so a
+    /// retrying, delayed, suspended, or paused Job holds the rest of its lane until it succeeds, fails
+    /// for good, or is cancelled; priority never reorders a lane. Overrides the definition's
+    /// <see cref="JobAttribute.Lane"/> but cannot clear it. A child never inherits a lane, and one whose
+    /// lane equals an unfinished ancestor's is rejected (<see cref="EnqueueRejectionReason.AncestorLane"/>).
+    /// Normalized like <see cref="ConcurrencyKey"/>: trimmed, lowercased, 1 to 128 key characters, and
+    /// never under the reserved <c>sys.</c> prefix.
+    /// </summary>
+    public string? Lane { get; init; }
+
+    /// <summary>
     /// Claim-order priority override. <c>null</c> = the definition's declared priority.
     /// </summary>
     public JobPriorityCode? Priority { get; init; }

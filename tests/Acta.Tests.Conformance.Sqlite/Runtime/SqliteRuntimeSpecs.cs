@@ -88,3 +88,13 @@ public sealed class SqliteWorkerRuntimeDescriptorGateSpec : WorkerRuntimeDescrip
 public sealed class SqliteCompletionSinkBulkFallbackSpec : CompletionSinkBulkFallbackSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteRollingDeploySpec : RollingDeploySpec<SqliteConformanceFixture>;
+
+public sealed class SqliteLaneDirectWorkerLoopSpec : LaneWorkerLoopSpec<SqliteConformanceFixture>
+{
+    protected override ExecutionProfile Profile => ExecutionProfile.Direct;
+}
+
+public sealed class SqliteLaneBufferedWorkerLoopSpec : LaneWorkerLoopSpec<SqliteConformanceFixture>
+{
+    protected override ExecutionProfile Profile => ExecutionProfile.Buffered;
+}

@@ -19,7 +19,21 @@ DECLARE
     v_execution_number INT;
     v_audit_level SMALLINT;
     v_job_ref UUID;
+    v_lane_id BIGINT;
 BEGIN
+    -- Lock order: the lane, then the job's rows (docs/internals/sql-execution-policy.md, "Lane lock
+    -- order"). lane_id never changes, so the unlocked read is safe.
+    SELECT r.lane_id INTO v_lane_id
+    FROM {{schema}}.runtimes r
+    WHERE r.job_id = p_id;
+
+    IF v_lane_id IS NOT NULL THEN
+        PERFORM 1
+        FROM {{schema}}.lanes l
+        WHERE l.id = v_lane_id
+        FOR UPDATE;
+    END IF;
+
     SELECT r.status_code, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id, r.execution_number, j.audit_level_code, j.job_ref, r.version
     INTO v_from_status, v_namespace_id, v_lineage_root_id, v_definition_id, v_tenant_id, v_execution_number, v_audit_level, v_job_ref, v_version
     FROM {{schema}}.runtimes r
@@ -37,10 +51,12 @@ BEGIN
         RETURN;
     END IF;
 
+    -- A Blocked follower may be paused too; a paused member still holds its place in the lane.
     IF v_from_status NOT IN (
         30 /* JobStatusCode.Paused */,
         20 /* JobStatusCode.Suspended */,
-        10 /* JobStatusCode.Ready */
+        10 /* JobStatusCode.Ready */,
+        15 /* JobStatusCode.Blocked */
     ) THEN
         RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status, v_version;
         RETURN;

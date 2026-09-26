@@ -75,6 +75,12 @@ public sealed record JobDescriptor(
     public string? RateKey { get; init; }
 
     /// <summary>
+    /// Default lane for this definition's jobs, from <c>[Job(Lane = ...)]</c>; null means unlaned.
+    /// Code-owned, so it is never overlaid from an operator override.
+    /// </summary>
+    public string? Lane { get; init; }
+
+    /// <summary>
     /// Declared recurring schedules (one per <c>[JobSchedule]</c>). Empty for non-scheduled jobs.
     /// </summary>
     public ImmutableArray<ScheduleDescriptor> Schedules { get; init; } = [];

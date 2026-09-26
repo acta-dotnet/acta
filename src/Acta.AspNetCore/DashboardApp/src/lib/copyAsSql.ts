@@ -57,6 +57,7 @@ export interface JobsSqlFilters {
   jobName?: string;
   correlationKey?: string;
   tenantKey?: string;
+  lane?: string;
 }
 
 export function jobsListSql(filters: JobsSqlFilters, dialect: SqlDialect = {}): string {
@@ -68,6 +69,8 @@ export function jobsListSql(filters: JobsSqlFilters, dialect: SqlDialect = {}): 
   if (text(filters.correlationKey))
     predicates.push({ column: 'correlation_key', op: '=', value: text(filters.correlationKey) });
   if (text(filters.tenantKey)) predicates.push({ column: 'tenant_key', op: '=', value: text(filters.tenantKey) });
+  // Lane names are stored lowercase and the API folds the filter the same way.
+  if (text(filters.lane)) predicates.push({ column: 'lane', op: '=', value: text(filters.lane).toLowerCase() });
   return select(dialect, 'jobs_view', predicates, 'created_at_utc DESC');
 }
 

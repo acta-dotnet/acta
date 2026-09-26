@@ -1,3 +1,6 @@
+-- The result gained lane_promoted, and CREATE OR REPLACE cannot change a return type.
+DROP FUNCTION IF EXISTS {{schema}}.complete_execution;
+
 CREATE OR REPLACE FUNCTION {{schema}}.complete_execution(
     p_id BIGINT,
     p_leased_by_worker_id INT,
@@ -27,7 +30,8 @@ RETURNS TABLE (
     final_status_code SMALLINT,
     final_next_run_at_utc TIMESTAMPTZ,
     db_now TIMESTAMPTZ,
-    parent_released SMALLINT
+    parent_released SMALLINT,
+    lane_promoted SMALLINT
 )
 LANGUAGE plpgsql
 AS $$
@@ -66,9 +70,26 @@ DECLARE
     v_pexec INT;
     v_paudit SMALLINT;
     v_parent_released SMALLINT := 0;
+    v_lane_promoted SMALLINT := 0;
     v_job_ref uuid;
     v_parent_ref uuid;
+    v_lane_id BIGINT;
+    v_head_id BIGINT;
+    v_head_status SMALLINT;
 BEGIN
+    -- Lock order: the lane, then the checkpoint, runtime, and parent rows
+    -- (docs/internals/sql-execution-policy.md, "Lane lock order"). lane_id never changes, so the
+    -- unlocked read is safe.
+    SELECT r.lane_id INTO v_lane_id
+    FROM {{schema}}.runtimes r
+    WHERE r.job_id = p_id;
+
+    IF v_lane_id IS NOT NULL THEN
+        PERFORM 1
+        FROM {{schema}}.lanes l
+        WHERE l.id = v_lane_id
+        FOR UPDATE;
+    END IF;
 
     IF v_signal_suspend THEN
         /* The awaited slot is the only place the deadline lives: this lock re-reads it so the suspend
@@ -128,11 +149,11 @@ BEGIN
         FROM {{schema}}.runtimes r
         WHERE r.job_id = p_id;
         IF v_cur_status IS NULL OR v_cur_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN
-            RETURN QUERY SELECT CAST(3 /* CompleteExecutionAction.AlreadyTerminal */ AS SMALLINT), v_cur_status, v_cur_next_run, now(), CAST(0 AS SMALLINT);
+            RETURN QUERY SELECT CAST(3 /* CompleteExecutionAction.AlreadyTerminal */ AS SMALLINT), v_cur_status, v_cur_next_run, now(), CAST(0 AS SMALLINT), CAST(0 AS SMALLINT);
         ELSIF v_cur_worker IS DISTINCT FROM p_leased_by_worker_id OR v_cur_worker IS NULL THEN
-            RETURN QUERY SELECT CAST(2 /* CompleteExecutionAction.NotOwner */ AS SMALLINT), v_cur_status, v_cur_next_run, now(), CAST(0 AS SMALLINT);
+            RETURN QUERY SELECT CAST(2 /* CompleteExecutionAction.NotOwner */ AS SMALLINT), v_cur_status, v_cur_next_run, now(), CAST(0 AS SMALLINT), CAST(0 AS SMALLINT);
         ELSE
-            RETURN QUERY SELECT CAST(3 /* CompleteExecutionAction.AlreadyTerminal */ AS SMALLINT), v_cur_status, v_cur_next_run, now(), CAST(0 AS SMALLINT);
+            RETURN QUERY SELECT CAST(3 /* CompleteExecutionAction.AlreadyTerminal */ AS SMALLINT), v_cur_status, v_cur_next_run, now(), CAST(0 AS SMALLINT), CAST(0 AS SMALLINT);
         END IF;
         RETURN;
     END IF;
@@ -579,7 +600,48 @@ BEGIN
         END IF;
     END IF;
 
-    RETURN QUERY SELECT CAST(1 /* CompleteExecutionAction.Completed */ AS SMALLINT), v_to_status, v_next_run, now(), v_parent_released;
+    IF v_lane_id IS NOT NULL
+        AND v_to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN
+        -- Promotion under the lane lock (docs/internals/sql-execution-policy.md, "Lane lock order"): the
+        -- lowest-id unfinished member becomes Ready when it is Blocked, at its own due instant or now,
+        -- whichever is later; any other head keeps the lane. The loop re-reads rather than trusting an
+        -- update that matched nothing.
+        LOOP
+            v_head_id := NULL;
+            v_head_status := NULL;
+
+            SELECT m.job_id, m.status_code INTO v_head_id, v_head_status
+            FROM {{schema}}.runtimes m
+            WHERE
+                m.lane_id = v_lane_id
+                AND m.lane_id IS NOT NULL
+                AND m.status_code IN (
+                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                    30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                )
+            ORDER BY m.job_id
+            LIMIT 1;
+
+            EXIT WHEN v_head_status IS DISTINCT FROM 15 /* JobStatusCode.Blocked */;
+
+            UPDATE {{schema}}.runtimes pr
+            SET
+                status_code = 10 /* JobStatusCode.Ready */,
+                next_run_at_utc = GREATEST(pr.next_run_at_utc, now()),
+                modified_at_utc = now(),
+                version = pr.version + 1
+            WHERE
+                pr.job_id = v_head_id
+                AND pr.status_code = 15 /* JobStatusCode.Blocked */;
+
+            IF FOUND THEN
+                v_lane_promoted := 1;
+                EXIT;
+            END IF;
+        END LOOP;
+    END IF;
+
+    RETURN QUERY SELECT CAST(1 /* CompleteExecutionAction.Completed */ AS SMALLINT), v_to_status, v_next_run, now(), v_parent_released, v_lane_promoted;
 END;
 $$;
 

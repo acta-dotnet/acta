@@ -86,3 +86,18 @@ public sealed class SqlServerWorkerRuntimeDescriptorGateSpec : WorkerRuntimeDesc
 public sealed class SqlServerCompletionSinkBulkFallbackSpec : CompletionSinkBulkFallbackSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerRollingDeploySpec : RollingDeploySpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerLaneDirectWorkerLoopSpec : LaneWorkerLoopSpec<SqlServerConformanceFixture>
+{
+    protected override ExecutionProfile Profile => ExecutionProfile.Direct;
+}
+
+public sealed class SqlServerLaneBufferedWorkerLoopSpec : LaneWorkerLoopSpec<SqlServerConformanceFixture>
+{
+    protected override ExecutionProfile Profile => ExecutionProfile.Buffered;
+}
+
+public sealed class SqlServerLaneBulkWorkerLoopSpec : LaneWorkerLoopSpec<SqlServerConformanceFixture>
+{
+    protected override ExecutionProfile Profile => ExecutionProfile.Bulk;
+}

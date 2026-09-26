@@ -970,6 +970,17 @@ internal sealed class JobExecution(
             await _wakeupPublisher.WakeAsync(WorkerWakeupChannel.JobCompletion(job.JobId), WorkerWakeupReason.JobFinished, ct);
         }
 
+        // The settle handed a lane to its next member inside complete_execution; lanes are namespace-scoped,
+        // so the member is claimable in this namespace.
+        if (complete.LanePromoted)
+        {
+            await _wakeupPublisher.WakeAsync(
+                WorkerWakeupChannel.WorkerNamespace(jobContext.JobNamespace),
+                WorkerWakeupReason.WorkAvailable,
+                ct
+            );
+        }
+
         // A terminal child's raise flipped its Suspended parent to Ready inside complete_execution.
         // The routine knows only the parent's numeric namespace id, so wake every worker namespace
         // (same trade as the control verbs' PublishControlWakeAsync).

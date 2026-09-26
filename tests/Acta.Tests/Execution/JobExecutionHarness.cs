@@ -85,6 +85,9 @@ internal sealed class JobExecutionHarness(
             InputFormatId: 0,
             Status: status,
             Priority: JobPriorityCode.Normal,
+            Lane: null,
+            BlockedBehindJobId: null,
+            BlockedBehindJobRef: null,
             NextRunAtUtc: null,
             ExecutionNumber: executionNumber,
             FailureCount: 0,
@@ -620,6 +623,15 @@ internal sealed class JobExecutionHarness(
 
         public Task<JobControlOutcome> PurgeJobAsync(long jobId, JobControlInput input, CancellationToken ct) =>
             throw new NotSupportedException();
+
+        public Task RecordJobRedriveAsync(
+            long jobId,
+            JobRef jobRef,
+            long redriveJobId,
+            JobRef redriveJobRef,
+            JobControlInput input,
+            CancellationToken ct
+        ) => throw new NotSupportedException();
 
         public Task ResetJobStateAsync(long jobId, CancellationToken ct) => throw new NotSupportedException();
     }

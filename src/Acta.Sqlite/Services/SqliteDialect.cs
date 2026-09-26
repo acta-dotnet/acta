@@ -202,6 +202,7 @@ internal sealed class SqliteDialect : ISqlDialect
                 WriteNumberOrNull(writer, "parent_id", row.ParentId);
                 WriteStringOrNull(writer, "tenant_key", row.TenantKey);
                 writer.WriteNumber("tenant_override", row.OverrideParentTenant ? 1 : 0);
+                WriteStringOrNull(writer, "lane", row.Lane);
             }
         );
 
@@ -250,6 +251,7 @@ internal sealed class SqliteDialect : ISqlDialect
         AddNullableInt(command, "@p_parent_id", row.ParentId);
         AddNullableText(command, "@p_tenant_key", row.TenantKey);
         AddInt(command, "@p_tenant_override", row.OverrideParentTenant ? 1 : 0);
+        AddNullableText(command, "@p_lane", row.Lane);
 
         var jsonTags = JsonArray(
             row.Tags ?? [],
@@ -284,6 +286,7 @@ internal sealed class SqliteDialect : ISqlDialect
                 WriteNumberOrNull(writer, "concurrency_limit", row.ConcurrencyLimit);
                 WriteStringOrNull(writer, "rate_limit", row.RateLimit);
                 WriteStringOrNull(writer, "rate_key", row.RateKey);
+                WriteStringOrNull(writer, "lane", row.Lane);
                 writer.WriteString("backoff", row.Backoff);
                 writer.WriteNumber("execution_timeout_seconds", row.ExecutionTimeoutSeconds);
                 writer.WriteNumber("deadline_seconds", row.DeadlineSeconds);

@@ -3,6 +3,7 @@ using System.Globalization;
 using Acta.Runtime.Kernel;
 using Acta.Runtime.Modules.Execution.Api;
 using Acta.Runtime.Modules.Execution.ChildLatches;
+using Acta.Runtime.Modules.Execution.Jobs;
 using Acta.Runtime.Modules.Execution.Signals;
 using Acta.Runtime.Modules.Execution.Workers;
 using Acta.Runtime.Querying;
@@ -16,7 +17,12 @@ namespace Acta.Runtime.Modules.Execution.Definitions;
 /// steady-state restart issue zero writes). Provider stores receive resolved rows and validated
 /// commands; the database keeps the per-row generation/hash gate.
 /// </summary>
-internal sealed class DefinitionsService(IDefinitionStore store, WorkerWakeupPublisher wakeupPublisher, ISignalStore signalStore)
+internal sealed class DefinitionsService(
+    IDefinitionStore store,
+    WorkerWakeupPublisher wakeupPublisher,
+    ISignalStore signalStore,
+    IJobStore jobStore
+)
 {
     private const string OrderDefinitions = "namespace asc, name asc, id asc";
     private const string ListOperationName = "ListJobDefinitions";
@@ -309,6 +315,29 @@ internal sealed class DefinitionsService(IDefinitionStore store, WorkerWakeupPub
             }
         }
 
+        // A laned job is cancelled one at a time through cancel_job, which takes its lane before the row
+        // and hands the lane to the next member, which may belong to a definition still in service.
+        var input = new JobControlInput(
+            actor,
+            JobEventReasonCode.JobDefinitionRetired,
+            reasonMessage.Truncate(ActaTextLimits.ReasonMessage)
+        );
+        foreach (var jobId in outcome.LanedJobs)
+        {
+            var cancel = await jobStore.CancelJobAsync(jobId, input, ct);
+            if (cancel.Outcome.Action != JobControlActionInternal.Applied)
+            {
+                continue;
+            }
+
+            released = true;
+            await wakeupPublisher.WakeAsync(WorkerWakeupChannel.JobCompletion(jobId), WorkerWakeupReason.JobFinished, ct);
+            if (cancel.ParentId is { } parent)
+            {
+                await RaiseChildLatch.Run(signalStore, jobId, parent, JobStatusCode.Cancelled, ct);
+            }
+        }
+
         if (released)
         {
             await wakeupPublisher.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct);
@@ -450,6 +479,19 @@ internal sealed class DefinitionsService(IDefinitionStore store, WorkerWakeupPub
             IdentifierSyntax.ValidateKebab(rateKey, nameof(descriptor.RateKey), JobDefinitionRegistration.MaxRateKeyLength);
         }
 
+        if (descriptor.Lane is { } lane)
+        {
+            IdentifierSyntax.NormalizeKey(lane, nameof(descriptor.Lane));
+            if (!descriptor.Schedules.IsDefaultOrEmpty)
+            {
+                throw new ArgumentException(
+                    $"Job definition \"{descriptor.JobName}\" (namespace {namespaceLabel}) declares the lane \"{lane}\" and a schedule. "
+                        + "A recurring slot never finishes, so it would hold its lane forever; drop the lane, or enqueue laned work "
+                        + "from the scheduled job."
+                );
+            }
+        }
+
         var executionTimeout = descriptor.ExecutionTimeoutSeconds ?? JobDefinitionRegistration.DefaultExecutionTimeoutSeconds;
         if (executionTimeout > JobDefinitionRegistration.MaxExecutionTimeoutSeconds)
         {
@@ -579,6 +621,7 @@ internal sealed class DefinitionsService(IDefinitionStore store, WorkerWakeupPub
         // key and one hash. Null stays null: no rate is a real state, not a rate of zero.
         var rateLimit = descriptor.Rate?.Text;
         var rateKey = descriptor.RateKey;
+        var lane = descriptor.Lane is { } declaredLane ? IdentifierSyntax.NormalizeKey(declaredLane, nameof(descriptor.Lane)) : null;
         var backoff = descriptor.Backoff ?? JobDefinitionRegistration.DefaultBackoffExpression;
         var executionTimeout = descriptor.ExecutionTimeoutSeconds ?? JobDefinitionRegistration.DefaultExecutionTimeoutSeconds;
         var deadlineSeconds = descriptor.DeadlineSeconds ?? 0;
@@ -623,7 +666,8 @@ internal sealed class DefinitionsService(IDefinitionStore store, WorkerWakeupPub
             contract.InputFormatId.ToString(c),
             contract.InputFormatName,
             contract.OutputFormatId.ToString(c),
-            contract.OutputFormatName
+            contract.OutputFormatName,
+            lane
         );
 
         return new JobDefinitionRow(
@@ -633,6 +677,7 @@ internal sealed class DefinitionsService(IDefinitionStore store, WorkerWakeupPub
             ConcurrencyLimit: concurrencyLimit,
             RateLimit: rateLimit,
             RateKey: rateKey,
+            Lane: lane,
             Backoff: backoff,
             ExecutionTimeoutSeconds: executionTimeout,
             DeadlineSeconds: deadlineSeconds,

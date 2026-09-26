@@ -50,7 +50,7 @@ WHERE
     j.id = @p_id
     AND j.audit_level_code = 20 /* JobAuditLevelCode.Audit */
     AND (@p_expected_version IS NULL OR r.version = @p_expected_version)
-    AND r.status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */);
+    AND r.status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */);
 
 UPDATE {{schema}}.runtimes
 SET
@@ -60,25 +60,25 @@ SET
 WHERE
     job_id = @p_id
     AND (@p_expected_version IS NULL OR version = @p_expected_version)
-    AND status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */);
+    AND status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */);
 
 SELECT
     CASE
         WHEN s.id IS NULL THEN 2 /* ControlAction.NotFound */
         WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN 5 /* ControlAction.VersionConflict */
-        WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */) THEN 1 /* ControlAction.Applied */
+        WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */) THEN 1 /* ControlAction.Applied */
         ELSE 3 /* ControlAction.Rejected */
     END AS action,
     CASE
         WHEN s.id IS NULL THEN NULL
         WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN s.from_status
-        WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */) THEN 30 /* JobStatusCode.Paused */
+        WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */) THEN 30 /* JobStatusCode.Paused */
         ELSE s.from_status
     END AS status_code,
     CASE
         WHEN s.id IS NULL THEN NULL
         WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN s.from_version
-        WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */) THEN s.from_version + 1
+        WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */) THEN s.from_version + 1
         ELSE s.from_version
     END AS version
 FROM (SELECT @p_id AS qid) q

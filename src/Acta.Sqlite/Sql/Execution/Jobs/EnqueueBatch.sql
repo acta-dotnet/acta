@@ -100,33 +100,48 @@ WHERE EXISTS (
         AND pj.tenant_id <> t.id
 );
 
-INSERT INTO {{schema}}.jobs (
-    job_ref, lineage_root_id, parent_id, deduplication_key, correlation_key,
-    namespace_id, definition_id, tenant_id,
-    input_format_id, input, concurrency_key, audit_level_code
-)
-SELECT
-    JSON_EXTRACT(r.value, '$.job_ref'),
-    NULL,
-    NULL,
-    JSON_EXTRACT(r.value, '$.deduplication_key'),
-    JSON_EXTRACT(r.value, '$.correlation_key'),
-    ns.id,
-    jd.id,
-    (
-        SELECT t.id FROM {{schema}}.tenants t
-        WHERE t.tenant_key = JSON_EXTRACT(r.value, '$.tenant_key') AND t.status_code = 10 /* TenantStatusCode.Active */
-    ),
-    JSON_EXTRACT(r.value, '$.input_format_id'),
-    ACTA_BLOB(JSON_EXTRACT(r.value, '$.input')),
-    JSON_EXTRACT(r.value, '$.concurrency_key'),
-    jd.audit_level_code_effective
+-- The immediate transaction is the lanes' mutex on SQLite: it serializes this batch against every
+-- settle and enqueue, so Ready versus Blocked below is decided on a stable member set.
+INSERT INTO {{schema}}.lanes (namespace_id, name)
+SELECT DISTINCT ns.id, COALESCE(JSON_EXTRACT(r.value, '$.lane'), jd.lane)
 FROM JSON_EACH(@p_rows) r
 JOIN {{schema}}.namespaces ns ON ns.name = JSON_EXTRACT(r.value, '$.namespace_name')
 JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = JSON_EXTRACT(r.value, '$.job_name')
-WHERE JSON_EXTRACT(r.value, '$.parent_id') IS NULL
-ON CONFLICT (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_id IS NULL DO NOTHING;
+WHERE COALESCE(JSON_EXTRACT(r.value, '$.lane'), jd.lane) IS NOT NULL
+ON CONFLICT (namespace_id, name) DO NOTHING;
 
+SELECT
+    ACTA_ERROR(
+        'ACTA:ENQ_ANCESTOR_LANE:Enqueue rejected: one or more child rows name the lane of an unfinished'
+        || ' ancestor, so they would wait behind the ancestor that waits for them.'
+    )
+WHERE EXISTS (
+    WITH RECURSIVE ancestors (lane_id, id, parent_id) AS (
+        SELECT l.id, a.id, a.parent_id
+        FROM JSON_EACH(@p_rows) r
+        JOIN {{schema}}.namespaces ns ON ns.name = JSON_EXTRACT(r.value, '$.namespace_name')
+        JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = JSON_EXTRACT(r.value, '$.job_name')
+        JOIN {{schema}}.lanes l ON l.namespace_id = ns.id AND l.name = COALESCE(JSON_EXTRACT(r.value, '$.lane'), jd.lane)
+        JOIN {{schema}}.jobs a ON a.id = JSON_EXTRACT(r.value, '$.parent_id')
+        UNION ALL
+        SELECT c.lane_id, a.id, a.parent_id
+        FROM {{schema}}.jobs a
+        JOIN ancestors c ON a.id = c.parent_id
+    )
+    SELECT 1
+    FROM ancestors c
+    JOIN {{schema}}.runtimes ar ON ar.job_id = c.id
+    WHERE
+        ar.lane_id = c.lane_id
+        AND ar.status_code IN (
+            10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+            30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+        )
+);
+
+-- One ordered insert for roots and children alike, so job-id order equals the caller's batch order,
+-- which is the order a lane runs in. The untargeted DO NOTHING skips a row that repeats a
+-- deduplication key under either unique index.
 INSERT INTO {{schema}}.jobs (
     job_ref, lineage_root_id, parent_id, deduplication_key, correlation_key,
     namespace_id, definition_id, tenant_id,
@@ -134,8 +149,8 @@ INSERT INTO {{schema}}.jobs (
 )
 SELECT
     JSON_EXTRACT(r.value, '$.job_ref'),
-    COALESCE(pj.lineage_root_id, pj.id),
-    JSON_EXTRACT(r.value, '$.parent_id'),
+    CASE WHEN pj.id IS NOT NULL THEN COALESCE(pj.lineage_root_id, pj.id) END,
+    pj.id,
     JSON_EXTRACT(r.value, '$.deduplication_key'),
     COALESCE(JSON_EXTRACT(r.value, '$.correlation_key'), pj.correlation_key),
     ns.id,
@@ -157,13 +172,20 @@ SELECT
 FROM JSON_EACH(@p_rows) r
 JOIN {{schema}}.namespaces ns ON ns.name = JSON_EXTRACT(r.value, '$.namespace_name')
 JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = JSON_EXTRACT(r.value, '$.job_name')
-JOIN {{schema}}.jobs pj ON pj.id = JSON_EXTRACT(r.value, '$.parent_id')
-WHERE JSON_EXTRACT(r.value, '$.parent_id') IS NOT NULL
-ON CONFLICT (parent_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_id IS NOT NULL DO NOTHING;
+LEFT JOIN {{schema}}.jobs pj ON pj.id = JSON_EXTRACT(r.value, '$.parent_id')
+WHERE
+    JSON_EXTRACT(r.value, '$.parent_id') IS NULL
+    OR pj.id IS NOT NULL
+ORDER BY JSON_EXTRACT(r.value, '$.ordinal')
+ON CONFLICT DO NOTHING;
 
+-- A laned row enters Ready only as the first inserted row of its lane with no unfinished member
+-- already there; every later one waits as Blocked. The existence probe reads the table before this
+-- statement's own rows land, so the batch's rows are ranked by the window instead.
 INSERT INTO {{schema}}.runtimes (
     job_id,
     namespace_id,
+    lane_id,
     status_code,
     priority_code,
     next_run_at_utc,
@@ -176,7 +198,27 @@ INSERT INTO {{schema}}.runtimes (
 SELECT
     j.id,
     j.namespace_id,
-    10 /* JobStatusCode.Ready */,
+    l.id,
+    CASE
+        WHEN
+            l.id IS NOT NULL
+            AND (
+                ROW_NUMBER() OVER (PARTITION BY l.id ORDER BY j.id) > 1
+                OR EXISTS (
+                    SELECT 1
+                    FROM {{schema}}.runtimes m
+                    WHERE
+                        m.lane_id = l.id
+                        AND m.lane_id IS NOT NULL
+                        AND m.status_code IN (
+                            10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                            30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                        )
+                )
+            )
+            THEN 15 /* JobStatusCode.Blocked */
+        ELSE 10 /* JobStatusCode.Ready */
+    END,
     COALESCE(JSON_EXTRACT(r.value, '$.priority_override'), jd.priority_code_effective),
     COALESCE(
         JSON_EXTRACT(r.value, '$.next_run_at_utc'),
@@ -190,6 +232,7 @@ SELECT
 FROM JSON_EACH(@p_rows) r
 JOIN {{schema}}.jobs j ON j.job_ref = JSON_EXTRACT(r.value, '$.job_ref')
 JOIN {{schema}}.definitions jd ON jd.id = j.definition_id
+LEFT JOIN {{schema}}.lanes l ON l.namespace_id = j.namespace_id AND l.name = COALESCE(JSON_EXTRACT(r.value, '$.lane'), jd.lane)
 WHERE NOT EXISTS (
     SELECT 1 FROM {{schema}}.runtimes x
     WHERE x.job_id = j.id

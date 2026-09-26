@@ -17,7 +17,8 @@ SELECT
     pjob.job_ref AS parent_job_ref,
     rjob.job_ref AS lineage_root_job_ref,
     j.tenant_id,
-    t.tenant_key
+    t.tenant_key,
+    lane.name
 FROM {{schema}}.jobs j
 JOIN {{schema}}.runtimes r ON r.job_id = j.id
 JOIN {{schema}}.namespaces ns ON ns.id = j.namespace_id
@@ -25,6 +26,7 @@ JOIN {{schema}}.definitions jd ON jd.id = j.definition_id
 LEFT JOIN {{schema}}.jobs pjob ON pjob.id = j.parent_id
 LEFT JOIN {{schema}}.jobs rjob ON rjob.id = j.lineage_root_id
 LEFT JOIN {{schema}}.tenants t ON t.id = j.tenant_id
+LEFT JOIN {{schema}}.lanes lane ON lane.id = r.lane_id
 WHERE
     (@p_namespace_name IS NULL OR ns.name = @p_namespace_name)
     AND (@p_status_code IS NULL OR r.status_code = @p_status_code)
@@ -49,6 +51,7 @@ WHERE
         @p_terminal_only IS NULL
         OR r.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
     )
+    AND (@p_lane_filter IS NULL OR r.lane_id IN (SELECT l.id FROM {{schema}}.lanes l WHERE l.name = @p_lane_filter))
     AND (@p_recurring_only IS NULL OR EXISTS (
         SELECT 1
         FROM {{schema}}.schedules s
@@ -91,6 +94,7 @@ SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
             @p_terminal_only IS NULL
             OR r.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
         )
+        AND (@p_lane_filter IS NULL OR r.lane_id IN (SELECT l.id FROM {{schema}}.lanes l WHERE l.name = @p_lane_filter))
         AND (@p_recurring_only IS NULL OR EXISTS (
             SELECT 1
             FROM {{schema}}.schedules s

@@ -24,6 +24,7 @@ SELECT
     jd.rate_limit_override,
     jd.rate_limit_effective,
     jd.rate_key,
+    jd.lane,
     jd.backoff,
     jd.backoff_override,
     jd.backoff_effective,

@@ -30,6 +30,11 @@ public sealed record JobDetail(
     byte InputFormatId,
     JobStatusCode Status,
     JobPriorityCode Priority,
+    // The lane the job runs in, or null. While the job is Blocked, BlockedBehind names the lane's
+    // lowest-id unfinished member, the one whose settle moves the lane on.
+    string? Lane,
+    [property: JsonIgnore] long? BlockedBehindJobId,
+    JobRef? BlockedBehindJobRef,
     DateTime? NextRunAtUtc,
     int ExecutionNumber,
     int FailureCount,

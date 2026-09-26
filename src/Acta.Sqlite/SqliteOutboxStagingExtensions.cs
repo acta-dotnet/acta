@@ -53,6 +53,7 @@ public static class SqliteOutboxStagingExtensions
         p.Add(new SqliteParameter("@deduplication_key", SqliteType.Text) { Value = row.DeduplicationKey });
         p.Add(new SqliteParameter("@correlation_key", SqliteType.Text) { Value = (object?)row.CorrelationKey ?? DBNull.Value });
         p.Add(new SqliteParameter("@concurrency_key", SqliteType.Text) { Value = (object?)row.ConcurrencyKey ?? DBNull.Value });
+        p.Add(new SqliteParameter("@lane", SqliteType.Text) { Value = (object?)row.Lane ?? DBNull.Value });
         p.Add(
             new SqliteParameter("@priority_code", SqliteType.Integer) { Value = row.PriorityCode is { } code ? (long)code : DBNull.Value }
         );

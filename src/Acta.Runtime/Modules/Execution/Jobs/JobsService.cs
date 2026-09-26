@@ -153,6 +153,7 @@ internal sealed class JobsService(
         // Tri-state flags: only true restricts, so false folds to null before hashing and binding.
         var terminalOnly = query.TerminalOnly == true ? (bool?)true : null;
         var recurringOnly = query.RecurringOnly == true ? (bool?)true : null;
+        var lane = string.IsNullOrWhiteSpace(query.Lane) ? null : IdentifierSyntax.NormalizeKeyLookup(query.Lane, nameof(query.Lane));
 
         var filterHash = QueryFilterHash.Compute([
             ("ns", query.JobNamespace),
@@ -165,6 +166,7 @@ internal sealed class JobsService(
             ("tags", tagFiltersJson),
             ("terminal", terminalOnly is null ? null : "1"),
             ("recurring", recurringOnly is null ? null : "1"),
+            ("lane", lane),
         ]);
 
         DateTime? cursorCreatedAtUtc = null;
@@ -196,6 +198,7 @@ internal sealed class JobsService(
                 tagFiltersJson,
                 terminalOnly,
                 recurringOnly,
+                lane,
                 cursorCreatedAtUtc,
                 cursorId,
                 pageSize + 1,
@@ -464,13 +467,14 @@ internal sealed class JobsService(
         if (result.Action == ControlAction.Applied)
         {
             await wakeupPublisher.WakeAsync(WorkerWakeupChannel.JobCompletion(result.JobId), WorkerWakeupReason.JobFinished, ct);
-            if (
-                cancel.ParentId is { } parentId
-                && await RaiseChildLatch.Run(signalStore, jobId.Value, parentId, JobStatusCode.Cancelled, ct)
-            )
+            if (cancel.ParentId is { } parentId)
             {
-                await wakeupPublisher.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct);
+                await RaiseChildLatch.Run(signalStore, jobId.Value, parentId, JobStatusCode.Cancelled, ct);
             }
+
+            // A cancel can release a parent and, for a laned job, promote the lane's next member; the
+            // routine knows neither namespace name, so every worker namespace hears it.
+            await wakeupPublisher.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct);
         }
 
         if (result.Status == JobStatusCode.Cancelled)
@@ -542,8 +546,87 @@ internal sealed class JobsService(
             },
             ct
         );
+        if (
+            result is { Action: ControlAction.Rejected, Status: JobStatusCode.Succeeded or JobStatusCode.Failed or JobStatusCode.Cancelled }
+        )
+        {
+            return await RedriveAsync(result, reasonMessage, actorKey, expectedVersion, ct);
+        }
+
         await PublishControlWakeAsync(result, ct);
         return result;
+    }
+
+    /// <summary>
+    /// restart_job refuses to reopen a finished laned job in place, which would put it ahead of members
+    /// that ran after it. The job is re-enqueued instead, through the ordinary enqueue path, so it joins
+    /// the lane's tail, and the finished row stays as history. The copy keeps the definition, input,
+    /// namespace, tenant, lane, priority, and correlation and concurrency keys; it drops the dedup key,
+    /// which the finished row still holds, and the parent, whose wait that row already settled.
+    /// </summary>
+    private async ValueTask<JobControlResult> RedriveAsync(
+        JobControlResult refused,
+        string? reasonMessage,
+        string? actorKey,
+        int? expectedVersion,
+        CancellationToken ct
+    )
+    {
+        var finished = await store.GetJobAsync(refused.JobId, ct);
+        if (finished?.Lane is null || finished.Status != refused.Status)
+        {
+            return refused;
+        }
+
+        if (expectedVersion is { } expected && expected != finished.Version)
+        {
+            return new JobControlResult(finished.JobId, ControlAction.VersionConflict, finished.Status, finished.Version);
+        }
+
+        var input = await store.GetJobInputAsync(finished.JobId, ct);
+        var payload =
+            input is null || input.FormatId == JobPayloadFormat.None.Id
+                ? JobPayload.None
+                : JobPayload.CopyBytes(JobPayloadFormat.ForId(input.FormatId), input.Data.Span);
+        JobEnqueueOutcome redrive;
+        try
+        {
+            redrive = await EnqueueAsync(
+                new JobEnqueueRequest(
+                    finished.JobNamespace,
+                    finished.JobName,
+                    payload,
+                    CorrelationKey: finished.CorrelationKey,
+                    ConcurrencyKey: finished.ConcurrencyKey,
+                    Priority: finished.Priority,
+                    TenantKey: finished.TenantKey,
+                    Lane: finished.Lane
+                ),
+                ct
+            );
+        }
+        catch (EnqueueRejectedException)
+        {
+            // A retired definition or a suspended namespace or tenant refuses the copy as it would any enqueue.
+            return refused;
+        }
+
+        await store.RecordJobRedriveAsync(
+            finished.JobId,
+            finished.JobRef,
+            redrive.JobId,
+            redrive.JobRef,
+            Input(reasonMessage, actorKey, expectedVersion),
+            ct
+        );
+        return new JobControlResult(
+            finished.JobId,
+            ControlAction.Applied,
+            finished.Status,
+            finished.Version,
+            redrive.JobId,
+            redrive.JobRef
+        );
     }
 
     public async ValueTask<JobControlResult> RescheduleAsync(
@@ -620,6 +703,7 @@ internal sealed class JobsService(
         ("ACTA:ENQ_TENANT_REQUIRED:", EnqueueRejectionReason.TenantRequired),
         ("ACTA:ENQ_TENANT_FORBIDDEN:", EnqueueRejectionReason.TenantForbidden),
         ("ACTA:ENQ_TENANT_MISMATCH:", EnqueueRejectionReason.TenantMismatch),
+        ("ACTA:ENQ_ANCESTOR_LANE:", EnqueueRejectionReason.AncestorLane),
     ];
 
     private static EnqueueRejectedException? TryTranslateEnqueue(DbException ex)
@@ -665,7 +749,8 @@ internal sealed class JobsService(
             DelaySeconds: request.DelaySeconds,
             ParentId: request.ParentJobId,
             TenantKey: request.TenantKey,
-            OverrideParentTenant: request.OverrideParentTenant
+            OverrideParentTenant: request.OverrideParentTenant,
+            Lane: request.Lane
         );
     }
 

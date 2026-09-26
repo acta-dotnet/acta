@@ -26,6 +26,7 @@ public sealed class JobRequestBuilder
     private string? _deduplicationKey;
     private string? _correlationKey;
     private string? _concurrencyKey;
+    private string? _lane;
     private JobPriorityCode? _priority;
     private DateTime? _nextRunAtUtc;
     private int? _delaySeconds;
@@ -133,6 +134,17 @@ public sealed class JobRequestBuilder
     {
         concurrencyKey = IdentifierSyntax.NormalizeKey(concurrencyKey, nameof(concurrencyKey));
         _concurrencyKey = concurrencyKey;
+        return this;
+    }
+
+    /// <summary>
+    /// Place the Job in a lane: the lane's Jobs in this namespace run one at a time, in enqueue order,
+    /// and different lanes run in parallel. The id is normalized like a concurrency key. See
+    /// <see cref="JobEnqueueOptions.Lane"/>.
+    /// </summary>
+    public JobRequestBuilder Lane(string id)
+    {
+        _lane = IdentifierSyntax.NormalizeKey(id, nameof(id));
         return this;
     }
 
@@ -258,6 +270,7 @@ public sealed class JobRequestBuilder
         {
             Tags = SnapshotTags(),
             ConcurrencyKey = _concurrencyKey,
+            Lane = _lane,
             NextRunAtUtc = _nextRunAtUtc,
             DelaySeconds = _delaySeconds,
             ParentJobId = _parentId,

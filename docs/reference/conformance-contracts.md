@@ -1380,6 +1380,120 @@
   - RunAndWaitAsync observes a colocated completion at wake speed
   - A re-arming completion wakes the loop for its own retry
 
+## Lanes
+
+### A child in the lane of an unfinished ancestor is rejected
+- **Contract:** An enqueue whose effective lane equals the lane of an unfinished ancestor is rejected with AncestorLane, and a child never inherits its parent's lane.
+- **Arrange:** An unfinished laned parent, an unlaned child of it, and a laned definition parent exist in a private namespace.
+- **Act:** Children and grandchildren are enqueued single and batched into the ancestors' lanes, another lane, and no lane.
+- **Assert:** Every enqueue into an unfinished ancestor's lane is rejected with AncestorLane and every other enqueue lands.
+- **Guarantees:**
+  - A child in its parent's lane is rejected, in another lane or none it lands, and it inherits no lane
+  - A grandchild in its grandparent's lane is rejected, single and batched
+  - A child whose definition lane equals its unfinished parent's lane is rejected
+  - A finished ancestor's lane is open to its descendants
+- **Store methods:**
+  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueBatchAsync`
+  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueOneAsync`
+
+### Operator verbs keep a lane's order
+- **Contract:** Pause, resume, reschedule, restart, and reprioritize on a laned job never let it run ahead of an older unfinished member of its lane.
+- **Arrange:** A laned head with Blocked followers sits in a private namespace.
+- **Act:** Followers are paused, resumed, rescheduled, restarted, and reprioritized while the head is unfinished, then the head completes.
+- **Assert:** No follower became Ready while an older member was unfinished, and a paused member held the lane until it was resumed.
+- **Guarantees:**
+  - A paused follower holds the lane after the head finishes, and resuming it makes it the head
+  - Resume, reschedule, and restart leave a follower Blocked while an older member is unfinished
+  - A rescheduled follower keeps its later instant when it is promoted
+- **Store methods:**
+  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.PauseJobAsync`
+  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.ResumeJobAsync`
+
+### Operations racing on one lane serialize on the lane lock without deadlocking
+- **Contract:** Concurrent enqueues, completions, and cancels on a lane take the lane lock first, so a younger enqueue waits for an older open one and none of them deadlocks.
+- **Arrange:** Laned jobs sit in a private namespace, and deadlock retry is off so a deadlock victim surfaces.
+- **Act:** Open transactions, parent enqueues, completions, cancels, and batches with opposite lane orders race on shared lanes, many times over.
+- **Assert:** Every operation succeeds, the older transaction's job leads its lane, and each lane ends in a consistent state.
+- **Guarantees:**
+  - A younger enqueue waits for an older open transaction on the same lane and lands behind it
+  - A parent enqueuing a child into a lane never deadlocks with an older child of that lane completing
+  - Cancelling a Blocked follower never deadlocks with its head completing
+  - Two enqueue batches naming shared lanes in opposite orders never deadlock with a completing head
+- **Store methods:**
+  - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
+
+### A lane runs its jobs one at a time in enqueue order
+- **Contract:** Jobs of one lane run one at a time in job-id order, each settle promoting the next unfinished member, and no retry, delay, or priority reorders them.
+- **Arrange:** Laned probe jobs are enqueued singly and in batches into a private namespace, with heads that retry, fail for good, carry a delay, or are cancelled.
+- **Act:** The runtime drains the namespace one tick at a time, and operators cancel heads and followers.
+- **Assert:** Each lane's probes ran in enqueue order, only the lane head was ever Ready, and each settle made the next unfinished member the head.
+- **Guarantees:**
+  - A lane runs its jobs in enqueue order, one at a time, whatever their priority
+  - A retrying head holds its lane until it succeeds
+  - A head that fails for good promotes the next member
+  - Cancelling a follower promotes nothing; cancelling the head promotes the next live member
+  - A delayed head blocks newer members, which stay out of the claim and its horizon
+  - A batch lands its lane members in batch order
+  - Lane names fold like concurrency keys: names that differ only in case are one lane
+  - A lane outside the key alphabet is refused at enqueue
+  - A definition lane orders its jobs, and an enqueue lane overrides it
+- **Store methods:**
+  - `Acta.Runtime.Modules.Execution.IExecutionStore.ClaimBatchAsync`
+
+### Job reads name the lane and the member a Blocked job waits behind
+- **Contract:** A job read carries its lane and, while Blocked, the lane's lowest-id unfinished member, and the jobs list filters by lane.
+- **Arrange:** Two lanes and an unlaned job are enqueued into a private namespace, so each lane holds a head and a Blocked follower.
+- **Act:** Each job is read, and the namespace's jobs are listed with a lane filter spelled in another case.
+- **Assert:** Laned jobs carry their lane, only the follower names its head, and the filtered list holds exactly that lane's jobs.
+- **Guarantees:**
+  - A Blocked follower reads its lane and the head it waits behind
+  - The jobs list filters by lane, folding the filter's case
+
+### Restarting a finished laned job redrives it at the lane's tail
+- **Contract:** A restart of a finished laned job enqueues a copy at its lane's tail, keeps the finished row, links both by events, and returns the new job.
+- **Arrange:** A laned head has run to Succeeded while a follower behind it is still unfinished.
+- **Act:** An operator restarts the finished head.
+- **Assert:** A new job with the same definition, input, lane, and priority waits behind the follower, the old row stays Succeeded, and each row's event names the other.
+- **Guarantees:**
+  - A restarted finished head is redriven behind the lane's unfinished follower
+  - A restarted finished job in an idle lane is redriven Ready
+- **Store methods:**
+  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.RecordJobRedriveAsync`
+
+### Every settle of a lane head promotes the next member
+- **Contract:** A laned head settled by reclaim, retire, or batch completion hands its lane to the next member, and a promoting completion wakes the namespace.
+- **Arrange:** Laned heads with Blocked followers sit in a private namespace, one lane per path.
+- **Act:** The head is reclaimed to Failed, cancelled by a definition retire, completed under Bulk, or completed with a recording wakeup.
+- **Assert:** The follower is Ready or has run after each settle, and the promoting completion published a worker-namespace wake.
+- **Guarantees:**
+  - A head reclaimed to Failed promotes the next member
+  - Retiring the head's definition cancels the head and promotes a member of another definition
+  - A completion that promotes a member wakes the namespace's claim loops
+  - A completion that promotes nothing wakes no claim loop
+- **Store methods:**
+  - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
+  - `Acta.Runtime.Modules.Execution.IExecutionStore.ReclaimStuckJobsAsync`
+
+### The recovery pass releases the Blocked head of a stranded lane
+- **Contract:** A recovery pass promotes the lowest Blocked member of a lane with no live head, records why, and wakes the namespace, leaving lanes with a live head alone.
+- **Arrange:** Laned heads with Blocked followers sit in a private namespace, one head hand-set to Succeeded and the others Ready, Paused, or Suspended.
+- **Act:** One recovery pass runs for the namespace.
+- **Assert:** Only the stranded lane's follower is Ready, with a sys event carrying job.lane-repaired and a namespace wake.
+- **Guarantees:**
+  - A lane whose head was hand-set to Succeeded is repaired by one pass, with its event and a wake
+  - A lane with a Ready head is left untouched by the pass
+  - A lane whose head is Paused or Suspended is held, not stranded, and the pass leaves it
+- **Store methods:**
+  - `Acta.Runtime.Modules.Execution.IExecutionStore.ReclaimStuckJobsAsync`
+
+### A worker loop with several executors keeps one member of a lane in flight
+- **Contract:** Under a worker loop with several executors each lane runs one member at a time in enqueue order while different lanes run in parallel.
+- **Arrange:** Two lanes of probe jobs are enqueued in one batch into a private namespace served by a multi-executor worker.
+- **Act:** The worker loop drains the namespace.
+- **Assert:** Every probe ran once, each lane in enqueue order, and no lane ever had two probes running at once.
+- **Guarantees:**
+  - Each lane drains in order with one member in flight while lanes run in parallel
+
 ## Locks
 
 ### Acquire lands a lease row and blocks a competing acquire on a live key
@@ -2811,22 +2925,22 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IDefinitionStore.SetDefinitionOverridesAsync` | Definition override bind matrix: all 13 slots<br>Override writes are version-guarded, recompute effective, and audited |
 | `IExecutionStore.ArmOrConsumeSleepTimerAsync` | Reschedule re-arms Ready and durable sleep arms an idempotent timer |
 | `IExecutionStore.CheckpointSlotAsync` | A bounded group wait spends one stored deadline across every child and replay<br>Job variables round-trip through the context API with versioning and validation |
-| `IExecutionStore.ClaimBatchAsync` | A Buffered worker with every executor held still runs the recovery sweep<br>A job registers, enqueues, claims, executes, persists and reads back<br>A paused slot does not fire and a timed pause auto-resumes at its expiry<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>At most one same-key handler executes, admitted at execution time<br>Claim caps at the batch size, reports the horizon, and skips excluded rows<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Rows waiting behind a full Buffered channel are not released as orphans |
+| `IExecutionStore.ClaimBatchAsync` | A Buffered worker with every executor held still runs the recovery sweep<br>A job registers, enqueues, claims, executes, persists and reads back<br>A lane runs its jobs one at a time in enqueue order<br>A paused slot does not fire and a timed pause auto-resumes at its expiry<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>At most one same-key handler executes, admitted at execution time<br>Claim caps at the batch size, reports the horizon, and skips excluded rows<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Rows waiting behind a full Buffered channel are not released as orphans |
 | `IExecutionStore.ClaimOneAsync` | A claim whose answer was lost is returned to Ready by the heartbeat<br>CLI verbs map onto IJobs and debug runs the targeted job in-process |
-| `IExecutionStore.CompleteExecutionAsync` | A bounded child wait expires, cancels its subtree, and leaves the parent running<br>A claim with no handler is handed back, and its definition is not claimed again<br>A job registers, enqueues, claims, executes, persists and reads back<br>A paused slot does not fire and a timed pause auto-resumes at its expiry<br>A raise inside the suspend handoff lands the job Ready, not Suspended<br>A recurring job whose handler throws raises an alert<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>An operator pause landing inside a planned fire keeps the schedule paused<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Completing an in-flight attempt respects schedule changes made while it ran<br>Handler Fail Cancel Pause finalize the attempt without returning to user code<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Reschedule re-arms Ready and durable sleep arms an idempotent timer<br>StartExecution and CompleteExecution no-op outcomes return exact action enums<br>The failures-only audit level records a failure and the success that answers it |
+| `IExecutionStore.CompleteExecutionAsync` | A bounded child wait expires, cancels its subtree, and leaves the parent running<br>A claim with no handler is handed back, and its definition is not claimed again<br>A job registers, enqueues, claims, executes, persists and reads back<br>A paused slot does not fire and a timed pause auto-resumes at its expiry<br>A raise inside the suspend handoff lands the job Ready, not Suspended<br>A recurring job whose handler throws raises an alert<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>An operator pause landing inside a planned fire keeps the schedule paused<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Completing an in-flight attempt respects schedule changes made while it ran<br>Every settle of a lane head promotes the next member<br>Handler Fail Cancel Pause finalize the attempt without returning to user code<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Operations racing on one lane serialize on the lane lock without deadlocking<br>Reschedule re-arms Ready and durable sleep arms an idempotent timer<br>StartExecution and CompleteExecution no-op outcomes return exact action enums<br>The failures-only audit level records a failure and the success that answers it |
 | `IExecutionStore.CompleteExecutionsBatchAsync` | A Bulk completion waiting to be written keeps its row through the heartbeat<br>CompleteExecutionsBatch self-filters and aligns outcomes to original ordinals |
 | `IExecutionStore.CompleteStepAsync` | At-most-once step re-entered before completion is interrupted<br>Nonzero backoff defers the parent to the retry instant and re-invokes the body<br>RunStepAsync runs once, replays results, and retries until exhausted<br>Step exhausts by retry-window and re-entry replays without body invocation |
 | `IExecutionStore.GetChildJobIdsAsync` | A bounded child wait expires, cancels its subtree, and leaves the parent running<br>Child jobs start deduped, join on completion latches, and cancel cascades |
 | `IExecutionStore.GetStaleChildLatchesAsync` | Child jobs start deduped, join on completion latches, and cancel cascades<br>One sys.recovery tick reclaims, releases, and wakes |
-| `IExecutionStore.ReclaimStuckJobsAsync` | Child jobs start deduped, join on completion latches, and cancel cascades<br>One sys.recovery tick reclaims, releases, and wakes<br>Reclaim returns an expired-lease job to Ready or fails it at MaxAttempts<br>Reclaiming a crashed timeout resolution costs the job no retry budget |
+| `IExecutionStore.ReclaimStuckJobsAsync` | Child jobs start deduped, join on completion latches, and cancel cascades<br>Every settle of a lane head promotes the next member<br>One sys.recovery tick reclaims, releases, and wakes<br>Reclaim returns an expired-lease job to Ready or fails it at MaxAttempts<br>Reclaiming a crashed timeout resolution costs the job no retry budget<br>The recovery pass releases the Blocked head of a stranded lane |
 | `IExecutionStore.RecordJobNoteAsync` | A handler writes application-authored notes onto the job's own timeline |
 | `IExecutionStore.RepairRecoverySlotAsync` | A stranded recovery slot is repaired under a guard by any worker |
 | `IExecutionStore.StartExecutionAsync` | A claim survives what happens between its claim and its handler<br>A job registers, enqueues, claims, executes, persists and reads back<br>Heartbeat extends a live lease and stamps last_seen<br>Start execution honors the version CAS and the live-lease guard<br>StartExecution and CompleteExecution no-op outcomes return exact action enums |
 | `IExecutionStore.StartStepAsync` | At-most-once step re-entered before completion is interrupted<br>Nonzero backoff defers the parent to the retry instant and re-invokes the body<br>RunStepAsync runs once, replays results, and retries until exhausted<br>Step exhausts by retry-window and re-entry replays without body invocation |
 | `IJobStore.CancelJobAsync` | A bounded child wait expires, cancels its subtree, and leaves the parent running<br>A bounded group wait spends one stored deadline across every child and replay<br>CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Cancel Pause Resume Restart apply legal transitions and audit<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Control verbs apply per-status guards and correct side effects<br>Control verbs transition unconditionally but emit events only at full audit |
-| `IJobStore.EnqueueBatchAsync` | A Reference-only host typed-enqueues without running a worker<br>A job registers, enqueues, claims, executes, persists and reads back<br>Acta keys normalize to lowercase while Acta names reject mixed case<br>Batch enqueue lands one job row per input ordinal with no enqueue event<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Contract enqueue names the job explicitly and resolves its route<br>Enqueue assigns a job ref that resolves to the job; unknown refs return null<br>Enqueue rejects a suspended namespace and resumes once reactivated<br>Enqueue resolves, inherits, rejects, and filters by tenant<br>Relative delay resolves on the DB clock; absolute run-at is preserved<br>Same-batch duplicate deduplication keys or malformed rows reject the batch<br>Tenant suspension is admission control, not work closure<br>The definition's tenant requirement is enforced at the enqueue boundary<br>Typed enqueue rejection reasons for namespace, tenant, route, and definition<br>Typed enqueue resolves the route and delayed jobs gate on next_run |
+| `IJobStore.EnqueueBatchAsync` | A Reference-only host typed-enqueues without running a worker<br>A child in the lane of an unfinished ancestor is rejected<br>A job registers, enqueues, claims, executes, persists and reads back<br>Acta keys normalize to lowercase while Acta names reject mixed case<br>Batch enqueue lands one job row per input ordinal with no enqueue event<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Contract enqueue names the job explicitly and resolves its route<br>Enqueue assigns a job ref that resolves to the job; unknown refs return null<br>Enqueue rejects a suspended namespace and resumes once reactivated<br>Enqueue resolves, inherits, rejects, and filters by tenant<br>Relative delay resolves on the DB clock; absolute run-at is preserved<br>Same-batch duplicate deduplication keys or malformed rows reject the batch<br>Tenant suspension is admission control, not work closure<br>The definition's tenant requirement is enforced at the enqueue boundary<br>Typed enqueue rejection reasons for namespace, tenant, route, and definition<br>Typed enqueue resolves the route and delayed jobs gate on next_run |
 | `IJobStore.EnqueueBatchInTransactionAsync` | Transactional enqueue commits or rolls back with the business write<br>Transactional enqueue is provisional, validated, wake-free, and caller-owned |
-| `IJobStore.EnqueueOneAsync` | A Reference-only host typed-enqueues without running a worker<br>A job registers, enqueues, claims, executes, persists and reads back<br>Acta keys normalize to lowercase while Acta names reject mixed case<br>Batch enqueue lands one job row per input ordinal with no enqueue event<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Contract enqueue names the job explicitly and resolves its route<br>Enqueue assigns a job ref that resolves to the job; unknown refs return null<br>Enqueue rejects a suspended namespace and resumes once reactivated<br>Enqueue resolves, inherits, rejects, and filters by tenant<br>Relative delay resolves on the DB clock; absolute run-at is preserved<br>Same-batch duplicate deduplication keys or malformed rows reject the batch<br>Tenant suspension is admission control, not work closure<br>The definition's tenant requirement is enforced at the enqueue boundary<br>Typed enqueue rejection reasons for namespace, tenant, route, and definition<br>Typed enqueue resolves the route and delayed jobs gate on next_run |
+| `IJobStore.EnqueueOneAsync` | A Reference-only host typed-enqueues without running a worker<br>A child in the lane of an unfinished ancestor is rejected<br>A job registers, enqueues, claims, executes, persists and reads back<br>Acta keys normalize to lowercase while Acta names reject mixed case<br>Batch enqueue lands one job row per input ordinal with no enqueue event<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Contract enqueue names the job explicitly and resolves its route<br>Enqueue assigns a job ref that resolves to the job; unknown refs return null<br>Enqueue rejects a suspended namespace and resumes once reactivated<br>Enqueue resolves, inherits, rejects, and filters by tenant<br>Relative delay resolves on the DB clock; absolute run-at is preserved<br>Same-batch duplicate deduplication keys or malformed rows reject the batch<br>Tenant suspension is admission control, not work closure<br>The definition's tenant requirement is enforced at the enqueue boundary<br>Typed enqueue rejection reasons for namespace, tenant, route, and definition<br>Typed enqueue resolves the route and delayed jobs gate on next_run |
 | `IJobStore.EnqueueOneInTransactionAsync` | Transactional enqueue commits or rolls back with the business write<br>Transactional enqueue is provisional, validated, wake-free, and caller-owned |
 | `IJobStore.GetJobAsync` | GetJob returns the snapshot for a known id and null for an unknown id |
 | `IJobStore.GetJobCheckpointsAsync` | GetJobInput reads stored input and GetJobCheckpoints lists a job's slots |
@@ -2836,15 +2950,16 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IJobStore.GetJobResultAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>Contract enqueue names the job explicitly and resolves its route<br>GetJobResult returns null before completion and the typed result after<br>Typed enqueue resolves the route and delayed jobs gate on next_run |
 | `IJobStore.GetJobStatusAsync` | GetJobStatus returns the status for a known id and null for an unknown id |
 | `IJobStore.ListJobsAsync` | ListJobs filter-matrix selects exactly matching rows per dimension<br>ListJobs pages newest first by keyset cursor without duplicates |
-| `IJobStore.PauseJobAsync` | A job control verb takes an optional expected version and refuses a stale one.<br>CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Cancel Pause Resume Restart apply legal transitions and audit<br>Control verbs apply per-status guards and correct side effects<br>Control verbs transition unconditionally but emit events only at full audit |
+| `IJobStore.PauseJobAsync` | A job control verb takes an optional expected version and refuses a stale one.<br>CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Cancel Pause Resume Restart apply legal transitions and audit<br>Control verbs apply per-status guards and correct side effects<br>Control verbs transition unconditionally but emit events only at full audit<br>Operator verbs keep a lane's order |
 | `IJobStore.PurgeJobAsync` | A completed child outlives its retention deadline while its parent is live<br>Operator purge hard-deletes a terminal job. |
+| `IJobStore.RecordJobRedriveAsync` | Restarting a finished laned job redrives it at the lane's tail |
 | `IJobStore.ReprioritizeJobAsync` | Operator reprioritize changes claim priority, rejecting only terminal jobs. |
 | `IJobStore.RescheduleJobAsync` | A job control verb takes an optional expected version and refuses a stale one.<br>Operator reschedule moves a job's cursor, rejecting in-flight or terminal jobs. |
 | `IJobStore.ResetJobStateAsync` | Reset clears one job's substrate and emits an audit-gated state-reset event |
 | `IJobStore.ResolveJobIdByDeduplicationKeyAsync` | ResolveJobIdByDeduplicationKey returns the id for a known key, null otherwise |
 | `IJobStore.ResolveJobIdByRefAsync` | A purged job's public ref still resolves to its surviving event timeline<br>Enqueue assigns a job ref that resolves to the job; unknown refs return null |
 | `IJobStore.RestartJobAsync` | CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Cancel Pause Resume Restart apply legal transitions and audit<br>Control verbs apply per-status guards and correct side effects<br>Control verbs transition unconditionally but emit events only at full audit |
-| `IJobStore.ResumeJobAsync` | CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Cancel Pause Resume Restart apply legal transitions and audit<br>Control verbs apply per-status guards and correct side effects<br>Control verbs transition unconditionally but emit events only at full audit |
+| `IJobStore.ResumeJobAsync` | CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Cancel Pause Resume Restart apply legal transitions and audit<br>Control verbs apply per-status guards and correct side effects<br>Control verbs transition unconditionally but emit events only at full audit<br>Operator verbs keep a lane's order |
 | `IJobStore.UpdateJobInputAsync` | Operator update-input amends stored input and audits bounded payload metadata. |
 | `INamespaceStore.ListNamespaceItemsAsync` | ListNamespaceItems pages namespaces with status, fields, and version |
 | `INamespaceStore.ListNamespacesAsync` | ListNamespaces pages namespaces name-ascending with an opt-in total |
@@ -2943,6 +3058,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `Execution/Jobs/ListJobs` | yes | yes | yes |
 | `Execution/Jobs/PauseJob` | yes | yes | yes |
 | `Execution/Jobs/PurgeJob` | yes | yes | yes |
+| `Execution/Jobs/RecordJobRedrive` | yes | yes | yes |
 | `Execution/Jobs/ReprioritizeJob` | yes | yes | yes |
 | `Execution/Jobs/RescheduleJob` | yes | yes | yes |
 | `Execution/Jobs/ResetJobState` | yes | yes | yes |
