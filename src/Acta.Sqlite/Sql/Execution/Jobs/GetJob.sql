@@ -46,7 +46,10 @@ LEFT JOIN {{schema}}.jobs hjob ON hjob.id = (
         r.status_code = 15 /* JobStatusCode.Blocked */
         AND m.lane_id = r.lane_id
         AND m.lane_id IS NOT NULL
-        AND m.status_code IN (10, 15, 20, 30, 40, 50)
+        AND m.status_code IN (
+            10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+            30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+        )
         AND m.job_id < r.job_id
     ORDER BY m.job_id
     LIMIT 1

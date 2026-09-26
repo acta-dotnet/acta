@@ -1,7 +1,6 @@
 -- Only p_namespace_name and p_job_name are required; other params default (p_job_ref is server-generated
 -- when omitted; p_input_format_id defaults json/none by input presence). Parameter ORDER is fixed:
 -- the provider store invokes this function positionally.
--- Lock order: the lane, then the parent row (docs/internals/sql-execution-policy.md, "Lane lock order").
 CREATE OR REPLACE FUNCTION {{schema}}.enqueue_one(
     p_job_ref UUID DEFAULT GEN_RANDOM_UUID(),
     p_namespace_name VARCHAR DEFAULT NULL,

@@ -1,9 +1,7 @@
 DROP TABLE IF EXISTS temp._restart_job;
 
--- A finished laned job is never reopened in place, which would put it back ahead of members that
--- already ran after it; the caller redrives it as a new job at the lane's tail instead. A laned job
--- restarts Ready only as its lane's lowest-id unfinished member and Blocked otherwise. The immediate
--- transaction is the lane's mutex on SQLite.
+-- A finished laned job is refused, and the jobs service redrives it at the lane's tail. A laned job
+-- restarts Ready only as its lane's lowest-id unfinished member, else Blocked.
 CREATE TEMP TABLE _restart_job AS
 SELECT
     j.id,
@@ -26,7 +24,10 @@ SELECT
                 WHERE
                     o.lane_id = r.lane_id
                     AND o.lane_id IS NOT NULL
-                    AND o.status_code IN (10, 15, 20, 30, 40, 50)
+                    AND o.status_code IN (
+                        10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                        30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                    )
                     AND o.job_id < r.job_id
             )
             THEN 15 /* JobStatusCode.Blocked */

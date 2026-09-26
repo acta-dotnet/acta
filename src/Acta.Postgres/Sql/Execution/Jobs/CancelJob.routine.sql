@@ -94,10 +94,8 @@ BEGIN
         version = r.version + 1
     WHERE r.job_id = p_id;
 
-    -- A cancelled head hands its lane to the next member; a cancelled Blocked follower leaves the head
-    -- where it is, which the promotion reads for itself. Promotion runs under the lane lock
-    -- (docs/internals/sql-execution-policy.md, "Lane lock order") and re-reads rather than trusting an
-    -- update that matched nothing.
+    -- A cancelled head hands its lane on; a cancelled Blocked follower leaves the head where it is. The
+    -- promotion runs under the lane lock (docs/internals/sql-execution-policy.md, "Lane lock order").
     IF v_lane_id IS NOT NULL THEN
         LOOP
             v_head_id := NULL;

@@ -553,9 +553,7 @@ BEGIN
                     END
 
                 /* Promotion under the lane lock (docs/internals/sql-execution-policy.md, "Lane lock order"):
-                   the lowest-id unfinished member becomes Ready when it is Blocked, at its own due instant
-                   or now, whichever is later; any other head keeps the lane. The loop re-reads rather than
-                   trusting an update that matched nothing. */
+                   a Blocked lowest-id unfinished member becomes Ready at its own due instant or now. */
                 IF
                     @lane_id IS NOT NULL
                     AND @to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)

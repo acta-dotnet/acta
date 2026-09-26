@@ -133,7 +133,10 @@ WHERE
         WHERE
             cancelled.job_id = @p_id
             AND m.lane_id IS NOT NULL
-            AND m.status_code IN (10, 15, 20, 30, 40, 50)
+            AND m.status_code IN (
+                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+            )
         ORDER BY m.job_id
         LIMIT 1
     );

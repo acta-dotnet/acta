@@ -1,3 +1,4 @@
+using Acta.Relational.Commands;
 using Acta.Relational.Entities;
 using Acta.Runtime.Modules.Execution;
 using Acta.Tests.Conformance.Contracts;
@@ -14,7 +15,7 @@ namespace Acta.Tests.Conformance.Scenarios;
 /// job row (docs/internals/sql-execution-policy.md, "Lane lock order"). Deadlock retry is off for this
 /// spec, so a deadlock fails the test instead of being absorbed by a retry. Each race claims and starts
 /// the settling job first and then fires the bare completion alongside the other operation, so the two
-/// statements meet. Server providers only: SQLite runs one writer at a time.
+/// statements meet. SQLite runs one writer at a time, so its open-transaction race is skipped.
 /// </summary>
 [ConformanceSpec(
     "lanes.lock-order",
@@ -48,6 +49,11 @@ public abstract class LaneLockOrderSpec<TFixture> : ActaRuntimeTestBase<TFixture
     public async Task Younger_enqueue_waits_for_the_older_open_transaction()
     {
         var ct = TestContext.Current.CancellationToken;
+        if (Services.GetRequiredService<ISqlDialect>().Provider == DbProvider.Sqlite)
+        {
+            Assert.Skip("SQLite runs one writer at a time, so the younger transaction cannot open beside the older one.");
+        }
+
         // The lane exists and is idle before either transaction starts, so the younger enqueue meets the
         // older one's lane lock rather than its uncommitted insert of the lane row.
         var seed = await Jobs.EnqueueAsync(Step("orders", "seed"), ct);

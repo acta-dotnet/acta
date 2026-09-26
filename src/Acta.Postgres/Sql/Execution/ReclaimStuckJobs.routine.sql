@@ -333,7 +333,7 @@ BEGIN
     END LOOP;
 
     RETURN QUERY
-    SELECT x.id, 10::SMALLINT /* JobStatusCode.Ready */, NULL::BIGINT, 1::SMALLINT
+    SELECT x.id, 10 /* JobStatusCode.Ready */::SMALLINT, NULL::BIGINT, 1::SMALLINT
     FROM unnest(v_repaired) AS x (id);
 END;
 $$;

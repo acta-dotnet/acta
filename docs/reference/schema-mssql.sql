@@ -2640,9 +2640,7 @@ BEGIN
                     END
 
                 /* Promotion under the lane lock (docs/internals/sql-execution-policy.md, "Lane lock order"):
-                   the lowest-id unfinished member becomes Ready when it is Blocked, at its own due instant
-                   or now, whichever is later; any other head keeps the lane. The loop re-reads rather than
-                   trusting an update that matched nothing. */
+                   a Blocked lowest-id unfinished member becomes Ready at its own due instant or now. */
                 IF
                     @lane_id IS NOT NULL
                     AND @to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
@@ -2907,10 +2905,8 @@ BEGIN
                 IF @lane_next IS NULL
                     BREAK;
 
-                /* Promotion under the lane lock (docs/internals/sql-execution-policy.md, "Lane lock
-                   order"): the lowest-id unfinished member becomes Ready when it is Blocked; any other
-                   head keeps the lane. The loop re-reads rather than trusting an update that matched
-                   nothing. */
+                /* Promotion under the lane lock (docs/internals/sql-execution-policy.md, "Lane lock order"):
+                   a Blocked lowest-id unfinished member becomes Ready at its own due instant or now. */
                 SET @promoted = 0;
                 WHILE @promoted = 0
                     BEGIN
@@ -3670,10 +3666,8 @@ BEGIN
                     END;
             END;
 
-        -- The lane rows are the lanes' mutexes, taken before any job row: missing names are inserted in
-        -- name order without a range lock, then every lane is locked one row at a time in id order. A
-        -- concurrent insert of the same name, or retention deleting a lane before its lock, sends the
-        -- loop round again.
+        -- Missing lanes are inserted in name order without a range lock, then every lane is locked one row
+        -- at a time in id order (docs/internals/sql-execution-policy.md, "Lane lock order").
         DECLARE @lanes TABLE (
             ns_id INT NOT NULL,
             name VARCHAR(128) NOT NULL,
@@ -4044,7 +4038,6 @@ GO
 -- Only @p_namespace_name and @p_job_name are required; other scalars default (@p_job_ref is
 -- server-generated when omitted; @p_input_format_id defaults json/none by input presence). The tag TVP
 -- has no default (SQL Server TVPs cannot); pass an empty table variable for a tag-free enqueue.
--- Lock order: the lane, then job rows (docs/internals/sql-execution-policy.md, "Lane lock order").
 CREATE OR ALTER PROCEDURE acta.enqueue_one
     @p_job_ref UNIQUEIDENTIFIER = NULL,
     @p_namespace_name VARCHAR(128) = NULL,
@@ -4144,12 +4137,8 @@ BEGIN
                 THROW 50008, 'ACTA:ENQ_TENANT_FORBIDDEN:Enqueue rejected: the job definition forbids a tenant and the row names one.', 1;
             END;
 
-        -- The lane row is the lane's mutex, taken before any job row: held to commit, it serializes this
-        -- enqueue against every settle and enqueue in the lane, so Ready versus Blocked below is decided
-        -- on a stable member set. The name only resolves the id; the lock is taken by id, on the clustered
-        -- key every other lane lock takes, because a lock through ux_lanes_namespace_name would land on
-        -- that index's key alone. A missing lane is inserted without a range lock; a concurrent insert of
-        -- the same name, or retention deleting it before the lock, sends the loop round again.
+        -- The lane row is the lane's mutex, held to commit (docs/internals/sql-execution-policy.md, "Lane
+        -- lock order"). The name only resolves the id; the lock is taken by id, on the clustered key.
         DECLARE @lane_found BIGINT;
         WHILE @lane IS NOT NULL AND @lane_id IS NULL
             BEGIN
@@ -5755,10 +5744,9 @@ BEGIN
                 parent_id BIGINT NULL
             );
 
-        /* A stranded lane's lowest-id unfinished member is Blocked, so nothing ahead of it will settle
-           and promote it. The probe stops at the namespace's first Blocked row; only then does the walk
-           visit each active lane's head, one seek per lane through ix_runtimes_lane. Both name the index:
-           on a small runtimes table the optimizer prefers a clustered scan to either. */
+        /* A probe for any Blocked row gates a walk that seeks each active lane's head through
+           ix_runtimes_lane. Both name the index: on a small runtimes table the optimizer prefers a
+           clustered scan to either. */
         DECLARE @stranded TABLE (id BIGINT NOT NULL PRIMARY KEY);
         DECLARE @repaired TABLE (id BIGINT NOT NULL PRIMARY KEY);
         DECLARE @walk BIGINT = 0, @walk_lane BIGINT, @walk_status TINYINT, @walk_namespace INT, @stranded_count INT = 0;
@@ -5801,10 +5789,9 @@ BEGIN
                     END;
             END;
 
-        /* Lock order: the stuck rows' lanes and the stranded lanes one row at a time in id order, then
-           the runtime rows (docs/internals/sql-execution-policy.md, "Lane lock order"). A laned row whose
-           lease expires after the lanes are taken waits for the next pass rather than being reclaimed
-           without its lane. */
+        /* The stuck rows' and stranded lanes one row at a time in id order, then the runtime rows
+           (docs/internals/sql-execution-policy.md, "Lane lock order"). A laned row whose lease expires
+           after the lanes are taken waits for the next pass. */
         DECLARE @lanes TABLE (id BIGINT NOT NULL PRIMARY KEY);
         INSERT INTO @lanes (id)
         SELECT r.lane_id
@@ -9233,7 +9220,7 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.6-f0d6569a4d7498fdb24dda5d0bc70b45', 'acta'
+SELECT -1, 'objects-1.6-2733e6d68e169ef89df5846e93e2e19b', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
     WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'jobs_view', 'schedules_view', 'steps_view', 'workers_view', 'events_view', 'tags_view', 'acknowledge_job_alert', 'raise_job_alert', 'resolve_job_alert_manual', 'resolve_job_alerts', 'update_alert_delivery', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_executions_batch', 'complete_step', 'register_job_definitions', 'set_job_definition_overrides', 'cancel_job', 'enqueue_batch', 'enqueue_one', 'pause_job', 'purge_job', 'reprioritize_job', 'reschedule_job', 'reset_job_state', 'restart_job', 'resume_job', 'update_job_input', 'resume_namespace', 'suspend_namespace', 'update_namespace', 'record_job_note', 'reclaim_stuck_jobs', 'repair_recovery_slot', 'pause_schedule', 'register_scheduled_jobs', 'resume_schedule', 'set_schedule_overrides', 'trigger_schedule_now', 'set_setting', 'consume_outbox_signal', 'park_outbox_signal', 'raise_signal', 'record_outbox_event', 'wait_signal', 'start_execution', 'start_step', 'register_tenant', 'resume_tenant', 'suspend_tenant', 'update_tenant', 'arm_or_consume_sleep_timer', 'extend_worker_leases', 'mark_dead_workers', 'start_worker', 'stop_worker', 'purge_expired_data', 'apply_tags', 'acquire_lock', 'acquire_slot', 'extend_lock', 'release_lock', 'reserve_rate')) = 68;
 GO

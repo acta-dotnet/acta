@@ -2332,10 +2332,8 @@ BEGIN
 
     IF v_lane_id IS NOT NULL
         AND v_to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN
-        -- Promotion under the lane lock (docs/internals/sql-execution-policy.md, "Lane lock order"): the
-        -- lowest-id unfinished member becomes Ready when it is Blocked, at its own due instant or now,
-        -- whichever is later; any other head keeps the lane. The loop re-reads rather than trusting an
-        -- update that matched nothing.
+        -- Promotion under the lane lock (docs/internals/sql-execution-policy.md, "Lane lock order"): a
+        -- Blocked lowest-id unfinished member becomes Ready at its own due instant or now, whichever is later.
         LOOP
             v_head_id := NULL;
             v_head_status := NULL;
@@ -2542,10 +2540,8 @@ BEGIN
             AND r.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */)
         ORDER BY r.lane_id
     LOOP
-        -- Promotion under the lane lock (docs/internals/sql-execution-policy.md, "Lane lock order"): the
-        -- lowest-id unfinished member becomes Ready when it is Blocked, at its own due instant or now,
-        -- whichever is later; any other head keeps the lane. The loop re-reads rather than trusting an
-        -- update that matched nothing.
+        -- Promotion under the lane lock (docs/internals/sql-execution-policy.md, "Lane lock order"): a
+        -- Blocked lowest-id unfinished member becomes Ready at its own due instant or now, whichever is later.
         LOOP
             v_head_id := NULL;
             v_head_status := NULL;
@@ -3082,10 +3078,8 @@ BEGIN
         version = r.version + 1
     WHERE r.job_id = p_id;
 
-    -- A cancelled head hands its lane to the next member; a cancelled Blocked follower leaves the head
-    -- where it is, which the promotion reads for itself. Promotion runs under the lane lock
-    -- (docs/internals/sql-execution-policy.md, "Lane lock order") and re-reads rather than trusting an
-    -- update that matched nothing.
+    -- A cancelled head hands its lane on; a cancelled Blocked follower leaves the head where it is. The
+    -- promotion runs under the lane lock (docs/internals/sql-execution-policy.md, "Lane lock order").
     IF v_lane_id IS NOT NULL THEN
         LOOP
             v_head_id := NULL;
@@ -3282,10 +3276,8 @@ BEGIN
             USING ERRCODE = 'P0001';
     END IF;
 
-    -- Each row's effective lane is its own, else its definition's. The lane rows are the lanes' mutexes,
-    -- taken before any parent row: missing names are inserted first in name order without locking the
-    -- existing ones, then the whole set is locked in id order. A lane that retention deletes between the
-    -- two steps is inserted again on the next pass.
+    -- Each row's effective lane is its own, else its definition's. Missing lanes are inserted in name
+    -- order, then the whole set is locked in id order (docs/internals/sql-execution-policy.md, "Lane lock order").
     CREATE TEMP TABLE IF NOT EXISTS _enq_lanes (
         namespace_id INT NOT NULL,
         name VARCHAR NOT NULL,
@@ -3318,7 +3310,7 @@ BEGIN
 
             -- Only a row this loop locked records its id, so a lane that another transaction creates
             -- after the lock statement cannot pass for a locked one.
-            UPDATE _enq_lanes SET id = NULL;
+            UPDATE _enq_lanes SET id = NULL WHERE id IS NOT NULL;
             FOR locked_lane IN
                 SELECT l.id, l.namespace_id, l.name
                 FROM acta.lanes l
@@ -3735,7 +3727,6 @@ DROP FUNCTION IF EXISTS acta.enqueue_batch(
 -- Only p_namespace_name and p_job_name are required; other params default (p_job_ref is server-generated
 -- when omitted; p_input_format_id defaults json/none by input presence). Parameter ORDER is fixed:
 -- the provider store invokes this function positionally.
--- Lock order: the lane, then the parent row (docs/internals/sql-execution-policy.md, "Lane lock order").
 CREATE OR REPLACE FUNCTION acta.enqueue_one(
     p_job_ref UUID DEFAULT GEN_RANDOM_UUID(),
     p_namespace_name VARCHAR DEFAULT NULL,
@@ -5604,7 +5595,7 @@ BEGIN
     END LOOP;
 
     RETURN QUERY
-    SELECT x.id, 10::SMALLINT /* JobStatusCode.Ready */, NULL::BIGINT, 1::SMALLINT
+    SELECT x.id, 10 /* JobStatusCode.Ready */::SMALLINT, NULL::BIGINT, 1::SMALLINT
     FROM unnest(v_repaired) AS x (id);
 END;
 $$;
@@ -8419,7 +8410,7 @@ DROP FUNCTION IF EXISTS acta.reserve_rate(VARCHAR, BIGINT, INT, INT, UUID);
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.6-74b17b866e07d5299520d4b47bf94bde', 'acta');
+VALUES (-1, 'objects-1.6-d0763da205024bfc42dbc9703bbb62c8', 'acta');
 
 COMMIT;
 

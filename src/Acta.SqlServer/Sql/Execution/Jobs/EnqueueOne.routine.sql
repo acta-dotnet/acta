@@ -1,7 +1,6 @@
 -- Only @p_namespace_name and @p_job_name are required; other scalars default (@p_job_ref is
 -- server-generated when omitted; @p_input_format_id defaults json/none by input presence). The tag TVP
 -- has no default (SQL Server TVPs cannot); pass an empty table variable for a tag-free enqueue.
--- Lock order: the lane, then job rows (docs/internals/sql-execution-policy.md, "Lane lock order").
 CREATE OR ALTER PROCEDURE {{schema}}.enqueue_one
     @p_job_ref UNIQUEIDENTIFIER = NULL,
     @p_namespace_name VARCHAR(128) = NULL,
@@ -101,12 +100,8 @@ BEGIN
                 THROW 50008, 'ACTA:ENQ_TENANT_FORBIDDEN:Enqueue rejected: the job definition forbids a tenant and the row names one.', 1;
             END;
 
-        -- The lane row is the lane's mutex, taken before any job row: held to commit, it serializes this
-        -- enqueue against every settle and enqueue in the lane, so Ready versus Blocked below is decided
-        -- on a stable member set. The name only resolves the id; the lock is taken by id, on the clustered
-        -- key every other lane lock takes, because a lock through ux_lanes_namespace_name would land on
-        -- that index's key alone. A missing lane is inserted without a range lock; a concurrent insert of
-        -- the same name, or retention deleting it before the lock, sends the loop round again.
+        -- The lane row is the lane's mutex, held to commit (docs/internals/sql-execution-policy.md, "Lane
+        -- lock order"). The name only resolves the id; the lock is taken by id, on the clustered key.
         DECLARE @lane_found BIGINT;
         WHILE @lane IS NOT NULL AND @lane_id IS NULL
             BEGIN

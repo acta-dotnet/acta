@@ -177,10 +177,8 @@ BEGIN
                 IF @lane_next IS NULL
                     BREAK;
 
-                /* Promotion under the lane lock (docs/internals/sql-execution-policy.md, "Lane lock
-                   order"): the lowest-id unfinished member becomes Ready when it is Blocked; any other
-                   head keeps the lane. The loop re-reads rather than trusting an update that matched
-                   nothing. */
+                /* Promotion under the lane lock (docs/internals/sql-execution-policy.md, "Lane lock order"):
+                   a Blocked lowest-id unfinished member becomes Ready at its own due instant or now. */
                 SET @promoted = 0;
                 WHILE @promoted = 0
                     BEGIN

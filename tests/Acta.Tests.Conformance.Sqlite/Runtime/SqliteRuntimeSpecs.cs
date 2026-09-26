@@ -89,12 +89,9 @@ public sealed class SqliteCompletionSinkBulkFallbackSpec : CompletionSinkBulkFal
 
 public sealed class SqliteRollingDeploySpec : RollingDeploySpec<SqliteConformanceFixture>;
 
-public sealed class SqliteLaneDirectWorkerLoopSpec : LaneWorkerLoopSpec<SqliteConformanceFixture>
-{
-    protected override ExecutionProfile Profile => ExecutionProfile.Direct;
-}
+public sealed class SqliteLaneDirectWorkerLoopSpec : LaneDirectWorkerLoopSpec<SqliteConformanceFixture>;
 
-public sealed class SqliteLaneBufferedWorkerLoopSpec : LaneWorkerLoopSpec<SqliteConformanceFixture>
-{
-    protected override ExecutionProfile Profile => ExecutionProfile.Buffered;
-}
+public sealed class SqliteLaneBufferedWorkerLoopSpec : LaneBufferedWorkerLoopSpec<SqliteConformanceFixture>;
+
+// SQLite has no set-based completion routine, so Bulk runs as Direct here.
+public sealed class SqliteLaneBulkWorkerLoopSpec : LaneBulkWorkerLoopSpec<SqliteConformanceFixture>;

@@ -28,10 +28,9 @@ BEGIN
                 parent_id BIGINT NULL
             );
 
-        /* A stranded lane's lowest-id unfinished member is Blocked, so nothing ahead of it will settle
-           and promote it. The probe stops at the namespace's first Blocked row; only then does the walk
-           visit each active lane's head, one seek per lane through ix_runtimes_lane. Both name the index:
-           on a small runtimes table the optimizer prefers a clustered scan to either. */
+        /* A probe for any Blocked row gates a walk that seeks each active lane's head through
+           ix_runtimes_lane. Both name the index: on a small runtimes table the optimizer prefers a
+           clustered scan to either. */
         DECLARE @stranded TABLE (id BIGINT NOT NULL PRIMARY KEY);
         DECLARE @repaired TABLE (id BIGINT NOT NULL PRIMARY KEY);
         DECLARE @walk BIGINT = 0, @walk_lane BIGINT, @walk_status TINYINT, @walk_namespace INT, @stranded_count INT = 0;
@@ -74,10 +73,9 @@ BEGIN
                     END;
             END;
 
-        /* Lock order: the stuck rows' lanes and the stranded lanes one row at a time in id order, then
-           the runtime rows (docs/internals/sql-execution-policy.md, "Lane lock order"). A laned row whose
-           lease expires after the lanes are taken waits for the next pass rather than being reclaimed
-           without its lane. */
+        /* The stuck rows' and stranded lanes one row at a time in id order, then the runtime rows
+           (docs/internals/sql-execution-policy.md, "Lane lock order"). A laned row whose lease expires
+           after the lanes are taken waits for the next pass. */
         DECLARE @lanes TABLE (id BIGINT NOT NULL PRIMARY KEY);
         INSERT INTO @lanes (id)
         SELECT r.lane_id

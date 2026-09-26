@@ -116,10 +116,8 @@ BEGIN
                     END;
             END;
 
-        -- The lane rows are the lanes' mutexes, taken before any job row: missing names are inserted in
-        -- name order without a range lock, then every lane is locked one row at a time in id order. A
-        -- concurrent insert of the same name, or retention deleting a lane before its lock, sends the
-        -- loop round again.
+        -- Missing lanes are inserted in name order without a range lock, then every lane is locked one row
+        -- at a time in id order (docs/internals/sql-execution-policy.md, "Lane lock order").
         DECLARE @lanes TABLE (
             ns_id INT NOT NULL,
             name VARCHAR(128) NOT NULL,

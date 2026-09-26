@@ -16,7 +16,10 @@ SELECT
                 WHERE
                     o.lane_id = r.lane_id
                     AND o.lane_id IS NOT NULL
-                    AND o.status_code IN (10, 15, 20, 30, 40, 50)
+                    AND o.status_code IN (
+                        10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                        30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                    )
                     AND o.job_id < r.job_id
             )
             THEN 15 /* JobStatusCode.Blocked */

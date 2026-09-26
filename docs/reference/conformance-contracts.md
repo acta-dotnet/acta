@@ -1486,13 +1486,29 @@
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.ReclaimStuckJobsAsync`
 
-### A worker loop with several executors keeps one member of a lane in flight
-- **Contract:** Under a worker loop with several executors each lane runs one member at a time in enqueue order while different lanes run in parallel.
-- **Arrange:** Two lanes of probe jobs are enqueued in one batch into a private namespace served by a multi-executor worker.
+### Under the Buffered profile each lane runs one member at a time in enqueue order
+- **Contract:** Under the Buffered profile with several executors each lane runs one member at a time in enqueue order while different lanes run in parallel.
+- **Arrange:** Two lanes of probe jobs are enqueued in one batch into a private namespace served by a multi-executor Buffered worker.
 - **Act:** The worker loop drains the namespace.
 - **Assert:** Every probe ran once, each lane in enqueue order, and no lane ever had two probes running at once.
 - **Guarantees:**
-  - Each lane drains in order with one member in flight while lanes run in parallel
+  - Buffered: each lane drains in order with one member in flight while lanes run in parallel
+
+### Under the Bulk profile each lane runs one member at a time in enqueue order
+- **Contract:** Under the Bulk profile with several executors each lane runs one member at a time in enqueue order, the batch completion promoting each next member.
+- **Arrange:** Two lanes of probe jobs are enqueued in one batch into a private namespace served by a multi-executor Bulk worker.
+- **Act:** The worker loop drains the namespace.
+- **Assert:** Every probe ran once, each lane in enqueue order, and no lane ever had two probes running at once.
+- **Guarantees:**
+  - Bulk: each lane drains in order with one member in flight while lanes run in parallel
+
+### Under the Direct profile each lane runs one member at a time in enqueue order
+- **Contract:** Under the Direct profile with several executors each lane runs one member at a time in enqueue order while different lanes run in parallel.
+- **Arrange:** Two lanes of probe jobs are enqueued in one batch into a private namespace served by a multi-executor Direct worker.
+- **Act:** The worker loop drains the namespace.
+- **Assert:** Every probe ran once, each lane in enqueue order, and no lane ever had two probes running at once.
+- **Guarantees:**
+  - Direct: each lane drains in order with one member in flight while lanes run in parallel
 
 ## Locks
 

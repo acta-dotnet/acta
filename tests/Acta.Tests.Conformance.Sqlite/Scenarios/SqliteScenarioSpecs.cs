@@ -23,6 +23,8 @@ public sealed class SqliteLaneReadSpec : LaneReadSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteLaneRedriveSpec : LaneRedriveSpec<SqliteConformanceFixture>;
 
+public sealed class SqliteLaneLockOrderSpec : LaneLockOrderSpec<SqliteConformanceFixture>;
+
 public sealed class SqliteConcurrencyLimitSpec : ConcurrencyLimitSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteRateLimitSpec : RateLimitSpec<SqliteConformanceFixture>;

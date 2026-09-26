@@ -1,9 +1,7 @@
 DROP TABLE IF EXISTS temp._repair_lanes;
 
-/* A stranded lane's lowest-id unfinished member is Blocked, so nothing ahead of it will settle and
-   promote it. The probe stops at the namespace's first Blocked row; only then does the walk visit each
-   active lane's head, one seek per lane through ix_runtimes_lane. The immediate transaction is the
-   lane's mutex on SQLite, so the walk's read is the repair's read. */
+/* A stranded lane's lowest-id unfinished member is Blocked with nothing ahead of it to settle. A probe
+   for any Blocked row in the namespace gates a walk that seeks each active lane's head. */
 CREATE TEMP TABLE _repair_lanes AS
 WITH RECURSIVE walk (lane_id) AS (
     SELECT (
@@ -11,7 +9,10 @@ WITH RECURSIVE walk (lane_id) AS (
         FROM {{schema}}.runtimes m
         WHERE
             m.lane_id IS NOT NULL
-            AND m.status_code IN (10, 15, 20, 30, 40, 50)
+            AND m.status_code IN (
+                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+            )
     )
     WHERE EXISTS (
         SELECT 1
@@ -28,7 +29,10 @@ WITH RECURSIVE walk (lane_id) AS (
         WHERE
             m.lane_id > w.lane_id
             AND m.lane_id IS NOT NULL
-            AND m.status_code IN (10, 15, 20, 30, 40, 50)
+            AND m.status_code IN (
+                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+            )
     )
     FROM walk w
     WHERE w.lane_id IS NOT NULL
@@ -40,7 +44,10 @@ heads AS (
         WHERE
             m.lane_id = w.lane_id
             AND m.lane_id IS NOT NULL
-            AND m.status_code IN (10, 15, 20, 30, 40, 50)
+            AND m.status_code IN (
+                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+            )
         ORDER BY m.job_id
         LIMIT 1
     ) AS id
@@ -112,12 +119,9 @@ SELECT
     s.id,
     s.parent_id,
     s.wait_resolved,
-    /* Budget-neutral for a resolved wait: the surviving path would have ended this attempt at no cost,
-       so the job goes back to Suspended on the same past deadline, unclaimed and uncharged, and the
-       replay lands whatever outcome the waiting overload chooses. MaxAttempts is the one-off retry
-       budget and a slot's failure_count accumulates across occurrences, so a recurring reclaim always
-       re-arms Ready instead of terminally failing the schedule - mirroring ComputeRecurringOutcome on
-       the worker path. */
+    /* Budget-neutral for a resolved wait: the surviving path would have ended this attempt at no cost, so
+       the job goes back to Suspended on the same past deadline, unclaimed and uncharged, and the replay
+       lands whatever outcome the waiting overload chooses. */
     CASE
         WHEN s.wait_resolved = 1 THEN 20 /* JobStatusCode.Suspended */
         WHEN s.is_recurring = 0 AND s.new_failure_count >= s.max_attempts THEN 200 /* JobStatusCode.Failed */
@@ -140,6 +144,9 @@ FROM (
                 AND c.status_code = 30 /* JobCheckpointStatusCode.Expired */
                 AND c.due_at_utc = r.next_run_at_utc
         ) THEN 1 ELSE 0 END AS wait_resolved,
+        /* MaxAttempts is the one-off retry budget and a slot's failure_count accumulates across
+           occurrences, so a recurring reclaim always re-arms Ready instead of terminally failing the
+           schedule - mirroring ComputeRecurringOutcome on the worker path. */
         CASE WHEN EXISTS (
             SELECT 1
             FROM {{schema}}.schedules sc
@@ -237,7 +244,10 @@ WHERE
             WHERE
                 m.lane_id = f.lane_id
                 AND m.lane_id IS NOT NULL
-                AND m.status_code IN (10, 15, 20, 30, 40, 50)
+                AND m.status_code IN (
+                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                    30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                )
             ORDER BY m.job_id
             LIMIT 1
         )

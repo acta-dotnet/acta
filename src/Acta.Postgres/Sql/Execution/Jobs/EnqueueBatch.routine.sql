@@ -75,10 +75,8 @@ BEGIN
             USING ERRCODE = 'P0001';
     END IF;
 
-    -- Each row's effective lane is its own, else its definition's. The lane rows are the lanes' mutexes,
-    -- taken before any parent row: missing names are inserted first in name order without locking the
-    -- existing ones, then the whole set is locked in id order. A lane that retention deletes between the
-    -- two steps is inserted again on the next pass.
+    -- Each row's effective lane is its own, else its definition's. Missing lanes are inserted in name
+    -- order, then the whole set is locked in id order (docs/internals/sql-execution-policy.md, "Lane lock order").
     CREATE TEMP TABLE IF NOT EXISTS _enq_lanes (
         namespace_id INT NOT NULL,
         name VARCHAR NOT NULL,
@@ -111,7 +109,7 @@ BEGIN
 
             -- Only a row this loop locked records its id, so a lane that another transaction creates
             -- after the lock statement cannot pass for a locked one.
-            UPDATE _enq_lanes SET id = NULL;
+            UPDATE _enq_lanes SET id = NULL WHERE id IS NOT NULL;
             FOR locked_lane IN
                 SELECT l.id, l.namespace_id, l.name
                 FROM {{schema}}.lanes l

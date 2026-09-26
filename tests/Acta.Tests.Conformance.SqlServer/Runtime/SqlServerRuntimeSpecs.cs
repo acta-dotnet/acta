@@ -87,17 +87,8 @@ public sealed class SqlServerCompletionSinkBulkFallbackSpec : CompletionSinkBulk
 
 public sealed class SqlServerRollingDeploySpec : RollingDeploySpec<SqlServerConformanceFixture>;
 
-public sealed class SqlServerLaneDirectWorkerLoopSpec : LaneWorkerLoopSpec<SqlServerConformanceFixture>
-{
-    protected override ExecutionProfile Profile => ExecutionProfile.Direct;
-}
+public sealed class SqlServerLaneDirectWorkerLoopSpec : LaneDirectWorkerLoopSpec<SqlServerConformanceFixture>;
 
-public sealed class SqlServerLaneBufferedWorkerLoopSpec : LaneWorkerLoopSpec<SqlServerConformanceFixture>
-{
-    protected override ExecutionProfile Profile => ExecutionProfile.Buffered;
-}
+public sealed class SqlServerLaneBufferedWorkerLoopSpec : LaneBufferedWorkerLoopSpec<SqlServerConformanceFixture>;
 
-public sealed class SqlServerLaneBulkWorkerLoopSpec : LaneWorkerLoopSpec<SqlServerConformanceFixture>
-{
-    protected override ExecutionProfile Profile => ExecutionProfile.Bulk;
-}
+public sealed class SqlServerLaneBulkWorkerLoopSpec : LaneBulkWorkerLoopSpec<SqlServerConformanceFixture>;

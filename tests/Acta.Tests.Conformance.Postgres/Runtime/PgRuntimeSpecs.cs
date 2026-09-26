@@ -87,17 +87,8 @@ public sealed class PgCompletionSinkBulkFallbackSpec : CompletionSinkBulkFallbac
 
 public sealed class PgRollingDeploySpec : RollingDeploySpec<PgConformanceFixture>;
 
-public sealed class PgLaneDirectWorkerLoopSpec : LaneWorkerLoopSpec<PgConformanceFixture>
-{
-    protected override ExecutionProfile Profile => ExecutionProfile.Direct;
-}
+public sealed class PgLaneDirectWorkerLoopSpec : LaneDirectWorkerLoopSpec<PgConformanceFixture>;
 
-public sealed class PgLaneBufferedWorkerLoopSpec : LaneWorkerLoopSpec<PgConformanceFixture>
-{
-    protected override ExecutionProfile Profile => ExecutionProfile.Buffered;
-}
+public sealed class PgLaneBufferedWorkerLoopSpec : LaneBufferedWorkerLoopSpec<PgConformanceFixture>;
 
-public sealed class PgLaneBulkWorkerLoopSpec : LaneWorkerLoopSpec<PgConformanceFixture>
-{
-    protected override ExecutionProfile Profile => ExecutionProfile.Bulk;
-}
+public sealed class PgLaneBulkWorkerLoopSpec : LaneBulkWorkerLoopSpec<PgConformanceFixture>;
