@@ -1,0 +1,644 @@
+{
+  "schemaVersion": 2,
+  "preset": "full",
+  "capturedAtUtc": "2026-09-25T18:38:21Z",
+  "engineVersion": "1.0.0-rc.3.42\u002Baa7419d59332cf7a519b50b347854025639611df",
+  "gitCommit": "aa7419d5",
+  "gitDirty": false,
+  "policy": {
+    "warmupIterations": 1,
+    "measuredRepeats": 3,
+    "aggregation": "median"
+  },
+  "environment": {
+    "dotnetVersion": ".NET 10.0.12",
+    "os": "Microsoft Windows 10.0.26200",
+    "cpuModel": "Intel(R) Core(TM) i9-14900K",
+    "logicalProcessorCount": 32,
+    "totalMemoryBytes": 102818476032,
+    "disk": "NVMe SOLIDIGM SSDPFKKW010X7 [SSD]; NVMe SOLIDIGM SSDPFKKW020X7 [SSD]"
+  },
+  "databases": [
+    {
+      "provider": "mssql",
+      "databaseServerVersion": "16.0.4265.3",
+      "databaseEngineMajorVersion": "16",
+      "databaseProviderVersion": "7.0.0.0",
+      "databaseLocation": "mssql:127.0.0.1,1433/acta-dev",
+      "connectionStringFingerprint": "f50432219b8e7b7b"
+    }
+  ],
+  "cells": [
+    {
+      "key": {
+        "scenario": "latency",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Buffered",
+        "jobs": 0,
+        "executors": 1,
+        "claimBatch": 2,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200,
+        "rate": null,
+        "sideJobs": 0
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 57.70963501021951,
+        "enqueuePerSecond": 0,
+        "drainPerSecond": 0,
+        "durationMs": 3465.6258000000003,
+        "p50LatencyMs": 4.6326,
+        "p95LatencyMs": 5.7161,
+        "p99LatencyMs": 10.0303,
+        "maxLatencyMs": 12.5823,
+        "meanLatencyMs": 4.9631824999999985,
+        "enqueueDurationMs": 0,
+        "drainDurationMs": 3465.6258000000003,
+        "jobsObserved": 200,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 0,
+          "lockWaits": 0,
+          "pageLatchWaitMs": 1,
+          "retainedEvents": 2,
+          "retainedJobs": 221,
+          "retainedResults": 221,
+          "retainedRuntimes": 221,
+          "seedHistory": 0,
+          "writeLogWaitMs": 511
+        },
+        "pageLatchByIndex": {
+          "runtimes.pk_runtimes": {
+            "waitMs": 0,
+            "waits": 5
+          },
+          "workers.ix_workers_namespace_status_last_seen": {
+            "waitMs": 0,
+            "waits": 3
+          },
+          "workers.ix_workers_status_last_seen": {
+            "waitMs": 0,
+            "waits": 3
+          },
+          "workers.ix_workers_namespace_last_seen": {
+            "waitMs": 0,
+            "waits": 2
+          }
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 57.08928944700774,
+          "enqueuePerSecond": 0,
+          "drainPerSecond": 0,
+          "durationMs": 3503.2842,
+          "p50LatencyMs": 4.6326,
+          "p95LatencyMs": 5.7161,
+          "p99LatencyMs": 24.4633,
+          "maxLatencyMs": 24.6275,
+          "meanLatencyMs": 4.993168000000001,
+          "enqueueDurationMs": 0,
+          "drainDurationMs": 3503.2842,
+          "jobsObserved": 200,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 0,
+            "lockWaitMs": 0,
+            "pageLatchWaitMs": 1,
+            "writeLogWaitMs": 629,
+            "seedHistory": 0,
+            "retainedJobs": 221,
+            "retainedRuntimes": 221,
+            "retainedEvents": 2,
+            "retainedResults": 221
+          },
+          "pageLatchByIndex": {
+            "runtimes.pk_runtimes": {
+              "waitMs": 0,
+              "waits": 5
+            },
+            "workers.ix_workers_namespace_status_last_seen": {
+              "waitMs": 0,
+              "waits": 3
+            },
+            "workers.ix_workers_status_last_seen": {
+              "waitMs": 0,
+              "waits": 3
+            },
+            "workers.ix_workers_namespace_last_seen": {
+              "waitMs": 0,
+              "waits": 2
+            }
+          }
+        },
+        {
+          "jobsPerSecond": 57.70963501021951,
+          "enqueuePerSecond": 0,
+          "drainPerSecond": 0,
+          "durationMs": 3465.6258000000003,
+          "p50LatencyMs": 4.8666,
+          "p95LatencyMs": 5.9603,
+          "p99LatencyMs": 6.4294,
+          "maxLatencyMs": 11.9817,
+          "meanLatencyMs": 4.9631824999999985,
+          "enqueueDurationMs": 0,
+          "drainDurationMs": 3465.6258000000003,
+          "jobsObserved": 200,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 0,
+            "lockWaitMs": 0,
+            "pageLatchWaitMs": 1,
+            "writeLogWaitMs": 511,
+            "seedHistory": 0,
+            "retainedJobs": 221,
+            "retainedRuntimes": 221,
+            "retainedEvents": 2,
+            "retainedResults": 221
+          },
+          "pageLatchByIndex": {
+            "runtimes.pk_runtimes": {
+              "waitMs": 0,
+              "waits": 3
+            },
+            "workers.ix_workers_namespace_status_last_seen": {
+              "waitMs": 0,
+              "waits": 3
+            },
+            "workers.ix_workers_status_last_seen": {
+              "waitMs": 0,
+              "waits": 3
+            },
+            "workers.ix_workers_namespace_last_seen": {
+              "waitMs": 0,
+              "waits": 2
+            }
+          }
+        },
+        {
+          "jobsPerSecond": 57.714376226917466,
+          "enqueuePerSecond": 0,
+          "drainPerSecond": 0,
+          "durationMs": 3465.3410999999996,
+          "p50LatencyMs": 4.5277,
+          "p95LatencyMs": 5.5155,
+          "p99LatencyMs": 10.0303,
+          "maxLatencyMs": 12.5823,
+          "meanLatencyMs": 4.6327385,
+          "enqueueDurationMs": 0,
+          "drainDurationMs": 3465.3410999999996,
+          "jobsObserved": 200,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 0,
+            "lockWaitMs": 0,
+            "pageLatchWaitMs": 2,
+            "writeLogWaitMs": 493,
+            "seedHistory": 0,
+            "retainedJobs": 221,
+            "retainedRuntimes": 221,
+            "retainedEvents": 2,
+            "retainedResults": 221
+          },
+          "pageLatchByIndex": {
+            "runtimes.pk_runtimes": {
+              "waitMs": 0,
+              "waits": 11
+            },
+            "workers.ix_workers_namespace_status_last_seen": {
+              "waitMs": 0,
+              "waits": 3
+            },
+            "workers.ix_workers_status_last_seen": {
+              "waitMs": 0,
+              "waits": 3
+            },
+            "workers.ix_workers_namespace_last_seen": {
+              "waitMs": 0,
+              "waits": 2
+            }
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "latency",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Direct",
+        "jobs": 0,
+        "executors": 1,
+        "claimBatch": 2,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200,
+        "rate": null,
+        "sideJobs": 0
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 57.970987607657925,
+        "enqueuePerSecond": 0,
+        "drainPerSecond": 0,
+        "durationMs": 3450.0015999999996,
+        "p50LatencyMs": 3.7645,
+        "p95LatencyMs": 4.5408,
+        "p99LatencyMs": 5.2791,
+        "maxLatencyMs": 5.5234,
+        "meanLatencyMs": 3.7691510000000017,
+        "enqueueDurationMs": 0,
+        "drainDurationMs": 3450.0015999999996,
+        "jobsObserved": 200,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 0,
+          "lockWaits": 0,
+          "pageLatchWaitMs": 1,
+          "retainedEvents": 2,
+          "retainedJobs": 221,
+          "retainedResults": 221,
+          "retainedRuntimes": 221,
+          "seedHistory": 0,
+          "writeLogWaitMs": 450
+        },
+        "pageLatchByIndex": {
+          "workers.ix_workers_namespace_status_last_seen": {
+            "waitMs": 0,
+            "waits": 3
+          },
+          "workers.ix_workers_status_last_seen": {
+            "waitMs": 0,
+            "waits": 3
+          },
+          "workers.ix_workers_namespace_last_seen": {
+            "waitMs": 0,
+            "waits": 2
+          }
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 57.79750470832923,
+          "enqueuePerSecond": 0,
+          "drainPerSecond": 0,
+          "durationMs": 3460.3571,
+          "p50LatencyMs": 3.7645,
+          "p95LatencyMs": 4.5408,
+          "p99LatencyMs": 5.0709,
+          "maxLatencyMs": 5.1088,
+          "meanLatencyMs": 3.7691510000000017,
+          "enqueueDurationMs": 0,
+          "drainDurationMs": 3460.3571,
+          "jobsObserved": 200,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 0,
+            "lockWaitMs": 0,
+            "pageLatchWaitMs": 0,
+            "writeLogWaitMs": 450,
+            "seedHistory": 0,
+            "retainedJobs": 221,
+            "retainedRuntimes": 221,
+            "retainedEvents": 2,
+            "retainedResults": 221
+          },
+          "pageLatchByIndex": {
+            "workers.ix_workers_namespace_status_last_seen": {
+              "waitMs": 0,
+              "waits": 3
+            },
+            "workers.ix_workers_status_last_seen": {
+              "waitMs": 0,
+              "waits": 3
+            },
+            "workers.ix_workers_namespace_last_seen": {
+              "waitMs": 0,
+              "waits": 2
+            }
+          }
+        },
+        {
+          "jobsPerSecond": 57.988903649319994,
+          "enqueuePerSecond": 0,
+          "drainPerSecond": 0,
+          "durationMs": 3448.9358,
+          "p50LatencyMs": 3.7963,
+          "p95LatencyMs": 4.4542,
+          "p99LatencyMs": 5.2934,
+          "maxLatencyMs": 5.5234,
+          "meanLatencyMs": 3.7706585000000015,
+          "enqueueDurationMs": 0,
+          "drainDurationMs": 3448.9358,
+          "jobsObserved": 200,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 0,
+            "lockWaitMs": 0,
+            "pageLatchWaitMs": 2,
+            "writeLogWaitMs": 452,
+            "seedHistory": 0,
+            "retainedJobs": 221,
+            "retainedRuntimes": 221,
+            "retainedEvents": 2,
+            "retainedResults": 221
+          },
+          "pageLatchByIndex": {
+            "workers.ix_workers_namespace_status_last_seen": {
+              "waitMs": 0,
+              "waits": 3
+            },
+            "workers.ix_workers_status_last_seen": {
+              "waitMs": 0,
+              "waits": 3
+            },
+            "workers.ix_workers_namespace_last_seen": {
+              "waitMs": 0,
+              "waits": 2
+            }
+          }
+        },
+        {
+          "jobsPerSecond": 57.970987607657925,
+          "enqueuePerSecond": 0,
+          "drainPerSecond": 0,
+          "durationMs": 3450.0015999999996,
+          "p50LatencyMs": 3.6835,
+          "p95LatencyMs": 4.5675,
+          "p99LatencyMs": 5.2791,
+          "maxLatencyMs": 10.6024,
+          "meanLatencyMs": 3.710214000000002,
+          "enqueueDurationMs": 0,
+          "drainDurationMs": 3450.0015999999996,
+          "jobsObserved": 200,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 0,
+            "lockWaitMs": 0,
+            "pageLatchWaitMs": 1,
+            "writeLogWaitMs": 432,
+            "seedHistory": 0,
+            "retainedJobs": 221,
+            "retainedRuntimes": 221,
+            "retainedEvents": 2,
+            "retainedResults": 221
+          },
+          "pageLatchByIndex": {
+            "workers.ix_workers_namespace_status_last_seen": {
+              "waitMs": 0,
+              "waits": 3
+            },
+            "workers.ix_workers_status_last_seen": {
+              "waitMs": 0,
+              "waits": 3
+            },
+            "workers.ix_workers_namespace_last_seen": {
+              "waitMs": 0,
+              "waits": 2
+            }
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    },
+    {
+      "key": {
+        "scenario": "latency",
+        "provider": "mssql",
+        "databaseEngineMajorVersion": "16",
+        "executionProfile": "Bulk",
+        "jobs": 0,
+        "executors": 1,
+        "claimBatch": 2,
+        "payloadBytes": 0,
+        "workers": 1,
+        "rows": 0,
+        "iterations": 200,
+        "rate": null,
+        "sideJobs": 0
+      },
+      "status": "ok",
+      "medianMetrics": {
+        "jobsPerSecond": 58.274922436078235,
+        "enqueuePerSecond": 0,
+        "drainPerSecond": 0,
+        "durationMs": 3432.0080000000003,
+        "p50LatencyMs": 4.1667,
+        "p95LatencyMs": 5.0339,
+        "p99LatencyMs": 8.3691,
+        "maxLatencyMs": 12.6248,
+        "meanLatencyMs": 4.220347499999999,
+        "enqueueDurationMs": 0,
+        "drainDurationMs": 3432.0080000000003,
+        "jobsObserved": 200,
+        "allocatedBytes": 0,
+        "gcCollections": 0,
+        "extraMetrics": {
+          "deadlocks": 0,
+          "lockWaitMs": 0,
+          "lockWaits": 0,
+          "pageLatchWaitMs": 1,
+          "retainedEvents": 2,
+          "retainedJobs": 221,
+          "retainedResults": 221,
+          "retainedRuntimes": 221,
+          "seedHistory": 0,
+          "writeLogWaitMs": 334
+        },
+        "pageLatchByIndex": {
+          "runtimes.pk_runtimes": {
+            "waitMs": 1,
+            "waits": 209
+          },
+          "workers.ix_workers_namespace_status_last_seen": {
+            "waitMs": 0,
+            "waits": 3
+          },
+          "workers.ix_workers_status_last_seen": {
+            "waitMs": 0,
+            "waits": 3
+          },
+          "workers.ix_workers_namespace_last_seen": {
+            "waitMs": 0,
+            "waits": 2
+          }
+        }
+      },
+      "repeats": [
+        {
+          "jobsPerSecond": 58.20554741939012,
+          "enqueuePerSecond": 0,
+          "drainPerSecond": 0,
+          "durationMs": 3436.0986,
+          "p50LatencyMs": 4.1501,
+          "p95LatencyMs": 5.0302,
+          "p99LatencyMs": 8.3691,
+          "maxLatencyMs": 12.6248,
+          "meanLatencyMs": 4.1616645,
+          "enqueueDurationMs": 0,
+          "drainDurationMs": 3436.0986,
+          "jobsObserved": 200,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 1,
+            "lockWaitMs": 22,
+            "pageLatchWaitMs": 1,
+            "writeLogWaitMs": 334,
+            "seedHistory": 0,
+            "retainedJobs": 221,
+            "retainedRuntimes": 221,
+            "retainedEvents": 2,
+            "retainedResults": 221
+          },
+          "pageLatchByIndex": {
+            "runtimes.pk_runtimes": {
+              "waitMs": 3,
+              "waits": 207
+            },
+            "workers.ix_workers_namespace_status_last_seen": {
+              "waitMs": 0,
+              "waits": 3
+            },
+            "workers.ix_workers_status_last_seen": {
+              "waitMs": 0,
+              "waits": 3
+            },
+            "workers.ix_workers_namespace_last_seen": {
+              "waitMs": 0,
+              "waits": 2
+            }
+          }
+        },
+        {
+          "jobsPerSecond": 58.421029140175655,
+          "enqueuePerSecond": 0,
+          "drainPerSecond": 0,
+          "durationMs": 3423.4248,
+          "p50LatencyMs": 4.232,
+          "p95LatencyMs": 5.0339,
+          "p99LatencyMs": 5.6034,
+          "maxLatencyMs": 11.7049,
+          "meanLatencyMs": 4.220347499999999,
+          "enqueueDurationMs": 0,
+          "drainDurationMs": 3423.4248,
+          "jobsObserved": 200,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 0,
+            "lockWaitMs": 0,
+            "pageLatchWaitMs": 1,
+            "writeLogWaitMs": 332,
+            "seedHistory": 0,
+            "retainedJobs": 221,
+            "retainedRuntimes": 221,
+            "retainedEvents": 2,
+            "retainedResults": 221
+          },
+          "pageLatchByIndex": {
+            "runtimes.pk_runtimes": {
+              "waitMs": 1,
+              "waits": 209
+            },
+            "workers.ix_workers_namespace_status_last_seen": {
+              "waitMs": 0,
+              "waits": 3
+            },
+            "workers.ix_workers_status_last_seen": {
+              "waitMs": 0,
+              "waits": 3
+            },
+            "workers.ix_workers_namespace_last_seen": {
+              "waitMs": 0,
+              "waits": 2
+            }
+          }
+        },
+        {
+          "jobsPerSecond": 58.274922436078235,
+          "enqueuePerSecond": 0,
+          "drainPerSecond": 0,
+          "durationMs": 3432.0080000000003,
+          "p50LatencyMs": 4.1667,
+          "p95LatencyMs": 5.1422,
+          "p99LatencyMs": 9.371,
+          "maxLatencyMs": 12.6344,
+          "meanLatencyMs": 4.230943999999999,
+          "enqueueDurationMs": 0,
+          "drainDurationMs": 3432.0080000000003,
+          "jobsObserved": 200,
+          "allocatedBytes": 0,
+          "gcCollections": 0,
+          "extraMetrics": {
+            "deadlocks": 0,
+            "lockWaits": 0,
+            "lockWaitMs": 0,
+            "pageLatchWaitMs": 2,
+            "writeLogWaitMs": 347,
+            "seedHistory": 0,
+            "retainedJobs": 221,
+            "retainedRuntimes": 221,
+            "retainedEvents": 2,
+            "retainedResults": 221
+          },
+          "pageLatchByIndex": {
+            "runtimes.pk_runtimes": {
+              "waitMs": 1,
+              "waits": 209
+            },
+            "workers.ix_workers_namespace_status_last_seen": {
+              "waitMs": 0,
+              "waits": 3
+            },
+            "workers.ix_workers_status_last_seen": {
+              "waitMs": 0,
+              "waits": 3
+            },
+            "workers.ix_workers_namespace_last_seen": {
+              "waitMs": 0,
+              "waits": 2
+            }
+          }
+        }
+      ],
+      "repeatStatuses": [
+        "ok",
+        "ok",
+        "ok"
+      ]
+    }
+  ]
+}

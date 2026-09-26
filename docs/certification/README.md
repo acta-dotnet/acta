@@ -19,29 +19,32 @@ page says what nothing has ever run. [burst-rc1.md](./burst-rc1.md) is a third k
 burst certification — five runs proving a 10,000-event backlog projects in one invocation and
 drains in seconds, and a 100,000 backlog drains under bounded memory.
 
-The 2026-09-21 quartet is the `1.0.0-rc.3` round: all four gates on the certified commit
-`d3def975`, the first round whose workload carries the `metered` shape, so every seal reports the
-rate contract beside the chaos figures. Every seal from the rc.2, rc.1, and 0.9.0-beta.1 rounds left
-the tree when this round replaced them, as the policy above describes; the two 2026-08-12 seals stay
-for what only they show, the million-job scale runs on PostgreSQL and SQL Server.
+The 2026-09-26 quartet is the `1.0.0` round: all four gates on the certified commit `984eb036`,
+the first round run from a Native AOT build of the harness, and the first on the tree whose start
+and completion writes repeat and reconcile against the row, whose heartbeat returns a claim with a
+lost answer to Ready, and whose executor and orphan release take a per-execution owner entry
+before touching a row, and whose rate meter reads its clock after the bucket row's lock. The rc.3
+round's seals and the 2026-08-12 million-job seals left the tree when this round replaced them,
+as the policy above describes: the round carries its own million-job runs on PostgreSQL and SQL
+Server, 1,005,000 jobs each through 1,536 slots with a worker killed every five seconds.
 
 ## Index
 
 | Seal | Shape | Released in |
 | --- | --- | --- |
-| [seal-20260922T002305Z](./seal-20260922T002305Z.md) | Ensemble: 3 participants, 2 namespaces, one run id, `metered` shape | `v1.0.0-rc.3` (certified commit `d3def975`) |
-| [seal-20260922T001241Z](./seal-20260922T001241Z.md) | SQLite reduced, one WAL file, 48 slots, `metered` shape | `v1.0.0-rc.3` (certified commit `d3def975`) |
-| [seal-20260921T235527Z](./seal-20260921T235527Z.md) | SQL Server standard, 10,000 jobs, 64 slots, `metered` shape | `v1.0.0-rc.3` (certified commit `d3def975`) |
-| [seal-20260921T234152Z](./seal-20260921T234152Z.md) | PostgreSQL standard, 10,000 jobs, 64 slots, `metered` shape | `v1.0.0-rc.3` (certified commit `d3def975`) |
-| [seal-20260812T130035Z](./seal-20260812T130035Z.md) | 1,000,000 jobs, SQL Server | `v0.9.0-beta.1` (pre-release commit) |
-| [seal-20260812T101351Z](./seal-20260812T101351Z.md) | 1,000,000 jobs, PostgreSQL | `v0.9.0-beta.1` (pre-release commit) |
+| [seal-20260926T111524Z](./seal-20260926T111524Z.md) | Ensemble: 3 participants, 2 namespaces, one run id, `metered` shape | `v1.0.0` (certified commit `984eb036`) |
+| [seal-20260926T110350Z](./seal-20260926T110350Z.md) | SQLite reduced, one WAL file, 48 slots, `metered` shape | `v1.0.0` (certified commit `984eb036`) |
+| [seal-20260926T104657Z](./seal-20260926T104657Z.md) | SQL Server standard, 10,000 jobs, 64 slots, `metered` shape | `v1.0.0` (certified commit `984eb036`) |
+| [seal-20260926T103342Z](./seal-20260926T103342Z.md) | PostgreSQL standard, 10,000 jobs, 64 slots, `metered` shape | `v1.0.0` (certified commit `984eb036`) |
+| [seal-20260926T145156Z](./seal-20260926T145156Z.md) | 1,000,000 jobs, PostgreSQL, 1,536 slots, `metered` shape | `v1.0.0` (certified commit `984eb036`) |
+| [seal-20260926T133553Z](./seal-20260926T133553Z.md) | 1,000,000 jobs, SQL Server, 1,536 slots, `metered` shape | `v1.0.0` (certified commit `984eb036`) |
 
-What this round shows: the quartet holding on the tree that changed the claim, registration, and
-admission paths, with orphaned attempts in the hundreds and dead workers in the dozens on every
-gate; the ensemble's at-most-once and namespace-isolation checks holding with 772 orphaned attempts
-across 162 killed workers; and the rate meter admitting at its declared rate on every provider while
-the workers holding its turns were killed, never past twenty-one in a second against a budget of
-thirty.
+What this round shows: the quartet holding on the tree that closed the ownership holes four
+reviews found between claim, start, heartbeat, and release, with orphaned attempts in the hundreds
+and dead workers in the dozens on every gate; the ensemble's at-most-once and namespace-isolation
+checks holding with 771 orphaned attempts across 185 killed workers; and the rate meter admitting
+at its declared rate on every provider while the workers holding its turns were killed, never past
+twenty in a second against a budget of thirty.
 
 [coverage-baseline-rc2.md](./coverage-baseline-rc2.md) is the current coverage page: the unit and
 SQLite suites at 88.4% line and 70.7% branch, and the blind-spot entry the rc.2 round's own defect

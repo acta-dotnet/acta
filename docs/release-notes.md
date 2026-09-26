@@ -167,6 +167,22 @@ checklist.
   its measurement is recorded, so a round leaves nothing behind and autovacuum stays on.
 - The release checklist names, per boundary the review questioned, the spec or harness that carries
   it.
+- The benchmark round ran with both harnesses published as Native AOT for the first time: full
+  matrices of `aa7419d5`, the certified commit less the meter's clock fix, against rc.3 on
+  PostgreSQL, SQL Server, and SQLite with an interleaved pickup-latency series per server, in
+  `docs/benchmarks/v1-full-matrix-20260925.md`, which says why the round was kept. Level on Direct,
+  Buffered, drain, enqueue, the list query, and pickup; Bulk throughput reads 1.6 to 1.8 times rc.3
+  from eight executors up on both servers.
+- The certification quartet ran on the certified commit with the harness published as Native AOT:
+  PostgreSQL and SQL Server at 10,000 jobs and 64 slots, SQLite reduced at 48 slots, and the
+  three-participant ensemble, every asserted property held under a real kill every five seconds,
+  with orphaned attempts in the hundreds and dead workers in the dozens on every gate. The four
+  seals are in `docs/certification`.
+- Two million-job runs on the certified commit, PostgreSQL and SQL Server, each 1,005,000 jobs
+  through 24 worker processes of 64 executors with a worker killed every five seconds for twenty
+  minutes: every job succeeded, none failed, no step was recorded twice, and the rate meter held
+  its contract across 10,000 metered admissions. The SQL Server run is the one that found the
+  meter's stale clock on the previous commit; its seal records both readings.
 
 ### Documentation
 
