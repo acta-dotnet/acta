@@ -239,6 +239,13 @@ public abstract class ListJobsFilterMatrixSpec<TFixture> : ActaRuntimeTestBase<T
         var keyPage = await queries.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, TenantKey: t1Key), ct);
         Assert.Equal([ta, tb], keyPage.Items.Select(static i => i.JobId).ToHashSet());
         Assert.All(keyPage.Items, i => Assert.Equal(t1Key, i.TenantKey));
+
+        // The filter-wide total counts under the same key filter as the page.
+        var counted = await queries.Ledger.ListJobsAsync(
+            new ListJobsQuery(JobNamespace: TestNamespace, TenantKey: t1Key, IncludeTotal: true),
+            ct
+        );
+        Assert.Equal(2, counted.TotalCount);
     }
 
     [Fact(DisplayName = "Namespace filter returns only jobs in the requested namespace and the total matches the filtered count")]
