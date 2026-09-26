@@ -45,7 +45,7 @@ public sealed class DefinitionRegistrationValidationTests
     private static Task RegisterAsync(params JobDescriptor[] descriptors) => RegisterAsync([.. descriptors], []);
 
     private static Task RegisterAsync(JobDescriptor[] descriptors, StoredDefinitionContract[] stored) =>
-        new DefinitionsService(new RejectingDefinitionStore(), null!, null!, null!).RegisterAsync(
+        new DefinitionsService(new RejectingDefinitionStore(), null!, null!).RegisterAsync(
             1,
             Gen,
             [.. descriptors],

@@ -102,6 +102,11 @@ BEGIN
 
         -- The lane row is the lane's mutex, held to commit (docs/internals/sql-execution-policy.md, "Lane
         -- lock order"). The name only resolves the id; the lock is taken by id, on the clustered key.
+        -- Ready versus Blocked is read after the lane lock, which a SNAPSHOT transaction (level 5) never sees.
+        IF @lane IS NOT NULL
+            AND (SELECT s.transaction_isolation_level FROM sys.dm_exec_sessions s WHERE s.session_id = @@SPID) = 5
+            THROW 50011, 'ACTA:ENQ_LANE_ISOLATION:Enqueue rejected: a laned enqueue cannot run in a SNAPSHOT caller transaction.', 1;
+
         DECLARE @lane_found BIGINT;
         WHILE @lane IS NOT NULL AND @lane_id IS NULL
             BEGIN
@@ -195,7 +200,9 @@ BEGIN
                             AND ar.status_code IN (
                                 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
                                 30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-                            );
+                            )
+                        -- A lineage has no depth bound, so neither has the walk.
+                        OPTION (MAXRECURSION 0);
 
                         IF @ancestor_lane_hits > 0
                             BEGIN

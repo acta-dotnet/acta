@@ -16,6 +16,7 @@ BEGIN
            (docs/internals/sql-execution-policy.md, "Lane lock order"). extend_worker_leases never takes
            a lane, so a heartbeat holding runtime rows never waits on anything a flush holds first. */
         DECLARE @lanes TABLE (id BIGINT NOT NULL PRIMARY KEY);
+        DECLARE @promoted_lanes TABLE (id BIGINT NOT NULL PRIMARY KEY);
         INSERT INTO @lanes (id)
         SELECT DISTINCT r.lane_id
         FROM {{schema}}.runtimes r
@@ -212,6 +213,8 @@ BEGIN
                             AND status_code = 15 /* JobStatusCode.Blocked */;
 
                         SET @promoted = @@ROWCOUNT;
+                        IF @promoted > 0
+                            INSERT INTO @promoted_lanes (id) VALUES (@lane_next);
                     END;
 
                 SET @lane_cursor = @lane_next;
@@ -219,7 +222,14 @@ BEGIN
 
         SELECT
             b.ordinal,
-            CAST(CASE WHEN u.ordinal IS NOT NULL THEN 1 ELSE 0 END AS SMALLINT) AS finalized
+            CAST(CASE WHEN u.ordinal IS NOT NULL THEN 1 ELSE 0 END AS SMALLINT) AS finalized,
+            -- The finalized row's lane promoted a member, which the caller announces to the namespace.
+            CAST(CASE WHEN u.ordinal IS NOT NULL AND EXISTS (
+                SELECT 1
+                FROM {{schema}}.runtimes pr
+                INNER JOIN @promoted_lanes pl ON pl.id = pr.lane_id
+                WHERE pr.job_id = b.job_id
+            ) THEN 1 ELSE 0 END AS SMALLINT) AS lane_promoted
         FROM @p_batch b
         LEFT JOIN @updated u ON u.ordinal = b.ordinal
         ORDER BY b.ordinal;

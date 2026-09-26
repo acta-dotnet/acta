@@ -90,8 +90,48 @@ public abstract class LaneRepairSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
         await AssertUntouchedAsync(behindSuspended, ct);
     }
 
+    [Fact(DisplayName = "A pass in another namespace leaves this namespace's stranded lane alone")]
+    public async Task Pass_in_another_namespace_leaves_the_lane_alone()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var head = await StepAsync("orders", "a", ct);
+        var follower = await StepAsync("orders", "b", ct);
+        await SetStatusAsync(head, JobStatusCode.Succeeded, ct);
+        var otherName = TestKey("other");
+        var otherId = await new ActaTestSeeder(Db).SeedJobNamespaceAsync(otherName, "test", ct);
+
+        await Services.GetRequiredService<RecoveryPass>().RunAsync(otherId, otherName, ct);
+
+        await AssertUntouchedAsync(follower, ct);
+    }
+
+    [Fact(DisplayName = "One pass repairs at most a thousand stranded lanes")]
+    public async Task One_pass_is_capped()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        const int Lanes = 1100;
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+        await Jobs.EnqueueBatchAsync(
+            [.. Enumerable.Range(0, Lanes).SelectMany(i => new[] { Step($"cap-{i}", "head"), Step($"cap-{i}", "follower") })],
+            ct
+        );
+        // Every head hand-set to Succeeded at once, so every lane is stranded behind a Blocked follower.
+        await Db.ExecuteRawAsync(
+            $"UPDATE {{schema}}.runtimes SET status_code = {(int)JobStatusCode.Succeeded} WHERE namespace_id = @p_ns AND status_code = {(int)JobStatusCode.Ready}",
+            ct,
+            ("@p_ns", ns)
+        );
+
+        var outcome = await Services.GetRequiredService<RecoveryPass>().RunAsync(ns, TestNamespace, ct);
+
+        Assert.Equal(1000, outcome.RepairedLanes);
+    }
+
     private Task PassAsync(CancellationToken ct) =>
         Services.GetRequiredService<RecoveryPass>().RunAsync(Runtime.RegisteredNamespaceIds[TestNamespace], TestNamespace, ct);
+
+    private JobEnqueueRequest Step(string lane, string label) =>
+        new(TestNamespace, "lane-step", JobPayload.Json(new LaneStep(lane, label)), Lane: lane);
 
     private async Task AssertUntouchedAsync(JobEnqueueOutcome follower, CancellationToken ct)
     {

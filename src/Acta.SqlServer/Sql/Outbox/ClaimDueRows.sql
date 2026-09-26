@@ -17,7 +17,7 @@ BEGIN TRY
         SELECT TOP (@p_batch_size) outbox_id
         FROM {{table_ref}} WITH (UPDLOCK, READPAST, ROWLOCK)
         WHERE status_code = 10 /* OutboxStatusCode.Pending */ AND next_attempt_at_utc <= SYSUTCDATETIME()
-        ORDER BY COALESCE(priority_code, 50) DESC, next_attempt_at_utc ASC, created_at_utc ASC, outbox_id ASC
+        ORDER BY next_attempt_at_utc ASC, staging_id ASC
     )
 
     UPDATE o
@@ -28,7 +28,8 @@ BEGIN TRY
     OUTPUT
         INSERTED.outbox_id, INSERTED.job_namespace, INSERTED.job_name, INSERTED.input_format_id, INSERTED.input,
         INSERTED.deduplication_key, INSERTED.correlation_key, INSERTED.concurrency_key, INSERTED.lane, INSERTED.priority_code,
-        INSERTED.next_run_at_utc, INSERTED.delay_seconds, INSERTED.tenant_key, INSERTED.meta, INSERTED.created_at_utc, INSERTED.failure_count
+        INSERTED.next_run_at_utc, INSERTED.delay_seconds, INSERTED.tenant_key, INSERTED.meta, INSERTED.created_at_utc, INSERTED.failure_count,
+        INSERTED.staging_id
     FROM {{table_ref}} AS o
     INNER JOIN due ON due.outbox_id = o.outbox_id;
 

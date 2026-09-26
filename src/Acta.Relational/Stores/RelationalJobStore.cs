@@ -387,22 +387,46 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
     public Task<JobControlOutcome> PurgeJobAsync(long jobId, JobControlInput input, CancellationToken ct) =>
         ControlAsync("Jobs/PurgeJob", cmd => AddControlParameters(cmd, jobId, input, includeReasonMessage: false), ct);
 
-    public Task RecordJobRedriveAsync(
+    public Task<JobRedriveOutcome> RedriveJobAsync(
+        JobEnqueueRow row,
+        Guid copyRef,
         long jobId,
         JobRef jobRef,
-        long redriveJobId,
-        JobRef redriveJobRef,
         JobControlInput input,
         CancellationToken ct
     ) =>
-        session.ExecuteAsync(
-            new StoreCommand("Execution", "Jobs/RecordJobRedrive"),
-            cmd =>
+        session.RunInOwnedTransactionAsync(
+            async (transaction, token) =>
             {
-                AddControlParameters(cmd, jobId, input, includeReasonMessage: true);
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.RedriveJobId, redriveJobId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.Detail, RedriveDetail("redriveJobRef", redriveJobRef)));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.RedriveDetail, RedriveDetail("redrivenFromJobRef", jobRef)));
+                var enqueued = await EnqueueOneInTransactionAsync(transaction, row, copyRef, token);
+                if (enqueued.Count != 1)
+                {
+                    return (new JobRedriveOutcome(enqueued, null), false);
+                }
+
+                var bumped = await session.ExecuteInTransactionAsync(
+                    transaction,
+                    new StoreCommand("Execution", "Jobs/RecordJobRedrive"),
+                    cmd =>
+                    {
+                        AddControlParameters(cmd, jobId, input, includeReasonMessage: true);
+                        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.RedriveJobId, enqueued[0].JobId));
+                        cmd.Parameters.Add(
+                            dialect.CreateParameter(
+                                ActaSchema.JobEvent.Detail,
+                                RedriveDetail("redriveJobRef", new JobRef(enqueued[0].JobRef))
+                            )
+                        );
+                        cmd.Parameters.Add(
+                            dialect.CreateParameter(ActaSchema.Sql.RedriveDetail, RedriveDetail("redrivenFromJobRef", jobRef))
+                        );
+                        AddExpectedVersion(cmd, input);
+                    },
+                    DbProjectionResolver.Resolve<JobRedriveBumpRow>(),
+                    token
+                );
+                var bump = bumped.Count == 0 ? (JobRedriveBumpRow?)null : bumped[0];
+                return (new JobRedriveOutcome(enqueued, bump), bump is not null);
             },
             ct
         );

@@ -55,7 +55,8 @@ BEGIN
                     CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
                     CAST(NULL AS TINYINT) AS status_code,
                     CAST(NULL AS BIGINT) AS parent_id,
-                    CAST(NULL AS INT) AS version;
+                    CAST(NULL AS INT) AS version,
+                    CAST(0 AS TINYINT) AS lane_promoted;
                 GOTO Finish;
             END;
 
@@ -66,7 +67,8 @@ BEGIN
                     CAST(5 /* ControlAction.VersionConflict */ AS TINYINT) AS action,
                     @from_status AS status_code,
                     @parent_id AS parent_id,
-                    @version AS version;
+                    @version AS version,
+                    CAST(0 AS TINYINT) AS lane_promoted;
                 GOTO Finish;
             END;
 
@@ -85,7 +87,8 @@ BEGIN
                     CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
                     @from_status AS status_code,
                     @parent_id AS parent_id,
-                    @version AS version;
+                    @version AS version,
+                    CAST(0 AS TINYINT) AS lane_promoted;
                 GOTO Finish;
             END;
 
@@ -194,7 +197,8 @@ BEGIN
             CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
             CAST(220 /* JobStatusCode.Cancelled */ AS TINYINT) AS status_code,
             @parent_id AS parent_id,
-            @version AS version;
+            @version AS version,
+            CAST(CASE WHEN @promoted > 0 THEN 1 ELSE 0 END AS TINYINT) AS lane_promoted;
 
     Finish:
 

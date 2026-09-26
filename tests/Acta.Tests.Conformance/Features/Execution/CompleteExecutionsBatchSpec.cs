@@ -97,7 +97,7 @@ public abstract class CompleteExecutionsBatchSpec<TFixture> : ActaRuntimeTestBas
         var results = await Services.GetRequiredService<IExecutionStore>().CompleteExecutionsBatchAsync(requests, ct);
 
         // Pin exact per-ordinal bool outcomes.
-        Assert.Equal([true, false, true, true, false], results);
+        Assert.Equal([true, false, true, true, false], results.Select(static r => r.Finalized));
 
         // Pin post-state: true → Succeeded (100); false → still Executing (50).
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(plainAEnq.JobId, ct)).Status);
@@ -158,7 +158,7 @@ public abstract class CompleteExecutionsBatchSpec<TFixture> : ActaRuntimeTestBas
 
         var results = await Services.GetRequiredService<IExecutionStore>().CompleteExecutionsBatchAsync(requests, ct);
 
-        Assert.Equal([false, true, false, true], results);
+        Assert.Equal([false, true, false, true], results.Select(static r => r.Finalized));
 
         Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(childEnq.JobId, ct)).Status);
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(plainAEnq.JobId, ct)).Status);
@@ -194,7 +194,7 @@ public abstract class CompleteExecutionsBatchSpec<TFixture> : ActaRuntimeTestBas
 
         var results = await Services.GetRequiredService<IExecutionStore>().CompleteExecutionsBatchAsync(requests, ct);
 
-        Assert.Equal([true, true, true], results);
+        Assert.Equal([true, true, true], results.Select(static r => r.Finalized));
 
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqA.JobId, ct)).Status);
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqB.JobId, ct)).Status);
@@ -238,7 +238,7 @@ public abstract class CompleteExecutionsBatchSpec<TFixture> : ActaRuntimeTestBas
 
         var results = await Services.GetRequiredService<IExecutionStore>().CompleteExecutionsBatchAsync(requests, ct);
 
-        Assert.Equal([true, true], results);
+        Assert.Equal([true, true], results.Select(static r => r.Finalized));
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(okEnq.JobId, ct)).Status);
         Assert.Equal(JobStatusCode.Failed, (await ReadJobAsync(failEnq.JobId, ct)).Status);
 
@@ -277,7 +277,7 @@ public abstract class CompleteExecutionsBatchSpec<TFixture> : ActaRuntimeTestBas
 
         var results = await Services.GetRequiredService<IExecutionStore>().CompleteExecutionsBatchAsync(requests, ct);
 
-        Assert.Equal([false, true, true], results);
+        Assert.Equal([false, true, true], results.Select(static r => r.Finalized));
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(aEnq.JobId, ct)).Status);
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(bEnq.JobId, ct)).Status);
 
@@ -307,7 +307,7 @@ public abstract class CompleteExecutionsBatchSpec<TFixture> : ActaRuntimeTestBas
 
         // Batch declines: the runtime row's leased_by_worker_id is workerId but the request says fakeWorkerId.
         var results = await Services.GetRequiredService<IExecutionStore>().CompleteExecutionsBatchAsync([wrongOwnerRequest], ct);
-        Assert.Equal([false], results);
+        Assert.Equal([false], results.Select(static r => r.Finalized));
 
         // Job must still be Executing: the batch left it untouched.
         Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(enq.JobId, ct)).Status);

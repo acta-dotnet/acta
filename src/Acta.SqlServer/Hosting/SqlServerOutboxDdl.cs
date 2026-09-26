@@ -22,6 +22,7 @@ public static class SqlServerOutboxDdl
         return $"""
             CREATE TABLE {t} (
                 outbox_id uniqueidentifier NOT NULL,
+                staging_id bigint IDENTITY(1,1) NOT NULL,
                 job_namespace varchar(128) NOT NULL,
                 job_name varchar(128) NOT NULL,
                 input_format_id tinyint NOT NULL,
@@ -56,7 +57,7 @@ public static class SqlServerOutboxDdl
                     OR (status_code <> 20 AND claim_token IS NULL AND claim_until_utc IS NULL))
             );
             CREATE INDEX ix_{table}_due ON {t}
-                (status_code, next_attempt_at_utc, priority_code, created_at_utc, outbox_id);
+                (status_code, next_attempt_at_utc, staging_id);
             CREATE INDEX ix_{table}_claims ON {t} (status_code, claim_until_utc);
             """;
     }

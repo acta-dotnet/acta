@@ -119,6 +119,12 @@ public interface IConformanceFixture
     );
 
     /// <summary>
+    /// Stage every request in <paramref name="requests"/>, in order, through the provider's
+    /// <c>AddToActaOutboxAsync</c> extension on one native transaction, then commit it.
+    /// </summary>
+    ValueTask StageInOneTransactionAsync(string outboxTable, IReadOnlyList<Acta.JobEnqueueRequest> requests);
+
+    /// <summary>
     /// Build the provider's external-outbox source store (an internal <c>IOutboxRelayStore</c>, returned
     /// as <see cref="object"/> so the public fixture surface does not leak the internal port) over
     /// <paramref name="table"/>.

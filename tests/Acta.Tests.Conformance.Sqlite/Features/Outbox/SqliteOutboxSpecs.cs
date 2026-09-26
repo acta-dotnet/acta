@@ -35,6 +35,8 @@ public sealed class SqliteOutboxSourceIndependenceSpec : OutboxSourceIndependenc
 
 public sealed class SqliteOutboxStagingSpec : OutboxStagingSpec<SqliteConformanceFixture>;
 
+public sealed class SqliteOutboxLaneOrderSpec : OutboxLaneOrderSpec<SqliteConformanceFixture>;
+
 public sealed class SqliteOutboxDdlSpec : OutboxDdlSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteOutboxRelayHandoffSpec : OutboxRelayHandoffSpec<SqliteConformanceFixture>;

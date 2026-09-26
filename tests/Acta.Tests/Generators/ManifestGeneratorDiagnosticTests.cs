@@ -499,6 +499,47 @@ public class ManifestGeneratorDiagnosticTests
     }
 
     [Fact]
+    public void Concurrency_limit_is_emitted_into_the_descriptor()
+    {
+        var result = RunGenerator(
+            """
+            using Acta;
+            namespace GenTests;
+
+            public static class Handler
+            {
+                [Job("limited", ConcurrencyLimit = 7)]
+                public static void Run() { }
+            }
+            """
+        );
+
+        Assert.Empty(Of(result, "ACTA0105"));
+        Assert.Contains("ConcurrencyLimit = 7,", Assert.Single(result.GeneratedTrees).ToString());
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1025)]
+    public void Concurrency_limit_outside_one_to_1024_errors_ACTA0105(int limit)
+    {
+        var result = RunGenerator(
+            $$"""
+            using Acta;
+            namespace GenTests;
+
+            public static class Handler
+            {
+                [Job("limited", ConcurrencyLimit = {{limit}})]
+                public static void Run() { }
+            }
+            """
+        );
+
+        Assert.Single(Of(result, "ACTA0105"));
+    }
+
+    [Fact]
     public void Backoff_multiplier_below_one_errors_ACTA0105()
     {
         var result = RunGenerator(

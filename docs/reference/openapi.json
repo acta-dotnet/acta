@@ -8360,7 +8360,8 @@
           "notFound",
           "rejected",
           "accepted",
-          "versionConflict"
+          "versionConflict",
+          "redriven"
         ],
         "description": "Coarse outcome of an IJobs control verb."
       },

@@ -14,7 +14,7 @@ BEGIN
         IF @entry_trancount = 0
             BEGIN TRANSACTION;
 
-        IF @p_batch_size <= 0 OR @p_section NOT BETWEEN 1 AND 7
+        IF @p_batch_size <= 0 OR @p_section NOT BETWEEN 1 AND 8
             THROW 50002, 'Invalid retention section or batch size.', 1;
 
         DECLARE @rows INT = 0;
@@ -188,6 +188,29 @@ BEGIN
                     expires_at_utc <= @p_cutoff_utc
                 ORDER BY expires_at_utc;
                 DELETE t FROM {{schema}}.locks t INNER JOIN @lock_del d ON d.lock_key = t.lock_key;
+                SET @rows = @@ROWCOUNT;
+            END;
+
+        ELSE IF @p_section = 8
+            BEGIN
+            -- Unreferenced lanes, locked by id on the clustered key skipping a lane an enqueue or settle
+            -- holds, then re-checked under the lock (docs/internals/sql-execution-policy.md, "Lane lock order").
+                DELETE @del;
+                INSERT INTO @del (id)
+                SELECT l.id
+                FROM {{schema}}.lanes l WITH (UPDLOCK, READPAST, ROWLOCK, INDEX (pk_lanes))
+                WHERE l.id IN (
+                    SELECT TOP (@p_batch_size) c.id
+                    FROM {{schema}}.lanes c
+                    WHERE
+                        c.namespace_id = @p_namespace_id
+                        AND NOT EXISTS (SELECT 1 FROM {{schema}}.runtimes r WHERE r.lane_id = c.id)
+                    ORDER BY c.id
+                );
+                DELETE l
+                FROM {{schema}}.lanes l
+                INNER JOIN @del d ON d.id = l.id
+                WHERE NOT EXISTS (SELECT 1 FROM {{schema}}.runtimes r WHERE r.lane_id = l.id);
                 SET @rows = @@ROWCOUNT;
             END;
 

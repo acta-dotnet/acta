@@ -6,6 +6,7 @@ DROP TABLE IF EXISTS temp._purge_alerts;
 DROP TABLE IF EXISTS temp._purge_undelivered_alerts;
 DROP TABLE IF EXISTS temp._purge_workers;
 DROP TABLE IF EXISTS temp._purge_locks;
+DROP TABLE IF EXISTS temp._purge_lanes;
 
 CREATE TEMP TABLE _purge_jobs AS
 SELECT r.job_id AS id
@@ -127,6 +128,19 @@ LIMIT @p_batch_size;
 
 DELETE FROM {{schema}}.locks WHERE lock_key IN (SELECT lock_key FROM temp._purge_locks);
 
+-- Unreferenced lanes; the immediate transaction is the lanes' mutex on SQLite.
+CREATE TEMP TABLE _purge_lanes AS
+SELECT l.id
+FROM {{schema}}.lanes l
+WHERE
+    @p_section = 8
+    AND l.namespace_id = @p_namespace_id
+    AND NOT EXISTS (SELECT 1 FROM {{schema}}.runtimes r WHERE r.lane_id = l.id)
+ORDER BY l.id
+LIMIT @p_batch_size;
+
+DELETE FROM {{schema}}.lanes WHERE id IN (SELECT id FROM temp._purge_lanes);
+
 SELECT
     (SELECT COUNT(*) FROM temp._purge_jobs)
     + (SELECT COUNT(*) FROM temp._purge_events)
@@ -134,4 +148,5 @@ SELECT
     + (SELECT COUNT(*) FROM temp._purge_undelivered_alerts)
     + (SELECT COUNT(*) FROM temp._purge_skip)
     + (SELECT COUNT(*) FROM temp._purge_workers)
-    + (SELECT COUNT(*) FROM temp._purge_locks) AS deleted_count;
+    + (SELECT COUNT(*) FROM temp._purge_locks)
+    + (SELECT COUNT(*) FROM temp._purge_lanes) AS deleted_count;

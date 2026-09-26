@@ -201,7 +201,7 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
             ct
         );
 
-    public async Task<IReadOnlyList<bool>> CompleteExecutionsBatchAsync(
+    public async Task<IReadOnlyList<BatchCompletionOutcome>> CompleteExecutionsBatchAsync(
         IReadOnlyList<CompleteExecutionRequest> requests,
         CancellationToken ct
     )
@@ -223,13 +223,13 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
             throw new InvalidOperationException($"complete_executions_batch returned {rows.Count} outcomes for {requests.Count} requests.");
         }
 
-        var finalized = new bool[requests.Count];
+        var outcomes = new BatchCompletionOutcome[requests.Count];
         foreach (var row in rows)
         {
-            finalized[row.Ordinal] = row.Finalized;
+            outcomes[row.Ordinal] = new BatchCompletionOutcome(row.Finalized, row.LanePromoted);
         }
 
-        return finalized;
+        return outcomes;
     }
 
     public async Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct)

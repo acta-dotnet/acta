@@ -11,6 +11,14 @@ public sealed class LaneOptionTests
 {
     public static TheoryData<string> InvalidLanes => ["", "   ", "has space", "café", "sys.reserved", new string('l', 129)];
 
+    [Theory]
+    [InlineData(typeof(JobEnqueueOptionsBuilder))]
+    [InlineData(typeof(JobRequestBuilder))]
+    public void Lane_builders_name_their_parameter_lane(Type builder)
+    {
+        Assert.Equal("lane", Assert.Single(builder.GetMethod("Lane")!.GetParameters()).Name);
+    }
+
     [Fact]
     public void Options_builder_canonicalizes_the_lane()
     {

@@ -18,7 +18,7 @@ internal sealed class RetentionCoordinator(IRetentionStore store, IServerClock c
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(command.BatchSize);
         ArgumentOutOfRangeException.ThrowIfNegative(command.MaxIterations);
         var now = await clock.GetUtcNowAsync(ct);
-        var counts = new int[7];
+        var counts = new int[8];
         try
         {
             for (var index = 0; index < counts.Length; index++)
@@ -45,7 +45,7 @@ internal sealed class RetentionCoordinator(IRetentionStore store, IServerClock c
                 }
             }
 
-            return new PurgeExpiredDataResult(counts[0], counts[1], counts[2], counts[3], counts[5], counts[6]);
+            return new PurgeExpiredDataResult(counts[0], counts[1], counts[2], counts[3], counts[5], counts[6], counts[7]);
         }
         finally
         {

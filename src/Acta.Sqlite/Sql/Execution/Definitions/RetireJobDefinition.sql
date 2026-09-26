@@ -21,24 +21,8 @@ SELECT
     j.audit_level_code,
     COALESCE(j.lineage_root_id, j.id) AS lineage_root_id,
     r.execution_number,
-    r.status_code AS from_status_code
-FROM {{schema}}.jobs j
-JOIN {{schema}}.runtimes r ON r.job_id = j.id
-WHERE
-    j.definition_id IN (
-        SELECT s.id
-        FROM temp._retire_job_definition s
-        WHERE s.version = @p_version AND s.status_code <> 240 /* JobDefinitionStatusCode.Retired */
-    )
-    AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */)
-    AND r.lane_id IS NULL;
-
-DROP TABLE IF EXISTS temp._retire_laned_jobs;
-
--- A laned parked job is cancelled through CancelJob instead, which hands its lane on; this sweep only
--- names them.
-CREATE TEMP TABLE _retire_laned_jobs AS
-SELECT j.id AS job_id, j.parent_id
+    r.status_code AS from_status_code,
+    r.lane_id
 FROM {{schema}}.jobs j
 JOIN {{schema}}.runtimes r ON r.job_id = j.id
 WHERE
@@ -49,8 +33,7 @@ WHERE
     )
     AND r.status_code IN (
         10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */
-    )
-    AND r.lane_id IS NOT NULL;
+    );
 
 UPDATE {{schema}}.definitions
 SET
@@ -154,6 +137,34 @@ SELECT
 FROM temp._retire_job_definition s
 WHERE s.version = @p_version AND s.status_code <> 240 /* JobDefinitionStatusCode.Retired */;
 
+-- Once every parked member is cancelled, each of their lanes hands on to its lowest-id unfinished
+-- member if that member is Blocked. The immediate transaction is the lanes' mutex on SQLite, and this
+-- is the last write, so the final SELECT's changes() counts its promotions.
+UPDATE {{schema}}.runtimes
+SET
+    status_code = 10 /* JobStatusCode.Ready */,
+    next_run_at_utc = MAX(next_run_at_utc, {{now}}),
+    modified_at_utc = {{now}},
+    version = version + 1
+WHERE
+    status_code = 15 /* JobStatusCode.Blocked */
+    AND job_id IN (
+        SELECT (
+            SELECT m.job_id
+            FROM {{schema}}.runtimes m
+            WHERE
+                m.lane_id = l.lane_id
+                AND m.lane_id IS NOT NULL
+                AND m.status_code IN (
+                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                    30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                )
+            ORDER BY m.job_id
+            LIMIT 1
+        )
+        FROM (SELECT DISTINCT p.lane_id FROM temp._retire_parked_jobs p WHERE p.lane_id IS NOT NULL) l
+    );
+
 SELECT
     CASE
         WHEN s.id IS NULL THEN 2 /* DefinitionOverrideAction.NotFound */
@@ -162,13 +173,7 @@ SELECT
     END AS action,
     p.job_id,
     p.parent_id,
-    p.laned
+    CASE WHEN changes() > 0 THEN 1 ELSE 0 END AS lane_promoted
 FROM (SELECT @p_id AS qid) q
 LEFT JOIN temp._retire_job_definition s ON s.id = q.qid
-LEFT JOIN (
-    SELECT c.job_id, c.parent_id, 0 AS laned
-    FROM temp._retire_parked_jobs c
-    UNION ALL
-    SELECT l.job_id, l.parent_id, 1
-    FROM temp._retire_laned_jobs l
-) p ON 1 = 1;
+LEFT JOIN temp._retire_parked_jobs p ON 1 = 1;

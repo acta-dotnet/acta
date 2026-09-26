@@ -32,4 +32,10 @@ public enum EnqueueRejectionReason : byte
 
     /// <summary>A child names the lane of an unfinished ancestor, so it would wait behind the ancestor that waits for it.</summary>
     AncestorLane = 9,
+
+    /// <summary>
+    /// A laned enqueue ran in a caller transaction whose isolation reads an old snapshot after the lane lock
+    /// (PostgreSQL REPEATABLE READ or SERIALIZABLE, SQL Server SNAPSHOT), so it could not order the lane.
+    /// </summary>
+    LaneIsolation = 10,
 }

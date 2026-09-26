@@ -140,6 +140,25 @@ public abstract class EnqueueRejectionSpec<TFixture> : ActaRuntimeTestBase<TFixt
         Assert.Equal(before, await CountJobsAsync(ct));
     }
 
+    [Fact(DisplayName = "A batch row whose job ref is already taken raises and persists nothing")]
+    public async Task Batch_row_with_a_taken_job_ref_raises()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var taken = (await RunAsync([Row(null, new AddNumbers(1, 1))], ct))[0];
+        var before = await CountJobsAsync(ct);
+        var store = Services.GetRequiredService<IJobStore>();
+        JobEnqueueRow[] rows =
+        [
+            JobEnqueueRows.Canonicalize(Row(null, new AddNumbers(2, 2), [new TagInput("probe", "taken-ref")])),
+            JobEnqueueRows.Canonicalize(Row(null, new AddNumbers(3, 3))),
+        ];
+
+        await Assert.ThrowsAnyAsync<Exception>(() => store.EnqueueBatchAsync(rows, [taken.JobRef.Value, JobRef.New().Value], ct));
+
+        Assert.Equal(before, await CountJobsAsync(ct));
+        Assert.Empty(await Db.From<Tag>().Where(t => t.Name == "probe").ToListAsync(ct));
+    }
+
     private JobEnqueueRow Row(string? deduplicationKey, AddNumbers input, IReadOnlyList<TagInput>? tags = null)
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();

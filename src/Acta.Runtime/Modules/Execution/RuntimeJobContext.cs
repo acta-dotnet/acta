@@ -276,9 +276,16 @@ internal sealed class RuntimeJobContext(
 
         // The child's own latch on this job is Expired, so no raise is needed or possible here; the
         // descendants' latches sit on parents this walk has already made terminal.
-        foreach (var cancelledId in await CancelDescendants.Run(_executionStore, _jobStore, childJobId, input, ct))
+        var descendants = await CancelDescendants.Run(_executionStore, _jobStore, childJobId, input, ct);
+        foreach (var cancelledId in descendants.Cancelled)
         {
             await WakeCompletionAsync(cancelledId, ct);
+        }
+
+        // A cancel in the abandoned subtree that promoted a lane member is new work for the claim loops.
+        if ((cancel.LanePromoted || descendants.LanePromoted) && _wakeupPublisher is { } publisher)
+        {
+            await publisher.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct);
         }
     }
 

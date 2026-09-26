@@ -37,6 +37,10 @@ public sealed class PgLaneRedriveSpec : LaneRedriveSpec<PgConformanceFixture>;
 
 public sealed class PgLaneLockOrderSpec : LaneLockOrderSpec<PgConformanceFixture>;
 
+public sealed class PgLaneRetentionSpec : LaneRetentionSpec<PgConformanceFixture>;
+
+public sealed class PgLaneRetireSpec : LaneRetireSpec<PgConformanceFixture>;
+
 public sealed class PgConcurrencyLimitSpec : ConcurrencyLimitSpec<PgConformanceFixture>;
 
 public sealed class PgRateLimitSpec : RateLimitSpec<PgConformanceFixture>;

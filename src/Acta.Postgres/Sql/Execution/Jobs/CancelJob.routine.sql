@@ -1,3 +1,6 @@
+-- CREATE OR REPLACE cannot change a return type, and the result carries lane_promoted.
+DROP FUNCTION IF EXISTS {{schema}}.cancel_job;
+
 CREATE OR REPLACE FUNCTION {{schema}}.cancel_job(
     p_id BIGINT,
     p_actor_code SMALLINT,
@@ -6,7 +9,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.cancel_job(
     p_reason_message VARCHAR,
     p_expected_version INT DEFAULT NULL
 )
-RETURNS TABLE (action SMALLINT, status_code SMALLINT, parent_id BIGINT, version INT)
+RETURNS TABLE (action SMALLINT, status_code SMALLINT, parent_id BIGINT, version INT, lane_promoted SMALLINT)
 LANGUAGE plpgsql
 AS $$
 DECLARE
@@ -25,6 +28,7 @@ DECLARE
     v_lane_id BIGINT;
     v_head_id BIGINT;
     v_head_status SMALLINT;
+    v_lane_promoted SMALLINT := 0;
 BEGIN
     -- Lock order: the lane, then the job's rows (docs/internals/sql-execution-policy.md, "Lane lock
     -- order"). lane_id never changes, so the unlocked read is safe.
@@ -58,12 +62,12 @@ BEGIN
     FOR UPDATE;
 
     IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT, NULL::BIGINT, NULL::INT;
+        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT, NULL::BIGINT, NULL::INT, 0::SMALLINT;
         RETURN;
     END IF;
 
     IF p_expected_version IS NOT NULL AND v_version <> p_expected_version THEN
-        RETURN QUERY SELECT 5 /* ControlAction.VersionConflict */::SMALLINT, v_from_status, v_parent_id, v_version;
+        RETURN QUERY SELECT 5 /* ControlAction.VersionConflict */::SMALLINT, v_from_status, v_parent_id, v_version, 0::SMALLINT;
         RETURN;
     END IF;
 
@@ -75,7 +79,7 @@ BEGIN
         40 /* JobStatusCode.Dispatched */,
         50 /* JobStatusCode.Executing */
     ) THEN
-        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status, v_parent_id, v_version;
+        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status, v_parent_id, v_version, 0::SMALLINT;
         RETURN;
     END IF;
 
@@ -125,7 +129,10 @@ BEGIN
                 pr.job_id = v_head_id
                 AND pr.status_code = 15 /* JobStatusCode.Blocked */;
 
-            EXIT WHEN FOUND;
+            IF FOUND THEN
+                v_lane_promoted := 1;
+                EXIT;
+            END IF;
         END LOOP;
     END IF;
 
@@ -211,6 +218,6 @@ BEGIN
             p_reason_message);
     END IF;
 
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, 220 /* JobStatusCode.Cancelled */::SMALLINT, v_parent_id, v_version + 1;
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, 220 /* JobStatusCode.Cancelled */::SMALLINT, v_parent_id, v_version + 1, v_lane_promoted;
 END;
 $$;

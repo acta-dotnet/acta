@@ -1,3 +1,4 @@
+using System.Data;
 using System.Data.Common;
 using System.Runtime.ExceptionServices;
 using Acta.Relational.Commands;
@@ -477,6 +478,29 @@ internal sealed class DbSession : IDbSession
     }
 
     public Task<T> RunWithRetryAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct) => Run(action, ct);
+
+    public Task<T> RunInOwnedTransactionAsync<T>(
+        Func<DbTransaction, CancellationToken, Task<(T Result, bool Commit)>> work,
+        CancellationToken ct
+    ) =>
+        Run(
+            async token =>
+            {
+                await using var conn = await OpenConnectionAsync(token);
+                // SQLite's owned write transaction is BEGIN IMMEDIATE. The servers name read committed
+                // explicitly, because SQL Server keeps a pooled connection's last isolation level.
+                await using var tx =
+                    _dialect.BeginOwnedWriteTransaction(conn) ?? await conn.BeginTransactionAsync(IsolationLevel.ReadCommitted, token);
+                var (result, commit) = await work(tx, token);
+                // A transaction left uncommitted rolls back when it is disposed.
+                if (commit)
+                {
+                    await tx.CommitAsync(token);
+                }
+                return result;
+            },
+            ct
+        );
 
     private Task<T> Run<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct) =>
         UnwrapClientFailureAsync(() =>

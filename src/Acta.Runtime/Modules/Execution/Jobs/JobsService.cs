@@ -467,23 +467,29 @@ internal sealed class JobsService(
         if (result.Action == ControlAction.Applied)
         {
             await wakeupPublisher.WakeAsync(WorkerWakeupChannel.JobCompletion(result.JobId), WorkerWakeupReason.JobFinished, ct);
-            if (cancel.ParentId is { } parentId)
-            {
-                await RaiseChildLatch.Run(signalStore, jobId.Value, parentId, JobStatusCode.Cancelled, ct);
-            }
+            var released =
+                cancel.ParentId is { } parentId
+                && await RaiseChildLatch.Run(signalStore, jobId.Value, parentId, JobStatusCode.Cancelled, ct);
 
-            // A cancel can release a parent and, for a laned job, promote the lane's next member; the
-            // routine knows neither namespace name, so every worker namespace hears it.
-            await wakeupPublisher.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct);
+            // A released parent or a promoted lane member is new work; the routine knows no namespace
+            // name, so every worker namespace hears it.
+            if (released || cancel.LanePromoted)
+            {
+                await wakeupPublisher.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct);
+            }
         }
 
         if (result.Status == JobStatusCode.Cancelled)
         {
-            foreach (
-                var cancelledId in await CancelDescendants.Run(executionStore, store, jobId.Value, CancelDescendants.ParentCancelled, ct)
-            )
+            var descendants = await CancelDescendants.Run(executionStore, store, jobId.Value, CancelDescendants.ParentCancelled, ct);
+            foreach (var cancelledId in descendants.Cancelled)
             {
                 await wakeupPublisher.WakeAsync(WorkerWakeupChannel.JobCompletion(cancelledId), WorkerWakeupReason.JobFinished, ct);
+            }
+
+            if (descendants.LanePromoted)
+            {
+                await wakeupPublisher.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct);
             }
         }
 
@@ -559,10 +565,11 @@ internal sealed class JobsService(
 
     /// <summary>
     /// restart_job refuses to reopen a finished laned job in place, which would put it ahead of members
-    /// that ran after it. The job is re-enqueued instead, through the ordinary enqueue path, so it joins
-    /// the lane's tail, and the finished row stays as history. The copy keeps the definition, input,
-    /// namespace, tenant, lane, priority, and correlation and concurrency keys; it drops the dedup key,
-    /// which the finished row still holds, and the parent, whose wait that row already settled.
+    /// that ran after it. The job is redriven instead: the copy goes through the one-row enqueue pipeline,
+    /// and the store enqueues it and bumps the finished row's version in one transaction, so the copy joins
+    /// the lane's tail only if the compare-and-set lands. The finished row stays as history. The enqueue
+    /// locks the lane before the bump touches a job row, keeping the engine's lock order, and it serializes
+    /// concurrent redrives of one lane, so a repeated restart with one version copies once.
     /// </summary>
     private async ValueTask<JobControlResult> RedriveAsync(
         JobControlResult refused,
@@ -588,20 +595,37 @@ internal sealed class JobsService(
             input is null || input.FormatId == JobPayloadFormat.None.Id
                 ? JobPayload.None
                 : JobPayload.CopyBytes(JobPayloadFormat.ForId(input.FormatId), input.Data.Span);
-        JobEnqueueOutcome redrive;
+        var request = new JobEnqueueRequest(
+            finished.JobNamespace,
+            finished.JobName,
+            payload,
+            CorrelationKey: finished.CorrelationKey,
+            ConcurrencyKey: finished.ConcurrencyKey,
+            Priority: finished.Priority,
+            TenantKey: finished.TenantKey,
+            Lane: finished.Lane
+        );
+
+        JobRedriveBumpRow? bump = null;
+        JobEnqueueOutcome copy;
         try
         {
-            redrive = await EnqueueAsync(
-                new JobEnqueueRequest(
-                    finished.JobNamespace,
-                    finished.JobName,
-                    payload,
-                    CorrelationKey: finished.CorrelationKey,
-                    ConcurrencyKey: finished.ConcurrencyKey,
-                    Priority: finished.Priority,
-                    TenantKey: finished.TenantKey,
-                    Lane: finished.Lane
-                ),
+            copy = await EnqueueOneCoreAsync(
+                request,
+                async (row, copyRef, token) =>
+                {
+                    var outcome = await store.RedriveJobAsync(
+                        row,
+                        copyRef,
+                        finished.JobId,
+                        finished.JobRef,
+                        Input(reasonMessage, actorKey, expectedVersion),
+                        token
+                    );
+                    bump = outcome.Bump;
+                    return outcome.Enqueued;
+                },
+                publishWake: false,
                 ct
             );
         }
@@ -611,22 +635,22 @@ internal sealed class JobsService(
             return refused;
         }
 
-        await store.RecordJobRedriveAsync(
-            finished.JobId,
-            finished.JobRef,
-            redrive.JobId,
-            redrive.JobRef,
-            Input(reasonMessage, actorKey, expectedVersion),
-            ct
-        );
-        return new JobControlResult(
-            finished.JobId,
-            ControlAction.Applied,
-            finished.Status,
-            finished.Version,
-            redrive.JobId,
-            redrive.JobRef
-        );
+        if (bump is not { } landed)
+        {
+            // The finished row moved on between the read and the bump, so the copy was rolled back.
+            var current = await store.GetJobAsync(finished.JobId, ct);
+            return current is null ? new JobControlResult(finished.JobId, ControlAction.NotFound, null, null)
+                : expectedVersion is { } stale && stale != current.Version
+                    ? new JobControlResult(current.JobId, ControlAction.VersionConflict, current.Status, current.Version)
+                : new JobControlResult(current.JobId, ControlAction.Rejected, current.Status, current.Version);
+        }
+
+        if (EnqueueWakeReason(request, copy.Action) is { } reason)
+        {
+            await wakeupPublisher.WakeAsync(WorkerWakeupChannel.WorkerNamespace(request.JobNamespace), reason, ct);
+        }
+
+        return new JobControlResult(finished.JobId, ControlAction.Redriven, landed.Status, landed.Version, copy.JobId, copy.JobRef);
     }
 
     public async ValueTask<JobControlResult> RescheduleAsync(
@@ -704,6 +728,7 @@ internal sealed class JobsService(
         ("ACTA:ENQ_TENANT_FORBIDDEN:", EnqueueRejectionReason.TenantForbidden),
         ("ACTA:ENQ_TENANT_MISMATCH:", EnqueueRejectionReason.TenantMismatch),
         ("ACTA:ENQ_ANCESTOR_LANE:", EnqueueRejectionReason.AncestorLane),
+        ("ACTA:ENQ_LANE_ISOLATION:", EnqueueRejectionReason.LaneIsolation),
     ];
 
     private static EnqueueRejectedException? TryTranslateEnqueue(DbException ex)

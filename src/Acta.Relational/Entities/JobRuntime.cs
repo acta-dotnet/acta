@@ -72,6 +72,10 @@ namespace Acta.Relational.Entities;
     Filter = "lane_id IS NOT NULL AND status_code IN (10, 15, 20, 30, 40, 50)",
     Usage = "lane"
 )]
+// Every member of a lane, finished or not: retention asks whether any runtime still references a lane
+// before deleting it, and the fk_runtimes_lanes check on that delete seeks it too. lane_id never
+// changes, so only a laned insert or purge writes it.
+[DbIndex(Name = "ix_runtimes_lane_member", Columns = ["lane_id"], Filter = "lane_id IS NOT NULL", Usage = "maintenance")]
 // Only a laned Job can wait behind its lane.
 [DbCheck(Name = "ck_runtimes_blocked_lane", Sql = "status_code <> 15 OR lane_id IS NOT NULL")]
 [DbCheck(

@@ -11,8 +11,8 @@ internal interface IOutboxRelayStore
     /// <summary>
     /// One short source transaction: return expired Claimed leases to Pending, then claim a bounded
     /// batch of due Pending rows (<c>status_code = 10 AND next_attempt_at_utc &lt;= db_now</c>) ordered by
-    /// <c>COALESCE(priority_code,50) DESC, next_attempt_at_utc ASC, created_at_utc ASC, outbox_id ASC</c>,
-    /// stamping <c>claim_token</c>/<c>claim_until_utc</c>. Returns the claimed rows for this token.
+    /// <c>next_attempt_at_utc ASC, staging_id ASC</c>, stamping <c>claim_token</c>/<c>claim_until_utc</c>.
+    /// Returns the claimed rows for this token in staging order, so a lane relays in the order it was staged.
     /// </summary>
     Task<IReadOnlyList<OutboxRow>> ClaimDueAsync(ClaimOutboxCommand command, CancellationToken ct);
 

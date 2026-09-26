@@ -239,7 +239,7 @@ internal sealed class FaultInjectingExecutionStore(IExecutionStore inner, StoreF
         return action;
     }
 
-    public async Task<IReadOnlyList<bool>> CompleteExecutionsBatchAsync(
+    public async Task<IReadOnlyList<BatchCompletionOutcome>> CompleteExecutionsBatchAsync(
         IReadOnlyList<CompleteExecutionRequest> requests,
         CancellationToken ct
     )
@@ -253,14 +253,14 @@ internal sealed class FaultInjectingExecutionStore(IExecutionStore inner, StoreF
 
         var passed = requests.Where(r => r.JobId != turnedBack).ToList();
         var answers = passed.Count == 0 ? [] : await inner.CompleteExecutionsBatchAsync(passed, ct);
-        var finalized = new List<bool>(requests.Count);
+        var outcomes = new List<BatchCompletionOutcome>(requests.Count);
         var next = 0;
         foreach (var request in requests)
         {
-            finalized.Add(request.JobId != turnedBack && answers[next++]);
+            outcomes.Add(request.JobId == turnedBack ? default : answers[next++]);
         }
 
-        return finalized;
+        return outcomes;
     }
 
     public Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct) =>

@@ -139,12 +139,12 @@ public sealed class JobRequestBuilder
 
     /// <summary>
     /// Place the Job in a lane: the lane's Jobs in this namespace run one at a time, in enqueue order,
-    /// and different lanes run in parallel. The id is normalized like a concurrency key. See
+    /// and different lanes run in parallel. The name is normalized like a concurrency key. See
     /// <see cref="JobEnqueueOptions.Lane"/>.
     /// </summary>
-    public JobRequestBuilder Lane(string id)
+    public JobRequestBuilder Lane(string lane)
     {
-        _lane = IdentifierSyntax.NormalizeKey(id, nameof(id));
+        _lane = IdentifierSyntax.NormalizeKey(lane, nameof(lane));
         return this;
     }
 

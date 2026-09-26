@@ -5,8 +5,9 @@ namespace Acta.Runtime.Modules.Outbox;
 /// needs to reconstruct a <see cref="JobEnqueueRequest"/> and finalize under the current claim token. The
 /// constructor order is the <c>[DbProjection]</c> contract: it must match the SELECT column order in every
 /// provider's <c>ClaimDueRows.sql</c> at every position. Binary is read as <c>byte[]?</c> like the ledger
-/// input projections. <c>PriorityCode</c> stays null when the producer set no override; the relay treats
-/// null as Normal only while ordering the transport queue and leaves it null in the reconstructed request.
+/// input projections. <c>PriorityCode</c> stays null when the producer set no override, and so does the
+/// reconstructed request. <c>StagingId</c> is the producer insert order (the identity column, or the rowid
+/// on SQLite) that the claim and the relay batch follow.
 /// </summary>
 internal sealed record OutboxRow(
     Guid OutboxId,
@@ -24,7 +25,8 @@ internal sealed record OutboxRow(
     string? TenantKey,
     string? MetaJson,
     DateTime CreatedAtUtc,
-    int FailureCount
+    int FailureCount,
+    long StagingId
 );
 
 /// <summary>

@@ -1,3 +1,4 @@
+using Acta.Runtime.Modules.Execution;
 using Acta.Runtime.Modules.Execution.Jobs;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
@@ -92,13 +93,34 @@ public abstract class LaneAncestorGuardSpec<TFixture> : ActaRuntimeTestBase<TFix
     public async Task Finished_ancestor_lane_is_open()
     {
         var ct = TestContext.Current.CancellationToken;
-        var parent = await Jobs.EnqueueAsync(Step("none", "p", lane: null), ct);
-        var laned = await Jobs.EnqueueAsync(Step("orders", "c", lane: "orders") with { ParentJobId = parent.JobId }, ct);
-        await Jobs.CancelAsync(laned, ct: ct);
+        var grandparent = await Jobs.EnqueueAsync(Step("orders", "g", lane: "orders"), ct);
+        var parent = await Jobs.EnqueueAsync(Step("none", "p", lane: null) with { ParentJobId = grandparent.JobId }, ct);
+        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(TestNamespace, grandparent.JobId, ct));
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(grandparent.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(parent.JobId, ct)).Status);
 
-        var again = await Jobs.EnqueueAsync(Step("orders", "c2", lane: "orders") with { ParentJobId = parent.JobId }, ct);
+        var single = await Jobs.EnqueueAsync(Step("orders", "gc", lane: "orders") with { ParentJobId = parent.JobId }, ct);
+        var batched = await Jobs.EnqueueBatchAsync([Step("orders", "gc2", lane: "orders") with { ParentJobId = parent.JobId }], ct);
 
-        Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(again.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(single.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Blocked, (await ReadJobAsync(batched[0].JobId, ct)).Status);
+    }
+
+    [Fact(DisplayName = "The guard walks a lineage deeper than one hundred generations, single and batched")]
+    public async Task Guard_walks_a_deep_lineage()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var tip = await Jobs.EnqueueAsync(Step("none", "g0", lane: null), ct);
+        for (var generation = 1; generation <= 120; generation++)
+        {
+            tip = await Jobs.EnqueueAsync(Step("none", $"g{generation}", lane: null) with { ParentJobId = tip.JobId }, ct);
+        }
+
+        var single = await Jobs.EnqueueAsync(Step("deep", "single", lane: "deep") with { ParentJobId = tip.JobId }, ct);
+        var batched = await Jobs.EnqueueBatchAsync([Step("deeper", "batched", lane: "deeper") with { ParentJobId = tip.JobId }], ct);
+
+        Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(single.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(batched[0].JobId, ct)).Status);
     }
 
     private JobEnqueueRequest Step(string probeLane, string label, string? lane) =>

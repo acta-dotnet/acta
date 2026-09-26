@@ -37,6 +37,10 @@ public sealed class SqlServerLaneRedriveSpec : LaneRedriveSpec<SqlServerConforma
 
 public sealed class SqlServerLaneLockOrderSpec : LaneLockOrderSpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerLaneRetentionSpec : LaneRetentionSpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerLaneRetireSpec : LaneRetireSpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerConcurrencyLimitSpec : ConcurrencyLimitSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerRateLimitSpec : RateLimitSpec<SqlServerConformanceFixture>;

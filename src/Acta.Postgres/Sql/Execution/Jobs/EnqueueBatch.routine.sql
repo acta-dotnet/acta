@@ -95,6 +95,12 @@ BEGIN
     SELECT COUNT(*) INTO lane_count FROM _enq_lanes;
 
     IF lane_count > 0 THEN
+        -- Ready versus Blocked is read after the lane locks, which only a per-statement snapshot sees.
+        IF current_setting('transaction_isolation') <> 'read committed' THEN
+            RAISE EXCEPTION 'ACTA:ENQ_LANE_ISOLATION:Enqueue rejected: a laned enqueue needs a READ COMMITTED caller transaction.'
+                USING ERRCODE = 'P0001';
+        END IF;
+
         LOOP
             INSERT INTO {{schema}}.lanes (namespace_id, name, created_at_utc)
             SELECT e.namespace_id, e.name, now()

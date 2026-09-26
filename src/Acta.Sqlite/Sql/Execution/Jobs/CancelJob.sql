@@ -160,6 +160,7 @@ SELECT
         WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN s.from_version
         WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */) THEN s.from_version + 1
         ELSE s.from_version
-    END AS version
+    END AS version,
+    CASE WHEN changes() > 0 THEN 1 ELSE 0 END AS lane_promoted
 FROM (SELECT @p_id AS qid) q
 LEFT JOIN temp._cancel_job s ON s.id = q.qid;

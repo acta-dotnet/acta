@@ -177,7 +177,9 @@ WHERE
     JSON_EXTRACT(r.value, '$.parent_id') IS NULL
     OR pj.id IS NOT NULL
 ORDER BY JSON_EXTRACT(r.value, '$.ordinal')
-ON CONFLICT DO NOTHING;
+-- Only a deduplication hit is absorbed; any other conflict, a taken job_ref included, raises.
+ON CONFLICT (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_id IS NULL DO NOTHING
+ON CONFLICT (parent_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_id IS NOT NULL DO NOTHING;
 
 -- A laned row enters Ready only as the first inserted row of its lane with no unfinished member
 -- already there; every later one waits as Blocked. The existence probe reads the table before this

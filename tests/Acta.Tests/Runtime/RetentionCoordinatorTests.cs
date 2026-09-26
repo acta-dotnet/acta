@@ -17,9 +17,9 @@ public sealed class RetentionCoordinatorTests
         var result = await new RetentionCoordinator(store, clock).PurgeExpiredDataAsync(Sweep, TestContext.Current.CancellationToken);
 
         Assert.Equal(1, clock.Reads);
-        Assert.Equal(14, store.Calls.Count);
-        Assert.Equal(new PurgeExpiredDataResult(2, 2, 2, 2, 2, 2), result);
-        for (var index = 0; index < 7; index++)
+        Assert.Equal(16, store.Calls.Count);
+        Assert.Equal(new PurgeExpiredDataResult(2, 2, 2, 2, 2, 2, 2), result);
+        for (var index = 0; index < 8; index++)
         {
             var first = store.Calls[index * 2];
             Assert.Equal((RetentionSection)(index + 1), first.Section);
@@ -44,7 +44,7 @@ public sealed class RetentionCoordinatorTests
     {
         var store = new Store(static (_, _) => Task.FromResult(0));
         var result = await new RetentionCoordinator(store, new Clock()).PurgeExpiredDataAsync(Sweep, TestContext.Current.CancellationToken);
-        Assert.Equal(7, store.Calls.Count);
+        Assert.Equal(8, store.Calls.Count);
         Assert.Equal(default, result);
     }
 

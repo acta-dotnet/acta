@@ -93,7 +93,8 @@ internal static class RetentionTestOps
                 total.Alerts + result.Alerts,
                 total.UndeliveredAlertsPurged + result.UndeliveredAlertsPurged,
                 total.Workers + result.Workers,
-                total.Locks + result.Locks
+                total.Locks + result.Locks,
+                total.Lanes + result.Lanes
             );
             if (await settled() || attempt >= maxAttempts)
             {

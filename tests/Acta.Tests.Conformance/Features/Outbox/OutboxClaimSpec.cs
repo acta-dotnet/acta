@@ -6,30 +6,32 @@ using Xunit;
 namespace Acta.Tests.Conformance.Features.Outbox;
 
 /// <summary>
-/// Conformance for the external-outbox claim: one short source transaction claims a bounded, priority-
-/// ordered batch of due Pending rows, stamps one token and a database-clock lease, and never hands the
+/// Conformance for the external-outbox claim: one short source transaction claims a bounded batch of due
+/// Pending rows in due-then-staging order, stamps one token and a database-clock lease, and never hands the
 /// same row to two claims. Future rows stay unclaimed.
 /// </summary>
 [ConformanceSpec(
-    "outbox-claim.priority-bounded",
-    "Claim takes a bounded urgent-first batch under one token, no double claim",
+    "outbox-claim.staging-order",
+    "Claim takes a bounded batch in staging order under one token, no double claim",
     Area = "Outbox",
-    Contract = "ClaimDue claims a bounded urgent-first batch of due Pending rows, stamps one token and a database-clock lease, and claims no row twice.",
+    Contract = "ClaimDue claims a bounded batch of due Pending rows in due-then-staging order, stamps one token and a database-clock lease, and claims no row twice.",
     Arrange = "A source outbox table holds several due Pending rows of differing priority plus a future row.",
     Act = "ClaimDue runs with a batch smaller than the due set, then again with a fresh token.",
-    Assert = "The urgent rows are claimed first, each claimed row is disjoint and leased, and the future row stays Pending."
+    Assert = "The earliest staged row is claimed first, each claimed row is disjoint and leased, and the future row stays Pending."
 )]
 [CoversStoreMethod(typeof(IOutboxRelayStore), nameof(IOutboxRelayStore.ClaimDueAsync))]
 public abstract class OutboxClaimSpec<TFixture> : OutboxSpecBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {
-    [Fact(DisplayName = "Claim prefers higher priority and leaves the rest Pending")]
-    public async Task Claim_prefers_higher_priority()
+    [Fact(DisplayName = "Claim takes the earliest staged row whatever its priority and leaves the rest Pending")]
+    public async Task Claim_follows_staging_order()
     {
         var ct = TestContext.Current.CancellationToken;
-        var low = DueRow(TestKey("low"), priority: 0);
-        var normal = DueRow(TestKey("normal"), priority: 50);
-        var high = DueRow(TestKey("high"), priority: 100);
+        // One due instant for all three, so only the staging order separates them.
+        var due = DateTime.UtcNow.AddMinutes(-5);
+        var low = DueRow(TestKey("low"), priority: 0) with { CreatedAtUtc = due, NextAttemptAtUtc = due };
+        var normal = DueRow(TestKey("normal"), priority: 50) with { CreatedAtUtc = due, NextAttemptAtUtc = due };
+        var high = DueRow(TestKey("high"), priority: 100) with { CreatedAtUtc = due, NextAttemptAtUtc = due };
         await Fixture.SeedOutboxRowAsync(TableName, low);
         await Fixture.SeedOutboxRowAsync(TableName, normal);
         await Fixture.SeedOutboxRowAsync(TableName, high);
@@ -38,24 +40,24 @@ public abstract class OutboxClaimSpec<TFixture> : OutboxSpecBase<TFixture>
         var claimed = await ClaimAsync(Guid.NewGuid(), batchSize: 1, ct);
 
         var one = Assert.Single(claimed);
-        Assert.Equal(high.OutboxId, one.OutboxId);
+        Assert.Equal(low.OutboxId, one.OutboxId);
 
-        var claimedState = await Fixture.ReadOutboxRowAsync(TableName, high.OutboxId);
+        var claimedState = await Fixture.ReadOutboxRowAsync(TableName, low.OutboxId);
         Assert.Equal((byte)OutboxStatusCode.Claimed, claimedState.StatusCode);
         Assert.NotNull(claimedState.ClaimToken);
         Assert.True(claimedState.ClaimUntilUtc > before, "lease is stamped from the database clock into the future");
 
         Assert.Equal((byte)OutboxStatusCode.Pending, (await Fixture.ReadOutboxRowAsync(TableName, normal.OutboxId)).StatusCode);
-        Assert.Equal((byte)OutboxStatusCode.Pending, (await Fixture.ReadOutboxRowAsync(TableName, low.OutboxId)).StatusCode);
+        Assert.Equal((byte)OutboxStatusCode.Pending, (await Fixture.ReadOutboxRowAsync(TableName, high.OutboxId)).StatusCode);
     }
 
-    [Fact(DisplayName = "At equal priority the older row claims first")]
-    public async Task Claim_is_fifo_at_equal_priority()
+    [Fact(DisplayName = "The row due earliest claims first")]
+    public async Task Claim_takes_the_earliest_due_row_first()
     {
         var ct = TestContext.Current.CancellationToken;
-        var older = DueRow(TestKey("older"), priority: 50, minutesAgo: 10);
-        var newer = DueRow(TestKey("newer"), priority: 50, minutesAgo: 2);
-        // Seed newest first so a claim that respected insertion order rather than age would pick wrong.
+        var older = DueRow(TestKey("older"), minutesAgo: 10);
+        var newer = DueRow(TestKey("newer"), minutesAgo: 2);
+        // Seed newest first so a claim that followed staging order alone would pick wrong.
         await Fixture.SeedOutboxRowAsync(TableName, newer);
         await Fixture.SeedOutboxRowAsync(TableName, older);
 

@@ -14,7 +14,7 @@ DECLARE
     v_lock_keys TEXT[];
     v_alerts_slot_id BIGINT;
 BEGIN
-    IF p_batch_size <= 0 OR p_section NOT BETWEEN 1 AND 7 THEN
+    IF p_batch_size <= 0 OR p_section NOT BETWEEN 1 AND 8 THEN
         RAISE EXCEPTION 'Invalid retention section or batch size.';
     END IF;
 
@@ -158,6 +158,23 @@ BEGIN
             LIMIT p_batch_size
             FOR UPDATE SKIP LOCKED) q;
         DELETE FROM {{schema}}.locks WHERE lock_key = ANY(v_lock_keys);
+        GET DIAGNOSTICS v_rows = ROW_COUNT;
+
+    WHEN 8 THEN
+        -- Unreferenced lanes, locked in id order skipping a lane an enqueue or settle holds, then
+        -- re-checked under the lock (docs/internals/sql-execution-policy.md, "Lane lock order").
+        SELECT array_agg(q.id) INTO v_ids FROM (
+            SELECT l.id FROM {{schema}}.lanes l
+            WHERE
+                l.namespace_id = p_namespace_id
+                AND NOT EXISTS (SELECT 1 FROM {{schema}}.runtimes r WHERE r.lane_id = l.id)
+            ORDER BY l.id
+            LIMIT p_batch_size
+            FOR UPDATE SKIP LOCKED) q;
+        DELETE FROM {{schema}}.lanes l
+        WHERE
+            l.id = ANY(v_ids)
+            AND NOT EXISTS (SELECT 1 FROM {{schema}}.runtimes r WHERE r.lane_id = l.id);
         GET DIAGNOSTICS v_rows = ROW_COUNT;
     END CASE;
 

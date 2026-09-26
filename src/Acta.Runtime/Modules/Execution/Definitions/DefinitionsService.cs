@@ -17,12 +17,7 @@ namespace Acta.Runtime.Modules.Execution.Definitions;
 /// steady-state restart issue zero writes). Provider stores receive resolved rows and validated
 /// commands; the database keeps the per-row generation/hash gate.
 /// </summary>
-internal sealed class DefinitionsService(
-    IDefinitionStore store,
-    WorkerWakeupPublisher wakeupPublisher,
-    ISignalStore signalStore,
-    IJobStore jobStore
-)
+internal sealed class DefinitionsService(IDefinitionStore store, WorkerWakeupPublisher wakeupPublisher, ISignalStore signalStore)
 {
     private const string OrderDefinitions = "namespace asc, name asc, id asc";
     private const string ListOperationName = "ListJobDefinitions";
@@ -315,30 +310,8 @@ internal sealed class DefinitionsService(
             }
         }
 
-        // A laned job is cancelled one at a time through cancel_job, which takes its lane before the row
-        // and hands the lane to the next member, which may belong to a definition still in service.
-        var input = new JobControlInput(
-            actor,
-            JobEventReasonCode.JobDefinitionRetired,
-            reasonMessage.Truncate(ActaTextLimits.ReasonMessage)
-        );
-        foreach (var jobId in outcome.LanedJobs)
-        {
-            var cancel = await jobStore.CancelJobAsync(jobId, input, ct);
-            if (cancel.Outcome.Action != JobControlActionInternal.Applied)
-            {
-                continue;
-            }
-
-            released = true;
-            await wakeupPublisher.WakeAsync(WorkerWakeupChannel.JobCompletion(jobId), WorkerWakeupReason.JobFinished, ct);
-            if (cancel.ParentId is { } parent)
-            {
-                await RaiseChildLatch.Run(signalStore, jobId, parent, JobStatusCode.Cancelled, ct);
-            }
-        }
-
-        if (released)
+        // A released parent, or a lane handed on to a member of another definition, is new work.
+        if (released || outcome.LanePromoted)
         {
             await wakeupPublisher.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct);
         }

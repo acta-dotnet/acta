@@ -740,6 +740,8 @@
   - Info and status read verbs print the job row
   - A verb resolves a job by deduplication key with an explicit namespace
   - Debug claims only the targeted id, runs it in-process to Succeeded, and result surfaces the payload
+  - Debug on a finished laned job redrives it, then runs the copy when it leads its lane
+  - Debug on a finished laned job whose copy waits in its lane prints the copy and stops
   - Events verb prints the job timeline after a run
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.ClaimOneAsync`
@@ -915,6 +917,7 @@
   - Duplicate tag names on a row throw ArgumentException and persist nothing
   - Rejection is atomic so a valid row in a rejected batch never lands
   - An unknown namespace or job throws and persists nothing
+  - A batch row whose job ref is already taken raises and persists nothing
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueBatchAsync`
   - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueOneAsync`
@@ -1392,9 +1395,18 @@
   - A grandchild in its grandparent's lane is rejected, single and batched
   - A child whose definition lane equals its unfinished parent's lane is rejected
   - A finished ancestor's lane is open to its descendants
+  - The guard walks a lineage deeper than one hundred generations, single and batched
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueBatchAsync`
   - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueOneAsync`
+
+### A Bulk batch completion that promotes a lane member wakes the claim loop
+- **Contract:** Under the Bulk profile a batch completion that promotes a lane's next member wakes the namespace's claim loop, so the lane drains at flush pace.
+- **Arrange:** A lane of ten no-op probes sits in a private namespace served by an otherwise idle Bulk worker with a sixty-second safety poll.
+- **Act:** The worker loop drains the lane.
+- **Assert:** All ten probes ran in order within thirty seconds, half of the single safety poll one unannounced promotion would cost.
+- **Guarantees:**
+  - A Bulk lane of ten no-op jobs drains at flush pace, not at safety-poll pace
 
 ### Operator verbs keep a lane's order
 - **Contract:** Pause, resume, reschedule, restart, and reprioritize on a laned job never let it run ahead of an older unfinished member of its lane.
@@ -1434,6 +1446,8 @@
   - Cancelling a follower promotes nothing; cancelling the head promotes the next live member
   - A delayed head blocks newer members, which stay out of the claim and its horizon
   - A batch lands its lane members in batch order
+  - A batch whose first lane row is a dedup hit on a finished job lands its next row Ready
+  - Concurrent producers into one lane: the lane runs in job-id order
   - Lane names fold like concurrency keys: names that differ only in case are one lane
   - A lane outside the key alphabet is refused at enqueue
   - A definition lane orders its jobs, and an enqueue lane overrides it
@@ -1450,15 +1464,38 @@
   - The jobs list filters by lane, folding the filter's case
 
 ### Restarting a finished laned job redrives it at the lane's tail
-- **Contract:** A restart of a finished laned job enqueues a copy at its lane's tail, keeps the finished row, links both by events, and returns the new job.
+- **Contract:** A restart of a finished laned job enqueues a copy at its lane's tail, bumps the finished row's version, links both by events, and returns the new job.
 - **Arrange:** A laned head has run to Succeeded while a follower behind it is still unfinished.
 - **Act:** An operator restarts the finished head.
 - **Assert:** A new job with the same definition, input, lane, and priority waits behind the follower, the old row stays Succeeded, and each row's event names the other.
 - **Guarantees:**
   - A restarted finished head is redriven behind the lane's unfinished follower
   - A restarted finished job in an idle lane is redriven Ready
+  - A failed laned head is redriven and keeps its Failed row
+  - A cancelled laned head is redriven and keeps its Cancelled row
+  - A restart with a stale version is a conflict and enqueues nothing
+  - Two restarts carrying one version redrive the job exactly once
+  - A retired definition refuses the redrive and leaves the finished row untouched
+  - A redriven child keeps its tags and drops its dedup key and parent
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.RecordJobRedriveAsync`
+  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.RedriveJobAsync`
+
+### Retention deletes a lane that no runtime references
+- **Contract:** A retention sweep deletes a lane that no runtime row references, keeps a lane with any runtime row, and never strands an enqueue racing the delete.
+- **Arrange:** One lane lost its only job to a purge, one holds a finished job, one holds a live job, and more lanes are emptied for an enqueue race.
+- **Act:** Retention sweeps the namespace, alone and alongside enqueues into the emptied lanes.
+- **Assert:** Only the unreferenced lane is gone, and every racing enqueue lands in a lane row that exists with its job Ready.
+- **Guarantees:**
+  - An unreferenced lane is deleted while lanes with a finished or live job survive
+  - An enqueue racing the delete of its emptied lane lands in an existing lane
+
+### A retire cancels its laned jobs atomically and promotes each lane once
+- **Contract:** A definition retire cancels its parked laned jobs in its own transaction and then promotes each lane's lowest Blocked member once, even if the caller is gone.
+- **Arrange:** A lane holds two parked jobs of one definition ahead of a job of another definition, beside an unlaned job of the first.
+- **Act:** The first definition is retired by a caller whose token is cancelled at the first wake it publishes.
+- **Assert:** No job of the retired definition is live, and the other definition's job leads the lane Ready.
+- **Guarantees:**
+  - A retire whose caller is cancelled after the commit still leaves no live laned job of the definition
 
 ### Every settle of a lane head promotes the next member
 - **Contract:** A laned head settled by reclaim, retire, or batch completion hands its lane to the next member, and a promoting completion wakes the namespace.
@@ -1470,6 +1507,8 @@
   - Retiring the head's definition cancels the head and promotes a member of another definition
   - A completion that promotes a member wakes the namespace's claim loops
   - A completion that promotes nothing wakes no claim loop
+  - Cancelling a Blocked follower wakes no claim loop, and cancelling a head that promotes one does
+  - A cancel whose descendant cascade promotes a lane member wakes the claim loops
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
   - `Acta.Runtime.Modules.Execution.IExecutionStore.ReclaimStuckJobsAsync`
@@ -1483,6 +1522,8 @@
   - A lane whose head was hand-set to Succeeded is repaired by one pass, with its event and a wake
   - A lane with a Ready head is left untouched by the pass
   - A lane whose head is Paused or Suspended is held, not stranded, and the pass leaves it
+  - A pass in another namespace leaves this namespace's stranded lane alone
+  - One pass repairs at most a thousand stranded lanes
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.ReclaimStuckJobsAsync`
 
@@ -1576,14 +1617,14 @@
 - **Store methods:**
   - `Acta.Runtime.Modules.Outbox.IOutboxRelayStore.ClaimDueAsync`
 
-### Claim takes a bounded urgent-first batch under one token, no double claim
-- **Contract:** ClaimDue claims a bounded urgent-first batch of due Pending rows, stamps one token and a database-clock lease, and claims no row twice.
+### Claim takes a bounded batch in staging order under one token, no double claim
+- **Contract:** ClaimDue claims a bounded batch of due Pending rows in due-then-staging order, stamps one token and a database-clock lease, and claims no row twice.
 - **Arrange:** A source outbox table holds several due Pending rows of differing priority plus a future row.
 - **Act:** ClaimDue runs with a batch smaller than the due set, then again with a fresh token.
-- **Assert:** The urgent rows are claimed first, each claimed row is disjoint and leased, and the future row stays Pending.
+- **Assert:** The earliest staged row is claimed first, each claimed row is disjoint and leased, and the future row stays Pending.
 - **Guarantees:**
-  - Claim prefers higher priority and leaves the rest Pending
-  - At equal priority the older row claims first
+  - Claim takes the earliest staged row whatever its priority and leaves the rest Pending
+  - The row due earliest claims first
   - Two claims split the backlog disjointly and never double claim a row
   - Two simultaneous claimers split the backlog with no overlap
   - A row whose next attempt is in the future is not claimed
@@ -1729,6 +1770,14 @@
 - **Guarantees:**
   - A committed stage persists the business row and a claimable, reconstructable outbox row
   - A rolled-back stage discards both the business row and the outbox row
+
+### Rows staged into one lane relay in staging order whatever their priority
+- **Contract:** The relay claims staged rows in staging order and enqueues them in that order, so a lane's rows keep their staging order however their priorities differ.
+- **Arrange:** A low-priority row and then a high-priority row are staged into one lane in one producer transaction.
+- **Act:** One relay tick relays the source.
+- **Assert:** The low-priority row's job leads the lane Ready and the high-priority row's job waits Blocked behind it.
+- **Guarantees:**
+  - A low-priority row staged first leads its lane ahead of a high-priority row staged after it
 
 ### AddOutboxRelay dispatches sys.outbox and a broken source fails only it
 - **Contract:** A worker with AddOutboxRelay registers and dispatches sys.outbox, and an unavailable source fails only that tick.
@@ -2968,7 +3017,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IJobStore.ListJobsAsync` | ListJobs filter-matrix selects exactly matching rows per dimension<br>ListJobs pages newest first by keyset cursor without duplicates |
 | `IJobStore.PauseJobAsync` | A job control verb takes an optional expected version and refuses a stale one.<br>CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Cancel Pause Resume Restart apply legal transitions and audit<br>Control verbs apply per-status guards and correct side effects<br>Control verbs transition unconditionally but emit events only at full audit<br>Operator verbs keep a lane's order |
 | `IJobStore.PurgeJobAsync` | A completed child outlives its retention deadline while its parent is live<br>Operator purge hard-deletes a terminal job. |
-| `IJobStore.RecordJobRedriveAsync` | Restarting a finished laned job redrives it at the lane's tail |
+| `IJobStore.RedriveJobAsync` | Restarting a finished laned job redrives it at the lane's tail |
 | `IJobStore.ReprioritizeJobAsync` | Operator reprioritize changes claim priority, rejecting only terminal jobs. |
 | `IJobStore.RescheduleJobAsync` | A job control verb takes an optional expected version and refuses a stale one.<br>Operator reschedule moves a job's cursor, rejecting in-flight or terminal jobs. |
 | `IJobStore.ResetJobStateAsync` | Reset clears one job's substrate and emits an audit-gated state-reset event |
@@ -3010,7 +3059,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IOverviewStore.GetOverviewAsync` | GetOverview returns accurate health counters scoped to a namespace and globally |
 | `ITagStore.ApplyAsync` | Tags read and mutate all first-class targets and filter typed queries |
 | `ITagStore.GetAsync` | Tags read and mutate all first-class targets and filter typed queries |
-| `IOutboxRelayStore.ClaimDueAsync` | A claim recovers an expired lease and reclaims it, leaving a live lease alone<br>Claim takes a bounded urgent-first batch under one token, no double claim<br>Relay crash windows never lose a row or duplicate a target job<br>The source store round-trips with no Acta ledger configured |
+| `IOutboxRelayStore.ClaimDueAsync` | A claim recovers an expired lease and reclaims it, leaving a live lease alone<br>Claim takes a bounded batch in staging order under one token, no double claim<br>Relay crash windows never lose a row or duplicate a target job<br>The source store round-trips with no Acta ledger configured |
 | `IOutboxRelayStore.CountBacklogAsync` | Backlog counts Pending rows only |
 | `IOutboxRelayStore.CountQuarantinedAsync` | Quarantined rows list in keyset pages with their failure evidence |
 | `IOutboxRelayStore.DeleteClaimedAsync` | Delete removes a claimed row only under its token, a stale token no-ops<br>Relay crash windows never lose a row or duplicate a target job<br>The source store round-trips with no Acta ledger configured |

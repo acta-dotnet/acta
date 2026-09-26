@@ -23,6 +23,18 @@ public sealed partial class PgConformanceFixture
         await ExecOutboxAsync(Acta.Postgres.Hosting.PostgresOutboxDdl.CreateScript(table, Schema));
     }
 
+    public async ValueTask StageInOneTransactionAsync(string outboxTable, IReadOnlyList<Acta.JobEnqueueRequest> requests)
+    {
+        await using var c = new NpgsqlConnection(Conn);
+        await c.OpenAsync();
+        await using var tx = await c.BeginTransactionAsync();
+        foreach (var request in requests)
+        {
+            await tx.AddToActaOutboxAsync(request, outboxTable, Schema);
+        }
+        await tx.CommitAsync();
+    }
+
     public async ValueTask<(int BusinessRows, int OutboxRows)> StageWithBusinessWriteAsync(
         string outboxTable,
         Acta.JobEnqueueRequest request,

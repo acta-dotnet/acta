@@ -15,10 +15,10 @@ WHERE
         SELECT outbox_id
         FROM {{table_ref}}
         WHERE status_code = 10 /* OutboxStatusCode.Pending */ AND next_attempt_at_utc <= STRFTIME('%Y-%m-%d %H:%M:%f', 'now')
-        ORDER BY COALESCE(priority_code, 50) DESC, next_attempt_at_utc ASC, created_at_utc ASC, outbox_id ASC
+        ORDER BY next_attempt_at_utc ASC, rowid ASC
         LIMIT @p_batch_size
     )
 RETURNING
     outbox_id, job_namespace, job_name, input_format_id, input,
     deduplication_key, correlation_key, concurrency_key, lane, priority_code,
-    next_run_at_utc, delay_seconds, tenant_key, meta, created_at_utc, failure_count;
+    next_run_at_utc, delay_seconds, tenant_key, meta, created_at_utc, failure_count, rowid AS staging_id;

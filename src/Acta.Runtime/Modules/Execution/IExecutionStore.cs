@@ -59,11 +59,15 @@ internal interface IExecutionStore
 
     /// <summary>
     /// Bulk-profile group-committed completion: finalizes N simple terminal attempts in one set-based
-    /// round trip (PG typed arrays, SQL Server TVP). Returns a finalized flag per request (positionally
-    /// aligned); a <c>false</c> means the caller must complete that row per-job via
-    /// <see cref="CompleteExecutionAsync"/>. Not supported on inline-only providers.
+    /// round trip (PG typed arrays, SQL Server TVP). Returns an outcome per request (positionally
+    /// aligned); an unfinalized one means the caller must complete that row per-job via
+    /// <see cref="CompleteExecutionAsync"/>, and a promoted lane member means the caller wakes its namespace.
+    /// Not supported on inline-only providers.
     /// </summary>
-    Task<IReadOnlyList<bool>> CompleteExecutionsBatchAsync(IReadOnlyList<CompleteExecutionRequest> requests, CancellationToken ct);
+    Task<IReadOnlyList<BatchCompletionOutcome>> CompleteExecutionsBatchAsync(
+        IReadOnlyList<CompleteExecutionRequest> requests,
+        CancellationToken ct
+    );
 
     /// <summary>
     /// Recovery pass for one namespace: in-flight jobs whose lease expired return to Ready, or go

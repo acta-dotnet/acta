@@ -72,4 +72,12 @@ internal interface IDbSession
     /// operations retry already.
     /// </summary>
     Task<T> RunWithRetryAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct);
+
+    /// <summary>
+    /// Runs <paramref name="work"/> on one owned write transaction under the transient-conflict retry, for
+    /// a store operation whose named commands must commit together; each command joins the transaction
+    /// through <see cref="ExecuteInTransactionAsync{T}"/>. Commits when work returns Commit true and rolls
+    /// back when it returns false or throws.
+    /// </summary>
+    Task<T> RunInOwnedTransactionAsync<T>(Func<DbTransaction, CancellationToken, Task<(T Result, bool Commit)>> work, CancellationToken ct);
 }

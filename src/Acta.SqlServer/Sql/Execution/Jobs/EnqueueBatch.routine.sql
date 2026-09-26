@@ -133,6 +133,11 @@ BEGIN
         DECLARE @lanes_pending BIT = CASE WHEN EXISTS (SELECT 1 FROM @lanes) THEN 1 ELSE 0 END;
         DECLARE @lane_cursor BIGINT, @lane_next BIGINT, @lane_locked BIGINT;
 
+        -- Ready versus Blocked is read after the lane locks, which a SNAPSHOT transaction (level 5) never sees.
+        IF @lanes_pending = 1
+            AND (SELECT s.transaction_isolation_level FROM sys.dm_exec_sessions s WHERE s.session_id = @@SPID) = 5
+            THROW 50011, 'ACTA:ENQ_LANE_ISOLATION:Enqueue rejected: a laned enqueue cannot run in a SNAPSHOT caller transaction.', 1;
+
         WHILE @lanes_pending = 1
             BEGIN
                 SET XACT_ABORT OFF;
@@ -354,7 +359,9 @@ BEGIN
                     AND ar.status_code IN (
                         10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
                         30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-                    );
+                    )
+                -- A lineage has no depth bound, so neither has the walk.
+                OPTION (MAXRECURSION 0);
             END;
 
         IF @ancestor_lane_hits > 0

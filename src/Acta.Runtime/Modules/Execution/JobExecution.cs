@@ -993,11 +993,15 @@ internal sealed class JobExecution(
         // above already raised this job's own latch in-routine); maintenance is the crash backstop.
         if (handlerStatusCode == (byte)JobStatusCode.Cancelled)
         {
-            foreach (
-                var cancelledId in await CancelDescendants.Run(_execution, _jobStore, job.JobId, CancelDescendants.ParentCancelled, ct)
-            )
+            var descendants = await CancelDescendants.Run(_execution, _jobStore, job.JobId, CancelDescendants.ParentCancelled, ct);
+            foreach (var cancelledId in descendants.Cancelled)
             {
                 await _wakeupPublisher.WakeAsync(WorkerWakeupChannel.JobCompletion(cancelledId), WorkerWakeupReason.JobFinished, ct);
+            }
+
+            if (descendants.LanePromoted)
+            {
+                await _wakeupPublisher.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct);
             }
         }
 

@@ -125,7 +125,7 @@ internal sealed class CliCommandRunner(
         CliOutput.WriteControl(output, verb, jobRef, result, json);
         return result.Action switch
         {
-            ControlAction.Applied => ExitOk,
+            ControlAction.Applied or ControlAction.Redriven => ExitOk,
             ControlAction.NotFound => ExitNotFound,
             _ => ExitRejected,
         };
@@ -228,7 +228,8 @@ internal sealed class CliCommandRunner(
 
     /// <summary>
     /// Runs an existing job in this process for debugging: initializes the owning worker's catalog,
-    /// resets a non-Ready job via restart semantics, then claims exactly
+    /// resets a non-Ready job via restart semantics (a finished laned job is redriven, and debug follows the
+    /// copy), then claims exactly
     /// that id and dispatches through the normal runner pipeline. Only this one job runs: the
     /// worker's normal claim loop is never started, so no other jobs are claimed or executed in this
     /// process during the run. A live worker stealing the row between reset and claim surfaces as not
@@ -261,7 +262,28 @@ internal sealed class CliCommandRunner(
             if (snapshot.Status != JobStatusCode.Ready)
             {
                 var restart = await jobs.RestartAsync(JobLookup.ById(jobId), "cli debug", ct: ct);
-                if (restart.Action != ControlAction.Applied)
+                if (restart is { Action: ControlAction.Redriven, RedriveJobId: { } copyId, RedriveJobRef: { } copyRef })
+                {
+                    // A finished laned job is redriven, not reopened: debug goes on with the copy when it
+                    // leads its lane, and otherwise reports the copy and stops.
+                    if (!json)
+                    {
+                        output.WriteLine($"redriven as {copyRef}");
+                    }
+
+                    if (await jobs.GetStatusAsync(JobLookup.ById(copyId), ct) != JobStatusCode.Ready)
+                    {
+                        if (json)
+                        {
+                            CliOutput.WriteControl(output, "debug", jobRef, restart, json);
+                        }
+                        return ExitOk;
+                    }
+
+                    jobId = copyId;
+                    jobRef = copyRef;
+                }
+                else if (restart.Action != ControlAction.Applied)
                 {
                     await error.WriteLineAsync($"could not make job {jobRef} Ready: {restart.Action} (status {restart.Status}).");
                     return ExitRejected;

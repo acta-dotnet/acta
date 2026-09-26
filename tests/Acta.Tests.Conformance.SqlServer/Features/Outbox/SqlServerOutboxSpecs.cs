@@ -39,6 +39,8 @@ public sealed class SqlServerOutboxSourceIndependenceSpec : OutboxSourceIndepend
 
 public sealed class SqlServerOutboxStagingSpec : OutboxStagingSpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerOutboxLaneOrderSpec : OutboxLaneOrderSpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerOutboxDdlSpec : OutboxDdlSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerOutboxRelayHandoffSpec : OutboxRelayHandoffSpec<SqlServerConformanceFixture>;

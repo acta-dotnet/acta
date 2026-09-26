@@ -38,7 +38,8 @@ internal sealed class RelationalOutboxRelayStore(IDbSession session, ISqlDialect
     public async Task<IReadOnlyList<OutboxRow>> ClaimDueAsync(ClaimOutboxCommand command, CancellationToken ct)
     {
         var read = DbProjectionResolver.Resolve<OutboxRow>();
-        return await session.ExecuteAsync(
+        // RETURNING and OUTPUT carry no order, so the batch is put back in staging order here.
+        var claimed = await session.ExecuteAsync(
             new StoreCommand("Outbox", "ClaimDueRows"),
             cmd =>
             {
@@ -49,6 +50,7 @@ internal sealed class RelationalOutboxRelayStore(IDbSession session, ISqlDialect
             read,
             ct
         );
+        return [.. claimed.OrderBy(static r => r.StagingId)];
     }
 
     public Task DeleteClaimedAsync(FinalizeOutboxCommand command, CancellationToken ct) =>

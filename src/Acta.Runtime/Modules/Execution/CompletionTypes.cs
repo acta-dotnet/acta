@@ -110,5 +110,11 @@ internal sealed record CompleteExecutionResult(
     bool LanePromoted = false
 );
 
-/// <summary>One <c>complete_executions_batch</c> outcome row: the request ordinal and whether it was finalized here.</summary>
-internal readonly record struct BatchOutcomeRow(int Ordinal, bool Finalized);
+/// <summary>
+/// One <c>complete_executions_batch</c> outcome row: the request ordinal, whether it was finalized here, and
+/// whether its lane promoted a member.
+/// </summary>
+internal readonly record struct BatchOutcomeRow(int Ordinal, bool Finalized, bool LanePromoted);
+
+/// <summary>One request's batch completion outcome, in request order.</summary>
+internal readonly record struct BatchCompletionOutcome(bool Finalized, bool LanePromoted);

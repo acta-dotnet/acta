@@ -136,6 +136,43 @@ public abstract class CliControlSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
         Assert.Contains("5", resultOutput.ToString());
     }
 
+    [Fact(DisplayName = "Debug on a finished laned job redrives it, then runs the copy when it leads its lane")]
+    public async Task Debug_redrives_a_finished_laned_job_and_runs_the_copy()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var finished = await EnqueueLaneStepAsync("solo", ct);
+        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(TestNamespace, finished.JobId, ct));
+        var runner = CreateRunner(out var output);
+
+        var exit = await runner.RunAsync(Parse($"debug {finished.JobId}"), ct);
+
+        Assert.Equal(0, exit);
+        var text = output.ToString();
+        var copyRef = RedrivenRef(text);
+        Assert.Contains("run: Completed", text);
+        Assert.Contains($"job: {copyRef}", text);
+        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(JobLookup.ByRef(copyRef), ct));
+    }
+
+    [Fact(DisplayName = "Debug on a finished laned job whose copy waits in its lane prints the copy and stops")]
+    public async Task Debug_redrives_and_stops_when_the_copy_waits()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var finished = await EnqueueLaneStepAsync("queued", ct);
+        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(TestNamespace, finished.JobId, ct));
+        var follower = await EnqueueLaneStepAsync("queued", ct);
+        var runner = CreateRunner(out var output);
+
+        var exit = await runner.RunAsync(Parse($"debug {finished.JobId}"), ct);
+
+        Assert.Equal(0, exit);
+        var text = output.ToString();
+        var copyRef = RedrivenRef(text);
+        Assert.DoesNotContain("run:", text);
+        Assert.Equal(JobStatusCode.Blocked, await Jobs.GetStatusAsync(JobLookup.ByRef(copyRef), ct));
+        Assert.Equal(JobStatusCode.Ready, await Jobs.GetStatusAsync(follower, ct));
+    }
+
     [Fact(DisplayName = "Events verb prints the job timeline after a run")]
     public async Task Events_prints_the_job_timeline_after_a_run()
     {
@@ -165,6 +202,18 @@ public abstract class CliControlSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
         Assert.True(ok, error);
         return command;
     }
+
+    private static JobRef RedrivenRef(string output)
+    {
+        var line = Assert.Single(output.Split('\n'), l => l.StartsWith("redriven as ", StringComparison.Ordinal));
+        return JobRef.Parse(line["redriven as ".Length..].Trim());
+    }
+
+    private async Task<JobEnqueueOutcome> EnqueueLaneStepAsync(string lane, CancellationToken ct) =>
+        await Jobs.EnqueueAsync(
+            new JobEnqueueRequest(TestNamespace, "lane-step", JobPayload.Json(new LaneStep(lane, lane)), Lane: lane),
+            ct
+        );
 
     private async Task<JobEnqueueOutcome> EnqueueOneAsync(string deduplicationKey, CancellationToken ct)
     {

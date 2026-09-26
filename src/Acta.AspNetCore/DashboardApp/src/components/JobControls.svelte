@@ -172,7 +172,7 @@
     try {
       const result = await mutation.mutateAsync({ jobRef, action, reason, extra });
       message = result.message;
-      messageKind = result.action === 'applied' ? 'ok' : 'warn';
+      messageKind = result.action === 'applied' || result.action === 'redriven' ? 'ok' : 'warn';
       redriveJobRef = result.redriveJobRef ?? null;
       onChanged();
     } catch (e) {

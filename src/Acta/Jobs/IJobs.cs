@@ -362,6 +362,14 @@ public interface IJobs
     /// <paramref name="reasonMessage"/> is recorded on the audit event only. <paramref name="actorKey"/> is
     /// recorded on the audit event as the operator identity (e.g. the authenticated principal name); null when
     /// unknown. An executing job is <see cref="ControlAction.Rejected"/>.
+    /// A finished laned job (Succeeded, Failed, or Cancelled) is never reopened, which would put it ahead
+    /// of members that ran after it. It is redriven instead, answering <see cref="ControlAction.Redriven"/>:
+    /// one transaction enqueues a copy at the lane's tail, bumps the finished row's version under
+    /// <paramref name="expectedVersion"/>, and writes a job.redriven event on each row. The copy keeps the
+    /// definition, input, namespace, tenant, lane, priority, tags, and correlation and concurrency keys. It
+    /// drops the deduplication key, which the finished row still holds, and the parent, whose wait that row
+    /// already settled. A definition, namespace, or tenant that refuses enqueue refuses the redrive as
+    /// <see cref="ControlAction.Rejected"/>, and nothing is written.
     /// </summary>
     ValueTask<JobControlResult> RestartAsync(
         JobLookup job,

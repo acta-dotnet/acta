@@ -28,54 +28,49 @@ BEGIN
                 parent_id BIGINT NULL
             );
 
-        /* A probe for any Blocked row gates a walk that seeks each active lane's head through
-           ix_runtimes_lane. Both name the index: on a small runtimes table the optimizer prefers a
-           clustered scan to either. */
+        /* At most 1,000 of the namespace's lanes per pass, from a random lane id with wrap, each head
+           sought through ix_runtimes_lane (named: a small runtimes table tempts a clustered scan). */
         DECLARE @stranded TABLE (id BIGINT NOT NULL PRIMARY KEY);
         DECLARE @repaired TABLE (id BIGINT NOT NULL PRIMARY KEY);
-        DECLARE @walk BIGINT = 0, @walk_lane BIGINT, @walk_status TINYINT, @walk_namespace INT, @stranded_count INT = 0;
-        IF EXISTS (
-            SELECT 1
-            FROM {{schema}}.runtimes b WITH (INDEX (ix_runtimes_lane))
-            WHERE
-                b.lane_id IS NOT NULL
-                AND b.status_code = 15 /* JobStatusCode.Blocked */
-                AND b.namespace_id = @p_namespace_id
-        )
+        DECLARE @window TABLE (id BIGINT NOT NULL PRIMARY KEY);
+        DECLARE @min_lane BIGINT, @max_lane BIGINT, @start_lane BIGINT, @window_count INT;
+        SELECT @min_lane = MIN(l.id), @max_lane = MAX(l.id) FROM {{schema}}.lanes l;
+        IF @max_lane IS NOT NULL
             BEGIN
-                WHILE @stranded_count < 100
-                    BEGIN
-                        SET @walk_lane = NULL;
-                        SELECT TOP (1)
-                            @walk_lane = m.lane_id,
-                            @walk_status = m.status_code,
-                            @walk_namespace = m.namespace_id
-                        FROM {{schema}}.runtimes m WITH (INDEX (ix_runtimes_lane), FORCESEEK)
-                        WHERE
-                            m.lane_id > @walk
-                            AND m.lane_id IS NOT NULL
-                            AND m.status_code IN (
-                                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                                30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-                            )
-                        ORDER BY m.lane_id, m.job_id;
+                SET @start_lane = @min_lane + CAST(FLOOR(RAND(CHECKSUM(NEWID())) * (@max_lane - @min_lane + 1)) AS BIGINT);
+                INSERT INTO @window (id)
+                SELECT TOP (1000) l.id
+                FROM {{schema}}.lanes l
+                WHERE l.namespace_id = @p_namespace_id AND l.id >= @start_lane
+                ORDER BY l.id;
+                SET @window_count = @@ROWCOUNT;
+                INSERT INTO @window (id)
+                SELECT TOP (1000 - @window_count) l.id
+                FROM {{schema}}.lanes l
+                WHERE l.namespace_id = @p_namespace_id AND l.id < @start_lane
+                ORDER BY l.id;
 
-                        IF @walk_lane IS NULL
-                            BREAK;
-
-                        IF @walk_status = 15 /* JobStatusCode.Blocked */ AND @walk_namespace = @p_namespace_id
-                            BEGIN
-                                INSERT INTO @stranded (id) VALUES (@walk_lane);
-                                SET @stranded_count += 1;
-                            END;
-
-                        SET @walk = @walk_lane;
-                    END;
+                INSERT INTO @stranded (id)
+                SELECT w.id
+                FROM @window w
+                CROSS APPLY (
+                    SELECT TOP (1) m.status_code
+                    FROM {{schema}}.runtimes m WITH (INDEX (ix_runtimes_lane), FORCESEEK)
+                    WHERE
+                        m.lane_id = w.id
+                        AND m.lane_id IS NOT NULL
+                        AND m.status_code IN (
+                            10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                            30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                        )
+                    ORDER BY m.job_id
+                ) h
+                WHERE h.status_code = 15 /* JobStatusCode.Blocked */;
             END;
 
         /* The stuck rows' and stranded lanes one row at a time in id order, then the runtime rows
-           (docs/internals/sql-execution-policy.md, "Lane lock order"). A laned row whose lease expires
-           after the lanes are taken waits for the next pass. */
+           (docs/internals/sql-execution-policy.md, "Lane lock order"). A lane another transaction holds
+           is skipped, and its stuck rows and repair wait for a later pass. */
         DECLARE @lanes TABLE (id BIGINT NOT NULL PRIMARY KEY);
         INSERT INTO @lanes (id)
         SELECT r.lane_id
@@ -101,9 +96,16 @@ BEGIN
                 IF @lane_next IS NULL
                     BREAK;
 
-                SELECT @lane_cursor = l.id
-                FROM {{schema}}.lanes l WITH (UPDLOCK, ROWLOCK)
+                SET @head_id = NULL;
+                SELECT @head_id = l.id
+                FROM {{schema}}.lanes l WITH (UPDLOCK, READPAST, ROWLOCK)
                 WHERE l.id = @lane_next;
+
+                IF @head_id IS NULL
+                    BEGIN
+                        DELETE FROM @lanes WHERE id = @lane_next;
+                        DELETE FROM @stranded WHERE id = @lane_next;
+                    END;
 
                 SET @lane_cursor = @lane_next;
             END;

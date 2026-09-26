@@ -16,6 +16,9 @@ public sealed class OutboxRelayServiceTests
 
     private static OutboxRelayTickOptions Options(int threshold = 5) => new("orders", threshold, 180, 256 * 1024);
 
+    // Each row stages after the one built before it, as a producer inserting them in turn would.
+    private static long _staged;
+
     private static OutboxRow Row(
         string dedup,
         string ns = "orders",
@@ -42,7 +45,8 @@ public sealed class OutboxRelayServiceTests
             null,
             meta,
             created ?? Now,
-            failureCount
+            failureCount,
+            Interlocked.Increment(ref _staged)
         );
 
     [Fact]

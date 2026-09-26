@@ -95,3 +95,5 @@ public sealed class SqliteLaneBufferedWorkerLoopSpec : LaneBufferedWorkerLoopSpe
 
 // SQLite has no set-based completion routine, so Bulk runs as Direct here.
 public sealed class SqliteLaneBulkWorkerLoopSpec : LaneBulkWorkerLoopSpec<SqliteConformanceFixture>;
+
+public sealed class SqliteLaneBulkPromotionWakeSpec : LaneBulkPromotionWakeSpec<SqliteConformanceFixture>;

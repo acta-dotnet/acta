@@ -93,8 +93,14 @@ BEGIN
 
     -- The lane row is the lane's mutex: held to commit, it serializes this enqueue against every settle
     -- and enqueue in the lane, so Ready versus Blocked below is decided on a stable member set. A lane
-    -- that retention deletes between the lookup and the insert is simply created again.
+    -- that retention deletes before the lock finds no row here, and the loop inserts it again.
     IF v_lane IS NOT NULL THEN
+        -- Ready versus Blocked is read after the lane lock, which only a per-statement snapshot sees.
+        IF current_setting('transaction_isolation') <> 'read committed' THEN
+            RAISE EXCEPTION 'ACTA:ENQ_LANE_ISOLATION:Enqueue rejected: a laned enqueue needs a READ COMMITTED caller transaction.'
+                USING ERRCODE = 'P0001';
+        END IF;
+
         LOOP
             SELECT l.id INTO v_lane_id
             FROM {{schema}}.lanes l

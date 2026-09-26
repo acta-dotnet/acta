@@ -488,7 +488,7 @@ public sealed class CompletionSinkDegradedFlushTests
         public IReadOnlyList<CompleteExecutionRequest> FallbackRequests => [.. _fallback];
         public IReadOnlyList<int> BatchSizes => [.. _batchSizes];
 
-        public async Task<IReadOnlyList<bool>> CompleteExecutionsBatchAsync(
+        public async Task<IReadOnlyList<BatchCompletionOutcome>> CompleteExecutionsBatchAsync(
             IReadOnlyList<CompleteExecutionRequest> requests,
             CancellationToken ct
         )
@@ -510,7 +510,10 @@ public sealed class CompletionSinkDegradedFlushTests
             }
             _batchSizes.Enqueue(requests.Count);
             OnBatch?.Invoke(requests);
-            return Finalized ?? [.. requests.Select(_ => true)];
+            return
+            [
+                .. (Finalized ?? [.. requests.Select(_ => true)]).Select(static f => new BatchCompletionOutcome(f, LanePromoted: false)),
+            ];
         }
 
         public async Task<CompleteExecutionResult> CompleteExecutionAsync(CompleteExecutionRequest request, CancellationToken ct)

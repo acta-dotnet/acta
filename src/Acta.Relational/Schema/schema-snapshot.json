@@ -916,6 +916,10 @@
             "Signature": "I|cols=lane_id,job_id|inc=|desc=|filter=lane_id IS NOT NULL AND status_code IN (10, 15, 20, 30, 40, 50)|seq=False"
           },
           {
+            "Name": "ix_runtimes_lane_member",
+            "Signature": "I|cols=lane_id|inc=|desc=|filter=lane_id IS NOT NULL|seq=False"
+          },
+          {
             "Name": "ix_runtimes_retention",
             "Signature": "I|cols=namespace_id,retention_until_utc,job_id|inc=|desc=|filter=retention_until_utc IS NOT NULL AND status_code IN (100, 200, 220)|seq=True"
           },

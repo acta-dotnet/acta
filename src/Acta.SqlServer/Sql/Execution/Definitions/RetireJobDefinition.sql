@@ -17,13 +17,47 @@ DECLARE @cancelled TABLE (
     job_id BIGINT NOT NULL PRIMARY KEY,
     from_status_code TINYINT NOT NULL,
     execution_number INT NOT NULL);
-DECLARE @laned TABLE (
-    job_id BIGINT NOT NULL PRIMARY KEY,
-    parent_id BIGINT NULL);
+DECLARE @lanes TABLE (id BIGINT NOT NULL PRIMARY KEY);
+DECLARE @heads TABLE (job_id BIGINT NOT NULL PRIMARY KEY);
+DECLARE @lane_cursor BIGINT = 0, @lane_next BIGINT, @lane_locked BIGINT, @promoted INT = 0;
 
 BEGIN TRY
     IF @entry_trancount = 0
         BEGIN TRANSACTION;
+
+    -- The lanes of the definition's parked laned jobs, locked one row at a time in id order before any
+    -- job row (docs/internals/sql-execution-policy.md, "Lane lock order").
+    INSERT INTO @lanes (id)
+    SELECT DISTINCT r.lane_id
+    FROM {{schema}}.runtimes r
+    INNER JOIN {{schema}}.jobs j ON j.id = r.job_id
+    WHERE
+        j.definition_id = @p_id
+        AND r.lane_id IS NOT NULL
+        AND r.status_code IN (
+            10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */
+        );
+
+    WHILE 1 = 1
+    BEGIN
+        SET @lane_next = NULL;
+        SELECT TOP (1) @lane_next = l.id
+        FROM @lanes l
+        WHERE l.id > @lane_cursor
+        ORDER BY l.id;
+
+        IF @lane_next IS NULL
+            BREAK;
+
+        SET @lane_locked = NULL;
+        SELECT @lane_locked = l.id
+        FROM {{schema}}.lanes l WITH (UPDLOCK, ROWLOCK)
+        WHERE l.id = @lane_next;
+
+        IF @lane_locked IS NULL
+            DELETE FROM @lanes WHERE id = @lane_next;
+        SET @lane_cursor = @lane_next;
+    END;
 
     SELECT
         @ns = jd.namespace_id,
@@ -72,22 +106,11 @@ BEGIN TRY
         INNER JOIN {{schema}}.runtimes r ON r.job_id = j.id
         WHERE
             j.definition_id = @p_id
-            AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */)
-            AND r.lane_id IS NULL;
-
-        /* A laned parked job is cancelled through cancel_job instead, which takes its lane first and
-           hands the lane on (docs/internals/sql-execution-policy.md, "Lane lock order"); this sweep only
-           names them. */
-        INSERT INTO @laned (job_id, parent_id)
-        SELECT j.id, j.parent_id
-        FROM {{schema}}.jobs j
-        INNER JOIN {{schema}}.runtimes r ON r.job_id = j.id
-        WHERE
-            j.definition_id = @p_id
             AND r.status_code IN (
                 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */
             )
-            AND r.lane_id IS NOT NULL;
+            -- A laned job is parked here only in a lane locked above.
+            AND (r.lane_id IS NULL OR r.lane_id IN (SELECT l.id FROM @lanes l));
 
         UPDATE r
         SET
@@ -101,7 +124,10 @@ BEGIN TRY
             INTO @cancelled (job_id, from_status_code, execution_number)
         FROM {{schema}}.runtimes r WITH (FORCESEEK)
         INNER JOIN @parked p ON p.job_id = r.job_id
-        WHERE r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */);
+        WHERE
+            r.status_code IN (
+                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */
+            );
 
         INSERT INTO {{schema}}.events (
             event_code,
@@ -183,31 +209,52 @@ BEGIN TRY
             NULL,
             @p_reason_code,
             @p_reason_message);
+
+        -- Once every parked member is cancelled, each locked lane hands on to its lowest-id unfinished
+        -- member if that member is Blocked, so no member of the retired definition is promoted.
+        INSERT INTO @heads (job_id)
+        SELECT h.job_id
+        FROM @lanes l
+        CROSS APPLY (
+            SELECT TOP (1) m.job_id, m.status_code
+            FROM {{schema}}.runtimes m
+            WHERE
+                m.lane_id = l.id
+                AND m.lane_id IS NOT NULL
+                AND m.status_code IN (
+                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                    30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                )
+            ORDER BY m.job_id
+        ) h
+        WHERE h.status_code = 15 /* JobStatusCode.Blocked */;
+
+        UPDATE r
+        SET
+            status_code = 10 /* JobStatusCode.Ready */,
+            next_run_at_utc = CASE WHEN r.next_run_at_utc > @now THEN r.next_run_at_utc ELSE @now END,
+            modified_at_utc = @now,
+            version = r.version + 1
+        FROM {{schema}}.runtimes r WITH (FORCESEEK)
+        INNER JOIN @heads h ON h.job_id = r.job_id
+        WHERE r.status_code = 15 /* JobStatusCode.Blocked */;
+        SET @promoted = @@ROWCOUNT;
     END;
 
     SELECT
         @action AS action,
         c.job_id,
         p.parent_id,
-        CAST(0 AS BIT) AS laned
+        CAST(CASE WHEN @promoted > 0 THEN 1 ELSE 0 END AS BIT) AS lane_promoted
     FROM @cancelled c
     INNER JOIN @parked p ON p.job_id = c.job_id
     UNION ALL
     SELECT
         @action,
-        l.job_id,
-        l.parent_id,
-        CAST(1 AS BIT)
-    FROM @laned l
-    UNION ALL
-    SELECT
-        @action,
         CAST(NULL AS BIGINT),
         CAST(NULL AS BIGINT),
-        CAST(NULL AS BIT)
-    WHERE
-        NOT EXISTS (SELECT 1 FROM @cancelled)
-        AND NOT EXISTS (SELECT 1 FROM @laned);
+        CAST(CASE WHEN @promoted > 0 THEN 1 ELSE 0 END AS BIT)
+    WHERE NOT EXISTS (SELECT 1 FROM @cancelled);
 
     IF @entry_trancount = 0
         COMMIT TRANSACTION;

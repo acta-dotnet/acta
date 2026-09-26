@@ -27,7 +27,7 @@ public abstract class OutboxSpecBase<TFixture> : ActaTestBase<TFixture>
     }
 
     // A due Pending row staged "in the past" so the claim predicate (next_attempt_at_utc <= db_now) is
-    // satisfied without waiting; created_at back-dated so priority/FIFO ordering is deterministic.
+    // satisfied without waiting; minutesAgo back-dates both instants so due order is deterministic.
     private protected static OutboxSeed DueRow(
         string dedup,
         byte? priority = null,

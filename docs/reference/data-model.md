@@ -2,7 +2,7 @@
 
 # Data model reference
 
-Structural reference for the Acta persistence model: **16 entities**, **239 columns**, **34 indexes**, **35 check constraints**, **8 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [`sql-recipes.md`](../guide/sql-recipes.md#foreign-key-policy).
+Structural reference for the Acta persistence model: **16 entities**, **239 columns**, **35 indexes**, **35 check constraints**, **8 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [`sql-recipes.md`](../guide/sql-recipes.md#foreign-key-policy).
 
 ## Schema inventory
 
@@ -439,6 +439,7 @@ The hot mutable runtime state of one Job: one row in `runtimes` per `jobs` row, 
 | `ix_runtimes_retention` | `namespace_id`, `retention_until_utc`, `job_id` | not unique | `retention_until_utc IS NOT NULL AND status_code IN (100, 200, 220)` | `maintenance` |
 | `ix_runtimes_worker_inflight` | `leased_by_worker_id`, `job_id` | not unique | `leased_by_worker_id IS NOT NULL AND status_code IN (40, 50)` | `heartbeat` |
 | `ix_runtimes_lane` | `lane_id`, `job_id` | not unique | `lane_id IS NOT NULL AND status_code IN (10, 15, 20, 30, 40, 50)` | `lane` |
+| `ix_runtimes_lane_member` | `lane_id` | not unique | `lane_id IS NOT NULL` | `maintenance` |
 
 **Check constraints**
 

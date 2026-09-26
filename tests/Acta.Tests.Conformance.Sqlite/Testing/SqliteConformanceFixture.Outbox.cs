@@ -22,6 +22,18 @@ public sealed partial class SqliteConformanceFixture
         await ExecOutboxAsync(Acta.Sqlite.Hosting.SqliteOutboxDdl.CreateScript(table));
     }
 
+    public async ValueTask StageInOneTransactionAsync(string outboxTable, IReadOnlyList<Acta.JobEnqueueRequest> requests)
+    {
+        await using var c = new SqliteConnection(SqliteIntegrationSchema.BootstrappedConnectionString);
+        await c.OpenAsync();
+        await using var tx = (SqliteTransaction)await c.BeginTransactionAsync();
+        foreach (var request in requests)
+        {
+            await tx.AddToActaOutboxAsync(request, outboxTable, "main");
+        }
+        await tx.CommitAsync();
+    }
+
     public async ValueTask<(int BusinessRows, int OutboxRows)> StageWithBusinessWriteAsync(
         string outboxTable,
         Acta.JobEnqueueRequest request,

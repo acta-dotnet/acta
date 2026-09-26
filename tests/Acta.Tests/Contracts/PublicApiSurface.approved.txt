@@ -568,6 +568,7 @@ enum Acta.ControlAction
     Accepted = 4
     Applied = 1
     NotFound = 2
+    Redriven = 6
     Rejected = 3
     VersionConflict = 5
 static class Acta.Cron
@@ -665,6 +666,7 @@ sealed class Acta.EnqueueRejectedException
 enum Acta.EnqueueRejectionReason
     AncestorLane = 9
     DefinitionRetired = 5
+    LaneIsolation = 10
     NamespaceSuspended = 1
     RouteUnknown = 4
     TenantForbidden = 7
@@ -1397,7 +1399,7 @@ sealed class Acta.JobEnqueueOptionsBuilder
     Acta.JobEnqueueOptionsBuilder DeduplicationKey(System.String deduplicationKey)
     Acta.JobEnqueueOptionsBuilder Delayed(System.TimeSpan delay)
     Acta.JobEnqueueOptionsBuilder JobNamespace(System.String namespaceName)
-    Acta.JobEnqueueOptionsBuilder Lane(System.String id)
+    Acta.JobEnqueueOptionsBuilder Lane(System.String lane)
     Acta.JobEnqueueOptionsBuilder NextRunAt(System.DateTimeOffset utc)
     Acta.JobEnqueueOptionsBuilder ParentJobId(System.Int64 parentJobId)
     Acta.JobEnqueueOptionsBuilder Priority(Acta.JobPriorityCode priority)
@@ -1688,7 +1690,7 @@ sealed class Acta.JobRequestBuilder
     Acta.JobRequestBuilder DeduplicationKey(System.String deduplicationKey)
     Acta.JobRequestBuilder Delayed(System.TimeSpan delay)
     Acta.JobRequestBuilder Json<T>(T value)
-    Acta.JobRequestBuilder Lane(System.String id)
+    Acta.JobRequestBuilder Lane(System.String lane)
     Acta.JobRequestBuilder NextRunAt(System.DateTimeOffset utc)
     Acta.JobRequestBuilder NoPayload()
     Acta.JobRequestBuilder ParentJobId(System.Int64 parentJobId)

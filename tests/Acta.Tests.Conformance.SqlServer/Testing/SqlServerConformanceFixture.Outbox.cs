@@ -25,6 +25,18 @@ public sealed partial class SqlServerConformanceFixture
         await ExecOutboxAsync(Acta.SqlServer.Hosting.SqlServerOutboxDdl.CreateScript(table, Schema));
     }
 
+    public async ValueTask StageInOneTransactionAsync(string outboxTable, IReadOnlyList<Acta.JobEnqueueRequest> requests)
+    {
+        await using var c = new SqlConnection(Conn);
+        await c.OpenAsync();
+        await using var tx = (SqlTransaction)await c.BeginTransactionAsync();
+        foreach (var request in requests)
+        {
+            await tx.AddToActaOutboxAsync(request, outboxTable, Schema);
+        }
+        await tx.CommitAsync();
+    }
+
     public async ValueTask<(int BusinessRows, int OutboxRows)> StageWithBusinessWriteAsync(
         string outboxTable,
         Acta.JobEnqueueRequest request,

@@ -9,7 +9,7 @@ WITH due AS (
     SELECT outbox_id
     FROM {{table_ref}}
     WHERE status_code = 10 /* OutboxStatusCode.Pending */ AND next_attempt_at_utc <= now()
-    ORDER BY COALESCE(priority_code, 50) DESC, next_attempt_at_utc ASC, created_at_utc ASC, outbox_id ASC
+    ORDER BY next_attempt_at_utc ASC, staging_id ASC
     LIMIT @p_batch_size
     FOR UPDATE SKIP LOCKED
 )
@@ -23,4 +23,4 @@ WHERE o.outbox_id = due.outbox_id
 RETURNING
     o.outbox_id, o.job_namespace, o.job_name, o.input_format_id, o.input,
     o.deduplication_key, o.correlation_key, o.concurrency_key, o.lane, o.priority_code,
-    o.next_run_at_utc, o.delay_seconds, o.tenant_key, o.meta, o.created_at_utc, o.failure_count;
+    o.next_run_at_utc, o.delay_seconds, o.tenant_key, o.meta, o.created_at_utc, o.failure_count, o.staging_id;

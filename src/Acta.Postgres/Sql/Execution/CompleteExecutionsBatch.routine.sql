@@ -1,3 +1,6 @@
+-- CREATE OR REPLACE cannot change a return type, and the result carries lane_promoted.
+DROP FUNCTION IF EXISTS {{schema}}.complete_executions_batch;
+
 CREATE OR REPLACE FUNCTION {{schema}}.complete_executions_batch(
     p_b_ordinal INT [],
     p_b_job_id BIGINT [],
@@ -12,13 +15,15 @@ CREATE OR REPLACE FUNCTION {{schema}}.complete_executions_batch(
     p_b_failure_count INT [],
     p_b_retention_seconds INT []
 )
-RETURNS TABLE (ordinal INT, finalized SMALLINT)
+RETURNS TABLE (ordinal INT, finalized SMALLINT, lane_promoted SMALLINT)
 LANGUAGE plpgsql
 AS $$
 DECLARE
     v_lane_id BIGINT;
     v_head_id BIGINT;
     v_head_status SMALLINT;
+    v_finalized INT [] := '{}';
+    v_promoted_lanes BIGINT [] := '{}';
 BEGIN
     -- Lock order: the batch's lanes in id order, then its runtime rows in job_id order
     -- (docs/internals/sql-execution-policy.md, "Lane lock order"). extend_worker_leases takes the same
@@ -39,7 +44,6 @@ BEGIN
     ORDER BY r.job_id
     FOR UPDATE;
 
-    RETURN QUERY
     WITH batch AS (
         SELECT
             b.ordinal,
@@ -144,10 +148,9 @@ BEGIN
                         LIMIT 1), 100) <> 100 /* ExecutionStatusCode.Succeeded */))
         RETURNING 1
     )
-    SELECT b.ordinal, CAST(CASE WHEN u.ordinal IS NOT NULL THEN 1 ELSE 0 END AS SMALLINT)
-    FROM batch b
-    LEFT JOIN updated u ON u.ordinal = b.ordinal
-    ORDER BY b.ordinal;
+    SELECT COALESCE(array_agg(u.ordinal), '{}')
+    INTO v_finalized
+    FROM updated u;
 
     FOR v_lane_id IN
         SELECT DISTINCT r.lane_id
@@ -188,8 +191,21 @@ BEGIN
                 pr.job_id = v_head_id
                 AND pr.status_code = 15 /* JobStatusCode.Blocked */;
 
-            EXIT WHEN FOUND;
+            IF FOUND THEN
+                v_promoted_lanes := v_promoted_lanes || v_lane_id;
+                EXIT;
+            END IF;
         END LOOP;
     END LOOP;
+
+    -- A finalized row whose lane promoted a member is flagged, and the caller announces it to the namespace.
+    RETURN QUERY
+    SELECT
+        b.ordinal,
+        CAST(CASE WHEN b.ordinal = ANY (v_finalized) THEN 1 ELSE 0 END AS SMALLINT),
+        CAST(CASE WHEN b.ordinal = ANY (v_finalized) AND r.lane_id = ANY (v_promoted_lanes) THEN 1 ELSE 0 END AS SMALLINT)
+    FROM unnest(p_b_ordinal, p_b_job_id) AS b (ordinal, job_id)
+    LEFT JOIN {{schema}}.runtimes r ON r.job_id = b.job_id
+    ORDER BY b.ordinal;
 END;
 $$;

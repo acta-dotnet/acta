@@ -185,12 +185,12 @@ internal sealed class CompletionSink
             requests.Add(b.Request);
         }
 
-        IReadOnlyList<bool> finalized;
+        IReadOnlyList<BatchCompletionOutcome> outcomes;
         try
         {
             // One set-based round trip finalizes the simple terminal rows; it self-filters and reports
             // which ordinals it did NOT finalize (a parent, or a lost lease).
-            (finalized, _) = await CompletionWrite
+            (outcomes, _) = await CompletionWrite
                 .RetryAsync(
                     _ => _execution.CompleteExecutionsBatchAsync(requests, CancellationToken.None),
                     _log,
@@ -222,11 +222,11 @@ internal sealed class CompletionSink
         // The gate exists only when some entry needs the per-job write, and is sized to the executors
         // this flusher stands in for, so fallback connections never exceed the executors they replace.
         // It is not disposed: nothing touches its WaitHandle, so it holds no unmanaged resource.
-        var gate = finalized.Contains(false) ? new SemaphoreSlim(executorsPerFlusher, executorsPerFlusher) : null;
+        var gate = outcomes.Any(o => !o.Finalized) ? new SemaphoreSlim(executorsPerFlusher, executorsPerFlusher) : null;
         var settling = new Task<FlushOutcome>[batch.Count];
         for (var i = 0; i < batch.Count; i++)
         {
-            settling[i] = SettleAsync(batch[i], finalized[i], gate, stopCt);
+            settling[i] = SettleAsync(batch[i], outcomes[i], gate, stopCt);
         }
 
         var settled = await Task.WhenAll(settling).ConfigureAwait(false);
@@ -269,14 +269,14 @@ internal sealed class CompletionSink
     /// <summary>Settles one entry of a flush, and only then drops it from the pending registry.</summary>
     private async Task<FlushOutcome> SettleAsync(
         BufferedCompletion entry,
-        bool alreadyFinalized,
+        BatchCompletionOutcome batched,
         SemaphoreSlim? gate,
         CancellationToken stopCt
     )
     {
         try
         {
-            return await FinalizeAsync(entry, alreadyFinalized, gate, stopCt).ConfigureAwait(false);
+            return await FinalizeAsync(entry, batched, gate, stopCt).ConfigureAwait(false);
         }
         finally
         {
@@ -291,26 +291,20 @@ internal sealed class CompletionSink
     /// </summary>
     private async Task<FlushOutcome> FinalizeAsync(
         BufferedCompletion entry,
-        bool alreadyFinalized,
+        BatchCompletionOutcome batched,
         SemaphoreSlim? gate,
         CancellationToken stopCt
     )
     {
-        if (alreadyFinalized)
+        if (batched.Finalized)
         {
-            // Finalized simple terminal: no parent latch by construction, so only the job-finished wakeup
-            // applies (for a colocated RunAndWaitAsync caller).
+            // Finalized simple terminal: no parent latch by construction, so the job-finished wakeup
+            // applies (for a colocated RunAndWaitAsync caller), and the namespace's when the batch
+            // promoted the next member of this job's lane.
             RecordDurableCompletion(entry);
             return new FlushOutcome(
                 null,
-                await TryWakeAsync(() =>
-                        _wakeupPublisher.WakeAsync(
-                            WorkerWakeupChannel.JobCompletion(entry.JobId),
-                            WorkerWakeupReason.JobFinished,
-                            CancellationToken.None
-                        )
-                    )
-                    .ConfigureAwait(false)
+                await TryWakeAsync(() => new ValueTask(PublishBatchedWakeupsAsync(entry, batched))).ConfigureAwait(false)
             );
         }
 
@@ -352,6 +346,23 @@ internal sealed class CompletionSink
         }
 
         return new FlushOutcome(null, await TryWakeAsync(() => new ValueTask(PublishWakeupsAsync(result, entry))).ConfigureAwait(false));
+    }
+
+    private async Task PublishBatchedWakeupsAsync(BufferedCompletion entry, BatchCompletionOutcome batched)
+    {
+        await _wakeupPublisher
+            .WakeAsync(WorkerWakeupChannel.JobCompletion(entry.JobId), WorkerWakeupReason.JobFinished, CancellationToken.None)
+            .ConfigureAwait(false);
+        if (batched.LanePromoted)
+        {
+            await _wakeupPublisher
+                .WakeAsync(
+                    WorkerWakeupChannel.WorkerNamespace(entry.JobNamespace),
+                    WorkerWakeupReason.WorkAvailable,
+                    CancellationToken.None
+                )
+                .ConfigureAwait(false);
+        }
     }
 
     // A wakeup failure is the entry's own and never masquerades as an unfinalized job.

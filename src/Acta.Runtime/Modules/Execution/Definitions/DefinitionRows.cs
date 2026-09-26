@@ -267,25 +267,25 @@ internal enum DefinitionOverrideAction : byte
 internal readonly record struct DefinitionOverrideOutcome(DefinitionOverrideAction Action);
 
 /// <summary>
-/// One row of the retire verb's single result set: the action, repeated on every row, plus one parked
-/// job's id, its parent, and whether it is laned. A laned job is only named, left for cancel_job to
-/// cancel under its lane's lock. <c>JobId</c> is null on the single row a retire that found nothing
-/// returns.
+/// One row of the retire verb's single result set: the action and whether the sweep promoted a lane
+/// member, both repeated on every row, plus one cancelled job's id and its parent. <c>JobId</c> is null
+/// on the single row a retire that cancelled nothing returns.
 /// </summary>
-internal readonly record struct DefinitionRetireRow(DefinitionOverrideAction Action, long? JobId, long? ParentId, bool? Laned);
+internal readonly record struct DefinitionRetireRow(DefinitionOverrideAction Action, long? JobId, long? ParentId, bool LanePromoted);
 
 /// <summary>One job the retire sweep cancelled, with the parent whose child latch it owes.</summary>
 internal readonly record struct RetiredJobCancellation(long JobId, long? ParentId);
 
 /// <summary>
-/// Outcome of a <c>RetireDefinitionAsync</c> write: which action the verb took, the unlaned jobs its
-/// sweep cancelled, and the laned parked jobs the caller still has to cancel. Both lists are empty for
-/// every action but Applied, and for an Applied retire of a definition that was already retired.
+/// Outcome of a <c>RetireDefinitionAsync</c> write: which action the verb took, the jobs its sweep
+/// cancelled, laned ones included, and whether it handed a lane on to a member of another definition.
+/// The list is empty for every action but Applied, and for an Applied retire of a definition that was
+/// already retired.
 /// </summary>
 internal sealed record DefinitionRetireOutcome(
     DefinitionOverrideAction Action,
     IReadOnlyList<RetiredJobCancellation> CancelledJobs,
-    IReadOnlyList<long> LanedJobs
+    bool LanePromoted
 );
 
 /// <summary>Row-to-contract mappers shared by the provider definition stores.</summary>

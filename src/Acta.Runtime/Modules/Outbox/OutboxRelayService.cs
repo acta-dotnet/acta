@@ -481,8 +481,8 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission
     }
 
     /// <summary>
-    /// Group claimed rows by target identity; the earliest (created_at_utc, outbox_id) row is the
-    /// representative sent to the target, avoiding the ledger's same-batch duplicate-key rejection.
+    /// Group claimed rows by target identity; the earliest staged row is the representative sent to the
+    /// target, avoiding the ledger's same-batch duplicate-key rejection. Groups keep the claim order.
     /// The group keeps every member row so retry/quarantine can advance each row's own failure
     /// count. The grouping key is case-folded (keys are ASCII by contract) to match the target's
     /// dedup normalization, so two case-variant handoffs coalesce into one group instead of
@@ -494,7 +494,7 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission
                 .GroupBy(r => (r.JobNamespace.ToLowerInvariant(), r.DeduplicationKey.ToLowerInvariant()))
                 .Select(g =>
                 {
-                    var ordered = g.OrderBy(r => r.CreatedAtUtc).ThenBy(r => r.OutboxId).ToList();
+                    var ordered = g.OrderBy(static r => r.StagingId).ToList();
                     return new OutboxGroup(ordered[0], ordered);
                 }),
         ];

@@ -10,7 +10,7 @@ namespace Acta.Runtime.Modules.Execution.Jobs;
 /// because every child is recursed through, terminal ones included, so live descendants behind an
 /// already-finished child are still reached. In-subtree latch raises are skipped: each node's parent
 /// is terminal by the time the node is cancelled. Returns the ids the walk cancelled, for the
-/// caller's completion wakes.
+/// caller's completion wakes, and whether any of its cancels promoted a lane member, for its work wake.
 /// </summary>
 internal static class CancelDescendants
 {
@@ -24,7 +24,7 @@ internal static class CancelDescendants
         "Ancestor job cancelled."
     );
 
-    public static async Task<IReadOnlyList<long>> Run(
+    public static async Task<CancelledDescendants> Run(
         IExecutionStore execution,
         IJobStore store,
         long rootJobId,
@@ -33,11 +33,11 @@ internal static class CancelDescendants
     )
     {
         var cancelled = new List<long>();
-        await WalkAsync(execution, store, rootJobId, input, cancelled, ct);
-        return cancelled;
+        var promoted = await WalkAsync(execution, store, rootJobId, input, cancelled, ct);
+        return new CancelledDescendants(cancelled, promoted);
     }
 
-    private static async Task WalkAsync(
+    private static async Task<bool> WalkAsync(
         IExecutionStore execution,
         IJobStore store,
         long parentJobId,
@@ -46,15 +46,22 @@ internal static class CancelDescendants
         CancellationToken ct
     )
     {
+        var promoted = false;
         foreach (var childId in await execution.GetChildJobIdsAsync(parentJobId, ct))
         {
             var cancel = await store.CancelJobAsync(childId, input, ct);
             if (cancel.Outcome.Action == JobControlActionInternal.Applied)
             {
                 cancelled.Add(childId);
+                promoted |= cancel.LanePromoted;
             }
 
-            await WalkAsync(execution, store, childId, input, cancelled, ct);
+            promoted |= await WalkAsync(execution, store, childId, input, cancelled, ct);
         }
+
+        return promoted;
     }
 }
+
+/// <summary>What a descendant cancel walk did: the ids it cancelled, and whether it promoted a lane member.</summary>
+internal sealed record CancelledDescendants(IReadOnlyList<long> Cancelled, bool LanePromoted);

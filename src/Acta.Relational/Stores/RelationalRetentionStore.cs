@@ -13,7 +13,7 @@ internal sealed class RelationalRetentionStore(IDbSession session, ISqlDialect d
     public async Task<int> PurgeBatchAsync(PurgeExpiredDataBatchCommand command, CancellationToken ct)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(command.BatchSize);
-        if (command.Section is < RetentionSection.Jobs or > RetentionSection.Locks)
+        if (command.Section is < RetentionSection.Jobs or > RetentionSection.Lanes)
         {
             throw new ArgumentOutOfRangeException(nameof(command));
         }

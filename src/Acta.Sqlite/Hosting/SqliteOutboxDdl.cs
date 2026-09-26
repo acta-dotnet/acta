@@ -20,6 +20,8 @@ public static class SqliteOutboxDdl
         // objects; the default table yields exactly the canonical names. SQLite INTEGER has no unsigned-byte
         // type, so input_format_id's 0-255 range is enforced by an explicit check (mssql tinyint does this by
         // type) to keep the claim projection's Convert.ToByte from ever overflowing.
+        // The implicit rowid is the staging order: each insert gets a rowid above every live row, and every
+        // index ends in the rowid, so ix_{table}_due serves the claim order as it stands.
         return $"""
             CREATE TABLE {table} (
                 outbox_id TEXT NOT NULL,
@@ -58,7 +60,7 @@ public static class SqliteOutboxDdl
                     OR (status_code <> 20 AND claim_token IS NULL AND claim_until_utc IS NULL))
             );
             CREATE INDEX ix_{table}_due ON {table}
-                (status_code, next_attempt_at_utc, priority_code, created_at_utc, outbox_id);
+                (status_code, next_attempt_at_utc);
             CREATE INDEX ix_{table}_claims ON {table} (status_code, claim_until_utc);
             """;
     }

@@ -104,14 +104,17 @@ internal interface IJobStore
     Task<JobControlOutcome> PurgeJobAsync(long jobId, JobControlInput input, CancellationToken ct);
 
     /// <summary>
-    /// Links a finished laned job and the job its restart re-enqueued with a job.redriven event on each,
-    /// whose detail names the other job.
+    /// Redrives a finished laned job in one owned transaction: enqueues <paramref name="row"/> with the
+    /// pre-allocated <paramref name="copyRef"/> through the one-row enqueue, which locks the lane first, then
+    /// bumps the finished row's version under the input's optional expected version, writes a job.redriven
+    /// event on each row whose detail names the other, and copies the finished row's tags to the copy. Commits
+    /// only when the bump lands; otherwise the copy rolls back and the outcome's Bump is null.
     /// </summary>
-    Task RecordJobRedriveAsync(
+    Task<JobRedriveOutcome> RedriveJobAsync(
+        JobEnqueueRow row,
+        Guid copyRef,
         long jobId,
         JobRef jobRef,
-        long redriveJobId,
-        JobRef redriveJobRef,
         JobControlInput input,
         CancellationToken ct
     );

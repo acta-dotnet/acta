@@ -137,25 +137,15 @@ internal sealed class RelationalDefinitionStore(IDbSession session, ISqlDialect 
         // Every row repeats the action; the cancelled jobs are the rows that carry a job id, and a
         // retire that cancelled nothing is the single row whose job id is null.
         var cancelled = new List<RetiredJobCancellation>(rows.Count);
-        var laned = new List<long>();
         foreach (var row in rows)
         {
-            if (row.JobId is not { } jobId)
-            {
-                continue;
-            }
-
-            if (row.Laned == true)
-            {
-                laned.Add(jobId);
-            }
-            else
+            if (row.JobId is { } jobId)
             {
                 cancelled.Add(new RetiredJobCancellation(jobId, row.ParentId));
             }
         }
 
-        return new DefinitionRetireOutcome(rows[0].Action, cancelled, laned);
+        return new DefinitionRetireOutcome(rows[0].Action, cancelled, rows[0].LanePromoted);
     }
 
     private void AddOverrideParameters(DbCommand cmd, SetDefinitionOverridesCommand command)

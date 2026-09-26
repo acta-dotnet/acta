@@ -51,13 +51,13 @@ public sealed class CompletionSinkByteThresholdTests
     {
         public List<int> BatchSizes { get; } = [];
 
-        public Task<IReadOnlyList<bool>> CompleteExecutionsBatchAsync(
+        public Task<IReadOnlyList<BatchCompletionOutcome>> CompleteExecutionsBatchAsync(
             IReadOnlyList<CompleteExecutionRequest> requests,
             CancellationToken ct
         )
         {
             BatchSizes.Add(requests.Count);
-            IReadOnlyList<bool> finalized = [.. requests.Select(_ => true)];
+            IReadOnlyList<BatchCompletionOutcome> finalized = [.. requests.Select(_ => new BatchCompletionOutcome(true, false))];
             return Task.FromResult(finalized);
         }
 

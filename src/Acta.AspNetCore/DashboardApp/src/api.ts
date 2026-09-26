@@ -194,7 +194,7 @@ export async function controlRequest<TResult extends { action: string }>(
   );
 }
 
-export type ControlAction = 'applied' | 'notFound' | 'rejected' | 'versionConflict';
+export type ControlAction = 'applied' | 'redriven' | 'notFound' | 'rejected' | 'versionConflict';
 
 // All seven job-control verbs (pause/resume/restart/cancel/reschedule/reprioritize/purge) return this
 // shape at `jobs/{jobRef}/{action}`; JobControls.svelte drives them all through useControlMutation
@@ -206,7 +206,7 @@ export interface JobControlResponse {
   status: string | null;
   message: string;
   version: number | null;
-  // Set when a restart redrove a finished laned job: the new job at the end of its lane.
+  // Set with action 'redriven', when a restart redrove a finished laned job: the new job at the end of its lane.
   redriveJobRef?: string | null;
 }
 

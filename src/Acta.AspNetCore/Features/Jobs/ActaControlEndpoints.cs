@@ -505,9 +505,9 @@ internal static class ActaControlEndpoints
     {
         var (statusCode, message) = result.Action switch
         {
-            ControlAction.Applied when result.RedriveJobRef is not null => (
+            ControlAction.Redriven => (
                 StatusCodes.Status200OK,
-                $"{Title(verb)} applied: the finished job stays as history and a new job joined the end of its lane."
+                $"{Title(verb)} redrove the job: the finished job stays as history and a new job joined the end of its lane."
             ),
             ControlAction.Applied => (StatusCodes.Status200OK, $"{Title(verb)} applied."),
             ControlAction.Rejected => (

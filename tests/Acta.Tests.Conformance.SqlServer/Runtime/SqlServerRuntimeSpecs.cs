@@ -92,3 +92,5 @@ public sealed class SqlServerLaneDirectWorkerLoopSpec : LaneDirectWorkerLoopSpec
 public sealed class SqlServerLaneBufferedWorkerLoopSpec : LaneBufferedWorkerLoopSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerLaneBulkWorkerLoopSpec : LaneBulkWorkerLoopSpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerLaneBulkPromotionWakeSpec : LaneBulkPromotionWakeSpec<SqlServerConformanceFixture>;

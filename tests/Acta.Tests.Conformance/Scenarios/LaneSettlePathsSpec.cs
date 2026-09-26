@@ -103,6 +103,42 @@ public abstract class LaneSettlePathsSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         Assert.DoesNotContain(_wakeups.Published.Skip(before), c => c.Kind == WorkerWakeupChannelKind.WorkerNamespace);
     }
 
-    private JobEnqueueRequest Request<TInput>(string jobName, TInput input, string lane)
+    [Fact(DisplayName = "Cancelling a Blocked follower wakes no claim loop, and cancelling a head that promotes one does")]
+    public async Task Cancel_wakes_claim_loops_only_on_a_promotion()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var head = await Jobs.EnqueueAsync(Request("lane-step", new LaneStep("orders", "a"), "orders"), ct);
+        var follower = await Jobs.EnqueueAsync(Request("lane-step", new LaneStep("orders", "b"), "orders"), ct);
+        await Jobs.EnqueueAsync(Request("lane-step", new LaneStep("orders", "c"), "orders"), ct);
+
+        var before = _wakeups.Published.Count;
+        Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(follower, ct: ct)).Action);
+        Assert.DoesNotContain(_wakeups.Published.Skip(before), IsWorkAvailable);
+
+        before = _wakeups.Published.Count;
+        Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(head, ct: ct)).Action);
+        Assert.Contains(_wakeups.Published.Skip(before), IsWorkAvailable);
+    }
+
+    [Fact(DisplayName = "A cancel whose descendant cascade promotes a lane member wakes the claim loops")]
+    public async Task Cascade_cancel_that_promotes_wakes_claim_loops()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var parent = await Jobs.EnqueueAsync(Request("lane-step", new LaneStep("", "p"), lane: null), ct);
+        await Jobs.EnqueueAsync(Request("lane-step", new LaneStep("orders", "child"), "orders") with { ParentJobId = parent.JobId }, ct);
+        var waiting = await Jobs.EnqueueAsync(Request("lane-step", new LaneStep("orders", "w"), "orders"), ct);
+        Assert.Equal(JobStatusCode.Blocked, (await ReadJobAsync(waiting.JobId, ct)).Status);
+
+        var before = _wakeups.Published.Count;
+        Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(parent, ct: ct)).Action);
+
+        Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(waiting.JobId, ct)).Status);
+        Assert.Contains(_wakeups.Published.Skip(before), IsWorkAvailable);
+    }
+
+    private static bool IsWorkAvailable(WorkerWakeupChannel channel) =>
+        channel.Kind is WorkerWakeupChannelKind.WorkerNamespace or WorkerWakeupChannelKind.AllWorkerNamespaces;
+
+    private JobEnqueueRequest Request<TInput>(string jobName, TInput input, string? lane)
         where TInput : notnull => new(TestNamespace, jobName, JobPayload.Json(input), Lane: lane);
 }

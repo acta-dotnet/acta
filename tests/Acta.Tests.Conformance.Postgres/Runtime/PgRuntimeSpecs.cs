@@ -92,3 +92,5 @@ public sealed class PgLaneDirectWorkerLoopSpec : LaneDirectWorkerLoopSpec<PgConf
 public sealed class PgLaneBufferedWorkerLoopSpec : LaneBufferedWorkerLoopSpec<PgConformanceFixture>;
 
 public sealed class PgLaneBulkWorkerLoopSpec : LaneBulkWorkerLoopSpec<PgConformanceFixture>;
+
+public sealed class PgLaneBulkPromotionWakeSpec : LaneBulkPromotionWakeSpec<PgConformanceFixture>;

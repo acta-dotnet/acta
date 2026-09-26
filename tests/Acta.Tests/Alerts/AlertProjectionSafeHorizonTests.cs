@@ -132,5 +132,10 @@ public sealed class AlertProjectionSafeHorizonTests
 
         public Task<T> RunWithRetryAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct) =>
             throw new NotSupportedException();
+
+        public Task<T> RunInOwnedTransactionAsync<T>(
+            Func<DbTransaction, CancellationToken, Task<(T Result, bool Commit)>> work,
+            CancellationToken ct
+        ) => throw new NotSupportedException();
     }
 }

@@ -275,6 +275,7 @@ CREATE INDEX IF NOT EXISTS {{schema}}.ix_runtimes_claim_ready ON runtimes (names
 CREATE INDEX IF NOT EXISTS {{schema}}.ix_runtimes_retention ON runtimes (namespace_id, retention_until_utc, job_id) WHERE retention_until_utc IS NOT NULL AND status_code IN (100, 200, 220);
 CREATE INDEX IF NOT EXISTS {{schema}}.ix_runtimes_worker_inflight ON runtimes (leased_by_worker_id, job_id) WHERE leased_by_worker_id IS NOT NULL AND status_code IN (40, 50);
 CREATE INDEX IF NOT EXISTS {{schema}}.ix_runtimes_lane ON runtimes (lane_id, job_id) WHERE lane_id IS NOT NULL AND status_code IN (10, 15, 20, 30, 40, 50);
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_runtimes_lane_member ON runtimes (lane_id) WHERE lane_id IS NOT NULL;
 
 -- JobSchedule
 CREATE TABLE IF NOT EXISTS {{schema}}.schedules (
@@ -438,7 +439,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
 
 
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-88821ce4e5615ca4dcde20ef768d6a4e', '{{schema}}')
+VALUES (0, 'baseline-af338108c89e184aba9eed5b924367f4', '{{schema}}')
 ON CONFLICT (version) DO NOTHING;
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}')

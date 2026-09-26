@@ -39,6 +39,8 @@ public sealed class PgOutboxSourceIndependenceSpec : OutboxSourceIndependenceSpe
 
 public sealed class PgOutboxStagingSpec : OutboxStagingSpec<PgConformanceFixture>;
 
+public sealed class PgOutboxLaneOrderSpec : OutboxLaneOrderSpec<PgConformanceFixture>;
+
 public sealed class PgOutboxDdlSpec : OutboxDdlSpec<PgConformanceFixture>
 {
     // The single table-override case (any one provider proves the override path renders correctly).

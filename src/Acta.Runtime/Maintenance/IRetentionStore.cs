@@ -22,6 +22,7 @@ internal enum RetentionSection
     PoisonSkipCheckpoints = 5,
     Workers = 6,
     Locks = 7,
+    Lanes = 8,
 }
 
 internal sealed record PurgeExpiredDataBatchCommand(int NamespaceId, RetentionSection Section, DateTime CutoffUtc, int BatchSize);
@@ -47,5 +48,6 @@ internal readonly record struct PurgeExpiredDataResult(
     int Alerts,
     int UndeliveredAlertsPurged,
     int Workers,
-    int Locks
+    int Locks,
+    int Lanes
 );

@@ -510,7 +510,7 @@ internal sealed class JobExecutionHarness(
         public Task<ClaimResult> ClaimOneAsync(ClaimRequest request, int leaseTtlSeconds, long? jobId, CancellationToken ct) =>
             throw new NotSupportedException();
 
-        public Task<IReadOnlyList<bool>> CompleteExecutionsBatchAsync(
+        public Task<IReadOnlyList<BatchCompletionOutcome>> CompleteExecutionsBatchAsync(
             IReadOnlyList<CompleteExecutionRequest> requests,
             CancellationToken ct
         ) => throw new NotSupportedException();
@@ -624,11 +624,11 @@ internal sealed class JobExecutionHarness(
         public Task<JobControlOutcome> PurgeJobAsync(long jobId, JobControlInput input, CancellationToken ct) =>
             throw new NotSupportedException();
 
-        public Task RecordJobRedriveAsync(
+        public Task<JobRedriveOutcome> RedriveJobAsync(
+            JobEnqueueRow row,
+            Guid copyRef,
             long jobId,
             JobRef jobRef,
-            long redriveJobId,
-            JobRef redriveJobRef,
             JobControlInput input,
             CancellationToken ct
         ) => throw new NotSupportedException();

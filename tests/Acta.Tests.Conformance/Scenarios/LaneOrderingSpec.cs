@@ -149,6 +149,60 @@ public abstract class LaneOrderingSpec<TFixture> : ActaRuntimeTestBase<TFixture,
         Assert.Equal(["p1", "p2", "p3"], LaneProbes.Ran(TestNamespace).Where(l => l != "q"));
     }
 
+    [Fact(DisplayName = "A batch whose first lane row is a dedup hit on a finished job lands its next row Ready")]
+    public async Task Batch_after_a_dedup_hit_on_a_finished_member_lands_ready()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var finished = await Jobs.EnqueueAsync(
+            Request("lane-step", new LaneStep("orders", "a"), "orders") with
+            {
+                DeduplicationKey = "a",
+            },
+            ct
+        );
+        await DrainAsync([finished], ct);
+
+        var outcomes = await Jobs.EnqueueBatchAsync(
+            [
+                Request("lane-step", new LaneStep("orders", "a"), "orders") with
+                {
+                    DeduplicationKey = "a",
+                },
+                Request("lane-step", new LaneStep("orders", "b"), "orders"),
+                Request("lane-step", new LaneStep("orders", "c"), "orders"),
+            ],
+            ct
+        );
+
+        Assert.Equal(JobEnqueueAction.Deduplicated, outcomes[0].Action);
+        Assert.Equal(finished.JobId, outcomes[0].JobId);
+        Assert.Equal(JobStatusCode.Ready, await StatusAsync(outcomes[1], ct));
+        Assert.Equal(JobStatusCode.Blocked, await StatusAsync(outcomes[2], ct));
+    }
+
+    [Fact(DisplayName = "Concurrent producers into one lane: the lane runs in job-id order")]
+    public async Task Concurrent_producers_run_in_job_id_order()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        const int producers = 8;
+
+        var outcomes = await Task.WhenAll(
+            Enumerable
+                .Range(0, producers)
+                .Select(i => Task.Run(async () => await EnqueueStepAsync("orders", $"p{i}", JobPriorityCode.Normal, ct), ct))
+        );
+
+        var statuses = await StatusesAsync(outcomes, ct);
+        Assert.Single(statuses, s => s == JobStatusCode.Ready);
+        Assert.Equal(outcomes.MinBy(o => o.JobId)!.JobId, outcomes[statuses.IndexOf(JobStatusCode.Ready)].JobId);
+
+        await DrainAsync(outcomes, ct);
+
+        var byId = outcomes.Select((o, i) => (o.JobId, Label: $"p{i}")).OrderBy(x => x.JobId).Select(x => x.Label);
+        Assert.Equal(byId, LaneProbes.Ran(TestNamespace));
+        Assert.Equal(1, LaneProbes.MaxConcurrent(TestNamespace));
+    }
+
     [Fact(DisplayName = "Lane names fold like concurrency keys: names that differ only in case are one lane")]
     public async Task Lane_names_fold_case()
     {

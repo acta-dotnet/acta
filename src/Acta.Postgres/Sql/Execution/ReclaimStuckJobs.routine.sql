@@ -11,83 +11,77 @@ DECLARE
     v_lanes BIGINT [] := '{}';
     v_stranded BIGINT [] := '{}';
     v_repaired BIGINT [] := '{}';
+    v_window BIGINT [] := '{}';
+    v_candidates BIGINT [] := '{}';
+    v_min_lane BIGINT;
+    v_max_lane BIGINT;
+    v_start_lane BIGINT;
     v_lane_id BIGINT;
     v_head_id BIGINT;
     v_head_status SMALLINT;
 BEGIN
     -- A stranded lane's lowest-id unfinished member is Blocked, so nothing ahead of it will settle and
-    -- promote it. The probe stops at the namespace's first Blocked row; only then does the walk visit
-    -- each active lane's head, one seek per lane through ix_runtimes_lane.
-    IF EXISTS (
-        SELECT 1
-        FROM {{schema}}.runtimes b
-        WHERE
-            b.lane_id IS NOT NULL
-            AND b.status_code = 15 /* JobStatusCode.Blocked */
-            AND b.namespace_id = p_namespace_id
-    ) THEN
+    -- promote it. Each pass visits at most 1,000 of the namespace's lanes, from a random lane id with
+    -- wrap, and seeks each one's head through ix_runtimes_lane; every lane is visited eventually.
+    SELECT min(l.id), max(l.id) INTO v_min_lane, v_max_lane FROM {{schema}}.lanes l;
+    IF v_max_lane IS NOT NULL THEN
+        v_start_lane := v_min_lane + floor(random() * (v_max_lane - v_min_lane + 1))::BIGINT;
+        v_window := ARRAY(
+            SELECT l.id
+            FROM {{schema}}.lanes l
+            WHERE l.namespace_id = p_namespace_id AND l.id >= v_start_lane
+            ORDER BY l.id
+            LIMIT 1000
+        );
+        v_window := v_window || ARRAY(
+            SELECT l.id
+            FROM {{schema}}.lanes l
+            WHERE l.namespace_id = p_namespace_id AND l.id < v_start_lane
+            ORDER BY l.id
+            LIMIT 1000 - cardinality(v_window)
+        );
         v_stranded := ARRAY(
-            WITH RECURSIVE heads AS (
-                (
-                    SELECT m.lane_id, m.status_code, m.namespace_id
-                    FROM {{schema}}.runtimes m
-                    WHERE
-                        m.lane_id IS NOT NULL
-                        AND m.status_code IN (
-                            10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                            30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-                        )
-                    ORDER BY m.lane_id, m.job_id
-                    LIMIT 1
-                )
-                UNION ALL
-                SELECT n.lane_id, n.status_code, n.namespace_id
-                FROM heads h
-                CROSS JOIN LATERAL (
-                    SELECT m.lane_id, m.status_code, m.namespace_id
-                    FROM {{schema}}.runtimes m
-                    WHERE
-                        m.lane_id > h.lane_id
-                        AND m.lane_id IS NOT NULL
-                        AND m.status_code IN (
-                            10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                            30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-                        )
-                    ORDER BY m.lane_id, m.job_id
-                    LIMIT 1
-                ) n
-            )
-            SELECT h.lane_id
-            FROM heads h
-            WHERE
-                h.status_code = 15 /* JobStatusCode.Blocked */
-                AND h.namespace_id = p_namespace_id
-            LIMIT 100
+            SELECT w.id
+            FROM unnest(v_window) AS w (id)
+            CROSS JOIN LATERAL (
+                SELECT m.status_code
+                FROM {{schema}}.runtimes m
+                WHERE
+                    m.lane_id = w.id
+                    AND m.lane_id IS NOT NULL
+                    AND m.status_code IN (
+                        10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                        30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                    )
+                ORDER BY m.job_id
+                LIMIT 1
+            ) h
+            WHERE h.status_code = 15 /* JobStatusCode.Blocked */
         );
     END IF;
 
     -- Lock order: the stuck rows' lanes and the stranded lanes in id order, then the runtime rows
-    -- (docs/internals/sql-execution-policy.md, "Lane lock order"). A laned row whose lease expires after
-    -- the lanes are taken waits for the next pass rather than being reclaimed without its lane.
+    -- (docs/internals/sql-execution-policy.md, "Lane lock order"). A lane another transaction holds is
+    -- skipped, and its stuck rows and repair wait for a later pass.
+    v_candidates := v_stranded || ARRAY(
+        SELECT r.lane_id
+        FROM {{schema}}.runtimes r
+        WHERE
+            r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+            AND r.lease_expires_at_utc < now()
+            AND r.namespace_id = p_namespace_id
+            AND r.lane_id IS NOT NULL
+    );
     FOR v_lane_id IN
         SELECT l.id
         FROM {{schema}}.lanes l
-        WHERE
-            l.id IN (
-                SELECT r.lane_id
-                FROM {{schema}}.runtimes r
-                WHERE
-                    r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
-                    AND r.lease_expires_at_utc < now()
-                    AND r.namespace_id = p_namespace_id
-                    AND r.lane_id IS NOT NULL
-            )
-            OR l.id = ANY (v_stranded)
+        WHERE l.id = ANY (v_candidates)
         ORDER BY l.id
-        FOR UPDATE
+        FOR UPDATE SKIP LOCKED
     LOOP
         v_lanes := v_lanes || v_lane_id;
     END LOOP;
+    v_stranded := ARRAY(SELECT s.id FROM unnest(v_stranded) AS s (id) WHERE s.id = ANY (v_lanes));
 
     -- The walk read without locks, so each stranded lane is re-read under its lock and repaired only
     -- when its lowest-id unfinished member is still Blocked.
