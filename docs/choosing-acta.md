@@ -181,7 +181,9 @@ During local demos, use a short interval such as `10s` so the run is visible. In
 business cadence: `5m`, `1h`, or a cron expression.
 
 For a runnable first pass, start with [Quickstart](./quickstart.md). For the unusual implementation
-ideas Acta can demonstrate live, read [Acta Engineering Labs](./engineering-labs.md).
+ideas Acta can demonstrate live, read [Acta Engineering Labs](./engineering-labs.md). What evidence
+stands behind the reliability claims, and what does not exist yet, is in
+[Support, evidence behind the claims](./support.md#evidence-behind-the-claims).
 
 ## Rule of thumb
 

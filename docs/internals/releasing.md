@@ -94,8 +94,10 @@ Two commits carry a release, and their roles do not mix:
   evidence the release produced (seals, the benchmark and coverage pages, the certification index)
   and the release-notes header flip.
   `tools/release-guard.ps1 -CertifiedCommit <A> -TagCommit HEAD` runs before tagging and fails when
-  `A..B` touches anything outside `docs/certification/`, `docs/benchmarks/`, `docs/release-notes.md`,
-  `docs/README.md`, `site/` (the useacta.net benchmark strip cites the round), or this page.
+  `A..B` touches anything outside `docs/certification/`, `docs/benchmarks/`, `site/` (the useacta.net
+  benchmark strip cites the round), the Markdown under `docs/`, `README.md`, `llms.txt`, and the release
+  checks themselves (`tools/release-guard.ps1`, `tools/site-check.mjs`): prose and checks that no
+  binary compiles or packs, so a documentation correction found after certification does not move A.
 - A defect found by any of A's runs abandons A: the fix goes back through its slice, a new candidate is
   cut, and every piece of evidence is re-run against it. Evidence from an abandoned candidate is never
   reused for the next one.

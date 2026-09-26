@@ -158,9 +158,22 @@ and `record-response` re-sends with the same key, which is the at-least-once con
 | `Task.Delay` or `Thread.Sleep` | `await ctx.SleepAsync("cool-down", delay, ct: ct)` | delays hold a worker; durable sleep frees it and survives deploys |
 | calling an API directly in the body | `await ctx.RunStepAsync("charge", ct => ...)` | a step records its outcome, so a retry does not repeat recorded work |
 | `catch { }` around the body | let it throw, or `await ctx.FailAsync(reason)` | swallowing turns a retryable failure into a silent success |
-| polling a flag in a loop | `await ctx.WaitSignalAsync("approved", timeout)` | polling burns a worker; a signal parks the job, and the timeout keeps it from parking forever |
+| polling a flag in a loop | `await ctx.TryWaitSignalAsync("approved", timeout)` | polling burns a worker; a signal parks the job, and the timeout keeps it from parking forever |
 | starting children and looping until done | `await ctx.WaitChildrenAsync(ids)` (or with a timeout), or `MapAsync` when the children come from a list | the parent parks instead of occupying a worker |
 | `DateTime.Now` | `DateTime.UtcNow`, or a value from the input | the ledger is UTC throughout |
+
+## Waiting for an outside event
+
+A handler parks on a named signal and something outside raises it: a webhook, an operator, another
+job. `var r = await ctx.TryWaitSignalAsync("shipped", TimeSpan.FromDays(14), ct);` returns a
+`SignalWaitResult`; branch on `r.TimedOut` to handle the deadline in code. The other overload,
+`await ctx.WaitSignalAsync("shipped", TimeSpan.FromDays(14), ct)`, returns nothing, and a timeout
+ends the job `Cancelled` with reason `job.wait-timed-out` instead of returning; use it only when a
+missed deadline should stop the job. Both are typed too: `TryWaitSignalAsync<T>` returns
+`SignalWaitResult<T>` with `Value`, and `WaitSignalAsync<T>` returns the raised value. The raising
+side is `await jobs.RaiseSignalAsync(JobLookup.ByRef(jobRef), "shipped", new Shipped(trackingId))`
+on `IJobs`. The deadline is stored once, as database time plus the timeout, so restarts and
+downtime never lengthen it, and a raise that lands before the parked job re-enters still wins.
 
 ## Limiting how much runs at once
 
@@ -197,6 +210,10 @@ blob storage with the job carrying a reference: URI, checksum, size.
   stays at-least-once either way.
 - Tags are for finding jobs, not for carrying data: input is typed and versioned, tags are
   searchable labels.
+- A recurring job keeps its step results and variables from one fire to the next: a step that
+  succeeded on Monday returns Monday's result on Tuesday. Put the period in the step name
+  (`$"invoice-{period}"`) or call `ctx.ResetStateAsync` at the top of a handler that must start
+  clean.
 
 ## When you are unsure
 
