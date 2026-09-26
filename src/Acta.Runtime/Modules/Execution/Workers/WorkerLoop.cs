@@ -79,7 +79,11 @@ internal sealed class WorkerLoop(
                 // Several flushers run in parallel so group commit does not serialize all completions
                 // through one connection (that would lose the parallelism Direct gets from N executors).
                 var flusherCount = Math.Clamp(executorCount / 4, 1, 16);
-                var flusher = sink.RunFlushersAsync(flusherCount);
+                // Each flusher stands in for this many executors, which is what bounds the per-job
+                // completions it has in flight, so fallback connections never exceed the executors they
+                // replace. hostCt rather than claimCt, so a drain keeps a failing completion repeating.
+                var executorsPerFlusher = (executorCount + flusherCount - 1) / flusherCount;
+                var flusher = sink.RunFlushersAsync(flusherCount, executorsPerFlusher, hostCt);
                 try
                 {
                     await CombinedLoopAsync(ns, namespaceId, workerId, executorCount, claimBatchSize, hostCt, claimStop.Token);
@@ -124,7 +128,7 @@ internal sealed class WorkerLoop(
 
         try
         {
-            await ClaimLoopAsync(channel.Writer, ns, namespaceId, workerId, claimStop.Token);
+            await ClaimLoopAsync(channel.Writer, ns, namespaceId, workerId, hostCt, claimStop.Token);
         }
         finally
         {
@@ -132,7 +136,41 @@ internal sealed class WorkerLoop(
             // handlers already observed ct cancel; buffered-but-unstarted claims fall to lease expiry.
             channel.Writer.TryComplete();
             await Task.WhenAll(executors);
+            await _detachedRecovery;
         }
+    }
+
+    // The recovery pass a Buffered claim loop runs outside its channel; awaited at the end of the loop.
+    private Task _detachedRecovery = Task.CompletedTask;
+
+    /// <summary>
+    /// Runs a claimed recovery slot on its own task rather than through the channel: a worker whose
+    /// executors are all held would otherwise buffer the one job that reclaims what they hold, under a
+    /// lease the heartbeat renews, and no sweep could run until an executor came free.
+    /// </summary>
+    private void RunRecoveryDetached(ClaimedJob slot, string ns, int namespaceId, int workerId, CancellationToken hostCt)
+    {
+        var previous = _detachedRecovery;
+        _detachedRecovery = Task.Run(
+            async () =>
+            {
+                await previous;
+                try
+                {
+                    var outcome = await _executor.ExecuteClaimedJobAsync(slot, ns, namespaceId, workerId, alreadyStarted: false, hostCt);
+                    _log.LogInformation("WorkerRuntime: ({Namespace}) job {JobId} -> ({Outcome})", ns, slot.JobId, outcome.ToString());
+                }
+                catch (OperationCanceledException) when (hostCt.IsCancellationRequested)
+                {
+                    // Shutdown: the slot falls to lease expiry like any other in-flight claim.
+                }
+                catch (Exception ex)
+                {
+                    _log.LogError(ex, "WorkerRuntime: executor faulted on job {JobId}.", slot.JobId);
+                }
+            },
+            CancellationToken.None
+        );
     }
 
     /// <summary>
@@ -142,7 +180,14 @@ internal sealed class WorkerLoop(
     /// poll), and the wakeup transport interrupts that sleep the moment a publish makes work
     /// claimable, so idle pickup is signal-latency, not poll-cadence.
     /// </summary>
-    private async Task ClaimLoopAsync(ChannelWriter<ClaimedJob> writer, string ns, int namespaceId, int workerId, CancellationToken ct)
+    private async Task ClaimLoopAsync(
+        ChannelWriter<ClaimedJob> writer,
+        string ns,
+        int namespaceId,
+        int workerId,
+        CancellationToken hostCt,
+        CancellationToken ct
+    )
     {
         var options = _options.Value;
         var batchSize = Math.Max(1, options.ClaimBatchSize);
@@ -173,14 +218,58 @@ internal sealed class WorkerLoop(
                     continue;
                 }
 
+                // Every claimed row is registered as buffered before any of them is written: WriteAsync
+                // blocks while the channel is full, and the heartbeat's orphan release treats a renewed
+                // claim that is neither running nor buffered as a lost answer, so a row registered only
+                // when its turn to be written came could be released while it waited for that turn.
+                // The recovery slot starts here as well, ahead of any write that could block it.
+                _context.RecoverySlotJobIdByNamespace.TryGetValue(namespaceId, out var slotJobId);
+                foreach (var claimed in result.Jobs)
+                {
+                    _metrics?.RecordClaim(ns, "claimed");
+                    if (claimed.JobId == slotJobId)
+                    {
+                        RunRecoveryDetached(claimed, ns, namespaceId, workerId, hostCt);
+                    }
+                    else
+                    {
+                        _context.BufferedClaims[claimed.JobId] = 0;
+                    }
+                }
+
                 // Hand off every claimed row; WriteAsync applies backpressure if the batch outruns the
                 // executors, so a large batch never over-buffers beyond the channel capacity. A
                 // non-empty claim re-claims immediately: a backlog keeps the loop hot, and signals
                 // published meanwhile coalesce into the next empty-claim wait.
-                foreach (var claimed in result.Jobs)
+                var written = 0;
+                try
                 {
-                    _metrics?.RecordClaim(ns, "claimed");
-                    await writer.WriteAsync(claimed, ct);
+                    for (; written < result.Jobs.Count; written++)
+                    {
+                        var claimed = result.Jobs[written];
+                        if (claimed.JobId != slotJobId)
+                        {
+                            await writer.WriteAsync(claimed, ct);
+                        }
+                    }
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    // A drain or stop landed mid-batch: the rows still unwritten are claimed by this
+                    // worker and no executor will take them, so they go back to Ready now rather than
+                    // sitting leased through the drain and waiting out the lease after it.
+                    var unwritten = result.Jobs.Skip(written).Select(j => j.JobId).Where(id => id != slotJobId).ToList();
+                    foreach (var jobId in unwritten)
+                    {
+                        _context.BufferedClaims.TryRemove(jobId, out _);
+                    }
+
+                    await _executor.ReleaseOrphanedClaimsAsync(
+                        unwritten,
+                        "The worker stopped before an executor took the claim; nothing ran, and the job returns to Ready.",
+                        hostCt
+                    );
+                    break;
                 }
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -254,6 +343,7 @@ internal sealed class WorkerLoop(
         {
             await foreach (var job in reader.ReadAllAsync(ct))
             {
+                _context.BufferedClaims.TryRemove(job.JobId, out _);
                 try
                 {
                     var outcome = await _executor.ExecuteClaimedJobAsync(job, ns, namespaceId, workerId, alreadyStarted: false, ct);

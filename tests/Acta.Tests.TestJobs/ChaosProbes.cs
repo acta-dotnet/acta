@@ -41,6 +41,11 @@ public static class ChaosProbes
         return Task.CompletedTask;
     }
 
+    // The same gate with the framework's five-minute timeout, for a fact that needs an executor held
+    // for as long as the fact runs rather than freed by the timeout ten seconds in.
+    [Job("chaos-holding", AuditLevel = JobAuditLevelCode.Audit)]
+    public static Task Holding(JobContext ctx, CancellationToken ct) => Blocking(ctx, ct);
+
     // Short ExecutionTimeout so a stolen-lease attempt that finalizes via the per-attempt timeout
     // caps at seconds, not the 5-minute framework default.
     [Job("chaos-blocking", AuditLevel = JobAuditLevelCode.Audit, ExecutionTimeout = "PT10S")]

@@ -13,6 +13,9 @@
 -- exactly what is missing and skips what is present. Re-running it is a no-op. Views and
 -- routines carry no version and are always rewritten to the definitions shipped here.
 --
+-- Run it with a client that stops at the first error, which is what makes the transaction below a
+-- guarantee: sqlite3 -bail. A client that runs on past a failed statement would reach the package
+-- stamp with an object it failed to replace still in place.
 -- Run it under a DDL-capable principal; the application principal then needs only DML and
 -- EXECUTE, with ApplyMigrationsOnStartup left false. Because the history rows (and the
 -- baseline stamp) are recorded by the script itself, a bootstrap with migrations enabled also
@@ -808,6 +811,13 @@ SELECT
     t.value_search AS tag_value_search
 FROM main.tags AS t
 LEFT JOIN main.namespaces AS ns ON ns.id = t.namespace_id;
+
+-- ===== installed object package (names the versionless objects above; recorded only when all exist) =====
+
+DELETE FROM main.migrations WHERE version = -1;
+INSERT INTO main.migrations (version, name, installed_schema)
+SELECT -1, 'objects-1.5-fa7744573f6ec85034943f82b43de4e6', 'main'
+WHERE (SELECT COUNT(*) FROM sqlite_master WHERE type = 'view' AND name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'jobs_view', 'schedules_view', 'steps_view', 'workers_view', 'events_view', 'tags_view')) = 9;
 
 COMMIT;
 

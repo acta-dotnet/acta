@@ -42,10 +42,13 @@ public static class ProviderConn
     /// for Postgres/SQL Server, a bench-private SQLite temp file per schema, else throws.
     /// </summary>
     public static string Resolve(string provider, string? schema = null) =>
-        LocalDatabase.IsSqlite(provider) ? $"Data Source={Path.Combine(Path.GetTempPath(), $"acta-anvil-bench-{schema ?? "default"}.db")}"
+        LocalDatabase.IsSqlite(provider) ? $"Data Source={SqlitePath(schema)}"
         : LocalDatabase.IsPostgres(provider) || LocalDatabase.IsSqlServer(provider)
             ? LocalDatabase.ResolveConnectionString(s_config, provider, schema)
         : throw new ArgumentException($"Unknown provider '{provider}'.");
+
+    // The one place the bench's SQLite file is named, so the drop deletes the file the connection opened.
+    private static string SqlitePath(string? schema) => Path.Combine(Path.GetTempPath(), $"acta-anvil-bench-{schema ?? "default"}.db");
 
     /// <summary>Opens the selected database once so the CLI can fail before running a useless matrix.</summary>
     public static async Task CheckAvailableAsync(string provider, CancellationToken ct)
@@ -116,6 +119,56 @@ public static class ProviderConn
         catch (Exception ex) when (ex is SqliteException or NpgsqlException or SqlException or SocketException or TimeoutException)
         {
             throw new BenchDbUnavailableException(provider, ex);
+        }
+    }
+
+    /// <summary>
+    /// Drops the cell's schema once its measurement is recorded. Every cell provisions its own, so a
+    /// matrix that never dropped them left thousands behind and tens of gigabytes, and autovacuum then
+    /// wrote to the drive for hours after the round ended. Turning maintenance off to hide that would
+    /// describe a server nobody runs; dropping the schema removes the reason to.
+    /// </summary>
+    /// <remarks>
+    /// Best effort by design: a failure here is bookkeeping, and a round that measured cleanly must not
+    /// be failed by its own cleanup. SQLite's schema is a temp file, deleted rather than dropped.
+    /// </remarks>
+    public static async Task TryDropSchemaAsync(string provider, string schema, CancellationToken ct)
+    {
+        try
+        {
+            if (LocalDatabase.IsSqlite(provider))
+            {
+                // Only this file's pool: clearing every pool would rebuild connections nothing here owns.
+                using var probe = new SqliteConnection(Resolve(provider, schema));
+                SqliteConnection.ClearPool(probe);
+                var path = SqlitePath(schema);
+                foreach (var file in new[] { path, path + "-wal", path + "-shm" })
+                {
+                    File.Delete(file);
+                }
+
+                return;
+            }
+
+            // The migrators own the drop script per provider, so the bench cannot drift from it.
+            var conn = Resolve(provider, schema);
+            if (LocalDatabase.IsPostgres(provider))
+            {
+                await using var c = new NpgsqlConnection(conn);
+                await PostgresSchemaMigrator.DropSchemaAsync(c, schema, ct);
+            }
+            else
+            {
+                await using var c = new SqlConnection(conn);
+                await SqlServerSchemaMigrator.DropSchemaAsync(c, schema, ct);
+            }
+        }
+        catch (Exception ex)
+            when (ex is SqliteException or NpgsqlException or SqlException or SocketException or TimeoutException or IOException)
+        {
+            Console.Error.WriteLine(
+                $"  bench: could not drop schema {schema} ({ex.GetType().Name}); drop it by hand before the next round."
+            );
         }
     }
 
@@ -777,6 +830,27 @@ public sealed class BenchHost : IAsyncDisposable
     private string Schema { get; }
 
     /// <summary>
+    /// Runs one system slot now, by triggering its default schedule, and returns once that execution
+    /// has finished: the slot shows it by advancing its execution number and standing Ready again.
+    /// The supported way to run a sweep on demand, since a reserved name cannot be enqueued.
+    /// </summary>
+    public async Task TriggerSlotAsync(string jobName, CancellationToken ct)
+    {
+        var slot = JobLookup.ByDeduplicationKey(Namespace, jobName);
+        var before = await Jobs.GetAsync(slot, ct) ?? throw new InvalidOperationException($"The {jobName} slot is missing.");
+        await Queries.Schedules.TriggerNowAsync(new ScheduleLookup(slot, "default"), ct: ct);
+        while (true)
+        {
+            var after = await Jobs.GetAsync(slot, ct) ?? throw new InvalidOperationException($"The {jobName} slot was lost.");
+            if (after.ExecutionNumber > before.ExecutionNumber && after.Status == JobStatusCode.Ready)
+            {
+                return;
+            }
+            await Task.Delay(25, ct);
+        }
+    }
+
+    /// <summary>
     /// Backdates every <c>events</c> row by <paramref name="days"/> so the rows fall outside the
     /// retention window and the purge sweep deletes them. Returns the number of rows aged.
     /// </summary>
@@ -866,6 +940,9 @@ public sealed class BenchHost : IAsyncDisposable
                 if (opt.JobEventsRetentionDays is { } days)
                 {
                     o.JobEventsRetention = TimeSpan.FromDays(days);
+                    // The alert window may not outlast the events window; a short events window for a
+                    // retention cell pulls the alert window down with it.
+                    o.AlertRetention = TimeSpan.FromDays(Math.Min(days, (int)o.AlertRetention.TotalDays));
                 }
             });
 

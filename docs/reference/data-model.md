@@ -260,7 +260,7 @@ Append-only lifecycle timeline and execution ledger. Carries the audit trail of 
 
 ### `acta.jobs` <a id="entity-acta-jobs"></a>
 
-One row in `acta.jobs`, Acta's only work unit: the append-mostly identity/input record. Hot mutable state (status, next run, counters, retention) lives on the 1:1 `runtimes` row, which also carries execution ownership/TTL (`leases` holds named locks only); result history lives in `results`, keyed by the composite `(job_id, execution_number)` clustered PK. Recurring Jobs are a single reusable row whose runtime `next_run_at_utc` rolls forward on terminal completion (no per-firing row inflation).
+One row in `acta.jobs`, Acta's only work unit: the append-mostly identity/input record. Hot mutable state (status, next run, counters, retention) lives on the 1:1 `runtimes` row, which also carries execution ownership/TTL (`locks` holds named locks only); result history lives in `results`, keyed by the composite `(job_id, execution_number)` clustered PK. Recurring Jobs are a single reusable row whose runtime `next_run_at_utc` rolls forward on terminal completion (no per-firing row inflation).
 
 **CLR type** `Acta.Relational.Entities.Job` · **Primary key** `pk_jobs` (`id`)
 
@@ -354,7 +354,7 @@ Service-owned execution boundary. One deployable service owns one `JobNamespace`
 
 ### `acta.results` <a id="entity-acta-results"></a>
 
-Cold payload table: one row per Job attempt that produced a durable result, keyed by the composite `(JobId, ExecutionNumber)`. Result bytes never live on the hot `Job` row, and recurring Jobs accumulate one cold row per terminal firing instead of overwriting a single hot LOB slot. The latest retained result for a Job is a single-row seek against the clustered PK (`WHERE JobId = @id ORDER BY ExecutionNumber DESC`).
+Cold payload table: one row per Job attempt that produced a durable result, keyed by the composite `(JobId, ExecutionNumber)`. Result bytes never live on the hot `Job` row, and recurring Jobs write one cold row per terminal firing instead of overwriting a single hot LOB slot. That history is bounded by the definition's `RecurringResultCap`, which defaults to 1: `complete_execution` trims the Job's result rows to the newest N inline on every recurring completion, so a slot that fires forever does not accumulate forever. The latest retained result for a Job is a single-row seek against the clustered PK (`WHERE JobId = @id ORDER BY ExecutionNumber DESC`).
 
 **CLR type** `Acta.Relational.Entities.JobResult` · **Primary key** `pk_results` (`job_id`, `execution_number`)
 
@@ -384,7 +384,7 @@ Cold payload table: one row per Job attempt that produced a durable result, keye
 
 ### `acta.runtimes` <a id="entity-acta-runtimes"></a>
 
-The hot mutable runtime state of one Job: one row in `runtimes` per `jobs` row, split out so claim/complete churn never rewrites the append-mostly identity/input row. Every job state transition (claim, start, complete, control verb, schedule firing) updates this row and bumps `Version`, the CAS token for job state transitions. Execution ownership/TTL lives here too (`LeasedByWorkerId` / `LeaseExpiresAtUtc`): a claim is one UPDATE of this row, and the heartbeat pushes `LeaseExpiresAtUtc` without bumping `Version`. The `leases` table carries named locks only.
+The hot mutable runtime state of one Job: one row in `runtimes` per `jobs` row, split out so claim/complete churn never rewrites the append-mostly identity/input row. Every job state transition (claim, start, complete, control verb, schedule firing) updates this row and bumps `Version`, the CAS token for job state transitions. Execution ownership/TTL lives here too (`LeasedByWorkerId` / `LeaseExpiresAtUtc`): a claim is one UPDATE of this row, and the heartbeat pushes `LeaseExpiresAtUtc` without bumping `Version`. The `locks` table carries named locks only.
 
 **CLR type** `Acta.Relational.Entities.JobRuntime` · **Primary key** `pk_runtimes` (`job_id`)
 

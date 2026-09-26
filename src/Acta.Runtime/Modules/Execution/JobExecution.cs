@@ -63,6 +63,112 @@ internal sealed class JobExecution(
     private static bool IsNearTurn(RateReservation reservation) =>
         !reservation.Admitted && reservation.WaitMilliseconds > 0 && reservation.WaitMilliseconds <= RateTurnWaitMilliseconds;
 
+    /// <summary>
+    /// Moves a claimed row to Executing and answers what the row is, not what one write said. The write
+    /// is repeated like the completion, on the host token, since a failure after the claim would
+    /// otherwise leave the Dispatched row under a lease the heartbeat keeps renewing. A LostClaim means
+    /// only that the version moved, and the row decides what that was: Executing under this worker at
+    /// this execution number is a start that committed and lost its answer, so the attempt proceeds;
+    /// Dispatched under this worker is an operator verb that bumped the version under the claim, and the
+    /// start is made again against the version the row carries now; anything else belongs to another
+    /// owner or a control verb, and the claim is gone.
+    /// </summary>
+    internal static async Task<StartExecutionAction> StartReconciledAsync(
+        IExecutionStore execution,
+        IJobStore jobStore,
+        ClaimedJob job,
+        int workerId,
+        int leaseTtlSeconds,
+        ILogger log,
+        JobMetrics? metrics,
+        CancellationToken ct
+    )
+    {
+        return await StartReconciledAsync(
+            execution,
+            jobStore,
+            job.JobId,
+            job.ExecutionNumber,
+            job.Version,
+            workerId,
+            leaseTtlSeconds,
+            log,
+            metrics,
+            ct
+        );
+    }
+
+    /// <summary>
+    /// The reconciliation by identity alone, for a claim this worker holds without a
+    /// <see cref="ClaimedJob"/> to show for it: a claim whose answer was lost after the store committed it.
+    /// </summary>
+    internal static async Task<StartExecutionAction> StartReconciledAsync(
+        IExecutionStore execution,
+        IJobStore jobStore,
+        long jobId,
+        int executionNumber,
+        int claimedVersion,
+        int workerId,
+        int leaseTtlSeconds,
+        ILogger log,
+        JobMetrics? metrics,
+        CancellationToken ct
+    )
+    {
+        var version = claimedVersion;
+        var expiredRefusals = 0;
+        while (true)
+        {
+            var (start, _) = await CompletionWrite.RetryAsync(
+                token => execution.StartExecutionAsync(jobId, workerId, executionNumber, version, leaseTtlSeconds, token),
+                log,
+                jobId,
+                ct,
+                metrics
+            );
+            // AlreadyTerminal is read against the row too: on PostgreSQL a start that waited on a row
+            // lock held by a concurrent verb classifies against its statement snapshot, which still
+            // shows the claim's version, and answers AlreadyTerminal for a row that is Dispatched under
+            // this worker at the version the verb committed.
+            if (start is not (StartExecutionAction.LostClaim or StartExecutionAction.LeaseExpired or StartExecutionAction.AlreadyTerminal))
+            {
+                return start;
+            }
+
+            var (row, _) = await CompletionWrite.RetryAsync(
+                async token => await jobStore.GetJobAsync(jobId, token),
+                log,
+                jobId,
+                ct,
+                metrics
+            );
+            var lost = start == StartExecutionAction.LeaseExpired ? StartExecutionAction.LostClaim : start;
+            if (row is null || row.LeasedByWorkerId != workerId || row.ExecutionNumber != executionNumber)
+            {
+                return lost;
+            }
+            switch (row.Status)
+            {
+                case JobStatusCode.Executing:
+                    return StartExecutionAction.Started;
+                // A lapsed lease moves no version and clears no owner: the row is still this worker's to
+                // progress, and the heartbeat renews it from database state, so the write is paced on the
+                // retry curve until it lands or recovery takes the row and the next read says so.
+                case JobStatusCode.Dispatched when start == StartExecutionAction.LeaseExpired:
+                    version = row.Version;
+                    await Task.Delay(CompletionWrite.Delay(++expiredRefusals), ct);
+                    break;
+                // A version the write was just refused at cannot be retried: the row and the refusal
+                // disagree, which is a store that answers inconsistently, and looping on it would never end.
+                case JobStatusCode.Dispatched when row.Version != version:
+                    version = row.Version;
+                    break;
+                default:
+                    return lost;
+            }
+        }
+    }
+
     private readonly ILogger _log = log ?? NullLogger.Instance;
     private readonly JobMetrics? _metrics = metrics;
 
@@ -80,13 +186,14 @@ internal sealed class JobExecution(
     {
         var start = alreadyStarted
             ? StartExecutionAction.Started
-            : await _execution.StartExecutionAsync(job.JobId, workerId, job.ExecutionNumber, job.Version, _leaseTtlSeconds, ct);
+            : await StartReconciledAsync(_execution, _jobStore, job, workerId, _leaseTtlSeconds, _log, _metrics, ct);
         if (start != StartExecutionAction.Started)
         {
-            // The claim was lost before execution began: reclaimed (lease expiry), reassigned, or
-            // moved out of Dispatched by an operator control verb between claim and start. The CAS
-            // guard (incl. the claim-time version) means we mutated nothing; clean skip, let the row
-            // be re-claimed next tick.
+            // The claim was lost before execution began: reclaimed by recovery, reassigned, or moved
+            // out of Dispatched by an operator control verb between claim and start. The CAS guard
+            // (incl. the claim-time version) means we mutated nothing, and the reconciliation above
+            // has read that the row is no longer this worker's; clean skip, let the row be re-claimed
+            // next tick.
             _log.LogInformation(
                 "WorkerRuntime: lost claim on job {JobId} ({Detail}) before start: ({Outcome}); skipping.",
                 job.JobId,
@@ -354,8 +461,8 @@ internal sealed class JobExecution(
             catch (JobControlException control)
             {
                 // A deliberate control signal: reschedule or durable sleep. Caught before cancellation /
-                // generic failure so it is never mis-recorded as Failed. Unknown subclasses are rethrown so
-                // a subsequent control verb can never silently fall into the re-arm path.
+                // generic failure so it is never mis-recorded as Failed. An unknown subclass never falls
+                // into the re-arm path: it is failed like any other exception the handler let escape.
                 switch (control)
                 {
                     case RescheduleJobException reschedule:
@@ -430,7 +537,22 @@ internal sealed class JobExecution(
                         handlerStatusCode = (byte)JobStatusCode.Paused;
                         break;
                     default:
-                        throw;
+                        // A subclass the runtime does not know: the base type is public, so user code can
+                        // derive one. Rethrowing it would leave the row Executing under a lease the
+                        // heartbeat renews from database state, so it lands as a handler exception instead:
+                        // a retried Failed, charged to the budget, with the type in the reason.
+                        outcome = ExecutionOutcome.Failed;
+                        failureReason = JobEventReasonCode.JobUnhandledException;
+                        failureMessage = $"Unrecognized control signal {control.GetType().Name}: {control.Message}".Truncate(
+                            ActaTextLimits.ReasonMessage
+                        );
+                        _log.LogWarning(
+                            control,
+                            "Handler for job ({JobName}) id {JobId} threw a control signal the runtime does not recognize; transitioning to Failed.",
+                            descriptor.JobName,
+                            job.JobId
+                        );
+                        break;
                 }
             }
             catch (OperationCanceledException) when (jobContext.CancellationToken.IsCancellationRequested)
@@ -802,11 +924,13 @@ internal sealed class JobExecution(
             };
         }
 
+        // ct is the worker's host token, never jobContext.CancellationToken; CompletionWrite says why.
         var (complete, retried) = await CompletionWrite.RetryAsync(
             token => _execution.CompleteExecutionAsync(completeCommand, token),
             _log,
             job.JobId,
-            ct
+            ct,
+            _metrics
         );
 
         if (complete.Action != CompleteExecutionAction.Completed)

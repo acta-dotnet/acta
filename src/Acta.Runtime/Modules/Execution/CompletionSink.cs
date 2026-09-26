@@ -79,13 +79,13 @@ internal sealed class CompletionSink
     /// One flusher serializes its round-trips, so several run in parallel to keep completion throughput up
     /// while each still group-commits its own batches. Each exits when the writer is completed and drained.
     /// </summary>
-    public Task RunFlushersAsync(int parallelism)
+    public Task RunFlushersAsync(int parallelism, int executorsPerFlusher, CancellationToken stopCt)
     {
         var n = Math.Max(1, parallelism);
         var flushers = new Task[n];
         for (var i = 0; i < n; i++)
         {
-            flushers[i] = Task.Run(RunFlusherAsync);
+            flushers[i] = Task.Run(() => RunFlusherAsync(executorsPerFlusher, stopCt), CancellationToken.None);
         }
 
         return Task.WhenAll(flushers);
@@ -95,12 +95,18 @@ internal sealed class CompletionSink
     /// Drains the buffer until the writer is completed, group-committing each batch on a size, byte, or
     /// time trigger. Started by <see cref="WorkerLoop"/> in the Bulk branch; stops when
     /// <see cref="CompleteWriter"/> is called after the dispatch loop has drained its in-flight handlers.
+    /// <paramref name="executorsPerFlusher"/> is how many executors this flusher stands in for, and bounds
+    /// how many per-job completions it has in flight at once, so fallback connections never exceed the
+    /// executors they replace. <paramref name="stopCt"/> is the worker's host token, which bounds only the
+    /// repeat of a failing completion and never the reading.
     /// </summary>
-    public async Task RunFlusherAsync()
+    public async Task RunFlusherAsync(int executorsPerFlusher, CancellationToken stopCt)
     {
         var reader = _channel.Reader;
         var buffer = new List<BufferedCompletion>(_batchSize);
-        while (await reader.WaitToReadAsync().ConfigureAwait(false))
+        // No token on the read: a hard stop must still let the already-buffered completions be written,
+        // because their handlers ran.
+        while (await reader.WaitToReadAsync(CancellationToken.None).ConfigureAwait(false))
         {
             buffer.Clear();
             // Long accumulator: a batch of near-int-max results must trip the byte threshold, never
@@ -132,11 +138,11 @@ internal sealed class CompletionSink
                 }
             }
 
-            await FlushAsync(buffer).ConfigureAwait(false);
+            await FlushAsync(buffer, executorsPerFlusher, stopCt).ConfigureAwait(false);
         }
     }
 
-    private async Task FlushAsync(List<BufferedCompletion> batch)
+    private async Task FlushAsync(List<BufferedCompletion> batch, int executorsPerFlusher, CancellationToken stopCt)
     {
         if (batch.Count == 0)
         {
@@ -160,88 +166,53 @@ internal sealed class CompletionSink
             // One set-based round trip finalizes the simple terminal rows; it self-filters and reports
             // which ordinals it did NOT finalize (a parent, or a lost lease).
             (finalized, _) = await CompletionWrite
-                .RetryAsync(token => _execution.CompleteExecutionsBatchAsync(requests, token), _log, batch[0].JobId, CancellationToken.None)
+                .RetryAsync(
+                    _ => _execution.CompleteExecutionsBatchAsync(requests, CancellationToken.None),
+                    _log,
+                    batch[0].JobId,
+                    stopCt,
+                    _metrics
+                )
                 .ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            // One statement, one commit, so nothing landed, and the bounded retry is spent: every job in
-            // the batch stays Executing under this worker's lease until the process restarts, since the
-            // heartbeat renews what the database says this worker holds. Log and take the next batch.
-            // This is the only path that may claim the whole batch rolled back.
-            _log.LogError(
-                ex,
-                "Bulk completion flush of {Count} jobs failed; they remain Executing under this worker's lease.",
-                batch.Count
-            );
+            // One statement, one commit, so nothing landed, and the worker stopped before the repeat could
+            // land it: every job in the batch stays Executing under the lease this worker no longer renews,
+            // and sys.recovery reclaims them once it lapses. Log and take the next batch. This is the only
+            // path that may claim the whole batch rolled back.
+            _log.LogError(ex, "Bulk completion flush of {Count} jobs failed; they remain Executing for recovery.", batch.Count);
             return;
         }
 
         // Past the set call its finalized rows are committed, so each remaining step stands on its own:
-        // one failure must not strand the rows after it, and must not be reported as a rollback. Finalize
-        // first, then notify, so a failed wakeup is never mistaken for an unfinalized job.
-        var results = new CompleteExecutionResult?[batch.Count];
-        List<long>? unresolved = null;
-        Exception? completionFailure = null;
+        // one failure must not strand the rows after it, and must not be reported as a rollback. The
+        // entries settle side by side because every handler in this batch has already run: a per-job
+        // completion that keeps failing is repeated until the worker stops, and run in sequence it would
+        // hold the rest of the batch's completions, and every deferred wakeup, behind it for that time.
+        // The gate exists only when some entry needs the per-job write, and is sized to the executors
+        // this flusher stands in for, so fallback connections never exceed the executors they replace.
+        // It is not disposed: nothing touches its WaitHandle, so it holds no unmanaged resource.
+        var gate = finalized.Contains(false) ? new SemaphoreSlim(executorsPerFlusher, executorsPerFlusher) : null;
+        var settling = new Task<FlushOutcome>[batch.Count];
         for (var i = 0; i < batch.Count; i++)
         {
-            if (finalized[i])
-            {
-                RecordDurableCompletion(batch[i]);
-                continue;
-            }
+            settling[i] = SettleAsync(batch[i], finalized[i], gate, stopCt);
+        }
 
-            try
+        var settled = await Task.WhenAll(settling).ConfigureAwait(false);
+
+        List<long>? unresolved = null;
+        for (var i = 0; i < batch.Count; i++)
+        {
+            if (settled[i].CompletionFailure is not null)
             {
-                // Not finalized in the batch: complete per-job with full semantics (parent child-done latch).
-                (results[i], _) = await CompletionWrite
-                    .RetryAsync(
-                        token => _execution.CompleteExecutionAsync(batch[i].Request, token),
-                        _log,
-                        batch[i].JobId,
-                        CancellationToken.None
-                    )
-                    .ConfigureAwait(false);
-                if (results[i] is { Action: CompleteExecutionAction.Completed })
-                {
-                    RecordDurableCompletion(batch[i]);
-                }
-            }
-            catch (Exception ex)
-            {
-                completionFailure ??= ex;
                 (unresolved ??= []).Add(batch[i].JobId);
             }
         }
 
-        Exception? wakeFailure = null;
-        for (var i = 0; i < batch.Count; i++)
-        {
-            try
-            {
-                if (finalized[i])
-                {
-                    // Finalized simple terminal: no parent latch by construction, so only the
-                    // job-finished wakeup applies (for a colocated RunAndWaitAsync caller).
-                    await _wakeupPublisher
-                        .WakeAsync(
-                            WorkerWakeupChannel.JobCompletion(batch[i].JobId),
-                            WorkerWakeupReason.JobFinished,
-                            CancellationToken.None
-                        )
-                        .ConfigureAwait(false);
-                }
-                else if (results[i] is { } result)
-                {
-                    // Publish the wakeups the per-job routine reported.
-                    await PublishWakeupsAsync(result, batch[i]).ConfigureAwait(false);
-                }
-            }
-            catch (Exception ex)
-            {
-                wakeFailure ??= ex;
-            }
-        }
+        var completionFailure = Array.Find(settled, o => o.CompletionFailure is not null).CompletionFailure;
+        var wakeFailure = Array.Find(settled, o => o.WakeFailure is not null).WakeFailure;
 
         if (unresolved is not null)
         {
@@ -260,6 +231,93 @@ internal sealed class CompletionSink
                 "Bulk completion finalized its jobs but at least one of {Count} wakeups failed; a waiting caller observes the outcome by poll instead.",
                 batch.Count
             );
+        }
+    }
+
+    /// <summary>What one entry of a flush left for the report: at most one failure on each of its steps.</summary>
+    private readonly record struct FlushOutcome(Exception? CompletionFailure, Exception? WakeFailure);
+
+    /// <summary>
+    /// Finalizes one entry of a flush and then publishes its wakeup, in that order so a failed wakeup is
+    /// never mistaken for an unfinalized job. Never throws: a failure on either step is the entry's own
+    /// and is carried back for the batch-level report.
+    /// </summary>
+    private async Task<FlushOutcome> SettleAsync(
+        BufferedCompletion entry,
+        bool alreadyFinalized,
+        SemaphoreSlim? gate,
+        CancellationToken stopCt
+    )
+    {
+        if (alreadyFinalized)
+        {
+            // Finalized simple terminal: no parent latch by construction, so only the job-finished wakeup
+            // applies (for a colocated RunAndWaitAsync caller).
+            RecordDurableCompletion(entry);
+            return new FlushOutcome(
+                null,
+                await TryWakeAsync(() =>
+                        _wakeupPublisher.WakeAsync(
+                            WorkerWakeupChannel.JobCompletion(entry.JobId),
+                            WorkerWakeupReason.JobFinished,
+                            CancellationToken.None
+                        )
+                    )
+                    .ConfigureAwait(false)
+            );
+        }
+
+        CompleteExecutionResult result;
+        try
+        {
+            // The gate is held for the round trip alone and released before the repeat's backoff wait, so
+            // an entry that keeps failing sits outside it almost all of the time and its siblings keep
+            // flowing. The store call is never cancelled once the handler has run.
+            (result, _) = await CompletionWrite
+                .RetryAsync(
+                    async _ =>
+                    {
+                        await gate!.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                        try
+                        {
+                            return await _execution.CompleteExecutionAsync(entry.Request, CancellationToken.None).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            gate.Release();
+                        }
+                    },
+                    _log,
+                    entry.JobId,
+                    stopCt,
+                    _metrics
+                )
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            return new FlushOutcome(ex, null);
+        }
+
+        if (result.Action == CompleteExecutionAction.Completed)
+        {
+            RecordDurableCompletion(entry);
+        }
+
+        return new FlushOutcome(null, await TryWakeAsync(() => new ValueTask(PublishWakeupsAsync(result, entry))).ConfigureAwait(false));
+    }
+
+    // A wakeup failure is the entry's own and never masquerades as an unfinalized job.
+    private static async Task<Exception?> TryWakeAsync(Func<ValueTask> wake)
+    {
+        try
+        {
+            await wake().ConfigureAwait(false);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            return ex;
         }
     }
 
@@ -304,12 +362,22 @@ internal sealed class CompletionSink
     /// a buffered completion can still lose its CAS or fail to flush, and "acta.executions" must
     /// count what the store confirmed, matching the Direct/Buffered post-CAS semantics.
     /// </summary>
-    private void RecordDurableCompletion(BufferedCompletion b) =>
-        _metrics?.RecordExecution(
-            b.JobNamespace,
-            b.JobName,
-            JobExecution.OutcomeTag(b.Request.Outcome),
-            b.Request.JobEventReasonCode?.Code,
-            b.Request.DurationMs ?? 0
-        );
+    private void RecordDurableCompletion(BufferedCompletion b)
+    {
+        // A metrics listener that throws must not end a flusher: the completion is already durable.
+        try
+        {
+            _metrics?.RecordExecution(
+                b.JobNamespace,
+                b.JobName,
+                JobExecution.OutcomeTag(b.Request.Outcome),
+                b.Request.JobEventReasonCode?.Code,
+                b.Request.DurationMs ?? 0
+            );
+        }
+        catch (Exception)
+        {
+            // Swallowed on purpose.
+        }
+    }
 }

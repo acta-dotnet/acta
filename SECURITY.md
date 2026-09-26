@@ -2,15 +2,15 @@
 
 ## Supported versions
 
-Acta has not reached 1.0. Only the **latest published version** receives fixes; there are no
-backports to earlier pre-1.0 versions.
+Only the **latest published version** receives fixes; there are no backports to earlier versions,
+and nothing before 1.0.0 is supported.
 
 | Version | Supported |
 |---|---|
 | Latest published version | Yes |
 | Earlier versions | No |
 
-This tightens at 1.0, when the schema, persisted codes, and public API freeze together and a
+The schema, persisted codes, and public API are frozen from 1.0, and a
 supported-versions window is stated properly. The support matrix, supported .NET target, and the
 patch policy that takes effect at 1.0 are stated in [docs/support.md](./docs/support.md).
 

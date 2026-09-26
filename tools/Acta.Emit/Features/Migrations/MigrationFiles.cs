@@ -13,15 +13,7 @@ internal static partial class MigrationFiles
 {
     private static readonly string[] AllSuffixes = ["sqlite", "pg", "mssql"];
 
-    // Maps a dialect suffix to its provider package folder under src/.
-    private static string ProviderProject(string suffix) =>
-        suffix switch
-        {
-            "sqlite" => "Acta.Sqlite",
-            "pg" => "Acta.Postgres",
-            "mssql" => "Acta.SqlServer",
-            _ => throw new ArgumentOutOfRangeException(nameof(suffix), suffix, "Unknown dialect suffix."),
-        };
+    private static string ProviderProject(string suffix) => Acta.Emit.Shared.ProviderCatalog.BySuffix(suffix).Project;
 
     private static string Dir(string repoRoot, string suffix) =>
         Path.Combine(repoRoot, "src", ProviderProject(suffix), "Schema", "Migrations");

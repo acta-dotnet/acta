@@ -125,6 +125,7 @@ internal sealed class WorkerRuntimeInitializer(
         ValidateScheduleTimeZones(allDescriptors);
         ValidateTenantRequirements(allDescriptors);
         ValidateDeadlineRequirements(allDescriptors);
+        ValidateRecurringResultCaps(allDescriptors);
         foreach (var descriptor in allDescriptors)
         {
             DefinitionsService.ValidateDescriptorShape(descriptor, ns);
@@ -343,6 +344,26 @@ internal sealed class WorkerRuntimeInitializer(
     /// by the runtime, so every slot fire would trip the enqueue guard instead of surfacing at
     /// startup.
     /// </summary>
+    /// <summary>
+    /// Retention deletes terminal jobs and a live recurring slot is never terminal, so the cap is the only
+    /// thing bounding a slot's result history, and zero means keep everything. Refused here, at startup and
+    /// by name, rather than on the completion request, which is built after the handler has run and sits
+    /// inside the write that is never abandoned.
+    /// </summary>
+    internal static void ValidateRecurringResultCaps(ImmutableArray<JobDescriptor> descriptors)
+    {
+        foreach (var descriptor in descriptors)
+        {
+            if (!descriptor.Schedules.IsDefaultOrEmpty && descriptor.RecurringResultCap < 1)
+            {
+                throw new InvalidOperationException(
+                    $"Job '{descriptor.JobName}' declares [JobSchedule] with RecurringResultCap = {descriptor.RecurringResultCap}. "
+                        + "A recurring slot keeps at least one result; a cap below one would keep every result it ever produces."
+                );
+            }
+        }
+    }
+
     private static void ValidateTenantRequirements(ImmutableArray<JobDescriptor> descriptors)
     {
         foreach (var descriptor in descriptors)

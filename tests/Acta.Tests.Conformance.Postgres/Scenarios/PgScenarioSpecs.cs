@@ -13,6 +13,8 @@ public sealed class PgChildJobCrossNamespaceSpec : ChildJobCrossNamespaceSpec<Pg
 
 public sealed class PgChildJobSpec : ChildJobSpec<PgConformanceFixture>;
 
+public sealed class PgChildRetentionSpec : ChildRetentionSpec<PgConformanceFixture>;
+
 public sealed class PgChildTimeoutSpec : ChildTimeoutSpec<PgConformanceFixture>;
 
 public sealed class PgChildGroupTimeoutSpec : ChildGroupTimeoutSpec<PgConformanceFixture>;
@@ -22,6 +24,8 @@ public sealed class PgConcurrencyKeyMutexSpec : ConcurrencyKeyMutexSpec<PgConfor
 public sealed class PgConcurrencyLimitSpec : ConcurrencyLimitSpec<PgConformanceFixture>;
 
 public sealed class PgRateLimitSpec : RateLimitSpec<PgConformanceFixture>;
+
+public sealed class PgRateLimitConvoySpec : RateLimitConvoySpec<PgConformanceFixture>;
 
 public sealed class PgControlVerbsSpec : ControlVerbsSpec<PgConformanceFixture>;
 

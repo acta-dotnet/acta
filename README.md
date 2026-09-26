@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
 [![Website](https://img.shields.io/badge/website-useacta.net-2fd6a8.svg)](https://useacta.net/)
 
-> **Release candidate.** Acta is at `1.0.0-rc.2`: the public API, schema, and persisted codes are closing, and release candidates change only for correctness, security, and documentation. Bring a real workload; the remaining distance to `1.0.0` is evidence, not features.
+> **1.0.** The public API, the schema, and the persisted codes are frozen: from here, schema changes ship only as additive migrations, and the persisted vocabulary never changes. Bring a real workload; the evidence behind the tag is in the repository.
 
 Acta records jobs, retries, schedules, checkpoints, events, workers, and operator controls in your database. It gives .NET teams one standard substrate for app-owned background work: simple enough for scheduled jobs, durable enough for retries and recovery, and visible because every state transition is ordinary SQL state you can inspect with `SELECT`.
 
@@ -31,8 +31,8 @@ In your own app, from an empty folder. The only prerequisite is the [.NET 10 SDK
 
 ```bash
 dotnet new web -n Shipping && cd Shipping
-dotnet add package Acta.Sqlite --prerelease
-dotnet add package Acta.AspNetCore --prerelease
+dotnet add package Acta.Sqlite
+dotnet add package Acta.AspNetCore
 ```
 
 Replace `Program.cs` with this, all of it:
@@ -78,7 +78,7 @@ dotnet run
 # Shipping order 1042
 ```
 
-Open the dashboard and the completed job is the first row. The job was a row in `acta-local.db`
+Open the dashboard: the Jobs count reads 1, and the Jobs screen lists `ship-order` as completed. The job was a row in `acta-local.db`
 before it was a method call. `ShippingJobs` is the source-generated manifest: the last segment of
 your project's `RootNamespace` plus `Jobs` (`Shipping` → `ShippingJobs`), generated into that
 namespace and registered once. One worker runtime owns one namespace, and the host that enqueues
@@ -147,14 +147,14 @@ More shapes (backlogs, stuck jobs, worker liveness, pending alerts) in [`docs/gu
 
 - Fire-and-forget, delayed, and recurring jobs; durable retries with typed backoff.
 - Named run-once steps, durable sleeps, signals into suspended jobs, child jobs with fan-out / fan-in, result retrieval, and job lineage.
-- An append-only SQL event ledger, and transactional enqueue that joins a caller-owned `DbTransaction` (plus an external EF Core outbox for atomic handoff from a different database).
+- An append-only SQL event ledger, and transactional enqueue that joins a caller-owned `DbTransaction` (plus an external outbox for atomic handoff from a different database, which an EF Core application joins through its provider transaction).
 - A test host that drives the real runtime one deterministic tick at a time: no sleeps, no polling, real-database tests in tens of milliseconds.
 - A control CLI in every host, including `jobs debug` to claim any persisted job and step through its handler under a breakpoint.
 - An optional operator dashboard/query API whose mutating controls are explicitly enabled.
 
 **You do not get:** deterministic event-history replay, BPMN or a visual workflow designer, a message bus, a sidecar, a hosted control plane, or workflow SaaS orchestration.
 
-The execution model is **checkpoints, not replay**: a handler may re-enter from the top after a crash or suspend, but completed durable slots do not repeat their work. This keeps Acta-owned state repeat-safe; external side effects still need idempotency. The hot path stays close to the metal: source-generated dispatch with no reflection, one SQL round-trip per state change. Every shipped package is marked Native AOT compatible (`IsAotCompatible`), and the load harness publishes as Native AOT.
+The execution model is **checkpoints, not replay**: a handler may re-enter from the top after a crash or suspend, but completed durable slots do not repeat their work. This keeps Acta-owned state repeat-safe; external side effects still need idempotency. The hot path stays close to the metal: source-generated dispatch with no reflection, one SQL round-trip per state change. Every shipped package is marked Native AOT compatible (`IsAotCompatible`); the PostgreSQL and SQLite providers publish as Native AOT, and the load harness and benchmarks run that way. SQL Server is not a Native AOT target, because `Microsoft.Data.SqlClient` is not.
 
 ## Documentation
 
@@ -168,7 +168,7 @@ Start with the guides in [`docs/`](./docs/README.md): choosing Acta, quickstart,
 
 ## Status
 
-- The migration history freezes at 1.0.0: from there, schema changes ship only as additive `Mnnn` migrations. Until then the schema baseline (`M001`) can still be re-cut, release candidates included: `1.0.0-rc.2` re-cuts it and moves the baseline stamp, so a database provisioned by any earlier build needs one reprovision on the way in, and the bootstrap refuses to run rather than applying a mismatched baseline.
+- The migration history is frozen: schema changes ship only as additive `Mnnn` migrations, and the baseline (`M001`) is never re-cut. Bootstrap refuses to run on a database whose baseline stamp differs from the one this build ships, so a database provisioned before rc.3 needs one reprovision on the way in rather than a silent mismatch, while an rc.3 database upgrades in place with the provisioning script.
 - Acta ships no login system. The dashboard and HTTP API are local-only by default, and control verbs are disabled by default: see [`docs/guide/operator-guide.md`](./docs/guide/operator-guide.md#security-and-exposure) before exposing anything.
 - Known limitations are tracked in [`docs/technical/known-limitations.md`](./docs/technical/known-limitations.md).
 - The supported .NET target, provider tiers, packages, and patch policy are stated in [`docs/support.md`](./docs/support.md).

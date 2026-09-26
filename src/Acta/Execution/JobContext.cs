@@ -952,8 +952,9 @@ public abstract class JobContext
 
     /// <summary>
     /// Reads a child's stored result, deserialized to <typeparamref name="TResult"/>; <c>default</c>
-    /// when the child stored none or its result row was already purged by retention. Point-in-time and
-    /// non-blocking; wait for the child first when ordering matters.
+    /// when the child stored none or its result row was already purged by retention, which keeps a
+    /// completed child while this job is not terminal. Point-in-time and non-blocking; wait for the
+    /// child first when ordering matters.
     /// </summary>
     public async Task<TResult?> GetChildResultAsync<TResult>(long childJobId, CancellationToken ct = default)
     {

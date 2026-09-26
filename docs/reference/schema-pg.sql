@@ -11,6 +11,9 @@
 -- exactly what is missing and skips what is present. Re-running it is a no-op. Views and
 -- routines carry no version and are always rewritten to the definitions shipped here.
 --
+-- Run it with a client that stops at the first error, which is what makes the transaction below a
+-- guarantee: psql -v ON_ERROR_STOP=1. A client that runs on past a failed statement would reach the
+-- package stamp inside an aborted transaction, which then rolls back on commit.
 -- Run it under a DDL-capable principal; the application principal then needs only DML and
 -- EXECUTE, with ApplyMigrationsOnStartup left false. Because the history rows (and the
 -- baseline stamp) are recorded by the script itself, a bootstrap with migrations enabled also
@@ -1963,9 +1966,18 @@ BEGIN
         END IF;
     END IF;
 
+    -- At Failures a failure carrying no reschedule is written, and a success only when it answers a
+    -- recorded failure, which is what closes the incident: the job's newest finished event is not a
+    -- success. Never failed, or already answered, writes nothing. One seek on the timeline index.
     IF v_audit = 20 /* JobAuditLevelCode.Audit */
-        OR (v_audit = 10 /* JobAuditLevelCode.Failures */ AND NOT p_execution_succeeded AND NOT v_rearm
-            AND NOT (v_handler AND p_handler_status_code IN (220 /* JobStatusCode.Cancelled */, 30 /* JobStatusCode.Paused */))) THEN
+        OR (v_audit = 10 /* JobAuditLevelCode.Failures */ AND NOT v_rearm
+            AND NOT (v_handler AND p_handler_status_code IN (220 /* JobStatusCode.Cancelled */, 30 /* JobStatusCode.Paused */))
+            AND (NOT p_execution_succeeded
+                OR COALESCE((
+                    SELECT e.execution_status_code FROM acta.events e
+                    WHERE e.job_id = p_id AND e.event_code = 41 /* EventCode.JobExecutionFinished */
+                    ORDER BY e.created_at_utc DESC, e.id DESC
+                    LIMIT 1), 100) <> 100 /* ExecutionStatusCode.Succeeded */)) THEN
         INSERT INTO acta.events (
             event_code,
             created_at_utc,
@@ -2418,7 +2430,15 @@ BEGIN
         FROM updated u
         WHERE
             u.audit_level_code = 20 /* JobAuditLevelCode.Audit */
-            OR (u.audit_level_code = 10 /* JobAuditLevelCode.Failures */ AND NOT u.succeeded)
+            -- At Failures a failure is written, and a success only when it answers a recorded failure:
+            -- the job's newest finished event is not a success. Same rule as complete_execution.
+            OR (u.audit_level_code = 10 /* JobAuditLevelCode.Failures */
+                AND (NOT u.succeeded
+                    OR COALESCE((
+                        SELECT e.execution_status_code FROM acta.events e
+                        WHERE e.job_id = u.job_id AND e.event_code = 41 /* EventCode.JobExecutionFinished */
+                        ORDER BY e.created_at_utc DESC, e.id DESC
+                        LIMIT 1), 100) <> 100 /* ExecutionStatusCode.Succeeded */))
         RETURNING 1
     )
     SELECT b.ordinal, CAST(CASE WHEN u.ordinal IS NOT NULL THEN 1 ELSE 0 END AS SMALLINT)
@@ -3727,9 +3747,10 @@ DECLARE
     v_tenant INT;
     v_job_ref UUID;
     v_job_name VARCHAR;
+    v_parent_id BIGINT;
 BEGIN
-    SELECT r.status_code, j.namespace_id, j.definition_id, j.tenant_id, j.job_ref, d.name
-    INTO v_from_status, v_namespace_id, v_definition, v_tenant, v_job_ref, v_job_name
+    SELECT r.status_code, j.namespace_id, j.definition_id, j.tenant_id, j.job_ref, d.name, j.parent_id
+    INTO v_from_status, v_namespace_id, v_definition, v_tenant, v_job_ref, v_job_name, v_parent_id
     FROM acta.jobs j
     JOIN acta.runtimes r ON r.job_id = j.id
     JOIN acta.definitions d ON d.id = j.definition_id
@@ -3747,8 +3768,13 @@ BEGIN
     END IF;
 
     -- parent_id carries no DB FK/cascade; purging a job that has child jobs would orphan the child's
-    -- lineage (parent_id / lineage_root_id would point at a row that no longer exists), so reject.
-    IF EXISTS (SELECT 1 FROM acta.jobs c WHERE c.parent_id = p_id) THEN
+    -- lineage (parent_id / lineage_root_id would point at a row that no longer exists), so reject. A
+    -- completed child of a live parent is kept too: the parent's replay dedupes onto it and reads its result.
+    IF EXISTS (SELECT 1 FROM acta.jobs c WHERE c.parent_id = p_id)
+        OR EXISTS (
+            SELECT 1 FROM acta.runtimes p
+            WHERE p.job_id = v_parent_id
+              AND p.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)) THEN
         RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status;
         RETURN;
     END IF;
@@ -7160,6 +7186,13 @@ BEGIN
                 -- exist would orphan their lineage (same rule as the manual purge_job). Only leaves
                 -- delete; a fully-expired subtree drains bottom-up across iterations.
                 AND NOT EXISTS (SELECT 1 FROM acta.jobs c WHERE c.parent_id = j.id)
+                -- A completed child of a live parent is kept: the parent's replay dedupes onto its row and
+                -- reads its result, so purging it would run the child again. The tree drains once the
+                -- parent is terminal.
+                AND NOT EXISTS (
+                    SELECT 1 FROM acta.runtimes p
+                    WHERE p.job_id = j.parent_id
+                      AND p.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
             ORDER BY r.retention_until_utc, r.job_id
             LIMIT p_batch_size
             FOR UPDATE OF j, r SKIP LOCKED) q;
@@ -7541,7 +7574,7 @@ RETURNS TABLE (resume_at_utc TIMESTAMPTZ, admitted BOOLEAN, wait_ms BIGINT)
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_now TIMESTAMPTZ := now();
+    v_now TIMESTAMPTZ;
     v_interval INTERVAL := p_rate_interval_ms * INTERVAL '1 millisecond';
     -- How long a booked turn stays valid past its instant: a second covers the claim-path pickup at
     -- any rate, and a slower meter keeps its whole interval, so the window is the larger of the two.
@@ -7563,9 +7596,14 @@ BEGIN
     -- Create-or-lock in one statement: the DO UPDATE (a no-op assignment) takes the row lock, and
     -- RETURNING hands back whichever value is now locked in - freshly inserted, or already there.
     INSERT INTO acta.locks (lock_key, job_id, expires_at_utc, hold_token)
-    VALUES (p_lock_key, p_job_id, v_now, p_hold_token)
+    VALUES (p_lock_key, p_job_id, clock_timestamp(), p_hold_token)
     ON CONFLICT (lock_key) DO UPDATE SET lock_key = EXCLUDED.lock_key
     RETURNING expires_at_utc INTO v_stored;
+
+    -- The wall clock, read once the row is locked, never the transaction's start: judged against a
+    -- stale instant, every call a convoy on this meter delayed would be admitted together the moment
+    -- the lock freed, several times the contract in one second under a flood of metered claims.
+    v_now := clock_timestamp();
 
     -- The row count decides consumption, never a later absence: the sweep cannot slip between a read
     -- and the delete and give away a free admission. A stale turn is spent here too, then re-metered.
@@ -7629,6 +7667,12 @@ $$;
 -- CREATE OR REPLACE across arities creates an overload instead of replacing; drop the retired
 -- signature (without the grace) so pre-existing installs cannot resolve the stale form.
 DROP FUNCTION IF EXISTS acta.reserve_rate(VARCHAR, BIGINT, INT, INT, UUID);
+
+-- ===== installed object package (names the versionless objects above; recorded only when all exist) =====
+
+DELETE FROM acta.migrations WHERE version = -1;
+INSERT INTO acta.migrations (version, name, installed_schema)
+VALUES (-1, 'objects-1.5-be37e59570f1eebb00ef47daf22e5f3c', 'acta');
 
 COMMIT;
 

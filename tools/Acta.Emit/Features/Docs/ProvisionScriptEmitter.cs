@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using Acta.Emit.Features.Migrations;
+using Acta.Emit.Shared;
 using Acta.Relational.Resources;
 using Acta.Relational.Schema;
 
@@ -23,9 +24,7 @@ internal static class ProvisionScriptEmitter
 
     internal static readonly (string Token, string Project, string Schema)[] Providers =
     [
-        ("pg", "Acta.Postgres", "acta"),
-        ("mssql", "Acta.SqlServer", "acta"),
-        ("sqlite", "Acta.Sqlite", "main"),
+        .. ProviderCatalog.All.Select(p => (p.Token, p.Project, p.Schema)),
     ];
 
     internal static string Emit(string repoRoot, string token)
@@ -68,6 +67,23 @@ internal static class ProvisionScriptEmitter
         script.AppendLine("-- exactly what is missing and skips what is present. Re-running it is a no-op. Views and");
         script.AppendLine("-- routines carry no version and are always rewritten to the definitions shipped here.");
         script.AppendLine("--");
+        script.AppendLine("-- Run it with a client that stops at the first error, which is what makes the transaction below a");
+        script.AppendLine(
+            token switch
+            {
+                "pg" => "-- guarantee: psql -v ON_ERROR_STOP=1. A client that runs on past a failed statement would reach the",
+                "mssql" => "-- guarantee: sqlcmd -b, or SQLCMD mode with stop-on-error in SSMS. A client that runs on past a failed",
+                _ => "-- guarantee: sqlite3 -bail. A client that runs on past a failed statement would reach the package",
+            }
+        );
+        script.AppendLine(
+            token switch
+            {
+                "pg" => "-- package stamp inside an aborted transaction, which then rolls back on commit.",
+                "mssql" => "-- batch would reach the package stamp with an object it failed to replace still in place.",
+                _ => "-- stamp with an object it failed to replace still in place.",
+            }
+        );
         script.AppendLine("-- Run it under a DDL-capable principal; the application principal then needs only DML and");
         script.AppendLine("-- EXECUTE, with ApplyMigrationsOnStartup left false. Because the history rows (and the");
         script.AppendLine("-- baseline stamp) are recorded by the script itself, a bootstrap with migrations enabled also");
@@ -201,11 +217,25 @@ internal static class ProvisionScriptEmitter
             Append(Render(body));
         }
 
+        // A host with migrations disabled is provisioned by this script and never runs the installer, so
+        // a script that stayed silent would leave the package unrecorded for exactly the deployment the
+        // startup check exists for. The stamp names every object above and is written only when all of
+        // them exist, so a client that ran on past a failed batch leaves no stamp rather than a false one.
+        Append("-- ===== installed object package (names the versionless objects above; recorded only when all exist) =====");
+        var installed = SqlObjects(providerDir, ".view.sql").Concat(routines).Select(o => o.Name).ToList();
+        Append(string.Join("\n", SqlObjectInstaller.StampStatements(schema, token, installed)));
+
         Append(mssql ? "COMMIT TRANSACTION;" : "COMMIT;");
         return script.ToString().ReplaceLineEndings("\n");
     }
 
-    private static IEnumerable<(string Name, string Body)> SqlObjects(string providerDir, string suffix) =>
+    /// <summary>
+    /// The objects one provider installs, in the order the installer applies them: views first, then
+    /// routines, each set in resource-name order, named the way the installer names them. Shared with
+    /// the object-package hash, which is only meaningful if it covers exactly this set in exactly this
+    /// order.
+    /// </summary>
+    internal static IEnumerable<(string Name, string Body)> SqlObjects(string providerDir, string suffix) =>
         Directory
             .EnumerateFiles(Path.Combine(providerDir, "Sql"), "*" + suffix, SearchOption.AllDirectories)
             .Select(path => (Path: path, Resource: Path.GetRelativePath(providerDir, path).Replace('\\', '.').Replace('/', '.')))

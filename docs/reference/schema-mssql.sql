@@ -14,6 +14,9 @@
 -- exactly what is missing and skips what is present. Re-running it is a no-op. Views and
 -- routines carry no version and are always rewritten to the definitions shipped here.
 --
+-- Run it with a client that stops at the first error, which is what makes the transaction below a
+-- guarantee: sqlcmd -b, or SQLCMD mode with stop-on-error in SSMS. A client that runs on past a failed
+-- batch would reach the package stamp with an object it failed to replace still in place.
 -- Run it under a DDL-capable principal; the application principal then needs only DML and
 -- EXECUTE, with ApplyMigrationsOnStartup left false. Because the history rows (and the
 -- baseline stamp) are recorded by the script itself, a bootstrap with migrations enabled also
@@ -2302,12 +2305,22 @@ BEGIN
                             END
                     END
 
+                -- At Failures a failure carrying no reschedule is written, and a success only when it answers
+                -- a recorded failure, which is what closes the incident: the job's newest finished event is
+                -- not a success. Never failed, or already answered, writes nothing. One seek on the timeline index.
                 IF
                     @c_audit = 20 /* JobAuditLevelCode.Audit */
                     OR (
-                        @c_audit = 10 /* JobAuditLevelCode.Failures */ AND @p_execution_succeeded = 0 AND @rearm = 0
+                        @c_audit = 10 /* JobAuditLevelCode.Failures */ AND @rearm = 0
                         AND NOT (
                             @handler = 1 AND @p_handler_status_code IN (220 /* JobStatusCode.Cancelled */, 30 /* JobStatusCode.Paused */)
+                        )
+                        AND (
+                            @p_execution_succeeded = 0
+                            OR COALESCE((
+                                SELECT TOP (1) e.execution_status_code FROM acta.events e
+                                WHERE e.job_id = @p_id AND e.event_code = 41 /* EventCode.JobExecutionFinished */
+                                ORDER BY e.created_at_utc DESC, e.id DESC), 100) <> 100 /* ExecutionStatusCode.Succeeded */
                         )
                     )
                     BEGIN
@@ -2727,6 +2740,46 @@ BEGIN
         WHERE
             u.audit_level_code = 20 /* JobAuditLevelCode.Audit */
             OR (u.audit_level_code = 10 /* JobAuditLevelCode.Failures */ AND b.succeeded = 0);
+
+        -- At Failures a success is written only when it answers a recorded failure: the job's newest
+        -- finished event is not a success, same rule as complete_execution. Its own statement, so the
+        -- optimizer cannot hoist the timeline seek above the cheap gate and run it for every Audit row.
+        INSERT INTO acta.events (
+            event_code, created_at_utc, namespace_id, actor_code, actor_key,
+            job_id, job_ref, execution_number, lineage_root_id, definition_id, tenant_id,
+            worker_id, from_status_code, to_status_code, execution_status_code, duration_ms,
+            reason_code, reason_message
+        )
+        SELECT
+            41 /* EventCode.JobExecutionFinished */,
+            @now,
+            u.namespace_id,
+            70 /* ActorCode.Worker */,
+            NULL,
+            u.job_id,
+            u.job_ref,
+            u.execution_number,
+            COALESCE(u.lineage_root_id, u.job_id),
+            u.definition_id,
+            u.tenant_id,
+            b.worker_id,
+            50 /* JobStatusCode.Executing */,
+            100 /* JobStatusCode.Succeeded */,
+            100 /* ExecutionStatusCode.Succeeded */,
+            b.duration_ms,
+            b.reason_code,
+            b.reason_message
+        FROM @updated u
+        INNER JOIN @p_batch b ON b.ordinal = u.ordinal
+        CROSS APPLY (
+            SELECT TOP (1) e.execution_status_code FROM acta.events e
+            WHERE e.job_id = u.job_id AND e.event_code = 41 /* EventCode.JobExecutionFinished */
+            ORDER BY e.created_at_utc DESC, e.id DESC
+        ) newest
+        WHERE
+            u.audit_level_code = 10 /* JobAuditLevelCode.Failures */
+            AND b.succeeded = 1
+            AND newest.execution_status_code <> 100 /* ExecutionStatusCode.Succeeded */;
 
         SELECT
             b.ordinal,
@@ -3979,7 +4032,7 @@ BEGIN
         DECLARE
             @from_status TINYINT, @namespace_id INT,
             @definition_id INT, @tenant_id INT,
-            @job_ref UNIQUEIDENTIFIER, @job_name VARCHAR(128);
+            @job_ref UNIQUEIDENTIFIER, @job_name VARCHAR(128), @parent_id BIGINT;
 
         /* Lock the jobs row too: child enqueue locks jobs (not runtimes), and under RCSI the
            child guard below only serializes if we hold the same resource. */
@@ -3989,7 +4042,8 @@ BEGIN
             @definition_id = j.definition_id,
             @tenant_id = j.tenant_id,
             @job_ref = j.job_ref,
-            @job_name = d.name
+            @job_name = d.name,
+            @parent_id = j.parent_id
         FROM acta.runtimes r WITH (UPDLOCK, ROWLOCK)
         INNER JOIN acta.jobs j WITH (UPDLOCK, ROWLOCK) ON j.id = r.job_id
         INNER JOIN acta.definitions d ON d.id = j.definition_id
@@ -4019,11 +4073,17 @@ BEGIN
             END;
 
         -- parent_id carries no DB FK/cascade; purging a job that has child jobs would orphan the child's
-        -- lineage, so reject.
+        -- lineage, so reject. A completed child of a live parent is kept too: the parent's replay
+        -- dedupes onto this row and reads its result, so purging it would run the child again.
         IF
             EXISTS (
                 SELECT 1 FROM acta.jobs c
                 WHERE c.parent_id = @p_id
+            )
+            OR EXISTS (
+                SELECT 1 FROM acta.runtimes p
+                WHERE p.job_id = @parent_id
+                    AND p.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
             )
             BEGIN
 
@@ -7702,6 +7762,14 @@ BEGIN
                         SELECT 1 FROM acta.jobs c
                         WHERE c.parent_id = j.id
                     )
+                    -- A completed child of a live parent is kept: the parent's replay dedupes onto its row
+                    -- and reads its result, so purging it would run the child again. The tree drains once
+                    -- the parent is terminal.
+                    AND NOT EXISTS (
+                        SELECT 1 FROM acta.runtimes p
+                        WHERE p.job_id = j.parent_id
+                            AND p.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+                    )
                 ORDER BY r.retention_until_utc, r.job_id;
 
                 DELETE @schedule_del;
@@ -8227,6 +8295,10 @@ GO
 -- The IF NOT EXISTS probe below takes UPDLOCK, HOLDLOCK before the row exists and holds it to commit;
 -- the sweep's WITH (UPDLOCK, READPAST) then skips rather than races it, so the charge this call books
 -- is always persisted before it admits anything.
+
+-- The clock is read once the bucket row is locked, not when the call began: judged against a stale
+-- instant, every call a convoy on this meter delayed would be admitted together the moment the lock
+-- freed, four times the contract in one second under a flood of metered claims.
 CREATE OR ALTER PROCEDURE acta.reserve_rate
     @p_lock_key VARCHAR(256),
     @p_job_id BIGINT,
@@ -8244,7 +8316,7 @@ BEGIN
         IF @entry_trancount = 0
             BEGIN TRANSACTION;
 
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @now DATETIME2(7);
         DECLARE @reservation VARCHAR(256) = @p_lock_key + '.' + CAST(@p_job_id AS VARCHAR(20));
         -- How far behind now an idle meter is allowed to be, which is what hands out the burst: one
         -- interval short of a whole period, so the burst-th request lands on now and the next waits.
@@ -8261,13 +8333,15 @@ BEGIN
         -- idle meter stops saying anything a missing one would not. A missing meter starts at now.
         IF NOT EXISTS (SELECT 1 FROM acta.locks WITH (UPDLOCK, HOLDLOCK) WHERE lock_key = @p_lock_key)
             INSERT INTO acta.locks (lock_key, job_id, expires_at_utc, hold_token)
-            VALUES (@p_lock_key, @p_job_id, @now, @p_hold_token);
+            VALUES (@p_lock_key, @p_job_id, SYSUTCDATETIME(), @p_hold_token);
 
         -- Held for the rest of the call, so consume, hand back and allocate all decide against one
         -- serialized meter and no instant is ever handed to two jobs.
         SELECT @stored = b.expires_at_utc
         FROM acta.locks AS b WITH (UPDLOCK, HOLDLOCK)
         WHERE b.lock_key = @p_lock_key;
+
+        SET @now = SYSUTCDATETIME();
 
         -- The OUTPUT decides consumption, never a later absence: the sweep cannot slip between a read
         -- and the delete and give away a free admission. A stale turn is spent here too, then re-metered.
@@ -8337,6 +8411,14 @@ BEGIN
         THROW;
     END CATCH;
 END;
+GO
+-- ===== installed object package (names the versionless objects above; recorded only when all exist) =====
+GO
+DELETE FROM acta.migrations WHERE version = -1;
+INSERT INTO acta.migrations (version, name, installed_schema)
+SELECT -1, 'objects-1.5-ae6eaecf6cb8883aa3721209cec353de', 'acta'
+WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
+    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'jobs_view', 'schedules_view', 'steps_view', 'workers_view', 'events_view', 'tags_view', 'acknowledge_job_alert', 'raise_job_alert', 'resolve_job_alert_manual', 'resolve_job_alerts', 'update_alert_delivery', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_executions_batch', 'complete_step', 'register_job_definitions', 'set_job_definition_overrides', 'cancel_job', 'enqueue_batch', 'enqueue_one', 'pause_job', 'purge_job', 'reprioritize_job', 'reschedule_job', 'reset_job_state', 'restart_job', 'resume_job', 'update_job_input', 'resume_namespace', 'suspend_namespace', 'update_namespace', 'record_job_note', 'reclaim_stuck_jobs', 'repair_recovery_slot', 'pause_schedule', 'register_scheduled_jobs', 'resume_schedule', 'set_schedule_overrides', 'trigger_schedule_now', 'set_setting', 'consume_outbox_signal', 'park_outbox_signal', 'raise_signal', 'record_outbox_event', 'wait_signal', 'start_execution', 'start_step', 'register_tenant', 'resume_tenant', 'suspend_tenant', 'update_tenant', 'arm_or_consume_sleep_timer', 'extend_worker_leases', 'mark_dead_workers', 'start_worker', 'stop_worker', 'purge_expired_data', 'apply_tags', 'acquire_lock', 'acquire_slot', 'extend_lock', 'release_lock', 'reserve_rate')) = 68;
 GO
 COMMIT TRANSACTION;
 GO

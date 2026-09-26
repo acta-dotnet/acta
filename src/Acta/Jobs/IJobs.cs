@@ -430,7 +430,8 @@ public interface IJobs
     /// runtime/schedule/step/result/checkpoint/tag rows). Only a terminal job (<c>Succeeded</c>/<c>Failed</c>/
     /// <c>Cancelled</c>) may be purged; a non-terminal job is <see cref="ControlAction.Rejected"/>, and
     /// so is a terminal job that has child jobs (deleting it would orphan the child's lineage - <c>parent_id</c>
-    /// carries no DB cascade). Always emits <c>job.purged</c> (not audit-gated), with <c>job_id</c>/<c>job_ref</c>
+    /// carries no DB cascade), and so is a child whose parent is not terminal, because the parent's replay
+    /// dedupes onto that child and reads its result. Always emits <c>job.purged</c> (not audit-gated), with <c>job_id</c>/<c>job_ref</c>
     /// null on that row and the purged job's ref and name recorded on its <c>ReasonMessage</c> instead.
     /// <paramref name="actorKey"/> is recorded on the audit event as the operator identity (e.g. the
     /// authenticated principal name); null when unknown. Unlike the other control verbs there is no

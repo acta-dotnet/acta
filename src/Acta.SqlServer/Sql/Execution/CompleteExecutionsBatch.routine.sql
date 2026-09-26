@@ -96,6 +96,46 @@ BEGIN
             u.audit_level_code = 20 /* JobAuditLevelCode.Audit */
             OR (u.audit_level_code = 10 /* JobAuditLevelCode.Failures */ AND b.succeeded = 0);
 
+        -- At Failures a success is written only when it answers a recorded failure: the job's newest
+        -- finished event is not a success, same rule as complete_execution. Its own statement, so the
+        -- optimizer cannot hoist the timeline seek above the cheap gate and run it for every Audit row.
+        INSERT INTO {{schema}}.events (
+            event_code, created_at_utc, namespace_id, actor_code, actor_key,
+            job_id, job_ref, execution_number, lineage_root_id, definition_id, tenant_id,
+            worker_id, from_status_code, to_status_code, execution_status_code, duration_ms,
+            reason_code, reason_message
+        )
+        SELECT
+            41 /* EventCode.JobExecutionFinished */,
+            @now,
+            u.namespace_id,
+            70 /* ActorCode.Worker */,
+            NULL,
+            u.job_id,
+            u.job_ref,
+            u.execution_number,
+            COALESCE(u.lineage_root_id, u.job_id),
+            u.definition_id,
+            u.tenant_id,
+            b.worker_id,
+            50 /* JobStatusCode.Executing */,
+            100 /* JobStatusCode.Succeeded */,
+            100 /* ExecutionStatusCode.Succeeded */,
+            b.duration_ms,
+            b.reason_code,
+            b.reason_message
+        FROM @updated u
+        INNER JOIN @p_batch b ON b.ordinal = u.ordinal
+        CROSS APPLY (
+            SELECT TOP (1) e.execution_status_code FROM {{schema}}.events e
+            WHERE e.job_id = u.job_id AND e.event_code = 41 /* EventCode.JobExecutionFinished */
+            ORDER BY e.created_at_utc DESC, e.id DESC
+        ) newest
+        WHERE
+            u.audit_level_code = 10 /* JobAuditLevelCode.Failures */
+            AND b.succeeded = 1
+            AND newest.execution_status_code <> 100 /* ExecutionStatusCode.Succeeded */;
+
         SELECT
             b.ordinal,
             CAST(CASE WHEN u.ordinal IS NOT NULL THEN 1 ELSE 0 END AS SMALLINT) AS finalized

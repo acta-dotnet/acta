@@ -43,7 +43,7 @@ public abstract class AlertsProjectionSpec<TFixture> : ActaRuntimeTestBase<TFixt
         var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
 
         // Three attempts: two in-budget re-arms (non-terminal failures), then terminal Failed.
-        await RunUntilAttemptsAsync(job, () => RetryProbe.Attempts(TestNamespace), 3, ct);
+        await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => RetryProbe.Attempts(TestNamespace), 3, ct);
 
         await RunAlertsAsync(job.JobId, ct);
 
@@ -68,7 +68,7 @@ public abstract class AlertsProjectionSpec<TFixture> : ActaRuntimeTestBase<TFixt
         RetryProbe.Reset(TestNamespace);
 
         var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
-        await RunUntilAttemptsAsync(job, () => RetryProbe.Attempts(TestNamespace), 3, ct);
+        await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => RetryProbe.Attempts(TestNamespace), 3, ct);
 
         await RunAlertsAsync(job.JobId, ct);
         var afterFirst = (await ReadAlertsAsync(NamespaceId, ct)).Count;
@@ -96,7 +96,7 @@ public abstract class AlertsProjectionSpec<TFixture> : ActaRuntimeTestBase<TFixt
         RetryProbe.Reset(TestNamespace);
 
         var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
-        await RunUntilAttemptsAsync(job, () => RetryProbe.Attempts(TestNamespace), 1, ct);
+        await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => RetryProbe.Attempts(TestNamespace), 1, ct);
 
         // Generate + deliver: the OnFailure job has no explicit channel, so it routes to the seeded
         // "default" (log transport) and the deliver phase marks it Delivered.
@@ -117,14 +117,14 @@ public abstract class AlertsProjectionSpec<TFixture> : ActaRuntimeTestBase<TFixt
         var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "flaky-recover", JobPayload.None), ct);
 
         // Attempt 1 fails -> re-arm. Project it: an open FirstFailure alert (unresolved).
-        await RunUntilAttemptsAsync(job, () => FlakyRecoverProbe.Attempts(TestNamespace), 1, ct);
+        await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => FlakyRecoverProbe.Attempts(TestNamespace), 1, ct);
         await RunAlertsAsync(job.JobId, ct);
         var afterFail = await ReadAlertsAsync(NamespaceId, ct);
         var firstFailure = Assert.Single(afterFail, a => a.Kind == AlertKindCode.FirstFailure);
         Assert.Null(firstFailure.ResolvedAtUtc);
 
         // Attempt 2 succeeds. Project it: the open failure resolves and nothing new is written.
-        await RunUntilAttemptsAsync(job, () => FlakyRecoverProbe.Attempts(TestNamespace), 2, ct);
+        await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => FlakyRecoverProbe.Attempts(TestNamespace), 2, ct);
         await RunAlertsAsync(job.JobId, ct);
 
         // "Nothing new" is proven positively, by pinning the whole alert set: Assert.Single over the
@@ -152,7 +152,7 @@ public abstract class AlertsProjectionSpec<TFixture> : ActaRuntimeTestBase<TFixt
         NoAlertProbe.Reset(TestNamespace);
 
         var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "no-alert-probe", JobPayload.None), ct);
-        await RunUntilAttemptsAsync(job, () => NoAlertProbe.Attempts(TestNamespace), 1, ct);
+        await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => NoAlertProbe.Attempts(TestNamespace), 1, ct);
 
         await RunAlertsAsync(job.JobId, ct);
 
@@ -161,15 +161,6 @@ public abstract class AlertsProjectionSpec<TFixture> : ActaRuntimeTestBase<TFixt
 
     // RunOnceAsync can no-op when a claim is lost to provider timing (notably MSSQL); loop until the probe
     // has actually executed `target` attempts so the projected event count is deterministic.
-    private async Task RunUntilAttemptsAsync(JobEnqueueOutcome job, Func<int> attempts, int target, CancellationToken ct)
-    {
-        for (var i = 0; i < target + 12 && attempts() < target; i++)
-        {
-            await Runtime.RunOnceAsync(job, ct);
-        }
-        Assert.Equal(target, attempts());
-    }
-
     private Task RunAlertsAsync(long cursorOwnerJobId, CancellationToken ct) =>
         AlertTestOps.RunAlertsJobAsync(Services, TestNamespace, NamespaceId, cursorOwnerJobId, options: null, drain: null, ct);
 }

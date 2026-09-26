@@ -621,6 +621,13 @@ dotnet_diagnostic.CA1508.severity = none
 [src/Acta.Redis/Features/Workers/RedisWakeup.cs]
 dotnet_diagnostic.CA1031.severity = none
 
+# CA1031: two catches around the repeat's own diagnostics, the unsettled gauge and the log line. The
+# repeat exists so a completion write is never abandoned while the worker lives; a metrics listener
+# or a logger that throws must not be the thing that abandons it, so those calls are swallowed and
+# the write's own failure stays the one being handled.
+[src/Acta.Runtime/Modules/Execution/CompletionWrite.cs]
+dotnet_diagnostic.CA1031.severity = none
+
 # CA1031: two catches that tear down a failed attempt and must never become the failure themselves. A
 # rollback on a connection the database already aborted is the likeliest thing here to throw, and
 # escaping would replace the attempt's own exception - DeadlockRetry classifies whatever leaves this

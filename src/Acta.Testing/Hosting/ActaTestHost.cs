@@ -149,6 +149,14 @@ public static class ActaTestHost
         var runtimes = provider.GetServices<WorkerRuntime>().ToArray();
         await WorkerRuntimeStartup.RunAsync(provider.GetServices<IProviderBootstrap>(), runtimes, ct);
 
+        // Lets the run-once helper stop retrying an empty claim as soon as the row can no longer be
+        // claimed, instead of waiting out its budget to say so.
+        var jobs = provider.GetRequiredService<IJobs>();
+        foreach (var runtime in runtimes)
+        {
+            runtime.AttachClaimabilityProbe(jobs);
+        }
+
         return new HostImpl(provider, runtimes, schema);
     }
 

@@ -105,4 +105,20 @@ internal static class PostgresSchemaMigrator
 
         await SchemaMigrationRunner.ResetSchemaAsync(connection, schemaName, Hooks, ct);
     }
+
+    /// <summary>
+    /// Drops the schema and everything in it, applying nothing after. The drop half of
+    /// <see cref="ResetSchemaAsync"/>, for a caller that wants the schema gone rather than fresh.
+    /// </summary>
+    public static async Task DropSchemaAsync(NpgsqlConnection connection, string schemaName, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+        IdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
+        if (connection.State != ConnectionState.Open)
+        {
+            await connection.OpenAsync(ct);
+        }
+
+        await SchemaMigrationRunner.DropSchemaAsync(connection, schemaName, Hooks, ct);
+    }
 }

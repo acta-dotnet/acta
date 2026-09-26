@@ -10,6 +10,7 @@ DROP TABLE IF EXISTS temp._purge_locks;
 CREATE TEMP TABLE _purge_jobs AS
 SELECT r.job_id AS id
 FROM {{schema}}.runtimes r
+JOIN {{schema}}.jobs j ON j.id = r.job_id
 WHERE
     @p_section = 1
     AND r.namespace_id = @p_namespace_id
@@ -20,6 +21,12 @@ WHERE
     -- orphan their lineage (same rule as the manual purge_job). Only leaves delete in this pass; a
     -- fully-expired subtree drains bottom-up across successive batches.
     AND NOT EXISTS (SELECT 1 FROM {{schema}}.jobs c WHERE c.parent_id = r.job_id)
+    -- A completed child of a live parent is kept: the parent's replay dedupes onto its row and reads
+    -- its result, so purging it would run the child again. The tree drains once the parent is terminal.
+    AND NOT EXISTS (
+        SELECT 1 FROM {{schema}}.runtimes p
+        WHERE p.job_id = j.parent_id
+          AND p.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
 ORDER BY r.retention_until_utc, r.job_id
 LIMIT @p_batch_size;
 

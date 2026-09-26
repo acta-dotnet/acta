@@ -21,6 +21,14 @@ public sealed class SqlServerClockSkewInitializationChaosSpec : ClockSkewInitial
 
 public sealed class SqlServerCompleteAndClockChaosSpec : CompleteAndClockChaosSpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerStartReconciliationChaosSpec : StartReconciliationChaosSpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerOrphanedClaimChaosSpec : OrphanedClaimChaosSpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerRecoveryUnderSaturationSpec : RecoveryUnderSaturationSpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerBufferedBackpressureOwnershipSpec : BufferedBackpressureOwnershipSpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerExecutionTimeoutSpec : ExecutionTimeoutSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerInputDeserializationFailureSpec : InputDeserializationFailureSpec<SqlServerConformanceFixture>;

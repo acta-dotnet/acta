@@ -1,4 +1,5 @@
 using Acta.Relational.Entities;
+using Acta.Runtime.Modules.Execution.Workers;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -95,5 +96,30 @@ internal static class ChaosSpecHelpers
         Assert.Equal(from, match.FromStatus);
         Assert.Equal(to, match.ToStatus);
         return match;
+    }
+
+    /// <summary>
+    /// Stages the one way a completion is lost now that the write repeats until it lands: the store keeps
+    /// refusing it and the worker stops mid-repeat. Returns once the run has ended with the write's own
+    /// failure and the fault is cleared, leaving the row Executing for recovery.
+    /// </summary>
+    public static async Task StopWorkerMidCompletionRetryAsync(
+        WorkerRuntime runtime,
+        StoreFaultPlan faults,
+        JobEnqueueOutcome enqueued,
+        CancellationToken ct
+    )
+    {
+        faults.ThrowBeforeCompleteUntilCleared();
+        using var worker = new CancellationTokenSource();
+        var run = runtime.RunOnceAsync(enqueued, worker.Token);
+        while (faults.CompletionRefusals == 0)
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(20), ct);
+        }
+
+        await worker.CancelAsync();
+        await Assert.ThrowsAnyAsync<Exception>(() => run);
+        faults.StopThrowingBeforeComplete();
     }
 }

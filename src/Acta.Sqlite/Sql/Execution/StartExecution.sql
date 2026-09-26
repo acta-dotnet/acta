@@ -1,3 +1,5 @@
+DROP TABLE IF EXISTS temp._se_done;
+
 UPDATE {{schema}}.runtimes
 SET
     status_code = 50 /* JobStatusCode.Executing */,
@@ -12,16 +14,13 @@ WHERE
     AND leased_by_worker_id = @p_leased_by_worker_id
     AND lease_expires_at_utc > {{now}};
 
+-- What this call moved, and nothing else: a replay of a start that committed and lost its answer finds
+-- the row already Executing at the next version, and must answer LostClaim rather than a second start.
+CREATE TEMP TABLE _se_done AS SELECT changes() AS moved;
+
 SELECT
     CASE
-        WHEN EXISTS (
-            SELECT 1 FROM {{schema}}.runtimes r
-            WHERE
-                r.job_id = @p_id
-                AND r.status_code = 50 /* JobStatusCode.Executing */
-                AND r.execution_number = @p_execution_number
-                AND r.version = @p_version + 1
-        ) THEN 1 /* StartExecutionAction.Started */
+        WHEN (SELECT moved FROM temp._se_done) = 1 THEN 1 /* StartExecutionAction.Started */
         WHEN NOT EXISTS (
             SELECT 1 FROM {{schema}}.runtimes
             WHERE job_id = @p_id
@@ -98,7 +97,5 @@ FROM {{schema}}.jobs j
 JOIN {{schema}}.runtimes r ON r.job_id = j.id
 WHERE
     j.id = @p_id
-    AND r.status_code = 50 /* JobStatusCode.Executing */
-    AND r.execution_number = @p_execution_number
-    AND r.version = @p_version + 1
+    AND (SELECT moved FROM temp._se_done) = 1
     AND j.audit_level_code = 20 /* JobAuditLevelCode.Audit */;

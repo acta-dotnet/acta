@@ -30,17 +30,17 @@ public abstract class CompleteAndClockChaosSpec<TFixture> : ActaRuntimeTestBase<
     }
 
     [Fact(
-        DisplayName = "A complete before-commit failure leaves Executing with no success event, and reclaim reruns to a single Succeeded finish"
+        DisplayName = "A worker that stops while its completion is still failing leaves Executing with no success event, and reclaim reruns to a single Succeeded finish"
     )]
-    public async Task Sql_transient_failure_before_complete_commit_is_reclaimed_and_rerun()
+    public async Task A_worker_that_stops_mid_completion_retry_is_reclaimed_and_rerun()
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-counting", ct);
 
-        // --- 1. CompleteExecution fails before commit; the job stays Executing with no success event.
-        _faults.ThrowBeforeCompleteOnce();
-        await Assert.ThrowsAsync<TimeoutException>(() => Runtime.RunOnceAsync(enqueued, ct));
+        // --- 1. The only way the write is lost is the worker stopping while the store still refuses it.
+        await ChaosSpecHelpers.StopWorkerMidCompletionRetryAsync(Runtime, _faults, enqueued, ct);
+
         Assert.Equal(JobStatusCode.Executing, await Jobs.GetStatusAsync(enqueued, ct));
         Assert.Empty(
             (await GetEventsByJobId.Run(Services, enqueued.JobId, ct)).Where(e =>
@@ -77,15 +77,17 @@ public abstract class CompleteAndClockChaosSpec<TFixture> : ActaRuntimeTestBase<
         Assert.DoesNotContain(events, e => e.ExecutionStatus == ExecutionStatusCode.Orphaned);
     }
 
-    [Fact(DisplayName = "A complete after-commit failure leaves Succeeded with one success event and is not rerun")]
+    [Fact(DisplayName = "A complete after-commit failure is reconciled by the repeat itself and is not rerun")]
     public async Task Sql_transient_failure_after_complete_commit_is_not_rerun()
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-counting", ct);
 
-        // --- 1. CompleteExecution commits, then the post-commit failure surfaces; the job stays Succeeded.
+        // --- 1. The write commits and its answer is lost on the way back. The repeat resubmits the same
+        // compare-and-swap, finds the row already terminal, and reports that as a settled write rather
+        // than an anomaly, which is the reconciliation the Retried flag exists for.
         _faults.ThrowAfterCompleteOnce();
-        await Assert.ThrowsAsync<TimeoutException>(() => Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(RunOnceOutcome.NothingClaimed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
 
         // --- 2. A retry finds nothing to claim; the handler ran exactly once.

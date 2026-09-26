@@ -4,6 +4,7 @@ using Acta.Emit.Features.Migrations;
 using Acta.Emit.Shared;
 using Acta.Emit.Shared.Model;
 using Acta.Emit.Shared.Sql;
+using Acta.Relational.Schema;
 
 namespace Acta.Emit.Features.Verify;
 
@@ -89,6 +90,41 @@ internal static class CheckCommand
         else
         {
             Console.WriteLine($"  ok:      {stampsPath}");
+        }
+
+        // Hashed once: the ledger verdict, the ok lines and the generated constants all read the same set.
+        var objectHashes = ObjectPackageEmitter.HashAll(repoRoot);
+        var packageProblems = ObjectPackageLedger.Verify(repoRoot, objectHashes);
+        foreach (var problem in packageProblems)
+        {
+            Console.Error.WriteLine($"  DRIFT:   {problem}");
+            drifted++;
+        }
+
+        if (packageProblems.Count == 0)
+        {
+            foreach (var provider in ProviderCatalog.All)
+            {
+                Console.WriteLine(
+                    $"  ok:      object package {provider.Token} {ObjectPackageStamp.ContractMajor}.{ObjectPackageStamp.PackageRevision} {objectHashes[provider.Token]}"
+                );
+            }
+        }
+
+        var hashesPath = ObjectPackageEmitter.PathFor(repoRoot);
+        if (!File.Exists(hashesPath))
+        {
+            Console.Error.WriteLine($"  MISSING: {hashesPath}");
+            drifted++;
+        }
+        else if (!NewlineEqual(File.ReadAllText(hashesPath), ObjectPackageEmitter.Emit(objectHashes)))
+        {
+            Console.Error.WriteLine($"  DRIFT:   {hashesPath} (run `Acta.Emit objects record`)");
+            drifted++;
+        }
+        else
+        {
+            Console.WriteLine($"  ok:      {hashesPath}");
         }
 
         var snapshotPath = SnapshotFile.Path(repoRoot);

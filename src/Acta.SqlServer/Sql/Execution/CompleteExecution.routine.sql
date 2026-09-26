@@ -244,12 +244,22 @@ BEGIN
                             END
                     END
 
+                -- At Failures a failure carrying no reschedule is written, and a success only when it answers
+                -- a recorded failure, which is what closes the incident: the job's newest finished event is
+                -- not a success. Never failed, or already answered, writes nothing. One seek on the timeline index.
                 IF
                     @c_audit = 20 /* JobAuditLevelCode.Audit */
                     OR (
-                        @c_audit = 10 /* JobAuditLevelCode.Failures */ AND @p_execution_succeeded = 0 AND @rearm = 0
+                        @c_audit = 10 /* JobAuditLevelCode.Failures */ AND @rearm = 0
                         AND NOT (
                             @handler = 1 AND @p_handler_status_code IN (220 /* JobStatusCode.Cancelled */, 30 /* JobStatusCode.Paused */)
+                        )
+                        AND (
+                            @p_execution_succeeded = 0
+                            OR COALESCE((
+                                SELECT TOP (1) e.execution_status_code FROM {{schema}}.events e
+                                WHERE e.job_id = @p_id AND e.event_code = 41 /* EventCode.JobExecutionFinished */
+                                ORDER BY e.created_at_utc DESC, e.id DESC), 100) <> 100 /* ExecutionStatusCode.Succeeded */
                         )
                     )
                     BEGIN

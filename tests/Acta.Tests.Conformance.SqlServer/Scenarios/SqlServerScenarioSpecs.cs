@@ -13,6 +13,8 @@ public sealed class SqlServerChildJobCrossNamespaceSpec : ChildJobCrossNamespace
 
 public sealed class SqlServerChildJobSpec : ChildJobSpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerChildRetentionSpec : ChildRetentionSpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerChildTimeoutSpec : ChildTimeoutSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerChildGroupTimeoutSpec : ChildGroupTimeoutSpec<SqlServerConformanceFixture>;
@@ -22,6 +24,8 @@ public sealed class SqlServerConcurrencyKeyMutexSpec : ConcurrencyKeyMutexSpec<S
 public sealed class SqlServerConcurrencyLimitSpec : ConcurrencyLimitSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerRateLimitSpec : RateLimitSpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerRateLimitConvoySpec : RateLimitConvoySpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerControlVerbsSpec : ControlVerbsSpec<SqlServerConformanceFixture>;
 

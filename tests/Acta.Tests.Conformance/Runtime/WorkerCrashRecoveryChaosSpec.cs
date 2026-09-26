@@ -115,8 +115,8 @@ public abstract class WorkerCrashRecoveryChaosSpec<TFixture> : ActaRuntimeTestBa
         var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-step-before-complete", ct);
 
         // --- 1. The handler runs its durable step, then CompleteExecution fails before commit.
-        _faults.ThrowBeforeCompleteOnce();
-        await Assert.ThrowsAsync<TimeoutException>(() => Runtime.RunOnceAsync(enqueued, ct));
+        await ChaosSpecHelpers.StopWorkerMidCompletionRetryAsync(Runtime, _faults, enqueued, ct);
+
         Assert.Equal(1, JobStepProbes.BodyInvocations[enqueued.JobId]);
         Assert.Equal(JobStatusCode.Executing, await Jobs.GetStatusAsync(enqueued, ct));
 

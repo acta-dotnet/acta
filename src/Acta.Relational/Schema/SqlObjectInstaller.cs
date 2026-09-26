@@ -58,6 +58,56 @@ internal static class SqlObjectInstaller
         {
             yield return ($"{schemaName}.{name}", body);
         }
+
+        // Last, and inside the caller's transaction and migration lock, so a partial install can never
+        // advertise a complete package.
+        foreach (var statement in StampStatements(schemaName, hooks.DialectToken))
+        {
+            yield return (null, statement);
+        }
+    }
+
+    /// <summary>
+    /// Records which object package this install put in place, as a sentinel row beside the version-0
+    /// baseline stamp. Delete then insert rather than a dialect-specific upsert: the row is a single
+    /// sentinel whose whole content is replaced. Shared with the provision-script emitter, so a database
+    /// provisioned by the published script records exactly what the bootstrap would have recorded, which
+    /// matters because a host with migrations disabled only ever meets the script.
+    /// </summary>
+    internal static IEnumerable<string> StampStatements(string schemaName, string dialectToken) =>
+        StampStatements(schemaName, dialectToken, requiredObjects: null);
+
+    /// <summary>
+    /// With <paramref name="requiredObjects"/>, the insert is conditional on every named view and routine
+    /// existing in the schema. The bootstrap never needs that: it installs and stamps in one transaction.
+    /// The published script does, because a client that continues past a failed batch, which sqlcmd and
+    /// the SQLite shell do by default, would otherwise reach the stamp and advertise a package that is not
+    /// there; an omitted stamp instead refuses the next startup, naming the script to run again.
+    /// PostgreSQL needs no guard: a failed statement aborts the script's transaction, and its commit rolls
+    /// back.
+    /// </summary>
+    internal static IEnumerable<string> StampStatements(string schemaName, string dialectToken, IReadOnlyList<string>? requiredObjects)
+    {
+        var stamp = ObjectPackageStamp.Format(ObjectPackageHashes.ForDialect(dialectToken));
+        yield return $"DELETE FROM {schemaName}.migrations WHERE version = {ObjectPackageStamp.HistoryVersion};";
+        var values = $"{ObjectPackageStamp.HistoryVersion}, '{stamp}', '{schemaName}'";
+        var guard = requiredObjects is { Count: > 0 } ? InstalledObjectCount(schemaName, dialectToken, requiredObjects) : null;
+        yield return guard is null
+            ? $"INSERT INTO {schemaName}.migrations (version, name, installed_schema)\nVALUES ({values});"
+            : $"INSERT INTO {schemaName}.migrations (version, name, installed_schema)\nSELECT {values}\nWHERE ({guard}) = {requiredObjects!.Count};";
+    }
+
+    // The count of the named objects present, by dialect catalog; NULL where the dialect has no guard.
+    private static string? InstalledObjectCount(string schemaName, string dialectToken, IReadOnlyList<string> names)
+    {
+        var list = string.Join(", ", names.Select(n => $"'{n}'"));
+        return dialectToken switch
+        {
+            "mssql" => $"SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id\n"
+                + $"    WHERE s.name = '{schemaName}' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ({list})",
+            "sqlite" => $"SELECT COUNT(*) FROM sqlite_master WHERE type = 'view' AND name IN ({list})",
+            _ => null,
+        };
     }
 
     private static IEnumerable<(string? QualifiedName, string Body)> ProviderViews(

@@ -49,7 +49,7 @@ public abstract class RecoverySlotMonitorSpec<TFixture> : ActaRuntimeTestBase<TF
         await StrandAsync(slotId, JobStatusCode.Executing, DateTime.UtcNow.AddMinutes(5), ct);
         var before = await RuntimeAsync(slotId, ct);
 
-        Assert.False(await CheckAsync(slotId, ct));
+        Assert.Equal(RecoverySlotRepair.Healthy, await CheckAsync(slotId, ct));
 
         var after = await RuntimeAsync(slotId, ct);
         Assert.Equal(JobStatusCode.Executing, after.Status);
@@ -65,7 +65,7 @@ public abstract class RecoverySlotMonitorSpec<TFixture> : ActaRuntimeTestBase<TF
         await StrandAsync(slotId, JobStatusCode.Executing, DateTime.UtcNow.AddMinutes(-5), ct);
         var before = await RuntimeAsync(slotId, ct);
 
-        Assert.True(await CheckAsync(slotId, ct));
+        Assert.Equal(RecoverySlotRepair.Repaired, await CheckAsync(slotId, ct));
 
         var after = await RuntimeAsync(slotId, ct);
         Assert.Equal(JobStatusCode.Ready, after.Status);
@@ -84,7 +84,7 @@ public abstract class RecoverySlotMonitorSpec<TFixture> : ActaRuntimeTestBase<TF
         Assert.Equal(JobStatusCode.Ready, lost.ToStatus);
 
         // A second check sees a Ready slot and does nothing.
-        Assert.False(await CheckAsync(slotId, ct));
+        Assert.Equal(RecoverySlotRepair.Healthy, await CheckAsync(slotId, ct));
     }
 
     [Fact(DisplayName = "A slot claimed but not yet started when its worker died is recorded as lost from Dispatched")]
@@ -95,7 +95,7 @@ public abstract class RecoverySlotMonitorSpec<TFixture> : ActaRuntimeTestBase<TF
         await StrandAsync(slotId, JobStatusCode.Dispatched, DateTime.UtcNow.AddMinutes(-5), ct);
         var before = await RuntimeAsync(slotId, ct);
 
-        Assert.True(await CheckAsync(slotId, ct));
+        Assert.Equal(RecoverySlotRepair.Repaired, await CheckAsync(slotId, ct));
 
         Assert.Equal(JobStatusCode.Ready, (await RuntimeAsync(slotId, ct)).Status);
         var finished = await Db.From<JobEvent>()
@@ -185,7 +185,7 @@ public abstract class RecoverySlotMonitorSpec<TFixture> : ActaRuntimeTestBase<TF
         var missingId = long.MaxValue;
 
         Assert.Equal(RecoverySlotRepair.Missing, await Execution.RepairRecoverySlotAsync(TestNamespaceId, missingId, ct));
-        Assert.False(await CheckAsync(missingId, ct));
+        Assert.Equal(RecoverySlotRepair.Missing, await CheckAsync(missingId, ct));
 
         Assert.Empty(await Db.From<JobRuntime>().Where(r => r.Id == missingId).ToListAsync(ct));
         Assert.Empty(await Db.From<JobEvent>().Where(e => e.JobId == missingId).ToListAsync(ct));
@@ -203,6 +203,82 @@ public abstract class RecoverySlotMonitorSpec<TFixture> : ActaRuntimeTestBase<TF
         var after = await RuntimeAsync(slotId, ct);
         Assert.Equal(JobStatusCode.Ready, after.Status);
         Assert.Null(after.LeasedByWorkerId);
+    }
+
+    [Fact(DisplayName = "A survivor's monitor repairs the slot and runs the sweep itself, with no executor free and nothing restarted")]
+    public async Task Monitor_runs_the_sweep_on_capacity_that_is_not_the_executor_pool()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var slotId = await RecoverySlotIdAsync(ct);
+
+        // A worker died holding the recovery slot, and an ordinary job was stranded behind it. Nothing
+        // here runs a claim loop, so there is no executor to take either one: that is the saturated case
+        // the seven-minute bound is about, staged by having no pool at all rather than by filling one.
+        var stranded = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "chaos-counting", JobPayload.None), ct);
+        await StrandAsync(stranded.JobId, JobStatusCode.Executing, DateTime.UtcNow.AddMinutes(-5), ct);
+        await StrandAsync(slotId, JobStatusCode.Executing, DateTime.UtcNow.AddMinutes(-5), ct);
+
+        var registration = new WorkerRegistration(TestNamespace, null, null, [], []);
+        var context = new WorkerContext(registration);
+        context.NamespaceIds[TestNamespace] = TestNamespaceId;
+        context.RecoverySlotJobIdByNamespace[TestNamespaceId] = slotId;
+
+        var time = new ManualTimeProvider();
+        var monitor = new RecoverySlotMonitor(
+            Execution,
+            new WorkerWakeupPublisher(new RecordingWakeup()),
+            registration,
+            context,
+            NullLogger.Instance,
+            (ns, jobId, token) => Runtime.RunOnceAsync(ns, jobId, token),
+            time
+        );
+
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var loop = monitor.RunAsync(stop.Token);
+        await time.FirstTimerArmed.WaitAsync(SpecWaits.Gate, ct);
+        time.Advance(RecoverySlotMonitor.Interval);
+
+        // Re-arming the slot is not recovery; running the sweep is. The stranded job returning to Ready is
+        // the only thing that proves the pass actually executed on this worker.
+        // Each tick makes one by-id claim, and on SQL Server READPAST can skip that claim while another
+        // connection touches the row, so a tick occasionally runs no sweep. Production simply gets the
+        // next tick; the clock is moved on here for the same reason, so the fact tests that behaviour
+        // rather than one lucky claim. The bound stays the converge budget, not a tick count.
+        var deadline = DateTime.UtcNow + SpecWaits.Converge;
+        JobStatusCode strandedStatus;
+        do
+        {
+            strandedStatus = (await RuntimeAsync(stranded.JobId, ct)).Status;
+            if (strandedStatus == JobStatusCode.Ready)
+            {
+                break;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(50), ct);
+            time.Advance(RecoverySlotMonitor.Interval);
+        } while (DateTime.UtcNow < deadline);
+
+        Assert.Equal(JobStatusCode.Ready, strandedStatus);
+
+        // A tick that was already in flight when the stranded job turned Ready holds the slot's lease
+        // until its own sweep completes, so the slot is judged once that pass has settled.
+        JobRuntime slot;
+        do
+        {
+            slot = await RuntimeAsync(slotId, ct);
+            if (slot.LeasedByWorkerId is null)
+            {
+                break;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(50), ct);
+        } while (DateTime.UtcNow < deadline);
+
+        Assert.Null(slot.LeasedByWorkerId);
+
+        await stop.CancelAsync();
+        await loop.WaitAsync(SpecWaits.Gate, ct);
     }
 
     [Fact(DisplayName = "The monitor's own periodic loop repairs a stranded slot once its first delay elapses")]
@@ -227,6 +303,8 @@ public abstract class RecoverySlotMonitorSpec<TFixture> : ActaRuntimeTestBase<TF
             registration,
             context,
             NullLogger.Instance,
+            // Repair only: this fact is about the re-arm, and running the slot is a sibling fact's subject.
+            static (_, _, _) => Task.FromResult(RunOnceOutcome.NothingClaimed),
             time
         );
 
@@ -250,7 +328,53 @@ public abstract class RecoverySlotMonitorSpec<TFixture> : ActaRuntimeTestBase<TF
         await loop.WaitAsync(SpecWaits.Gate, ct);
     }
 
-    private Task<bool> CheckAsync(long slotId, CancellationToken ct) =>
+    [Fact(DisplayName = "A graceful drain lets a recovery pass the monitor started finish, and then ends the loop")]
+    public async Task Drain_finishes_a_running_pass_before_the_loop_ends()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var slotId = await RecoverySlotIdAsync(ct);
+
+        var registration = new WorkerRegistration(TestNamespace, null, null, [], []);
+        var context = new WorkerContext(registration);
+        context.NamespaceIds[TestNamespace] = TestNamespaceId;
+        context.RecoverySlotJobIdByNamespace[TestNamespaceId] = slotId;
+
+        // The pass is a stand-in that reports when it starts and finishes only when told to, so the
+        // fact can drain while it is running.
+        var passStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finishPass = new TaskCompletionSource<RunOnceOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var time = new ManualTimeProvider();
+        var monitor = new RecoverySlotMonitor(
+            Execution,
+            new WorkerWakeupPublisher(new RecordingWakeup()),
+            registration,
+            context,
+            NullLogger.Instance,
+            (_, _, _) =>
+            {
+                passStarted.TrySetResult();
+                return finishPass.Task;
+            },
+            time
+        );
+
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        using var drain = new CancellationTokenSource();
+        var loop = monitor.RunAsync(stop.Token, drain.Token);
+        await time.FirstTimerArmed.WaitAsync(SpecWaits.Gate, ct);
+        time.Advance(RecoverySlotMonitor.Interval);
+        await passStarted.Task.WaitAsync(SpecWaits.Gate, ct);
+
+        // Draining mid-pass must not end the loop, because the pass is still running on the host token.
+        await drain.CancelAsync();
+        await Task.Delay(TimeSpan.FromMilliseconds(200), ct);
+        Assert.False(loop.IsCompleted);
+
+        finishPass.SetResult(RunOnceOutcome.Completed);
+        await loop.WaitAsync(SpecWaits.Gate, ct);
+    }
+
+    private Task<RecoverySlotRepair> CheckAsync(long slotId, CancellationToken ct) =>
         RecoverySlotMonitor.CheckAndRepairAsync(
             Execution,
             publisher: null,

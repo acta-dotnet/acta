@@ -21,6 +21,14 @@ public sealed class PgClockSkewInitializationChaosSpec : ClockSkewInitialization
 
 public sealed class PgCompleteAndClockChaosSpec : CompleteAndClockChaosSpec<PgConformanceFixture>;
 
+public sealed class PgStartReconciliationChaosSpec : StartReconciliationChaosSpec<PgConformanceFixture>;
+
+public sealed class PgOrphanedClaimChaosSpec : OrphanedClaimChaosSpec<PgConformanceFixture>;
+
+public sealed class PgRecoveryUnderSaturationSpec : RecoveryUnderSaturationSpec<PgConformanceFixture>;
+
+public sealed class PgBufferedBackpressureOwnershipSpec : BufferedBackpressureOwnershipSpec<PgConformanceFixture>;
+
 public sealed class PgExecutionTimeoutSpec : ExecutionTimeoutSpec<PgConformanceFixture>;
 
 public sealed class PgInputDeserializationFailureSpec : InputDeserializationFailureSpec<PgConformanceFixture>;

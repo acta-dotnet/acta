@@ -1,0 +1,92 @@
+[
+  {
+    "Provider": "mssql",
+    "Major": 1,
+    "Revision": 1,
+    "Hash": "b51502fe69dbf8cfc0f677a2382cd2a1"
+  },
+  {
+    "Provider": "pg",
+    "Major": 1,
+    "Revision": 1,
+    "Hash": "e01a04e9499ab2c8ff4cd73b5e764328"
+  },
+  {
+    "Provider": "sqlite",
+    "Major": 1,
+    "Revision": 1,
+    "Hash": "fa7744573f6ec85034943f82b43de4e6"
+  },
+  {
+    "Provider": "mssql",
+    "Major": 1,
+    "Revision": 2,
+    "Hash": "ce6fecefe67ec1af4898a73834ce2b41"
+  },
+  {
+    "Provider": "pg",
+    "Major": 1,
+    "Revision": 2,
+    "Hash": "87603b253df7e1765b5f52e0250f49a2"
+  },
+  {
+    "Provider": "sqlite",
+    "Major": 1,
+    "Revision": 2,
+    "Hash": "fa7744573f6ec85034943f82b43de4e6"
+  },
+  {
+    "Provider": "mssql",
+    "Major": 1,
+    "Revision": 3,
+    "Hash": "e22cec8d66b8808220c8dda74a54fae3"
+  },
+  {
+    "Provider": "pg",
+    "Major": 1,
+    "Revision": 3,
+    "Hash": "97658e4a64a98c152723d537df2c2a9e"
+  },
+  {
+    "Provider": "sqlite",
+    "Major": 1,
+    "Revision": 3,
+    "Hash": "fa7744573f6ec85034943f82b43de4e6"
+  },
+  {
+    "Provider": "mssql",
+    "Major": 1,
+    "Revision": 4,
+    "Hash": "bc7ec9593820321bce2cf95fa3b3b5b6"
+  },
+  {
+    "Provider": "pg",
+    "Major": 1,
+    "Revision": 4,
+    "Hash": "ab31025ea7725a150057c783e56b161e"
+  },
+  {
+    "Provider": "sqlite",
+    "Major": 1,
+    "Revision": 4,
+    "Hash": "fa7744573f6ec85034943f82b43de4e6"
+  },
+  {
+    "Provider": "mssql",
+    "Major": 1,
+    "Revision": 5,
+    "Hash": "ae6eaecf6cb8883aa3721209cec353de"
+  },
+  {
+    "Provider": "pg",
+    "Major": 1,
+    "Revision": 5,
+    "Hash": "be37e59570f1eebb00ef47daf22e5f3c"
+  },
+  {
+    "Provider": "sqlite",
+    "Major": 1,
+    "Revision": 5,
+    "Hash": "fa7744573f6ec85034943f82b43de4e6"
+  }
+]

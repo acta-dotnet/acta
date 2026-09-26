@@ -14,9 +14,10 @@ DECLARE
     v_tenant INT;
     v_job_ref UUID;
     v_job_name VARCHAR;
+    v_parent_id BIGINT;
 BEGIN
-    SELECT r.status_code, j.namespace_id, j.definition_id, j.tenant_id, j.job_ref, d.name
-    INTO v_from_status, v_namespace_id, v_definition, v_tenant, v_job_ref, v_job_name
+    SELECT r.status_code, j.namespace_id, j.definition_id, j.tenant_id, j.job_ref, d.name, j.parent_id
+    INTO v_from_status, v_namespace_id, v_definition, v_tenant, v_job_ref, v_job_name, v_parent_id
     FROM {{schema}}.jobs j
     JOIN {{schema}}.runtimes r ON r.job_id = j.id
     JOIN {{schema}}.definitions d ON d.id = j.definition_id
@@ -34,8 +35,13 @@ BEGIN
     END IF;
 
     -- parent_id carries no DB FK/cascade; purging a job that has child jobs would orphan the child's
-    -- lineage (parent_id / lineage_root_id would point at a row that no longer exists), so reject.
-    IF EXISTS (SELECT 1 FROM {{schema}}.jobs c WHERE c.parent_id = p_id) THEN
+    -- lineage (parent_id / lineage_root_id would point at a row that no longer exists), so reject. A
+    -- completed child of a live parent is kept too: the parent's replay dedupes onto it and reads its result.
+    IF EXISTS (SELECT 1 FROM {{schema}}.jobs c WHERE c.parent_id = p_id)
+        OR EXISTS (
+            SELECT 1 FROM {{schema}}.runtimes p
+            WHERE p.job_id = v_parent_id
+              AND p.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)) THEN
         RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status;
         RETURN;
     END IF;

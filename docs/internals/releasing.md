@@ -17,17 +17,39 @@ nuget.org via Trusted Publishing (`publish-nuget` job in `ci.yml`, gated on the 
 - Dashboard `npm ci`, `npm test`, `npm run build`.
 - `dotnet run --project tools/Acta.Emit -- check`
 - `dotnet csharpier check .`
-- Schema guard, pre-1.0: a re-cut `M001` is allowed. `schema amend` stamps each provider's `M001`
-  with a hash of its own content and writes `src/Acta.Relational/Schema/BaselineStamps.g.cs` in the
-  same pass, so a database from any earlier cut refuses to start instead of taking the re-cut as a
-  no-op, and `Acta.Emit check` fails on a hand-edited `M001`. Nothing about the stamp is settled by
-  hand; it moves with every re-cut, however small, so the last re-cut of a release happens before
-  certification, never after.
-- The release notes name the changed objects and say that every provider's database must be dropped
-  and reprovisioned, since there is no upgrade path between generations before 1.0.
-- Schema/code-freeze guard, from 1.0.0: the release diff contains no M001 edits and no destructive
+- Schema/code-freeze guard: the release diff contains no M001 edits and no destructive
   migration statements, renumbered code pairs, retired-id reuse, or closed-family `255` assignments;
   schema changes ship only as additive `Mnnn` migrations.
+
+## Failure-boundary acceptance
+
+Throughput does not stand in for these, and neither does a clean rerun of a stall nobody explained.
+Each line names the evidence that carries it; a candidate ships with all of it recorded against the
+certified commit.
+
+- A completion write that keeps failing while the heartbeat still renews the lease settles once the
+  provider returns, on the same worker, with no restart: `CompleteAndClockChaosSpec` and
+  `WorkerCrashRecoveryChaosSpec` on every provider, `CompletionWriteTests` for the repeat itself, and
+  `CompletionSinkBulkFallbackSpec` for a Bulk batch whose failing entry holds up nobody else.
+- A completion that commits and loses its response is reconciled by the repeat, not rerun, and never
+  advances a recurring slot twice: the after-commit case in `CompleteAndClockChaosSpec`.
+- The recovery sweep runs while every executor is busy, because it runs outside the executor pool,
+  and a stranded `sys.recovery` slot is re-armed under a guard by any live worker:
+  `RecoverySlotMonitorSpec`.
+- Incidents at the failures-only audit level close on the success that answers the failure, and
+  only that one: `FailuresAuditFailureEventSpec` pins a first-claim success writing nothing, a
+  restarted success resolving, and a recurring slot resolving on its next fire and then staying
+  silent.
+- A build refuses a database whose installed object package it cannot call, and an older worker keeps
+  running on the upgraded objects: `ObjectPackagePreflightTests` and `MigrationHistoryPreflightSpec`
+  for the verdicts, and `tests/RollingUpgradeSmoke/run.ps1` against the previous tag on both servers
+  for the real pair of binaries. Its `evidence.json` must record a clean worktree and matching commits.
+- The packed packages deploy: `tests/PackageSmoke/run.ps1` on the final feed, then
+  `tests/DeploymentSmoke/run.ps1` on the same feed for the dashboard behind a real proxy with a path
+  base and an authorization policy. Its README says what the run does not cover.
+- Load with maintenance on: a `tests/HardeningSoak` run per server provider with autovacuum on and
+  retention sweeping under the workload, kept with its progress sidecar. Its README says how to read
+  the numbers; they are not a benchmark round.
 
 ## Frozen contracts
 
@@ -41,7 +63,8 @@ intended.** A regenerated baseline is indistinguishable from a deliberate one on
 | HTTP surface | `docs/reference/openapi.json` | `ACTA_EMIT_OPENAPI=1 dotnet test tests/Acta.Tests --filter OpenApiContractTests` |
 | Persisted codes | hash in `PersistedCodeContractTests` | re-pin the hash by hand |
 | Conformance docs | `docs/reference/conformance-contracts.md` | `ACTA_EMIT_DOCS=1 dotnet test tests/Acta.Tests --filter DocsContractTests` |
-| Baseline stamps | `src/Acta.Relational/Schema/BaselineStamps.g.cs`, one hash per provider `M001` | `dotnet run --project tools/Acta.Emit -- schema amend` (pre-1.0 only; from 1.0.0 a moved stamp means `M001` was edited and blocks the release) |
+| Baseline stamps | `src/Acta.Relational/Schema/BaselineStamps.g.cs`, one hash per provider `M001` | `dotnet run --project tools/Acta.Emit -- schema amend` (never after 1.0.0: a moved stamp means `M001` was edited, and that blocks the release) |
+| Object package | `src/Acta.Relational/Schema/ObjectPackageHashes.g.cs` and `object-packages.json`, one content hash per provider's installed views and routines | `dotnet run --project tools/Acta.Emit -- objects record` after any view or routine edit; `check` refuses a recorded identity whose content moved. An identity is frozen the moment it is recorded, deliberately: before the first release that costs a revision bump per edit rather than tracking what shipped |
 
 Before 1.0 a moved surface is allowed and belongs in the release notes. From 1.0 the .NET and HTTP
 surfaces are additive-only, so a diff that removes or renames a member is a 2.0 change and blocks the
@@ -71,8 +94,10 @@ Two commits carry a release, and their roles do not mix:
   evidence the release produced (seals, the benchmark and coverage pages, the certification index)
   and the release-notes header flip.
   `tools/release-guard.ps1 -CertifiedCommit <A> -TagCommit HEAD` runs before tagging and fails when
-  `A..B` touches anything outside `docs/certification/`, `docs/benchmarks/`, `docs/release-notes.md`,
-  `docs/README.md`, `site/` (the useacta.net benchmark strip cites the round), or this page.
+  `A..B` touches anything outside `docs/certification/`, `docs/benchmarks/`, `site/` (the useacta.net
+  benchmark strip cites the round), the Markdown under `docs/`, `README.md`, `llms.txt`, and the release
+  checks themselves (`tools/release-guard.ps1`, `tools/site-check.mjs`): prose and checks that no
+  binary compiles or packs, so a documentation correction found after certification does not move A.
 - A defect found by any of A's runs abandons A: the fix goes back through its slice, a new candidate is
   cut, and every piece of evidence is re-run against it. Evidence from an abandoned candidate is never
   reused for the next one.
@@ -85,14 +110,16 @@ what the rounds on this machine cost to learn.
 
 - Measure from a clean `git worktree` of the exact commit. The harness records `git status`, and an
   untracked file in the main tree marks every JSON of the round dirty.
-- Clean the bench databases first. `Anvil.Bench` creates a fresh schema per cell and never drops the
-  previous one, on PostgreSQL and SQL Server alike, so `acta-dev` accumulates thousands of
-  `anvil_bench_*` schemas after one `full` matrix (tens of gigabytes), and autovacuum then writes into
-  the drive for hours after the round ends. Drop them before and after a round: on PostgreSQL generate
-  `DROP SCHEMA ... CASCADE` from `pg_namespace` and run it through `psql -f`; on SQL Server a cursor
-  over `sys.schemas` that drops foreign keys, views, procedures, functions, tables, table types, and
-  sequences before the schema. Delete the SQLite bench files from the temp folder. Fixing the leak in
-  the harness is the better answer and is open.
+- Leave PostgreSQL autovacuum on. A round that needed the server's own maintenance disabled to look
+  good is not a round worth publishing, and the reason anyone wanted it off was a harness leak that is
+  now fixed: each cell drops its schema when its measurement is recorded, so a `full` matrix leaves
+  the reusable preflight probe and nothing else. Dropping is best effort, because a round that
+  measured cleanly must not be failed by its own cleanup; the harness says which schema it could not
+  drop, and a round interrupted part way can still leave some behind. Sweeping by hand is then the
+  same job it always was: on PostgreSQL generate `DROP SCHEMA ... CASCADE` from `pg_namespace` and run
+  it through `psql -f`; on SQL Server a cursor over `sys.schemas` that drops foreign keys, views,
+  procedures, functions, tables, table types, and sequences before the schema; and delete the
+  `acta-anvil-bench-*.db` files from the temp folder.
 - Check the drive at the host, not only `pg_test_fsync` inside the container: two hundred 8 KB writes
   each followed by `Flush(true)` in the temp folder give flushes per second for the drive the Docker
   disk image lives on. The bench machine's C: drive is QLC and drops from about 2,800 to 300-500
@@ -153,11 +180,12 @@ Each line names the evidence that asserts it; none is checked by hand.
   commit the tag points at. A tag is an immutable snapshot, so a header the tag captures as
   "(unreleased)" says that forever — `v1.0.0-rc.1` ships with exactly that wart, and the GitHub
   release links straight to it.
-- Preview compatibility policy stated in known limitations still matches the release.
+- The stability statement in known limitations still matches the release.
 
 ## After publishing
 
-- Create the GitHub pre-release from the tag (`gh release create v<version> --verify-tag --prerelease`),
+- Create the GitHub release from the tag (`gh release create v<version> --verify-tag`, adding
+  `--prerelease` only for a pre-release tag),
   titled with the bare version and carrying the notes' summary paragraph, the upgrade paragraph, the
   highlights, the evidence, and a link to the release-notes section at the tag, in the shape of the
   earlier releases. The packages publish without it; the release page is what a visitor reads.

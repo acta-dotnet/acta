@@ -174,6 +174,22 @@ internal static partial class SqlServerSchemaMigrator
     }
 
     /// <summary>
+    /// Drops the schema and everything in it, applying nothing after. The drop half of
+    /// <see cref="ResetSchemaAsync"/>, for a caller that wants the schema gone rather than fresh.
+    /// </summary>
+    public static async Task DropSchemaAsync(SqlConnection connection, string schemaName, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+        IdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
+        if (connection.State != ConnectionState.Open)
+        {
+            await connection.OpenAsync(ct);
+        }
+
+        await SchemaMigrationRunner.DropSchemaAsync(connection, schemaName, Hooks, ct);
+    }
+
+    /// <summary>
     /// The bounded bootstrap retries admit only documented transient conditions; a permanent
     /// configuration error (missing permission, syntax, definitively bad credentials) surfaces on the
     /// first attempt instead of burning the whole 30s budget. 1205 deadlock victim; 1807/5061

@@ -520,6 +520,10 @@ public static class BaselineCapture
         {
             return new CellResult(spec.Scenario, spec.ActualParams, Zero(), "skipped:db-unavailable", ex.Message);
         }
+        finally
+        {
+            await ProviderConn.TryDropSchemaAsync(spec.Provider, schema, ct).ConfigureAwait(false);
+        }
     }
 
     /// <summary>
@@ -1253,6 +1257,12 @@ public static class BaselineEnvironment
         var location = DatabaseLocation(provider, connectionString);
         var fingerprint = Fingerprint(provider, location);
         var serverVersion = await TryServerVersionAsync(provider, connectionString, ct).ConfigureAwait(false);
+        // Naming a schema is enough to create SQLite's file, and this probe only ever reads a version;
+        // the servers never provisioned it, so there is nothing of theirs to drop.
+        if (LocalDatabase.IsSqlite(provider))
+        {
+            await ProviderConn.TryDropSchemaAsync(provider, schema, ct).ConfigureAwait(false);
+        }
         return new BaselineDatabaseInfo(
             provider,
             serverVersion,

@@ -9,7 +9,14 @@ SELECT
     j.tenant_id,
     j.job_ref,
     d.name AS job_name,
-    CASE WHEN EXISTS (SELECT 1 FROM {{schema}}.jobs c WHERE c.parent_id = j.id) THEN 1 ELSE 0 END AS has_child
+    -- Held by lineage: a child row still points here, or this is a completed child of a live parent,
+    -- whose replay dedupes onto this row and reads its result.
+    CASE WHEN EXISTS (SELECT 1 FROM {{schema}}.jobs c WHERE c.parent_id = j.id)
+        OR EXISTS (
+            SELECT 1 FROM {{schema}}.runtimes p
+            WHERE p.job_id = j.parent_id
+              AND p.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
+        THEN 1 ELSE 0 END AS lineage_hold
 FROM {{schema}}.jobs j
 JOIN {{schema}}.runtimes r ON r.job_id = j.id
 JOIN {{schema}}.definitions d ON d.id = j.definition_id
@@ -25,7 +32,7 @@ CREATE TEMP TABLE _purge_events AS SELECT id FROM {{schema}}.events WHERE job_id
 
 DELETE FROM {{schema}}.tags
 WHERE
-    EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND s.has_child = 0)
+    EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND s.lineage_hold = 0)
     AND ((scope_code = 50 /* TagScopeCode.Job */ AND scope_id = @p_id)
         OR (scope_code = 60 /* TagScopeCode.Schedule */ AND scope_id IN (SELECT id FROM temp._purge_schedules))
         OR (scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM temp._purge_alerts))
@@ -34,17 +41,17 @@ WHERE
 DELETE FROM {{schema}}.events
 WHERE
     job_id = @p_id
-    AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.id = @p_id AND s.from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND s.has_child = 0);
+    AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.id = @p_id AND s.from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND s.lineage_hold = 0);
 
 DELETE FROM {{schema}}.alerts
 WHERE
     job_id = @p_id
-    AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.id = @p_id AND s.from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND s.has_child = 0);
+    AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.id = @p_id AND s.from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND s.lineage_hold = 0);
 
 DELETE FROM {{schema}}.jobs
 WHERE
     id = @p_id
-    AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.id = @p_id AND s.from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND s.has_child = 0);
+    AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.id = @p_id AND s.from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) AND s.lineage_hold = 0);
 
 INSERT INTO {{schema}}.events (
     event_code,
@@ -88,19 +95,19 @@ FROM temp._purge_job s
 WHERE
     s.id = @p_id
     AND s.from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-    AND s.has_child = 0;
+    AND s.lineage_hold = 0;
 
 SELECT
     CASE
         WHEN s.id IS NULL THEN 2 /* ControlAction.NotFound */
         WHEN s.from_status NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN 3 /* ControlAction.Rejected */
-        WHEN s.has_child = 1 THEN 3 /* ControlAction.Rejected */
+        WHEN s.lineage_hold = 1 THEN 3 /* ControlAction.Rejected */
         ELSE 1 /* ControlAction.Applied */
     END AS action,
     CASE
         WHEN s.id IS NULL THEN NULL
         WHEN s.from_status NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN s.from_status
-        WHEN s.has_child = 1 THEN s.from_status
+        WHEN s.lineage_hold = 1 THEN s.from_status
         ELSE NULL
     END AS status_code
 FROM (SELECT @p_id AS qid) q

@@ -2,8 +2,8 @@
 
 What is supported, on what, and how fixes ship.
 
-> Acta has not reached 1.0. Until then, the latest-version-only rule in [SECURITY.md](../SECURITY.md)
-> governs; this page states the policy that takes effect at 1.0.
+> The latest-version-only rule in [SECURITY.md](../SECURITY.md) governs fixes; this page states the
+> support policy in force from 1.0.
 
 ## Support matrix
 
@@ -42,3 +42,24 @@ separate reference. Repository tooling (`Acta.Emit`, `Acta.Doctor`) is not publi
 Fixes ship in the next published version of the latest minor only. There are no backports, no LTS
 branches, and no hotfix streams. Acta is maintained by one person, so the commitment is best-effort
 rather than a contractual SLA. Report security problems through [SECURITY.md](../SECURITY.md).
+
+If that maintainer stops, nothing stops with them. The code is Apache-2.0 and forkable, the packages
+call no hosted service, and every job, attempt, and schedule is a row in your own database that
+plain SQL reads without Acta installed.
+
+## Evidence behind the claims
+
+Everything that supports Acta's reliability and performance claims today is first-party: it was
+produced by the project, on the project's machine, and published in this repository.
+
+- The test suites: a fast unit gate and a conformance suite run against PostgreSQL, SQL Server, and
+  SQLite on every change ([CONTRIBUTING.md](../CONTRIBUTING.md)).
+- The certification seals: chaos runs that kill a worker every five seconds and then judge the
+  ledger with SQL, including one million jobs per server provider
+  ([certification](./certification/README.md)).
+- The benchmark rounds: full matrices against the previous release on one machine, with its caveats
+  stated on each page ([benchmarks](./benchmarks/stress-tests.md)).
+
+There is no independent evidence yet: no third-party audit, no published production case study, no
+benchmark someone else ran. If you run Acta in production, an issue describing the workload and what
+went right or wrong is the most useful contribution the project can receive.

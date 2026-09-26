@@ -42,6 +42,14 @@ BEGIN
                         SELECT 1 FROM {{schema}}.jobs c
                         WHERE c.parent_id = j.id
                     )
+                    -- A completed child of a live parent is kept: the parent's replay dedupes onto its row
+                    -- and reads its result, so purging it would run the child again. The tree drains once
+                    -- the parent is terminal.
+                    AND NOT EXISTS (
+                        SELECT 1 FROM {{schema}}.runtimes p
+                        WHERE p.job_id = j.parent_id
+                            AND p.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+                    )
                 ORDER BY r.retention_until_utc, r.job_id;
 
                 DELETE @schedule_del;

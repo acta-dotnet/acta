@@ -84,7 +84,7 @@ public sealed class SchemaMigrationChainTests
         await Apply(conn);
 
         var history = await HistoryAsync(conn);
-        Assert.Equal(3, history.Count);
+        Assert.Equal(4, history.Count); // baseline, two migrations, and the object package row
         Assert.Equal(FixtureStamp, history[0]);
         Assert.Equal("init", history[1]);
         Assert.Equal("add_widgets", history[2]);
@@ -99,7 +99,7 @@ public sealed class SchemaMigrationChainTests
         await Apply(conn);
         await Apply(conn);
 
-        Assert.Equal(3, (await HistoryAsync(conn)).Count);
+        Assert.Equal(4, (await HistoryAsync(conn)).Count);
     }
 
     [Fact]
@@ -151,6 +151,6 @@ public sealed class SchemaMigrationChainTests
 
         await Apply(conn);
 
-        Assert.Equal(4, (await HistoryAsync(conn)).Count);
+        Assert.Equal(5, (await HistoryAsync(conn)).Count);
     }
 }

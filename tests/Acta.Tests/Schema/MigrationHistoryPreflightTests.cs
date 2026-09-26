@@ -18,8 +18,15 @@ public sealed class MigrationHistoryPreflightTests
     // required value was derived.
     private const string ShippedStamp = "baseline-0123456789abcdef0123456789abcdef";
 
-    private static Dictionary<int, string> History(params (int Version, string Name)[] rows) =>
-        rows.ToDictionary(r => r.Version, r => r.Name);
+    // Every history here carries the object package row, because these facts are about the three history
+    // verdicts and a database missing that row is refused by the fourth for its own reasons. The package
+    // verdict has its own tests.
+    private static Dictionary<int, string> History(params (int Version, string Name)[] rows)
+    {
+        var history = rows.ToDictionary(r => r.Version, r => r.Name);
+        history[ObjectPackageStamp.HistoryVersion] = ObjectPackageStamp.Format(ObjectPackageHashes.ForDialect("sqlite"));
+        return history;
+    }
 
     private static void Verify(Dictionary<int, string> applied) =>
         MigrationHistoryPreflight.Verify(Shipped, applied, "sqlite", ShippedStamp);

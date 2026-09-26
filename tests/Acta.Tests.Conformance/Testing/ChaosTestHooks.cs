@@ -8,7 +8,8 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Acta.Tests.Conformance.Testing;
 
-internal sealed class InjectedProviderError() : System.Data.Common.DbException("Injected provider error before CompleteExecution.");
+internal sealed class InjectedProviderError(string where = "before CompleteExecution")
+    : System.Data.Common.DbException($"Injected provider error {where}.");
 
 internal sealed class StoreFaultPlan
 {
@@ -25,7 +26,67 @@ internal sealed class StoreFaultPlan
 
     public void ThrowAfterCompleteOnce() => Interlocked.Exchange(ref _throwAfterComplete, 1);
 
+    /// <summary>
+    /// Turns back every completion until cleared, and counts the refusals. The write is repeated until it
+    /// lands or the worker stops, so a fact about a completion that does not land has to keep refusing it:
+    /// a single throw is now just a blip the repeat rides out.
+    /// </summary>
+    public void ThrowBeforeCompleteUntilCleared() => Interlocked.Exchange(ref _throwBeforeCompleteUntilCleared, 1);
+
+    public void StopThrowingBeforeComplete() => Interlocked.Exchange(ref _throwBeforeCompleteUntilCleared, 0);
+
+    public int CompletionRefusals => Volatile.Read(ref _completionRefusals);
+
+    /// <summary>
+    /// Narrows every completion fault to one job. A flush settles its entries side by side, so a fault
+    /// that matched by call order would land on whichever entry reached the store first and a fact about
+    /// one stranded job could name a different one on the next run.
+    /// </summary>
+    public void FailOnlyJob(long jobId) => Interlocked.Exchange(ref _failOnlyJob, jobId);
+
+    private int _throwBeforeCompleteUntilCleared;
+    private int _completionRefusals;
+    private long _failOnlyJob;
+
     public void SkewGetUtcNowBy(TimeSpan skew) => _getUtcNowSkew = skew;
+
+    private Func<Task>? _beforeStart;
+    private int _throwAfterStart;
+    private int _throwGetUtcNow;
+
+    /// <summary>Runs <paramref name="action"/> once, between an attempt's claim and its start write.</summary>
+    public void RunBeforeStartOnce(Func<Task> action) => Interlocked.Exchange(ref _beforeStart, action);
+
+    /// <summary>Lets the next start write commit and then loses its answer, the way a dropped connection would.</summary>
+    public void ThrowAfterStartOnce() => Interlocked.Exchange(ref _throwAfterStart, 1);
+
+    private int _throwAfterClaim;
+
+    /// <summary>Lets the next claim commit and then loses its answer: the rows are leased and nothing holds them.</summary>
+    public void ThrowAfterClaimOnce() => Interlocked.Exchange(ref _throwAfterClaim, 1);
+
+    public void MaybeThrowAfterClaim()
+    {
+        if (Interlocked.Exchange(ref _throwAfterClaim, 0) == 1)
+        {
+            throw new InjectedProviderError("after the claim");
+        }
+    }
+
+    /// <summary>Fails the next database clock read with a provider error.</summary>
+    public void ThrowGetUtcNowOnce() => Interlocked.Exchange(ref _throwGetUtcNow, 1);
+
+    public Task RunBeforeStartAsync() => Interlocked.Exchange(ref _beforeStart, null) is { } action ? action() : Task.CompletedTask;
+
+    public void MaybeThrowAfterStart()
+    {
+        if (Interlocked.Exchange(ref _throwAfterStart, 0) == 1)
+        {
+            throw new InjectedProviderError("after StartExecution");
+        }
+    }
+
+    public bool TakeGetUtcNowFault() => Interlocked.Exchange(ref _throwGetUtcNow, 0) == 1;
 
     /// <summary>
     /// Runs <paramref name="action"/> once, inside the window between an attempt deciding its outcome
@@ -39,9 +100,15 @@ internal sealed class StoreFaultPlan
     /// </remarks>
     public void RunBeforeCompleteOnce(Func<Task> action) => Interlocked.Exchange(ref _beforeComplete, action);
 
-    public void MaybeThrowBefore(string operation)
+    public void MaybeThrowBefore(string operation, long jobId)
     {
         if (operation != "CompleteExecution")
+        {
+            return;
+        }
+
+        var only = Interlocked.Read(ref _failOnlyJob);
+        if (only != 0 && jobId != only)
         {
             return;
         }
@@ -49,6 +116,12 @@ internal sealed class StoreFaultPlan
         if (Interlocked.Exchange(ref _beforeComplete, null) is { } action)
         {
             action().GetAwaiter().GetResult();
+        }
+
+        if (Volatile.Read(ref _throwBeforeCompleteUntilCleared) == 1)
+        {
+            Interlocked.Increment(ref _completionRefusals);
+            throw new InjectedProviderError();
         }
 
         switch (Interlocked.Exchange(ref _throwBeforeComplete, 0))
@@ -88,7 +161,7 @@ internal sealed class FaultInjectingExecutionStore(IExecutionStore inner, StoreF
 {
     public async Task<CompleteExecutionResult> CompleteExecutionAsync(CompleteExecutionRequest request, CancellationToken ct)
     {
-        plan.MaybeThrowBefore("CompleteExecution");
+        plan.MaybeThrowBefore("CompleteExecution", request.JobId);
         var result = await inner.CompleteExecutionAsync(request, ct);
         plan.MaybeThrowAfter("CompleteExecution");
         return result;
@@ -113,20 +186,34 @@ internal sealed class FaultInjectingExecutionStore(IExecutionStore inner, StoreF
         CancellationToken ct
     ) => inner.ArmOrConsumeSleepTimerAsync(command, ct);
 
-    public Task<ClaimResult> ClaimBatchAsync(ClaimRequest request, int leaseTtlSeconds, CancellationToken ct) =>
-        inner.ClaimBatchAsync(request, leaseTtlSeconds, ct);
+    public async Task<ClaimResult> ClaimBatchAsync(ClaimRequest request, int leaseTtlSeconds, CancellationToken ct)
+    {
+        var result = await inner.ClaimBatchAsync(request, leaseTtlSeconds, ct);
+        plan.MaybeThrowAfterClaim();
+        return result;
+    }
 
-    public Task<ClaimResult> ClaimOneAsync(ClaimRequest request, int leaseTtlSeconds, long? jobId, CancellationToken ct) =>
-        inner.ClaimOneAsync(request, leaseTtlSeconds, jobId, ct);
+    public async Task<ClaimResult> ClaimOneAsync(ClaimRequest request, int leaseTtlSeconds, long? jobId, CancellationToken ct)
+    {
+        var result = await inner.ClaimOneAsync(request, leaseTtlSeconds, jobId, ct);
+        plan.MaybeThrowAfterClaim();
+        return result;
+    }
 
-    public Task<StartExecutionAction> StartExecutionAsync(
+    public async Task<StartExecutionAction> StartExecutionAsync(
         long jobId,
         int workerId,
         int expectedExecutionNumber,
         int expectedVersion,
         int leaseTtlSeconds,
         CancellationToken ct
-    ) => inner.StartExecutionAsync(jobId, workerId, expectedExecutionNumber, expectedVersion, leaseTtlSeconds, ct);
+    )
+    {
+        await plan.RunBeforeStartAsync();
+        var action = await inner.StartExecutionAsync(jobId, workerId, expectedExecutionNumber, expectedVersion, leaseTtlSeconds, ct);
+        plan.MaybeThrowAfterStart();
+        return action;
+    }
 
     public Task<IReadOnlyList<bool>> CompleteExecutionsBatchAsync(IReadOnlyList<CompleteExecutionRequest> requests, CancellationToken ct) =>
         inner.CompleteExecutionsBatchAsync(requests, ct);
@@ -148,7 +235,9 @@ internal sealed class FaultInjectingExecutionStore(IExecutionStore inner, StoreF
 internal sealed class FaultInjectingClock(IServerClock inner, StoreFaultPlan plan) : IServerClock
 {
     public ValueTask<DateTime> GetUtcNowAsync(CancellationToken ct) =>
-        plan.TryReadSkewedGetUtcNow(out var skewed) ? new ValueTask<DateTime>(skewed) : inner.GetUtcNowAsync(ct);
+        plan.TakeGetUtcNowFault() ? throw new InjectedProviderError("on the clock read")
+        : plan.TryReadSkewedGetUtcNow(out var skewed) ? new ValueTask<DateTime>(skewed)
+        : inner.GetUtcNowAsync(ct);
 }
 
 internal static class ChaosServiceCollectionExtensions

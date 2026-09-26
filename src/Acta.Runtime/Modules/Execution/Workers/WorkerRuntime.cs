@@ -129,7 +129,21 @@ internal sealed class WorkerRuntime
             metrics,
             completionSink
         );
-        _heartbeat = new WorkerHeartbeat(rootServices.GetRequiredService<IWorkerStore>(), options, workerRegistration, _context, logger);
+        _heartbeat = new WorkerHeartbeat(
+            rootServices.GetRequiredService<IWorkerStore>(),
+            options,
+            workerRegistration,
+            _context,
+            logger,
+            // A renewed row nothing in this process accounts for is a claim whose answer was lost after
+            // it committed; the executor walks it back to Ready the way it releases an unsupported claim.
+            (jobIds, token) =>
+                _executor.ReleaseOrphanedClaimsAsync(
+                    jobIds,
+                    "The claim's answer was lost after it committed; nothing ran, and the job returns to Ready.",
+                    token
+                )
+        );
         _lockHeartbeat = new LockLeaseHeartbeat(lockStore, options, workerRegistration, _context, logger);
         _watchdog = new AttemptWatchdog(options, workerRegistration, _context, logger);
         _recoveryMonitor = new RecoverySlotMonitor(
@@ -137,7 +151,10 @@ internal sealed class WorkerRuntime
             publisher,
             workerRegistration,
             _context,
-            logger
+            logger,
+            // RunOnceAsync claims and executes without taking an executor permit, which is what lets the
+            // sweep run on a worker whose executors are all busy.
+            (namespaceName, slotJobId, token) => _executor.RunOnceAsync(namespaceName, slotJobId, token)
         );
         _policyReloader = new DefinitionPolicyReloader(
             rootServices.GetRequiredService<IDefinitionStore>(),
@@ -193,16 +210,17 @@ internal sealed class WorkerRuntime
     /// </summary>
     public Task RunAsync(CancellationToken ct)
     {
-        // The loop's producer stops on _drainCts (graceful drain) or ct (hard stop); the renewers, watchdog
-        // and in-flight execution run on ct, so a drain finishes in-flight work before the loop returns. The
-        // loop task is held so the host can await that drain via DrainCompletion.
-        DrainCompletion = _loop.RunLoopAsync(ct, _drainCts.Token);
+        // The loop's producer and the recovery monitor's checks stop on _drainCts (graceful drain) or ct
+        // (hard stop); the renewers, watchdog and in-flight execution run on ct, so a drain finishes
+        // in-flight work, including a recovery pass the monitor started, before DrainCompletion completes.
+        var loop = _loop.RunLoopAsync(ct, _drainCts.Token);
+        var monitor = _recoveryMonitor.RunAsync(ct, _drainCts.Token);
+        DrainCompletion = Task.WhenAll(loop, monitor);
         return Task.WhenAll(
             DrainCompletion,
             _heartbeat.RunAsync(ct),
             _lockHeartbeat.RunAsync(ct),
             _watchdog.RunAsync(ct),
-            _recoveryMonitor.RunAsync(ct),
             _policyReloader.RunAsync(ct)
         );
     }

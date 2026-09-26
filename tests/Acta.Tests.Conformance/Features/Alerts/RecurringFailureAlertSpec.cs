@@ -95,22 +95,16 @@ public abstract class RecurringFailureAlertSpec<TFixture> : ActaRuntimeTestBase<
 
     private Task<long> SlotIdAsync(CancellationToken ct) => AlertTestOps.RecurringSlotIdAsync(Services, TestNamespace, JobName, ct);
 
-    /// <summary>
-    /// One fire of the slot whose handler throws. A claim can be lost to provider timing, so the loop
-    /// is driven by the handler's own fire count rather than by <c>RunOnceAsync</c>'s return: the
-    /// handler records the fire before it throws, making the count the one signal that the attempt
-    /// really ran.
-    /// </summary>
-    private async Task FailOneFireAsync(long slotId, int expectedFires, CancellationToken ct)
-    {
-        await AlertTestOps.MakeSlotClaimableAsync(Services, slotId, ct);
-        for (var i = 0; i < 12 && RecurringPingHandler.TriggersFor(TestNamespace).Count < expectedFires; i++)
-        {
-            await Runtime.RunOnceAsync(slotId, ct);
-        }
-
-        Assert.Equal(expectedFires, RecurringPingHandler.TriggersFor(TestNamespace).Count);
-    }
+    // The handler records the fire before it throws, so the count says the attempt really ran.
+    private Task FailOneFireAsync(long slotId, int expectedFires, CancellationToken ct) =>
+        AlertTestOps.FireSlotUntilAsync(
+            Services,
+            Runtime,
+            slotId,
+            () => RecurringPingHandler.TriggersFor(TestNamespace).Count,
+            expectedFires,
+            ct
+        );
 
     private Task RunAlertsAsync(long cursorOwnerJobId, CancellationToken ct) =>
         AlertTestOps.RunAlertsJobAsync(Services, TestNamespace, NamespaceId, cursorOwnerJobId, options: null, drain: null, ct);

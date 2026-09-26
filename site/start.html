@@ -19,9 +19,19 @@
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="preload" href="assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="assets/fonts/ibm-plex-mono-400-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <style>
+    /* Self-hosted latin subsets of the three families, preloaded and served immutable (see _headers),
+       so a reload paints them from cache with no swap and a first visit swaps them in as they land.
+       Fraunces and Plex Sans are variable files. */
+    @font-face { font-family: "Fraunces"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(assets/fonts/fraunces-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "Fraunces"; font-style: italic; font-weight: 400 500; font-display: swap; src: url(assets/fonts/fraunces-italic-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(assets/fonts/ibm-plex-sans-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(assets/fonts/ibm-plex-mono-400-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url(assets/fonts/ibm-plex-mono-500-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  </style>
   <style>
     :root {
       --bg: #0B0E15;
@@ -206,13 +216,14 @@
     <header class="wrap page-head">
       <p class="record">get started · five minutes</p>
       <h1>Run your first durable job in five minutes.</h1>
-      <p class="lede">ASP.NET Core, embedded SQLite, one job, and the Acta dashboard. No Docker, no database server, nothing to provision — the only prerequisite is the .NET 10 SDK. Two equally good doors: hand a prompt to your AI agent, or type it yourself.</p>
+      <p class="lede">ASP.NET Core, embedded SQLite, one job, and the Acta dashboard. No Docker, no database server, nothing to provision; the only prerequisite is the .NET 10 SDK. Two equally good doors: hand a prompt to your AI agent, or type it yourself.</p>
+      <p class="also">New to Acta and want the why behind every line? <a href="/learn">Learn Acta: the first-time tutorial</a></p>
     </header>
 
     <section class="wrap">
       <p class="record">Door one</p>
       <h2>Create it with AI.</h2>
-      <p class="lede">Copy a prompt, paste it into your coding agent, done. The agent finds everything it needs from <code>useacta.net</code> — you never need to know how.</p>
+      <p class="lede">Copy a prompt, paste it into your coding agent, done. The agent finds everything it needs from <code>useacta.net</code>; you never need to know how.</p>
       <div class="prompt">
         <button class="button" data-copy-target="#prompt-short">Copy prompt</button>
         <pre id="prompt-short">Use useacta.net to add Acta here.
@@ -243,8 +254,8 @@ Restore, build, start the app, run the job once, and tell me how to open the das
       <h2>By hand: three commands, one file.</h2>
       <div class="code-card">
         <pre><code>dotnet new web -n Shipping &amp;&amp; cd Shipping
-dotnet add package Acta.Sqlite --prerelease
-dotnet add package Acta.AspNetCore --prerelease</code></pre>
+dotnet add package Acta.Sqlite
+dotnet add package Acta.AspNetCore</code></pre>
       </div>
       <p class="lede">Replace <code>Program.cs</code> with this, all of it:</p>
       <div class="code-card">
@@ -282,26 +293,28 @@ public static class ShippingHandlers
 }</code></pre>
       </div>
       <p class="lede"><code>dotnet run</code>, and success looks like this:</p>
-      <ul class="checks">
-        <li><span class="ok">✓</span>Application running</li>
-        <li><span class="ok">✓</span>Job completed — <code>Shipping order 1042</code> in the console</li>
-        <li><span class="ok">✓</span>Dashboard open at <code>/acta</code>, the completed job the first row</li>
-      </ul>
-      <p class="also">The job was a row in <code>acta-local.db</code> before it was a method call. Swap <code>UseSqlite</code> for <code>UsePostgres</code> or <code>UseSqlServer</code> and nothing else changes.</p>
+      <div class="code-card">
+        <pre>Enqueued. Dashboard: http://localhost:5090/acta
+Shipping order 1042</pre>
+      </div>
+      <p class="lede">Your port may differ; use the one printed. Open that URL: the Jobs count reads 1, and the Jobs screen lists <code>ship-order</code> as completed. Ctrl+C stops the app.</p>
+      <p class="also"><code>ShippingJobs</code> is generated: the last segment of your project's root namespace plus <code>Jobs</code>. Name the project <code>Orders</code> and it is <code>OrdersJobs</code>.</p>
+      <p class="also">The job was a row in <code>acta-local.db</code> before it was a method call. Swap the package and <code>UseSqlite</code> for <code>UsePostgres</code> or <code>UseSqlServer</code>, point the connection string at your server, and nothing else changes.</p>
     </section>
 
     <section class="wrap">
       <p class="record">Existing app?</p>
       <h2>Add Acta to what you already run.</h2>
       <p class="lede">Keep your host and your database. Add the provider package that matches your server (<code>Acta.Postgres</code>, <code>Acta.SqlServer</code>, or <code>Acta.Sqlite</code>), register with your existing connection string, and put one real job behind <code>[Job("...")]</code>. Handlers resolve through DI, so your services inject as they always did. Production schema comes from a deploy step, never from startup migration.</p>
-      <p class="also">Separate API and worker processes? See <a href="https://github.com/acta-dotnet/acta/blob/main/docs/quickstart.md">the quickstart's split-deployment notes</a>.</p>
+      <p class="also">Separate API and worker processes? The worker calls <code>Run&lt;TManifest&gt;</code>; a process that only enqueues calls <code>Reference&lt;TManifest&gt;</code>. See <a href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/configuration.md#wiring-shape">Wiring shape</a>.</p>
     </section>
 
     <section class="wrap">
       <p class="record">Next</p>
       <h2>What to learn after the first job.</h2>
       <div class="actions">
-        <a class="button primary" href="https://github.com/acta-dotnet/acta/tree/main/concepts">Explore the runnable concepts</a>
+        <a class="button primary" href="/learn">Learn Acta: the first-time tutorial</a>
+        <a class="button" href="https://github.com/acta-dotnet/acta/tree/main/concepts">Explore the runnable concepts</a>
         <a class="button" href="https://github.com/acta-dotnet/acta/blob/main/docs/quickstart.md">The full quickstart</a>
         <a class="button" href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/concepts.md">Retries, steps, and waits</a>
         <a class="button" href="https://github.com/acta-dotnet/acta/blob/main/docs/guide/operator-guide.md">Running it in production</a>

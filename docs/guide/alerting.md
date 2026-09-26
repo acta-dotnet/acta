@@ -22,11 +22,16 @@ Four consequences an operator sees:
 
 - **Alerts are not written at failure time.** The row appears on the next tick that finds the
   event past the projection horizon: generate only reads events older than twice the provider
-  `CommandTimeout` (one minute on defaults), which is what makes the walk lossless — an event id
-  can commit out of order, but never later than its writing statement's own timeout, so by the
-  time the horizon passes an event, everything before it is settled. Worst case on defaults is
-  therefore about two minutes from failure to row: up to a minute maturing past the horizon, plus
-  the tick cadence. The horizon scales with `CommandTimeout` if you raise it.
+  `CommandTimeout` (one minute on defaults). An event id can commit out of order, and the horizon
+  is sized so that a writer which abandons its statement at its own command timeout has either
+  committed or given up before the projector walks past that point. The horizon is a heuristic on
+  that behaviour, not a proof of it. A command timeout is the client giving up its wait, not the
+  server aborting the transaction, so a writer host that freezes can still commit after the horizon
+  has passed its event, and that event is then skipped;
+  [known limitations](../technical/known-limitations.md) covers what that costs. Where writers do
+  honour their own timeouts, the worst case on defaults is about two minutes from failure to row:
+  up to a minute maturing past the horizon, plus the tick cadence. The horizon scales with
+  `CommandTimeout` if you raise it.
 - **Generate and deliver share a pass**, so a row raised in a pass is normally sent in the same pass.
 - **Generate drains up to 10,240 events per pass; deliver stays at 256.** Generate reads batches of
   256 in an inner loop bounded by 40 batches or 30 seconds of elapsed time, whichever comes first
@@ -35,11 +40,14 @@ Four consequences an operator sees:
   so the batch in flight always finishes. Deliver is deliberately not drained the same way and stays
   at 256 transport attempts per pass (`AlertsJob.DeliverBatchSize`): pushing ten thousand webhooks
   through one tick would trade a database problem for an outage on the operator's own channel. A
-  namespace that outruns either bound falls behind. Nothing is lost, for two reasons that guard two
-  different failure shapes: the projection horizon guarantees generate never walks past an event
-  still waiting on an open transaction, and the durable cursor — written after **every** completed
-  batch — guarantees a pass cut short by a bound, a crash, or the framework's 300 s execution
-  timeout keeps everything it already projected. The lag grows until the burst clears.
+  namespace that outruns either bound falls behind. Falling behind is lag, not loss, for two
+  reasons that guard two different failure shapes: the projection horizon keeps generate from
+  walking past an event still waiting on an open transaction, and the durable cursor — written
+  after **every** completed batch — keeps everything a pass already projected when that pass is cut
+  short by a bound, a crash, or the framework's 300 s execution timeout. The lag grows until the
+  burst clears. Neither guard covers the two skips named in
+  [known limitations](../technical/known-limitations.md), a writer that commits past the horizon
+  and a database clock that steps backwards; both cost a missed alert, never a wrong ledger.
 - **Generate walks `events` forward from a durable cursor** kept on the slot's own variable bag
   (`AlertsJob.CursorVariableName`, `AlertsJob.GenerateAsync`). The cursor is the pair
   `(created_at_utc, id)` in one variable, never the id alone: the stamp is set inside the writing
@@ -61,22 +69,40 @@ failure retains the cursor and retries the pass. Those variables are forensics, 
 
 ## What projects an alert
 
-Only `job.execution-finished` events, and only three shapes of them (`GetAlertableEvents.sql`):
+Only `job.execution-finished` events, and only four shapes of them (`GetAlertableEvents.sql`):
 
 | Event shape | `to_status` | Reason code | Treated as |
 | --- | --- | --- | --- |
 | Terminal failure | `Failed` (200) | any | Terminal failure |
 | Re-arm after a failed attempt | `Ready` (10) | `job.unhandled-exception` (20), `job.lease-expired` (21), `job.execution-timeout` (22) | Non-terminal failure |
+| Reclaim's uncharged arm, a lease lost while an expired wait was resolving | `Suspended` (20) | `job.lease-expired` (21) | Non-terminal failure |
 | Successful execution | any | any | Resolution |
 
 All of this rides the event stream, so the job's `AuditLevel` decides whether alerting can see the job
-at all. The default `Audit` writes every `job.execution-finished`; **`AuditLevel = Failures` writes it
-only for terminal, non-re-arm failures** (`CompleteExecution.routine.sql`). Under `Failures` there are
-no re-arm events — so `FirstFailure` and `ThresholdReached` never fire — and no success events — so
-automatic resolution never runs, and a `FinalFailure` raised for a job an operator later restarts to
-success stays open until resolved by hand. A job that opts down to `Failures` keeps exactly one working
-alert shape, `FinalFailure`, with no self-resolution. The full alert lifecycle requires the default
-audit level.
+at all. The default `Audit` writes every `job.execution-finished`. **`AuditLevel = Failures` writes it
+for a failed attempt that carries no reschedule** (`CompleteExecution.routine.sql`): not a success,
+not an attempt the job is being re-armed from, and not a handler that cancelled or paused its own
+job. Two things follow, and the first one surprises people.
+
+A one-shot job's retries are invisible at this level. An in-budget retry re-arm is a reschedule as
+far as completion is concerned, so a job that throws four times and succeeds on the fifth writes
+nothing at all, and one that throws until its budget is gone writes a single terminal `Failed`,
+which raises `FinalFailure`. `AlertProfile.FirstFailure` and `AlertProfile.ThresholdReached` never
+fire for a one-shot's own throws here. Two shapes do reach alerting: a **recurring** slot's failed
+fire carries no reschedule, so its `Ready` rollover under `job.unhandled-exception` is written and
+raises `FirstFailure`, which is the unwatched-nightly-job case working as intended; and
+`reclaim_stuck_jobs` writes its lease-expiry event at `Failures` as well as at `Audit`, so a worker
+that dies holding a job is heard. Everything else stays quiet: a handler that sleeps, waits on a
+signal, or reschedules itself, and a handler that cancels or pauses its own job.
+
+A success at `Failures` is written when it answers a recorded failure: completion reads the job's
+newest `job.execution-finished` row and writes the success only when that row is not itself a
+success. So a job that never failed writes nothing, a healthy recurring slot writes nothing
+occurrence after occurrence, and the one success that follows a recorded failure is on the stream
+for the projector to resolve the incident from. That covers a `FinalFailure` for a job someone later
+restarts to success, a recurring slot's `FirstFailure` once the next fire succeeds, and `sys.alerts`'
+own incident, since it runs at `Failures` itself. The evidence is the failure event, so
+`AlertRetention` may not exceed `JobEventsRetention`; startup refuses the pair otherwise.
 
 Everything else is invisible to alerting. Two exclusions are worth stating outright:
 
@@ -175,9 +201,9 @@ A successful execution resolves that job's open automatic alerts and writes noth
   success, where the second failure opens a fresh incident on the same key (the first is already
   resolved); resolving each success is what keeps that second incident from lingering unresolved
   (`AlertsJob.ProjectAsync`).
-- **Dependent on the success event existing.** `AuditLevel = Failures` suppresses success events at the
-  source (see [What projects an alert](#what-projects-an-alert)), so under it nothing ever drives this
-  path — recovery does not resolve, whatever the profile's description promises.
+- **Dependent on the success event existing.** `AuditLevel = Failures` writes a success only when
+  it answers a recorded failure (see [What projects an alert](#what-projects-an-alert)), which is
+  exactly the success this path needs; the healthy successes it drops had nothing to resolve.
 
 Manual alerts are a separate path throughout — separate by key, not by wall. `ctx.AlertAsync`
 writes `origin = Manual`, `kind = Manual` (`JobContext.AlertAsync`,

@@ -34,3 +34,5 @@ public sealed class SqliteAlertProjectionDrainSpec : AlertProjectionDrainSpec<Sq
 public sealed class SqliteAlertProjectionSafeHorizonSpec : AlertProjectionSafeHorizonSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteRecurringFailureAlertSpec : RecurringFailureAlertSpec<SqliteConformanceFixture>;
+
+public sealed class SqliteFailuresAuditFailureEventSpec : FailuresAuditFailureEventSpec<SqliteConformanceFixture>;
