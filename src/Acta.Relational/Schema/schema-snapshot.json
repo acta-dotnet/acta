@@ -304,6 +304,10 @@
             "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
           },
           {
+            "Name": "lane",
+            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
             "Name": "backoff",
             "Signature": "UnicodeString|64|0|0|False|None||coded=False|codeKind=|values="
           },
@@ -548,11 +552,11 @@
           },
           {
             "Name": "from_status_code",
-            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-status|values=10,20,30,40,50,100,200,220"
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-status|values=10,15,20,30,40,50,100,200,220"
           },
           {
             "Name": "to_status_code",
-            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-status|values=10,20,30,40,50,100,200,220"
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-status|values=10,15,20,30,40,50,100,200,220"
           },
           {
             "Name": "execution_status_code",
@@ -697,6 +701,36 @@
         "ForeignKeys": []
       },
       {
+        "Table": "lanes",
+        "PrimaryKey": "pk_lanes(id)|manual=False|seq=False",
+        "Columns": [
+          {
+            "Name": "id",
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "namespace_id",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "name",
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "created_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          }
+        ],
+        "Indexes": [
+          {
+            "Name": "ux_lanes_namespace_name",
+            "Signature": "U|cols=namespace_id,name|inc=|desc=|filter=|seq=False"
+          }
+        ],
+        "Checks": [],
+        "ForeignKeys": []
+      },
+      {
         "Table": "locks",
         "PrimaryKey": "pk_locks(lock_key)|manual=False|seq=False",
         "Columns": [
@@ -828,8 +862,12 @@
             "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
           },
           {
+            "Name": "lane_id",
+            "Signature": "Int64|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
             "Name": "status_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-status|values=10,20,30,40,50,100,200,220"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-status|values=10,15,20,30,40,50,100,200,220"
           },
           {
             "Name": "priority_code",
@@ -874,6 +912,10 @@
             "Signature": "I|cols=namespace_id,priority_code,next_run_at_utc,job_id,status_code|inc=|desc=priority_code|filter=status_code IN (10, 20)|seq=False"
           },
           {
+            "Name": "ix_runtimes_lane",
+            "Signature": "I|cols=lane_id,job_id|inc=|desc=|filter=lane_id IS NOT NULL AND status_code IN (10, 15, 20, 30, 40, 50)|seq=False"
+          },
+          {
             "Name": "ix_runtimes_retention",
             "Signature": "I|cols=namespace_id,retention_until_utc,job_id|inc=|desc=|filter=retention_until_utc IS NOT NULL AND status_code IN (100, 200, 220)|seq=True"
           },
@@ -883,6 +925,10 @@
           }
         ],
         "Checks": [
+          {
+            "Name": "ck_runtimes_blocked_lane",
+            "Sql": "status_code \u003C\u003E 15 OR lane_id IS NOT NULL"
+          },
           {
             "Name": "ck_runtimes_counters",
             "Sql": "execution_number \u003E= 0 AND failure_count \u003E= 0"
@@ -908,6 +954,10 @@
           {
             "Name": "fk_runtimes_jobs",
             "Signature": "job_id-\u003EActa.Relational.Entities.Job.id|Cascade"
+          },
+          {
+            "Name": "fk_runtimes_lanes",
+            "Signature": "lane_id-\u003EActa.Relational.Entities.JobLane.id|NoAction"
           }
         ]
       },
@@ -1514,6 +1564,7 @@
         "CodeKind": "job-status",
         "ValueIds": [
           10,
+          15,
           20,
           30,
           40,

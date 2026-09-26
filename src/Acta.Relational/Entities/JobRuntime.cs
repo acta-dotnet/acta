@@ -24,6 +24,13 @@ namespace Acta.Relational.Entities;
     Column = "job_id",
     OnDelete = DbForeignKeyAction.Cascade
 )]
+[DbForeignKey(
+    Name = "fk_runtimes_lanes",
+    Target = typeof(JobLane),
+    TargetColumn = "id",
+    Column = "lane_id",
+    OnDelete = DbForeignKeyAction.NoAction
+)]
 // Covers both claimable statuses: Ready rows, and Suspended rows carrying a durable wait's expiration
 // in next_run_at_utc. A Suspended row with a NULL next_run_at_utc is an unbounded wait and stays
 // unclaimable, which the claim predicate enforces; the index only has to admit the candidates.
@@ -55,6 +62,18 @@ namespace Acta.Relational.Entities;
     Filter = "leased_by_worker_id IS NOT NULL AND status_code IN (40, 50)",
     Usage = "heartbeat"
 )]
+// A lane's unfinished members, in job-id order: enqueue asks whether the lane has one, and a settle
+// finds the lowest-id Blocked member to promote. The filter lists the unfinished statuses positively,
+// because a SQL Server filtered index accepts IN but not NOT IN, and every query that must use the
+// index restates it.
+[DbIndex(
+    Name = "ix_runtimes_lane",
+    Columns = ["lane_id", "job_id"],
+    Filter = "lane_id IS NOT NULL AND status_code IN (10, 15, 20, 30, 40, 50)",
+    Usage = "lane"
+)]
+// Only a laned Job can wait behind its lane.
+[DbCheck(Name = "ck_runtimes_blocked_lane", Sql = "status_code <> 15 OR lane_id IS NOT NULL")]
 [DbCheck(
     Name = "ck_runtimes_lease_consistency",
     Sql = "(leased_by_worker_id IS NULL AND lease_expires_at_utc IS NULL) OR (leased_by_worker_id IS NOT NULL AND lease_expires_at_utc IS NOT NULL)"
@@ -89,6 +108,14 @@ internal sealed class JobRuntime : IEntity<long>
     /// </summary>
     [DbColumn("namespace_id", DbKind.Int32)]
     public int NamespaceId { get; init; }
+
+    /// <summary>
+    /// The owning Job's lane, NULL for an unlaned Job. Written once at insert, never updated.
+    /// A laned Job enters Ready only while no older member of its lane is unfinished; otherwise it
+    /// enters <c>Blocked</c> and the settle of the member ahead of it promotes it.
+    /// </summary>
+    [DbColumn("lane_id", DbKind.Int64)]
+    public long? LaneId { get; init; }
 
     /// <summary>
     /// Durable lifecycle of the Job (Paused / Suspended / Ready / Dispatched / Executing / Succeeded / Failed / Cancelled).

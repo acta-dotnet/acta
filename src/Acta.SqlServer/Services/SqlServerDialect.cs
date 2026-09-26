@@ -185,6 +185,7 @@ internal sealed class SqlServerDialect : ISqlDialect
         new("parent_id", SqlDbType.BigInt),
         new("tenant_key", SqlDbType.VarChar, 128),
         new("tenant_override", SqlDbType.Bit),
+        new("lane", SqlDbType.VarChar, 128),
     ];
 
     private static IEnumerable<SqlDataRecord> BuildBatchRecords(IReadOnlyList<JobEnqueueRow> rows, IReadOnlyList<Guid> jobRefs)
@@ -222,6 +223,7 @@ internal sealed class SqlServerDialect : ISqlDialect
             }
             SetNullableString(record, 13, row.TenantKey);
             record.SetBoolean(14, row.OverrideParentTenant);
+            record.SetDBNull(15);
             yield return record;
         }
     }
@@ -312,6 +314,7 @@ internal sealed class SqlServerDialect : ISqlDialect
         new("description", SqlDbType.NVarChar, 512),
         new("definition_hash", SqlDbType.VarChar, 128),
         new("tenant_requirement_code", SqlDbType.TinyInt),
+        new("lane", SqlDbType.VarChar, 128),
     ];
 
     private static IEnumerable<SqlDataRecord>? BuildDefinitionRecords(IReadOnlyList<JobDefinitionRow> rows)
@@ -348,6 +351,7 @@ internal sealed class SqlServerDialect : ISqlDialect
                 SetNullableString(record, 22, row.Description);
                 record.SetString(23, row.DefinitionHash);
                 record.SetByte(24, row.TenantRequirementCode);
+                record.SetDBNull(25);
                 yield return record;
             }
         }

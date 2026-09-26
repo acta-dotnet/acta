@@ -77,6 +77,7 @@ CREATE TABLE {{schema}}.definitions (
     rate_limit_override varchar(16) NULL,
     rate_limit_effective AS (COALESCE(rate_limit_override, rate_limit)) PERSISTED,
     rate_key varchar(128) NULL,
+    lane varchar(128) NULL,
     backoff nvarchar(64) NOT NULL,
     backoff_override nvarchar(64) NULL,
     backoff_effective AS (COALESCE(backoff_override, backoff)) PERSISTED,
@@ -165,8 +166,8 @@ CREATE TABLE {{schema}}.events (
     , CONSTRAINT pk_events PRIMARY KEY (id) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON)
     , CONSTRAINT ck_events_detail_pair CHECK ((detail_format_id = 0 AND detail IS NULL) OR (detail_format_id <> 0 AND detail IS NOT NULL))
     , CONSTRAINT ck_events_actor_code CHECK (actor_code IN (10, 20, 50, 70))
-    , CONSTRAINT ck_events_from_status_code CHECK (from_status_code IS NULL OR from_status_code IN (10, 20, 30, 40, 50, 100, 200, 220))
-    , CONSTRAINT ck_events_to_status_code CHECK (to_status_code IS NULL OR to_status_code IN (10, 20, 30, 40, 50, 100, 200, 220))
+    , CONSTRAINT ck_events_from_status_code CHECK (from_status_code IS NULL OR from_status_code IN (10, 15, 20, 30, 40, 50, 100, 200, 220))
+    , CONSTRAINT ck_events_to_status_code CHECK (to_status_code IS NULL OR to_status_code IN (10, 15, 20, 30, 40, 50, 100, 200, 220))
     , CONSTRAINT ck_events_execution_status_code CHECK (execution_status_code IS NULL OR execution_status_code IN (50, 100, 150, 151, 152, 200, 220, 230))
 ) WITH (DATA_COMPRESSION = PAGE);
 CREATE INDEX ix_events_lineage_timeline ON {{schema}}.events (lineage_root_id, created_at_utc, id) WHERE lineage_root_id IS NOT NULL;
@@ -203,6 +204,20 @@ CREATE INDEX ix_jobs_namespace_created ON {{schema}}.jobs (namespace_id, created
 CREATE UNIQUE INDEX ux_jobs_ref ON {{schema}}.jobs (job_ref);
 CREATE UNIQUE INDEX ux_jobs_deduplication_key_root ON {{schema}}.jobs (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_id IS NULL;
 CREATE UNIQUE INDEX ux_jobs_deduplication_key_child ON {{schema}}.jobs (parent_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_id IS NOT NULL;
+END
+GO
+
+-- JobLane
+IF OBJECT_ID(N'{{schema}}.lanes', N'U') IS NULL
+BEGIN
+CREATE TABLE {{schema}}.lanes (
+    id bigint IDENTITY(1,1) NOT NULL,
+    namespace_id int NOT NULL,
+    name varchar(128) NOT NULL,
+    created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL
+    , CONSTRAINT pk_lanes PRIMARY KEY (id)
+);
+CREATE UNIQUE INDEX ux_lanes_namespace_name ON {{schema}}.lanes (namespace_id, name);
 END
 GO
 
@@ -272,6 +287,7 @@ BEGIN
 CREATE TABLE {{schema}}.runtimes (
     job_id bigint NOT NULL,
     namespace_id int NOT NULL,
+    lane_id bigint NULL,
     status_code tinyint NOT NULL,
     priority_code tinyint NOT NULL,
     next_run_at_utc datetime2(3) NULL,
@@ -283,18 +299,21 @@ CREATE TABLE {{schema}}.runtimes (
     modified_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
     version int DEFAULT 0 NOT NULL
     , CONSTRAINT pk_runtimes PRIMARY KEY (job_id) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON)
+    , CONSTRAINT ck_runtimes_blocked_lane CHECK (status_code <> 15 OR lane_id IS NOT NULL)
     , CONSTRAINT ck_runtimes_lease_consistency CHECK ((leased_by_worker_id IS NULL AND lease_expires_at_utc IS NULL) OR (leased_by_worker_id IS NOT NULL AND lease_expires_at_utc IS NOT NULL))
     , CONSTRAINT ck_runtimes_counters CHECK (execution_number >= 0 AND failure_count >= 0)
     , CONSTRAINT ck_runtimes_status_lease CHECK (status_code IN (40, 50) OR leased_by_worker_id IS NULL)
     , CONSTRAINT ck_runtimes_inflight_leased CHECK (status_code NOT IN (40, 50) OR leased_by_worker_id IS NOT NULL)
     , CONSTRAINT ck_runtimes_ready_due CHECK (status_code <> 10 OR next_run_at_utc IS NOT NULL)
-    , CONSTRAINT ck_runtimes_status_code CHECK (status_code IN (10, 20, 30, 40, 50, 100, 200, 220))
+    , CONSTRAINT ck_runtimes_status_code CHECK (status_code IN (10, 15, 20, 30, 40, 50, 100, 200, 220))
     , CONSTRAINT ck_runtimes_priority_code CHECK (priority_code IN (0, 50, 70, 85, 100))
     , CONSTRAINT fk_runtimes_jobs FOREIGN KEY (job_id) REFERENCES {{schema}}.jobs (id) ON DELETE CASCADE
+    , CONSTRAINT fk_runtimes_lanes FOREIGN KEY (lane_id) REFERENCES {{schema}}.lanes (id)
 );
 CREATE INDEX ix_runtimes_claim_ready ON {{schema}}.runtimes (namespace_id, priority_code DESC, next_run_at_utc, job_id, status_code) WHERE status_code IN (10, 20);
 CREATE INDEX ix_runtimes_retention ON {{schema}}.runtimes (namespace_id, retention_until_utc, job_id) WHERE retention_until_utc IS NOT NULL AND status_code IN (100, 200, 220) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON);
 CREATE INDEX ix_runtimes_worker_inflight ON {{schema}}.runtimes (leased_by_worker_id, job_id) WHERE leased_by_worker_id IS NOT NULL AND status_code IN (40, 50);
+CREATE INDEX ix_runtimes_lane ON {{schema}}.runtimes (lane_id, job_id) WHERE lane_id IS NOT NULL AND status_code IN (10, 15, 20, 30, 40, 50);
 END
 GO
 
@@ -509,6 +528,7 @@ EXEC(N'CREATE TYPE {{schema}}.job_enqueue_batch AS TABLE (
     parent_id         BIGINT           NULL,
     tenant_key        VARCHAR(128)     NULL,
     tenant_override   BIT              NOT NULL,
+    lane              VARCHAR(128)     NULL,
     PRIMARY KEY (ordinal)
 );');
 GO
@@ -555,6 +575,7 @@ EXEC(N'CREATE TYPE {{schema}}.job_definition_batch AS TABLE (
     description                          NVARCHAR(512) NULL,
     definition_hash                      VARCHAR(128)  NOT NULL,
     tenant_requirement_code              TINYINT       NOT NULL,
+    lane                                 VARCHAR(128)  NULL,
     PRIMARY KEY (name)
 );');
 GO
@@ -625,7 +646,7 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 0)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-ed807ce13bc157e6553a82f456ccda1a', '{{schema}}');
+VALUES (0, 'baseline-84236304fceb69e85285b40c5af2b39c', '{{schema}}');
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 1)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}');

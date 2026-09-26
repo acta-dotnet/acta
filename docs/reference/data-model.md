@@ -2,7 +2,7 @@
 
 # Data model reference
 
-Structural reference for the Acta persistence model: **15 entities**, **233 columns**, **32 indexes**, **34 check constraints**, **7 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [`sql-recipes.md`](../guide/sql-recipes.md#foreign-key-policy).
+Structural reference for the Acta persistence model: **16 entities**, **239 columns**, **34 indexes**, **35 check constraints**, **8 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [`sql-recipes.md`](../guide/sql-recipes.md#foreign-key-policy).
 
 ## Schema inventory
 
@@ -13,6 +13,7 @@ Structural reference for the Acta persistence model: **15 entities**, **233 colu
 | [`acta.definitions`](#entity-acta-definitions) | The live job policy: one row per definition, the single source of truth for every per-job policy. | [`JobDefinitionStatusCode`](./code-families.md#code-family-jobdefinitionstatuscode), [`JobTenantRequirementCode`](./code-families.md#code-family-jobtenantrequirementcode), [`JobPriorityCode`](./code-families.md#code-family-jobprioritycode), [`DeadlineBehaviorCode`](./code-families.md#code-family-deadlinebehaviorcode), [`JobAuditLevelCode`](./code-families.md#code-family-jobauditlevelcode), [`AlertProfileCode`](./code-families.md#code-family-alertprofilecode), [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
 | [`acta.events`](#entity-acta-events) | Append-only lifecycle timeline and execution ledger. | [`EventCode`](./code-families.md#code-family-eventcode), [`ActorCode`](./code-families.md#code-family-actorcode), [`JobStatusCode`](./code-families.md#code-family-jobstatuscode), [`ExecutionStatusCode`](./code-families.md#code-family-executionstatuscode), [`JobEventReasonCode`](./code-families.md#code-family-jobeventreasoncode), [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
 | [`acta.jobs`](#entity-acta-jobs) | One row in `acta.jobs`, Acta's only work unit: the append-mostly identity/input record. | [`JobAuditLevelCode`](./code-families.md#code-family-jobauditlevelcode), [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
+| [`acta.lanes`](#entity-acta-lanes) | One lane in one namespace: the Jobs that reference it run one at a time, in job-id order. | · |
 | [`acta.locks`](#entity-acta-locks) | One row per named lock in the `locks` table: the rows behind the handler-facing `JobContext.RunWithLockAsync`, the concurrency slots the runner takes after claim, and the rate meter's bucket and reservation rows, which live here but are never held. | · |
 | [`acta.namespaces`](#entity-acta-namespaces) | Service-owned execution boundary. | [`NamespaceStatusCode`](./code-families.md#code-family-namespacestatuscode) |
 | [`acta.results`](#entity-acta-results) | Cold payload table: one row per Job attempt that produced a durable result, keyed by the composite `(JobId, ExecutionNumber)`. | [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
@@ -151,6 +152,7 @@ The live job policy: one row per definition, the single source of truth for ever
 | `rate_limit_override`<a id="column-acta-definitions--rate-limit-override"></a> | `AsciiString` | 16 | yes | · | · | Operator override of `RateLimit`; NULL = inherit the default. |
 | `rate_limit_effective`<a id="column-acta-definitions--rate-limit-effective"></a> | `AsciiString` | 16 | yes | · | · | Effective rate limit (DB-computed); read-only. NULL when neither is set. |
 | `rate_key`<a id="column-acta-definitions--rate-key"></a> | `AsciiString` | 128 | yes | · | · | Which meter `RateLimit` spends from; NULL means the definition name. Code-owned and deliberately without an override triple: moving a definition to another meter changes which definitions it competes with, which is a contract change rather than an operator dial. Definitions sharing a key must declare the same rate, which registration enforces. |
+| `lane`<a id="column-acta-definitions--lane"></a> | `AsciiString` | 128 | yes | · | · | Default lane for this definition's jobs, used when an enqueue names none; an enqueue lane overrides it but cannot clear it. NULL means unlaned. Code-owned and deliberately without an override triple, like `RateKey`: a lane decides ordering, a contract rather than an operator dial. Stored canonical, like `lanes.name`. |
 | `backoff`<a id="column-acta-definitions--backoff"></a> | `UnicodeString` | 64 | no | · | · | Retry backoff policy as an Acta backoff expression, e.g. `"1m..8h x2 ~10%"`. Resolved to a concrete expression at registration (framework default `"1m..1d x2 ~10%"` when the attribute sets none); parsed by workers, never by SQL. |
 | `backoff_override`<a id="column-acta-definitions--backoff-override"></a> | `UnicodeString` | 64 | yes | · | · | Operator override of `Backoff`; NULL = inherit. Validated as a parseable expression at write. |
 | `backoff_effective`<a id="column-acta-definitions--backoff-effective"></a> | `UnicodeString` | 64 | no | · | · | Effective backoff expression (DB-computed); read-only. |
@@ -301,6 +303,29 @@ One row in `acta.jobs`, Acta's only work unit: the append-mostly identity/input 
 
 ---
 
+### `acta.lanes` <a id="entity-acta-lanes"></a>
+
+One lane in one namespace: the Jobs that reference it run one at a time, in job-id order. Enqueue upserts the row by `(namespace_id, name)` and holds its row lock until the enqueuing transaction commits, so laned job ids are allocated in commit order. Every settle of a laned Job takes the same lock before it promotes the next Blocked member, and retention takes it before it deletes a lane no runtime references.
+
+**CLR type** `Acta.Relational.Entities.JobLane` · **Primary key** `pk_lanes` (`id`)
+
+**Columns**
+
+| Column | Kind | Size | Nullable | Default | Codes | Description |
+|---|---|---|---|---|---|---|
+| `id`<a id="column-acta-lanes--id"></a> | `Int64` | · | no | `Identity` | PK | DB-assigned identity, referenced by `runtimes.lane_id`. |
+| `namespace_id`<a id="column-acta-lanes--namespace-id"></a> | `Int32` | · | no | · | · | Owning namespace; logical FK to `JobNamespace.Id` (no enforced FK, SP-side validation). |
+| `name`<a id="column-acta-lanes--name"></a> | `AsciiString` | 128 | no | · | · | Caller-supplied lane id in canonical key form, like a concurrency key: trimmed, lowercased, 1 to 128 characters of the key alphabet. The C# layer canonicalizes it before any write. |
+| `created_at_utc`<a id="column-acta-lanes--created-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | When the lane was first used. Set server-side. |
+
+**Indexes**
+
+| Name | Columns | Uniqueness | Filter | Usage |
+|---|---|---|---|---|
+| `ux_lanes_namespace_name` | `namespace_id`, `name` | unique | none | `uniqueness` |
+
+---
+
 ### `acta.locks` <a id="entity-acta-locks"></a>
 
 One row per named lock in the `locks` table: the rows behind the handler-facing `JobContext.RunWithLockAsync`, the concurrency slots the runner takes after claim, and the rate meter's bucket and reservation rows, which live here but are never held. Execution ownership/TTL is not a row here - it lives on the `runtimes` row. Lifecycle is `ExpiresAtUtc` alone (no status column): held while ahead of now. Acquire is a steal-on-expiry upsert; release DELETEs the row - concurrency keys are unbounded per-job user strings, so the table stays O(currently held) by construction (`ReleaseLockSpec` pins that); abandoned rows are swept by the `sys.retention` reap. `HoldToken` is minted fresh per hold and CAS-guards extend and release: unlike a counter, no other hold can ever re-mint it, so a stale holder that slept through a full steal-release-reacquire cycle still cannot free or extend its successor's lock. `LockKey` is an opaque discriminator-segmented composite so the lock spaces never collide on identical user text; keying on namespace id keeps the key compact and stable across renames. A concurrency key with limit N owns slots 0..N-1, one row each.
@@ -394,6 +419,7 @@ The hot mutable runtime state of one Job: one row in `runtimes` per `jobs` row, 
 |---|---|---|---|---|---|---|
 | `job_id`<a id="column-acta-runtimes--job-id"></a> | `Int64` | · | no | · | PK | Owning Job; primary key (1:1 with `jobs`) and CASCADE FK, so a purged job sweeps its runtime row in the same transaction. Supplied by enqueue, never DB-assigned. |
 | `namespace_id`<a id="column-acta-runtimes--namespace-id"></a> | `Int32` | · | no | · | · | Immutable copy of the owning Job's namespace, denormalized so the hot claim, reclaim, and retention scans filter and seek without joining `jobs` (`ix_runtimes_claim_ready` / `ix_runtimes_retention` lead with it). Written once at insert, never updated. |
+| `lane_id`<a id="column-acta-runtimes--lane-id"></a> | `Int64` | · | yes | · | · | The owning Job's lane, NULL for an unlaned Job. Written once at insert, never updated. A laned Job enters Ready only while no older member of its lane is unfinished; otherwise it enters `Blocked` and the settle of the member ahead of it promotes it. |
 | `status_code`<a id="column-acta-runtimes--status-code"></a> | `Byte` | · | no | · | [`JobStatusCode`](./code-families.md#code-family-jobstatuscode) (`job-status`) | Durable lifecycle of the Job (Paused / Suspended / Ready / Dispatched / Executing / Succeeded / Failed / Cancelled). |
 | `priority_code`<a id="column-acta-runtimes--priority-code"></a> | `Byte` | · | no | · | [`JobPriorityCode`](./code-families.md#code-family-jobprioritycode) (`job-priority`) | Claim-order key set from the definition policy, definition override, or per-enqueue override. |
 | `next_run_at_utc`<a id="column-acta-runtimes--next-run-at-utc"></a> | `UtcInstant` | · | yes | · | · | Next claim instant; the hot-path claim filter compares against this. A `Ready` row always carries it, enforced by `ck_runtimes_ready_due`. On a `Suspended` row it carries the awaited slot's expiration, or NULL for an unbounded wait, which is what keeps an unbounded wait unclaimable while a bounded one wakes at its deadline. |
@@ -412,11 +438,13 @@ The hot mutable runtime state of one Job: one row in `runtimes` per `jobs` row, 
 | `ix_runtimes_claim_ready` | `namespace_id`, `priority_code` DESC, `next_run_at_utc`, `job_id`, `status_code` | not unique | `status_code IN (10, 20)` | `claim_hot_path` |
 | `ix_runtimes_retention` | `namespace_id`, `retention_until_utc`, `job_id` | not unique | `retention_until_utc IS NOT NULL AND status_code IN (100, 200, 220)` | `maintenance` |
 | `ix_runtimes_worker_inflight` | `leased_by_worker_id`, `job_id` | not unique | `leased_by_worker_id IS NOT NULL AND status_code IN (40, 50)` | `heartbeat` |
+| `ix_runtimes_lane` | `lane_id`, `job_id` | not unique | `lane_id IS NOT NULL AND status_code IN (10, 15, 20, 30, 40, 50)` | `lane` |
 
 **Check constraints**
 
 | Name | SQL expression |
 |---|---|
+| `ck_runtimes_blocked_lane` | `status_code <> 15 OR lane_id IS NOT NULL` |
 | `ck_runtimes_lease_consistency` | `(leased_by_worker_id IS NULL AND lease_expires_at_utc IS NULL) OR (leased_by_worker_id IS NOT NULL AND lease_expires_at_utc IS NOT NULL)` |
 | `ck_runtimes_counters` | `execution_number >= 0 AND failure_count >= 0` |
 | `ck_runtimes_status_lease` | `status_code IN (40, 50) OR leased_by_worker_id IS NULL` |
@@ -428,6 +456,7 @@ The hot mutable runtime state of one Job: one row in `runtimes` per `jobs` row, 
 | Constraint | Column → Target | On delete |
 |---|---|---|
 | `fk_runtimes_jobs` | `job_id` → `acta.jobs(id)` | CASCADE |
+| `fk_runtimes_lanes` | `lane_id` → `acta.lanes(id)` | NO ACTION |
 
 ---
 

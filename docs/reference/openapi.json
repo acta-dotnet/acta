@@ -1308,6 +1308,7 @@
             "schema": {
               "enum": [
                 "ready",
+                "blocked",
                 "suspended",
                 "paused",
                 "dispatched",

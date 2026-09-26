@@ -30,6 +30,7 @@ public static class SqliteOutboxDdl
                 deduplication_key TEXT NOT NULL,
                 correlation_key TEXT NULL,
                 concurrency_key TEXT NULL,
+                lane TEXT NULL,
                 priority_code INTEGER NULL,
                 next_run_at_utc TEXT NULL,
                 delay_seconds INTEGER NULL,

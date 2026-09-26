@@ -72,6 +72,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.definitions (
     rate_limit_override text NULL,
     rate_limit_effective text AS (COALESCE(rate_limit_override, rate_limit)) STORED,
     rate_key text NULL,
+    lane text NULL,
     backoff text NOT NULL,
     backoff_override text NULL,
     backoff_effective text AS (COALESCE(backoff_override, backoff)) STORED,
@@ -156,8 +157,8 @@ CREATE TABLE IF NOT EXISTS {{schema}}.events (
     detail blob NULL
     , CONSTRAINT ck_events_detail_pair CHECK ((detail_format_id = 0 AND detail IS NULL) OR (detail_format_id <> 0 AND detail IS NOT NULL))
     , CONSTRAINT ck_events_actor_code CHECK (actor_code IN (10, 20, 50, 70))
-    , CONSTRAINT ck_events_from_status_code CHECK (from_status_code IS NULL OR from_status_code IN (10, 20, 30, 40, 50, 100, 200, 220))
-    , CONSTRAINT ck_events_to_status_code CHECK (to_status_code IS NULL OR to_status_code IN (10, 20, 30, 40, 50, 100, 200, 220))
+    , CONSTRAINT ck_events_from_status_code CHECK (from_status_code IS NULL OR from_status_code IN (10, 15, 20, 30, 40, 50, 100, 200, 220))
+    , CONSTRAINT ck_events_to_status_code CHECK (to_status_code IS NULL OR to_status_code IN (10, 15, 20, 30, 40, 50, 100, 200, 220))
     , CONSTRAINT ck_events_execution_status_code CHECK (execution_status_code IS NULL OR execution_status_code IN (50, 100, 150, 151, 152, 200, 220, 230))
     , CONSTRAINT ck_events_detail_format_id_byte CHECK (detail_format_id BETWEEN 0 AND 255)
 ) STRICT;
@@ -191,6 +192,15 @@ CREATE INDEX IF NOT EXISTS {{schema}}.ix_jobs_namespace_created ON jobs (namespa
 CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_jobs_ref ON jobs (job_ref);
 CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_jobs_deduplication_key_root ON jobs (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_id IS NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_jobs_deduplication_key_child ON jobs (parent_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_id IS NOT NULL;
+
+-- JobLane
+CREATE TABLE IF NOT EXISTS {{schema}}.lanes (
+    id integer PRIMARY KEY AUTOINCREMENT,
+    namespace_id integer NOT NULL,
+    name text NOT NULL,
+    created_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL
+) STRICT;
+CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_lanes_namespace_name ON lanes (namespace_id, name);
 
 -- Lock
 CREATE TABLE IF NOT EXISTS {{schema}}.locks (
@@ -238,6 +248,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.results (
 CREATE TABLE IF NOT EXISTS {{schema}}.runtimes (
     job_id integer NOT NULL,
     namespace_id integer NOT NULL,
+    lane_id integer NULL,
     status_code integer NOT NULL,
     priority_code integer NOT NULL,
     next_run_at_utc integer NULL,
@@ -249,18 +260,21 @@ CREATE TABLE IF NOT EXISTS {{schema}}.runtimes (
     modified_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
     version integer DEFAULT 0 NOT NULL
     , CONSTRAINT pk_runtimes PRIMARY KEY (job_id)
+    , CONSTRAINT ck_runtimes_blocked_lane CHECK (status_code <> 15 OR lane_id IS NOT NULL)
     , CONSTRAINT ck_runtimes_lease_consistency CHECK ((leased_by_worker_id IS NULL AND lease_expires_at_utc IS NULL) OR (leased_by_worker_id IS NOT NULL AND lease_expires_at_utc IS NOT NULL))
     , CONSTRAINT ck_runtimes_counters CHECK (execution_number >= 0 AND failure_count >= 0)
     , CONSTRAINT ck_runtimes_status_lease CHECK (status_code IN (40, 50) OR leased_by_worker_id IS NULL)
     , CONSTRAINT ck_runtimes_inflight_leased CHECK (status_code NOT IN (40, 50) OR leased_by_worker_id IS NOT NULL)
     , CONSTRAINT ck_runtimes_ready_due CHECK (status_code <> 10 OR next_run_at_utc IS NOT NULL)
-    , CONSTRAINT ck_runtimes_status_code CHECK (status_code IN (10, 20, 30, 40, 50, 100, 200, 220))
+    , CONSTRAINT ck_runtimes_status_code CHECK (status_code IN (10, 15, 20, 30, 40, 50, 100, 200, 220))
     , CONSTRAINT ck_runtimes_priority_code CHECK (priority_code IN (0, 50, 70, 85, 100))
     , CONSTRAINT fk_runtimes_jobs FOREIGN KEY (job_id) REFERENCES jobs (id) ON DELETE CASCADE
+    , CONSTRAINT fk_runtimes_lanes FOREIGN KEY (lane_id) REFERENCES lanes (id)
 ) STRICT;
 CREATE INDEX IF NOT EXISTS {{schema}}.ix_runtimes_claim_ready ON runtimes (namespace_id, priority_code DESC, next_run_at_utc, job_id, status_code) WHERE status_code IN (10, 20);
 CREATE INDEX IF NOT EXISTS {{schema}}.ix_runtimes_retention ON runtimes (namespace_id, retention_until_utc, job_id) WHERE retention_until_utc IS NOT NULL AND status_code IN (100, 200, 220);
 CREATE INDEX IF NOT EXISTS {{schema}}.ix_runtimes_worker_inflight ON runtimes (leased_by_worker_id, job_id) WHERE leased_by_worker_id IS NOT NULL AND status_code IN (40, 50);
+CREATE INDEX IF NOT EXISTS {{schema}}.ix_runtimes_lane ON runtimes (lane_id, job_id) WHERE lane_id IS NOT NULL AND status_code IN (10, 15, 20, 30, 40, 50);
 
 -- JobSchedule
 CREATE TABLE IF NOT EXISTS {{schema}}.schedules (
@@ -424,7 +438,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
 
 
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-6e9cd889410c77ca1498a9666592193e', '{{schema}}')
+VALUES (0, 'baseline-88821ce4e5615ca4dcde20ef768d6a4e', '{{schema}}')
 ON CONFLICT (version) DO NOTHING;
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}')

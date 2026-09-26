@@ -204,6 +204,15 @@ internal sealed class JobDefinition : IEntity<int>
     public string? RateKey { get; internal set; }
 
     /// <summary>
+    /// Default lane for this definition's jobs, used when an enqueue names none; an enqueue lane
+    /// overrides it but cannot clear it. NULL means unlaned. Code-owned and deliberately without an
+    /// override triple, like <see cref="RateKey"/>: a lane decides ordering, a contract rather than an
+    /// operator dial. Stored canonical, like <c>lanes.name</c>.
+    /// </summary>
+    [DbColumn("lane", DbKind.AsciiString, Size = 128)]
+    public string? Lane { get; internal set; }
+
+    /// <summary>
     /// Retry backoff policy as an Acta backoff expression, e.g. <c>"1m..8h x2 ~10%"</c>. Resolved to a
     /// concrete expression at registration (framework default <c>"1m..1d x2 ~10%"</c> when the attribute sets
     /// none); parsed by workers, never by SQL.

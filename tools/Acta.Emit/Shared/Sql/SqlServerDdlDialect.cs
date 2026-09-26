@@ -133,6 +133,7 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
                 parent_id         BIGINT           NULL,
                 tenant_key        VARCHAR(128)     NULL,
                 tenant_override   BIT              NOT NULL,
+                lane              VARCHAR(128)     NULL,
                 PRIMARY KEY (ordinal)
             );');
             GO
@@ -179,6 +180,7 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
                 description                          NVARCHAR(512) NULL,
                 definition_hash                      VARCHAR(128)  NOT NULL,
                 tenant_requirement_code              TINYINT       NOT NULL,
+                lane                                 VARCHAR(128)  NULL,
                 PRIMARY KEY (name)
             );');
             GO

@@ -10,6 +10,12 @@ public enum JobStatusCode : byte
     Ready = 10,
 
     [Code(
+        "blocked",
+        "Waiting behind an earlier unfinished job of its lane; the claim never offers it, and the settle of the job ahead promotes it to Ready."
+    )]
+    Blocked = 15,
+
+    [Code(
         "suspended",
         "Parked and not progressing: awaiting an external signal via ctx.WaitSignalAsync, or awaiting children via ctx.WaitChildAsync / WaitChildrenAsync."
     )]

@@ -29,6 +29,7 @@ public static class SqlServerOutboxDdl
                 deduplication_key varchar(128) NOT NULL,
                 correlation_key varchar(64) NULL,
                 concurrency_key varchar(128) NULL,
+                lane varchar(128) NULL,
                 priority_code tinyint NULL,
                 next_run_at_utc datetime2 NULL,
                 delay_seconds int NULL,

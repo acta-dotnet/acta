@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **30 families**, **170 values**.
+This release: **30 families**, **171 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -307,6 +307,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `Ready` | 10 | `ready` | Eligible for claim; the claim path selects rows in this Status. | Active |
+| `Blocked` | 15 | `blocked` | Waiting behind an earlier unfinished job of its lane; the claim never offers it, and the settle of the job ahead promotes it to Ready. | Active |
 | `Suspended` | 20 | `suspended` | Parked and not progressing: awaiting an external signal via ctx.WaitSignalAsync, or awaiting children via ctx.WaitChildAsync / WaitChildrenAsync. | Active |
 | `Paused` | 30 | `paused` | Not running, awaiting an external trigger to resume. | Active |
 | `Dispatched` | 40 | `dispatched` | Claimed by a worker; lease active, handler invocation pending. | Active |

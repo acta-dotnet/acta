@@ -29,6 +29,8 @@ public sealed partial class SqlOwnershipTests
         ["events"] = ["Execution", "Notes"],
         ["jobs"] = ["Jobs"],
         ["locks"] = ["Locks"],
+        // Enqueue registers a job's lane and retention deletes an unreferenced one.
+        ["lanes"] = ["Jobs"],
         ["namespaces"] = ["Namespaces"],
         ["results"] = ["Execution"],
         // The unit-of-work pair: a jobs row and its 1:1 runtimes row change together.

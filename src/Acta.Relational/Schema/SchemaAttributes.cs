@@ -153,7 +153,7 @@ internal sealed class DbIndexAttribute : Attribute
     /// <summary>
     /// Why the index exists: the access pattern it serves, rendered into the data-model docs.
     /// Vocabulary: claim_hot_path, claim_horizon, read_api, dashboard, dashboard_grid, maintenance,
-    /// uniqueness, lock_reclaim, scheduler, checkpoint_timer, heartbeat, child_fanout, alert_raise.
+    /// uniqueness, lock_reclaim, scheduler, checkpoint_timer, heartbeat, child_fanout, alert_raise, lane.
     /// Documentation-only; never affects DDL.
     /// </summary>
     public required string Usage { get; init; }
@@ -183,7 +183,7 @@ internal sealed class DbUniqueIndexAttribute : Attribute
     /// <summary>
     /// Why the index exists: the access pattern it serves, rendered into the data-model docs.
     /// Vocabulary: claim_hot_path, claim_horizon, read_api, dashboard, dashboard_grid, maintenance,
-    /// uniqueness, lock_reclaim, scheduler, checkpoint_timer, heartbeat, child_fanout, alert_raise.
+    /// uniqueness, lock_reclaim, scheduler, checkpoint_timer, heartbeat, child_fanout, alert_raise, lane.
     /// Documentation-only; never affects DDL.
     /// </summary>
     public required string Usage { get; init; }
