@@ -8852,7 +8852,7 @@
               "integer",
               "string"
             ],
-            "format": "int16"
+            "format": "int32"
           },
           "concurrencyLimitOverride": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -8861,7 +8861,7 @@
               "integer",
               "string"
             ],
-            "format": "int16"
+            "format": "int32"
           },
           "concurrencyLimitEffective": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -8870,7 +8870,7 @@
               "integer",
               "string"
             ],
-            "format": "int16"
+            "format": "int32"
           },
           "rateLimit": {
             "type": [
@@ -9205,7 +9205,7 @@
               "integer",
               "string"
             ],
-            "format": "int16"
+            "format": "int32"
           },
           "concurrencyLimitEffective": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -9214,7 +9214,7 @@
               "integer",
               "string"
             ],
-            "format": "int16"
+            "format": "int32"
           },
           "rateLimitOverride": {
             "type": [
@@ -9275,7 +9275,7 @@
               "integer",
               "string"
             ],
-            "format": "int16"
+            "format": "int32"
           },
           "rateLimit": {
             "type": [

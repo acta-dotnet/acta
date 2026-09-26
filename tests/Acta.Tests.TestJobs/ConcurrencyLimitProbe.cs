@@ -11,7 +11,7 @@ namespace TestJobs;
 public static class ConcurrencyLimitProbe
 {
     /// <summary>The declared limit, so a spec asserts against the attribute rather than a repeated literal.</summary>
-    public const short Limit = 2;
+    public const int Limit = 2;
 
     private static readonly ConcurrentDictionary<string, int> Running = new(StringComparer.Ordinal);
     private static readonly ConcurrentDictionary<string, int> MaxSeen = new(StringComparer.Ordinal);

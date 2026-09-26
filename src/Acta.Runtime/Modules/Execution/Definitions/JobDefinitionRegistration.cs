@@ -35,8 +35,8 @@ internal static class JobDefinitionRegistration
     /// <c>JobsOptions.MaxConcurrentExecutors</c> allows, since a limit above the largest possible
     /// executor pool can never bind.
     /// </summary>
-    public const short MinConcurrencyLimit = 1;
-    public const short MaxConcurrencyLimit = 1024;
+    public const int MinConcurrencyLimit = 1;
+    public const int MaxConcurrencyLimit = 1024;
 
     /// <summary>
     /// The longest a rate key may be, matching <c>definitions.rate_key</c> and the concurrency key it

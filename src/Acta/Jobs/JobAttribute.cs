@@ -35,7 +35,7 @@ public sealed class JobAttribute(string name) : Attribute
     /// policy reload, so admissions may use the old limit until every worker has observed the change.
     /// See <see cref="RateLimit"/> for the other half of admission control: how often, rather than how many.
     /// </summary>
-    public short ConcurrencyLimit { get; init; }
+    public int ConcurrencyLimit { get; init; }
 
     /// <summary>
     /// How often attempts of this definition may start, cluster-wide, as <c>N/s</c>, <c>N/m</c>, or

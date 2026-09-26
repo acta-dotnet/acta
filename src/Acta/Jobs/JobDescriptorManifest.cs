@@ -44,7 +44,7 @@ public sealed record JobDescriptor(
     /// carries a <c>ConcurrencyKey</c>, which alone admits one at a time. Overlaid with the
     /// definition's effective value at startup and on every policy reload.
     /// </summary>
-    public short? ConcurrencyLimit { get; init; }
+    public int? ConcurrencyLimit { get; init; }
 
     /// <summary>
     /// How often attempts of this definition may start, as <c>N/s</c> / <c>N/m</c> / <c>N/h</c>; null =

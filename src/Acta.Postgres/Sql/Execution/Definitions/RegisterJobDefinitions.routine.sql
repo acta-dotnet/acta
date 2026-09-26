@@ -4,7 +4,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.register_job_definitions(
     p_d_name VARCHAR [],
     p_d_priority_code SMALLINT [],
     p_d_max_attempts INT [],
-    p_d_concurrency_limit SMALLINT [],
+    p_d_concurrency_limit INT [],
     p_d_rate_limit VARCHAR [],
     p_d_rate_key VARCHAR [],
     p_d_backoff VARCHAR [],

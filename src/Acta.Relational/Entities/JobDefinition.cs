@@ -167,16 +167,16 @@ internal sealed class JobDefinition : IEntity<int>
     /// the job row carries a concurrency key, which alone admits one at a time. Nullable where the
     /// other defaults are not: "no limit" is a real state of the policy, not a sentinel number.
     /// </summary>
-    [DbColumn("concurrency_limit", DbKind.Int16)]
-    public short? ConcurrencyLimit { get; internal set; }
+    [DbColumn("concurrency_limit", DbKind.Int32)]
+    public int? ConcurrencyLimit { get; internal set; }
 
     /// <summary>Operator override of <see cref="ConcurrencyLimit"/>; NULL = inherit the default.</summary>
-    [DbColumn("concurrency_limit_override", DbKind.Int16)]
-    public short? ConcurrencyLimitOverride { get; internal set; }
+    [DbColumn("concurrency_limit_override", DbKind.Int32)]
+    public int? ConcurrencyLimitOverride { get; internal set; }
 
     /// <summary>Effective concurrency limit (DB-computed); read-only. NULL when neither is set.</summary>
-    [DbColumn("concurrency_limit_effective", DbKind.Int16, Generated = "COALESCE(concurrency_limit_override, concurrency_limit)")]
-    public short? ConcurrencyLimitEffective { get; internal set; }
+    [DbColumn("concurrency_limit_effective", DbKind.Int32, Generated = "COALESCE(concurrency_limit_override, concurrency_limit)")]
+    public int? ConcurrencyLimitEffective { get; internal set; }
 
     /// <summary>
     /// How often attempts of this definition may start, as <c>N/s</c> / <c>N/m</c> / <c>N/h</c>; NULL

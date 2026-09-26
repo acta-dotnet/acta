@@ -3,7 +3,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.set_job_definition_overrides(
     p_version INT,
     p_priority_code_override SMALLINT,
     p_max_attempts_override INT,
-    p_concurrency_limit_override SMALLINT,
+    p_concurrency_limit_override INT,
     p_rate_limit_override VARCHAR,
     p_backoff_override VARCHAR,
     p_execution_timeout_seconds_override INT,
@@ -118,3 +118,9 @@ BEGIN
     RETURN QUERY SELECT 1 /* DefinitionOverrideAction.Applied */::SMALLINT;
 END;
 $$;
+
+-- CREATE OR REPLACE adds an overload when a parameter's type changes, so the replaced signature goes.
+DROP FUNCTION IF EXISTS {{schema}}.set_job_definition_overrides(
+    INT, INT, SMALLINT, INT, SMALLINT, VARCHAR, VARCHAR, INT, INT, SMALLINT, INT, SMALLINT, SMALLINT, VARCHAR, VARCHAR,
+    VARCHAR, VARCHAR, SMALLINT, VARCHAR, SMALLINT, VARCHAR
+);

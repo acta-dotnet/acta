@@ -70,8 +70,8 @@ CREATE TABLE {{schema}}.definitions (
     max_attempts int NOT NULL,
     max_attempts_override int NULL,
     max_attempts_effective AS (COALESCE(max_attempts_override, max_attempts)) PERSISTED,
-    concurrency_limit smallint NULL,
-    concurrency_limit_override smallint NULL,
+    concurrency_limit int NULL,
+    concurrency_limit_override int NULL,
     concurrency_limit_effective AS (COALESCE(concurrency_limit_override, concurrency_limit)) PERSISTED,
     rate_limit varchar(16) NULL,
     rate_limit_override varchar(16) NULL,
@@ -553,7 +553,7 @@ EXEC(N'CREATE TYPE {{schema}}.job_definition_batch AS TABLE (
     name                                 VARCHAR(128)  NOT NULL,
     priority_code                        TINYINT       NOT NULL,
     max_attempts                         INT           NOT NULL,
-    concurrency_limit                    SMALLINT      NULL,
+    concurrency_limit                    INT           NULL,
     rate_limit                           VARCHAR(16)   NULL,
     rate_key                             VARCHAR(128)  NULL,
     backoff                              NVARCHAR(64)  NOT NULL,
@@ -646,7 +646,7 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 0)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-84236304fceb69e85285b40c5af2b39c', '{{schema}}');
+VALUES (0, 'baseline-f80b12e1ec2b7f86cbd53528ba990a0a', '{{schema}}');
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 1)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}');

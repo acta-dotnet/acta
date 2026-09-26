@@ -267,8 +267,8 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
     /// The declared concurrency limit's range, the same 1..1024 band JobsOptions allows for
     /// MaxConcurrentExecutors: a limit above the largest possible executor pool cannot bind.
     /// </summary>
-    private const short MinConcurrencyLimit = 1;
-    private const short MaxConcurrencyLimit = 1024;
+    private const int MinConcurrencyLimit = 1;
+    private const int MaxConcurrencyLimit = 1024;
     private const string DefaultPriorityName = "Normal";
     private const string DefaultAuditLevelName = "Audit";
     private const string DefaultAlertProfileName = "OnFailure";
@@ -281,7 +281,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         string? outputFormat = null;
         var priorityName = DefaultPriorityName;
         var maxAttempts = DefaultMaxAttempts;
-        short? concurrencyLimit = null;
+        int? concurrencyLimit = null;
         string? rateLimit = null;
         string? rateKey = null;
         string? lane = null;
@@ -386,7 +386,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                     break;
 
                 case "ConcurrencyLimit":
-                    if (named.Value.Value is short cl)
+                    if (named.Value.Value is int cl)
                     {
                         if (cl is >= MinConcurrencyLimit and <= MaxConcurrencyLimit)
                         {
@@ -830,7 +830,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         string? OutputFormat,
         string PriorityName,
         int MaxAttempts,
-        short? ConcurrencyLimit,
+        int? ConcurrencyLimit,
         string? RateLimit,
         string? RateKey,
         string? Lane,
@@ -2407,7 +2407,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         bool RequiresCancellationToken,
         string PriorityName,
         int MaxAttempts,
-        short? ConcurrencyLimit,
+        int? ConcurrencyLimit,
         string? RateLimit,
         string? RateKey,
         string? Lane,

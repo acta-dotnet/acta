@@ -158,7 +158,7 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
                 name                                 VARCHAR(128)  NOT NULL,
                 priority_code                        TINYINT       NOT NULL,
                 max_attempts                         INT           NOT NULL,
-                concurrency_limit                    SMALLINT      NULL,
+                concurrency_limit                    INT           NULL,
                 rate_limit                           VARCHAR(16)   NULL,
                 rate_key                             VARCHAR(128)  NULL,
                 backoff                              NVARCHAR(64)  NOT NULL,

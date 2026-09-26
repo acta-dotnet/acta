@@ -101,10 +101,10 @@ public sealed class DefinitionRegistrationValidationTests
     }
 
     [Theory]
-    [InlineData((short)0)]
-    [InlineData((short)-1)]
-    [InlineData((short)(JobDefinitionRegistration.MaxConcurrencyLimit + 1))]
-    public async Task A_concurrency_limit_outside_the_band_fails_registration(short limit)
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(JobDefinitionRegistration.MaxConcurrencyLimit + 1)]
+    public async Task A_concurrency_limit_outside_the_band_fails_registration(int limit)
     {
         var ex = await Assert.ThrowsAsync<ArgumentException>(() => RegisterAsync(Descriptor("hot") with { ConcurrencyLimit = limit }));
 

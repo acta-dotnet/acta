@@ -65,9 +65,9 @@ CREATE TABLE IF NOT EXISTS {{schema}}.definitions (
     max_attempts integer NOT NULL,
     max_attempts_override integer NULL,
     max_attempts_effective integer GENERATED ALWAYS AS (COALESCE(max_attempts_override, max_attempts)) STORED,
-    concurrency_limit smallint NULL,
-    concurrency_limit_override smallint NULL,
-    concurrency_limit_effective smallint GENERATED ALWAYS AS (COALESCE(concurrency_limit_override, concurrency_limit)) STORED,
+    concurrency_limit integer NULL,
+    concurrency_limit_override integer NULL,
+    concurrency_limit_effective integer GENERATED ALWAYS AS (COALESCE(concurrency_limit_override, concurrency_limit)) STORED,
     rate_limit varchar(16) NULL,
     rate_limit_override varchar(16) NULL,
     rate_limit_effective varchar(16) GENERATED ALWAYS AS (COALESCE(rate_limit_override, rate_limit)) STORED,
@@ -450,7 +450,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
 
 
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-cb2166b7bf81baa19137c2db8cc7be59', '{{schema}}')
+VALUES (0, 'baseline-b42dcd52f26a5ce74068ae73b5659884', '{{schema}}')
 ON CONFLICT (version) DO NOTHING;
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}')

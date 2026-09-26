@@ -293,7 +293,7 @@ internal sealed class SqlServerDialect : ISqlDialect
         new("name", SqlDbType.VarChar, 128),
         new("priority_code", SqlDbType.TinyInt),
         new("max_attempts", SqlDbType.Int),
-        new("concurrency_limit", SqlDbType.SmallInt),
+        new("concurrency_limit", SqlDbType.Int),
         new("rate_limit", SqlDbType.VarChar, 16),
         new("rate_key", SqlDbType.VarChar, 128),
         new("backoff", SqlDbType.NVarChar, 64),
@@ -330,7 +330,7 @@ internal sealed class SqlServerDialect : ISqlDialect
                 record.SetString(0, row.Name);
                 record.SetByte(1, row.PriorityCode);
                 record.SetInt32(2, row.MaxAttempts);
-                SetNullableInt16(record, 3, row.ConcurrencyLimit);
+                SetNullableInt32(record, 3, row.ConcurrencyLimit);
                 SetNullableString(record, 4, row.RateLimit);
                 SetNullableString(record, 5, row.RateKey);
                 record.SetString(6, row.Backoff);
@@ -648,18 +648,6 @@ internal sealed class SqlServerDialect : ISqlDialect
         if (value is { } number)
         {
             record.SetByte(ordinal, number);
-        }
-        else
-        {
-            record.SetDBNull(ordinal);
-        }
-    }
-
-    private static void SetNullableInt16(SqlDataRecord record, int ordinal, short? value)
-    {
-        if (value is { } number)
-        {
-            record.SetInt16(ordinal, number);
         }
         else
         {

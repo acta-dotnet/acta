@@ -34,7 +34,7 @@ internal sealed class JobExecutionHarness(
     StartExecutionAction? startAfterFailure = null,
     JobDetail? rowAfterLostClaim = null,
     string? concurrencyKey = null,
-    short? concurrencyLimit = null,
+    int? concurrencyLimit = null,
     bool slotGranted = true,
     string? rateLimit = null,
     string? rateKey = null,
@@ -345,7 +345,7 @@ internal sealed class JobExecutionHarness(
         string jobName,
         Func<JobContext, CancellationToken, Task> handler,
         int maxAttempts,
-        short? concurrencyLimit,
+        int? concurrencyLimit,
         string? rateLimit,
         string? rateKey
     ) =>
