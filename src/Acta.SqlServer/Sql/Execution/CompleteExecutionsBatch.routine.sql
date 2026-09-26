@@ -84,6 +84,8 @@ BEGIN
             AND j.parent_id IS NULL
             AND r.leased_by_worker_id = b.worker_id;
 
+        -- LOOP JOIN makes fk_results_jobs seek each job instead of scanning jobs
+        -- (docs/internals/sql-execution-policy.md, "Foreign keys in set-based writes").
         INSERT INTO {{schema}}.results (job_id, execution_number, result_format_id, result, created_at_utc)
         SELECT
             u.job_id,
@@ -93,7 +95,8 @@ BEGIN
             @now
         FROM @updated u
         INNER JOIN @p_batch b ON b.ordinal = u.ordinal
-        WHERE b.result_format_id <> 0 /* JobPayloadFormat.None */;
+        WHERE b.result_format_id <> 0 /* JobPayloadFormat.None */
+        OPTION (LOOP JOIN);
 
         INSERT INTO {{schema}}.events (
             event_code, created_at_utc, namespace_id, actor_code, actor_key,

@@ -17,6 +17,8 @@ public sealed class PgCombinedDispatchParitySpec : CombinedDispatchParitySpec<Pg
 
 public sealed class PgBulkCompletionParitySpec : BulkCompletionParitySpec<PgConformanceFixture>;
 
+public sealed class PgConcurrentCompletionBatchSpec : ConcurrentCompletionBatchSpec<PgConformanceFixture>;
+
 public sealed class PgClockSkewInitializationChaosSpec : ClockSkewInitializationChaosSpec<PgConformanceFixture>;
 
 public sealed class PgCompleteAndClockChaosSpec : CompleteAndClockChaosSpec<PgConformanceFixture>;

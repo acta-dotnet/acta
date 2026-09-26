@@ -17,6 +17,8 @@ public sealed class SqlServerJobControlVersionGuardSpec : JobControlVersionGuard
 
 public sealed class SqlServerJobNoteSpec : JobNoteSpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerConcurrentEnqueueBatchSpec : ConcurrentEnqueueBatchSpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerEnqueueSpec : EnqueueSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerGetJobExplanationSpec : GetJobExplanationSpec<SqlServerConformanceFixture>;

@@ -17,6 +17,8 @@ public sealed class SqliteJobControlVersionGuardSpec : JobControlVersionGuardSpe
 
 public sealed class SqliteJobNoteSpec : JobNoteSpec<SqliteConformanceFixture>;
 
+public sealed class SqliteConcurrentEnqueueBatchSpec : ConcurrentEnqueueBatchSpec<SqliteConformanceFixture>;
+
 public sealed class SqliteEnqueueSpec : EnqueueSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteGetJobExplanationSpec : GetJobExplanationSpec<SqliteConformanceFixture>;

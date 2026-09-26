@@ -3253,6 +3253,7 @@ AS $$
 DECLARE
     batch_count INT;
     resolved_count INT;
+    laned_count INT;
     ns_active_count INT;
     parent_count INT;
     parent_live INT;
@@ -3263,9 +3264,10 @@ BEGIN
 
     batch_count := COALESCE(array_length(p_b_ordinal, 1), 0);
 
-    SELECT COUNT(*)
-    INTO resolved_count
-    FROM unnest(p_b_namespace_name, p_b_job_name) AS b(namespace_name, job_name)
+    -- Each row's effective lane is its own, else its definition's.
+    SELECT COUNT(*), COUNT(*) FILTER (WHERE COALESCE(b.lane, jd.lane) IS NOT NULL)
+    INTO resolved_count, laned_count
+    FROM unnest(p_b_namespace_name, p_b_job_name, p_b_lane) AS b(namespace_name, job_name, lane)
     INNER JOIN acta.namespaces ns ON ns.name = b.namespace_name
     INNER JOIN acta.definitions jd
         ON jd.namespace_id = ns.id
@@ -3300,26 +3302,29 @@ BEGIN
             USING ERRCODE = 'P0001';
     END IF;
 
-    -- Each row's effective lane is its own, else its definition's. Missing lanes are inserted in name
-    -- order, then the whole set is locked in id order (docs/internals/sql-execution-policy.md, "Lane lock order").
-    CREATE TEMP TABLE IF NOT EXISTS _enq_lanes (
-        namespace_id INT NOT NULL,
-        name VARCHAR NOT NULL,
-        id BIGINT,
-        PRIMARY KEY (namespace_id, name)
-    ) ON COMMIT DROP;
-    TRUNCATE _enq_lanes;
+    -- Missing lanes are inserted in name order, then the whole set is locked in id order
+    -- (docs/internals/sql-execution-policy.md, "Lane lock order"). An unlaned batch skips all of it, the
+    -- lane table's per-call temp-table create included.
+    lane_count := 0;
+    IF laned_count > 0 THEN
+        CREATE TEMP TABLE IF NOT EXISTS _enq_lanes (
+            namespace_id INT NOT NULL,
+            name VARCHAR NOT NULL,
+            id BIGINT,
+            busy BOOLEAN,
+            PRIMARY KEY (namespace_id, name)
+        ) ON COMMIT DROP;
+        TRUNCATE _enq_lanes;
 
-    INSERT INTO _enq_lanes (namespace_id, name)
-    SELECT DISTINCT ns.id, COALESCE(b.lane, jd.lane)
-    FROM unnest(p_b_namespace_name, p_b_job_name, p_b_lane) AS b(namespace_name, job_name, lane)
-    INNER JOIN acta.namespaces ns ON ns.name = b.namespace_name
-    INNER JOIN acta.definitions jd ON jd.namespace_id = ns.id AND jd.name = b.job_name
-    WHERE COALESCE(b.lane, jd.lane) IS NOT NULL;
+        INSERT INTO _enq_lanes (namespace_id, name)
+        SELECT DISTINCT ns.id, COALESCE(b.lane, jd.lane)
+        FROM unnest(p_b_namespace_name, p_b_job_name, p_b_lane) AS b(namespace_name, job_name, lane)
+        INNER JOIN acta.namespaces ns ON ns.name = b.namespace_name
+        INNER JOIN acta.definitions jd ON jd.namespace_id = ns.id AND jd.name = b.job_name
+        WHERE COALESCE(b.lane, jd.lane) IS NOT NULL;
 
-    SELECT COUNT(*) INTO lane_count FROM _enq_lanes;
+        SELECT COUNT(*) INTO lane_count FROM _enq_lanes;
 
-    IF lane_count > 0 THEN
         -- Ready versus Blocked is read after the lane locks, which only a per-statement snapshot sees.
         IF current_setting('transaction_isolation') <> 'read committed' THEN
             RAISE EXCEPTION 'ACTA:ENQ_LANE_ISOLATION:Enqueue rejected: a laned enqueue needs a READ COMMITTED caller transaction.'
@@ -3356,6 +3361,21 @@ BEGIN
             SELECT COUNT(*) INTO locked_count FROM _enq_lanes e WHERE e.id IS NOT NULL;
             EXIT WHEN locked_count = lane_count;
         END LOOP;
+
+        -- Under the lane locks, one probe per lane records whether an unfinished member is already there.
+        UPDATE _enq_lanes e
+        SET busy = EXISTS (
+            SELECT 1
+            FROM acta.runtimes m
+            WHERE
+                m.lane_id = e.id
+                AND m.lane_id IS NOT NULL
+                AND m.status_code IN (
+                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                    30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                )
+        )
+        WHERE e.id IS NOT NULL;
     END IF;
 
     SELECT COUNT(*) INTO parent_count
@@ -3466,7 +3486,9 @@ BEGIN
         priority_code SMALLINT NOT NULL,
         next_run_at_utc TIMESTAMPTZ NOT NULL,
         is_child BOOLEAN NOT NULL,
-        lane_id BIGINT
+        lane VARCHAR,
+        lane_id BIGINT,
+        lane_busy BOOLEAN
     ) ON COMMIT DROP;
     TRUNCATE _enq_batch;
 
@@ -3512,7 +3534,7 @@ BEGIN
         priority_code,
         next_run_at_utc,
         is_child,
-        lane_id)
+        lane)
     SELECT
         ri.id,
         b.ordinal,
@@ -3532,39 +3554,47 @@ BEGIN
         COALESCE(b.priority_override, jd.priority_code_effective),
         COALESCE(b.next_run_at_utc, now() + make_interval(secs => COALESCE(b.delay_seconds, 0))),
         (b.parent_id IS NOT NULL),
-        el.id
+        COALESCE(b.lane, jd.lane)
     FROM batch_rows b
     INNER JOIN ranked_ids ri ON ri.rn = b.rn
     INNER JOIN acta.namespaces ns ON ns.name = b.namespace_name AND ns.status_code = 10 /* NamespaceStatusCode.Active */
     INNER JOIN acta.definitions jd ON jd.namespace_id = ns.id AND jd.name = b.job_name
     LEFT JOIN acta.tenants t ON t.tenant_key = b.tenant_key AND t.status_code = 10 /* TenantStatusCode.Active */
-    LEFT JOIN acta.jobs pj ON pj.id = b.parent_id
-    LEFT JOIN _enq_lanes el ON el.namespace_id = ns.id AND el.name = COALESCE(b.lane, jd.lane);
+    LEFT JOIN acta.jobs pj ON pj.id = b.parent_id;
 
-    -- A child may not wait behind an unfinished ancestor in its own lane: the ancestor waits for it.
-    IF EXISTS (
-        WITH RECURSIVE ancestors AS (
-            SELECT e.lane_id, a.id, a.parent_id
-            FROM _enq_batch e
-            INNER JOIN acta.jobs a ON a.id = e.parent_id
-            WHERE e.lane_id IS NOT NULL
-            UNION ALL
-            SELECT c.lane_id, a.id, a.parent_id
-            FROM acta.jobs a
-            INNER JOIN ancestors c ON a.id = c.parent_id
-        )
-        SELECT 1
-        FROM ancestors c
-        INNER JOIN acta.runtimes ar ON ar.job_id = c.id
-        WHERE
-            ar.lane_id = c.lane_id
-            AND ar.status_code IN (
-                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-            )
-    ) THEN
-        RAISE EXCEPTION 'ACTA:ENQ_ANCESTOR_LANE:Enqueue rejected: one or more child rows name the lane of an unfinished ancestor, so they would wait behind the ancestor that waits for them.'
-            USING ERRCODE = 'P0001';
+    IF lane_count > 0 THEN
+        UPDATE _enq_batch e
+        SET lane_id = el.id, lane_busy = el.busy
+        FROM _enq_lanes el
+        WHERE el.namespace_id = e.namespace_id AND el.name = e.lane;
+
+        -- A child may not wait behind an unfinished ancestor in its own lane: the ancestor waits for it.
+        IF parent_count > 0 THEN
+            IF EXISTS (
+                WITH RECURSIVE ancestors AS (
+                    SELECT e.lane_id, a.id, a.parent_id
+                    FROM _enq_batch e
+                    INNER JOIN acta.jobs a ON a.id = e.parent_id
+                    WHERE e.lane_id IS NOT NULL
+                    UNION ALL
+                    SELECT c.lane_id, a.id, a.parent_id
+                    FROM acta.jobs a
+                    INNER JOIN ancestors c ON a.id = c.parent_id
+                )
+                SELECT 1
+                FROM ancestors c
+                INNER JOIN acta.runtimes ar ON ar.job_id = c.id
+                WHERE
+                    ar.lane_id = c.lane_id
+                    AND ar.status_code IN (
+                        10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                        30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                    )
+            ) THEN
+                RAISE EXCEPTION 'ACTA:ENQ_ANCESTOR_LANE:Enqueue rejected: one or more child rows name the lane of an unfinished ancestor, so they would wait behind the ancestor that waits for them.'
+                    USING ERRCODE = 'P0001';
+            END IF;
+        END IF;
     END IF;
 
     -- Give the planner real row counts for the staged set so the inserts below stay hash/index joins.
@@ -3655,8 +3685,8 @@ BEGIN
         SELECT id FROM inserted_child
     ),
     -- A laned row enters Ready only as the first inserted row of its lane with no unfinished member
-    -- already there; every later one waits as Blocked. The subquery reads the pre-statement snapshot, so
-    -- this batch's own rows are ranked by the window instead.
+    -- already there; every later one waits as Blocked. The window ranks inserted rows only, because a
+    -- deduplicated row is decided in this statement and lands no runtime.
     runtime_insert AS (
         INSERT INTO acta.runtimes (
             job_id,
@@ -3677,17 +3707,7 @@ BEGIN
             CASE
                 WHEN e.lane_id IS NOT NULL AND (
                     row_number() OVER (PARTITION BY e.lane_id ORDER BY e.id) > 1
-                    OR EXISTS (
-                        SELECT 1
-                        FROM acta.runtimes m
-                        WHERE
-                            m.lane_id = e.lane_id
-                            AND m.lane_id IS NOT NULL
-                            AND m.status_code IN (
-                                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                                30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-                            )
-                    )
+                    OR e.lane_busy
                 )
                     THEN 15 /* JobStatusCode.Blocked */
                 ELSE 10 /* JobStatusCode.Ready */
@@ -8457,7 +8477,7 @@ DROP FUNCTION IF EXISTS acta.reserve_rate(VARCHAR, BIGINT, INT, INT, UUID);
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.6-4233703b58d23c5c4f571d35f9ac86db', 'acta');
+VALUES (-1, 'objects-1.6-3bebbc632122b88f5b40375d49369274', 'acta');
 
 COMMIT;
 

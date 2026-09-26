@@ -31,6 +31,8 @@ public sealed class SqliteCombinedDispatchParitySpec : CombinedDispatchParitySpe
 
 public sealed class SqliteBulkCompletionParitySpec : BulkCompletionParitySpec<SqliteConformanceFixture>;
 
+public sealed class SqliteConcurrentCompletionBatchSpec : ConcurrentCompletionBatchSpec<SqliteConformanceFixture>;
+
 public sealed class SqliteHandlerLockHeartbeatSpec : HandlerLockHeartbeatSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteRecoveryDuplicationChaosSpec : RecoveryDuplicationChaosSpec<SqliteConformanceFixture>;

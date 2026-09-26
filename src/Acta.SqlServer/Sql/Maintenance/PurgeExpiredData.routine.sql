@@ -55,23 +55,32 @@ BEGIN
                 DELETE @schedule_del;
                 INSERT INTO @schedule_del (id)
                 SELECT s.id FROM {{schema}}.schedules s WITH (UPDLOCK)
-                WHERE s.job_id IN (SELECT id FROM @del);
+                WHERE s.job_id IN (SELECT id FROM @del)
+                OPTION (LOOP JOIN);
 
                 DELETE FROM {{schema}}.tags
                 WHERE
                     (scope_code = 50 /* TagScopeCode.Job */ AND scope_id IN (SELECT id FROM @del))
                     OR (scope_code = 60 /* TagScopeCode.Schedule */ AND scope_id IN (SELECT id FROM @schedule_del));
 
+                -- Each delete below, the jobs cascade included, seeks its rows by job id: an unhinted plan compiled
+                -- at the batch's size scans the whole child table under update locks
+                -- (docs/internals/sql-execution-policy.md, "Foreign keys in set-based writes").
                 DELETE FROM {{schema}}.checkpoints
-                WHERE job_id IN (SELECT id FROM @del);
+                WHERE job_id IN (SELECT id FROM @del)
+                OPTION (LOOP JOIN);
                 DELETE FROM {{schema}}.runtimes
-                WHERE job_id IN (SELECT id FROM @del);
+                WHERE job_id IN (SELECT id FROM @del)
+                OPTION (LOOP JOIN);
                 DELETE FROM {{schema}}.steps
-                WHERE job_id IN (SELECT id FROM @del);
+                WHERE job_id IN (SELECT id FROM @del)
+                OPTION (LOOP JOIN);
                 DELETE FROM {{schema}}.results
-                WHERE job_id IN (SELECT id FROM @del);
+                WHERE job_id IN (SELECT id FROM @del)
+                OPTION (LOOP JOIN);
                 DELETE FROM {{schema}}.jobs
-                WHERE id IN (SELECT id FROM @del);
+                WHERE id IN (SELECT id FROM @del)
+                OPTION (LOOP JOIN);
                 SET @rows = (SELECT COUNT(*) FROM @del);
 
             END;
@@ -210,7 +219,8 @@ BEGIN
                 DELETE l
                 FROM {{schema}}.lanes l
                 INNER JOIN @del d ON d.id = l.id
-                WHERE NOT EXISTS (SELECT 1 FROM {{schema}}.runtimes r WHERE r.lane_id = l.id);
+                WHERE NOT EXISTS (SELECT 1 FROM {{schema}}.runtimes r WHERE r.lane_id = l.id)
+                OPTION (LOOP JOIN);
                 SET @rows = @@ROWCOUNT;
             END;
 

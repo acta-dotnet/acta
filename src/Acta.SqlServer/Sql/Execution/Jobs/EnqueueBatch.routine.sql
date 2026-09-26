@@ -30,7 +30,8 @@ BEGIN
             def_tenant_req TINYINT NOT NULL,
             tenant_id INT NULL,
             lane VARCHAR(128) NULL,
-            lane_id BIGINT NULL
+            lane_id BIGINT NULL,
+            lane_head BIT NOT NULL DEFAULT 0
         );
 
         INSERT INTO @resolved (ordinal, ns_id, ns_status, def_id, def_priority, def_audit_level, def_status, def_tenant_req, lane)
@@ -130,7 +131,8 @@ BEGIN
         FROM @resolved r
         WHERE r.lane IS NOT NULL;
 
-        DECLARE @lanes_pending BIT = CASE WHEN EXISTS (SELECT 1 FROM @lanes) THEN 1 ELSE 0 END;
+        DECLARE @laned BIT = CASE WHEN EXISTS (SELECT 1 FROM @lanes) THEN 1 ELSE 0 END;
+        DECLARE @lanes_pending BIT = @laned;
         DECLARE @lane_cursor BIGINT, @lane_next BIGINT, @lane_locked BIGINT;
 
         -- Ready versus Blocked is read after the lane locks, which a SNAPSHOT transaction (level 5) never sees.
@@ -377,83 +379,153 @@ BEGIN
             id BIGINT NOT NULL
         );
 
-        INSERT INTO {{schema}}.jobs (
-            job_ref, lineage_root_id, parent_id,
-            deduplication_key, correlation_key,
-            namespace_id, definition_id, tenant_id,
-            input_format_id, input,
-            concurrency_key, audit_level_code,
-            created_at_utc
-        )
-        OUTPUT INSERTED.job_ref, INSERTED.id INTO @map (job_ref, id)
-        SELECT
-            b.job_ref,
-            p.lineage_root_id,
-            b.parent_id,
-            b.deduplication_key,
-            COALESCE(b.correlation_key, p.correlation_key),
-            r.ns_id,
-            r.def_id,
-            CASE
-                WHEN r.def_tenant_req = 20 /* JobTenantRequirementCode.Forbidden */ THEN NULL
-                ELSE COALESCE(r.tenant_id, p.tenant_id)
-            END,
-            b.input_format_id,
-            b.input,
-            b.concurrency_key,
-            r.def_audit_level,
-            @now
-        FROM @p_batch b
-        INNER JOIN @resolved r ON r.ordinal = b.ordinal
-        LEFT JOIN @parents p ON p.ordinal = b.ordinal
-        LEFT JOIN @existing e ON e.ordinal = b.ordinal
-        WHERE e.ordinal IS NULL
-        -- Identity values follow this order, so job-id order equals the caller's batch order, which is
-        -- the order a lane runs in.
-        ORDER BY b.ordinal;
+        -- An unlaned batch runs the plain inserts; only a laned one pays for batch order and lane heads.
+        -- Both runtimes inserts force nested loops so the foreign-key checks seek their parent rows
+        -- (docs/internals/sql-execution-policy.md, "Foreign keys in set-based writes").
+        IF @laned = 0
+            BEGIN
+                INSERT INTO {{schema}}.jobs (
+                    job_ref, lineage_root_id, parent_id,
+                    deduplication_key, correlation_key,
+                    namespace_id, definition_id, tenant_id,
+                    input_format_id, input,
+                    concurrency_key, audit_level_code,
+                    created_at_utc
+                )
+                OUTPUT INSERTED.job_ref, INSERTED.id INTO @map (job_ref, id)
+                SELECT
+                    b.job_ref,
+                    p.lineage_root_id,
+                    b.parent_id,
+                    b.deduplication_key,
+                    COALESCE(b.correlation_key, p.correlation_key),
+                    r.ns_id,
+                    r.def_id,
+                    CASE
+                        WHEN r.def_tenant_req = 20 /* JobTenantRequirementCode.Forbidden */ THEN NULL
+                        ELSE COALESCE(r.tenant_id, p.tenant_id)
+                    END,
+                    b.input_format_id,
+                    b.input,
+                    b.concurrency_key,
+                    r.def_audit_level,
+                    @now
+                FROM @p_batch b
+                INNER JOIN @resolved r ON r.ordinal = b.ordinal
+                LEFT JOIN @parents p ON p.ordinal = b.ordinal
+                LEFT JOIN @existing e ON e.ordinal = b.ordinal
+                WHERE e.ordinal IS NULL;
 
-        -- A laned row enters Ready only as the first inserted row of its lane with no unfinished member
-        -- already there; every later one waits as Blocked. The existence probe is spooled ahead of the
-        -- insert, so this batch's own rows are ranked by the window instead.
-        INSERT INTO {{schema}}.runtimes (
-            job_id, namespace_id, lane_id, status_code, priority_code, next_run_at_utc,
-            execution_number, failure_count, retention_until_utc,
-            modified_at_utc, version
-        )
-        SELECT
-            m.id,
-            r.ns_id,
-            r.lane_id,
-            CASE
-                WHEN
-                    r.lane_id IS NOT NULL
-                    AND (
-                        ROW_NUMBER() OVER (PARTITION BY r.lane_id ORDER BY m.id) > 1
-                        OR EXISTS (
-                            SELECT 1
-                            FROM {{schema}}.runtimes x
-                            WHERE
-                                x.lane_id = r.lane_id
-                                AND x.lane_id IS NOT NULL
-                                AND x.status_code IN (
-                                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                                    30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-                                )
+                INSERT INTO {{schema}}.runtimes (
+                    job_id, namespace_id, status_code, priority_code, next_run_at_utc,
+                    execution_number, failure_count, retention_until_utc,
+                    modified_at_utc, version
+                )
+                SELECT
+                    m.id,
+                    r.ns_id,
+                    10 /* JobStatusCode.Ready */,
+                    COALESCE(b.priority_override, r.def_priority),
+                    COALESCE(b.next_run_at_utc, DATEADD(SECOND, COALESCE(b.delay_seconds, 0), @now)),
+                    0,
+                    0,
+                    NULL,
+                    @now,
+                    0
+                FROM @map m
+                INNER JOIN @p_batch b ON b.job_ref = m.job_ref
+                INNER JOIN @resolved r ON r.ordinal = b.ordinal
+                OPTION (LOOP JOIN);
+            END
+        ELSE
+            BEGIN
+                INSERT INTO {{schema}}.jobs (
+                    job_ref, lineage_root_id, parent_id,
+                    deduplication_key, correlation_key,
+                    namespace_id, definition_id, tenant_id,
+                    input_format_id, input,
+                    concurrency_key, audit_level_code,
+                    created_at_utc
+                )
+                OUTPUT INSERTED.job_ref, INSERTED.id INTO @map (job_ref, id)
+                SELECT
+                    b.job_ref,
+                    p.lineage_root_id,
+                    b.parent_id,
+                    b.deduplication_key,
+                    COALESCE(b.correlation_key, p.correlation_key),
+                    r.ns_id,
+                    r.def_id,
+                    CASE
+                        WHEN r.def_tenant_req = 20 /* JobTenantRequirementCode.Forbidden */ THEN NULL
+                        ELSE COALESCE(r.tenant_id, p.tenant_id)
+                    END,
+                    b.input_format_id,
+                    b.input,
+                    b.concurrency_key,
+                    r.def_audit_level,
+                    @now
+                FROM @p_batch b
+                INNER JOIN @resolved r ON r.ordinal = b.ordinal
+                LEFT JOIN @parents p ON p.ordinal = b.ordinal
+                LEFT JOIN @existing e ON e.ordinal = b.ordinal
+                WHERE e.ordinal IS NULL
+                -- Identity values follow this order, so job-id order equals the caller's batch order, which
+                -- is the order a lane runs in.
+                ORDER BY b.ordinal;
+
+                -- A lane's head is its first inserted row, the lowest ordinal the dedup probe kept, and only
+                -- when no unfinished member is already there; every other laned row waits as Blocked. The
+                -- probe runs under the lane locks, before this batch has any runtimes row.
+                UPDATE r
+                SET lane_head = 1
+                FROM @resolved r
+                INNER JOIN (
+                    SELECT MIN(h.ordinal) AS ordinal
+                    FROM @resolved h
+                    LEFT JOIN @existing x ON x.ordinal = h.ordinal
+                    WHERE
+                        h.lane_id IS NOT NULL
+                        AND x.ordinal IS NULL
+                    GROUP BY h.lane_id
+                ) f ON f.ordinal = r.ordinal
+                WHERE NOT EXISTS (
+                    SELECT 1
+                    FROM {{schema}}.runtimes x WITH (FORCESEEK)
+                    WHERE
+                        x.lane_id = r.lane_id
+                        AND x.lane_id IS NOT NULL
+                        AND x.status_code IN (
+                            10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                            30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
                         )
-                    )
-                    THEN 15 /* JobStatusCode.Blocked */
-                ELSE 10 /* JobStatusCode.Ready */
-            END,
-            COALESCE(b.priority_override, r.def_priority),
-            COALESCE(b.next_run_at_utc, DATEADD(SECOND, COALESCE(b.delay_seconds, 0), @now)),
-            0,
-            0,
-            NULL,
-            @now,
-            0
-        FROM @map m
-        INNER JOIN @p_batch b ON b.job_ref = m.job_ref
-        INNER JOIN @resolved r ON r.ordinal = b.ordinal;
+                );
+
+                INSERT INTO {{schema}}.runtimes (
+                    job_id, namespace_id, lane_id, status_code, priority_code, next_run_at_utc,
+                    execution_number, failure_count, retention_until_utc,
+                    modified_at_utc, version
+                )
+                SELECT
+                    m.id,
+                    r.ns_id,
+                    r.lane_id,
+                    CASE
+                        WHEN r.lane_id IS NULL OR r.lane_head = 1 THEN 10 /* JobStatusCode.Ready */
+                        ELSE 15 /* JobStatusCode.Blocked */
+                    END,
+                    COALESCE(b.priority_override, r.def_priority),
+                    COALESCE(b.next_run_at_utc, DATEADD(SECOND, COALESCE(b.delay_seconds, 0), @now)),
+                    0,
+                    0,
+                    NULL,
+                    @now,
+                    0
+                FROM @map m
+                INNER JOIN @p_batch b ON b.job_ref = m.job_ref
+                INNER JOIN @resolved r ON r.ordinal = b.ordinal
+                OPTION (LOOP JOIN);
+            END;
 
         INSERT INTO {{schema}}.tags (scope_code, scope_id, namespace_id, name, value, value_search)
         SELECT

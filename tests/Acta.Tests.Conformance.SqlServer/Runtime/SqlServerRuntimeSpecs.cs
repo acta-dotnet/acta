@@ -17,6 +17,8 @@ public sealed class SqlServerCombinedDispatchParitySpec : CombinedDispatchParity
 
 public sealed class SqlServerBulkCompletionParitySpec : BulkCompletionParitySpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerConcurrentCompletionBatchSpec : ConcurrentCompletionBatchSpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerClockSkewInitializationChaosSpec : ClockSkewInitializationChaosSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerCompleteAndClockChaosSpec : CompleteAndClockChaosSpec<SqlServerConformanceFixture>;

@@ -17,6 +17,8 @@ public sealed class PgJobControlVersionGuardSpec : JobControlVersionGuardSpec<Pg
 
 public sealed class PgJobNoteSpec : JobNoteSpec<PgConformanceFixture>;
 
+public sealed class PgConcurrentEnqueueBatchSpec : ConcurrentEnqueueBatchSpec<PgConformanceFixture>;
+
 public sealed class PgEnqueueSpec : EnqueueSpec<PgConformanceFixture>;
 
 public sealed class PgGetJobExplanationSpec : GetJobExplanationSpec<PgConformanceFixture>;
