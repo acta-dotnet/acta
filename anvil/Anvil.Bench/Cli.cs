@@ -14,6 +14,8 @@ public static class CellSummary
                 + (m.Extra is not null && m.Extra.ContainsKey("fairnessSpread") ? $", fairness x{Ex(m, "fairnessSpread"):F1}" : "")
                 + $", p99 {m.LatencyP99Ms:F1}ms)"
                 + Deadlocks(m),
+            "lanes" => $"{m.EndToEndRatePerSec, 8:F0} jobs/s e2e  (pickup p50 {m.LatencyP50Ms:F1}ms, p99 {m.LatencyP99Ms:F1}ms)"
+                + Deadlocks(m),
             "latency" => $"p50 {m.LatencyP50Ms:F2}ms  p95 {m.LatencyP95Ms:F2}ms  p99 {m.LatencyP99Ms:F2}ms",
             "enqueue" => $"{m.EnqueueRatePerSec, 8:F0} enq/s  ({Ex(m, "producers"):F0} producers, p95 {m.LatencyP95Ms:F2}ms/call)",
             "enqueue-batch" => $"{m.EnqueueRatePerSec, 8:F0} enq/s batch  ({Ex(m, "producers"):F0} producers, over {m.EnqueueSeconds:F2}s)",

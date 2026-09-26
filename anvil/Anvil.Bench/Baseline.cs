@@ -67,7 +67,10 @@ public sealed record BaselineCellKey(
     // The rate scenario's two dimensions. Default so every other scenario's key is unchanged and a
     // baseline captured before the scenario existed still reads back.
     string? Rate = null,
-    int SideJobs = 0
+    int SideJobs = 0,
+    // The lanes scenario's workload shape. Default so a baseline captured before lanes existed still
+    // reads back, its cells keyed exactly as before.
+    string? Variant = null
 );
 
 public sealed record BaselineMetrics(
@@ -161,6 +164,13 @@ public static class BaselineSuite
         ExecutionProfile.Direct,
         ExecutionProfile.Bulk,
     ];
+
+    /// <summary>
+    /// A lanes cell's job count: the preset's shared count, except Bulk lane-deep. There every handoff waits
+    /// for the completion flush, a few jobs a second, so the shared count would outrun the drain deadline.
+    /// </summary>
+    public static int LanesJobs(BenchPreset preset, ExecutionProfile profile, string variant) =>
+        profile == ExecutionProfile.Bulk && variant == LanesScenario.LaneDeep ? (preset.FullMatrix ? 200 : 50) : preset.Jobs;
 
     public static BenchPreset Preset(string name)
     {
@@ -346,6 +356,30 @@ public static class BaselineSuite
                     sideJobs: cell.SideJobs
                 );
             }
+
+            // The throughput shape at its eight-executor point, so the unlaned cell and throughput's
+            // e=8 cell measure the same thing and each lanes table carries its own control.
+            foreach (var profile in profiles)
+            foreach (var variant in LanesScenario.Variants)
+            {
+                Add(
+                    specs,
+                    scenario: "lanes",
+                    actualScenario: "lanes",
+                    provider,
+                    dbVersion,
+                    keyProfile: profile,
+                    actualProfile: profile,
+                    jobs: LanesJobs(preset, profile, variant),
+                    executors: 8,
+                    claimBatch: 16,
+                    payloadBytes: 0,
+                    workers: 1,
+                    rows: 0,
+                    iterations: 200,
+                    variant: variant
+                );
+            }
         }
 
         return scenarios is null ? specs : [.. specs.Where(s => scenarios.Any(token => MatchesScenarioToken(s, token)))];
@@ -405,7 +439,8 @@ public static class BaselineSuite
         int? actualExecutors = null,
         int? actualClaimBatch = null,
         string? rate = null,
-        int sideJobs = 0
+        int sideJobs = 0,
+        string? variant = null
     )
     {
         var key = new BaselineCellKey(
@@ -421,7 +456,8 @@ public static class BaselineSuite
             rows,
             iterations,
             rate,
-            sideJobs
+            sideJobs,
+            variant
         );
         var actual = new CellParams(
             provider,
@@ -434,7 +470,8 @@ public static class BaselineSuite
             rows,
             actualProfile,
             rate,
-            sideJobs
+            sideJobs,
+            variant
         );
         specs.Add(new BaselineCellSpec(scenario, actualScenario, provider, keyProfile, actual, key));
     }
@@ -834,6 +871,7 @@ public static class BaselineReport
         AppendEnqueueBatch(sb, baseline.Cells);
         AppendQuery(sb, baseline.Cells);
         AppendRate(sb, baseline.Cells);
+        AppendLanes(sb, baseline.Cells);
         return sb.ToString();
     }
 
@@ -851,6 +889,10 @@ public static class BaselineReport
         if (c.Rate is { } rate)
         {
             parts.Add(rate);
+        }
+        if (c.Variant is { } variant)
+        {
+            parts.Add(variant);
         }
         if (c.Jobs > 0)
         {
@@ -1200,6 +1242,44 @@ public static class BaselineReport
             }
             sb.AppendLine();
         }
+    }
+
+    // Skipped unless the run measured lanes cells, so every report that never asked for one is
+    // byte-for-byte what this harness always wrote.
+    private static void AppendLanes(StringBuilder sb, IReadOnlyList<BaselineCellResult> cells)
+    {
+        var rows = cells
+            .Where(c => c.Key.Scenario == "lanes")
+            .OrderBy(c => c.Key.Provider, StringComparer.Ordinal)
+            .ThenBy(c => ProfileOrder(c.Key.ExecutionProfile))
+            .ThenBy(c => Array.IndexOf(LanesScenario.Variants, c.Key.Variant))
+            .ToArray();
+        if (rows.Length == 0)
+        {
+            return;
+        }
+
+        sb.AppendLine("## Lanes: end-to-end jobs/s and pickup ms");
+        sb.AppendLine();
+        sb.AppendLine(
+            "Enqueue and drain overlapped at 8 executors: unlaned jobs, 1000 lanes round-robin, one hot concurrency key "
+                + "(limit 1), and one lane holding every job. Pickup is enqueue to handler entry. Bulk lane-deep runs fewer jobs, "
+                + "since each of its handoffs waits for the completion flush."
+        );
+        sb.AppendLine();
+        sb.AppendLine("| provider | profile | cell | jobs | jobs/s | p50 | p99 | status |");
+        sb.AppendLine("| --- | --- | --- | ---: | ---: | ---: | ---: | --- |");
+        foreach (var row in rows)
+        {
+            var k = row.Key;
+            var m = row.MedianMetrics;
+            sb.AppendLine(
+                CultureInfo.InvariantCulture,
+                $"| {k.Provider} | {k.ExecutionProfile} | {k.Variant} | {k.Jobs} | {FormatWhole(m.JobsPerSecond)} | {m.P50LatencyMs:F1} "
+                    + $"| {m.P99LatencyMs:F1} | {row.Status} |"
+            );
+        }
+        sb.AppendLine();
     }
 
     private static string PolicyText(BaselinePolicy policy)
