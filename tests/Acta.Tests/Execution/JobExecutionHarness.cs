@@ -26,8 +26,8 @@ internal sealed class JobExecutionHarness(
     CompleteStepOutcomeCode stepOutcome = CompleteStepOutcomeCode.Succeeded,
     CompleteExecutionAction completionAction = CompleteExecutionAction.Completed,
     bool cancelAttemptOnStepCompletion = false,
-    short maxAttempts = 3,
-    short failureCount = 0,
+    int maxAttempts = 3,
+    int failureCount = 0,
     int? maxInlinePayloadBytes = null,
     StartExecutionAction startAction = StartExecutionAction.Started,
     bool startFailsOnce = false,
@@ -318,7 +318,7 @@ internal sealed class JobExecutionHarness(
         );
     }
 
-    private static ClaimedJob Job(short failureCount, string? concurrencyKey) =>
+    private static ClaimedJob Job(int failureCount, string? concurrencyKey) =>
         new(
             JobId: 4242,
             JobRef: Guid.CreateVersion7(),
@@ -341,7 +341,7 @@ internal sealed class JobExecutionHarness(
     private static JobDescriptor Descriptor(
         string jobName,
         Func<JobContext, CancellationToken, Task> handler,
-        short maxAttempts,
+        int maxAttempts,
         short? concurrencyLimit,
         string? rateLimit,
         string? rateKey

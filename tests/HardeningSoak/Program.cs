@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Text.Json;
 using Acta;
 using Anvil.Bench;
+using Microsoft.Data.SqlClient;
 using Microsoft.Data.Sqlite;
 using Npgsql;
 
@@ -81,9 +82,9 @@ var durationSeconds = int.Parse(args[1], CultureInfo.InvariantCulture);
 var rate = int.Parse(args[2], CultureInfo.InvariantCulture);
 var output = Path.GetFullPath(args[3]);
 Directory.CreateDirectory(Path.GetDirectoryName(output)!);
-if (provider is not ("pg" or "sqlite") || durationSeconds < 30 || rate < 20 || rate % 20 != 0)
+if (provider is not ("pg" or "mssql" or "sqlite") || durationSeconds < 30 || rate < 20 || rate % 20 != 0)
 {
-    throw new ArgumentException("Use pg|sqlite, at least 30 seconds, and a positive multiple of 20 jobs/second.");
+    throw new ArgumentException("Use pg|mssql|sqlite, at least 30 seconds, and a positive multiple of 20 jobs/second.");
 }
 var schema = BenchIdentity.NewSchema(DateTime.UtcNow);
 
@@ -114,13 +115,27 @@ var qualified = provider == "sqlite" ? "main" : schema;
 var workloadJobs = JobsOf(BenchHost.AuditJobName);
 string JobsOf(string definitionName) =>
     $"{qualified}.runtimes r JOIN {qualified}.jobs j ON j.id=r.job_id JOIN {qualified}.definitions d ON d.id=j.definition_id WHERE d.name='{definitionName}'";
-var maintenanceSetting = await ScalarAsync(provider == "pg" ? "SHOW autovacuum" : "PRAGMA journal_mode", ct);
-if (Convert.ToString(maintenanceSetting, CultureInfo.InvariantCulture) != (provider == "pg" ? "on" : "wal"))
+
+// The maintenance each engine runs on its own: autovacuum on PostgreSQL, automatic statistics updates on
+// SQL Server, and the write-ahead log with its automatic checkpoint on SQLite.
+var (maintenanceQuery, maintenanceExpected) = provider switch
+{
+    "pg" => ("SHOW autovacuum", "on"),
+    "mssql" => ("SELECT CAST(is_auto_update_stats_on AS int) FROM sys.databases WHERE name = DB_NAME()", "1"),
+    _ => ("PRAGMA journal_mode", "wal"),
+};
+var maintenanceSetting = await ScalarAsync(maintenanceQuery, ct);
+if (Convert.ToString(maintenanceSetting, CultureInfo.InvariantCulture) != maintenanceExpected)
 {
     throw new InvalidOperationException("Database maintenance was not enabled as expected.");
 }
 var beginning = await CountsAsync(ct);
-var runtimeVersion = await ScalarAsync($"SELECT engine_version FROM {qualified}.workers LIMIT 1", ct);
+var runtimeVersion = await ScalarAsync(
+    provider == "mssql"
+        ? $"SELECT TOP 1 engine_version FROM {qualified}.workers"
+        : $"SELECT engine_version FROM {qualified}.workers LIMIT 1",
+    ct
+);
 await File.WriteAllTextAsync(
     output + ".run.json",
     JsonSerializer.Serialize(
@@ -216,10 +231,18 @@ var durable = Stats.Percentiles(durableProbeTicks.ToArray());
 var decile = Math.Max(1, pickupTicks.Length / 10);
 var first = Stats.Percentiles(pickupTicks.Take(decile).ToArray());
 var last = Stats.Percentiles(pickupTicks.TakeLast(decile).ToArray());
-var maintenance =
-    provider == "pg"
-        ? await ScalarAsync($"SELECT COALESCE(sum(autovacuum_count),0)::bigint FROM pg_stat_user_tables WHERE schemaname = '{schema}'", ct)
-        : await ScalarAsync("PRAGMA wal_autocheckpoint", ct);
+var maintenance = provider switch
+{
+    "pg" => await ScalarAsync(
+        $"SELECT COALESCE(sum(autovacuum_count),0)::bigint FROM pg_stat_user_tables WHERE schemaname = '{schema}'",
+        ct
+    ),
+    "mssql" => await ScalarAsync(
+        $"SELECT COUNT(*) FROM sys.stats s JOIN sys.tables t ON t.object_id = s.object_id WHERE SCHEMA_NAME(t.schema_id) = '{schema}' AND STATS_DATE(s.object_id, s.stats_id) IS NOT NULL",
+        ct
+    ),
+    _ => await ScalarAsync("PRAGMA wal_autocheckpoint", ct),
+};
 var evidence = new
 {
     Provider = provider,
@@ -272,8 +295,18 @@ Console.WriteLine(
 
 async Task MonitorAsync(CancellationToken token)
 {
-    var now = provider == "pg" ? "EXTRACT(EPOCH FROM clock_timestamp())" : "(julianday('now')-2440587.5)*86400";
-    var due = provider == "pg" ? "EXTRACT(EPOCH FROM r.next_run_at_utc)" : "r.next_run_at_utc / 1000.0";
+    var now = provider switch
+    {
+        "pg" => "EXTRACT(EPOCH FROM clock_timestamp())",
+        "mssql" => "DATEDIFF_BIG(MILLISECOND, '1970-01-01', SYSUTCDATETIME()) / 1000.0",
+        _ => "(julianday('now')-2440587.5)*86400",
+    };
+    var due = provider switch
+    {
+        "pg" => "EXTRACT(EPOCH FROM r.next_run_at_utc)",
+        "mssql" => "DATEDIFF_BIG(MILLISECOND, '1970-01-01', r.next_run_at_utc) / 1000.0",
+        _ => "r.next_run_at_utc / 1000.0",
+    };
     var oldestDueReady =
         $"SELECT COALESCE(MAX({now} - {due}),0) FROM {workloadJobs} AND r.status_code={(byte)JobStatusCode.Ready} AND {due} <= {now}";
     try
@@ -385,8 +418,11 @@ async Task<object?> ScalarAsync(string sql, CancellationToken token)
 }
 
 DbConnection Open() =>
-    provider == "pg"
-        ? new NpgsqlConnection(ProviderConn.Resolve(provider, schema))
-        : new SqliteConnection(ProviderConn.Resolve(provider, schema));
+    provider switch
+    {
+        "pg" => new NpgsqlConnection(ProviderConn.Resolve(provider, schema)),
+        "mssql" => new SqlConnection(ProviderConn.Resolve(provider, schema)),
+        _ => new SqliteConnection(ProviderConn.Resolve(provider, schema)),
+    };
 
 internal sealed record StatusCounts(long Succeeded, long Failed, long Ready, long Dispatched, long Executing, long Unfinished);

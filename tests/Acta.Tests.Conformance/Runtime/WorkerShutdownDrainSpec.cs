@@ -78,7 +78,7 @@ public abstract class WorkerShutdownDrainSpec<TFixture> : ActaRuntimeTestBase<TF
         var after = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Executing, after.Status);
         Assert.NotNull(after.LeasedByWorkerId);
-        Assert.Equal((short)0, after.FailureCount);
+        Assert.Equal(0, after.FailureCount);
         Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobExecutionFinished, ct));
     }
 
@@ -97,7 +97,7 @@ public abstract class WorkerShutdownDrainSpec<TFixture> : ActaRuntimeTestBase<TF
         var reclaimed = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, reclaimed.Status);
         Assert.Null(reclaimed.LeasedByWorkerId);
-        Assert.Equal((short)1, reclaimed.FailureCount);
+        Assert.Equal(1, reclaimed.FailureCount);
         Assert.Equal(1, await CountFinishedWithStatusAsync(enqueued.JobId, ExecutionStatusCode.Orphaned, ct));
     }
 }

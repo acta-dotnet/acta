@@ -78,7 +78,7 @@ internal sealed record JobDetailResponse(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? TenantKey,
     // Effective retry budget from the definition so the summary can render "n of m consecutive
     // failures" without a second read. Absent when the definition row is gone.
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] short? MaxAttemptsEffective,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? MaxAttemptsEffective,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<WorkerListItem>? Workers,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? WorkersTotal
 )

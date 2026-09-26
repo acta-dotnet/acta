@@ -23,7 +23,7 @@ repaired AS (
     SET
         status_code = 10 /* JobStatusCode.Ready */,
         next_run_at_utc = now(),
-        failure_count = LEAST(r.failure_count + 1, 32767),
+        failure_count = r.failure_count + 1,
         leased_by_worker_id = NULL,
         lease_expires_at_utc = NULL,
         modified_at_utc = now(),

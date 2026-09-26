@@ -59,7 +59,7 @@ public abstract class WorkerCrashRecoveryChaosSpec<TFixture> : ActaRuntimeTestBa
         var reclaimed = await Jobs.GetAsync(enqueued, ct);
         Assert.NotNull(reclaimed);
         Assert.Equal(JobStatusCode.Ready, reclaimed!.Status);
-        Assert.Equal((short)1, reclaimed.FailureCount);
+        Assert.Equal(1, reclaimed.FailureCount);
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         Assert.DoesNotContain(events, e => e.EventCode == EventCode.JobExecutionStarted);
@@ -213,7 +213,7 @@ public abstract class WorkerCrashRecoveryChaosSpec<TFixture> : ActaRuntimeTestBa
         // and no retention stamp, because a schedule must never be terminalized by a crash.
         var reclaimed = await Jobs.GetAsync(JobLookup.ById(slotId), ct);
         Assert.Equal(JobStatusCode.Ready, reclaimed!.Status);
-        Assert.Equal((short)2, reclaimed.FailureCount);
+        Assert.Equal(2, reclaimed.FailureCount);
         Assert.Null(reclaimed.RetentionUntilUtc);
     }
 }

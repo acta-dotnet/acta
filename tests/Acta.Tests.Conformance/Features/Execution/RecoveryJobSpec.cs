@@ -84,7 +84,7 @@ public abstract class RecoveryJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
         var reclaimed = await ReadJobAsync(stranded.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, reclaimed.Status);
         Assert.Null(reclaimed.LeasedByWorkerId);
-        Assert.Equal((short)1, reclaimed.FailureCount);
+        Assert.Equal(1, reclaimed.FailureCount);
 
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(parent.JobId, ct)).Status);
         Assert.Equal(JobCheckpointStatusCode.Set, Assert.Single(await ReadSignalsAsync(parent.JobId, ct)).Status);

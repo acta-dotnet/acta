@@ -21,9 +21,8 @@ public sealed partial class SqliteProvisionScriptSpec
 
         await using var conn = new SqliteConnection("Data Source=:memory:");
         await conn.OpenAsync(ct);
-        // Twice on purpose: install and upgrade are the same file, so re-running it must apply only
-        // what is missing. The second pass is what proves the header's promise, and the
-        // migration-row count below is what proves it applied nothing the second time.
+        // Twice on purpose: the header promises that a re-run on a database the script provisioned
+        // applies no migration twice, and the migration-row count below is what proves it.
         for (var pass = 0; pass < 2; pass++)
         {
             await using var provision = conn.CreateCommand();
@@ -43,6 +42,52 @@ public sealed partial class SqliteProvisionScriptSpec
         Assert.True(await reader.ReadAsync(ct));
         Assert.Equal(migrations, reader.GetInt64(0));
         Assert.Equal(0, reader.GetInt64(1));
+    }
+
+    [Fact(DisplayName = "A sqlite database provisioned by the script runs with migrations disabled and keeps its data across a re-run")]
+    public async Task Script_provisioned_database_runs_and_keeps_its_data_across_a_rerun()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var script = File.ReadAllText(Path.Combine(IntegrationConfig.FindRepoRoot(), "docs", "reference", "schema-sqlite.sql"));
+        // A file rather than :memory:, because the script, the host, and the re-run each open their own
+        // connection and must all meet the same database.
+        var path = Path.Combine(Path.GetTempPath(), $"acta-provision-{Guid.NewGuid():N}.db");
+        var connectionString = new SqliteConnectionStringBuilder { DataSource = path }.ConnectionString;
+        void ApplyProvider(IActaBuilder builder, string schema) =>
+            builder.UseSqlite(o =>
+            {
+                o.ConnectionString = connectionString;
+                o.Schema = schema;
+            });
+
+        try
+        {
+            await RunScriptAsync(connectionString, script, ct);
+            var job = await ScriptProvisionedRuntime.RunJobAsync(ApplyProvider, "main", 2, 3, ct);
+            await RunScriptAsync(connectionString, script, ct);
+            await ScriptProvisionedRuntime.AssertSucceededAsync(ApplyProvider, "main", job, 5, ct);
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            foreach (var file in new[] { path, path + "-wal", path + "-shm" })
+            {
+                try
+                {
+                    File.Delete(file);
+                }
+                catch (IOException) { }
+            }
+        }
+    }
+
+    private static async Task RunScriptAsync(string connectionString, string script, CancellationToken ct)
+    {
+        await using var conn = new SqliteConnection(connectionString);
+        await conn.OpenAsync(ct);
+        await using var provision = conn.CreateCommand();
+        provision.CommandText = script;
+        await provision.ExecuteNonQueryAsync(ct);
     }
 
     // The per-migration section banner the emitter writes above every migration.

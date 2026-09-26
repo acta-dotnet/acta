@@ -55,7 +55,7 @@ public abstract class RecurringFailureAlertSpec<TFixture> : ActaRuntimeTestBase<
 
         var afterFirst = await ReadJobAsync(slotId, ct);
         Assert.Equal(JobStatusCode.Ready, afterFirst.Status);
-        Assert.Equal((short)1, afterFirst.FailureCount);
+        Assert.Equal(1, afterFirst.FailureCount);
 
         var firstEvent = await ReadLatestEventAsync(slotId, EventCode.JobExecutionFinished, ct);
         Assert.Equal(ExecutionStatusCode.Failed, firstEvent.ExecutionStatus);

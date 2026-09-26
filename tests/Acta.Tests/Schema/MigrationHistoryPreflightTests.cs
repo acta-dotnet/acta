@@ -66,6 +66,28 @@ public sealed class MigrationHistoryPreflightTests
         Assert.Contains("drop and reprovision", exception.Message, StringComparison.Ordinal);
     }
 
+    // The stamps v1.0.0-rc.3 recorded, from that tag's published scripts. Release-candidate databases
+    // are reprovisioned rather than upgraded, so this build's baselines must differ from every one of
+    // them and startup must say so.
+    [Theory]
+    [InlineData("pg", "baseline-e1a1f3207caf5a295743ba88d8c3ca26")]
+    [InlineData("mssql", "baseline-2978ad1ccb8de123488c4581477c134d")]
+    [InlineData("sqlite", "baseline-ae203e66a1801dbadb6af7d799f352b6")]
+    public void A_release_candidate_database_is_refused_with_reprovisioning_guidance(string dialect, string rc3Stamp)
+    {
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            MigrationHistoryPreflight.Verify(
+                Shipped,
+                History((0, rc3Stamp), (1, "init"), (2, "add_flags")),
+                dialect,
+                BaselineStamps.ForDialect(dialect)
+            )
+        );
+
+        Assert.Contains($"'{rc3Stamp}'", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("drop and reprovision", exception.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Migration_renamed_on_disk_is_refused()
     {

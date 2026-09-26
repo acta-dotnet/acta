@@ -2,7 +2,7 @@ CREATE OR ALTER PROCEDURE {{schema}}.update_alert_delivery
     @p_id BIGINT,
     @p_version INT,
     @p_delivery_status_code TINYINT,
-    @p_retry_count TINYINT,
+    @p_retry_count INT,
     @p_retry_after_utc DATETIME2(7)
 AS
 BEGIN

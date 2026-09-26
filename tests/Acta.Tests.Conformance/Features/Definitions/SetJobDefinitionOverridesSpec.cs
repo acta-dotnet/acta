@@ -48,7 +48,7 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
                     TestNamespace,
                     name,
                     before.Version,
-                    new JobDefinitionPolicyOverrides(MaxAttempts: (short)(10 + i)),
+                    new JobDefinitionPolicyOverrides(MaxAttempts: 10 + i),
                     Actor,
                     "race",
                     ct
@@ -67,7 +67,7 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
         Assert.Single(events);
     }
 
-    private static JobDescriptor Def(string name, short maxAttempts) =>
+    private static JobDescriptor Def(string name, int maxAttempts) =>
         new(
             JobName: name,
             HandlerType: typeof(object),
@@ -97,7 +97,7 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
         return def!;
     }
 
-    private async Task<int> RegisterAsync(string name, short maxAttempts, CancellationToken ct)
+    private async Task<int> RegisterAsync(string name, int maxAttempts, CancellationToken ct)
     {
         var (_, _) = Store();
         await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen, [Def(name, maxAttempts)], ct);
@@ -126,9 +126,9 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
 
         Assert.Equal(ControlAction.Applied, outcome.Action);
         var after = await ReadAsync(name, ct);
-        Assert.Equal((short)3, after.MaxAttempts); // default untouched
-        Assert.Equal((short)9, after.MaxAttemptsOverride);
-        Assert.Equal((short)9, after.MaxAttemptsEffective); // DB recomputed COALESCE
+        Assert.Equal(3, after.MaxAttempts); // default untouched
+        Assert.Equal(9, after.MaxAttemptsOverride);
+        Assert.Equal(9, after.MaxAttemptsEffective); // DB recomputed COALESCE
         Assert.Equal(before.DefinitionHash, after.DefinitionHash); // hash untouched
         Assert.True(after.Version > before.Version);
     }
@@ -153,7 +153,7 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
             ct
         );
         var set = await ReadAsync(name, ct);
-        Assert.Equal((short)12, set.MaxAttemptsEffective);
+        Assert.Equal(12, set.MaxAttemptsEffective);
 
         await DefinitionTestOps.UpdateOverridesAsync(
             Services,
@@ -167,7 +167,7 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
         );
         var cleared = await ReadAsync(name, ct);
         Assert.Null(cleared.MaxAttemptsOverride);
-        Assert.Equal((short)4, cleared.MaxAttemptsEffective); // reverts to default
+        Assert.Equal(4, cleared.MaxAttemptsEffective); // reverts to default
     }
 
     [Fact(DisplayName = "A stale version is rejected and changes nothing")]
@@ -226,14 +226,14 @@ public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestB
     }
 
     [Theory(DisplayName = "An out-of-range numeric override is rejected before any write, through the guarded API")]
-    [InlineData((short)0, null, null, null)]
-    [InlineData((short)-1, null, null, null)]
+    [InlineData(0, null, null, null)]
+    [InlineData(-1, null, null, null)]
     [InlineData(null, 0, null, null)]
     [InlineData(null, -1, null, null)]
     [InlineData(null, null, -1, null)]
     [InlineData(null, null, null, -1)]
     public async Task Out_of_range_override_is_rejected(
-        short? maxAttempts,
+        int? maxAttempts,
         int? executionTimeoutSeconds,
         int? deadlineSeconds,
         int? jobRetentionSeconds

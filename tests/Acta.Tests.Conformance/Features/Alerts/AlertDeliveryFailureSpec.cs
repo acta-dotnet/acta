@@ -93,7 +93,7 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
 
         var row1 = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.RetryAfter, row1.DeliveryStatusCode);
-        Assert.Equal((byte)1, row1.RetryCount);
+        Assert.Equal(1, row1.RetryCount);
         Assert.NotNull(row1.RetryAfterUtc);
         Assert.True(row1.RetryAfterUtc > Clock.Now, "retry_after_utc must be in the future relative to when delivery ran");
 
@@ -103,7 +103,7 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
 
         var row2 = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.RetryAfter, row2.DeliveryStatusCode);
-        Assert.Equal((byte)2, row2.RetryCount);
+        Assert.Equal(2, row2.RetryCount);
         Assert.NotNull(row2.RetryAfterUtc);
     }
 
@@ -120,7 +120,7 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
 
         var row1 = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.RetryAfter, row1.DeliveryStatusCode);
-        Assert.Equal((byte)1, row1.RetryCount);
+        Assert.Equal(1, row1.RetryCount);
 
         // Pass 2 → retry_count=2 (2 >= 2), terminal Failed.
         Clock.AdvanceTo(row1.RetryAfterUtc!.Value.AddSeconds(1));
@@ -128,7 +128,7 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
 
         var row2 = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.Failed, row2.DeliveryStatusCode);
-        Assert.Equal((byte)2, row2.RetryCount);
+        Assert.Equal(2, row2.RetryCount);
         // Out of retries, but the incident is open, so the row carries a reminder instant rather than
         // nothing. Parked forward because this spec's clock lives in its own era, which would otherwise
         // make that instant already due and turn pass 3 into a reminder instead of the no-op it tests.
@@ -139,7 +139,7 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
         await RunDeliveryAsync(maxRetries: 2, ct);
         var row3 = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.Failed, row3.DeliveryStatusCode);
-        Assert.Equal((byte)2, row3.RetryCount);
+        Assert.Equal(2, row3.RetryCount);
     }
 
     [Fact(DisplayName = "Missing transport marks the alert Failed immediately on the first pass")]
@@ -155,7 +155,7 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
 
         var row = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.Failed, row.DeliveryStatusCode);
-        Assert.Equal((byte)0, row.RetryCount);
+        Assert.Equal(0, row.RetryCount);
         // A reminder is still scheduled: the transport may be registered by the time it comes round.
         Assert.NotNull(row.RetryAfterUtc);
     }
@@ -171,7 +171,7 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
 
         var row = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.Failed, row.DeliveryStatusCode);
-        Assert.Equal((byte)0, row.RetryCount);
+        Assert.Equal(0, row.RetryCount);
         // As above: a reminder is scheduled, because the channel may be configured before it comes round.
         Assert.NotNull(row.RetryAfterUtc);
     }
@@ -253,7 +253,7 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
 
         var row = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.Delivered, row.DeliveryStatusCode);
-        Assert.Equal((byte)0, row.RetryCount);
+        Assert.Equal(0, row.RetryCount);
         Assert.Null(row.JobId);
     }
 
@@ -285,7 +285,7 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
 
         var reminded = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.Delivered, reminded.DeliveryStatusCode);
-        Assert.Equal((byte)0, reminded.RetryCount);
+        Assert.Equal(0, reminded.RetryCount);
         Assert.Equal(due.Version + 1, reminded.Version);
         // Bounded by the pass that wrote it, not the one before: each settlement measures from its own.
         AssertScheduledOneIntervalOut(reminded.RetryAfterUtc, reminderPass);
@@ -391,7 +391,7 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
         await RunDeliveryAsync(maxRetries: 5, ct);
         var delivered = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.Delivered, delivered.DeliveryStatusCode);
-        Assert.Equal((byte)0, delivered.RetryCount);
+        Assert.Equal(0, delivered.RetryCount);
 
         // The reminder comes round, the incident is still open, and the channel's transport now throws.
         // Carrying the old count would have put this reminder at 5 of 5 on its first throw - terminal
@@ -402,7 +402,7 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
 
         var reminded = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.RetryAfter, reminded.DeliveryStatusCode);
-        Assert.Equal((byte)1, reminded.RetryCount);
+        Assert.Equal(1, reminded.RetryCount);
         Assert.NotNull(reminded.RetryAfterUtc);
     }
 
@@ -444,7 +444,7 @@ public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<T
         var row = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.NotNull(row.ResolvedAtUtc);
         Assert.Equal(AlertDeliveryStatusCode.Suppressed, row.DeliveryStatusCode);
-        Assert.Equal((byte)0, row.RetryCount);
+        Assert.Equal(0, row.RetryCount);
         Assert.Equal(raised.Version + 1, row.Version);
 
         // And the resolved row is not picked up again on the next pass.

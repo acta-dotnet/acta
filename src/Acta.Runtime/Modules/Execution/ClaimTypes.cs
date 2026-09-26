@@ -41,7 +41,7 @@ internal sealed record ClaimedJob(
     DateTime? NextRunAtUtc,
     DateTime LeaseExpiresAtUtc,
     DateTime CreatedAtUtc,
-    short FailureCount,
+    int FailureCount,
     int Version
 );
 
@@ -83,7 +83,7 @@ internal sealed record ClaimReadyRow(
     DateTime? NextRunAtUtc,
     DateTime? LeaseExpiresAtUtc,
     DateTime? CreatedAtUtc,
-    short? FailureCount,
+    int? FailureCount,
     int? Version,
     Guid? JobRef,
     int? TenantId,

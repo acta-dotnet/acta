@@ -38,7 +38,7 @@ internal enum StartStepOutcomeCode : byte
 /// </summary>
 internal sealed record StartStepDecision(
     StartStepOutcomeCode Outcome,
-    short AttemptNumber,
+    int AttemptNumber,
     int Version,
     DateTime? NextRetryAtUtc,
     byte ResultFormatId,
@@ -87,7 +87,7 @@ internal sealed record CompleteStepCommand(
     JobEventReasonCode? ReasonCode,
     string? ReasonMessage,
     int DelaySeconds,
-    short MaxAttempts,
+    int MaxAttempts,
     int? RetryWindowSeconds,
     int ExpectedVersion
 );

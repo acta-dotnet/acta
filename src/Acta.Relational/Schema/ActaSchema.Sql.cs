@@ -344,9 +344,9 @@ internal static partial class ActaSchema
             IsNullable: false
         );
 
-        public static readonly DbValueSpec<short> StepMaxAttempts = new(
+        public static readonly DbValueSpec<int> StepMaxAttempts = new(
             ParameterName: "p_max_attempts",
-            Kind: DbKind.Int16,
+            Kind: DbKind.Int32,
             Size: null,
             Precision: null,
             Scale: null,
@@ -399,9 +399,9 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
-        public static readonly DbValueSpec<short?> FailureCount = new(
+        public static readonly DbValueSpec<int?> FailureCount = new(
             ParameterName: "p_failure_count",
-            Kind: DbKind.Int16,
+            Kind: DbKind.Int32,
             Size: null,
             Precision: null,
             Scale: null,

@@ -126,14 +126,14 @@ public abstract class StepDeferredRetrySpec<TFixture> : ActaRuntimeTestBase<TFix
         var step1 = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
         Assert.Equal(StepName, step1.Name);
         Assert.Equal(JobStepStatusCode.Pending, step1.Status);
-        Assert.Equal((short)1, step1.AttemptNumber);
+        Assert.Equal(1, step1.AttemptNumber);
         Assert.NotNull(step1.NextRetryAtUtc);
         var retryInstant = step1.NextRetryAtUtc!.Value;
 
         // Parent: Ready (not Suspended), failure_count untouched (budget-neutral), next_run pinned to retry instant.
         var job1 = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, job1.Status);
-        Assert.Equal((short)0, job1.FailureCount);
+        Assert.Equal(0, job1.FailureCount);
         Assert.Equal(retryInstant, job1.NextRunAtUtc);
 
         // Tick 2: single-shot claim before the retry instant returns NothingClaimed (parent not yet due).
@@ -181,7 +181,7 @@ public abstract class StepDeferredRetrySpec<TFixture> : ActaRuntimeTestBase<TFix
         // Step: Succeeded at attempt 2, no pending retry.
         var step3 = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
         Assert.Equal(JobStepStatusCode.Succeeded, step3.Status);
-        Assert.Equal((short)2, step3.AttemptNumber);
+        Assert.Equal(2, step3.AttemptNumber);
         Assert.Null(step3.NextRetryAtUtc);
 
         // The earlier attempt's reason does not survive the success: a Succeeded row carrying one would
@@ -192,7 +192,7 @@ public abstract class StepDeferredRetrySpec<TFixture> : ActaRuntimeTestBase<TFix
         // Parent: Succeeded, failure_count still untouched.
         var job3 = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Succeeded, job3.Status);
-        Assert.Equal((short)0, job3.FailureCount);
+        Assert.Equal(0, job3.FailureCount);
     }
 
     private async Task<IReadOnlyList<JobStep>> ReadStepsAsync(long jobId, CancellationToken ct)

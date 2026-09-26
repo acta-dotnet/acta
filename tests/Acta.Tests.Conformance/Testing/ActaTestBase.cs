@@ -180,7 +180,7 @@ internal sealed record TestJobRow(Job Job, JobRuntime Runtime)
     public JobPriorityCode Priority => Runtime.Priority;
     public DateTime? NextRunAtUtc => Runtime.NextRunAtUtc;
     public int ExecutionNumber => Runtime.ExecutionNumber;
-    public short FailureCount => Runtime.FailureCount;
+    public int FailureCount => Runtime.FailureCount;
     public DateTime? RetentionUntilUtc => Runtime.RetentionUntilUtc;
     public DateTime ModifiedAtUtc => Runtime.ModifiedAtUtc;
     public int Version => Runtime.Version;

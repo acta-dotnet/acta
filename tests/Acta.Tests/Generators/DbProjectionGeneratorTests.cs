@@ -67,6 +67,58 @@ public sealed class DbProjectionGeneratorTests
     }
 
     [Fact]
+    public void Extensible_code_member_decodes_through_FromId_and_closed_one_casts()
+    {
+        var (result, compilation) = RunGenerator(
+            """
+            namespace GenTests;
+            using System;
+            using Acta.Relational.Commands;
+
+            [AttributeUsage(AttributeTargets.Enum)]
+            internal sealed class CodeKindAttribute(string kind) : Attribute
+            {
+                public string Kind { get; } = kind;
+                public bool Extensible { get; init; }
+            }
+
+            [CodeKind("open", Extensible = true)]
+            internal enum OpenCode : byte
+            {
+                Unspecified = 0,
+                Known = 10,
+            }
+
+            internal static class OpenCodeExtensions
+            {
+                public static OpenCode FromId(byte id) => id == 10 ? OpenCode.Known : OpenCode.Unspecified;
+            }
+
+            [CodeKind("closed")]
+            internal enum ClosedCode : byte
+            {
+                Known = 10,
+            }
+
+            [DbProjection]
+            internal sealed record CodedRow(OpenCode Open, OpenCode? MaybeOpen, ClosedCode Closed);
+            """
+        );
+
+        AssertNoCompileErrors(compilation);
+        var source = SingleGeneratedSource(result, "BindCodedRow");
+        Assert.Contains(
+            "Open: global::GenTests.OpenCodeExtensions.FromId(Convert.ToByte(r.GetValue(0), CultureInfo.InvariantCulture))",
+            source
+        );
+        Assert.Contains(
+            "MaybeOpen: r.IsDBNull(1) ? null : global::GenTests.OpenCodeExtensions.FromId(Convert.ToByte(r.GetValue(1), CultureInfo.InvariantCulture))",
+            source
+        );
+        Assert.Contains("Closed: (global::GenTests.ClosedCode)Convert.ToByte(r.GetValue(2), CultureInfo.InvariantCulture)", source);
+    }
+
+    [Fact]
     public void Assembly_projection_list_emits_binder_for_unannotated_type()
     {
         var (result, compilation) = RunGenerator(

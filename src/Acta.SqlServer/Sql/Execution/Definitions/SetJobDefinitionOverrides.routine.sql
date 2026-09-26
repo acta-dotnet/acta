@@ -2,7 +2,7 @@ CREATE OR ALTER PROCEDURE {{schema}}.set_job_definition_overrides
     @p_id INT,
     @p_version INT,
     @p_priority_code_override TINYINT,
-    @p_max_attempts_override SMALLINT,
+    @p_max_attempts_override INT,
     @p_concurrency_limit_override SMALLINT,
     @p_rate_limit_override VARCHAR(16),
     @p_backoff_override NVARCHAR(64),

@@ -19,7 +19,7 @@ BEGIN
         SET
             status_code = 10 /* JobStatusCode.Ready */,
             next_run_at_utc = @now,
-            failure_count = CASE WHEN r.failure_count + 1 > 32767 THEN 32767 ELSE r.failure_count + 1 END,
+            failure_count = r.failure_count + 1,
             leased_by_worker_id = NULL,
             lease_expires_at_utc = NULL,
             modified_at_utc = @now,

@@ -275,7 +275,7 @@ internal static class JobExplainer
             _ => s.Status.Description,
         };
 
-    private static string Attempts(short count) => count == 1 ? "1 attempt" : $"{count} attempts";
+    private static string Attempts(int count) => count == 1 ? "1 attempt" : $"{count} attempts";
 
     /// <summary>
     /// The one rule every worker mention in the prose follows: the deployment version reads as the

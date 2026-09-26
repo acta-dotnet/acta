@@ -72,7 +72,7 @@ public abstract class RecoverySlotMonitorSpec<TFixture> : ActaRuntimeTestBase<TF
         Assert.Null(after.LeasedByWorkerId);
         Assert.Null(after.LeaseExpiresAtUtc);
         Assert.Equal(before.Version + 1, after.Version);
-        Assert.Equal((short)(before.FailureCount + 1), after.FailureCount);
+        Assert.Equal(before.FailureCount + 1, after.FailureCount);
 
         var finished = await Db.From<JobEvent>()
             .Where(e => e.JobId == slotId && e.EventCode == EventCode.JobExecutionFinished && e.ExecutionNumber == before.ExecutionNumber)

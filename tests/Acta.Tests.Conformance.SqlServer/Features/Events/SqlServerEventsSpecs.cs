@@ -8,3 +8,5 @@ namespace Acta.Tests.Conformance.SqlServer.Features.Events;
 public sealed class SqlServerListJobEventsFilterMatrixSpec : ListJobEventsFilterMatrixSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerListJobEventsSpec : ListJobEventsSpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerForwardCodeReadSpec : ForwardCodeReadSpec<SqlServerConformanceFixture>;

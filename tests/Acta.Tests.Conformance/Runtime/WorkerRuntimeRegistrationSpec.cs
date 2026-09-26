@@ -88,7 +88,7 @@ public abstract class WorkerRuntimeRegistrationSpec<TFixture> : ActaRuntimeTestB
 
         Assert.NotNull(def);
         // Attribute-supplied policy lands verbatim (durations resolved to whole seconds).
-        Assert.Equal((short)7, def!.MaxAttempts);
+        Assert.Equal(7, def!.MaxAttempts);
         Assert.Equal(JobPriorityCode.High, def.Priority);
         Assert.Equal("30s..2h x3 ±25%", def.Backoff);
         Assert.Equal(45, def.ExecutionTimeoutSeconds);

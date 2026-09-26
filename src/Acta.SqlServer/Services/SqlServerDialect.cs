@@ -289,7 +289,7 @@ internal sealed class SqlServerDialect : ISqlDialect
     [
         new("name", SqlDbType.VarChar, 128),
         new("priority_code", SqlDbType.TinyInt),
-        new("max_attempts", SqlDbType.SmallInt),
+        new("max_attempts", SqlDbType.Int),
         new("concurrency_limit", SqlDbType.SmallInt),
         new("rate_limit", SqlDbType.VarChar, 16),
         new("rate_key", SqlDbType.VarChar, 128),
@@ -325,7 +325,7 @@ internal sealed class SqlServerDialect : ISqlDialect
             {
                 record.SetString(0, row.Name);
                 record.SetByte(1, row.PriorityCode);
-                record.SetInt16(2, row.MaxAttempts);
+                record.SetInt32(2, row.MaxAttempts);
                 SetNullableInt16(record, 3, row.ConcurrencyLimit);
                 SetNullableString(record, 4, row.RateLimit);
                 SetNullableString(record, 5, row.RateKey);
@@ -479,7 +479,7 @@ internal sealed class SqlServerDialect : ISqlDialect
         AddParameter(sql, "@p_retention_seconds", SqlDbType.Int, request.RetentionSeconds is { } retention ? retention : DBNull.Value);
         AddParameter(sql, "@p_final_status", SqlDbType.TinyInt, (byte)request.FinalStatus!.Value);
         AddParameter(sql, "@p_job_next_run_at_utc", SqlDbType.DateTime2, request.JobNextRunAtUtc is { } nextRun ? nextRun : DBNull.Value);
-        AddParameter(sql, "@p_failure_count", SqlDbType.SmallInt, request.FailureCount is { } failureCount ? failureCount : DBNull.Value);
+        AddParameter(sql, "@p_failure_count", SqlDbType.Int, request.FailureCount is { } failureCount ? failureCount : DBNull.Value);
         AddParameter(sql, "@p_recurring_result_cap", SqlDbType.Int, request.RecurringResultCap);
         AddParameter(
             sql,
@@ -539,7 +539,7 @@ internal sealed class SqlServerDialect : ISqlDialect
         new("reason_message", SqlDbType.NVarChar, 512),
         new("result_format_id", SqlDbType.TinyInt),
         new("result", SqlDbType.VarBinary, -1),
-        new("failure_count", SqlDbType.SmallInt),
+        new("failure_count", SqlDbType.Int),
         new("retention_seconds", SqlDbType.Int),
     ];
 
@@ -563,7 +563,7 @@ internal sealed class SqlServerDialect : ISqlDialect
                 SetNullableString(record, 7, request.ReasonMessage);
                 record.SetByte(8, request.ResultFormatId);
                 SetBytesOrNull(record, 9, request.Result, !request.Result.IsEmpty);
-                SetNullableInt16(record, 10, (short?)request.FailureCount);
+                SetNullableInt32(record, 10, request.FailureCount);
                 SetNullableInt32(record, 11, request.RetentionSeconds);
                 yield return record;
             }

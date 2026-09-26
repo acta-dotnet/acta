@@ -5,7 +5,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.start_step(
 )
 RETURNS TABLE (
     outcome_code SMALLINT,
-    attempt_number SMALLINT,
+    attempt_number INT,
     version INT,
     next_retry_at_utc TIMESTAMPTZ,
     result_format_id SMALLINT,
@@ -18,7 +18,7 @@ AS $$
 DECLARE
     v_now TIMESTAMPTZ := now();
     v_state SMALLINT;
-    v_attempt SMALLINT;
+    v_attempt INT;
     v_version INT;
     v_next TIMESTAMPTZ;
     v_rfid SMALLINT;

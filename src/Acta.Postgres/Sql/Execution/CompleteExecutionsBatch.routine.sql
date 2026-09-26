@@ -9,7 +9,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.complete_executions_batch(
     p_b_reason_message VARCHAR [],
     p_b_result_format_id SMALLINT [],
     p_b_result BYTEA [],
-    p_b_failure_count SMALLINT [],
+    p_b_failure_count INT [],
     p_b_retention_seconds INT []
 )
 RETURNS TABLE (ordinal INT, finalized SMALLINT)

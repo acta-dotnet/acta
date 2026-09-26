@@ -29,7 +29,7 @@ Console.WriteLine(
 var outcome = await jobs.EnqueueAsync(new FlakyTransfer("txn-1"));
 
 // Poll until the job reaches a terminal status, printing NextRunAtUtc after each rearm.
-short lastFailureCount = 0;
+int lastFailureCount = 0;
 while (true)
 {
     await Task.Delay(200);

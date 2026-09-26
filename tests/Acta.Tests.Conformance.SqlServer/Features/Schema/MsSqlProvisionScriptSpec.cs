@@ -39,9 +39,8 @@ public sealed partial class MsSqlProvisionScriptSpec
         await conn.OpenAsync(ct);
         try
         {
-            // Twice on purpose: install and upgrade are the same file, so re-running it must apply
-            // only what is missing. The second pass is what proves the header's promise, and the
-            // migration-row count below is what proves it applied nothing the second time.
+            // Twice on purpose: the header promises that a re-run on a database the script provisioned
+            // applies no migration twice, and the migration-row count below is what proves it.
             for (var pass = 0; pass < 2; pass++)
             {
                 foreach (var batch in SplitOnGo(script))
@@ -92,21 +91,61 @@ public sealed partial class MsSqlProvisionScriptSpec
         }
         finally
         {
-            // SQL Server has no DROP SCHEMA CASCADE; the provider's own teardown script drops the
-            // schema's routines, types, views, and tables in dependency order. It runs on its own
-            // connection: a provisioning failure can kill the test connection, and a teardown throw
-            // on the dead connection would mask the real error.
-            var teardown = File.ReadAllText(Path.Combine(repoRoot, "src", "Acta.SqlServer", "Sql", "Schema", "DropSchema.sql"))
-                .Replace("{{schema}}", schema);
-            await using var cleanupConn = new SqlConnection(connString);
-            await cleanupConn.OpenAsync(CancellationToken.None);
-            foreach (var batch in SplitOnGo(teardown))
-            {
-                await using var cmd = cleanupConn.CreateCommand();
-                cmd.CommandText = batch;
-                await cmd.ExecuteNonQueryAsync(CancellationToken.None);
-            }
+            await DropSchemaAsync(connString, repoRoot, schema);
         }
+    }
+
+    [Fact(DisplayName = "A mssql schema provisioned by the script runs with migrations disabled and keeps its data across a re-run")]
+    public async Task Script_provisioned_schema_runs_and_keeps_its_data_across_a_rerun()
+    {
+        var connString = IntegrationConfig.SqlServerConnectionString;
+        if (connString is null)
+        {
+            Assert.Skip("ACTA_TEST_MSSQL is not set.");
+        }
+        var ct = TestContext.Current.CancellationToken;
+        var schema = $"acta_provision_{Guid.NewGuid():N}"[..30];
+        var repoRoot = IntegrationConfig.FindRepoRoot();
+        var script = SchemaWord().Replace(File.ReadAllText(Path.Combine(repoRoot, "docs", "reference", "schema-mssql.sql")), schema);
+        var fixture = new SqlServerConformanceFixture();
+        await ActaSharedDatabase.EnsureReadyAsync(fixture);
+
+        try
+        {
+            await RunScriptAsync(connString, script, ct);
+            var job = await ScriptProvisionedRuntime.RunJobAsync(fixture.ApplyProvider, schema, 2, 3, ct);
+            await RunScriptAsync(connString, script, ct);
+            await ScriptProvisionedRuntime.AssertSucceededAsync(fixture.ApplyProvider, schema, job, 5, ct);
+        }
+        finally
+        {
+            await DropSchemaAsync(connString, repoRoot, schema);
+        }
+    }
+
+    private static async Task RunScriptAsync(string connString, string script, CancellationToken ct)
+    {
+        await using var conn = new SqlConnection(connString);
+        await conn.OpenAsync(ct);
+        foreach (var batch in SplitOnGo(script))
+        {
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = batch;
+            await cmd.ExecuteNonQueryAsync(ct);
+        }
+    }
+
+    /// <summary>
+    /// SQL Server has no DROP SCHEMA CASCADE; the provider's own teardown script drops the schema's
+    /// routines, types, views, and tables in dependency order. It runs on its own connection: a
+    /// provisioning failure can kill the test connection, and a teardown throw on the dead connection
+    /// would mask the real error.
+    /// </summary>
+    private static async Task DropSchemaAsync(string connString, string repoRoot, string schema)
+    {
+        var teardown = File.ReadAllText(Path.Combine(repoRoot, "src", "Acta.SqlServer", "Sql", "Schema", "DropSchema.sql"))
+            .Replace("{{schema}}", schema);
+        await RunScriptAsync(connString, teardown, CancellationToken.None);
     }
 
     private static IEnumerable<string> SplitOnGo(string script) => GoLine().Split(script).Select(b => b.Trim()).Where(b => b.Length > 0);

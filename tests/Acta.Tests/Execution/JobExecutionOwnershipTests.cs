@@ -30,7 +30,7 @@ public sealed class JobExecutionOwnershipTests
         // on the next attempt. A terminal landing would carry none of these and no HandlerStatusCode.
         Assert.Equal((byte)ExecutionStatusCode.Rescheduled, completion.RescheduleStatusCode);
         Assert.NotNull(completion.RescheduleDelaySeconds);
-        Assert.Equal((short)1, completion.FailureCount);
+        Assert.Equal(1, completion.FailureCount);
         Assert.Null(completion.HandlerStatusCode);
         Assert.Null(completion.FinalStatus);
     }

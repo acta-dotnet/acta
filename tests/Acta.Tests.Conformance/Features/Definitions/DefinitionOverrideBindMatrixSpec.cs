@@ -117,7 +117,7 @@ public abstract class DefinitionOverrideBindMatrixSpec<TFixture> : ActaStorageTe
 
         // --- Override columns: exactly what was written ---
         Assert.Equal(JobPriorityCode.High, after.PriorityOverride);
-        Assert.Equal((short)7, after.MaxAttemptsOverride);
+        Assert.Equal(7, after.MaxAttemptsOverride);
         Assert.Equal("5s..9m x4 +-20%", after.BackoffOverride);
         Assert.Equal(33, after.ExecutionTimeoutSecondsOverride);
         Assert.Equal(444, after.DeadlineSecondsOverride);
@@ -132,7 +132,7 @@ public abstract class DefinitionOverrideBindMatrixSpec<TFixture> : ActaStorageTe
 
         // --- Effective columns: COALESCE(override, base) = override when set ---
         Assert.Equal(JobPriorityCode.High, after.PriorityEffective);
-        Assert.Equal((short)7, after.MaxAttemptsEffective);
+        Assert.Equal(7, after.MaxAttemptsEffective);
         Assert.Equal("5s..9m x4 +-20%", after.BackoffEffective);
         Assert.Equal(33, after.ExecutionTimeoutSecondsEffective);
         Assert.Equal(444, after.DeadlineSecondsEffective);
@@ -147,7 +147,7 @@ public abstract class DefinitionOverrideBindMatrixSpec<TFixture> : ActaStorageTe
 
         // Base defaults untouched
         Assert.Equal(JobPriorityCode.Bulk, after.Priority);
-        Assert.Equal((short)3, after.MaxAttempts);
+        Assert.Equal(3, after.MaxAttempts);
     }
 
     [Fact(DisplayName = "Clearing all overrides reverts each effective to its base value")]
@@ -215,7 +215,7 @@ public abstract class DefinitionOverrideBindMatrixSpec<TFixture> : ActaStorageTe
 
         // --- Effective falls back to base values ---
         Assert.Equal(JobPriorityCode.Bulk, cleared.PriorityEffective);
-        Assert.Equal((short)3, cleared.MaxAttemptsEffective);
+        Assert.Equal(3, cleared.MaxAttemptsEffective);
         Assert.Equal("1m..1d x2 ~10%", cleared.BackoffEffective); // framework default
         Assert.Equal(300, cleared.ExecutionTimeoutSecondsEffective); // framework default
         Assert.Equal(0, cleared.DeadlineSecondsEffective); // no deadline

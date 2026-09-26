@@ -151,16 +151,16 @@ internal sealed class JobDefinition : IEntity<int>
     /// Cap on consecutive failures before terminal <c>Status = Failed</c> for one-off jobs; resets on
     /// success. Recurring slots never terminalize on the count (MaxAttempts is the one-off budget only).
     /// </summary>
-    [DbColumn("max_attempts", DbKind.Int16)]
-    public short MaxAttempts { get; internal set; }
+    [DbColumn("max_attempts", DbKind.Int32)]
+    public int MaxAttempts { get; internal set; }
 
     /// <summary>Operator override of <see cref="MaxAttempts"/>; NULL = inherit the default.</summary>
-    [DbColumn("max_attempts_override", DbKind.Int16)]
-    public short? MaxAttemptsOverride { get; internal set; }
+    [DbColumn("max_attempts_override", DbKind.Int32)]
+    public int? MaxAttemptsOverride { get; internal set; }
 
     /// <summary>Effective max-attempts (DB-computed); read-only.</summary>
-    [DbColumn("max_attempts_effective", DbKind.Int16, Generated = "COALESCE(max_attempts_override, max_attempts)")]
-    public short MaxAttemptsEffective { get; internal set; }
+    [DbColumn("max_attempts_effective", DbKind.Int32, Generated = "COALESCE(max_attempts_override, max_attempts)")]
+    public int MaxAttemptsEffective { get; internal set; }
 
     /// <summary>
     /// How many attempts of this definition may execute at once, 1..1024; NULL means no limit unless

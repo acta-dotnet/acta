@@ -62,10 +62,13 @@ internal static class ProvisionScriptEmitter
             script.AppendLine("-- the first line, ahead of the transaction, and a no-op on a database already in WAL.");
         }
         script.AppendLine("--");
-        script.AppendLine("-- INSTALL AND UPGRADE ARE THE SAME FILE. Run it on an empty database or on one already");
-        script.AppendLine("-- running an earlier Acta version: every statement is individually guarded, so it applies");
-        script.AppendLine("-- exactly what is missing and skips what is present. Re-running it is a no-op. Views and");
-        script.AppendLine("-- routines carry no version and are always rewritten to the definitions shipped here.");
+        script.AppendLine("-- WHERE TO RUN IT. Run it on an empty database to install, or again on a database it already");
+        script.AppendLine("-- provisioned: every statement is individually guarded, so a re-run applies nothing that is");
+        script.AppendLine("-- present and leaves the data in place. Views and routines carry no version and are always");
+        script.AppendLine("-- rewritten to the definitions shipped here. A later 1.x release upgrades a 1.x database with");
+        script.AppendLine("-- its own migrations, carried in its own copy of this script. A database provisioned by a");
+        script.AppendLine("-- release candidate (1.0.0-rc.x) has no upgrade path: provision a new one. Startup refuses it");
+        script.AppendLine("-- and names its baseline.");
         script.AppendLine("--");
         script.AppendLine("-- Run it with a client that stops at the first error, which is what makes the transaction below a");
         script.AppendLine(

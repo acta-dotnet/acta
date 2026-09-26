@@ -14,7 +14,7 @@ BEGIN
 
         DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
         DECLARE @outcome SMALLINT;
-        DECLARE @attempt SMALLINT;
+        DECLARE @attempt INT;
         DECLARE @version INT;
         DECLARE @next DATETIME2(3) = NULL;
         DECLARE @rfid TINYINT = 0;

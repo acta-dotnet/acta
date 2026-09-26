@@ -33,5 +33,5 @@ public sealed record JobListItem(
     DateTime ModifiedAtUtc,
     DateTime? NextRunAtUtc,
     int ExecutionNumber,
-    short FailureCount
+    int FailureCount
 );

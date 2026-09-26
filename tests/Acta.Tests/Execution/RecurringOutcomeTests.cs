@@ -7,7 +7,7 @@ namespace Acta.Tests.Execution;
 /// <summary>
 /// Unit-pins <see cref="JobExecution.ComputeRecurringOutcome"/>: a recurring slot re-arms Ready on failure
 /// regardless of the consecutive-failure count (MaxAttempts is the one-off budget only) while still carrying
-/// the attempt's reason through, the counter saturates at <c>short.MaxValue</c>, a success resets it to zero,
+/// the attempt's reason through, a success resets the counter to zero,
 /// and an exhausted schedule pauses.
 /// </summary>
 public class RecurringOutcomeTests
@@ -31,24 +31,9 @@ public class RecurringOutcomeTests
         );
 
         Assert.Equal(JobStatusCode.Ready, status);
-        Assert.Equal((short)6, failureCount);
+        Assert.Equal(6, failureCount);
         Assert.Equal(JobEventReasonCode.JobUnhandledException, reason);
         Assert.Equal("boom", message);
-    }
-
-    [Fact]
-    public void Failure_counter_saturates_at_short_max_value()
-    {
-        var (_, failureCount, _, _) = JobExecution.ComputeRecurringOutcome(
-            ExecutionOutcome.Failed,
-            Job(failureCount: short.MaxValue),
-            Descriptor(maxAttempts: 2),
-            Fire(NextRun),
-            JobEventReasonCode.JobUnhandledException,
-            "boom"
-        );
-
-        Assert.Equal(short.MaxValue, failureCount);
     }
 
     [Fact]
@@ -64,7 +49,7 @@ public class RecurringOutcomeTests
         );
 
         Assert.Equal(JobStatusCode.Ready, status);
-        Assert.Equal((short)0, failureCount);
+        Assert.Equal(0, failureCount);
 
         // The rollover carries whatever reason the attempt supplied; a clean success supplies none, so
         // the reason columns stay empty and only a real failure marks the slot's timeline.
@@ -90,7 +75,7 @@ public class RecurringOutcomeTests
 
     private static RecurringFireOutcome Fire(DateTime? nextRun) => new([], [], nextRun);
 
-    private static ClaimedJob Job(short failureCount) =>
+    private static ClaimedJob Job(int failureCount) =>
         new(
             JobId: 1,
             JobRef: Guid.Empty,
@@ -110,7 +95,7 @@ public class RecurringOutcomeTests
             Version: 1
         );
 
-    private static JobDescriptor Descriptor(short maxAttempts) =>
+    private static JobDescriptor Descriptor(int maxAttempts) =>
         new(
             JobName: "recurring-unit",
             HandlerType: typeof(RecurringOutcomeTests),

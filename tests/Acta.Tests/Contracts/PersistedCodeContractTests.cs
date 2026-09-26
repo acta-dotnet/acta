@@ -277,6 +277,32 @@ public sealed class PersistedCodeContractTests
     }
 
     [Fact]
+    public void Extensible_families_write_an_undefined_value_as_their_fallback_code()
+    {
+        // A value with no member can still reach Code or the JSON writer by a cast; an extensible
+        // family names it by its id-0 member instead of throwing, a closed family still throws.
+        Assert.Equal("unspecified", ((EventCode)200).Code);
+        Assert.Equal("unspecified", ((JobEventReasonCode)200).Code);
+        Assert.Equal("unspecified", ((AlertKindCode)200).Code);
+        Assert.Throws<ArgumentOutOfRangeException>(() => ((JobStatusCode)250).Code);
+
+        foreach (var family in CodeFamilies())
+        {
+            var undefined = Enum.ToObject(family, byte.MaxValue);
+            if (family.GetCustomAttribute<CodeKindAttribute>()!.Extensible)
+            {
+                Assert.Equal("\"unspecified\"", JsonSerializer.Serialize(undefined, family));
+            }
+            else
+            {
+                Assert.Throws<ArgumentOutOfRangeException>(() => JsonSerializer.Serialize(undefined, family));
+            }
+        }
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => EventCode.FromCode("event.from-a-newer-acta"));
+    }
+
+    [Fact]
     public void Reserve_and_payload_boundaries_are_enforced()
     {
         // The two widest families are the ones whose headroom is worth pinning: their assigned ids

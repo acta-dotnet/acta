@@ -8,3 +8,5 @@ namespace Acta.Tests.Conformance.Postgres.Features.Events;
 public sealed class PgListJobEventsFilterMatrixSpec : ListJobEventsFilterMatrixSpec<PgConformanceFixture>;
 
 public sealed class PgListJobEventsSpec : ListJobEventsSpec<PgConformanceFixture>;
+
+public sealed class PgForwardCodeReadSpec : ForwardCodeReadSpec<PgConformanceFixture>;

@@ -12,8 +12,8 @@ public class JobExplainerTests
     private static ExplainHeaderRow Header(
         JobStatusCode status,
         int executionNumber = 0,
-        short failureCount = 0,
-        short maxAttempts = 3,
+        int failureCount = 0,
+        int maxAttempts = 3,
         DateTime? nextRunAtUtc = null,
         int? leasedByWorkerId = null,
         DateTime? leaseExpiresAtUtc = null,

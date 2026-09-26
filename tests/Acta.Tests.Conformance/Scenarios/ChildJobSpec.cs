@@ -257,7 +257,7 @@ public abstract class ChildJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
 
         var dialect = Services.GetRequiredService<ISqlDialect>();
         var workerId = await WorkerIdAsync(ns, ct);
-        short maxAttempts;
+        int maxAttempts;
         {
             var def = await Db.From<JobDefinition>().Where(d => d.NamespaceId == ns && d.Name == "job-child-echo").SingleOrDefaultAsync(ct);
             maxAttempts = def!.MaxAttempts;
@@ -267,7 +267,7 @@ public abstract class ChildJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
         // reports the (child, parent) pair, whose raise (RecoveryJob's follow-up in production)
         // must release the parent, or the parent would hang forever.
         var failed = new List<(long ChildId, long ParentId)>();
-        for (short attempt = 1; attempt <= maxAttempts; attempt++)
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
             Assert.Single(await Services.GetRequiredService<IExecutionStore>().ClaimOneAsync(ns, workerId, LeaseTtlSeconds, child.Id, ct));
             var reclaim = await RecoverySweep.ReclaimAtLeastOneAsync(Services, ns, ct);

@@ -349,7 +349,7 @@ internal sealed class RuntimeJobContext(
     {
         // AtMostOnce forces a single body invocation: the parent [Job] MaxAttempts default must not leak
         // in and re-run the body. Any conflicting override was already rejected by StepOptionsBuilder.Build.
-        var maxAttempts = options.AtMostOnce ? (short)1 : (short)(options.MaxAttempts ?? _stepRetryDefaults.MaxAttempts);
+        var maxAttempts = options.AtMostOnce ? 1 : options.MaxAttempts ?? _stepRetryDefaults.MaxAttempts;
         var retryWindowSeconds = options.AtMostOnce ? (int?)null : options.RetryWindowSeconds;
 
         var start = await _executionStore.StartStepAsync(JobId, name, options.AtMostOnce, ct);
@@ -721,7 +721,7 @@ internal sealed class RuntimeJobContext(
 /// <c>configure</c> overrides). Never persisted; re-resolved on every replay.
 /// </summary>
 internal readonly record struct StepRetryDefaults(
-    short MaxAttempts,
+    int MaxAttempts,
     int BackoffInitialDelaySeconds,
     int BackoffMaxDelaySeconds,
     decimal BackoffMultiplier,

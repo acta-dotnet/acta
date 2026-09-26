@@ -7,7 +7,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.complete_step(
     p_reason_code SMALLINT,
     p_reason_message VARCHAR,
     p_delay_seconds INT,
-    p_max_attempts SMALLINT,
+    p_max_attempts INT,
     p_retry_window_seconds INT,
     p_version INT
 )
@@ -19,7 +19,7 @@ LANGUAGE plpgsql
 AS $$
 DECLARE
     v_now TIMESTAMPTZ := now();
-    v_attempt SMALLINT;
+    v_attempt INT;
     v_created TIMESTAMPTZ;
     v_next TIMESTAMPTZ;
     v_exhaust BOOLEAN;

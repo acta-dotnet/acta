@@ -251,7 +251,7 @@ internal sealed class PostgresDialect : ISqlDialect
         var count = rows.Count;
         var names = new string[count];
         var priorityCodes = new short[count];
-        var maxAttempts = new short[count];
+        var maxAttempts = new int[count];
         var concurrencyLimits = new short?[count];
         var rateLimits = new string?[count];
         var rateKeys = new string?[count];
@@ -310,7 +310,7 @@ internal sealed class PostgresDialect : ISqlDialect
         AddScalar(postgres, "@p_manifest_generation", NpgsqlDbType.TimestampTz, manifestGenerationUtc);
         AddArray(postgres, "@p_d_name", NpgsqlDbType.Varchar, names);
         AddArray(postgres, "@p_d_priority_code", NpgsqlDbType.Smallint, priorityCodes);
-        AddArray(postgres, "@p_d_max_attempts", NpgsqlDbType.Smallint, maxAttempts);
+        AddArray(postgres, "@p_d_max_attempts", NpgsqlDbType.Integer, maxAttempts);
         AddArray(postgres, "@p_d_concurrency_limit", NpgsqlDbType.Smallint, concurrencyLimits);
         AddArray(postgres, "@p_d_rate_limit", NpgsqlDbType.Varchar, rateLimits);
         AddArray(postgres, "@p_d_rate_key", NpgsqlDbType.Varchar, rateKeys);
@@ -453,7 +453,7 @@ internal sealed class PostgresDialect : ISqlDialect
         AddScalar(
             postgres,
             "@p_failure_count",
-            NpgsqlDbType.Smallint,
+            NpgsqlDbType.Integer,
             request.FailureCount is { } failureCount ? failureCount : DBNull.Value
         );
         AddScalar(postgres, "@p_recurring_result_cap", NpgsqlDbType.Integer, request.RecurringResultCap);
@@ -488,7 +488,7 @@ internal sealed class PostgresDialect : ISqlDialect
         var reasonMessages = new string?[count];
         var resultFormatIds = new short[count];
         var results = new byte[count][];
-        var failureCounts = new short?[count];
+        var failureCounts = new int?[count];
         var retentionSeconds = new int?[count];
 
         for (var i = 0; i < count; i++)
@@ -519,7 +519,7 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_b_reason_message", NpgsqlDbType.Varchar, reasonMessages);
         AddArray(postgres, "@p_b_result_format_id", NpgsqlDbType.Smallint, resultFormatIds);
         AddArray(postgres, "@p_b_result", NpgsqlDbType.Bytea, results);
-        AddArray(postgres, "@p_b_failure_count", NpgsqlDbType.Smallint, failureCounts);
+        AddArray(postgres, "@p_b_failure_count", NpgsqlDbType.Integer, failureCounts);
         AddArray(postgres, "@p_b_retention_seconds", NpgsqlDbType.Integer, retentionSeconds);
     }
 

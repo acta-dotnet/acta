@@ -17,7 +17,7 @@ internal sealed record JobSnapshotRow(
     JobStatusCode Status,
     JobPriorityCode Priority,
     int ExecutionNumber,
-    short FailureCount,
+    int FailureCount,
     byte InputFormatId,
     DateTime? NextRunAtUtc,
     int? LeasedByWorkerId,
@@ -82,8 +82,8 @@ internal sealed record ExplainHeaderRow(
     string JobName,
     JobStatusCode Status,
     int ExecutionNumber,
-    short FailureCount,
-    short MaxAttemptsEffective,
+    int FailureCount,
+    int MaxAttemptsEffective,
     DateTime? NextRunAtUtc,
     int? LeasedByWorkerId,
     DateTime? LeaseExpiresAtUtc,
@@ -102,7 +102,7 @@ internal sealed record ExplainHeaderRow(
 internal sealed record ExplainStepRow(
     string Name,
     JobStepStatusCode Status,
-    short AttemptNumber,
+    int AttemptNumber,
     DateTime? NextRetryAtUtc,
     string? ReasonMessage
 );
@@ -225,7 +225,7 @@ internal sealed record JobListRow(
     DateTime ModifiedAtUtc,
     DateTime? NextRunAtUtc,
     int ExecutionNumber,
-    short FailureCount
+    int FailureCount
 );
 
 /// <summary>
@@ -245,7 +245,7 @@ internal sealed record JobListProjectionRow(
     DateTime ModifiedAtUtc,
     DateTime? NextRunAtUtc,
     int ExecutionNumber,
-    short FailureCount,
+    int FailureCount,
     Guid JobRef,
     Guid? ParentJobRef,
     Guid? LineageRootJobRef,

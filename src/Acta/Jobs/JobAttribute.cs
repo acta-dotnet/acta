@@ -23,7 +23,7 @@ public sealed class JobAttribute(string name) : Attribute
     /// Limits consecutive failures, not total invocations. <c>Reschedule</c>, <c>Suspend</c>, and
     /// <c>Pause</c> never consume the budget.
     /// </summary>
-    public short MaxAttempts { get; init; } = 15;
+    public int MaxAttempts { get; init; } = 15;
 
     /// <summary>
     /// How many attempts of this definition may execute at once, 1..1024. Unset means no limit unless

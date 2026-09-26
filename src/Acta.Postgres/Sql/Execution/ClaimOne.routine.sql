@@ -18,7 +18,7 @@ RETURNS TABLE (
     next_run_at_utc TIMESTAMPTZ,
     lease_expires_at_utc TIMESTAMPTZ,
     created_at_utc TIMESTAMPTZ,
-    failure_count SMALLINT,
+    failure_count INT,
     version INT,
     job_ref UUID,
     tenant_id INT,

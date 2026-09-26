@@ -49,7 +49,7 @@ BEGIN
                 next_run_at_utc DATETIME2(3) NULL,
                 created_at_utc DATETIME2(3) NOT NULL,
                 audit_level_code TINYINT NOT NULL,
-                failure_count SMALLINT NOT NULL,
+                failure_count INT NOT NULL,
                 version INT NOT NULL,
                 from_status TINYINT NOT NULL
             );
@@ -204,7 +204,7 @@ BEGIN
                     CAST(NULL AS DATETIME2(3)) AS next_run_at_utc,
                     CAST(NULL AS DATETIME2(3)) AS lease_expires_at_utc,
                     CAST(NULL AS DATETIME2(3)) AS created_at_utc,
-                    CAST(NULL AS SMALLINT) AS failure_count,
+                    CAST(NULL AS INT) AS failure_count,
                     CAST(NULL AS INT) AS version,
                     CAST(NULL AS UNIQUEIDENTIFIER) AS job_ref,
                     CAST(NULL AS INT) AS tenant_id,

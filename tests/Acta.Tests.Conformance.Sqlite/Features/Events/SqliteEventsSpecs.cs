@@ -8,3 +8,5 @@ namespace Acta.Tests.Conformance.Sqlite.Features.Events;
 public sealed class SqliteListJobEventsFilterMatrixSpec : ListJobEventsFilterMatrixSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteListJobEventsSpec : ListJobEventsSpec<SqliteConformanceFixture>;
+
+public sealed class SqliteForwardCodeReadSpec : ForwardCodeReadSpec<SqliteConformanceFixture>;

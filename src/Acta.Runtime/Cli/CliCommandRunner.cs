@@ -305,7 +305,7 @@ internal sealed class CliCommandRunner(
                 return ExitRejected;
             }
 
-            var baselineFailures = restarted ? (short)0 : snapshot.FailureCount;
+            var baselineFailures = restarted ? 0 : snapshot.FailureCount;
             var final = await jobs.GetAsync(JobLookup.ById(jobId), ct);
             var attemptFailed = outcome == RunOnceOutcome.Failed || (final is not null && final.FailureCount > baselineFailures);
 

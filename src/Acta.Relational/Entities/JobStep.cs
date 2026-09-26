@@ -59,8 +59,8 @@ internal sealed class JobStep : IEntity<long>
     /// <summary>
     /// Step attempt ordinal across retries (1-based; incremented on each failure within budget).
     /// </summary>
-    [DbColumn("attempt_number", DbKind.Int16)]
-    public short AttemptNumber { get; set; }
+    [DbColumn("attempt_number", DbKind.Int32)]
+    public int AttemptNumber { get; set; }
 
     /// <summary>
     /// When the next retry attempt is scheduled. <c>ck_steps_terminal_no_retry</c> keeps it NULL on

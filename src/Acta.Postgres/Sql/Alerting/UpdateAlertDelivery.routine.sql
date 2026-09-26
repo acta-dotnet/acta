@@ -2,7 +2,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.update_alert_delivery(
     p_id BIGINT,
     p_version INT,
     p_delivery_status_code SMALLINT,
-    p_retry_count SMALLINT,
+    p_retry_count INT,
     p_retry_after_utc TIMESTAMPTZ
 )
 RETURNS TABLE (id BIGINT)

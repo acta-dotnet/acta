@@ -1972,6 +1972,19 @@
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Workers.IWorkerStore.ListWorkersAsync`
 
+### An event or alert code from a newer Acta reads back as unspecified
+- **Contract:** An unassigned id in events.event_code, events.reason_code, or alerts.kind_code reads back as Unspecified on every read path and serializes as "unspecified".
+- **Arrange:** A job's timeline and one alert are written, then their extensible code columns are overwritten with an id no member holds.
+- **Act:** The events and the alert are read through IActaOperations and the table query surface, then serialized with web JSON defaults.
+- **Assert:** Every read decodes to Unspecified without throwing, and the JSON names the code "unspecified".
+- **Guarantees:**
+  - An unassigned event and reason code read back as Unspecified and serialize as unspecified
+  - An unassigned alert kind reads back as Unspecified from list and get and serializes as unspecified
+- **Store methods:**
+  - `Acta.Runtime.Modules.Alerting.IAlertStore.GetJobAlertAsync`
+  - `Acta.Runtime.Modules.Alerting.IAlertStore.ListJobAlertsAsync`
+  - `Acta.Runtime.Modules.Operations.Events.IEventStore.ListEventsAsync`
+
 ## Recovery
 
 ### One sys.recovery tick reclaims, releases, and wakes
@@ -2784,8 +2797,8 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IAlertStore.AcknowledgeJobAlertAsync` | Operator acknowledge/resolve verbs on IAlerts. |
 | `IAlertStore.GetAlertableEventsAsync` | A recurring job whose handler throws raises an alert<br>A replayed alert batch neither inflates an incident nor opens a ghost one<br>Alert profiles gate emission and severity per profile<br>Reclaiming a crashed timeout resolution costs the job no retry budget<br>The alerts projector classifies failures off events and resolves on success<br>The alerts projector drains a backlog in bounded batches within one invocation<br>The alerts projector reads behind a safe horizon rather than up to the present<br>The failures-only audit level records a failure and the success that answers it<br>ThresholdReached fires once per incident at the exact occurrence |
 | `IAlertStore.GetDeliverableAlertsAsync` | Alert delivery retries with backoff, goes terminal, and reminds open incidents<br>Deliverable alerts read due rows, remind open incidents, and settle by version |
-| `IAlertStore.GetJobAlertAsync` | ListJobAlerts pages alerts newest first with severity floor and full stored text |
-| `IAlertStore.ListJobAlertsAsync` | ListJobAlerts filter-matrix selects exactly matching rows per dimension<br>ListJobAlerts pages alerts newest first with severity floor and full stored text |
+| `IAlertStore.GetJobAlertAsync` | An event or alert code from a newer Acta reads back as unspecified<br>ListJobAlerts pages alerts newest first with severity floor and full stored text |
+| `IAlertStore.ListJobAlertsAsync` | An event or alert code from a newer Acta reads back as unspecified<br>ListJobAlerts filter-matrix selects exactly matching rows per dimension<br>ListJobAlerts pages alerts newest first with severity floor and full stored text |
 | `IAlertStore.RaiseJobAlertAsync` | A recurring job whose handler throws raises an alert<br>A replayed alert batch neither inflates an incident nor opens a ghost one<br>Alert profiles gate emission and severity per profile<br>An open incident keeps the ref its first firing minted<br>Manual alert write collapses onto the open incident and truncates bounded prose<br>Reclaiming a crashed timeout resolution costs the job no retry budget<br>The alerts projector classifies failures off events and resolves on success<br>The alerts projector drains a backlog in bounded batches within one invocation<br>The alerts projector reads behind a safe horizon rather than up to the present<br>ThresholdReached fires once per incident at the exact occurrence |
 | `IAlertStore.ResolveJobAlertManualAsync` | Operator acknowledge/resolve verbs on IAlerts. |
 | `IAlertStore.ResolveJobAlertsAsync` | A replayed alert batch neither inflates an incident nor opens a ghost one<br>Alert profiles gate emission and severity per profile<br>Deliverable alerts read due rows, remind open incidents, and settle by version<br>Reclaiming a crashed timeout resolution costs the job no retry budget<br>The alerts projector classifies failures off events and resolves on success<br>The failures-only audit level records a failure and the success that answers it<br>ThresholdReached fires once per incident at the exact occurrence |
@@ -2862,7 +2875,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IWorkerStore.MarkDeadWorkersAsync` | One sys.recovery tick reclaims, releases, and wakes<br>Stale workers in any namespace are marked Dead by a global sweep |
 | `IWorkerStore.StartWorkerAsync` | Init writes namespace worker and full definition policy idempotently<br>StartWorker allocates a namespace id only when it creates the namespace<br>StartWorker hash-gates the namespace write and appends a fresh worker row |
 | `IWorkerStore.StopWorkerAsync` | Events outlive a purged worker with a canonical actor key<br>Stop flips an active worker to Stopped once and is idempotent |
-| `IEventStore.ListEventsAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>A purged job's public ref still resolves to its surviving event timeline<br>Events outlive a purged worker with a canonical actor key<br>ListJobEvents filter-matrix selects exactly matching rows per dimension<br>ListJobEvents pages a job timeline newest first and scopes totals to a job |
+| `IEventStore.ListEventsAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>A purged job's public ref still resolves to its surviving event timeline<br>An event or alert code from a newer Acta reads back as unspecified<br>Events outlive a purged worker with a canonical actor key<br>ListJobEvents filter-matrix selects exactly matching rows per dimension<br>ListJobEvents pages a job timeline newest first and scopes totals to a job |
 | `IOverviewStore.GetOverviewAsync` | GetOverview returns accurate health counters scoped to a namespace and globally |
 | `ITagStore.ApplyAsync` | Tags read and mutate all first-class targets and filter typed queries |
 | `ITagStore.GetAsync` | Tags read and mutate all first-class targets and filter typed queries |

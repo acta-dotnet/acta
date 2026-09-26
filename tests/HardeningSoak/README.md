@@ -7,6 +7,7 @@ It composes the benchmark host and handlers and changes nothing in the runtime.
 
 ```powershell
 dotnet run --project tests/HardeningSoak -- pg 180 100 artifacts/hardening-soak/pg.json
+dotnet run --project tests/HardeningSoak -- mssql 180 100 artifacts/hardening-soak/mssql.json
 dotnet run --project tests/HardeningSoak -- sqlite 180 40 artifacts/hardening-soak/sqlite.json
 dotnet run --project tests/HardeningSoak -- purge-smoke sqlite artifacts/hardening-soak/purge.json
 ```

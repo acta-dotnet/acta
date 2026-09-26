@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.alerts (
     resolved_at_utc timestamptz NULL,
     acknowledged_at_utc timestamptz NULL,
     delivery_status_code smallint NOT NULL,
-    retry_count smallint NOT NULL,
+    retry_count integer NOT NULL,
     retry_after_utc timestamptz NULL,
     created_at_utc timestamptz DEFAULT now() NOT NULL,
     modified_at_utc timestamptz DEFAULT now() NOT NULL,
@@ -36,7 +36,6 @@ CREATE TABLE IF NOT EXISTS {{schema}}.alerts (
     , CONSTRAINT ck_alerts_origin_code CHECK (origin_code IN (10, 20))
     , CONSTRAINT ck_alerts_severity_code CHECK (severity_code IN (10, 20, 30, 40))
     , CONSTRAINT ck_alerts_delivery_status_code CHECK (delivery_status_code IN (10, 20, 30, 100, 200))
-    , CONSTRAINT ck_alerts_retry_count_byte CHECK (retry_count BETWEEN 0 AND 255)
 );
 CREATE INDEX IF NOT EXISTS ix_alerts_dedupe_identity ON {{schema}}.alerts (namespace_id, dedupe_key) WHERE dedupe_key IS NOT NULL;
 CREATE INDEX IF NOT EXISTS ix_alerts_delivery_due ON {{schema}}.alerts (namespace_id, delivery_status_code, retry_after_utc, id);
@@ -63,9 +62,9 @@ CREATE TABLE IF NOT EXISTS {{schema}}.definitions (
     priority_code smallint NOT NULL,
     priority_code_override smallint NULL,
     priority_code_effective smallint GENERATED ALWAYS AS (COALESCE(priority_code_override, priority_code)) STORED,
-    max_attempts smallint NOT NULL,
-    max_attempts_override smallint NULL,
-    max_attempts_effective smallint GENERATED ALWAYS AS (COALESCE(max_attempts_override, max_attempts)) STORED,
+    max_attempts integer NOT NULL,
+    max_attempts_override integer NULL,
+    max_attempts_effective integer GENERATED ALWAYS AS (COALESCE(max_attempts_override, max_attempts)) STORED,
     concurrency_limit smallint NULL,
     concurrency_limit_override smallint NULL,
     concurrency_limit_effective smallint GENERATED ALWAYS AS (COALESCE(concurrency_limit_override, concurrency_limit)) STORED,
@@ -249,7 +248,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.runtimes (
     priority_code smallint NOT NULL,
     next_run_at_utc timestamptz NULL,
     execution_number integer NOT NULL,
-    failure_count smallint NOT NULL,
+    failure_count integer NOT NULL,
     leased_by_worker_id integer NULL,
     lease_expires_at_utc timestamptz NULL,
     retention_until_utc timestamptz NULL,
@@ -334,7 +333,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.steps (
     job_id bigint NOT NULL,
     name varchar(128) NOT NULL,
     status_code smallint NOT NULL,
-    attempt_number smallint NOT NULL,
+    attempt_number integer NOT NULL,
     next_retry_at_utc timestamptz NULL,
     reason_code smallint NULL,
     reason_message varchar(512) NULL,
@@ -436,7 +435,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
 
 
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-e1a1f3207caf5a295743ba88d8c3ca26', '{{schema}}')
+VALUES (0, 'baseline-2fd04b410b15532d2b053472f8a91963', '{{schema}}')
 ON CONFLICT (version) DO NOTHING;
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}')

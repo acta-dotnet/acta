@@ -36,7 +36,6 @@ CREATE TABLE IF NOT EXISTS {{schema}}.alerts (
     , CONSTRAINT ck_alerts_origin_code CHECK (origin_code IN (10, 20))
     , CONSTRAINT ck_alerts_severity_code CHECK (severity_code IN (10, 20, 30, 40))
     , CONSTRAINT ck_alerts_delivery_status_code CHECK (delivery_status_code IN (10, 20, 30, 100, 200))
-    , CONSTRAINT ck_alerts_retry_count_byte CHECK (retry_count BETWEEN 0 AND 255)
 ) STRICT;
 CREATE INDEX IF NOT EXISTS {{schema}}.ix_alerts_dedupe_identity ON alerts (namespace_id, dedupe_key) WHERE dedupe_key IS NOT NULL;
 CREATE INDEX IF NOT EXISTS {{schema}}.ix_alerts_delivery_due ON alerts (namespace_id, delivery_status_code, retry_after_utc, id);
@@ -425,7 +424,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
 
 
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-ae203e66a1801dbadb6af7d799f352b6', '{{schema}}')
+VALUES (0, 'baseline-6e9cd889410c77ca1498a9666592193e', '{{schema}}')
 ON CONFLICT (version) DO NOTHING;
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}')

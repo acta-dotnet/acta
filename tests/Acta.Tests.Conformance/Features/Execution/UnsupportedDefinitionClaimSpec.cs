@@ -62,7 +62,7 @@ public abstract class UnsupportedDefinitionClaimSpec<TFixture> : ActaRuntimeTest
 
         // Budget-neutral: the bounce charges no failure and consumes no attempt beyond the one the
         // claim itself took, so a definition that stays missing cannot burn a job's retries.
-        Assert.Equal((short)0, job.FailureCount);
+        Assert.Equal(0, job.FailureCount);
         Assert.Equal(1, job.ExecutionNumber);
 
         // Held back rather than immediately re-claimable, and measured against the routine's own clock
@@ -149,7 +149,7 @@ public abstract class UnsupportedDefinitionClaimSpec<TFixture> : ActaRuntimeTest
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Succeeded, job.Status);
-        Assert.Equal((short)0, job.FailureCount);
+        Assert.Equal(0, job.FailureCount);
     }
 
     [Fact(
@@ -181,8 +181,8 @@ public abstract class UnsupportedDefinitionClaimSpec<TFixture> : ActaRuntimeTest
         var second = await ReadJobAsync(secondUnsupported.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, first.Status);
         Assert.Equal(JobStatusCode.Ready, second.Status);
-        Assert.Equal((short)0, first.FailureCount);
-        Assert.Equal((short)0, second.FailureCount);
+        Assert.Equal(0, first.FailureCount);
+        Assert.Equal(0, second.FailureCount);
         Assert.Equal(1, first.ExecutionNumber + second.ExecutionNumber);
     }
 
@@ -216,7 +216,7 @@ public abstract class UnsupportedDefinitionClaimSpec<TFixture> : ActaRuntimeTest
             row =>
             {
                 Assert.Equal(JobStatusCode.Ready, row.Status);
-                Assert.Equal((short)0, row.FailureCount);
+                Assert.Equal(0, row.FailureCount);
                 Assert.Null(row.LeasedByWorkerId);
             }
         );

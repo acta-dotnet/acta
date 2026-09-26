@@ -75,7 +75,7 @@
           },
           {
             "Name": "retry_count",
-            "Signature": "Byte|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
           },
           {
             "Name": "retry_after_utc",
@@ -265,15 +265,15 @@
           },
           {
             "Name": "max_attempts",
-            "Signature": "Int16|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
           },
           {
             "Name": "max_attempts_override",
-            "Signature": "Int16|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
           },
           {
             "Name": "max_attempts_effective",
-            "Signature": "Int16|0|0|0|False|None|COALESCE(max_attempts_override, max_attempts)|coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None|COALESCE(max_attempts_override, max_attempts)|coded=False|codeKind=|values="
           },
           {
             "Name": "concurrency_limit",
@@ -845,7 +845,7 @@
           },
           {
             "Name": "failure_count",
-            "Signature": "Int16|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
           },
           {
             "Name": "leased_by_worker_id",
@@ -1128,7 +1128,7 @@
           },
           {
             "Name": "attempt_number",
-            "Signature": "Int16|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
           },
           {
             "Name": "next_retry_at_utc",

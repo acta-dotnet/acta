@@ -83,7 +83,7 @@ public abstract class AlertDeliverySpec<TFixture> : ActaStorageTestBase<TFixture
         // rides the version the previous settle left behind, which is what the next selection would hand out.
         Assert.True(await SettleAsync(due.AlertId, due.Version + 1, AlertDeliveryStatusCode.RetryAfter, 1, PastInstant, ct));
         var again = Assert.Single(await DueAsync(ct));
-        Assert.Equal((byte)1, again.RetryCount);
+        Assert.Equal(1, again.RetryCount);
         Assert.Equal(due.Version + 2, again.Version);
     }
 
@@ -183,7 +183,7 @@ public abstract class AlertDeliverySpec<TFixture> : ActaStorageTestBase<TFixture
         var row = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.NotNull(row.ResolvedAtUtc);
         Assert.Equal(AlertDeliveryStatusCode.Suppressed, row.DeliveryStatusCode);
-        Assert.Equal((byte)0, row.RetryCount);
+        Assert.Equal(0, row.RetryCount);
         Assert.Null(row.RetryAfterUtc);
     }
 
@@ -242,7 +242,7 @@ public abstract class AlertDeliverySpec<TFixture> : ActaStorageTestBase<TFixture
 
         var reminder = Assert.Single(await DueAsync(ct));
         Assert.Equal(due.AlertId, reminder.AlertId);
-        Assert.Equal((byte)5, reminder.RetryCount);
+        Assert.Equal(5, reminder.RetryCount);
     }
 
     [Fact(DisplayName = "A resolved Delivered row is never reminded: the resolve took its schedule away")]
@@ -281,7 +281,7 @@ public abstract class AlertDeliverySpec<TFixture> : ActaStorageTestBase<TFixture
 
         var fresh = Assert.Single(await DueAsync(ct));
         Assert.NotEqual(first.AlertId, fresh.AlertId);
-        Assert.Equal((byte)0, fresh.RetryCount);
+        Assert.Equal(0, fresh.RetryCount);
         Assert.True(await SettleAsync(fresh.AlertId, fresh.Version, AlertDeliveryStatusCode.Delivered, fresh.RetryCount, null, ct));
 
         var rows = (await ReadAlertsAsync(TestNamespaceId, ct)).OrderBy(a => a.Id).ToList();
@@ -301,7 +301,7 @@ public abstract class AlertDeliverySpec<TFixture> : ActaStorageTestBase<TFixture
         long alertId,
         int expectedVersion,
         AlertDeliveryStatusCode status,
-        byte retryCount,
+        int retryCount,
         DateTime? retryAfterUtc,
         CancellationToken ct
     ) =>

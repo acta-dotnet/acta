@@ -375,7 +375,7 @@ public abstract class SchemaHardeningSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         // Raw insert, omitting the nullable `result` column entirely: binding it explicit-NULL trips
         // SQL Server's inability to infer a SqlDbType for a null varbinary parameter (the same class of
         // issue ActaTestSeeder.SeedJobAsync sidesteps for jobs.input).
-        Task<int> InsertStepAsync(string name, short attemptNumber) =>
+        Task<int> InsertStepAsync(string name, int attemptNumber) =>
             Db.ExecuteRawAsync(
                 "INSERT INTO {schema}.steps (job_id, name, status_code, attempt_number, result_format_id) VALUES (@p_job_id, @p_name, 10, @p_attempt, 0)",
                 ct,

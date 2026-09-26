@@ -31,7 +31,7 @@ public abstract class MonotonicDefinitionPromotionSpec<TFixture> : ActaStorageTe
     private static readonly DateTime Gen1 = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private static readonly DateTime Gen2 = new(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
 
-    private static JobDescriptor Def(string name, short maxAttempts, Type inputType) =>
+    private static JobDescriptor Def(string name, int maxAttempts, Type inputType) =>
         new(
             JobName: name,
             HandlerType: typeof(object),
@@ -74,7 +74,7 @@ public abstract class MonotonicDefinitionPromotionSpec<TFixture> : ActaStorageTe
         await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen2, [Def(name, 9, typeof(int))], ct);
         var second = await ReadAsync(name, ct);
 
-        Assert.Equal((short)9, second.MaxAttempts);
+        Assert.Equal(9, second.MaxAttempts);
         Assert.Equal(Gen2, second.ManifestGenerationAtUtc);
         Assert.True(second.Version > first.Version);
     }
@@ -92,7 +92,7 @@ public abstract class MonotonicDefinitionPromotionSpec<TFixture> : ActaStorageTe
         await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen1, [Def(name, 3, typeof(int))], ct);
         var second = await ReadAsync(name, ct);
 
-        Assert.Equal((short)9, second.MaxAttempts);
+        Assert.Equal(9, second.MaxAttempts);
         Assert.Equal(Gen2, second.ManifestGenerationAtUtc);
         Assert.Equal(first.Version, second.Version);
     }
@@ -108,7 +108,7 @@ public abstract class MonotonicDefinitionPromotionSpec<TFixture> : ActaStorageTe
         await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen1, [Def(name, 5, typeof(int))], ct);
 
         var def = await ReadAsync(name, ct);
-        Assert.Equal((short)5, def.MaxAttempts);
+        Assert.Equal(5, def.MaxAttempts);
     }
 
     [Fact(DisplayName = "Unchanged restart writes nothing")]

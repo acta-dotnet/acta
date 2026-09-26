@@ -26,7 +26,7 @@ CREATE TABLE {{schema}}.alerts (
     resolved_at_utc datetime2(3) NULL,
     acknowledged_at_utc datetime2(3) NULL,
     delivery_status_code tinyint NOT NULL,
-    retry_count tinyint NOT NULL,
+    retry_count int NOT NULL,
     retry_after_utc datetime2(3) NULL,
     created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
     modified_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
@@ -67,8 +67,8 @@ CREATE TABLE {{schema}}.definitions (
     priority_code tinyint NOT NULL,
     priority_code_override tinyint NULL,
     priority_code_effective AS (COALESCE(priority_code_override, priority_code)) PERSISTED,
-    max_attempts smallint NOT NULL,
-    max_attempts_override smallint NULL,
+    max_attempts int NOT NULL,
+    max_attempts_override int NULL,
     max_attempts_effective AS (COALESCE(max_attempts_override, max_attempts)) PERSISTED,
     concurrency_limit smallint NULL,
     concurrency_limit_override smallint NULL,
@@ -276,7 +276,7 @@ CREATE TABLE {{schema}}.runtimes (
     priority_code tinyint NOT NULL,
     next_run_at_utc datetime2(3) NULL,
     execution_number int NOT NULL,
-    failure_count smallint NOT NULL,
+    failure_count int NOT NULL,
     leased_by_worker_id int NULL,
     lease_expires_at_utc datetime2(3) NULL,
     retention_until_utc datetime2(3) NULL,
@@ -372,7 +372,7 @@ CREATE TABLE {{schema}}.steps (
     job_id bigint NOT NULL,
     name varchar(128) NOT NULL,
     status_code tinyint NOT NULL,
-    attempt_number smallint NOT NULL,
+    attempt_number int NOT NULL,
     next_retry_at_utc datetime2(3) NULL,
     reason_code tinyint NULL,
     reason_message nvarchar(512) NULL,
@@ -532,7 +532,7 @@ IF TYPE_ID(N'{{schema}}.job_definition_batch') IS NULL
 EXEC(N'CREATE TYPE {{schema}}.job_definition_batch AS TABLE (
     name                                 VARCHAR(128)  NOT NULL,
     priority_code                        TINYINT       NOT NULL,
-    max_attempts                         SMALLINT      NOT NULL,
+    max_attempts                         INT           NOT NULL,
     concurrency_limit                    SMALLINT      NULL,
     rate_limit                           VARCHAR(16)   NULL,
     rate_key                             VARCHAR(128)  NULL,
@@ -584,7 +584,7 @@ EXEC(N'CREATE TYPE {{schema}}.complete_executions_batch AS TABLE (
     reason_message    NVARCHAR(512)  NULL,
     result_format_id  TINYINT        NOT NULL,
     result            VARBINARY(MAX) NULL,
-    failure_count     SMALLINT       NULL,
+    failure_count     INT            NULL,
     retention_seconds INT            NULL
 );');
 GO
@@ -625,7 +625,7 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 0)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-2978ad1ccb8de123488c4581477c134d', '{{schema}}');
+VALUES (0, 'baseline-ed807ce13bc157e6553a82f456ccda1a', '{{schema}}');
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 1)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}');

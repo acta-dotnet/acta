@@ -125,11 +125,10 @@ internal sealed class JobRuntime : IEntity<long>
     /// <summary>
     /// Failure counter for the current cycle, compared against <c>MaxAttempts</c> on a one-off job. A
     /// recurring slot is not terminalized for crossing that budget, so its counter keeps climbing across
-    /// occurrences and every increment path saturates at <see cref="short.MaxValue"/> rather than
-    /// overflowing: at the ceiling the value means "that many or more", not an exact lifetime count.
+    /// occurrences.
     /// </summary>
-    [DbColumn("failure_count", DbKind.Int16)]
-    public short FailureCount { get; set; }
+    [DbColumn("failure_count", DbKind.Int32)]
+    public int FailureCount { get; set; }
 
     /// <summary>
     /// Worker that currently holds the in-flight execution lease, if any. No FK; write-time

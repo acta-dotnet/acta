@@ -25,7 +25,7 @@ public sealed record JobDescriptor(
     bool RequiresJobContextParameter,
     bool RequiresCancellationToken,
     JobPriorityCode Priority,
-    short MaxAttempts,
+    int MaxAttempts,
     JobAuditLevelCode AuditLevel,
     AlertProfileCode AlertProfile,
     JobHandlerInvokeDelegate Invoker,

@@ -127,7 +127,7 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
         long alertId,
         int expectedVersion,
         AlertDeliveryStatusCode status,
-        byte retryCount,
+        int retryCount,
         DateTime? retryAfterUtc,
         CancellationToken ct
     ) =>

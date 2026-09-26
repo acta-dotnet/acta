@@ -125,7 +125,7 @@ public abstract class RollingDeploySpec<TFixture> : ActaRuntimeTestBase<TFixture
 
         var handedBack = await ReadJobAsync(newOnly.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, handedBack.Status);
-        Assert.Equal((short)0, handedBack.FailureCount);
+        Assert.Equal(0, handedBack.FailureCount);
         Assert.Null(handedBack.LeasedByWorkerId);
         Assert.Contains(handedBack.DefinitionId, Runtime.UnsupportedDefinitionIdsSnapshot);
 
@@ -141,17 +141,17 @@ public abstract class RollingDeploySpec<TFixture> : ActaRuntimeTestBase<TFixture
         // hands back the other way: a job of the definition it omitted is not its work either.
         var oldOnlyAgain = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, OldOnlyJob, JobPayload.None), ct);
         await RunUntilSucceededAsync(newRuntime, newOnly.JobId, ct);
-        Assert.Equal((short)0, (await ReadJobAsync(newOnly.JobId, ct)).FailureCount);
+        Assert.Equal(0, (await ReadJobAsync(newOnly.JobId, ct)).FailureCount);
         await TickUntilNothingClaimedAsync(newRuntime, ct);
 
         var handedBackToOld = await ReadJobAsync(oldOnlyAgain.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, handedBackToOld.Status);
-        Assert.Equal((short)0, handedBackToOld.FailureCount);
+        Assert.Equal(0, handedBackToOld.FailureCount);
         Assert.Null(handedBackToOld.LeasedByWorkerId);
         Assert.Contains(handedBackToOld.DefinitionId, newRuntime.UnsupportedDefinitionIdsSnapshot);
 
         await RunUntilSucceededAsync(Runtime, oldOnlyAgain.JobId, ct);
-        Assert.Equal((short)0, (await ReadJobAsync(oldOnlyAgain.JobId, ct)).FailureCount);
+        Assert.Equal(0, (await ReadJobAsync(oldOnlyAgain.JobId, ct)).FailureCount);
 
         // --- 4. Rollback: the new generation is gone and a fresh old-generation process takes over,
         // with one job of each definition waiting for it.
@@ -179,7 +179,7 @@ public abstract class RollingDeploySpec<TFixture> : ActaRuntimeTestBase<TFixture
         // and excluded from the process that cannot run it, rather than bouncing once a second.
         var stranded = await ReadJobAsync(strandedNew.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, stranded.Status);
-        Assert.Equal((short)0, stranded.FailureCount);
+        Assert.Equal(0, stranded.FailureCount);
         Assert.Contains(stranded.DefinitionId, rollbackRuntime.UnsupportedDefinitionIdsSnapshot);
 
         // --- 5. The stranded row waits until an operator says so. Retiring the definition the fleet

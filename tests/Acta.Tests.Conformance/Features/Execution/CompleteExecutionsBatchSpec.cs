@@ -355,7 +355,7 @@ public abstract class CompleteExecutionsBatchSpec<TFixture> : ActaRuntimeTestBas
         ExecutionOutcome outcome = ExecutionOutcome.Succeeded,
         JobEventReasonCode? reason = null,
         string? reasonMessage = null,
-        short? failureCount = null
+        int? failureCount = null
     ) =>
         new(
             JobId: claimed.JobId,

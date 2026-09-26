@@ -10,7 +10,7 @@ CREATE OR ALTER PROCEDURE {{schema}}.complete_execution
     @p_duration_ms INT,
     @p_final_status TINYINT = NULL,
     @p_job_next_run_at_utc DATETIME2(3) = NULL,
-    @p_failure_count SMALLINT = NULL,
+    @p_failure_count INT = NULL,
     @p_recurring_result_cap INT = 0,
     @p_reschedule_status_code TINYINT = NULL,
     @p_reschedule_delay_seconds INT = NULL,
@@ -51,8 +51,8 @@ BEGIN
         DECLARE
             @c_ref UNIQUEIDENTIFIER, @c_ns INT, @c_lineage BIGINT, @c_def INT, @c_tenant INT, @c_exec INT,
             @c_audit TINYINT,
-            @c_next_existing DATETIME2(3), @c_retention_existing DATETIME2(3), @c_failcount_existing SMALLINT;
-        DECLARE @c_next DATETIME2(3), @c_retention DATETIME2(3), @c_failcount SMALLINT;
+            @c_next_existing DATETIME2(3), @c_retention_existing DATETIME2(3), @c_failcount_existing INT;
+        DECLARE @c_next DATETIME2(3), @c_retention DATETIME2(3), @c_failcount INT;
 
         IF @signal_suspend = 1
             BEGIN

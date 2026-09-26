@@ -260,7 +260,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
     /// <summary>
     /// Framework defaults: keep aligned with JobAttribute's defaults.
     /// </summary>
-    private const short DefaultMaxAttempts = 15;
+    private const int DefaultMaxAttempts = 15;
 
     /// <summary>
     /// The declared concurrency limit's range, the same 1..1024 band JobsOptions allows for
@@ -363,7 +363,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                     break;
 
                 case "MaxAttempts":
-                    if (named.Value.Value is short m)
+                    if (named.Value.Value is int m)
                     {
                         if (m > 0)
                         {
@@ -778,7 +778,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         string? InputFormat,
         string? OutputFormat,
         string PriorityName,
-        short MaxAttempts,
+        int MaxAttempts,
         short? ConcurrencyLimit,
         string? RateLimit,
         string? RateKey,
@@ -2336,7 +2336,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         bool RequiresJobContext,
         bool RequiresCancellationToken,
         string PriorityName,
-        short MaxAttempts,
+        int MaxAttempts,
         short? ConcurrencyLimit,
         string? RateLimit,
         string? RateKey,

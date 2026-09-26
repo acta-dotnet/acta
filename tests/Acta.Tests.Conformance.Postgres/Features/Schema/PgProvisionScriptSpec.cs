@@ -36,9 +36,8 @@ public sealed partial class PgProvisionScriptSpec
         await conn.OpenAsync(ct);
         try
         {
-            // Twice on purpose: install and upgrade are the same file, so re-running it must apply
-            // only what is missing. The second pass is what proves the header's promise, and the
-            // migration-row count below is what proves it applied nothing the second time.
+            // Twice on purpose: the header promises that a re-run on a database the script provisioned
+            // applies no migration twice, and the migration-row count below is what proves it.
             for (var pass = 0; pass < 2; pass++)
             {
                 await using var provision = conn.CreateCommand();
@@ -96,6 +95,75 @@ public sealed partial class PgProvisionScriptSpec
             drop.CommandText = $"DROP SCHEMA IF EXISTS {schema} CASCADE;";
             await drop.ExecuteNonQueryAsync(CancellationToken.None);
         }
+    }
+
+    [Fact(DisplayName = "Re-applying the pg provision script keeps data, grants, and dependent views")]
+    public async Task Reapplied_script_keeps_data_grants_and_dependents()
+    {
+        var connString = IntegrationConfig.PostgresConnectionString;
+        if (connString is null)
+        {
+            Assert.Skip("ACTA_TEST_PG is not set.");
+        }
+        var ct = TestContext.Current.CancellationToken;
+        var schema = $"acta_provision_{Guid.NewGuid():N}"[..30];
+        var role = $"acta_reader_{Guid.NewGuid():N}"[..30];
+        var script = SchemaWord()
+            .Replace(File.ReadAllText(Path.Combine(IntegrationConfig.FindRepoRoot(), "docs", "reference", "schema-pg.sql")), schema);
+        var fixture = new PgConformanceFixture();
+        await ActaSharedDatabase.EnsureReadyAsync(fixture);
+
+        await using var conn = new NpgsqlConnection(connString);
+        await conn.OpenAsync(ct);
+        try
+        {
+            await ExecuteAsync(conn, script, ct);
+            var job = await ScriptProvisionedRuntime.RunJobAsync(fixture.ApplyProvider, schema, 2, 3, ct);
+
+            // What a DBA adds around the published views: a grant to a reporting role and a view of
+            // their own that selects from one of ours.
+            await ExecuteAsync(
+                conn,
+                $"CREATE ROLE {role} NOLOGIN; GRANT SELECT ON {schema}.jobs_view TO {role}; "
+                    + $"CREATE VIEW {schema}.dba_job_names AS SELECT job_ref, job_name, status FROM {schema}.jobs_view;",
+                ct
+            );
+
+            // The script re-applied by hand, then the bootstrap's own installer: both rewrite the views.
+            await ExecuteAsync(conn, script, ct);
+            await AssertDbaObjectsSurviveAsync(job);
+            await Acta.Postgres.Schema.PostgresSchemaMigrator.ApplyAsync(conn, schema, ct);
+            await AssertDbaObjectsSurviveAsync(job);
+
+            await ScriptProvisionedRuntime.AssertSucceededAsync(fixture.ApplyProvider, schema, job, 5, ct);
+        }
+        finally
+        {
+            // Its own connection, because a failed script leaves the test connection inside an aborted
+            // transaction. The schema takes the dependent view and the grant with it, which frees the role.
+            await using var cleanup = new NpgsqlConnection(connString);
+            await cleanup.OpenAsync(CancellationToken.None);
+            await ExecuteAsync(cleanup, $"DROP SCHEMA IF EXISTS {schema} CASCADE; DROP ROLE IF EXISTS {role};", CancellationToken.None);
+        }
+
+        async Task AssertDbaObjectsSurviveAsync(JobRef job)
+        {
+            await using var probe = conn.CreateCommand();
+            probe.CommandText =
+                $"SELECT has_table_privilege('{role}', '{schema}.jobs_view', 'SELECT'), "
+                + $"(SELECT status FROM {schema}.dba_job_names WHERE job_ref = '{job.Value}')";
+            await using var reader = await probe.ExecuteReaderAsync(ct);
+            Assert.True(await reader.ReadAsync(ct));
+            Assert.True(reader.GetBoolean(0), "the SELECT grant on jobs_view did not survive the re-apply");
+            Assert.Equal("succeeded", reader.GetString(1));
+        }
+    }
+
+    private static async Task ExecuteAsync(NpgsqlConnection conn, string sql, CancellationToken ct)
+    {
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = sql;
+        await cmd.ExecuteNonQueryAsync(ct);
     }
 
     // The whole-word lowercase schema name, exactly what the script header tells a DBA to replace.

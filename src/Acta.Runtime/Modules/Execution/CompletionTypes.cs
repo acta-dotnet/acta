@@ -36,7 +36,7 @@ internal sealed record CompleteExecutionRequest(
     IReadOnlyList<ScheduleAdvance>? ScheduleAdvances = null,
     JobStatusCode? FinalStatus = null,
     DateTime? JobNextRunAtUtc = null,
-    short? FailureCount = null,
+    int? FailureCount = null,
     int RecurringResultCap = 0
 )
 {

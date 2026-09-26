@@ -7,7 +7,7 @@ CREATE OR ALTER PROCEDURE {{schema}}.complete_step
     @p_reason_code TINYINT,
     @p_reason_message NVARCHAR(512),
     @p_delay_seconds INT,
-    @p_max_attempts SMALLINT,
+    @p_max_attempts INT,
     @p_retry_window_seconds INT,
     @p_version INT
 AS
@@ -21,7 +21,7 @@ BEGIN
             BEGIN TRANSACTION;
 
         DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
-        DECLARE @attempt SMALLINT;
+        DECLARE @attempt INT;
         DECLARE @created DATETIME2(3);
         DECLARE @next DATETIME2(3);
         DECLARE @outcome SMALLINT;

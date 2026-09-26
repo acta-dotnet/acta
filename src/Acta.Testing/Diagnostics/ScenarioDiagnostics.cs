@@ -32,7 +32,7 @@ public sealed record ScenarioJobSnapshot
     public required JobStatusCode Status { get; init; }
     public required JobPriorityCode Priority { get; init; }
     public required int ExecutionNumber { get; init; }
-    public required short FailureCount { get; init; }
+    public required int FailureCount { get; init; }
     public required DateTime? NextRunAtUtc { get; init; }
     public required int? LeasedByWorkerId { get; init; }
     public required DateTime? LeaseExpiresAtUtc { get; init; }
@@ -72,7 +72,7 @@ public sealed record ScenarioStepSnapshot
     public required long JobId { get; init; }
     public required string Name { get; init; }
     public required JobStepStatusCode Status { get; init; }
-    public required short AttemptNumber { get; init; }
+    public required int AttemptNumber { get; init; }
     public required DateTime? NextRetryAtUtc { get; init; }
     public required JobEventReasonCode? ReasonCode { get; init; }
     public required string? ReasonMessage { get; init; }

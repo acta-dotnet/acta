@@ -33,7 +33,7 @@ public sealed record AlertListItem(
     int OccurrenceCount,
     DateTime? ResolvedAtUtc,
     AlertDeliveryStatusCode DeliveryStatus,
-    byte RetryCount,
+    int RetryCount,
     DateTime? RetryAfterUtc,
     DateTime CreatedAtUtc,
     DateTime ModifiedAtUtc,

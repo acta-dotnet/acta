@@ -10,15 +10,18 @@ using Npgsql;
 using RollingUpgradeSmoke;
 
 // The same consumer is compiled against two independent source trees. Only the provision phase
-// installs SQL; a previous binary running in verify mode cannot overwrite the upgraded routines.
+// installs SQL; a previous binary running in any other mode cannot overwrite the upgraded routines.
+// Modes: provision, verify, old-sql-rejected, overlap (verify without the recurring rollovers, which
+// two processes triggering the same slot would race), and hold (see HoldAsync).
 var provider = args[0];
 var schema = args[1];
-var provision = args[2] == "provision";
+var mode = args[2];
+var provision = mode == "provision";
 var profile = Enum.Parse<ExecutionProfile>(args[3]);
 var connection =
     Environment.GetEnvironmentVariable(provider == "pg" ? "ACTA_TEST_PG" : "ACTA_TEST_MSSQL")
     ?? throw new InvalidOperationException("The provider test connection string is required.");
-using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(mode == "hold" ? 10 : 2));
 var ct = deadline.Token;
 var builder = Host.CreateApplicationBuilder();
 builder.Logging.ClearProviders();
@@ -59,6 +62,12 @@ await host.StartAsync(ct);
 var jobs = host.Services.GetRequiredService<IJobs>();
 try
 {
+    if (mode == "hold")
+    {
+        await HoldAsync();
+        return;
+    }
+
     var requests = Enumerable
         .Range(1, 8)
         .Select(value => new JobEnqueueRequest("upgrade-smoke", "probe", JobPayload.Json(new ProbeInput(value))))
@@ -73,7 +82,7 @@ try
 
     var operations = host.Services.GetRequiredService<IActaOperations>();
     var recurring = JobLookup.ByDeduplicationKey("upgrade-smoke", "recurring-probe");
-    for (var tick = 0; tick < 2; tick++)
+    for (var tick = 0; tick < (mode == "overlap" ? 0 : 2); tick++)
     {
         var before = await jobs.GetAsync(recurring, ct) ?? throw new InvalidOperationException("Recurring slot missing.");
         await operations.Schedules.TriggerNowAsync(new ScheduleLookup(recurring, "default"), ct: ct);
@@ -94,12 +103,37 @@ try
         }
     }
     Console.WriteLine(
-        $"PASS {provider} {profile} {args[2]}: 8 completions/results, heartbeat renewal, checkpoints, 2 recurring rollovers."
+        mode == "overlap"
+            ? $"PASS {provider} {profile} {mode}: 8 completions/results, heartbeat renewal, checkpoints."
+            : $"PASS {provider} {profile} {mode}: 8 completions/results, heartbeat renewal, checkpoints, 2 recurring rollovers."
     );
 }
 finally
 {
     await host.StopAsync(ct);
+}
+
+// Enqueues one hold probe while this process is the only worker, so this process claims it, then
+// waits for it to finish. The handler signals "held" and blocks until run.ps1 writes "release", which
+// it does after the other generation has provisioned and run beside this one. Success means this
+// process completed the execution it claimed, on its first attempt, with its lease never lost.
+async Task HoldAsync()
+{
+    var job = await jobs.EnqueueAsync(new JobEnqueueRequest("upgrade-smoke", "hold-probe"), ct);
+    while (await jobs.GetStatusAsync(job, ct) is not (JobStatusCode.Succeeded or JobStatusCode.Failed or JobStatusCode.Cancelled))
+    {
+        await Task.Delay(100, ct);
+    }
+    var detail = await jobs.GetAsync(JobLookup.ByRef(job.JobRef), ct) ?? throw new InvalidOperationException("Hold probe lost.");
+    var result = await jobs.GetResultAsync<ProbeResult>(job, ct);
+    if (detail.Status != JobStatusCode.Succeeded || detail.ExecutionNumber != 1 || result?.Value != Environment.ProcessId)
+    {
+        throw new InvalidOperationException(
+            $"The held execution did not complete on its holder: status {detail.Status}, execution {detail.ExecutionNumber}, "
+                + $"completed by process {result?.Value}, holder {Environment.ProcessId}."
+        );
+    }
+    Console.WriteLine($"PASS {provider} {profile} hold: execution held across the other generation's provisioning, then completed.");
 }
 
 async Task VerifyProbeAsync(JobEnqueueOutcome job, int expected)
@@ -164,6 +198,22 @@ namespace RollingUpgradeSmoke
             // Long enough to need lease renewals against the installed SQL, which the watcher counts.
             await Task.Delay(TimeSpan.FromSeconds(3), ct);
             return new ProbeResult(value);
+        }
+
+        // Returns the id of the process that ran it, so the holder can tell its own completion from a
+        // reclaim by another worker.
+        [Job("hold-probe")]
+        public static async Task<ProbeResult> Hold(JobContext ctx, CancellationToken ct)
+        {
+            var directory =
+                Environment.GetEnvironmentVariable("ACTA_SMOKE_OVERLAP_DIR")
+                ?? throw new InvalidOperationException("ACTA_SMOKE_OVERLAP_DIR is required for the hold probe.");
+            await File.WriteAllTextAsync(Path.Combine(directory, "held"), ctx.ExecutionNumber.ToString(), ct);
+            while (!File.Exists(Path.Combine(directory, "release")))
+            {
+                await Task.Delay(100, ct);
+            }
+            return new ProbeResult(Environment.ProcessId);
         }
 
         [Job("recurring-probe")]

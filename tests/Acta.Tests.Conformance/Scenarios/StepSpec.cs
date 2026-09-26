@@ -94,17 +94,17 @@ public abstract class StepSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
         Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         var afterFirst = (await ReadStepsAsync(enqueued.JobId, ct)).Single();
         Assert.Equal(JobStepStatusCode.Pending, afterFirst.Status);
-        Assert.Equal((short)1, afterFirst.AttemptNumber);
+        Assert.Equal(1, afterFirst.AttemptNumber);
         Assert.NotNull(afterFirst.NextRetryAtUtc);
 
         var jobAfterFirst = await ReadJobAsync(enqueued.JobId, ct);
-        Assert.Equal((short)0, jobAfterFirst.FailureCount);
+        Assert.Equal(0, jobAfterFirst.FailureCount);
         var rescheduleEvent = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobRescheduled, ct);
         Assert.Equal(JobEventReasonCode.JobStepRetryScheduled, rescheduleEvent.ReasonCode);
 
         // Tick 2: attempt_number increments before the second invocation, which also fails.
         Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal((short)2, (await ReadStepsAsync(enqueued.JobId, ct)).Single().AttemptNumber);
+        Assert.Equal(2, (await ReadStepsAsync(enqueued.JobId, ct)).Single().AttemptNumber);
 
         // Tick 3: the third invocation succeeds; the parent completes with an untouched budget.
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
@@ -113,7 +113,7 @@ public abstract class StepSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
 
         var done = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Succeeded, done.Status);
-        Assert.Equal((short)0, done.FailureCount);
+        Assert.Equal(0, done.FailureCount);
         Assert.Equal(1, await CountVariableAsync(enqueued.JobId, "step.done", ct));
     }
 

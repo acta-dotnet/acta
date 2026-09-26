@@ -59,7 +59,7 @@ public abstract class ReclaimStuckJobsSpec<TFixture> : ActaRuntimeTestBase<TFixt
         Assert.Equal(JobStatusCode.Ready, job.Status);
         Assert.Null(job.LeasedByWorkerId);
         Assert.Null(job.LeaseExpiresAtUtc);
-        Assert.Equal((short)1, job.FailureCount);
+        Assert.Equal(1, job.FailureCount);
 
         var events = await Db.From<JobEvent>()
             .Where(e => e.JobId == enqueued.JobId && e.EventCode == EventCode.JobExecutionFinished)
@@ -92,7 +92,7 @@ public abstract class ReclaimStuckJobsSpec<TFixture> : ActaRuntimeTestBase<TFixt
         // Each cycle: re-claim (lease lands expired via the negative TTL) then reclaim. failure_count
         // climbs by one per cycle; the row stays Ready until the cycle that reaches MaxAttempts, where
         // it goes terminal Failed.
-        for (short attempt = 1; attempt <= maxAttempts; attempt++)
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
             var claim = await Services.GetRequiredService<IExecutionStore>().ClaimOneAsync(ns, workerId, LeaseTtlSeconds, enqueued, ct);
             Assert.Equal(enqueued.JobId, Assert.Single(claim).JobId);
@@ -143,7 +143,7 @@ public abstract class ReclaimStuckJobsSpec<TFixture> : ActaRuntimeTestBase<TFixt
         Assert.Equal(JobStatusCode.Ready, job.Status);
         Assert.Null(job.LeasedByWorkerId);
         Assert.Null(job.LeaseExpiresAtUtc);
-        Assert.Equal((short)1, job.FailureCount);
+        Assert.Equal(1, job.FailureCount);
 
         var events = await Db.From<JobEvent>()
             .Where(e => e.JobId == enqueued.JobId && e.EventCode == EventCode.JobExecutionFinished)
@@ -183,7 +183,7 @@ public abstract class ReclaimStuckJobsSpec<TFixture> : ActaRuntimeTestBase<TFixt
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Executing, job.Status);
-        Assert.Equal((short)0, job.FailureCount);
+        Assert.Equal(0, job.FailureCount);
         Assert.NotNull(job.LeasedByWorkerId);
         Assert.NotNull(job.LeaseExpiresAtUtc);
 

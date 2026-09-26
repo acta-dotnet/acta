@@ -340,7 +340,8 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
                     IsConcurrencyToken: isVersion,
                     EnumTypeName: enumTypeName,
                     CodeKind: codeKind,
-                    Generated: generated
+                    Generated: generated,
+                    ExtensibleDecoderFqn: isExtensible ? CodeFamilyNames.ExtensibleDecoderFqn(enumType!) : null
                 )
             );
         }
@@ -1099,7 +1100,13 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
             _ => "throw new InvalidOperationException(\"Unmapped DbKind." + c.KindName + " at ordinal " + ord + "\")",
         };
 
-        // Coded columns store their enum's underlying numeric width; cast the read value to the enum.
+        // Coded columns store their enum's underlying numeric width. An extensible family decodes
+        // through FromId so an id from a newer Acta reads as its id-0 member; a closed family casts.
+        if (c.ExtensibleDecoderFqn is not null)
+        {
+            return c.ExtensibleDecoderFqn + ".FromId(" + readExpr + ")";
+        }
+
         return c.IsCoded ? "(" + c.NonNullableTypeFqn + ")" + readExpr : readExpr;
     }
 
@@ -1178,7 +1185,8 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
         bool IsConcurrencyToken,
         string? EnumTypeName,
         string? CodeKind,
-        string? Generated
+        string? Generated,
+        string? ExtensibleDecoderFqn
     );
 
     private readonly record struct IndexInfo(

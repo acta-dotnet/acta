@@ -32,7 +32,7 @@ public sealed record JobDetail(
     JobPriorityCode Priority,
     DateTime? NextRunAtUtc,
     int ExecutionNumber,
-    short FailureCount,
+    int FailureCount,
     [property: JsonIgnore] int? LeasedByWorkerId,
     DateTime? LeaseExpiresAtUtc,
     DateTime? RetentionUntilUtc,

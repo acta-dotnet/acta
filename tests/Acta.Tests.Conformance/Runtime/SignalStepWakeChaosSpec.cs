@@ -107,7 +107,7 @@ public abstract class SignalStepWakeChaosSpec<TFixture> : ActaRuntimeTestBase<TF
         // --- 2. The step slot is Exhausted after two attempts (no read operation, read the row).
         var step = Assert.Single(await Db.From<JobStep>().Where(a => a.JobId == enqueued.JobId).ToListAsync(ct));
         Assert.Equal(JobStepStatusCode.Exhausted, step.Status);
-        Assert.Equal((short)2, step.AttemptNumber);
+        Assert.Equal(2, step.AttemptNumber);
 
         // --- 3. The parent is Failed with the step's failure reason.
         var job = await Jobs.GetAsync(enqueued, ct);

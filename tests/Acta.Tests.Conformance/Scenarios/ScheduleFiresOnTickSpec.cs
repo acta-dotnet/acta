@@ -174,7 +174,7 @@ public abstract class ScheduleFiresOnTickSpec<TFixture> : ActaRuntimeTestBase<TF
         {
             var afterFailure = await ReadJobAsync(slotId, ct);
             Assert.Equal(JobStatusCode.Ready, afterFailure.Status);
-            Assert.Equal((short)1, afterFailure.FailureCount);
+            Assert.Equal(1, afterFailure.FailureCount);
         }
 
         // The next fire succeeds and resets the consecutive-failure count.
@@ -182,7 +182,7 @@ public abstract class ScheduleFiresOnTickSpec<TFixture> : ActaRuntimeTestBase<TF
         {
             var afterSuccess = await ReadJobAsync(slotId, ct);
             Assert.Equal(JobStatusCode.Ready, afterSuccess.Status);
-            Assert.Equal((short)0, afterSuccess.FailureCount);
+            Assert.Equal(0, afterSuccess.FailureCount);
         }
     }
 
@@ -202,7 +202,7 @@ public abstract class ScheduleFiresOnTickSpec<TFixture> : ActaRuntimeTestBase<TF
 
         var slot = await ReadJobAsync(slotId, ct);
         Assert.Equal(JobStatusCode.Ready, slot.Status);
-        Assert.Equal((short)3, slot.FailureCount);
+        Assert.Equal(3, slot.FailureCount);
     }
 
     [Fact(DisplayName = "Handler cancel terminates the whole slot to Cancelled and stops the schedule")]

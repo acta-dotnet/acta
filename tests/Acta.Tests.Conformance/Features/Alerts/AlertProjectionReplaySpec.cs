@@ -258,7 +258,7 @@ public abstract class AlertProjectionReplaySpec<TFixture> : ActaRuntimeTestBase<
 
         var slot = await ReadJobAsync(slotId, ct);
         Assert.Equal(JobStatusCode.Ready, slot.Status);
-        Assert.Equal((short)0, slot.FailureCount);
+        Assert.Equal(0, slot.FailureCount);
     }
 
     // The compiled AlertsJob constant names the cursor variable, so the crash this spec stages keeps

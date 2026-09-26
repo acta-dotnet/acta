@@ -623,9 +623,18 @@ public sealed class CodeGenerator : IIncrementalGenerator
             sb.Append("            ").Append(typeName).Append('.').Append(c.MemberName).Append(" => \"").Append(c.Code).AppendLine("\",");
         }
 
-        sb.Append("            _ => throw new global::System.ArgumentOutOfRangeException(nameof(value), value, \"Unknown ")
-            .Append(typeName)
-            .AppendLine(" value.\"),");
+        // An extensible family names a value it does not know by its id-0 member, so the JSON writer
+        // (which calls Code) can serialize a forward-read row instead of throwing.
+        if (family.Extensible)
+        {
+            sb.Append("            _ => \"").Append(family.Codes.First(c => c.Id == 0).Code).AppendLine("\",");
+        }
+        else
+        {
+            sb.Append("            _ => throw new global::System.ArgumentOutOfRangeException(nameof(value), value, \"Unknown ")
+                .Append(typeName)
+                .AppendLine(" value.\"),");
+        }
         sb.AppendLine("        };");
         sb.AppendLine();
         sb.AppendLine("        public string Description => value switch");

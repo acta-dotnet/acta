@@ -108,7 +108,7 @@ public sealed class AlertsJobPoisonEventTests
             long alertId,
             int expectedVersion,
             AlertDeliveryStatusCode status,
-            byte retryCount,
+            int retryCount,
             DateTime? retryAfterUtc,
             CancellationToken ct
         ) => throw new NotSupportedException();

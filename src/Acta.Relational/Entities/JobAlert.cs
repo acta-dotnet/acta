@@ -202,8 +202,8 @@ internal sealed class JobAlert : IEntity<long>
     /// still-open incident starts with the whole retry curve rather than whatever the last series
     /// happened to spend. A row sitting at the cap in <c>Failed</c> is a series that ran out.
     /// </summary>
-    [DbColumn("retry_count", DbKind.Byte)]
-    public byte RetryCount { get; set; }
+    [DbColumn("retry_count", DbKind.Int32)]
+    public int RetryCount { get; set; }
 
     /// <summary>
     /// Earliest instant this row may be sent again, whether that send is a retry or a reminder. While

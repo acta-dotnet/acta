@@ -16,7 +16,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.complete_execution(
     p_retention_seconds INT DEFAULT NULL,
     p_final_status SMALLINT DEFAULT NULL,
     p_job_next_run_at_utc TIMESTAMPTZ DEFAULT NULL,
-    p_failure_count SMALLINT DEFAULT NULL,
+    p_failure_count INT DEFAULT NULL,
     p_recurring_result_cap INT DEFAULT 0,
     p_advance_schedule_ids BIGINT [] DEFAULT NULL,
     p_advance_next_runs TIMESTAMPTZ [] DEFAULT NULL,

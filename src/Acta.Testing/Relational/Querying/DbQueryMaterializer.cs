@@ -57,8 +57,12 @@ internal static class Materializer
         if (t.IsEnum)
         {
             var underlying = Enum.GetUnderlyingType(t);
-            var num = Convert.ChangeType(raw, underlying, CultureInfo.InvariantCulture);
-            return Enum.ToObject(t, num);
+            var value = Enum.ToObject(t, Convert.ChangeType(raw, underlying, CultureInfo.InvariantCulture));
+            // Same decode as the generated FromId: an extensible family reads an id it does not know
+            // as its id-0 member.
+            return !Enum.IsDefined(t, value) && t.GetCustomAttribute<CodeKindAttribute>() is { Extensible: true }
+                ? Enum.ToObject(t, 0)
+                : value;
         }
         if (t == typeof(byte[]))
         {

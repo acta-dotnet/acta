@@ -723,7 +723,7 @@ internal sealed class JobExecution(
         var retentionSeconds = descriptor.JobRetentionSeconds ?? JobDefinitionRegistration.DefaultJobRetentionSeconds;
 
         // One-shot failure retry math, hoisted so the deadline reschedule guard and the re-arm branch share it.
-        short failedAttempted = 0;
+        var failedAttempted = 0;
         int failedRetryDelaySeconds = 0;
         var failedInBudget = false;
         // One-shot only: MaxAttempts is the one-off retry budget, and for a recurring slot the
@@ -731,7 +731,7 @@ internal sealed class JobExecution(
         // recurring branch (the slot's null DeadlineAtUtc is the second line of defense).
         if (!isRecurring && outcome == ExecutionOutcome.Failed && IsRetryable(failureReason))
         {
-            failedAttempted = (short)(job.FailureCount + 1);
+            failedAttempted = job.FailureCount + 1;
             failedInBudget = failedAttempted < descriptor.MaxAttempts;
             if (failedInBudget)
             {
@@ -1042,7 +1042,7 @@ internal sealed class JobExecution(
     /// MIN. A recurring slot re-arms Ready on failure regardless of the consecutive-failure count:
     /// MaxAttempts is the one-off retry budget only and never terminalizes a recurring slot.
     /// Exhausted schedules pause regardless of outcome; a success resets the failure counter to
-    /// zero, a failure bumps it (saturating at short.MaxValue so a long outage cannot overflow it).
+    /// zero, a failure bumps it.
     /// <para>The Ready rollover carries the attempt's reason through, like every other completion
     /// shape: the status says the slot is armed for its next occurrence, the reason says how the
     /// attempt that just ended ended. The alertable set admits a Ready event only for reasons
@@ -1055,7 +1055,7 @@ internal sealed class JobExecution(
     /// </summary>
     internal static (
         JobStatusCode FinalStatus,
-        short FailureCount,
+        int FailureCount,
         JobEventReasonCode? ReasonCode,
         string? ReasonMessage
     ) ComputeRecurringOutcome(
@@ -1067,11 +1067,7 @@ internal sealed class JobExecution(
         string? failureMessage
     )
     {
-        // Saturate at short.MaxValue so a long outage cannot overflow the counter into the negatives.
-        var failureCount =
-            outcome == ExecutionOutcome.Succeeded ? (short)0
-            : job.FailureCount >= short.MaxValue ? short.MaxValue
-            : (short)(job.FailureCount + 1);
+        var failureCount = outcome == ExecutionOutcome.Succeeded ? 0 : job.FailureCount + 1;
 
         if (fire.SlotMinNextRunAtUtc is null)
         {

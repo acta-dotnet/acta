@@ -163,7 +163,7 @@ public abstract class RaiseJobAlertSpec<TFixture> : ActaStorageTestBase<TFixture
         Assert.Equal(1, rows[1].OccurrenceCount);
         Assert.Null(rows[1].ResolvedAtUtc);
         Assert.Equal(AlertDeliveryStatusCode.Pending, rows[1].DeliveryStatusCode);
-        Assert.Equal((byte)0, rows[1].RetryCount);
+        Assert.Equal(0, rows[1].RetryCount);
     }
 
     [Fact(DisplayName = "Bounded prose truncates to column width")]

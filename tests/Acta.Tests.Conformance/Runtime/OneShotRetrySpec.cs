@@ -38,18 +38,18 @@ public abstract class OneShotRetrySpec<TFixture> : ActaRuntimeTestBase<TFixture,
         await Runtime.RunOnceAsync(enqueued, ct);
         var after1 = await Jobs.GetAsync(enqueued, ct);
         Assert.Equal(JobStatusCode.Ready, after1!.Status);
-        Assert.Equal((short)1, after1.FailureCount);
+        Assert.Equal(1, after1.FailureCount);
 
         await Runtime.RunOnceAsync(enqueued, ct);
         var after2 = await Jobs.GetAsync(enqueued, ct);
         Assert.Equal(JobStatusCode.Ready, after2!.Status);
-        Assert.Equal((short)2, after2.FailureCount);
+        Assert.Equal(2, after2.FailureCount);
 
         // Attempt 3 exhausts the budget: terminal Failed, keeping the failure reason.
         await Runtime.RunOnceAsync(enqueued, ct);
         var after3 = await Jobs.GetAsync(enqueued, ct);
         Assert.Equal(JobStatusCode.Failed, after3!.Status);
-        Assert.Equal((short)3, after3.FailureCount);
+        Assert.Equal(3, after3.FailureCount);
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         var finished = events.Where(e => e.EventCode == EventCode.JobExecutionFinished).OrderByDescending(e => e.Id).First();

@@ -127,7 +127,11 @@ internal static class SqlObjectInstaller
 
     /// <summary>
     /// The per-dialect install statements for one operator view. Also used by the provision-script
-    /// emitter, so the published scripts install views exactly as the bootstrap does.
+    /// emitter, so the published scripts install views exactly as the bootstrap does. SQL Server and
+    /// PostgreSQL replace the view in place, which keeps grants and DBA views that select from it; a
+    /// drop would refuse on a dependent view and discard the grants. PostgreSQL's in-place replace
+    /// requires every existing column to keep its name, order, and type, so a view change may only
+    /// append columns. SQLite has neither grants nor an in-place replace, so it drops and creates.
     /// </summary>
     internal static IEnumerable<(string? QualifiedName, string Body)> WrapView(string dialectToken, string qualifiedName, string select)
     {
@@ -137,6 +141,8 @@ internal static class SqlObjectInstaller
                 yield return (qualifiedName, $"CREATE OR ALTER VIEW {qualifiedName} AS\n{select}");
                 break;
             case "pg":
+                yield return (qualifiedName, $"CREATE OR REPLACE VIEW {qualifiedName} AS\n{select};");
+                break;
             case "sqlite":
                 yield return (null, $"DROP VIEW IF EXISTS {qualifiedName};");
                 yield return (qualifiedName, $"CREATE VIEW {qualifiedName} AS\n{select};");

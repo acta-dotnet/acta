@@ -86,12 +86,9 @@ SET
         WHEN rj.wait_resolved = 1 THEN 20 /* JobStatusCode.Suspended */
         WHEN rj.is_recurring = 0 AND (runtimes.failure_count + 1) >= jd.max_attempts_effective THEN 200 /* JobStatusCode.Failed */
         ELSE 10 /* JobStatusCode.Ready */ END,
-    /* Saturated at short.MaxValue like the worker path: the runtime reads this as Int16 and a
-       recurring slot's count accumulates unbounded, so an unguarded +1 would eventually store a
-       value outside the Int16 model the other providers reject. */
     failure_count = CASE WHEN rj.wait_resolved = 1
         THEN runtimes.failure_count
-        ELSE MIN(runtimes.failure_count + 1, 32767) END,
+        ELSE runtimes.failure_count + 1 END,
     next_run_at_utc = CASE
         WHEN rj.wait_resolved = 1 THEN runtimes.next_run_at_utc
         WHEN rj.is_recurring = 0 AND (runtimes.failure_count + 1) >= jd.max_attempts_effective THEN runtimes.next_run_at_utc

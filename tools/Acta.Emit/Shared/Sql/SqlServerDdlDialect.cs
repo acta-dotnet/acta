@@ -156,7 +156,7 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
             EXEC(N'CREATE TYPE {{schema}}.job_definition_batch AS TABLE (
                 name                                 VARCHAR(128)  NOT NULL,
                 priority_code                        TINYINT       NOT NULL,
-                max_attempts                         SMALLINT      NOT NULL,
+                max_attempts                         INT           NOT NULL,
                 concurrency_limit                    SMALLINT      NULL,
                 rate_limit                           VARCHAR(16)   NULL,
                 rate_key                             VARCHAR(128)  NULL,
@@ -208,7 +208,7 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
                 reason_message    NVARCHAR(512)  NULL,
                 result_format_id  TINYINT        NOT NULL,
                 result            VARBINARY(MAX) NULL,
-                failure_count     SMALLINT       NULL,
+                failure_count     INT            NULL,
                 retention_seconds INT            NULL
             );');
             GO

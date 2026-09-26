@@ -33,7 +33,7 @@ public abstract class InputDeserializationFailureSpec<TFixture> : ActaRuntimeTes
         var job = await Jobs.GetAsync(enqueued, ct);
         Assert.NotNull(job);
         Assert.Equal(JobStatusCode.Ready, job.Status);
-        Assert.Equal((short)1, job.FailureCount);
+        Assert.Equal(1, job.FailureCount);
         Assert.Null(job.LeasedByWorkerId);
         Assert.Null(job.LeaseExpiresAtUtc);
 

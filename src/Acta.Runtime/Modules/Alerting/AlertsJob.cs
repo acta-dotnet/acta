@@ -560,7 +560,7 @@ internal sealed class AlertsJob(
                 return WriteSettlementAsync(a, AlertDeliveryStatusCode.Delivered, retryCount: 0, ReminderAfter(a, nowUtc), ct);
 
             case AlertDeliveryOutcome.Retryable:
-                var nextRetryCount = (byte)Math.Min(a.RetryCount + 1, byte.MaxValue);
+                var nextRetryCount = a.RetryCount + 1;
                 if (nextRetryCount >= _maxDeliveryRetries)
                 {
                     // Out of retries, but the incident is still open, so the row keeps a reminder instant:
@@ -610,7 +610,7 @@ internal sealed class AlertsJob(
     private async Task WriteSettlementAsync(
         DeliverableAlert a,
         AlertDeliveryStatusCode status,
-        byte retryCount,
+        int retryCount,
         DateTime? retryAfterUtc,
         CancellationToken ct
     )

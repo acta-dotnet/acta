@@ -8154,7 +8154,7 @@
               "integer",
               "string"
             ],
-            "format": "uint8"
+            "format": "int32"
           },
           "retryAfterUtc": {
             "type": [
@@ -8277,7 +8277,7 @@
               "string"
             ],
             "description": "Attempts spent in the current send series; a delivered send ends the series and resets it.",
-            "format": "uint8"
+            "format": "int32"
           },
           "retryAfterUtc": {
             "type": [
@@ -8811,7 +8811,7 @@
               "integer",
               "string"
             ],
-            "format": "int16"
+            "format": "int32"
           },
           "maxAttemptsOverride": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -8820,7 +8820,7 @@
               "integer",
               "string"
             ],
-            "format": "int16"
+            "format": "int32"
           },
           "maxAttemptsEffective": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -8828,7 +8828,7 @@
               "integer",
               "string"
             ],
-            "format": "int16"
+            "format": "int32"
           },
           "concurrencyLimit": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -9166,7 +9166,7 @@
               "integer",
               "string"
             ],
-            "format": "int16"
+            "format": "int32"
           },
           "maxAttemptsEffective": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -9174,7 +9174,7 @@
               "integer",
               "string"
             ],
-            "format": "int16"
+            "format": "int32"
           },
           "concurrencyLimitOverride": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -9238,7 +9238,7 @@
               "integer",
               "string"
             ],
-            "format": "int16"
+            "format": "int32"
           },
           "concurrencyLimit": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -9435,7 +9435,7 @@
               "integer",
               "string"
             ],
-            "format": "int16"
+            "format": "int32"
           },
           "leaseExpiresAtUtc": {
             "type": [
@@ -9567,7 +9567,7 @@
               "integer",
               "string"
             ],
-            "format": "int16"
+            "format": "int32"
           },
           "workers": {
             "type": [
@@ -10194,7 +10194,7 @@
               "string"
             ],
             "description": "Consecutive-failure count behind the retry budget.",
-            "format": "int16"
+            "format": "int32"
           }
         },
         "description": "One job row in a ValueTask&lt;PagedResult&lt;JobListItem&gt;&gt; ILedger.ListJobsAsync(ListJobsQuery query, CancellationToken ct = default(CancellationToken)) page. Carries identity, lifecycle, and\naudit-facing fields only; the input payload is never exposed by list reads. JSON serialization\ncarries the public refs and hides the numeric ids."

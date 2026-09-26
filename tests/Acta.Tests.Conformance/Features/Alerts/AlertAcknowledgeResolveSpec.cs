@@ -158,7 +158,7 @@ public abstract class AlertAcknowledgeResolveSpec<TFixture> : ActaRuntimeTestBas
         Assert.NotNull(resolvedQueued.ResolvedAtUtc);
         Assert.Equal(AlertDeliveryStatusCode.Suppressed, resolvedQueued.DeliveryStatusCode);
         Assert.Null(resolvedQueued.RetryAfterUtc);
-        Assert.Equal((byte)2, resolvedQueued.RetryCount);
+        Assert.Equal(2, resolvedQueued.RetryCount);
 
         // The delivered one keeps its status: it records what actually happened to the send.
         var resolvedSent = await AlertRowAsync(sentJobId, ct);
