@@ -1,5 +1,4 @@
 using System.Data.Common;
-using System.Diagnostics;
 using Acta.Runtime.Modules.Execution.Definitions;
 using Acta.Runtime.Modules.Execution.Signals;
 
@@ -347,29 +346,15 @@ internal sealed class JobsApi(
     )
     {
         var job = JobLookup.ById(jobId);
-        var channel = WorkerWakeupChannel.JobCompletion(jobId);
-        var start = Stopwatch.GetTimestamp();
-        JobDetail? last = null;
-
-        while (true)
-        {
-            if (await GetAsync(job, ct) is { } snapshot)
-            {
-                last = snapshot;
-                if (snapshot.Status.IsTerminal)
-                {
-                    return (snapshot, false);
-                }
-            }
-
-            var remaining = options.WaitTimeout - Stopwatch.GetElapsedTime(start);
-            if (remaining <= TimeSpan.Zero)
-            {
-                return (last, true);
-            }
-
-            await wakeup.WaitAsync(channel, remaining < options.PollInterval ? remaining : options.PollInterval, ct);
-        }
+        return await CompletionWait.AwaitAsync(
+            wakeup,
+            jobId,
+            c => GetAsync(job, c),
+            static snapshot => snapshot.Status.IsTerminal,
+            options.WaitTimeout,
+            options.PollInterval,
+            ct
+        );
     }
 
     public ValueTask<long?> GetJobIdAsync(JobLookup job, CancellationToken ct = default) => jobsService.GetJobIdAsync(job, ct);
