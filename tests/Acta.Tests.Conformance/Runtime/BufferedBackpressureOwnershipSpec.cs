@@ -96,7 +96,7 @@ public abstract class BufferedBackpressureOwnershipSpec<TFixture> : ActaRuntimeT
             Assert.True(rescheduled, "the drain left the rows behind the blocked write leased to a worker that will not run them");
 
             // Every row is now in one of three states, and only the channel's three keep the lease:
-            // buffered rows stay Dispatched for the executor the drain lets finish, handed-back rows
+            // buffered rows stay leased, Dispatched or already Executing, for the executor the drain lets finish, handed-back rows
             // are Ready and unleased with the reschedule in their ledger, and the row the loop never
             // reached is Ready with no attempt at all.
             var buffered = 0;
@@ -109,7 +109,9 @@ public abstract class BufferedBackpressureOwnershipSpec<TFixture> : ActaRuntimeT
                 var wasHandedBack = events.Any(e => e.ExecutionStatus == ExecutionStatusCode.Rescheduled);
                 switch (row!.Status)
                 {
+                    // A buffered row an executor has already started is Executing; either way it stays leased.
                     case JobStatusCode.Dispatched:
+                    case JobStatusCode.Executing:
                         Assert.NotNull(row.LeasedByWorkerId);
                         Assert.False(wasHandedBack, $"job {jobId} was handed back and then re-leased by a draining worker");
                         buffered++;
