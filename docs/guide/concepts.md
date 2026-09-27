@@ -25,6 +25,7 @@ see [`design.md`](../internals/design.md). For a diagram-first view of the same 
 | **state** | The column substrate tables use (`JobCheckpoint.state`, `JobStep.state`), marking them Job-internal rather than operator-facing lifecycle. |
 | **Firing** | One scheduled occurrence of a recurring `[JobSchedule]` (a moment in time). 1:1 with an execution in steady state; misfire policy decides what happens to missed firings. |
 | **Namespace** | The service-owned execution boundary. A worker claims only jobs in its own namespace. One `Run(...)` owns one namespace; a process can host several. |
+| **Lane** | An ordered sequence of jobs within a namespace, named at enqueue or on the definition. A lane runs one job at a time, in enqueue order, and the jobs behind its head wait as `Blocked`. See [Lanes](#lanes). |
 | **Tenant** | Optional, validated scope naming the customer / business entity a job is *about*. Registered in the Acta-owned `tenants` catalog by an opaque external `TenantKey` (GUID / ULID / customer code) and resolved to `jobs.tenant_id` at enqueue. Audit / query / runtime scope only, not an ownership, claim, or scheduling boundary. |
 | **Durable slot** | A named, run-once-or-resume primitive owned by a job (step, variable, signal, timer, lock, alert). Shares the job's claim, lease, retry, cancellation, and event lifecycle; never independently claimable. |
 | **Provider** | The durable SQL backend. SQL Server and Postgres are the distributed providers; SQLite is the embedded single-node provider used by concepts, demos, tests, and local exploration. |
@@ -117,13 +118,15 @@ does not make arbitrary external side effects exactly-once. Handlers own side-ef
 
 ## Ordering and exclusion
 
-Acta claims work in priority order, not arrival order. The claim scan reads ready rows in one
-namespace ordered by priority (highest first), then by next-run instant (rows with none first), then
-by `JobId`. Priority is strict — no aging, no fairness budget — so a sustained high-priority flood
-defers the low-priority tail; workloads that must not wait behind each other belong in separate
-namespaces, which claim and execute independently. `JobId` is a stable tie-breaker inside a single claim, **not** a multi-producer FIFO
-guarantee: database identities are allocation order, not commit order, so two producers can commit
-their rows in the opposite order to the ids they were given.
+Acta claims work in priority order, not arrival order. The claim scan reads ready rows in
+one namespace ordered by priority (highest first), then by next-run instant, then by `JobId`. Priority is strict — no aging, no fairness budget — so a sustained
+high-priority flood defers the low-priority tail; workloads that must not wait behind each
+other belong in separate namespaces, which claim and execute independently. Each claim selects
+eligible, unlocked jobs by descending priority, next-run time, then job ID. For sequential
+enqueues by one producer, the ID breaks ties in enqueue order. Concurrent claims guarantee
+neither global FIFO nor handler-start order. Retries are scheduled again and may be overtaken
+by later jobs. Concurrency keys limit simultaneous execution; they do not preserve execution order.
+Lanes do; see [Lanes](#lanes).
 
 **`ConcurrencyKey` provides mutual exclusion, not ordering.** While a worker holds a valid lease on the
 key, no other job with that `(namespace, ConcurrencyKey)` is admitted — the exclusion is as strong as
@@ -156,7 +159,7 @@ There are three levels to choose between, and only the third one orders anything
 | --- | --- | --- |
 | **Best-effort serial dispatch** | One job at a time in a namespace, roughly in the order the rows became due. Not strict FIFO. | One worker process, `MaxConcurrentExecutors = 1`, `ClaimBatchSize = 1`, equal priority, jobs due immediately. |
 | **Bounded unordered work** | At most N jobs at a time per key (N = 1 by default), unbounded wait for any individual job. | `ConcurrencyKey`, sized by `[Job(ConcurrencyLimit = N)]`. |
-| **Strict ordered processing** | Item N+1 starts only after item N reached the required outcome. | A durable coordinator or chain job you write: one job holds the sequence and releases the next item itself. |
+| **Strict ordered processing** | Item N+1 starts only after item N finished: succeeded, failed for good, or cancelled. | A lane: `.Lane("customer-42")` on the enqueue, or `[Job(Lane = "...")]` on the definition. |
 
 The first level's conditions are real constraints, not tuning hints. Retries, delayed eligibility,
 priority changes, and operator actions such as restart all move a row's next-run instant and reorder
@@ -164,6 +167,46 @@ the queue; and Acta does not enforce single-process ownership of a namespace, so
 is an operational promise you keep, not an invariant the runtime checks. The third level costs
 head-of-line blocking: one stuck item holds everything behind it, so it needs a policy for poison
 items.
+
+## Lanes
+
+A lane runs its jobs one at a time, in enqueue order. It is Acta's equivalent of an SQS FIFO message
+group. A job joins a lane through `.Lane("customer-42")` on the enqueue, or through
+`[Job(Lane = "...")]` on its definition. An enqueue lane overrides the definition's lane, and an
+enqueue cannot clear it. Lane names follow the concurrency-key rule: 1 to 128 characters from
+`a-z A-Z 0-9 . - _ : / @ + =`, compared case-insensitively, and scoped to the namespace. Different
+lanes run in parallel, and jobs without a lane are unaffected.
+
+Only a lane's head is claimable. The jobs behind it wait as `Blocked`, outside the claim scan, so a
+deep lane costs a claim nothing. When the head reaches a terminal status (Succeeded, Failed on its
+last attempt, or Cancelled), the next job becomes Ready in the same transaction.
+
+- **The head keeps its place through retries.** A failing head blocks its lane until it succeeds or
+  exhausts `MaxAttempts`. When it fails for good, the lane moves on. If item N+1 must not run after
+  item N failed, cancel the rest of the lane, or keep a coordinator job that decides.
+- **Anything that holds the head holds the lane.** A delayed head, a Paused head, a head suspended on
+  a signal or on its children, and a head whose definition no running worker supports all stop the
+  lane until they move. The job page shows which job a Blocked job waits behind.
+  Pausing a job that waits behind the head holds the lane the same way once its turn comes: the
+  jobs behind it keep waiting until it is resumed.
+- **Enqueue order is commit order.** Enqueue locks the lane row until the enqueuing transaction
+  commits, so two producers cannot interleave out of order. An open transaction that enqueued into a
+  lane holds that lane until it ends.
+- **Priority does not reorder a lane.** Across lanes, each head competes with every other claimable
+  job by priority, as usual. Concurrency and rate limits still apply to the head, and while they
+  re-arm it, the jobs behind it stay Blocked.
+- **Restart reactivates in place.** Restarting a finished laned job runs the same job again, under
+  the lane lock: Ready when nothing in its lane is running and no older job is unfinished, otherwise
+  Blocked. It is older than every job waiting behind the head, so it runs right after the job
+  running now. Restart is refused while an unfinished ancestor or descendant of the job sits in the
+  same lane, because the restarted job would wait for work that waits for it.
+- **Children and schedules.** A child cannot join the lane of an unfinished ancestor, and children do
+  not inherit a lane. A schedule cannot target a definition with a lane, because its slot never
+  finishes. Waits across lanes can still form a cycle Acta cannot see: job P in lane A waits for a
+  child in lane B whose head waits on a job queued behind P. Give such waits a timeout.
+- **Execution is still at-least-once.** Cancelling a running head, or recovering its expired lease,
+  lets the next job start while the old handler may still be finishing. Handlers with external
+  effects stay idempotent, as everywhere in Acta.
 
 ## Durable slots inside a job
 
@@ -176,7 +219,7 @@ retry, cancellation, and event lifecycle.
 | Variable | `checkpoints` (kind `variable`) | Durable per-job value and compute-once cache. |
 | Signal | `checkpoints` (kind `signal`) | External release point. `WaitSignalAsync` parks until `IJobs.RaiseSignalAsync` sets the named slot. |
 | Timer/Sleep | `checkpoints` (kind `timer`) | Durable wait slot. `SleepAsync` / `SleepUntilAsync` free the executor and resume when due. |
-| Lock | `leases` | Handler-facing mutual exclusion through `RunWithLockAsync`. |
+| Lock | `locks` | Handler-facing mutual exclusion through `RunWithLockAsync`. |
 | Alert | `alerts` | Operator-facing incident row raised manually or projected from failures. |
 
 Use a child job when work needs its own claim, retry, status, cancellation, lineage, or operator

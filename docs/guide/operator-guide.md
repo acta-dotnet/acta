@@ -66,6 +66,13 @@ column produces a row the engine either refuses to touch or mistakes for another
 constraint to stop you. Every control verb (restart, cancel, reschedule, purge) makes its change
 under those fences and leaves an audited event; a manual UPDATE does neither.
 
+Lanes make a hand edit worse. Setting a laned job back to Ready, or a Blocked job to Ready, puts two
+jobs of one lane in flight, and no repair can take that back. Setting a lane's head to a terminal
+status by hand releases nobody: the recovery sweep finds such a stranded lane and releases its next
+job, with a `job.lane-repaired` event. Each pass visits a bounded share of the namespace's lanes, so a
+large namespace can take several passes. Restart a laned job with the restart verb, which reactivates it
+under the lane lock and runs it right after the current head.
+
 ```sql
 -- One job, by public ref (the job_ref backs the "job_..." value dashboards and clients use).
 SELECT * FROM acta.jobs_view WHERE job_ref = :job_ref;
@@ -592,10 +599,10 @@ Acta ships no login system; the dashboard and JSON API are local-only by default
 
 ## Production checklist
 
-Use this for production-like evaluation, staging, and first production workloads on a release candidate.
+Use this for staging and production workloads.
 
 Version and schema:
-- The migration history freezes at 1.0.0. Before it, `M001` may be re-cut in any release, which means dropping and reprovisioning the database (bootstrap refuses to start on a baseline mismatch rather than applying it). From 1.0.0 schema changes ship as additive `Mnnn` migrations. Keep `ApplyMigrationsOnStartup = false` outside dev and apply migration SQL from a deploy step.
+- The migration history is frozen: schema changes ship as additive `Mnnn` migrations, the baseline is never re-cut, and bootstrap refuses to start on a baseline mismatch rather than applying it. A database provisioned before rc.3 is dropped and reprovisioned once; an rc.3 database upgrades in place with the provisioning script. Keep `ApplyMigrationsOnStartup = false` outside dev and apply migration SQL from a deploy step.
 - Run `dotnet run --project tools/Acta.Emit -- check` in CI. Pin Acta versions across a namespace. Set `DeploymentVersion` to a build id; set `JobsOptions.ManifestGenerationUtc` only when deterministic definition promotion matters for your packaging/deploy shape.
 
 Provider and database:
@@ -608,4 +615,4 @@ Handlers:
 - Stable kebab-case `[Job("...")]` names; treat `TIn`, `TOut`, name, and format as durable contract. Make external side effects idempotent (Acta is at-least-once). Steps for run-once internal slots; child jobs for independently visible, retryable work.
 
 Validation and caveats:
-- Run the conformance suite for your provider, the `anvil/Anvil` crash/reclaim flows, and the `anvil/Anvil.Bench` baselines. Test a rolling deploy with mixed old/new workers and queued rows. APIs, schema, and behavior may still change without deprecation before 1.0; hardening, authorization guidance, and capacity/retention/alerting playbooks still need real deployment feedback.
+- Run the conformance suite for your provider, the `anvil/Anvil` crash/reclaim flows, and the `anvil/Anvil.Bench` baselines. Test a rolling deploy with mixed old/new workers and queued rows. Hardening, authorization guidance, and capacity/retention/alerting playbooks still need real deployment feedback.

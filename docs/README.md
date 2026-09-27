@@ -54,7 +54,8 @@ arrange/act/assert that proves it.
 ## Internals
 
 Contributor-facing; not needed to use Acta: [design principles and settled decisions](./internals/design.md),
-[architecture diagrams](./technical/architecture-diagrams.md), [migration tooling](./internals/migrations.md),
+[architecture diagrams](./technical/architecture-diagrams.md), [SQL execution policy](./internals/sql-execution-policy.md),
+[migration tooling](./internals/migrations.md),
 [releasing](./internals/releasing.md), [naming conventions](./internals/naming-conventions.md),
 [benchmarks](./benchmarks/stress-tests.md),
 [certification seals](./certification/README.md),

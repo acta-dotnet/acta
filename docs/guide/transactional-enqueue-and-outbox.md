@@ -297,12 +297,23 @@ backlog. All replicas of the namespace compete for the same durable recurring sl
 deterministically rejected, the relay retries each claimed group individually within the same tick budget,
 so offending rows are isolated, good rows proceed, and the budget is honored.
 
-## Priority and ordering
+## Ordering
 
-Among due rows the relay claims in urgent-before-FIFO order:
-`COALESCE(priority_code, 50) DESC, next_attempt_at_utc ASC, created_at_utc ASC, outbox_id ASC`. A null
-`priority_code` means no override: it is treated as Normal (50) only for ordering the transport queue and
-stays null in the reconstructed request, leaving the effective priority to the target job definition.
+Among due rows the relay claims in staging order: `next_attempt_at_utc ASC, staging_id ASC`, where
+`staging_id` is an identity the producer database assigns on insert (the rowid on SQLite). Each claimed
+batch reaches the target in that order, so rows staged into one lane in one transaction run in the order
+they were staged. Priority does not order the relay: `priority_code` is carried to the enqueued job, and
+a null leaves the effective priority to the target job definition.
+
+Staging order holds for one relay draining rows that land first time. Three cases can reorder a lane:
+
+- A row the target rejected is retried later, after rows staged behind it, unless both fall into one
+  claimed batch.
+- Several relay replicas claim disjoint batches, and their enqueues can commit in either order.
+- Producers commit out of identity order, so a row that commits late can be claimed after a row with a
+  higher `staging_id`.
+
+Where a lane's order must survive those cases, enqueue it directly with a transactional enqueue instead.
 
 ## Retry and quarantine
 
@@ -359,6 +370,7 @@ Acta versions its shape here, and the [DDL API](#the-ddl-api) emits it.
 | Column | Required | Contract |
 | --- | --- | --- |
 | `outbox_id` | yes | Client-generated GUID primary key; internal transport identity. |
+| `staging_id` | yes | Producer-assigned identity (`bigint`; the rowid on SQLite); the relay's order. |
 | `job_namespace` | yes | ASCII, 64-character public cap; canonical user namespace. |
 | `job_name` | yes | ASCII, 128 characters; canonical user job name. |
 | `input_format_id` | yes | Byte-sized format id; `0` is None. |
@@ -366,6 +378,7 @@ Acta versions its shape here, and the [DDL API](#the-ddl-api) emits it.
 | `deduplication_key` | yes | ASCII, 128 characters; target root-job identity within the namespace. |
 | `correlation_key` | no | ASCII, 64 characters. |
 | `concurrency_key` | no | ASCII, 128 characters. |
+| `lane` | no | ASCII, 128 characters; the target lane, case-insensitive like `concurrency_key`. |
 | `priority_code` | no | Byte-sized target priority override; null leaves it to the definition. |
 | `next_run_at_utc` | no | Absolute target earliest-run instant. |
 | `delay_seconds` | no | Non-negative delay resolved at target ingestion. |
@@ -380,8 +393,8 @@ Acta versions its shape here, and the [DDL API](#the-ddl-api) emits it.
 | `last_error` | no | Most recent bounded diagnostic, truncated to 512 characters. |
 
 Two canonical claim indexes carry fixed short names so provider truncation never changes their identity:
-`ix_acta_outbox_due` leads with `(status_code, next_attempt_at_utc, priority_code, created_at_utc, outbox_id)`
-for the due predicate, and `ix_acta_outbox_claims` is `(status_code, claim_until_utc)` for expired claims.
+`ix_acta_outbox_due` is `(status_code, next_attempt_at_utc, staging_id)` for the due predicate (SQLite
+leaves `staging_id` to the rowid every index ends with), and `ix_acta_outbox_claims` is `(status_code, claim_until_utc)` for expired claims.
 Check constraints enforce the payload format/data pair, non-negative delay and failure count, the mutual
 exclusion of `next_run_at_utc` and `delay_seconds`, the allowed priority and status codes, valid
 root-object JSON when `meta` is non-null, and the status/claim-field invariant (Claimed requires both

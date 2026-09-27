@@ -23,9 +23,12 @@ External systems are not rolled back. Use deduplication keys, reconciliation, or
 
 ## …the external call succeeds but Acta cannot record completion?
 
-The durable row still looks incomplete, so a later attempt can repeat the call. This is the central
-at-least-once boundary. Pass a stable business deduplication key to the external system or reconcile its
-state before repeating the side effect.
+The same attempt keeps writing the completion, on a one-second-to-thirty-second curve, until it lands
+or the worker stops; the row stays Executing under a lease the heartbeat renews, and the external call
+is not repeated by that worker. Only a worker that dies mid-repeat hands the row to recovery for a new
+attempt, and that attempt can repeat the call. This is the central at-least-once boundary. Pass a
+stable business deduplication key to the external system or reconcile its state before repeating the
+side effect.
 
 ## …the database is unavailable?
 

@@ -3,9 +3,9 @@
 PostgreSQL and SQL Server execute Acta ledger mutations through atomic routines; reads use embedded
 SQL and installed views; SQLite implements the same store contracts with transactional inline SQL.
 
-This is the rc.2 execution policy referenced by [the design decisions](design.md). The server
-providers each install 57 routines: the existing 54 mutation operations plus `UpdateAlertDelivery`,
-`ResolveJobAlerts`, and `RepairRecoverySlot`. Hot paths, control operations, catalog registration,
+This is the execution policy referenced by [the design decisions](design.md). The server
+providers each install 59 routines: the 54 mutation operations plus `UpdateAlertDelivery`,
+`ResolveJobAlerts`, `RepairRecoverySlot`, `AcquireSlot`, and `ReserveRate`. Hot paths, control operations, catalog registration,
 recovery, and maintenance all follow the same rule. Routine placement is a compatibility decision,
 not an inference from SQL size.
 
@@ -75,8 +75,8 @@ their separate migration transaction and lock.
 
 `PurgeExpiredData` remains one routine identity, but each invocation purges one selected section's
 bounded batch. `RetentionCoordinator` reads database time once, calculates fixed sweep cutoffs, and
-visits jobs, events, settled alerts, undelivered alerts, poison-skip checkpoints, workers, and expired
-locks in that order. Defaults remain 1,000 rows and 50 iterations per section. An empty batch ends its
+visits jobs, events, settled alerts, undelivered alerts, poison-skip checkpoints, workers, expired locks,
+and unreferenced lanes in that order. Defaults remain 1,000 rows and 50 iterations per section. An empty batch ends its
 section. Each batch is atomic; failure or cancellation later in the sweep preserves completed batches.
 The coordinator never retries the whole sweep. Committed undelivered-alert deletions produce one
 warning per sweep, including when a later batch fails or cancellation stops the sweep.
@@ -95,10 +95,16 @@ waiting for one. `StartExecution` and `CompleteExecution` change `status_code` a
 `leased_by_worker_id`, both key columns of `ix_runtimes_worker_inflight`, so they lock the clustered
 row and then move the index key; a worker heartbeat that walked that index instead would hold the key
 and wait for the row, which is the inversion that deadlocks. `ExtendWorkerLeases` therefore reads the
-in-flight ids first and updates through a primary-key seek. It must not use `READPAST`: the caller
-treats the returned set as authoritative and cancels any running attempt missing from it. On
-PostgreSQL the same pair is ordered by locking `runtimes` rows in `job_id` order in both the heartbeat
-and batch completion, and the buffered flush is sorted by job id before its ordinals are assigned.
+in-flight ids first and updates through a primary-key seek.
+
+`ExtendWorkerLeases` never waits for a row: it skips one another transaction holds (`READPAST` on SQL
+Server, `SKIP LOCKED` on PostgreSQL) and returns every in-flight id it read with a flag saying whether
+it was renewed. A child's completion locks its own `runtimes` row and then its parent's, the reverse of
+`job_id` order, so a renewal that waited on either would deadlock with it when one worker runs both.
+The caller cancels a running attempt only when its id is missing, and moves the attempt's lease
+deadline only when the row was renewed; a skipped row is renewed on the next beat, well inside the
+lease window. On PostgreSQL batch completion locks its rows in `job_id` order, and the buffered flush
+is sorted by job id before its ordinals are assigned.
 
 Routines that lock both `checkpoints` and `runtimes` take the checkpoint slot first; `raise_signal`
 and `complete_execution` both do. `arm_or_consume_sleep_timer` is the one exception, taking the
@@ -107,6 +113,127 @@ signal raise on the same job acquires the two in opposite orders. No deadlock gr
 that pair, and it is not reachable while both hold row locks on different slots, so the mutex stays
 until a run demonstrates otherwise; removing it would drop the serialization that two different timer
 names on one job rely on.
+
+### Foreign keys in set-based writes
+
+SQL Server validates a foreign key inside the inserting statement's own plan, with locking reads even
+under read-committed snapshot, and chooses the join by the insert's estimated row count. A batch
+insert estimated at hundreds of rows validates through a merge join over an ordered scan of the whole
+parent table, which takes shared page locks; concurrent producers whose uncommitted rows share those
+parent pages then wait on each other and deadlock. The driving set is table variables, which the
+optimizer sizes at their real count whenever the statement compiles after they fill: at a deferred
+first compile, or at a recompile after a statistic the plan read goes stale. An unhinted batch write
+can therefore switch to that scan at any time. A pinned seek reads more pages than a scan of a small
+child table, but it locks only the batch's own keys.
+
+- Both `runtimes` inserts in `enqueue_batch` carry `OPTION (LOOP JOIN)`, so `fk_runtimes_jobs` and
+  `fk_runtimes_lanes` seek each parent by key and lock only rows the batch inserted or already holds.
+- The `results` insert in `complete_executions_batch` carries it for `fk_results_jobs`. Flushers hold no
+  lock on `jobs`, so an unhinted scan there waits behind an uncommitted enqueue rather than deadlocking,
+  but it still reads the whole table per batch.
+- The same rule covers set-based deletes and locking reads driven by a table variable.
+  `purge_expired_data` names every permanent table it deletes from or reads under `UPDLOCK` through
+  `@del` or `@lock_del` with `WITH (FORCESEEK)`, so the table is always the inner side, sought by key.
+  `OPTION (LOOP JOIN)` alone is not enough there. Compiled at one row, it keeps nested loops but makes
+  a small permanent table the outer input and scans all of it under update locks. The `jobs` delete
+  keeps `LOOP JOIN` as well, for its cascades into five child tables.
+- The expired-lock sweep is global, so every namespace's retention pass meets the others there.
+  Unhinted, its delete scanned all of `ix_locks_reclaim_expired` under update locks. Two sweeps then
+  deadlocked on each other's staged rows, and a sweep stalled or rolled back that way left expired rows
+  that concurrent sweeps had skipped under `READPAST`. The sweep also held its staged rows' index keys
+  while it waited for their clustered keys, the reverse of every lock writer, and deadlocked against
+  `reserve_rate` moving a bucket's expiry. It now stages without holding locks. Its delete locks each
+  row by clustered key with `READPAST`, skipping one a writer holds, and re-checks the expiry.
+- An unlaned batch runs the plain inserts: no identity ordering, no lane probe. A laned batch orders
+  its `jobs` insert by ordinal and marks each idle lane's head before the `runtimes` insert, reading
+  `ix_runtimes_lane` once per lane through `WITH (FORCESEEK)`, so that insert reads table variables
+  alone.
+- `register_scheduled_jobs` stays unhinted. It runs under one exclusive application lock, so two calls
+  never race, and its set is one manifest's recurring definitions, which stays small.
+- Row-at-a-time writes, updates that leave foreign-key columns alone, and writes to `tags`, `events`,
+  and `alerts`, which carry no foreign key, validate nothing.
+- PostgreSQL checks each foreign key with a per-row key lookup in a trigger and needs no hint. SQLite
+  runs one writer at a time.
+
+### Alert lock order
+
+A routine that writes a job's alerts locks the job row first, then the alert rows. `purge_job` holds the
+job row while it deletes the job's alerts, and `raise_job_alert` and `resolve_job_alerts` lock the same
+row before they touch an alert: `UPDLOCK` on SQL Server, `FOR KEY SHARE` on PostgreSQL against the
+purge's `FOR UPDATE`. A raise or resolve that meets a purge of its job waits for it. A raise that then
+finds the job gone is refused, so no alert outlives its job.
+
+- `ix_alerts_job` (`job_id, id`, filtered to rows with a job) holds a job's alerts. On SQL Server,
+  purge and resolve seek it without locks, which the held job row makes safe, and then lock each row by
+  primary key. On PostgreSQL and SQLite, their equality on `job_id` seeks it directly. Before that index,
+  each SQL Server path scanned `pk_alerts` under update locks, and scans for different jobs deadlocked.
+- On SQL Server a row that has a deduplication identity is locked through its
+  `ix_alerts_dedupe_identity` key before the row itself. `raise_job_alert` seeks that index under
+  `UPDLOCK, HOLDLOCK`, pinned by name, and range-locks the identity and its next key. `purge_job` and
+  the alert retention sections lock identity rows through the same index before deleting them.
+  Retention stages its batch without locks and locks with `READPAST`, so it skips a row a raise holds.
+  A delete that took the row first and the index key second deadlocked against a raise, whichever job
+  that raise was for.
+- Acknowledge and manual resolve lock one alert row by its ref and only read the job, and delivery
+  updates are a single-row compare-and-swap by id. None of them waits on a job row while holding an
+  alert, so they need no job lock.
+- SQLite runs one writer at a time, and each alert write reads its job inside that one transaction.
+
+### Lane lock order
+
+Every routine that touches a laned job locks the `lanes` rows it needs first, in ascending `lanes.id`,
+and only then locks `jobs`, `checkpoints`, or `runtimes` rows, CAS updates included. `runtimes.lane_id`
+never changes after insert, so a routine may read it unlocked to learn which lane to lock. The lane
+lock is what serializes a lane: enqueue decides Ready or Blocked under it, every settle to Succeeded,
+Failed, or Cancelled promotes the next member under it, and retention deletes a lane that no runtime
+row references under it, skipping a lane another transaction holds and re-checking the reference under
+the lock.
+
+- Enqueue resolves the effective lane (the request's, else the definition's) and locks it before the
+  parent row, so a parent enqueuing a child into a lane cannot hold the parent while a completing
+  sibling in that lane holds the lane and waits for the parent.
+- An enqueue batch first inserts the missing lane names, sorted by name, without locking existing
+  rows, then locks the whole set in id order. A lane inserted by an uncommitted transaction is
+  invisible to every other transaction, so no settle can contend for it. Completion batches lock
+  their distinct lanes in id order before any runtime row.
+- The upsert retries when retention deleted the lane between the lookup and the lock: the lock finds
+  no row, and the next pass inserts the lane again.
+- On SQL Server every lane lock is an `UPDLOCK` seek by `id` on the clustered key. A lookup by name
+  resolves the id first without a lock, because `ux_lanes_namespace_name` covers `id`, so a lock taken
+  through it would land on that index's key alone and never meet a lock taken by id.
+- A lane runs at most one member at a time: Ready, Suspended, Dispatched, and Executing are the running
+  statuses. A restarted member is older than the members already waiting, so it can wait Blocked below
+  the running one.
+- Promotion re-reads under the lock: it takes the lowest-id unfinished member of the lane, promotes it
+  when it is Blocked and no member runs, and otherwise leaves it as the head. A settle ends the one
+  running member, so its promotion never meets another. Pausing the running member, by the pause verb
+  or by its own handler, promotes the same way: a Paused head holds its lane only against younger
+  members, so an older restarted member waiting Blocked below it runs next. Promotion never updates
+  through a subselect that a concurrent change could turn into a zero-row update.
+- Operator verbs on a laned job (cancel, pause, resume, reschedule, reprioritize, restart, retire)
+  lock the lane before the job's row, Blocked followers included. Resume, reschedule, and restart
+  choose Blocked when another member runs, or when an older member is unfinished and the job itself
+  was not running, and Ready otherwise.
+- A definition retire locks the lanes of the definition's parked laned jobs in id order, cancels
+  every parked job of the definition, and only then promotes each of those lanes once, so no member of
+  the retired definition is promoted on the way. All of it is one transaction.
+- `restart_job` reactivates a finished laned job in place, under the lane lock. It refuses the job
+  while an unfinished ancestor or descendant sits in the same lane: the restarted job would run ahead
+  of a descendant its handler may wait for, the cycle the enqueue ancestor guard refuses. Both walks
+  run under the lane lock, which every enqueue into that lane also takes.
+- `reclaim_stuck_jobs` also repairs stranded lanes, whose lowest-id unfinished member is Blocked while
+  no member runs.
+  Each pass visits at most 1,000 of its namespace's lanes, starting at a random lane id and wrapping,
+  seeks each one's head through `ix_runtimes_lane`, and repairs at most 100 of the stranded lanes it
+  finds, in visiting order, so the cost is bounded and stateless and every lane is visited
+  eventually. Repair is a safety net for hand edits, so the cap trades a large backlog's drain time
+  for a pass that stays short. The walk reads without locks. The pass then locks the stranded lanes
+  and the stuck rows' lanes in one id-ordered pass that skips a lane another transaction holds. On SQL
+  Server it re-reads the heads under those locks and promotes them in one statement, then writes the
+  `job.lane-repaired` events in one more.
+- A caller transaction that combines several operations can still take a lane after a row it already
+  holds. The database breaks that deadlock, and the aborted owned call is retried like any `40P01` or
+  `1205` victim.
 
 ## Provisioning, compatibility, and SQL access
 
@@ -121,7 +248,8 @@ replaces across arities nor changes a return type. A retired arity is dropped af
 changed return type must be dropped before it, and that leading drop names no argument list, because
 the routine-body parameter gate reads the file's first parenthesis as the parameter list. The
 routine layer therefore reinstalls onto a database from the previous release. Reprovisioning is
-still required where a table definition moved, which for rc.2 is the SQL Server Unicode actor key.
+required only where a table definition moved, which last happened before 1.0 for the SQL Server
+Unicode actor key and cannot happen again under the frozen baseline.
 From 1.0 onward, an installed routine remains a routine. An inline operation may be promoted
 deliberately; routine-to-inline demotion is outside the 1.x policy.
 

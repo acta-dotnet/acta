@@ -2,9 +2,9 @@
 
 ## Purpose
 
-Production-facing checklist for running Acta safely. Acta is at the release-candidate line, so treat
-this as production-like evaluation guidance until migration compatibility and public API stability
-are declared.
+Production-facing checklist for running Acta safely. The public API, the schema, and the persisted
+codes are frozen at 1.0, and schema changes ship only as additive migrations, so this is the guidance
+for production deployments, not for an evaluation.
 
 ## Production checklist
 
@@ -122,8 +122,8 @@ Run it with a client that stops at the first error (`psql -v ON_ERROR_STOP=1`, `
 a fresh install that lost an object, but a client that runs on past a failed replacement leaves the
 old body in place under a name the count still finds. Stopping at the error is what turns the
 script's transaction into the guarantee.
-A database provisioned before the package existed carries no row and is refused at startup, naming
-that script. That is not a reprovision and destroys nothing.
+A database whose package is older than the build requires is refused at startup, naming that
+script; running it is not a reprovision and destroys nothing.
 
 See [`migrations.md`](../internals/migrations.md) for the migration model and `tools/Acta.Emit`
 commands.

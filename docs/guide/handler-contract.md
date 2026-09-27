@@ -257,8 +257,11 @@ Handle(JobContext context, TIn request, CancellationToken ct)
 Handle(TIn request, CancellationToken ct, JobContext context)
 Handle(TIn request, JobContext context)
 Handle(TIn request, HttpClient http, CancellationToken ct)
-Handle(CancellationToken ct)
 ```
+
+A handler with no input drops the request parameter and keeps the rest of the order, so
+`Handle(CancellationToken ct)` and `Handle(JobContext context, CancellationToken ct)` are the
+payload-less shapes; see [Payload-less jobs](#payload-less-jobs).
 
 Constructor injection is the dependency-resolution mechanism. The signature carries only the request, optional `JobContext`, and optional `CancellationToken`.
 
@@ -421,7 +424,7 @@ Map, Parallel, and Join are durable child-job conveniences. They do not introduc
 | `ctx.ParallelAsync(group, b)` | Named heterogeneous branches; outcomes keyed by branch name.         |
 | `ctx.MapAsync(group, items)`  | Homogeneous fan-out keyed by a stable item key; outcomes per item.   |
 
-Each of the three (and `WaitChildrenAsync`/`ExecuteChildAsync` beneath them) also takes a
+Each of the three (and `WaitChildrenAsync` beneath them, and the single-child `ExecuteChildAsync`) also takes a
 `TimeSpan timeout`: the bounded forms share one persisted deadline for the whole group, cancel
 only the members that miss it, and surface the miss through the outcome's `TimedOut` rather than
 an exception — see [failure modes](./failure-modes.md).

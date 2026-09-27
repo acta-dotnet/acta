@@ -2,15 +2,15 @@
 
 What is supported, on what, and how fixes ship.
 
-> Acta has not reached 1.0. Until then, the latest-version-only rule in [SECURITY.md](../SECURITY.md)
-> governs; this page states the policy that takes effect at 1.0.
+> The latest-version-only rule in [SECURITY.md](../SECURITY.md) governs fixes; this page states the
+> support policy in force from 1.0.
 
 ## Support matrix
 
 | Target | Tier | Notes |
 | --- | --- | --- |
 | .NET | `net10.0` | Acta targets the latest .NET LTS only, as a policy choice. Other .NET releases remain in Microsoft support but are not Acta build targets. |
-| PostgreSQL | Production | Server provider; the right default when multiple processes claim work. |
+| PostgreSQL 18 | Production | Server provider; the right default when multiple processes claim work. PostgreSQL 18 is the major Acta is tested and certified on; earlier majors are not supported. |
 | SQL Server | Production | Server provider; the right default when multiple processes claim work. |
 | SQLite | Production | Single node, single process. For the concurrency ceiling, see [provider choice](./guide/production.md#provider-choice) and [known limitations](./technical/known-limitations.md). |
 | Redis | Optional | Wakeup transport only, never required. SQL remains the only durable truth. |

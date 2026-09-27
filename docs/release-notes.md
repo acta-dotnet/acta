@@ -1,30 +1,95 @@
 # Release notes
 
-## 1.0.0-rc.4 (unreleased)
+## 1.0.0 (unreleased)
 
-The answer to an external review of rc.3. No baseline re-cut and no migration: the data model is
-the rc.3 model. What changes is on the execution and alerting paths, in the installed routines, and
-in what a release has to prove. A completion write is repeated until it lands, the recovery sweep
-runs on capacity the executors cannot exhaust, the installed routines carry a version that startup
-checks, an incident opened at the failures-only audit level closes on its own, a completed child is
-kept while its parent is live, and three evidence harnesses join the release checklist.
+The first stable release. The public API, the schema, and the persisted codes are frozen from this
+tag: schema changes ship only as additive migrations, the baseline is never re-cut, and the release
+guard refuses a diff that would. The data model is the rc.3 model with four counters widened to
+32-bit integers and one new feature, lanes, so the baseline is cut once more for 1.0 and every
+release-candidate database is reprovisioned. What changed since rc.3 answers the external reviews
+of it: the execution and alerting paths, the installed routines, and what a release has to prove. A
+completion write is repeated until it lands, a claim is kept through a lost start answer or a lapsed
+lease while the row is still this worker's, the recovery sweep runs on capacity the executors cannot
+exhaust, the installed routines carry a version that startup checks, an incident opened at the
+failures-only audit level closes on its own, a completed child is kept while its parent is live, and
+three evidence harnesses join the release checklist.
 
 ### What a consumer must change
 
-- **Run the provisioning script once on every database, before deploying this build.** The install
-  now records the object package it installed, as a sentinel row beside the baseline stamp, and
-  startup refuses a database that carries no such row, naming the script. A database provisioned by
-  rc.3 has no row. Running `docs/reference/schema-<provider>.sql` installs the current views and
-  routines and records the package; it is idempotent, destroys nothing, and is not a reprovision. A
-  host with `ApplyMigrationsOnStartup = true` does the same on its own. From here on, the script is
-  part of every upgrade, and a build whose package is older than the one a deploy requires is
-  refused at startup instead of failing at its first affected call.
+- **Reprovision every release-candidate database.** The 1.0 baseline widens four counters from
+  16-bit or 8-bit columns to 32-bit integers: `runtimes.failure_count`, `steps.attempt_number`,
+  `definitions.max_attempts` with its override and effective columns, and `alerts.retry_count`.
+  Startup compares the baseline stamp and refuses a database provisioned by any release candidate,
+  naming the mismatch. Reprovisioning drops Acta's schema and installs 1.0 from
+  `docs/reference/schema-<provider>.sql`, so drain or export anything you need first. From 1.0 on,
+  that script is part of every upgrade: it is idempotent, and it records the object package it
+  installed, which startup checks.
+- **Add `staging_id` to an existing outbox table.** The relay now claims in staging order and reads a
+  producer-assigned identity: `ALTER TABLE <outbox> ADD staging_id bigint GENERATED ALWAYS AS
+  IDENTITY` on PostgreSQL, `ADD staging_id bigint IDENTITY(1,1) NOT NULL` on SQL Server, and nothing on
+  SQLite, which uses the rowid. Recreate `ix_acta_outbox_due` as the DDL API emits it. A table created
+  from the 1.0 DDL API already has both.
+- **A new job status, `Blocked` (15).** It marks a laned job waiting behind its lane's head. It is
+  neither claimable nor terminal. A `switch` over `JobStatusCode`, or SQL that lists status codes,
+  needs the new value; jobs without a lane never enter it.
+- **The counters and the concurrency limit are `int` in the API too.** `JobAttribute.MaxAttempts`,
+  `JobAttribute.ConcurrencyLimit`, `JobDetail.FailureCount`, `JobListItem.FailureCount`, the definition
+  records, and the alert records change from `short` or `byte` to `int`, and the definitions'
+  concurrency-limit columns widen with them. `[Job(MaxAttempts = 15)]` compiles unchanged; code that
+  stored one of these values in a `short` or `byte` needs its declaration widened.
 - **`AlertRetention` may not exceed `JobEventsRetention`.** Startup refuses the pair. A success closes
   an incident by answering the failure event that opened it, so the events must outlive the alerts.
   The defaults, 90 and 365 days, already satisfy it.
 - **A scheduled job with `RecurringResultCap` below one is refused at startup.** Zero meant keep
   every result forever, and a live recurring slot is never terminal, so nothing else bounded that
   history. The attribute default of one is unchanged.
+
+### Lanes
+
+- **Lanes run jobs one at a time, in enqueue order.** `.Lane("customer-42")` on an enqueue, or
+  `[Job(Lane = "...")]` on a definition, puts a job in a lane: the semantics of an SQS FIFO message
+  group, on the application's database. Only the head is claimable; the jobs behind it wait as
+  `Blocked` outside the claim scan, and the head's terminal completion releases the next one in the
+  same transaction, so a lane's depth never slows a claim. Unlaned work is unaffected.
+- **Enqueue order is commit order.** A laned enqueue locks its lane row until it commits, so two
+  producers cannot interleave out of order. Every path that touches a lane locks lane rows first, in
+  id order, and job rows after them.
+- **Guards at enqueue.** A child in the lane of an unfinished ancestor is refused, children do not
+  inherit a lane, and a schedule on a laned definition is refused.
+- **Restart reactivates a finished laned job in place.** Under the lane lock it goes Ready when
+  nothing in its lane is running and no older job is unfinished, otherwise Blocked, and it runs
+  right after the running job, before the jobs waiting behind it. The job keeps its id, history,
+  deduplication key, and parent. Restart is refused while an unfinished ancestor or descendant sits
+  in the same lane. Pausing or cancelling the running job releases the next one at once.
+- **A stranded lane repairs itself.** A lane whose head was ended by hand, leaving the jobs behind it
+  Blocked, is found by the recovery pass, which releases the next job with a `job.lane-repaired`
+  event. Retention deletes a lane once no job references it.
+- **Operators see the lane.** The job page shows the lane and, for a Blocked job, the job it waits
+  behind; the job list filters by lane.
+- **Schema.** A `lanes` table, `runtimes.lane_id` with two indexes, `definitions.lane`, a `lane`
+  column on the outbox and the published `jobs` view, and status 15.
+
+### Claim and locking
+
+- **The claim seeks each priority band.** It used to read the claim index in one ordered range and
+  discard every row that was not due, so parked waits and jobs delayed in a higher band were read on
+  every claim. A Suspended job with no deadline now stays out of the claim index, and the claim seeks
+  the five priority bands in turn and stops at the first row that is not due. With 200,000 High jobs
+  due tomorrow beside a due backlog, SQL Server drained 145 jobs a second before and about 2,800
+  after; PostgreSQL and SQLite gained less because their planners already skipped part of the read.
+- **SQL Server keeps its maintenance off other work's rows.** The stuck-job reclaim locks only its
+  own namespace's rows, the expired-lock sweep stages without holding index keys and deletes by key,
+  every retention delete seeks the rows it stages, and the stranded-lane repair works a hundred lanes
+  per pass set-based instead of a thousand one statement at a time.
+- **Alerts lock their job first.** Raising, resolving, purging, and retention take the job row, then
+  the alert identity, then the alert row, so they no longer deadlock, and an alert can no longer land
+  after its job was purged. A new index on a job's alerts lets purge and resolve seek them.
+- **Lease renewal skips a row another transaction holds.** A child completing while the heartbeat
+  renewed its parent's lease deadlocked on PostgreSQL and SQL Server; the row is renewed on the next
+  beat instead, well inside the lease.
+- **Waiting on a job no longer misses its completion.** `RunAndWaitAsync` read the job before it
+  listened, so a completion landing between the two woke nobody and the caller slept a whole poll
+  interval. It now listens first.
 
 ### Completion and recovery
 
@@ -35,6 +100,12 @@ kept while its parent is live, and three evidence harnesses join the release che
   repeat is safe. The held executor slot is the deliberate cost, and `acta.completions.unsettled`
   counts writes in that state. Bulk settles its batch entries side by side, so one stuck entry holds
   up neither its siblings nor their wakeups.
+- A Bulk completion stays owned by its worker until it settles. The executor returns once its result
+  is buffered, and the heartbeat's orphan release used to see a row with no running attempt and
+  reschedule it, so the buffered write lost its compare-and-swap and the handler ran again. The
+  worker now tracks each pending completion by job and execution number, through the batch write
+  and its per-row fallback, and the release leaves that execution alone. An entry for an older
+  execution neither shields nor releases a newer one.
 - The recovery slot monitor, which re-arms a stranded `sys.recovery` every seven minutes, now also
   runs the sweep it re-armed, outside the executor pool. A worker with every executor busy could
   detect the stranded slot and then fail to claim it; the bound on the limitations page covered
@@ -46,14 +117,72 @@ kept while its parent is live, and three evidence harnesses join the release che
   make the start answer LostClaim while this worker's heartbeat kept the lease, which stranded the job
   until the worker restarted. The start now reads the row on LostClaim: Executing under this worker
   is a start that committed and lost its answer, Dispatched under this worker is retried against the
-  version the row carries now, and anything else is another owner's. On SQLite a replayed start no
-  longer reports a second start or writes a second started event.
+  version the row carries now, and anything else is another owner's. A start refused because the
+  claim's lease lapsed in an outage is reconciled the same way: the heartbeat renews every row this
+  worker holds, so the row is still this worker's, and the start is retried, paced on the retry
+  curve, until it lands or recovery takes the row. Before, that refusal was a skip that left the row
+  leased, renewed on every beat, and progressed by nothing until the worker restarted. On SQLite a
+  replayed start no longer reports a second start or writes a second started event.
+- A claim that commits and loses its answer is returned to Ready by the heartbeat. The rows were
+  leased by this worker, renewed on every beat from database state, and progressed by nothing, the
+  `sys.recovery` slot included. The heartbeat now sets the ids it renewed against every attempt and
+  buffered claim the process can account for, and an id unaccounted for on two consecutive beats is
+  walked back to Ready through the same start-then-reschedule an unsupported claim takes. A Buffered
+  claim loop registers every row of a batch as buffered before it writes the first one to its
+  channel: a write blocks while every executor is held, and a row registered only when its turn
+  came could be released as a lost answer while it waited behind the blocked write. A drain that
+  lands on a blocked write hands the rows it never wrote back to Ready at once, instead of leaving
+  them leased to a worker that will not run them until the lease lapses after it exits, and the
+  recovery slot in a batch now starts before any write that could block it. The release and
+  an executor now take a per-execution owner entry in the process before either touches the row,
+  held through the start and the completion: a claim answer that arrived after the heartbeat had begun
+  releasing the row used to reach an executor, whose start read as this worker's own lost answer,
+  so one actor ran the job while the other rescheduled it and a second attempt could claim the row
+  while the first still ran. The late answer is now skipped and the release completes alone.
+- Under the Buffered profile the claim loop claims ahead of its executors into a channel, so the
+  `sys.recovery` slot could be buffered behind jobs no executor would take while every executor was
+  held, under a lease the heartbeat renewed, and nothing swept until an executor came free. The loop
+  now runs the slot on its own task the moment it claims it, so the one job that reclaims what the
+  executors hold never waits behind them.
+- On PostgreSQL, a start that waited on a row lock held by a concurrent reprioritize answered
+  AlreadyTerminal for a row that was still this worker's, because the routine classifies against
+  its statement snapshot. That answer is now reconciled against the row like LostClaim.
+- A control signal the runtime does not recognize, a handler's own subclass of the public
+  `JobControlException`, used to be rethrown out of the attempt and left the row Executing under a
+  renewed lease. It now lands as a handler exception: a retried Failed with the type in the reason.
 - The reads an attempt needs before its handler runs, the database clock and the live schedules for a
   recurring slot and the tenant key, are repeated like the writes, and anything else that fails
   before the handler runs hands the claim back to Ready instead of leaving it leased with nothing
   left to progress it.
 - A graceful drain waits for a recovery pass the slot monitor started, so shutdown no longer strands
   the recovery job itself.
+
+### Dashboard and API
+
+- The `outbox` control family is authorized like the others: an `IActaControlAuthorizer` sees
+  `outbox.requeue` and `outbox.discard`, and a denial stops the verb before the store sees it. The
+  filter derived its verb from a fixed list of entity names that did not include the outbox routes.
+- The dashboard page's base element carries the request's path base in front of the mount pattern,
+  so a host behind a reverse proxy that strips a prefix and restores it with `UsePathBase` serves
+  a page whose relative asset URLs resolve under that prefix. The deployment smoke asserts the base
+  element under its proxy instead of resolving the asset by hand. A mount pattern written without
+  its leading slash is rooted before it is composed, and the value is escaped as a URI component,
+  since a path base taken from a forwarded-prefix header is request input.
+- `Acta.AspNetCore` ships `THIRD-PARTY-NOTICES.txt` at the package root, generated by the dashboard
+  build from the modules that land in the bundle, transitive ones included. The package smoke checks
+  it is packed and names every package known to survive minification.
+
+### Rate limits
+
+- The meter reads its clock once it holds the bucket row, not when the call began. Every reservation
+  on one key serializes on that row, so a flood of metered claims queues behind whichever call holds
+  it, and a call that waited judged its turn against a stale instant: every call the convoy delayed
+  read as due and was admitted together the moment the lock freed. The million-job certification on
+  SQL Server read 46 handler starts in one second against a contract of 30 that way. PostgreSQL read
+  the transaction start as now, the same instant in principle, and stayed inside the contract in the
+  same run; both now read the wall clock after the lock, and a conformance fact holds the bucket row
+  under a queue of fifty reservations and counts what the release admits. SQLite reads its clock
+  inside its single write lock already. Object package 1.5.
 
 ### Alerting
 
@@ -82,31 +211,56 @@ kept while its parent is live, and three evidence harnesses join the release che
 - Three values name the installed object package: a contract major that must match, a package
   revision that must be at or above the minimum a build declares, and a content hash that binds the
   build's bookkeeping and never enters the startup decision. `Acta.Emit objects record` records a
-  released identity and `check` refuses a recorded identity whose content moved. rc.4 ships package
-  1.4 and requires 4; nothing before rc.4 carried a package.
+  released identity and `check` refuses a recorded identity whose content moved. 1.0.0 ships package
+  1.6 and requires 6; no release candidate carried a package.
+- PostgreSQL replaces the operator views in place, so a re-applied script keeps their grants and any
+  view a DBA built on them. It used to drop and recreate them. SQL Server already altered them in
+  place, and SQLite has no grants to keep.
+- A code the running build does not know reads forward. An event, reason, or alert kind code written
+  by a newer build decodes as `Unspecified` through every read path, the API, and the HTTP endpoints,
+  instead of throwing. Parsing a code name stays strict.
+- The provisioning script's header says what it does: it installs 1.0 and re-runs safely within 1.x.
+  A release-candidate database is reprovisioned, not upgraded in place.
+- SQL Server checks foreign keys key by key in its set-based writes. Compiled at a real batch size, a
+  batch insert validated its foreign key by scanning the whole parent table under page locks, and four
+  producers enqueueing large batches at once deadlocked. The enqueue batch, the completion batch, and
+  the retention purge now seek each key, and an unlaned batch runs the same statements as rc.3.
 - The published scripts record the package only when every named view and routine exists, and say
   in their header to run them with a client that stops at the first error, which is what makes their
   transaction the guarantee that a failed replacement leaves no stamp.
 
 ### Release evidence
 
-- `tests/RollingUpgradeSmoke` runs the previous tag's binary and the current tree against one
-  upgraded database on both servers: the previous binary provisions, the current one is refused on
-  the old objects, provisions, and then both run under every execution profile with migrations off.
+- Moving from rc.3 to 1.0 reprovisions, so this release proves the pieces a rolling upgrade rests on
+  instead: a database stamped with the rc.3 baseline is refused at startup, a script-provisioned
+  schema runs with migrations disabled on every provider, and re-running the script keeps its data,
+  grants, and dependent views. `tests/RollingUpgradeSmoke` gains a phase where both generations run
+  at once around a held execution, ready for the first 1.x upgrade.
 - `tests/DeploymentSmoke` restores the packed packages from a local feed and runs the dashboard
   behind a real nginx proxy with a path base and an authorization policy, checking that anonymous
   and spoofed requests are refused and binary payloads read back exactly.
-- `tests/HardeningSoak` runs a bounded load with autovacuum on and retention sweeping under it,
-  recording oldest-ready age and tail pickup. The benchmark harness drops each cell's schema when
-  its measurement is recorded, so a round leaves nothing behind and autovacuum stays on.
+- `tests/HardeningSoak` runs on PostgreSQL, SQL Server, and SQLite: a bounded load with retention
+  sweeping under it and autovacuum on where the engine has one, recording oldest-ready age and tail
+  pickup. The benchmark harness drops each cell's schema when its measurement is recorded, so a
+  round leaves nothing behind and autovacuum stays on.
 - The release checklist names, per boundary the review questioned, the spec or harness that carries
   it.
+
+### Documentation
+
+- The ordering pages say exactly what the claim does: each claim selects eligible, unlocked jobs by
+  descending priority, next-run time, then job ID, so sequential enqueues by one producer break ties
+  in enqueue order. Concurrent claims guarantee neither global FIFO nor handler-start order, retries
+  may be overtaken by later jobs, and concurrency keys limit simultaneous execution without
+  preserving execution order. Strict per-key order is a lane, documented with its limits.
 
 ### Test suite
 
 - The run-once test helper stops polling as soon as a row can no longer be claimed, instead of
   waiting out a five-second budget on every fact that expects an empty claim. The server legs run
-  in twelve to sixteen seconds.
+  in twelve to sixteen seconds. The budget of that helper now covers only the retries, not the
+  first drive: a drive that reconciles a refused start paces its own retry and could outlast the
+  budget on a loaded box, and the fact then heard an empty claim for a row it had left Ready.
 
 ## 1.0.0-rc.3
 

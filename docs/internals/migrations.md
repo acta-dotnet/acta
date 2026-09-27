@@ -94,6 +94,31 @@ separate range checks so consumer formats through `255` remain valid.
   applies "any version not in `migrations`" and tolerates gaps. No dummy filler migrations.
 - A provider **with** history gets a **delta** (`ALTER`/`CREATE`) at `M{N}`.
 
+## Adding a value to a code family
+
+Two kinds of code family are persisted, and they evolve differently.
+
+- **Extensible families** (event, event reason, alert kind) carry no IN-list CHECK. A later release
+  adds a value by using it: no migration, and a 1.0 reader decodes an id it does not know as
+  `Unspecified` instead of failing.
+- **Closed families** (job status, step status, checkpoint kind, settings scope, tag scope, and the
+  other generated CHECKs) reject any value the baseline does not list. Adding one means replacing
+  that CHECK with a wider one.
+
+Replacing a CHECK with a wider one is an allowed compatibility operation under the additive-only
+rule: it preserves every row, and every value an older build writes stays valid. On PostgreSQL and
+SQL Server it is a `DROP CONSTRAINT` and `ADD CONSTRAINT` in the migration's transaction. SQLite
+cannot alter a CHECK, so its migration rebuilds the table inside one transaction: create the new
+table, copy the rows, drop the old one, rename, and recreate its indexes, with foreign keys off for
+the copy and a `foreign_key_check` before commit.
+
+Widening the constraint does not make the new value safe to write. During a rolling deploy an older
+worker still reads the table, and its status helpers already treat an unknown status as neither
+claimable nor terminal, but its closed-family serializer rejects the value outright. A release that
+adds a closed value therefore ships in two steps: the first release widens the constraint and
+teaches readers the value, and a later one starts writing it, once no worker older than the first
+is running.
+
 ## The snapshot
 
 `src/Acta.Relational/Schema/schema-snapshot.json` is a committed `{ current, previous }` pair: `current` is
@@ -153,11 +178,11 @@ that writes a file for only that provider (a leading hole for the others is fine
 ### Starting over: `schema reset`
 
 `schema reset --force` deletes every migration and the snapshot. The next `schema add` recreates the
-baseline. The one destructive command, hence `--force`-gated and pre-1.0 only.
+baseline. The one destructive command, hence `--force`-gated.
 
-The migration history freezes at 1.0.0, and from there `schema reset` remains only as a
-rebuild-and-compare tool for verifying that the emitters still reproduce the committed baseline.
-Until then a re-cut is a supported move rather than a last resort, and each one identifies itself:
+The migration history is frozen from 1.0.0, so `schema reset` is a rebuild-and-compare tool for
+verifying that the emitters still reproduce the committed baseline, never a re-cut: a rebuilt `M001`
+that differs from the committed one is a finding, not a release. Each baseline identifies itself:
 the stamp is `baseline-` followed by the first 32 hex characters of the SHA-256 of that provider's
 emitted `M001`. The hash is taken over the body with a fixed token in the stamp's own position, in
 UTF-8 without a byte-order mark and with LF line endings; nothing else is normalized, so every other

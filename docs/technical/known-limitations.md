@@ -6,29 +6,28 @@ Known boundaries to review before using Acta in production-like environments.
 
 ## Stability status
 
-Acta is at the release-candidate line: the public API, schema, and persisted codes are closing, and
-release candidates change only for correctness, security, and documentation. The migration history
-freezes at 1.0.0: from there, schema changes ship only as additive `Mnnn` migrations. Until then the
-baseline (`M001`) can still be re-cut, release candidates included, so a database provisioned by any
-earlier build may need one reprovision on the way in. Bootstrap compares the baseline stamp recorded
-in the database against the one this build ships and refuses to start on a mismatch, so a database
-built from a different baseline generation fails loudly instead of taking a schema it was not built
-for; old renumbered code values are intentionally incompatible, and there is no translation
-migration.
+Acta is at 1.0: the public API, schema, and persisted codes are frozen. The migration history is
+frozen with them: schema changes ship only as additive `Mnnn` migrations, and the baseline (`M001`)
+is never re-cut, so a database provisioned by a 1.x build upgrades by migration alone. A database
+provisioned by any release candidate needs one reprovision on the way in. Bootstrap compares the
+baseline stamp recorded in the database against the one this build ships and refuses to start on a
+mismatch, so a database built from a different baseline generation fails loudly instead of taking
+a schema it was not built for; old renumbered code values are intentionally incompatible, and there
+is no translation migration.
 
 The stamp is a content hash: `baseline-` followed by 32 hex characters of the SHA-256 of that
 provider's emitted `M001`, so each provider carries its own. A database provisioned by an earlier
 build refuses to start rather than running on a schema nobody chose. That refusal is the point:
 every `M001` statement is
-existence-guarded, so without it an rc.1 database would take the re-cut as a no-op and keep
+existence-guarded, so without it a pre-1.0 database would take a later baseline as a no-op and keep
 `events.actor_key` as `varchar(128)` on SQL Server, folding an operator's non-ASCII name to `?`, and
 would keep the old `ix_runtimes_worker_inflight` key and none of the three row-shape constraints.
 
-Reprovisioning is still a manual step, and it is destructive: there is no upgrade path between
-generations before 1.0, and the refusal tells an operator to take one rather than silently
-diverging. The residual gap is that the stamp records the script that was applied, not the schema
-that resulted: the live database is never hashed, so an operator who adapts the applied script
-keeps the recorded row and carries the difference themselves.
+Reprovisioning is a manual step, and it is destructive: there is no upgrade path from a database
+provisioned before 1.0, and the refusal tells an operator to take one rather than silently diverging. The
+residual gap is that the stamp records the script that was applied, not the schema that resulted:
+the live database is never hashed, so an operator who adapts the applied script keeps the recorded
+row and carries the difference themselves.
 
 ## Execution model
 
@@ -143,7 +142,7 @@ deterministically on every such replay loops without consuming budget. The loop 
 over — each uncharged reclaim projects a non-terminal failure into the job's own alert incident,
 which re-notifies on the reminder interval for as long as the loop runs, and the job visibly
 ping-pongs between suspended and claimed — and an operator cancel ends it at any phase. Bounding
-it automatically would require persisting which overload armed the wait; rc.1 chooses the loud
+it automatically would require persisting which overload armed the wait; 1.0 chooses the loud
 unbounded loop over a budget charge that would break the promise for every ordinary crash.
 
 No durable executor can guarantee exactly-once effects against arbitrary external systems. Acta gives
@@ -199,10 +198,13 @@ from there idempotently.
 
 ## Ordering
 
-Acta orders claims, not work. The claim scan reads ready rows by priority (highest first), then by
-next-run instant, then by `JobId`, and that is a claim-time sort, not a queue discipline. `JobId` is
-a stable tie-breaker inside one claim, not a multi-producer FIFO guarantee: database identities are
-allocation order, not commit order.
+Acta orders claims, not work. The claim scan reads ready rows by priority (highest first), then
+by next-run instant, then by `JobId`, and that is a claim-time sort, not a queue discipline. Each
+claim selects eligible, unlocked jobs by descending priority, next-run time, then job ID. For
+sequential enqueues by one producer, the ID breaks ties in enqueue order. Concurrent claims
+guarantee neither global FIFO nor handler-start order. Retries are scheduled again and may be
+overtaken by later jobs. Concurrency keys limit simultaneous execution; they do not preserve
+execution order. Lanes do, under the limits listed below.
 
 The alert projector does not trust that identity to mean committed: it walks by `(created_at_utc, id)`
 and withholds events until they are older than a safe horizon. The horizon is twice the
@@ -242,10 +244,37 @@ operational promise, not a runtime invariant.
 
 **Exclusive unordered work.** `ConcurrencyKey`, under the contract above.
 
-**Strict ordered processing.** A durable coordinator or chain job that releases item N+1 only after
-item N has reached the required outcome. Acta ships no built-in ordering key for this; you write the
-coordinator. The cost is head-of-line blocking, so the design needs an explicit policy for a poison
-item that never reaches its outcome.
+**Strict ordered processing.** A lane: jobs enqueued with `.Lane(...)`, or of a definition with
+`[Job(Lane = "...")]`, run one at a time in enqueue order. The semantics are in
+[Concepts: Lanes](../guide/concepts.md#lanes). Its limits:
+
+- **Head-of-line blocking is the design.** A head that retries, waits, is paused, or is delayed holds
+  its whole lane. A poison job holds it until it exhausts `MaxAttempts` or an operator cancels it.
+- **A lane advances on failure.** Failed on the last attempt and Cancelled both release the next job,
+  as an SQS dead-letter move does. Work that must stop after a failure needs a coordinator job, or a
+  cancel of the rest of the lane.
+- **One job per lane is in flight.** A lane's throughput is one handler at a time; SQS can hand a
+  consumer several messages of one group in a batch, and Acta never does.
+- **`Bulk` delays the handoff.** The next job is released when the head's completion is written,
+  and `Bulk` buffers completions for up to 250 ms while traffic is light. A quiet lane then moves
+  about four jobs a second. Under load the batches fill and flush early. Run lanes that need a fast
+  handoff in a namespace on `Buffered` or `Direct`.
+- **An open transaction holds its lane.** A laned enqueue locks the lane row until its transaction
+  commits, and the head's completion waits for that lock. Keep transactions that enqueue into a lane
+  short.
+- **A laned enqueue needs fresh reads.** Inside your own transaction it is refused under PostgreSQL
+  REPEATABLE READ or SERIALIZABLE and under SQL Server SNAPSHOT, because an old snapshot cannot see a
+  lane's newest head. READ COMMITTED, with or without RCSI, is the supported level.
+- **A head no worker runs stalls its lane.** During a rolling deploy, a head whose definition no
+  running worker supports waits for a worker that does. A removed definition needs its laned jobs
+  drained, cancelled, or retired.
+- **Cross-lane waits can deadlock.** The enqueue guard refuses a child in an unfinished ancestor's
+  lane. A cycle of waits through several lanes is invisible to it, and waits with a timeout break it.
+- **A restarted job runs out of its original place.** Restarting a finished laned job runs it next,
+  after the current head, so it lands after the jobs that ran while it sat Failed or Cancelled.
+- **Exclusion is at-least-once.** Cancelling a running head, or recovering its expired lease, lets
+  the next job start while the old handler may still run. The lane orders admission, not external
+  effects.
 
 ## Contract evolution
 
@@ -318,7 +347,7 @@ with no lock, so a concurrent reclaim can fault inside the driver. A plain user 
 dictionary is empty unless `CreateFunction` was called — but Acta registers its `acta_blob` and
 `acta_error` functions on every open, which makes the upstream race reachable. Acta makes it
 reachable; it does not cause it. Observed only as a rare test-suite fault under heavy cross-process
-parallelism, never reproduced in isolation, and rc.1 deliberately changes nothing for it: the
+parallelism, never reproduced in isolation, and 1.0 deliberately changes nothing for it: the
 fault sits in the driver's pool, and `Pooling=false` would trade it for a fresh native open per
 connection, a real cost that would need benchmarking first.
 

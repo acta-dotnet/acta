@@ -42,7 +42,7 @@ flowchart LR
         DB[(SQL Server / Postgres)]
         JobTable[(acta.jobs + acta.runtimes)]
         EventTable[(acta.events)]
-        Substrate[(steps / checkpoints / leases)]
+        Substrate[(steps / checkpoints / locks)]
         Catalog[(definition / namespace / worker / schedule)]
     end
 
@@ -265,7 +265,7 @@ flowchart LR
     subgraph SQL[SQL state]
         Job[("runtimes (status + execution lease)")]
         Worker[("workers (last_seen_at_utc)")]
-        Lease[("leases (named locks)")]
+        Lease[("locks (named locks)")]
         Event[("events (worker.died / execution.finished)")]
     end
 

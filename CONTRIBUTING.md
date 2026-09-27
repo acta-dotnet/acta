@@ -322,7 +322,7 @@ The shortest paths to the design-review-worthy parts:
 * **Semantic store ports across three engines.** Core feature behavior depends on internal `I*Store` contracts; PostgreSQL, SQL Server, and SQLite each own complete store implementations, command binding, projections, and executable SQL, held to the same behavior by the conformance suite.
 * **Provider-owned hot paths.** Each provider keeps all executable SQL under one root, `Sql/<Capability>/<Operation>.sql` (schema commands at `Sql/Schema/`, ordered DDL at `Schema/Migrations/`); C# sits beside its dialect under `Services/`. Inline drift markers tie SQL literals to live `[Code]` values, checked in tests.
 * **Source-as-truth doc emission.** `Acta.Emit` renders the data model, code families, and initial migrations from source; CI drift-checks them.
-* **A deliberately small, symmetric data model.** Fifteen tables carry jobs, retries, schedules, steps, signals, timers, workers, alerts, and tenants; table count is a budget (see [`docs/internals/design.md`](./docs/internals/design.md) § substrate generality), which keeps migrations short and upgrades reviewable.
+* **A deliberately small, symmetric data model.** Sixteen tables carry jobs, retries, schedules, steps, signals, timers, lanes, workers, alerts, and tenants; table count is a budget (see [`docs/internals/design.md`](./docs/internals/design.md) § substrate generality), which keeps migrations short and upgrades reviewable.
 
 | Area | Where to look |
 |---|---|
