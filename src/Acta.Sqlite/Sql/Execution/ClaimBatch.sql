@@ -1,21 +1,33 @@
 DROP TABLE IF EXISTS temp._claimed;
+DROP TABLE IF EXISTS temp._claim_bands;
+
+/* Every JobPriorityCode, listed once: the claim seeks each band and the horizon reads each band's head. */
+CREATE TEMP TABLE _claim_bands AS
+SELECT column1 AS priority_code
+FROM (
+    VALUES
+        (100 /* JobPriorityCode.Realtime */),
+        (85 /* JobPriorityCode.Critical */),
+        (70 /* JobPriorityCode.High */),
+        (50 /* JobPriorityCode.Normal */),
+        (0 /* JobPriorityCode.Bulk */)
+);
 
 CREATE TEMP TABLE _claimed AS
 /* Pure claim-index scan; concurrency-key admission is executor-owned (lock store) after the start CAS,
-   and the one jobs lookup is the exclusion below, which an empty set short-circuits. A Ready row always
-   carries its due instant (ck_runtimes_ready_due); Suspended keeps a NULL for an unbounded wait. */
-/* The status IN is redundant by the OR below but load-bearing: SQLite matches a partial index only
-   when a top-level AND-term implies the index filter, so without this exact restatement of
-   ix_runtimes_claim_ready's filter every claim degrades to a full runtimes scan and sort. */
+   and the one jobs lookup is the exclusion below, which an empty set short-circuits. */
 SELECT r.job_id AS id, r.status_code AS from_status
 FROM {{schema}}.runtimes r
 WHERE
     r.namespace_id = @p_namespace_id
+    /* One IN key per band: SQLite seeks the bands in ORDER BY order, leaves each at its first row not yet
+       due, and never sorts. */
+    AND r.priority_code IN (SELECT b.priority_code FROM temp._claim_bands b)
+    /* ix_runtimes_claim_ready's filter restated whole: SQLite matches a partial index only against top-level
+       AND-terms. Ready always carries its due instant (ck_runtimes_ready_due); a Suspended NULL never comes due. */
     AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
-    AND (
-        (r.status_code = 10 /* JobStatusCode.Ready */ AND r.next_run_at_utc <= {{now}})
-        OR (r.status_code = 20 /* JobStatusCode.Suspended */ AND r.next_run_at_utc IS NOT NULL AND r.next_run_at_utc <= {{now}})
-    )
+    AND r.next_run_at_utc IS NOT NULL
+    AND r.next_run_at_utc <= {{now}}
     /* The definitions this worker already bounced for want of a handler, as JSON array text. NULL on a
        healthy fleet, and the NULL test settles the term before the jobs lookup. */
     AND (
@@ -115,26 +127,32 @@ UNION ALL
 SELECT
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
     {{now}},
+    /* The earliest head across the bands: each band's first index row is its earliest instant. */
     (
-        SELECT MIN(r.next_run_at_utc)
-        FROM {{schema}}.runtimes r
-        WHERE
-            r.namespace_id = @p_namespace_id
-            AND (
-                r.status_code = 10 /* JobStatusCode.Ready */
-                OR (r.status_code = 20 /* JobStatusCode.Suspended */ AND r.next_run_at_utc IS NOT NULL)
-            )
-            /* Excluded rows are invisible to this worker's horizon too: a horizon at or before now is
-               what tells the caller to retry at the anti-spin floor, so counting rows this worker will
-               never claim would spin it. */
-            AND (
-                @p_excluded_definition_ids IS NULL
-                OR NOT EXISTS (
-                    SELECT 1
-                    FROM {{schema}}.jobs j
-                    WHERE j.id = r.job_id AND j.definition_id IN (SELECT value FROM json_each(@p_excluded_definition_ids))
-                )
-            )
+        SELECT
+            MIN((
+                SELECT r.next_run_at_utc
+                FROM {{schema}}.runtimes r
+                WHERE
+                    r.namespace_id = @p_namespace_id
+                    AND r.priority_code = b.priority_code
+                    AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
+                    AND r.next_run_at_utc IS NOT NULL
+                    /* Excluded rows are invisible to this worker's horizon too: a horizon at or before now is
+                       what tells the caller to retry at the anti-spin floor, so counting rows this worker will
+                       never claim would spin it. */
+                    AND (
+                        @p_excluded_definition_ids IS NULL
+                        OR NOT EXISTS (
+                            SELECT 1
+                            FROM {{schema}}.jobs j
+                            WHERE j.id = r.job_id AND j.definition_id IN (SELECT value FROM json_each(@p_excluded_definition_ids))
+                        )
+                    )
+                ORDER BY r.next_run_at_utc
+                LIMIT 1
+            ))
+        FROM temp._claim_bands b
     )
 WHERE NOT EXISTS (SELECT 1 FROM temp._claimed)
 ORDER BY id;

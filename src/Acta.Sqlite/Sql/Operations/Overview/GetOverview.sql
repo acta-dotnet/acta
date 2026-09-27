@@ -8,28 +8,20 @@ SELECT
         FROM {{schema}}.runtimes r
         JOIN {{schema}}.namespaces ns ON ns.id = r.namespace_id
         WHERE
-            (
-                r.status_code = 10 /* JobStatusCode.Ready */
-                OR (
-                    r.status_code = 20 /* JobStatusCode.Suspended */
-                    AND r.next_run_at_utc IS NOT NULL
-                    AND r.next_run_at_utc <= {{now}}
-                )
-            )
+            -- ix_runtimes_claim_ready's filter restated whole, so both counters read the claim index.
+            r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
+            AND r.next_run_at_utc IS NOT NULL
+            AND (r.status_code = 10 /* JobStatusCode.Ready */ OR r.next_run_at_utc <= {{now}})
             AND (@p_namespace_name IS NULL OR ns.name = @p_namespace_name)
     ) AS ready_count,
     (
-        SELECT ({{now}} - MIN(COALESCE(r.next_run_at_utc, j.created_at_utc))) / 1000
+        SELECT ({{now}} - MIN(r.next_run_at_utc)) / 1000
         FROM {{schema}}.runtimes r
-        JOIN {{schema}}.jobs j ON j.id = r.job_id
         JOIN {{schema}}.namespaces ns ON ns.id = r.namespace_id
         WHERE
-            (
-                r.status_code = 10 /* JobStatusCode.Ready */
-                OR (r.status_code = 20 /* JobStatusCode.Suspended */ AND r.next_run_at_utc IS NOT NULL)
-            )
-            -- Dueness is already this counter's own filter, so the Suspended half needs nothing extra.
-            AND COALESCE(r.next_run_at_utc, j.created_at_utc) <= {{now}}
+            r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
+            AND r.next_run_at_utc IS NOT NULL
+            AND r.next_run_at_utc <= {{now}}
             AND (@p_namespace_name IS NULL OR ns.name = @p_namespace_name)
     ) AS oldest_ready_age_seconds,
     (

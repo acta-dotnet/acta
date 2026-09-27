@@ -1768,41 +1768,56 @@ BEGIN
                 from_status TINYINT NOT NULL
             );
 
-        WITH candidates AS (
-            /* Pure claim-index scan on ix_runtimes_claim_ready via the denormalized namespace; concurrency-key admission is
-               executor-owned (lock store) after the start CAS, and the one jobs lookup is the exclusion below. A Ready row always
-               carries its due instant (ck_runtimes_ready_due); a Suspended NULL is unbounded. */
-            /* The status IN is redundant by the OR below but load-bearing: filtered-index subsumption
-               matches top-level AND-terms only, so without this exact restatement of the index filter
-               the claim scans every runtimes row and widens its UPDLOCK footprint to match. */
-            SELECT TOP (@p_claim_limit) r.job_id AS id
-            FROM acta.runtimes r WITH (READPAST, UPDLOCK, ROWLOCK, READCOMMITTEDLOCK)
-            WHERE
-                r.namespace_id = @p_namespace_id
-                AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
-                AND (
-                    (r.status_code = 10 /* JobStatusCode.Ready */ AND r.next_run_at_utc <= @due_now)
-                    OR (
-                        r.status_code = 20 /* JobStatusCode.Suspended */
-                        AND r.next_run_at_utc IS NOT NULL
-                        AND r.next_run_at_utc <= @due_now
+        /* Every JobPriorityCode, listed once: the claim seeks each band in turn and the horizon reads each band's head. */
+        DECLARE @bands TABLE (priority_code TINYINT NOT NULL PRIMARY KEY);
+        INSERT INTO @bands (priority_code)
+        VALUES
+            (100 /* JobPriorityCode.Realtime */),
+            (85 /* JobPriorityCode.Critical */),
+            (70 /* JobPriorityCode.High */),
+            (50 /* JobPriorityCode.Normal */),
+            (0 /* JobPriorityCode.Bulk */);
+
+        DECLARE @candidates TABLE (id BIGINT NOT NULL PRIMARY KEY);
+        DECLARE @remaining INT = @p_claim_limit;
+        DECLARE @band TINYINT = (SELECT MAX(priority_code) FROM @bands);
+
+        /* One seek per band, highest band first, each stopping at the band's first row not yet due. The
+           UPDLOCK holds every candidate to the end of the transaction, so the update below finds each one
+           as this loop left it. */
+        WHILE @band IS NOT NULL AND @remaining > 0
+            BEGIN
+                /* Pure claim-index seek on ix_runtimes_claim_ready via the denormalized namespace; concurrency-key admission is
+                   executor-owned (lock store) after the start CAS, and the one jobs lookup is the exclusion below. */
+                INSERT INTO @candidates (id)
+                SELECT TOP (@remaining) r.job_id
+                FROM acta.runtimes r WITH (READPAST, UPDLOCK, ROWLOCK, READCOMMITTEDLOCK)
+                WHERE
+                    r.namespace_id = @p_namespace_id
+                    AND r.priority_code = @band
+                    /* ix_runtimes_claim_ready's filter restated whole: filtered-index matching takes top-level AND-terms
+                       only, and without it the claim scans runtimes and widens its UPDLOCK footprint to match. Ready always
+                       carries its due instant (ck_runtimes_ready_due); a Suspended NULL never comes due. */
+                    AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
+                    AND r.next_run_at_utc IS NOT NULL
+                    AND r.next_run_at_utc <= @due_now
+                    /* Empty on a healthy fleet, so the count test settles it before the jobs lookup and
+                       the seek above stays as it was. */
+                    AND (
+                        @excluded_count = 0
+                        OR NOT EXISTS (
+                            SELECT 1
+                            FROM acta.jobs j
+                            WHERE j.id = r.job_id AND j.definition_id IN (SELECT e.definition_id FROM @excluded e)
+                        )
                     )
-                )
-                /* Empty on a healthy fleet, so the count test settles it before the jobs lookup and
-                   the scan above stays as it was. */
-                AND (
-                    @excluded_count = 0
-                    OR NOT EXISTS (
-                        SELECT 1
-                        FROM acta.jobs j
-                        WHERE j.id = r.job_id AND j.definition_id IN (SELECT e.definition_id FROM @excluded e)
-                    )
-                )
-            ORDER BY
-                r.priority_code DESC,
-                r.next_run_at_utc ASC,
-                r.job_id ASC
-        )
+                ORDER BY
+                    r.next_run_at_utc ASC,
+                    r.job_id ASC;
+
+                SET @remaining -= @@ROWCOUNT;
+                SET @band = (SELECT MAX(priority_code) FROM @bands WHERE priority_code < @band);
+            END
 
         UPDATE r
         SET
@@ -1841,7 +1856,7 @@ BEGIN
         -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of runtimes;
         -- see docs/internals/sql-execution-policy.md.
         FROM acta.runtimes r WITH (FORCESEEK)
-        INNER JOIN candidates c ON c.id = r.job_id
+        INNER JOIN @candidates c ON c.id = r.job_id
         INNER JOIN acta.jobs j ON j.id = r.job_id;
 
         IF @p_start_executing = 1
@@ -1923,26 +1938,31 @@ BEGIN
                     CAST(NULL AS UNIQUEIDENTIFIER) AS job_ref,
                     CAST(NULL AS INT) AS tenant_id,
                     @now AS db_now,
+                    /* The earliest head across the bands: each band's first index row is its earliest instant. */
                     (
-                        SELECT MIN(r.next_run_at_utc)
-                        FROM acta.runtimes r
-                        WHERE
-                            r.namespace_id = @p_namespace_id
-                            AND (
-                                r.status_code = 10 /* JobStatusCode.Ready */
-                                OR (r.status_code = 20 /* JobStatusCode.Suspended */ AND r.next_run_at_utc IS NOT NULL)
-                            )
-                            /* Excluded rows are invisible to this worker's horizon too: a horizon at or
-                               before now is what tells the caller to retry at the anti-spin floor, so
-                               counting rows this worker will never claim would spin it. */
-                            AND (
-                                @excluded_count = 0
-                                OR NOT EXISTS (
-                                    SELECT 1
-                                    FROM acta.jobs j
-                                    WHERE j.id = r.job_id AND j.definition_id IN (SELECT e.definition_id FROM @excluded e)
+                        SELECT MIN(head.next_run_at_utc)
+                        FROM @bands b
+                        CROSS APPLY (
+                            SELECT TOP (1) r.next_run_at_utc
+                            FROM acta.runtimes r
+                            WHERE
+                                r.namespace_id = @p_namespace_id
+                                AND r.priority_code = b.priority_code
+                                AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
+                                AND r.next_run_at_utc IS NOT NULL
+                                /* Excluded rows are invisible to this worker's horizon too: a horizon at or
+                                   before now is what tells the caller to retry at the anti-spin floor, so
+                                   counting rows this worker will never claim would spin it. */
+                                AND (
+                                    @excluded_count = 0
+                                    OR NOT EXISTS (
+                                        SELECT 1
+                                        FROM acta.jobs j
+                                        WHERE j.id = r.job_id AND j.definition_id IN (SELECT e.definition_id FROM @excluded e)
+                                    )
                                 )
-                            )
+                            ORDER BY r.next_run_at_utc ASC
+                        ) head
                     ) AS next_ready_at_utc;
             END
 
@@ -2003,23 +2023,16 @@ BEGIN
             );
 
         WITH candidates AS (
-            /* The status IN is redundant by the OR below but load-bearing: filtered-index subsumption
-               matches top-level AND-terms only. A Ready row always carries its due instant, enforced
-               by ck_runtimes_ready_due; Suspended keeps a NULL for an unbounded wait. */
+            /* claim_batch's due test: a Ready row always carries its due instant (ck_runtimes_ready_due), and a
+               Suspended row with a NULL instant is an unbounded wait that never comes due. */
             SELECT r.job_id AS id
             FROM acta.runtimes r WITH (READPAST, UPDLOCK, ROWLOCK, READCOMMITTEDLOCK)
             WHERE
                 r.job_id = @p_id
                 AND r.namespace_id = @p_namespace_id
                 AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
-                AND (
-                    (r.status_code = 10 /* JobStatusCode.Ready */ AND r.next_run_at_utc <= @due_now)
-                    OR (
-                        r.status_code = 20 /* JobStatusCode.Suspended */
-                        AND r.next_run_at_utc IS NOT NULL
-                        AND r.next_run_at_utc <= @due_now
-                    )
-                )
+                AND r.next_run_at_utc IS NOT NULL
+                AND r.next_run_at_utc <= @due_now
         )
 
         UPDATE r
@@ -9620,7 +9633,7 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.6-b393950ab68848076be967892b668edd', 'acta'
+SELECT -1, 'objects-1.6-f8faf848b686f2a71ef04f7a9c7f4ca1', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
     WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'jobs_view', 'schedules_view', 'steps_view', 'workers_view', 'events_view', 'tags_view', 'acknowledge_job_alert', 'raise_job_alert', 'resolve_job_alert_manual', 'resolve_job_alerts', 'update_alert_delivery', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_executions_batch', 'complete_step', 'register_job_definitions', 'set_job_definition_overrides', 'cancel_job', 'enqueue_batch', 'enqueue_one', 'pause_job', 'purge_job', 'reprioritize_job', 'reschedule_job', 'reset_job_state', 'restart_job', 'resume_job', 'update_job_input', 'resume_namespace', 'suspend_namespace', 'update_namespace', 'record_job_note', 'reclaim_stuck_jobs', 'repair_recovery_slot', 'pause_schedule', 'register_scheduled_jobs', 'resume_schedule', 'set_schedule_overrides', 'trigger_schedule_now', 'set_setting', 'consume_outbox_signal', 'park_outbox_signal', 'raise_signal', 'record_outbox_event', 'wait_signal', 'start_execution', 'start_step', 'register_tenant', 'resume_tenant', 'suspend_tenant', 'update_tenant', 'arm_or_consume_sleep_timer', 'extend_worker_leases', 'mark_dead_workers', 'start_worker', 'stop_worker', 'purge_expired_data', 'apply_tags', 'acquire_lock', 'acquire_slot', 'extend_lock', 'release_lock', 'reserve_rate')) = 68;
 GO

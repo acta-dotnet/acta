@@ -54,41 +54,56 @@ BEGIN
                 from_status TINYINT NOT NULL
             );
 
-        WITH candidates AS (
-            /* Pure claim-index scan on ix_runtimes_claim_ready via the denormalized namespace; concurrency-key admission is
-               executor-owned (lock store) after the start CAS, and the one jobs lookup is the exclusion below. A Ready row always
-               carries its due instant (ck_runtimes_ready_due); a Suspended NULL is unbounded. */
-            /* The status IN is redundant by the OR below but load-bearing: filtered-index subsumption
-               matches top-level AND-terms only, so without this exact restatement of the index filter
-               the claim scans every runtimes row and widens its UPDLOCK footprint to match. */
-            SELECT TOP (@p_claim_limit) r.job_id AS id
-            FROM {{schema}}.runtimes r WITH (READPAST, UPDLOCK, ROWLOCK, READCOMMITTEDLOCK)
-            WHERE
-                r.namespace_id = @p_namespace_id
-                AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
-                AND (
-                    (r.status_code = 10 /* JobStatusCode.Ready */ AND r.next_run_at_utc <= @due_now)
-                    OR (
-                        r.status_code = 20 /* JobStatusCode.Suspended */
-                        AND r.next_run_at_utc IS NOT NULL
-                        AND r.next_run_at_utc <= @due_now
+        /* Every JobPriorityCode, listed once: the claim seeks each band in turn and the horizon reads each band's head. */
+        DECLARE @bands TABLE (priority_code TINYINT NOT NULL PRIMARY KEY);
+        INSERT INTO @bands (priority_code)
+        VALUES
+            (100 /* JobPriorityCode.Realtime */),
+            (85 /* JobPriorityCode.Critical */),
+            (70 /* JobPriorityCode.High */),
+            (50 /* JobPriorityCode.Normal */),
+            (0 /* JobPriorityCode.Bulk */);
+
+        DECLARE @candidates TABLE (id BIGINT NOT NULL PRIMARY KEY);
+        DECLARE @remaining INT = @p_claim_limit;
+        DECLARE @band TINYINT = (SELECT MAX(priority_code) FROM @bands);
+
+        /* One seek per band, highest band first, each stopping at the band's first row not yet due. The
+           UPDLOCK holds every candidate to the end of the transaction, so the update below finds each one
+           as this loop left it. */
+        WHILE @band IS NOT NULL AND @remaining > 0
+            BEGIN
+                /* Pure claim-index seek on ix_runtimes_claim_ready via the denormalized namespace; concurrency-key admission is
+                   executor-owned (lock store) after the start CAS, and the one jobs lookup is the exclusion below. */
+                INSERT INTO @candidates (id)
+                SELECT TOP (@remaining) r.job_id
+                FROM {{schema}}.runtimes r WITH (READPAST, UPDLOCK, ROWLOCK, READCOMMITTEDLOCK)
+                WHERE
+                    r.namespace_id = @p_namespace_id
+                    AND r.priority_code = @band
+                    /* ix_runtimes_claim_ready's filter restated whole: filtered-index matching takes top-level AND-terms
+                       only, and without it the claim scans runtimes and widens its UPDLOCK footprint to match. Ready always
+                       carries its due instant (ck_runtimes_ready_due); a Suspended NULL never comes due. */
+                    AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
+                    AND r.next_run_at_utc IS NOT NULL
+                    AND r.next_run_at_utc <= @due_now
+                    /* Empty on a healthy fleet, so the count test settles it before the jobs lookup and
+                       the seek above stays as it was. */
+                    AND (
+                        @excluded_count = 0
+                        OR NOT EXISTS (
+                            SELECT 1
+                            FROM {{schema}}.jobs j
+                            WHERE j.id = r.job_id AND j.definition_id IN (SELECT e.definition_id FROM @excluded e)
+                        )
                     )
-                )
-                /* Empty on a healthy fleet, so the count test settles it before the jobs lookup and
-                   the scan above stays as it was. */
-                AND (
-                    @excluded_count = 0
-                    OR NOT EXISTS (
-                        SELECT 1
-                        FROM {{schema}}.jobs j
-                        WHERE j.id = r.job_id AND j.definition_id IN (SELECT e.definition_id FROM @excluded e)
-                    )
-                )
-            ORDER BY
-                r.priority_code DESC,
-                r.next_run_at_utc ASC,
-                r.job_id ASC
-        )
+                ORDER BY
+                    r.next_run_at_utc ASC,
+                    r.job_id ASC;
+
+                SET @remaining -= @@ROWCOUNT;
+                SET @band = (SELECT MAX(priority_code) FROM @bands WHERE priority_code < @band);
+            END
 
         UPDATE r
         SET
@@ -127,7 +142,7 @@ BEGIN
         -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of runtimes;
         -- see docs/internals/sql-execution-policy.md.
         FROM {{schema}}.runtimes r WITH (FORCESEEK)
-        INNER JOIN candidates c ON c.id = r.job_id
+        INNER JOIN @candidates c ON c.id = r.job_id
         INNER JOIN {{schema}}.jobs j ON j.id = r.job_id;
 
         IF @p_start_executing = 1
@@ -209,26 +224,31 @@ BEGIN
                     CAST(NULL AS UNIQUEIDENTIFIER) AS job_ref,
                     CAST(NULL AS INT) AS tenant_id,
                     @now AS db_now,
+                    /* The earliest head across the bands: each band's first index row is its earliest instant. */
                     (
-                        SELECT MIN(r.next_run_at_utc)
-                        FROM {{schema}}.runtimes r
-                        WHERE
-                            r.namespace_id = @p_namespace_id
-                            AND (
-                                r.status_code = 10 /* JobStatusCode.Ready */
-                                OR (r.status_code = 20 /* JobStatusCode.Suspended */ AND r.next_run_at_utc IS NOT NULL)
-                            )
-                            /* Excluded rows are invisible to this worker's horizon too: a horizon at or
-                               before now is what tells the caller to retry at the anti-spin floor, so
-                               counting rows this worker will never claim would spin it. */
-                            AND (
-                                @excluded_count = 0
-                                OR NOT EXISTS (
-                                    SELECT 1
-                                    FROM {{schema}}.jobs j
-                                    WHERE j.id = r.job_id AND j.definition_id IN (SELECT e.definition_id FROM @excluded e)
+                        SELECT MIN(head.next_run_at_utc)
+                        FROM @bands b
+                        CROSS APPLY (
+                            SELECT TOP (1) r.next_run_at_utc
+                            FROM {{schema}}.runtimes r
+                            WHERE
+                                r.namespace_id = @p_namespace_id
+                                AND r.priority_code = b.priority_code
+                                AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
+                                AND r.next_run_at_utc IS NOT NULL
+                                /* Excluded rows are invisible to this worker's horizon too: a horizon at or
+                                   before now is what tells the caller to retry at the anti-spin floor, so
+                                   counting rows this worker will never claim would spin it. */
+                                AND (
+                                    @excluded_count = 0
+                                    OR NOT EXISTS (
+                                        SELECT 1
+                                        FROM {{schema}}.jobs j
+                                        WHERE j.id = r.job_id AND j.definition_id IN (SELECT e.definition_id FROM @excluded e)
+                                    )
                                 )
-                            )
+                            ORDER BY r.next_run_at_utc ASC
+                        ) head
                     ) AS next_ready_at_utc;
             END
 

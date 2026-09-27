@@ -28,19 +28,16 @@ RETURNS TABLE (
 LANGUAGE sql
 AS $$
     WITH candidates AS (
-        /* The status IN is redundant by the OR below but load-bearing: a partial index is matched only
-           against top-level AND-terms. A Ready row always carries its due instant, enforced by
-           ck_runtimes_ready_due; Suspended keeps a NULL for an unbounded wait and is excluded. */
+        /* claim_batch's due test: a Ready row always carries its due instant (ck_runtimes_ready_due), and a
+           Suspended row with a NULL instant is an unbounded wait that never comes due. */
         SELECT r.job_id AS id, r.status_code AS from_status
         FROM {{schema}}.runtimes r
         WHERE
             r.job_id = p_id
             AND r.namespace_id = p_namespace_id
             AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
-            AND (
-                (r.status_code = 10 /* JobStatusCode.Ready */ AND r.next_run_at_utc <= now())
-                OR (r.status_code = 20 /* JobStatusCode.Suspended */ AND r.next_run_at_utc IS NOT NULL AND r.next_run_at_utc <= now())
-            )
+            AND r.next_run_at_utc IS NOT NULL
+            AND r.next_run_at_utc <= now()
         FOR UPDATE OF r SKIP LOCKED
     ),
     updated AS (

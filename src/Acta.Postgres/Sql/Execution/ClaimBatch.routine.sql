@@ -28,22 +28,32 @@ RETURNS TABLE (
 )
 LANGUAGE sql
 AS $$
-    WITH candidates AS (
+    WITH bands AS (
+        /* Every JobPriorityCode, listed once: the claim seeks each band and the horizon reads each band's head. */
+        SELECT
+            ARRAY[
+                100 /* JobPriorityCode.Realtime */,
+                85 /* JobPriorityCode.Critical */,
+                70 /* JobPriorityCode.High */,
+                50 /* JobPriorityCode.Normal */,
+                0 /* JobPriorityCode.Bulk */
+            ]::smallint[] AS priority_codes
+    ),
+    candidates AS (
         /* Pure claim-index scan on ix_runtimes_claim_ready via the denormalized namespace; concurrency-key admission is executor-owned
-           (lock store) after the start CAS, and the one jobs lookup is the exclusion below. A Ready row always carries its due instant
-           (ck_runtimes_ready_due); a Suspended NULL is an unbounded wait. */
+           (lock store) after the start CAS, and the one jobs lookup is the exclusion below. */
         SELECT r.job_id AS id, r.status_code AS from_status
         FROM {{schema}}.runtimes r
         WHERE
             r.namespace_id = p_namespace_id
-            /* Redundant by the OR below, but load-bearing: a partial index is matched only against
-               top-level AND-terms, so without this exact restatement of the index filter the claim
-               falls back to a full runtimes scan and sort. */
+            /* One array key per band: the scan seeks each band, leaves it at its first row not yet due, and still
+               returns index order, so the ORDER BY needs no sort. */
+            AND r.priority_code = ANY ((SELECT b.priority_codes FROM bands b)::smallint[])
+            /* ix_runtimes_claim_ready's filter restated whole: a partial index is matched only against top-level
+               AND-terms. Ready always carries its due instant (ck_runtimes_ready_due); a Suspended NULL never comes due. */
             AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
-            AND (
-                (r.status_code = 10 /* JobStatusCode.Ready */ AND r.next_run_at_utc <= now())
-                OR (r.status_code = 20 /* JobStatusCode.Suspended */ AND r.next_run_at_utc IS NOT NULL AND r.next_run_at_utc <= now())
-            )
+            AND r.next_run_at_utc IS NOT NULL
+            AND r.next_run_at_utc <= now()
             /* Rolling-deploy exclusion: definitions this worker already bounced for want of a handler.
                Empty on a healthy fleet, and the cardinality test is evaluated first, so a healthy claim
                never reaches the jobs lookup. */
@@ -182,25 +192,31 @@ AS $$
         NULL::uuid,
         NULL::int,
         c.db_now,
-        (SELECT MIN(r.next_run_at_utc)
-            FROM {{schema}}.runtimes r
-            WHERE
-                r.namespace_id = p_namespace_id
-                AND (
-                    r.status_code = 10 /* JobStatusCode.Ready */
-                    OR (r.status_code = 20 /* JobStatusCode.Suspended */ AND r.next_run_at_utc IS NOT NULL)
-                )
-                /* Excluded rows are invisible to this worker's horizon too: a horizon at or before now
-                   is what tells the caller to retry at the anti-spin floor, so counting rows this
-                   worker will never claim would spin it. */
-                AND (
-                    cardinality(p_excluded_definition_ids) = 0
-                    OR NOT EXISTS (
-                        SELECT 1
-                        FROM {{schema}}.jobs j
-                        WHERE j.id = r.job_id AND j.definition_id = ANY (p_excluded_definition_ids)
+        /* The earliest head across the bands: each band's first index row is its earliest instant. */
+        (SELECT MIN(head.next_run_at_utc)
+            FROM unnest((SELECT b.priority_codes FROM bands b)) AS band (priority_code)
+            CROSS JOIN LATERAL (
+                SELECT r.next_run_at_utc
+                FROM {{schema}}.runtimes r
+                WHERE
+                    r.namespace_id = p_namespace_id
+                    AND r.priority_code = band.priority_code
+                    AND r.status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
+                    AND r.next_run_at_utc IS NOT NULL
+                    /* Excluded rows are invisible to this worker's horizon too: a horizon at or before now
+                       is what tells the caller to retry at the anti-spin floor, so counting rows this
+                       worker will never claim would spin it. */
+                    AND (
+                        cardinality(p_excluded_definition_ids) = 0
+                        OR NOT EXISTS (
+                            SELECT 1
+                            FROM {{schema}}.jobs j
+                            WHERE j.id = r.job_id AND j.definition_id = ANY (p_excluded_definition_ids)
+                        )
                     )
-                ))
+                ORDER BY r.next_run_at_utc
+                LIMIT 1
+            ) head)
     FROM clock c
     WHERE NOT EXISTS (SELECT 1 FROM updated)
     ORDER BY id NULLS LAST;
