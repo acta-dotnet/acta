@@ -8,7 +8,9 @@ namespace Acta.Tests.Conformance.Testing;
 /// </summary>
 internal static class RuntimeStateStaging
 {
-    public const int StagedWorkerId = 1;
+    // No worker row ever gets this id, so no live worker's lease renewal reaches a staged row and pushes its
+    // lease past a reclaim the spec is waiting for. Nothing references workers by key, so no row is needed.
+    public const int StagedWorkerId = int.MaxValue;
 
     public static Task SetStatusAsync(IDbSession db, long jobId, byte statusCode, CancellationToken ct) =>
         statusCode is (byte)JobStatusCode.Dispatched or (byte)JobStatusCode.Executing
