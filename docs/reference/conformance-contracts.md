@@ -1464,6 +1464,7 @@
   - A parent enqueuing a child into a lane never deadlocks with an older child of that lane completing
   - Cancelling a Blocked follower never deadlocks with its head completing
   - Two enqueue batches naming shared lanes in opposite orders never deadlock with a completing head
+  - A batch keeps the lanes it locked when a definition's lane changes before its rows land
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
 

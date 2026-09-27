@@ -155,6 +155,49 @@ public abstract class LaneLockOrderSpec<TFixture> : ActaRuntimeTestBase<TFixture
         }
     }
 
+    [Fact(DisplayName = "A batch keeps the lanes it locked when a definition's lane changes before its rows land")]
+    public async Task Batch_keeps_its_locked_lanes_when_the_definition_lane_changes()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        if (Services.GetRequiredService<ISqlDialect>().Provider == DbProvider.Sqlite)
+        {
+            Assert.Skip("SQLite runs one writer at a time, so no definition change can land inside a batch.");
+        }
+
+        var head = await Jobs.EnqueueAsync(Defined("head"), ct);
+        var parent = await Jobs.EnqueueAsync(Step("", "parent"), ct);
+
+        // An open enqueue of an unlaned child holds the parent row, so the batch stops after its lane locks.
+        await using var gateConnection = await Db.OpenConnectionAsync(ct);
+        await using var gate = await gateConnection.BeginTransactionAsync(ct);
+        await Jobs.EnqueueAsync(gate, Step("", "gate") with { ParentJobId = parent.JobId }, ct);
+
+        var batch = Jobs.EnqueueBatchAsync(
+                [.. Enumerable.Range(0, 4).Select(i => Defined($"child-{i}") with { ParentJobId = parent.JobId })],
+                ct
+            )
+            .AsTask();
+        await Task.Delay(TimeSpan.FromMilliseconds(500), ct);
+        Assert.False(batch.IsCompleted, "the batch did not wait for the parent row");
+
+        await Db.ExecuteRawAsync(
+            "UPDATE {schema}.definitions SET lane = @p_lane WHERE namespace_id = @p_ns AND name = @p_name",
+            ct,
+            ("@p_lane", "moved-lane"),
+            ("@p_ns", Runtime.RegisteredNamespaceIds[TestNamespace]),
+            ("@p_name", "lane-defined")
+        );
+        await gate.CommitAsync(ct);
+
+        foreach (var child in await batch)
+        {
+            var detail = (await Jobs.GetAsync(child, ct))!;
+            Assert.Equal("defined-lane", detail.Lane);
+            Assert.Equal(JobStatusCode.Blocked, detail.Status);
+        }
+        Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(head.JobId, ct)).Status);
+    }
+
     // Claims and starts the job as this namespace's worker and hands back its completion, unsent.
     private async Task<Func<Task<CompleteExecutionResult>>> StartedAsync(JobEnqueueOutcome job, CancellationToken ct)
     {
@@ -181,6 +224,8 @@ public abstract class LaneLockOrderSpec<TFixture> : ActaRuntimeTestBase<TFixture
                 ct
             );
     }
+
+    private JobEnqueueRequest Defined(string label) => new(TestNamespace, "lane-defined", JobPayload.Json(new LaneDefinedStep(label)));
 
     private JobEnqueueRequest Step(string lane, string label) =>
         new(TestNamespace, "lane-step", JobPayload.Json(new LaneStep(lane, label)), Lane: lane.Length == 0 ? null : lane);

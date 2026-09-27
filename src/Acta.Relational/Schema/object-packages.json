@@ -99,7 +99,7 @@
     "Provider": "pg",
     "Major": 1,
     "Revision": 6,
-    "Hash": "116d3906ede3f243698031e0afc54a7e"
+    "Hash": "bb538bb10428c504e891cf396b07a7bb"
   },
   {
     "Provider": "sqlite",

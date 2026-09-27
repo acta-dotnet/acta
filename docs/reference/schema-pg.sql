@@ -3287,14 +3287,19 @@ DECLARE
     lane_count INT;
     locked_count INT;
     locked_lane RECORD;
+    v_lane VARCHAR [];
 BEGIN
 
     batch_count := COALESCE(array_length(p_b_ordinal, 1), 0);
 
-    -- Each row's effective lane is its own, else its definition's.
-    SELECT COUNT(*), COUNT(*) FILTER (WHERE COALESCE(b.lane, jd.lane) IS NOT NULL)
-    INTO resolved_count, laned_count
-    FROM unnest(p_b_namespace_name, p_b_job_name, p_b_lane) AS b(namespace_name, job_name, lane)
+    -- Each row's effective lane is its own, else its definition's, read once: a definition registered
+    -- mid-batch cannot move a row out of the lane locked for it.
+    SELECT
+        COUNT(*),
+        COUNT(*) FILTER (WHERE COALESCE(b.lane, jd.lane) IS NOT NULL),
+        array_agg(COALESCE(b.lane, jd.lane) ORDER BY b.ord)
+    INTO resolved_count, laned_count, v_lane
+    FROM unnest(p_b_namespace_name, p_b_job_name, p_b_lane) WITH ORDINALITY AS b(namespace_name, job_name, lane, ord)
     INNER JOIN acta.namespaces ns ON ns.name = b.namespace_name
     INNER JOIN acta.definitions jd
         ON jd.namespace_id = ns.id
@@ -3344,11 +3349,10 @@ BEGIN
         TRUNCATE _enq_lanes;
 
         INSERT INTO _enq_lanes (namespace_id, name)
-        SELECT DISTINCT ns.id, COALESCE(b.lane, jd.lane)
-        FROM unnest(p_b_namespace_name, p_b_job_name, p_b_lane) AS b(namespace_name, job_name, lane)
+        SELECT DISTINCT ns.id, b.lane
+        FROM unnest(p_b_namespace_name, v_lane) AS b(namespace_name, lane)
         INNER JOIN acta.namespaces ns ON ns.name = b.namespace_name
-        INNER JOIN acta.definitions jd ON jd.namespace_id = ns.id AND jd.name = b.job_name
-        WHERE COALESCE(b.lane, jd.lane) IS NOT NULL;
+        WHERE b.lane IS NOT NULL;
 
         SELECT COUNT(*) INTO lane_count FROM _enq_lanes;
 
@@ -3537,7 +3541,7 @@ BEGIN
             p_b_ordinal, p_b_job_ref, p_b_namespace_name, p_b_job_name,
             p_b_deduplication_key, p_b_correlation_key, p_b_priority_override,
             p_b_input_format_id, p_b_input, p_b_concurrency_key, p_b_next_run_at_utc,
-            p_b_delay_seconds, p_b_parent_id, p_b_tenant_key, p_b_lane
+            p_b_delay_seconds, p_b_parent_id, p_b_tenant_key, v_lane
         ) AS b(ordinal, job_ref, namespace_name, job_name,
             deduplication_key, correlation_key, priority_override,
             input_format_id, input, concurrency_key, next_run_at_utc,
@@ -3581,7 +3585,7 @@ BEGIN
         COALESCE(b.priority_override, jd.priority_code_effective),
         COALESCE(b.next_run_at_utc, now() + make_interval(secs => COALESCE(b.delay_seconds, 0))),
         (b.parent_id IS NOT NULL),
-        COALESCE(b.lane, jd.lane)
+        b.lane
     FROM batch_rows b
     INNER JOIN ranked_ids ri ON ri.rn = b.rn
     INNER JOIN acta.namespaces ns ON ns.name = b.namespace_name AND ns.status_code = 10 /* NamespaceStatusCode.Active */
@@ -8615,7 +8619,7 @@ DROP FUNCTION IF EXISTS acta.reserve_rate(VARCHAR, BIGINT, INT, INT, UUID);
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.6-116d3906ede3f243698031e0afc54a7e', 'acta');
+VALUES (-1, 'objects-1.6-bb538bb10428c504e891cf396b07a7bb', 'acta');
 
 COMMIT;
 
