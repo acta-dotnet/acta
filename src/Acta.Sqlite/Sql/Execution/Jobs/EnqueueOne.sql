@@ -110,6 +110,8 @@ WHERE
     AND COALESCE(@p_lane, jd.lane) IS NOT NULL
 ON CONFLICT (namespace_id, name) DO NOTHING;
 
+-- begin child-only: SqliteDialect.BindEnqueueOne drops this statement for a job with no parent, whose
+-- ancestor walk would find nothing, because parsing it is a quarter of an enqueue's cost.
 SELECT
     ACTA_ERROR(
         'ACTA:ENQ_ANCESTOR_LANE:Enqueue rejected: a child names the lane of an unfinished ancestor,'
@@ -140,6 +142,7 @@ WHERE
                 30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
             )
     );
+-- end child-only
 
 INSERT INTO {{schema}}.jobs (
     job_ref, lineage_root_id, parent_id, deduplication_key, correlation_key,

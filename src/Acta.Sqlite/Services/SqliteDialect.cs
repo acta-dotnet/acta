@@ -237,6 +237,11 @@ internal sealed class SqliteDialect : ISqlDialect
 
     public void BindEnqueueOne(DbCommand command, JobEnqueueRow row, Guid jobRef, string schema)
     {
+        if (row.ParentId is null)
+        {
+            command.CommandText = WithoutChildOnly(command.CommandText);
+        }
+
         AddText(command, "@p_job_ref", jobRef.ToString());
         AddText(command, "@p_namespace_name", row.NamespaceName);
         AddText(command, "@p_job_name", row.JobName);
@@ -263,6 +268,20 @@ internal sealed class SqliteDialect : ISqlDialect
             }
         );
         AddText(command, "@p_tags", jsonTags);
+    }
+
+    internal const string ChildOnlyBegin = "-- begin child-only";
+    internal const string ChildOnlyEnd = "-- end child-only";
+
+    /// <summary>
+    /// The enqueue script without its child-only section. SQLite prepares every statement of a command on
+    /// each call, so a statement that can only matter to a child still costs an unparented enqueue its parse.
+    /// </summary>
+    internal static string WithoutChildOnly(string sql)
+    {
+        var start = sql.IndexOf(ChildOnlyBegin, StringComparison.Ordinal);
+        var end = sql.IndexOf(ChildOnlyEnd, StringComparison.Ordinal);
+        return start < 0 || end < start ? sql : sql[..start] + sql[(end + ChildOnlyEnd.Length)..];
     }
 
     public void BindRegisterJobDefinitions(

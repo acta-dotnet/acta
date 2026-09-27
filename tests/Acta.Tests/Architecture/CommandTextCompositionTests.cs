@@ -74,6 +74,9 @@ public sealed class CommandTextCompositionTests
         // Per-connection PRAGMAs. The one interpolated hole is NORMAL or FULL, picked from the
         // ExecutionProfile enum in the constructor; there is no third value it can hold.
         ["Acta.Sqlite/Services/SqliteDialect.cs::OnStateChange"] = (1, "literal PRAGMA text, enum-chosen synchronous mode"),
+        // The unparented enqueue. The loaded script loses its marked child-only statement and gains
+        // nothing: the result is a substring of embedded SQL, so no runtime value can enter it.
+        ["Acta.Sqlite/Services/SqliteDialect.cs::BindEnqueueOne"] = (1, "embedded SQL with a marked section removed"),
         // Migration and object installation. The text is an embedded DDL resource (M-numbered
         // migration scripts, provider view and routine bodies) split into batches by the provider
         // hooks; the only substitution is {{schema}}, and the CREATE VIEW wrapper's qualified name is
