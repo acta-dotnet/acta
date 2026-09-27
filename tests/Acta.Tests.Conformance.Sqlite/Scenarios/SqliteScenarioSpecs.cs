@@ -53,6 +53,8 @@ public sealed class SqliteJobContractSpec : JobContractSpec<SqliteConformanceFix
 
 public sealed class SqliteHandlerControlSpec : HandlerControlSpec<SqliteConformanceFixture>;
 
+public sealed class SqliteConcurrentLockSweepSpec : ConcurrentLockSweepSpec<SqliteConformanceFixture>;
+
 public sealed class SqlitePurgeExpiredDataSpec : PurgeExpiredDataSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteAlertSkipVariableRetentionSpec : AlertSkipVariableRetentionSpec<SqliteConformanceFixture>;

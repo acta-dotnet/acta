@@ -105,10 +105,11 @@ public abstract class LaneRepairSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
         await AssertUntouchedAsync(follower, ct);
     }
 
-    [Fact(DisplayName = "One pass repairs at most a thousand stranded lanes")]
+    [Fact(DisplayName = "One pass repairs at most a hundred stranded lanes of the thousand it visits")]
     public async Task One_pass_is_capped()
     {
         var ct = TestContext.Current.CancellationToken;
+        // More stranded lanes than the pass visits, so its whole window is stranded and only the cap binds.
         const int Lanes = 1100;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         await Jobs.EnqueueBatchAsync(
@@ -124,7 +125,8 @@ public abstract class LaneRepairSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
 
         var outcome = await Services.GetRequiredService<RecoveryPass>().RunAsync(ns, TestNamespace, ct);
 
-        Assert.Equal(1000, outcome.RepairedLanes);
+        Assert.Equal(100, outcome.RepairedLanes);
+        Assert.Equal(100, await Db.From<JobRuntime>().Where(r => r.NamespaceId == ns && r.Status == JobStatusCode.Ready).CountAsync(ct));
     }
 
     private Task PassAsync(CancellationToken ct) =>

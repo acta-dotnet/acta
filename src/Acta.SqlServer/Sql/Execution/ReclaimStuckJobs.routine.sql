@@ -28,11 +28,12 @@ BEGIN
                 parent_id BIGINT NULL
             );
 
-        /* At most 1,000 of the namespace's lanes per pass, from a random lane id with wrap, each head
-           sought through ix_runtimes_lane (named: a small runtimes table tempts a clustered scan). */
+        /* A pass visits at most 1,000 of the namespace's lanes from a random lane id with wrap and repairs at
+           most 100 stranded ones in visiting order (docs/internals/sql-execution-policy.md, "Lane lock order").
+           Each head is sought through ix_runtimes_lane, named because a small runtimes table tempts a scan. */
+        DECLARE @window TABLE (ord INT IDENTITY (1, 1) PRIMARY KEY, id BIGINT NOT NULL);
         DECLARE @stranded TABLE (id BIGINT NOT NULL PRIMARY KEY);
         DECLARE @repaired TABLE (id BIGINT NOT NULL PRIMARY KEY);
-        DECLARE @window TABLE (id BIGINT NOT NULL PRIMARY KEY);
         DECLARE @min_lane BIGINT, @max_lane BIGINT, @start_lane BIGINT, @window_count INT;
         SELECT @min_lane = MIN(l.id), @max_lane = MAX(l.id) FROM {{schema}}.lanes l;
         IF @max_lane IS NOT NULL
@@ -51,7 +52,7 @@ BEGIN
                 ORDER BY l.id;
 
                 INSERT INTO @stranded (id)
-                SELECT w.id
+                SELECT TOP (100) w.id
                 FROM @window w
                 CROSS APPLY (
                     SELECT TOP (1) m.status_code
@@ -65,104 +66,85 @@ BEGIN
                         )
                     ORDER BY m.job_id
                 ) h
-                WHERE h.status_code = 15 /* JobStatusCode.Blocked */;
+                WHERE h.status_code = 15 /* JobStatusCode.Blocked */
+                ORDER BY w.ord;
             END;
 
-        /* The stuck rows' and stranded lanes one row at a time in id order, then the runtime rows
-           (docs/internals/sql-execution-policy.md, "Lane lock order"). A lane another transaction holds
-           is skipped, and its stuck rows and repair wait for a later pass. */
-        DECLARE @lanes TABLE (id BIGINT NOT NULL PRIMARY KEY);
-        INSERT INTO @lanes (id)
-        SELECT r.lane_id
-        FROM {{schema}}.runtimes r
+        /* Stuck candidates are read through the filtered ix_runtimes_worker_inflight without holding locks,
+           and only those rows are locked below, by primary key: the index is shared by every namespace, so
+           holding its keys would make another namespace's sweep skip its own rows under READPAST. */
+        DECLARE @stuck TABLE (id BIGINT NOT NULL PRIMARY KEY, lane_id BIGINT NULL);
+        INSERT INTO @stuck (id, lane_id)
+        SELECT r.job_id, r.lane_id
+        FROM {{schema}}.runtimes r WITH (INDEX (ix_runtimes_worker_inflight), READPAST)
         WHERE
             r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+            AND r.leased_by_worker_id IS NOT NULL
             AND r.lease_expires_at_utc < @now
-            AND r.namespace_id = @p_namespace_id
-            AND r.lane_id IS NOT NULL
+            AND r.namespace_id = @p_namespace_id;
+
+        /* Lanes are locked one UPDLOCK seek at a time in id order, skipping a lane another transaction holds,
+           whose stuck rows and repair wait for a later pass. */
+        DECLARE @candidates TABLE (id BIGINT NOT NULL PRIMARY KEY);
+        INSERT INTO @candidates (id)
+        SELECT k.lane_id
+        FROM @stuck k
+        WHERE k.lane_id IS NOT NULL
         UNION
         SELECT s.id
         FROM @stranded s;
 
-        DECLARE @lane_cursor BIGINT = 0, @lane_next BIGINT, @head_id BIGINT, @head_status TINYINT, @promoted INT;
+        DECLARE @lanes TABLE (id BIGINT NOT NULL PRIMARY KEY);
+        DECLARE @lane_cursor BIGINT = 0, @lane_next BIGINT, @lane_locked BIGINT;
         WHILE 1 = 1
             BEGIN
                 SET @lane_next = NULL;
-                SELECT TOP (1) @lane_next = e.id
-                FROM @lanes e
-                WHERE e.id > @lane_cursor
-                ORDER BY e.id;
+                SELECT TOP (1) @lane_next = c.id
+                FROM @candidates c
+                WHERE c.id > @lane_cursor
+                ORDER BY c.id;
 
                 IF @lane_next IS NULL
                     BREAK;
 
-                SET @head_id = NULL;
-                SELECT @head_id = l.id
+                SET @lane_locked = NULL;
+                SELECT @lane_locked = l.id
                 FROM {{schema}}.lanes l WITH (UPDLOCK, READPAST, ROWLOCK)
                 WHERE l.id = @lane_next;
 
-                IF @head_id IS NULL
-                    BEGIN
-                        DELETE FROM @lanes WHERE id = @lane_next;
-                        DELETE FROM @stranded WHERE id = @lane_next;
-                    END;
+                IF @lane_locked IS NOT NULL
+                    INSERT INTO @lanes (id) VALUES (@lane_locked);
 
                 SET @lane_cursor = @lane_next;
             END;
 
-        /* The walk read without locks, so each stranded lane is re-read under its lock and repaired only
-           when its lowest-id unfinished member is still Blocked. */
-        SET @lane_cursor = 0;
-        WHILE 1 = 1
-            BEGIN
-                SET @lane_next = NULL;
-                SELECT TOP (1) @lane_next = s.id
-                FROM @stranded s
-                WHERE s.id > @lane_cursor
-                ORDER BY s.id;
-
-                IF @lane_next IS NULL
-                    BREAK;
-
-                SET @promoted = 0;
-                WHILE @promoted = 0
-                    BEGIN
-                        SET @head_id = NULL;
-                        SET @head_status = NULL;
-
-                        SELECT TOP (1)
-                            @head_id = m.job_id,
-                            @head_status = m.status_code
-                        FROM {{schema}}.runtimes m
-                        WHERE
-                            m.lane_id = @lane_next
-                            AND m.lane_id IS NOT NULL
-                            AND m.status_code IN (
-                                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                                30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-                            )
-                        ORDER BY m.job_id;
-
-                        IF @head_status IS NULL OR @head_status <> 15 /* JobStatusCode.Blocked */
-                            BREAK;
-
-                        UPDATE {{schema}}.runtimes
-                        SET
-                            status_code = 10 /* JobStatusCode.Ready */,
-                            next_run_at_utc = CASE WHEN next_run_at_utc > @now THEN next_run_at_utc ELSE @now END,
-                            modified_at_utc = @now,
-                            version = version + 1
-                        WHERE
-                            job_id = @head_id
-                            AND status_code = 15 /* JobStatusCode.Blocked */;
-
-                        SET @promoted = @@ROWCOUNT;
-                        IF @promoted > 0
-                            INSERT INTO @repaired (id) VALUES (@head_id);
-                    END;
-
-                SET @lane_cursor = @lane_next;
-            END;
+        /* The walk read without locks, so each stranded lane's head is re-read under its lock and promoted
+           only while it is still Blocked. */
+        UPDATE r
+        SET
+            status_code = 10 /* JobStatusCode.Ready */,
+            next_run_at_utc = CASE WHEN r.next_run_at_utc > @now THEN r.next_run_at_utc ELSE @now END,
+            modified_at_utc = @now,
+            version = r.version + 1
+        OUTPUT INSERTED.job_id INTO @repaired (id)
+        FROM @stranded s
+        INNER JOIN @lanes e ON e.id = s.id
+        CROSS APPLY (
+            SELECT TOP (1) m.job_id, m.status_code
+            FROM {{schema}}.runtimes m WITH (INDEX (ix_runtimes_lane), FORCESEEK)
+            WHERE
+                m.lane_id = s.id
+                AND m.lane_id IS NOT NULL
+                AND m.status_code IN (
+                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                    30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                )
+            ORDER BY m.job_id
+        ) h
+        INNER JOIN {{schema}}.runtimes r WITH (FORCESEEK) ON r.job_id = h.job_id
+        WHERE
+            h.status_code = 15 /* JobStatusCode.Blocked */
+            AND r.status_code = 15 /* JobStatusCode.Blocked */;
 
         INSERT INTO {{schema}}.events (
             event_code, created_at_utc, namespace_id,
@@ -225,11 +207,13 @@ BEGIN
                     FROM {{schema}}.schedules sc
                     WHERE sc.job_id = r.job_id
                 ) THEN 1 ELSE 0 END AS is_recurring
-            FROM {{schema}}.runtimes r WITH (READPAST, UPDLOCK, ROWLOCK)
+            FROM @stuck k
+            INNER JOIN {{schema}}.runtimes r WITH (READPAST, UPDLOCK, ROWLOCK, FORCESEEK) ON r.job_id = k.id
             INNER JOIN {{schema}}.jobs j ON j.id = r.job_id
             INNER JOIN {{schema}}.definitions jd ON jd.id = j.definition_id
             WHERE
                 r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+                AND r.leased_by_worker_id IS NOT NULL
                 AND r.lease_expires_at_utc < @now
                 AND r.namespace_id = @p_namespace_id
                 AND (r.lane_id IS NULL OR r.lane_id IN (SELECT e.id FROM @lanes e))
@@ -322,56 +306,30 @@ BEGIN
         WHERE audit_level_code IN (10 /* JobAuditLevelCode.Failures */, 20 /* JobAuditLevelCode.Audit */);
 
         /* A head reclaimed to Failed hands its lane on; a head re-armed Ready keeps it. Promotion runs
-           under the lane lock and re-reads rather than trusting an update that matched nothing. */
-        SET @lane_cursor = 0;
-        WHILE 1 = 1
-            BEGIN
-                SET @lane_next = NULL;
-                SELECT TOP (1) @lane_next = e.id
-                FROM @lanes e
-                WHERE e.id > @lane_cursor
-                ORDER BY e.id;
-
-                IF @lane_next IS NULL
-                    BREAK;
-
-                SET @promoted = 0;
-                WHILE @promoted = 0
-                    BEGIN
-                        SET @head_id = NULL;
-                        SET @head_status = NULL;
-
-                        SELECT TOP (1)
-                            @head_id = m.job_id,
-                            @head_status = m.status_code
-                        FROM {{schema}}.runtimes m
-                        WHERE
-                            m.lane_id = @lane_next
-                            AND m.lane_id IS NOT NULL
-                            AND m.status_code IN (
-                                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                                30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-                            )
-                        ORDER BY m.job_id;
-
-                        IF @head_status IS NULL OR @head_status <> 15 /* JobStatusCode.Blocked */
-                            BREAK;
-
-                        UPDATE {{schema}}.runtimes
-                        SET
-                            status_code = 10 /* JobStatusCode.Ready */,
-                            next_run_at_utc = CASE WHEN next_run_at_utc > @now THEN next_run_at_utc ELSE @now END,
-                            modified_at_utc = @now,
-                            version = version + 1
-                        WHERE
-                            job_id = @head_id
-                            AND status_code = 15 /* JobStatusCode.Blocked */;
-
-                        SET @promoted = @@ROWCOUNT;
-                    END;
-
-                SET @lane_cursor = @lane_next;
-            END;
+           under the lane locks and re-reads each head rather than trusting the walk. */
+        UPDATE r
+        SET
+            status_code = 10 /* JobStatusCode.Ready */,
+            next_run_at_utc = CASE WHEN r.next_run_at_utc > @now THEN r.next_run_at_utc ELSE @now END,
+            modified_at_utc = @now,
+            version = r.version + 1
+        FROM @lanes e
+        CROSS APPLY (
+            SELECT TOP (1) m.job_id, m.status_code
+            FROM {{schema}}.runtimes m WITH (INDEX (ix_runtimes_lane), FORCESEEK)
+            WHERE
+                m.lane_id = e.id
+                AND m.lane_id IS NOT NULL
+                AND m.status_code IN (
+                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                    30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                )
+            ORDER BY m.job_id
+        ) h
+        INNER JOIN {{schema}}.runtimes r WITH (FORCESEEK) ON r.job_id = h.job_id
+        WHERE
+            h.status_code = 15 /* JobStatusCode.Blocked */
+            AND r.status_code = 15 /* JobStatusCode.Blocked */;
 
         SELECT
             id AS job_id,

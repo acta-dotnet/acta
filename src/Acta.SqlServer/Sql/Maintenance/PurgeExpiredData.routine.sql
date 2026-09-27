@@ -54,32 +54,22 @@ BEGIN
 
                 DELETE @schedule_del;
                 INSERT INTO @schedule_del (id)
-                SELECT s.id FROM {{schema}}.schedules s WITH (UPDLOCK)
-                WHERE s.job_id IN (SELECT id FROM @del)
-                OPTION (LOOP JOIN);
+                SELECT s.id FROM {{schema}}.schedules s WITH (UPDLOCK, FORCESEEK)
+                WHERE s.job_id IN (SELECT id FROM @del);
 
                 DELETE FROM {{schema}}.tags
                 WHERE
                     (scope_code = 50 /* TagScopeCode.Job */ AND scope_id IN (SELECT id FROM @del))
                     OR (scope_code = 60 /* TagScopeCode.Schedule */ AND scope_id IN (SELECT id FROM @schedule_del));
 
-                -- Each delete below, the jobs cascade included, seeks its rows by job id: an unhinted plan compiled
-                -- at the batch's size scans the whole child table under update locks
+                -- Each delete below seeks its rows by job id, the jobs cascade included: an unhinted plan can scan
+                -- the whole child table under update locks
                 -- (docs/internals/sql-execution-policy.md, "Foreign keys in set-based writes").
-                DELETE FROM {{schema}}.checkpoints
-                WHERE job_id IN (SELECT id FROM @del)
-                OPTION (LOOP JOIN);
-                DELETE FROM {{schema}}.runtimes
-                WHERE job_id IN (SELECT id FROM @del)
-                OPTION (LOOP JOIN);
-                DELETE FROM {{schema}}.steps
-                WHERE job_id IN (SELECT id FROM @del)
-                OPTION (LOOP JOIN);
-                DELETE FROM {{schema}}.results
-                WHERE job_id IN (SELECT id FROM @del)
-                OPTION (LOOP JOIN);
-                DELETE FROM {{schema}}.jobs
-                WHERE id IN (SELECT id FROM @del)
+                DELETE c FROM {{schema}}.checkpoints c WITH (FORCESEEK) INNER JOIN @del d ON d.id = c.job_id;
+                DELETE r FROM {{schema}}.runtimes r WITH (FORCESEEK) INNER JOIN @del d ON d.id = r.job_id;
+                DELETE s FROM {{schema}}.steps s WITH (FORCESEEK) INNER JOIN @del d ON d.id = s.job_id;
+                DELETE x FROM {{schema}}.results x WITH (FORCESEEK) INNER JOIN @del d ON d.id = x.job_id;
+                DELETE j FROM {{schema}}.jobs j WITH (FORCESEEK) INNER JOIN @del d ON d.id = j.id
                 OPTION (LOOP JOIN);
                 SET @rows = (SELECT COUNT(*) FROM @del);
 
@@ -98,7 +88,7 @@ BEGIN
                 ORDER BY created_at_utc, id;
                 DELETE FROM {{schema}}.tags
                 WHERE scope_code = 90 /* TagScopeCode.Event */ AND scope_id IN (SELECT id FROM @del);
-                DELETE e FROM {{schema}}.events e INNER JOIN @del d ON d.id = e.id;
+                DELETE e FROM {{schema}}.events e WITH (FORCESEEK) INNER JOIN @del d ON d.id = e.id;
                 SET @rows = (SELECT COUNT(*) FROM @del);
 
             END;
@@ -121,7 +111,7 @@ BEGIN
                 ORDER BY created_at_utc, id;
                 DELETE FROM {{schema}}.tags
                 WHERE scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM @del);
-                DELETE a FROM {{schema}}.alerts a INNER JOIN @del d ON d.id = a.id;
+                DELETE a FROM {{schema}}.alerts a WITH (FORCESEEK) INNER JOIN @del d ON d.id = a.id;
                 SET @rows = (SELECT COUNT(*) FROM @del);
 
             END;
@@ -143,7 +133,7 @@ BEGIN
                 ORDER BY created_at_utc, id;
                 DELETE FROM {{schema}}.tags
                 WHERE scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM @del);
-                DELETE a FROM {{schema}}.alerts a INNER JOIN @del d ON d.id = a.id;
+                DELETE a FROM {{schema}}.alerts a WITH (FORCESEEK) INNER JOIN @del d ON d.id = a.id;
                 SET @rows = (SELECT COUNT(*) FROM @del);
 
             END;
@@ -180,23 +170,27 @@ BEGIN
                 ORDER BY last_seen_at_utc, id;
                 DELETE FROM {{schema}}.tags
                 WHERE scope_code = 70 /* TagScopeCode.Worker */ AND scope_id IN (SELECT id FROM @del);
-                DELETE w FROM {{schema}}.workers w INNER JOIN @del d ON d.id = w.id;
+                DELETE w FROM {{schema}}.workers w WITH (FORCESEEK) INNER JOIN @del d ON d.id = w.id;
                 SET @rows = (SELECT COUNT(*) FROM @del);
 
             END;
 
         ELSE IF @p_section = 7
             BEGIN
-            -- Stage the batch first (same shape as the sections above), so the READPAST probe runs
-            -- exactly once per iteration and the delete stays within the batch size.
+            -- The batch is staged without holding locks, then the delete seeks each row by clustered key, first
+            -- as every lock writer does, skipping a row a writer holds and re-checking its expiry. Taking the
+            -- expiry index key first deadlocks against reserve_rate moving a bucket's expiry.
                 DELETE @lock_del;
                 INSERT INTO @lock_del (lock_key)
                 SELECT TOP (@p_batch_size) lock_key
-                FROM {{schema}}.locks WITH (UPDLOCK, READPAST)
+                FROM {{schema}}.locks WITH (READPAST)
                 WHERE
                     expires_at_utc <= @p_cutoff_utc
                 ORDER BY expires_at_utc;
-                DELETE t FROM {{schema}}.locks t INNER JOIN @lock_del d ON d.lock_key = t.lock_key;
+                DELETE t
+                FROM {{schema}}.locks t WITH (READPAST, FORCESEEK (pk_locks (lock_key)))
+                INNER JOIN @lock_del d ON d.lock_key = t.lock_key
+                WHERE t.expires_at_utc <= @p_cutoff_utc;
                 SET @rows = @@ROWCOUNT;
             END;
 
@@ -217,7 +211,7 @@ BEGIN
                     ORDER BY c.id
                 );
                 DELETE l
-                FROM {{schema}}.lanes l
+                FROM {{schema}}.lanes l WITH (FORCESEEK)
                 INNER JOIN @del d ON d.id = l.id
                 WHERE NOT EXISTS (SELECT 1 FROM {{schema}}.runtimes r WHERE r.lane_id = l.id)
                 OPTION (LOOP JOIN);

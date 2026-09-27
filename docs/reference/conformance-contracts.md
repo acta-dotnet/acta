@@ -1544,7 +1544,7 @@
   - A lane with a Ready head is left untouched by the pass
   - A lane whose head is Paused or Suspended is held, not stranded, and the pass leaves it
   - A pass in another namespace leaves this namespace's stranded lane alone
-  - One pass repairs at most a thousand stranded lanes
+  - One pass repairs at most a hundred stranded lanes of the thousand it visits
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.ReclaimStuckJobsAsync`
 
@@ -2329,6 +2329,16 @@
   - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.ResolveJobIdByRefAsync`
   - `Acta.Runtime.Modules.Operations.Events.IEventStore.ListEventsAsync`
 
+### Concurrent retention sweeps reap a shared lock backlog without a deadlock
+- **Contract:** Retention sweeps racing over the same expired lock rows each reap rows no other sweep holds, and together they reap all of them without a deadlock.
+- **Arrange:** A thousand expired lock rows are acquired with a negative TTL, and deadlock retry is off so a deadlock victim surfaces.
+- **Act:** Eight retention sweeps run at once with small batches, so their lock-section batches interleave.
+- **Assert:** Every sweep completes and none of the expired rows is left.
+- **Guarantees:**
+  - Eight retention sweeps racing over a thousand expired lock rows reap them all without a deadlock
+- **Store methods:**
+  - `Acta.Runtime.Maintenance.IRetentionStore.PurgeBatchAsync`
+
 ### Purge reaps expired jobs events alerts and terminal workers within batches
 - **Contract:** Purge deletes terminal jobs with cascade, expired events, aged alerts settled or not under separate counts, terminal workers and expired locks.
 - **Arrange:** Terminal purge-now jobs, events, settled and undelivered alerts, Stopped, Dead and Active workers, and expired and live lock rows are seeded.
@@ -2993,7 +3003,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 
 | Store method | Covering conformance specs |
 | --- | --- |
-| `IRetentionStore.PurgeBatchAsync` | A completed child outlives its retention deadline while its parent is live<br>A purged job's public ref still resolves to its surviving event timeline<br>Aged projector skip variables are pruned on the alert window<br>Events outlive a purged worker with a canonical actor key<br>Purge reaps expired jobs events alerts and terminal workers within batches |
+| `IRetentionStore.PurgeBatchAsync` | A completed child outlives its retention deadline while its parent is live<br>A purged job's public ref still resolves to its surviving event timeline<br>Aged projector skip variables are pruned on the alert window<br>Concurrent retention sweeps reap a shared lock backlog without a deadlock<br>Events outlive a purged worker with a canonical actor key<br>Purge reaps expired jobs events alerts and terminal workers within batches |
 | `IAlertStore.AcknowledgeJobAlertAsync` | Operator acknowledge/resolve verbs on IAlerts. |
 | `IAlertStore.GetAlertableEventsAsync` | A recurring job whose handler throws raises an alert<br>A replayed alert batch neither inflates an incident nor opens a ghost one<br>Alert profiles gate emission and severity per profile<br>Reclaiming a crashed timeout resolution costs the job no retry budget<br>The alerts projector classifies failures off events and resolves on success<br>The alerts projector drains a backlog in bounded batches within one invocation<br>The alerts projector reads behind a safe horizon rather than up to the present<br>The failures-only audit level records a failure and the success that answers it<br>ThresholdReached fires once per incident at the exact occurrence |
 | `IAlertStore.GetDeliverableAlertsAsync` | Alert delivery retries with backoff, goes terminal, and reminds open incidents<br>Deliverable alerts read due rows, remind open incidents, and settle by version |

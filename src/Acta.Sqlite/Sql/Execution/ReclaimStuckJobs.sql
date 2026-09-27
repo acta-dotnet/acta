@@ -2,9 +2,9 @@ DROP TABLE IF EXISTS temp._repair_start;
 DROP TABLE IF EXISTS temp._repair_window;
 DROP TABLE IF EXISTS temp._repair_lanes;
 
-/* A stranded lane's lowest-id unfinished member is Blocked with nothing ahead of it to settle. Each pass
-   visits at most 1,000 of the namespace's lanes, from a random lane id with wrap, and seeks each head;
-   the immediate transaction is the lanes' mutex on SQLite. */
+/* A pass visits at most 1,000 of the namespace's lanes from a random lane id with wrap, seeks each head, and
+   repairs at most 100 stranded ones in visiting order; a stranded lane's lowest-id unfinished member is
+   Blocked. The immediate transaction is the lanes' mutex on SQLite. */
 CREATE TEMP TABLE _repair_start AS
 SELECT MIN(l.id) + ABS(RANDOM()) % (MAX(l.id) - MIN(l.id) + 1) AS start_id
 FROM {{schema}}.lanes l;
@@ -28,23 +28,27 @@ LIMIT (SELECT 1000 - COUNT(*) FROM temp._repair_window);
 CREATE TEMP TABLE _repair_lanes AS
 SELECT h.id
 FROM (
-    SELECT (
-        SELECT m.job_id
-        FROM {{schema}}.runtimes m
-        WHERE
-            m.lane_id = w.id
-            AND m.lane_id IS NOT NULL
-            AND m.status_code IN (
-                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-            )
-        ORDER BY m.job_id
-        LIMIT 1
-    ) AS id
+    SELECT
+        w.rowid AS ord,
+        (
+            SELECT m.job_id
+            FROM {{schema}}.runtimes m
+            WHERE
+                m.lane_id = w.id
+                AND m.lane_id IS NOT NULL
+                AND m.status_code IN (
+                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                    30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                )
+            ORDER BY m.job_id
+            LIMIT 1
+        ) AS id
     FROM temp._repair_window w
 ) h
 INNER JOIN {{schema}}.runtimes r ON r.job_id = h.id
-WHERE r.status_code = 15 /* JobStatusCode.Blocked */;
+WHERE r.status_code = 15 /* JobStatusCode.Blocked */
+ORDER BY h.ord
+LIMIT 100;
 
 UPDATE {{schema}}.runtimes
 SET

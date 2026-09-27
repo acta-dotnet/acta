@@ -55,6 +55,8 @@ public sealed class PgJobContractSpec : JobContractSpec<PgConformanceFixture>;
 
 public sealed class PgHandlerControlSpec : HandlerControlSpec<PgConformanceFixture>;
 
+public sealed class PgConcurrentLockSweepSpec : ConcurrentLockSweepSpec<PgConformanceFixture>;
+
 public sealed class PgPurgeExpiredDataSpec : PurgeExpiredDataSpec<PgConformanceFixture>;
 
 public sealed class PgAlertSkipVariableRetentionSpec : AlertSkipVariableRetentionSpec<PgConformanceFixture>;

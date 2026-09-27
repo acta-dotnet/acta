@@ -20,9 +20,9 @@ DECLARE
     v_head_id BIGINT;
     v_head_status SMALLINT;
 BEGIN
-    -- A stranded lane's lowest-id unfinished member is Blocked, so nothing ahead of it will settle and
-    -- promote it. Each pass visits at most 1,000 of the namespace's lanes, from a random lane id with
-    -- wrap, and seeks each one's head through ix_runtimes_lane; every lane is visited eventually.
+    -- A pass visits at most 1,000 of the namespace's lanes from a random lane id with wrap, seeks each head
+    -- through ix_runtimes_lane, and repairs at most 100 stranded ones in visiting order; a stranded lane's
+    -- lowest-id unfinished member is Blocked. Every lane is visited eventually.
     SELECT min(l.id), max(l.id) INTO v_min_lane, v_max_lane FROM {{schema}}.lanes l;
     IF v_max_lane IS NOT NULL THEN
         v_start_lane := v_min_lane + floor(random() * (v_max_lane - v_min_lane + 1))::BIGINT;
@@ -42,7 +42,7 @@ BEGIN
         );
         v_stranded := ARRAY(
             SELECT w.id
-            FROM unnest(v_window) AS w (id)
+            FROM unnest(v_window) WITH ORDINALITY AS w (id, ord)
             CROSS JOIN LATERAL (
                 SELECT m.status_code
                 FROM {{schema}}.runtimes m
@@ -57,6 +57,8 @@ BEGIN
                 LIMIT 1
             ) h
             WHERE h.status_code = 15 /* JobStatusCode.Blocked */
+            ORDER BY w.ord
+            LIMIT 100
         );
     END IF;
 

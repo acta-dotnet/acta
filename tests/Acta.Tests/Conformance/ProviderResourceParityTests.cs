@@ -122,7 +122,7 @@ public sealed class TagRetentionLockPolicyTests
 
         Assert.True(captureStart >= 0 && cleanupStart > captureStart, "Schedule capture and tag cleanup statements must remain ordered.");
         var scheduleCapture = sql[captureStart..cleanupStart];
-        Assert.Contains("WITH (UPDLOCK)", scheduleCapture, StringComparison.Ordinal);
+        Assert.Contains("WITH (UPDLOCK, FORCESEEK)", scheduleCapture, StringComparison.Ordinal);
         Assert.DoesNotContain("READPAST", scheduleCapture, StringComparison.Ordinal);
     }
 }

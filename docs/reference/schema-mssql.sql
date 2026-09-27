@@ -5848,11 +5848,12 @@ BEGIN
                 parent_id BIGINT NULL
             );
 
-        /* At most 1,000 of the namespace's lanes per pass, from a random lane id with wrap, each head
-           sought through ix_runtimes_lane (named: a small runtimes table tempts a clustered scan). */
+        /* A pass visits at most 1,000 of the namespace's lanes from a random lane id with wrap and repairs at
+           most 100 stranded ones in visiting order (docs/internals/sql-execution-policy.md, "Lane lock order").
+           Each head is sought through ix_runtimes_lane, named because a small runtimes table tempts a scan. */
+        DECLARE @window TABLE (ord INT IDENTITY (1, 1) PRIMARY KEY, id BIGINT NOT NULL);
         DECLARE @stranded TABLE (id BIGINT NOT NULL PRIMARY KEY);
         DECLARE @repaired TABLE (id BIGINT NOT NULL PRIMARY KEY);
-        DECLARE @window TABLE (id BIGINT NOT NULL PRIMARY KEY);
         DECLARE @min_lane BIGINT, @max_lane BIGINT, @start_lane BIGINT, @window_count INT;
         SELECT @min_lane = MIN(l.id), @max_lane = MAX(l.id) FROM acta.lanes l;
         IF @max_lane IS NOT NULL
@@ -5871,7 +5872,7 @@ BEGIN
                 ORDER BY l.id;
 
                 INSERT INTO @stranded (id)
-                SELECT w.id
+                SELECT TOP (100) w.id
                 FROM @window w
                 CROSS APPLY (
                     SELECT TOP (1) m.status_code
@@ -5885,104 +5886,85 @@ BEGIN
                         )
                     ORDER BY m.job_id
                 ) h
-                WHERE h.status_code = 15 /* JobStatusCode.Blocked */;
+                WHERE h.status_code = 15 /* JobStatusCode.Blocked */
+                ORDER BY w.ord;
             END;
 
-        /* The stuck rows' and stranded lanes one row at a time in id order, then the runtime rows
-           (docs/internals/sql-execution-policy.md, "Lane lock order"). A lane another transaction holds
-           is skipped, and its stuck rows and repair wait for a later pass. */
-        DECLARE @lanes TABLE (id BIGINT NOT NULL PRIMARY KEY);
-        INSERT INTO @lanes (id)
-        SELECT r.lane_id
-        FROM acta.runtimes r
+        /* Stuck candidates are read through the filtered ix_runtimes_worker_inflight without holding locks,
+           and only those rows are locked below, by primary key: the index is shared by every namespace, so
+           holding its keys would make another namespace's sweep skip its own rows under READPAST. */
+        DECLARE @stuck TABLE (id BIGINT NOT NULL PRIMARY KEY, lane_id BIGINT NULL);
+        INSERT INTO @stuck (id, lane_id)
+        SELECT r.job_id, r.lane_id
+        FROM acta.runtimes r WITH (INDEX (ix_runtimes_worker_inflight), READPAST)
         WHERE
             r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+            AND r.leased_by_worker_id IS NOT NULL
             AND r.lease_expires_at_utc < @now
-            AND r.namespace_id = @p_namespace_id
-            AND r.lane_id IS NOT NULL
+            AND r.namespace_id = @p_namespace_id;
+
+        /* Lanes are locked one UPDLOCK seek at a time in id order, skipping a lane another transaction holds,
+           whose stuck rows and repair wait for a later pass. */
+        DECLARE @candidates TABLE (id BIGINT NOT NULL PRIMARY KEY);
+        INSERT INTO @candidates (id)
+        SELECT k.lane_id
+        FROM @stuck k
+        WHERE k.lane_id IS NOT NULL
         UNION
         SELECT s.id
         FROM @stranded s;
 
-        DECLARE @lane_cursor BIGINT = 0, @lane_next BIGINT, @head_id BIGINT, @head_status TINYINT, @promoted INT;
+        DECLARE @lanes TABLE (id BIGINT NOT NULL PRIMARY KEY);
+        DECLARE @lane_cursor BIGINT = 0, @lane_next BIGINT, @lane_locked BIGINT;
         WHILE 1 = 1
             BEGIN
                 SET @lane_next = NULL;
-                SELECT TOP (1) @lane_next = e.id
-                FROM @lanes e
-                WHERE e.id > @lane_cursor
-                ORDER BY e.id;
+                SELECT TOP (1) @lane_next = c.id
+                FROM @candidates c
+                WHERE c.id > @lane_cursor
+                ORDER BY c.id;
 
                 IF @lane_next IS NULL
                     BREAK;
 
-                SET @head_id = NULL;
-                SELECT @head_id = l.id
+                SET @lane_locked = NULL;
+                SELECT @lane_locked = l.id
                 FROM acta.lanes l WITH (UPDLOCK, READPAST, ROWLOCK)
                 WHERE l.id = @lane_next;
 
-                IF @head_id IS NULL
-                    BEGIN
-                        DELETE FROM @lanes WHERE id = @lane_next;
-                        DELETE FROM @stranded WHERE id = @lane_next;
-                    END;
+                IF @lane_locked IS NOT NULL
+                    INSERT INTO @lanes (id) VALUES (@lane_locked);
 
                 SET @lane_cursor = @lane_next;
             END;
 
-        /* The walk read without locks, so each stranded lane is re-read under its lock and repaired only
-           when its lowest-id unfinished member is still Blocked. */
-        SET @lane_cursor = 0;
-        WHILE 1 = 1
-            BEGIN
-                SET @lane_next = NULL;
-                SELECT TOP (1) @lane_next = s.id
-                FROM @stranded s
-                WHERE s.id > @lane_cursor
-                ORDER BY s.id;
-
-                IF @lane_next IS NULL
-                    BREAK;
-
-                SET @promoted = 0;
-                WHILE @promoted = 0
-                    BEGIN
-                        SET @head_id = NULL;
-                        SET @head_status = NULL;
-
-                        SELECT TOP (1)
-                            @head_id = m.job_id,
-                            @head_status = m.status_code
-                        FROM acta.runtimes m
-                        WHERE
-                            m.lane_id = @lane_next
-                            AND m.lane_id IS NOT NULL
-                            AND m.status_code IN (
-                                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                                30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-                            )
-                        ORDER BY m.job_id;
-
-                        IF @head_status IS NULL OR @head_status <> 15 /* JobStatusCode.Blocked */
-                            BREAK;
-
-                        UPDATE acta.runtimes
-                        SET
-                            status_code = 10 /* JobStatusCode.Ready */,
-                            next_run_at_utc = CASE WHEN next_run_at_utc > @now THEN next_run_at_utc ELSE @now END,
-                            modified_at_utc = @now,
-                            version = version + 1
-                        WHERE
-                            job_id = @head_id
-                            AND status_code = 15 /* JobStatusCode.Blocked */;
-
-                        SET @promoted = @@ROWCOUNT;
-                        IF @promoted > 0
-                            INSERT INTO @repaired (id) VALUES (@head_id);
-                    END;
-
-                SET @lane_cursor = @lane_next;
-            END;
+        /* The walk read without locks, so each stranded lane's head is re-read under its lock and promoted
+           only while it is still Blocked. */
+        UPDATE r
+        SET
+            status_code = 10 /* JobStatusCode.Ready */,
+            next_run_at_utc = CASE WHEN r.next_run_at_utc > @now THEN r.next_run_at_utc ELSE @now END,
+            modified_at_utc = @now,
+            version = r.version + 1
+        OUTPUT INSERTED.job_id INTO @repaired (id)
+        FROM @stranded s
+        INNER JOIN @lanes e ON e.id = s.id
+        CROSS APPLY (
+            SELECT TOP (1) m.job_id, m.status_code
+            FROM acta.runtimes m WITH (INDEX (ix_runtimes_lane), FORCESEEK)
+            WHERE
+                m.lane_id = s.id
+                AND m.lane_id IS NOT NULL
+                AND m.status_code IN (
+                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                    30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                )
+            ORDER BY m.job_id
+        ) h
+        INNER JOIN acta.runtimes r WITH (FORCESEEK) ON r.job_id = h.job_id
+        WHERE
+            h.status_code = 15 /* JobStatusCode.Blocked */
+            AND r.status_code = 15 /* JobStatusCode.Blocked */;
 
         INSERT INTO acta.events (
             event_code, created_at_utc, namespace_id,
@@ -6045,11 +6027,13 @@ BEGIN
                     FROM acta.schedules sc
                     WHERE sc.job_id = r.job_id
                 ) THEN 1 ELSE 0 END AS is_recurring
-            FROM acta.runtimes r WITH (READPAST, UPDLOCK, ROWLOCK)
+            FROM @stuck k
+            INNER JOIN acta.runtimes r WITH (READPAST, UPDLOCK, ROWLOCK, FORCESEEK) ON r.job_id = k.id
             INNER JOIN acta.jobs j ON j.id = r.job_id
             INNER JOIN acta.definitions jd ON jd.id = j.definition_id
             WHERE
                 r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+                AND r.leased_by_worker_id IS NOT NULL
                 AND r.lease_expires_at_utc < @now
                 AND r.namespace_id = @p_namespace_id
                 AND (r.lane_id IS NULL OR r.lane_id IN (SELECT e.id FROM @lanes e))
@@ -6142,56 +6126,30 @@ BEGIN
         WHERE audit_level_code IN (10 /* JobAuditLevelCode.Failures */, 20 /* JobAuditLevelCode.Audit */);
 
         /* A head reclaimed to Failed hands its lane on; a head re-armed Ready keeps it. Promotion runs
-           under the lane lock and re-reads rather than trusting an update that matched nothing. */
-        SET @lane_cursor = 0;
-        WHILE 1 = 1
-            BEGIN
-                SET @lane_next = NULL;
-                SELECT TOP (1) @lane_next = e.id
-                FROM @lanes e
-                WHERE e.id > @lane_cursor
-                ORDER BY e.id;
-
-                IF @lane_next IS NULL
-                    BREAK;
-
-                SET @promoted = 0;
-                WHILE @promoted = 0
-                    BEGIN
-                        SET @head_id = NULL;
-                        SET @head_status = NULL;
-
-                        SELECT TOP (1)
-                            @head_id = m.job_id,
-                            @head_status = m.status_code
-                        FROM acta.runtimes m
-                        WHERE
-                            m.lane_id = @lane_next
-                            AND m.lane_id IS NOT NULL
-                            AND m.status_code IN (
-                                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                                30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-                            )
-                        ORDER BY m.job_id;
-
-                        IF @head_status IS NULL OR @head_status <> 15 /* JobStatusCode.Blocked */
-                            BREAK;
-
-                        UPDATE acta.runtimes
-                        SET
-                            status_code = 10 /* JobStatusCode.Ready */,
-                            next_run_at_utc = CASE WHEN next_run_at_utc > @now THEN next_run_at_utc ELSE @now END,
-                            modified_at_utc = @now,
-                            version = version + 1
-                        WHERE
-                            job_id = @head_id
-                            AND status_code = 15 /* JobStatusCode.Blocked */;
-
-                        SET @promoted = @@ROWCOUNT;
-                    END;
-
-                SET @lane_cursor = @lane_next;
-            END;
+           under the lane locks and re-reads each head rather than trusting the walk. */
+        UPDATE r
+        SET
+            status_code = 10 /* JobStatusCode.Ready */,
+            next_run_at_utc = CASE WHEN r.next_run_at_utc > @now THEN r.next_run_at_utc ELSE @now END,
+            modified_at_utc = @now,
+            version = r.version + 1
+        FROM @lanes e
+        CROSS APPLY (
+            SELECT TOP (1) m.job_id, m.status_code
+            FROM acta.runtimes m WITH (INDEX (ix_runtimes_lane), FORCESEEK)
+            WHERE
+                m.lane_id = e.id
+                AND m.lane_id IS NOT NULL
+                AND m.status_code IN (
+                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                    30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                )
+            ORDER BY m.job_id
+        ) h
+        INNER JOIN acta.runtimes r WITH (FORCESEEK) ON r.job_id = h.job_id
+        WHERE
+            h.status_code = 15 /* JobStatusCode.Blocked */
+            AND r.status_code = 15 /* JobStatusCode.Blocked */;
 
         SELECT
             id AS job_id,
@@ -8684,32 +8642,22 @@ BEGIN
 
                 DELETE @schedule_del;
                 INSERT INTO @schedule_del (id)
-                SELECT s.id FROM acta.schedules s WITH (UPDLOCK)
-                WHERE s.job_id IN (SELECT id FROM @del)
-                OPTION (LOOP JOIN);
+                SELECT s.id FROM acta.schedules s WITH (UPDLOCK, FORCESEEK)
+                WHERE s.job_id IN (SELECT id FROM @del);
 
                 DELETE FROM acta.tags
                 WHERE
                     (scope_code = 50 /* TagScopeCode.Job */ AND scope_id IN (SELECT id FROM @del))
                     OR (scope_code = 60 /* TagScopeCode.Schedule */ AND scope_id IN (SELECT id FROM @schedule_del));
 
-                -- Each delete below, the jobs cascade included, seeks its rows by job id: an unhinted plan compiled
-                -- at the batch's size scans the whole child table under update locks
+                -- Each delete below seeks its rows by job id, the jobs cascade included: an unhinted plan can scan
+                -- the whole child table under update locks
                 -- (docs/internals/sql-execution-policy.md, "Foreign keys in set-based writes").
-                DELETE FROM acta.checkpoints
-                WHERE job_id IN (SELECT id FROM @del)
-                OPTION (LOOP JOIN);
-                DELETE FROM acta.runtimes
-                WHERE job_id IN (SELECT id FROM @del)
-                OPTION (LOOP JOIN);
-                DELETE FROM acta.steps
-                WHERE job_id IN (SELECT id FROM @del)
-                OPTION (LOOP JOIN);
-                DELETE FROM acta.results
-                WHERE job_id IN (SELECT id FROM @del)
-                OPTION (LOOP JOIN);
-                DELETE FROM acta.jobs
-                WHERE id IN (SELECT id FROM @del)
+                DELETE c FROM acta.checkpoints c WITH (FORCESEEK) INNER JOIN @del d ON d.id = c.job_id;
+                DELETE r FROM acta.runtimes r WITH (FORCESEEK) INNER JOIN @del d ON d.id = r.job_id;
+                DELETE s FROM acta.steps s WITH (FORCESEEK) INNER JOIN @del d ON d.id = s.job_id;
+                DELETE x FROM acta.results x WITH (FORCESEEK) INNER JOIN @del d ON d.id = x.job_id;
+                DELETE j FROM acta.jobs j WITH (FORCESEEK) INNER JOIN @del d ON d.id = j.id
                 OPTION (LOOP JOIN);
                 SET @rows = (SELECT COUNT(*) FROM @del);
 
@@ -8728,7 +8676,7 @@ BEGIN
                 ORDER BY created_at_utc, id;
                 DELETE FROM acta.tags
                 WHERE scope_code = 90 /* TagScopeCode.Event */ AND scope_id IN (SELECT id FROM @del);
-                DELETE e FROM acta.events e INNER JOIN @del d ON d.id = e.id;
+                DELETE e FROM acta.events e WITH (FORCESEEK) INNER JOIN @del d ON d.id = e.id;
                 SET @rows = (SELECT COUNT(*) FROM @del);
 
             END;
@@ -8751,7 +8699,7 @@ BEGIN
                 ORDER BY created_at_utc, id;
                 DELETE FROM acta.tags
                 WHERE scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM @del);
-                DELETE a FROM acta.alerts a INNER JOIN @del d ON d.id = a.id;
+                DELETE a FROM acta.alerts a WITH (FORCESEEK) INNER JOIN @del d ON d.id = a.id;
                 SET @rows = (SELECT COUNT(*) FROM @del);
 
             END;
@@ -8773,7 +8721,7 @@ BEGIN
                 ORDER BY created_at_utc, id;
                 DELETE FROM acta.tags
                 WHERE scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM @del);
-                DELETE a FROM acta.alerts a INNER JOIN @del d ON d.id = a.id;
+                DELETE a FROM acta.alerts a WITH (FORCESEEK) INNER JOIN @del d ON d.id = a.id;
                 SET @rows = (SELECT COUNT(*) FROM @del);
 
             END;
@@ -8810,23 +8758,27 @@ BEGIN
                 ORDER BY last_seen_at_utc, id;
                 DELETE FROM acta.tags
                 WHERE scope_code = 70 /* TagScopeCode.Worker */ AND scope_id IN (SELECT id FROM @del);
-                DELETE w FROM acta.workers w INNER JOIN @del d ON d.id = w.id;
+                DELETE w FROM acta.workers w WITH (FORCESEEK) INNER JOIN @del d ON d.id = w.id;
                 SET @rows = (SELECT COUNT(*) FROM @del);
 
             END;
 
         ELSE IF @p_section = 7
             BEGIN
-            -- Stage the batch first (same shape as the sections above), so the READPAST probe runs
-            -- exactly once per iteration and the delete stays within the batch size.
+            -- The batch is staged without holding locks, then the delete seeks each row by clustered key, first
+            -- as every lock writer does, skipping a row a writer holds and re-checking its expiry. Taking the
+            -- expiry index key first deadlocks against reserve_rate moving a bucket's expiry.
                 DELETE @lock_del;
                 INSERT INTO @lock_del (lock_key)
                 SELECT TOP (@p_batch_size) lock_key
-                FROM acta.locks WITH (UPDLOCK, READPAST)
+                FROM acta.locks WITH (READPAST)
                 WHERE
                     expires_at_utc <= @p_cutoff_utc
                 ORDER BY expires_at_utc;
-                DELETE t FROM acta.locks t INNER JOIN @lock_del d ON d.lock_key = t.lock_key;
+                DELETE t
+                FROM acta.locks t WITH (READPAST, FORCESEEK (pk_locks (lock_key)))
+                INNER JOIN @lock_del d ON d.lock_key = t.lock_key
+                WHERE t.expires_at_utc <= @p_cutoff_utc;
                 SET @rows = @@ROWCOUNT;
             END;
 
@@ -8847,7 +8799,7 @@ BEGIN
                     ORDER BY c.id
                 );
                 DELETE l
-                FROM acta.lanes l
+                FROM acta.lanes l WITH (FORCESEEK)
                 INNER JOIN @del d ON d.id = l.id
                 WHERE NOT EXISTS (SELECT 1 FROM acta.runtimes r WHERE r.lane_id = l.id)
                 OPTION (LOOP JOIN);
@@ -9359,7 +9311,7 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.6-1bf6a206816f01dd191f3b7768b34070', 'acta'
+SELECT -1, 'objects-1.6-8d3ba3a3699c6b480b36f432d9db15a7', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
     WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'jobs_view', 'schedules_view', 'steps_view', 'workers_view', 'events_view', 'tags_view', 'acknowledge_job_alert', 'raise_job_alert', 'resolve_job_alert_manual', 'resolve_job_alerts', 'update_alert_delivery', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_executions_batch', 'complete_step', 'register_job_definitions', 'set_job_definition_overrides', 'cancel_job', 'enqueue_batch', 'enqueue_one', 'pause_job', 'purge_job', 'reprioritize_job', 'reschedule_job', 'reset_job_state', 'restart_job', 'resume_job', 'update_job_input', 'resume_namespace', 'suspend_namespace', 'update_namespace', 'record_job_note', 'reclaim_stuck_jobs', 'repair_recovery_slot', 'pause_schedule', 'register_scheduled_jobs', 'resume_schedule', 'set_schedule_overrides', 'trigger_schedule_now', 'set_setting', 'consume_outbox_signal', 'park_outbox_signal', 'raise_signal', 'record_outbox_event', 'wait_signal', 'start_execution', 'start_step', 'register_tenant', 'resume_tenant', 'suspend_tenant', 'update_tenant', 'arm_or_consume_sleep_timer', 'extend_worker_leases', 'mark_dead_workers', 'start_worker', 'stop_worker', 'purge_expired_data', 'apply_tags', 'acquire_lock', 'acquire_slot', 'extend_lock', 'release_lock', 'reserve_rate')) = 68;
 GO

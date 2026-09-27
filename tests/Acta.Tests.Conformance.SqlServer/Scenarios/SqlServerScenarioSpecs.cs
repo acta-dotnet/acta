@@ -55,6 +55,8 @@ public sealed class SqlServerJobContractSpec : JobContractSpec<SqlServerConforma
 
 public sealed class SqlServerHandlerControlSpec : HandlerControlSpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerConcurrentLockSweepSpec : ConcurrentLockSweepSpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerPurgeExpiredDataSpec : PurgeExpiredDataSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerAlertSkipVariableRetentionSpec : AlertSkipVariableRetentionSpec<SqlServerConformanceFixture>;
