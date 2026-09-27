@@ -13,8 +13,8 @@ BEGIN
             BEGIN TRANSACTION;
 
         -- The job row first, then its alert rows (docs/internals/sql-execution-policy.md, "Alert lock order").
-        -- alerts has no job_id index, so the candidates are read without locks and each is then locked by
-        -- primary key and re-checked; the held job row keeps a raise from adding one meanwhile.
+        -- The candidates are read through ix_alerts_job without locks and each is then locked by primary key
+        -- and re-checked; the held job row keeps a raise from adding one meanwhile.
         DECLARE @job_locked BIGINT;
         SELECT @job_locked = j.id
         FROM {{schema}}.jobs j WITH (UPDLOCK, ROWLOCK)
@@ -23,7 +23,7 @@ BEGIN
         DECLARE @candidates TABLE (id BIGINT NOT NULL PRIMARY KEY);
         INSERT INTO @candidates (id)
         SELECT a.id
-        FROM {{schema}}.alerts a
+        FROM {{schema}}.alerts a WITH (FORCESEEK (ix_alerts_job (job_id)))
         WHERE
             a.namespace_id = @p_namespace_id
             AND a.job_id = @p_job_id

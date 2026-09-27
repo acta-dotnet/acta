@@ -1454,8 +1454,8 @@ BEGIN
             BEGIN TRANSACTION;
 
         -- The job row first, then its alert rows (docs/internals/sql-execution-policy.md, "Alert lock order").
-        -- alerts has no job_id index, so the candidates are read without locks and each is then locked by
-        -- primary key and re-checked; the held job row keeps a raise from adding one meanwhile.
+        -- The candidates are read through ix_alerts_job without locks and each is then locked by primary key
+        -- and re-checked; the held job row keeps a raise from adding one meanwhile.
         DECLARE @job_locked BIGINT;
         SELECT @job_locked = j.id
         FROM acta.jobs j WITH (UPDLOCK, ROWLOCK)
@@ -1464,7 +1464,7 @@ BEGIN
         DECLARE @candidates TABLE (id BIGINT NOT NULL PRIMARY KEY);
         INSERT INTO @candidates (id)
         SELECT a.id
-        FROM acta.alerts a
+        FROM acta.alerts a WITH (FORCESEEK (ix_alerts_job (job_id)))
         WHERE
             a.namespace_id = @p_namespace_id
             AND a.job_id = @p_job_id
@@ -4696,11 +4696,11 @@ BEGIN
 
         INSERT @schedule_ids SELECT id FROM acta.schedules WITH (UPDLOCK, ROWLOCK, FORCESEEK)
         WHERE job_id = @p_id;
-        -- The job's alerts are read without locks, which the held job row makes safe, then each identity row
-        -- is locked through its ix_alerts_dedupe_identity key before the row and the delete locks the rest
+        -- The job's alerts are read through ix_alerts_job without locks, which the held job row makes safe, then
+        -- each identity row is locked through its identity key before the row and the delete locks the rest
         -- (docs/internals/sql-execution-policy.md, "Alert lock order").
         INSERT @alert_ids (id, namespace_id, dedupe_key)
-        SELECT id, namespace_id, dedupe_key FROM acta.alerts
+        SELECT id, namespace_id, dedupe_key FROM acta.alerts WITH (FORCESEEK (ix_alerts_job (job_id)))
         WHERE job_id = @p_id;
         DECLARE @identity_locked INT = (
             SELECT COUNT(*)
@@ -9413,7 +9413,7 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.6-a6ea7ca69a3879bd609f22c7eb6d76bf', 'acta'
+SELECT -1, 'objects-1.6-b37cd79612dab7a90ebe59f60ad4f970', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
     WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'jobs_view', 'schedules_view', 'steps_view', 'workers_view', 'events_view', 'tags_view', 'acknowledge_job_alert', 'raise_job_alert', 'resolve_job_alert_manual', 'resolve_job_alerts', 'update_alert_delivery', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_executions_batch', 'complete_step', 'register_job_definitions', 'set_job_definition_overrides', 'cancel_job', 'enqueue_batch', 'enqueue_one', 'pause_job', 'purge_job', 'reprioritize_job', 'reschedule_job', 'reset_job_state', 'restart_job', 'resume_job', 'update_job_input', 'resume_namespace', 'suspend_namespace', 'update_namespace', 'record_job_note', 'reclaim_stuck_jobs', 'repair_recovery_slot', 'pause_schedule', 'register_scheduled_jobs', 'resume_schedule', 'set_schedule_overrides', 'trigger_schedule_now', 'set_setting', 'consume_outbox_signal', 'park_outbox_signal', 'raise_signal', 'record_outbox_event', 'wait_signal', 'start_execution', 'start_step', 'register_tenant', 'resume_tenant', 'suspend_tenant', 'update_tenant', 'arm_or_consume_sleep_timer', 'extend_worker_leases', 'mark_dead_workers', 'start_worker', 'stop_worker', 'purge_expired_data', 'apply_tags', 'acquire_lock', 'acquire_slot', 'extend_lock', 'release_lock', 'reserve_rate')) = 68;
 GO
