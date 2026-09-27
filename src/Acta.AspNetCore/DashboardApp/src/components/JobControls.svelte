@@ -7,7 +7,6 @@
   import { jobControlState } from './jobControlState.ts';
   import ConfirmAction from './ConfirmAction.svelte';
   import Icon from './Icon.svelte';
-  import { routes } from '../routes.ts';
 
   let { jobRef, status, priority = null, embedded = false, onChanged = () => {} }: {
     jobRef: string;
@@ -19,7 +18,6 @@
 
   let message = $state('');
   let messageKind = $state('');
-  let redriveJobRef = $state<string | null>(null);
   let confirming = $state<string | null>(null);
   let reschedulingOpen = $state(false);
   let reprioritizingOpen = $state(false);
@@ -59,7 +57,7 @@
     },
     restart: {
       title: 'Run this job again?',
-      body: 'Re-arms the same job id to run again from its persisted input. A finished job in a lane runs again as a new job at the end of its lane instead. Prior attempts and events stay in the audit timeline.',
+      body: 'Re-arms the same job id to run again from its persisted input. A job in a lane waits until the job running in its lane finishes. Prior attempts and events stay in the audit timeline.',
       label: 'Run again',
       danger: true,
       requireReason: true,
@@ -168,12 +166,10 @@
     reschedulingOpen = false;
     reprioritizingOpen = false;
     message = '';
-    redriveJobRef = null;
     try {
       const result = await mutation.mutateAsync({ jobRef, action, reason, extra });
       message = result.message;
-      messageKind = result.action === 'applied' || result.action === 'redriven' ? 'ok' : 'warn';
-      redriveJobRef = result.redriveJobRef ?? null;
+      messageKind = result.action === 'applied' ? 'ok' : 'warn';
       onChanged();
     } catch (e) {
       message = (e as Error).message;
@@ -256,9 +252,7 @@
   {/if}
 
   {#if message}
-    <div class="control-message {messageKind}" role="status">
-      {message}{#if redriveJobRef} <a href={routes.job(redriveJobRef)}>Open the new job</a>{/if}
-    </div>
+    <div class="control-message {messageKind}" role="status">{message}</div>
   {/if}
 </section>
 

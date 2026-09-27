@@ -119,6 +119,20 @@ BEGIN
 
             EXIT WHEN v_head_status IS DISTINCT FROM 15 /* JobStatusCode.Blocked */;
 
+            -- A restarted member can wait Blocked below a running one, so promote only while no member runs
+            -- (docs/internals/sql-execution-policy.md, "Lane lock order").
+            EXIT WHEN EXISTS (
+                SELECT 1
+                FROM {{schema}}.runtimes o
+                WHERE
+                    o.lane_id = v_lane_id
+                    AND o.lane_id IS NOT NULL
+                    AND o.status_code IN (
+                        10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                        40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                    )
+            );
+
             UPDATE {{schema}}.runtimes pr
             SET
                 status_code = 10 /* JobStatusCode.Ready */,

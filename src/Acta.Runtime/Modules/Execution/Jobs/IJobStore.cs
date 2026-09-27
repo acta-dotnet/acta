@@ -103,22 +103,6 @@ internal interface IJobStore
     /// <summary>Hard-deletes a terminal job; the surviving events carry the public ref.</summary>
     Task<JobControlOutcome> PurgeJobAsync(long jobId, JobControlInput input, CancellationToken ct);
 
-    /// <summary>
-    /// Redrives a finished laned job in one owned transaction: enqueues <paramref name="row"/> with the
-    /// pre-allocated <paramref name="copyRef"/> through the one-row enqueue, which locks the lane first, then
-    /// bumps the finished row's version under the input's optional expected version, writes a job.redriven
-    /// event on each row whose detail names the other, and copies the finished row's tags to the copy. Commits
-    /// only when the bump lands; otherwise the copy rolls back and the outcome's Bump is null.
-    /// </summary>
-    Task<JobRedriveOutcome> RedriveJobAsync(
-        JobEnqueueRow row,
-        Guid copyRef,
-        long jobId,
-        JobRef jobRef,
-        JobControlInput input,
-        CancellationToken ct
-    );
-
     /// <summary>Clears a job's durable step/checkpoint state ahead of a fresh attempt.</summary>
     Task ResetJobStateAsync(long jobId, CancellationToken ct);
 }

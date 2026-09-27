@@ -211,7 +211,7 @@ BEGIN TRY
             @p_reason_message);
 
         -- Once every parked member is cancelled, each locked lane hands on to its lowest-id unfinished
-        -- member if that member is Blocked, so no member of the retired definition is promoted.
+        -- member if that member is Blocked and no member still runs, so no retired member is promoted.
         INSERT INTO @heads (job_id)
         SELECT h.job_id
         FROM @lanes l
@@ -227,7 +227,19 @@ BEGIN TRY
                 )
             ORDER BY m.job_id
         ) h
-        WHERE h.status_code = 15 /* JobStatusCode.Blocked */;
+        WHERE
+            h.status_code = 15 /* JobStatusCode.Blocked */
+            AND NOT EXISTS (
+                SELECT 1
+                FROM {{schema}}.runtimes o
+                WHERE
+                    o.lane_id = l.id
+                    AND o.lane_id IS NOT NULL
+                    AND o.status_code IN (
+                        10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                        40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                    )
+            );
 
         UPDATE r
         SET

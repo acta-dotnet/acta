@@ -5,9 +5,9 @@ SELECT
     j.id,
     r.status_code AS from_status,
     r.version AS from_version,
-    -- A laned job goes Ready only as its lane's lowest-id unfinished member; behind an older one it
-    -- waits Blocked, and its new instant applies once it is promoted. The immediate transaction is the
-    -- lane's mutex on SQLite.
+    -- A laned job is rescheduled Ready unless another member runs, or it was not running and an older
+    -- member is unfinished; a Blocked job's new instant applies once it is promoted. The immediate
+    -- transaction is the lane's mutex on SQLite.
     CASE
         WHEN
             r.lane_id IS NOT NULL
@@ -21,7 +21,19 @@ SELECT
                         10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
                         30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
                     )
-                    AND o.job_id < r.job_id
+                    AND o.job_id <> r.job_id
+                    AND (
+                        o.status_code IN (
+                            10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                            40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                        )
+                        OR (
+                            r.status_code NOT IN (
+                                10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */, 40 /* JobStatusCode.Dispatched */
+                            )
+                            AND o.job_id < r.job_id
+                        )
+                    )
             )
             THEN 15 /* JobStatusCode.Blocked */
         ELSE 10 /* JobStatusCode.Ready */

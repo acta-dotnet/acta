@@ -645,26 +645,13 @@ internal static class TestDashboardHost
             CancellationToken ct = default
         ) => Control("resume", job, reasonMessage, actorKey, expectedVersion);
 
-        public async ValueTask<JobControlResult> RestartAsync(
+        public ValueTask<JobControlResult> RestartAsync(
             JobLookup job,
             string? reasonMessage = null,
             string? actorKey = null,
             int? expectedVersion = null,
             CancellationToken ct = default
-        )
-        {
-            var result = await Control("restart", job, reasonMessage, actorKey, expectedVersion);
-            return RedriveRef is { } redrive && result.Action == ControlAction.Applied
-                ? result with
-                {
-                    RedriveJobId = 77,
-                    RedriveJobRef = redrive,
-                }
-                : result;
-        }
-
-        /// <summary>When set, an applied restart reports a redrive to this ref, as for a finished laned job.</summary>
-        public JobRef? RedriveRef { get; set; }
+        ) => Control("restart", job, reasonMessage, actorKey, expectedVersion);
 
         public ValueTask<JobControlResult> RescheduleAsync(
             JobLookup job,

@@ -582,26 +582,6 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
-        /// <summary>The job a restart redrove a finished laned job into; its event names the finished job.</summary>
-        public static readonly DbValueSpec<long> RedriveJobId = new(
-            ParameterName: "p_redrive_job_id",
-            Kind: DbKind.Int64,
-            Size: null,
-            Precision: null,
-            Scale: null,
-            IsNullable: false
-        );
-
-        /// <summary>JSON detail of the redriven job's job.redriven event; the finished job's rides p_detail.</summary>
-        public static readonly DbValueSpec<byte[]> RedriveDetail = new(
-            ParameterName: "p_redrive_detail",
-            Kind: DbKind.BinaryPayload,
-            Size: null,
-            Precision: null,
-            Scale: null,
-            IsNullable: false
-        );
-
         /// <summary>
         /// List-read lane filter: non-null restricts to jobs in lanes of this name. Sized to lanes.name
         /// (128) and bound canonical, as the name is stored.

@@ -752,8 +752,8 @@
   - Info and status read verbs print the job row
   - A verb resolves a job by deduplication key with an explicit namespace
   - Debug claims only the targeted id, runs it in-process to Succeeded, and result surfaces the payload
-  - Debug on a finished laned job redrives it, then runs the copy when it leads its lane
-  - Debug on a finished laned job whose copy waits in its lane prints the copy and stops
+  - Debug on a finished laned job restarts it in place and runs it when its lane is free
+  - Debug on a finished laned job restarted behind a live member reports it Blocked and stops
   - Events verb prints the job timeline after a run
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.ClaimOneAsync`
@@ -1496,22 +1496,21 @@
   - A Blocked follower reads its lane and the head it waits behind
   - The jobs list filters by lane, folding the filter's case
 
-### Restarting a finished laned job redrives it at the lane's tail
-- **Contract:** A restart of a finished laned job enqueues a copy at its lane's tail, bumps the finished row's version, links both by events, and returns the new job.
-- **Arrange:** A laned head has run to Succeeded while a follower behind it is still unfinished.
-- **Act:** An operator restarts the finished head.
-- **Assert:** A new job with the same definition, input, lane, and priority waits behind the follower, the old row stays Succeeded, and each row's event names the other.
+### Restarting a finished laned job reactivates it in place
+- **Contract:** A restart of a finished laned job reactivates the same row, Blocked while another member runs and Ready otherwise, and it runs next.
+- **Arrange:** Laned jobs have finished in a private namespace, some with live members behind them and some with laned descendants.
+- **Act:** An operator restarts finished members, alone, repeated with one version, and racing the running member's completion.
+- **Assert:** Each lane keeps at most one running member, the restarted job runs before the members already waiting, and lineage cycles are refused.
 - **Guarantees:**
-  - A restarted finished head is redriven behind the lane's unfinished follower
-  - A restarted finished job in an idle lane is redriven Ready
-  - A failed laned head is redriven and keeps its Failed row
-  - A cancelled laned head is redriven and keeps its Cancelled row
-  - A restart with a stale version is a conflict and enqueues nothing
-  - Two restarts carrying one version redrive the job exactly once
-  - A retired definition refuses the redrive and leaves the finished row untouched
-  - A redriven child keeps its tags and drops its dedup key and parent
+  - A restarted failed head waits Blocked behind the running member, then runs before older followers
+  - A restarted finished job in a lane with no live member is Ready and runs
+  - A restart racing the running member's completion leaves exactly one live member
+  - Restarts repeated with one version reactivate the job once and then conflict
+  - A restarted laned child keeps its parent, and the ancestor guard sees it unfinished again
+  - A finished job with an unfinished descendant in its lane is not restarted
+  - A finished job with an unfinished ancestor in its lane is not restarted
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.RedriveJobAsync`
+  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.RestartJobAsync`
 
 ### Retention deletes a lane that no runtime references
 - **Contract:** A retention sweep deletes a lane that no runtime row references, keeps a lane with any runtime row, and never strands an enqueue racing the delete.
@@ -3060,13 +3059,12 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IJobStore.ListJobsAsync` | ListJobs filter-matrix selects exactly matching rows per dimension<br>ListJobs pages newest first by keyset cursor without duplicates |
 | `IJobStore.PauseJobAsync` | A job control verb takes an optional expected version and refuses a stale one.<br>CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Cancel Pause Resume Restart apply legal transitions and audit<br>Control verbs apply per-status guards and correct side effects<br>Control verbs transition unconditionally but emit events only at full audit<br>Operator verbs keep a lane's order |
 | `IJobStore.PurgeJobAsync` | A completed child outlives its retention deadline while its parent is live<br>Alert writers race job purges without a deadlock or an orphaned alert<br>Operator purge hard-deletes a terminal job. |
-| `IJobStore.RedriveJobAsync` | Restarting a finished laned job redrives it at the lane's tail |
 | `IJobStore.ReprioritizeJobAsync` | Operator reprioritize changes claim priority, rejecting only terminal jobs. |
 | `IJobStore.RescheduleJobAsync` | A job control verb takes an optional expected version and refuses a stale one.<br>Operator reschedule moves a job's cursor, rejecting in-flight or terminal jobs. |
 | `IJobStore.ResetJobStateAsync` | Reset clears one job's substrate and emits an audit-gated state-reset event |
 | `IJobStore.ResolveJobIdByDeduplicationKeyAsync` | ResolveJobIdByDeduplicationKey returns the id for a known key, null otherwise |
 | `IJobStore.ResolveJobIdByRefAsync` | A purged job's public ref still resolves to its surviving event timeline<br>Enqueue assigns a job ref that resolves to the job; unknown refs return null |
-| `IJobStore.RestartJobAsync` | CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Cancel Pause Resume Restart apply legal transitions and audit<br>Control verbs apply per-status guards and correct side effects<br>Control verbs transition unconditionally but emit events only at full audit |
+| `IJobStore.RestartJobAsync` | CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Cancel Pause Resume Restart apply legal transitions and audit<br>Control verbs apply per-status guards and correct side effects<br>Control verbs transition unconditionally but emit events only at full audit<br>Restarting a finished laned job reactivates it in place |
 | `IJobStore.ResumeJobAsync` | CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Cancel Pause Resume Restart apply legal transitions and audit<br>Control verbs apply per-status guards and correct side effects<br>Control verbs transition unconditionally but emit events only at full audit<br>Operator verbs keep a lane's order |
 | `IJobStore.UpdateJobInputAsync` | Operator update-input amends stored input and audits bounded payload metadata. |
 | `INamespaceStore.ListNamespaceItemsAsync` | ListNamespaceItems pages namespaces with status, fields, and version |
@@ -3166,7 +3164,6 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `Execution/Jobs/ListJobs` | yes | yes | yes |
 | `Execution/Jobs/PauseJob` | yes | yes | yes |
 | `Execution/Jobs/PurgeJob` | yes | yes | yes |
-| `Execution/Jobs/RecordJobRedrive` | yes | yes | yes |
 | `Execution/Jobs/ReprioritizeJob` | yes | yes | yes |
 | `Execution/Jobs/RescheduleJob` | yes | yes | yes |
 | `Execution/Jobs/ResetJobState` | yes | yes | yes |

@@ -136,8 +136,8 @@ public abstract class CliControlSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
         Assert.Contains("5", resultOutput.ToString());
     }
 
-    [Fact(DisplayName = "Debug on a finished laned job redrives it, then runs the copy when it leads its lane")]
-    public async Task Debug_redrives_a_finished_laned_job_and_runs_the_copy()
+    [Fact(DisplayName = "Debug on a finished laned job restarts it in place and runs it when its lane is free")]
+    public async Task Debug_restarts_a_finished_laned_job_in_place_and_runs_it()
     {
         var ct = TestContext.Current.CancellationToken;
         var finished = await EnqueueLaneStepAsync("solo", ct);
@@ -148,14 +148,13 @@ public abstract class CliControlSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
 
         Assert.Equal(0, exit);
         var text = output.ToString();
-        var copyRef = RedrivenRef(text);
         Assert.Contains("run: Completed", text);
-        Assert.Contains($"job: {copyRef}", text);
-        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(JobLookup.ByRef(copyRef), ct));
+        Assert.Contains($"job: {finished.JobRef}", text);
+        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(finished, ct));
     }
 
-    [Fact(DisplayName = "Debug on a finished laned job whose copy waits in its lane prints the copy and stops")]
-    public async Task Debug_redrives_and_stops_when_the_copy_waits()
+    [Fact(DisplayName = "Debug on a finished laned job restarted behind a live member reports it Blocked and stops")]
+    public async Task Debug_stops_when_the_restarted_job_waits_in_its_lane()
     {
         var ct = TestContext.Current.CancellationToken;
         var finished = await EnqueueLaneStepAsync("queued", ct);
@@ -167,9 +166,9 @@ public abstract class CliControlSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
 
         Assert.Equal(0, exit);
         var text = output.ToString();
-        var copyRef = RedrivenRef(text);
+        Assert.Contains($"job {finished.JobRef} is Blocked behind its lane's head", text);
         Assert.DoesNotContain("run:", text);
-        Assert.Equal(JobStatusCode.Blocked, await Jobs.GetStatusAsync(JobLookup.ByRef(copyRef), ct));
+        Assert.Equal(JobStatusCode.Blocked, await Jobs.GetStatusAsync(finished, ct));
         Assert.Equal(JobStatusCode.Ready, await Jobs.GetStatusAsync(follower, ct));
     }
 
@@ -201,12 +200,6 @@ public abstract class CliControlSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
         var ok = CliCommandParser.TryParse(commandLine.Split(' '), out var command, out var error);
         Assert.True(ok, error);
         return command;
-    }
-
-    private static JobRef RedrivenRef(string output)
-    {
-        var line = Assert.Single(output.Split('\n'), l => l.StartsWith("redriven as ", StringComparison.Ordinal));
-        return JobRef.Parse(line["redriven as ".Length..].Trim());
     }
 
     private async Task<JobEnqueueOutcome> EnqueueLaneStepAsync(string lane, CancellationToken ct) =>

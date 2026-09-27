@@ -33,7 +33,7 @@ public sealed class PgLaneRepairSpec : LaneRepairSpec<PgConformanceFixture>;
 
 public sealed class PgLaneReadSpec : LaneReadSpec<PgConformanceFixture>;
 
-public sealed class PgLaneRedriveSpec : LaneRedriveSpec<PgConformanceFixture>;
+public sealed class PgLaneRestartSpec : LaneRestartSpec<PgConformanceFixture>;
 
 public sealed class PgLaneLockOrderSpec : LaneLockOrderSpec<PgConformanceFixture>;
 

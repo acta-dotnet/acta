@@ -563,12 +563,11 @@ sealed class Acta.CodeManifestEntry
     System.String Description { get;init; }
 static class Acta.CodeManifests
     System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> All { get; }
-    System.String MarkdownReport = <27011 chars, sha256:3F31B78F>
+    System.String MarkdownReport = <26774 chars, sha256:10BA7FA8>
 enum Acta.ControlAction
     Accepted = 4
     Applied = 1
     NotFound = 2
-    Redriven = 6
     Rejected = 3
     VersionConflict = 5
 static class Acta.Cron
@@ -687,7 +686,6 @@ enum Acta.EventCode
     JobPaused = 71
     JobPurged = 75
     JobRecurringRolledOver = 50
-    JobRedriven = 77
     JobReprioritized = 74
     JobRescheduled = 61
     JobRestarted = 73
@@ -1176,13 +1174,11 @@ struct Acta.JobContract<TInput, TResult>
 abstract class Acta.JobControlException
     .ctor(System.String message)
 sealed class Acta.JobControlResult
-    .ctor(System.Int64 JobId, Acta.ControlAction Action, System.Nullable<Acta.JobStatusCode> Status, System.Nullable<System.Int32> Version, System.Nullable<System.Int64> RedriveJobId = default, System.Nullable<Acta.JobRef> RedriveJobRef = default)
+    .ctor(System.Int64 JobId, Acta.ControlAction Action, System.Nullable<Acta.JobStatusCode> Status, System.Nullable<System.Int32> Version)
     Acta.ControlAction Action { get;init; }
     System.Int64 JobId { get;init; }
-    System.Nullable<Acta.JobRef> RedriveJobRef { get;init; }
     System.Nullable<Acta.JobStatusCode> Status { get;init; }
     System.Nullable<System.Int32> Version { get;init; }
-    System.Nullable<System.Int64> RedriveJobId { get;init; }
 sealed class Acta.JobDefinitionDetail
     .ctor(System.Int32 DefinitionId, System.String JobNamespace, System.String JobName, Acta.JobDefinitionStatusCode Status, System.String DefinitionHash, System.DateTime ManifestGenerationAtUtc, System.String InputTypeName, System.Byte InputFormatId, System.String InputFormatName, System.String OutputTypeName, System.Byte OutputFormatId, System.String OutputFormatName, Acta.JobPriorityCode Priority, System.Nullable<Acta.JobPriorityCode> PriorityOverride, Acta.JobPriorityCode PriorityEffective, System.Int32 MaxAttempts, System.Nullable<System.Int32> MaxAttemptsOverride, System.Int32 MaxAttemptsEffective, System.Nullable<System.Int32> ConcurrencyLimit, System.Nullable<System.Int32> ConcurrencyLimitOverride, System.Nullable<System.Int32> ConcurrencyLimitEffective, System.String RateLimit, System.String RateLimitOverride, System.String RateLimitEffective, System.String RateKey, System.String Lane, System.String Backoff, System.String BackoffOverride, System.String BackoffEffective, System.Int32 ExecutionTimeoutSeconds, System.Nullable<System.Int32> ExecutionTimeoutSecondsOverride, System.Int32 ExecutionTimeoutSecondsEffective, System.Int32 DeadlineSeconds, System.Nullable<System.Int32> DeadlineSecondsOverride, System.Int32 DeadlineSecondsEffective, Acta.DeadlineBehaviorCode DeadlineBehavior, System.Nullable<Acta.DeadlineBehaviorCode> DeadlineBehaviorOverride, Acta.DeadlineBehaviorCode DeadlineBehaviorEffective, System.Int32 JobRetentionSeconds, System.Nullable<System.Int32> JobRetentionSecondsOverride, System.Int32 JobRetentionSecondsEffective, Acta.JobAuditLevelCode AuditLevel, System.Nullable<Acta.JobAuditLevelCode> AuditLevelOverride, Acta.JobAuditLevelCode AuditLevelEffective, Acta.AlertProfileCode AlertProfile, System.Nullable<Acta.AlertProfileCode> AlertProfileOverride, Acta.AlertProfileCode AlertProfileEffective, System.String AlertChannelName, System.String AlertChannelNameOverride, System.String AlertChannelNameEffective, System.String RunbookUrl, System.String RunbookUrlOverride, System.String RunbookUrlEffective, System.String DisplayName, System.String DisplayNameOverride, System.String DisplayNameEffective, System.String Description, System.String DescriptionOverride, System.String DescriptionEffective, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 Version)
     Acta.AlertProfileCode AlertProfile { get;init; }

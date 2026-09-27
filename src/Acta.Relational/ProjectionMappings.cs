@@ -28,7 +28,6 @@
     typeof(global::Acta.Runtime.Modules.Outbox.OutboxSignalRow),
     typeof(global::Acta.Runtime.Modules.Outbox.OutboxSignalConsumeRow),
     typeof(global::Acta.Runtime.Modules.Execution.Jobs.CancelJobOutcomeRow),
-    typeof(global::Acta.Runtime.Modules.Execution.Jobs.JobRedriveBumpRow),
     typeof(global::Acta.Runtime.Modules.Execution.Jobs.EnqueueOutcomeRow),
     typeof(global::Acta.Runtime.Modules.Execution.Jobs.ExplainCheckpointRow),
     typeof(global::Acta.Runtime.Modules.Execution.Jobs.JobCheckpointReadRow),

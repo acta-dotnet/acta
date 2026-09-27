@@ -31,7 +31,7 @@ public sealed record JobDetail(
     JobStatusCode Status,
     JobPriorityCode Priority,
     // The lane the job runs in, or null. While the job is Blocked, BlockedBehind names the lane's
-    // lowest-id unfinished member, the one whose settle moves the lane on.
+    // running member, else its lowest-id older unfinished member: the one that moves the lane on.
     string? Lane,
     [property: JsonIgnore] long? BlockedBehindJobId,
     JobRef? BlockedBehindJobRef,

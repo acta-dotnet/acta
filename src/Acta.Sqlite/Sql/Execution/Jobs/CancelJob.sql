@@ -117,7 +117,8 @@ WHERE
     AND status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
 
 -- A cancelled head hands its lane to the next member; a cancelled Blocked follower leaves the head where
--- it is, which the promotion reads for itself. The immediate transaction is the lane's mutex on SQLite.
+-- it is, which the promotion reads for itself. A restarted member can wait Blocked below a running one,
+-- so it promotes only while no member runs. The immediate transaction is the lane's mutex on SQLite.
 UPDATE {{schema}}.runtimes
 SET
     status_code = 10 /* JobStatusCode.Ready */,
@@ -126,6 +127,17 @@ SET
     version = version + 1
 WHERE
     status_code = 15 /* JobStatusCode.Blocked */
+    AND NOT EXISTS (
+        SELECT 1
+        FROM {{schema}}.runtimes o
+        WHERE
+            o.lane_id = runtimes.lane_id
+            AND o.lane_id IS NOT NULL
+            AND o.status_code IN (
+                10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+            )
+    )
     AND job_id = (
         SELECT m.job_id
         FROM {{schema}}.runtimes m

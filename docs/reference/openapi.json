@@ -6627,7 +6627,6 @@
                 "job.reprioritized",
                 "job.purged",
                 "job.input-amended",
-                "job.redriven",
                 "job.signal-raised",
                 "job.state-reset",
                 "job.note-recorded",
@@ -6876,7 +6875,6 @@
                 "job.reprioritized",
                 "job.purged",
                 "job.input-amended",
-                "job.redriven",
                 "job.signal-raised",
                 "job.state-reset",
                 "job.note-recorded",
@@ -7163,7 +7161,6 @@
                 "job.reprioritized",
                 "job.purged",
                 "job.input-amended",
-                "job.redriven",
                 "job.signal-raised",
                 "job.state-reset",
                 "job.note-recorded",
@@ -8360,8 +8357,7 @@
           "notFound",
           "rejected",
           "accepted",
-          "versionConflict",
-          "redriven"
+          "versionConflict"
         ],
         "description": "Coarse outcome of an IJobs control verb."
       },
@@ -8688,8 +8684,7 @@
               "string"
             ],
             "format": "int32"
-          },
-          "redriveJobRef": { }
+          }
         }
       },
       "JobDefinitionDetail": {

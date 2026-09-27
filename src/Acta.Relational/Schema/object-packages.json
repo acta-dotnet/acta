@@ -93,13 +93,13 @@
     "Provider": "mssql",
     "Major": 1,
     "Revision": 6,
-    "Hash": "b37cd79612dab7a90ebe59f60ad4f970"
+    "Hash": "cc664727383b18b78c4b62b1da9079b7"
   },
   {
     "Provider": "pg",
     "Major": 1,
     "Revision": 6,
-    "Hash": "ca2c255d8930b27e46864dab58a54c1e"
+    "Hash": "116d3906ede3f243698031e0afc54a7e"
   },
   {
     "Provider": "sqlite",

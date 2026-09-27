@@ -84,8 +84,8 @@ BEGIN
                 GOTO Finish;
             END;
 
-        /* A laned job is rescheduled Ready only as its lane's lowest-id unfinished member; behind an
-           older one it waits Blocked, and its new instant applies once it is promoted. */
+        /* A laned job is rescheduled Ready unless another member runs, or it was not running and an older
+           member is unfinished (docs/internals/sql-execution-policy.md, "Lane lock order"). */
         IF
             @lane_id IS NOT NULL
             AND EXISTS (
@@ -98,7 +98,19 @@ BEGIN
                         10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
                         30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
                     )
-                    AND o.job_id < @p_id
+                    AND o.job_id <> @p_id
+                    AND (
+                        o.status_code IN (
+                            10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                            40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                        )
+                        OR (
+                            @from_status NOT IN (
+                                10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */, 40 /* JobStatusCode.Dispatched */
+                            )
+                            AND o.job_id < @p_id
+                        )
+                    )
             )
             SET @to_status = 15 /* JobStatusCode.Blocked */;
 

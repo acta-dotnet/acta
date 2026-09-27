@@ -22,15 +22,3 @@ internal readonly record struct CancelJobOutcomeRow(
 {
     public CancelJobOutcome ToOutcome() => new(new JobControlOutcome(Action, Status, Version), ParentId, LanePromoted);
 }
-
-/// <summary>
-/// The finished row's version and status after a redrive's compare-and-set bump; the redrive store command
-/// returns no row when the bump did not land.
-/// </summary>
-internal readonly record struct JobRedriveBumpRow(int Version, JobStatusCode Status);
-
-/// <summary>
-/// Result of a redrive transaction: the copy's one enqueue outcome row, and the finished row's bump, which
-/// is null when the transaction rolled back.
-/// </summary>
-internal sealed record JobRedriveOutcome(IReadOnlyList<EnqueueOutcomeRow> Enqueued, JobRedriveBumpRow? Bump);

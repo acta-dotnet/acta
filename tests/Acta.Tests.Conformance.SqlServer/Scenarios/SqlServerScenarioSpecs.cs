@@ -33,7 +33,7 @@ public sealed class SqlServerLaneRepairSpec : LaneRepairSpec<SqlServerConformanc
 
 public sealed class SqlServerLaneReadSpec : LaneReadSpec<SqlServerConformanceFixture>;
 
-public sealed class SqlServerLaneRedriveSpec : LaneRedriveSpec<SqlServerConformanceFixture>;
+public sealed class SqlServerLaneRestartSpec : LaneRestartSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerLaneLockOrderSpec : LaneLockOrderSpec<SqlServerConformanceFixture>;
 

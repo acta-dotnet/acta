@@ -46,7 +46,19 @@ FROM (
     FROM temp._repair_window w
 ) h
 INNER JOIN {{schema}}.runtimes r ON r.job_id = h.id
-WHERE r.status_code = 15 /* JobStatusCode.Blocked */
+WHERE
+    r.status_code = 15 /* JobStatusCode.Blocked */
+    AND NOT EXISTS (
+        SELECT 1
+        FROM {{schema}}.runtimes o
+        WHERE
+            o.lane_id = r.lane_id
+            AND o.lane_id IS NOT NULL
+            AND o.status_code IN (
+                10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+            )
+    )
 ORDER BY h.ord
 LIMIT 100;
 
@@ -216,7 +228,7 @@ WHERE
     j.id = runtimes.job_id;
 
 -- A head reclaimed to Failed hands its lane to the lowest-id unfinished member when that member is
--- Blocked; a head re-armed Ready keeps its lane.
+-- Blocked and no member runs; a head re-armed Ready keeps its lane.
 UPDATE {{schema}}.runtimes
 SET
     status_code = 10 /* JobStatusCode.Ready */,
@@ -225,6 +237,17 @@ SET
     version = version + 1
 WHERE
     status_code = 15 /* JobStatusCode.Blocked */
+    AND NOT EXISTS (
+        SELECT 1
+        FROM {{schema}}.runtimes o
+        WHERE
+            o.lane_id = runtimes.lane_id
+            AND o.lane_id IS NOT NULL
+            AND o.status_code IN (
+                10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+            )
+    )
     AND job_id IN (
         SELECT (
             SELECT m.job_id

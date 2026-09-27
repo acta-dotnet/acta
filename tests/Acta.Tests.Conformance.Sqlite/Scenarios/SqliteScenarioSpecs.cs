@@ -21,7 +21,7 @@ public sealed class SqliteLaneRepairSpec : LaneRepairSpec<SqliteConformanceFixtu
 
 public sealed class SqliteLaneReadSpec : LaneReadSpec<SqliteConformanceFixture>;
 
-public sealed class SqliteLaneRedriveSpec : LaneRedriveSpec<SqliteConformanceFixture>;
+public sealed class SqliteLaneRestartSpec : LaneRestartSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteLaneLockOrderSpec : LaneLockOrderSpec<SqliteConformanceFixture>;
 

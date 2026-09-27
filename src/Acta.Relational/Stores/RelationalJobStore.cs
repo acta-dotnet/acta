@@ -1,6 +1,5 @@
 using System.Data.Common;
 using System.Globalization;
-using System.Text;
 using Acta.Relational.Commands;
 using Acta.Relational.Connections;
 using Acta.Relational.Schema;
@@ -386,53 +385,6 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
 
     public Task<JobControlOutcome> PurgeJobAsync(long jobId, JobControlInput input, CancellationToken ct) =>
         ControlAsync("Jobs/PurgeJob", cmd => AddControlParameters(cmd, jobId, input, includeReasonMessage: false), ct);
-
-    public Task<JobRedriveOutcome> RedriveJobAsync(
-        JobEnqueueRow row,
-        Guid copyRef,
-        long jobId,
-        JobRef jobRef,
-        JobControlInput input,
-        CancellationToken ct
-    ) =>
-        session.RunInOwnedTransactionAsync(
-            async (transaction, token) =>
-            {
-                var enqueued = await EnqueueOneInTransactionAsync(transaction, row, copyRef, token);
-                if (enqueued.Count != 1)
-                {
-                    return (new JobRedriveOutcome(enqueued, null), false);
-                }
-
-                var bumped = await session.ExecuteInTransactionAsync(
-                    transaction,
-                    new StoreCommand("Execution", "Jobs/RecordJobRedrive"),
-                    cmd =>
-                    {
-                        AddControlParameters(cmd, jobId, input, includeReasonMessage: true);
-                        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.RedriveJobId, enqueued[0].JobId));
-                        cmd.Parameters.Add(
-                            dialect.CreateParameter(
-                                ActaSchema.JobEvent.Detail,
-                                RedriveDetail("redriveJobRef", new JobRef(enqueued[0].JobRef))
-                            )
-                        );
-                        cmd.Parameters.Add(
-                            dialect.CreateParameter(ActaSchema.Sql.RedriveDetail, RedriveDetail("redrivenFromJobRef", jobRef))
-                        );
-                        AddExpectedVersion(cmd, input);
-                    },
-                    DbProjectionResolver.Resolve<JobRedriveBumpRow>(),
-                    token
-                );
-                var bump = bumped.Count == 0 ? (JobRedriveBumpRow?)null : bumped[0];
-                return (new JobRedriveOutcome(enqueued, bump), bump is not null);
-            },
-            ct
-        );
-
-    // A ref's text is the job_ prefix and base32 digits, so it needs no JSON escaping.
-    private static byte[] RedriveDetail(string key, JobRef other) => Encoding.UTF8.GetBytes($"{{\"{key}\":\"{other}\"}}");
 
     public Task ResetJobStateAsync(long jobId, CancellationToken ct) =>
         session.ExecuteAsync(

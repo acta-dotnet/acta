@@ -20,6 +20,7 @@ DECLARE
     v_execution_number INT;
     v_audit_level SMALLINT;
     v_job_ref UUID;
+    v_parent_id BIGINT;
     v_lane_id BIGINT;
     v_to_status SMALLINT := 10 /* JobStatusCode.Ready */;
 BEGIN
@@ -36,8 +37,12 @@ BEGIN
         FOR UPDATE;
     END IF;
 
-    SELECT r.status_code, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id, r.execution_number, j.audit_level_code, j.job_ref, r.version
-    INTO v_from_status, v_namespace_id, v_lineage_root_id, v_definition_id, v_tenant_id, v_execution_number, v_audit_level, v_job_ref, v_version
+    SELECT
+        r.status_code, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id, r.execution_number,
+        j.audit_level_code, j.job_ref, r.version, j.parent_id
+    INTO
+        v_from_status, v_namespace_id, v_lineage_root_id, v_definition_id, v_tenant_id, v_execution_number,
+        v_audit_level, v_job_ref, v_version, v_parent_id
     FROM {{schema}}.runtimes r
     JOIN {{schema}}.jobs j ON j.id = r.job_id
     WHERE r.job_id = p_id
@@ -53,17 +58,56 @@ BEGIN
         RETURN;
     END IF;
 
-    -- A finished laned job is never reopened in place, which would put it back ahead of members that
-    -- already ran after it; the caller redrives it as a new job at the lane's tail instead.
-    IF v_from_status = 50 /* JobStatusCode.Executing */
-        OR (v_lane_id IS NOT NULL
-            AND v_from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)) THEN
+    IF v_from_status = 50 /* JobStatusCode.Executing */ THEN
         RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status, v_version;
         RETURN;
     END IF;
 
-    -- A laned job restarts Ready only as its lane's lowest-id unfinished member; behind an older one it
-    -- waits Blocked for the promotion.
+    -- A finished laned job is not reactivated while an unfinished ancestor or descendant sits in its lane,
+    -- the state the enqueue ancestor guard refuses (docs/internals/sql-execution-policy.md, "Lane lock order").
+    IF v_lane_id IS NOT NULL
+        AND v_from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+        AND EXISTS (
+            WITH RECURSIVE
+                ancestors AS (
+                    SELECT a.id, a.parent_id
+                    FROM {{schema}}.jobs a
+                    WHERE a.id = v_parent_id
+                    UNION ALL
+                    SELECT a.id, a.parent_id
+                    FROM {{schema}}.jobs a
+                    INNER JOIN ancestors c ON a.id = c.parent_id
+                ),
+                descendants AS (
+                    SELECT d.id
+                    FROM {{schema}}.jobs d
+                    WHERE d.parent_id = p_id
+                    UNION ALL
+                    SELECT d.id
+                    FROM {{schema}}.jobs d
+                    INNER JOIN descendants c ON d.parent_id = c.id
+                ),
+                lineage AS (
+                    SELECT a.id FROM ancestors a
+                    UNION ALL
+                    SELECT d.id FROM descendants d
+                )
+            SELECT 1
+            FROM lineage c
+            INNER JOIN {{schema}}.runtimes lr ON lr.job_id = c.id
+            WHERE
+                lr.lane_id = v_lane_id
+                AND lr.status_code IN (
+                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                    30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                )
+        ) THEN
+        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status, v_version;
+        RETURN;
+    END IF;
+
+    -- A laned job restarts Ready unless another member runs, or it was not running and an older member
+    -- is unfinished (docs/internals/sql-execution-policy.md, "Lane lock order").
     IF v_lane_id IS NOT NULL AND EXISTS (
         SELECT 1
         FROM {{schema}}.runtimes o
@@ -74,7 +118,19 @@ BEGIN
                 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
                 30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
             )
-            AND o.job_id < p_id
+            AND o.job_id <> p_id
+            AND (
+                o.status_code IN (
+                    10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                    40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                )
+                OR (
+                    v_from_status NOT IN (
+                        10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */, 40 /* JobStatusCode.Dispatched */
+                    )
+                    AND o.job_id < p_id
+                )
+            )
     ) THEN
         v_to_status := 15 /* JobStatusCode.Blocked */;
     END IF;

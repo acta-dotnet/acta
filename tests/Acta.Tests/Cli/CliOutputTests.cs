@@ -45,21 +45,6 @@ public class CliOutputTests
     }
 
     [Fact]
-    public void Control_names_the_redriven_job_in_both_forms()
-    {
-        var redrive = new JobRef(Guid.Parse("00000000-0000-0000-0000-000000000077"));
-        var result = new JobControlResult(123, ControlAction.Applied, JobStatusCode.Succeeded, 4, 77, redrive);
-
-        var plain = new StringWriter();
-        CliOutput.WriteControl(plain, "restart", SampleJobRef, result, json: false);
-        var json = new StringWriter();
-        CliOutput.WriteControl(json, "restart", SampleJobRef, result, json: true);
-
-        Assert.Contains($"redriven as: {redrive}", plain.ToString());
-        Assert.Contains($"\"redriveJobRef\":\"{redrive}\"", json.ToString());
-    }
-
-    [Fact]
     public void Snapshot_plain_writes_identity_and_status()
     {
         var w = new StringWriter();

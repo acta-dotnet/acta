@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **30 families**, **173 values**.
+This release: **30 families**, **172 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -169,7 +169,6 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `JobReprioritized` | 74 | `job.reprioritized` | Operator changed the job's claim priority; ReasonMessage carries the operator's reason, if any. | Active |
 | `JobPurged` | 75 | `job.purged` | Operator hard-deleted a terminal job. job_id/job_ref are null (the row is gone); ReasonMessage carries the purged job's ref and name. Always emitted regardless of audit level. | Active |
 | `JobInputAmended` | 76 | `job.input-amended` | Operator amended a job's stored input payload; Detail carries bounded JSON metadata (format name and byte count) about the previous payload and ReasonMessage carries the why. | Active |
-| `JobRedriven` | 77 | `job.redriven` | Operator restarted a finished laned job, which re-enqueued it as a new job at its lane's tail and left the finished row as history. Both rows get this event, and each Detail names the other job's ref. | Active |
 | `JobSignalRaised` | 80 | `job.signal-raised` | Signal delivered via IJobs.RaiseSignalAsync; matching signal checkpoint (State = Set) UPSERTed. | Active |
 | `JobStateReset` | 81 | `job.state-reset` | Handler called ctx.ResetStateAsync; the Job's JobCheckpoint / JobStep / JobResult rows were cleared so the next execution starts as new. | Active |
 | `JobNoteRecorded` | 90 | `job.note-recorded` | Application-authored note from ctx.NoteAsync. The only event code an application can write and one the runtime never emits, so every other event stays provably system-written. ReasonMessage carries the line; Detail carries the optional JSON payload. | Active |

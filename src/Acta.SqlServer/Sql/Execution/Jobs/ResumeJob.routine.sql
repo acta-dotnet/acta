@@ -78,8 +78,8 @@ BEGIN
                 GOTO Finish;
             END;
 
-        /* A laned job resumes Ready only as its lane's lowest-id unfinished member; behind an older one
-           it waits Blocked for the promotion. */
+        /* A laned job resumes Ready unless another member runs or an older member is unfinished
+           (docs/internals/sql-execution-policy.md, "Lane lock order"). */
         IF
             @lane_id IS NOT NULL
             AND EXISTS (
@@ -92,7 +92,14 @@ BEGIN
                         10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
                         30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
                     )
-                    AND o.job_id < @p_id
+                    AND o.job_id <> @p_id
+                    AND (
+                        o.status_code IN (
+                            10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                            40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                        )
+                        OR o.job_id < @p_id
+                    )
             )
             SET @to_status = 15 /* JobStatusCode.Blocked */;
 

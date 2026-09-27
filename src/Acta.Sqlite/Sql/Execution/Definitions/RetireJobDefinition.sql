@@ -138,8 +138,8 @@ FROM temp._retire_job_definition s
 WHERE s.version = @p_version AND s.status_code <> 240 /* JobDefinitionStatusCode.Retired */;
 
 -- Once every parked member is cancelled, each of their lanes hands on to its lowest-id unfinished
--- member if that member is Blocked. The immediate transaction is the lanes' mutex on SQLite, and this
--- is the last write, so the final SELECT's changes() counts its promotions.
+-- member if that member is Blocked and no member still runs. The immediate transaction is the lanes'
+-- mutex on SQLite, and this is the last write, so the final SELECT's changes() counts its promotions.
 UPDATE {{schema}}.runtimes
 SET
     status_code = 10 /* JobStatusCode.Ready */,
@@ -148,6 +148,17 @@ SET
     version = version + 1
 WHERE
     status_code = 15 /* JobStatusCode.Blocked */
+    AND NOT EXISTS (
+        SELECT 1
+        FROM {{schema}}.runtimes o
+        WHERE
+            o.lane_id = runtimes.lane_id
+            AND o.lane_id IS NOT NULL
+            AND o.status_code IN (
+                10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+            )
+    )
     AND job_id IN (
         SELECT (
             SELECT m.job_id

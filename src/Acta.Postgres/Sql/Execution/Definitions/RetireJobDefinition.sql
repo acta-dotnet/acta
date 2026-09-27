@@ -187,7 +187,7 @@ FROM parked p
 INNER JOIN swept s ON s.job_id = p.job_id;
 
 -- Once every parked member is cancelled, each locked lane hands on to its lowest-id unfinished member
--- if that member is Blocked, so no member of the retired definition is promoted on the way.
+-- if that member is Blocked and no member still runs, so no member of the retired definition is promoted.
 WITH promoted AS (
     UPDATE {{schema}}.runtimes pr
     SET
@@ -197,6 +197,17 @@ WITH promoted AS (
         version = pr.version + 1
     WHERE
         pr.status_code = 15 /* JobStatusCode.Blocked */
+        AND NOT EXISTS (
+            SELECT 1
+            FROM {{schema}}.runtimes o
+            WHERE
+                o.lane_id = pr.lane_id
+                AND o.lane_id IS NOT NULL
+                AND o.status_code IN (
+                    10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                    40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                )
+        )
         AND pr.job_id IN (
             SELECT (
                 SELECT m.job_id

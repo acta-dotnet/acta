@@ -108,12 +108,6 @@ public enum EventCode : byte
     )]
     JobInputAmended = 76,
 
-    [Code(
-        "job.redriven",
-        "Operator restarted a finished laned job, which re-enqueued it as a new job at its lane's tail and left the finished row as history. Both rows get this event, and each Detail names the other job's ref."
-    )]
-    JobRedriven = 77,
-
     [Code("job.signal-raised", "Signal delivered via IJobs.RaiseSignalAsync; matching signal checkpoint (State = Set) UPSERTed.")]
     JobSignalRaised = 80,
 

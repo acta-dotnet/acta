@@ -90,22 +90,6 @@ public sealed class ControlEndpointTests
     }
 
     [Fact]
-    public async Task A_redriving_restart_returns_the_new_job_ref_and_no_numeric_id()
-    {
-        var redrive = new JobRef(Guid.Parse("00000000-0000-0000-0000-000000000077"));
-        var jobs = new TestDashboardHost.FakeJobs { RedriveRef = redrive };
-        var (app, client) = await StartWithControlsAsync(jobs);
-        await using var _ = app;
-
-        var response = await client.SendAsync(Post($"/acta/api/v1/jobs/{Found}/restart"), TestContext.Current.CancellationToken);
-        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Contains($"\"redriveJobRef\":\"{redrive}\"", body);
-        Assert.DoesNotContain("redriveJobId", body);
-    }
-
-    [Fact]
     public async Task Rejected_maps_to_409_with_blocking_status()
     {
         var (app, client) = await StartWithControlsAsync();

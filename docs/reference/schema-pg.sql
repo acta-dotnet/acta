@@ -784,7 +784,7 @@ SELECT
     root.job_ref AS lineage_root_job_ref,
     e.definition_id,
     d.name AS job_name,
-    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-started' WHEN 41 THEN 'job.execution-finished' WHEN 50 THEN 'job.recurring-rolled-over' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 77 THEN 'job.redriven' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 103 THEN 'schedule.overrides-updated' WHEN 104 THEN 'schedule.triggered' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 160 THEN 'setting.updated' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
+    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-started' WHEN 41 THEN 'job.execution-finished' WHEN 50 THEN 'job.recurring-rolled-over' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 103 THEN 'schedule.overrides-updated' WHEN 104 THEN 'schedule.triggered' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 160 THEN 'setting.updated' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
     e.event_code,
     CASE e.actor_code WHEN 10 THEN 'sys' WHEN 20 THEN 'operator' WHEN 50 THEN 'job' WHEN 70 THEN 'worker' END AS actor,
     e.actor_code,
@@ -3133,6 +3133,20 @@ BEGIN
 
             EXIT WHEN v_head_status IS DISTINCT FROM 15 /* JobStatusCode.Blocked */;
 
+            -- A restarted member can wait Blocked below a running one, so promote only while no member runs
+            -- (docs/internals/sql-execution-policy.md, "Lane lock order").
+            EXIT WHEN EXISTS (
+                SELECT 1
+                FROM acta.runtimes o
+                WHERE
+                    o.lane_id = v_lane_id
+                    AND o.lane_id IS NOT NULL
+                    AND o.status_code IN (
+                        10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                        40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                    )
+            );
+
             UPDATE acta.runtimes pr
             SET
                 status_code = 10 /* JobStatusCode.Ready */,
@@ -4500,8 +4514,8 @@ BEGIN
         RETURN;
     END IF;
 
-    -- A laned job is rescheduled Ready only as its lane's lowest-id unfinished member; behind an older
-    -- one it waits Blocked, and its new instant applies once it is promoted.
+    -- A laned job is rescheduled Ready unless another member runs, or it was not running and an older member
+    -- is unfinished (docs/internals/sql-execution-policy.md, "Lane lock order").
     IF v_lane_id IS NOT NULL AND EXISTS (
         SELECT 1
         FROM acta.runtimes o
@@ -4512,7 +4526,19 @@ BEGIN
                 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
                 30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
             )
-            AND o.job_id < p_id
+            AND o.job_id <> p_id
+            AND (
+                o.status_code IN (
+                    10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                    40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                )
+                OR (
+                    v_from_status NOT IN (
+                        10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */, 40 /* JobStatusCode.Dispatched */
+                    )
+                    AND o.job_id < p_id
+                )
+            )
     ) THEN
         v_to_status := 15 /* JobStatusCode.Blocked */;
     END IF;
@@ -4668,6 +4694,7 @@ DECLARE
     v_execution_number INT;
     v_audit_level SMALLINT;
     v_job_ref UUID;
+    v_parent_id BIGINT;
     v_lane_id BIGINT;
     v_to_status SMALLINT := 10 /* JobStatusCode.Ready */;
 BEGIN
@@ -4684,8 +4711,12 @@ BEGIN
         FOR UPDATE;
     END IF;
 
-    SELECT r.status_code, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id, r.execution_number, j.audit_level_code, j.job_ref, r.version
-    INTO v_from_status, v_namespace_id, v_lineage_root_id, v_definition_id, v_tenant_id, v_execution_number, v_audit_level, v_job_ref, v_version
+    SELECT
+        r.status_code, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id, r.execution_number,
+        j.audit_level_code, j.job_ref, r.version, j.parent_id
+    INTO
+        v_from_status, v_namespace_id, v_lineage_root_id, v_definition_id, v_tenant_id, v_execution_number,
+        v_audit_level, v_job_ref, v_version, v_parent_id
     FROM acta.runtimes r
     JOIN acta.jobs j ON j.id = r.job_id
     WHERE r.job_id = p_id
@@ -4701,17 +4732,56 @@ BEGIN
         RETURN;
     END IF;
 
-    -- A finished laned job is never reopened in place, which would put it back ahead of members that
-    -- already ran after it; the caller redrives it as a new job at the lane's tail instead.
-    IF v_from_status = 50 /* JobStatusCode.Executing */
-        OR (v_lane_id IS NOT NULL
-            AND v_from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)) THEN
+    IF v_from_status = 50 /* JobStatusCode.Executing */ THEN
         RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status, v_version;
         RETURN;
     END IF;
 
-    -- A laned job restarts Ready only as its lane's lowest-id unfinished member; behind an older one it
-    -- waits Blocked for the promotion.
+    -- A finished laned job is not reactivated while an unfinished ancestor or descendant sits in its lane,
+    -- the state the enqueue ancestor guard refuses (docs/internals/sql-execution-policy.md, "Lane lock order").
+    IF v_lane_id IS NOT NULL
+        AND v_from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+        AND EXISTS (
+            WITH RECURSIVE
+                ancestors AS (
+                    SELECT a.id, a.parent_id
+                    FROM acta.jobs a
+                    WHERE a.id = v_parent_id
+                    UNION ALL
+                    SELECT a.id, a.parent_id
+                    FROM acta.jobs a
+                    INNER JOIN ancestors c ON a.id = c.parent_id
+                ),
+                descendants AS (
+                    SELECT d.id
+                    FROM acta.jobs d
+                    WHERE d.parent_id = p_id
+                    UNION ALL
+                    SELECT d.id
+                    FROM acta.jobs d
+                    INNER JOIN descendants c ON d.parent_id = c.id
+                ),
+                lineage AS (
+                    SELECT a.id FROM ancestors a
+                    UNION ALL
+                    SELECT d.id FROM descendants d
+                )
+            SELECT 1
+            FROM lineage c
+            INNER JOIN acta.runtimes lr ON lr.job_id = c.id
+            WHERE
+                lr.lane_id = v_lane_id
+                AND lr.status_code IN (
+                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                    30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                )
+        ) THEN
+        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status, v_version;
+        RETURN;
+    END IF;
+
+    -- A laned job restarts Ready unless another member runs, or it was not running and an older member
+    -- is unfinished (docs/internals/sql-execution-policy.md, "Lane lock order").
     IF v_lane_id IS NOT NULL AND EXISTS (
         SELECT 1
         FROM acta.runtimes o
@@ -4722,7 +4792,19 @@ BEGIN
                 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
                 30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
             )
-            AND o.job_id < p_id
+            AND o.job_id <> p_id
+            AND (
+                o.status_code IN (
+                    10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                    40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                )
+                OR (
+                    v_from_status NOT IN (
+                        10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */, 40 /* JobStatusCode.Dispatched */
+                    )
+                    AND o.job_id < p_id
+                )
+            )
     ) THEN
         v_to_status := 15 /* JobStatusCode.Blocked */;
     END IF;
@@ -4844,8 +4926,8 @@ BEGIN
         RETURN;
     END IF;
 
-    -- A laned job resumes Ready only as its lane's lowest-id unfinished member; behind an older one it
-    -- waits Blocked for the promotion.
+    -- A laned job resumes Ready unless another member runs or an older member is unfinished
+    -- (docs/internals/sql-execution-policy.md, "Lane lock order").
     IF v_lane_id IS NOT NULL AND EXISTS (
         SELECT 1
         FROM acta.runtimes o
@@ -4856,7 +4938,14 @@ BEGIN
                 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
                 30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
             )
-            AND o.job_id < p_id
+            AND o.job_id <> p_id
+            AND (
+                o.status_code IN (
+                    10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                    40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                )
+                OR o.job_id < p_id
+            )
     ) THEN
         v_to_status := 15 /* JobStatusCode.Blocked */;
     END IF;
@@ -5387,7 +5476,19 @@ BEGIN
                 ORDER BY m.job_id
                 LIMIT 1
             ) h
-            WHERE h.status_code = 15 /* JobStatusCode.Blocked */
+            WHERE
+                h.status_code = 15 /* JobStatusCode.Blocked */
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM acta.runtimes o
+                    WHERE
+                        o.lane_id = w.id
+                        AND o.lane_id IS NOT NULL
+                        AND o.status_code IN (
+                            10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                            40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                        )
+                )
             ORDER BY w.ord
             LIMIT 100
         );
@@ -5417,7 +5518,7 @@ BEGIN
     v_stranded := ARRAY(SELECT s.id FROM unnest(v_stranded) AS s (id) WHERE s.id = ANY (v_lanes));
 
     -- The walk read without locks, so each stranded lane is re-read under its lock and repaired only
-    -- when its lowest-id unfinished member is still Blocked.
+    -- when its lowest-id unfinished member is still Blocked and no member runs.
     FOREACH v_lane_id IN ARRAY v_stranded
     LOOP
         LOOP
@@ -5437,6 +5538,17 @@ BEGIN
             LIMIT 1;
 
             EXIT WHEN v_head_status IS DISTINCT FROM 15 /* JobStatusCode.Blocked */;
+            EXIT WHEN EXISTS (
+                SELECT 1
+                FROM acta.runtimes o
+                WHERE
+                    o.lane_id = v_lane_id
+                    AND o.lane_id IS NOT NULL
+                    AND o.status_code IN (
+                        10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                        40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                    )
+            );
 
             UPDATE acta.runtimes pr
             SET
@@ -5644,6 +5756,17 @@ BEGIN
             LIMIT 1;
 
             EXIT WHEN v_head_status IS DISTINCT FROM 15 /* JobStatusCode.Blocked */;
+            EXIT WHEN EXISTS (
+                SELECT 1
+                FROM acta.runtimes o
+                WHERE
+                    o.lane_id = v_lane_id
+                    AND o.lane_id IS NOT NULL
+                    AND o.status_code IN (
+                        10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                        40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                    )
+            );
 
             UPDATE acta.runtimes pr
             SET
@@ -8492,7 +8615,7 @@ DROP FUNCTION IF EXISTS acta.reserve_rate(VARCHAR, BIGINT, INT, INT, UUID);
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.6-ca2c255d8930b27e46864dab58a54c1e', 'acta');
+VALUES (-1, 'objects-1.6-116d3906ede3f243698031e0afc54a7e', 'acta');
 
 COMMIT;
 

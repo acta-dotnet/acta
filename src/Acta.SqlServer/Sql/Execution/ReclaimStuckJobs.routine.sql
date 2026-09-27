@@ -66,7 +66,19 @@ BEGIN
                         )
                     ORDER BY m.job_id
                 ) h
-                WHERE h.status_code = 15 /* JobStatusCode.Blocked */
+                WHERE
+                    h.status_code = 15 /* JobStatusCode.Blocked */
+                    AND NOT EXISTS (
+                        SELECT 1
+                        FROM {{schema}}.runtimes o WITH (INDEX (ix_runtimes_lane), FORCESEEK)
+                        WHERE
+                            o.lane_id = w.id
+                            AND o.lane_id IS NOT NULL
+                            AND o.status_code IN (
+                                10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                                40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                            )
+                    )
                 ORDER BY w.ord;
             END;
 
@@ -119,7 +131,7 @@ BEGIN
             END;
 
         /* The walk read without locks, so each stranded lane's head is re-read under its lock and promoted
-           only while it is still Blocked. */
+           only while it is still Blocked and no member runs. */
         UPDATE r
         SET
             status_code = 10 /* JobStatusCode.Ready */,
@@ -144,7 +156,18 @@ BEGIN
         INNER JOIN {{schema}}.runtimes r WITH (FORCESEEK) ON r.job_id = h.job_id
         WHERE
             h.status_code = 15 /* JobStatusCode.Blocked */
-            AND r.status_code = 15 /* JobStatusCode.Blocked */;
+            AND r.status_code = 15 /* JobStatusCode.Blocked */
+            AND NOT EXISTS (
+                SELECT 1
+                FROM {{schema}}.runtimes o WITH (INDEX (ix_runtimes_lane), FORCESEEK)
+                WHERE
+                    o.lane_id = s.id
+                    AND o.lane_id IS NOT NULL
+                    AND o.status_code IN (
+                        10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                        40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                    )
+            );
 
         INSERT INTO {{schema}}.events (
             event_code, created_at_utc, namespace_id,
@@ -329,7 +352,18 @@ BEGIN
         INNER JOIN {{schema}}.runtimes r WITH (FORCESEEK) ON r.job_id = h.job_id
         WHERE
             h.status_code = 15 /* JobStatusCode.Blocked */
-            AND r.status_code = 15 /* JobStatusCode.Blocked */;
+            AND r.status_code = 15 /* JobStatusCode.Blocked */
+            AND NOT EXISTS (
+                SELECT 1
+                FROM {{schema}}.runtimes o WITH (INDEX (ix_runtimes_lane), FORCESEEK)
+                WHERE
+                    o.lane_id = e.id
+                    AND o.lane_id IS NOT NULL
+                    AND o.status_code IN (
+                        10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                        40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                    )
+            );
 
         SELECT
             id AS job_id,

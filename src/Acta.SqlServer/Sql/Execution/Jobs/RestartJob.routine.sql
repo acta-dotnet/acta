@@ -20,7 +20,7 @@ BEGIN
         DECLARE
             @from_status TINYINT, @namespace_id INT,
             @lineage_root_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number INT, @audit_level TINYINT,
-            @job_ref UNIQUEIDENTIFIER, @version INT;
+            @job_ref UNIQUEIDENTIFIER, @version INT, @parent_id BIGINT;
         DECLARE @lane_id BIGINT, @to_status TINYINT = 10 /* JobStatusCode.Ready */;
 
         /* Lock order: the lane, then the job's rows (docs/internals/sql-execution-policy.md, "Lane lock
@@ -43,7 +43,8 @@ BEGIN
             @execution_number = r.execution_number,
             @audit_level = j.audit_level_code,
             @job_ref = j.job_ref,
-            @version = r.version
+            @version = r.version,
+            @parent_id = j.parent_id
         FROM {{schema}}.runtimes r WITH (UPDLOCK, ROWLOCK)
         INNER JOIN {{schema}}.jobs j ON j.id = r.job_id
         WHERE r.job_id = @p_id;
@@ -68,14 +69,7 @@ BEGIN
                 GOTO Finish;
             END;
 
-        /* A finished laned job is never reopened in place, which would put it back ahead of members that
-           already ran after it; the caller redrives it as a new job at the lane's tail instead. */
-        IF
-            @from_status = 50 /* JobStatusCode.Executing */
-            OR (
-                @lane_id IS NOT NULL
-                AND @from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-            )
+        IF @from_status = 50 /* JobStatusCode.Executing */
             BEGIN
 
                 SELECT
@@ -85,8 +79,73 @@ BEGIN
                 GOTO Finish;
             END;
 
-        /* A laned job restarts Ready only as its lane's lowest-id unfinished member; behind an older one
-           it waits Blocked for the promotion. */
+        /* A finished laned job is not reactivated while an unfinished ancestor or descendant sits in its
+           lane, the state the enqueue ancestor guard refuses (docs/internals/sql-execution-policy.md, "Lane
+           lock order"). Both walks run under the lane lock, which every enqueue into the lane takes too. */
+        IF
+            @lane_id IS NOT NULL
+            AND @from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+            BEGIN
+                DECLARE @lineage_hit BIT = 0;
+
+                WITH ancestors AS (
+                    SELECT a.id, a.parent_id
+                    FROM {{schema}}.jobs a
+                    WHERE a.id = @parent_id
+                    UNION ALL
+                    SELECT a.id, a.parent_id
+                    FROM {{schema}}.jobs a
+                    INNER JOIN ancestors c ON a.id = c.parent_id
+                )
+
+                SELECT TOP (1) @lineage_hit = 1
+                FROM ancestors c
+                INNER JOIN {{schema}}.runtimes lr ON lr.job_id = c.id
+                WHERE
+                    lr.lane_id = @lane_id
+                    AND lr.status_code IN (
+                        10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                        30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                    )
+                OPTION (MAXRECURSION 0);
+
+                WITH descendants AS (
+                    SELECT d.id
+                    FROM {{schema}}.jobs d
+                    WHERE
+                        d.parent_id = @p_id
+                        AND d.parent_id IS NOT NULL
+                    UNION ALL
+                    SELECT d.id
+                    FROM {{schema}}.jobs d
+                    INNER JOIN descendants c ON d.parent_id = c.id
+                    WHERE d.parent_id IS NOT NULL
+                )
+
+                SELECT TOP (1) @lineage_hit = 1
+                FROM descendants c
+                INNER JOIN {{schema}}.runtimes lr ON lr.job_id = c.id
+                WHERE
+                    lr.lane_id = @lane_id
+                    AND lr.status_code IN (
+                        10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                        30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                    )
+                OPTION (MAXRECURSION 0);
+
+                IF @lineage_hit = 1
+                    BEGIN
+
+                        SELECT
+                            CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
+                            @from_status AS status_code,
+                            @version AS version;
+                        GOTO Finish;
+                    END;
+            END;
+
+        /* A laned job restarts Ready unless another member runs, or it was not running and an older
+           member is unfinished (docs/internals/sql-execution-policy.md, "Lane lock order"). */
         IF
             @lane_id IS NOT NULL
             AND EXISTS (
@@ -99,7 +158,19 @@ BEGIN
                         10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
                         30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
                     )
-                    AND o.job_id < @p_id
+                    AND o.job_id <> @p_id
+                    AND (
+                        o.status_code IN (
+                            10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                            40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                        )
+                        OR (
+                            @from_status NOT IN (
+                                10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */, 40 /* JobStatusCode.Dispatched */
+                            )
+                            AND o.job_id < @p_id
+                        )
+                    )
             )
             SET @to_status = 15 /* JobStatusCode.Blocked */;
 

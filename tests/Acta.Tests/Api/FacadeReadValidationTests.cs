@@ -109,15 +109,6 @@ public sealed class FacadeReadValidationTests
         public Task<JobControlOutcome> PurgeJobAsync(long jobId, JobControlInput input, CancellationToken ct) =>
             throw new NotSupportedException();
 
-        public Task<JobRedriveOutcome> RedriveJobAsync(
-            JobEnqueueRow row,
-            Guid copyRef,
-            long jobId,
-            JobRef jobRef,
-            JobControlInput input,
-            CancellationToken ct
-        ) => throw new NotSupportedException();
-
         public Task ResetJobStateAsync(long jobId, CancellationToken ct) => throw new NotSupportedException();
     }
 

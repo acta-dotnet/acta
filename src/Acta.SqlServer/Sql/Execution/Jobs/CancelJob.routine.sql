@@ -132,6 +132,21 @@ BEGIN
                 IF @head_status IS NULL OR @head_status <> 15 /* JobStatusCode.Blocked */
                     BREAK;
 
+                -- A restarted member can wait Blocked below a running one, so promote only while no member runs
+                -- (docs/internals/sql-execution-policy.md, "Lane lock order").
+                IF EXISTS (
+                    SELECT 1
+                    FROM {{schema}}.runtimes o
+                    WHERE
+                        o.lane_id = @lane_id
+                        AND o.lane_id IS NOT NULL
+                        AND o.status_code IN (
+                            10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                            40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                        )
+                )
+                    BREAK;
+
                 UPDATE {{schema}}.runtimes
                 SET
                     status_code = 10 /* JobStatusCode.Ready */,

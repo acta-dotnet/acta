@@ -56,7 +56,19 @@ BEGIN
                 ORDER BY m.job_id
                 LIMIT 1
             ) h
-            WHERE h.status_code = 15 /* JobStatusCode.Blocked */
+            WHERE
+                h.status_code = 15 /* JobStatusCode.Blocked */
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM {{schema}}.runtimes o
+                    WHERE
+                        o.lane_id = w.id
+                        AND o.lane_id IS NOT NULL
+                        AND o.status_code IN (
+                            10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                            40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                        )
+                )
             ORDER BY w.ord
             LIMIT 100
         );
@@ -86,7 +98,7 @@ BEGIN
     v_stranded := ARRAY(SELECT s.id FROM unnest(v_stranded) AS s (id) WHERE s.id = ANY (v_lanes));
 
     -- The walk read without locks, so each stranded lane is re-read under its lock and repaired only
-    -- when its lowest-id unfinished member is still Blocked.
+    -- when its lowest-id unfinished member is still Blocked and no member runs.
     FOREACH v_lane_id IN ARRAY v_stranded
     LOOP
         LOOP
@@ -106,6 +118,17 @@ BEGIN
             LIMIT 1;
 
             EXIT WHEN v_head_status IS DISTINCT FROM 15 /* JobStatusCode.Blocked */;
+            EXIT WHEN EXISTS (
+                SELECT 1
+                FROM {{schema}}.runtimes o
+                WHERE
+                    o.lane_id = v_lane_id
+                    AND o.lane_id IS NOT NULL
+                    AND o.status_code IN (
+                        10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                        40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                    )
+            );
 
             UPDATE {{schema}}.runtimes pr
             SET
@@ -313,6 +336,17 @@ BEGIN
             LIMIT 1;
 
             EXIT WHEN v_head_status IS DISTINCT FROM 15 /* JobStatusCode.Blocked */;
+            EXIT WHEN EXISTS (
+                SELECT 1
+                FROM {{schema}}.runtimes o
+                WHERE
+                    o.lane_id = v_lane_id
+                    AND o.lane_id IS NOT NULL
+                    AND o.status_code IN (
+                        10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                        40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                    )
+            );
 
             UPDATE {{schema}}.runtimes pr
             SET

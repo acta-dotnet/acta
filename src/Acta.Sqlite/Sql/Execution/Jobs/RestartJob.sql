@@ -1,20 +1,13 @@
 DROP TABLE IF EXISTS temp._restart_job;
 
--- A finished laned job is refused, and the jobs service redrives it at the lane's tail. A laned job
--- restarts Ready only as its lane's lowest-id unfinished member, else Blocked.
+-- A laned job restarts Ready unless another member runs, or it was not running and an older member is
+-- unfinished (docs/internals/sql-execution-policy.md, "Lane lock order").
 CREATE TEMP TABLE _restart_job AS
 SELECT
     j.id,
     r.status_code AS from_status,
     r.version AS from_version,
-    CASE
-        WHEN r.status_code = 50 /* JobStatusCode.Executing */ THEN 1
-        WHEN
-            r.lane_id IS NOT NULL
-            AND r.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-            THEN 1
-        ELSE 0
-    END AS rejected,
+    CASE WHEN r.status_code = 50 /* JobStatusCode.Executing */ THEN 1 ELSE 0 END AS rejected,
     CASE
         WHEN
             r.lane_id IS NOT NULL
@@ -28,7 +21,19 @@ SELECT
                         10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
                         30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
                     )
-                    AND o.job_id < r.job_id
+                    AND o.job_id <> r.job_id
+                    AND (
+                        o.status_code IN (
+                            10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                            40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                        )
+                        OR (
+                            r.status_code NOT IN (
+                                10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */, 40 /* JobStatusCode.Dispatched */
+                            )
+                            AND o.job_id < r.job_id
+                        )
+                    )
             )
             THEN 15 /* JobStatusCode.Blocked */
         ELSE 10 /* JobStatusCode.Ready */
@@ -36,6 +41,49 @@ SELECT
 FROM {{schema}}.jobs j
 JOIN {{schema}}.runtimes r ON r.job_id = j.id
 WHERE j.id = @p_id;
+
+-- A finished laned job is not reactivated while an unfinished ancestor or descendant sits in its lane, the
+-- state the enqueue ancestor guard refuses (docs/internals/sql-execution-policy.md, "Lane lock order").
+UPDATE temp._restart_job
+SET rejected = 1
+WHERE
+    from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+    AND EXISTS (
+        WITH RECURSIVE
+            ancestors (id, parent_id) AS (
+                SELECT a.id, a.parent_id
+                FROM {{schema}}.jobs a
+                WHERE a.id = (SELECT j.parent_id FROM {{schema}}.jobs j WHERE j.id = @p_id)
+                UNION ALL
+                SELECT a.id, a.parent_id
+                FROM {{schema}}.jobs a
+                JOIN ancestors c ON a.id = c.parent_id
+            ),
+            descendants (id) AS (
+                SELECT d.id
+                FROM {{schema}}.jobs d
+                WHERE d.parent_id = @p_id
+                UNION ALL
+                SELECT d.id
+                FROM {{schema}}.jobs d
+                JOIN descendants c ON d.parent_id = c.id
+            ),
+            lineage (id) AS (
+                SELECT a.id FROM ancestors a
+                UNION ALL
+                SELECT d.id FROM descendants d
+            )
+        SELECT 1
+        FROM lineage c
+        JOIN {{schema}}.runtimes lr ON lr.job_id = c.id
+        JOIN {{schema}}.runtimes r ON r.job_id = @p_id
+        WHERE
+            lr.lane_id = r.lane_id
+            AND lr.status_code IN (
+                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+            )
+    );
 
 INSERT INTO {{schema}}.events (
     event_code,
