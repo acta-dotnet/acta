@@ -496,13 +496,35 @@ internal sealed class JobsService(
         return result;
     }
 
-    public ValueTask<JobControlResult> PauseAsync(
+    public async ValueTask<JobControlResult> PauseAsync(
         JobLookup job,
         string? reasonMessage,
         string? actorKey,
         int? expectedVersion,
         CancellationToken ct
-    ) => ApplyControlAsync(job, (id, c) => store.PauseJobAsync(id, Input(reasonMessage, actorKey, expectedVersion), c), ct);
+    )
+    {
+        var promoted = false;
+        var result = await ApplyControlAsync(
+            job,
+            async (id, c) =>
+            {
+                var pause = await store.PauseJobAsync(id, Input(reasonMessage, actorKey, expectedVersion), c);
+                promoted = pause.LanePromoted;
+                return pause.Outcome;
+            },
+            ct
+        );
+
+        // A promoted lane member is new work; the routine knows no namespace name, so every worker
+        // namespace hears it.
+        if (promoted)
+        {
+            await wakeupPublisher.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct);
+        }
+
+        return result;
+    }
 
     /// <summary>
     /// Resume and restart are recurring-aware: a recurring slot recomputes its misfire-aware slot

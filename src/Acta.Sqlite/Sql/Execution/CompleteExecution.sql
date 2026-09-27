@@ -577,7 +577,10 @@ WHERE
         JOIN {{schema}}.runtimes settled ON settled.lane_id = m.lane_id
         WHERE
             settled.job_id = @p_id
-            AND settled.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+            -- A job its handler paused leaves the lane with no runner, so it hands on like a settle.
+            AND settled.status_code IN (
+                30 /* JobStatusCode.Paused */, 100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */
+            )
             AND EXISTS (SELECT 1 FROM _ce_done)
             AND m.lane_id IS NOT NULL
             AND m.status_code IN (

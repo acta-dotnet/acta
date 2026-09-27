@@ -601,7 +601,8 @@ BEGIN
     END IF;
 
     IF v_lane_id IS NOT NULL
-        AND v_to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN
+        AND v_to_status IN (30 /* JobStatusCode.Paused */, 100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN
+        -- A job its handler paused leaves the lane with no runner, so it hands on like a settle.
         -- Promotion under the lane lock (docs/internals/sql-execution-policy.md, "Lane lock order"): a
         -- Blocked lowest-id unfinished member becomes Ready at its own due instant or now, whichever is later.
         LOOP

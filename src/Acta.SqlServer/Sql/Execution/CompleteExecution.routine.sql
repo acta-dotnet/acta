@@ -553,10 +553,13 @@ BEGIN
                     END
 
                 /* Promotion under the lane lock (docs/internals/sql-execution-policy.md, "Lane lock order"):
-                   a Blocked lowest-id unfinished member becomes Ready at its own due instant or now. */
+                   a Blocked lowest-id unfinished member becomes Ready at its own due instant or now. A job its
+                   handler paused leaves the lane with no runner, so it hands on like a settle. */
                 IF
                     @lane_id IS NOT NULL
-                    AND @to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+                    AND @to_status IN (
+                        30 /* JobStatusCode.Paused */, 100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */
+                    )
                     BEGIN
                         DECLARE @head_id BIGINT, @head_status TINYINT, @promoted INT = 0;
                         WHILE @promoted = 0

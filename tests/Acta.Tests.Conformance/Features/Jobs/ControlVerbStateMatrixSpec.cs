@@ -149,14 +149,14 @@ public abstract class ControlVerbStateMatrixSpec<TFixture> : ActaRuntimeTestBase
         var jobId = await EnqueueAsync(ct);
         await SetJobStatusAsync(Db, jobId, (byte)JobStatusCode.Suspended, ct);
 
-        var firstPause = await Services.GetRequiredService<IJobStore>().PauseJobAsync(jobId, input, ct);
+        var firstPause = (await Services.GetRequiredService<IJobStore>().PauseJobAsync(jobId, input, ct)).Outcome;
         Assert.Equal(JobControlActionInternal.Applied, firstPause.Action);
         Assert.Equal(JobStatusCode.Paused, firstPause.Status);
 
         var afterFirst = await ReadJobAsync(jobId, ct);
         Assert.Equal(JobStatusCode.Paused, afterFirst.Status);
 
-        var secondPause = await Services.GetRequiredService<IJobStore>().PauseJobAsync(jobId, input, ct);
+        var secondPause = (await Services.GetRequiredService<IJobStore>().PauseJobAsync(jobId, input, ct)).Outcome;
         Assert.Equal(JobControlActionInternal.Applied, secondPause.Action);
         Assert.Equal(JobStatusCode.Paused, secondPause.Status);
 

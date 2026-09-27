@@ -195,6 +195,80 @@ public abstract class LaneRestartSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(descendant.JobId, ct)).Status);
     }
 
+    [Fact(DisplayName = "Pausing the running member hands the lane to an older restarted job at once")]
+    public async Task Pausing_the_running_member_promotes_the_restarted_job()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var restarted = await RestartedBehindAsync("orders", Step("orders", "head"), ct);
+        var follower = await Jobs.EnqueueAsync(Step("orders", "follower"), ct);
+
+        var paused = await Jobs.PauseAsync(restarted.Head, ct: ct);
+
+        Assert.Equal((ControlAction.Applied, JobStatusCode.Paused), (paused.Action, paused.Status));
+        Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(restarted.Older.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Blocked, (await ReadJobAsync(follower.JobId, ct)).Status);
+        Assert.Equal(0, await LaneRepairedEventsAsync(ct));
+    }
+
+    [Fact(DisplayName = "A running member its handler pauses hands the lane to an older restarted job")]
+    public async Task A_handler_pause_promotes_the_restarted_job()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var pauser = new JobEnqueueRequest(
+            TestNamespace,
+            "lane-pauser",
+            JobPayload.Json(new LanePauserStep("orders", "pauser")),
+            Lane: "orders"
+        );
+        var restarted = await RestartedBehindAsync("orders", pauser, ct);
+
+        await Runtime.RunOnceAsync(TestNamespace, restarted.Head.JobId, ct);
+
+        Assert.Equal(JobStatusCode.Paused, (await ReadJobAsync(restarted.Head.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(restarted.Older.JobId, ct)).Status);
+        Assert.Equal(0, await LaneRepairedEventsAsync(ct));
+    }
+
+    [Fact(DisplayName = "Pausing a head with only younger members behind it keeps them Blocked")]
+    public async Task Pausing_a_plain_head_holds_the_lane()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var head = await Jobs.EnqueueAsync(Step("orders", "head"), ct);
+        var follower = await Jobs.EnqueueAsync(Step("orders", "follower"), ct);
+
+        Assert.Equal(ControlAction.Applied, (await Jobs.PauseAsync(head, ct: ct)).Action);
+
+        Assert.Equal(JobStatusCode.Blocked, (await ReadJobAsync(follower.JobId, ct)).Status);
+    }
+
+    // An older job fails in the lane, the given head becomes the lane's running member, and the older job
+    // is restarted Blocked behind it.
+    private async Task<(JobEnqueueOutcome Older, JobEnqueueOutcome Head)> RestartedBehindAsync(
+        string lane,
+        JobEnqueueRequest head,
+        CancellationToken ct
+    )
+    {
+        var older = await DoomedAsync(lane, ct);
+        await Runtime.RunOnceAsync(TestNamespace, older.JobId, ct);
+        await Runtime.RunOnceAsync(TestNamespace, older.JobId, ct);
+        Assert.Equal(JobStatusCode.Failed, (await ReadJobAsync(older.JobId, ct)).Status);
+        var running = await Jobs.EnqueueAsync(head, ct);
+        Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(running.JobId, ct)).Status);
+        var restarted = await Jobs.RestartAsync(older, ct: ct);
+        Assert.Equal((ControlAction.Applied, JobStatusCode.Blocked), (restarted.Action, restarted.Status));
+        return (older, running);
+    }
+
+    private async Task<int> LaneRepairedEventsAsync(CancellationToken ct)
+    {
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var events = await Db.From<JobEvent>()
+            .Where(e => e.NamespaceId == ns && e.ReasonCode == JobEventReasonCode.JobLaneRepaired)
+            .ToListAsync(ct);
+        return events.Count;
+    }
+
     // Claims and starts the job as this namespace's worker and hands back its completion, unsent.
     private async Task<Func<Task<CompleteExecutionResult>>> StartedAsync(JobEnqueueOutcome job, CancellationToken ct)
     {

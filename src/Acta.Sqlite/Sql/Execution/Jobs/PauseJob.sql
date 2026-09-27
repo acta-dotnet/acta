@@ -62,6 +62,51 @@ WHERE
     AND (@p_expected_version IS NULL OR version = @p_expected_version)
     AND status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */);
 
+-- A paused running member leaves its lane with no runner, so the lane hands on as a settle would: to an
+-- older Blocked member, the one a restart left waiting. This is the last write, so changes() counts it.
+UPDATE {{schema}}.runtimes
+SET
+    status_code = 10 /* JobStatusCode.Ready */,
+    next_run_at_utc = MAX(next_run_at_utc, {{now}}),
+    modified_at_utc = {{now}},
+    version = version + 1
+WHERE
+    status_code = 15 /* JobStatusCode.Blocked */
+    AND EXISTS (
+        SELECT 1
+        FROM temp._pause_job s
+        JOIN {{schema}}.runtimes paused ON paused.job_id = s.id
+        WHERE
+            s.from_status IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
+            AND (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
+            AND paused.status_code = 30 /* JobStatusCode.Paused */
+            AND paused.lane_id = runtimes.lane_id
+    )
+    AND NOT EXISTS (
+        SELECT 1
+        FROM {{schema}}.runtimes o
+        WHERE
+            o.lane_id = runtimes.lane_id
+            AND o.lane_id IS NOT NULL
+            AND o.status_code IN (
+                10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+            )
+    )
+    AND job_id = (
+        SELECT m.job_id
+        FROM {{schema}}.runtimes m
+        WHERE
+            m.lane_id = runtimes.lane_id
+            AND m.lane_id IS NOT NULL
+            AND m.status_code IN (
+                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+            )
+        ORDER BY m.job_id
+        LIMIT 1
+    );
+
 SELECT
     CASE
         WHEN s.id IS NULL THEN 2 /* ControlAction.NotFound */
@@ -80,6 +125,7 @@ SELECT
         WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN s.from_version
         WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */) THEN s.from_version + 1
         ELSE s.from_version
-    END AS version
+    END AS version,
+    CASE WHEN changes() > 0 THEN 1 ELSE 0 END AS lane_promoted
 FROM (SELECT @p_id AS qid) q
 LEFT JOIN temp._pause_job s ON s.id = q.qid;

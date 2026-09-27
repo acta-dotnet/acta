@@ -12,6 +12,9 @@ public sealed record LaneFlakyStep(string Lane, string Label, int Failures);
 /// <summary>Input for <c>lane-doomed</c>: fails every attempt.</summary>
 public sealed record LaneDoomedStep(string Lane, string Label);
 
+/// <summary>Input for <c>lane-pauser</c>: its handler pauses its own job.</summary>
+public sealed record LanePauserStep(string Lane, string Label);
+
 /// <summary>Input for <c>lane-defined</c>, whose definition declares the lane.</summary>
 public sealed record LaneDefinedStep(string Label);
 
@@ -61,6 +64,13 @@ public static class LaneProbes
     {
         await RecordAsync(ctx.JobNamespace, input.Lane, input.Label, ct);
         throw new InvalidOperationException("lane-doomed always fails.");
+    }
+
+    [Job("lane-pauser")]
+    public static async Task Pauser(LanePauserStep input, JobContext ctx, CancellationToken ct)
+    {
+        await RecordAsync(ctx.JobNamespace, input.Lane, input.Label, ct);
+        await ctx.PauseAsync("held by its handler", ct);
     }
 
     [Job("lane-defined", Lane = "defined-lane")]

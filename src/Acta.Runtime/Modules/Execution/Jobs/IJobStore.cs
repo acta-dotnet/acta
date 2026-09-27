@@ -82,8 +82,8 @@ internal interface IJobStore
     /// <summary>Cancels a job; the outcome carries the parent id so the caller can raise the child latch.</summary>
     Task<CancelJobOutcome> CancelJobAsync(long jobId, JobControlInput input, CancellationToken ct);
 
-    /// <summary>Pauses a claimable job.</summary>
-    Task<JobControlOutcome> PauseJobAsync(long jobId, JobControlInput input, CancellationToken ct);
+    /// <summary>Pauses a claimable job, promoting its lane's next member when it was the running one.</summary>
+    Task<PauseJobOutcome> PauseJobAsync(long jobId, JobControlInput input, CancellationToken ct);
 
     /// <summary>Resumes a paused job, recurring-aware via the caller-resolved next run.</summary>
     Task<JobControlOutcome> ResumeJobAsync(long jobId, JobControlInput input, DateTime? nextRunAtUtc, CancellationToken ct);

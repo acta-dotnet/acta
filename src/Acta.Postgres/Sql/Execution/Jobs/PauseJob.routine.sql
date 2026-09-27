@@ -1,3 +1,6 @@
+-- CREATE OR REPLACE cannot change a return type, and the result carries lane_promoted.
+DROP FUNCTION IF EXISTS {{schema}}.pause_job;
+
 CREATE OR REPLACE FUNCTION {{schema}}.pause_job(
     p_id BIGINT,
     p_actor_code SMALLINT,
@@ -6,7 +9,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.pause_job(
     p_reason_message VARCHAR,
     p_expected_version INT DEFAULT NULL
 )
-RETURNS TABLE (action SMALLINT, status_code SMALLINT, version INT)
+RETURNS TABLE (action SMALLINT, status_code SMALLINT, version INT, lane_promoted SMALLINT)
 LANGUAGE plpgsql
 AS $$
 DECLARE
@@ -20,6 +23,9 @@ DECLARE
     v_audit_level SMALLINT;
     v_job_ref UUID;
     v_lane_id BIGINT;
+    v_head_id BIGINT;
+    v_head_status SMALLINT;
+    v_lane_promoted SMALLINT := 0;
 BEGIN
     -- Lock order: the lane, then the job's rows (docs/internals/sql-execution-policy.md, "Lane lock
     -- order"). lane_id never changes, so the unlocked read is safe.
@@ -42,12 +48,12 @@ BEGIN
     FOR UPDATE OF r;
 
     IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT, NULL::INT;
+        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT, NULL::INT, 0::SMALLINT;
         RETURN;
     END IF;
 
     IF p_expected_version IS NOT NULL AND v_version <> p_expected_version THEN
-        RETURN QUERY SELECT 5 /* ControlAction.VersionConflict */::SMALLINT, v_from_status, v_version;
+        RETURN QUERY SELECT 5 /* ControlAction.VersionConflict */::SMALLINT, v_from_status, v_version, 0::SMALLINT;
         RETURN;
     END IF;
 
@@ -58,7 +64,7 @@ BEGIN
         10 /* JobStatusCode.Ready */,
         15 /* JobStatusCode.Blocked */
     ) THEN
-        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status, v_version;
+        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status, v_version, 0::SMALLINT;
         RETURN;
     END IF;
 
@@ -70,6 +76,55 @@ BEGIN
         modified_at_utc = now(),
         version = r.version + 1
     WHERE r.job_id = p_id;
+
+    -- A paused running member leaves its lane with no runner, so the lane hands on as a settle would: to
+    -- an older Blocked member, the one a restart left waiting (docs/internals/sql-execution-policy.md, "Lane lock order").
+    IF v_lane_id IS NOT NULL AND v_from_status IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */) THEN
+        LOOP
+            v_head_id := NULL;
+            v_head_status := NULL;
+
+            SELECT m.job_id, m.status_code INTO v_head_id, v_head_status
+            FROM {{schema}}.runtimes m
+            WHERE
+                m.lane_id = v_lane_id
+                AND m.lane_id IS NOT NULL
+                AND m.status_code IN (
+                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                    30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                )
+            ORDER BY m.job_id
+            LIMIT 1;
+
+            EXIT WHEN v_head_status IS DISTINCT FROM 15 /* JobStatusCode.Blocked */;
+            EXIT WHEN EXISTS (
+                SELECT 1
+                FROM {{schema}}.runtimes o
+                WHERE
+                    o.lane_id = v_lane_id
+                    AND o.lane_id IS NOT NULL
+                    AND o.status_code IN (
+                        10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                        40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                    )
+            );
+
+            UPDATE {{schema}}.runtimes pr
+            SET
+                status_code = 10 /* JobStatusCode.Ready */,
+                next_run_at_utc = GREATEST(pr.next_run_at_utc, now()),
+                modified_at_utc = now(),
+                version = pr.version + 1
+            WHERE
+                pr.job_id = v_head_id
+                AND pr.status_code = 15 /* JobStatusCode.Blocked */;
+
+            IF FOUND THEN
+                v_lane_promoted := 1;
+                EXIT;
+            END IF;
+        END LOOP;
+    END IF;
 
     IF v_audit_level = 20 /* JobAuditLevelCode.Audit */ THEN
         INSERT INTO {{schema}}.events (
@@ -112,6 +167,6 @@ BEGIN
             p_reason_message);
     END IF;
 
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, 30 /* JobStatusCode.Paused */::SMALLINT, v_version + 1;
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, 30 /* JobStatusCode.Paused */::SMALLINT, v_version + 1, v_lane_promoted;
 END;
 $$;

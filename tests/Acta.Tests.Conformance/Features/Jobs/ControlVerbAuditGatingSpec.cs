@@ -42,8 +42,8 @@ public abstract class ControlVerbAuditGatingSpec<TFixture> : ActaRuntimeTestBase
         await SetAuditLevelAsync(Db, jobL, JobAuditLevelCode.Off, ct);
         await SetAuditLevelAsync(Db, jobF, JobAuditLevelCode.Audit, ct);
 
-        var outcomeL = await Services.GetRequiredService<IJobStore>().PauseJobAsync(jobL, input, ct);
-        var outcomeF = await Services.GetRequiredService<IJobStore>().PauseJobAsync(jobF, input, ct);
+        var outcomeL = (await Services.GetRequiredService<IJobStore>().PauseJobAsync(jobL, input, ct)).Outcome;
+        var outcomeF = (await Services.GetRequiredService<IJobStore>().PauseJobAsync(jobF, input, ct)).Outcome;
 
         Assert.Equal(JobControlActionInternal.Applied, outcomeL.Action);
         Assert.Equal(JobStatusCode.Paused, outcomeL.Status);

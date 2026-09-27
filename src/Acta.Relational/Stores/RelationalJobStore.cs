@@ -304,16 +304,25 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
             );
     }
 
-    public Task<JobControlOutcome> PauseJobAsync(long jobId, JobControlInput input, CancellationToken ct) =>
-        VersionedControlAsync(
-            "Jobs/PauseJob",
+    public async Task<PauseJobOutcome> PauseJobAsync(long jobId, JobControlInput input, CancellationToken ct)
+    {
+        var rows = await session.ExecuteAsync(
+            new StoreCommand("Execution", "Jobs/PauseJob"),
             cmd =>
             {
                 AddControlParameters(cmd, jobId, input, includeReasonMessage: true);
                 AddExpectedVersion(cmd, input);
             },
+            DbProjectionResolver.Resolve<PauseJobOutcomeRow>(),
             ct
         );
+
+        return rows.Count > 0
+            ? rows[^1].ToOutcome()
+            : throw new InvalidOperationException(
+                "Control command 'PauseJob' returned no rows; it must return exactly one (action, status_code, version, lane_promoted) row."
+            );
+    }
 
     public Task<JobControlOutcome> ResumeJobAsync(long jobId, JobControlInput input, DateTime? nextRunAtUtc, CancellationToken ct) =>
         VersionedControlAsync(

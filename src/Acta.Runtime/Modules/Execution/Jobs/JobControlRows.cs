@@ -22,3 +22,17 @@ internal readonly record struct CancelJobOutcomeRow(
 {
     public CancelJobOutcome ToOutcome() => new(new JobControlOutcome(Action, Status, Version), ParentId, LanePromoted);
 }
+
+/// <summary>
+/// Result of a pause attempt: the control outcome, and whether pausing the lane's running member promoted
+/// the next one, which the caller announces to the claim loops.
+/// </summary>
+internal sealed record PauseJobOutcome(JobControlOutcome Outcome, bool LanePromoted);
+
+/// <summary>
+/// Flat pause routine row; wraps the shared control outcome after binding.
+/// </summary>
+internal readonly record struct PauseJobOutcomeRow(JobControlActionInternal Action, JobStatusCode? Status, int? Version, bool LanePromoted)
+{
+    public PauseJobOutcome ToOutcome() => new(new JobControlOutcome(Action, Status, Version), LanePromoted);
+}

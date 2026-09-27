@@ -1520,6 +1520,9 @@
   - A restarted laned child keeps its parent, and the ancestor guard sees it unfinished again
   - A finished job with an unfinished descendant in its lane is not restarted
   - A finished job with an unfinished ancestor in its lane is not restarted
+  - Pausing the running member hands the lane to an older restarted job at once
+  - A running member its handler pauses hands the lane to an older restarted job
+  - Pausing a head with only younger members behind it keeps them Blocked
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.RestartJobAsync`
 

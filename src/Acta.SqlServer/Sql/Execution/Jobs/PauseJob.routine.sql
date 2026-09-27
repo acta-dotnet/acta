@@ -53,7 +53,8 @@ BEGIN
                 SELECT
                     CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
                     CAST(NULL AS TINYINT) AS status_code,
-                    CAST(NULL AS INT) AS version;
+                    CAST(NULL AS INT) AS version,
+                    CAST(0 AS TINYINT) AS lane_promoted;
                 GOTO Finish;
             END;
 
@@ -63,7 +64,8 @@ BEGIN
                 SELECT
                     CAST(5 /* ControlAction.VersionConflict */ AS TINYINT) AS action,
                     @from_status AS status_code,
-                    @version AS version;
+                    @version AS version,
+                    CAST(0 AS TINYINT) AS lane_promoted;
                 GOTO Finish;
             END;
 
@@ -79,7 +81,8 @@ BEGIN
                 SELECT
                     CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
                     @from_status AS status_code,
-                    @version AS version;
+                    @version AS version,
+                    CAST(0 AS TINYINT) AS lane_promoted;
                 GOTO Finish;
             END;
 
@@ -90,6 +93,57 @@ BEGIN
             version = version + 1
         WHERE job_id = @p_id;
         SET @version = @version + 1;
+
+        /* A paused running member leaves its lane with no runner, so the lane hands on as a settle would:
+           to an older Blocked member, the one a restart left waiting (docs/internals/sql-execution-policy.md,
+           "Lane lock order"). */
+        DECLARE @head_id BIGINT, @head_status TINYINT, @promoted INT = 0;
+        WHILE @lane_id IS NOT NULL AND @from_status IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */) AND @promoted = 0
+            BEGIN
+                SET @head_id = NULL;
+                SET @head_status = NULL;
+
+                SELECT TOP (1)
+                    @head_id = m.job_id,
+                    @head_status = m.status_code
+                FROM {{schema}}.runtimes m
+                WHERE
+                    m.lane_id = @lane_id
+                    AND m.lane_id IS NOT NULL
+                    AND m.status_code IN (
+                        10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                        30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                    )
+                ORDER BY m.job_id;
+
+                IF @head_status IS NULL OR @head_status <> 15 /* JobStatusCode.Blocked */
+                    BREAK;
+
+                IF EXISTS (
+                    SELECT 1
+                    FROM {{schema}}.runtimes o
+                    WHERE
+                        o.lane_id = @lane_id
+                        AND o.lane_id IS NOT NULL
+                        AND o.status_code IN (
+                            10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                            40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                        )
+                )
+                    BREAK;
+
+                UPDATE {{schema}}.runtimes
+                SET
+                    status_code = 10 /* JobStatusCode.Ready */,
+                    next_run_at_utc = CASE WHEN next_run_at_utc > @now THEN next_run_at_utc ELSE @now END,
+                    modified_at_utc = @now,
+                    version = version + 1
+                WHERE
+                    job_id = @head_id
+                    AND status_code = 15 /* JobStatusCode.Blocked */;
+
+                SET @promoted = @@ROWCOUNT;
+            END;
 
         IF @audit_level = 20 /* JobAuditLevelCode.Audit */
             BEGIN
@@ -118,7 +172,8 @@ BEGIN
         SELECT
             CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
             CAST(30 /* JobStatusCode.Paused */ AS TINYINT) AS status_code,
-            @version AS version;
+            @version AS version,
+            CAST(CASE WHEN @promoted > 0 THEN 1 ELSE 0 END AS TINYINT) AS lane_promoted;
 
     Finish:
 

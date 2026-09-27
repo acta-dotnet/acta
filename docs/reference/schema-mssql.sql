@@ -2666,10 +2666,13 @@ BEGIN
                     END
 
                 /* Promotion under the lane lock (docs/internals/sql-execution-policy.md, "Lane lock order"):
-                   a Blocked lowest-id unfinished member becomes Ready at its own due instant or now. */
+                   a Blocked lowest-id unfinished member becomes Ready at its own due instant or now. A job its
+                   handler paused leaves the lane with no runner, so it hands on like a settle. */
                 IF
                     @lane_id IS NOT NULL
-                    AND @to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+                    AND @to_status IN (
+                        30 /* JobStatusCode.Paused */, 100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */
+                    )
                     BEGIN
                         DECLARE @head_id BIGINT, @head_status TINYINT, @promoted INT = 0;
                         WHILE @promoted = 0
@@ -4546,7 +4549,8 @@ BEGIN
                 SELECT
                     CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
                     CAST(NULL AS TINYINT) AS status_code,
-                    CAST(NULL AS INT) AS version;
+                    CAST(NULL AS INT) AS version,
+                    CAST(0 AS TINYINT) AS lane_promoted;
                 GOTO Finish;
             END;
 
@@ -4556,7 +4560,8 @@ BEGIN
                 SELECT
                     CAST(5 /* ControlAction.VersionConflict */ AS TINYINT) AS action,
                     @from_status AS status_code,
-                    @version AS version;
+                    @version AS version,
+                    CAST(0 AS TINYINT) AS lane_promoted;
                 GOTO Finish;
             END;
 
@@ -4572,7 +4577,8 @@ BEGIN
                 SELECT
                     CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
                     @from_status AS status_code,
-                    @version AS version;
+                    @version AS version,
+                    CAST(0 AS TINYINT) AS lane_promoted;
                 GOTO Finish;
             END;
 
@@ -4583,6 +4589,57 @@ BEGIN
             version = version + 1
         WHERE job_id = @p_id;
         SET @version = @version + 1;
+
+        /* A paused running member leaves its lane with no runner, so the lane hands on as a settle would:
+           to an older Blocked member, the one a restart left waiting (docs/internals/sql-execution-policy.md,
+           "Lane lock order"). */
+        DECLARE @head_id BIGINT, @head_status TINYINT, @promoted INT = 0;
+        WHILE @lane_id IS NOT NULL AND @from_status IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */) AND @promoted = 0
+            BEGIN
+                SET @head_id = NULL;
+                SET @head_status = NULL;
+
+                SELECT TOP (1)
+                    @head_id = m.job_id,
+                    @head_status = m.status_code
+                FROM acta.runtimes m
+                WHERE
+                    m.lane_id = @lane_id
+                    AND m.lane_id IS NOT NULL
+                    AND m.status_code IN (
+                        10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                        30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                    )
+                ORDER BY m.job_id;
+
+                IF @head_status IS NULL OR @head_status <> 15 /* JobStatusCode.Blocked */
+                    BREAK;
+
+                IF EXISTS (
+                    SELECT 1
+                    FROM acta.runtimes o
+                    WHERE
+                        o.lane_id = @lane_id
+                        AND o.lane_id IS NOT NULL
+                        AND o.status_code IN (
+                            10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                            40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                        )
+                )
+                    BREAK;
+
+                UPDATE acta.runtimes
+                SET
+                    status_code = 10 /* JobStatusCode.Ready */,
+                    next_run_at_utc = CASE WHEN next_run_at_utc > @now THEN next_run_at_utc ELSE @now END,
+                    modified_at_utc = @now,
+                    version = version + 1
+                WHERE
+                    job_id = @head_id
+                    AND status_code = 15 /* JobStatusCode.Blocked */;
+
+                SET @promoted = @@ROWCOUNT;
+            END;
 
         IF @audit_level = 20 /* JobAuditLevelCode.Audit */
             BEGIN
@@ -4611,7 +4668,8 @@ BEGIN
         SELECT
             CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
             CAST(30 /* JobStatusCode.Paused */ AS TINYINT) AS status_code,
-            @version AS version;
+            @version AS version,
+            CAST(CASE WHEN @promoted > 0 THEN 1 ELSE 0 END AS TINYINT) AS lane_promoted;
 
     Finish:
 
@@ -9562,7 +9620,7 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.6-6c40867f4aeb72cd85dd51a28d33fce2', 'acta'
+SELECT -1, 'objects-1.6-b393950ab68848076be967892b668edd', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
     WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'jobs_view', 'schedules_view', 'steps_view', 'workers_view', 'events_view', 'tags_view', 'acknowledge_job_alert', 'raise_job_alert', 'resolve_job_alert_manual', 'resolve_job_alerts', 'update_alert_delivery', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_executions_batch', 'complete_step', 'register_job_definitions', 'set_job_definition_overrides', 'cancel_job', 'enqueue_batch', 'enqueue_one', 'pause_job', 'purge_job', 'reprioritize_job', 'reschedule_job', 'reset_job_state', 'restart_job', 'resume_job', 'update_job_input', 'resume_namespace', 'suspend_namespace', 'update_namespace', 'record_job_note', 'reclaim_stuck_jobs', 'repair_recovery_slot', 'pause_schedule', 'register_scheduled_jobs', 'resume_schedule', 'set_schedule_overrides', 'trigger_schedule_now', 'set_setting', 'consume_outbox_signal', 'park_outbox_signal', 'raise_signal', 'record_outbox_event', 'wait_signal', 'start_execution', 'start_step', 'register_tenant', 'resume_tenant', 'suspend_tenant', 'update_tenant', 'arm_or_consume_sleep_timer', 'extend_worker_leases', 'mark_dead_workers', 'start_worker', 'stop_worker', 'purge_expired_data', 'apply_tags', 'acquire_lock', 'acquire_slot', 'extend_lock', 'release_lock', 'reserve_rate')) = 68;
 GO
