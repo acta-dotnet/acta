@@ -104,6 +104,19 @@ public sealed class ControlEndpointTests
     }
 
     [Fact]
+    public async Task A_rejected_restart_names_the_status_or_the_lane_as_the_reason()
+    {
+        var (app, client) = await StartWithControlsAsync();
+        await using var _ = app;
+
+        var response = await client.SendAsync(Post($"/acta/api/v1/jobs/{Rejected}/restart"), TestContext.Current.CancellationToken);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Contains("status or its lane does not allow it", body);
+    }
+
+    [Fact]
     public async Task Unknown_job_maps_to_404()
     {
         var (app, client) = await StartWithControlsAsync();

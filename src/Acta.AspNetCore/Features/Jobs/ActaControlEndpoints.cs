@@ -508,7 +508,10 @@ internal static class ActaControlEndpoints
             ControlAction.Applied => (StatusCodes.Status200OK, $"{Title(verb)} applied."),
             ControlAction.Rejected => (
                 StatusCodes.Status409Conflict,
-                $"{Title(verb)} rejected: the job's current status does not allow it."
+                // A restart can also be refused by the job's lane, so its message names both reasons.
+                verb == "restart"
+                    ? "Restart rejected: the job's status or its lane does not allow it."
+                    : $"{Title(verb)} rejected: the job's current status does not allow it."
             ),
             ControlAction.VersionConflict => (
                 StatusCodes.Status409Conflict,
