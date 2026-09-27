@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Text.RegularExpressions;
 using Acta.Relational.Resources;
 
 namespace Acta.Relational.Schema;
@@ -8,7 +9,7 @@ namespace Acta.Relational.Schema;
 /// same transaction and migration lock. Durable DDL stays in versioned migrations; idempotent object
 /// bodies are reapplied at bootstrap, with SQL Server's byte-equivalent definitions skipped.
 /// </summary>
-internal static class SqlObjectInstaller
+internal static partial class SqlObjectInstaller
 {
     public static async Task Run(
         DbConnection conn,
@@ -152,12 +153,14 @@ internal static class SqlObjectInstaller
         }
     }
 
-    private static string Comparable(string sql) =>
-        string.Join(
-            ' ',
-            sql.Replace("CREATE OR ALTER ", "CREATE ", StringComparison.Ordinal)
-                .Split([' ', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
-        );
+    // SQL Server stores "CREATE OR ALTER PROCEDURE" as "CREATE   PROCEDURE", so only that header and line
+    // endings are normalized. Collapsing whitespace elsewhere would collapse it inside string literals
+    // too and skip a body whose literal changed: a false mismatch costs one reinstall, a false match a
+    // stale routine under a current stamp.
+    private static string Comparable(string sql) => CreateHeader().Replace(sql, "CREATE $1", 1).ReplaceLineEndings("\n").Trim();
+
+    [GeneratedRegex(@"\bCREATE\s+(?:OR\s+ALTER\s+)?(PROCEDURE|VIEW|FUNCTION)\b", RegexOptions.CultureInvariant)]
+    private static partial Regex CreateHeader();
 
     private static async Task<string?> CurrentDefinition(
         DbConnection conn,

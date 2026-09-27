@@ -1827,8 +1827,8 @@
   - A committed stage persists the business row and a claimable, reconstructable outbox row
   - A rolled-back stage discards both the business row and the outbox row
 
-### Rows staged into one lane relay in staging order whatever their priority
-- **Contract:** The relay claims staged rows in staging order and enqueues them in that order, so a lane's rows keep their staging order however their priorities differ.
+### One relay batch keeps a lane in staging order whatever the priorities
+- **Contract:** The relay enqueues each claimed batch in staging order, so a lane's rows relayed together keep that order however their priorities differ.
 - **Arrange:** A low-priority row and then a high-priority row are staged into one lane in one producer transaction.
 - **Act:** One relay tick relays the source.
 - **Assert:** The low-priority row's job leads the lane Ready and the high-priority row's job waits Blocked behind it.

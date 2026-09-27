@@ -7,15 +7,15 @@ using Xunit;
 namespace Acta.Tests.Conformance.Features.Outbox;
 
 /// <summary>
-/// The relay claims staged rows in staging order and enqueues them in that order, so a lane staged
-/// through the outbox runs in the order its rows were staged. Priority reorders nothing on the way; it
-/// still applies to the enqueued jobs.
+/// The relay claims staged rows in staging order and enqueues them in that order, so a lane's rows
+/// relayed in one batch run in the order they were staged. Priority reorders nothing on the way; it
+/// still applies to the enqueued jobs. A retried row is not covered: it lands behind rows staged after it.
 /// </summary>
 [ConformanceSpec(
     "outbox.lane-order",
-    "Rows staged into one lane relay in staging order whatever their priority",
+    "One relay batch keeps a lane in staging order whatever the priorities",
     Area = "Outbox",
-    Contract = "The relay claims staged rows in staging order and enqueues them in that order, so a lane's rows keep their staging order however their priorities differ.",
+    Contract = "The relay enqueues each claimed batch in staging order, so a lane's rows relayed together keep that order however their priorities differ.",
     Arrange = "A low-priority row and then a high-priority row are staged into one lane in one producer transaction.",
     Act = "One relay tick relays the source.",
     Assert = "The low-priority row's job leads the lane Ready and the high-priority row's job waits Blocked behind it."
