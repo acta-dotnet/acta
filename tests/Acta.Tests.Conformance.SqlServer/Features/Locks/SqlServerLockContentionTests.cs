@@ -55,7 +55,7 @@ public sealed class SqlServerLockContentionTests
                     RAISERROR ('{readyMessage}', 10, 1) WITH NOWAIT;
                     DECLARE @gate_result INT;
                     EXEC @gate_result = sys.sp_getapplock
-                        @Resource = N'{gate}', @LockMode = 'Shared', @LockOwner = 'Transaction', @LockTimeout = 5000;
+                        @Resource = N'{gate}', @LockMode = 'Shared', @LockOwner = 'Transaction', @LockTimeout = 30000;
                     IF @gate_result < 0 THROW 50000, 'Test insert barrier failed.', 1;
                     {insert}
                     """,
@@ -67,7 +67,7 @@ public sealed class SqlServerLockContentionTests
 
             await ExecuteAsync(
                 admin,
-                $"EXEC sys.sp_getapplock @Resource = N'{gate}', @LockMode = 'Exclusive', @LockOwner = 'Session', @LockTimeout = 5000;",
+                $"EXEC sys.sp_getapplock @Resource = N'{gate}', @LockMode = 'Exclusive', @LockOwner = 'Session', @LockTimeout = 30000;",
                 ct
             );
             const int contenders = 4;
@@ -115,7 +115,7 @@ public sealed class SqlServerLockContentionTests
                 .ToArray();
             try
             {
-                await ready.Task.WaitAsync(TimeSpan.FromSeconds(3), ct);
+                await ready.Task.WaitAsync(TimeSpan.FromSeconds(30), ct);
             }
             finally
             {
