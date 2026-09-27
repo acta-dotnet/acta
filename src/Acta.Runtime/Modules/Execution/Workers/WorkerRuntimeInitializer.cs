@@ -465,11 +465,24 @@ internal sealed class WorkerRuntimeInitializer(
                 : (IReadOnlyDictionary<string, StoredScheduleState>)new Dictionary<string, StoredScheduleState>();
 
             var (slotSchedules, slotMin) = ScheduleWalker.Reconcile(declared, storedForDef, nowUtc);
+            var jobPaused = ScheduleWalker.IsJobPaused(
+                storedForDef.Values.FirstOrDefault()?.SlotStatus,
+                storedForDef.Values.Select(s => (s.Status, s.NextRunAtUtc, s.PausedUntilUtc))
+            );
 
             var slotStatus =
                 declared.Count == 0 ? JobStatusCode.Cancelled // descriptor dropped every [JobSchedule]
-                : slotMin is null ? JobStatusCode.Paused // declared but every schedule is exhausted
+                : jobPaused || slotMin is null ? JobStatusCode.Paused // paused by an operator, or every schedule is exhausted
                 : JobStatusCode.Ready;
+            if (declared.Count > 0 && jobPaused)
+            {
+                _log.LogWarning(
+                    "Namespace ({Namespace}): recurring job {JobName} is paused by an operator and stays paused; it runs again "
+                        + "only when an operator resumes it.",
+                    _workerRegistration!.NamespaceName,
+                    descriptor.JobName
+                );
+            }
 
             var (inputFormatId, inputBytes) = SerializeSlotInput(descriptor);
 

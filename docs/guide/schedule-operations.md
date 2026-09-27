@@ -42,8 +42,8 @@ Use it for:
 Do not use it to represent “run the 2026-06-01 occurrence.” A trigger-now execution has no historical
 period identity unless the job input or application data supplies one.
 
-The dashboard confirmation records an optional note. Triggering is rejected when the schedule is
-paused, missing/orphaned, or its slot already has a firing in flight.
+The dashboard confirmation records an optional note. Triggering is rejected when the schedule or its
+recurring job is paused, the schedule is missing/orphaned, or its slot already has a firing in flight.
 
 ## Catch-up and misfire
 
@@ -98,6 +98,9 @@ Before a large backfill:
 
 - Pause excludes a schedule from the slot's minimum cursor. An indefinite pause needs an operator
   resume; a timed pause wakes and reconciles by misfire policy.
+- Pausing the recurring job itself (`IJobs.PauseAsync`) stops all of its schedules at once and holds
+  until an operator resumes the job. A worker restart, a deploy, and a schedule edit leave it paused,
+  and trigger-now is rejected. Each worker start logs a warning naming the paused job.
 - Resume does not blindly run every missed occurrence. It applies `Skip` or `CatchUpOnce`.
 - Preview computes upcoming instants from the effective expression and time zone without reading or
   advancing the persisted cursor. It is safe on a paused schedule.

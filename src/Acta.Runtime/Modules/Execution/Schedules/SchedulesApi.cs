@@ -51,7 +51,7 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
         // Recompute the slot MIN with this one paused: an indefinite pause drops out of the MIN, a timed
         // pause contributes its wake instant.
         var simulated = Simulate(ctx.Live, ctx.Target.Id, s => s with { Status = ScheduleStatusCode.Paused, PausedUntilUtc = untilUtc });
-        var jobNextRun = ScheduleWalker.RecomputeSlotMin(simulated, ctx.NowUtc);
+        var jobNextRun = SlotNextRun(ctx.JobPaused, simulated, ctx.NowUtc);
 
         var outcome = await store.PauseScheduleAsync(
             new PauseScheduleCommand(ctx.JobId, ctx.Target.Name, untilUtc, jobNextRun, Operator(actorKey), RowReason(reasonMessage)),
@@ -89,7 +89,7 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
             t.Id,
             s => s with { Status = ScheduleStatusCode.Active, PausedUntilUtc = null, NextRunAtUtc = reconciled }
         );
-        var jobNextRun = ScheduleWalker.RecomputeSlotMin(simulated, ctx.NowUtc);
+        var jobNextRun = SlotNextRun(ctx.JobPaused, simulated, ctx.NowUtc);
 
         var outcome = await store.ResumeScheduleAsync(
             new ResumeScheduleCommand(ctx.JobId, ctx.Target.Name, reconciled, jobNextRun, Operator(actorKey), RowReason(reasonMessage)),
@@ -136,7 +136,7 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
             t.Id,
             s => s with { Expression = effectiveExpression, TimeZoneId = effectiveTimeZone, NextRunAtUtc = scheduleNextRun }
         );
-        var jobNextRun = ScheduleWalker.RecomputeSlotMin(simulated, ctx.NowUtc);
+        var jobNextRun = SlotNextRun(ctx.JobPaused, simulated, ctx.NowUtc);
 
         var changeSummary = ChangeSummary(t, effectiveExpression, effectiveTimeZone).Truncate(ActaTextLimits.ReasonMessage);
         var outcome = await store.SetScheduleOverridesAsync(
@@ -170,8 +170,13 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
             return NotFound;
         }
 
-        // The authoritative paused/in-flight guards live in trigger_schedule_now itself; no C#
-        // short-circuit here keeps a single source of truth for transition legality.
+        // The schedule and in-flight guards live in trigger_schedule_now; a job an operator paused is
+        // refused here, because the routine cannot tell a job pause from an exhausted slot.
+        if (ctx.JobPaused)
+        {
+            return Rejected;
+        }
+
         var reason = (reasonMessage is null ? ctx.Target.Name : $"{ctx.Target.Name}: {RowReason(reasonMessage)}").Truncate(
             ActaTextLimits.ReasonMessage
         )!;
@@ -272,11 +277,15 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
     /// <summary>
     /// Resolve the owning slot job and locate the named schedule among its live (non-orphaned)
     /// rows. Null means either the job or the schedule was absent (both surface as NotFound).
+    /// <c>JobPaused</c> is <see cref="ScheduleWalker.IsJobPaused"/> over the slot as read.
     /// </summary>
-    private async ValueTask<(long JobId, DateTime NowUtc, IReadOnlyList<LiveSchedule> Live, LiveSchedule Target)?> ResolveTargetAsync(
-        ScheduleLookup schedule,
-        CancellationToken ct
-    )
+    private async ValueTask<(
+        long JobId,
+        DateTime NowUtc,
+        IReadOnlyList<LiveSchedule> Live,
+        LiveSchedule Target,
+        bool JobPaused
+    )?> ResolveTargetAsync(ScheduleLookup schedule, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(schedule);
         var scheduleName = IdentifierSyntax.CanonicalizeKebab(
@@ -294,8 +303,22 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
         var nowUtc = await clock.GetUtcNowAsync(ct);
         var live = await store.GetLiveSchedulesAsync(jobId.Value, ct);
         var target = live.FirstOrDefault(s => s.Name == scheduleName);
-        return target is null ? null : (jobId.Value, nowUtc, live, target);
+        if (target is null)
+        {
+            return null;
+        }
+
+        var slotStatus = await jobs.GetStatusAsync(JobLookup.ById(jobId.Value), ct);
+        var jobPaused = ScheduleWalker.IsJobPaused(slotStatus, live.Select(s => (s.Status, s.NextRunAtUtc, s.PausedUntilUtc)));
+        return (jobId.Value, nowUtc, live, target, jobPaused);
     }
+
+    /// <summary>
+    /// The slot's next run after a schedule change. A job-paused slot gets none, which the verb
+    /// records as Paused, so editing a schedule never resumes a job an operator paused.
+    /// </summary>
+    private static DateTime? SlotNextRun(bool jobPaused, IReadOnlyList<LiveSchedule> simulated, DateTime nowUtc) =>
+        jobPaused ? null : ScheduleWalker.RecomputeSlotMin(simulated, nowUtc);
 
     private static List<LiveSchedule> Simulate(IReadOnlyList<LiveSchedule> live, long targetId, Func<LiveSchedule, LiveSchedule> change) =>
         [.. live.Select(s => s.Id == targetId ? change(s) : s)];

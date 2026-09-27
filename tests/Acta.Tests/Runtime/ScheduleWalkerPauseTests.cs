@@ -184,6 +184,23 @@ public class ScheduleWalkerPauseTests
         Assert.Equal(row.NextRunAtUtc, slotMin);
     }
 
+    [Fact]
+    public void A_paused_slot_is_job_paused_only_while_a_schedule_still_offers_a_run()
+    {
+        var active = (ScheduleStatusCode.Active, (DateTime?)Now.AddMinutes(5), (DateTime?)null);
+        var timed = (ScheduleStatusCode.Paused, (DateTime?)Now.AddMinutes(-5), (DateTime?)Now.AddMinutes(20));
+        var indefinite = (ScheduleStatusCode.Paused, (DateTime?)Now.AddMinutes(-5), (DateTime?)null);
+        var exhausted = (ScheduleStatusCode.Active, (DateTime?)null, (DateTime?)null);
+
+        Assert.True(ScheduleWalker.IsJobPaused(JobStatusCode.Paused, [active]));
+        Assert.True(ScheduleWalker.IsJobPaused(JobStatusCode.Paused, [indefinite, timed]));
+
+        // Paused with nothing left to run is the slot's own state, not an operator's job pause.
+        Assert.False(ScheduleWalker.IsJobPaused(JobStatusCode.Paused, [indefinite, exhausted]));
+        Assert.False(ScheduleWalker.IsJobPaused(JobStatusCode.Ready, [active]));
+        Assert.False(ScheduleWalker.IsJobPaused(null, [active]));
+    }
+
     private static ScheduleDescriptor Descriptor(string scheduleName) =>
         new("job", scheduleName, Cron5, null, MisfireStrategyCode.Skip, ScheduleExpressionKindCode.Cron, null, []);
 }

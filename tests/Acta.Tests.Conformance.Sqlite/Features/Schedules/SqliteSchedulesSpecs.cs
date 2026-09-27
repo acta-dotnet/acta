@@ -24,3 +24,5 @@ public sealed class SqliteScheduleTriggerNowSpec : ScheduleTriggerNowSpec<Sqlite
 public sealed class SqliteScheduleSysPreviewSpec : ScheduleSysPreviewSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteScheduleSlotReRegistrationSpec : ScheduleSlotReRegistrationSpec<SqliteConformanceFixture>;
+
+public sealed class SqliteRecurringJobPauseSpec : RecurringJobPauseSpec<SqliteConformanceFixture>;

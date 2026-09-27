@@ -130,6 +130,18 @@ internal static class ScheduleWalker
         return (schedules, SlotMin(contributions));
     }
 
+    /// <summary>
+    /// Whether an operator paused the recurring slot job itself. A slot also reads Paused when none of
+    /// its schedules offers an upcoming run, so Paused while one still does can only be a job pause.
+    /// Startup and the schedule verbs leave such a slot Paused; only a job resume lifts it.
+    /// </summary>
+    public static bool IsJobPaused(
+        JobStatusCode? slotStatus,
+        IEnumerable<(ScheduleStatusCode Status, DateTime? NextRunAtUtc, DateTime? PausedUntilUtc)> schedules
+    ) =>
+        slotStatus == JobStatusCode.Paused
+        && schedules.Any(s => (s.Status == ScheduleStatusCode.Paused ? s.PausedUntilUtc : s.NextRunAtUtc) is not null);
+
     /// <summary>A schedule fires when active and due, or when a timed pause has elapsed (auto-resume).</summary>
     private static bool IsDue(LiveSchedule s, DateTime nowUtc) =>
         s.Status == ScheduleStatusCode.Paused ? s.PausedUntilUtc is { } until && until <= nowUtc : s.NextRunAtUtc is { } n && n <= nowUtc;

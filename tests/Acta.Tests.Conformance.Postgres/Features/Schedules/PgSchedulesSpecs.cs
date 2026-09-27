@@ -24,3 +24,5 @@ public sealed class PgScheduleTriggerNowSpec : ScheduleTriggerNowSpec<PgConforma
 public sealed class PgScheduleSysPreviewSpec : ScheduleSysPreviewSpec<PgConformanceFixture>;
 
 public sealed class PgScheduleSlotReRegistrationSpec : ScheduleSlotReRegistrationSpec<PgConformanceFixture>;
+
+public sealed class PgRecurringJobPauseSpec : RecurringJobPauseSpec<PgConformanceFixture>;

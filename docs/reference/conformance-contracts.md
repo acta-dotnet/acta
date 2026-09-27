@@ -2557,6 +2557,15 @@
   - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.GetLiveSchedulesAsync`
   - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.RegisterScheduledJobsAsync`
 
+### A paused recurring job stays paused until an operator resumes it
+- **Contract:** A recurring job paused by an operator stays Paused through worker restarts, schedule edits, and trigger-now until a job resume.
+- **Arrange:** The manifest's recurring job is registered at startup and paused through IJobs.
+- **Act:** The worker starts again, the schedule's expression is overridden, trigger-now is asked for, and then the job is resumed.
+- **Assert:** The job stays Paused through the restart and the edit, trigger-now is rejected, and only the resume makes it Ready.
+- **Guarantees:**
+  - A paused recurring job stays paused when the worker starts again, and a resume makes it Ready
+  - Editing or triggering a schedule of a paused recurring job leaves the job paused
+
 ### Multi-schedule slot picks MIN next_run and recomputes on fire
 - **Contract:** A slot with multiple schedules arms next_run_at_utc to the MIN cursor and recomputes the MIN after each fire.
 - **Arrange:** A multi-ping job carries two interval schedules, PT30S fast and PT50S slow, anchored at T0 under a fake clock.

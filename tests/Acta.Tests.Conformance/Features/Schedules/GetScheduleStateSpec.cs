@@ -53,6 +53,7 @@ public abstract class GetScheduleStateSpec<TFixture> : ActaRuntimeTestBase<TFixt
         {
             Assert.False(string.IsNullOrEmpty(s.ScheduleName), "ScheduleName must be non-empty.");
             Assert.True(s.DefinitionId > 0, "DefinitionId must be positive.");
+            Assert.NotNull(s.SlotStatus);
         }
     }
 }

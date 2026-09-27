@@ -24,3 +24,5 @@ public sealed class SqlServerScheduleTriggerNowSpec : ScheduleTriggerNowSpec<Sql
 public sealed class SqlServerScheduleSysPreviewSpec : ScheduleSysPreviewSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerScheduleSlotReRegistrationSpec : ScheduleSlotReRegistrationSpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerRecurringJobPauseSpec : RecurringJobPauseSpec<SqlServerConformanceFixture>;

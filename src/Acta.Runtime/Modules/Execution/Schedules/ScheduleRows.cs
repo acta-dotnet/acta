@@ -30,13 +30,15 @@ internal sealed record LiveSchedule(
 /// <c>(DefinitionId, ScheduleName)</c>. Drives misfire-aware reconciliation against the current
 /// descriptor schedules; <see cref="Status"/> and <see cref="PausedUntilUtc"/> keep a paused schedule
 /// out of (or, when timed, only a wake point in) the recomputed slot cursor across redeploys.
+/// <see cref="SlotStatus"/> is the owning slot job's status, the same on every row of one slot.
 /// </summary>
 internal sealed record StoredScheduleState(
     int DefinitionId,
     string ScheduleName,
     DateTime? NextRunAtUtc,
     ScheduleStatusCode Status,
-    DateTime? PausedUntilUtc
+    DateTime? PausedUntilUtc,
+    JobStatusCode? SlotStatus = null
 );
 
 /// <summary>

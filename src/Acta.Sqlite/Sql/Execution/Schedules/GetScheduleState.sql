@@ -3,8 +3,10 @@ SELECT
     t.name,
     t.next_run_at_utc,
     t.status_code,
-    t.paused_until_utc
+    t.paused_until_utc,
+    r.status_code AS slot_status_code
 FROM {{schema}}.schedules t
+LEFT JOIN {{schema}}.runtimes r ON r.job_id = t.job_id
 WHERE
     t.namespace_id = @p_namespace_id
     AND t.status_code <> 230 /* ScheduleStatusCode.Orphaned */;
