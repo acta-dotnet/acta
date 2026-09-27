@@ -1,5 +1,7 @@
+using Acta.Emit.Features.Docs;
 using Acta.Relational.Schema;
 using Acta.Sqlite.Schema;
+using Acta.Tests.Conformance.Testing;
 using Microsoft.Data.Sqlite;
 using Xunit;
 
@@ -40,6 +42,43 @@ public sealed class SchemaMigrationCompatibilityTests
         Assert.Contains("drop and reprovision", exception.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("UPDATE main.migrations SET name = 'objects-1.999-future' WHERE version = -1;")]
+    [InlineData("INSERT INTO main.migrations (version, name, installed_schema) VALUES (999, 'future', 'main');")]
+    public async Task Older_bootstrap_and_script_leave_a_newer_release_in_place(string newerRelease)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(ct);
+        await SqliteSchemaMigrator.ApplyAsync(connection, "main", ct);
+
+        // Stands in for a later release: a higher package revision or a migration this build lacks,
+        // plus a view it appended a column to.
+        await Execute(
+            connection,
+            newerRelease
+                + """
+
+                DROP VIEW main.jobs_view;
+                CREATE VIEW main.jobs_view AS SELECT 1 AS future_marker;
+                """,
+            ct
+        );
+        var history = await History(connection, ct);
+
+        await SqliteSchemaMigrator.ApplyAsync(connection, "main", ct);
+
+        var script = ProvisionScriptEmitter.Emit(IntegrationConfig.FindRepoRoot(), "sqlite");
+        var refused = await Assert.ThrowsAsync<SqliteException>(() => Execute(connection, script, ct));
+        Assert.Contains("newer_acta_release_installed", refused.Message, StringComparison.Ordinal);
+        await Execute(connection, "ROLLBACK;", ct);
+
+        Assert.Equal(history, await History(connection, ct));
+        await using var probe = connection.CreateCommand();
+        probe.CommandText = "SELECT future_marker FROM main.jobs_view";
+        Assert.Equal(1L, await probe.ExecuteScalarAsync(ct));
+    }
+
     [Fact]
     public void Applied_migration_renamed_on_disk_is_rejected_instead_of_skipped()
     {
@@ -64,5 +103,23 @@ public sealed class SchemaMigrationCompatibilityTests
         Assert.Contains("'add_columns'", exception.Message, StringComparison.Ordinal);
         Assert.Contains("'add_flags'", exception.Message, StringComparison.Ordinal);
         Assert.Contains("drop and reprovision", exception.Message, StringComparison.Ordinal);
+    }
+
+    private static async Task Execute(SqliteConnection connection, string sql, CancellationToken ct)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        // Stepped by hand: the script opens with a PRAGMA that returns a row, and a reader disposed
+        // there runs the remaining statements without raising their errors.
+        await using var reader = await command.ExecuteReaderAsync(ct);
+        while (await reader.NextResultAsync(ct)) { }
+    }
+
+    private static async Task<string> History(SqliteConnection connection, CancellationToken ct)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            "SELECT group_concat(version || '=' || name, ';') FROM (SELECT version, name FROM main.migrations ORDER BY version)";
+        return (string)(await command.ExecuteScalarAsync(ct))!;
     }
 }

@@ -149,6 +149,9 @@ What holds while both builds run:
   again, which is what a rollback does.
 - Migrations are forward-only and additive, so an older worker runs against a newer schema. Apply
   the migration before the new build starts.
+- Nothing older overwrites a database a newer build upgraded. An older build's bootstrap leaves the
+  newer views and routines in place, and an older release's provisioning script stops before
+  changing anything, so a rollback never rewrites what the newer build calls.
 
 Deploy: apply migrations, start the new workers, stop the old ones once the new ones are healthy.
 Rollback: start the old build, stop the new one. Jobs of a definition only the withdrawn build

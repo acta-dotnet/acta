@@ -10,8 +10,9 @@
 --
 -- WHERE TO RUN IT. Run it on an empty database to install, or again on a database it already
 -- provisioned: every statement is individually guarded, so a re-run applies nothing that is
--- present and leaves the data in place. Views and routines carry no version and are always
--- rewritten to the definitions shipped here. A later 1.x release upgrades a 1.x database with
+-- present and leaves the data in place. Views and routines carry no version and are rewritten
+-- to the definitions shipped here, except over a newer release's package: then the script stops
+-- before changing anything. A later 1.x release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned by a
 -- release candidate (1.0.0-rc.x) has no upgrade path: provision a new one. Startup refuses it
 -- and names its baseline.
@@ -44,6 +45,18 @@ CREATE TABLE IF NOT EXISTS main.migrations (
     installed_schema TEXT NOT NULL,
     CONSTRAINT pk_migrations PRIMARY KEY (version)
 ) STRICT;
+
+-- ===== refuse a database a newer release already upgraded =====
+CREATE TEMP TABLE release_guard (
+    newer INTEGER CONSTRAINT newer_acta_release_installed_run_the_newest_script CHECK (newer = 0)
+);
+INSERT INTO release_guard
+SELECT EXISTS (
+    SELECT 1 FROM main.migrations
+    WHERE version > 1
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND CAST(substr(name, 11) AS INTEGER) > 6)
+);
+DROP TABLE release_guard;
 
 -- ===== BEGIN M001_init =====
 CREATE TABLE IF NOT EXISTS main.alerts (

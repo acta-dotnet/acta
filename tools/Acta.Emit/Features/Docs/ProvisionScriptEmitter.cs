@@ -64,8 +64,9 @@ internal static class ProvisionScriptEmitter
         script.AppendLine("--");
         script.AppendLine("-- WHERE TO RUN IT. Run it on an empty database to install, or again on a database it already");
         script.AppendLine("-- provisioned: every statement is individually guarded, so a re-run applies nothing that is");
-        script.AppendLine("-- present and leaves the data in place. Views and routines carry no version and are always");
-        script.AppendLine("-- rewritten to the definitions shipped here. A later 1.x release upgrades a 1.x database with");
+        script.AppendLine("-- present and leaves the data in place. Views and routines carry no version and are rewritten");
+        script.AppendLine("-- to the definitions shipped here, except over a newer release's package: then the script stops");
+        script.AppendLine("-- before changing anything. A later 1.x release upgrades a 1.x database with");
         script.AppendLine("-- its own migrations, carried in its own copy of this script. A database provisioned by a");
         script.AppendLine("-- release candidate (1.0.0-rc.x) has no upgrade path: provision a new one. Startup refuses it");
         script.AppendLine("-- and names its baseline.");
@@ -183,6 +184,10 @@ internal static class ProvisionScriptEmitter
             "-- ===== migration history table =====\n"
                 + Render(File.ReadAllText(Path.Combine(providerDir, "Sql", "Schema", "EnsureMigrations.sql")))
         );
+        Append(
+            "-- ===== refuse a database a newer release already upgraded =====\n"
+                + Render(NoDowngradeGuard(token, MigrationFiles.CurrentMaxVersion(repoRoot)))
+        );
 
         var migrationsDir = Path.Combine(providerDir, "Schema", "Migrations");
         foreach (var migration in Directory.GetFiles(migrationsDir, "M*.sql").OrderBy(f => f, StringComparer.Ordinal))
@@ -231,6 +236,66 @@ internal static class ProvisionScriptEmitter
         Append(mssql ? "COMMIT TRANSACTION;" : "COMMIT;");
         return script.ToString().ReplaceLineEndings("\n");
     }
+
+    /// <summary>
+    /// Stops the script before it changes anything when a newer build already upgraded the database: a
+    /// migration past this script's last, or a higher object package revision. The script's half of the
+    /// bootstrap's same rule, because rerunning an older release's script during a rollback must not
+    /// rewrite what newer workers call. SQLite has no raise outside a trigger, so a failing CHECK names
+    /// the refusal instead.
+    /// </summary>
+    internal static string NoDowngradeGuard(string token, int lastMigration)
+    {
+        var prefix = $"objects-{ObjectPackageStamp.ContractMajor}.";
+        var start = prefix.Length + 1;
+        // NULL rather than an error on any other history row: neither server promises to test the LIKE first.
+        var revisionText = token switch
+        {
+            "pg" => $"substring(name from '^{prefix.Replace(".", "\\.", StringComparison.Ordinal)}([0-9]+)-')::INT",
+            "mssql" => $"TRY_CAST(SUBSTRING(name, {start}, NULLIF(CHARINDEX('-', name, {start}), 0) - {start}) AS INT)",
+            _ => $"CAST(substr(name, {start}) AS INTEGER)",
+        };
+        var newer = $"""
+            SELECT 1 FROM {"{{schema}}"}.migrations
+            WHERE version > {lastMigration}
+                OR (version = {ObjectPackageStamp.HistoryVersion} AND name LIKE '{prefix}%-%' AND {revisionText} > {ObjectPackageStamp.PackageRevision})
+            """;
+        const string message =
+            "A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.";
+        return token switch
+        {
+            "pg" => $"""
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                {Indent(newer, 8)}
+                    ) THEN
+                        RAISE EXCEPTION '{message}';
+                    END IF;
+                END
+                $$;
+                """,
+            "mssql" => $"""
+                IF EXISTS (
+                {Indent(newer, 4)}
+                )
+                    THROW 50000, N'{message}', 1;
+                """,
+            _ => $"""
+                CREATE TEMP TABLE release_guard (
+                    newer INTEGER CONSTRAINT newer_acta_release_installed_run_the_newest_script CHECK (newer = 0)
+                );
+                INSERT INTO release_guard
+                SELECT EXISTS (
+                {Indent(newer, 4)}
+                );
+                DROP TABLE release_guard;
+                """,
+        };
+    }
+
+    private static string Indent(string text, int spaces) =>
+        string.Join("\n", text.Split('\n').Select(line => new string(' ', spaces) + line));
 
     /// <summary>
     /// The objects one provider installs, in the order the installer applies them: views first, then

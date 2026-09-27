@@ -14,7 +14,8 @@ internal static class SchemaMigrationRunner
     /// <summary>
     /// Applies pending migrations in one transaction: take the per-schema lock, ensure the
     /// migrations table, read applied versions, run every missing script, then install current
-    /// operator views and routines. Concurrent bootstrappers serialize on the lock.
+    /// operator views and routines unless a newer build already upgraded the database. Concurrent
+    /// bootstrappers serialize on the lock.
     /// </summary>
     public static async Task ApplyAsync(DbConnection conn, string schemaName, SchemaMigrationProviderHooks hooks, CancellationToken ct)
     {
@@ -57,7 +58,16 @@ internal static class SchemaMigrationRunner
                 }
             }
 
-            await SqlObjectInstaller.Run(conn, tx, schemaName, hooks, sql, ct);
+            // A newer build already upgraded this database: its migration or package is past ours, so our
+            // older views and routines stay out rather than overwrite the ones its workers call.
+            var newer =
+                applied.Keys.Any(v => v > migrations.Max(m => m.Version))
+                || ObjectPackageStamp.IsNewerThanThisBuild(applied.GetValueOrDefault(ObjectPackageStamp.HistoryVersion));
+            if (!newer)
+            {
+                await SqlObjectInstaller.Run(conn, tx, schemaName, hooks, sql, ct);
+            }
+
             await tx.CommitAsync(ct);
         }
         catch

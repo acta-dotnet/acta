@@ -14,7 +14,7 @@ internal readonly record struct ObjectPackageRequirement(int ContractMajor, int 
 
 /// <summary>
 /// The versionless half of the schema carries no version of its own: operator views and stored routines
-/// are rewritten by whatever bootstrap last applied migrations, so a host with migrations disabled can
+/// are rewritten by the newest bootstrap that applied migrations, so a host with migrations disabled can
 /// pass the history preflight while calling bodies from an older build. This names the installed set, as
 /// one sentinel row in <c>migrations</c>.
 /// </summary>
@@ -79,6 +79,13 @@ internal static class ObjectPackageStamp
             && int.TryParse(version[..dot], NumberStyles.None, CultureInfo.InvariantCulture, out contractMajor)
             && int.TryParse(version[(dot + 1)..], NumberStyles.None, CultureInfo.InvariantCulture, out packageRevision);
     }
+
+    /// <summary>
+    /// Whether a database already holds a higher revision than this build installs. Installing never moves
+    /// the package backwards, so an older host's bootstrap cannot rewrite the routines newer workers call.
+    /// </summary>
+    internal static bool IsNewerThanThisBuild(string? recorded) =>
+        TryParse(recorded, out var major, out var revision) && major == ContractMajor && revision > PackageRevision;
 
     /// <summary>
     /// Identity of one provider's installed set: every object's install name and body, in the order the
