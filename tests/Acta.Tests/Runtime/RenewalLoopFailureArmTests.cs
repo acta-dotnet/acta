@@ -295,11 +295,16 @@ public sealed class RenewalLoopFailureArmTests
     {
         private int _calls;
 
-        public Task<IReadOnlyList<long>> ExtendWorkerLeasesAsync(int workerId, int leaseTtlSeconds, bool draining, CancellationToken ct)
+        public Task<IReadOnlyList<LeaseRenewalRow>> ExtendWorkerLeasesAsync(
+            int workerId,
+            int leaseTtlSeconds,
+            bool draining,
+            CancellationToken ct
+        )
         {
             if (Interlocked.Increment(ref _calls) != failOn)
             {
-                return Task.FromResult<IReadOnlyList<long>>([]);
+                return Task.FromResult<IReadOnlyList<LeaseRenewalRow>>([]);
             }
 
             cts.Cancel();

@@ -140,8 +140,12 @@ public sealed class RecoveryPassTests
 
         public Task StopWorkerAsync(int namespaceId, int workerId, CancellationToken ct) => throw new NotSupportedException();
 
-        public Task<IReadOnlyList<long>> ExtendWorkerLeasesAsync(int workerId, int leaseTtlSeconds, bool draining, CancellationToken ct) =>
-            throw new NotSupportedException();
+        public Task<IReadOnlyList<LeaseRenewalRow>> ExtendWorkerLeasesAsync(
+            int workerId,
+            int leaseTtlSeconds,
+            bool draining,
+            CancellationToken ct
+        ) => throw new NotSupportedException();
 
         public ValueTask<WorkerDetail?> GetWorkerAsync(Guid workerRef, CancellationToken ct) => throw new NotSupportedException();
 

@@ -8514,14 +8514,24 @@ BEGIN
             leased_by_worker_id = @p_leased_by_worker_id
             AND status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
 
+        -- A row another transaction holds is skipped and reported unrenewed, so the renewal never waits
+        -- (docs/internals/sql-execution-policy.md, "Explicit exceptions and maintenance").
+        DECLARE @renewed TABLE (job_id BIGINT NOT NULL PRIMARY KEY);
+
         UPDATE r
         SET lease_expires_at_utc = DATEADD(SECOND, @p_lease_ttl_seconds, @now)
-        OUTPUT INSERTED.job_id
-        FROM acta.runtimes r WITH (INDEX(pk_runtimes), FORCESEEK, ROWLOCK)
+        OUTPUT INSERTED.job_id INTO @renewed (job_id)
+        FROM acta.runtimes r WITH (INDEX(pk_runtimes), FORCESEEK, ROWLOCK, READPAST)
         INNER JOIN @inflight i ON i.job_id = r.job_id
         WHERE
             r.leased_by_worker_id = @p_leased_by_worker_id
             AND r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
+
+        SELECT
+            i.job_id,
+            CAST(CASE WHEN n.job_id IS NULL THEN 0 ELSE 1 END AS BIT) AS renewed
+        FROM @inflight i
+        LEFT JOIN @renewed n ON n.job_id = i.job_id;
 
         IF @entry_trancount = 0
             COMMIT TRANSACTION;
@@ -9552,7 +9562,7 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.6-cc664727383b18b78c4b62b1da9079b7', 'acta'
+SELECT -1, 'objects-1.6-6c40867f4aeb72cd85dd51a28d33fce2', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
     WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'jobs_view', 'schedules_view', 'steps_view', 'workers_view', 'events_view', 'tags_view', 'acknowledge_job_alert', 'raise_job_alert', 'resolve_job_alert_manual', 'resolve_job_alerts', 'update_alert_delivery', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_executions_batch', 'complete_step', 'register_job_definitions', 'set_job_definition_overrides', 'cancel_job', 'enqueue_batch', 'enqueue_one', 'pause_job', 'purge_job', 'reprioritize_job', 'reschedule_job', 'reset_job_state', 'restart_job', 'resume_job', 'update_job_input', 'resume_namespace', 'suspend_namespace', 'update_namespace', 'record_job_note', 'reclaim_stuck_jobs', 'repair_recovery_slot', 'pause_schedule', 'register_scheduled_jobs', 'resume_schedule', 'set_schedule_overrides', 'trigger_schedule_now', 'set_setting', 'consume_outbox_signal', 'park_outbox_signal', 'raise_signal', 'record_outbox_event', 'wait_signal', 'start_execution', 'start_step', 'register_tenant', 'resume_tenant', 'suspend_tenant', 'update_tenant', 'arm_or_consume_sleep_timer', 'extend_worker_leases', 'mark_dead_workers', 'start_worker', 'stop_worker', 'purge_expired_data', 'apply_tags', 'acquire_lock', 'acquire_slot', 'extend_lock', 'release_lock', 'reserve_rate')) = 68;
 GO

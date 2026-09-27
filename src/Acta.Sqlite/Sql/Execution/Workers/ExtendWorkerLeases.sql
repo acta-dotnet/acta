@@ -15,4 +15,4 @@ SET lease_expires_at_utc = {{now}} + (@p_lease_ttl_seconds) * 1000
 WHERE
     leased_by_worker_id = @p_leased_by_worker_id
     AND status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
-RETURNING job_id;
+RETURNING job_id, 1 AS renewed;

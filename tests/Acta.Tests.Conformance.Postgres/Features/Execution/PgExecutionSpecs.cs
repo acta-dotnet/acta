@@ -19,6 +19,8 @@ public sealed class PgSchedulesChangedDuringExecutionSpec : SchedulesChangedDuri
 
 public sealed class PgRecoverySlotMonitorSpec : RecoverySlotMonitorSpec<PgConformanceFixture>;
 
+public sealed class PgLeaseRenewalRaceSpec : LeaseRenewalRaceSpec<PgConformanceFixture>;
+
 public sealed class PgUnsupportedDefinitionClaimSpec : UnsupportedDefinitionClaimSpec<PgConformanceFixture>;
 
 public sealed class PgRecoveryJobSpec : RecoveryJobSpec<PgConformanceFixture>;

@@ -19,6 +19,8 @@ public sealed class SqlServerSchedulesChangedDuringExecutionSpec : SchedulesChan
 
 public sealed class SqlServerRecoverySlotMonitorSpec : RecoverySlotMonitorSpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerLeaseRenewalRaceSpec : LeaseRenewalRaceSpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerUnsupportedDefinitionClaimSpec : UnsupportedDefinitionClaimSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerRecoveryJobSpec : RecoveryJobSpec<SqlServerConformanceFixture>;

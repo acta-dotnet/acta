@@ -61,7 +61,7 @@ public sealed class WorkerHeartbeatReconcileSnapshotTests
 
         public void Release() => _gate.SetResult();
 
-        public async Task<IReadOnlyList<long>> ExtendWorkerLeasesAsync(
+        public async Task<IReadOnlyList<LeaseRenewalRow>> ExtendWorkerLeasesAsync(
             int workerId,
             int leaseTtlSeconds,
             bool draining,
@@ -70,7 +70,7 @@ public sealed class WorkerHeartbeatReconcileSnapshotTests
         {
             _entered.TrySetResult();
             await _gate.Task.WaitAsync(ct);
-            return liveJobIds;
+            return [.. liveJobIds.Select(id => new LeaseRenewalRow(id, Renewed: true))];
         }
 
         public Task<StartWorkerRow> StartWorkerAsync(StartWorkerCommand command, CancellationToken ct) => throw new NotSupportedException();

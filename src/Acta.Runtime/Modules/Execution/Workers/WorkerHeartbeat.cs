@@ -162,14 +162,23 @@ internal sealed class WorkerHeartbeat(
             // nothing this tick, and let the watchdog cancel if the outage outlasts the deadline. The
             // renewal is not deadline-critical (the watchdog enforces on its own loop), so it is not
             // bounded here beyond the caller's ct.
+            // A row another transaction held is still owned but was not renewed, so it stays live without
+            // moving its deadline.
             var renewRequestedAt = Stopwatch.GetTimestamp();
             HashSet<long>? live = [];
+            HashSet<long> renewed = [];
             try
             {
                 foreach (var workerId in _context.WorkerIdByNamespace.Values)
                 {
-                    var extended = await _workers.ExtendWorkerLeasesAsync(workerId, _leaseTtlSeconds, _draining, ct);
-                    live.UnionWith(extended);
+                    foreach (var row in await _workers.ExtendWorkerLeasesAsync(workerId, _leaseTtlSeconds, _draining, ct))
+                    {
+                        live.Add(row.JobId);
+                        if (row.Renewed)
+                        {
+                            renewed.Add(row.JobId);
+                        }
+                    }
                 }
             }
             catch (Exception ex) when (!ct.IsCancellationRequested)
@@ -184,7 +193,7 @@ internal sealed class WorkerHeartbeat(
                 live = null;
             }
 
-            FeedJobLeases(snapshot, live, renewRequestedAt);
+            FeedJobLeases(snapshot, live, renewed, renewRequestedAt);
             ReleaseOrphanedClaims(snapshot, live, ct);
         }
         finally
@@ -259,13 +268,19 @@ internal sealed class WorkerHeartbeat(
 
     /// <summary>
     /// For each job this process was running as of the pre-extend snapshot: if an authoritative
-    /// refresh renewed it, feed its job-lease deadline forward; if the authoritative refresh
+    /// refresh renewed it, feed its job-lease deadline forward; if the refresh reported it but skipped a
+    /// row another transaction held, leave the deadline for the next beat; if the authoritative refresh
     /// dropped it (operator cancel, or a stolen/reclaimed lease), cancel the attempt now. `live` is
     /// null when the refresh threw (store unreachable): a definitive gone can't be told from a
     /// blip, so nothing is fed or cancelled here - the deadline is left in place and the watchdog
     /// cancels only once it is about to lapse.
     /// </summary>
-    private void FeedJobLeases(KeyValuePair<long, RunningAttempt>[] snapshot, HashSet<long>? live, long renewRequestedAt)
+    private void FeedJobLeases(
+        KeyValuePair<long, RunningAttempt>[] snapshot,
+        HashSet<long>? live,
+        HashSet<long> renewed,
+        long renewRequestedAt
+    )
     {
         if (live is null)
         {
@@ -275,12 +290,12 @@ internal sealed class WorkerHeartbeat(
         var goodUntil = renewRequestedAt + _ttlStopwatchTicks;
         foreach (var (jobId, attempt) in snapshot)
         {
-            if (live.Contains(jobId))
+            if (renewed.Contains(jobId))
             {
                 // Confirmed renewal: the request-start is a lower bound on the store-stamped expiry.
                 attempt.JobLeaseGoodUntil = goodUntil;
             }
-            else
+            else if (!live.Contains(jobId))
             {
                 // Definitive loss under an authoritative refresh - operator cancel, or a stolen/reclaimed
                 // lease. Stop it now rather than waiting out the watchdog.

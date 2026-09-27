@@ -141,7 +141,7 @@ public sealed class LoopTickCancellationFilterTests
     // Worker-store seams for WorkerHeartbeat: the heartbeat's only store call is the lease extend.
     private abstract class WorkerStoreStub : IWorkerStore
     {
-        public abstract Task<IReadOnlyList<long>> ExtendWorkerLeasesAsync(
+        public abstract Task<IReadOnlyList<LeaseRenewalRow>> ExtendWorkerLeasesAsync(
             int workerId,
             int leaseTtlSeconds,
             bool draining,
@@ -161,7 +161,7 @@ public sealed class LoopTickCancellationFilterTests
 
     private sealed class ThrowingWorkerStore(Exception failure) : WorkerStoreStub
     {
-        public override Task<IReadOnlyList<long>> ExtendWorkerLeasesAsync(
+        public override Task<IReadOnlyList<LeaseRenewalRow>> ExtendWorkerLeasesAsync(
             int workerId,
             int leaseTtlSeconds,
             bool draining,
@@ -174,7 +174,7 @@ public sealed class LoopTickCancellationFilterTests
     // surfaces to RunAsync's catches.
     private sealed class CancelThenThrowWorkerStore(CancellationTokenSource cts, Exception toThrow) : WorkerStoreStub
     {
-        public override Task<IReadOnlyList<long>> ExtendWorkerLeasesAsync(
+        public override Task<IReadOnlyList<LeaseRenewalRow>> ExtendWorkerLeasesAsync(
             int workerId,
             int leaseTtlSeconds,
             bool draining,

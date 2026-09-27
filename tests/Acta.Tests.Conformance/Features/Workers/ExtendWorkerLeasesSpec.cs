@@ -55,7 +55,7 @@ public abstract class ExtendWorkerLeasesSpec<TFixture> : ActaRuntimeTestBase<TFi
         await Task.Delay(5, ct);
 
         var extended = await Services.GetRequiredService<IWorkerStore>().ExtendWorkerLeasesAsync(workerId, leaseTtl, false, ct);
-        Assert.Equal(enqueued.JobId, Assert.Single(extended));
+        Assert.Equal(new LeaseRenewalRow(enqueued.JobId, Renewed: true), Assert.Single(extended));
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Dispatched, job!.Status);
@@ -96,7 +96,7 @@ public abstract class ExtendWorkerLeasesSpec<TFixture> : ActaRuntimeTestBase<TFi
         // not yet started). It must not advance the runtime version, or the claim-time version below
         // fails the start CAS as LostClaim and the row stalls leased-but-never-run.
         var extended = await Services.GetRequiredService<IWorkerStore>().ExtendWorkerLeasesAsync(workerId, leaseTtl, false, ct);
-        Assert.Equal(enqueued.JobId, Assert.Single(extended));
+        Assert.Equal(new LeaseRenewalRow(enqueued.JobId, Renewed: true), Assert.Single(extended));
 
         var action = await Services
             .GetRequiredService<IExecutionStore>()

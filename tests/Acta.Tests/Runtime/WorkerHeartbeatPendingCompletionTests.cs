@@ -50,8 +50,12 @@ public sealed class WorkerHeartbeatPendingCompletionTests
 
     private sealed class LiveWorkerStore(IReadOnlyList<long> liveJobIds) : IWorkerStore
     {
-        public Task<IReadOnlyList<long>> ExtendWorkerLeasesAsync(int workerId, int leaseTtlSeconds, bool draining, CancellationToken ct) =>
-            Task.FromResult(liveJobIds);
+        public Task<IReadOnlyList<LeaseRenewalRow>> ExtendWorkerLeasesAsync(
+            int workerId,
+            int leaseTtlSeconds,
+            bool draining,
+            CancellationToken ct
+        ) => Task.FromResult<IReadOnlyList<LeaseRenewalRow>>([.. liveJobIds.Select(id => new LeaseRenewalRow(id, Renewed: true))]);
 
         public Task<StartWorkerRow> StartWorkerAsync(StartWorkerCommand command, CancellationToken ct) => throw new NotSupportedException();
 

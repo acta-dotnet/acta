@@ -19,6 +19,8 @@ public sealed class SqliteSchedulesChangedDuringExecutionSpec : SchedulesChanged
 
 public sealed class SqliteRecoverySlotMonitorSpec : RecoverySlotMonitorSpec<SqliteConformanceFixture>;
 
+public sealed class SqliteLeaseRenewalRaceSpec : LeaseRenewalRaceSpec<SqliteConformanceFixture>;
+
 public sealed class SqliteUnsupportedDefinitionClaimSpec : UnsupportedDefinitionClaimSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteRecoveryJobSpec : RecoveryJobSpec<SqliteConformanceFixture>;

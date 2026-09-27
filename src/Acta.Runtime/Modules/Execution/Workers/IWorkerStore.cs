@@ -24,11 +24,12 @@ internal interface IWorkerStore
 
     /// <summary>
     /// Heartbeat lease refresh for one worker: stamps <c>workers.last_seen_at_utc</c> and pushes every
-    /// in-flight job lease this worker holds forward by one TTL window. Returns the extended job ids;
-    /// the heartbeat diffs that against the jobs it is running to detect ones cancelled or stolen
-    /// externally. Deliberately does not bump <c>runtimes.version</c>.
+    /// in-flight job lease this worker holds forward by one TTL window. Returns every in-flight job id it
+    /// read, each flagged renewed or skipped because another transaction held the row; the heartbeat diffs
+    /// the ids against the jobs it is running to detect ones cancelled or stolen externally. Deliberately
+    /// does not bump <c>runtimes.version</c>.
     /// </summary>
-    Task<IReadOnlyList<long>> ExtendWorkerLeasesAsync(int workerId, int leaseTtlSeconds, bool draining, CancellationToken ct);
+    Task<IReadOnlyList<LeaseRenewalRow>> ExtendWorkerLeasesAsync(int workerId, int leaseTtlSeconds, bool draining, CancellationToken ct);
 
     /// <summary>
     /// Dead-worker sweep across all namespaces: flips Active <c>workers</c> rows whose
@@ -104,6 +105,9 @@ internal sealed record WorkerPageRequest(
     bool IncludeTotal,
     string? TagFiltersJson = null
 );
+
+/// <summary>One in-flight job of a lease renewal; <see cref="Renewed"/> is false when another transaction held the row.</summary>
+internal readonly record struct LeaseRenewalRow(long JobId, bool Renewed);
 
 /// <summary>One page of mapped worker list items plus the opt-in filtered total.</summary>
 internal sealed record WorkerPage(IReadOnlyList<WorkerListItem> Rows, long? Total);

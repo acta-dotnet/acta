@@ -1202,6 +1202,16 @@
 - **Guarantees:**
   - The timeout fires the handler token, the job lands Failed, and the reason is ExecutionTimeout distinct from external cancel
 
+### A lease renewal never deadlocks with a child's completion
+- **Contract:** A lease renewal skips an in-flight row another transaction holds, reporting it unrenewed, so it never waits on a completing child.
+- **Arrange:** One worker runs a parent and its child, and the child's completion is held after it locked the child's row.
+- **Act:** The worker renews its leases while the completion waits, and then the completion is released.
+- **Assert:** Both succeed without a deadlock, the parent's lease is renewed, and the held child is reported still in flight.
+- **Guarantees:**
+  - A lease renewal racing a held child completion finishes without a deadlock
+- **Store methods:**
+  - `Acta.Runtime.Modules.Execution.Workers.IWorkerStore.ExtendWorkerLeasesAsync`
+
 ### StartExecution and CompleteExecution no-op outcomes return exact action enums
 - **Contract:** No-op StartExecution and CompleteExecution outcomes (wrong owner, already-terminal) never emit events and return the exact discriminated action.
 - **Arrange:** Enqueued jobs are claimed and driven into owned, terminal, and displaced states.
@@ -3091,7 +3101,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `ITenantStore.ResumeTenantAsync` | Tenant suspend and resume flip status and emit one 15xx event to sys namespace |
 | `ITenantStore.SuspendTenantAsync` | A non-ASCII operator name survives the audit event intact<br>Tenant suspend and resume flip status and emit one 15xx event to sys namespace |
 | `ITenantStore.UpdateTenantAsync` | Tenant update is a version-CAS write that clears fields on null |
-| `IWorkerStore.ExtendWorkerLeasesAsync` | Heartbeat extends a live lease and stamps last_seen |
+| `IWorkerStore.ExtendWorkerLeasesAsync` | A lease renewal never deadlocks with a child's completion<br>Heartbeat extends a live lease and stamps last_seen |
 | `IWorkerStore.GetWorkerAsync` | GetWorker returns one worker by id and null for an unknown id |
 | `IWorkerStore.ListWorkersAsync` | ListWorkers filter-matrix selects exactly matching rows per dimension<br>ListWorkers pages workers most recently seen first without duplicates |
 | `IWorkerStore.MarkDeadWorkersAsync` | One sys.recovery tick reclaims, releases, and wakes<br>Stale workers in any namespace are marked Dead by a global sweep |

@@ -40,14 +40,24 @@ BEGIN
             leased_by_worker_id = @p_leased_by_worker_id
             AND status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
 
+        -- A row another transaction holds is skipped and reported unrenewed, so the renewal never waits
+        -- (docs/internals/sql-execution-policy.md, "Explicit exceptions and maintenance").
+        DECLARE @renewed TABLE (job_id BIGINT NOT NULL PRIMARY KEY);
+
         UPDATE r
         SET lease_expires_at_utc = DATEADD(SECOND, @p_lease_ttl_seconds, @now)
-        OUTPUT INSERTED.job_id
-        FROM {{schema}}.runtimes r WITH (INDEX(pk_runtimes), FORCESEEK, ROWLOCK)
+        OUTPUT INSERTED.job_id INTO @renewed (job_id)
+        FROM {{schema}}.runtimes r WITH (INDEX(pk_runtimes), FORCESEEK, ROWLOCK, READPAST)
         INNER JOIN @inflight i ON i.job_id = r.job_id
         WHERE
             r.leased_by_worker_id = @p_leased_by_worker_id
             AND r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
+
+        SELECT
+            i.job_id,
+            CAST(CASE WHEN n.job_id IS NULL THEN 0 ELSE 1 END AS BIT) AS renewed
+        FROM @inflight i
+        LEFT JOIN @renewed n ON n.job_id = i.job_id;
 
         IF @entry_trancount = 0
             COMMIT TRANSACTION;

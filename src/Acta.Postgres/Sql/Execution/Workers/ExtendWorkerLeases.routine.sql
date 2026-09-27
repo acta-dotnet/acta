@@ -1,9 +1,12 @@
+-- CREATE OR REPLACE cannot change a return type, and the result carries renewed.
+DROP FUNCTION IF EXISTS {{schema}}.extend_worker_leases;
+
 CREATE OR REPLACE FUNCTION {{schema}}.extend_worker_leases(
     p_leased_by_worker_id INT,
     p_lease_ttl_seconds INT,
     p_draining BOOLEAN
 )
-RETURNS TABLE (job_id BIGINT)
+RETURNS TABLE (job_id BIGINT, renewed BOOLEAN)
 LANGUAGE plpgsql
 AS $$
 DECLARE
@@ -20,23 +23,34 @@ BEGIN
 
     /* Push every in-flight execution lease forward. Deliberately no version bump: a lease refresh
        is not a claim-generation change, so a buffered claim still passes the start CAS. */
-    -- Lock the rows in job_id order; complete_executions_batch takes the same order, so the two
-    -- cannot cross on an overlapping set. See docs/internals/sql-execution-policy.md.
+    -- A row another transaction holds is skipped and reported unrenewed, so the renewal never waits
+    -- (docs/internals/sql-execution-policy.md, "Explicit exceptions and maintenance").
     RETURN QUERY
-    UPDATE {{schema}}.runtimes r
-    SET lease_expires_at_utc = v_new_expiry
-    WHERE
-        r.job_id IN (
-            SELECT r0.job_id
-            FROM {{schema}}.runtimes r0
-            WHERE
-                r0.leased_by_worker_id = p_leased_by_worker_id
-                AND r0.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
-            ORDER BY r0.job_id
-            FOR UPDATE
-        )
-        AND r.leased_by_worker_id = p_leased_by_worker_id
-        AND r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
-    RETURNING r.job_id;
+    WITH inflight AS (
+        SELECT r0.job_id
+        FROM {{schema}}.runtimes r0
+        WHERE
+            r0.leased_by_worker_id = p_leased_by_worker_id
+            AND r0.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+    ),
+    locked AS (
+        SELECT r1.job_id
+        FROM {{schema}}.runtimes r1
+        WHERE
+            r1.job_id IN (SELECT i.job_id FROM inflight i)
+            AND r1.leased_by_worker_id = p_leased_by_worker_id
+            AND r1.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+        ORDER BY r1.job_id
+        FOR UPDATE SKIP LOCKED
+    ),
+    extended AS (
+        UPDATE {{schema}}.runtimes r
+        SET lease_expires_at_utc = v_new_expiry
+        WHERE r.job_id IN (SELECT l.job_id FROM locked l)
+        RETURNING r.job_id
+    )
+    SELECT i.job_id, e.job_id IS NOT NULL
+    FROM inflight i
+    LEFT JOIN extended e ON e.job_id = i.job_id;
 END;
 $$;

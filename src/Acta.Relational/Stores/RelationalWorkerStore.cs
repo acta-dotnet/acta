@@ -51,7 +51,12 @@ internal sealed class RelationalWorkerStore(IDbSession session, ISqlDialect dial
             ct
         );
 
-    public Task<IReadOnlyList<long>> ExtendWorkerLeasesAsync(int workerId, int leaseTtlSeconds, bool draining, CancellationToken ct) =>
+    public Task<IReadOnlyList<LeaseRenewalRow>> ExtendWorkerLeasesAsync(
+        int workerId,
+        int leaseTtlSeconds,
+        bool draining,
+        CancellationToken ct
+    ) =>
         session.ExecuteAsync(
             new StoreCommand("Execution", "Workers/ExtendWorkerLeases"),
             cmd =>
@@ -60,7 +65,7 @@ internal sealed class RelationalWorkerStore(IDbSession session, ISqlDialect dial
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeaseTtlSeconds, leaseTtlSeconds));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.Draining, draining));
             },
-            reader => reader.GetInt64(0),
+            reader => new LeaseRenewalRow(reader.GetInt64(0), Convert.ToBoolean(reader.GetValue(1), CultureInfo.InvariantCulture)),
             ct
         );
 

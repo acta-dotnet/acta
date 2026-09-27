@@ -75,6 +75,24 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
     }
 
     [Fact]
+    public async Task Worker_heartbeat_keeps_a_skipped_job_running_without_feeding_its_deadline()
+    {
+        var context = Context();
+        var heartbeat = new WorkerHeartbeat(new SkippingWorkerStore(1), Options(), Registration, context, NullLogger.Instance);
+
+        using var cts = new CancellationTokenSource();
+        var deadline = Stopwatch.GetTimestamp() + TicksFor(TimeSpan.FromSeconds(5));
+        var attempt = new RunningAttempt(cts) { JobLeaseGoodUntil = deadline };
+        context.RunningAttempts[1] = attempt;
+
+        await heartbeat.TickAsync(TestContext.Current.CancellationToken);
+
+        // Another transaction held the row: it is still this worker's, but its lease did not move.
+        Assert.False(cts.IsCancellationRequested);
+        Assert.Equal(deadline, attempt.JobLeaseGoodUntil);
+    }
+
+    [Fact]
     public async Task Worker_heartbeat_leaves_the_deadline_untouched_when_the_refresh_throws()
     {
         var context = Context();
@@ -291,7 +309,7 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
 
     private abstract class WorkerStoreStub : IWorkerStore
     {
-        public abstract Task<IReadOnlyList<long>> ExtendWorkerLeasesAsync(
+        public abstract Task<IReadOnlyList<LeaseRenewalRow>> ExtendWorkerLeasesAsync(
             int workerId,
             int leaseTtlSeconds,
             bool draining,
@@ -311,17 +329,27 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
 
     private sealed class LiveWorkerStore(IReadOnlyList<long> liveJobIds) : WorkerStoreStub
     {
-        public override Task<IReadOnlyList<long>> ExtendWorkerLeasesAsync(
+        public override Task<IReadOnlyList<LeaseRenewalRow>> ExtendWorkerLeasesAsync(
             int workerId,
             int leaseTtlSeconds,
             bool draining,
             CancellationToken ct
-        ) => Task.FromResult(liveJobIds);
+        ) => Task.FromResult<IReadOnlyList<LeaseRenewalRow>>([.. liveJobIds.Select(id => new LeaseRenewalRow(id, Renewed: true))]);
+    }
+
+    private sealed class SkippingWorkerStore(long heldJobId) : WorkerStoreStub
+    {
+        public override Task<IReadOnlyList<LeaseRenewalRow>> ExtendWorkerLeasesAsync(
+            int workerId,
+            int leaseTtlSeconds,
+            bool draining,
+            CancellationToken ct
+        ) => Task.FromResult<IReadOnlyList<LeaseRenewalRow>>([new LeaseRenewalRow(heldJobId, Renewed: false)]);
     }
 
     private sealed class ThrowingWorkerStore : WorkerStoreStub
     {
-        public override Task<IReadOnlyList<long>> ExtendWorkerLeasesAsync(
+        public override Task<IReadOnlyList<LeaseRenewalRow>> ExtendWorkerLeasesAsync(
             int workerId,
             int leaseTtlSeconds,
             bool draining,

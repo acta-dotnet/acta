@@ -93,7 +93,7 @@ public abstract class UnsupportedDefinitionClaimSpec<TFixture> : ActaRuntimeTest
         var renewed = await Services
             .GetRequiredService<IWorkerStore>()
             .ExtendWorkerLeasesAsync(workerId, leaseTtlSeconds: 600, draining: false, ct);
-        Assert.DoesNotContain(enqueued.JobId, renewed);
+        Assert.DoesNotContain(renewed, r => r.JobId == enqueued.JobId);
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, job.Status);
