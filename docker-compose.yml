@@ -14,7 +14,10 @@ name: acta-dev
 services:
   postgres:
     image: postgres:18
-    command: postgres -c max_connections=500
+    # Every developer, CI, and the release evidence run on these settings. 8 GB of shared memory keeps parallel
+    # plans off the 64 MB Docker default, which fails them with "could not resize shared memory segment".
+    command: postgres -c max_connections=500 -c shared_buffers=2GB -c effective_cache_size=6GB -c maintenance_work_mem=512MB
+    shm_size: 8gb
     ports:
       - "127.0.0.1:${ACTA_PG_PORT:-5432}:5432"
     environment:
@@ -44,10 +47,10 @@ services:
     environment:
       ACCEPT_EULA: "Y"
       MSSQL_SA_PASSWORD: "${ACTA_MSSQL_SA_PASSWORD:-AbitMOREsecure_PASSWORD}"
-      # SQL Server otherwise targets most of the host RAM; on a ~6 GB CI runner that starves the
-      # test host. Bound it, but leave enough headroom for the aggressive-parallel conformance run
-      # (too tight and commands cancel under load with "A severe error occurred on the current command").
-      MSSQL_MEMORY_LIMIT_MB: "4096"
+      # SQL Server otherwise targets most of the host RAM. 8 GB is the same for every developer, CI, and
+      # the release evidence; too tight and commands cancel under load with "A severe error occurred on
+      # the current command".
+      MSSQL_MEMORY_LIMIT_MB: "8192"
     volumes:
       - acta-mssql-data:/var/opt/mssql
     healthcheck:
