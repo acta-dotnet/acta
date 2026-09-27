@@ -68,7 +68,7 @@ public sealed record BaselineCellKey(
     // baseline captured before the scenario existed still reads back.
     string? Rate = null,
     int SideJobs = 0,
-    // The lanes scenario's workload shape. Default so a baseline captured before lanes existed still
+    // The lanes and claim-skew workload shape. Default so a baseline captured before lanes existed still
     // reads back, its cells keyed exactly as before.
     string? Variant = null
 );
@@ -373,6 +373,29 @@ public static class BaselineSuite
                     jobs: LanesJobs(preset, profile, variant),
                     executors: 8,
                     claimBatch: 16,
+                    payloadBytes: 0,
+                    workers: 1,
+                    rows: 0,
+                    iterations: 200,
+                    variant: variant
+                );
+            }
+
+            // The drain shape at its one-worker point; the none cell is the table's own control.
+            foreach (var profile in profiles)
+            foreach (var variant in ClaimSkewScenario.Variants)
+            {
+                Add(
+                    specs,
+                    scenario: "claim-skew",
+                    actualScenario: "claim-skew",
+                    provider,
+                    dbVersion,
+                    keyProfile: profile,
+                    actualProfile: profile,
+                    jobs: ClaimSkewScenario.DueJobs,
+                    executors: 16,
+                    claimBatch: 32,
                     payloadBytes: 0,
                     workers: 1,
                     rows: 0,
@@ -872,6 +895,7 @@ public static class BaselineReport
         AppendQuery(sb, baseline.Cells);
         AppendRate(sb, baseline.Cells);
         AppendLanes(sb, baseline.Cells);
+        AppendClaimSkew(sb, baseline.Cells);
         return sb.ToString();
     }
 
@@ -1276,6 +1300,44 @@ public static class BaselineReport
             sb.AppendLine(
                 CultureInfo.InvariantCulture,
                 $"| {k.Provider} | {k.ExecutionProfile} | {k.Variant} | {k.Jobs} | {FormatWhole(m.JobsPerSecond)} | {m.P50LatencyMs:F1} "
+                    + $"| {m.P99LatencyMs:F1} | {row.Status} |"
+            );
+        }
+        sb.AppendLine();
+    }
+
+    // Skipped unless the run measured claim-skew cells, like the lanes table.
+    private static void AppendClaimSkew(StringBuilder sb, IReadOnlyList<BaselineCellResult> cells)
+    {
+        var rows = cells
+            .Where(c => c.Key.Scenario == "claim-skew")
+            .OrderBy(c => c.Key.Provider, StringComparer.Ordinal)
+            .ThenBy(c => ProfileOrder(c.Key.ExecutionProfile))
+            .ThenBy(c => Array.IndexOf(ClaimSkewScenario.Variants, c.Key.Variant))
+            .ToArray();
+        if (rows.Length == 0)
+        {
+            return;
+        }
+
+        sb.AppendLine("## Claim skew: drain jobs/s and pickup ms");
+        sb.AppendLine();
+        sb.AppendLine(
+            $"{ClaimSkewScenario.DueJobs} due jobs drained at 16 executors alone (none), beside "
+                + $"{ClaimSkewScenario.ParkedJobs} Suspended jobs parked on an unbounded wait in the due jobs' band (parked), or behind "
+                + $"{ClaimSkewScenario.DelayedHighJobs} High jobs due tomorrow ahead of due Bulk jobs (delayed-high). Pickup is due "
+                + "instant to handler entry."
+        );
+        sb.AppendLine();
+        sb.AppendLine("| provider | profile | cell | jobs | jobs/s | p50 | p99 | status |");
+        sb.AppendLine("| --- | --- | --- | ---: | ---: | ---: | ---: | --- |");
+        foreach (var row in rows)
+        {
+            var k = row.Key;
+            var m = row.MedianMetrics;
+            sb.AppendLine(
+                CultureInfo.InvariantCulture,
+                $"| {k.Provider} | {k.ExecutionProfile} | {k.Variant} | {k.Jobs} | {FormatWhole(m.DrainPerSecond)} | {m.P50LatencyMs:F1} "
                     + $"| {m.P99LatencyMs:F1} | {row.Status} |"
             );
         }

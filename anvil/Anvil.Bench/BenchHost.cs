@@ -225,6 +225,31 @@ public static class ProviderConn
     }
 
     /// <summary>
+    /// Parks every job above <paramref name="afterJobId"/> on an unbounded wait in one set-based pass:
+    /// Suspended with no due instant, the runtime row a handler leaves when it waits on a signal with no
+    /// timeout. No worker can claim such a row until something wakes it.
+    /// </summary>
+    public static async Task ParkAboveAsync(string provider, string schema, long afterJobId, CancellationToken ct)
+    {
+        try
+        {
+            await using var connection = await OpenAsync(provider, schema, ct);
+            await using var command = connection.CreateCommand();
+            command.CommandText =
+                $"UPDATE {Qualifier(provider, schema)}runtimes SET status_code = @p_status, next_run_at_utc = NULL "
+                + "WHERE job_id > @p_after_job_id";
+            command.CommandTimeout = 0;
+            AddParameter(command, "@p_status", (int)JobStatusCode.Suspended);
+            AddParameter(command, "@p_after_job_id", afterJobId);
+            await command.ExecuteNonQueryAsync(ct);
+        }
+        catch (Exception ex) when (ex is SqliteException or NpgsqlException or SqlException or SocketException or TimeoutException)
+        {
+            throw new BenchDbUnavailableException(provider, ex);
+        }
+    }
+
+    /// <summary>
     /// Counts the rows the cell leaves behind in the four ledger tables, keyed for
     /// <c>extraMetrics</c>. Returns null when the counts cannot be read, so a cell's own metrics
     /// survive a database that went away after the measured window.

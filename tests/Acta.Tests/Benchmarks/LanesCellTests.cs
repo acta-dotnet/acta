@@ -57,7 +57,7 @@ public sealed class LanesCellTests
     }
 
     [Fact]
-    public void A_baseline_from_before_lanes_keys_its_cells_as_before_and_lacks_only_the_lanes_cells()
+    public void A_baseline_from_before_lanes_keys_its_cells_as_before_and_lacks_only_the_variant_cells()
     {
         var rc3 = BaselineCapture.Read(Rc3Baseline);
         var databases = rc3.Databases.ToDictionary(d => d.Provider, StringComparer.OrdinalIgnoreCase);
@@ -70,7 +70,7 @@ public sealed class LanesCellTests
         var old = rc3.Cells.Select(c => c.Key).ToHashSet();
         var added = current.Where(s => !old.Contains(s.Key)).ToList();
         Assert.NotEmpty(added);
-        Assert.All(added, s => Assert.Equal("lanes", s.Scenario));
+        Assert.All(added, s => Assert.Contains(s.Scenario, (string[])["lanes", "claim-skew"]));
     }
 
     [Fact]

@@ -9,7 +9,7 @@ namespace Anvil.Bench;
 /// <c>Rows</c> the opt-in big-data ones; both default so the original scenarios are unaffected.
 /// <c>Profile</c> selects the execution profile (Buffered/Direct/Bulk) for the comparison scenarios.
 /// <c>Rate</c> is the rate scenario's declaration (<c>"100/s"</c>) and <c>SideJobs</c> the unmetered
-/// backlog it drains alongside; <c>Variant</c> names a lanes cell's workload shape. All three default so
+/// backlog it drains alongside; <c>Variant</c> names a lanes or claim-skew cell's workload shape. All three default so
 /// every other scenario is unaffected.
 /// </summary>
 public sealed record CellParams(
