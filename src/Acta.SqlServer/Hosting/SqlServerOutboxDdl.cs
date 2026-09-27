@@ -5,7 +5,7 @@ namespace Acta.SqlServer.Hosting;
 /// <summary>
 /// Emits the canonical SQL Server <c>acta_outbox</c> CREATE script for producer-owned migration systems.
 /// A plain, non-idempotent migration script (the producer's migration tool owns run-once semantics): the
-/// canonical CREATE TABLE with provider-correct types and UTC clock defaults, the primary key, the two
+/// canonical CREATE TABLE with provider-correct types and UTC clock defaults, the keys, the three
 /// named claim indexes, and the eight named safety checks. Acta never executes it; the producer pipes it
 /// into DbUp / Flyway / EF <c>migrationBuilder.Sql(...)</c> or a hand migration. <c>table</c> and
 /// <c>schema</c> take the same lowercase identifier validation as the relay source and staging extension;
@@ -21,8 +21,8 @@ public static class SqlServerOutboxDdl
         // tinyint, so its 0-255 range is enforced by the column type (no explicit check needed).
         return $"""
             CREATE TABLE {t} (
+                id bigint IDENTITY(1,1) NOT NULL,
                 outbox_id uniqueidentifier NOT NULL,
-                staging_id bigint IDENTITY(1,1) NOT NULL,
                 job_namespace varchar(128) NOT NULL,
                 job_name varchar(128) NOT NULL,
                 input_format_id tinyint NOT NULL,
@@ -43,7 +43,8 @@ public static class SqlServerOutboxDdl
                 next_attempt_at_utc datetime2 NOT NULL DEFAULT SYSUTCDATETIME(),
                 claim_token uniqueidentifier NULL,
                 claim_until_utc datetime2 NULL,
-                CONSTRAINT pk_{table} PRIMARY KEY (outbox_id),
+                CONSTRAINT pk_{table} PRIMARY KEY (id),
+                CONSTRAINT uq_{table}_outbox_id UNIQUE (outbox_id),
                 CONSTRAINT ck_{table}_payload_pair CHECK (
                     (input_format_id = 0 AND input IS NULL) OR (input_format_id <> 0 AND input IS NOT NULL)),
                 CONSTRAINT ck_{table}_delay_nonneg CHECK (delay_seconds IS NULL OR delay_seconds >= 0),
@@ -57,8 +58,9 @@ public static class SqlServerOutboxDdl
                     OR (status_code <> 20 AND claim_token IS NULL AND claim_until_utc IS NULL))
             );
             CREATE INDEX ix_{table}_due ON {t}
-                (status_code, next_attempt_at_utc, staging_id);
+                (status_code, next_attempt_at_utc, id);
             CREATE INDEX ix_{table}_claims ON {t} (status_code, claim_until_utc);
+            CREATE INDEX ix_{table}_lane ON {t} (job_namespace, lane, id);
             """;
     }
 }

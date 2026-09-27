@@ -6,8 +6,8 @@ namespace Acta.Runtime.Modules.Outbox;
 /// constructor order is the <c>[DbProjection]</c> contract: it must match the SELECT column order in every
 /// provider's <c>ClaimDueRows.sql</c> at every position. Binary is read as <c>byte[]?</c> like the ledger
 /// input projections. <c>PriorityCode</c> stays null when the producer set no override, and so does the
-/// reconstructed request. <c>StagingId</c> is the producer insert order (the identity column, or the rowid
-/// on SQLite) that the claim and the relay batch follow.
+/// reconstructed request. <c>Id</c> is the producer insert order (the identity key, the rowid on SQLite)
+/// that the claim and the relay batch follow.
 /// </summary>
 internal sealed record OutboxRow(
     Guid OutboxId,
@@ -26,7 +26,7 @@ internal sealed record OutboxRow(
     string? MetaJson,
     DateTime CreatedAtUtc,
     int FailureCount,
-    long StagingId
+    long Id
 );
 
 /// <summary>

@@ -216,8 +216,8 @@ source; `schema: null` uses the provider's established default. It is documentat
 installer: paste or pipe it into DbUp, Flyway, `migrationBuilder.Sql(...)`, or a hand migration. Acta never
 executes it.
 
-The DDL ships **two indexes** (`ix_acta_outbox_due` and `ix_acta_outbox_claims`); keep them, claims depend
-on them.
+The DDL ships **three indexes** (`ix_acta_outbox_due`, `ix_acta_outbox_claims`, and `ix_acta_outbox_lane`);
+keep them, claims depend on them.
 
 ### Run the relay on a worker
 
@@ -299,21 +299,26 @@ so offending rows are isolated, good rows proceed, and the budget is honored.
 
 ## Ordering
 
-Among due rows the relay claims in staging order: `next_attempt_at_utc ASC, staging_id ASC`, where
-`staging_id` is an identity the producer database assigns on insert (the rowid on SQLite). Each claimed
-batch reaches the target in that order, so rows staged into one lane in one transaction run in the order
-they were staged. Priority does not order the relay: `priority_code` is carried to the enqueued job, and
-a null leaves the effective priority to the target job definition.
+Among due rows the relay claims in staging order: `next_attempt_at_utc ASC, id ASC`, where `id` is the
+key the producer database assigns on insert (the rowid on SQLite). Priority does not order the relay:
+`priority_code` is carried to the enqueued job, and a null leaves the effective priority to the target
+job definition.
 
-Staging order holds for one relay draining rows that land first time. Three cases can reorder a lane:
+**A lane keeps its staging order from the outbox to the ledger.** A row staged with a `lane` is claimed
+only while no older row of the same namespace and lane is still in the outbox, Pending or Claimed. So:
 
-- A row the target rejected is retried later, after rows staged behind it, unless both fall into one
-  claimed batch.
-- Several relay replicas claim disjoint batches, and their enqueues can commit in either order.
-- Producers commit out of identity order, so a row that commits late can be claimed after a row with a
-  higher `staging_id`.
+- A row the target rejected is backed off and stays at the head of its lane; the rows staged behind it
+  wait, while other lanes and unlaned rows keep flowing.
+- A second relay that takes over a lapsed claim can only take the same head row, which the target
+  deduplicates.
+- A row that exhausts its retries is quarantined and leaves the lane, which then moves on, like a
+  message moved to a dead-letter queue. Requeueing it from quarantine puts it back at the head.
+- Rows staged in sequence by one producer arrive in staging order. Rows staged into one lane by two
+  transactions at once arrive in the order they commit, which is also what a direct enqueue gives.
 
-Where a lane's order must survive those cases, enqueue it directly with a transactional enqueue instead.
+A lane advances one row per claim through the outbox, up to twenty claims per relay tick; the target runs
+a lane one job at a time anyway. A row staged without a `lane` is not ordered at the source, even when its
+job definition names a lane; its ordering starts when it reaches the ledger.
 
 ## Retry and quarantine
 
@@ -369,8 +374,8 @@ Acta versions its shape here, and the [DDL API](#the-ddl-api) emits it.
 
 | Column | Required | Contract |
 | --- | --- | --- |
-| `outbox_id` | yes | Client-generated GUID primary key; internal transport identity. |
-| `staging_id` | yes | Producer-assigned identity (`bigint`; the rowid on SQLite); the relay's order. |
+| `id` | yes | Producer-assigned identity key (`bigint`; the rowid on SQLite); the relay's order. |
+| `outbox_id` | yes | Client-generated GUID, unique; internal transport identity. |
 | `job_namespace` | yes | ASCII, 64-character public cap; canonical user namespace. |
 | `job_name` | yes | ASCII, 128 characters; canonical user job name. |
 | `input_format_id` | yes | Byte-sized format id; `0` is None. |
@@ -392,9 +397,10 @@ Acta versions its shape here, and the [DDL API](#the-ddl-api) emits it.
 | `claim_until_utc` | no | Source-database UTC lease expiry. |
 | `last_error` | no | Most recent bounded diagnostic, truncated to 512 characters. |
 
-Two canonical claim indexes carry fixed short names so provider truncation never changes their identity:
-`ix_acta_outbox_due` is `(status_code, next_attempt_at_utc, staging_id)` for the due predicate (SQLite
-leaves `staging_id` to the rowid every index ends with), and `ix_acta_outbox_claims` is `(status_code, claim_until_utc)` for expired claims.
+Three canonical claim indexes carry fixed short names so provider truncation never changes their identity:
+`ix_acta_outbox_due` is `(status_code, next_attempt_at_utc, id)` for the due predicate (SQLite leaves
+`id` to the rowid every index ends with), `ix_acta_outbox_claims` is `(status_code, claim_until_utc)` for
+expired claims, and `ix_acta_outbox_lane` is `(job_namespace, lane, id)` for the lane check.
 Check constraints enforce the payload format/data pair, non-negative delay and failure count, the mutual
 exclusion of `next_run_at_utc` and `delay_seconds`, the allowed priority and status codes, valid
 root-object JSON when `meta` is non-null, and the status/claim-field invariant (Claimed requires both

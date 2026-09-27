@@ -1827,8 +1827,19 @@
   - A committed stage persists the business row and a claimable, reconstructable outbox row
   - A rolled-back stage discards both the business row and the outbox row
 
-### One relay batch keeps a lane in staging order whatever the priorities
-- **Contract:** The relay enqueues each claimed batch in staging order, so a lane's rows relayed together keep that order however their priorities differ.
+### An outbox lane waits behind its oldest waiting row until that row leaves
+- **Contract:** A laned outbox row is claimed only while no older row of its lane is Pending or Claimed, so a lane reaches the ledger in staging order.
+- **Arrange:** Rows are staged into lanes behind a row the target rejects, behind a row another claim holds, and in one long lane.
+- **Act:** Relay ticks run, with a quarantine threshold of one where the spec quarantines the rejected row.
+- **Assert:** A lane's later rows stay in the outbox while an older row waits, other lanes relay, quarantine releases the lane, and a long lane lands in staging order.
+- **Guarantees:**
+  - A rejected row holds its lane across ticks while another lane relays
+  - A quarantined row releases its lane and the row behind it relays
+  - A lane's later rows wait while another claim holds its head
+  - A long lane lands in the ledger in staging order
+
+### Rows staged into one lane relay in staging order whatever their priority
+- **Contract:** The relay claims a lane's rows in staging order, so a lane's rows reach the ledger in that order however their priorities differ.
 - **Arrange:** A low-priority row and then a high-priority row are staged into one lane in one producer transaction.
 - **Act:** One relay tick relays the source.
 - **Assert:** The low-priority row's job leads the lane Ready and the high-priority row's job waits Blocked behind it.

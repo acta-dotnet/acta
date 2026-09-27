@@ -5,8 +5,8 @@ namespace Acta.Postgres.Hosting;
 /// <summary>
 /// Emits the canonical PostgreSQL <c>acta_outbox</c> CREATE script for producer-owned migration systems.
 /// A plain, non-idempotent migration script (the producer's migration tool owns run-once semantics):
-/// the canonical CREATE TABLE with provider-correct types and UTC clock defaults, the primary key, the
-/// two named claim indexes, and the eight named safety checks. Acta never executes it; the producer pipes
+/// the canonical CREATE TABLE with provider-correct types and UTC clock defaults, the keys, the
+/// three named claim indexes, and the eight named safety checks. Acta never executes it; the producer pipes
 /// it into DbUp / Flyway / EF <c>migrationBuilder.Sql(...)</c> or a hand migration. <c>table</c> and
 /// <c>schema</c> take the same lowercase identifier validation as the relay source and staging extension;
 /// with no schema the table reference is left unqualified for the database default schema to resolve.
@@ -20,8 +20,8 @@ public static class PostgresOutboxDdl
         // collision-free objects; the default table yields exactly the canonical names.
         return $"""
             CREATE TABLE {t} (
+                id bigint GENERATED ALWAYS AS IDENTITY,
                 outbox_id uuid NOT NULL,
-                staging_id bigint GENERATED ALWAYS AS IDENTITY,
                 job_namespace varchar(128) NOT NULL,
                 job_name varchar(128) NOT NULL,
                 input_format_id smallint NOT NULL,
@@ -42,7 +42,8 @@ public static class PostgresOutboxDdl
                 next_attempt_at_utc timestamptz NOT NULL DEFAULT now(),
                 claim_token uuid NULL,
                 claim_until_utc timestamptz NULL,
-                CONSTRAINT pk_{table} PRIMARY KEY (outbox_id),
+                CONSTRAINT pk_{table} PRIMARY KEY (id),
+                CONSTRAINT uq_{table}_outbox_id UNIQUE (outbox_id),
                 CONSTRAINT ck_{table}_payload_pair CHECK (
                     input_format_id BETWEEN 0 AND 255
                     AND ((input_format_id = 0 AND input IS NULL) OR (input_format_id <> 0 AND input IS NOT NULL))),
@@ -57,8 +58,9 @@ public static class PostgresOutboxDdl
                     OR (status_code <> 20 AND claim_token IS NULL AND claim_until_utc IS NULL))
             );
             CREATE INDEX ix_{table}_due ON {t}
-                (status_code, next_attempt_at_utc, staging_id);
+                (status_code, next_attempt_at_utc, id);
             CREATE INDEX ix_{table}_claims ON {t} (status_code, claim_until_utc);
+            CREATE INDEX ix_{table}_lane ON {t} (job_namespace, lane, id);
             """;
     }
 }

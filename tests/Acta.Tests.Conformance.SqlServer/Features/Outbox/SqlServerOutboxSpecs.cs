@@ -50,3 +50,5 @@ public sealed class SqlServerOutboxRelayQuarantineSpec : OutboxRelayQuarantineSp
 public sealed class SqlServerOutboxRelayRouteSpec : OutboxRelayRouteSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerOutboxRelayDispatchSpec : OutboxRelayDispatchSpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerOutboxLaneHoldSpec : OutboxLaneHoldSpec<SqlServerConformanceFixture>;

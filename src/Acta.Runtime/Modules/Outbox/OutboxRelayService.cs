@@ -198,7 +198,9 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission
                 throw;
             }
 
-            if (budgetExhausted || claimed.Count < BatchSize)
+            // A short batch means the backlog is drained, except that a claim takes one row per lane: the row
+            // behind a delivered lane head became claimable only now.
+            if (budgetExhausted || (claimed.Count < BatchSize && !claimed.Any(static r => r.Lane is not null)))
             {
                 break;
             }
@@ -494,7 +496,7 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission
                 .GroupBy(r => (r.JobNamespace.ToLowerInvariant(), r.DeduplicationKey.ToLowerInvariant()))
                 .Select(g =>
                 {
-                    var ordered = g.OrderBy(static r => r.StagingId).ToList();
+                    var ordered = g.OrderBy(static r => r.Id).ToList();
                     return new OutboxGroup(ordered[0], ordered);
                 }),
         ];

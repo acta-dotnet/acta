@@ -46,3 +46,5 @@ public sealed class SqliteOutboxRelayQuarantineSpec : OutboxRelayQuarantineSpec<
 public sealed class SqliteOutboxRelayRouteSpec : OutboxRelayRouteSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteOutboxRelayDispatchSpec : OutboxRelayDispatchSpec<SqliteConformanceFixture>;
+
+public sealed class SqliteOutboxLaneHoldSpec : OutboxLaneHoldSpec<SqliteConformanceFixture>;

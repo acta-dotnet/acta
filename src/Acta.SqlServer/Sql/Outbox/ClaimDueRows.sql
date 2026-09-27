@@ -13,11 +13,28 @@ BEGIN TRY
     SET status_code = 10 /* OutboxStatusCode.Pending */, claim_token = NULL, claim_until_utc = NULL
     WHERE status_code = 20 /* OutboxStatusCode.Claimed */ AND claim_until_utc <= SYSUTCDATETIME();
 
+    /* A laned row waits while an older row of its lane is Pending or Claimed (IOutboxRelayStore.ClaimDueAsync).
+       The check carries no READPAST: an older row another relay holds must still count, so it waits out
+       that claim or reads its last committed version instead of skipping it. */
     WITH due AS (
-        SELECT TOP (@p_batch_size) outbox_id
-        FROM {{table_ref}} WITH (UPDLOCK, READPAST, ROWLOCK)
-        WHERE status_code = 10 /* OutboxStatusCode.Pending */ AND next_attempt_at_utc <= SYSUTCDATETIME()
-        ORDER BY next_attempt_at_utc ASC, staging_id ASC
+        SELECT TOP (@p_batch_size) c.id
+        FROM {{table_ref}} AS c WITH (UPDLOCK, READPAST, ROWLOCK)
+        WHERE
+            c.status_code = 10 /* OutboxStatusCode.Pending */
+            AND c.next_attempt_at_utc <= SYSUTCDATETIME()
+            AND (
+                c.lane IS NULL
+                OR NOT EXISTS (
+                    SELECT 1
+                    FROM {{table_ref}} AS e
+                    WHERE
+                        e.job_namespace = c.job_namespace
+                        AND e.lane = c.lane
+                        AND e.id < c.id
+                        AND e.status_code IN (10 /* OutboxStatusCode.Pending */, 20 /* OutboxStatusCode.Claimed */)
+                )
+            )
+        ORDER BY c.next_attempt_at_utc ASC, c.id ASC
     )
 
     UPDATE o
@@ -29,9 +46,9 @@ BEGIN TRY
         INSERTED.outbox_id, INSERTED.job_namespace, INSERTED.job_name, INSERTED.input_format_id, INSERTED.input,
         INSERTED.deduplication_key, INSERTED.correlation_key, INSERTED.concurrency_key, INSERTED.lane, INSERTED.priority_code,
         INSERTED.next_run_at_utc, INSERTED.delay_seconds, INSERTED.tenant_key, INSERTED.meta, INSERTED.created_at_utc, INSERTED.failure_count,
-        INSERTED.staging_id
+        INSERTED.id
     FROM {{table_ref}} AS o
-    INNER JOIN due ON due.outbox_id = o.outbox_id;
+    INNER JOIN due ON due.id = o.id;
 
     IF @entry_trancount = 0
         COMMIT TRANSACTION;

@@ -50,7 +50,7 @@ internal sealed class RelationalOutboxRelayStore(IDbSession session, ISqlDialect
             read,
             ct
         );
-        return [.. claimed.OrderBy(static r => r.StagingId)];
+        return [.. claimed.OrderBy(static r => r.Id)];
     }
 
     public Task DeleteClaimedAsync(FinalizeOutboxCommand command, CancellationToken ct) =>

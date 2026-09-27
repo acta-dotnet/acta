@@ -11,10 +11,11 @@ internal interface IOutboxRelayStore
     /// <summary>
     /// One short source transaction: return expired Claimed leases to Pending, then claim a bounded
     /// batch of due Pending rows (<c>status_code = 10 AND next_attempt_at_utc &lt;= db_now</c>) ordered by
-    /// <c>next_attempt_at_utc ASC, staging_id ASC</c>, stamping <c>claim_token</c>/<c>claim_until_utc</c>.
-    /// Returns the claimed rows for this token in staging order, so one batch reaches a lane in the order it
-    /// was staged. A retried row can still land behind rows staged after it (see the outbox guide's
-    /// Ordering section).
+    /// <c>next_attempt_at_utc ASC, id ASC</c>, stamping <c>claim_token</c>/<c>claim_until_utc</c>. A laned
+    /// row is claimed only while no older row of its lane is still Pending or Claimed, so a lane reaches the
+    /// ledger in staging order through retries and relay overlap; a quarantined row has left its lane, so
+    /// the rows behind it move on. That check must not skip locked rows, or a row another relay holds would
+    /// read as gone. Returns the claimed rows in staging order.
     /// </summary>
     Task<IReadOnlyList<OutboxRow>> ClaimDueAsync(ClaimOutboxCommand command, CancellationToken ct);
 

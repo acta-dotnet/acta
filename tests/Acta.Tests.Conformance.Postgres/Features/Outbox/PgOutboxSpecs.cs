@@ -55,3 +55,5 @@ public sealed class PgOutboxRelayQuarantineSpec : OutboxRelayQuarantineSpec<PgCo
 public sealed class PgOutboxRelayRouteSpec : OutboxRelayRouteSpec<PgConformanceFixture>;
 
 public sealed class PgOutboxRelayDispatchSpec : OutboxRelayDispatchSpec<PgConformanceFixture>;
+
+public sealed class PgOutboxLaneHoldSpec : OutboxLaneHoldSpec<PgConformanceFixture>;
