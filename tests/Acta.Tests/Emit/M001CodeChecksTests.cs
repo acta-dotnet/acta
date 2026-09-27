@@ -116,10 +116,9 @@ public class M001CodeChecksTests
     {
         // The claim orders by next_run_at_utc ASC with PostgreSQL's default NULLS LAST, which the
         // index must match key for key or every claim sorts its candidates instead of walking them.
-        // ck_runtimes_ready_due is what removed the NULL a Ready row could once carry, so the index
-        // stays exactly as rc.2 rendered it.
+        // The filter leaves NULL instants out, so a parked wait never sits in a claim's path.
         Assert.Contains(
-            "CREATE INDEX IF NOT EXISTS ix_runtimes_claim_ready ON {{schema}}.runtimes (namespace_id, priority_code DESC, next_run_at_utc, job_id, status_code) WHERE status_code IN (10, 20);",
+            "CREATE INDEX IF NOT EXISTS ix_runtimes_claim_ready ON {{schema}}.runtimes (namespace_id, priority_code DESC, next_run_at_utc, job_id, status_code) WHERE status_code IN (10, 20) AND next_run_at_utc IS NOT NULL;",
             PgM001,
             StringComparison.Ordinal
         );

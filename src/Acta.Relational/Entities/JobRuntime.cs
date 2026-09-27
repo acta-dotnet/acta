@@ -31,17 +31,21 @@ namespace Acta.Relational.Entities;
     Column = "lane_id",
     OnDelete = DbForeignKeyAction.NoAction
 )]
-// Covers both claimable statuses: Ready rows, and Suspended rows carrying a durable wait's expiration
-// in next_run_at_utc. A Suspended row with a NULL next_run_at_utc is an unbounded wait and stays
-// unclaimable, which the claim predicate enforces; the index only has to admit the candidates.
-// status_code trails the seek and sort keys purely to keep the claim covering: admitting two statuses
-// means the predicate has to tell them apart, and without the column in the index every candidate row
-// costs a heap lookup on the hottest query in the system.
+// Holds exactly the rows that can come due by time: Ready rows, and Suspended rows carrying a durable
+// wait's expiration in next_run_at_utc. A Suspended row with a NULL next_run_at_utc is an unbounded wait
+// that only a signal or a child settle can wake, and it stays out of the index, because SQL Server and
+// SQLite sort NULLs first and every claim would otherwise read past every parked wait in its band. A SQL
+// Server filtered index accepts AND-ed simple predicates only, and every query that must use the index
+// restates the whole filter as top-level AND terms. The claim seeks one priority band at a time on
+// (namespace_id, priority_code, next_run_at_utc) and stops at the band's first row past the current instant.
+// status_code trails the seek and sort keys purely to keep the claim covering: the claim reports the
+// status each row leaves, and without the column every candidate row costs a heap lookup on the hottest
+// query in the system.
 [DbIndex(
     Name = "ix_runtimes_claim_ready",
     Columns = ["namespace_id", "priority_code", "next_run_at_utc", "job_id", "status_code"],
     Descending = ["priority_code"],
-    Filter = "status_code IN (10, 20)",
+    Filter = "status_code IN (10, 20) AND next_run_at_utc IS NOT NULL",
     Usage = "claim_hot_path"
 )]
 // OptimizeForSequentialKey: retention instants ascend, so completions insert at this index's tail; a
@@ -90,8 +94,8 @@ namespace Acta.Relational.Entities;
 // CancelJob, RestartJob.
 [DbCheck(Name = "ck_runtimes_status_lease", Sql = "status_code IN (40, 50) OR leased_by_worker_id IS NULL")]
 [DbCheck(Name = "ck_runtimes_inflight_leased", Sql = "status_code NOT IN (40, 50) OR leased_by_worker_id IS NOT NULL")]
-// A Ready row is due at a known instant, which is what lets the claim seek ix_runtimes_claim_ready in
-// its own order instead of sorting every ready row. Every routine that lands Ready writes the instant
+// A Ready row is due at a known instant, which is what lets ix_runtimes_claim_ready leave out NULL instants
+// without losing a Ready row, and lets the claim seek it in its own order instead of sorting. Every routine that lands Ready writes the instant
 // in the same statement: EnqueueOne, EnqueueBatch, RegisterScheduledJobs, RestartJob, ResumeJob,
 // RescheduleJob, TriggerScheduleNow, RaiseSignal, CompleteExecution (re-arm and signal release),
 // ReclaimStuckJobs, RepairRecoverySlot. NULL is reserved for a Suspended row's unbounded wait.

@@ -311,7 +311,7 @@ CREATE TABLE {{schema}}.runtimes (
     , CONSTRAINT fk_runtimes_jobs FOREIGN KEY (job_id) REFERENCES {{schema}}.jobs (id) ON DELETE CASCADE
     , CONSTRAINT fk_runtimes_lanes FOREIGN KEY (lane_id) REFERENCES {{schema}}.lanes (id)
 );
-CREATE INDEX ix_runtimes_claim_ready ON {{schema}}.runtimes (namespace_id, priority_code DESC, next_run_at_utc, job_id, status_code) WHERE status_code IN (10, 20);
+CREATE INDEX ix_runtimes_claim_ready ON {{schema}}.runtimes (namespace_id, priority_code DESC, next_run_at_utc, job_id, status_code) WHERE status_code IN (10, 20) AND next_run_at_utc IS NOT NULL;
 CREATE INDEX ix_runtimes_retention ON {{schema}}.runtimes (namespace_id, retention_until_utc, job_id) WHERE retention_until_utc IS NOT NULL AND status_code IN (100, 200, 220) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON);
 CREATE INDEX ix_runtimes_worker_inflight ON {{schema}}.runtimes (leased_by_worker_id, job_id) WHERE leased_by_worker_id IS NOT NULL AND status_code IN (40, 50);
 CREATE INDEX ix_runtimes_lane ON {{schema}}.runtimes (lane_id, job_id) WHERE lane_id IS NOT NULL AND status_code IN (10, 15, 20, 30, 40, 50);
@@ -648,7 +648,7 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 0)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-0893c602831a903009a1c8fea41b02a5', '{{schema}}');
+VALUES (0, 'baseline-ae02ee896735982dbfa017de0352f28a', '{{schema}}');
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 1)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}');

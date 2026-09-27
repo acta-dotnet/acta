@@ -913,7 +913,7 @@
         "Indexes": [
           {
             "Name": "ix_runtimes_claim_ready",
-            "Signature": "I|cols=namespace_id,priority_code,next_run_at_utc,job_id,status_code|inc=|desc=priority_code|filter=status_code IN (10, 20)|seq=False"
+            "Signature": "I|cols=namespace_id,priority_code,next_run_at_utc,job_id,status_code|inc=|desc=priority_code|filter=status_code IN (10, 20) AND next_run_at_utc IS NOT NULL|seq=False"
           },
           {
             "Name": "ix_runtimes_lane",

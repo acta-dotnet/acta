@@ -436,7 +436,7 @@ The hot mutable runtime state of one Job: one row in `runtimes` per `jobs` row, 
 
 | Name | Columns | Uniqueness | Filter | Usage |
 |---|---|---|---|---|
-| `ix_runtimes_claim_ready` | `namespace_id`, `priority_code` DESC, `next_run_at_utc`, `job_id`, `status_code` | not unique | `status_code IN (10, 20)` | `claim_hot_path` |
+| `ix_runtimes_claim_ready` | `namespace_id`, `priority_code` DESC, `next_run_at_utc`, `job_id`, `status_code` | not unique | `status_code IN (10, 20) AND next_run_at_utc IS NOT NULL` | `claim_hot_path` |
 | `ix_runtimes_retention` | `namespace_id`, `retention_until_utc`, `job_id` | not unique | `retention_until_utc IS NOT NULL AND status_code IN (100, 200, 220)` | `maintenance` |
 | `ix_runtimes_worker_inflight` | `leased_by_worker_id`, `job_id` | not unique | `leased_by_worker_id IS NOT NULL AND status_code IN (40, 50)` | `heartbeat` |
 | `ix_runtimes_lane` | `lane_id`, `job_id` | not unique | `lane_id IS NOT NULL AND status_code IN (10, 15, 20, 30, 40, 50)` | `lane` |
