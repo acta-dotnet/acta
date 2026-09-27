@@ -637,6 +637,16 @@
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.ClaimBatchAsync`
 
+### Claim returns only due rows, in claim order, past parked and delayed rows
+- **Contract:** Parked waits and future rows in a higher band never enter a claim, due rows arrive in claim order across bands, and the horizon is the earliest waiting instant.
+- **Arrange:** Normal rows parked on an unbounded wait, High rows due in an hour, and due Critical, Normal, and Bulk rows, one a Suspended row past its deadline.
+- **Act:** Claims of four rows run until one comes back empty.
+- **Assert:** The batches are the due rows in claim order, four at a time, and the empty claim's horizon is the earliest High row's instant.
+- **Guarantees:**
+  - Due rows claim in priority order past parked waits and a band of delayed High rows, then the horizon names the High band
+- **Store methods:**
+  - `Acta.Runtime.Modules.Execution.IExecutionStore.ClaimBatchAsync`
+
 ## Clock
 
 ### GetUtcNow returns the DB server UTC instant within a two-minute window
@@ -3046,7 +3056,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IDefinitionStore.SetDefinitionOverridesAsync` | Definition override bind matrix: all 13 slots<br>Override writes are version-guarded, recompute effective, and audited |
 | `IExecutionStore.ArmOrConsumeSleepTimerAsync` | Reschedule re-arms Ready and durable sleep arms an idempotent timer |
 | `IExecutionStore.CheckpointSlotAsync` | A bounded group wait spends one stored deadline across every child and replay<br>Job variables round-trip through the context API with versioning and validation |
-| `IExecutionStore.ClaimBatchAsync` | A Buffered worker with every executor held still runs the recovery sweep<br>A job registers, enqueues, claims, executes, persists and reads back<br>A lane runs its jobs one at a time in enqueue order<br>A paused slot does not fire and a timed pause auto-resumes at its expiry<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>At most one same-key handler executes, admitted at execution time<br>Claim caps at the batch size, reports the horizon, and skips excluded rows<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Rows waiting behind a full Buffered channel are not released as orphans |
+| `IExecutionStore.ClaimBatchAsync` | A Buffered worker with every executor held still runs the recovery sweep<br>A job registers, enqueues, claims, executes, persists and reads back<br>A lane runs its jobs one at a time in enqueue order<br>A paused slot does not fire and a timed pause auto-resumes at its expiry<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>At most one same-key handler executes, admitted at execution time<br>Claim caps at the batch size, reports the horizon, and skips excluded rows<br>Claim returns only due rows, in claim order, past parked and delayed rows<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Rows waiting behind a full Buffered channel are not released as orphans |
 | `IExecutionStore.ClaimOneAsync` | A claim whose answer was lost is returned to Ready by the heartbeat<br>CLI verbs map onto IJobs and debug runs the targeted job in-process |
 | `IExecutionStore.CompleteExecutionAsync` | A bounded child wait expires, cancels its subtree, and leaves the parent running<br>A claim with no handler is handed back, and its definition is not claimed again<br>A job registers, enqueues, claims, executes, persists and reads back<br>A paused slot does not fire and a timed pause auto-resumes at its expiry<br>A raise inside the suspend handoff lands the job Ready, not Suspended<br>A recurring job whose handler throws raises an alert<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>An operator pause landing inside a planned fire keeps the schedule paused<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Completing an in-flight attempt respects schedule changes made while it ran<br>Every settle of a lane head promotes the next member<br>Handler Fail Cancel Pause finalize the attempt without returning to user code<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Operations racing on one lane serialize on the lane lock without deadlocking<br>Reschedule re-arms Ready and durable sleep arms an idempotent timer<br>StartExecution and CompleteExecution no-op outcomes return exact action enums<br>The failures-only audit level records a failure and the success that answers it |
 | `IExecutionStore.CompleteExecutionsBatchAsync` | A Bulk completion waiting to be written keeps its row through the heartbeat<br>CompleteExecutionsBatch self-filters and aligns outcomes to original ordinals<br>Concurrent Bulk flushers group-commit large batches without a deadlock |

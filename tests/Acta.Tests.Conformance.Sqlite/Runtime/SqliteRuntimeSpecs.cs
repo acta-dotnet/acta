@@ -47,6 +47,8 @@ public sealed class SqliteWorkerCrashRecoveryChaosSpec : WorkerCrashRecoveryChao
 
 public sealed class SqliteClaimBatchSpec : ClaimBatchSpec<SqliteConformanceFixture>;
 
+public sealed class SqliteClaimSkewSpec : ClaimSkewSpec<SqliteConformanceFixture>;
+
 public sealed class SqliteExecutionTimeoutSpec : ExecutionTimeoutSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteInputDeserializationFailureSpec : InputDeserializationFailureSpec<SqliteConformanceFixture>;

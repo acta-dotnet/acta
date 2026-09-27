@@ -13,6 +13,8 @@ public sealed class PgClaimAndControlRaceChaosSpec : ClaimAndControlRaceChaosSpe
 
 public sealed class PgClaimBatchSpec : ClaimBatchSpec<PgConformanceFixture>;
 
+public sealed class PgClaimSkewSpec : ClaimSkewSpec<PgConformanceFixture>;
+
 public sealed class PgCombinedDispatchParitySpec : CombinedDispatchParitySpec<PgConformanceFixture>;
 
 public sealed class PgBulkCompletionParitySpec : BulkCompletionParitySpec<PgConformanceFixture>;

@@ -13,6 +13,8 @@ public sealed class SqlServerClaimAndControlRaceChaosSpec : ClaimAndControlRaceC
 
 public sealed class SqlServerClaimBatchSpec : ClaimBatchSpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerClaimSkewSpec : ClaimSkewSpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerCombinedDispatchParitySpec : CombinedDispatchParitySpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerBulkCompletionParitySpec : BulkCompletionParitySpec<SqlServerConformanceFixture>;
