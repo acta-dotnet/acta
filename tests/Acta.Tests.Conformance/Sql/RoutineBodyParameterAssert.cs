@@ -87,9 +87,8 @@ public static partial class RoutineBodyParameterAssert
     }
 
     // pg: parameters are the leading identifier of each top-level item in the "FUNCTION name(...)"
-    // parameter list, the first '(' after the CREATE (a DROP of a retired signature may precede it,
-    // and its type list is not a declaration); the body is the text between the first and second
-    // "$$" dollar-quote delimiters.
+    // parameter list, the first '(' after the CREATE; the body is the text between the first and
+    // second "$$" dollar-quote delimiters.
     private static (IReadOnlyList<string> Declared, string Body) SplitPg(string masked)
     {
         var create = masked.IndexOf("CREATE", StringComparison.OrdinalIgnoreCase);

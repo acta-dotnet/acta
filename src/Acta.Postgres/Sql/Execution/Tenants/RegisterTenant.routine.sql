@@ -18,7 +18,3 @@ BEGIN
     RETURN QUERY SELECT t.id FROM {{schema}}.tenants t WHERE t.tenant_key = p_tenant_key;
 END;
 $$;
-
--- CREATE OR REPLACE across arities creates an overload instead of replacing; drop the retired
--- four-parameter signature so pre-existing installs cannot resolve the stale upsert form.
-DROP FUNCTION IF EXISTS {{schema}}.register_tenant(VARCHAR, VARCHAR, VARCHAR, SMALLINT);

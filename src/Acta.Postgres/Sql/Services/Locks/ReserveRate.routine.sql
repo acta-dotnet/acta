@@ -8,25 +8,6 @@
 -- That no-op DO UPDATE writes a new row version per request, so a hot meter leaves autovacuum one
 -- dead tuple per admission; the price of the single-statement lock, not a thing to optimize away.
 
--- The result shape changed when wait_ms joined it, and CREATE OR REPLACE cannot change a return
--- type, so an install still carrying the previous shape drops it first; a current one is left to the
--- REPLACE below, which keeps whatever grants an operator put on the function.
-DO $$
-BEGIN
-    IF EXISTS (
-        SELECT 1
-        FROM pg_proc p
-        INNER JOIN pg_namespace n ON n.oid = p.pronamespace
-        WHERE
-            n.nspname = '{{schema}}'
-            AND p.proname = 'reserve_rate'
-            AND p.pronargs = 6
-            AND NOT ('wait_ms' = ANY (p.proargnames))
-    ) THEN
-        DROP FUNCTION {{schema}}.reserve_rate(VARCHAR, BIGINT, INT, INT, INT, UUID);
-    END IF;
-END
-$$;
 CREATE OR REPLACE FUNCTION {{schema}}.reserve_rate(
     p_lock_key VARCHAR,
     p_job_id BIGINT,
@@ -128,7 +109,3 @@ BEGIN
     RETURN QUERY SELECT v_turn, FALSE, CEIL(EXTRACT(EPOCH FROM (v_turn - v_now)) * 1000)::BIGINT;
 END;
 $$;
-
--- CREATE OR REPLACE across arities creates an overload instead of replacing; drop the retired
--- signature (without the grace) so pre-existing installs cannot resolve the stale form.
-DROP FUNCTION IF EXISTS {{schema}}.reserve_rate(VARCHAR, BIGINT, INT, INT, UUID);

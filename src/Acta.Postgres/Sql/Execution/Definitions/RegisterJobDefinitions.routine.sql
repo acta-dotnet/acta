@@ -170,16 +170,3 @@ BEGIN
     WHERE NOT EXISTS (SELECT 1 FROM upserted u WHERE u.name = b.name);
 END;
 $$;
-
--- CREATE OR REPLACE across arities creates an overload instead of replacing; drop the retired
--- signatures (without the lane, and without rate_limit and rate_key) so a call resolves to this form.
-DROP FUNCTION IF EXISTS {{schema}}.register_job_definitions(
-    INT, TIMESTAMPTZ, VARCHAR [], SMALLINT [], INT [], SMALLINT [], VARCHAR [], VARCHAR [], VARCHAR [], INT [], INT [],
-    SMALLINT [], INT [], VARCHAR [], VARCHAR [], SMALLINT [], VARCHAR [], SMALLINT [], VARCHAR [], SMALLINT [], SMALLINT [],
-    SMALLINT [], VARCHAR [], VARCHAR [], VARCHAR [], VARCHAR [], VARCHAR []
-);
-DROP FUNCTION IF EXISTS {{schema}}.register_job_definitions(
-    INT, TIMESTAMPTZ, VARCHAR [], SMALLINT [], SMALLINT [], SMALLINT [], VARCHAR [], INT [], INT [], SMALLINT [], INT [],
-    VARCHAR [], VARCHAR [], SMALLINT [], VARCHAR [], SMALLINT [], VARCHAR [], SMALLINT [], SMALLINT [], SMALLINT [],
-    VARCHAR [], VARCHAR [], VARCHAR [], VARCHAR [], VARCHAR []
-);

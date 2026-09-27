@@ -1,6 +1,3 @@
--- CREATE OR REPLACE cannot change a return type, and the result carries renewed.
-DROP FUNCTION IF EXISTS {{schema}}.extend_worker_leases;
-
 CREATE OR REPLACE FUNCTION {{schema}}.extend_worker_leases(
     p_leased_by_worker_id INT,
     p_lease_ttl_seconds INT,

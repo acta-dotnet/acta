@@ -181,8 +181,3 @@ BEGIN
     RETURN QUERY SELECT v_rows;
 END;
 $$;
-
--- CREATE OR REPLACE across arities creates an overload instead of replacing; drop the retired
--- six-parameter signature (whole-sweep retention windows, before the per-section batch) so
--- pre-existing installs cannot resolve the stale unbounded form.
-DROP FUNCTION IF EXISTS {{schema}}.purge_expired_data(INT, INT, INT, INT, INT, INT);

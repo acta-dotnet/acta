@@ -172,10 +172,3 @@ BEGIN
     RETURN QUERY SELECT v_occurrence_count, v_last_projected_event_id;
 END;
 $$;
-
--- CREATE OR REPLACE across arities creates an overload instead of replacing; drop the retired
--- signature (with p_dedupe_window_start_utc) so pre-existing installs cannot resolve the stale form.
-DROP FUNCTION IF EXISTS {{schema}}.raise_job_alert(
-    VARCHAR, BIGINT, SMALLINT, SMALLINT, SMALLINT, VARCHAR, VARCHAR, VARCHAR, SMALLINT, VARCHAR,
-    TIMESTAMPTZ, BIGINT, UUID
-);

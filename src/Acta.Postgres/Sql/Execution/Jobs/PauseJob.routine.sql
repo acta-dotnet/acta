@@ -1,6 +1,3 @@
--- CREATE OR REPLACE cannot change a return type, and the result carries lane_promoted.
-DROP FUNCTION IF EXISTS {{schema}}.pause_job;
-
 CREATE OR REPLACE FUNCTION {{schema}}.pause_job(
     p_id BIGINT,
     p_actor_code SMALLINT,

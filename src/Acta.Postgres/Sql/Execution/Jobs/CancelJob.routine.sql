@@ -1,6 +1,3 @@
--- CREATE OR REPLACE cannot change a return type, and the result carries lane_promoted.
-DROP FUNCTION IF EXISTS {{schema}}.cancel_job;
-
 CREATE OR REPLACE FUNCTION {{schema}}.cancel_job(
     p_id BIGINT,
     p_actor_code SMALLINT,

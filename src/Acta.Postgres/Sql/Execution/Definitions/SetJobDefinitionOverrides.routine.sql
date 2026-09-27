@@ -118,9 +118,3 @@ BEGIN
     RETURN QUERY SELECT 1 /* DefinitionOverrideAction.Applied */::SMALLINT;
 END;
 $$;
-
--- CREATE OR REPLACE adds an overload when a parameter's type changes, so the replaced signature goes.
-DROP FUNCTION IF EXISTS {{schema}}.set_job_definition_overrides(
-    INT, INT, SMALLINT, INT, SMALLINT, VARCHAR, VARCHAR, INT, INT, SMALLINT, INT, SMALLINT, SMALLINT, VARCHAR, VARCHAR,
-    VARCHAR, VARCHAR, SMALLINT, VARCHAR, SMALLINT, VARCHAR
-);

@@ -45,8 +45,3 @@ WITH inserted AS (
 )
 SELECT count(*)::INT AS inserted FROM inserted;
 $$;
-
--- CREATE OR REPLACE across arities creates an overload instead of replacing; drop the retired
--- four-parameter signature, which took the attempt from the runtime row, so an intermediate rc.2
--- install cannot resolve it. Replacing in place leaves the live function's grants alone.
-DROP FUNCTION IF EXISTS {{schema}}.record_job_note(BIGINT, VARCHAR, SMALLINT, BYTEA);

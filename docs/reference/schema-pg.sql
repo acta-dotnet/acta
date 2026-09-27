@@ -1100,13 +1100,6 @@ BEGIN
 END;
 $$;
 
--- CREATE OR REPLACE across arities creates an overload instead of replacing; drop the retired
--- signature (with p_dedupe_window_start_utc) so pre-existing installs cannot resolve the stale form.
-DROP FUNCTION IF EXISTS acta.raise_job_alert(
-    VARCHAR, BIGINT, SMALLINT, SMALLINT, SMALLINT, VARCHAR, VARCHAR, VARCHAR, SMALLINT, VARCHAR,
-    TIMESTAMPTZ, BIGINT, UUID
-);
-
 CREATE OR REPLACE FUNCTION acta.resolve_job_alert_manual(
     p_alert_ref UUID,
     p_actor_code SMALLINT,
@@ -1625,11 +1618,6 @@ AS $$
     ORDER BY id NULLS LAST;
 $$;
 
--- CREATE OR REPLACE across arities creates an overload instead of replacing; drop the retired
--- signature (without the excluded-definition set) so a five-argument call resolves to the new
--- function's default rather than to a stale form left by an earlier install.
-DROP FUNCTION IF EXISTS acta.claim_batch(INT, INT, INT, INT, BOOLEAN);
-
 CREATE OR REPLACE FUNCTION acta.claim_one(
     p_namespace_id INT,
     p_leased_by_worker_id INT,
@@ -1754,9 +1742,6 @@ AS $$
         NULL::timestamptz AS next_ready_at_utc
     FROM updated u;
 $$;
-
--- The result gained lane_promoted, and CREATE OR REPLACE cannot change a return type.
-DROP FUNCTION IF EXISTS acta.complete_execution;
 
 CREATE OR REPLACE FUNCTION acta.complete_execution(
     p_id BIGINT,
@@ -2401,16 +2386,6 @@ BEGIN
 END;
 $$;
 
--- CREATE OR REPLACE across arities creates an overload, not a replacement: drop the signature without
--- p_advance_versions so a caller from before the guard resolves to this body with them NULL.
-DROP FUNCTION IF EXISTS acta.complete_execution(
-    BIGINT, INT, INT, SMALLINT, VARCHAR, SMALLINT, BYTEA, BOOLEAN, INT, SMALLINT, INT, TIMESTAMPTZ, VARCHAR,
-    SMALLINT, INT, SMALLINT, TIMESTAMPTZ, SMALLINT, INT, BIGINT [], TIMESTAMPTZ []
-);
-
--- CREATE OR REPLACE cannot change a return type, and the result carries lane_promoted.
-DROP FUNCTION IF EXISTS acta.complete_executions_batch;
-
 CREATE OR REPLACE FUNCTION acta.complete_executions_batch(
     p_b_ordinal INT [],
     p_b_job_id BIGINT [],
@@ -2886,19 +2861,6 @@ BEGIN
 END;
 $$;
 
--- CREATE OR REPLACE across arities creates an overload instead of replacing; drop the retired
--- signatures (without the lane, and without rate_limit and rate_key) so a call resolves to this form.
-DROP FUNCTION IF EXISTS acta.register_job_definitions(
-    INT, TIMESTAMPTZ, VARCHAR [], SMALLINT [], INT [], SMALLINT [], VARCHAR [], VARCHAR [], VARCHAR [], INT [], INT [],
-    SMALLINT [], INT [], VARCHAR [], VARCHAR [], SMALLINT [], VARCHAR [], SMALLINT [], VARCHAR [], SMALLINT [], SMALLINT [],
-    SMALLINT [], VARCHAR [], VARCHAR [], VARCHAR [], VARCHAR [], VARCHAR []
-);
-DROP FUNCTION IF EXISTS acta.register_job_definitions(
-    INT, TIMESTAMPTZ, VARCHAR [], SMALLINT [], SMALLINT [], SMALLINT [], VARCHAR [], INT [], INT [], SMALLINT [], INT [],
-    VARCHAR [], VARCHAR [], SMALLINT [], VARCHAR [], SMALLINT [], VARCHAR [], SMALLINT [], SMALLINT [], SMALLINT [],
-    VARCHAR [], VARCHAR [], VARCHAR [], VARCHAR [], VARCHAR []
-);
-
 CREATE OR REPLACE FUNCTION acta.set_job_definition_overrides(
     p_id INT,
     p_version INT,
@@ -3019,15 +2981,6 @@ BEGIN
     RETURN QUERY SELECT 1 /* DefinitionOverrideAction.Applied */::SMALLINT;
 END;
 $$;
-
--- CREATE OR REPLACE adds an overload when a parameter's type changes, so the replaced signature goes.
-DROP FUNCTION IF EXISTS acta.set_job_definition_overrides(
-    INT, INT, SMALLINT, INT, SMALLINT, VARCHAR, VARCHAR, INT, INT, SMALLINT, INT, SMALLINT, SMALLINT, VARCHAR, VARCHAR,
-    VARCHAR, VARCHAR, SMALLINT, VARCHAR, SMALLINT, VARCHAR
-);
-
--- CREATE OR REPLACE cannot change a return type, and the result carries lane_promoted.
-DROP FUNCTION IF EXISTS acta.cancel_job;
 
 CREATE OR REPLACE FUNCTION acta.cancel_job(
     p_id BIGINT,
@@ -3808,17 +3761,6 @@ BEGIN
 END;
 $$;
 
--- CREATE OR REPLACE across arities creates an overload instead of replacing; drop the retired
--- signatures (without p_b_lane, and without p_b_tenant_override) so a call resolves to this form.
-DROP FUNCTION IF EXISTS acta.enqueue_batch(
-    INT [], UUID [], VARCHAR [], VARCHAR [], VARCHAR [], VARCHAR [], SMALLINT [], SMALLINT [], BYTEA [],
-    VARCHAR [], TIMESTAMPTZ [], INT [], BIGINT [], VARCHAR [], BOOLEAN [], INT [], VARCHAR [], VARCHAR [], VARCHAR []
-);
-DROP FUNCTION IF EXISTS acta.enqueue_batch(
-    INT [], UUID [], VARCHAR [], VARCHAR [], VARCHAR [], VARCHAR [], SMALLINT [], SMALLINT [], BYTEA [],
-    VARCHAR [], TIMESTAMPTZ [], INT [], BIGINT [], VARCHAR [], INT [], VARCHAR [], VARCHAR [], VARCHAR []
-);
-
 -- Only p_namespace_name and p_job_name are required; other params default (p_job_ref is server-generated
 -- when omitted; p_input_format_id defaults json/none by input presence). Parameter ORDER is fixed:
 -- the provider store invokes this function positionally.
@@ -4119,20 +4061,6 @@ BEGIN
     END IF;
 END;
 $$;
-
--- CREATE OR REPLACE across arities creates an overload instead of replacing; drop the retired
--- signatures (without p_lane, and without p_tenant_override) so a call resolves to this form.
-DROP FUNCTION IF EXISTS acta.enqueue_one(
-    UUID, VARCHAR, VARCHAR, VARCHAR, VARCHAR, SMALLINT, SMALLINT, BYTEA, VARCHAR, TIMESTAMPTZ, INT,
-    BIGINT, VARCHAR, BOOLEAN, VARCHAR [], VARCHAR [], VARCHAR []
-);
-DROP FUNCTION IF EXISTS acta.enqueue_one(
-    UUID, VARCHAR, VARCHAR, VARCHAR, VARCHAR, SMALLINT, SMALLINT, BYTEA, VARCHAR, TIMESTAMPTZ, INT,
-    BIGINT, VARCHAR, VARCHAR [], VARCHAR [], VARCHAR []
-);
-
--- CREATE OR REPLACE cannot change a return type, and the result carries lane_promoted.
-DROP FUNCTION IF EXISTS acta.pause_job;
 
 CREATE OR REPLACE FUNCTION acta.pause_job(
     p_id BIGINT,
@@ -5485,14 +5413,6 @@ WITH inserted AS (
 )
 SELECT count(*)::INT AS inserted FROM inserted;
 $$;
-
--- CREATE OR REPLACE across arities creates an overload instead of replacing; drop the retired
--- four-parameter signature, which took the attempt from the runtime row, so an intermediate rc.2
--- install cannot resolve it. Replacing in place leaves the live function's grants alone.
-DROP FUNCTION IF EXISTS acta.record_job_note(BIGINT, VARCHAR, SMALLINT, BYTEA);
-
--- CREATE OR REPLACE cannot change a return type, and the result carries lane_repaired.
-DROP FUNCTION IF EXISTS acta.reclaim_stuck_jobs;
 
 CREATE OR REPLACE FUNCTION acta.reclaim_stuck_jobs(
     p_namespace_id INT
@@ -7262,10 +7182,6 @@ BEGIN
 END;
 $$;
 
--- CREATE OR REPLACE across arities creates an overload instead of replacing; drop the retired
--- three-parameter signature so an upgraded install cannot resolve the unbounded-only form.
-DROP FUNCTION IF EXISTS acta.wait_signal(BIGINT, SMALLINT, VARCHAR);
-
 CREATE OR REPLACE FUNCTION acta.start_execution(
     p_id BIGINT,
     p_leased_by_worker_id INT,
@@ -7503,10 +7419,6 @@ BEGIN
     RETURN QUERY SELECT t.id FROM acta.tenants t WHERE t.tenant_key = p_tenant_key;
 END;
 $$;
-
--- CREATE OR REPLACE across arities creates an overload instead of replacing; drop the retired
--- four-parameter signature so pre-existing installs cannot resolve the stale upsert form.
-DROP FUNCTION IF EXISTS acta.register_tenant(VARCHAR, VARCHAR, VARCHAR, SMALLINT);
 
 CREATE OR REPLACE FUNCTION acta.resume_tenant(
     p_tenant_key VARCHAR,
@@ -7840,9 +7752,6 @@ BEGIN
     END IF;
 END;
 $$;
-
--- CREATE OR REPLACE cannot change a return type, and the result carries renewed.
-DROP FUNCTION IF EXISTS acta.extend_worker_leases;
 
 CREATE OR REPLACE FUNCTION acta.extend_worker_leases(
     p_leased_by_worker_id INT,
@@ -8349,11 +8258,6 @@ BEGIN
 END;
 $$;
 
--- CREATE OR REPLACE across arities creates an overload instead of replacing; drop the retired
--- six-parameter signature (whole-sweep retention windows, before the per-section batch) so
--- pre-existing installs cannot resolve the stale unbounded form.
-DROP FUNCTION IF EXISTS acta.purge_expired_data(INT, INT, INT, INT, INT, INT);
-
 CREATE OR REPLACE FUNCTION acta.apply_tags(
     p_scope_code SMALLINT,
     p_lookup_id BIGINT,
@@ -8573,25 +8477,6 @@ $$;
 -- That no-op DO UPDATE writes a new row version per request, so a hot meter leaves autovacuum one
 -- dead tuple per admission; the price of the single-statement lock, not a thing to optimize away.
 
--- The result shape changed when wait_ms joined it, and CREATE OR REPLACE cannot change a return
--- type, so an install still carrying the previous shape drops it first; a current one is left to the
--- REPLACE below, which keeps whatever grants an operator put on the function.
-DO $$
-BEGIN
-    IF EXISTS (
-        SELECT 1
-        FROM pg_proc p
-        INNER JOIN pg_namespace n ON n.oid = p.pronamespace
-        WHERE
-            n.nspname = 'acta'
-            AND p.proname = 'reserve_rate'
-            AND p.pronargs = 6
-            AND NOT ('wait_ms' = ANY (p.proargnames))
-    ) THEN
-        DROP FUNCTION acta.reserve_rate(VARCHAR, BIGINT, INT, INT, INT, UUID);
-    END IF;
-END
-$$;
 CREATE OR REPLACE FUNCTION acta.reserve_rate(
     p_lock_key VARCHAR,
     p_job_id BIGINT,
@@ -8694,15 +8579,11 @@ BEGIN
 END;
 $$;
 
--- CREATE OR REPLACE across arities creates an overload instead of replacing; drop the retired
--- signature (without the grace) so pre-existing installs cannot resolve the stale form.
-DROP FUNCTION IF EXISTS acta.reserve_rate(VARCHAR, BIGINT, INT, INT, UUID);
-
 -- ===== installed object package (names the versionless objects above; recorded only when all exist) =====
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.6-e45b52ab098bf74f0aef1c742e76cdc9', 'acta');
+VALUES (-1, 'objects-1.6-22a28c1b76be0b223169956d36b75f1e', 'acta');
 
 COMMIT;
 

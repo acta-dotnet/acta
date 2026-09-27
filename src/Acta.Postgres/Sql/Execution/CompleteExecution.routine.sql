@@ -1,6 +1,3 @@
--- The result gained lane_promoted, and CREATE OR REPLACE cannot change a return type.
-DROP FUNCTION IF EXISTS {{schema}}.complete_execution;
-
 CREATE OR REPLACE FUNCTION {{schema}}.complete_execution(
     p_id BIGINT,
     p_leased_by_worker_id INT,
@@ -643,10 +640,3 @@ BEGIN
     RETURN QUERY SELECT CAST(1 /* CompleteExecutionAction.Completed */ AS SMALLINT), v_to_status, v_next_run, now(), v_parent_released, v_lane_promoted;
 END;
 $$;
-
--- CREATE OR REPLACE across arities creates an overload, not a replacement: drop the signature without
--- p_advance_versions so a caller from before the guard resolves to this body with them NULL.
-DROP FUNCTION IF EXISTS {{schema}}.complete_execution(
-    BIGINT, INT, INT, SMALLINT, VARCHAR, SMALLINT, BYTEA, BOOLEAN, INT, SMALLINT, INT, TIMESTAMPTZ, VARCHAR,
-    SMALLINT, INT, SMALLINT, TIMESTAMPTZ, SMALLINT, INT, BIGINT [], TIMESTAMPTZ []
-);

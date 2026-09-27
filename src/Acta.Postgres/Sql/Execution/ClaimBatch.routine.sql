@@ -221,8 +221,3 @@ AS $$
     WHERE NOT EXISTS (SELECT 1 FROM updated)
     ORDER BY id NULLS LAST;
 $$;
-
--- CREATE OR REPLACE across arities creates an overload instead of replacing; drop the retired
--- signature (without the excluded-definition set) so a five-argument call resolves to the new
--- function's default rather than to a stale form left by an earlier install.
-DROP FUNCTION IF EXISTS {{schema}}.claim_batch(INT, INT, INT, INT, BOOLEAN);

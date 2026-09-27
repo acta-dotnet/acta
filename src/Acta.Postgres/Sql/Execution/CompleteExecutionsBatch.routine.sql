@@ -1,6 +1,3 @@
--- CREATE OR REPLACE cannot change a return type, and the result carries lane_promoted.
-DROP FUNCTION IF EXISTS {{schema}}.complete_executions_batch;
-
 CREATE OR REPLACE FUNCTION {{schema}}.complete_executions_batch(
     p_b_ordinal INT [],
     p_b_job_id BIGINT [],

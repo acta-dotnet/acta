@@ -1,6 +1,3 @@
--- CREATE OR REPLACE cannot change a return type, and the result carries lane_repaired.
-DROP FUNCTION IF EXISTS {{schema}}.reclaim_stuck_jobs;
-
 CREATE OR REPLACE FUNCTION {{schema}}.reclaim_stuck_jobs(
     p_namespace_id INT
 )

@@ -298,14 +298,3 @@ BEGIN
     END IF;
 END;
 $$;
-
--- CREATE OR REPLACE across arities creates an overload instead of replacing; drop the retired
--- signatures (without p_lane, and without p_tenant_override) so a call resolves to this form.
-DROP FUNCTION IF EXISTS {{schema}}.enqueue_one(
-    UUID, VARCHAR, VARCHAR, VARCHAR, VARCHAR, SMALLINT, SMALLINT, BYTEA, VARCHAR, TIMESTAMPTZ, INT,
-    BIGINT, VARCHAR, BOOLEAN, VARCHAR [], VARCHAR [], VARCHAR []
-);
-DROP FUNCTION IF EXISTS {{schema}}.enqueue_one(
-    UUID, VARCHAR, VARCHAR, VARCHAR, VARCHAR, SMALLINT, SMALLINT, BYTEA, VARCHAR, TIMESTAMPTZ, INT,
-    BIGINT, VARCHAR, VARCHAR [], VARCHAR [], VARCHAR []
-);

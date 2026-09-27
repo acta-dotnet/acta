@@ -126,7 +126,3 @@ BEGIN
     END IF;
 END;
 $$;
-
--- CREATE OR REPLACE across arities creates an overload instead of replacing; drop the retired
--- three-parameter signature so an upgraded install cannot resolve the unbounded-only form.
-DROP FUNCTION IF EXISTS {{schema}}.wait_signal(BIGINT, SMALLINT, VARCHAR);
