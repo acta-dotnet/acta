@@ -42,6 +42,7 @@ CREATE INDEX ix_alerts_dedupe_identity ON {{schema}}.alerts (namespace_id, dedup
 CREATE INDEX ix_alerts_delivery_due ON {{schema}}.alerts (namespace_id, delivery_status_code, retry_after_utc, id);
 CREATE INDEX ix_alerts_namespace_created ON {{schema}}.alerts (namespace_id, created_at_utc DESC, id DESC);
 CREATE INDEX ix_alerts_namespace_unresolved ON {{schema}}.alerts (namespace_id, created_at_utc DESC, id DESC) WHERE resolved_at_utc IS NULL;
+CREATE INDEX ix_alerts_job ON {{schema}}.alerts (job_id, id) WHERE job_id IS NOT NULL;
 CREATE UNIQUE INDEX ux_alerts_ref ON {{schema}}.alerts (alert_ref);
 CREATE UNIQUE INDEX ux_alerts_dedupe ON {{schema}}.alerts (namespace_id, dedupe_key) WHERE dedupe_key IS NOT NULL AND resolved_at_utc IS NULL;
 END
@@ -647,7 +648,7 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 0)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-c5d2cf5e5145e114a5920ec928d394a7', '{{schema}}');
+VALUES (0, 'baseline-0893c602831a903009a1c8fea41b02a5', '{{schema}}');
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 1)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}');

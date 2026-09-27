@@ -41,6 +41,7 @@ CREATE INDEX IF NOT EXISTS ix_alerts_dedupe_identity ON {{schema}}.alerts (names
 CREATE INDEX IF NOT EXISTS ix_alerts_delivery_due ON {{schema}}.alerts (namespace_id, delivery_status_code, retry_after_utc, id);
 CREATE INDEX IF NOT EXISTS ix_alerts_namespace_created ON {{schema}}.alerts (namespace_id, created_at_utc DESC, id DESC);
 CREATE INDEX IF NOT EXISTS ix_alerts_namespace_unresolved ON {{schema}}.alerts (namespace_id, created_at_utc DESC, id DESC) WHERE resolved_at_utc IS NULL;
+CREATE INDEX IF NOT EXISTS ix_alerts_job ON {{schema}}.alerts (job_id, id) WHERE job_id IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS ux_alerts_ref ON {{schema}}.alerts (alert_ref);
 CREATE UNIQUE INDEX IF NOT EXISTS ux_alerts_dedupe ON {{schema}}.alerts (namespace_id, dedupe_key) WHERE dedupe_key IS NOT NULL AND resolved_at_utc IS NULL;
 
@@ -451,7 +452,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
 
 
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-362429cffedb6031afe120cd1cc9d85d', '{{schema}}')
+VALUES (0, 'baseline-3a17c0e63fa2a9f0a84de76867450493', '{{schema}}')
 ON CONFLICT (version) DO NOTHING;
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}')
