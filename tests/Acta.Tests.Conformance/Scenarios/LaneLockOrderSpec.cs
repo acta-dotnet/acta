@@ -79,9 +79,20 @@ public abstract class LaneLockOrderSpec<TFixture> : ActaRuntimeTestBase<TFixture
         Assert.Equal(first.JobRef, follower.BlockedBehindJobRef);
     }
 
+    /// <summary>
+    /// SQLite runs one writer at a time, so lock order cannot deadlock there, and with deadlock retry off a
+    /// writer waiting out another's batch reads as a failure rather than a wait.
+    /// </summary>
+    private void SkipOnSqlite() =>
+        Assert.SkipWhen(
+            Services.GetRequiredService<ISqlDialect>().Provider == DbProvider.Sqlite,
+            "SQLite runs one writer at a time, so no lock-order deadlock can form."
+        );
+
     [Fact(DisplayName = "A parent enqueuing a child into a lane never deadlocks with an older child of that lane completing")]
     public async Task Parent_enqueue_and_older_child_completion_do_not_deadlock()
     {
+        SkipOnSqlite();
         var ct = TestContext.Current.CancellationToken;
         for (var round = 0; round < Rounds; round++)
         {
@@ -102,6 +113,7 @@ public abstract class LaneLockOrderSpec<TFixture> : ActaRuntimeTestBase<TFixture
     [Fact(DisplayName = "Cancelling a Blocked follower never deadlocks with its head completing")]
     public async Task Follower_cancel_and_head_completion_do_not_deadlock()
     {
+        SkipOnSqlite();
         var ct = TestContext.Current.CancellationToken;
         for (var round = 0; round < Rounds; round++)
         {
@@ -124,6 +136,7 @@ public abstract class LaneLockOrderSpec<TFixture> : ActaRuntimeTestBase<TFixture
     [Fact(DisplayName = "Two enqueue batches naming shared lanes in opposite orders never deadlock with a completing head")]
     public async Task Opposite_batches_and_a_completion_do_not_deadlock()
     {
+        SkipOnSqlite();
         var ct = TestContext.Current.CancellationToken;
         for (var round = 0; round < Rounds; round++)
         {
