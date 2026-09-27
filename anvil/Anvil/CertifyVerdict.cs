@@ -32,7 +32,9 @@ internal static class CertifyVerdict
         await using var connection = Create(provider, connectionString);
         await connection.OpenAsync(ct);
 
-        var checks = Parse(LoadSql().Replace("{s}", prefix, StringComparison.Ordinal));
+        var checks = Parse(
+            LoadSql().Replace("{s}", prefix, StringComparison.Ordinal).Replace("{now}", Now(provider), StringComparison.Ordinal)
+        );
         var failures = new List<string>();
         var measured = new List<string>();
 
@@ -284,6 +286,12 @@ internal static class CertifyVerdict
         using var reader = new StreamReader(stream);
         return reader.ReadToEnd().ReplaceLineEndings("\n");
     }
+
+    // The database clock in each dialect's instant encoding; SQLite stores epoch milliseconds.
+    private static string Now(string provider) =>
+        LocalDatabase.IsSqlite(provider) ? "CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)"
+        : LocalDatabase.IsSqlServer(provider) ? "SYSUTCDATETIME()"
+        : "now()";
 
     private static DbConnection Create(string provider, string connectionString) =>
         LocalDatabase.IsSqlite(provider) ? new SqliteConnection(connectionString)

@@ -104,15 +104,15 @@ WHERE  e.event_code IN (40, 41)
 -- designed to fail - Anvil seeds `always-fails` - so "everything is Succeeded" would fail a healthy
 -- run. Terminal-state completeness is the honest invariant; per-shape outcomes are check 5.
 --
--- System recurring jobs are left out. The workers are still running while the seal reads, and
--- sys.alerts fires on every minute, so a seal that crosses a minute finds its live fire here. Their
--- recovery is the conformance suites' subject; this check is about the run's own work.
+-- One exception: a system recurring job whose lease is still live. The workers keep running while
+-- the seal reads, and sys.alerts fires on every minute, so a seal that crosses a minute meets a fire
+-- that has only just started. A system job stuck behind a lapsed lease still fails the check.
 SELECT 'no-stranded-work' AS check_name, r.job_id, r.status_code, r.leased_by_worker_id
 FROM   {s}runtimes r
 JOIN   {s}jobs j ON j.id = r.job_id
 JOIN   {s}definitions d ON d.id = j.definition_id
 WHERE  r.status_code IN (40, 50)
-  AND  d.name NOT LIKE 'sys.%';
+  AND  NOT (d.name LIKE 'sys.%' AND r.lease_expires_at_utc > {now});
 
 -- ---------------------------------------------------------------------------------------------
 -- 5. expected outcome per job shape                      [QUIESCED ONLY]
