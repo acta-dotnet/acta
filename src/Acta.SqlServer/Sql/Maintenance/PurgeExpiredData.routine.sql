@@ -21,6 +21,8 @@ BEGIN
         DECLARE @del TABLE (id BIGINT NOT NULL);
         DECLARE @schedule_del TABLE (id BIGINT NOT NULL);
         DECLARE @lock_del TABLE (lock_key VARCHAR(256) NOT NULL);
+        DECLARE @alert_del TABLE (id BIGINT NOT NULL PRIMARY KEY, dedupe_key VARCHAR(512) NULL);
+        DECLARE @alert_locked TABLE (id BIGINT NOT NULL PRIMARY KEY);
 
         IF @p_section = 1
             BEGIN
@@ -95,11 +97,12 @@ BEGIN
 
         ELSE IF @p_section = 3
             BEGIN
-                DELETE @del;
+                DELETE @alert_del;
+                DELETE @alert_locked;
 
-                INSERT INTO @del (id)
-                SELECT TOP (@p_batch_size) id
-                FROM {{schema}}.alerts WITH (UPDLOCK, READPAST)
+                INSERT INTO @alert_del (id, dedupe_key)
+                SELECT TOP (@p_batch_size) id, dedupe_key
+                FROM {{schema}}.alerts WITH (READPAST)
                 WHERE
                     namespace_id = @p_namespace_id
                     AND created_at_utc <= @p_cutoff_utc
@@ -109,20 +112,49 @@ BEGIN
                         200 /* AlertDeliveryStatusCode.Failed */
                     )
                 ORDER BY created_at_utc, id;
+
+                -- Staged without locks, then each identity row is locked through its ix_alerts_dedupe_identity
+                -- key before the row and the rest by key, skipping a row another transaction holds
+                -- (docs/internals/sql-execution-policy.md, "Alert lock order").
+                INSERT INTO @alert_locked (id)
+                SELECT a.id
+                FROM @alert_del d
+                INNER JOIN {{schema}}.alerts a WITH (UPDLOCK, READPAST, FORCESEEK (ix_alerts_dedupe_identity (namespace_id, dedupe_key)))
+                    ON
+                        a.namespace_id = @p_namespace_id
+                        AND a.dedupe_key = d.dedupe_key
+                        AND a.id = d.id
+                WHERE d.dedupe_key IS NOT NULL;
+                INSERT INTO @alert_locked (id)
+                SELECT a.id
+                FROM @alert_del d
+                INNER JOIN {{schema}}.alerts a WITH (UPDLOCK, READPAST, FORCESEEK) ON a.id = d.id
+                WHERE d.dedupe_key IS NULL;
+
                 DELETE FROM {{schema}}.tags
-                WHERE scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM @del);
-                DELETE a FROM {{schema}}.alerts a WITH (FORCESEEK) INNER JOIN @del d ON d.id = a.id;
-                SET @rows = (SELECT COUNT(*) FROM @del);
+                WHERE scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM @alert_locked);
+                DELETE a
+                FROM {{schema}}.alerts a WITH (FORCESEEK)
+                INNER JOIN @alert_locked l ON l.id = a.id
+                WHERE
+                    a.created_at_utc <= @p_cutoff_utc
+                    AND a.delivery_status_code IN (
+                        30 /* AlertDeliveryStatusCode.Suppressed */,
+                        100 /* AlertDeliveryStatusCode.Delivered */,
+                        200 /* AlertDeliveryStatusCode.Failed */
+                    );
+                SET @rows = @@ROWCOUNT;
 
             END;
 
         ELSE IF @p_section = 4
             BEGIN
-                DELETE @del;
+                DELETE @alert_del;
+                DELETE @alert_locked;
 
-                INSERT INTO @del (id)
-                SELECT TOP (@p_batch_size) id
-                FROM {{schema}}.alerts WITH (UPDLOCK, READPAST)
+                INSERT INTO @alert_del (id, dedupe_key)
+                SELECT TOP (@p_batch_size) id, dedupe_key
+                FROM {{schema}}.alerts WITH (READPAST)
                 WHERE
                     namespace_id = @p_namespace_id
                     AND created_at_utc <= @p_cutoff_utc
@@ -131,10 +163,37 @@ BEGIN
                         20 /* AlertDeliveryStatusCode.RetryAfter */
                     )
                 ORDER BY created_at_utc, id;
+
+                -- Staged without locks, then each identity row is locked through its ix_alerts_dedupe_identity
+                -- key before the row and the rest by key, skipping a row another transaction holds
+                -- (docs/internals/sql-execution-policy.md, "Alert lock order").
+                INSERT INTO @alert_locked (id)
+                SELECT a.id
+                FROM @alert_del d
+                INNER JOIN {{schema}}.alerts a WITH (UPDLOCK, READPAST, FORCESEEK (ix_alerts_dedupe_identity (namespace_id, dedupe_key)))
+                    ON
+                        a.namespace_id = @p_namespace_id
+                        AND a.dedupe_key = d.dedupe_key
+                        AND a.id = d.id
+                WHERE d.dedupe_key IS NOT NULL;
+                INSERT INTO @alert_locked (id)
+                SELECT a.id
+                FROM @alert_del d
+                INNER JOIN {{schema}}.alerts a WITH (UPDLOCK, READPAST, FORCESEEK) ON a.id = d.id
+                WHERE d.dedupe_key IS NULL;
+
                 DELETE FROM {{schema}}.tags
-                WHERE scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM @del);
-                DELETE a FROM {{schema}}.alerts a WITH (FORCESEEK) INNER JOIN @del d ON d.id = a.id;
-                SET @rows = (SELECT COUNT(*) FROM @del);
+                WHERE scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM @alert_locked);
+                DELETE a
+                FROM {{schema}}.alerts a WITH (FORCESEEK)
+                INNER JOIN @alert_locked l ON l.id = a.id
+                WHERE
+                    a.created_at_utc <= @p_cutoff_utc
+                    AND a.delivery_status_code IN (
+                        10 /* AlertDeliveryStatusCode.Pending */,
+                        20 /* AlertDeliveryStatusCode.RetryAfter */
+                    );
+                SET @rows = @@ROWCOUNT;
 
             END;
 

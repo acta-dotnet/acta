@@ -12,7 +12,24 @@ BEGIN
         IF @entry_trancount = 0
             BEGIN TRANSACTION;
 
-        UPDATE {{schema}}.alerts
+        -- The job row first, then its alert rows (docs/internals/sql-execution-policy.md, "Alert lock order").
+        -- alerts has no job_id index, so the candidates are read without locks and each is then locked by
+        -- primary key and re-checked; the held job row keeps a raise from adding one meanwhile.
+        DECLARE @job_locked BIGINT;
+        SELECT @job_locked = j.id
+        FROM {{schema}}.jobs j WITH (UPDLOCK, ROWLOCK)
+        WHERE j.id = @p_job_id;
+
+        DECLARE @candidates TABLE (id BIGINT NOT NULL PRIMARY KEY);
+        INSERT INTO @candidates (id)
+        SELECT a.id
+        FROM {{schema}}.alerts a
+        WHERE
+            a.namespace_id = @p_namespace_id
+            AND a.job_id = @p_job_id
+            AND a.resolved_at_utc IS NULL;
+
+        UPDATE a
         SET
             resolved_at_utc = SYSUTCDATETIME(),
             last_projected_event_id = @p_source_event_id,
@@ -20,20 +37,24 @@ BEGIN
                cleared is cancelled rather than sent, which is what Suppressed already means. An already-settled
                row keeps its status: it records what actually happened to the send, and a resolve does not edit it. */
             delivery_status_code = CASE
-                WHEN delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */)
+                WHEN a.delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */)
                     THEN 30 /* AlertDeliveryStatusCode.Suppressed */
-                ELSE delivery_status_code
+                ELSE a.delivery_status_code
             END,
             retry_after_utc = NULL,
             modified_at_utc = SYSUTCDATETIME(),
-            version = version + 1
+            version = a.version + 1
+        FROM {{schema}}.alerts a WITH (FORCESEEK)
+        INNER JOIN @candidates c ON c.id = a.id
         WHERE
-            namespace_id = @p_namespace_id
-            AND job_id = @p_job_id
-            AND origin_code = 10 /* AlertOriginCode.Automatic */
-            AND kind_code IN (10 /* AlertKindCode.FirstFailure */, 20 /* AlertKindCode.ThresholdReached */, 30 /* AlertKindCode.FinalFailure */)
-            AND resolved_at_utc IS NULL
-            AND (last_projected_event_id IS NULL OR last_projected_event_id < @p_source_event_id);
+            a.namespace_id = @p_namespace_id
+            AND a.job_id = @p_job_id
+            AND a.origin_code = 10 /* AlertOriginCode.Automatic */
+            AND a.kind_code IN (
+                10 /* AlertKindCode.FirstFailure */, 20 /* AlertKindCode.ThresholdReached */, 30 /* AlertKindCode.FinalFailure */
+            )
+            AND a.resolved_at_utc IS NULL
+            AND (a.last_projected_event_id IS NULL OR a.last_projected_event_id < @p_source_event_id);
 
         SELECT @@ROWCOUNT AS resolved_count;
 

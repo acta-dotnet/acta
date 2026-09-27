@@ -29,7 +29,10 @@ BEGIN
         RAISE EXCEPTION 'raise_job_alert: unknown namespace ''%''', p_namespace_name;
     END IF;
 
-    SELECT job_ref INTO v_job_ref FROM {{schema}}.jobs WHERE id = p_job_id;
+    -- The job row is locked before any of its alert rows, the order purge_job takes with FOR UPDATE
+    -- (docs/internals/sql-execution-policy.md, "Alert lock order"), so a raise waits out a purge of its job
+    -- rather than landing an alert on the deleted job.
+    SELECT job_ref INTO v_job_ref FROM {{schema}}.jobs WHERE id = p_job_id FOR KEY SHARE;
 
     IF p_job_id IS NOT NULL AND v_job_ref IS NULL THEN
         RAISE EXCEPTION 'ACTA:ALERT_UNKNOWN_JOB:raise_job_alert: unknown job id'

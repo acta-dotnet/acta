@@ -30,10 +30,13 @@ BEGIN
         IF @v_ns IS NULL
             THROW 50000, 'raise_job_alert: unknown namespace', 1;
 
-        DECLARE @v_job_ref UNIQUEIDENTIFIER = (
-            SELECT job_ref FROM {{schema}}.jobs
-            WHERE id = @p_job_id
-        );
+        -- The job row is locked before any of its alert rows, as purge_job and resolve_job_alerts lock it
+        -- (docs/internals/sql-execution-policy.md, "Alert lock order"), so a raise waits out a purge of its
+        -- job rather than deadlocking with it or landing an alert on the deleted job.
+        DECLARE @v_job_ref UNIQUEIDENTIFIER;
+        SELECT @v_job_ref = job_ref
+        FROM {{schema}}.jobs WITH (UPDLOCK, ROWLOCK)
+        WHERE id = @p_job_id;
 
         IF @p_job_id IS NOT NULL AND @v_job_ref IS NULL
             THROW 50007, 'ACTA:ALERT_UNKNOWN_JOB:raise_job_alert: unknown job id', 1;
@@ -60,9 +63,9 @@ BEGIN
 
         DECLARE @updated TABLE (occurrence_count INT NOT NULL, last_projected_event_id BIGINT NULL);
 
-        -- The identity's one OPEN row absorbs the repeat; resolution being terminal, a resolved row must
-        -- be left for the insert arm below. UPDLOCK/HOLDLOCK over the equality predicate serializes
-        -- concurrent raisers - no named-index hint, which a rename in JobAlert.cs would leave stale.
+        -- The identity's one OPEN row absorbs the repeat and a resolved one is left for the insert arm below.
+        -- UPDLOCK/HOLDLOCK serializes raisers; the seek is pinned to the index every alert deleter locks
+        -- first (docs/internals/sql-execution-policy.md, "Alert lock order").
         UPDATE ja
         SET
             job_id = @p_job_id,
@@ -78,7 +81,7 @@ BEGIN
             modified_at_utc = @now,
             version = ja.version + 1
         OUTPUT INSERTED.occurrence_count, INSERTED.last_projected_event_id INTO @updated
-        FROM {{schema}}.alerts AS ja WITH (UPDLOCK, HOLDLOCK)
+        FROM {{schema}}.alerts AS ja WITH (UPDLOCK, HOLDLOCK, FORCESEEK (ix_alerts_dedupe_identity (namespace_id, dedupe_key)))
         WHERE
             ja.namespace_id = @v_ns
             AND ja.dedupe_key = @p_dedupe_key

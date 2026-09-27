@@ -1201,10 +1201,13 @@ BEGIN
         IF @v_ns IS NULL
             THROW 50000, 'raise_job_alert: unknown namespace', 1;
 
-        DECLARE @v_job_ref UNIQUEIDENTIFIER = (
-            SELECT job_ref FROM acta.jobs
-            WHERE id = @p_job_id
-        );
+        -- The job row is locked before any of its alert rows, as purge_job and resolve_job_alerts lock it
+        -- (docs/internals/sql-execution-policy.md, "Alert lock order"), so a raise waits out a purge of its
+        -- job rather than deadlocking with it or landing an alert on the deleted job.
+        DECLARE @v_job_ref UNIQUEIDENTIFIER;
+        SELECT @v_job_ref = job_ref
+        FROM acta.jobs WITH (UPDLOCK, ROWLOCK)
+        WHERE id = @p_job_id;
 
         IF @p_job_id IS NOT NULL AND @v_job_ref IS NULL
             THROW 50007, 'ACTA:ALERT_UNKNOWN_JOB:raise_job_alert: unknown job id', 1;
@@ -1231,9 +1234,9 @@ BEGIN
 
         DECLARE @updated TABLE (occurrence_count INT NOT NULL, last_projected_event_id BIGINT NULL);
 
-        -- The identity's one OPEN row absorbs the repeat; resolution being terminal, a resolved row must
-        -- be left for the insert arm below. UPDLOCK/HOLDLOCK over the equality predicate serializes
-        -- concurrent raisers - no named-index hint, which a rename in JobAlert.cs would leave stale.
+        -- The identity's one OPEN row absorbs the repeat and a resolved one is left for the insert arm below.
+        -- UPDLOCK/HOLDLOCK serializes raisers; the seek is pinned to the index every alert deleter locks
+        -- first (docs/internals/sql-execution-policy.md, "Alert lock order").
         UPDATE ja
         SET
             job_id = @p_job_id,
@@ -1249,7 +1252,7 @@ BEGIN
             modified_at_utc = @now,
             version = ja.version + 1
         OUTPUT INSERTED.occurrence_count, INSERTED.last_projected_event_id INTO @updated
-        FROM acta.alerts AS ja WITH (UPDLOCK, HOLDLOCK)
+        FROM acta.alerts AS ja WITH (UPDLOCK, HOLDLOCK, FORCESEEK (ix_alerts_dedupe_identity (namespace_id, dedupe_key)))
         WHERE
             ja.namespace_id = @v_ns
             AND ja.dedupe_key = @p_dedupe_key
@@ -1449,7 +1452,24 @@ BEGIN
         IF @entry_trancount = 0
             BEGIN TRANSACTION;
 
-        UPDATE acta.alerts
+        -- The job row first, then its alert rows (docs/internals/sql-execution-policy.md, "Alert lock order").
+        -- alerts has no job_id index, so the candidates are read without locks and each is then locked by
+        -- primary key and re-checked; the held job row keeps a raise from adding one meanwhile.
+        DECLARE @job_locked BIGINT;
+        SELECT @job_locked = j.id
+        FROM acta.jobs j WITH (UPDLOCK, ROWLOCK)
+        WHERE j.id = @p_job_id;
+
+        DECLARE @candidates TABLE (id BIGINT NOT NULL PRIMARY KEY);
+        INSERT INTO @candidates (id)
+        SELECT a.id
+        FROM acta.alerts a
+        WHERE
+            a.namespace_id = @p_namespace_id
+            AND a.job_id = @p_job_id
+            AND a.resolved_at_utc IS NULL;
+
+        UPDATE a
         SET
             resolved_at_utc = SYSUTCDATETIME(),
             last_projected_event_id = @p_source_event_id,
@@ -1457,20 +1477,24 @@ BEGIN
                cleared is cancelled rather than sent, which is what Suppressed already means. An already-settled
                row keeps its status: it records what actually happened to the send, and a resolve does not edit it. */
             delivery_status_code = CASE
-                WHEN delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */)
+                WHEN a.delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */)
                     THEN 30 /* AlertDeliveryStatusCode.Suppressed */
-                ELSE delivery_status_code
+                ELSE a.delivery_status_code
             END,
             retry_after_utc = NULL,
             modified_at_utc = SYSUTCDATETIME(),
-            version = version + 1
+            version = a.version + 1
+        FROM acta.alerts a WITH (FORCESEEK)
+        INNER JOIN @candidates c ON c.id = a.id
         WHERE
-            namespace_id = @p_namespace_id
-            AND job_id = @p_job_id
-            AND origin_code = 10 /* AlertOriginCode.Automatic */
-            AND kind_code IN (10 /* AlertKindCode.FirstFailure */, 20 /* AlertKindCode.ThresholdReached */, 30 /* AlertKindCode.FinalFailure */)
-            AND resolved_at_utc IS NULL
-            AND (last_projected_event_id IS NULL OR last_projected_event_id < @p_source_event_id);
+            a.namespace_id = @p_namespace_id
+            AND a.job_id = @p_job_id
+            AND a.origin_code = 10 /* AlertOriginCode.Automatic */
+            AND a.kind_code IN (
+                10 /* AlertKindCode.FirstFailure */, 20 /* AlertKindCode.ThresholdReached */, 30 /* AlertKindCode.FinalFailure */
+            )
+            AND a.resolved_at_utc IS NULL
+            AND (a.last_projected_event_id IS NULL OR a.last_projected_event_id < @p_source_event_id);
 
         SELECT @@ROWCOUNT AS resolved_count;
 
@@ -4666,14 +4690,28 @@ BEGIN
             END;
 
         DECLARE @schedule_ids TABLE (id BIGINT PRIMARY KEY);
-        DECLARE @alert_ids TABLE (id BIGINT PRIMARY KEY);
+        DECLARE @alert_ids TABLE (id BIGINT PRIMARY KEY, namespace_id INT NOT NULL, dedupe_key VARCHAR(512) NULL);
         DECLARE @event_ids TABLE (id BIGINT PRIMARY KEY);
 
-        INSERT @schedule_ids SELECT id FROM acta.schedules WITH (UPDLOCK, ROWLOCK)
+        INSERT @schedule_ids SELECT id FROM acta.schedules WITH (UPDLOCK, ROWLOCK, FORCESEEK)
         WHERE job_id = @p_id;
-        INSERT @alert_ids SELECT id FROM acta.alerts WITH (UPDLOCK, ROWLOCK)
+        -- The job's alerts are read without locks, which the held job row makes safe, then each identity row
+        -- is locked through its ix_alerts_dedupe_identity key before the row and the delete locks the rest
+        -- (docs/internals/sql-execution-policy.md, "Alert lock order").
+        INSERT @alert_ids (id, namespace_id, dedupe_key)
+        SELECT id, namespace_id, dedupe_key FROM acta.alerts
         WHERE job_id = @p_id;
-        INSERT @event_ids SELECT id FROM acta.events WITH (UPDLOCK, ROWLOCK)
+        DECLARE @identity_locked INT = (
+            SELECT COUNT(*)
+            FROM @alert_ids i
+            INNER JOIN acta.alerts a WITH (UPDLOCK, FORCESEEK (ix_alerts_dedupe_identity (namespace_id, dedupe_key)))
+                ON
+                    a.namespace_id = i.namespace_id
+                    AND a.dedupe_key = i.dedupe_key
+                    AND a.id = i.id
+            WHERE i.dedupe_key IS NOT NULL
+        );
+        INSERT @event_ids SELECT id FROM acta.events WITH (UPDLOCK, ROWLOCK, FORCESEEK)
         WHERE job_id = @p_id;
 
         DELETE FROM acta.tags
@@ -4683,12 +4721,16 @@ BEGIN
             OR (scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM @alert_ids))
             OR (scope_code = 90 /* TagScopeCode.Event */ AND scope_id IN (SELECT id FROM @event_ids));
 
-        DELETE FROM acta.events
-        WHERE job_id = @p_id;
-        DELETE FROM acta.alerts
-        WHERE job_id = @p_id;
+        DELETE e FROM acta.events e WITH (FORCESEEK)
+        WHERE e.job_id = @p_id;
+        DELETE a FROM acta.alerts a WITH (FORCESEEK) INNER JOIN @alert_ids i ON i.id = a.id
+        WHERE a.job_id = @p_id;
+        -- The schedules go by key first: the jobs delete's cascade runs serializable and, unhinted, walks
+        -- pk_schedules under range locks.
+        DELETE s FROM acta.schedules s WITH (FORCESEEK) INNER JOIN @schedule_ids i ON i.id = s.id;
         DELETE FROM acta.jobs
-        WHERE id = @p_id;
+        WHERE id = @p_id
+        OPTION (LOOP JOIN);
 
         INSERT INTO acta.events (
             event_code, created_at_utc, namespace_id,
@@ -8609,6 +8651,8 @@ BEGIN
         DECLARE @del TABLE (id BIGINT NOT NULL);
         DECLARE @schedule_del TABLE (id BIGINT NOT NULL);
         DECLARE @lock_del TABLE (lock_key VARCHAR(256) NOT NULL);
+        DECLARE @alert_del TABLE (id BIGINT NOT NULL PRIMARY KEY, dedupe_key VARCHAR(512) NULL);
+        DECLARE @alert_locked TABLE (id BIGINT NOT NULL PRIMARY KEY);
 
         IF @p_section = 1
             BEGIN
@@ -8683,11 +8727,12 @@ BEGIN
 
         ELSE IF @p_section = 3
             BEGIN
-                DELETE @del;
+                DELETE @alert_del;
+                DELETE @alert_locked;
 
-                INSERT INTO @del (id)
-                SELECT TOP (@p_batch_size) id
-                FROM acta.alerts WITH (UPDLOCK, READPAST)
+                INSERT INTO @alert_del (id, dedupe_key)
+                SELECT TOP (@p_batch_size) id, dedupe_key
+                FROM acta.alerts WITH (READPAST)
                 WHERE
                     namespace_id = @p_namespace_id
                     AND created_at_utc <= @p_cutoff_utc
@@ -8697,20 +8742,49 @@ BEGIN
                         200 /* AlertDeliveryStatusCode.Failed */
                     )
                 ORDER BY created_at_utc, id;
+
+                -- Staged without locks, then each identity row is locked through its ix_alerts_dedupe_identity
+                -- key before the row and the rest by key, skipping a row another transaction holds
+                -- (docs/internals/sql-execution-policy.md, "Alert lock order").
+                INSERT INTO @alert_locked (id)
+                SELECT a.id
+                FROM @alert_del d
+                INNER JOIN acta.alerts a WITH (UPDLOCK, READPAST, FORCESEEK (ix_alerts_dedupe_identity (namespace_id, dedupe_key)))
+                    ON
+                        a.namespace_id = @p_namespace_id
+                        AND a.dedupe_key = d.dedupe_key
+                        AND a.id = d.id
+                WHERE d.dedupe_key IS NOT NULL;
+                INSERT INTO @alert_locked (id)
+                SELECT a.id
+                FROM @alert_del d
+                INNER JOIN acta.alerts a WITH (UPDLOCK, READPAST, FORCESEEK) ON a.id = d.id
+                WHERE d.dedupe_key IS NULL;
+
                 DELETE FROM acta.tags
-                WHERE scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM @del);
-                DELETE a FROM acta.alerts a WITH (FORCESEEK) INNER JOIN @del d ON d.id = a.id;
-                SET @rows = (SELECT COUNT(*) FROM @del);
+                WHERE scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM @alert_locked);
+                DELETE a
+                FROM acta.alerts a WITH (FORCESEEK)
+                INNER JOIN @alert_locked l ON l.id = a.id
+                WHERE
+                    a.created_at_utc <= @p_cutoff_utc
+                    AND a.delivery_status_code IN (
+                        30 /* AlertDeliveryStatusCode.Suppressed */,
+                        100 /* AlertDeliveryStatusCode.Delivered */,
+                        200 /* AlertDeliveryStatusCode.Failed */
+                    );
+                SET @rows = @@ROWCOUNT;
 
             END;
 
         ELSE IF @p_section = 4
             BEGIN
-                DELETE @del;
+                DELETE @alert_del;
+                DELETE @alert_locked;
 
-                INSERT INTO @del (id)
-                SELECT TOP (@p_batch_size) id
-                FROM acta.alerts WITH (UPDLOCK, READPAST)
+                INSERT INTO @alert_del (id, dedupe_key)
+                SELECT TOP (@p_batch_size) id, dedupe_key
+                FROM acta.alerts WITH (READPAST)
                 WHERE
                     namespace_id = @p_namespace_id
                     AND created_at_utc <= @p_cutoff_utc
@@ -8719,10 +8793,37 @@ BEGIN
                         20 /* AlertDeliveryStatusCode.RetryAfter */
                     )
                 ORDER BY created_at_utc, id;
+
+                -- Staged without locks, then each identity row is locked through its ix_alerts_dedupe_identity
+                -- key before the row and the rest by key, skipping a row another transaction holds
+                -- (docs/internals/sql-execution-policy.md, "Alert lock order").
+                INSERT INTO @alert_locked (id)
+                SELECT a.id
+                FROM @alert_del d
+                INNER JOIN acta.alerts a WITH (UPDLOCK, READPAST, FORCESEEK (ix_alerts_dedupe_identity (namespace_id, dedupe_key)))
+                    ON
+                        a.namespace_id = @p_namespace_id
+                        AND a.dedupe_key = d.dedupe_key
+                        AND a.id = d.id
+                WHERE d.dedupe_key IS NOT NULL;
+                INSERT INTO @alert_locked (id)
+                SELECT a.id
+                FROM @alert_del d
+                INNER JOIN acta.alerts a WITH (UPDLOCK, READPAST, FORCESEEK) ON a.id = d.id
+                WHERE d.dedupe_key IS NULL;
+
                 DELETE FROM acta.tags
-                WHERE scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM @del);
-                DELETE a FROM acta.alerts a WITH (FORCESEEK) INNER JOIN @del d ON d.id = a.id;
-                SET @rows = (SELECT COUNT(*) FROM @del);
+                WHERE scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM @alert_locked);
+                DELETE a
+                FROM acta.alerts a WITH (FORCESEEK)
+                INNER JOIN @alert_locked l ON l.id = a.id
+                WHERE
+                    a.created_at_utc <= @p_cutoff_utc
+                    AND a.delivery_status_code IN (
+                        10 /* AlertDeliveryStatusCode.Pending */,
+                        20 /* AlertDeliveryStatusCode.RetryAfter */
+                    );
+                SET @rows = @@ROWCOUNT;
 
             END;
 
@@ -9311,7 +9412,7 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.6-8d3ba3a3699c6b480b36f432d9db15a7', 'acta'
+SELECT -1, 'objects-1.6-a6ea7ca69a3879bd609f22c7eb6d76bf', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
     WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'jobs_view', 'schedules_view', 'steps_view', 'workers_view', 'events_view', 'tags_view', 'acknowledge_job_alert', 'raise_job_alert', 'resolve_job_alert_manual', 'resolve_job_alerts', 'update_alert_delivery', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_executions_batch', 'complete_step', 'register_job_definitions', 'set_job_definition_overrides', 'cancel_job', 'enqueue_batch', 'enqueue_one', 'pause_job', 'purge_job', 'reprioritize_job', 'reschedule_job', 'reset_job_state', 'restart_job', 'resume_job', 'update_job_input', 'resume_namespace', 'suspend_namespace', 'update_namespace', 'record_job_note', 'reclaim_stuck_jobs', 'repair_recovery_slot', 'pause_schedule', 'register_scheduled_jobs', 'resume_schedule', 'set_schedule_overrides', 'trigger_schedule_now', 'set_setting', 'consume_outbox_signal', 'park_outbox_signal', 'raise_signal', 'record_outbox_event', 'wait_signal', 'start_execution', 'start_step', 'register_tenant', 'resume_tenant', 'suspend_tenant', 'update_tenant', 'arm_or_consume_sleep_timer', 'extend_worker_leases', 'mark_dead_workers', 'start_worker', 'stop_worker', 'purge_expired_data', 'apply_tags', 'acquire_lock', 'acquire_slot', 'extend_lock', 'release_lock', 'reserve_rate')) = 68;
 GO

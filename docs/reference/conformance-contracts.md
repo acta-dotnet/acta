@@ -286,6 +286,18 @@
   - `Acta.Runtime.Modules.Alerting.IAlertStore.GetAlertableEventsAsync`
   - `Acta.Runtime.Modules.Alerting.IAlertStore.RaiseJobAlertAsync`
 
+### Alert writers race job purges without a deadlock or an orphaned alert
+- **Contract:** Raising, resolving, and sweeping alerts while their jobs are purged never deadlocks and never leaves an alert on a purged job.
+- **Arrange:** Forty terminal jobs each carry two open automatic alerts, and deadlock retry is off so a deadlock victim surfaces.
+- **Act:** Per job, a raiser, a resolver, and a purge run at once, beside a retention sweep of the namespace's alerts, over several rounds.
+- **Assert:** Every purge applies, every raise either lands or is refused for an unknown job, and no alert names a purged job.
+- **Guarantees:**
+  - Raising, resolving, and sweeping alerts while their jobs are purged never deadlocks or orphans an alert
+- **Store methods:**
+  - `Acta.Runtime.Modules.Alerting.IAlertStore.RaiseJobAlertAsync`
+  - `Acta.Runtime.Modules.Alerting.IAlertStore.ResolveJobAlertsAsync`
+  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.PurgeJobAsync`
+
 ### Manual alert write collapses onto the open incident and truncates bounded prose
 - **Contract:** A null deduplication key always inserts, a non-null key collapses repeats onto its one open row, and a raise after resolution opens a fresh row.
 - **Arrange:** A test namespace is seeded and a job context is configured over a seeded definition and job.
@@ -3009,9 +3021,9 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IAlertStore.GetDeliverableAlertsAsync` | Alert delivery retries with backoff, goes terminal, and reminds open incidents<br>Deliverable alerts read due rows, remind open incidents, and settle by version |
 | `IAlertStore.GetJobAlertAsync` | An event or alert code from a newer Acta reads back as unspecified<br>ListJobAlerts pages alerts newest first with severity floor and full stored text |
 | `IAlertStore.ListJobAlertsAsync` | An event or alert code from a newer Acta reads back as unspecified<br>ListJobAlerts filter-matrix selects exactly matching rows per dimension<br>ListJobAlerts pages alerts newest first with severity floor and full stored text |
-| `IAlertStore.RaiseJobAlertAsync` | A recurring job whose handler throws raises an alert<br>A replayed alert batch neither inflates an incident nor opens a ghost one<br>Alert profiles gate emission and severity per profile<br>An open incident keeps the ref its first firing minted<br>Manual alert write collapses onto the open incident and truncates bounded prose<br>Reclaiming a crashed timeout resolution costs the job no retry budget<br>The alerts projector classifies failures off events and resolves on success<br>The alerts projector drains a backlog in bounded batches within one invocation<br>The alerts projector reads behind a safe horizon rather than up to the present<br>ThresholdReached fires once per incident at the exact occurrence |
+| `IAlertStore.RaiseJobAlertAsync` | A recurring job whose handler throws raises an alert<br>A replayed alert batch neither inflates an incident nor opens a ghost one<br>Alert profiles gate emission and severity per profile<br>Alert writers race job purges without a deadlock or an orphaned alert<br>An open incident keeps the ref its first firing minted<br>Manual alert write collapses onto the open incident and truncates bounded prose<br>Reclaiming a crashed timeout resolution costs the job no retry budget<br>The alerts projector classifies failures off events and resolves on success<br>The alerts projector drains a backlog in bounded batches within one invocation<br>The alerts projector reads behind a safe horizon rather than up to the present<br>ThresholdReached fires once per incident at the exact occurrence |
 | `IAlertStore.ResolveJobAlertManualAsync` | Operator acknowledge/resolve verbs on IAlerts. |
-| `IAlertStore.ResolveJobAlertsAsync` | A replayed alert batch neither inflates an incident nor opens a ghost one<br>Alert profiles gate emission and severity per profile<br>Deliverable alerts read due rows, remind open incidents, and settle by version<br>Reclaiming a crashed timeout resolution costs the job no retry budget<br>The alerts projector classifies failures off events and resolves on success<br>The failures-only audit level records a failure and the success that answers it<br>ThresholdReached fires once per incident at the exact occurrence |
+| `IAlertStore.ResolveJobAlertsAsync` | A replayed alert batch neither inflates an incident nor opens a ghost one<br>Alert profiles gate emission and severity per profile<br>Alert writers race job purges without a deadlock or an orphaned alert<br>Deliverable alerts read due rows, remind open incidents, and settle by version<br>Reclaiming a crashed timeout resolution costs the job no retry budget<br>The alerts projector classifies failures off events and resolves on success<br>The failures-only audit level records a failure and the success that answers it<br>ThresholdReached fires once per incident at the exact occurrence |
 | `IAlertStore.UpdateAlertDeliveryAsync` | Alert delivery retries with backoff, goes terminal, and reminds open incidents<br>Deliverable alerts read due rows, remind open incidents, and settle by version |
 | `IDefinitionStore.GetDefinitionAsync` | GetJobDefinition returns one definition by id and null for an unknown id |
 | `IDefinitionStore.GetDefinitionContractsAsync` | Newer-or-equal generation promotes policy; older cannot downgrade |
@@ -3047,7 +3059,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IJobStore.GetJobStatusAsync` | GetJobStatus returns the status for a known id and null for an unknown id |
 | `IJobStore.ListJobsAsync` | ListJobs filter-matrix selects exactly matching rows per dimension<br>ListJobs pages newest first by keyset cursor without duplicates |
 | `IJobStore.PauseJobAsync` | A job control verb takes an optional expected version and refuses a stale one.<br>CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Cancel Pause Resume Restart apply legal transitions and audit<br>Control verbs apply per-status guards and correct side effects<br>Control verbs transition unconditionally but emit events only at full audit<br>Operator verbs keep a lane's order |
-| `IJobStore.PurgeJobAsync` | A completed child outlives its retention deadline while its parent is live<br>Operator purge hard-deletes a terminal job. |
+| `IJobStore.PurgeJobAsync` | A completed child outlives its retention deadline while its parent is live<br>Alert writers race job purges without a deadlock or an orphaned alert<br>Operator purge hard-deletes a terminal job. |
 | `IJobStore.RedriveJobAsync` | Restarting a finished laned job redrives it at the lane's tail |
 | `IJobStore.ReprioritizeJobAsync` | Operator reprioritize changes claim priority, rejecting only terminal jobs. |
 | `IJobStore.RescheduleJobAsync` | A job control verb takes an optional expected version and refuses a stale one.<br>Operator reschedule moves a job's cursor, rejecting in-flight or terminal jobs. |

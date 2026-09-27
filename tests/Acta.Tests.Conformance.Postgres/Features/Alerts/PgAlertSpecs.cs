@@ -25,6 +25,8 @@ public sealed class PgListJobAlertsFilterMatrixSpec : ListJobAlertsFilterMatrixS
 
 public sealed class PgListJobAlertsSpec : ListJobAlertsSpec<PgConformanceFixture>;
 
+public sealed class PgAlertPurgeRaceSpec : AlertPurgeRaceSpec<PgConformanceFixture>;
+
 public sealed class PgRaiseJobAlertSpec : RaiseJobAlertSpec<PgConformanceFixture>;
 
 public sealed class PgAlertRefDedupeStabilitySpec : AlertRefDedupeStabilitySpec<PgConformanceFixture>;

@@ -79,14 +79,28 @@ BEGIN
             END;
 
         DECLARE @schedule_ids TABLE (id BIGINT PRIMARY KEY);
-        DECLARE @alert_ids TABLE (id BIGINT PRIMARY KEY);
+        DECLARE @alert_ids TABLE (id BIGINT PRIMARY KEY, namespace_id INT NOT NULL, dedupe_key VARCHAR(512) NULL);
         DECLARE @event_ids TABLE (id BIGINT PRIMARY KEY);
 
-        INSERT @schedule_ids SELECT id FROM {{schema}}.schedules WITH (UPDLOCK, ROWLOCK)
+        INSERT @schedule_ids SELECT id FROM {{schema}}.schedules WITH (UPDLOCK, ROWLOCK, FORCESEEK)
         WHERE job_id = @p_id;
-        INSERT @alert_ids SELECT id FROM {{schema}}.alerts WITH (UPDLOCK, ROWLOCK)
+        -- The job's alerts are read without locks, which the held job row makes safe, then each identity row
+        -- is locked through its ix_alerts_dedupe_identity key before the row and the delete locks the rest
+        -- (docs/internals/sql-execution-policy.md, "Alert lock order").
+        INSERT @alert_ids (id, namespace_id, dedupe_key)
+        SELECT id, namespace_id, dedupe_key FROM {{schema}}.alerts
         WHERE job_id = @p_id;
-        INSERT @event_ids SELECT id FROM {{schema}}.events WITH (UPDLOCK, ROWLOCK)
+        DECLARE @identity_locked INT = (
+            SELECT COUNT(*)
+            FROM @alert_ids i
+            INNER JOIN {{schema}}.alerts a WITH (UPDLOCK, FORCESEEK (ix_alerts_dedupe_identity (namespace_id, dedupe_key)))
+                ON
+                    a.namespace_id = i.namespace_id
+                    AND a.dedupe_key = i.dedupe_key
+                    AND a.id = i.id
+            WHERE i.dedupe_key IS NOT NULL
+        );
+        INSERT @event_ids SELECT id FROM {{schema}}.events WITH (UPDLOCK, ROWLOCK, FORCESEEK)
         WHERE job_id = @p_id;
 
         DELETE FROM {{schema}}.tags
@@ -96,12 +110,16 @@ BEGIN
             OR (scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM @alert_ids))
             OR (scope_code = 90 /* TagScopeCode.Event */ AND scope_id IN (SELECT id FROM @event_ids));
 
-        DELETE FROM {{schema}}.events
-        WHERE job_id = @p_id;
-        DELETE FROM {{schema}}.alerts
-        WHERE job_id = @p_id;
+        DELETE e FROM {{schema}}.events e WITH (FORCESEEK)
+        WHERE e.job_id = @p_id;
+        DELETE a FROM {{schema}}.alerts a WITH (FORCESEEK) INNER JOIN @alert_ids i ON i.id = a.id
+        WHERE a.job_id = @p_id;
+        -- The schedules go by key first: the jobs delete's cascade runs serializable and, unhinted, walks
+        -- pk_schedules under range locks.
+        DELETE s FROM {{schema}}.schedules s WITH (FORCESEEK) INNER JOIN @schedule_ids i ON i.id = s.id;
         DELETE FROM {{schema}}.jobs
-        WHERE id = @p_id;
+        WHERE id = @p_id
+        OPTION (LOOP JOIN);
 
         INSERT INTO {{schema}}.events (
             event_code, created_at_utc, namespace_id,
