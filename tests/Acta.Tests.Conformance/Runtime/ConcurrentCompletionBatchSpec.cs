@@ -40,7 +40,7 @@ public abstract class ConcurrentCompletionBatchSpec<TFixture> : ActaRuntimeTestB
         services.AddSingleton(sp =>
         {
             var options = (SqlProviderOptions)provider.ImplementationFactory!(sp);
-            options.DeadlockRetryAttempts = 1;
+            DeadlockRetryOff.Apply(sp, options);
             options.CommandTimeout = TimeSpan.FromMinutes(2);
             return options;
         });

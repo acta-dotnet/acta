@@ -40,7 +40,7 @@ public abstract class LeaseRenewalRaceSpec<TFixture> : ActaRuntimeTestBase<TFixt
         services.AddSingleton(sp =>
         {
             var options = (SqlProviderOptions)provider.ImplementationFactory!(sp);
-            options.DeadlockRetryAttempts = 1;
+            DeadlockRetryOff.Apply(sp, options);
             return options;
         });
     }

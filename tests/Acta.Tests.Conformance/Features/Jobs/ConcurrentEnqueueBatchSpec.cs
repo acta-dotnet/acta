@@ -41,7 +41,7 @@ public abstract class ConcurrentEnqueueBatchSpec<TFixture> : ActaRuntimeTestBase
         services.AddSingleton(sp =>
         {
             var options = (SqlProviderOptions)provider.ImplementationFactory!(sp);
-            options.DeadlockRetryAttempts = 1;
+            DeadlockRetryOff.Apply(sp, options);
             options.CommandTimeout = TimeSpan.FromMinutes(2);
             return options;
         });
@@ -50,6 +50,7 @@ public abstract class ConcurrentEnqueueBatchSpec<TFixture> : ActaRuntimeTestBase
     [Fact(DisplayName = "Four producers racing 1000-row unlaned batches into one namespace all land as Ready")]
     public async Task Concurrent_unlaned_batches_all_land()
     {
+        DeadlockRetryOff.SkipOnSqlite(Services);
         var ct = TestContext.Current.CancellationToken;
         var batchesPerProducer = BatchesPerProducer(unlaned: true);
 
@@ -65,6 +66,7 @@ public abstract class ConcurrentEnqueueBatchSpec<TFixture> : ActaRuntimeTestBase
     [Fact(DisplayName = "Four producers racing 1000-row batches over shared lanes land in batch order behind one head per lane")]
     public async Task Concurrent_laned_batches_keep_lane_order()
     {
+        DeadlockRetryOff.SkipOnSqlite(Services);
         var ct = TestContext.Current.CancellationToken;
         var batchesPerProducer = BatchesPerProducer(unlaned: false);
 

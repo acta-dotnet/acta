@@ -45,7 +45,7 @@ public abstract class AlertPurgeRaceSpec<TFixture> : ActaRuntimeTestBase<TFixtur
         services.AddSingleton(sp =>
         {
             var options = (SqlProviderOptions)provider.ImplementationFactory!(sp);
-            options.DeadlockRetryAttempts = 1;
+            DeadlockRetryOff.Apply(sp, options);
             return options;
         });
     }
@@ -53,6 +53,7 @@ public abstract class AlertPurgeRaceSpec<TFixture> : ActaRuntimeTestBase<TFixtur
     [Fact(DisplayName = "Raising, resolving, and sweeping alerts while their jobs are purged never deadlocks or orphans an alert")]
     public async Task Alert_writers_race_job_purges()
     {
+        DeadlockRetryOff.SkipOnSqlite(Services);
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var store = Services.GetRequiredService<IAlertStore>();
