@@ -227,6 +227,7 @@ internal sealed class WorkerLoop(
                 foreach (var claimed in result.Jobs)
                 {
                     _metrics?.RecordClaim(ns, "claimed");
+                    _context.CancelDisplacedAttempt(claimed.JobId);
                     if (claimed.JobId == slotJobId)
                     {
                         RunRecoveryDetached(claimed, ns, namespaceId, workerId, hostCt);
@@ -455,6 +456,7 @@ internal sealed class WorkerLoop(
                 foreach (var job in claimed)
                 {
                     _metrics?.RecordClaim(ns, "claimed");
+                    _context.CancelDisplacedAttempt(job.JobId);
                     _ = RunOneAsync(job, ns, namespaceId, workerId, slots, hostCt);
                 }
             }

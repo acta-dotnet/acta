@@ -164,6 +164,10 @@ three evidence harnesses join the release checklist.
   left to progress it.
 - A graceful drain waits for a recovery pass the slot monitor started, so shutdown no longer strands
   the recovery job itself.
+- An attempt whose lease lapsed is cancelled once its job is claimed again in the same process. A
+  process tracks its attempts by job, so the replacement's lease renewal kept the stale attempt's
+  deadline alive, and once the replacement started nothing tracked the stale one at all: it ran on,
+  holding an executor, although its completion was already fenced off.
 
 ### Dashboard and API
 

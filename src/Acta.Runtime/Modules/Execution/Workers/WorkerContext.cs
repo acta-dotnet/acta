@@ -125,6 +125,20 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
     public ConcurrentDictionary<long, byte> BufferedClaims { get; } = new();
 
     /// <summary>
+    /// Cancel the attempt this process still runs for a job a claim just returned. The claim means the
+    /// attempt's lease lapsed and the job was reclaimed, and the replacement shares its key here, so the
+    /// heartbeat would renew the stale attempt on the replacement's lease and the watchdog, once the entry
+    /// is replaced, would never see it.
+    /// </summary>
+    public void CancelDisplacedAttempt(long jobId)
+    {
+        if (RunningAttempts.TryGetValue(jobId, out var stale))
+        {
+            stale.Cancel();
+        }
+    }
+
+    /// <summary>
     /// The executions some actor in this process is starting, running, or releasing right now, keyed
     /// by job and execution number. An executor takes the entry before it registers the attempt and
     /// holds it until the attempt is unwound; the orphan release takes it once the row has told it

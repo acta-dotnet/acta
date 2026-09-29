@@ -114,10 +114,16 @@ public sealed class WorkerLoopClaimFailureTests
             ),
         ];
 
-    private static WorkerLoop Loop(ClaimStore store, RecordingLogger log, ExecutionProfile profile, TimeSpan safetyPoll)
+    internal static WorkerLoop Loop(
+        ClaimStore store,
+        RecordingLogger log,
+        ExecutionProfile profile,
+        TimeSpan safetyPoll,
+        WorkerContext? context = null
+    )
     {
         var registration = new WorkerRegistration(Namespace, null, null, [], []);
-        var context = new WorkerContext(registration);
+        context ??= new WorkerContext(registration);
         context.NamespaceIds[Namespace] = 1;
         context.WorkerIdByNamespace[Namespace] = 1;
         var options = Options.Create(
@@ -130,8 +136,9 @@ public sealed class WorkerLoopClaimFailureTests
             }
         );
 
-        // The executor is never reached: no claim ever returns a row, so a null here is the strongest
-        // available statement that these arms run before any job is dispatched.
+        // The executor is null: these arms claim no row, so a null is the strongest statement that they run
+        // before any job is dispatched. A row a claim does return faults on it, which both loops log and
+        // swallow, so an arm that only watches the claim answer can still use this loop.
         return new WorkerLoop(store, executor: null!, options, registration, context, new IdleWakeup(), log);
     }
 
@@ -148,7 +155,7 @@ public sealed class WorkerLoopClaimFailureTests
         }
     }
 
-    private sealed class ClaimStore(Func<CancellationToken, ClaimResult> onClaim) : IExecutionStore
+    internal sealed class ClaimStore(Func<CancellationToken, ClaimResult> onClaim) : IExecutionStore
     {
         private int _calls;
 
@@ -211,7 +218,7 @@ public sealed class WorkerLoopClaimFailureTests
         ) => throw new NotSupportedException();
     }
 
-    private sealed class IdleWakeup : IWorkerWakeup
+    internal sealed class IdleWakeup : IWorkerWakeup
     {
         public ValueTask WakeAsync(WorkerWakeupChannel channel, WorkerWakeupReason reason, CancellationToken ct = default) =>
             ValueTask.CompletedTask;
@@ -220,7 +227,7 @@ public sealed class WorkerLoopClaimFailureTests
             ValueTask.FromResult(WorkerWakeupWaitStatus.TimedOut);
     }
 
-    private sealed class RecordingLogger : ILogger
+    internal sealed class RecordingLogger : ILogger
     {
         private readonly List<Entry> _entries = [];
 
