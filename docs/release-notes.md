@@ -228,6 +228,18 @@ three evidence harnesses join the release checklist.
 - The published scripts record the package only when every named view and routine exists, and say
   in their header to run them with a client that stops at the first error, which is what makes their
   transaction the guarantee that a failed replacement leaves no stamp.
+- An older release never overwrites a database a newer one upgraded. When the database holds a
+  migration the build does not ship, or a higher package revision, the bootstrap leaves the views and
+  routines alone and the published script stops before changing anything, naming the newer release.
+  A rollback that re-runs an old script, or starts old workers with migrations enabled, can no longer
+  rewrite the routines the newer workers call. Every installer, the bootstrap and each published script,
+  takes the same per-schema lock before it reads the history and holds it to commit, so two installs
+  never interleave.
+- PostgreSQL routines are replaced in place on every install, with no `DROP FUNCTION` left in any
+  of them, so a function keeps its identity, its grants, and the objects that depend on it.
+- SQL Server compares an installed body with the one it would install exactly, normalizing only the
+  header SQL Server rewrites. It used to collapse all whitespace, inside string literals too, and so
+  could skip a body whose literal had changed.
 
 ### Scheduling
 

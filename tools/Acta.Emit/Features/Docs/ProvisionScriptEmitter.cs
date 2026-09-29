@@ -50,6 +50,8 @@ internal static class ProvisionScriptEmitter
         script.AppendLine("-- The same SQL the bootstrap migration runner applies: the migration history table, every");
         script.AppendLine("-- migration in order (each records its own history row), then the operator objects the");
         script.AppendLine("-- provider installs.");
+        script.AppendLine("-- It takes the per-schema lock the runtime bootstrap takes before either reads the history, so");
+        script.AppendLine("-- two installers, script or bootstrap, never interleave.");
         if (mssql)
         {
             script.AppendLine("-- It also sets READ_COMMITTED_SNAPSHOT on the database, the way the runtime's own bootstrap");
@@ -179,7 +181,12 @@ internal static class ProvisionScriptEmitter
                 """
             );
         }
-        Append(mssql ? "SET XACT_ABORT ON;\nBEGIN TRANSACTION;" : "BEGIN;");
+        Append(
+            mssql ? "SET XACT_ABORT ON;\nBEGIN TRANSACTION;"
+            : sqlite ? "BEGIN IMMEDIATE;"
+            : "BEGIN;"
+        );
+        Append("-- ===== the installer lock, held to commit =====\n" + InstallerLock(token, schema));
         Append(
             "-- ===== migration history table =====\n"
                 + Render(File.ReadAllText(Path.Combine(providerDir, "Sql", "Schema", "EnsureMigrations.sql")))
@@ -235,6 +242,28 @@ internal static class ProvisionScriptEmitter
 
         Append(mssql ? "COMMIT TRANSACTION;" : "COMMIT;");
         return script.ToString().ReplaceLineEndings("\n");
+    }
+
+    /// <summary>
+    /// The lock the bootstrap takes before it reads migration history (<see cref="SchemaCommands.LockKey"/>),
+    /// taken by the script at the same point and held to its commit, so a script and a bootstrap, or two
+    /// scripts, never interleave: an older one cannot pass its downgrade guard and then overwrite a newer
+    /// install that committed meanwhile. SQLite's <c>BEGIN IMMEDIATE</c> is the lock there.
+    /// </summary>
+    internal static string InstallerLock(string token, string schema)
+    {
+        var key = SchemaCommands.LockKey(schema);
+        return token switch
+        {
+            "pg" => $"SELECT pg_advisory_xact_lock(hashtext('{key}'));",
+            "mssql" => $"""
+                DECLARE @lock_rc INT;
+                EXEC @lock_rc = sp_getapplock N'{key}', 'Exclusive', 'Transaction', 60000;
+                IF @lock_rc < 0
+                    THROW 50000, 'sp_getapplock failed acquiring the {key} lock', 1;
+                """,
+            _ => "-- BEGIN IMMEDIATE above holds the database's single write lock from here to COMMIT.",
+        };
     }
 
     /// <summary>

@@ -5,6 +5,8 @@
 -- The same SQL the bootstrap migration runner applies: the migration history table, every
 -- migration in order (each records its own history row), then the operator objects the
 -- provider installs.
+-- It takes the per-schema lock the runtime bootstrap takes before either reads the history, so
+-- two installers, script or bootstrap, never interleave.
 -- It also puts the database in WAL journal mode, the way the runtime's own bootstrap does:
 -- the first line, ahead of the transaction, and a no-op on a database already in WAL.
 --
@@ -35,7 +37,10 @@
 -- database already in WAL takes this as a no-op, on install and on re-run alike.
 PRAGMA journal_mode = WAL;
 
-BEGIN;
+BEGIN IMMEDIATE;
+
+-- ===== the installer lock, held to commit =====
+-- BEGIN IMMEDIATE above holds the database's single write lock from here to COMMIT.
 
 -- ===== migration history table =====
 CREATE TABLE IF NOT EXISTS main.migrations (

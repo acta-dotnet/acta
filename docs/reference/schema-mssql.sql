@@ -5,6 +5,8 @@
 -- The same SQL the bootstrap migration runner applies: the migration history table, every
 -- migration in order (each records its own history row), then the operator objects the
 -- provider installs.
+-- It takes the per-schema lock the runtime bootstrap takes before either reads the history, so
+-- two installers, script or bootstrap, never interleave.
 -- It also sets READ_COMMITTED_SNAPSHOT on the database, the way the runtime's own bootstrap
 -- does: the first batch, outside the transaction, skipped on a fresh install and on a re-run
 -- alike once the database has it on.
@@ -45,6 +47,12 @@ SET ANSI_NULLS ON;
 GO
 SET XACT_ABORT ON;
 BEGIN TRANSACTION;
+GO
+-- ===== the installer lock, held to commit =====
+DECLARE @lock_rc INT;
+EXEC @lock_rc = sp_getapplock N'acta-migrations-acta', 'Exclusive', 'Transaction', 60000;
+IF @lock_rc < 0
+    THROW 50000, 'sp_getapplock failed acquiring the acta-migrations-acta lock', 1;
 GO
 -- ===== migration history table =====
 IF SCHEMA_ID(N'acta') IS NULL EXEC (N'CREATE SCHEMA acta');

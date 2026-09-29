@@ -5,6 +5,8 @@
 -- The same SQL the bootstrap migration runner applies: the migration history table, every
 -- migration in order (each records its own history row), then the operator objects the
 -- provider installs.
+-- It takes the per-schema lock the runtime bootstrap takes before either reads the history, so
+-- two installers, script or bootstrap, never interleave.
 --
 -- WHERE TO RUN IT. Run it on an empty database to install, or again on a database it already
 -- provisioned: every statement is individually guarded, so a re-run applies nothing that is
@@ -26,6 +28,9 @@
 -- constraints, routine signatures - intact.
 
 BEGIN;
+
+-- ===== the installer lock, held to commit =====
+SELECT pg_advisory_xact_lock(hashtext('acta-migrations-acta'));
 
 -- ===== migration history table =====
 CREATE SCHEMA IF NOT EXISTS acta;

@@ -7,6 +7,12 @@ namespace Acta.Relational.Schema;
 /// <summary>Mechanical execution of the provider-owned schema-management command set.</summary>
 internal static class SchemaCommands
 {
+    /// <summary>
+    /// The per-schema lock every installer takes before it reads migration history: the bootstrap here,
+    /// and the published provisioning scripts, which name the same key.
+    /// </summary>
+    internal static string LockKey(string schemaName) => $"acta-migrations-{schemaName}";
+
     public static async Task AcquireLock(
         DbConnection conn,
         DbTransaction tx,
@@ -22,7 +28,7 @@ internal static class SchemaCommands
         cmd.CommandText = sql.Load("Sql/Schema/AcquireSchemaLock.sql");
         var parameter = cmd.CreateParameter();
         parameter.ParameterName = "@p_key";
-        parameter.Value = $"acta-migrations-{schemaName}";
+        parameter.Value = LockKey(schemaName);
         cmd.Parameters.Add(parameter);
         await cmd.ExecuteNonQueryAsync(ct);
     }
