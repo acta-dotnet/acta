@@ -24,11 +24,10 @@ three evidence harnesses join the release checklist.
   `docs/reference/schema-<provider>.sql`, so drain or export anything you need first. From 1.0 on,
   that script is part of every upgrade: it is idempotent, and it records the object package it
   installed, which startup checks.
-- **Add `staging_id` to an existing outbox table.** The relay now claims in staging order and reads a
-  producer-assigned identity: `ALTER TABLE <outbox> ADD staging_id bigint GENERATED ALWAYS AS
-  IDENTITY` on PostgreSQL, `ADD staging_id bigint IDENTITY(1,1) NOT NULL` on SQL Server, and nothing on
-  SQLite, which uses the rowid. Recreate `ix_acta_outbox_due` as the DDL API emits it. A table created
-  from the 1.0 DDL API already has both.
+- **Recreate an outbox table created before 1.0.** The table is keyed by `id`, the producer-assigned
+  identity the relay claims in order (the rowid on SQLite), with `outbox_id` kept as a unique column,
+  and it gains `ix_acta_outbox_lane` for the lane check. Let the relay drain the table, then drop it and
+  create it again from the 1.0 DDL API (`PostgresOutboxDdl`, `SqlServerOutboxDdl`, `SqliteOutboxDdl`).
 - **A new job status, `Blocked` (15).** It marks a laned job waiting behind its lane's head. It is
   neither claimable nor terminal. A `switch` over `JobStatusCode`, or SQL that lists status codes,
   needs the new value; jobs without a lane never enter it.
@@ -54,6 +53,11 @@ three evidence harnesses join the release checklist.
 - **Enqueue order is commit order.** A laned enqueue locks its lane row until it commits, so two
   producers cannot interleave out of order. Every path that touches a lane locks lane rows first, in
   id order, and job rows after them.
+- **The outbox keeps a lane's staging order.** The relay claims a laned row only while no older row of
+  its lane is still in the outbox, Pending or Claimed. A row the target rejects is backed off and
+  holds the rows behind it, a claim another relay holds does the same, and a quarantined row leaves the
+  lane, which moves on. Other lanes and unlaned rows flow as before. This holds for rows staged in sequence;
+  rows two transactions stage into one lane at once have no order between them.
 - **Guards at enqueue.** A child in the lane of an unfinished ancestor is refused, children do not
   inherit a lane, and a schedule on a laned definition is refused.
 - **Restart reactivates a finished laned job in place.** Under the lane lock it goes Ready when
@@ -68,6 +72,10 @@ three evidence harnesses join the release checklist.
   behind; the job list filters by lane.
 - **Schema.** A `lanes` table, `runtimes.lane_id` with two indexes, `definitions.lane`, a `lane`
   column on the outbox and the published `jobs` view, and status 15.
+- **What lanes cost.** On PostgreSQL and SQL Server the claim and settle paths run a few percent
+  slower than before lanes. On SQLite, which prepares every statement of a command on each call, the
+  ancestor check cost a single-job enqueue a sixth of its time even with no parent to check; it is
+  left out when the job has no parent, and the lane-row insert that remains costs about eight percent.
 
 ### Claim and locking
 

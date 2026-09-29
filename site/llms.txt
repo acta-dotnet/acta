@@ -191,7 +191,7 @@ It is mutual exclusion, never ordering: an older job can be overtaken while the 
 definition, puts the job in a lane: one job of the lane runs at a time, in enqueue order, like an SQS
 FIFO message group. The jobs behind the head are `Blocked` until it finishes (Succeeded, Failed on
 its last attempt, or Cancelled), and a failing head keeps retrying in place, holding the lane. Rows
-staged through the outbox with a lane reach it in staging order, a rejected row keeping its place. An
+staged in sequence through the outbox with a lane reach it in staging order, a rejected row keeping its place. An
 enqueue lane overrides the definition's. Names follow the ConcurrencyKey rule: up to 128 key
 characters, case-insensitive. Rules that bite: never enqueue a child into the lane of an unfinished ancestor (refused
 at enqueue), never put a lane on a scheduled definition (refused), give waits across lanes a timeout,

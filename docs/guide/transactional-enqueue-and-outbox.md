@@ -209,8 +209,9 @@ SqliteOutboxDdl.CreateScript(table: "acta_outbox");
 ```
 
 The output is a plain, non-idempotent migration script (your migration system owns run-once semantics):
-the canonical `CREATE TABLE` with provider-correct types and UTC-clock defaults, the primary key, the two
-named claim indexes, and the named check constraints, with any table/schema override rendered correctly.
+the canonical `CREATE TABLE` with provider-correct types and UTC-clock defaults, the primary key on
+`id`, the unique `outbox_id`, the three named claim indexes, and the named check constraints, with any
+table/schema override rendered correctly.
 `table` and `schema` take the same lowercase identifier validation as the staging extension and the relay
 source; `schema: null` uses the provider's established default. It is documentation input, not an
 installer: paste or pipe it into DbUp, Flyway, `migrationBuilder.Sql(...)`, or a hand migration. Acta never
@@ -313,8 +314,9 @@ only while no older row of the same namespace and lane is still in the outbox, P
   deduplicates.
 - A row that exhausts its retries is quarantined and leaves the lane, which then moves on, like a
   message moved to a dead-letter queue. Requeueing it from quarantine puts it back at the head.
-- Rows staged in sequence by one producer arrive in staging order. Rows staged into one lane by two
-  transactions at once arrive in the order they commit, which is also what a direct enqueue gives.
+- Rows staged in sequence arrive in staging order. Rows staged into one lane by two transactions at
+  once have no order between them: either can arrive first. Where two producers must keep an order
+  between them, enqueue directly with a transactional enqueue, which locks the lane until it commits.
 
 A lane advances one row per claim through the outbox, up to twenty claims per relay tick; the target runs
 a lane one job at a time anyway. A row staged without a `lane` is not ordered at the source, even when its

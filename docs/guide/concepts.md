@@ -192,9 +192,9 @@ last attempt, or Cancelled), the next job becomes Ready in the same transaction.
 - **Enqueue order is commit order.** Enqueue locks the lane row until the enqueuing transaction
   commits, so two producers cannot interleave out of order. An open transaction that enqueued into a
   lane holds that lane until it ends.
-- **The outbox keeps staging order.** Rows staged into the outbox with a lane reach that lane in the
-  order they were staged: the relay holds a lane's later rows while an older one is still waiting, so
-  a rejected row keeps its place. See [Ordering](./transactional-enqueue-and-outbox.md#ordering).
+- **The outbox keeps staging order.** Rows staged in sequence into the outbox with a lane reach that
+  lane in the order they were staged: the relay holds a lane's later rows while an older one is still
+  waiting, so a rejected row keeps its place. See [Ordering](./transactional-enqueue-and-outbox.md#ordering).
 - **Priority does not reorder a lane.** Across lanes, each head competes with every other claimable
   job by priority, as usual. Concurrency and rate limits still apply to the head, and while they
   re-arm it, the jobs behind it stay Blocked.
