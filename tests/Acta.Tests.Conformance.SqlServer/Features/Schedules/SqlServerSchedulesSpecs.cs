@@ -26,3 +26,5 @@ public sealed class SqlServerScheduleSysPreviewSpec : ScheduleSysPreviewSpec<Sql
 public sealed class SqlServerScheduleSlotReRegistrationSpec : ScheduleSlotReRegistrationSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerRecurringJobPauseSpec : RecurringJobPauseSpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerRecurringSlotFromAnotherGenerationSpec : RecurringSlotFromAnotherGenerationSpec<SqlServerConformanceFixture>;

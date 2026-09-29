@@ -26,3 +26,5 @@ public sealed class SqliteScheduleSysPreviewSpec : ScheduleSysPreviewSpec<Sqlite
 public sealed class SqliteScheduleSlotReRegistrationSpec : ScheduleSlotReRegistrationSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteRecurringJobPauseSpec : RecurringJobPauseSpec<SqliteConformanceFixture>;
+
+public sealed class SqliteRecurringSlotFromAnotherGenerationSpec : RecurringSlotFromAnotherGenerationSpec<SqliteConformanceFixture>;

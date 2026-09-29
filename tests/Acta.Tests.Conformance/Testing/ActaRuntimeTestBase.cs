@@ -122,6 +122,27 @@ public abstract class ActaRuntimeTestBase<TFixture, TManifest> : ActaTestBase<TF
         );
 
     /// <summary>
+    /// Another deployment generation's process for a rolling-deploy spec: its own DI container, its own
+    /// worker row, its own manifest and generation stamp, against the shared schema and namespace.
+    /// </summary>
+    protected ServiceProvider BuildGenerationProvider<TGenerationManifest>(DateTime generationUtc, string tag)
+        where TGenerationManifest : class, IJobManifest
+    {
+        var services = new ServiceCollection();
+        services.UseActa(j =>
+        {
+            Fixture.ApplyProvider(j, Schema.SchemaName);
+            j.Run<TGenerationManifest>(TestNamespace, ownerTeam: "test", description: GetType().FullName + ":" + tag);
+        });
+        services.Configure<JobsOptions>(o =>
+        {
+            o.RegisterSystemJobs = false;
+            o.ManifestGenerationUtc = generationUtc;
+        });
+        return services.BuildServiceProvider(validateScopes: true);
+    }
+
+    /// <summary>
     /// Enqueues <paramref name="input"/> as <paramref name="jobName"/> in the test namespace, drives one
     /// runtime tick to completion, and returns the enqueue outcome (internal id and public ref).
     /// </summary>

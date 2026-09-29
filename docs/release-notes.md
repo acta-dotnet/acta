@@ -265,6 +265,11 @@ three evidence harnesses join the release checklist.
   next run still means no schedule offers a run, and a schedule that offers one moves the job back to
   Ready. Each worker start logs a warning naming a held job. Pausing a single schedule already
   survived a restart and still does.
+- **A worker fires a recurring slot it did not register as a recurring job.** A worker learned its
+  slots only at startup, so during a rolling deploy that adds `[JobSchedule]` to a job, an old worker
+  claimed the new slot, ran it once, and left it Succeeded: the job never ran on schedule again until
+  a restart. A claimed job whose deduplication key is its job name and that has live schedules is now
+  fired as the slot it is.
 
 ### Release evidence
 

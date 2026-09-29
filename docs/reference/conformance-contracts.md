@@ -2658,6 +2658,14 @@
   - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.GetLiveSchedulesAsync`
   - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.SetScheduleOverridesAsync`
 
+### An older generation fires a slot a newer one registered as recurring
+- **Contract:** A worker that did not register a recurring slot at startup still fires it as a recurring job when it claims it.
+- **Arrange:** The older generation starts without the schedule, then a newer generation registers it and the slot is triggered now.
+- **Act:** The older generation claims and runs the slot.
+- **Assert:** The slot is Ready again with its next run ahead, not Succeeded.
+- **Guarantees:**
+  - An older generation fires a slot a newer one registered after it started as a recurring job
+
 ### Recurring slot claims at its definition's priority
 - **Contract:** A recurring slot's runtime priority is stamped from the owning definition's effective priority, and re-registration propagates a changed priority.
 - **Arrange:** A recurring job declares Priority Critical and one interval schedule, registered into the worker namespace.

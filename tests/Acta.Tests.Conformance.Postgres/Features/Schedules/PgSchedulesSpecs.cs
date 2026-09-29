@@ -26,3 +26,5 @@ public sealed class PgScheduleSysPreviewSpec : ScheduleSysPreviewSpec<PgConforma
 public sealed class PgScheduleSlotReRegistrationSpec : ScheduleSlotReRegistrationSpec<PgConformanceFixture>;
 
 public sealed class PgRecurringJobPauseSpec : RecurringJobPauseSpec<PgConformanceFixture>;
+
+public sealed class PgRecurringSlotFromAnotherGenerationSpec : RecurringSlotFromAnotherGenerationSpec<PgConformanceFixture>;

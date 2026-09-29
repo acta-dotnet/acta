@@ -95,10 +95,11 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
     }
 
     /// <summary>
-    /// Slot job ids (one per recurring definition) returned by the startup schedule upsert.
-    /// Consulted on the execution hot path to branch a claimed slot fire into the recurring path.
+    /// Slot job ids (one per recurring definition): those the startup schedule upsert returned, and any
+    /// slot another runtime registered that an executor recognized on claiming it. Consulted on the
+    /// execution hot path to branch a claimed slot fire into the recurring path.
     /// </summary>
-    public HashSet<long> RecurringSlotJobIds { get; } = [];
+    public ConcurrentDictionary<long, byte> RecurringSlotJobIds { get; } = new();
 
     /// <summary>
     /// The <c>sys.recovery</c> slot job id per namespace this worker registered, captured at the startup

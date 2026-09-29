@@ -195,7 +195,7 @@ internal sealed class JobExecutor(
             // Recurring slot fire: read live schedules once, plan the due set + cursor advances at a
             // single captured nowUtc. The due names are visible to the handler; the advances + slot
             // MIN apply at completion. Non-slot jobs keep the unchanged one-shot path.
-            var isRecurring = _context.RecurringSlotJobIds.Contains(job.JobId);
+            var isRecurring = _context.RecurringSlotJobIds.ContainsKey(job.JobId);
             RecurringFireOutcome? fireOutcome = null;
             StepRetryDefaults stepRetryDefaults;
             string? tenantKey;
@@ -204,7 +204,7 @@ internal sealed class JobExecutor(
             // before the handler runs hands the claim back rather than leaving it leased and unowned.
             try
             {
-                if (isRecurring)
+                if (isRecurring || string.Equals(job.DeduplicationKey, descriptor.JobName, StringComparison.Ordinal))
                 {
                     var (nowUtc, _) = await CompletionWrite.RetryAsync(
                         async token => await _clock.GetUtcNowAsync(token),
@@ -221,7 +221,17 @@ internal sealed class JobExecutor(
                         ct,
                         _metrics
                     );
-                    fireOutcome = ScheduleWalker.PlanFire(live, nowUtc);
+                    // A slot another runtime registered after this one started is not in the startup set. Its
+                    // deduplication key is its job name, which a one-off may share, so live schedules decide.
+                    if (!isRecurring && live.Count > 0)
+                    {
+                        isRecurring = true;
+                        _context.RecurringSlotJobIds.TryAdd(job.JobId, 0);
+                    }
+                    if (isRecurring)
+                    {
+                        fireOutcome = ScheduleWalker.PlanFire(live, nowUtc);
+                    }
                 }
 
                 var backoff = Backoff.Parse(descriptor.Backoff ?? JobDefinitionRegistration.DefaultBackoffExpression);

@@ -528,7 +528,7 @@ internal sealed class WorkerRuntimeInitializer(
 
         foreach (var slot in slots)
         {
-            _context.RecurringSlotJobIds.Add(slot.SlotId);
+            _context.RecurringSlotJobIds[slot.SlotId] = 0;
         }
 
         // The recovery monitor watches exactly this row for the life of the worker, and the first

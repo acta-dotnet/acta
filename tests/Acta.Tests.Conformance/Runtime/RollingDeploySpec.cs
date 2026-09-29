@@ -206,27 +206,6 @@ public abstract class RollingDeploySpec<TFixture> : ActaRuntimeTestBase<TFixture
     }
 
     /// <summary>
-    /// One generation's process: its own DI container, its own worker row, its own manifest and
-    /// generation stamp, against the shared schema and namespace.
-    /// </summary>
-    private ServiceProvider BuildGenerationProvider<TManifest>(DateTime generationUtc, string tag)
-        where TManifest : class, IJobManifest
-    {
-        var services = new ServiceCollection();
-        services.UseActa(j =>
-        {
-            Fixture.ApplyProvider(j, Schema.SchemaName);
-            j.Run<TManifest>(TestNamespace, ownerTeam: "test", description: GetType().FullName + ":" + tag);
-        });
-        services.Configure<JobsOptions>(o =>
-        {
-            o.RegisterSystemJobs = false;
-            o.ManifestGenerationUtc = generationUtc;
-        });
-        return services.BuildServiceProvider(validateScopes: true);
-    }
-
-    /// <summary>
     /// Ticks the namespace-level claim (the path the exclusion filters) until one tick claims
     /// nothing. Bounded, so a namespace that keeps handing out work fails the test rather than
     /// hanging it.
