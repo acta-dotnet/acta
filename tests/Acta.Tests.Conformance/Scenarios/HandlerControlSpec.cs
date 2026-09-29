@@ -105,8 +105,8 @@ public abstract class HandlerControlSpec<TFixture> : ActaRuntimeTestBase<TFixtur
         Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobCancelled, ct));
     }
 
-    [Fact(DisplayName = "Handler pause holds Paused with no next run, the matching reason, no result, and a JobPaused lifecycle event")]
-    public async Task Pause_holds_paused_with_no_next_run_and_emits_job_paused()
+    [Fact(DisplayName = "Handler pause holds Paused with a next run, the matching reason, no result, and a JobPaused lifecycle event")]
+    public async Task Pause_holds_paused_with_a_next_run_and_emits_job_paused()
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-handler-pause", JobPayload.None), ct);
@@ -116,7 +116,8 @@ public abstract class HandlerControlSpec<TFixture> : ActaRuntimeTestBase<TFixtur
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Paused, job.Status);
         Assert.Null(job.LeasedByWorkerId);
-        Assert.Null(job.NextRunAtUtc);
+        // A next run is what marks the pause as held, so no schedule change can lift it (ScheduleWalker.IsHeld).
+        Assert.NotNull(job.NextRunAtUtc);
         Assert.Equal(0, job.FailureCount);
         var pauseEvent = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobPaused, ct);
         Assert.Equal(JobEventReasonCode.JobHandlerPaused, pauseEvent.ReasonCode);

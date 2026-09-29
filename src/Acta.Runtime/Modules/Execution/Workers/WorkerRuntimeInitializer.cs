@@ -465,16 +465,15 @@ internal sealed class WorkerRuntimeInitializer(
                 : (IReadOnlyDictionary<string, StoredScheduleState>)new Dictionary<string, StoredScheduleState>();
 
             var (slotSchedules, slotMin) = ScheduleWalker.Reconcile(declared, storedForDef, nowUtc);
-            var jobPaused = ScheduleWalker.IsJobPaused(
-                storedForDef.Values.FirstOrDefault()?.SlotStatus,
-                storedForDef.Values.Select(s => (s.Status, s.NextRunAtUtc, s.PausedUntilUtc))
-            );
 
             var slotStatus =
                 declared.Count == 0 ? JobStatusCode.Cancelled // descriptor dropped every [JobSchedule]
-                : jobPaused || slotMin is null ? JobStatusCode.Paused // paused by an operator, or every schedule is exhausted
+                : slotMin is null ? JobStatusCode.Paused // declared but no schedule offers a run
                 : JobStatusCode.Ready;
-            if (declared.Count > 0 && jobPaused)
+
+            // Registration leaves a held job as it stands (ScheduleWalker.IsHeld); say so at every start.
+            var slot = storedForDef.Values.FirstOrDefault();
+            if (declared.Count > 0 && ScheduleWalker.IsHeld(slot?.SlotStatus, slot?.SlotNextRunAtUtc))
             {
                 _log.LogWarning(
                     "Namespace ({Namespace}): recurring job {JobName} is paused by an operator and stays paused; it runs again "

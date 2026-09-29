@@ -229,6 +229,19 @@ three evidence harnesses join the release checklist.
   in their header to run them with a client that stops at the first error, which is what makes their
   transaction the guarantee that a failed replacement leaves no stamp.
 
+### Scheduling
+
+- **An operator's pause of a recurring job holds until an operator resumes it.** A recurring job
+  whose schedules offer no upcoming run is Paused too, and startup and the schedule verbs recomputed
+  both kinds from the schedules, so a restart, a deploy, a schedule edit, or a schedule paused and
+  resumed turned an operator's pause back to Ready. Now a job pause, by an operator or by its handler,
+  always leaves a next run, and a job Paused with a next run is held: startup, every schedule verb,
+  and trigger-now leave it alone, checked in the same statement that moves the job, so even an edit
+  racing a pause cannot undo it. Only a job resume, restart, or cancel lifts the hold. Paused with no
+  next run still means no schedule offers a run, and a schedule that offers one moves the job back to
+  Ready. Each worker start logs a warning naming a held job. Pausing a single schedule already
+  survived a restart and still does.
+
 ### Release evidence
 
 - Moving from rc.3 to 1.0 reprovisions, so this release proves the pieces a rolling upgrade rests on

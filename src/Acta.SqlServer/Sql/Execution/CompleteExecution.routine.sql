@@ -120,6 +120,8 @@ BEGIN
                     WHEN @signal_suspend = 1 AND @sig_state = 20 /* JobCheckpointStatusCode.Set */ THEN @now
                     WHEN @signal_suspend = 1 THEN @sig_due
                     WHEN @rearm = 1 THEN COALESCE(@p_reschedule_resume_at_utc, DATEADD(SECOND, @p_reschedule_delay_seconds, @now))
+                    -- A handler's pause keeps a next run, which marks it held (ScheduleWalker, "held").
+                    WHEN @handler = 1 AND @p_handler_status_code = 30 /* JobStatusCode.Paused */ THEN @now
                     WHEN @handler = 1 THEN NULL
                     WHEN @recurring = 1 THEN @p_job_next_run_at_utc
                     ELSE @c_next_existing

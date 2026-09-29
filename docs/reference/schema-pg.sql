@@ -1877,6 +1877,8 @@ BEGIN
             WHEN v_signal_suspend AND v_sig_state = 20 /* JobCheckpointStatusCode.Set */ THEN now()
             WHEN v_signal_suspend THEN v_sig_due
             WHEN v_rearm THEN COALESCE(p_reschedule_resume_at_utc, now() + make_interval(secs => p_reschedule_delay_seconds))
+            -- A handler's pause keeps a next run, which marks it held (ScheduleWalker, "held").
+            WHEN v_handler AND p_handler_status_code = 30 /* JobStatusCode.Paused */ THEN now()
             WHEN v_handler THEN NULL
             WHEN v_recurring THEN p_job_next_run_at_utc
             ELSE r.next_run_at_utc END,
@@ -4148,6 +4150,8 @@ BEGIN
     UPDATE acta.runtimes AS r
     SET
         status_code = 30 /* JobStatusCode.Paused */,
+        -- Always a next run, which is what marks this pause as held (ScheduleWalker, "held").
+        next_run_at_utc = COALESCE(r.next_run_at_utc, now()),
         modified_at_utc = now(),
         version = r.version + 1
     WHERE r.job_id = p_id;
@@ -5943,6 +5947,8 @@ BEGIN
     RETURNING status_code, paused_until_utc, next_run_at_utc, version
     INTO v_status, v_paused, v_next, v_version;
 
+    -- Paused with a next run is an operator's or handler's hold and is left alone; Paused with none only
+    -- means no schedule offered a run (ScheduleWalker, "held").
     UPDATE acta.runtimes
     SET
         next_run_at_utc = p_job_next_run_at_utc,
@@ -5953,7 +5959,7 @@ BEGIN
         version = version + 1
     WHERE
         job_id = p_job_id
-        AND status_code IN (30 /* JobStatusCode.Paused */, 10 /* JobStatusCode.Ready */);
+        AND (status_code = 10 /* JobStatusCode.Ready */ OR (status_code = 30 /* JobStatusCode.Paused */ AND next_run_at_utc IS NULL));
 
     IF v_audit = 20 /* JobAuditLevelCode.Audit */ THEN
         INSERT INTO acta.events (
@@ -6104,6 +6110,8 @@ BEGIN
         version = acta.runtimes.version + 1
     WHERE
         acta.runtimes.status_code NOT IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+        -- A held job (Paused with a next run; ScheduleWalker, "held") stays as its operator left it.
+        AND NOT (acta.runtimes.status_code = 30 /* JobStatusCode.Paused */ AND acta.runtimes.next_run_at_utc IS NOT NULL)
         -- An unchanged declaration writes nothing: a restart of the same build bumps no version.
         AND (
             acta.runtimes.status_code IS DISTINCT FROM EXCLUDED.status_code
@@ -6265,6 +6273,8 @@ BEGIN
     RETURNING status_code, paused_until_utc, next_run_at_utc, version
     INTO v_status, v_paused, v_next, v_version;
 
+    -- Paused with a next run is an operator's or handler's hold and is left alone; Paused with none only
+    -- means no schedule offered a run (ScheduleWalker, "held").
     UPDATE acta.runtimes
     SET
         next_run_at_utc = p_job_next_run_at_utc,
@@ -6275,7 +6285,7 @@ BEGIN
         version = version + 1
     WHERE
         job_id = p_job_id
-        AND status_code IN (30 /* JobStatusCode.Paused */, 10 /* JobStatusCode.Ready */);
+        AND (status_code = 10 /* JobStatusCode.Ready */ OR (status_code = 30 /* JobStatusCode.Paused */ AND next_run_at_utc IS NULL));
 
     IF v_audit = 20 /* JobAuditLevelCode.Audit */ THEN
         INSERT INTO acta.events (
@@ -6395,6 +6405,8 @@ BEGIN
     RETURNING status_code, paused_until_utc, next_run_at_utc, version
     INTO v_status, v_paused, v_next, v_version;
 
+    -- Paused with a next run is an operator's or handler's hold and is left alone; Paused with none only
+    -- means no schedule offered a run (ScheduleWalker, "held").
     UPDATE acta.runtimes
     SET
         next_run_at_utc = p_job_next_run_at_utc,
@@ -6404,7 +6416,7 @@ BEGIN
         version = version + 1
     WHERE
         job_id = p_job_id
-        AND status_code IN (30 /* JobStatusCode.Paused */, 10 /* JobStatusCode.Ready */);
+        AND (status_code = 10 /* JobStatusCode.Ready */ OR (status_code = 30 /* JobStatusCode.Paused */ AND next_run_at_utc IS NULL));
 
     IF v_audit = 20 /* JobAuditLevelCode.Audit */ THEN
         INSERT INTO acta.events (
@@ -6468,6 +6480,7 @@ DECLARE
     v_next TIMESTAMPTZ;
     v_version INT;
     v_slot_status SMALLINT;
+    v_slot_next TIMESTAMPTZ;
     v_ns INT;
     v_def INT;
     v_lineage BIGINT;
@@ -6478,8 +6491,8 @@ BEGIN
     /* Lock the slot's runtimes row before the schedules row: register_scheduled_jobs writes
        runtimes then schedules, so every writer of both must take runtimes first. The schedules row
        is guard-only here (never updated): a manual trigger moves only the slot's cursor. */
-    SELECT r.status_code, r.execution_number
-    INTO v_slot_status, v_en
+    SELECT r.status_code, r.next_run_at_utc, r.execution_number
+    INTO v_slot_status, v_slot_next, v_en
     FROM acta.runtimes r
     WHERE r.job_id = p_job_id
     FOR UPDATE;
@@ -6503,7 +6516,9 @@ BEGIN
         RETURN;
     END IF;
 
-    IF v_slot_status IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */) THEN
+    -- A held job (Paused with a next run; ScheduleWalker, "held") runs only once it is resumed.
+    IF v_slot_status IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+        OR (v_slot_status = 30 /* JobStatusCode.Paused */ AND v_slot_next IS NOT NULL) THEN
         RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_status, v_paused, v_next, v_version;
         RETURN;
     END IF;
@@ -6526,7 +6541,10 @@ BEGIN
         version = version + 1
     WHERE
         job_id = p_job_id
-        AND status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */);
+        AND (
+            status_code IN (20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */)
+            OR (status_code = 30 /* JobStatusCode.Paused */ AND next_run_at_utc IS NULL)
+        );
 
     IF v_audit = 20 /* JobAuditLevelCode.Audit */ THEN
         INSERT INTO acta.events (
@@ -8597,7 +8615,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.6-22a28c1b76be0b223169956d36b75f1e', 'acta');
+VALUES (-1, 'objects-1.6-807e14af0ae64d6fd850772a0c5ed022', 'acta');
 
 COMMIT;
 

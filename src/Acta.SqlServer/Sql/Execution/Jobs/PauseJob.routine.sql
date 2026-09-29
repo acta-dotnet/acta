@@ -89,6 +89,8 @@ BEGIN
         UPDATE {{schema}}.runtimes
         SET
             status_code = 30 /* JobStatusCode.Paused */,
+            -- Always a next run, which is what marks this pause as held (ScheduleWalker, "held").
+            next_run_at_utc = COALESCE(next_run_at_utc, @now),
             modified_at_utc = @now,
             version = version + 1
         WHERE job_id = @p_id;

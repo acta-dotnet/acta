@@ -2255,6 +2255,8 @@ BEGIN
                     WHEN @signal_suspend = 1 AND @sig_state = 20 /* JobCheckpointStatusCode.Set */ THEN @now
                     WHEN @signal_suspend = 1 THEN @sig_due
                     WHEN @rearm = 1 THEN COALESCE(@p_reschedule_resume_at_utc, DATEADD(SECOND, @p_reschedule_delay_seconds, @now))
+                    -- A handler's pause keeps a next run, which marks it held (ScheduleWalker, "held").
+                    WHEN @handler = 1 AND @p_handler_status_code = 30 /* JobStatusCode.Paused */ THEN @now
                     WHEN @handler = 1 THEN NULL
                     WHEN @recurring = 1 THEN @p_job_next_run_at_utc
                     ELSE @c_next_existing
@@ -4607,6 +4609,8 @@ BEGIN
         UPDATE acta.runtimes
         SET
             status_code = 30 /* JobStatusCode.Paused */,
+            -- Always a next run, which is what marks this pause as held (ScheduleWalker, "held").
+            next_run_at_utc = COALESCE(next_run_at_utc, @now),
             modified_at_utc = @now,
             version = version + 1
         WHERE job_id = @p_id;
@@ -6583,6 +6587,8 @@ BEGIN
         FROM acta.schedules
         WHERE id = @schedule_id;
 
+        -- Paused with a next run is an operator's or handler's hold and is left alone; Paused with none only
+        -- means no schedule offered a run (ScheduleWalker, "held").
         UPDATE acta.runtimes
         SET
             next_run_at_utc = @p_job_next_run_at_utc,
@@ -6595,7 +6601,7 @@ BEGIN
             version = version + 1
         WHERE
             job_id = @p_job_id
-            AND status_code IN (30 /* JobStatusCode.Paused */, 10 /* JobStatusCode.Ready */);
+            AND (status_code = 10 /* JobStatusCode.Ready */ OR (status_code = 30 /* JobStatusCode.Paused */ AND next_run_at_utc IS NULL));
 
         IF @audit = 20 /* JobAuditLevelCode.Audit */
             BEGIN
@@ -6691,6 +6697,8 @@ BEGIN
             j.namespace_id = @p_namespace_id
             AND j.parent_id IS NULL
             AND r.status_code NOT IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+            -- A held job (Paused with a next run; ScheduleWalker, "held") stays as its operator left it.
+            AND NOT (r.status_code = 30 /* JobStatusCode.Paused */ AND r.next_run_at_utc IS NOT NULL)
             -- An unchanged declaration writes nothing: a restart of the same build bumps no version.
             -- EXCEPT compares NULL-safely, which <> does not.
             AND EXISTS (
@@ -6951,6 +6959,8 @@ BEGIN
         FROM acta.schedules
         WHERE id = @schedule_id;
 
+        -- Paused with a next run is an operator's or handler's hold and is left alone; Paused with none only
+        -- means no schedule offered a run (ScheduleWalker, "held").
         UPDATE acta.runtimes
         SET
             next_run_at_utc = @p_job_next_run_at_utc,
@@ -6963,7 +6973,7 @@ BEGIN
             version = version + 1
         WHERE
             job_id = @p_job_id
-            AND status_code IN (30 /* JobStatusCode.Paused */, 10 /* JobStatusCode.Ready */);
+            AND (status_code = 10 /* JobStatusCode.Ready */ OR (status_code = 30 /* JobStatusCode.Paused */ AND next_run_at_utc IS NULL));
 
         IF @audit = 20 /* JobAuditLevelCode.Audit */
             BEGIN
@@ -7103,6 +7113,8 @@ BEGIN
         FROM acta.schedules
         WHERE id = @schedule_id;
 
+        -- Paused with a next run is an operator's or handler's hold and is left alone; Paused with none only
+        -- means no schedule offered a run (ScheduleWalker, "held").
         UPDATE acta.runtimes
         SET
             next_run_at_utc = @p_job_next_run_at_utc,
@@ -7115,7 +7127,7 @@ BEGIN
             version = version + 1
         WHERE
             job_id = @p_job_id
-            AND status_code IN (30 /* JobStatusCode.Paused */, 10 /* JobStatusCode.Ready */);
+            AND (status_code = 10 /* JobStatusCode.Ready */ OR (status_code = 30 /* JobStatusCode.Paused */ AND next_run_at_utc IS NULL));
 
         IF @audit = 20 /* JobAuditLevelCode.Audit */
             BEGIN
@@ -7178,7 +7190,7 @@ BEGIN
 
         DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
         DECLARE @schedule_id BIGINT, @status TINYINT, @paused DATETIME2(7), @next DATETIME2(7), @version INT;
-        DECLARE @slot_status TINYINT;
+        DECLARE @slot_status TINYINT, @slot_next DATETIME2(7);
         DECLARE @ns INT, @def INT, @lineage BIGINT, @en INT, @audit TINYINT, @job_ref UNIQUEIDENTIFIER;
 
         /* Lock the slot's runtimes row before the schedules row: register_scheduled_jobs writes
@@ -7186,6 +7198,7 @@ BEGIN
            row is guard-only here (never updated): a manual trigger moves only the slot's cursor. */
         SELECT
             @slot_status = r.status_code,
+            @slot_next = r.next_run_at_utc,
             @en = r.execution_number
         FROM acta.runtimes r WITH (UPDLOCK, ROWLOCK)
         WHERE r.job_id = @p_job_id;
@@ -7226,7 +7239,9 @@ BEGIN
                 GOTO Finish;
             END;
 
+        -- A held job (Paused with a next run; ScheduleWalker, "held") runs only once it is resumed.
         IF @slot_status IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+            OR (@slot_status = 30 /* JobStatusCode.Paused */ AND @slot_next IS NOT NULL)
             BEGIN
 
                 SELECT
@@ -7267,7 +7282,10 @@ BEGIN
             version = version + 1
         WHERE
             job_id = @p_job_id
-            AND status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */);
+            AND (
+                status_code IN (20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */)
+                OR (status_code = 30 /* JobStatusCode.Paused */ AND next_run_at_utc IS NULL)
+            );
 
         IF @audit = 20 /* JobAuditLevelCode.Audit */
             BEGIN
@@ -9642,7 +9660,7 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.6-f8faf848b686f2a71ef04f7a9c7f4ca1', 'acta'
+SELECT -1, 'objects-1.6-299eecac25935420e1dcc42a41900271', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
     WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'jobs_view', 'schedules_view', 'steps_view', 'workers_view', 'events_view', 'tags_view', 'acknowledge_job_alert', 'raise_job_alert', 'resolve_job_alert_manual', 'resolve_job_alerts', 'update_alert_delivery', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_executions_batch', 'complete_step', 'register_job_definitions', 'set_job_definition_overrides', 'cancel_job', 'enqueue_batch', 'enqueue_one', 'pause_job', 'purge_job', 'reprioritize_job', 'reschedule_job', 'reset_job_state', 'restart_job', 'resume_job', 'update_job_input', 'resume_namespace', 'suspend_namespace', 'update_namespace', 'record_job_note', 'reclaim_stuck_jobs', 'repair_recovery_slot', 'pause_schedule', 'register_scheduled_jobs', 'resume_schedule', 'set_schedule_overrides', 'trigger_schedule_now', 'set_setting', 'consume_outbox_signal', 'park_outbox_signal', 'raise_signal', 'record_outbox_event', 'wait_signal', 'start_execution', 'start_step', 'register_tenant', 'resume_tenant', 'suspend_tenant', 'update_tenant', 'arm_or_consume_sleep_timer', 'extend_worker_leases', 'mark_dead_workers', 'start_worker', 'stop_worker', 'purge_expired_data', 'apply_tags', 'acquire_lock', 'acquire_slot', 'extend_lock', 'release_lock', 'reserve_rate')) = 68;
 GO

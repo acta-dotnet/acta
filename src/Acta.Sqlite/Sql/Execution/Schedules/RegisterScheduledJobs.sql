@@ -67,6 +67,8 @@ ON CONFLICT (job_id) DO UPDATE SET
     version = {{schema}}.runtimes.version + 1
 WHERE
     {{schema}}.runtimes.status_code NOT IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+    -- A held job (Paused with a next run; ScheduleWalker, "held") stays as its operator left it.
+    AND NOT ({{schema}}.runtimes.status_code = 30 /* JobStatusCode.Paused */ AND {{schema}}.runtimes.next_run_at_utc IS NOT NULL)
     -- An unchanged declaration writes nothing: a restart of the same build bumps no version.
     AND (
         {{schema}}.runtimes.status_code IS NOT excluded.status_code

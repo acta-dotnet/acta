@@ -320,9 +320,17 @@ public class JobExplainerTests
     [Fact]
     public void Paused_offers_resume()
     {
-        var x = JobExplainer.Explain(Data(Header(JobStatusCode.Paused)), Now);
+        var x = JobExplainer.Explain(Data(Header(JobStatusCode.Paused, nextRunAtUtc: Now)), Now);
         Assert.Contains("Paused", x.Headline);
         Assert.Contains(x.NextActions, a => a.Kind == "resume");
+    }
+
+    [Fact]
+    public void Paused_with_no_next_run_points_at_the_schedules()
+    {
+        var x = JobExplainer.Explain(Data(Header(JobStatusCode.Paused)), Now);
+        Assert.Contains("schedules", x.Headline);
+        Assert.DoesNotContain(x.NextActions, a => a.Kind == "resume");
     }
 
     [Fact]

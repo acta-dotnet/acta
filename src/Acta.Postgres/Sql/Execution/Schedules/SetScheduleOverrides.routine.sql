@@ -73,6 +73,8 @@ BEGIN
     RETURNING status_code, paused_until_utc, next_run_at_utc, version
     INTO v_status, v_paused, v_next, v_version;
 
+    -- Paused with a next run is an operator's or handler's hold and is left alone; Paused with none only
+    -- means no schedule offered a run (ScheduleWalker, "held").
     UPDATE {{schema}}.runtimes
     SET
         next_run_at_utc = p_job_next_run_at_utc,
@@ -82,7 +84,7 @@ BEGIN
         version = version + 1
     WHERE
         job_id = p_job_id
-        AND status_code IN (30 /* JobStatusCode.Paused */, 10 /* JobStatusCode.Ready */);
+        AND (status_code = 10 /* JobStatusCode.Ready */ OR (status_code = 30 /* JobStatusCode.Paused */ AND next_run_at_utc IS NULL));
 
     IF v_audit = 20 /* JobAuditLevelCode.Audit */ THEN
         INSERT INTO {{schema}}.events (

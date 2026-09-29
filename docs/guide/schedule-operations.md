@@ -99,8 +99,11 @@ Before a large backfill:
 - Pause excludes a schedule from the slot's minimum cursor. An indefinite pause needs an operator
   resume; a timed pause wakes and reconciles by misfire policy.
 - Pausing the recurring job itself (`IJobs.PauseAsync`) stops all of its schedules at once and holds
-  until an operator resumes the job. A worker restart, a deploy, and a schedule edit leave it paused,
-  and trigger-now is rejected. Each worker start logs a warning naming the paused job.
+  until an operator resumes, restarts, or cancels the job. A worker restart, a deploy, and any
+  schedule change leave it paused, and trigger-now is rejected. Each worker start logs a warning
+  naming the paused job.
+- A recurring job whose schedules are all paused or exhausted is Paused with no next run. It returns
+  to Ready once a schedule offers a run; a job resume is refused until one does.
 - Resume does not blindly run every missed occurrence. It applies `Skip` or `CatchUpOnce`.
 - Preview computes upcoming instants from the effective expression and time zone without reading or
   advancing the persisted cursor. It is safe on a paused schedule.

@@ -6,9 +6,9 @@ using Xunit;
 namespace Acta.Tests.Conformance.Features.Schedules;
 
 /// <summary>
-/// An operator's pause of a recurring job holds until an operator resumes it. Startup recomputes a slot's
-/// status from its schedules and the schedule verbs recompute it after every change, and neither may
-/// read a job pause as a slot with nothing left to run.
+/// An operator's pause of a recurring job holds until an operator resumes it. Only a job pause writes
+/// Paused and only a job resume, restart, or cancel lifts it: startup, the schedule verbs, and a recurring
+/// completion move a Ready slot's next run and never touch a paused one.
 /// </summary>
 [ConformanceSpec(
     "schedule.job-pause-holds",
@@ -35,6 +35,21 @@ public abstract class RecurringJobPauseSpec<TFixture> : ActaRuntimeTestBase<TFix
 
         // A second startup on the same runtime re-runs registration and the schedule reconcile.
         await Runtime.InitializeAsync(ct);
+
+        Assert.Equal(JobStatusCode.Paused, await Jobs.GetStatusAsync(Slot, ct));
+        Assert.Equal(ControlAction.Applied, (await Jobs.ResumeAsync(Slot, ct: ct)).Action);
+        Assert.Equal(JobStatusCode.Ready, await Jobs.GetStatusAsync(Slot, ct));
+    }
+
+    [Fact(DisplayName = "Pausing and resuming the only schedule of a paused recurring job leaves the job paused")]
+    public async Task Pausing_and_resuming_its_only_schedule_leaves_a_paused_job_paused()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        Assert.Equal(ControlAction.Applied, (await Jobs.PauseAsync(Slot, ct: ct)).Action);
+        var lookup = new ScheduleLookup(Slot, ScheduleName);
+
+        Assert.Equal(ControlAction.Applied, (await Operations.Schedules.PauseAsync(lookup, ct: ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Operations.Schedules.ResumeAsync(lookup, ct: ct)).Action);
 
         Assert.Equal(JobStatusCode.Paused, await Jobs.GetStatusAsync(Slot, ct));
         Assert.Equal(ControlAction.Applied, (await Jobs.ResumeAsync(Slot, ct: ct)).Action);

@@ -82,6 +82,8 @@ SET
         WHEN @p_wait_signal_name IS NOT NULL AND @p_reschedule_status_code IS NOT NULL AND (SELECT sig_state FROM _ce_done) = 20 THEN {{now}}
         WHEN @p_wait_signal_name IS NOT NULL AND @p_reschedule_status_code IS NOT NULL THEN (SELECT sig_due FROM _ce_done)
         WHEN @p_reschedule_status_code IS NOT NULL THEN COALESCE(@p_reschedule_resume_at_utc, {{now}} + (@p_reschedule_delay_seconds) * 1000)
+        -- A handler's pause keeps a next run, which marks it held (ScheduleWalker, "held").
+        WHEN @p_handler_status_code = 30 /* JobStatusCode.Paused */ THEN {{now}}
         WHEN @p_handler_status_code IS NOT NULL THEN NULL
         WHEN @p_final_status IS NOT NULL THEN @p_job_next_run_at_utc
         ELSE next_run_at_utc END,

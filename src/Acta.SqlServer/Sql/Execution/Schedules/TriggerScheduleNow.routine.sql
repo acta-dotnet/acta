@@ -16,7 +16,7 @@ BEGIN
 
         DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
         DECLARE @schedule_id BIGINT, @status TINYINT, @paused DATETIME2(7), @next DATETIME2(7), @version INT;
-        DECLARE @slot_status TINYINT;
+        DECLARE @slot_status TINYINT, @slot_next DATETIME2(7);
         DECLARE @ns INT, @def INT, @lineage BIGINT, @en INT, @audit TINYINT, @job_ref UNIQUEIDENTIFIER;
 
         /* Lock the slot's runtimes row before the schedules row: register_scheduled_jobs writes
@@ -24,6 +24,7 @@ BEGIN
            row is guard-only here (never updated): a manual trigger moves only the slot's cursor. */
         SELECT
             @slot_status = r.status_code,
+            @slot_next = r.next_run_at_utc,
             @en = r.execution_number
         FROM {{schema}}.runtimes r WITH (UPDLOCK, ROWLOCK)
         WHERE r.job_id = @p_job_id;
@@ -64,7 +65,9 @@ BEGIN
                 GOTO Finish;
             END;
 
+        -- A held job (Paused with a next run; ScheduleWalker, "held") runs only once it is resumed.
         IF @slot_status IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+            OR (@slot_status = 30 /* JobStatusCode.Paused */ AND @slot_next IS NOT NULL)
             BEGIN
 
                 SELECT
@@ -105,7 +108,10 @@ BEGIN
             version = version + 1
         WHERE
             job_id = @p_job_id
-            AND status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */);
+            AND (
+                status_code IN (20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */)
+                OR (status_code = 30 /* JobStatusCode.Paused */ AND next_run_at_utc IS NULL)
+            );
 
         IF @audit = 20 /* JobAuditLevelCode.Audit */
             BEGIN

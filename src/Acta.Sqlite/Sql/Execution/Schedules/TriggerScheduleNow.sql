@@ -6,6 +6,8 @@ SELECT
     CASE
         WHEN js.status_code = 30 /* ScheduleStatusCode.Paused */ THEN 3 /* ControlAction.Rejected */
         WHEN r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */) THEN 3 /* ControlAction.Rejected */
+        -- A held job (Paused with a next run; ScheduleWalker, "held") runs only once it is resumed.
+        WHEN r.status_code = 30 /* JobStatusCode.Paused */ AND r.next_run_at_utc IS NOT NULL THEN 3 /* ControlAction.Rejected */
         WHEN r.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN 3 /* ControlAction.Rejected */
         ELSE 1 /* ControlAction.Applied */
     END AS action
@@ -67,7 +69,10 @@ SET
     version = version + 1
 WHERE
     job_id = @p_job_id
-    AND status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */)
+    AND (
+        status_code IN (20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */)
+        OR (status_code = 30 /* JobStatusCode.Paused */ AND next_run_at_utc IS NULL)
+    )
     AND EXISTS (SELECT 1 FROM temp._tsn_target WHERE action = 1 /* ControlAction.Applied */);
 
 SELECT

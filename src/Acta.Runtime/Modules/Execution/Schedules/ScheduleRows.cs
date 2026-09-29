@@ -30,7 +30,8 @@ internal sealed record LiveSchedule(
 /// <c>(DefinitionId, ScheduleName)</c>. Drives misfire-aware reconciliation against the current
 /// descriptor schedules; <see cref="Status"/> and <see cref="PausedUntilUtc"/> keep a paused schedule
 /// out of (or, when timed, only a wake point in) the recomputed slot cursor across redeploys.
-/// <see cref="SlotStatus"/> is the owning slot job's status, the same on every row of one slot.
+/// <see cref="SlotStatus"/> and <see cref="SlotNextRunAtUtc"/> are the owning slot job's, the same on
+/// every row of one slot.
 /// </summary>
 internal sealed record StoredScheduleState(
     int DefinitionId,
@@ -38,7 +39,8 @@ internal sealed record StoredScheduleState(
     DateTime? NextRunAtUtc,
     ScheduleStatusCode Status,
     DateTime? PausedUntilUtc,
-    JobStatusCode? SlotStatus = null
+    JobStatusCode? SlotStatus = null,
+    DateTime? SlotNextRunAtUtc = null
 );
 
 /// <summary>

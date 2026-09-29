@@ -17,6 +17,7 @@ DECLARE
     v_next TIMESTAMPTZ;
     v_version INT;
     v_slot_status SMALLINT;
+    v_slot_next TIMESTAMPTZ;
     v_ns INT;
     v_def INT;
     v_lineage BIGINT;
@@ -27,8 +28,8 @@ BEGIN
     /* Lock the slot's runtimes row before the schedules row: register_scheduled_jobs writes
        runtimes then schedules, so every writer of both must take runtimes first. The schedules row
        is guard-only here (never updated): a manual trigger moves only the slot's cursor. */
-    SELECT r.status_code, r.execution_number
-    INTO v_slot_status, v_en
+    SELECT r.status_code, r.next_run_at_utc, r.execution_number
+    INTO v_slot_status, v_slot_next, v_en
     FROM {{schema}}.runtimes r
     WHERE r.job_id = p_job_id
     FOR UPDATE;
@@ -52,7 +53,9 @@ BEGIN
         RETURN;
     END IF;
 
-    IF v_slot_status IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */) THEN
+    -- A held job (Paused with a next run; ScheduleWalker, "held") runs only once it is resumed.
+    IF v_slot_status IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+        OR (v_slot_status = 30 /* JobStatusCode.Paused */ AND v_slot_next IS NOT NULL) THEN
         RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_status, v_paused, v_next, v_version;
         RETURN;
     END IF;
@@ -75,7 +78,10 @@ BEGIN
         version = version + 1
     WHERE
         job_id = p_job_id
-        AND status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */);
+        AND (
+            status_code IN (20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */)
+            OR (status_code = 30 /* JobStatusCode.Paused */ AND next_run_at_utc IS NULL)
+        );
 
     IF v_audit = 20 /* JobAuditLevelCode.Audit */ THEN
         INSERT INTO {{schema}}.events (

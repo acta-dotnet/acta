@@ -118,6 +118,8 @@ BEGIN
             WHEN v_signal_suspend AND v_sig_state = 20 /* JobCheckpointStatusCode.Set */ THEN now()
             WHEN v_signal_suspend THEN v_sig_due
             WHEN v_rearm THEN COALESCE(p_reschedule_resume_at_utc, now() + make_interval(secs => p_reschedule_delay_seconds))
+            -- A handler's pause keeps a next run, which marks it held (ScheduleWalker, "held").
+            WHEN v_handler AND p_handler_status_code = 30 /* JobStatusCode.Paused */ THEN now()
             WHEN v_handler THEN NULL
             WHEN v_recurring THEN p_job_next_run_at_utc
             ELSE r.next_run_at_utc END,

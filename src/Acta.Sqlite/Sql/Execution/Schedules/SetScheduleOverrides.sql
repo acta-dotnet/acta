@@ -70,6 +70,8 @@ WHERE
     AND status_code <> 230 /* ScheduleStatusCode.Orphaned */
     AND EXISTS (SELECT 1 FROM temp._sso_target WHERE action = 1 /* ControlAction.Applied */);
 
+-- Paused with a next run is an operator's or handler's hold and is left alone; Paused with none only
+-- means no schedule offered a run (ScheduleWalker, "held").
 UPDATE {{schema}}.runtimes
 SET
     next_run_at_utc = @p_job_next_run_at_utc,
@@ -80,7 +82,7 @@ SET
     version = version + 1
 WHERE
     job_id = @p_job_id
-    AND status_code IN (30 /* JobStatusCode.Paused */, 10 /* JobStatusCode.Ready */)
+    AND (status_code = 10 /* JobStatusCode.Ready */ OR (status_code = 30 /* JobStatusCode.Paused */ AND next_run_at_utc IS NULL))
     AND EXISTS (SELECT 1 FROM temp._sso_target WHERE action = 1 /* ControlAction.Applied */);
 
 SELECT

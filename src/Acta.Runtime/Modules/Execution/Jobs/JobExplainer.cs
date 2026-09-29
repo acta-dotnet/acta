@@ -67,6 +67,12 @@ internal static class JobExplainer
                 }
                 break;
 
+            case JobStatusCode.Paused when h.NextRunAtUtc is null:
+                // Not held (ScheduleWalker.IsHeld): a recurring job whose schedules offer no run.
+                headline = "Paused because none of its schedules has an upcoming run.";
+                actions.Add(new JobExplainAction("none", "resume or edit one of its schedules to give it a next run"));
+                break;
+
             case JobStatusCode.Paused:
                 headline = "Paused; it will not run until it is resumed.";
                 actions.Add(new JobExplainAction("resume", "resume the job"));

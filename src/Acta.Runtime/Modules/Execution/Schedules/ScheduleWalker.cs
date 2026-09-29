@@ -131,16 +131,12 @@ internal static class ScheduleWalker
     }
 
     /// <summary>
-    /// Whether an operator paused the recurring slot job itself. A slot also reads Paused when none of
-    /// its schedules offers an upcoming run, so Paused while one still does can only be a job pause.
-    /// Startup and the schedule verbs leave such a slot Paused; only a job resume lifts it.
+    /// Whether a job is held: Paused with a next run. An operator's pause and a handler's own pause always
+    /// leave a next run, while a recurring job whose schedules offer none is Paused with no next run. The
+    /// schedule verbs, startup registration, and trigger-now test this inside their own statements and never
+    /// move a held job; only a job resume, restart, or cancel lifts the hold.
     /// </summary>
-    public static bool IsJobPaused(
-        JobStatusCode? slotStatus,
-        IEnumerable<(ScheduleStatusCode Status, DateTime? NextRunAtUtc, DateTime? PausedUntilUtc)> schedules
-    ) =>
-        slotStatus == JobStatusCode.Paused
-        && schedules.Any(s => (s.Status == ScheduleStatusCode.Paused ? s.PausedUntilUtc : s.NextRunAtUtc) is not null);
+    public static bool IsHeld(JobStatusCode? status, DateTime? nextRunAtUtc) => status == JobStatusCode.Paused && nextRunAtUtc is not null;
 
     /// <summary>A schedule fires when active and due, or when a timed pause has elapsed (auto-resume).</summary>
     private static bool IsDue(LiveSchedule s, DateTime nowUtc) =>

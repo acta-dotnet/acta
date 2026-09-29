@@ -90,21 +90,21 @@
     "Hash": "fa7744573f6ec85034943f82b43de4e6"
   },
   {
-    "Provider": "mssql",
-    "Major": 1,
-    "Revision": 6,
-    "Hash": "f8faf848b686f2a71ef04f7a9c7f4ca1"
-  },
-  {
     "Provider": "sqlite",
     "Major": 1,
     "Revision": 6,
     "Hash": "eee0f6cd0cdc17a97048007f2f004bec"
   },
   {
+    "Provider": "mssql",
+    "Major": 1,
+    "Revision": 6,
+    "Hash": "299eecac25935420e1dcc42a41900271"
+  },
+  {
     "Provider": "pg",
     "Major": 1,
     "Revision": 6,
-    "Hash": "22a28c1b76be0b223169956d36b75f1e"
+    "Hash": "807e14af0ae64d6fd850772a0c5ed022"
   }
 ]

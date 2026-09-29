@@ -835,7 +835,7 @@
   - Handler fail lands terminal Failed with budget untouched, no result, the matching reason, and no post-control user code
   - A non-retryable exception lands terminal Failed without retries
   - Handler cancel lands terminal Cancelled with the matching reason, no result, and a JobCancelled lifecycle event
-  - Handler pause holds Paused with no next run, the matching reason, no result, and a JobPaused lifecycle event
+  - Handler pause holds Paused with a next run, the matching reason, no result, and a JobPaused lifecycle event
   - A handler-paused job resumes to Ready via external control
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
@@ -2575,6 +2575,7 @@
 - **Assert:** The job stays Paused through the restart and the edit, trigger-now is rejected, and only the resume makes it Ready.
 - **Guarantees:**
   - A paused recurring job stays paused when the worker starts again, and a resume makes it Ready
+  - Pausing and resuming the only schedule of a paused recurring job leaves the job paused
   - Editing or triggering a schedule of a paused recurring job leaves the job paused
 
 ### Multi-schedule slot picks MIN next_run and recomputes on fire
