@@ -19,7 +19,11 @@ public sealed record BaselinePolicy(int WarmupIterations, int MeasuredRepeats, s
 /// the enqueue-batch scenario's own, much larger count, because that scenario writes rows without
 /// draining them and burns <c>Jobs</c> in a fraction of a second on every provider.
 /// </summary>
-public sealed record BenchPreset(string Name, BaselinePolicy Policy, int Jobs, int EnqueueBatchJobs, int QueryRows, bool FullMatrix);
+public sealed record BenchPreset(string Name, BaselinePolicy Policy, int Jobs, int EnqueueBatchJobs, int QueryRows, bool FullMatrix)
+{
+    /// <summary>The execution profiles the matrix covers; null means all three on the full matrix and Direct otherwise.</summary>
+    public IReadOnlyList<ExecutionProfile>? Profiles { get; init; }
+}
 
 public sealed record BaselineEnvironmentInfo(
     string DotnetVersion,
@@ -137,6 +141,22 @@ public static class BaselineSuite
         FullMatrix: true
     );
 
+    // The release round's preset: every execution profile at the quick matrix's points, one warmup and
+    // one measured run, about fifteen minutes a database. It is always run beside the previous release in
+    // the same hour, candidate then control per database, because the rig moves cells by a third between
+    // hours and only an adjacent pair carries a verdict; the full matrix stays for investigating a cell.
+    public static readonly BenchPreset ReleasePreset = new(
+        "release",
+        new BaselinePolicy(1, 1, "single"),
+        Jobs: 5_000,
+        EnqueueBatchJobs: 200_000,
+        QueryRows: 50_000,
+        FullMatrix: false
+    )
+    {
+        Profiles = [ExecutionProfile.Buffered, ExecutionProfile.Direct, ExecutionProfile.Bulk],
+    };
+
     /// <summary>One rate cell: the rate its meter is overridden to, and the load put through it.</summary>
     private sealed record RateCell(string Rate, int Jobs, int Workers, int SideJobs, bool QuickToo);
 
@@ -168,9 +188,13 @@ public static class BaselineSuite
     /// <summary>
     /// A lanes cell's job count: the preset's shared count, except Bulk lane-deep. There every handoff waits
     /// for the completion flush, a few jobs a second, so the shared count would outrun the drain deadline.
+    /// Outside the full matrix the two serial cells, one hot key and one deep lane, run a thousand: they
+    /// drain one job at a time, so a larger count only makes the cell longer.
     /// </summary>
     public static int LanesJobs(BenchPreset preset, ExecutionProfile profile, string variant) =>
-        profile == ExecutionProfile.Bulk && variant == LanesScenario.LaneDeep ? (preset.FullMatrix ? 200 : 50) : preset.Jobs;
+        profile == ExecutionProfile.Bulk && variant == LanesScenario.LaneDeep ? (preset.FullMatrix ? 200 : 50)
+        : !preset.FullMatrix && variant is LanesScenario.KeyHot or LanesScenario.LaneDeep ? Math.Min(preset.Jobs, 1_000)
+        : preset.Jobs;
 
     public static BenchPreset Preset(string name)
     {
@@ -178,9 +202,13 @@ public static class BaselineSuite
         {
             return QuickPreset;
         }
+        if (string.Equals(name, ReleasePreset.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            return ReleasePreset;
+        }
         return string.Equals(name, FullPreset.Name, StringComparison.OrdinalIgnoreCase)
             ? FullPreset
-            : throw new ArgumentException($"Unknown preset '{name}' (expected quick|full).");
+            : throw new ArgumentException($"Unknown preset '{name}' (expected quick|release|full).");
     }
 
     public static IReadOnlyList<BaselineCellSpec> Cells(
@@ -191,7 +219,7 @@ public static class BaselineSuite
     )
     {
         var specs = new List<BaselineCellSpec>();
-        var profiles = preset.FullMatrix ? ExecutionProfiles : [ExecutionProfile.Direct];
+        var profiles = preset.Profiles ?? (preset.FullMatrix ? ExecutionProfiles : [ExecutionProfile.Direct]);
         var throughputExecutors = preset.FullMatrix ? new[] { 1, 2, 4, 8, 16, 32 } : [1, 8, 32];
         var producerCounts = preset.FullMatrix ? new[] { 1, 4, 16 } : [1, 16];
 

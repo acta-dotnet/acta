@@ -224,20 +224,25 @@ public static class BenchCli
         while (true)
         {
             Console.WriteLine("Select benchmark preset:");
-            Console.WriteLine("  1) quick  - local 5-10 minute run for one database");
-            Console.WriteLine("  2) full   - canonical full matrix");
+            Console.WriteLine("  1) quick    - local 5-10 minute run for one database");
+            Console.WriteLine("  2) release  - the release round's matrix, about 15 minutes a database");
+            Console.WriteLine("  3) full     - canonical full matrix");
             Console.Write("Choice [1]: ");
             var raw = Console.ReadLine();
             if (string.IsNullOrWhiteSpace(raw) || raw.Trim() is "1" or "quick")
             {
                 return BaselineSuite.QuickPreset;
             }
-            if (raw.Trim() is "2" or "full")
+            if (raw.Trim() is "2" or "release")
+            {
+                return BaselineSuite.ReleasePreset;
+            }
+            if (raw.Trim() is "3" or "full")
             {
                 return BaselineSuite.FullPreset;
             }
 
-            Console.WriteLine("Choose 1, 2, quick, or full.");
+            Console.WriteLine("Choose 1, 2, 3, quick, release, or full.");
         }
     }
 

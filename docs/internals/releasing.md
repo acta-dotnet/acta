@@ -140,8 +140,12 @@ what the rounds on this machine cost to learn.
   flushes per second after sustained writes, stays there for hours, and flaps between the two states,
   so take readings minutes apart and start only when several agree. A probe in a tight loop is itself
   a write load and keeps the drive from recovering.
-- Interleave the trees: candidate, control on the previous tag, candidate again, per provider, so all
-  three share the drive's state. A pair split across states is discarded whichever way it points.
+- Run the `release` preset: every execution profile at the quick matrix's points, one warmup and one
+  measured run, about fifteen minutes a database. Per database, the candidate and then the control on
+  the previous tag, back to back, so each pair shares the drive's state; a pair split across states is
+  discarded whichever way it points. Three pairs take about ninety minutes. The `full` matrix stays for
+  investigating a cell, never for the round. A previous tag whose harness predates a preset gets the
+  preset backported into its worktree's harness alone, and the round's page says so.
 - One chain at a time. A stopped background chain leaves its child script alive, and that script starts
   its next cell the moment the harness process is killed; list processes by command line
   (`Win32_Process`) and confirm `pg_stat_activity` is empty before starting another round.
