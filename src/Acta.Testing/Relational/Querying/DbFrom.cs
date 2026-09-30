@@ -194,7 +194,12 @@ internal sealed class DbFrom<TEntity, TProjection>
     private async Task<TKey> InsertCoreAsync<TKey>(TEntity entity, CancellationToken ct)
     {
         await using var conn = await _session.OpenConnectionAsync(ct);
+        // An explicit transaction, so an attempt that fails anywhere, its commit included, rolls back whole
+        // and the retry starts clean: an autocommit INSERT ... RETURNING on SQLite once reported a transient
+        // failure yet left its row for the retry to collide with.
+        await using var tx = await conn.BeginTransactionAsync(ct);
         await using var cmd = conn.CreateCommand();
+        cmd.Transaction = tx;
         var sb = new StringBuilder();
 
         DbColumnSpec? identity = null;
@@ -257,9 +262,11 @@ internal sealed class DbFrom<TEntity, TProjection>
         if (identity is null)
         {
             await cmd.ExecuteNonQueryAsync(ct);
+            await tx.CommitAsync(ct);
             return ((IEntity<TKey>)entity).Id;
         }
         var scalar = await cmd.ExecuteScalarAsync(ct);
+        await tx.CommitAsync(ct);
         return (TKey)Convert.ChangeType(scalar!, typeof(TKey), CultureInfo.InvariantCulture);
     }
 

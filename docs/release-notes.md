@@ -317,6 +317,9 @@ three evidence harnesses join the release checklist.
   in twelve to sixteen seconds. The budget of that helper now covers only the retries, not the
   first drive: a drive that reconciles a refused start paces its own retry and could outlast the
   budget on a loaded box, and the fact then heard an empty claim for a row it had left Ready.
+- `Acta.Testing`'s `InsertAsync` runs in an explicit transaction. It repeats an insert the database
+  aborted as a transient conflict, and on SQLite an autocommit insert once reported one yet left
+  its row behind, so the repeat failed on a unique key; a failed attempt now rolls back whole.
 
 ## 1.0.0-rc.3
 
