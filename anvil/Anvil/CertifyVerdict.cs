@@ -106,35 +106,42 @@ internal static class CertifyVerdict
     /// <summary>
     /// Check 14, the rate contract, computed here rather than in <c>certify.sql</c>: counting a sliding
     /// window needs timestamp arithmetic with a different spelling on each provider that file runs on.
-    /// Prints one line per over-budget window and always a note line carrying the numbers, and returns
-    /// whether the meter held.
+    /// Checked once per meter against that meter's own budgets. Prints one line per over-budget window and
+    /// always a note line carrying the numbers, and returns whether every meter held.
     /// </summary>
     private static async Task<bool> RateContractAsync(DbConnection connection, string prefix, CancellationToken ct)
     {
-        var (perSecond, burst, validitySeconds) = Meter(MeteredJob.Rate);
-        var instants = await AdmissionsAsync(connection, prefix, ct);
-        var budget1 = Budget(perSecond, burst, validitySeconds, 1);
-        var budget10 = Budget(perSecond, burst, validitySeconds, 10);
-        var (max1, over1) = Scan(instants, 1, budget1);
-        var (max10, over10) = Scan(instants, 10, budget10);
-        var violations = over1.Concat(over10).ToList();
-
-        foreach (var window in violations.Take(ReportedWindows))
+        var held = true;
+        foreach (var (jobName, rate, _) in MeteredJob.Meters)
         {
-            Console.WriteLine($"  [FAIL] {"rate-contract", -28} {window}");
-        }
-        if (violations.Count > ReportedWindows)
-        {
-            Console.WriteLine($"  [FAIL] {"rate-contract", -28} and {violations.Count - ReportedWindows} further window(s) over budget");
-        }
+            var (perSecond, burst, validitySeconds) = Meter(rate);
+            var instants = await AdmissionsAsync(connection, prefix, jobName, ct);
+            var budget1 = Budget(perSecond, burst, validitySeconds, 1);
+            var budget10 = Budget(perSecond, burst, validitySeconds, 10);
+            var (max1, over1) = Scan(instants, 1, budget1);
+            var (max10, over10) = Scan(instants, 10, budget10);
+            var violations = over1.Concat(over10).ToList();
 
-        // Printed on a passing run too: the seal's claim is the measured envelope, not the absence of
-        // a failure line, and a reader cannot judge the margin without the busiest window beside it.
-        Console.WriteLine(
-            $"  [note] {"rate-contract", -28} rate={MeteredJob.Rate} admitted={instants.Count}"
-                + $" max_1s={max1} budget_1s={budget1} max_10s={max10} budget_10s={budget10}"
-        );
-        return violations.Count == 0;
+            foreach (var window in violations.Take(ReportedWindows))
+            {
+                Console.WriteLine($"  [FAIL] {"rate-contract", -28} {jobName}: {window}");
+            }
+            if (violations.Count > ReportedWindows)
+            {
+                Console.WriteLine(
+                    $"  [FAIL] {"rate-contract", -28} {jobName}: and {violations.Count - ReportedWindows} further window(s) over budget"
+                );
+            }
+
+            // Printed on a passing run too: the seal's claim is the measured envelope, not the absence of
+            // a failure line, and a reader cannot judge the margin without the busiest window beside it.
+            Console.WriteLine(
+                $"  [note] {"rate-contract", -28} rate={rate} admitted={instants.Count}"
+                    + $" max_1s={max1} budget_1s={budget1} max_10s={max10} budget_10s={budget10}"
+            );
+            held &= violations.Count == 0;
+        }
+        return held;
     }
 
     // The two numbers the meter is built from, derived from the declared rate exactly as RateLimitSpec
@@ -195,9 +202,15 @@ internal static class CertifyVerdict
     // The witness: one note per admitted attempt, written by the metered body before it does anything
     // else. Joined through definitions rather than trusted to the note text alone, so another shape
     // writing the same words could not be read as an admission.
-    private static async Task<IReadOnlyList<DateTime>> AdmissionsAsync(DbConnection connection, string prefix, CancellationToken ct)
+    private static async Task<IReadOnlyList<DateTime>> AdmissionsAsync(
+        DbConnection connection,
+        string prefix,
+        string jobName,
+        CancellationToken ct
+    )
     {
         await using var cmd = connection.CreateCommand();
+        // The job name is one of the three constants the meters declare, never input.
         cmd.CommandText = $"""
             SELECT e.created_at_utc
             FROM   {prefix}events e
@@ -205,7 +218,7 @@ internal static class CertifyVerdict
             JOIN   {prefix}definitions d ON d.id = j.definition_id
             WHERE  e.event_code = 90
               AND  e.reason_message = 'metered-admitted'
-              AND  d.name = 'metered'
+              AND  d.name = '{jobName}'
             ORDER  BY e.created_at_utc
             """;
         var instants = new List<DateTime>();

@@ -44,7 +44,20 @@ public sealed record AtMostOnceCharge(string Label, int WorkMs);
 /// cluster-wide. Seeded into the crash workload so the meter is certified while workers are being killed
 /// and their attempts reclaimed and re-run.
 /// </summary>
-public sealed record Metered(string Label);
+public sealed record Metered10(string Label);
+
+/// <summary>The <see cref="Metered10"/> shape at fifty admissions a second.</summary>
+public sealed record Metered50(string Label);
+
+/// <summary>The <see cref="Metered10"/> shape at a hundred admissions a second.</summary>
+public sealed record Metered100(string Label);
+
+/// <summary>
+/// A job enqueued into a lane: the lane runs its members one at a time in enqueue order, and a killed
+/// head is reclaimed and re-run in place before the member behind it may start. Seeded into the crash
+/// workload so lane order is certified while the workers running the heads are being killed.
+/// </summary>
+public sealed record Laned(string Label, int StepCount, int StepDelayMs);
 
 public static class SteadySuccessJob
 {
@@ -198,8 +211,24 @@ public static class AtMostOnceChargeJob
 
 public static class MeteredJob
 {
-    /// <summary>The declared meter, read back by the verdict to derive the window budgets it checks.</summary>
-    internal const string Rate = "600/m";
+    /// <summary>
+    /// The three meters, each its own definition, read back by the verdict to derive the window budgets it
+    /// checks per definition. Three rates metering side by side also prove each meter admits against its
+    /// own bucket, never another's turns.
+    /// </summary>
+    internal static readonly (string JobName, string Rate, Func<string, JobPayload> Payload)[] Meters =
+    [
+        (Slow, SlowRate, label => AnvilPayloads.Json(new Metered10(label))),
+        (Medium, MediumRate, label => AnvilPayloads.Json(new Metered50(label))),
+        (Fast, FastRate, label => AnvilPayloads.Json(new Metered100(label))),
+    ];
+
+    private const string Slow = "metered-10";
+    private const string SlowRate = "10/s";
+    private const string Medium = "metered-50";
+    private const string MediumRate = "50/s";
+    private const string Fast = "metered-100";
+    private const string FastRate = "100/s";
 
     // The note is the whole evidence for the rate contract, and it is written before anything else so
     // it stands for the instant the handler was admitted. Admission is metered per attempt, after
@@ -207,11 +236,46 @@ public static class MeteredJob
     // which makes admitted handler starts the quantity the contract bounds. `steps` cannot count them:
     // it keeps one row per (job, name) and updates it in place. Every event carries the database's own
     // stamp, so the windows are measured on one clock rather than on each worker's.
-    [Job("metered", RateLimit = Rate)]
-    public static async Task<string> Handle(Metered input, JobContext ctx, CancellationToken ct)
+    [Job(Slow, RateLimit = SlowRate)]
+    public static Task<string> HandleSlow(Metered10 input, JobContext ctx, CancellationToken ct) => AdmitAsync(input.Label, ctx, ct);
+
+    [Job(Medium, RateLimit = MediumRate)]
+    public static Task<string> HandleMedium(Metered50 input, JobContext ctx, CancellationToken ct) => AdmitAsync(input.Label, ctx, ct);
+
+    [Job(Fast, RateLimit = FastRate)]
+    public static Task<string> HandleFast(Metered100 input, JobContext ctx, CancellationToken ct) => AdmitAsync(input.Label, ctx, ct);
+
+    private static async Task<string> AdmitAsync(string label, JobContext ctx, CancellationToken ct)
     {
         await ctx.NoteAsync("metered-admitted", ct);
-        return $"metered: {input.Label}";
+        return $"metered: {label}";
+    }
+}
+
+public static class LanedJob
+{
+    // Seeded ten to a lane, so the lane runs them one at a time in enqueue order while workers die under
+    // them. Durable steps with a body long enough that a kill lands inside one, and each step writes the
+    // same step-body note slow-success does, so check 7 covers a replayed lane head too. The order itself
+    // needs no witness: certify.sql reads it from the execution events the engine writes (checks 15-16).
+    [Job("laned")]
+    public static async Task<string> Handle(Laned input, JobContext ctx, CancellationToken ct)
+    {
+        for (var step = 1; step <= input.StepCount; step++)
+        {
+            var name = $"step-{step}";
+            await ctx.RunStepAsync(
+                name,
+                async token =>
+                {
+                    await ctx.NoteAsync($"step-body {name}", token);
+                    await Task.Delay(input.StepDelayMs, token);
+                },
+                ct: ct
+            );
+        }
+
+        return $"laned: {input.Label}";
     }
 }
 
@@ -252,7 +316,13 @@ internal static class AnvilPayloads
 
     public static JobPayload Json(AtMostOnceCharge v) => JobPayload.Json(v, AnvilPayloadJsonContext.Default.AtMostOnceCharge);
 
-    public static JobPayload Json(Metered v) => JobPayload.Json(v, AnvilPayloadJsonContext.Default.Metered);
+    public static JobPayload Json(Metered10 v) => JobPayload.Json(v, AnvilPayloadJsonContext.Default.Metered10);
+
+    public static JobPayload Json(Metered50 v) => JobPayload.Json(v, AnvilPayloadJsonContext.Default.Metered50);
+
+    public static JobPayload Json(Metered100 v) => JobPayload.Json(v, AnvilPayloadJsonContext.Default.Metered100);
+
+    public static JobPayload Json(Laned v) => JobPayload.Json(v, AnvilPayloadJsonContext.Default.Laned);
 }
 
 /// <summary>
@@ -277,7 +347,10 @@ internal static class AnvilPayloads
 [JsonSerializable(typeof(OutboxReceipt))]
 [JsonSerializable(typeof(FanOut))]
 [JsonSerializable(typeof(AtMostOnceCharge))]
-[JsonSerializable(typeof(Metered))]
+[JsonSerializable(typeof(Metered10))]
+[JsonSerializable(typeof(Metered50))]
+[JsonSerializable(typeof(Metered100))]
+[JsonSerializable(typeof(Laned))]
 [JsonSerializable(typeof(Pulse))]
 // Job outputs.
 [JsonSerializable(typeof(string))]

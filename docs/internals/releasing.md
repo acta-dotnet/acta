@@ -85,6 +85,15 @@ per-release gate run locally.
 - A seal is only meaningful with non-zero reclaims: a run shorter than the lease window plus the
   recovery cadence reports zero and is INCONCLUSIVE, not PASS.
 - SQLite is single-node, so its run is reduced and its seal states which properties were out of scope.
+- The round runs in two waves, each side by side, because a certification proves properties, not
+  speed: the three standard gates and the ensemble (10,000 jobs, 5 steps of 1 s, 7 minutes of chaos,
+  on ports of their own), then both million-job runs (24 workers of 64 executors, 5 steps of 250 ms,
+  12 minutes of chaos). A step body must dwarf the engine's per-job cost so a kill lands inside one,
+  and the drain must outlast the chaos window and the reclaim warm-up, or the last kills hit idle
+  workers.
+- The crash workload carries every property a kill can break: durable steps, an AtMostOnce charge,
+  three rate meters side by side (10/s, 50/s, and 100/s, each checked against its own budget), and
+  laned jobs ten to a lane (checked for order and for draining).
 - File the JSON/MD seal under `docs/certification/`.
 
 Two commits carry a release, and their roles do not mix:

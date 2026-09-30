@@ -9,7 +9,7 @@
 -- schemas). The runner substitutes it.
 --
 -- Codes, from source rather than memory:
---   JobStatusCode        Ready=10 Suspended=20 Paused=30 Dispatched=40 Executing=50
+--   JobStatusCode        Ready=10 Blocked=15 Suspended=20 Paused=30 Dispatched=40 Executing=50
 --                        Succeeded=100 Failed=200 Cancelled=220
 --   ExecutionStatusCode  Executing=50 Succeeded=100 Rescheduled=150 Suspended=151 Paused=152
 --                        Failed=200 Cancelled=220 Orphaned=230
@@ -285,8 +285,10 @@ WHERE  e.event_code = 90
 -- ---------------------------------------------------------------------------------------------
 -- 14. the rate meter never over-admitted                 [COMPUTED IN PROCESS: see CertifyVerdict]
 -- ---------------------------------------------------------------------------------------------
--- The rate-limit claim: a definition declaring `600/m` never starts more handlers inside a window
--- than its meter allows, while workers are being killed and their attempts reclaimed and re-run.
+-- The rate-limit claim: a definition declaring a rate never starts more handlers inside a window than
+-- its meter allows, while workers are being killed and their attempts reclaimed and re-run. Three
+-- meters run side by side, `metered-10`, `metered-50`, and `metered-100` at 10/s, 50/s, and 100/s, and
+-- each is checked against its own budgets, so one meter admitting on another's turns fails too.
 --
 -- The witness is the `metered-admitted` note each metered body writes as its first action (event
 -- code 90), one per admitted attempt. Admission is metered per attempt, after start_execution and
@@ -296,8 +298,9 @@ WHERE  e.event_code = 90
 -- The contract is an upper envelope, not a smooth rate. For a declared rate of R admissions per
 -- second with burst B, a window of T seconds holds at most R*(T + W) + B admitted starts, W being
 -- how long a booked turn stays valid past its instant: one second, or the emission interval when
--- that is longer. `600/m` parses to a 100ms interval, so R = 10/s, B = 10, W = 1s, and the budgets
--- are 30 starts in any one-second window and 120 in any ten-second window.
+-- that is longer. The burst is one second's worth of the rate and W is one second at all three rates,
+-- so the budgets for one and ten seconds are 30 and 120 at 10/s, 150 and 600 at 50/s, and 300 and
+-- 1,200 at 100/s.
 --
 -- This is the one check that is not SQL. Counting a sliding window needs timestamp arithmetic, and
 -- date addition has three different spellings across the providers this file runs on unchanged.
@@ -310,3 +313,41 @@ WHERE  e.event_code = 90
 -- routine captured at entry, so a run whose recorded clock stepped backwards can bunch admissions
 -- into a window they did not belong to. The envelope absorbs a little of that; a violation of a few
 -- starts over budget on a run with many backsteps is worth re-reading before it is called a defect.
+
+-- ---------------------------------------------------------------------------------------------
+-- 15. a lane ran its members one at a time, in enqueue order   [QUIESCED ONLY]
+-- ---------------------------------------------------------------------------------------------
+-- The lane claim: of two consecutive members of a lane, the later one never started before the
+-- earlier one finished for the last time, through kills, reclaims, and re-runs of the head. That is
+-- both halves of it at once: nothing overtakes, and no two members of a lane are ever in flight.
+--
+-- No clock. `events.id` is assigned in insert order, and the settle that finishes a member promotes
+-- the next in the same transaction, so every start of the next member is inserted after that finish.
+-- Consecutive pairs are enough: each member finishes after it starts, so the order is transitive.
+-- An earlier member with no finish at all while a later one started is a violation too.
+SELECT 'lane-order' AS check_name, p.lane_id, p.job_id AS earlier_job, p.next_job_id AS later_job
+FROM   (SELECT r.lane_id, r.job_id,
+               LEAD(r.job_id) OVER (PARTITION BY r.lane_id ORDER BY r.job_id) AS next_job_id
+        FROM   {s}runtimes r
+        WHERE  r.lane_id IS NOT NULL) p
+JOIN   (SELECT job_id, MIN(id) AS first_start
+        FROM   {s}events
+        WHERE  event_code = 40
+        GROUP  BY job_id) s ON s.job_id = p.next_job_id
+LEFT   JOIN (SELECT job_id, MAX(id) AS last_finish
+             FROM   {s}events
+             WHERE  event_code = 41
+             GROUP  BY job_id) f ON f.job_id = p.job_id
+WHERE  f.last_finish IS NULL
+   OR  s.first_start < f.last_finish;
+
+-- ---------------------------------------------------------------------------------------------
+-- 16. every lane drained                                  [QUIESCED ONLY]
+-- ---------------------------------------------------------------------------------------------
+-- No laned job is left behind once the run is over: none Ready, Blocked, Suspended, or Paused. Check 4
+-- covers only rows in flight, and a lane whose promotion was lost strands its members Blocked, which
+-- nothing in flight would show.
+SELECT 'lane-drained' AS check_name, r.job_id, r.lane_id, r.status_code
+FROM   {s}runtimes r
+WHERE  r.lane_id IS NOT NULL
+  AND  r.status_code NOT IN (100, 200, 220);

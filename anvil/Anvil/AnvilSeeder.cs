@@ -12,14 +12,24 @@ public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
     private const int ChunkSize = 5_000;
     private const int FanOutChildCount = 5;
 
-    // The metered slice's ceiling; see CrashRecoveryPlan.
+    // The metered and laned slices' ceilings, and the lane depth; see CrashRecoveryPlan.
     private const int MeteredCap = 10_000;
+    private const int LanedCap = 20_000;
+    private const int LaneDepth = 10;
+    private const int LaneSteps = 3;
 
     private readonly IJobs _jobs = jobs;
     private readonly AnvilSession _session = session;
 
     // Delay is per item so a line can be spread across a window rather than all due at once.
-    private sealed record SeedLine(string JobName, int Count, bool Fails, Func<int, JobPayload> Payload, Func<int, int?>? Delay = null);
+    private sealed record SeedLine(
+        string JobName,
+        int Count,
+        bool Fails,
+        Func<int, JobPayload> Payload,
+        Func<int, int?>? Delay = null,
+        Func<int, string>? Lane = null
+    );
 
     private static IReadOnlyList<SeedLine> Plan(AnvilRunSpec spec) =>
         spec.Workload switch
@@ -50,17 +60,40 @@ public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
     // of 4,000 at ten a second is about forty seconds of meter-bound work inside a seven-minute chaos
     // window). The cap is what keeps a million-job run a run of the ledger rather than of the meter:
     // its tenth would be 100,000 turns at ten a second, and the ledger would sit drained for the last
-    // two and a half hours while the meter paid them out.
+    // two and a half hours while the meter paid them out. The slice is split across three meters, a
+    // fifth at ten a second and two fifths each at fifty and at a hundred, so a million-job run pays its
+    // ten thousand out in minutes and the verdict checks three contracts side by side.
+    //
+    // A further tenth, capped at twenty thousand, is laned: ten jobs to a lane, due inside the chaos
+    // window like the charges, a lane at a time, so a lane's head is running when its worker dies. Lane
+    // membership is the index modulo the lane count, and the plan seeds in index order, so each lane's
+    // members are enqueued, and numbered, in the order the lane must run them.
     private static IReadOnlyList<SeedLine> CrashRecoveryPlan(AnvilRunSpec spec)
     {
         var charges = Math.Max(1, spec.Load / 10);
-        var metered = Math.Min(Math.Max(1, spec.Load / 10), MeteredCap);
-        var slow = Math.Max(0, spec.Load - charges - metered);
+        var metered = Math.Min(Math.Max(3, spec.Load / 10), MeteredCap);
+        var laned = Math.Min(Math.Max(LaneDepth, spec.Load / 10), LanedCap);
+        var lanes = Math.Max(1, laned / LaneDepth);
+        var slow = Math.Max(0, spec.Load - charges - metered - laned);
         var spread = Math.Max(1, spec.EffectSpreadSeconds);
+        int? DueInChaos(int i) => spec.EffectDelaySeconds <= 0 ? null : spec.EffectDelaySeconds + (i % spread);
+        var meterShares = new[] { metered / 5, metered * 2 / 5, metered - (metered / 5) - (metered * 2 / 5) };
         return
         [
             new("slow-success", slow, false, i => AnvilPayloads.Json(new SlowSuccess($"slow-{i}", 5, spec.StepDelayMs))),
-            new("metered", metered, false, i => AnvilPayloads.Json(new Metered($"metered-{i}"))),
+            .. MeteredJob.Meters.Select(
+                (meter, m) => new SeedLine(meter.JobName, meterShares[m], false, i => meter.Payload($"{meter.JobName}-{i}"))
+            ),
+            new(
+                "laned",
+                laned,
+                false,
+                i => AnvilPayloads.Json(new Laned($"laned-{i}", LaneSteps, spec.StepDelayMs)),
+                // Every member of a lane shares the lane's due instant, so the lane starts at once and
+                // runs through the window one member at a time.
+                i => DueInChaos(i % lanes),
+                i => $"lane-{i % lanes}"
+            ),
             new(
                 "at-most-once-charge",
                 charges,
@@ -69,7 +102,7 @@ public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
                 // Due inside the window where a kill can actually interrupt a body: after the warm-up,
                 // because nothing is reclaimable before a lease can lapse, and before the chaos ends.
                 // Zero means due now, which is what the cockpit wants and a certification never does.
-                i => spec.EffectDelaySeconds <= 0 ? null : spec.EffectDelaySeconds + (i % spread)
+                DueInChaos
             ),
         ];
     }
@@ -109,7 +142,8 @@ public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
                             i,
                             line.Payload(i),
                             spec.Workload,
-                            line.Delay?.Invoke(i)
+                            line.Delay?.Invoke(i),
+                            line.Lane?.Invoke(i)
                         )
                     );
 
@@ -159,7 +193,8 @@ public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
         int index,
         JobPayload input,
         AnvilWorkloadCode workload,
-        int? delaySeconds = null
+        int? delaySeconds = null,
+        string? lane = null
     ) =>
         new(
             namespaceName,
@@ -168,6 +203,7 @@ public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
             DeduplicationKey: $"anvil/{runId}/{batch:000}/{jobName}/{index}",
             CorrelationKey: runId,
             DelaySeconds: delaySeconds,
+            Lane: lane,
             Tags: [new TagInput("demo", "anvil"), new TagInput("run", runId), new TagInput("workload", workload.ToString())],
             // Every sixth of the seeded jobs cycles through a demo tenant so tenant-scoped views have
             // data; the rest stay untenanted so both kinds of jobs exist side by side.
