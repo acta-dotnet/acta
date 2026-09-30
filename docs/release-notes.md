@@ -270,6 +270,16 @@ three evidence harnesses join the release checklist.
   claimed the new slot, ran it once, and left it Succeeded: the job never ran on schedule again until
   a restart. A claimed job whose deduplication key is its job name and that has live schedules is now
   fired as the slot it is.
+- **A cancelled recurring job stays cancelled.** Every worker start re-registers its recurring slots,
+  and registration turned a slot an operator or its handler had cancelled back to Ready. It now leaves
+  a finished slot as it stands, and only a job restart brings one back. A deploy that removes every
+  schedule of a recurring job no longer cancels it either: the job waits Paused with no next run and
+  runs again when a schedule returns.
+- **Registration never adopts an ordinary job.** A slot's deduplication key is its job name, and an
+  ordinary job enqueued earlier under that key was taken over as the slot: its input rewritten, its
+  recorded steps replayed by the recurring fires, and, when it waited in a lane, released beside the
+  lane's head. Registration now takes a row only when it just created it or the row already owns
+  schedules, and the worker refuses to start with an error naming the recurring job.
 
 ### Release evidence
 

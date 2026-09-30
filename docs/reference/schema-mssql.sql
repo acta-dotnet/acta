@@ -6688,7 +6688,10 @@ BEGIN
         INNER JOIN @p_definitions AS d ON d.deduplication_key = j.deduplication_key
         WHERE
             j.namespace_id = @p_namespace_id
-            AND j.parent_id IS NULL;
+            AND j.parent_id IS NULL
+            -- A row already holding the key is the slot only when it owns schedules; an ordinary job that
+            -- took the key is left untouched and missing from the result, which fails the worker's startup.
+            AND EXISTS (SELECT 1 FROM acta.schedules AS s WHERE s.job_id = j.id);
 
         UPDATE r
         SET
@@ -6704,7 +6707,11 @@ BEGIN
         WHERE
             j.namespace_id = @p_namespace_id
             AND j.parent_id IS NULL
-            AND r.status_code NOT IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+            AND EXISTS (SELECT 1 FROM acta.schedules AS s WHERE s.job_id = j.id)
+            -- An attempt in flight owns the slot, and a finished slot stays finished until an operator restarts it.
+            AND r.status_code NOT IN (
+                40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */,
+                100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
             -- A held job (Paused with a next run; ScheduleWalker, "held") stays as its operator left it.
             AND NOT (r.status_code = 30 /* JobStatusCode.Paused */ AND r.next_run_at_utc IS NOT NULL)
             -- An unchanged declaration writes nothing: a restart of the same build bumps no version.
@@ -6783,7 +6790,9 @@ BEGIN
             ON
                 j.namespace_id = @p_namespace_id
                 AND j.deduplication_key = d.deduplication_key
-                AND j.parent_id IS NULL;
+                AND j.parent_id IS NULL
+        -- The slot this call inserted, or one that already owns schedules.
+        WHERE j.job_ref = d.job_ref OR EXISTS (SELECT 1 FROM acta.schedules AS s WHERE s.job_id = j.id);
 
         UPDATE tgt
         SET
@@ -9668,7 +9677,7 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.6-299eecac25935420e1dcc42a41900271', 'acta'
+SELECT -1, 'objects-1.6-1408a683db9b66dce254a1da77571a49', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
     WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'jobs_view', 'schedules_view', 'steps_view', 'workers_view', 'events_view', 'tags_view', 'acknowledge_job_alert', 'raise_job_alert', 'resolve_job_alert_manual', 'resolve_job_alerts', 'update_alert_delivery', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_executions_batch', 'complete_step', 'register_job_definitions', 'set_job_definition_overrides', 'cancel_job', 'enqueue_batch', 'enqueue_one', 'pause_job', 'purge_job', 'reprioritize_job', 'reschedule_job', 'reset_job_state', 'restart_job', 'resume_job', 'update_job_input', 'resume_namespace', 'suspend_namespace', 'update_namespace', 'record_job_note', 'reclaim_stuck_jobs', 'repair_recovery_slot', 'pause_schedule', 'register_scheduled_jobs', 'resume_schedule', 'set_schedule_overrides', 'trigger_schedule_now', 'set_setting', 'consume_outbox_signal', 'park_outbox_signal', 'raise_signal', 'record_outbox_event', 'wait_signal', 'start_execution', 'start_step', 'register_tenant', 'resume_tenant', 'suspend_tenant', 'update_tenant', 'arm_or_consume_sleep_timer', 'extend_worker_leases', 'mark_dead_workers', 'start_worker', 'stop_worker', 'purge_expired_data', 'apply_tags', 'acquire_lock', 'acquire_slot', 'extend_lock', 'release_lock', 'reserve_rate')) = 68;
 GO

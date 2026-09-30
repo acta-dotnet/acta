@@ -16,7 +16,7 @@ namespace Acta.Tests.Conformance.Features.Schedules;
     "schedule.slot-re-registration",
     "A second host starting does not disturb a slot the first host is executing",
     Area = "Scheduling",
-    Contract = "Re-registration writes an idle slot only when its declaration changed, and skips a slot in flight, leaving its status, lease, and cursor to its execution.",
+    Contract = "Registration writes an idle slot only when its declaration changed, skips one in flight or finished, and never adopts an ordinary job.",
     Arrange = "A recurring slot is registered, then put in flight with a worker lease as if another host had claimed it.",
     Act = "The same definition is registered again, as a second host does on startup, with the declaration changed or identical.",
     Assert = "The in-flight slot keeps its status, lease, and cursor, while an idle slot takes a changed declaration and is untouched by an identical one."
@@ -110,6 +110,58 @@ public abstract class ScheduleSlotReRegistrationSpec<TFixture> : ActaRuntimeTest
         Assert.Equal(scheduleBefore.ModifiedAtUtc, scheduleAfter.ModifiedAtUtc);
     }
 
+    [Fact(DisplayName = "Re-registering a finished slot leaves it finished: only an operator's restart brings it back")]
+    public async Task Re_registering_a_finished_slot_leaves_it_finished()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var cursor = FloorSeconds(DateTime.UtcNow.AddHours(6));
+
+        foreach (var finished in new[] { JobStatusCode.Succeeded, JobStatusCode.Failed, JobStatusCode.Cancelled })
+        {
+            var jobName = $"reregister-finished-{Guid.NewGuid():N}";
+            var defId = await CreateDefinitionAsync(jobName, ct);
+            await RegisterAsync(defId, jobName, cursor, [Slot("only", cursor)], JobStatusCode.Ready, ct);
+            var slotId = await SlotIdAsync(jobName, ct);
+            await Db.ExecuteRawAsync(
+                "UPDATE {schema}.runtimes SET status_code = @p_status, next_run_at_utc = NULL WHERE job_id = @p_id",
+                ct,
+                ("@p_status", (byte)finished),
+                ("@p_id", slotId)
+            );
+
+            await RegisterAsync(defId, jobName, cursor, [Slot("only", cursor)], JobStatusCode.Ready, ct);
+
+            var slot = await ReadJobAsync(slotId, ct);
+            Assert.Equal(finished, slot.Status);
+            Assert.Null(slot.NextRunAtUtc);
+        }
+    }
+
+    [Fact(DisplayName = "Registration leaves an ordinary job that holds the slot's key untouched and returns no slot for it")]
+    public async Task Registration_leaves_an_ordinary_job_holding_the_slot_key_alone()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var jobName = $"reregister-taken-{Guid.NewGuid():N}";
+        var cursor = FloorSeconds(DateTime.UtcNow.AddHours(6));
+        var defId = await CreateDefinitionAsync(jobName, ct);
+
+        // An ordinary job that took the key a slot uses, its job name, before any schedule was declared.
+        var ordinary = await Jobs.EnqueueAsync(
+            new JobEnqueueRequest(TestNamespace, jobName, JobPayload.Json(1), DeduplicationKey: jobName),
+            ct
+        );
+        var before = await ReadJobAsync(ordinary.JobId, ct);
+
+        var slots = await RegisterAsync(defId, jobName, cursor, [Slot("only", cursor)], JobStatusCode.Ready, ct);
+
+        Assert.DoesNotContain(defId, slots.Keys);
+        var after = await ReadJobAsync(ordinary.JobId, ct);
+        Assert.Equal(before.Status, after.Status);
+        Assert.Equal(before.NextRunAtUtc, after.NextRunAtUtc);
+        Assert.Equal(before.Runtime.Version, after.Runtime.Version);
+        Assert.Empty(await Db.From<JobSchedule>().Where(s => s.JobId == ordinary.JobId).ToListAsync(ct));
+    }
+
     /// <summary>Puts the slot in flight with a lease, as a claim on another host would leave it.</summary>
     private static Task LeaseInFlightAsync(IDbSession db, long jobId, DateTime leaseExpiresAtUtc, CancellationToken ct) =>
         db.ExecuteRawAsync(
@@ -128,7 +180,7 @@ public abstract class ScheduleSlotReRegistrationSpec<TFixture> : ActaRuntimeTest
         return map[jobName];
     }
 
-    private async Task RegisterAsync(
+    private async Task<IReadOnlyDictionary<int, long>> RegisterAsync(
         int defId,
         string jobName,
         DateTime? slotMin,
@@ -148,7 +200,7 @@ public abstract class ScheduleSlotReRegistrationSpec<TFixture> : ActaRuntimeTest
             SlotMinNextRunAtUtc: slotMin,
             Schedules: schedules
         );
-        await ScheduleTestOps.RegisterAsync(Services, [definition], ct);
+        return await ScheduleTestOps.RegisterAsync(Services, [definition], ct);
     }
 
     private async Task<long> SlotIdAsync(string jobName, CancellationToken ct)

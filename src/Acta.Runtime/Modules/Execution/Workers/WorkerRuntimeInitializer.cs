@@ -401,7 +401,7 @@ internal sealed class WorkerRuntimeInitializer(
     /// Definition-sourced recurring slots: reconcile each scheduled definition's slot + schedules
     /// against persisted cursors at startup. The upsert set is the union of {descriptors that
     /// declare >= 1 [JobSchedule]} and {definitions with persisted schedule state}, so removed
-    /// schedules can cancel an existing slot, while ordinary non-scheduled jobs are never touched.
+    /// schedules can pause an existing slot, while ordinary non-scheduled jobs are never touched.
     /// </summary>
     private async Task ReconcileSchedulesAsync(int namespaceId, CancellationToken ct)
     {
@@ -422,7 +422,7 @@ internal sealed class WorkerRuntimeInitializer(
         // Environment gating: a schedule registers here only when active in this worker's environment
         // (wildcard when it declares none). Excluded schedules are treated exactly as if undeclared, so
         // the union below still picks up a definition whose every schedule is now excluded *if* it has
-        // persisted state, letting that prior slot cancel on this run.
+        // persisted state, letting that prior slot pause on this run.
         var env = _options.Value.EnvironmentName;
 
         var inScope = new HashSet<int>();
@@ -466,10 +466,9 @@ internal sealed class WorkerRuntimeInitializer(
 
             var (slotSchedules, slotMin) = ScheduleWalker.Reconcile(declared, storedForDef, nowUtc);
 
-            var slotStatus =
-                declared.Count == 0 ? JobStatusCode.Cancelled // descriptor dropped every [JobSchedule]
-                : slotMin is null ? JobStatusCode.Paused // declared but no schedule offers a run
-                : JobStatusCode.Ready;
+            // No schedule offering a run, a dropped declaration included, is Paused with no next run, which
+            // a returning declaration lifts; Cancelled is only ever an operator's or handler's outcome.
+            var slotStatus = slotMin is null ? JobStatusCode.Paused : JobStatusCode.Ready;
 
             // Registration leaves a held job as it stands (ScheduleWalker.IsHeld); say so at every start.
             var slot = storedForDef.Values.FirstOrDefault();
@@ -520,9 +519,14 @@ internal sealed class WorkerRuntimeInitializer(
         var slots = await _schedules.RegisterScheduledJobsAsync(new RegisterScheduledJobsCommand(definitions, slotRefs), ct);
         if (slots.Count != definitions.Count)
         {
+            // A recurring slot's deduplication key is its job name, so an ordinary job that took that key
+            // first is the one way a declared slot goes missing; registration leaves it untouched.
+            var registered = slots.Select(s => s.DefinitionId).ToHashSet();
+            var blocked = string.Join(", ", definitions.Where(d => !registered.Contains(d.DefinitionId)).Select(d => d.JobName));
             throw new InvalidOperationException(
-                $"register_scheduled_jobs returned {slots.Count} slot ids for {definitions.Count} definitions. "
-                    + "The routine must return exactly one slot id per definition."
+                $"Namespace ({_workerRegistration!.NamespaceName}): recurring job(s) {blocked} cannot register, because a job "
+                    + "that is not the recurring slot already holds the deduplication key a slot uses, its job name. "
+                    + "Finish and purge that job, or re-enqueue it under another key, then start the worker again."
             );
         }
 

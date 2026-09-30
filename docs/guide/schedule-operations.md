@@ -102,8 +102,13 @@ Before a large backfill:
   until an operator resumes, restarts, or cancels the job. A worker restart, a deploy, and any
   schedule change leave it paused, and trigger-now is rejected. Each worker start logs a warning
   naming the paused job.
-- A recurring job whose schedules are all paused or exhausted is Paused with no next run. It returns
-  to Ready once a schedule offers a run; a job resume is refused until one does.
+- A recurring job whose schedules are all paused, exhausted, or removed by a deploy is Paused with no
+  next run. It returns to Ready once a schedule offers a run; a job resume is refused until one does.
+- Cancelling a recurring job, by an operator or by its handler, ends it. A worker restart and a
+  deploy leave it Cancelled; only a job restart brings it back.
+- A recurring job's slot uses the job's name as its deduplication key. A worker refuses to start
+  while an ordinary job of the namespace holds that key, and names the recurring job in the error,
+  rather than turning that job into the slot.
 - Resume does not blindly run every missed occurrence. It applies `Skip` or `CatchUpOnce`.
 - Preview computes upcoming instants from the effective expression and time zone without reading or
   advancing the persisted cursor. It is safe on a paused schedule.

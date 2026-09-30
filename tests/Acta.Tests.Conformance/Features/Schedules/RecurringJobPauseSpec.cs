@@ -1,23 +1,26 @@
 using Acta.Relational.Entities;
+using Acta.Runtime.Modules.Execution.Workers;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Acta.Tests.Conformance.Features.Schedules;
 
 /// <summary>
-/// An operator's pause of a recurring job holds until an operator resumes it. Only a job pause writes
-/// Paused and only a job resume, restart, or cancel lifts it: startup, the schedule verbs, and a recurring
-/// completion move a Ready slot's next run and never touch a paused one.
+/// An operator's pause or cancel of a recurring job holds until an operator lifts it. A job pause leaves a
+/// next run, which marks it held (<c>ScheduleWalker.IsHeld</c>), and startup and the schedule verbs leave a
+/// held or finished slot alone. A slot whose schedules offer no run, a deploy that dropped them included,
+/// is Paused with no next run and runs again once a schedule offers one.
 /// </summary>
 [ConformanceSpec(
     "schedule.job-pause-holds",
-    "A paused recurring job stays paused until an operator resumes it",
+    "A paused or cancelled recurring job stays so until an operator lifts it",
     Area = "Scheduling",
-    Contract = "A recurring job paused by an operator stays Paused through worker restarts, schedule edits, and trigger-now until a job resume.",
-    Arrange = "The manifest's recurring job is registered at startup and paused through IJobs.",
+    Contract = "A recurring job an operator paused or cancelled keeps that status through worker restarts, schedule edits, and trigger-now.",
+    Arrange = "The manifest's recurring job is registered at startup, then paused or cancelled through IJobs, or its schedules dropped by a deploy.",
     Act = "The worker starts again, the schedule's expression is overridden, trigger-now is asked for, and then the job is resumed.",
-    Assert = "The job stays Paused through the restart and the edit, trigger-now is rejected, and only the resume makes it Ready."
+    Assert = "A paused or cancelled job keeps its status until an operator acts, and a job whose schedules returned runs again."
 )]
 public abstract class RecurringJobPauseSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
@@ -71,5 +74,39 @@ public abstract class RecurringJobPauseSpec<TFixture> : ActaRuntimeTestBase<TFix
 
         Assert.Equal(ControlAction.Rejected, (await Operations.Schedules.TriggerNowAsync(lookup, ct: ct)).Action);
         Assert.Equal(JobStatusCode.Paused, await Jobs.GetStatusAsync(Slot, ct));
+    }
+
+    [Fact(DisplayName = "A cancelled recurring job stays cancelled when the worker starts again")]
+    public async Task A_cancelled_recurring_job_stays_cancelled_across_a_restart()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(Slot, ct: ct)).Action);
+
+        await Runtime.InitializeAsync(ct);
+
+        Assert.Equal(JobStatusCode.Cancelled, await Jobs.GetStatusAsync(Slot, ct));
+    }
+
+    [Fact(DisplayName = "A deploy that drops a recurring job's schedules pauses it, and their return makes it Ready")]
+    public async Task Dropped_schedules_pause_the_job_until_they_return()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        // A build without the schedule starts, as a deploy that removed [JobSchedule] would.
+        await using (var dropped = BuildGenerationProvider<UnscheduledPingManifest>(DateTime.UtcNow, "dropped"))
+        {
+            await dropped.GetServices<WorkerRuntime>().Single().InitializeAsync(ct);
+        }
+        var slotId = (await Jobs.GetJobIdAsync(Slot, ct))!.Value;
+        var idle = await ReadJobAsync(slotId, ct);
+        Assert.Equal(JobStatusCode.Paused, idle.Status);
+        Assert.Null(idle.NextRunAtUtc);
+
+        // The schedule comes back with the next deploy.
+        await Runtime.InitializeAsync(ct);
+
+        var back = await ReadJobAsync(slotId, ct);
+        Assert.Equal(JobStatusCode.Ready, back.Status);
+        Assert.NotNull(back.NextRunAtUtc);
     }
 }

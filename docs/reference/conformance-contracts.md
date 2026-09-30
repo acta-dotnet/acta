@@ -2568,15 +2568,17 @@
   - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.GetLiveSchedulesAsync`
   - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.RegisterScheduledJobsAsync`
 
-### A paused recurring job stays paused until an operator resumes it
-- **Contract:** A recurring job paused by an operator stays Paused through worker restarts, schedule edits, and trigger-now until a job resume.
-- **Arrange:** The manifest's recurring job is registered at startup and paused through IJobs.
+### A paused or cancelled recurring job stays so until an operator lifts it
+- **Contract:** A recurring job an operator paused or cancelled keeps that status through worker restarts, schedule edits, and trigger-now.
+- **Arrange:** The manifest's recurring job is registered at startup, then paused or cancelled through IJobs, or its schedules dropped by a deploy.
 - **Act:** The worker starts again, the schedule's expression is overridden, trigger-now is asked for, and then the job is resumed.
-- **Assert:** The job stays Paused through the restart and the edit, trigger-now is rejected, and only the resume makes it Ready.
+- **Assert:** A paused or cancelled job keeps its status until an operator acts, and a job whose schedules returned runs again.
 - **Guarantees:**
   - A paused recurring job stays paused when the worker starts again, and a resume makes it Ready
   - Pausing and resuming the only schedule of a paused recurring job leaves the job paused
   - Editing or triggering a schedule of a paused recurring job leaves the job paused
+  - A cancelled recurring job stays cancelled when the worker starts again
+  - A deploy that drops a recurring job's schedules pauses it, and their return makes it Ready
 
 ### Multi-schedule slot picks MIN next_run and recomputes on fire
 - **Contract:** A slot with multiple schedules arms next_run_at_utc to the MIN cursor and recomputes the MIN after each fire.
@@ -2659,12 +2661,13 @@
   - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.SetScheduleOverridesAsync`
 
 ### An older generation fires a slot a newer one registered as recurring
-- **Contract:** A worker that did not register a recurring slot at startup still fires it as a recurring job when it claims it.
-- **Arrange:** The older generation starts without the schedule, then a newer generation registers it and the slot is triggered now.
-- **Act:** The older generation claims and runs the slot.
-- **Assert:** The slot is Ready again with its next run ahead, not Succeeded.
+- **Contract:** An older worker fires a slot a newer generation registered as recurring, and no registration adopts an ordinary job holding the key.
+- **Arrange:** The older generation starts without the schedule, and in one fact ordinary laned jobs already hold the slot's key.
+- **Act:** A newer generation registers the schedule, and the older generation claims and runs the slot.
+- **Assert:** The slot is Ready again with its next run ahead, and the newer generation refuses to start over an ordinary job, leaving its lane.
 - **Guarantees:**
   - An older generation fires a slot a newer one registered after it started as a recurring job
+  - A deploy that schedules a job refuses to start while an ordinary job holds its key, and leaves that job's lane as it was
 
 ### Recurring slot claims at its definition's priority
 - **Contract:** A recurring slot's runtime priority is stamped from the owning definition's effective priority, and re-registration propagates a changed priority.
@@ -2678,7 +2681,7 @@
   - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.RegisterScheduledJobsAsync`
 
 ### A second host starting does not disturb a slot the first host is executing
-- **Contract:** Re-registration writes an idle slot only when its declaration changed, and skips a slot in flight, leaving its status, lease, and cursor to its execution.
+- **Contract:** Registration writes an idle slot only when its declaration changed, skips one in flight or finished, and never adopts an ordinary job.
 - **Arrange:** A recurring slot is registered, then put in flight with a worker lease as if another host had claimed it.
 - **Act:** The same definition is registered again, as a second host does on startup, with the declaration changed or identical.
 - **Assert:** The in-flight slot keeps its status, lease, and cursor, while an idle slot takes a changed declaration and is untouched by an identical one.
@@ -2686,6 +2689,8 @@
   - Re-registering a slot that is executing leaves its status, lease, and cursor to the running execution
   - Re-registering an idle slot re-asserts the declared cursor and status
   - Re-registering an unchanged declaration writes nothing: no version moves on the slot or its schedule
+  - Re-registering a finished slot leaves it finished: only an operator's restart brings it back
+  - Registration leaves an ordinary job that holds the slot's key untouched and returns no slot for it
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.RegisterScheduledJobsAsync`
 

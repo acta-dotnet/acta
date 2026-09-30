@@ -18,7 +18,7 @@ internal interface IScheduleStore
 
     /// <summary>
     /// Persisted (non-orphaned) per-schedule cursors for the namespace. Drives startup misfire-aware
-    /// reconciliation and the slot-cancel decision for definitions that dropped every schedule.
+    /// reconciliation and the slot-pause decision for definitions that dropped every schedule.
     /// </summary>
     Task<IReadOnlyList<StoredScheduleState>> GetScheduleStateAsync(int namespaceId, CancellationToken ct);
 
@@ -39,7 +39,9 @@ internal interface IScheduleStore
     /// reprioritize, and leaves a Dispatched or Executing slot alone: resetting one would strand its
     /// attempt, because the heartbeat cancels any running body missing from the id set it reads back.
     /// Skipping costs nothing, because the recurring completion takes the next run from
-    /// <c>schedules</c> rather than from the slot row.
+    /// <c>schedules</c> rather than from the slot row. A held slot (<see cref="ScheduleWalker.IsHeld"/>)
+    /// and a finished one, Succeeded, Failed, or Cancelled, are left as they stand too: only an operator
+    /// lifts a hold or restarts a finished slot.
     /// </remarks>
     Task<IReadOnlyList<RegisteredScheduleSlot>> RegisterScheduledJobsAsync(RegisterScheduledJobsCommand command, CancellationToken ct);
 

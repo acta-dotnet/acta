@@ -28,7 +28,24 @@ ON CONFLICT (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NUL
 DO UPDATE SET
     input_format_id = excluded.input_format_id,
     input = excluded.input,
-    audit_level_code = excluded.audit_level_code;
+    audit_level_code = excluded.audit_level_code
+-- A row already holding the key is the slot only when it owns schedules; an ordinary job that took the
+-- key is left untouched and missing from the result, which fails the worker's startup.
+WHERE EXISTS (SELECT 1 FROM {{schema}}.schedules AS s WHERE s.job_id = {{schema}}.jobs.id);
+
+DROP TABLE IF EXISTS temp._reg_slots;
+
+-- The slot this call inserted, or one that already owns schedules.
+CREATE TEMP TABLE _reg_slots AS
+SELECT json_extract(d.value, '$.definition_id') AS definition_id, j.id AS slot_id
+FROM json_each(@p_definitions) d
+JOIN {{schema}}.jobs j
+    ON j.namespace_id = @p_namespace_id
+    AND j.parent_id IS NULL
+    AND j.deduplication_key = json_extract(d.value, '$.deduplication_key')
+WHERE
+    j.job_ref = json_extract(d.value, '$.job_ref')
+    OR EXISTS (SELECT 1 FROM {{schema}}.schedules AS s WHERE s.job_id = j.id);
 
 INSERT INTO {{schema}}.runtimes (
     job_id,
@@ -42,7 +59,7 @@ INSERT INTO {{schema}}.runtimes (
     modified_at_utc,
     version)
 SELECT
-    j.id,
+    sl.slot_id,
     @p_namespace_id,
     json_extract(d.value, '$.slot_status_code'),
     jd.priority_code_effective,
@@ -53,10 +70,7 @@ SELECT
     {{now}},
     0
 FROM json_each(@p_definitions) d
-JOIN {{schema}}.jobs j
-    ON j.namespace_id = @p_namespace_id
-    AND j.parent_id IS NULL
-    AND j.deduplication_key = json_extract(d.value, '$.deduplication_key')
+JOIN temp._reg_slots sl ON sl.definition_id = json_extract(d.value, '$.definition_id')
 JOIN {{schema}}.definitions jd
     ON jd.id = json_extract(d.value, '$.definition_id')
 ON CONFLICT (job_id) DO UPDATE SET
@@ -66,7 +80,10 @@ ON CONFLICT (job_id) DO UPDATE SET
     modified_at_utc = {{now}},
     version = {{schema}}.runtimes.version + 1
 WHERE
-    {{schema}}.runtimes.status_code NOT IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+    -- An attempt in flight owns the slot, and a finished slot stays finished until an operator restarts it.
+    {{schema}}.runtimes.status_code NOT IN (
+        40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */,
+        100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
     -- A held job (Paused with a next run; ScheduleWalker, "held") stays as its operator left it.
     AND NOT ({{schema}}.runtimes.status_code = 30 /* JobStatusCode.Paused */ AND {{schema}}.runtimes.next_run_at_utc IS NOT NULL)
     -- An unchanged declaration writes nothing: a restart of the same build bumps no version.
@@ -75,16 +92,6 @@ WHERE
         OR {{schema}}.runtimes.priority_code IS NOT excluded.priority_code
         OR {{schema}}.runtimes.next_run_at_utc IS NOT excluded.next_run_at_utc
     );
-
-DROP TABLE IF EXISTS temp._reg_slots;
-
-CREATE TEMP TABLE _reg_slots AS
-SELECT json_extract(d.value, '$.definition_id') AS definition_id, j.id AS slot_id
-FROM json_each(@p_definitions) d
-JOIN {{schema}}.jobs j
-    ON j.namespace_id = @p_namespace_id
-    AND j.parent_id IS NULL
-    AND j.deduplication_key = json_extract(d.value, '$.deduplication_key');
 
 INSERT INTO {{schema}}.schedules (
     namespace_id,

@@ -23,16 +23,18 @@ public sealed class UnscheduledPingManifest : IJobManifest
 /// <summary>
 /// A worker learns its recurring slots when it starts, so a slot a newer generation registered later is
 /// not among them. The slot's deduplication key is its job name and its live schedules confirm it, so
-/// the older worker still fires it as a recurring job instead of running it once and ending it.
+/// the older worker still fires it as a recurring job instead of running it once and ending it. An
+/// ordinary job that took that key first is never adopted as the slot: the newer generation refuses
+/// to start instead of rewriting it.
 /// </summary>
 [ConformanceSpec(
     "schedule.slot-from-another-generation",
     "An older generation fires a slot a newer one registered as recurring",
     Area = "Scheduling",
-    Contract = "A worker that did not register a recurring slot at startup still fires it as a recurring job when it claims it.",
-    Arrange = "The older generation starts without the schedule, then a newer generation registers it and the slot is triggered now.",
-    Act = "The older generation claims and runs the slot.",
-    Assert = "The slot is Ready again with its next run ahead, not Succeeded."
+    Contract = "An older worker fires a slot a newer generation registered as recurring, and no registration adopts an ordinary job holding the key.",
+    Arrange = "The older generation starts without the schedule, and in one fact ordinary laned jobs already hold the slot's key.",
+    Act = "A newer generation registers the schedule, and the older generation claims and runs the slot.",
+    Assert = "The slot is Ready again with its next run ahead, and the newer generation refuses to start over an ordinary job, leaving its lane."
 )]
 public abstract class RecurringSlotFromAnotherGenerationSpec<TFixture> : ActaRuntimeTestBase<TFixture, UnscheduledPingManifest>
     where TFixture : IConformanceFixture, new()
@@ -66,5 +68,40 @@ public abstract class RecurringSlotFromAnotherGenerationSpec<TFixture> : ActaRun
         var slot = await ReadJobAsync((await Jobs.GetJobIdAsync(Slot, ct))!.Value, ct);
         Assert.Equal(JobStatusCode.Ready, slot.Status);
         Assert.True(slot.NextRunAtUtc > DateTime.UtcNow);
+    }
+
+    [Fact(
+        DisplayName = "A deploy that schedules a job refuses to start while an ordinary job holds its key, and leaves that job's lane as it was"
+    )]
+    public async Task A_schedule_never_adopts_an_ordinary_job_holding_its_key()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        // Before the schedule exists: two ordinary jobs in one lane, the second under the key a slot will use.
+        var head = await Jobs.EnqueueAsync(
+            new JobEnqueueRequest(TestNamespace, UnscheduledPingManifest.JobName, JobPayload.None, Lane: "l", DeduplicationKey: "other"),
+            ct
+        );
+        var behind = await Jobs.EnqueueAsync(
+            new JobEnqueueRequest(
+                TestNamespace,
+                UnscheduledPingManifest.JobName,
+                JobPayload.None,
+                Lane: "l",
+                DeduplicationKey: UnscheduledPingManifest.JobName
+            ),
+            ct
+        );
+        Assert.Equal(JobStatusCode.Blocked, (await ReadJobAsync(behind.JobId, ct)).Status);
+
+        await using var newGeneration = BuildGenerationProvider<TestJobsManifest>(GenerationB, "generation-b");
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await newGeneration.GetServices<WorkerRuntime>().Single().InitializeAsync(ct)
+        );
+
+        Assert.Contains(UnscheduledPingManifest.JobName, refused.Message, StringComparison.Ordinal);
+        Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(head.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Blocked, (await ReadJobAsync(behind.JobId, ct)).Status);
+        Assert.Empty(await Db.From<Acta.Relational.Entities.JobSchedule>().Where(s => s.JobId == behind.JobId).ToListAsync(ct));
     }
 }

@@ -64,6 +64,9 @@ BEGIN
             input_format_id = EXCLUDED.input_format_id,
             input = EXCLUDED.input,
             audit_level_code = EXCLUDED.audit_level_code
+        -- A row already holding the key is the slot only when it owns schedules; an ordinary job that took
+        -- the key is left untouched and missing from the result, which fails the worker's startup.
+        WHERE EXISTS (SELECT 1 FROM {{schema}}.schedules AS s WHERE s.job_id = {{schema}}.jobs.id)
         RETURNING {{schema}}.jobs.definition_id, {{schema}}.jobs.id
     )
     INSERT INTO _reg_slots (definition_id, slot_id)
@@ -103,7 +106,10 @@ BEGIN
         modified_at_utc = now(),
         version = {{schema}}.runtimes.version + 1
     WHERE
-        {{schema}}.runtimes.status_code NOT IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+        -- An attempt in flight owns the slot, and a finished slot stays finished until an operator restarts it.
+        {{schema}}.runtimes.status_code NOT IN (
+            40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */,
+            100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
         -- A held job (Paused with a next run; ScheduleWalker, "held") stays as its operator left it.
         AND NOT ({{schema}}.runtimes.status_code = 30 /* JobStatusCode.Paused */ AND {{schema}}.runtimes.next_run_at_utc IS NOT NULL)
         -- An unchanged declaration writes nothing: a restart of the same build bumps no version.

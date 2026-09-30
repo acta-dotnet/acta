@@ -6075,6 +6075,9 @@ BEGIN
             input_format_id = EXCLUDED.input_format_id,
             input = EXCLUDED.input,
             audit_level_code = EXCLUDED.audit_level_code
+        -- A row already holding the key is the slot only when it owns schedules; an ordinary job that took
+        -- the key is left untouched and missing from the result, which fails the worker's startup.
+        WHERE EXISTS (SELECT 1 FROM acta.schedules AS s WHERE s.job_id = acta.jobs.id)
         RETURNING acta.jobs.definition_id, acta.jobs.id
     )
     INSERT INTO _reg_slots (definition_id, slot_id)
@@ -6114,7 +6117,10 @@ BEGIN
         modified_at_utc = now(),
         version = acta.runtimes.version + 1
     WHERE
-        acta.runtimes.status_code NOT IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+        -- An attempt in flight owns the slot, and a finished slot stays finished until an operator restarts it.
+        acta.runtimes.status_code NOT IN (
+            40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */,
+            100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
         -- A held job (Paused with a next run; ScheduleWalker, "held") stays as its operator left it.
         AND NOT (acta.runtimes.status_code = 30 /* JobStatusCode.Paused */ AND acta.runtimes.next_run_at_utc IS NOT NULL)
         -- An unchanged declaration writes nothing: a restart of the same build bumps no version.
@@ -8620,7 +8626,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.6-807e14af0ae64d6fd850772a0c5ed022', 'acta');
+VALUES (-1, 'objects-1.6-526ecfc85a6dde504eab4b1e3c089c27', 'acta');
 
 COMMIT;
 
