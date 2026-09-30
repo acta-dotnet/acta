@@ -77,8 +77,9 @@ public abstract class LeaseRenewalRaceSpec<TFixture> : ActaRuntimeTestBase<TFixt
         var store = Services.GetRequiredService<IWorkerStore>();
         var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
         // The renewal must finish while the completion still holds the child's row; one that waited for it
-        // would hold the parent's row and deadlock with the completion once the gate opened.
-        var rows = await store.ExtendWorkerLeasesAsync(workerId, leaseTtl, draining: false, ct).WaitAsync(TimeSpan.FromSeconds(10), ct);
+        // would hold the parent's row and deadlock with the completion once the gate opened, so it would never
+        // return, and the bound is only a hang guard.
+        var rows = await store.ExtendWorkerLeasesAsync(workerId, leaseTtl, draining: false, ct).WaitAsync(SpecWaits.Gate, ct);
         await gate.CommitAsync(ct);
 
         Assert.Equal(CompleteExecutionAction.Completed, (await completion).Action);
