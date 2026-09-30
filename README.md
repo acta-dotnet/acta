@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
 [![Website](https://img.shields.io/badge/website-useacta.net-2fd6a8.svg)](https://useacta.net/)
 
-> **1.0.** The public API, the schema, and the persisted codes are frozen: from here, schema changes ship only as additive migrations, and the persisted vocabulary never changes. Bring a real workload; the evidence behind the tag is in the repository.
+> **1.0.0-rc.4.** The last release candidate before 1.0.0, on the 1.0 baseline. From 1.0.0 the public API, the schema, and the persisted codes are frozen: schema changes ship only as additive migrations, and the persisted vocabulary never changes. Bring a real workload; the evidence behind the tag is in the repository.
 
 Acta records jobs, retries, schedules, checkpoints, events, workers, and operator controls in your database. It gives .NET teams one standard substrate for app-owned background work: simple enough for scheduled jobs, durable enough for retries and recovery, and visible because every state transition is ordinary SQL state you can inspect with `SELECT`.
 
@@ -168,7 +168,7 @@ Start with the guides in [`docs/`](./docs/README.md): choosing Acta, quickstart,
 
 ## Status
 
-- The migration history is frozen: schema changes ship only as additive `Mnnn` migrations, and the baseline (`M001`) is never re-cut. Bootstrap refuses to run on a database whose baseline stamp differs from the one this build ships, so a database provisioned by any release candidate needs one reprovision on the way in rather than a silent mismatch.
+- The migration history is frozen: schema changes ship only as additive `Mnnn` migrations, and the baseline (`M001`) is never re-cut. Bootstrap refuses to run on a database whose baseline stamp differs from the one this build ships, so a database an earlier release candidate provisioned needs one reprovision on the way in rather than a silent mismatch.
 - Acta ships no login system. The dashboard and HTTP API are local-only by default, and control verbs are disabled by default: see [`docs/guide/operator-guide.md`](./docs/guide/operator-guide.md#security-and-exposure) before exposing anything.
 - Known limitations are tracked in [`docs/technical/known-limitations.md`](./docs/technical/known-limitations.md).
 - The supported .NET target, provider tiers, packages, and patch policy are stated in [`docs/support.md`](./docs/support.md).

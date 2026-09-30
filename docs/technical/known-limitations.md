@@ -6,10 +6,12 @@ Known boundaries to review before using Acta in production-like environments.
 
 ## Stability status
 
-Acta is at 1.0: the public API, schema, and persisted codes are frozen. The migration history is
-frozen with them: schema changes ship only as additive `Mnnn` migrations, and the baseline (`M001`)
-is never re-cut, so a database provisioned by a 1.x build upgrades by migration alone. A database
-provisioned by any release candidate needs one reprovision on the way in. Bootstrap compares the
+Acta is at 1.0.0-rc.4, which carries the 1.0 baseline; 1.0.0 follows on the same code unless this
+candidate needs a schema or public-API change. From 1.0.0 the public API, schema, and persisted codes
+are frozen, and the migration history with them: schema changes ship only as additive `Mnnn`
+migrations, and the baseline (`M001`) is never re-cut, so a database provisioned by a 1.x build
+upgrades by migration alone. A database an earlier release candidate provisioned needs one
+reprovision on the way in. Bootstrap compares the
 baseline stamp recorded in the database against the one this build ships and refuses to start on a
 mismatch, so a database built from a different baseline generation fails loudly instead of taking
 a schema it was not built for; old renumbered code values are intentionally incompatible, and there

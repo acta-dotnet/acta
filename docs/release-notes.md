@@ -1,12 +1,13 @@
 # Release notes
 
-## 1.0.0 (unreleased)
+## 1.0.0-rc.4 (unreleased)
 
-The first stable release. The public API, the schema, and the persisted codes are frozen from this
-tag: schema changes ship only as additive migrations, the baseline is never re-cut, and the release
-guard refuses a diff that would. The data model is the rc.3 model with four counters widened to
-32-bit integers and one new feature, lanes, so the baseline is cut once more for 1.0 and every
-release-candidate database is reprovisioned. What changed since rc.3 answers the external reviews
+The last release candidate before 1.0.0, which follows on the same code unless this candidate turns
+up a defect that needs a schema or public-API change. It carries the 1.0 baseline. From 1.0.0 the
+public API, the schema, and the persisted codes are frozen: schema changes ship only as additive
+migrations, the baseline is never re-cut, and the release guard refuses a diff that would. The data
+model is the rc.3 model with four counters widened to 32-bit integers and one new feature, lanes, so
+the baseline is cut once more and every earlier release-candidate database is reprovisioned. What changed since rc.3 answers the external reviews
 of it: the execution and alerting paths, the installed routines, and what a release has to prove. A
 completion write is repeated until it lands, a claim is kept through a lost start answer or a lapsed
 lease while the row is still this worker's, the recovery sweep runs on capacity the executors cannot
@@ -19,7 +20,7 @@ three evidence harnesses join the release checklist.
 - **Reprovision every release-candidate database.** The 1.0 baseline widens four counters from
   16-bit or 8-bit columns to 32-bit integers: `runtimes.failure_count`, `steps.attempt_number`,
   `definitions.max_attempts` with its override and effective columns, and `alerts.retry_count`.
-  Startup compares the baseline stamp and refuses a database provisioned by any release candidate,
+  Startup compares the baseline stamp and refuses a database an earlier release candidate provisioned,
   naming the mismatch. Reprovisioning drops Acta's schema and installs 1.0 from
   `docs/reference/schema-<provider>.sql`, so drain or export anything you need first. From 1.0 on,
   that script is part of every upgrade: it is idempotent, and it records the object package it
@@ -227,8 +228,8 @@ three evidence harnesses join the release checklist.
 - Three values name the installed object package: a contract major that must match, a package
   revision that must be at or above the minimum a build declares, and a content hash that binds the
   build's bookkeeping and never enters the startup decision. `Acta.Emit objects record` records a
-  released identity and `check` refuses a recorded identity whose content moved. 1.0.0 ships package
-  1.6 and requires 6; no release candidate carried a package.
+  released identity and `check` refuses a recorded identity whose content moved. This release ships
+  package 1.6 and requires 6; no earlier release candidate carried a package.
 - PostgreSQL replaces the operator views in place, so a re-applied script keeps their grants and any
   view a DBA built on them. It used to drop and recreate them. SQL Server already altered them in
   place, and SQLite has no grants to keep.
@@ -236,7 +237,7 @@ three evidence harnesses join the release checklist.
   by a newer build decodes as `Unspecified` through every read path, the API, and the HTTP endpoints,
   instead of throwing. Parsing a code name stays strict.
 - The provisioning script's header says what it does: it installs 1.0 and re-runs safely within 1.x.
-  A release-candidate database is reprovisioned, not upgraded in place.
+  A database an earlier release candidate provisioned is reprovisioned, not upgraded in place.
 - SQL Server checks foreign keys key by key in its set-based writes. Compiled at a real batch size, a
   batch insert validated its foreign key by scanning the whole parent table under page locks, and four
   producers enqueueing large batches at once deadlocked. The enqueue batch, the completion batch, and
@@ -287,7 +288,7 @@ three evidence harnesses join the release checklist.
 
 ### Release evidence
 
-- Moving from rc.3 to 1.0 reprovisions, so this release proves the pieces a rolling upgrade rests on
+- Moving from rc.3 reprovisions, so this release proves the pieces a rolling upgrade rests on
   instead: a database stamped with the rc.3 baseline is refused at startup, a script-provisioned
   schema runs with migrations disabled on every provider, and re-running the script keeps its data,
   grants, and dependent views. `tests/RollingUpgradeSmoke` gains a phase where both generations run
