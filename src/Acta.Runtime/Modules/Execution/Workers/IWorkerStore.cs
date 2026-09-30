@@ -106,8 +106,11 @@ internal sealed record WorkerPageRequest(
     string? TagFiltersJson = null
 );
 
-/// <summary>One in-flight job of a lease renewal; <see cref="Renewed"/> is false when another transaction held the row.</summary>
-internal readonly record struct LeaseRenewalRow(long JobId, bool Renewed);
+/// <summary>
+/// One in-flight job of a lease renewal and the execution the row carries, the one it renewed; <see cref="Renewed"/>
+/// is false when another transaction held the row, and the execution is then the one the renewal read.
+/// </summary>
+internal readonly record struct LeaseRenewalRow(long JobId, int ExecutionNumber, bool Renewed);
 
 /// <summary>One page of mapped worker list items plus the opt-in filtered total.</summary>
 internal sealed record WorkerPage(IReadOnlyList<WorkerListItem> Rows, long? Total);

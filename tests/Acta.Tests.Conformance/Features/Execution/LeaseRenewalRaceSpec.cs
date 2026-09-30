@@ -82,7 +82,7 @@ public abstract class LeaseRenewalRaceSpec<TFixture> : ActaRuntimeTestBase<TFixt
         await gate.CommitAsync(ct);
 
         Assert.Equal(CompleteExecutionAction.Completed, (await completion).Action);
-        Assert.Contains(new LeaseRenewalRow(parent.JobId, Renewed: true), rows);
+        Assert.Contains(rows, r => r.JobId == parent.JobId && r.Renewed);
         // Held by the completion, the child is skipped; a slow completion that had not reached it yet lets
         // the renewal take it first. Either way it is still reported in flight.
         Assert.Contains(rows, r => r.JobId == child.JobId);

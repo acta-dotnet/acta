@@ -334,7 +334,10 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
             int leaseTtlSeconds,
             bool draining,
             CancellationToken ct
-        ) => Task.FromResult<IReadOnlyList<LeaseRenewalRow>>([.. liveJobIds.Select(id => new LeaseRenewalRow(id, Renewed: true))]);
+        ) =>
+            Task.FromResult<IReadOnlyList<LeaseRenewalRow>>([
+                .. liveJobIds.Select(id => new LeaseRenewalRow(id, ExecutionNumber: 0, Renewed: true)),
+            ]);
     }
 
     private sealed class SkippingWorkerStore(long heldJobId) : WorkerStoreStub
@@ -344,7 +347,7 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
             int leaseTtlSeconds,
             bool draining,
             CancellationToken ct
-        ) => Task.FromResult<IReadOnlyList<LeaseRenewalRow>>([new LeaseRenewalRow(heldJobId, Renewed: false)]);
+        ) => Task.FromResult<IReadOnlyList<LeaseRenewalRow>>([new LeaseRenewalRow(heldJobId, ExecutionNumber: 0, Renewed: false)]);
     }
 
     private sealed class ThrowingWorkerStore : WorkerStoreStub

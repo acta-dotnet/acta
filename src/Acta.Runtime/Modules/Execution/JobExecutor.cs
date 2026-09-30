@@ -168,6 +168,7 @@ internal sealed class JobExecutor(
         var attemptCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
         var attempt = new RunningAttempt(attemptCts, timeoutCts: timeoutCts)
         {
+            ExecutionNumber = job.ExecutionNumber,
             // Seed the monotonic job-lease deadline. The claim stamped the DB lease at most `now` (dispatch
             // runs after the claim), so now + LeaseTtl is a slight over-estimate of it; the first worker
             // heartbeat re-seeds it conservatively from that renewal's request-start, and the watchdog's
@@ -419,20 +420,21 @@ internal sealed class JobExecutor(
         CancellationToken ct
     )
     {
-        if (_context.RunningAttempts.ContainsKey(jobId) || _context.BufferedClaims.ContainsKey(jobId))
+        if (_context.BufferedClaims.ContainsKey(jobId))
         {
             return;
         }
 
         var (row, _) = await CompletionWrite.RetryAsync(async token => await jobStore.GetJobAsync(jobId, token), _log, jobId, ct, _metrics);
         // The ownership check repeats after the read: the claim loop registers a row the instant its
-        // claim answers, so a row unaccounted for at the first check may be buffered by now.
+        // claim answers, so a row unaccounted for at the first check may be buffered by now. Only an
+        // attempt on the row's own execution accounts for it: an older one still unwinding does not.
         if (
             row is null
             || row.LeasedByWorkerId is not { } workerId
             || !workerIds.Contains(workerId)
             || row.Status is not (JobStatusCode.Dispatched or JobStatusCode.Executing)
-            || _context.RunningAttempts.ContainsKey(jobId)
+            || (_context.RunningAttempts.TryGetValue(jobId, out var running) && running.ExecutionNumber == row.ExecutionNumber)
             || _context.BufferedClaims.ContainsKey(jobId)
         )
         {

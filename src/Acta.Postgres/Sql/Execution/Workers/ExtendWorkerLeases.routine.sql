@@ -3,7 +3,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.extend_worker_leases(
     p_lease_ttl_seconds INT,
     p_draining BOOLEAN
 )
-RETURNS TABLE (job_id BIGINT, renewed BOOLEAN)
+RETURNS TABLE (job_id BIGINT, execution_number INT, renewed BOOLEAN)
 LANGUAGE plpgsql
 AS $$
 DECLARE
@@ -24,7 +24,7 @@ BEGIN
     -- (docs/internals/sql-execution-policy.md, "Explicit exceptions and maintenance").
     RETURN QUERY
     WITH inflight AS (
-        SELECT r0.job_id
+        SELECT r0.job_id, r0.execution_number
         FROM {{schema}}.runtimes r0
         WHERE
             r0.leased_by_worker_id = p_leased_by_worker_id
@@ -44,9 +44,10 @@ BEGIN
         UPDATE {{schema}}.runtimes r
         SET lease_expires_at_utc = v_new_expiry
         WHERE r.job_id IN (SELECT l.job_id FROM locked l)
-        RETURNING r.job_id
+        RETURNING r.job_id, r.execution_number
     )
-    SELECT i.job_id, e.job_id IS NOT NULL
+    -- A renewed row reports the execution it renewed; one another transaction holds, the one it read.
+    SELECT i.job_id, COALESCE(e.execution_number, i.execution_number), e.job_id IS NOT NULL
     FROM inflight i
     LEFT JOIN extended e ON e.job_id = i.job_id;
 END;

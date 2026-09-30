@@ -167,7 +167,11 @@ three evidence harnesses join the release checklist.
 - An attempt whose lease lapsed is cancelled once its job is claimed again in the same process. A
   process tracks its attempts by job, so the replacement's lease renewal kept the stale attempt's
   deadline alive, and once the replacement started nothing tracked the stale one at all: it ran on,
-  holding an executor, although its completion was already fenced off.
+  holding an executor, although its completion was already fenced off. A claim answer lost after
+  it committed skipped even that cancel, and the heartbeat counted the replacement as running, so
+  nothing started it until the stale attempt ended. `extend_worker_leases` now returns each row's
+  execution number beside its job id, and the heartbeat matches on both: it cancels the stale
+  attempt and hands the replacement to the orphan release, which returns it to Ready.
 
 ### Dashboard and API
 

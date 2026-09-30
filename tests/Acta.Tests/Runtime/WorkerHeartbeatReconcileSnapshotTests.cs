@@ -70,7 +70,7 @@ public sealed class WorkerHeartbeatReconcileSnapshotTests
         {
             _entered.TrySetResult();
             await _gate.Task.WaitAsync(ct);
-            return [.. liveJobIds.Select(id => new LeaseRenewalRow(id, Renewed: true))];
+            return [.. liveJobIds.Select(id => new LeaseRenewalRow(id, ExecutionNumber: 0, Renewed: true))];
         }
 
         public Task<StartWorkerRow> StartWorkerAsync(StartWorkerCommand command, CancellationToken ct) => throw new NotSupportedException();

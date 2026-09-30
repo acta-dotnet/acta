@@ -65,7 +65,11 @@ internal sealed class RelationalWorkerStore(IDbSession session, ISqlDialect dial
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeaseTtlSeconds, leaseTtlSeconds));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.Draining, draining));
             },
-            reader => new LeaseRenewalRow(reader.GetInt64(0), Convert.ToBoolean(reader.GetValue(1), CultureInfo.InvariantCulture)),
+            reader => new LeaseRenewalRow(
+                reader.GetInt64(0),
+                Convert.ToInt32(reader.GetValue(1), CultureInfo.InvariantCulture),
+                Convert.ToBoolean(reader.GetValue(2), CultureInfo.InvariantCulture)
+            ),
             ct
         );
 

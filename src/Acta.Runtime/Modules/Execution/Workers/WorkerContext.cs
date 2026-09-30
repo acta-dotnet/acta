@@ -219,6 +219,12 @@ internal sealed class RunningAttempt(CancellationTokenSource cts, CancellationTo
     private readonly CancellationTokenSource _cts = cts;
     private readonly CancellationTokenSource? _timeoutCts = timeoutCts;
 
+    /// <summary>
+    /// The execution this attempt runs. The heartbeat matches a renewal on job and execution, so a row the
+    /// job was claimed again into never renews an older attempt still running under the same job.
+    /// </summary>
+    public int ExecutionNumber { get; init; }
+
     /// <summary>Held lock to the monotonic Stopwatch timestamp its lease is conservatively good until.</summary>
     private readonly ConcurrentDictionary<LockToken, long> _heldLocks = new();
 

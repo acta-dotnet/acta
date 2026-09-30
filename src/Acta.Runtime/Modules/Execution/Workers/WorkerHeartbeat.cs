@@ -9,8 +9,8 @@ namespace Acta.Runtime.Modules.Execution.Workers;
 /// The runtime-owned worker heartbeat loop. Every <see cref="JobsOptions.HeartbeatInterval"/> it renews
 /// this worker's batched job leases + <c>workers.last_seen_at_utc</c> via
 /// <see cref="IWorkerStore.ExtendWorkerLeasesAsync"/> and feeds each running attempt's job-lease deadline
-/// on a confirmed renewal, cancelling one only when an authoritative refresh drops its job (operator cancel
-/// or a reclaimed lease). It does not enforce deadlines on an outage - the <see cref="AttemptWatchdog"/>
+/// on a confirmed renewal of its own execution, cancelling one only when an authoritative refresh drops its
+/// execution (operator cancel, a reclaimed lease, or the job claimed again into a newer execution). It does not enforce deadlines on an outage - the <see cref="AttemptWatchdog"/>
 /// does - nor renew handler locks - <see cref="LockLeaseHeartbeat"/> does, so the swappable
 /// <see cref="Acta.Runtime.Services.Locks.ILockStore"/> (relational today, Redis tomorrow) stays a distinct failure
 /// domain. Runs on its own <see cref="PeriodicTimer"/>; a no-op in enqueue-only mode.
@@ -165,18 +165,18 @@ internal sealed class WorkerHeartbeat(
             // A row another transaction held is still owned but was not renewed, so it stays live without
             // moving its deadline.
             var renewRequestedAt = Stopwatch.GetTimestamp();
-            HashSet<long>? live = [];
-            HashSet<long> renewed = [];
+            HashSet<(long JobId, int ExecutionNumber)>? live = [];
+            HashSet<(long JobId, int ExecutionNumber)> renewed = [];
             try
             {
                 foreach (var workerId in _context.WorkerIdByNamespace.Values)
                 {
                     foreach (var row in await _workers.ExtendWorkerLeasesAsync(workerId, _leaseTtlSeconds, _draining, ct))
                     {
-                        live.Add(row.JobId);
+                        live.Add((row.JobId, row.ExecutionNumber));
                         if (row.Renewed)
                         {
-                            renewed.Add(row.JobId);
+                            renewed.Add((row.JobId, row.ExecutionNumber));
                         }
                     }
                 }
@@ -203,26 +203,29 @@ internal sealed class WorkerHeartbeat(
     }
 
     /// <summary>
-    /// The rows this tick renewed that no attempt and no buffered claim of this process accounts for.
+    /// The rows this tick renewed that no attempt on their execution and no buffered claim of this process
+    /// accounts for.
     /// A claim's answer can be lost after the store committed it: the rows are this worker's, the
     /// refresh renews them from database state, and nothing would ever start or reclaim them. An id
     /// must be unaccounted for on two consecutive authoritative ticks before it is released, so a
     /// claim whose executor has not registered it yet is never mistaken for one. The release runs
     /// detached: its writes repeat through an outage, and the heartbeat must keep beating meanwhile.
     /// </summary>
-    private void ReleaseOrphanedClaims(KeyValuePair<long, RunningAttempt>[] snapshot, HashSet<long>? live, CancellationToken ct)
+    private void ReleaseOrphanedClaims(
+        KeyValuePair<long, RunningAttempt>[] snapshot,
+        HashSet<(long JobId, int ExecutionNumber)>? live,
+        CancellationToken ct
+    )
     {
         if (live is null || _releaseOrphanedClaims is null)
         {
             return;
         }
 
-        var unaccounted = new HashSet<long>(live);
-        foreach (var (jobId, _) in snapshot)
-        {
-            unaccounted.Remove(jobId);
-        }
-        unaccounted.ExceptWith(_context.RunningAttempts.Keys);
+        // Only an attempt on the row's own execution accounts for it: the job claimed again into a newer
+        // execution while an older attempt still runs under the same job is a claim nothing will start.
+        var running = snapshot.Concat(_context.RunningAttempts).Select(a => (a.Key, a.Value.ExecutionNumber)).ToHashSet();
+        var unaccounted = live.Where(row => !running.Contains(row)).Select(row => row.JobId).ToHashSet();
         unaccounted.ExceptWith(_context.BufferedClaims.Keys);
 
         var confirmed = unaccounted.Where(_orphanCandidates.Contains).ToList();
@@ -267,18 +270,19 @@ internal sealed class WorkerHeartbeat(
     }
 
     /// <summary>
-    /// For each job this process was running as of the pre-extend snapshot: if an authoritative
-    /// refresh renewed it, feed its job-lease deadline forward; if the refresh reported it but skipped a
-    /// row another transaction held, leave the deadline for the next beat; if the authoritative refresh
-    /// dropped it (operator cancel, or a stolen/reclaimed lease), cancel the attempt now. `live` is
+    /// For each attempt this process was running as of the pre-extend snapshot, matched on job and
+    /// execution: if an authoritative refresh renewed it, feed its job-lease deadline forward; if the
+    /// refresh reported it but skipped a row another transaction held, leave the deadline for the next
+    /// beat; if the authoritative refresh dropped it (operator cancel, a stolen or reclaimed lease, or the
+    /// job claimed again into a newer execution), cancel the attempt now. `live` is
     /// null when the refresh threw (store unreachable): a definitive gone can't be told from a
     /// blip, so nothing is fed or cancelled here - the deadline is left in place and the watchdog
     /// cancels only once it is about to lapse.
     /// </summary>
     private void FeedJobLeases(
         KeyValuePair<long, RunningAttempt>[] snapshot,
-        HashSet<long>? live,
-        HashSet<long> renewed,
+        HashSet<(long JobId, int ExecutionNumber)>? live,
+        HashSet<(long JobId, int ExecutionNumber)> renewed,
         long renewRequestedAt
     )
     {
@@ -290,15 +294,16 @@ internal sealed class WorkerHeartbeat(
         var goodUntil = renewRequestedAt + _ttlStopwatchTicks;
         foreach (var (jobId, attempt) in snapshot)
         {
-            if (renewed.Contains(jobId))
+            var execution = (jobId, attempt.ExecutionNumber);
+            if (renewed.Contains(execution))
             {
                 // Confirmed renewal: the request-start is a lower bound on the store-stamped expiry.
                 attempt.JobLeaseGoodUntil = goodUntil;
             }
-            else if (!live.Contains(jobId))
+            else if (!live.Contains(execution))
             {
-                // Definitive loss under an authoritative refresh - operator cancel, or a stolen/reclaimed
-                // lease. Stop it now rather than waiting out the watchdog.
+                // Definitive loss under an authoritative refresh. Stop it now rather than waiting out the
+                // watchdog.
                 attempt.Cancel();
             }
         }
