@@ -28,7 +28,8 @@ public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
         bool Fails,
         Func<int, JobPayload> Payload,
         Func<int, int?>? Delay = null,
-        Func<int, string>? Lane = null
+        Func<int, string>? Lane = null,
+        JobPriorityCode? Priority = null
     );
 
     private static IReadOnlyList<SeedLine> Plan(AnvilRunSpec spec) =>
@@ -92,7 +93,10 @@ public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
                 // Every member of a lane shares the lane's due instant, so the lane starts at once and
                 // runs through the window one member at a time.
                 i => DueInChaos(i % lanes),
-                i => $"lane-{i % lanes}"
+                i => $"lane-{i % lanes}",
+                // High, so a lane's head is claimed the moment it is due rather than behind the slow backlog
+                // seeded earlier in the same band, which drains only after the chaos has ended.
+                JobPriorityCode.High
             ),
             new(
                 "at-most-once-charge",
@@ -143,7 +147,8 @@ public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
                             line.Payload(i),
                             spec.Workload,
                             line.Delay?.Invoke(i),
-                            line.Lane?.Invoke(i)
+                            line.Lane?.Invoke(i),
+                            line.Priority
                         )
                     );
 
@@ -194,7 +199,8 @@ public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
         JobPayload input,
         AnvilWorkloadCode workload,
         int? delaySeconds = null,
-        string? lane = null
+        string? lane = null,
+        JobPriorityCode? priority = null
     ) =>
         new(
             namespaceName,
@@ -204,6 +210,7 @@ public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
             CorrelationKey: runId,
             DelaySeconds: delaySeconds,
             Lane: lane,
+            Priority: priority,
             Tags: [new TagInput("demo", "anvil"), new TagInput("run", runId), new TagInput("workload", workload.ToString())],
             // Every sixth of the seeded jobs cycles through a demo tenant so tenant-scoped views have
             // data; the rest stay untenanted so both kinds of jobs exist side by side.
