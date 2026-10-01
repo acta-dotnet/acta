@@ -2404,6 +2404,7 @@
   - A fully expired subtree drains child-first and then releases the parent
   - The lock sweep is bounded by batch size and iterations like every other section
   - Batching caps a single call at max iterations and a full run clears the rest
+  - A stopped recurring job outlives its retention while its definition is live, and drains once retired
 - **Store methods:**
   - `Acta.Runtime.Maintenance.IRetentionStore.PurgeBatchAsync`
 
@@ -2511,6 +2512,7 @@
   - Re-registration upserts the single schedule row and its misfire code rather than duplicating it
   - A cursor due less than a minute ago is not a misfire: a start leaves it and its slot due for the running fleet
   - A missed cursor reconciles under the operator's expression override, not the declared expression
+  - A deploy that switches a schedule between interval and cron drops an override set for the old kind
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.GetScheduleStateAsync`
   - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.RegisterScheduledJobsAsync`

@@ -106,8 +106,9 @@ Before a large backfill:
   naming the paused job.
 - A recurring job whose schedules are all paused, exhausted, or removed by a deploy is Paused with no
   next run. It returns to Ready once a schedule offers a run; a job resume is refused until one does.
-- Cancelling a recurring job, by an operator or by its handler, ends it. A worker restart and a
-  deploy leave it Cancelled; only a job restart brings it back.
+- Cancelling a recurring job, by an operator or by its handler, ends it. A worker restart, a
+  deploy, and retention leave it Cancelled; only a job restart brings it back. A manual purge
+  deletes it, and the next start registers the declaration as a new job.
 - A recurring job's slot uses the job's name as its deduplication key. A worker refuses to start
   while an ordinary job of the namespace holds that key, and names the recurring job in the error,
   rather than turning that job into the slot.
@@ -115,7 +116,8 @@ Before a large backfill:
 - Preview computes upcoming instants from the effective expression and time zone without reading or
   advancing the persisted cursor. It is safe on a paused schedule.
 - Expression/time-zone overrides are operator state protected by an expected-version check. A stale
-  dashboard edit must be reloaded, reviewed, and submitted again.
+  dashboard edit must be reloaded, reviewed, and submitted again. A deploy that switches a schedule
+  between interval and cron drops its expression override, which was written for the other kind.
 
 Try the behavior in concepts
 [`103-multiple-schedules`](../../concepts/100-scheduling/103-multiple-schedules/),

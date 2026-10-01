@@ -99,12 +99,12 @@
     "Provider": "mssql",
     "Major": 1,
     "Revision": 6,
-    "Hash": "ba2b2c3b1d758331eb8bc8293b0bdf93"
+    "Hash": "0528bab86105195a00b3e5e74c6106f2"
   },
   {
     "Provider": "pg",
     "Major": 1,
     "Revision": 6,
-    "Hash": "850f66ef934ef4e4ec66a6a6577e3354"
+    "Hash": "a2d5344c4245c74a797c3408f84feb56"
   }
 ]

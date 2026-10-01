@@ -1,6 +1,7 @@
 using Acta.Relational.Entities;
 using Acta.Runtime.Maintenance;
 using Acta.Runtime.Modules.Execution;
+using Acta.Runtime.Modules.Execution.Schedules;
 using Acta.Runtime.Modules.Execution.Workers;
 using Acta.Runtime.Services.Locks;
 using Acta.Runtime.Services.Time;
@@ -642,4 +643,99 @@ public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixt
         );
         Assert.Equal(1, rest.Jobs);
     }
+
+    [Fact(DisplayName = "A stopped recurring job outlives its retention while its definition is live, and drains once retired")]
+    public async Task A_stopped_recurring_job_outlives_retention_until_its_definition_is_retired()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var jobName = $"purge-recurring-{Guid.NewGuid():N}";
+        var defId = (
+            await DefinitionTestOps.RegisterAsync(Services, ns, new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), [Def(jobName)], ct)
+        )[jobName];
+        var cursor = DateTime.UtcNow.AddHours(6);
+        var slots = await ScheduleTestOps.RegisterAsync(
+            Services,
+            [
+                new DefinitionSchedules(
+                    NamespaceId: ns,
+                    DefinitionId: defId,
+                    JobName: jobName,
+                    InputFormatId: 0,
+                    Input: ReadOnlyMemory<byte>.Empty,
+                    AuditLevel: JobAuditLevelCode.Audit,
+                    SlotStatus: JobStatusCode.Ready,
+                    SlotMinNextRunAtUtc: cursor,
+                    Schedules:
+                    [
+                        new SlotSchedule(
+                            "only",
+                            "0 * * * *",
+                            null,
+                            MisfireStrategyCode.Skip,
+                            ScheduleExpressionKindCode.Cron,
+                            null,
+                            cursor
+                        ),
+                    ]
+                ),
+            ],
+            ct
+        );
+        var slotId = slots[defId];
+
+        // An operator cancelled it a retention window ago.
+        await Db.ExecuteRawAsync(
+            "UPDATE {schema}.runtimes SET status_code = @p_status, next_run_at_utc = NULL, retention_until_utc = @p_until WHERE job_id = @p_id",
+            ct,
+            ("@p_status", (byte)JobStatusCode.Cancelled),
+            ("@p_until", DateTime.UtcNow.AddDays(-1)),
+            ("@p_id", slotId)
+        );
+
+        await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
+        Assert.NotNull(await Db.From<Job>().Where(j => j.Id == slotId).SingleOrDefaultAsync(ct));
+        Assert.NotEmpty(await Db.From<JobSchedule>().Where(x => x.JobId == slotId).ToListAsync(ct));
+
+        await Db.ExecuteRawAsync(
+            "UPDATE {schema}.definitions SET status_code = @p_status WHERE id = @p_id",
+            ct,
+            ("@p_status", (byte)JobDefinitionStatusCode.Retired),
+            ("@p_id", defId)
+        );
+        var purged = await RetentionTestOps.PurgeUntilAsync(
+            Services,
+            ns,
+            NoEventPurgeDays,
+            NoAlertPurgeDays,
+            NoWorkerPurgeSeconds,
+            1000,
+            50,
+            async () => await Db.From<Job>().Where(j => j.Id == slotId).SingleOrDefaultAsync(ct) is null,
+            ct
+        );
+        Assert.True(purged.Jobs >= 1);
+        Assert.Null(await Db.From<Job>().Where(j => j.Id == slotId).SingleOrDefaultAsync(ct));
+    }
+
+    private static JobDescriptor Def(string name) =>
+        new(
+            JobName: name,
+            HandlerType: typeof(object),
+            MethodName: "M",
+            InputType: typeof(int),
+            OutputType: null,
+            InputPayloadFormat: JobPayloadFormat.Json,
+            OutputPayloadFormat: null,
+            InvocationKind: default,
+            RequiresJobContextParameter: false,
+            RequiresCancellationToken: false,
+            Priority: default,
+            MaxAttempts: 1,
+            AuditLevel: default,
+            AlertProfile: default,
+            Invoker: null!,
+            DeserializeInput: null!,
+            SerializeOutput: null
+        );
 }

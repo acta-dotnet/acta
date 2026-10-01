@@ -166,6 +166,9 @@ BEGIN
         expression = EXCLUDED.expression,
         time_zone_id = EXCLUDED.time_zone_id,
         expression_kind_code = EXCLUDED.expression_kind_code,
+        -- An override was validated against the kind it was set for; one left under the other kind cannot parse.
+        expression_override = CASE WHEN {{schema}}.schedules.expression_kind_code IS DISTINCT FROM EXCLUDED.expression_kind_code
+            THEN NULL ELSE {{schema}}.schedules.expression_override END,
         misfire_strategy_code = EXCLUDED.misfire_strategy_code,
         next_run_at_utc = EXCLUDED.next_run_at_utc,
         definition_id = EXCLUDED.definition_id,

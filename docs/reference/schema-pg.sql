@@ -6177,6 +6177,9 @@ BEGIN
         expression = EXCLUDED.expression,
         time_zone_id = EXCLUDED.time_zone_id,
         expression_kind_code = EXCLUDED.expression_kind_code,
+        -- An override was validated against the kind it was set for; one left under the other kind cannot parse.
+        expression_override = CASE WHEN acta.schedules.expression_kind_code IS DISTINCT FROM EXCLUDED.expression_kind_code
+            THEN NULL ELSE acta.schedules.expression_override END,
         misfire_strategy_code = EXCLUDED.misfire_strategy_code,
         next_run_at_utc = EXCLUDED.next_run_at_utc,
         definition_id = EXCLUDED.definition_id,
@@ -8159,6 +8162,13 @@ BEGIN
                     SELECT 1 FROM acta.runtimes p
                     WHERE p.job_id = j.parent_id
                       AND p.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
+                -- A stopped recurring job stays while its definition is live: the next start would register
+                -- its declaration as a new job and undo the cancel or failure. Retiring the definition lets
+                -- it drain.
+                AND NOT EXISTS (
+                    SELECT 1 FROM acta.schedules s
+                    JOIN acta.definitions d ON d.id = j.definition_id
+                    WHERE s.job_id = j.id AND d.status_code <> 240 /* JobDefinitionStatusCode.Retired */)
             ORDER BY r.retention_until_utc, r.job_id
             LIMIT p_batch_size
             FOR UPDATE OF j, r SKIP LOCKED) q;
@@ -8627,7 +8637,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.6-850f66ef934ef4e4ec66a6a6577e3354', 'acta');
+VALUES (-1, 'objects-1.6-a2d5344c4245c74a797c3408f84feb56', 'acta');
 
 COMMIT;
 

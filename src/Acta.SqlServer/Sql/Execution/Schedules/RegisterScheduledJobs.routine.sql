@@ -143,6 +143,11 @@ BEGIN
             expression = src.expression,
             time_zone_id = src.time_zone_id,
             expression_kind_code = src.expression_kind_code,
+            -- An override was validated against the kind it was set for; one left under the other kind cannot parse.
+            expression_override = CASE
+                WHEN tgt.expression_kind_code <> src.expression_kind_code THEN NULL
+                ELSE tgt.expression_override
+            END,
             misfire_strategy_code = src.misfire_strategy_code,
             next_run_at_utc = src.next_run_at_utc,
             definition_id = src.definition_id,

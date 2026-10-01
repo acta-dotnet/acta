@@ -192,6 +192,43 @@ public abstract class ScheduleInsertMisfireMatrixSpec<TFixture> : ActaStorageTes
         Assert.Equal("PT1H", row.ExpressionOverride);
     }
 
+    [Fact(DisplayName = "A deploy that switches a schedule between interval and cron drops an override set for the old kind")]
+    public async Task A_kind_switch_drops_an_override_of_the_old_kind()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (db, dialect) = Store();
+        var jobName = TestKey("kind-switch");
+        var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
+        var slotId = await RegisterAsync(
+            db,
+            dialect,
+            defId,
+            jobName,
+            [Slot("PT5M", ScheduleExpressionKindCode.Interval, MisfireStrategyCode.Skip, At(60))],
+            JobStatusCode.Ready,
+            At(60),
+            ct
+        );
+        await db.ExecuteRawAsync("UPDATE {schema}.schedules SET expression_override = 'PT1H' WHERE job_id = @p_id", ct, ("@p_id", slotId));
+
+        await RegisterAsync(
+            db,
+            dialect,
+            defId,
+            jobName,
+            [Slot(Cron5, ScheduleExpressionKindCode.Cron, MisfireStrategyCode.Skip, At(60))],
+            JobStatusCode.Ready,
+            At(60),
+            ct
+        );
+
+        // Kept, "PT1H" would be parsed as cron at every fire, and the job would never run again.
+        var row = await ScheduleRowAsync(slotId, ct);
+        Assert.Equal(ScheduleExpressionKindCode.Cron, row.ExpressionKind);
+        Assert.Null(row.ExpressionOverride);
+        Assert.Equal(Cron5, row.ExpressionEffective);
+    }
+
     private (IDbSession Db, ISqlDialect Dialect) Store() => (Db, Services.GetRequiredService<ISqlDialect>());
 
     private static SlotSchedule Slot(string expression, ScheduleExpressionKindCode kind, MisfireStrategyCode misfire, DateTime? cursor) =>

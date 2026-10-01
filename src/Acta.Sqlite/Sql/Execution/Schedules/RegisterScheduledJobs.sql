@@ -131,6 +131,10 @@ ON CONFLICT (job_id, name) DO UPDATE SET
     expression = excluded.expression,
     time_zone_id = excluded.time_zone_id,
     expression_kind_code = excluded.expression_kind_code,
+    -- An override was validated against the kind it was set for; one left under the other kind cannot parse.
+    expression_override = CASE WHEN {{schema}}.schedules.expression_kind_code IS NOT excluded.expression_kind_code
+        THEN NULL
+        ELSE {{schema}}.schedules.expression_override END,
     misfire_strategy_code = excluded.misfire_strategy_code,
     next_run_at_utc = excluded.next_run_at_utc,
     definition_id = excluded.definition_id,

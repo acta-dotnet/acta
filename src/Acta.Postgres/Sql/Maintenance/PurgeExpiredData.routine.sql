@@ -39,6 +39,13 @@ BEGIN
                     SELECT 1 FROM {{schema}}.runtimes p
                     WHERE p.job_id = j.parent_id
                       AND p.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
+                -- A stopped recurring job stays while its definition is live: the next start would register
+                -- its declaration as a new job and undo the cancel or failure. Retiring the definition lets
+                -- it drain.
+                AND NOT EXISTS (
+                    SELECT 1 FROM {{schema}}.schedules s
+                    JOIN {{schema}}.definitions d ON d.id = j.definition_id
+                    WHERE s.job_id = j.id AND d.status_code <> 240 /* JobDefinitionStatusCode.Retired */)
             ORDER BY r.retention_until_utc, r.job_id
             LIMIT p_batch_size
             FOR UPDATE OF j, r SKIP LOCKED) q;
