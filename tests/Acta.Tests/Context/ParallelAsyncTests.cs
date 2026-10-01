@@ -58,6 +58,23 @@ public sealed class ParallelAsyncTests
     }
 
     [Fact]
+    public async Task Parallel_rejects_a_child_name_too_long_before_starting_any_branch()
+    {
+        var ctx = new RecordingJobContext();
+        var group = new string('g', 100);
+
+        await Assert.ThrowsAnyAsync<ArgumentException>(() =>
+            ctx.ParallelAsync(
+                group,
+                p => p.Child("short", new Probe()).Child(new string('b', 60), new Probe()),
+                TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.Empty(ctx.Started);
+    }
+
+    [Fact]
     public async Task Parallel_rejects_invalid_group_name()
     {
         var ctx = new RecordingJobContext();

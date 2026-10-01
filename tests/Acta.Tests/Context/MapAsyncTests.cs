@@ -1,3 +1,4 @@
+using System.Globalization;
 using Xunit;
 
 namespace Acta.Tests.Context;
@@ -12,6 +13,8 @@ public sealed class MapAsyncTests
     private sealed record Image(int Id, string Url);
 
     private sealed record ResizeInput(int Id);
+
+    private static readonly string[] TooLongKeys = ["a", "B C"];
 
     private static readonly Image[] ThreeImages = [new(1, "a.png"), new(2, "b.png"), new(3, "c.png")];
 
@@ -124,6 +127,55 @@ public sealed class MapAsyncTests
         Assert.StartsWith("group-", name);
         Assert.DoesNotContain(' ', name);
         Assert.True(IdentifierSyntax.IsKebab(name), $"derived name '{name}' must be kebab");
+    }
+
+    [Fact]
+    public async Task Map_rejects_a_child_name_too_long_before_starting_any_child()
+    {
+        var ctx = new RecordingJobContext();
+
+        // "a" names a readable child that fits; "B C" is unsafe, so it hashes to a name past the limit.
+        await Assert.ThrowsAnyAsync<ArgumentException>(() =>
+            ctx.MapAsync(
+                new string('g', 120),
+                TooLongKeys,
+                itemKey: k => k,
+                child: k => new ResizeInput(k.Length),
+                ct: TestContext.Current.CancellationToken
+            )
+        );
+
+        Assert.Empty(ctx.Started);
+    }
+
+    [Fact]
+    public async Task Map_derives_the_same_child_names_under_any_culture()
+    {
+        var keys = new[] { -5, 7 };
+        async Task<string[]> NamesUnder(string culture)
+        {
+            var previous = CultureInfo.CurrentCulture;
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(culture);
+            try
+            {
+                var ctx = new RecordingJobContext();
+                await ctx.MapAsync(
+                    "scale",
+                    keys,
+                    itemKey: k => k,
+                    child: k => new ResizeInput(k),
+                    ct: TestContext.Current.CancellationToken
+                );
+                return [.. ctx.Started.Select(s => s.Name)];
+            }
+            finally
+            {
+                CultureInfo.CurrentCulture = previous;
+            }
+        }
+
+        // Swedish formats a negative number with U+2212, so a culture-sensitive key would hash differently.
+        Assert.Equal(await NamesUnder(""), await NamesUnder("sv-SE"));
     }
 
     [Fact]

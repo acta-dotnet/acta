@@ -1274,6 +1274,8 @@ public abstract class JobContext
         foreach (var branch in branches)
         {
             IdentifierSyntax.ValidateUserKebab(branch.BranchName, "branchName", IdentifierSyntax.ExtendedMaxLength);
+            // Checked whole before any branch starts, so a name too long fails the group, not its last branch.
+            IdentifierSyntax.ValidateUserKebab($"{groupName}-{branch.BranchName}", "branchName", IdentifierSyntax.ExtendedMaxLength);
             if (!seen.Add(branch.BranchName))
             {
                 throw new ArgumentException(
@@ -1379,6 +1381,7 @@ public abstract class JobContext
             }
 
             var childName = ChildGroupName(groupName, key);
+            IdentifierSyntax.ValidateUserKebab(childName, nameof(groupName), IdentifierSyntax.ExtendedMaxLength);
             if (!seenNames.Add(childName))
             {
                 throw new ArgumentException(
@@ -1411,7 +1414,8 @@ public abstract class JobContext
     private static string ChildGroupName<TKey>(string groupName, TKey key)
         where TKey : notnull
     {
-        var canonical = key.ToString() ?? string.Empty;
+        // Invariant, so a replay on a host with another culture derives the same name.
+        var canonical = (key is IFormattable f ? f.ToString(null, CultureInfo.InvariantCulture) : key.ToString()) ?? string.Empty;
         return IsNameSafeTail(canonical) && groupName.Length + 1 + canonical.Length <= IdentifierSyntax.ExtendedMaxLength
             ? $"{groupName}-{canonical}"
             : $"{groupName}-{ShortHash(canonical)}";
