@@ -76,27 +76,23 @@ public abstract class ActaRuntimeTestBase<TFixture, TManifest> : ActaTestBase<TF
         var ct = TestContext.Current.CancellationToken;
         await Runtime.InitializeAsync(ct);
 
-        if (ParkScheduleSlots)
+        var slots = Runtime.RecurringSlotJobIds.ToList();
+        if (ParkScheduleSlots && slots.Count > 0)
         {
-            // At this point the namespace's only Ready rows are the seeded schedule slots.
+            // Addressed by job id, so every write seeks: a filter on namespace and status reaches no
+            // filtered index through the test query layer's parameters, and scans the whole shared schema.
             var parked = DateTime.UtcNow.AddDays(1);
-            var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
             var dialect = Services.GetRequiredService<ISqlDialect>();
-            // A non-Orphaned status matches ix_schedules_namespace_next's filter so SQL Server seeks
-            // instead of scanning pk_schedules into unrelated fixtures' purge locks.
             await RetryTransientConflictAsync(
                 dialect,
-                () =>
-                    Db.From<JobSchedule>()
-                        .Where(s => s.NamespaceId == ns && s.Status != ScheduleStatusCode.Orphaned)
-                        .UpdateOnlyAsync(() => new JobSchedule { NextRunAtUtc = parked }, ct),
+                () => Db.From<JobSchedule>().Where(s => slots.Contains(s.JobId)).UpdateOnlyAsync(() => new JobSchedule { NextRunAtUtc = parked }, ct),
                 ct
             );
             await RetryTransientConflictAsync(
                 dialect,
                 () =>
                     Db.From<JobRuntime>()
-                        .Where(r => r.NamespaceId == ns && r.Status == JobStatusCode.Ready)
+                        .Where(r => slots.Contains(r.Id) && r.Status == JobStatusCode.Ready)
                         .UpdateOnlyAsync(() => new JobRuntime { NextRunAtUtc = parked }, ct),
                 ct
             );

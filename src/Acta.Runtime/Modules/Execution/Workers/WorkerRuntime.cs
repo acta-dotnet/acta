@@ -198,6 +198,9 @@ internal sealed class WorkerRuntime
 
     public IReadOnlyDictionary<string, int> RegisteredNamespaceIds => _context.RegisteredNamespaceIds;
 
+    /// <summary>The recurring slot jobs this worker registered or recognized on claim.</summary>
+    internal ICollection<long> RecurringSlotJobIds => _context.RecurringSlotJobIds.Keys;
+
     public bool TryGetDefinitionId(string namespaceName, string jobName, out int definitionId) =>
         _context.TryGetDefinitionId(namespaceName, jobName, out definitionId);
 
