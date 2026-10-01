@@ -19,7 +19,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Contract = "Under the Bulk profile a batch completion that promotes a lane's next member wakes the namespace's claim loop, so the lane drains at flush pace.",
     Arrange = "A lane of ten no-op probes sits in a private namespace served by an otherwise idle Bulk worker with a sixty-second safety poll.",
     Act = "The worker loop drains the lane.",
-    Assert = "All ten probes ran in order within thirty seconds, half of the single safety poll one unannounced promotion would cost."
+    Assert = "All ten probes ran in order within fifty seconds, under the sixty-second safety poll one unannounced promotion would cost."
 )]
 public abstract class LaneBulkPromotionWakeSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
@@ -41,8 +41,10 @@ public abstract class LaneBulkPromotionWakeSpec<TFixture> : ActaRuntimeTestBase<
     public async Task Bulk_lane_drains_at_flush_pace()
     {
         var ct = TestContext.Current.CancellationToken;
-        // One missed wake costs a whole minute; half of one leaves a slow runner three seconds a member.
-        var budget = SafetyPoll / 2;
+        // One missed wake costs a whole safety poll, so any budget under it proves every promotion woke the
+        // loop; ten seconds under leaves a loaded runner five seconds a member. Half the poll once failed a
+        // full SQLite leg on a slow drive at 3.2 s a member, with every wake on time.
+        var budget = SafetyPoll - TimeSpan.FromSeconds(10);
         await Jobs.EnqueueBatchAsync(
             [
                 .. Enumerable

@@ -1457,7 +1457,7 @@
 - **Contract:** Under the Bulk profile a batch completion that promotes a lane's next member wakes the namespace's claim loop, so the lane drains at flush pace.
 - **Arrange:** A lane of ten no-op probes sits in a private namespace served by an otherwise idle Bulk worker with a sixty-second safety poll.
 - **Act:** The worker loop drains the lane.
-- **Assert:** All ten probes ran in order within thirty seconds, half of the single safety poll one unannounced promotion would cost.
+- **Assert:** All ten probes ran in order within fifty seconds, under the sixty-second safety poll one unannounced promotion would cost.
 - **Guarantees:**
   - A Bulk lane of ten no-op jobs drains at flush pace, not at safety-poll pace
 
