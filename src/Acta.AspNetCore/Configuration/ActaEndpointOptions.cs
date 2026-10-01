@@ -10,7 +10,8 @@ namespace Acta.AspNetCore.Configuration;
 public class ActaEndpointOptions
 {
     /// <summary>
-    /// Whether requests from non-loopback remote addresses are rejected with 403. On by default:
+    /// Whether requests from non-loopback remote addresses, and local ones that name the host by anything
+    /// but <c>localhost</c> or an IP address (a DNS-rebinding page), are rejected with 403. On by default:
     /// the surface is intended for local operator use until the host opts out and brings its own
     /// authorization through <see cref="ConfigureEndpoints"/>.
     /// </summary>

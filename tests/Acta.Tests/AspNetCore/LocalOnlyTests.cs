@@ -65,6 +65,38 @@ public sealed class LocalOnlyTests
     }
 
     [Fact]
+    public async Task A_loopback_request_under_a_rebound_dns_name_is_rejected()
+    {
+        // A hostile page that rebinds its own name to 127.0.0.1 reaches the socket from the operator's browser.
+        var (app, client) = await TestDashboardHost.StartAsync(configureApp: RemoteAddress("127.0.0.1"));
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        foreach (var path in new[] { "/acta", "/acta/api/v1/jobs" })
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, path);
+            request.Headers.Host = "rebind.attacker.example:5000";
+            Assert.Equal(HttpStatusCode.Forbidden, (await client.SendAsync(request, ct)).StatusCode);
+        }
+    }
+
+    [Theory]
+    [InlineData("localhost:5000")]
+    [InlineData("127.0.0.1:5000")]
+    [InlineData("[::1]:5000")]
+    [InlineData("app.localhost")]
+    public async Task A_loopback_request_under_a_local_host_name_passes(string host)
+    {
+        var (app, client) = await TestDashboardHost.StartAsync(configureApp: RemoteAddress("127.0.0.1"));
+        await using var _ = app;
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/acta/api/v1/jobs");
+        request.Headers.Host = host;
+
+        Assert.Equal(HttpStatusCode.OK, (await client.SendAsync(request, TestContext.Current.CancellationToken)).StatusCode);
+    }
+
+    [Fact]
     public async Task In_process_requests_pass_by_default()
     {
         var (app, client) = await TestDashboardHost.StartAsync();

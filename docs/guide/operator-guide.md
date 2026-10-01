@@ -485,7 +485,10 @@ so dashboards can show or hide edit UI without probing a control route; it is al
 never gated.
 
 The surface is local-only by default (`LocalOnly = true`): requests from non-loopback remote
-addresses are rejected with 403, so the dashboard works with zero setup from the same machine. The
+addresses are rejected with 403, so the dashboard works with zero setup from the same machine. A
+local request must also name the host as `localhost` or an IP address, which shuts out a web page
+that rebinds its own DNS name to 127.0.0.1; browse to `localhost` or `127.0.0.1`, not the machine
+name. The
 package ships no authentication; exposing the surface remotely means setting `LocalOnly = false` and
 wiring host authorization through `ConfigureEndpoints`, which covers the HTML, the hashed assets,
 the query API, and the control API together. Mapping fails closed: `LocalOnly = false` without

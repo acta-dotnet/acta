@@ -145,8 +145,13 @@ public static class ActaEndpointRouteBuilderExtensions
             {
                 var connection = context.HttpContext.Connection;
                 var remote = connection.RemoteIpAddress;
-                // Null remote means an in-process transport (test server, named pipes).
-                return remote is null || IPAddress.IsLoopback(remote) || remote.Equals(connection.LocalIpAddress)
+                // Null remote means an in-process transport (test server, named pipes). A local peer must also
+                // name the host locally: a page that rebinds its own DNS name to 127.0.0.1 reaches this socket
+                // from the operator's browser under that name, never as localhost or an IP literal.
+                return
+                    remote is null
+                    || (IPAddress.IsLoopback(remote) || remote.Equals(connection.LocalIpAddress))
+                        && IsLocalHostName(context.HttpContext.Request.Host.Host)
                     ? await next(context)
                     : Results.Problem(
                         statusCode: StatusCodes.Status403Forbidden,
@@ -155,6 +160,11 @@ public static class ActaEndpointRouteBuilderExtensions
             }
         );
     }
+
+    private static bool IsLocalHostName(string host) =>
+        IPAddress.TryParse(host.Trim('[', ']'), out _)
+        || host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+        || host.EndsWith(".localhost", StringComparison.OrdinalIgnoreCase);
 
     // The base href carries the request's path base in front of the mount pattern: behind a reverse
     // proxy that strips a prefix, UsePathBase puts it back on the request, and relative asset URLs in
