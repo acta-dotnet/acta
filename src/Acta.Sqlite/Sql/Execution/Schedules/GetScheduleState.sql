@@ -8,7 +8,11 @@ SELECT
     r.next_run_at_utc AS slot_next_run_at_utc,
     t.expression_kind_code,
     t.expression_override,
-    t.time_zone_id_override
+    t.time_zone_id_override,
+    t.expression,
+    t.time_zone_id,
+    t.misfire_strategy_code,
+    t.description
 FROM {{schema}}.schedules t
 LEFT JOIN {{schema}}.runtimes r ON r.job_id = t.job_id
 WHERE

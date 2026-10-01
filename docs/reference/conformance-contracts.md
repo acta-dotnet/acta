@@ -2688,7 +2688,7 @@
 - **Contract:** Registration writes an idle slot only on a changed declaration, leaves one in flight, finished, or parked mid-occurrence, and never adopts an ordinary job.
 - **Arrange:** A recurring slot is registered, then put in flight with a worker lease as if another host had claimed it.
 - **Act:** The same definition is registered again, as a second host does on startup, with the declaration changed or identical.
-- **Assert:** In-flight and parked slots keep their status, lease or wake, and cursor, while an idle slot takes a changed declaration and ignores an identical one.
+- **Assert:** In-flight and parked slots keep their status, lease or wake, and due cursors, while an idle slot takes a changed declaration and ignores an identical one.
 - **Guarantees:**
   - Re-registering a slot that is executing leaves its status, lease, and cursor to the running execution
   - Re-registering an idle slot re-asserts the declared cursor and status
@@ -2696,6 +2696,8 @@
   - Re-registering a finished slot leaves it finished: only an operator's restart brings it back
   - Registration leaves an ordinary job that holds the slot's key untouched and returns no slot for it
   - A start leaves a slot parked part-way through an occurrence where it waits: Suspended, or Ready at its wake instant
+  - A start leaves an attempt in flight its due cursor, so a reclaim or re-arm of it still sees its occurrence
+  - A start never puts back to sleep a waiting slot that a signal woke after the start read it
   - A start that edits a catch-up schedule whose occurrence is in flight moves its cursor past that occurrence
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.RegisterScheduledJobsAsync`

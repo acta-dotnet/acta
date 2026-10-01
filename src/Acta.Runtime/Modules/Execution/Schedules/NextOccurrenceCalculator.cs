@@ -77,19 +77,11 @@ internal static class NextOccurrenceCalculator
     }
 
     /// <summary>
-    /// How far behind now a stored occurrence may be and still count as due rather than missed. A running
-    /// fleet claims a due slot within its claim latency, so a worker that starts in that moment must not
-    /// take the occurrence for a misfire; one further behind was missed, to downtime or a pause.
-    /// </summary>
-    internal static readonly TimeSpan MisfireThreshold = TimeSpan.FromMinutes(1);
-
-    /// <summary>
     /// MisfireStrategy-aware reconciliation for startup / resume / restart. New schedules (null stored
     /// cursor) seed from the first occurrence after now. An un-missed stored cursor (still ahead of
-    /// now, or behind it by less than <see cref="MisfireThreshold"/>) is kept. A missed cursor either
-    /// fires once now (<see cref="MisfireStrategyCode.CatchUpOnce"/>, keep the past instant so the next
-    /// fire coalesces all misses) or skips to the first occurrence after now
-    /// (<see cref="MisfireStrategyCode.Skip"/>).
+    /// now) is kept. A missed cursor either fires once now (<see cref="MisfireStrategyCode.CatchUpOnce"/>,
+    /// keep the past instant so the next fire coalesces all misses) or skips to the first occurrence
+    /// after now (<see cref="MisfireStrategyCode.Skip"/>).
     /// </summary>
     public static DateTime? Reconcile(
         string expression,
@@ -106,7 +98,7 @@ internal static class NextOccurrenceCalculator
         }
 
         stored = DateTime.SpecifyKind(stored, DateTimeKind.Utc);
-        return stored > DateTime.SpecifyKind(nowUtc, DateTimeKind.Utc) - MisfireThreshold ? stored
+        return stored > DateTime.SpecifyKind(nowUtc, DateTimeKind.Utc) ? stored
             : misfire == MisfireStrategyCode.CatchUpOnce ? stored
             : FirstAfter(expression, timeZone, kind, stored, nowUtc);
     }

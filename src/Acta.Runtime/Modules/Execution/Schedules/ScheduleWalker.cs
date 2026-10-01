@@ -85,9 +85,10 @@ internal static class ScheduleWalker
     /// stored cursor using the misfire policy, under an operator's override where one is in force (the
     /// written row still carries the declared values); paused schedules keep their stored cursor untouched and
     /// contribute only a timed <c>PausedUntilUtc</c> to the slot MIN, so operator pause survives a
-    /// redeploy. An occurrence already under way keeps the cursors it owns: an attempt in flight has
-    /// consumed every due one, and a slot parked part-way (<see cref="IsParked"/>) keeps them and its own
-    /// status and wake instant until it resumes. Returns the per-schedule reconciled state and the slot's
+    /// redeploy. A cursor already due that the running fleet owns stays due for the run that takes it:
+    /// its slot has an attempt in flight or is parked part-way through it (<see cref="IsParked"/>), or it
+    /// came due less than <see cref="MisfireThreshold"/> ago and is about to be claimed. A parked slot
+    /// keeps its own status and wake instant too. Returns the per-schedule reconciled state and the slot's
     /// status and next run, Paused with none when no schedule yields an upcoming occurrence.
     /// </summary>
     public static (IReadOnlyList<SlotSchedule> Schedules, JobStatusCode SlotStatus, DateTime? SlotNextRunAtUtc) Reconcile(
@@ -120,19 +121,15 @@ internal static class ScheduleWalker
                 // behind by a deploy that switched interval and cron, and registration clears it.
                 var expression = stored?.ExpressionKind == d.ExpressionKind ? stored.ExpressionOverride ?? d.Expression : d.Expression;
                 var zone = string.IsNullOrWhiteSpace(stored?.TimeZoneIdOverride) ? timeZone : stored.TimeZoneIdOverride;
+                var due = stored?.NextRunAtUtc;
+                // Rewriting the schedule of an attempt in flight bumps the row's version, which refuses that
+                // attempt's own advance, so the cursor it was armed for moves past it here instead.
                 cursor =
-                    stored?.NextRunAtUtc is { } due && due <= nowUtc && (inFlight || parked)
-                        ? inFlight
-                            ? NextOccurrenceCalculator.FirstAfter(expression, zone, d.ExpressionKind, due, nowUtc)
+                    due <= nowUtc && (inFlight || parked || due > nowUtc - MisfireThreshold)
+                        ? inFlight && due <= slot!.SlotNextRunAtUtc && Redeclares(stored!, d, timeZone)
+                            ? NextOccurrenceCalculator.FirstAfter(expression, zone, d.ExpressionKind, due.Value, nowUtc)
                             : due
-                        : NextOccurrenceCalculator.Reconcile(
-                            expression,
-                            zone,
-                            d.ExpressionKind,
-                            d.MisfireStrategy,
-                            stored?.NextRunAtUtc,
-                            nowUtc
-                        );
+                        : NextOccurrenceCalculator.Reconcile(expression, zone, d.ExpressionKind, d.MisfireStrategy, due, nowUtc);
                 contribution = cursor;
             }
 
@@ -152,6 +149,21 @@ internal static class ScheduleWalker
         var slotMin = SlotMin(contributions);
         return (schedules, slotMin is null ? JobStatusCode.Paused : JobStatusCode.Ready, slotMin);
     }
+
+    /// <summary>
+    /// How far behind now a stored occurrence may be at a worker start and still count as due rather than
+    /// missed: a running fleet claims a due slot within its claim latency, so a start in that moment must
+    /// not take the occurrence for a misfire. One further behind was missed, to downtime.
+    /// </summary>
+    internal static readonly TimeSpan MisfireThreshold = TimeSpan.FromMinutes(1);
+
+    /// <summary>Whether registering <paramref name="d"/> rewrites the stored row: a declared column differs.</summary>
+    private static bool Redeclares(StoredScheduleState stored, ScheduleDescriptor d, string timeZone) =>
+        stored.Expression != d.Expression
+        || stored.TimeZoneId != timeZone
+        || stored.ExpressionKind != d.ExpressionKind
+        || stored.MisfireStrategy != d.MisfireStrategy
+        || stored.Description != d.Description;
 
     /// <summary>
     /// Whether a recurring slot is parked part-way through an occurrence: Suspended on a wait, or Ready at a

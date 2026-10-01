@@ -5,7 +5,8 @@ namespace Acta.Tests.Runtime;
 
 /// <summary>
 /// The startup reconcile in <see cref="ScheduleWalker.Reconcile"/> against stored state an operator or the
-/// running fleet left behind: an override in force, an attempt in flight, an occurrence parked part-way.
+/// running fleet left behind: an override in force, an occurrence just due, an attempt in flight, an
+/// occurrence parked part-way.
 /// </summary>
 public class ScheduleWalkerReconcileTests
 {
@@ -95,16 +96,62 @@ public class ScheduleWalkerReconcileTests
     }
 
     [Fact]
-    public void An_attempt_in_flight_has_consumed_a_catch_up_cursor()
+    public void A_cursor_due_less_than_a_minute_ago_stays_due_for_the_running_fleet()
     {
-        var stored = Stored(Utc(12, 0), ScheduleExpressionKindCode.Cron) with { SlotStatus = JobStatusCode.Executing };
-        var declared = Cron("*/5 * * * *") with { MisfireStrategy = MisfireStrategyCode.CatchUpOnce };
+        var due = Now.AddSeconds(-30);
+        var stored = Stored(due, ScheduleExpressionKindCode.Cron);
 
-        var (schedules, _, _) = ScheduleWalker.Reconcile([declared], Map(stored), Now);
+        var (schedules, status, nextRun) = ScheduleWalker.Reconcile([Cron("*/5 * * * *")], Map(stored), Now);
 
-        // CatchUpOnce would keep 12:00 due; the running attempt is that catch-up, so the cursor moves past it.
+        Assert.Equal(due, Assert.Single(schedules).NextRunAtUtc);
+        Assert.Equal(JobStatusCode.Ready, status);
+        Assert.Equal(due, nextRun);
+    }
+
+    [Fact]
+    public void An_attempt_in_flight_keeps_its_due_cursor_for_a_retry_to_see()
+    {
+        // A reclaim or a re-arm of this attempt plans from the cursor, so it must still name 12:00.
+        var stored = InFlight(Utc(12, 0), armedAt: Utc(12, 0));
+
+        var (schedules, _, _) = ScheduleWalker.Reconcile([CatchUp()], Map(stored), Now);
+
+        Assert.Equal(Utc(12, 0), Assert.Single(schedules).NextRunAtUtc);
+    }
+
+    [Fact]
+    public void A_start_that_edits_the_schedule_of_an_attempt_in_flight_moves_past_its_occurrence()
+    {
+        // The edit bumps the row's version and refuses the attempt's own advance, so the cursor moves here.
+        var stored = InFlight(Utc(12, 0), armedAt: Utc(12, 0));
+
+        var (schedules, _, _) = ScheduleWalker.Reconcile([CatchUp() with { Description = "edited" }], Map(stored), Now);
+
         Assert.Equal(Utc(12, 20), Assert.Single(schedules).NextRunAtUtc);
     }
+
+    [Fact]
+    public void An_edit_leaves_a_cursor_that_came_due_after_the_attempt_was_armed()
+    {
+        // Armed at 12:00 for another schedule; this one came due at 12:05, so the attempt never planned it.
+        var stored = InFlight(Utc(12, 5), armedAt: Utc(12, 0));
+
+        var (schedules, _, _) = ScheduleWalker.Reconcile([CatchUp() with { Description = "edited" }], Map(stored), Now);
+
+        Assert.Equal(Utc(12, 5), Assert.Single(schedules).NextRunAtUtc);
+    }
+
+    private static StoredScheduleState InFlight(DateTime cursor, DateTime armedAt) =>
+        Stored(cursor, ScheduleExpressionKindCode.Cron) with
+        {
+            SlotStatus = JobStatusCode.Executing,
+            SlotNextRunAtUtc = armedAt,
+            Expression = "*/5 * * * *",
+            TimeZoneId = "UTC",
+            MisfireStrategy = MisfireStrategyCode.CatchUpOnce,
+        };
+
+    private static ScheduleDescriptor CatchUp() => Cron("*/5 * * * *") with { MisfireStrategy = MisfireStrategyCode.CatchUpOnce };
 
     private static StoredScheduleState Stored(
         DateTime cursor,

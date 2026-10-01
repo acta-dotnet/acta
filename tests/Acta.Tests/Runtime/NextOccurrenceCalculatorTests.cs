@@ -128,37 +128,6 @@ public sealed class NextOccurrenceCalculatorTests
     }
 
     [Fact]
-    public void Reconcile_skip_keeps_a_cursor_less_than_the_threshold_overdue()
-    {
-        // Due half a minute ago and not yet claimed: the running fleet takes it, so it is not a misfire.
-        var stored = Utc(12, 0);
-        var next = NextOccurrenceCalculator.Reconcile(
-            "*/5 * * * *",
-            null,
-            ScheduleExpressionKindCode.Cron,
-            MisfireStrategyCode.Skip,
-            stored,
-            nowUtc: stored.AddSeconds(30)
-        );
-        Assert.Equal(stored, next);
-    }
-
-    [Fact]
-    public void Reconcile_skip_misses_a_cursor_the_threshold_overdue()
-    {
-        var stored = Utc(12, 0);
-        var next = NextOccurrenceCalculator.Reconcile(
-            "*/5 * * * *",
-            null,
-            ScheduleExpressionKindCode.Cron,
-            MisfireStrategyCode.Skip,
-            stored,
-            nowUtc: stored + NextOccurrenceCalculator.MisfireThreshold
-        );
-        Assert.Equal(Utc(12, 5), next);
-    }
-
-    [Fact]
     public void Reconcile_iso_skip_steps_drift_free_past_now()
     {
         // Anchor 12:00, 5-min interval, now 12:17 => first occurrence strictly after now = 12:20.

@@ -31,8 +31,9 @@ internal sealed record LiveSchedule(
 /// descriptor schedules; <see cref="Status"/> and <see cref="PausedUntilUtc"/> keep a paused schedule
 /// out of (or, when timed, only a wake point in) the recomputed slot cursor across redeploys.
 /// <see cref="SlotStatus"/> and <see cref="SlotNextRunAtUtc"/> are the owning slot job's, the same on
-/// every row of one slot. <see cref="ExpressionKind"/> is the stored declaration's kind, which an
-/// operator's <see cref="ExpressionOverride"/> was validated against.
+/// every row of one slot. <see cref="ExpressionKind"/>, <see cref="Expression"/>, <see cref="TimeZoneId"/>,
+/// <see cref="MisfireStrategy"/>, and <see cref="Description"/> are the stored declaration; an operator's
+/// <see cref="ExpressionOverride"/> was validated against its kind.
 /// </summary>
 internal sealed record StoredScheduleState(
     int DefinitionId,
@@ -44,7 +45,11 @@ internal sealed record StoredScheduleState(
     DateTime? SlotNextRunAtUtc = null,
     ScheduleExpressionKindCode? ExpressionKind = null,
     string? ExpressionOverride = null,
-    string? TimeZoneIdOverride = null
+    string? TimeZoneIdOverride = null,
+    string? Expression = null,
+    string? TimeZoneId = null,
+    MisfireStrategyCode? MisfireStrategy = null,
+    string? Description = null
 );
 
 /// <summary>

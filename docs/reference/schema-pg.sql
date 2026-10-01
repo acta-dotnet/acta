@@ -6123,6 +6123,10 @@ BEGIN
             100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
         -- A held job (Paused with a next run; ScheduleWalker, "held") stays as its operator left it.
         AND NOT (acta.runtimes.status_code = 30 /* JobStatusCode.Paused */ AND acta.runtimes.next_run_at_utc IS NOT NULL)
+        -- A wait is left to the signal, child, or deadline that ends it, and a start never parks a slot: one a
+        -- signal woke after the start read it would otherwise go back to sleep.
+        AND acta.runtimes.status_code <> 20 /* JobStatusCode.Suspended */
+        AND EXCLUDED.status_code <> 20 /* JobStatusCode.Suspended */
         -- An unchanged declaration writes nothing: a restart of the same build bumps no version.
         AND (
             acta.runtimes.status_code IS DISTINCT FROM EXCLUDED.status_code
@@ -8637,7 +8641,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.6-a2d5344c4245c74a797c3408f84feb56', 'acta');
+VALUES (-1, 'objects-1.6-fe5ba6108901adeca0fe078ce12b6c62', 'acta');
 
 COMMIT;
 

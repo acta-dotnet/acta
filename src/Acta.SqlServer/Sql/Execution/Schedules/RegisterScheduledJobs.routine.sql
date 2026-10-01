@@ -58,6 +58,10 @@ BEGIN
                 100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
             -- A held job (Paused with a next run; ScheduleWalker, "held") stays as its operator left it.
             AND NOT (r.status_code = 30 /* JobStatusCode.Paused */ AND r.next_run_at_utc IS NOT NULL)
+            -- A wait is left to the signal, child, or deadline that ends it, and a start never parks a slot: one a
+            -- signal woke after the start read it would otherwise go back to sleep.
+            AND r.status_code <> 20 /* JobStatusCode.Suspended */
+            AND d.slot_status_code <> 20 /* JobStatusCode.Suspended */
             -- An unchanged declaration writes nothing: a restart of the same build bumps no version.
             -- EXCEPT compares NULL-safely, which <> does not.
             AND EXISTS (

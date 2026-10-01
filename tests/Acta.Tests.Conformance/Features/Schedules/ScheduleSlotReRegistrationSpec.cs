@@ -19,7 +19,7 @@ namespace Acta.Tests.Conformance.Features.Schedules;
     Contract = "Registration writes an idle slot only on a changed declaration, leaves one in flight, finished, or parked mid-occurrence, and never adopts an ordinary job.",
     Arrange = "A recurring slot is registered, then put in flight with a worker lease as if another host had claimed it.",
     Act = "The same definition is registered again, as a second host does on startup, with the declaration changed or identical.",
-    Assert = "In-flight and parked slots keep their status, lease or wake, and cursor, while an idle slot takes a changed declaration and ignores an identical one."
+    Assert = "In-flight and parked slots keep their status, lease or wake, and due cursors, while an idle slot takes a changed declaration and ignores an identical one."
 )]
 [CoversStoreMethod(typeof(IScheduleStore), nameof(IScheduleStore.RegisterScheduledJobsAsync))]
 public abstract class ScheduleSlotReRegistrationSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
@@ -200,6 +200,47 @@ public abstract class ScheduleSlotReRegistrationSpec<TFixture> : ActaRuntimeTest
         }
     }
 
+    [Fact(DisplayName = "A start leaves an attempt in flight its due cursor, so a reclaim or re-arm of it still sees its occurrence")]
+    public async Task A_start_leaves_an_attempt_in_flight_its_due_cursor()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var now = FloorSeconds(DateTime.UtcNow);
+        var due = now.AddMinutes(-10);
+        var jobName = $"reregister-inflight-due-{Guid.NewGuid():N}";
+        var defId = await CreateDefinitionAsync(jobName, ct);
+        await RegisterAsync(defId, jobName, now.AddHours(6), [Slot("only", due)], JobStatusCode.Ready, ct);
+        var slotId = await SlotIdAsync(jobName, ct);
+        await LeaseInFlightAsync(Db, slotId, DateTime.UtcNow.AddMinutes(5), ct);
+
+        await ReconcileAndRegisterAsync(defId, jobName, MisfireStrategyCode.Skip, description: null, now, ct);
+
+        var schedule = Assert.Single(await Db.From<JobSchedule>().Where(s => s.JobId == slotId).ToListAsync(ct));
+        Assert.Equal(due, schedule.NextRunAtUtc);
+    }
+
+    [Fact(DisplayName = "A start never puts back to sleep a waiting slot that a signal woke after the start read it")]
+    public async Task A_start_never_suspends_a_slot_a_signal_woke()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var now = FloorSeconds(DateTime.UtcNow);
+        var jobName = $"reregister-woken-{Guid.NewGuid():N}";
+        var defId = await CreateDefinitionAsync(jobName, ct);
+        await RegisterAsync(defId, jobName, now.AddHours(6), [Slot("only", now.AddMinutes(-10))], JobStatusCode.Ready, ct);
+        var slotId = await SlotIdAsync(jobName, ct);
+        await SetRuntimeAsync(slotId, JobStatusCode.Suspended, null, ct);
+
+        // The start reads the slot parked on its wait; a signal then wakes it before the start writes.
+        var (slotSchedules, slotStatus, slotNextRun) = await ReconcileAsync(defId, jobName, MisfireStrategyCode.Skip, null, now, ct);
+        Assert.Equal(JobStatusCode.Suspended, slotStatus);
+        var woke = now.AddHours(5);
+        await SetRuntimeAsync(slotId, JobStatusCode.Ready, woke, ct);
+        await RegisterAsync(defId, jobName, slotNextRun, slotSchedules, slotStatus, ct);
+
+        var slot = await ReadJobAsync(slotId, ct);
+        Assert.Equal(JobStatusCode.Ready, slot.Status);
+        Assert.Equal(woke, slot.NextRunAtUtc);
+    }
+
     [Fact(DisplayName = "A start that edits a catch-up schedule whose occurrence is in flight moves its cursor past that occurrence")]
     public async Task A_start_that_edits_an_in_flight_catch_up_schedule_moves_past_the_occurrence()
     {
@@ -272,15 +313,36 @@ public abstract class ScheduleSlotReRegistrationSpec<TFixture> : ActaRuntimeTest
         CancellationToken ct
     )
     {
+        var (slotSchedules, slotStatus, slotNextRun) = await ReconcileAsync(defId, jobName, misfire, description, nowUtc, ct);
+        await RegisterAsync(defId, jobName, slotNextRun, slotSchedules, slotStatus, ct);
+    }
+
+    private async Task<(IReadOnlyList<SlotSchedule> Schedules, JobStatusCode SlotStatus, DateTime? SlotNextRunAtUtc)> ReconcileAsync(
+        int defId,
+        string jobName,
+        MisfireStrategyCode misfire,
+        string? description,
+        DateTime nowUtc,
+        CancellationToken ct
+    )
+    {
         var stored = await Services.GetRequiredService<IScheduleStore>().GetScheduleStateAsync(TestNamespaceId, ct);
         var storedForDef = stored.Where(s => s.DefinitionId == defId).ToDictionary(s => s.ScheduleName, s => s, StringComparer.Ordinal);
         var declared = new[]
         {
             new ScheduleDescriptor(jobName, "only", Cron5, null, misfire, ScheduleExpressionKindCode.Cron, description, []),
         };
-        var (slotSchedules, slotStatus, slotNextRun) = ScheduleWalker.Reconcile(declared, storedForDef, nowUtc);
-        await RegisterAsync(defId, jobName, slotNextRun, slotSchedules, slotStatus, ct);
+        return ScheduleWalker.Reconcile(declared, storedForDef, nowUtc);
     }
+
+    private Task SetRuntimeAsync(long slotId, JobStatusCode status, DateTime? nextRunAtUtc, CancellationToken ct) =>
+        Db.ExecuteRawAsync(
+            "UPDATE {schema}.runtimes SET status_code = @p_status, next_run_at_utc = @p_next WHERE job_id = @p_id",
+            ct,
+            ("@p_status", (byte)status),
+            ("@p_next", nextRunAtUtc),
+            ("@p_id", slotId)
+        );
 
     private async Task<long> SlotIdAsync(string jobName, CancellationToken ct)
     {
