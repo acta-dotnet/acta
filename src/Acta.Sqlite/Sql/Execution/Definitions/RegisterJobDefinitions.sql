@@ -97,8 +97,10 @@ WHERE
         OR {{schema}}.definitions.definition_hash IS NOT excluded.definition_hash
     );
 
+-- CROSS JOIN keeps the batch the outer loop, one index seek per name: a plain join lets the planner walk the
+-- namespace's definitions and re-read the whole JSON batch for each.
 SELECT json_extract(d.value, '$.name') AS def_name, jd.id AS def_id
 FROM json_each(@p_definitions) d
-JOIN {{schema}}.definitions jd
+CROSS JOIN {{schema}}.definitions jd
     ON jd.namespace_id = @p_namespace_id
     AND jd.name = json_extract(d.value, '$.name');
