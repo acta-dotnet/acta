@@ -144,7 +144,7 @@ public class ScheduleWalkerPauseTests
             ["paused"] = new StoredScheduleState(1, "paused", storedCursor, ScheduleStatusCode.Paused, until),
         };
 
-        var (schedules, slotMin) = ScheduleWalker.Reconcile(declared, stored, Now);
+        var (schedules, _, slotMin) = ScheduleWalker.Reconcile(declared, stored, Now);
 
         var row = Assert.Single(schedules);
         Assert.Equal(storedCursor, row.NextRunAtUtc); // a paused schedule's remembered cursor is not advanced
@@ -161,7 +161,7 @@ public class ScheduleWalkerPauseTests
             ["off"] = new StoredScheduleState(1, "off", storedCursor, ScheduleStatusCode.Paused, null),
         };
 
-        var (schedules, slotMin) = ScheduleWalker.Reconcile(declared, stored, Now);
+        var (schedules, _, slotMin) = ScheduleWalker.Reconcile(declared, stored, Now);
 
         Assert.Equal(storedCursor, Assert.Single(schedules).NextRunAtUtc);
         Assert.Null(slotMin);
@@ -176,7 +176,7 @@ public class ScheduleWalkerPauseTests
             ["a"] = new StoredScheduleState(1, "a", Now.AddMinutes(-37), ScheduleStatusCode.Active, null),
         };
 
-        var (schedules, slotMin) = ScheduleWalker.Reconcile(declared, stored, Now);
+        var (schedules, _, slotMin) = ScheduleWalker.Reconcile(declared, stored, Now);
 
         var row = Assert.Single(schedules);
         Assert.NotNull(row.NextRunAtUtc);

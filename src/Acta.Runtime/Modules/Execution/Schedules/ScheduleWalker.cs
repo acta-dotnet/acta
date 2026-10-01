@@ -85,10 +85,12 @@ internal static class ScheduleWalker
     /// stored cursor using the misfire policy, under an operator's override where one is in force (the
     /// written row still carries the declared values); paused schedules keep their stored cursor untouched and
     /// contribute only a timed <c>PausedUntilUtc</c> to the slot MIN, so operator pause survives a
-    /// redeploy. Returns the per-schedule reconciled state and the slot MIN (null when no schedule yields
-    /// an upcoming occurrence).
+    /// redeploy. An occurrence already under way keeps the cursors it owns: an attempt in flight has
+    /// consumed every due one, and a slot parked part-way (<see cref="IsParked"/>) keeps them and its own
+    /// status and wake instant until it resumes. Returns the per-schedule reconciled state and the slot's
+    /// status and next run, Paused with none when no schedule yields an upcoming occurrence.
     /// </summary>
-    public static (IReadOnlyList<SlotSchedule> Schedules, DateTime? SlotMin) Reconcile(
+    public static (IReadOnlyList<SlotSchedule> Schedules, JobStatusCode SlotStatus, DateTime? SlotNextRunAtUtc) Reconcile(
         IReadOnlyList<ScheduleDescriptor> declared,
         IReadOnlyDictionary<string, StoredScheduleState> storedByName,
         DateTime nowUtc
@@ -96,6 +98,9 @@ internal static class ScheduleWalker
     {
         var schedules = new List<SlotSchedule>(declared.Count);
         var contributions = new List<DateTime?>(declared.Count);
+        var slot = storedByName.Values.FirstOrDefault();
+        var inFlight = slot?.SlotStatus is JobStatusCode.Dispatched or JobStatusCode.Executing;
+        var parked = IsParked(slot, storedByName.Values, nowUtc);
 
         foreach (var d in declared)
         {
@@ -115,14 +120,19 @@ internal static class ScheduleWalker
                 // behind by a deploy that switched interval and cron, and registration clears it.
                 var expression = stored?.ExpressionKind == d.ExpressionKind ? stored.ExpressionOverride ?? d.Expression : d.Expression;
                 var zone = string.IsNullOrWhiteSpace(stored?.TimeZoneIdOverride) ? timeZone : stored.TimeZoneIdOverride;
-                cursor = NextOccurrenceCalculator.Reconcile(
-                    expression,
-                    zone,
-                    d.ExpressionKind,
-                    d.MisfireStrategy,
-                    stored?.NextRunAtUtc,
-                    nowUtc
-                );
+                cursor =
+                    stored?.NextRunAtUtc is { } due && due <= nowUtc && (inFlight || parked)
+                        ? inFlight
+                            ? NextOccurrenceCalculator.FirstAfter(expression, zone, d.ExpressionKind, due, nowUtc)
+                            : due
+                        : NextOccurrenceCalculator.Reconcile(
+                            expression,
+                            zone,
+                            d.ExpressionKind,
+                            d.MisfireStrategy,
+                            stored?.NextRunAtUtc,
+                            nowUtc
+                        );
                 contribution = cursor;
             }
 
@@ -132,8 +142,27 @@ internal static class ScheduleWalker
             contributions.Add(contribution);
         }
 
-        return (schedules, SlotMin(contributions));
+        if (parked)
+        {
+            return (schedules, slot!.SlotStatus!.Value, slot.SlotNextRunAtUtc);
+        }
+
+        // No schedule offering a run, a dropped declaration included, is Paused with no next run, which a
+        // returning declaration lifts; Cancelled is only ever an operator's or handler's outcome.
+        var slotMin = SlotMin(contributions);
+        return (schedules, slotMin is null ? JobStatusCode.Paused : JobStatusCode.Ready, slotMin);
     }
+
+    /// <summary>
+    /// Whether a recurring slot is parked part-way through an occurrence: Suspended on a wait, or Ready at a
+    /// wake instant (a sleep, a step retry, a rate or concurrency bounce, a reclaim) past an active
+    /// schedule's cursor that is already due. A re-arm never advances cursors, so that gap is the occurrence
+    /// waiting to resume.
+    /// </summary>
+    private static bool IsParked(StoredScheduleState? slot, IEnumerable<StoredScheduleState> rows, DateTime nowUtc) =>
+        slot?.SlotStatus == JobStatusCode.Suspended
+        || slot is { SlotStatus: JobStatusCode.Ready, SlotNextRunAtUtc: { } wake }
+            && rows.Any(s => s.Status == ScheduleStatusCode.Active && s.NextRunAtUtc is { } due && due <= nowUtc && due < wake);
 
     /// <summary>
     /// Whether a job is held: Paused with a next run. An operator's pause and a handler's own pause always

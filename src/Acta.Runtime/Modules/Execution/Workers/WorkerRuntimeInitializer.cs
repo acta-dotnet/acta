@@ -464,11 +464,7 @@ internal sealed class WorkerRuntimeInitializer(
                 ? byName
                 : (IReadOnlyDictionary<string, StoredScheduleState>)new Dictionary<string, StoredScheduleState>();
 
-            var (slotSchedules, slotMin) = ScheduleWalker.Reconcile(declared, storedForDef, nowUtc);
-
-            // No schedule offering a run, a dropped declaration included, is Paused with no next run, which
-            // a returning declaration lifts; Cancelled is only ever an operator's or handler's outcome.
-            var slotStatus = slotMin is null ? JobStatusCode.Paused : JobStatusCode.Ready;
+            var (slotSchedules, slotStatus, slotNextRun) = ScheduleWalker.Reconcile(declared, storedForDef, nowUtc);
 
             // Registration leaves a held job as it stands (ScheduleWalker.IsHeld); say so at every start.
             var slot = storedForDef.Values.FirstOrDefault();
@@ -493,7 +489,7 @@ internal sealed class WorkerRuntimeInitializer(
                     Input: inputBytes,
                     AuditLevel: descriptor.AuditLevel,
                     SlotStatus: slotStatus,
-                    SlotMinNextRunAtUtc: slotMin,
+                    SlotMinNextRunAtUtc: slotNextRun,
                     Schedules: slotSchedules
                 )
             );

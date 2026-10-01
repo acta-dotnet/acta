@@ -221,18 +221,9 @@ public abstract class ScheduleInsertMisfireMatrixSpec<TFixture> : ActaStorageTes
         var storedForDef = stored.Where(s => s.DefinitionId == defId).ToDictionary(s => s.ScheduleName, s => s, StringComparer.Ordinal);
 
         var declared = new[] { new ScheduleDescriptor(jobName, ScheduleName, expression, null, misfire, kind, null, []) };
-        var (slotSchedules, slotMin) = ScheduleWalker.Reconcile(declared, storedForDef, nowUtc);
+        var (slotSchedules, slotStatus, slotNextRun) = ScheduleWalker.Reconcile(declared, storedForDef, nowUtc);
 
-        return await RegisterAsync(
-            db,
-            dialect,
-            defId,
-            jobName,
-            slotSchedules,
-            slotMin is null ? JobStatusCode.Paused : JobStatusCode.Ready,
-            slotMin,
-            ct
-        );
+        return await RegisterAsync(db, dialect, defId, jobName, slotSchedules, slotStatus, slotNextRun, ct);
     }
 
     private async Task<long> RegisterAsync(

@@ -387,17 +387,8 @@ public abstract class SchedulePauseResumeSpec<TFixture> : ActaStorageTestBase<TF
                 []
             ),
         };
-        var (slotSchedules, slotMin) = ScheduleWalker.Reconcile(declared, storedForDef, now);
-        await RegisterAsync(
-            db,
-            dialect,
-            defId,
-            jobName,
-            slotMin,
-            slotSchedules,
-            slotMin is null ? JobStatusCode.Paused : JobStatusCode.Ready,
-            ct
-        );
+        var (slotSchedules, slotStatus, slotNextRun) = ScheduleWalker.Reconcile(declared, storedForDef, now);
+        await RegisterAsync(db, dialect, defId, jobName, slotNextRun, slotSchedules, slotStatus, ct);
     }
 
     private async Task<long> SlotIdAsync(string jobName, CancellationToken ct)
