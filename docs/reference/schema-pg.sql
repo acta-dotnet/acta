@@ -30,7 +30,7 @@
 BEGIN;
 
 -- ===== the installer lock, held to commit =====
-SELECT pg_advisory_xact_lock(hashtext('acta-migrations-acta'));
+SELECT pg_advisory_xact_lock(hashtext('acta-migrations'));
 
 -- ===== migration history table =====
 CREATE SCHEMA IF NOT EXISTS acta;

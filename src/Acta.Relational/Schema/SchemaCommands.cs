@@ -9,9 +9,10 @@ internal static class SchemaCommands
 {
     /// <summary>
     /// The per-schema lock every installer takes before it reads migration history: the bootstrap here,
-    /// and the published provisioning scripts, which name the same key.
+    /// and the published provisioning scripts, which name the same key. The schema is its only word, so a
+    /// script relocated by replacing the schema name throughout keeps naming the key its bootstrap takes.
     /// </summary>
-    internal static string LockKey(string schemaName) => $"acta-migrations-{schemaName}";
+    internal static string LockKey(string schemaName) => $"{schemaName}-migrations";
 
     public static async Task AcquireLock(
         DbConnection conn,
