@@ -59,7 +59,9 @@ still produce one catch-up execution. The handler can inspect its current data a
 schedule names, but it does not receive ten synthetic occurrence rows.
 
 MisfireStrategy reconciliation occurs when schedules are registered/reloaded and when a paused schedule is
-resumed. A timed pause uses the same policy when it expires.
+resumed. A timed pause uses the same policy when it expires. An occurrence less than a minute overdue is
+not missed: it is due, and a running worker is about to claim it, so a worker that starts in that
+minute leaves it due under either policy.
 
 ## Backfill
 

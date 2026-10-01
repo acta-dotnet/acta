@@ -117,6 +117,44 @@ public abstract class ScheduleInsertMisfireMatrixSpec<TFixture> : ActaStorageTes
         Assert.True(row.Version > 0, "Upsert must bump the schedule row version, not insert a fresh row.");
     }
 
+    [Fact(DisplayName = "A cursor due less than a minute ago is not a misfire: a start leaves it and its slot due for the running fleet")]
+    public async Task A_cursor_just_due_is_left_for_the_fleet()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (db, dialect) = Store();
+        var jobName = TestKey("just-due");
+        var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
+        var slotId = await RegisterAsync(
+            db,
+            dialect,
+            defId,
+            jobName,
+            [Slot(Cron5, ScheduleExpressionKindCode.Cron, MisfireStrategyCode.Skip, At(0))],
+            JobStatusCode.Ready,
+            At(0),
+            ct
+        );
+        var before = await ScheduleRowAsync(slotId, ct);
+
+        await ReconcileAndRegisterAsync(
+            db,
+            dialect,
+            defId,
+            jobName,
+            Cron5,
+            ScheduleExpressionKindCode.Cron,
+            MisfireStrategyCode.Skip,
+            At(0).AddSeconds(30),
+            ct
+        );
+
+        var after = await ScheduleRowAsync(slotId, ct);
+        Assert.Equal(At(0), after.NextRunAtUtc);
+        Assert.Equal(before.Version, after.Version);
+        var slot = Assert.Single(await Db.From<JobRuntime>().Where(r => r.Id == slotId).ToListAsync(ct));
+        Assert.Equal(At(0), slot.NextRunAtUtc);
+    }
+
     [Fact(DisplayName = "A missed cursor reconciles under the operator's expression override, not the declared expression")]
     public async Task A_missed_cursor_reconciles_under_the_override()
     {

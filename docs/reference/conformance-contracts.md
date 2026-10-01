@@ -2509,6 +2509,7 @@
 - **Guarantees:**
   - Insert persists the misfire-reconciled cursor across new, future, and missed cron and interval cells: new seeds after now, future is kept, Skip advances past now, CatchUpOnce keeps the past instant
   - Re-registration upserts the single schedule row and its misfire code rather than duplicating it
+  - A cursor due less than a minute ago is not a misfire: a start leaves it and its slot due for the running fleet
   - A missed cursor reconciles under the operator's expression override, not the declared expression
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.GetScheduleStateAsync`
