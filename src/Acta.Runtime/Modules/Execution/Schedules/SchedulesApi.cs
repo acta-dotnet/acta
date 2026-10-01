@@ -128,8 +128,7 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
         var effectiveTimeZone = timeZoneId ?? t.BaseTimeZone;
 
         // The stored cursor was computed under the OLD effective expression; discard it and recompute
-        // the target's own next occurrence fresh under the new one (mirrors how the walker treats an
-        // expression change on reload) before folding it into the slot MIN.
+        // the target's own next occurrence fresh under the new one before folding it into the slot MIN.
         var scheduleNextRun = NextOccurrenceCalculator.Next(effectiveExpression, effectiveTimeZone, t.ExpressionKind, ctx.NowUtc);
         var simulated = Simulate(
             ctx.Live,

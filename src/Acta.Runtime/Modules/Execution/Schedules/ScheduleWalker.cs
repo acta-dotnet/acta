@@ -82,7 +82,8 @@ internal static class ScheduleWalker
     /// <summary>
     /// Reconciles a definition's declared schedules against persisted state at <paramref name="nowUtc"/>.
     /// New schedules seed from the first occurrence after now; active schedules recompute from their
-    /// stored cursor using the misfire policy; paused schedules keep their stored cursor untouched and
+    /// stored cursor using the misfire policy, under an operator's override where one is in force (the
+    /// written row still carries the declared values); paused schedules keep their stored cursor untouched and
     /// contribute only a timed <c>PausedUntilUtc</c> to the slot MIN, so operator pause survives a
     /// redeploy. Returns the per-schedule reconciled state and the slot MIN (null when no schedule yields
     /// an upcoming occurrence).
@@ -110,9 +111,13 @@ internal static class ScheduleWalker
             }
             else
             {
+                // An operator's override is the expression in force. One set for another kind is left
+                // behind by a deploy that switched interval and cron, and registration clears it.
+                var expression = stored?.ExpressionKind == d.ExpressionKind ? stored.ExpressionOverride ?? d.Expression : d.Expression;
+                var zone = string.IsNullOrWhiteSpace(stored?.TimeZoneIdOverride) ? timeZone : stored.TimeZoneIdOverride;
                 cursor = NextOccurrenceCalculator.Reconcile(
-                    d.Expression,
-                    timeZone,
+                    expression,
+                    zone,
                     d.ExpressionKind,
                     d.MisfireStrategy,
                     stored?.NextRunAtUtc,

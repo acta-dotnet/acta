@@ -117,6 +117,43 @@ public abstract class ScheduleInsertMisfireMatrixSpec<TFixture> : ActaStorageTes
         Assert.True(row.Version > 0, "Upsert must bump the schedule row version, not insert a fresh row.");
     }
 
+    [Fact(DisplayName = "A missed cursor reconciles under the operator's expression override, not the declared expression")]
+    public async Task A_missed_cursor_reconciles_under_the_override()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (db, dialect) = Store();
+        var jobName = TestKey("override");
+        var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
+        var slotId = await RegisterAsync(
+            db,
+            dialect,
+            defId,
+            jobName,
+            [Slot("PT1M", ScheduleExpressionKindCode.Interval, MisfireStrategyCode.Skip, At(0))],
+            JobStatusCode.Ready,
+            At(0),
+            ct
+        );
+        await db.ExecuteRawAsync("UPDATE {schema}.schedules SET expression_override = 'PT1H' WHERE job_id = @p_id", ct, ("@p_id", slotId));
+
+        await ReconcileAndRegisterAsync(
+            db,
+            dialect,
+            defId,
+            jobName,
+            "PT1M",
+            ScheduleExpressionKindCode.Interval,
+            MisfireStrategyCode.Skip,
+            At(17),
+            ct
+        );
+
+        // The declared minute would land at At(18); the hourly override in force lands at At(60).
+        var row = await ScheduleRowAsync(slotId, ct);
+        Assert.Equal(At(60), row.NextRunAtUtc);
+        Assert.Equal("PT1H", row.ExpressionOverride);
+    }
+
     private (IDbSession Db, ISqlDialect Dialect) Store() => (Db, Services.GetRequiredService<ISqlDialect>());
 
     private static SlotSchedule Slot(string expression, ScheduleExpressionKindCode kind, MisfireStrategyCode misfire, DateTime? cursor) =>
