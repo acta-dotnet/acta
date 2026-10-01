@@ -217,7 +217,7 @@ BEGIN TRY
         FROM @lanes l
         CROSS APPLY (
             SELECT TOP (1) m.job_id, m.status_code
-            FROM {{schema}}.runtimes m
+            FROM {{schema}}.runtimes m WITH (INDEX (ix_runtimes_lane), FORCESEEK)
             WHERE
                 m.lane_id = l.id
                 AND m.lane_id IS NOT NULL
@@ -231,7 +231,7 @@ BEGIN TRY
             h.status_code = 15 /* JobStatusCode.Blocked */
             AND NOT EXISTS (
                 SELECT 1
-                FROM {{schema}}.runtimes o
+                FROM {{schema}}.runtimes o WITH (INDEX (ix_runtimes_lane), FORCESEEK)
                 WHERE
                     o.lane_id = l.id
                     AND o.lane_id IS NOT NULL

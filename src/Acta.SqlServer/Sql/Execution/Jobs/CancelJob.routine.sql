@@ -119,7 +119,7 @@ BEGIN
                 SELECT TOP (1)
                     @head_id = m.job_id,
                     @head_status = m.status_code
-                FROM {{schema}}.runtimes m
+                FROM {{schema}}.runtimes m WITH (INDEX (ix_runtimes_lane), FORCESEEK)
                 WHERE
                     m.lane_id = @lane_id
                     AND m.lane_id IS NOT NULL
@@ -136,7 +136,7 @@ BEGIN
                 -- (docs/internals/sql-execution-policy.md, "Lane lock order").
                 IF EXISTS (
                     SELECT 1
-                    FROM {{schema}}.runtimes o
+                    FROM {{schema}}.runtimes o WITH (INDEX (ix_runtimes_lane), FORCESEEK)
                     WHERE
                         o.lane_id = @lane_id
                         AND o.lane_id IS NOT NULL

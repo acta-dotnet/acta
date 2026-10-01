@@ -148,6 +148,11 @@ child table, but it locks only the batch's own keys.
   its `jobs` insert by ordinal and marks each idle lane's head before the `runtimes` insert, reading
   `ix_runtimes_lane` once per lane through `WITH (FORCESEEK)`, so that insert reads table variables
   alone.
+- Every lookup of a lane's unfinished members, its head or whether any of them runs, carries `WITH (INDEX
+  (ix_runtimes_lane), FORCESEEK)`. The lane id is a variable and the lookup wants one row, so unhinted the
+  optimizer can walk `pk_runtimes` from the oldest job until it meets the lane, a cost that grows with
+  every job the table retains. Each lookup names `lane_id IS NOT NULL` and a status list inside the
+  index filter, so the hint always compiles.
 - `register_scheduled_jobs` stays unhinted. It runs under one exclusive application lock, so two calls
   never race, and its set is one manifest's recurring definitions, which stays small.
 - Row-at-a-time writes, updates that leave foreign-key columns alone, and writes to `tags`, `events`,

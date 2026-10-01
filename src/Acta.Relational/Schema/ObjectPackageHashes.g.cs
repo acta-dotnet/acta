@@ -11,7 +11,7 @@ namespace Acta.Relational.Schema;
 /// </summary>
 internal static class ObjectPackageHashes
 {
-    internal const string Mssql = "5d397ed307374cba00a4ee9c12c850b2";
+    internal const string Mssql = "d5e124bf6e409341d6d561ba7ac620a5";
 
     internal const string Pg = "fe5ba6108901adeca0fe078ce12b6c62";
 

@@ -262,7 +262,7 @@ BEGIN
                     @lane_id IS NOT NULL
                     AND EXISTS (
                         SELECT 1
-                        FROM {{schema}}.runtimes m
+                        FROM {{schema}}.runtimes m WITH (INDEX (ix_runtimes_lane), FORCESEEK)
                         WHERE
                             m.lane_id = @lane_id
                             AND m.lane_id IS NOT NULL

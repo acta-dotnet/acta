@@ -96,15 +96,15 @@
     "Hash": "eee0f6cd0cdc17a97048007f2f004bec"
   },
   {
-    "Provider": "mssql",
-    "Major": 1,
-    "Revision": 6,
-    "Hash": "5d397ed307374cba00a4ee9c12c850b2"
-  },
-  {
     "Provider": "pg",
     "Major": 1,
     "Revision": 6,
     "Hash": "fe5ba6108901adeca0fe078ce12b6c62"
+  },
+  {
+    "Provider": "mssql",
+    "Major": 1,
+    "Revision": 6,
+    "Hash": "d5e124bf6e409341d6d561ba7ac620a5"
   }
 ]

@@ -192,7 +192,7 @@ BEGIN
                         SELECT TOP (1)
                             @head_id = m.job_id,
                             @head_status = m.status_code
-                        FROM {{schema}}.runtimes m
+                        FROM {{schema}}.runtimes m WITH (INDEX (ix_runtimes_lane), FORCESEEK)
                         WHERE
                             m.lane_id = @lane_next
                             AND m.lane_id IS NOT NULL

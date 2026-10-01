@@ -90,7 +90,7 @@ BEGIN
             @lane_id IS NOT NULL
             AND EXISTS (
                 SELECT 1
-                FROM {{schema}}.runtimes o
+                FROM {{schema}}.runtimes o WITH (INDEX (ix_runtimes_lane), FORCESEEK)
                 WHERE
                     o.lane_id = @lane_id
                     AND o.lane_id IS NOT NULL
