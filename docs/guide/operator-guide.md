@@ -548,7 +548,7 @@ At a glance:
 | | Retention sweep | Manual purge |
 | --- | --- | --- |
 | Trigger | `sys.retention` finds terminal jobs past `retention_until_utc` | Operator calls `IJobs.PurgeAsync` or the enabled HTTP/dashboard control |
-| Eligible job | Terminal and past its retention deadline | Terminal now |
+| Eligible job | Terminal and past its retention deadline, unless it is a stopped recurring job whose definition is live | Terminal now |
 | Child-job guard | Keeps a completed child while its parent is live; a terminal tree drains leaves first | Rejects a parent that still has child jobs and a child whose parent is live; finish the tree, then purge the leaves first |
 | Job event | No per-job purge event | Emits `job.purged` after removing the job history |
 | Existing job events | Age out on their own event-retention window | Deleted immediately for that job |

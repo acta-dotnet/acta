@@ -230,8 +230,9 @@ SELECT namespace, status, COUNT(*) AS jobs_to_purge, MIN(retention_until_utc) AS
  ORDER BY jobs_to_purge DESC;
 ```
 
-`sys.retention` deletes expired terminal jobs and cascading substrate rows. Event and alert retention
-have their own windows in `JobsOptions`.
+`sys.retention` deletes expired terminal jobs and cascading substrate rows. A stopped recurring job
+whose definition is live stays, so it shows here until the definition is retired. Event and alert
+retention have their own windows in `JobsOptions`.
 
 ## Tags
 

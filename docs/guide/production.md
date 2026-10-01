@@ -348,6 +348,10 @@ sleeps, or stays paused for a long time therefore holds its finished children fo
 it is terminal the tree drains from the leaves up. A parent restarted after its children were purged
 runs them again.
 
+A recurring job that a cancel or a failure stopped also stays past its deadline while its definition
+is live, because deleting it would let the next start register the declaration as a new job.
+Retiring the definition lets it drain.
+
 ## Process behavior on failure
 
 What an operator should expect to see, per surface, when something goes wrong, and whether the

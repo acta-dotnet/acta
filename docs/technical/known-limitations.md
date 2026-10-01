@@ -303,8 +303,8 @@ See [`contract-evolution.md`](../guide/contract-evolution.md) and
 Two schedule writes work from a read a moment older than the write, and neither carries a guard for
 the instant between. A worker start reads schedule state and registers it a few milliseconds
 later, so a recurring run that completes in between can have its occurrence written back and run
-once more. Two schedule verbs on different schedules of one job inside one round trip each set the
-job's next run from what they read, so the job can run once with no schedule due, or wait for its
+once more. A schedule verb racing another verb on the same job, or a run of that job completing, sets
+the job's next run from what it read, so the job can run once with no schedule due, or wait for its
 next start or schedule verb.
 
 ## Dashboard and API exposure
