@@ -59,6 +59,8 @@ public sealed class SqlServerRecoveryDuplicationChaosSpec : RecoveryDuplicationC
 
 public sealed class SqlServerMultiWorkerRegistrationSpec : MultiWorkerRegistrationSpec<SqlServerConformanceFixture>;
 
+public sealed class SqlServerReplicaStartupSpec : ReplicaStartupSpec<SqlServerConformanceFixture>;
+
 public sealed class SqlServerOneShotRetrySpec : OneShotRetrySpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerPayloadSizeLimitSpec : PayloadSizeLimitSpec<SqlServerConformanceFixture>;

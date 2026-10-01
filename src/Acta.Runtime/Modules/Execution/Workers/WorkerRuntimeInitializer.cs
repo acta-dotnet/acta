@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Data.Common;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using Acta.Runtime.Hosting;
@@ -54,7 +55,37 @@ internal sealed class WorkerRuntimeInitializer(
     private readonly WorkerContext _context = context;
     private readonly ILogger _log = log ?? NullLogger.Instance;
 
+    /// <summary>
+    /// Registers this worker's namespace, catalog, and recurring slots. Replicas of one build that start together
+    /// register the same new rows at once, and the one that commits second sees its statement come back short or
+    /// hit the unique key, since it could not see the first's uncommitted rows; a short pause and another pass
+    /// reads them committed. A real conflict, such as an ordinary job holding a slot's key, fails every pass the
+    /// same way.
+    /// </summary>
     public async Task InitializeAsync(CancellationToken ct)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await InitializeOnceAsync(ct);
+                return;
+            }
+            catch (Exception ex) when (ex is DbException or InvalidOperationException && attempt < CatalogAttempts)
+            {
+                _log.LogInformation(
+                    ex,
+                    "Registering the catalog failed on pass {Attempt}; another replica may be registering it. Retrying.",
+                    attempt
+                );
+                await Task.Delay(TimeSpan.FromMilliseconds(100 * attempt), ct);
+            }
+        }
+    }
+
+    private const int CatalogAttempts = 5;
+
+    private async Task InitializeOnceAsync(CancellationToken ct)
     {
         if (_workerRegistration is null)
         {

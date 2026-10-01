@@ -3048,6 +3048,14 @@
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Workers.IWorkerStore.StopWorkerAsync`
 
+### Replicas registering a new namespace at the same moment all start
+- **Contract:** Replicas that register the same new namespace, definitions, and recurring slots at once all start and agree on one catalog.
+- **Arrange:** Four worker containers share one manifest and one namespace that no worker has registered yet.
+- **Act:** All four initialize at the same moment.
+- **Assert:** Every initialization completes and all four resolve the same namespace and definition ids.
+- **Guarantees:**
+  - Four replicas initializing a new namespace at once all start and agree on its catalog
+
 ### StartWorker hash-gates the namespace write and appends a fresh worker row
 - **Contract:** StartWorker writes the namespace only when its hash changed or the name is new, appends a fresh worker row, and emits one WorkerStarted event per worker.
 - **Arrange:** A fresh unique namespace isolates each StartWorker.Run call.

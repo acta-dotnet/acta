@@ -59,6 +59,8 @@ public sealed class PgRecoveryDuplicationChaosSpec : RecoveryDuplicationChaosSpe
 
 public sealed class PgMultiWorkerRegistrationSpec : MultiWorkerRegistrationSpec<PgConformanceFixture>;
 
+public sealed class PgReplicaStartupSpec : ReplicaStartupSpec<PgConformanceFixture>;
+
 public sealed class PgOneShotRetrySpec : OneShotRetrySpec<PgConformanceFixture>;
 
 public sealed class PgPayloadSizeLimitSpec : PayloadSizeLimitSpec<PgConformanceFixture>;
