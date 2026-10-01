@@ -69,7 +69,7 @@ public class M001CodeChecksTests
     [Fact]
     public void Locks_carry_a_hold_token_and_no_kind_discriminator()
     {
-        // 0.9.0 dropped the one-value kind column: the key's middle segment (.lock. / .excl.)
+        // 0.9.0 dropped the one-value kind column: the key's middle segment (.lock. / .sem. / .rate.)
         // discriminates the spaces, and the reap sweeps the whole table by expiry. A future
         // primitive re-adds a discriminator additively or gets its own table; this pins that the
         // baseline does not resurrect the dead column, and that every hold carries its CAS token.

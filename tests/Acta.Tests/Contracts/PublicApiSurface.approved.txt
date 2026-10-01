@@ -563,7 +563,7 @@ sealed class Acta.CodeManifestEntry
     System.String Description { get;init; }
 static class Acta.CodeManifests
     System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> All { get; }
-    System.String MarkdownReport = <26774 chars, sha256:10BA7FA8>
+    System.String MarkdownReport = <26728 chars, sha256:50AB145B>
 enum Acta.ControlAction
     Accepted = 4
     Applied = 1

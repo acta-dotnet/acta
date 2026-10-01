@@ -431,7 +431,7 @@ an exception — see [failure modes](./failure-modes.md).
 
 Contract: they always wait for all children and return all outcomes. They never throw because a child failed unless the caller explicitly asks the outcome to throw (`ThrowIfAnyFailed`). They never cancel siblings and do not fail-fast. Parent cancellation cancels live descendants through existing descendant-cancellation behavior; completed children stay terminal. A failed child stays failed on replay until explicitly restarted; stable child names dedupe already-created children rather than spawning replacements.
 
-Child names are deterministic. Parallel uses `{group}-{branch}`. Map uses `{group}-{key}` when the key is name-safe, otherwise `{group}-{hash}`; the same parent, group, and key always produce the same child name. None of the three limit runtime worker concurrency; use child concurrency keys, namespaces, or worker capacity for that. See concept `215-map-parallel-join`.
+Child names are deterministic. Parallel uses `{group}-{branch}`. Map uses `{group}-{key}` when the key is name-safe, otherwise `{group}-{hash}`; the same parent, group, and key always produce the same child name. These names share the parent's child-name space with `StartChildAsync`, so a group name reused in one handler, or one that is another child's name up to a dash, can land two starts on one child: the second deduplicates onto the first. None of the three limit runtime worker concurrency; use child concurrency keys, namespaces, or worker capacity for that. See concept `215-map-parallel-join`.
 
 ## CancellationToken semantics
 

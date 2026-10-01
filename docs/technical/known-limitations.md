@@ -300,6 +300,13 @@ cancels its parked jobs but not their descendants, which finish into a cancelled
 See [`contract-evolution.md`](../guide/contract-evolution.md) and
 [Production § rolling deploys](../guide/production.md#rolling-deploys).
 
+Two schedule writes work from a read a moment older than the write, and neither carries a guard for
+the instant between. A worker start reads schedule state and registers it a few milliseconds
+later, so a recurring run that completes in between can have its occurrence written back and run
+once more. Two schedule verbs on different schedules of one job inside one round trip each set the
+job's next run from what they read, so the job can run once with no schedule due, or wait for its
+next start or schedule verb.
+
 ## Dashboard and API exposure
 
 Dashboard auth is the host application's responsibility. Acta ships no login system.

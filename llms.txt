@@ -175,6 +175,15 @@ side is `await jobs.RaiseSignalAsync(JobLookup.ByRef(jobRef), "shipped", new Shi
 on `IJobs`. The deadline is stored once, as database time plus the timeout, so restarts and
 downtime never lengthen it, and a raise that lands before the parked job re-enters still wins.
 
+## Choosing between a lane, a key, a limit, and a rate
+
+One axis each: a lane decides ORDER, a concurrency key and its limit decide HOW MANY run at once, and a
+rate decides HOW OFTEN. For one job at a time per customer, account, or aggregate, use a lane: it adds
+order, and the jobs waiting behind its head cost the claim nothing, where a busy key's waiting jobs are
+claimed, bounced, and re-armed. Use a bare `ConcurrencyKey` only when order must not hold work up: a
+lane's failing head blocks the jobs behind it until it succeeds or exhausts MaxAttempts, and a key's
+does not. Use `ConcurrencyLimit` for N at once and `RateLimit` for pacing; they combine.
+
 ## Limiting how much runs at once
 
 `options.ConcurrencyKey("rebuild:acme")` on an enqueue admits one job of that key at a time,

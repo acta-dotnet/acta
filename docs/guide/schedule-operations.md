@@ -112,7 +112,10 @@ Before a large backfill:
 - A recurring job's slot uses the job's name as its deduplication key. A worker refuses to start
   while an ordinary job of the namespace holds that key, and names the recurring job in the error,
   rather than turning that job into the slot.
-- Resume does not blindly run every missed occurrence. It applies `Skip` or `CatchUpOnce`.
+- Resume does not blindly run every missed occurrence. It applies `Skip` or `CatchUpOnce`. A job
+  resume or restart arms the job by that policy but leaves each schedule's cursor where it was, so
+  the first run after it can list a `Skip` schedule whose occurrence the hold missed in
+  `TriggeringScheduleNames`.
 - Preview computes upcoming instants from the effective expression and time zone without reading or
   advancing the persisted cursor. It is safe on a paused schedule.
 - Expression/time-zone overrides are operator state protected by an expected-version check. A stale

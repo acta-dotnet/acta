@@ -153,6 +153,13 @@ instant, budget-neutral, carrying `job.rate-limited`. That booking is what makes
 of a thousand jobs costs one re-arm each and drains in arrival order at the rate, rather than a
 thousand workers re-racing a counter. Rate and limit are independent gates and a job passes both.
 
+**One axis each.** A lane decides order, a key and its limit decide how many run at once, and a rate
+decides how often. For one job at a time per customer, account, or aggregate, reach for a lane first:
+it adds order, and the jobs waiting behind its head cost the claim nothing, where a busy key's waiting
+jobs are claimed, bounced, and re-armed. A bare `ConcurrencyKey` is the choice only when order must
+not hold work up: a lane's failing head blocks the jobs behind it until it succeeds or exhausts
+`MaxAttempts`, and a key's does not.
+
 There are three levels to choose between, and only the third one orders anything:
 
 | Level | What it gives you | How you get it |

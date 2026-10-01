@@ -146,7 +146,8 @@ What holds while both builds run:
   forward: an older `ManifestGenerationUtc` cannot overwrite a newer build's definition row.
 - Schedules follow the last build that registered. A schedule the new build no longer declares is
   orphaned when the new build registers and comes back when a build that declares it registers
-  again, which is what a rollback does.
+  again, which is what a rollback does. An old worker that starts while the rollout is under way
+  registers too, so a schedule the new build added reads Orphaned until the next new worker starts.
 - Migrations are forward-only and additive, so an older worker runs against a newer schema. Apply
   the migration before the new build starts.
 - Nothing older overwrites a database a newer build upgraded. An older build's bootstrap leaves the

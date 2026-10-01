@@ -104,7 +104,8 @@ internal sealed class Job : IEntity<long>
     /// row kind: root jobs are unique per <c>JobNamespace</c> (<c>ux_jobs_deduplication_key_root</c>, filtered to
     /// <c>parent_id IS NULL</c>); child jobs are unique per direct parent (<c>ux_jobs_deduplication_key_child</c>,
     /// filtered to <c>parent_id IS NOT NULL</c>), so siblings need distinct keys but a key may recur in a
-    /// different subtree.
+    /// different subtree. A recurring job's slot takes the job's name as its key, so a root enqueue keyed
+    /// by that name deduplicates onto the slot.
     /// </summary>
     [DbColumn("deduplication_key", DbKind.AsciiString, Size = 128)]
     public string? DeduplicationKey { get; init; }
@@ -117,7 +118,7 @@ internal sealed class Job : IEntity<long>
     public string? CorrelationKey { get; init; }
 
     /// <summary>
-    /// Named concurrency key. Kebab-case. Enforced by execution-time slot leases
+    /// Named concurrency key, normalized like a deduplication key. Enforced by execution-time slot leases
     /// (<c>{ns_id}.sem.{key}.{slot}</c> rows) the runner takes after claim; a claimed loser re-arms
     /// Ready after the fixed bounce delay. The key alone admits one at a time; the definition's
     /// <c>concurrency_limit</c> widens it to that many slots.

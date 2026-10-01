@@ -8,7 +8,7 @@ public enum ActorCode : byte
 {
     [Code(
         "sys",
-        "Acta-shipped system [Job] (a reserved name prefixed with sys.) OR Acta runtime path that decided a transition. ActorKey = \"sys:{jobNamespace}:{jobName}\" or \"sys:{component}\"."
+        "Acta-shipped system [Job] (a reserved name prefixed with sys.) OR Acta runtime path that decided a transition. ActorKey is null."
     )]
     Sys = 10,
 
