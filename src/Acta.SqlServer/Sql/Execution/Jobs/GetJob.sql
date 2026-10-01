@@ -39,34 +39,37 @@ LEFT JOIN {{schema}}.tenants t ON t.id = j.tenant_id
 LEFT JOIN {{schema}}.workers lw ON lw.id = r.leased_by_worker_id
 LEFT JOIN {{schema}}.lanes lane ON lane.id = r.lane_id
 -- A Blocked job waits behind its lane's running member, else behind its lowest-id older unfinished
--- member, read through ix_runtimes_lane.
-LEFT JOIN {{schema}}.jobs hjob ON hjob.id = COALESCE(
-    (
-        SELECT TOP (1) m.job_id
-        FROM {{schema}}.runtimes m
-        WHERE
-            r.status_code = 15 /* JobStatusCode.Blocked */
-            AND m.lane_id = r.lane_id
-            AND m.lane_id IS NOT NULL
-            AND m.status_code IN (
-                10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
-                40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-            )
-        ORDER BY m.job_id
-    ),
-    (
-        SELECT TOP (1) m.job_id
-        FROM {{schema}}.runtimes m
-        WHERE
-            r.status_code = 15 /* JobStatusCode.Blocked */
-            AND m.lane_id = r.lane_id
-            AND m.lane_id IS NOT NULL
-            AND m.status_code IN (
-                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-            )
-            AND m.job_id < r.job_id
-        ORDER BY m.job_id
-    )
-)
+-- member. The head is applied as a value and then joined, so every read seeks: a join on the expression
+-- itself scans jobs (docs/internals/sql-execution-policy.md for the lane hint).
+OUTER APPLY (
+    SELECT COALESCE(
+        (
+            SELECT TOP (1) m.job_id
+            FROM {{schema}}.runtimes m WITH (INDEX (ix_runtimes_lane), FORCESEEK)
+            WHERE
+                m.lane_id = r.lane_id
+                AND m.lane_id IS NOT NULL
+                AND m.status_code IN (
+                    10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                    40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                )
+            ORDER BY m.job_id
+        ),
+        (
+            SELECT TOP (1) m.job_id
+            FROM {{schema}}.runtimes m WITH (INDEX (ix_runtimes_lane), FORCESEEK)
+            WHERE
+                m.lane_id = r.lane_id
+                AND m.lane_id IS NOT NULL
+                AND m.status_code IN (
+                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                    30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                )
+                AND m.job_id < r.job_id
+            ORDER BY m.job_id
+        )
+    ) AS job_id
+    WHERE r.status_code = 15 /* JobStatusCode.Blocked */
+) head
+LEFT JOIN {{schema}}.jobs hjob ON hjob.id = head.job_id
 WHERE j.id = @p_id;
