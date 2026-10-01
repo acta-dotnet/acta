@@ -708,9 +708,10 @@ internal sealed class JobExecution(
         }
         else
         {
-            // Concurrency bounce: settle the attempt as a budget-neutral re-arm with the fixed delay.
+            // Concurrency bounce: settle the attempt as a budget-neutral re-arm with the fixed delay. A provider
+            // error says nothing about the key, which a rate-only definition does not even have.
             outcome = ExecutionOutcome.Rescheduled;
-            failureReason = JobEventReasonCode.JobConcurrencyKeyHeld;
+            failureReason = admissionFailed ? JobEventReasonCode.Unclassified : JobEventReasonCode.JobConcurrencyKeyHeld;
             failureMessage = admissionFailed
                 ? "Admission failed on a provider error; the attempt re-armed instead of running."
                 : "Every concurrency slot for this key is held by another execution.";

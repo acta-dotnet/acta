@@ -98,7 +98,10 @@ which lands on all of them. Until then the meter admits at a rate between the tw
 never above the faster.
 
 A provider error during admission, when the concurrency slot is taken or the rate turn is reserved,
-bounces the attempt instead of escaping, so the row is never stranded that way. What it can leave
+bounces the attempt instead of escaping, so the row is never stranded that way. The bounce is
+recorded as `job.unclassified` with the message "Admission failed on a provider error", spends no
+retry budget, and raises no alert, so a persistent error shows as a job re-arming every
+`ConcurrencyKeyBounceDelaySeconds` and a warning in the worker log. What it can leave
 behind is a slot the acquire committed without answering: that row is untracked by the worker and
 expires with its lease TTL, so one slot of that key is unavailable for up to that long. A rate turn
 booked without an answer is honoured when the job returns, so nothing is double-counted.

@@ -221,7 +221,7 @@ public sealed class JobExecutionRateAdmissionTests
         var completion = harness.Completion;
         Assert.Equal(RunOnceOutcome.Rearmed, outcome);
         Assert.False(harness.HandlerRan);
-        Assert.Equal(JobEventReasonCode.JobConcurrencyKeyHeld, completion.JobEventReasonCode);
+        Assert.Equal(JobEventReasonCode.Unclassified, completion.JobEventReasonCode);
         Assert.Equal(new JobsOptions().ConcurrencyKeyBounceDelaySeconds, completion.RescheduleDelaySeconds);
         Assert.Null(completion.RescheduleResumeAtUtc);
         Assert.Null(completion.FailureCount);
