@@ -43,7 +43,9 @@ internal sealed record CompleteExecutionRequest(
     /// <summary>
     /// Non-null selects the re-arm branch: the execution-row status (<c>8</c> Rescheduled / <c>9</c>
     /// Suspended). The Job flips to <c>Ready</c> instead of a terminal status. Set on the non-recurring
-    /// path only; re-arm never advances recurring schedule cursors.
+    /// path, where a re-arm never advances recurring schedule cursors, and on a recurring fire that ran
+    /// nothing because its elapsed timed pauses left no occurrence due: there the advances apply, and the
+    /// status only records the attempt as a re-arm rather than a run.
     /// </summary>
     public byte? RescheduleStatusCode { get; init; }
 

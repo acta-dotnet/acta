@@ -371,6 +371,11 @@ three evidence harnesses join the release checklist.
 - **A start counts an occurrence less than a minute overdue as due, not missed.** Under Skip, a start
   that landed between an occurrence coming due and a worker claiming it moved the slot a period on,
   so a rolling deploy over many minutely jobs lost one now and then.
+- **A timed schedule pause ends by the misfire policy.** A pause until X fired the job once at X
+  whatever the policy, even when no occurrence fell inside the window, so pausing a nightly job from
+  noon to two ran it at two and again that night. The pause now decides as of the instant it ends: an
+  occurrence at or after X runs as usual, one inside the window runs once under CatchUpOnce and is
+  skipped under Skip, and an end with nothing due clears the pause without calling the handler.
 
 ### Release evidence
 

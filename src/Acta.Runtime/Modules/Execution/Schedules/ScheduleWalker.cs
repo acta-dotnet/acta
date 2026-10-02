@@ -9,7 +9,14 @@ internal sealed record RecurringFireOutcome(
     IReadOnlyList<string> TriggeringScheduleNames,
     IReadOnlyList<ScheduleAdvance> Advances,
     DateTime? SlotMinNextRunAtUtc
-);
+)
+{
+    /// <summary>
+    /// The fire only ends timed pauses that leave nothing due: cursors move and the pauses clear, but no
+    /// occurrence runs, so the handler is not called. A fire with no advances at all is a trigger-now.
+    /// </summary>
+    public bool NothingDue => TriggeringScheduleNames.Count == 0 && Advances.Count > 0;
+}
 
 /// <summary>
 /// Pure schedule planning over a slot's live schedules. Identifies the due set, advances each due
@@ -21,27 +28,49 @@ internal static class ScheduleWalker
 {
     /// <summary>
     /// Plans one recurring fire at <paramref name="nowUtc"/>: the due set (ordered by name) the handler
-    /// will see, the cursor advance for each due schedule, and the post-advance slot MIN. A timed-paused
-    /// schedule whose <c>PausedUntilUtc</c> has elapsed counts as due and advances like an active one
-    /// (the advance also clears the pause; see <c>complete_execution</c>); a timed pause still ahead
-    /// contributes only its <c>PausedUntilUtc</c> as the slot's wake point.
+    /// will see, the cursor advance for each due schedule, and the post-advance slot MIN. A timed pause
+    /// that has elapsed is a resume at the instant it ended: an occurrence inside the window is a misfire
+    /// for the schedule's policy, one at or after its end is due as usual. The schedule fires only when
+    /// that leaves an occurrence due by now, and advances either way, which also clears the pause (see
+    /// <c>complete_execution</c>); a timed pause still ahead contributes only its <c>PausedUntilUtc</c> as
+    /// the slot's wake point.
     /// </summary>
     public static RecurringFireOutcome PlanFire(IReadOnlyList<LiveSchedule> live, DateTime nowUtc)
     {
-        var due = live.Where(s => IsDue(s, nowUtc)).OrderBy(s => s.Name, StringComparer.Ordinal).ToList();
-
-        var advances = due.Select(s => new ScheduleAdvance(
-                s.Id,
-                NextOccurrenceCalculator.FirstAfter(
-                    s.Expression,
-                    s.TimeZoneId,
-                    s.ExpressionKind,
-                    (s.NextRunAtUtc ?? s.PausedUntilUtc)!.Value,
-                    nowUtc
-                ),
-                s.Version
-            ))
-            .ToList();
+        var due = new List<LiveSchedule>();
+        var advances = new List<ScheduleAdvance>();
+        foreach (var s in live)
+        {
+            var cursor =
+                s.Status == ScheduleStatusCode.Paused
+                    ? s.PausedUntilUtc is { } until && until <= nowUtc
+                        ? NextOccurrenceCalculator.Reconcile(
+                            s.Expression,
+                            s.TimeZoneId,
+                            s.ExpressionKind,
+                            s.MisfireStrategy,
+                            s.NextRunAtUtc,
+                            until.AddTicks(-1)
+                        )
+                        : null
+                    : s.NextRunAtUtc;
+            if (cursor is { } c && c <= nowUtc)
+            {
+                due.Add(s);
+                advances.Add(
+                    new ScheduleAdvance(
+                        s.Id,
+                        NextOccurrenceCalculator.FirstAfter(s.Expression, s.TimeZoneId, s.ExpressionKind, c, nowUtc),
+                        s.Version
+                    )
+                );
+            }
+            else if (s.Status == ScheduleStatusCode.Paused && s.PausedUntilUtc <= nowUtc)
+            {
+                advances.Add(new ScheduleAdvance(s.Id, cursor, s.Version));
+            }
+        }
+        due.Sort((a, b) => StringComparer.Ordinal.Compare(a.Name, b.Name));
 
         var advancedById = advances.ToDictionary(a => a.ScheduleId, a => a.NextRunAtUtc);
 
@@ -183,10 +212,6 @@ internal static class ScheduleWalker
     /// move a held job; only a job resume, restart, or cancel lifts the hold.
     /// </summary>
     public static bool IsHeld(JobStatusCode? status, DateTime? nextRunAtUtc) => status == JobStatusCode.Paused && nextRunAtUtc is not null;
-
-    /// <summary>A schedule fires when active and due, or when a timed pause has elapsed (auto-resume).</summary>
-    private static bool IsDue(LiveSchedule s, DateTime nowUtc) =>
-        s.Status == ScheduleStatusCode.Paused ? s.PausedUntilUtc is { } until && until <= nowUtc : s.NextRunAtUtc is { } n && n <= nowUtc;
 
     /// <summary>
     /// The slot's next run is the earliest schedule contribution: active schedules offer their

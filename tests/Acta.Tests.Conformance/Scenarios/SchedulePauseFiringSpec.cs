@@ -12,17 +12,19 @@ namespace Acta.Tests.Conformance.Scenarios;
 
 /// <summary>
 /// End-to-end firing behavior of schedule pause/resume on a live recurring slot: a paused schedule's
-/// slot is not claimable, and a timed pause auto-resumes when the scheduler reaches its expiry, firing
-/// once, flipping the schedule back to Active, clearing the pause, and emitting the pause-expired event.
+/// slot is not claimable, and a timed pause resumes when the scheduler reaches its expiry, flipping the
+/// schedule back to Active, clearing the pause, and emitting the pause-expired event. The resume follows
+/// the misfire policy as of the instant the pause ended: an occurrence at or after that instant fires,
+/// one inside the window is skipped under Skip, and an end with nothing due runs no handler.
 /// </summary>
 [ConformanceSpec(
     "schedule.pause-firing",
-    "A paused slot does not fire and a timed pause auto-resumes at its expiry",
+    "A paused slot does not fire, and a timed pause resumes by the misfire policy",
     Area = "Scheduling",
-    Contract = "A paused schedule's slot is not claimable, and a timed pause auto-resumes at its expiry firing once and clearing the pause.",
+    Contract = "A paused schedule's slot is not claimable, and a timed pause resumes at its expiry by the misfire policy, firing only an occurrence due by then.",
     Arrange = "A recurring-ping slot with a single every-5-minutes schedule is registered under a deterministic fake clock.",
-    Act = "The schedule is paused indefinitely and then paused until an instant the advancing scheduler clock reaches.",
-    Assert = "The paused slot yields NothingClaimed, and the timed pause auto-resumes at expiry firing once and clearing the pause."
+    Act = "The schedule is paused indefinitely, and paused until its own occurrence, until before it, and until past it, as the clock advances.",
+    Assert = "The paused slot yields NothingClaimed, the pause ending on its occurrence fires once, and the others clear without a run and fire next on time."
 )]
 [CoversStoreMethod(typeof(IScheduleStore), nameof(IScheduleStore.PauseScheduleAsync))]
 [CoversStoreMethod(typeof(IScheduleStore), nameof(IScheduleStore.GetLiveSchedulesAsync))]
@@ -87,6 +89,53 @@ public abstract class SchedulePauseFiringSpec<TFixture> : ActaRuntimeTestBase<TF
 
         var events = await GetEventsByJobId.Run(Services, slotId, ct);
         Assert.Contains(EventCode.SchedulePauseExpired, events.Select(e => e.EventCode));
+    }
+
+    [Fact(DisplayName = "A timed pause whose window holds no occurrence clears at its expiry without running the handler")]
+    public async Task Timed_pause_with_nothing_due_clears_without_a_run()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        RecurringPingHandler.Reset(TestNamespace);
+        var slotId = await SlotIdAsync(ct);
+
+        var occurrence = await SlotNextRunAsync(slotId, ct);
+        var until = occurrence.AddMinutes(-2);
+        Assert.Equal(ControlAction.Applied, (await Schedules.PauseAsync(Lookup(), untilUtc: until, ct: ct)).Action);
+
+        Clock.AdvanceTo(until);
+        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(slotId, ct));
+        Assert.Empty(RecurringPingHandler.TriggersFor(TestNamespace));
+        var schedule = await ScheduleAsync(Db, slotId, ct);
+        Assert.Equal(ScheduleStatusCode.Active, schedule.Status);
+        Assert.Null(schedule.PausedUntilUtc);
+        Assert.Equal(occurrence, schedule.NextRunAtUtc);
+
+        // The occurrence the pause never covered fires on time, once.
+        Clock.AdvanceTo(occurrence);
+        Assert.NotEqual(RunOnceOutcome.NothingClaimed, await Runtime.RunOnceAsync(slotId, ct));
+        Assert.Single(RecurringPingHandler.TriggersFor(TestNamespace));
+    }
+
+    [Fact(DisplayName = "Under Skip an occurrence inside a timed pause is skipped at its expiry, not run late")]
+    public async Task Timed_pause_skips_an_occurrence_inside_its_window()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        RecurringPingHandler.Reset(TestNamespace);
+        var slotId = await SlotIdAsync(ct);
+
+        var missed = await SlotNextRunAsync(slotId, ct);
+        var until = missed.AddMinutes(2);
+        Assert.Equal(ControlAction.Applied, (await Schedules.PauseAsync(Lookup(), untilUtc: until, ct: ct)).Action);
+
+        Clock.AdvanceTo(until);
+        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(slotId, ct));
+        Assert.Empty(RecurringPingHandler.TriggersFor(TestNamespace));
+        var next = missed.AddMinutes(5);
+        Assert.Equal(next, (await ScheduleAsync(Db, slotId, ct)).NextRunAtUtc);
+
+        Clock.AdvanceTo(next);
+        Assert.NotEqual(RunOnceOutcome.NothingClaimed, await Runtime.RunOnceAsync(slotId, ct));
+        Assert.Single(RecurringPingHandler.TriggersFor(TestNamespace));
     }
 
     private ScheduleLookup Lookup() => new(JobLookup.ByDeduplicationKey(TestNamespace, JobName), ScheduleName);

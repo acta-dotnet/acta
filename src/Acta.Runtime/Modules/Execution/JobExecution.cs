@@ -216,6 +216,10 @@ internal sealed class JobExecution(
             && jobContext.DeadlineAtUtc is { } admitDue
             && admitDue <= DateTime.UtcNow;
 
+        // A fire that only ends timed pauses with nothing due takes no slot, no turn, and no handler call;
+        // it settles below as a re-arm that applies the advances (ScheduleWalker.PlanFire).
+        var nothingDue = isRecurring && fireOutcome is { NothingDue: true };
+
         ExecutionOutcome outcome;
         JobEventReasonCode? failureReason = null;
         string? failureMessage = null;
@@ -238,7 +242,7 @@ internal sealed class JobExecution(
         var concurrencyKey = job.ConcurrencyKey ?? (descriptor.ConcurrencyLimit is not null ? descriptor.JobName : null);
         var concurrencyBounced = false;
         var admissionFailed = false;
-        if (!deadlineHitAtAdmission && concurrencyKey is not null)
+        if (!deadlineHitAtAdmission && !nothingDue && concurrencyKey is not null)
         {
             var concurrencyLimit = descriptor.ConcurrencyLimit ?? 1;
             try
@@ -284,7 +288,7 @@ internal sealed class JobExecution(
         // attempt settles as a budget-neutral re-arm at exactly that instant and comes back once.
         // The parsed rate rides on the descriptor, which the policy reload keeps current.
         var rateLimited = false;
-        if (!deadlineHitAtAdmission && !concurrencyBounced && descriptor.Rate is { } rate)
+        if (!deadlineHitAtAdmission && !nothingDue && !concurrencyBounced && descriptor.Rate is { } rate)
         {
             RateReservation reservation;
             try
@@ -382,7 +386,7 @@ internal sealed class JobExecution(
             await jobContext.ReleaseConcurrencySlotAsync(CancellationToken.None);
         }
 
-        if (!deadlineHitAtAdmission && !concurrencyBounced && !rateLimited)
+        if (!deadlineHitAtAdmission && !nothingDue && !concurrencyBounced && !rateLimited)
         {
             var sw = Stopwatch.StartNew();
             var inputDeserialized = false;
@@ -697,6 +701,11 @@ internal sealed class JobExecution(
             handlerStatusCode = (byte)JobStatusCode.Cancelled;
             _log.LogInformation("WorkerRuntime: job {JobId} overdue at admission; cancelling without running the handler.", job.JobId);
         }
+        else if (nothingDue)
+        {
+            outcome = ExecutionOutcome.Rescheduled;
+            failureMessage = "A timed schedule pause ended with no occurrence due; the handler did not run.";
+        }
         else if (rateLimited)
         {
             // Rate bounce: settle the attempt as a budget-neutral re-arm at the reserved instant, which
@@ -759,7 +768,33 @@ internal sealed class JobExecution(
 
         CompleteExecutionRequest completeCommand;
         var retryRearmed = false;
-        if (outcome is ExecutionOutcome.Rescheduled or ExecutionOutcome.Suspended)
+        if (nothingDue && fireOutcome is { } resumed)
+        {
+            // The recurring shape applies the advances, which clear the elapsed pauses, and reads the slot's
+            // next run from the schedules; the re-arm status records a re-arm rather than a run, so the
+            // failure count, the results, and any open incident stand as they were.
+            completeCommand = new CompleteExecutionRequest(
+                job.JobId,
+                workerId,
+                job.ExecutionNumber,
+                outcome,
+                0,
+                ReadOnlyMemory<byte>.Empty,
+                null,
+                failureMessage,
+                durationMs,
+                ScheduleAdvances: resumed.Advances,
+                FinalStatus: JobStatusCode.Ready,
+                JobNextRunAtUtc: resumed.SlotMinNextRunAtUtc
+            )
+            {
+                RescheduleStatusCode = (byte)ExecutionStatusCode.Rescheduled,
+                // A Ready row must carry a next run before the recurring block sets the real one.
+                RescheduleResumeAtUtc = resumed.SlotMinNextRunAtUtc ?? DateTime.UtcNow,
+                RetentionSeconds = retentionSeconds,
+            };
+        }
+        else if (outcome is ExecutionOutcome.Rescheduled or ExecutionOutcome.Suspended)
         {
             // Re-arm takes the non-recurring shape regardless of isRecurring so recurring schedule
             // cursors are never advanced; no result payload is written (budget-neutral re-arm).

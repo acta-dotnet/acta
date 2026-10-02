@@ -59,15 +59,18 @@ already in the past?
 still produce one catch-up execution. The handler can inspect its current data and the triggering
 schedule names, but it does not receive ten synthetic occurrence rows.
 
-MisfireStrategy reconciliation occurs when a worker starts and registers its schedules, and when a
-paused schedule is resumed. At a worker start, an occurrence less than a minute overdue is not missed:
+MisfireStrategy reconciliation occurs when a worker starts and registers its schedules, when a paused
+schedule is resumed, and when a timed pause ends. At a worker start, an occurrence less than a minute overdue is not missed:
 it is due, and a running worker is about to claim it, so the start leaves it due under either policy.
 A slot that has waited longer than a minute for a claim, behind a saturated fleet, counts as missed
 the same way, so under `Skip` a start then drops that occurrence.
 A start also leaves alone a slot whose occurrence is under way, running or parked on a wait, sleep,
 retry, or bounce: it keeps its status, wake instant, and due cursors. It reconciles under the
 operator's override when one is in force. A resume gets no such grace: under `Skip`, an occurrence
-that came due while the schedule was paused is skipped, however recent.
+that came due while the schedule was paused is skipped, however recent. A timed pause decides as of
+the instant it ends: an occurrence at or after that instant runs as usual, one inside the window runs
+once under `CatchUpOnce` and is skipped under `Skip`, and an end with nothing due clears the pause
+without running the handler, recorded as a re-arm rather than a run.
 
 ## Backfill
 
@@ -105,7 +108,8 @@ Before a large backfill:
 ## Pause, resume, preview, and overrides
 
 - Pause excludes a schedule from the slot's minimum cursor. An indefinite pause needs an operator
-  resume; a timed pause wakes and reconciles by misfire policy.
+  resume; a timed pause wakes at its end and reconciles by misfire policy, so pausing a nightly job
+  from noon to two adds no run at two.
 - Pausing the recurring job itself (`IJobs.PauseAsync`) stops all of its schedules at once and holds
   until an operator resumes, restarts, or cancels the job. A worker restart, a deploy, and any
   schedule change leave it paused, and trigger-now is rejected. Each worker start logs a warning

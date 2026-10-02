@@ -397,11 +397,11 @@ internal sealed class SqliteDialect : ISqlDialect
         AddNullableBlob(command, "@p_result", resultBytes);
         AddInt(command, "@p_execution_succeeded", request.Outcome == ExecutionOutcome.Succeeded ? 1 : 0);
         AddNullableInt(command, "@p_duration_ms", request.DurationMs);
-        // Re-arm / signal / handler-status scalars are inert on the recurring path; bind NULL so the
-        // inline body's named-parameter set is always complete.
-        AddNullableInt(command, "@p_reschedule_status_code", null);
+        // Signal and handler-status scalars are inert on the recurring path; bind NULL so the inline body's
+        // named-parameter set is always complete. A re-arm status marks a fire that ran nothing.
+        AddNullableInt(command, "@p_reschedule_status_code", request.RescheduleStatusCode);
         AddNullableInt(command, "@p_reschedule_delay_seconds", null);
-        AddNullableText(command, "@p_reschedule_resume_at_utc", null);
+        AddNullableInt(command, "@p_reschedule_resume_at_utc", request.RescheduleResumeAtUtc is { } resumeAt ? ToUnixMs(resumeAt) : null);
         AddNullableText(command, "@p_wait_signal_name", null);
         AddNullableInt(command, "@p_handler_status_code", null);
         AddNullableInt(command, "@p_retention_seconds", request.RetentionSeconds);

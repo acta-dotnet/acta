@@ -476,9 +476,15 @@ internal sealed class SqlServerDialect : ISqlDialect
         AddParameter(sql, "@p_result", SqlDbType.VarBinary, resultBytes);
         AddParameter(sql, "@p_execution_succeeded", SqlDbType.Bit, request.Outcome == ExecutionOutcome.Succeeded);
         AddParameter(sql, "@p_duration_ms", SqlDbType.Int, request.DurationMs is { } duration ? duration : DBNull.Value);
-        AddParameter(sql, "@p_reschedule_status_code", SqlDbType.TinyInt, DBNull.Value);
+        // A re-arm status marks a fire that ran nothing; the slot's next run still comes from the schedules.
+        AddParameter(sql, "@p_reschedule_status_code", SqlDbType.TinyInt, request.RescheduleStatusCode is { } rearm ? rearm : DBNull.Value);
         AddParameter(sql, "@p_reschedule_delay_seconds", SqlDbType.Int, DBNull.Value);
-        AddParameter(sql, "@p_reschedule_resume_at_utc", SqlDbType.DateTime2, DBNull.Value);
+        AddParameter(
+            sql,
+            "@p_reschedule_resume_at_utc",
+            SqlDbType.DateTime2,
+            request.RescheduleResumeAtUtc is { } resumeAt ? resumeAt : DBNull.Value
+        );
         AddParameter(sql, "@p_wait_signal_name", SqlDbType.NVarChar, DBNull.Value, size: 128);
         AddParameter(sql, "@p_handler_status_code", SqlDbType.TinyInt, DBNull.Value);
         AddParameter(sql, "@p_retention_seconds", SqlDbType.Int, request.RetentionSeconds is { } retention ? retention : DBNull.Value);

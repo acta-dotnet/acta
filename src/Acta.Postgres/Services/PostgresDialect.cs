@@ -435,9 +435,20 @@ internal sealed class PostgresDialect : ISqlDialect
         AddScalar(postgres, "@p_result", NpgsqlDbType.Bytea, resultBytes);
         AddScalar(postgres, "@p_execution_succeeded", NpgsqlDbType.Boolean, request.Outcome == ExecutionOutcome.Succeeded);
         AddScalar(postgres, "@p_duration_ms", NpgsqlDbType.Integer, request.DurationMs is { } duration ? duration : DBNull.Value);
-        AddScalar(postgres, "@p_reschedule_status_code", NpgsqlDbType.Smallint, DBNull.Value);
+        // A re-arm status marks a fire that ran nothing; the slot's next run still comes from the schedules.
+        AddScalar(
+            postgres,
+            "@p_reschedule_status_code",
+            NpgsqlDbType.Smallint,
+            request.RescheduleStatusCode is { } rearm ? (short)rearm : DBNull.Value
+        );
         AddScalar(postgres, "@p_reschedule_delay_seconds", NpgsqlDbType.Integer, DBNull.Value);
-        AddScalar(postgres, "@p_reschedule_resume_at_utc", NpgsqlDbType.TimestampTz, DBNull.Value);
+        AddScalar(
+            postgres,
+            "@p_reschedule_resume_at_utc",
+            NpgsqlDbType.TimestampTz,
+            request.RescheduleResumeAtUtc is { } resumeAt ? resumeAt : DBNull.Value
+        );
         AddScalar(postgres, "@p_wait_signal_name", NpgsqlDbType.Varchar, DBNull.Value);
         AddScalar(postgres, "@p_handler_status_code", NpgsqlDbType.Smallint, DBNull.Value);
         AddScalar(

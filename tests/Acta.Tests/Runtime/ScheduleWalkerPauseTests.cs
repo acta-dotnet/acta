@@ -5,8 +5,9 @@ namespace Acta.Tests.Runtime;
 
 /// <summary>
 /// Pause-aware planning in <see cref="ScheduleWalker"/>: an indefinite pause is invisible to the slot,
-/// a timed pause contributes only its expiry as the slot's wake point and auto-fires once elapsed, and
-/// catalog reconcile preserves a paused schedule's stored cursor across a redeploy.
+/// a timed pause contributes only its expiry as the slot's wake point and, once elapsed, resumes the
+/// schedule under its misfire policy as of the instant it ended, and catalog reconcile preserves a paused
+/// schedule's stored cursor across a redeploy.
 /// </summary>
 public class ScheduleWalkerPauseTests
 {
@@ -29,13 +30,19 @@ public class ScheduleWalkerPauseTests
             1
         );
 
-    private static LiveSchedule Paused(long id, string name, DateTime? cursor, DateTime? pausedUntil) =>
+    private static LiveSchedule Paused(
+        long id,
+        string name,
+        DateTime? cursor,
+        DateTime? pausedUntil,
+        MisfireStrategyCode misfire = MisfireStrategyCode.Skip
+    ) =>
         new(
             id,
             name,
             Cron5,
             null,
-            MisfireStrategyCode.Skip,
+            misfire,
             ScheduleExpressionKindCode.Cron,
             cursor,
             ScheduleStatusCode.Paused,
@@ -78,6 +85,7 @@ public class ScheduleWalkerPauseTests
         Assert.Equal(until, outcome.SlotMinNextRunAtUtc);
     }
 
+    // The 00:00 occurrence falls after the pause ended (23:59:30) and before now, so it is due as usual.
     [Fact]
     public void PlanFire_elapsed_timed_pause_is_due_and_advances()
     {
@@ -86,6 +94,62 @@ public class ScheduleWalkerPauseTests
         Assert.Equal(["a"], outcome.TriggeringScheduleNames);
         var advance = Assert.Single(outcome.Advances);
         Assert.True(advance.NextRunAtUtc > Now);
+    }
+
+    [Fact]
+    public void PlanFire_elapsed_timed_pause_with_nothing_due_resumes_without_firing()
+    {
+        var next = new DateTime(2024, 1, 1, 0, 5, 0, DateTimeKind.Utc);
+        var outcome = ScheduleWalker.PlanFire([Paused(1, "a", next, Now.AddSeconds(-10))], Now);
+
+        Assert.Empty(outcome.TriggeringScheduleNames);
+        Assert.True(outcome.NothingDue);
+        Assert.Equal(next, Assert.Single(outcome.Advances).NextRunAtUtc);
+        Assert.Equal(next, outcome.SlotMinNextRunAtUtc);
+    }
+
+    // Under Skip the 23:55 and 00:00 occurrences inside the window are missed, so nothing runs at its end.
+    [Fact]
+    public void PlanFire_elapsed_timed_pause_skips_an_occurrence_inside_its_window()
+    {
+        var outcome = ScheduleWalker.PlanFire([Paused(1, "a", Now.AddMinutes(-5.5), Now.AddSeconds(-20))], Now);
+
+        Assert.Empty(outcome.TriggeringScheduleNames);
+        Assert.True(outcome.NothingDue);
+        Assert.Equal(new DateTime(2024, 1, 1, 0, 5, 0, DateTimeKind.Utc), Assert.Single(outcome.Advances).NextRunAtUtc);
+    }
+
+    [Fact]
+    public void PlanFire_elapsed_timed_pause_catches_up_once_on_an_occurrence_inside_its_window()
+    {
+        var outcome = ScheduleWalker.PlanFire(
+            [Paused(1, "a", Now.AddMinutes(-5.5), Now.AddSeconds(-20), MisfireStrategyCode.CatchUpOnce)],
+            Now
+        );
+
+        Assert.Equal(["a"], outcome.TriggeringScheduleNames);
+        Assert.False(outcome.NothingDue);
+        Assert.True(Assert.Single(outcome.Advances).NextRunAtUtc > Now);
+    }
+
+    [Fact]
+    public void PlanFire_pause_ending_on_an_occurrence_fires_it()
+    {
+        var occurrence = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var outcome = ScheduleWalker.PlanFire([Paused(1, "a", occurrence, occurrence)], Now);
+
+        Assert.Equal(["a"], outcome.TriggeringScheduleNames);
+    }
+
+    // Trigger-now moves the slot without touching a cursor: nothing is due, nothing advances, and the
+    // handler still runs.
+    [Fact]
+    public void PlanFire_trigger_now_fire_is_not_a_nothing_due_fire()
+    {
+        var outcome = ScheduleWalker.PlanFire([Active(1, "a", Now.AddMinutes(4))], Now);
+
+        Assert.Empty(outcome.TriggeringScheduleNames);
+        Assert.False(outcome.NothingDue);
     }
 
     [Fact]
