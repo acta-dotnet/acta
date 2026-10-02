@@ -1,0 +1,223 @@
+/* Walkthrough figures: one vocabulary for the claiming, admission, and fleet explainers. A figure is a
+   panel with a header, optional tabs, a step strip, a stage, a live caption, navigation, and a footnote.
+   Job cards and worker boxes carry persisted state as a border colour: verdi Ready, sky running, oxide
+   waiting, dashed Blocked, faded done, bad dead. Each explainer adds only its own stage layout below. */
+.walk { margin: 2.4rem 0 0; border: 1px solid var(--hair); border-radius: var(--r-panel); background: var(--panel); overflow: hidden; }
+.walk [hidden] { display: none !important; }
+.walk-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1.5rem; border-bottom: 1px solid var(--hair); }
+.walk h3 { margin: 0; font: 500 1.8rem var(--serif); }
+.walk-header p { margin: 0.5rem 0 0; color: var(--muted); font-size: 0.93rem; max-width: 90ch; }
+.walk-header p b { color: var(--text); font-weight: 600; }
+.walk .button { font-size: 0.68rem; letter-spacing: 0.04em; }
+.walk-tabs, .walk-steps, .claiming-controls { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.walk-tabs, .walk-steps { padding: 1rem 1.5rem; border-bottom: 1px solid var(--hair); }
+.walk-tabs .button, .walk-steps .button { border-radius: var(--r-card); text-transform: none; }
+.walk-tabs .button { font-size: 0.74rem; letter-spacing: 0.02em; }
+.walk-tabs .button[aria-selected="true"], .walk-steps .button[aria-current="step"] { color: var(--verdi); border-color: var(--verdi); background: var(--verdi-wash); }
+.walk-label { font: 400 0.65rem var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); margin-bottom: 1rem; }
+.walk-stage { padding: 1.5rem; }
+.walk-job { min-width: 5.1rem; padding: 0.65rem 0.6rem; border: 1px solid var(--hair); border-radius: var(--r-card); background: var(--panel-2); animation: walk-arrive 0.3s ease both; }
+.walk-job b { display: block; font: 500 0.95rem var(--mono); }
+.walk-job span { display: block; font-size: 0.7rem; color: var(--muted); margin-top: 0.3rem; }
+.walk-job.ready { border-color: var(--verdi); background: rgba(47, 214, 168, 0.08); }
+.walk-job.running { border-color: var(--sky); background: var(--sky-wash); }
+.walk-job.waiting, .walk-job.retry, .walk-job.booked, .walk-job.rearmed { border-color: var(--oxide); background: var(--oxide-wash); }
+.walk-job.rearmed, .walk-job.blocked { border-style: dashed; }
+.walk-job.quarantined { border-color: var(--bad); background: var(--bad-wash); }
+.walk-job.done { opacity: 0.55; }
+.walk-arrow { color: var(--faint); }
+.walk-rule { color: var(--muted); font-size: 0.8rem; margin: 1rem 0 0; max-width: 100ch; }
+.walk-worker { border: 1px solid var(--hair); border-radius: var(--r-card); padding: 0.9rem; margin-bottom: 0.8rem; animation: walk-arrive 0.3s ease both; }
+.walk-worker strong, .walk-worker > span { display: block; }
+.walk-worker strong { font: 0.8rem var(--mono); }
+.walk-worker > span { color: var(--muted); font-size: 0.75rem; margin-top: 0.5rem; }
+.walk-worker.busy { border-color: var(--sky); }
+.walk-worker.bounced { border-color: var(--oxide); }
+.walk-worker.offline, .walk-worker.dead { border-color: var(--bad); }
+.walk-worker.joining { border-color: var(--verdi); }
+.walk-worker.empty { border-style: dashed; color: var(--faint); }
+.walk-bridge { align-self: center; text-align: center; font: 0.65rem/1.6 var(--mono); color: var(--verdi); }
+.walk-bridge span { font-size: 2rem; }
+.walk-caption { display: block; padding: 1.3rem 1.5rem; background: var(--verdi-tint); border-block: 1px solid var(--hair); min-height: 10rem; }
+.walk-caption > span { display: block; color: var(--verdi); font: var(--label) var(--mono); margin-bottom: 0.7rem; }
+.walk-caption > strong { font-weight: 500; font-size: 1.1rem; }
+.walk-caption p { color: var(--muted); font-size: 0.9rem; margin: 0.5rem 0 0; max-width: 90ch; }
+.walk-navigation { display: flex; flex-wrap: wrap; gap: 0.6rem; padding: 1rem 1.5rem; align-items: center; }
+.walk-navigation > span { margin-left: auto; color: var(--faint); font-size: 0.75rem; }
+.walk-footnote { padding: 0 1.5rem 1.2rem; color: var(--faint); font-size: 0.75rem; max-width: 100ch; }
+.walk-footnote a { color: var(--muted); }
+.walk-help { border-top: 1px solid var(--hair); padding: 0 1.5rem 1rem; }
+.walk-help details { padding-top: 1rem; scroll-margin-top: 5rem; }
+.walk-help summary { color: var(--verdi); cursor: pointer; font-size: 0.85rem; }
+.walk-help p { color: var(--muted); max-width: 90ch; font-size: 0.85rem; margin-bottom: 0; }
+.walk-scroll { overflow-x: auto; border: 1px solid var(--hair); border-radius: var(--r-card); background: var(--panel); }
+.walk-table { width: 100%; min-width: 560px; border-collapse: collapse; font-size: 0.78rem; text-align: left; }
+.walk-table th, .walk-table td { padding: 0.6rem 0.85rem; border-bottom: 1px solid var(--hair-soft); white-space: nowrap; }
+.walk-table thead { background: var(--panel-2); color: var(--faint); font: 0.64rem var(--mono); }
+.walk-table th { font-weight: 400; }
+.walk-table tbody th { font: 0.8rem var(--mono); }
+.walk-table tbody tr:last-child > * { border-bottom: 0; }
+.walk-table td > * { display: block; }
+.walk-table td strong { font-weight: 500; }
+.walk-table td code { color: var(--faint); font-size: 0.72rem; }
+.walk-table td.ready { color: var(--verdi); }
+.walk-table td.leased { color: var(--sky); }
+.walk-table td.lapsed, .walk-table td.rearmed { color: var(--oxide); }
+.walk-table td.done { color: var(--faint); }
+.walk-table td.fenced { color: var(--bad); }
+@keyframes walk-arrive { from { opacity: 0.3; transform: translateY(5px); } to { transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .walk-job, .walk-worker, .claiming-transfer { animation: none; } }
+@media (max-width: 650px) {
+  .walk-header { align-items: flex-start; flex-direction: column; }
+  .walk-bridge { padding: 0.5rem; }
+  .walk-bridge br { display: none; }
+  .walk-bridge span { display: inline-block; transform: rotate(90deg); margin-left: 0.5rem; }
+  .walk-navigation > span { width: 100%; margin: 0; }
+}
+
+/* claiming: lanes beside peer workers, with the outbox journey above when shown */
+.claiming-model { display: grid; grid-template-columns: minmax(0, 1fr) 5rem 13rem; padding: 1.5rem; }
+.claiming-lane { display: flex; align-items: center; gap: 1rem; border-top: 1px solid var(--hair-soft); padding: 1rem 0; }
+.claiming-lane-name { width: 8.5rem; flex-shrink: 0; font: 0.8rem var(--mono); }
+.claiming-lane-name small { display: block; color: var(--faint); font: 0.7rem var(--sans); margin-top: 0.4rem; }
+.claiming-jobs { display: flex; align-items: center; flex-wrap: wrap; gap: 0.45rem; }
+.claiming-job-action { display: block; font-size: 0.8rem; font-weight: 500; margin-top: 0.35rem; }
+.claiming-job-input { display: block; font: 0.65rem var(--mono); color: var(--faint); margin-top: 0.25rem; }
+.claiming-workers p { color: var(--muted); font-size: 0.8rem; margin-bottom: 0; }
+.claiming-source { padding: 1.5rem; border-bottom: 1px solid var(--hair); background: rgba(208, 138, 69, 0.035); }
+.claiming-transaction { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1rem; padding-bottom: 0.8rem; }
+.claiming-transaction span, .claiming-relay span { color: var(--muted); font-size: 0.8rem; }
+.claiming-relay { display: grid; grid-template-columns: 10rem minmax(0, 1fr); align-items: center; gap: 0.8rem 1rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(208, 138, 69, 0.25); }
+.claiming-relay strong { color: var(--oxide); font: 0.8rem var(--mono); }
+.claiming-relay > div > span { display: block; margin-top: 0.4rem; }
+#claiming-relay-note { grid-column: 2; }
+.claiming-transfer { padding: 0.9rem 1rem; border: 1px solid var(--oxide); border-radius: var(--r-card); font: 0.8rem/1.7 var(--mono); background: var(--oxide-wash); overflow-wrap: anywhere; animation: walk-arrive 0.4s ease both; }
+.claiming-journey { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; margin-bottom: 1.5rem; }
+.claiming-journey > span { border-bottom: 2px solid var(--hair); padding: 0.5rem 0; color: var(--faint); font: 0.7rem/1.6 var(--mono); }
+.claiming-journey > span.active { color: var(--oxide); border-color: var(--oxide); }
+.claiming-order, .claiming-commit { border: 1px solid var(--hair); border-radius: var(--r-card); padding: 1rem; }
+.claiming-order { background: var(--panel-2); }
+.claiming-order > *, .claiming-commit > * { display: block; }
+.claiming-order strong { font-size: 1.2rem; margin-bottom: 0.5rem; }
+.claiming-order .claiming-table-name { color: var(--oxide); font: 0.65rem var(--mono); margin-bottom: 0.65rem; }
+.claiming-commit { border-style: dashed; border-color: var(--oxide); }
+.claiming-commit strong { margin-bottom: 0.5rem; }
+.claiming-source-intro { margin: 0.8rem 0; }
+.claiming-source-intro code { color: var(--oxide); }
+.claiming-source-intro > span { display: block; color: var(--muted); font-size: 0.8rem; }
+.claiming-source .walk-table { min-width: 590px; }
+.claiming-source .walk-table tr.running { background: var(--sky-wash); }
+.claiming-source .walk-table tr.running .claiming-source-status { color: var(--sky); }
+.claiming-source .walk-table tr.waiting .claiming-source-status { color: var(--oxide); }
+.claiming-source .walk-table tr.blocked { color: var(--muted); }
+.claiming-source .walk-table tr.quarantined { background: var(--bad-wash); }
+.claiming-source .walk-table tr.quarantined .claiming-source-status { color: var(--bad); }
+.claiming-deleted { color: var(--verdi); font-size: 0.8rem; padding-top: 0.8rem; }
+@media (max-width: 1100px) { .claiming-model { grid-template-columns: minmax(0, 1fr) 3rem 10rem; } .claiming-lane { align-items: flex-start; flex-direction: column; } .claiming-lane-name { width: auto; } }
+@media (max-width: 650px) {
+  .claiming-model { grid-template-columns: 1fr; }
+  #claiming-workers { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+  .claiming-transaction, .claiming-relay { grid-template-columns: 1fr; }
+  #claiming-relay-note { grid-column: 1; }
+  .claiming-journey { grid-template-columns: 1fr; gap: 0; }
+}
+
+/* admission: the four gates, each a row of the same five jobs, beside three executors */
+.admission-axes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 2.2rem 0 0; border-top: 1px solid var(--hair); }
+.admission-axes > div { padding: 1.2rem 1.6rem 1.3rem 0; border-bottom: 1px solid var(--hair); }
+.admission-axes > div:not(:last-child) { border-right: 1px solid var(--hair); }
+.admission-axes > div + div { padding-left: 1.6rem; }
+.admission-axes i { display: block; font: var(--label) var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--verdi); margin-bottom: 0.35rem; }
+.admission-axes b { display: block; font: 500 1.25rem var(--serif); line-height: 1.2; }
+.admission-axes p { margin: 0.45rem 0 0; color: var(--muted); font-size: 0.92rem; }
+.admission-axes code { display: block; margin-top: 0.6rem; font-size: 0.78rem; color: var(--text); overflow-wrap: anywhere; }
+.admission-axis { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.6rem 1.5rem; align-items: center; padding: 1rem 1.5rem; border-bottom: 1px solid var(--hair); background: var(--verdi-tint); }
+.admission-axis > span { font: 500 1.05rem var(--serif); }
+.admission-axis > span b { color: var(--verdi); font-weight: 500; }
+.admission-axis code { font-size: 0.82rem; color: var(--text); overflow-wrap: anywhere; }
+.admission-stage { display: grid; grid-template-columns: minmax(0, 1fr) 5rem 13rem; padding: 1.5rem; }
+.admission-row { display: flex; align-items: center; gap: 1rem; border-top: 1px solid var(--hair-soft); padding: 1rem 0; }
+.admission-row-name { width: 8.5rem; flex-shrink: 0; font: 0.8rem var(--mono); }
+.admission-row-name small { display: block; color: var(--faint); font: 0.7rem var(--sans); margin-top: 0.4rem; }
+.admission-jobs { display: flex; align-items: center; flex-wrap: wrap; gap: 0.45rem; }
+.admission-slots { display: flex; flex-wrap: wrap; gap: 0.4rem; width: 100%; margin-bottom: 0.6rem; }
+.admission-slot { font: 0.68rem var(--mono); padding: 0.3rem 0.6rem; border: 1px dashed var(--hair); border-radius: var(--r-pill); color: var(--faint); }
+.admission-slot.held { border-style: solid; border-color: var(--sky); color: var(--sky); }
+.admission-ruler { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.5rem; width: 100%; }
+.admission-tick { border-top: 2px solid var(--hair); padding-top: 0.5rem; min-width: 0; }
+.admission-tick.past { border-color: var(--oxide); }
+.admission-tick.now { border-color: var(--verdi); }
+.admission-tick > i { display: block; font: 0.68rem var(--mono); font-style: normal; color: var(--faint); margin-bottom: 0.5rem; }
+.admission-tick.now > i { color: var(--verdi); }
+.admission-tick .walk-job { min-width: 0; margin-bottom: 0.4rem; padding: 0.5rem 0.45rem; }
+.admission-tick .walk-job b { font-size: 0.85rem; }
+.admission-executors p { color: var(--muted); font-size: 0.8rem; margin-bottom: 0; }
+.admission-choose { width: 100%; margin: 2.4rem 0 0; border-collapse: collapse; border-top: 1px solid var(--hair); }
+.admission-choose th, .admission-choose td { padding: 1.1rem 1.5rem 1.1rem 0; border-bottom: 1px solid var(--hair); text-align: left; vertical-align: top; }
+.admission-choose thead th { font: 400 var(--label) var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint); padding-block: 0.7rem; }
+.admission-choose tbody th { font: 500 1.05rem var(--serif); color: var(--text); width: 30%; }
+.admission-choose tbody th small { display: block; margin-top: 0.3rem; font: 0.88rem var(--sans); color: var(--muted); }
+.admission-choose td.gate { font: 500 0.8rem var(--mono); color: var(--verdi); white-space: nowrap; }
+.admission-choose td.turn { color: var(--muted); font-size: 0.92rem; }
+.admission-choose td.turn code { display: block; color: var(--text); font-size: 0.84rem; overflow-wrap: anywhere; }
+.admission-choose td.turn code + code { margin-top: 0.3rem; }
+.admission-choose td.turn span { display: block; margin-top: 0.35rem; }
+.admission-choose td:last-child, .admission-choose th:last-child { padding-right: 0; }
+@media (max-width: 1100px) { .admission-stage { grid-template-columns: minmax(0, 1fr) 3rem 10rem; } .admission-row { align-items: flex-start; flex-direction: column; } .admission-row-name { width: auto; } }
+@media (max-width: 980px) {
+  .admission-axes { grid-template-columns: 1fr 1fr; }
+  .admission-axes > div:not(:last-child) { border-right: 0; padding-right: 0; }
+  .admission-axes > div:nth-child(odd) { border-right: 1px solid var(--hair); padding-right: 1.6rem; padding-left: 0; }
+  .admission-axes > div:nth-child(even) { padding-left: 1.6rem; }
+}
+@media (max-width: 760px) {
+  .admission-choose, .admission-choose tbody, .admission-choose tr, .admission-choose tbody th, .admission-choose td { display: block; width: auto; }
+  .admission-choose thead { display: none; }
+  .admission-choose tr { padding: 1rem 0; border-bottom: 1px solid var(--hair); }
+  .admission-choose tbody th, .admission-choose td { padding: 0 0 0.5rem; border: 0; }
+}
+@media (max-width: 650px) {
+  .admission-stage, .admission-axis { grid-template-columns: 1fr; }
+  #admission-executors { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.6rem; }
+  #admission-executors .walk-worker { margin-bottom: 0; padding: 0.7rem; }
+  .admission-ruler { gap: 0.3rem; }
+  .admission-tick .walk-job { padding: 0.4rem 0.3rem; }
+  .admission-tick .walk-job span { font-size: 0.62rem; }
+}
+@media (max-width: 560px) {
+  .admission-axes { grid-template-columns: 1fr; }
+  .admission-axes > div, .admission-axes > div:nth-child(odd), .admission-axes > div:nth-child(even) { border-right: 0; padding: 1.1rem 0 1.2rem; }
+}
+
+/* fleet: worker boxes above the ledger, the ledger as a real table plus the shared rows */
+.fleet-workers { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.8rem; }
+.fleet-worker { min-height: 9rem; margin-bottom: 0; }
+.fleet-worker-name { display: flex; align-items: center; gap: 0.5rem; font: 0.8rem var(--mono); }
+.fleet-worker-name small { color: var(--faint); font: 0.68rem var(--sans); margin-left: auto; }
+.fleet-beat { width: 9px; height: 9px; border-radius: 50%; background: var(--verdi); flex: none; animation: fleet-pulse 2.2s ease-in-out infinite; }
+.walk-worker.dead .fleet-beat { background: var(--bad); animation: none; opacity: 0.5; }
+.walk-worker.empty .fleet-beat { background: var(--hair); animation: none; }
+.walk-worker.dead .fleet-worker-status { color: var(--bad); }
+.fleet-chips { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.6rem; }
+.fleet-chip { font: 0.68rem var(--mono); padding: 0.25rem 0.5rem; border-radius: 4px; border: 1px solid var(--sky); background: var(--sky-wash); }
+.fleet-chip.sys { border-color: var(--verdi); background: rgba(47, 214, 168, 0.08); }
+.fleet-chip.bounced { border-color: var(--oxide); background: var(--oxide-wash); }
+.fleet-bridge { display: flex; justify-content: center; gap: 2.5rem; padding: 0.9rem 0; font: 0.65rem var(--mono); color: var(--verdi); text-align: center; }
+.fleet-bridge span::before { content: "↕ "; }
+.fleet-db { border: 1px solid var(--hair); border-radius: var(--r-card); background: var(--panel-2); padding: 1rem; }
+.fleet-db .walk-label { margin-bottom: 0.8rem; }
+.fleet-shared { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem; margin-top: 0.8rem; }
+.fleet-shared > div { border: 1px solid var(--hair); border-radius: var(--r-card); padding: 0.7rem 0.8rem; background: var(--panel); }
+.fleet-shared > div.held { border-color: var(--sky); }
+.fleet-shared > div.firing { border-color: var(--verdi); }
+.fleet-shared i { display: block; font: 0.62rem var(--mono); font-style: normal; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); margin-bottom: 0.35rem; }
+.fleet-shared b { display: block; font: 500 0.8rem var(--mono); }
+.fleet-shared span { display: block; color: var(--muted); font-size: 0.72rem; margin-top: 0.3rem; }
+@keyframes fleet-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(47, 214, 168, 0.5); } 50% { box-shadow: 0 0 0 5px rgba(47, 214, 168, 0); } }
+@media (prefers-reduced-motion: reduce) { .fleet-beat { animation: none; } }
+@media (max-width: 760px) {
+  .fleet-workers { grid-template-columns: 1fr 1fr; }
+  .fleet-worker { min-height: 0; }
+  .fleet-shared { grid-template-columns: 1fr; }
+  .fleet-bridge { flex-wrap: wrap; gap: 0.6rem 1.4rem; }
+}
