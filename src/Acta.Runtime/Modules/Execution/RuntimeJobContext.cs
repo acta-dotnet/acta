@@ -85,7 +85,7 @@ internal sealed class RuntimeJobContext(
     public override IReadOnlyList<string> TriggeringScheduleNames { get; } = triggeringScheduleNames;
     public override DateTime? DeadlineAtUtc { get; } = deadlineAtUtc;
 
-    protected override Task SetProgressCoreAsync<T>(T value, CancellationToken ct)
+    private protected override Task SetProgressCoreAsync<T>(T value, CancellationToken ct)
     {
         var payload = JsonSerializer().Serialize(value);
         RejectTopLevelJsonNull(payload);
@@ -93,7 +93,7 @@ internal sealed class RuntimeJobContext(
         return CheckpointSlot.SetAsync(_executionStore, JobId, JobCheckpointKindCode.Progress, ProgressVariableName, payload, ct);
     }
 
-    protected override Task SetVariableCoreAsync<T>(string name, T value, CancellationToken ct)
+    private protected override Task SetVariableCoreAsync<T>(string name, T value, CancellationToken ct)
     {
         var payload = JsonSerializer().Serialize(value);
         RejectTopLevelJsonNull(payload);
@@ -101,7 +101,7 @@ internal sealed class RuntimeJobContext(
         return CheckpointSlot.SetAsync(_executionStore, JobId, JobCheckpointKindCode.Variable, name, payload, ct);
     }
 
-    protected override Task SetVariableCoreAsync(string name, JobPayload payload, CancellationToken ct)
+    private protected override Task SetVariableCoreAsync(string name, JobPayload payload, CancellationToken ct)
     {
         ValidatePayloadFormat(payload);
         RejectTopLevelJsonNull(payload);
@@ -109,14 +109,14 @@ internal sealed class RuntimeJobContext(
         return CheckpointSlot.SetAsync(_executionStore, JobId, JobCheckpointKindCode.Variable, name, payload, ct);
     }
 
-    protected override async Task<(bool Found, T? Value)> TryGetVariableCoreAsync<T>(string name, CancellationToken ct)
+    private protected override async Task<(bool Found, T? Value)> TryGetVariableCoreAsync<T>(string name, CancellationToken ct)
         where T : default
     {
         var value = await CheckpointSlot.GetAsync(_executionStore, JobId, JobCheckpointKindCode.Variable, name, ct);
         return value is null ? (false, default) : (true, Deserialize<T>(value));
     }
 
-    protected override async Task<T> GetOrSetVariableCoreAsync<T>(
+    private protected override async Task<T> GetOrSetVariableCoreAsync<T>(
         string name,
         Func<CancellationToken, Task<T>> valueFactory,
         CancellationToken ct
@@ -146,7 +146,7 @@ internal sealed class RuntimeJobContext(
     /// rather than a serialized DateTime, so the stored bytes are exact and carry no format or kind
     /// ambiguity across a round trip.
     /// </summary>
-    protected override async Task<WaitDeadline> GetOrSetWaitDeadlineCoreAsync(string name, TimeSpan timeout, CancellationToken ct)
+    private protected override async Task<WaitDeadline> GetOrSetWaitDeadlineCoreAsync(string name, TimeSpan timeout, CancellationToken ct)
     {
         // The DB clock, not the host's: the slot dues this deadline is spent against are stamped by the
         // database, so measuring the group against anything else would import the worker's skew. The
@@ -168,15 +168,15 @@ internal sealed class RuntimeJobContext(
     private Acta.Runtime.Services.Time.IActaClock Clock() =>
         _clock ?? throw new InvalidOperationException("Bounded group waits need the Acta clock; this context was built without one.");
 
-    protected override Task<bool> ExistsVariableCoreAsync(string name, CancellationToken ct) =>
+    private protected override Task<bool> ExistsVariableCoreAsync(string name, CancellationToken ct) =>
         CheckpointSlot.ExistsAsync(_executionStore, JobId, JobCheckpointKindCode.Variable, name, ct);
 
-    protected override Task<bool> DeleteVariableCoreAsync(string name, CancellationToken ct) =>
+    private protected override Task<bool> DeleteVariableCoreAsync(string name, CancellationToken ct) =>
         CheckpointSlot.DeleteAsync(_executionStore, JobId, JobCheckpointKindCode.Variable, name, ct);
 
-    protected override Task ResetStateCoreAsync(CancellationToken ct) => _jobStore.ResetJobStateAsync(JobId, ct);
+    private protected override Task ResetStateCoreAsync(CancellationToken ct) => _jobStore.ResetJobStateAsync(JobId, ct);
 
-    protected override async Task SleepCoreAsync(string name, TimeSpan? delay, DateTime? resumeAtUtc, string? reason, CancellationToken ct)
+    private protected override async Task SleepCoreAsync(string name, TimeSpan? delay, DateTime? resumeAtUtc, string? reason, CancellationToken ct)
     {
         var delaySeconds = delay is { } d ? (int)d.TotalSeconds : (int?)null;
         var decision = await _executionStore.ArmOrConsumeSleepTimerAsync(
@@ -197,7 +197,7 @@ internal sealed class RuntimeJobContext(
         }
     }
 
-    protected override Task<SignalWaitOutcome> WaitSignalCoreAsync(string name, CancellationToken ct) =>
+    private protected override Task<SignalWaitOutcome> WaitSignalCoreAsync(string name, CancellationToken ct) =>
         WaitSignalCoreAsync(name, timeoutSeconds: null, resumeOnTimeout: false, ct);
 
     /// <summary>
@@ -205,7 +205,7 @@ internal sealed class RuntimeJobContext(
     /// the absolute expiration, so timeout policy lives in code, and a replay of the other
     /// overload against the same slot is free to decide differently.
     /// </summary>
-    protected override async Task<SignalWaitOutcome> WaitSignalCoreAsync(
+    private protected override async Task<SignalWaitOutcome> WaitSignalCoreAsync(
         string name,
         int? timeoutSeconds,
         bool resumeOnTimeout,
@@ -236,7 +236,7 @@ internal sealed class RuntimeJobContext(
     /// Expired slot, and re-running the cancel. A parent that lands terminal without replaying
     /// strands them, which docs/technical/known-limitations.md states as a known limitation.</para>
     /// </summary>
-    protected override async Task CancelTimedOutChildCoreAsync(long childJobId, CancellationToken ct)
+    private protected override async Task CancelTimedOutChildCoreAsync(long childJobId, CancellationToken ct)
     {
         // Parentage is a safety rail, not an optimization. A wait on an id that is not this job's child
         // can only ever expire, because nothing will raise a latch nobody writes, so a handler bug or a
@@ -297,7 +297,7 @@ internal sealed class RuntimeJobContext(
         }
     }
 
-    protected override T? DeserializeSignalPayload<T>(byte valueFormatId, byte[] value)
+    private protected override T? DeserializeSignalPayload<T>(byte valueFormatId, byte[] value)
         where T : default
     {
         var serializer = _serializers.Resolve(valueFormatId);
@@ -305,22 +305,22 @@ internal sealed class RuntimeJobContext(
         return serializer.Deserialize<T>(payload);
     }
 
-    protected override async Task<JobEnqueueOutcome> StartChildCoreAsync<TInput>(
+    private protected override async Task<JobEnqueueOutcome> StartChildCoreAsync<TInput>(
         TInput input,
         JobEnqueueOptions options,
         CancellationToken ct
     ) => await Jobs().EnqueueAsync(input, options, ct);
 
-    protected override async Task<JobEnqueueOutcome> StartChildCoreAsync(JobEnqueueRequest request, CancellationToken ct) =>
+    private protected override async Task<JobEnqueueOutcome> StartChildCoreAsync(JobEnqueueRequest request, CancellationToken ct) =>
         await Jobs().EnqueueAsync(request, ct);
 
-    protected override async Task<TResult?> GetChildResultCoreAsync<TResult>(long childJobId, CancellationToken ct)
+    private protected override async Task<TResult?> GetChildResultCoreAsync<TResult>(long childJobId, CancellationToken ct)
         where TResult : default => await Jobs().GetResultAsync<TResult>(JobLookup.ById(childJobId), ct);
 
     private IJobs Jobs() =>
         _jobs ?? throw new InvalidOperationException("Child job operations need the IJobs facade; this context was built without one.");
 
-    protected override Task RunStepCoreAsync(string name, Func<CancellationToken, Task> body, StepOptions options, CancellationToken ct) =>
+    private protected override Task RunStepCoreAsync(string name, Func<CancellationToken, Task> body, StepOptions options, CancellationToken ct) =>
         RunStepImplAsync<bool>(
             name,
             async token =>
@@ -333,7 +333,7 @@ internal sealed class RuntimeJobContext(
             ct
         );
 
-    protected override Task<TResult> RunStepCoreAsync<TResult>(
+    private protected override Task<TResult> RunStepCoreAsync<TResult>(
         string name,
         Func<CancellationToken, Task<TResult>> body,
         StepOptions options,
@@ -511,7 +511,7 @@ internal sealed class RuntimeJobContext(
         _metrics?.RecordStep(JobNamespace, JobName, outcome);
     }
 
-    protected override async Task<Guid?> AcquireLockCoreAsync(string key, LockScope scope, CancellationToken ct)
+    private protected override async Task<Guid?> AcquireLockCoreAsync(string key, LockScope scope, CancellationToken ct)
     {
         // Capture the request-start BEFORE the acquire: the store stamps the lease no earlier than this
         // instant, so requestStart + TTL is a conservative lower bound on when the lock actually expires.
@@ -529,7 +529,7 @@ internal sealed class RuntimeJobContext(
 
     private long LeaseTtlStopwatchTicks() => (long)(_leaseTtlSeconds * (double)Stopwatch.Frequency);
 
-    protected override Task ReleaseLockCoreAsync(string key, LockScope scope, Guid holdToken, CancellationToken ct)
+    private protected override Task ReleaseLockCoreAsync(string key, LockScope scope, Guid holdToken, CancellationToken ct)
     {
         var token = new LockToken(ComposeLockKey(key, scope), holdToken);
         // Untrack before the store release so a heartbeat tick racing this release sees Holds()==false
@@ -538,7 +538,7 @@ internal sealed class RuntimeJobContext(
         return _lockStore.ReleaseAsync(token, ct);
     }
 
-    protected override void OnLockReleaseFailure(string key, LockScope scope, Exception exception) =>
+    private protected override void OnLockReleaseFailure(string key, LockScope scope, Exception exception) =>
         RecordLockReleaseFailure(scope == LockScope.Global ? "handler_global" : "handler_namespace", ComposeLockKey(key, scope), exception);
 
     private LockToken? _concurrencySlotToken;
@@ -614,7 +614,7 @@ internal sealed class RuntimeJobContext(
         _metrics?.RecordLockReleaseFailure(JobNamespace, JobName, lockKind, exception.GetType().Name);
     }
 
-    protected override Task WriteNoteCoreAsync<T>(string message, T? detail, CancellationToken ct)
+    private protected override Task WriteNoteCoreAsync<T>(string message, T? detail, CancellationToken ct)
         where T : default
     {
         JobPayload? payload = null;
@@ -631,7 +631,7 @@ internal sealed class RuntimeJobContext(
         return _executionStore.RecordJobNoteAsync(JobId, ExecutionNumber, message.Truncate(ActaTextLimits.ReasonMessage)!, payload, ct);
     }
 
-    protected override async Task RaiseAlertCoreAsync(
+    private protected override async Task RaiseAlertCoreAsync(
         AlertSeverityCode severityCode,
         string title,
         string message,

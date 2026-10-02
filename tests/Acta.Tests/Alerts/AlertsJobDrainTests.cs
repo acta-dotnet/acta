@@ -152,7 +152,7 @@ public sealed class AlertsJobDrainTests
 
         public IEnumerable<DateTime> InstantWrites => Checkpoints.Select(c => c.Utc);
 
-        protected override Task SetVariableCoreAsync<T>(string name, T value, CancellationToken ct)
+        private protected override Task SetVariableCoreAsync<T>(string name, T value, CancellationToken ct)
         {
             if (string.Equals(name, AlertsJob.CursorVariableName, StringComparison.Ordinal) && value is AlertsCursor cursor)
             {

@@ -247,7 +247,7 @@ internal sealed class StepOptionsCapturingContext : JobContext
     public override string JobName => "step-host";
     public override CancellationToken CancellationToken => CancellationToken.None;
 
-    protected override Task RunStepCoreAsync(string name, Func<CancellationToken, Task> body, StepOptions options, CancellationToken ct)
+    private protected override Task RunStepCoreAsync(string name, Func<CancellationToken, Task> body, StepOptions options, CancellationToken ct)
     {
         LastOptions = options;
         return Task.CompletedTask;
@@ -255,60 +255,60 @@ internal sealed class StepOptionsCapturingContext : JobContext
 
     private static T Unsupported<T>() => throw new NotSupportedException("StepOptionsCapturingContext only captures step options.");
 
-    protected override Task<TResult> RunStepCoreAsync<TResult>(
+    private protected override Task<TResult> RunStepCoreAsync<TResult>(
         string name,
         Func<CancellationToken, Task<TResult>> body,
         StepOptions options,
         CancellationToken ct
     ) => Unsupported<Task<TResult>>();
 
-    protected override Task SetProgressCoreAsync<T>(T value, CancellationToken ct) => Unsupported<Task>();
+    private protected override Task SetProgressCoreAsync<T>(T value, CancellationToken ct) => Unsupported<Task>();
 
-    protected override Task SetVariableCoreAsync<T>(string name, T value, CancellationToken ct) => Unsupported<Task>();
+    private protected override Task SetVariableCoreAsync<T>(string name, T value, CancellationToken ct) => Unsupported<Task>();
 
-    protected override Task SetVariableCoreAsync(string name, JobPayload payload, CancellationToken ct) => Unsupported<Task>();
+    private protected override Task SetVariableCoreAsync(string name, JobPayload payload, CancellationToken ct) => Unsupported<Task>();
 
-    protected override Task<(bool Found, T? Value)> TryGetVariableCoreAsync<T>(string name, CancellationToken ct)
+    private protected override Task<(bool Found, T? Value)> TryGetVariableCoreAsync<T>(string name, CancellationToken ct)
         where T : default => Unsupported<Task<(bool, T?)>>();
 
-    protected override Task<T> GetOrSetVariableCoreAsync<T>(
+    private protected override Task<T> GetOrSetVariableCoreAsync<T>(
         string name,
         Func<CancellationToken, Task<T>> valueFactory,
         CancellationToken ct
     ) => Unsupported<Task<T>>();
 
-    protected override Task<bool> ExistsVariableCoreAsync(string name, CancellationToken ct) => Unsupported<Task<bool>>();
+    private protected override Task<bool> ExistsVariableCoreAsync(string name, CancellationToken ct) => Unsupported<Task<bool>>();
 
-    protected override Task<bool> DeleteVariableCoreAsync(string name, CancellationToken ct) => Unsupported<Task<bool>>();
+    private protected override Task<bool> DeleteVariableCoreAsync(string name, CancellationToken ct) => Unsupported<Task<bool>>();
 
-    protected override Task ResetStateCoreAsync(CancellationToken ct) => Unsupported<Task>();
+    private protected override Task ResetStateCoreAsync(CancellationToken ct) => Unsupported<Task>();
 
-    protected override Task SleepCoreAsync(string name, TimeSpan? delay, DateTime? resumeAtUtc, string? reason, CancellationToken ct) =>
+    private protected override Task SleepCoreAsync(string name, TimeSpan? delay, DateTime? resumeAtUtc, string? reason, CancellationToken ct) =>
         Unsupported<Task>();
 
-    protected override Task<SignalWaitOutcome> WaitSignalCoreAsync(string name, CancellationToken ct) =>
+    private protected override Task<SignalWaitOutcome> WaitSignalCoreAsync(string name, CancellationToken ct) =>
         Unsupported<Task<SignalWaitOutcome>>();
 
-    protected override T? DeserializeSignalPayload<T>(byte valueFormatId, byte[] value)
+    private protected override T? DeserializeSignalPayload<T>(byte valueFormatId, byte[] value)
         where T : default => Unsupported<T?>();
 
-    protected override Task<JobEnqueueOutcome> StartChildCoreAsync<TInput>(TInput input, JobEnqueueOptions options, CancellationToken ct) =>
+    private protected override Task<JobEnqueueOutcome> StartChildCoreAsync<TInput>(TInput input, JobEnqueueOptions options, CancellationToken ct) =>
         Unsupported<Task<JobEnqueueOutcome>>();
 
-    protected override Task<JobEnqueueOutcome> StartChildCoreAsync(JobEnqueueRequest request, CancellationToken ct) =>
+    private protected override Task<JobEnqueueOutcome> StartChildCoreAsync(JobEnqueueRequest request, CancellationToken ct) =>
         Unsupported<Task<JobEnqueueOutcome>>();
 
-    protected override Task<TResult?> GetChildResultCoreAsync<TResult>(long childJobId, CancellationToken ct)
+    private protected override Task<TResult?> GetChildResultCoreAsync<TResult>(long childJobId, CancellationToken ct)
         where TResult : default => Unsupported<Task<TResult?>>();
 
-    protected override Task<Guid?> AcquireLockCoreAsync(string key, LockScope scope, CancellationToken ct) => Unsupported<Task<Guid?>>();
+    private protected override Task<Guid?> AcquireLockCoreAsync(string key, LockScope scope, CancellationToken ct) => Unsupported<Task<Guid?>>();
 
-    protected override Task ReleaseLockCoreAsync(string key, LockScope scope, Guid holdToken, CancellationToken ct) => Unsupported<Task>();
+    private protected override Task ReleaseLockCoreAsync(string key, LockScope scope, Guid holdToken, CancellationToken ct) => Unsupported<Task>();
 
-    protected override Task WriteNoteCoreAsync<T>(string message, T? detail, CancellationToken ct)
+    private protected override Task WriteNoteCoreAsync<T>(string message, T? detail, CancellationToken ct)
         where T : default => Unsupported<Task>();
 
-    protected override Task RaiseAlertCoreAsync(
+    private protected override Task RaiseAlertCoreAsync(
         AlertSeverityCode severityCode,
         string title,
         string message,

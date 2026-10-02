@@ -44,7 +44,7 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>?
     public override string JobName => "parent";
     public override CancellationToken CancellationToken => CancellationToken.None;
 
-    protected override Task<JobEnqueueOutcome> StartChildCoreAsync<TInput>(TInput input, JobEnqueueOptions options, CancellationToken ct)
+    private protected override Task<JobEnqueueOutcome> StartChildCoreAsync<TInput>(TInput input, JobEnqueueOptions options, CancellationToken ct)
     {
         var name = options.DeduplicationKey ?? throw new InvalidOperationException("child options carried no deduplication key.");
         var id = ++_nextId;
@@ -55,7 +55,7 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>?
         return Task.FromResult(new JobEnqueueOutcome(id, JobRef.New(), JobEnqueueAction.Inserted));
     }
 
-    protected override Task<SignalWaitOutcome> WaitSignalCoreAsync(string name, CancellationToken ct)
+    private protected override Task<SignalWaitOutcome> WaitSignalCoreAsync(string name, CancellationToken ct)
     {
         if (!name.StartsWith("sys.child.", StringComparison.Ordinal))
         {
@@ -92,43 +92,43 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>?
     private static T Unsupported<T>() =>
         throw new NotSupportedException("RecordingJobContext only implements the child-job and step sinks.");
 
-    protected override Task SetProgressCoreAsync<T>(T value, CancellationToken ct) => Unsupported<Task>();
+    private protected override Task SetProgressCoreAsync<T>(T value, CancellationToken ct) => Unsupported<Task>();
 
-    protected override Task SetVariableCoreAsync<T>(string name, T value, CancellationToken ct)
+    private protected override Task SetVariableCoreAsync<T>(string name, T value, CancellationToken ct)
     {
         _variables[name] = value;
         return Task.CompletedTask;
     }
 
-    protected override Task SetVariableCoreAsync(string name, JobPayload payload, CancellationToken ct) => Unsupported<Task>();
+    private protected override Task SetVariableCoreAsync(string name, JobPayload payload, CancellationToken ct) => Unsupported<Task>();
 
-    protected override Task<(bool Found, T? Value)> TryGetVariableCoreAsync<T>(string name, CancellationToken ct)
+    private protected override Task<(bool Found, T? Value)> TryGetVariableCoreAsync<T>(string name, CancellationToken ct)
         where T : default
     {
         var found = _variables.TryGetValue(name, out var value);
         return Task.FromResult((found, found ? (T)value! : default));
     }
 
-    protected override Task<T> GetOrSetVariableCoreAsync<T>(
+    private protected override Task<T> GetOrSetVariableCoreAsync<T>(
         string name,
         Func<CancellationToken, Task<T>> valueFactory,
         CancellationToken ct
     ) => Unsupported<Task<T>>();
 
-    protected override Task<bool> ExistsVariableCoreAsync(string name, CancellationToken ct) =>
+    private protected override Task<bool> ExistsVariableCoreAsync(string name, CancellationToken ct) =>
         Task.FromResult(_variables.ContainsKey(name));
 
-    protected override Task<bool> DeleteVariableCoreAsync(string name, CancellationToken ct) => Task.FromResult(_variables.Remove(name));
+    private protected override Task<bool> DeleteVariableCoreAsync(string name, CancellationToken ct) => Task.FromResult(_variables.Remove(name));
 
-    protected override Task ResetStateCoreAsync(CancellationToken ct) => Unsupported<Task>();
+    private protected override Task ResetStateCoreAsync(CancellationToken ct) => Unsupported<Task>();
 
-    protected override Task SleepCoreAsync(string name, TimeSpan? delay, DateTime? resumeAtUtc, string? reason, CancellationToken ct) =>
+    private protected override Task SleepCoreAsync(string name, TimeSpan? delay, DateTime? resumeAtUtc, string? reason, CancellationToken ct) =>
         Unsupported<Task>();
 
-    protected override T? DeserializeSignalPayload<T>(byte valueFormatId, byte[] value)
+    private protected override T? DeserializeSignalPayload<T>(byte valueFormatId, byte[] value)
         where T : default => Unsupported<T?>();
 
-    protected override Task<JobEnqueueOutcome> StartChildCoreAsync(JobEnqueueRequest request, CancellationToken ct)
+    private protected override Task<JobEnqueueOutcome> StartChildCoreAsync(JobEnqueueRequest request, CancellationToken ct)
     {
         var name = request.DeduplicationKey ?? throw new InvalidOperationException("child request carried no deduplication key.");
         var id = ++_nextId;
@@ -138,10 +138,10 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>?
         return Task.FromResult(new JobEnqueueOutcome(id, JobRef.New(), JobEnqueueAction.Inserted));
     }
 
-    protected override Task<TResult?> GetChildResultCoreAsync<TResult>(long childJobId, CancellationToken ct)
+    private protected override Task<TResult?> GetChildResultCoreAsync<TResult>(long childJobId, CancellationToken ct)
         where TResult : default => Task.FromResult(SeededChildResult is TResult typed ? typed : default);
 
-    protected override async Task RunStepCoreAsync(
+    private protected override async Task RunStepCoreAsync(
         string name,
         Func<CancellationToken, Task> body,
         StepOptions options,
@@ -152,7 +152,7 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>?
         await body(ct);
     }
 
-    protected override async Task<TResult> RunStepCoreAsync<TResult>(
+    private protected override async Task<TResult> RunStepCoreAsync<TResult>(
         string name,
         Func<CancellationToken, Task<TResult>> body,
         StepOptions options,
@@ -163,21 +163,21 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>?
         return await body(ct);
     }
 
-    protected override Task<Guid?> AcquireLockCoreAsync(string key, LockScope scope, CancellationToken ct) =>
+    private protected override Task<Guid?> AcquireLockCoreAsync(string key, LockScope scope, CancellationToken ct) =>
         Task.FromResult<Guid?>(Guid.NewGuid());
 
-    protected override Task ReleaseLockCoreAsync(string key, LockScope scope, Guid holdToken, CancellationToken ct)
+    private protected override Task ReleaseLockCoreAsync(string key, LockScope scope, Guid holdToken, CancellationToken ct)
     {
         LockReleaseCalls++;
         return LockReleaseException is null ? Task.CompletedTask : Task.FromException(LockReleaseException);
     }
 
-    protected override void OnLockReleaseFailure(string key, LockScope scope, Exception exception) => LockReleaseFailures.Add(exception);
+    private protected override void OnLockReleaseFailure(string key, LockScope scope, Exception exception) => LockReleaseFailures.Add(exception);
 
-    protected override Task WriteNoteCoreAsync<T>(string message, T? detail, CancellationToken ct)
+    private protected override Task WriteNoteCoreAsync<T>(string message, T? detail, CancellationToken ct)
         where T : default => Unsupported<Task>();
 
-    protected override Task RaiseAlertCoreAsync(
+    private protected override Task RaiseAlertCoreAsync(
         AlertSeverityCode severityCode,
         string title,
         string message,

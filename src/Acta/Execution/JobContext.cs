@@ -7,8 +7,9 @@ namespace Acta;
 
 /// <summary>
 /// Handler-facing per-attempt context (<c>ctx</c>). Exposes the job's identity, the per-attempt
-/// cancellation token, and substrate operations like <see cref="SetProgressAsync{T}"/>. Tests
-/// subclass; <c>RuntimeJobContext</c> is the production implementation.
+/// cancellation token, and substrate operations like <see cref="SetProgressAsync{T}"/>. The framework
+/// supplies it: <c>RuntimeJobContext</c> is the production implementation, and only Acta's own assemblies
+/// can derive from it; a test drives a handler through the <c>Acta.Testing</c> host.
 /// </summary>
 /// <remarks>
 /// Steps and signals are durable and replay-safe, timers (<see cref="SleepAsync"/>) suspend the
@@ -18,7 +19,7 @@ namespace Acta;
 /// </remarks>
 public abstract class JobContext
 {
-    protected JobContext() { }
+    private protected JobContext() { }
 
     /// <summary>Public Job handle (the sequence-allocated <c>job.id</c>).</summary>
     public abstract long JobId { get; }
@@ -133,7 +134,7 @@ public abstract class JobContext
     /// serializer (so source-gen JSON is honored under Native AOT) rather than the reflection-based
     /// static helper.
     /// </summary>
-    protected abstract Task SetProgressCoreAsync<T>(T value, CancellationToken ct);
+    private protected abstract Task SetProgressCoreAsync<T>(T value, CancellationToken ct);
 
     /// <summary>
     /// Set a durable per-job variable to a non-null JSON value. Last write wins.
@@ -260,24 +261,24 @@ public abstract class JobContext
     /// <summary>
     /// Subclass sink: set a user variable using the default JSON format.
     /// </summary>
-    protected abstract Task SetVariableCoreAsync<T>(string name, T value, CancellationToken ct)
+    private protected abstract Task SetVariableCoreAsync<T>(string name, T value, CancellationToken ct)
         where T : notnull;
 
     /// <summary>
     /// Subclass sink: set a user variable using an exact payload.
     /// </summary>
-    protected abstract Task SetVariableCoreAsync(string name, JobPayload payload, CancellationToken ct);
+    private protected abstract Task SetVariableCoreAsync(string name, JobPayload payload, CancellationToken ct);
 
     /// <summary>
     /// Subclass sink: get a user variable in one read, reporting whether it was found. The found flag is
     /// what distinguishes an absent variable from a stored value-type default (e.g. <c>0</c> for int).
     /// </summary>
-    protected abstract Task<(bool Found, T? Value)> TryGetVariableCoreAsync<T>(string name, CancellationToken ct);
+    private protected abstract Task<(bool Found, T? Value)> TryGetVariableCoreAsync<T>(string name, CancellationToken ct);
 
     /// <summary>
     /// Subclass sink: get a user variable, or compute and store it when absent.
     /// </summary>
-    protected abstract Task<T> GetOrSetVariableCoreAsync<T>(
+    private protected abstract Task<T> GetOrSetVariableCoreAsync<T>(
         string name,
         Func<CancellationToken, Task<T>> valueFactory,
         CancellationToken ct
@@ -287,12 +288,12 @@ public abstract class JobContext
     /// <summary>
     /// Subclass sink: check whether a user variable exists.
     /// </summary>
-    protected abstract Task<bool> ExistsVariableCoreAsync(string name, CancellationToken ct);
+    private protected abstract Task<bool> ExistsVariableCoreAsync(string name, CancellationToken ct);
 
     /// <summary>
     /// Subclass sink: delete a user variable.
     /// </summary>
-    protected abstract Task<bool> DeleteVariableCoreAsync(string name, CancellationToken ct);
+    private protected abstract Task<bool> DeleteVariableCoreAsync(string name, CancellationToken ct);
 
     /// <summary>
     /// Clears this Job's durable state (every <c>JobCheckpoint</c>, <c>JobStep</c>, and
@@ -319,7 +320,7 @@ public abstract class JobContext
     /// <summary>
     /// Subclass sink: clear the Job's durable state (variables, timers, steps, signals, results).
     /// </summary>
-    protected abstract Task ResetStateCoreAsync(CancellationToken ct);
+    private protected abstract Task ResetStateCoreAsync(CancellationToken ct);
 
     /// <summary>
     /// Re-arms this Job to run again after <paramref name="delay"/> and stops the current attempt
@@ -437,7 +438,7 @@ public abstract class JobContext
     /// and <paramref name="resumeAtUtc"/> is non-null. Returns normally to continue the handler; throws
     /// the framework suspend signal to re-arm the Job for a subsequent claim.
     /// </summary>
-    protected abstract Task SleepCoreAsync(
+    private protected abstract Task SleepCoreAsync(
         string name,
         TimeSpan? delay,
         DateTime? resumeAtUtc,
@@ -562,13 +563,13 @@ public abstract class JobContext
     /// presence-only signal with no payload (<see cref="Value"/> is <c>null</c>). <c>TimedOut</c> is
     /// set only on the resuming path of a bounded wait whose expiration passed.
     /// </summary>
-    protected readonly record struct SignalWaitOutcome(byte ValueFormatId, byte[]? Value, bool TimedOut = false);
+    private protected readonly record struct SignalWaitOutcome(byte ValueFormatId, byte[]? Value, bool TimedOut = false);
 
     /// <summary>
     /// Subclass sink: reads or arms the named signal slot. Returns normally with the slot payload when
     /// it is <c>Set</c>; throws the framework signal-suspend signal to re-arm the Job for a subsequent claim.
     /// </summary>
-    protected abstract Task<SignalWaitOutcome> WaitSignalCoreAsync(string name, CancellationToken ct);
+    private protected abstract Task<SignalWaitOutcome> WaitSignalCoreAsync(string name, CancellationToken ct);
 
     /// <summary>
     /// Subclass sink for the bounded overloads: <paramref name="timeoutSeconds"/> is the wait length the
@@ -578,7 +579,7 @@ public abstract class JobContext
     /// otherwise ends the attempt. The default forwards to the unbounded sink, so a subclass that
     /// overrides only that one keeps working and simply never expires a wait.
     /// </summary>
-    protected virtual Task<SignalWaitOutcome> WaitSignalCoreAsync(
+    private protected virtual Task<SignalWaitOutcome> WaitSignalCoreAsync(
         string name,
         int? timeoutSeconds,
         bool resumeOnTimeout,
@@ -588,7 +589,7 @@ public abstract class JobContext
     /// <summary>
     /// Subclass sink: deserializes a raised signal payload via the runtime serializer registry.
     /// </summary>
-    protected abstract T? DeserializeSignalPayload<T>(byte valueFormatId, byte[] value);
+    private protected abstract T? DeserializeSignalPayload<T>(byte valueFormatId, byte[] value);
 
     private const string ChildSignalPrefix = "sys.child.";
 
@@ -738,7 +739,7 @@ public abstract class JobContext
     /// an already-terminal job is a no-op. The default does nothing, so a <see cref="JobContext"/>
     /// subclass that only records calls keeps working.
     /// </summary>
-    protected virtual Task CancelTimedOutChildCoreAsync(long childJobId, CancellationToken ct) => Task.CompletedTask;
+    private protected virtual Task CancelTimedOutChildCoreAsync(long childJobId, CancellationToken ct) => Task.CompletedTask;
 
     /// <summary>
     /// Waits for every listed child to reach a terminal status (all-of), suspending as needed. Outcomes
@@ -935,7 +936,7 @@ public abstract class JobContext
     /// clock, while a timestamp taken before or after the round trip would count time the reading
     /// does not cover and shift every derived remaining by that leg.
     /// </summary>
-    protected readonly record struct WaitDeadline(DateTime DeadlineAtUtc, DateTime NowUtc, long AnchorTimestamp);
+    private protected readonly record struct WaitDeadline(DateTime DeadlineAtUtc, DateTime NowUtc, long AnchorTimestamp);
 
     /// <summary>
     /// Subclass sink: read the group's stored absolute deadline, writing <c>db_now + timeout</c> on the
@@ -945,7 +946,7 @@ public abstract class JobContext
     /// from the host clock and stores nothing, so a <see cref="JobContext"/> subclass without durable
     /// storage keeps working; only a durable implementation makes the deadline survive a replay.
     /// </summary>
-    protected virtual Task<WaitDeadline> GetOrSetWaitDeadlineCoreAsync(string name, TimeSpan timeout, CancellationToken ct)
+    private protected virtual Task<WaitDeadline> GetOrSetWaitDeadlineCoreAsync(string name, TimeSpan timeout, CancellationToken ct)
     {
         var nowUtc = DateTime.UtcNow;
         return Task.FromResult(new WaitDeadline(nowUtc + timeout, nowUtc, Stopwatch.GetTimestamp()));
@@ -1177,18 +1178,18 @@ public abstract class JobContext
     /// Subclass sink: typed child enqueue through the shared enqueue path. The options carry the
     /// framework-set parent id and deduplication key.
     /// </summary>
-    protected abstract Task<JobEnqueueOutcome> StartChildCoreAsync<TInput>(TInput input, JobEnqueueOptions options, CancellationToken ct)
+    private protected abstract Task<JobEnqueueOutcome> StartChildCoreAsync<TInput>(TInput input, JobEnqueueOptions options, CancellationToken ct)
         where TInput : notnull;
 
     /// <summary>
     /// Subclass sink: raw-route child enqueue through the shared enqueue path.
     /// </summary>
-    protected abstract Task<JobEnqueueOutcome> StartChildCoreAsync(JobEnqueueRequest request, CancellationToken ct);
+    private protected abstract Task<JobEnqueueOutcome> StartChildCoreAsync(JobEnqueueRequest request, CancellationToken ct);
 
     /// <summary>
     /// Subclass sink: read and deserialize the child's stored result.
     /// </summary>
-    protected abstract Task<TResult?> GetChildResultCoreAsync<TResult>(long childJobId, CancellationToken ct);
+    private protected abstract Task<TResult?> GetChildResultCoreAsync<TResult>(long childJobId, CancellationToken ct);
 
     /// <summary>
     /// Waits for every child handle to reach a terminal status and returns the outcomes in caller
@@ -1545,14 +1546,14 @@ public abstract class JobContext
     /// Returns normally on success; throws the framework step-retry signal to re-arm the Job, or
     /// <see cref="StepExhaustedException"/> when the budget is spent.
     /// </summary>
-    protected abstract Task RunStepCoreAsync(string name, Func<CancellationToken, Task> body, StepOptions options, CancellationToken ct);
+    private protected abstract Task RunStepCoreAsync(string name, Func<CancellationToken, Task> body, StepOptions options, CancellationToken ct);
 
     /// <summary>
     /// Subclass sink: result-returning step orchestration. Returns the (possibly replayed) result;
     /// throws as described on
     /// <see cref="RunStepCoreAsync(string, Func{CancellationToken, Task}, StepOptions, CancellationToken)"/>.
     /// </summary>
-    protected abstract Task<TResult> RunStepCoreAsync<TResult>(
+    private protected abstract Task<TResult> RunStepCoreAsync<TResult>(
         string name,
         Func<CancellationToken, Task<TResult>> body,
         StepOptions options,
@@ -1681,19 +1682,19 @@ public abstract class JobContext
     /// Subclass sink: a single no-wait acquire attempt for the scoped <paramref name="key"/>.
     /// Returns the per-hold token on success, or <c>null</c> when the lock is busy.
     /// </summary>
-    protected abstract Task<Guid?> AcquireLockCoreAsync(string key, LockScope scope, CancellationToken ct);
+    private protected abstract Task<Guid?> AcquireLockCoreAsync(string key, LockScope scope, CancellationToken ct);
 
     /// <summary>
     /// Subclass sink: release the lock held under <paramref name="holdToken"/> for the scoped
     /// <paramref name="key"/>.
     /// </summary>
-    protected abstract Task ReleaseLockCoreAsync(string key, LockScope scope, Guid holdToken, CancellationToken ct);
+    private protected abstract Task ReleaseLockCoreAsync(string key, LockScope scope, Guid holdToken, CancellationToken ct);
 
     /// <summary>
     /// Optional runtime observability hook for a best-effort release failure. Implementations must not
     /// throw; the wrapper defensively suppresses observer failures to preserve the handler outcome.
     /// </summary>
-    protected virtual void OnLockReleaseFailure(string key, LockScope scope, Exception exception) { }
+    private protected virtual void OnLockReleaseFailure(string key, LockScope scope, Exception exception) { }
 
     /// <summary>
     /// Persists an operator-facing alert from inside the handler. The framework stamps the origin
@@ -1729,7 +1730,7 @@ public abstract class JobContext
     /// Subclass sink: persist the alert. Bounded text fields are truncated to their column widths and
     /// the deduplication key is normalized in the concrete implementation.
     /// </summary>
-    protected abstract Task RaiseAlertCoreAsync(
+    private protected abstract Task RaiseAlertCoreAsync(
         AlertSeverityCode severityCode,
         string title,
         string message,
@@ -1781,5 +1782,5 @@ public abstract class JobContext
     /// through its payload serializer and source-generated JSON is honored under Native AOT. The
     /// message is truncated to the column width in the concrete implementation.
     /// </summary>
-    protected abstract Task WriteNoteCoreAsync<T>(string message, T? detail, CancellationToken ct);
+    private protected abstract Task WriteNoteCoreAsync<T>(string message, T? detail, CancellationToken ct);
 }

@@ -249,7 +249,7 @@ public sealed class JobContextWaitTimeoutTests
     /// </summary>
     private sealed class TimingOutChildContext : RecordingJobContext
     {
-        protected override Task<SignalWaitOutcome> WaitSignalCoreAsync(
+        private protected override Task<SignalWaitOutcome> WaitSignalCoreAsync(
             string name,
             int? timeoutSeconds,
             bool resumeOnTimeout,
@@ -260,13 +260,13 @@ public sealed class JobContextWaitTimeoutTests
             return Task.FromResult(new SignalWaitOutcome(0, null, TimedOut: true));
         }
 
-        protected override Task CancelTimedOutChildCoreAsync(long childJobId, CancellationToken ct)
+        private protected override Task CancelTimedOutChildCoreAsync(long childJobId, CancellationToken ct)
         {
             Events.Add($"cancel:{childJobId}");
             return Task.CompletedTask;
         }
 
-        protected override Task<WaitDeadline> GetOrSetWaitDeadlineCoreAsync(string name, TimeSpan timeout, CancellationToken ct)
+        private protected override Task<WaitDeadline> GetOrSetWaitDeadlineCoreAsync(string name, TimeSpan timeout, CancellationToken ct)
         {
             Events.Add($"deadline:{name}");
             return base.GetOrSetWaitDeadlineCoreAsync(name, timeout, ct);
