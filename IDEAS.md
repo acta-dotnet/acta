@@ -25,6 +25,12 @@ Structure:
 - `AUTOINCREMENT` on the SQLite tables costs a `sqlite_sequence` write per insert but guarantees an id is never reused after a purge; decide whether ids may be reused before dropping it.
 - Once objects sit at the root, folders go away, and we may find we don't need all the classes.
 
+`Acta.AspNetCore` needs the same reorganisation; right now it is junk:
+
+- Every read endpoint sits in one 1,266-line file, `Web/ActaApiEndpoints.cs`, while the control endpoints are split per area under `Features/`, and job control alone is 531 lines.
+- Request and response types are scattered: per-feature `*Requests.cs` and `*Response.cs` files, plus `Web/AdminControlRequests.cs` for several areas at once.
+- Each HTTP endpoint should sit beside the operation it exposes, read and control alike, with the same one-request, one-response rule.
+
 Duplication and conventions:
 
 - AI produces a lot of duplication. We need conventions, and they must be enforced.
