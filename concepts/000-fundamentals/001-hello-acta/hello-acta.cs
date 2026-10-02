@@ -11,7 +11,7 @@ builder.Services.UseActa(j =>
 {
     // 001 spells the setup out in full; later rungs fold it into j.UseLocalDatabase(builder.Configuration).
     // SQLite is the zero-setup default: one temp file, no server. Swap UseSqlite for UsePostgres or
-    // UseSqlServer (connection string from ACTA_TEST_PG / ACTA_TEST_MSSQL) to target a real server.
+    // UseSqlServer, with that server's connection string, to target a real server.
     j.UseSqlite(sqlite =>
     {
         sqlite.ConnectionString =

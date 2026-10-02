@@ -15,12 +15,13 @@ builder.Services.UseActa(j =>
 
     j.ConfigureOptions(o =>
     {
-        // Cap simultaneous in-flight executions at Cap; excess claims wait in the dispatch channel
+        // Cap simultaneous in-flight executions at Cap. Under Direct, which this sample runs, each claim
+        // takes only as many rows as there are free executors, so excess work stays Ready in the database
         // until a slot opens. Fixed at startup; not autoscaled.
         o.MaxConcurrentExecutors = Cap;
 
-        // Pull at most 8 Ready rows per claim poll; keeps the dispatch channel fed without
-        // overloading the database on a small batch.
+        // Pull at most 8 Ready rows per claim poll, so a burst of free executors is filled in a few
+        // round trips without one oversized claim.
         o.ClaimBatchSize = 8;
 
         // Upper bound on idle claim-loop sleep. Minimum allowed value is 1s (the validator rejects

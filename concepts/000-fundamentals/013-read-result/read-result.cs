@@ -16,7 +16,7 @@ await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
 
-// GetResultAsync is a point-in-time read that never waits; no result until the job is Done.
+// GetResultAsync is a point-in-time read that never waits; no result until the job has Succeeded.
 var outcome = await jobs.EnqueueAsync(new AddNumbers(20, 22));
 var early = await jobs.GetResultAsync<AddNumbersResult>(outcome);
 Console.WriteLine($"right away:        {(early is null ? "no result yet" : early.Sum.ToString())}");

@@ -25,7 +25,7 @@ var now = DateTimeOffset.UtcNow;
 var runAt = now.AddSeconds(2);
 Console.WriteLine($"Part 1 - NextRunAt: enqueuing GenerateReport to run at {runAt:HH:mm:ss.fff} UTC");
 var report = await jobs.EnqueueAsync(new GenerateReport("q1", SleepUntil: now.AddSeconds(4)), o => o.NextRunAt(runAt));
-Console.WriteLine($"  job {report.JobRef} is Pending; worker will not claim it before {runAt:HH:mm:ss.fff}");
+Console.WriteLine($"  job {report.JobRef} is Ready, due later; worker will not claim it before {runAt:HH:mm:ss.fff}");
 
 // --- Part 2: RescheduleUntilAsync ---
 // The polling job starts immediately, parks itself until a specific instant on the first run,
@@ -34,7 +34,7 @@ var rescheduleAt = now.AddSeconds(2);
 Console.WriteLine($"Part 2 - RescheduleUntilAsync: enqueuing PollExternal; will reschedule to {rescheduleAt:HH:mm:ss.fff} UTC");
 var poll = await jobs.EnqueueAsync(new PollExternal("batch-42", RescheduleUntil: rescheduleAt));
 
-// Wait for both to reach terminal Done (poll completes ~2s out, report ~4s out after sleep)
+// Wait for both to reach terminal Succeeded (poll completes ~2s out, report ~4s out after sleep)
 Console.WriteLine("Waiting for jobs to complete...");
 for (var i = 0; i < 60; i++)
 {

@@ -303,7 +303,7 @@ public abstract class JobContext
     /// </summary>
     /// <remarks>
     /// Intended as the final action of a handler that runs again (a recurring Job, or one that
-    /// re-arms): the attempt completes and the next claim sees none of this attempt's state. Calling
+    /// re-arms), never its first: the next claim then sees none of this attempt's state. Calling
     /// it mid-handler discards the variables, timers, step checkpoints, and signals the rest of the
     /// attempt would read. Child outcome latches are cleared too, while a finished child still dedupes
     /// by name and never re-raises, so waiting on it again hangs; use per-fire child names in handlers

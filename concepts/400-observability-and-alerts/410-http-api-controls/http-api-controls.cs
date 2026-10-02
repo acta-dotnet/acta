@@ -21,11 +21,12 @@ builder.WebHost.UseTestServer();
 var app = builder.Build();
 
 // MapActaApi mounts the operator API without the dashboard UI.
-// EnableControls: the POST pause/resume/restart/cancel verbs are off by default; the host opts in.
-// LocalOnly: non-loopback requests get 403; the in-process TestServer client is treated as local.
+// EnableControls: every mutating route is off by default; the host opts in.
+// LocalOnly: a request must come from loopback and name the host as localhost or an IP address, or it
+// gets 403; the in-process TestServer client names localhost, so it is treated as local.
 // ConfigureEndpoints: the hook to add RequireAuthorization for remote deployments.
 Console.WriteLine("knob: EnableControls = true  (controls are off by default; host opts in)");
-Console.WriteLine("knob: LocalOnly = true        (default: non-loopback requests get 403)");
+Console.WriteLine("knob: LocalOnly = true        (default: non-loopback or non-localhost requests get 403)");
 Console.WriteLine("knob: ConfigureEndpoints      (hook for RequireAuthorization in production)");
 Console.WriteLine();
 
@@ -78,7 +79,7 @@ var snapshot = await jobs.GetAsync(jobRef);
 Console.WriteLine($"  job status after pause: {snapshot!.Status}");
 
 Console.WriteLine();
-Console.WriteLine("LocalOnly guard: requests from non-loopback IPs get 403 unless LocalOnly = false.");
+Console.WriteLine("LocalOnly guard: requests from non-loopback IPs, or naming another host, get 403 unless LocalOnly = false.");
 Console.WriteLine("ConfigureEndpoints: call group.RequireAuthorization(...) there to secure remote access.");
 
 await app.StopAsync();

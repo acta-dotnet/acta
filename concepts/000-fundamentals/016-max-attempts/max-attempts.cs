@@ -16,7 +16,7 @@ await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
 
-// The handler always throws; Acta retries up to MaxAttempts, then transitions the job to Failed.
+// The handler always throws; Acta makes up to MaxAttempts attempts, then transitions the job to Failed.
 var outcome = await jobs.EnqueueAsync(new FlakyWork("widget"));
 await Task.Delay(1500);
 var snapshot = await jobs.GetAsync(outcome);
@@ -30,7 +30,7 @@ namespace Acta.Concepts.MaxAttempts
 
     public static class FlakyWorkJob
     {
-        // MaxAttempts caps retries; "0s" skips backoff. After the last attempt the job ends Failed.
+        // MaxAttempts caps attempts, the first included; "0s" skips backoff. After the last attempt the job ends Failed.
         [Job("flaky-work", MaxAttempts = 3, Backoff = "0s")]
         public static Task Handle(FlakyWork input) => throw new InvalidOperationException($"Could not process {input.Item}.");
     }

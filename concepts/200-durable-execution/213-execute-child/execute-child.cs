@@ -35,7 +35,8 @@ namespace Acta.Concepts.ExecuteChild
     {
         // A child is a real job (own retry policy, queue identity, operator-visible), unlike a private
         // idempotent step (202). ExecuteChildAsync runs one child start-to-result; ValueOrThrow()
-        // returns its result or throws, letting this parent's retry policy take over on child failure.
+        // returns its result or throws. A failed child stays failed: a parent retry dedupes onto it and
+        // throws again, so recovering means restarting the child, not retrying the parent.
         [Job("publish-episode")]
         public async Task<EpisodePublished> Handle(PublishEpisode episode, JobContext context, CancellationToken ct)
         {

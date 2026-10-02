@@ -43,7 +43,7 @@ do
 
 Console.WriteLine($"Job finished with status={status}");
 
-// Step 3: attempt to pause a terminal (Done) job - must be Rejected because terminal jobs cannot be paused.
+// Step 3: attempt to pause a terminal (Succeeded) job - must be Rejected because terminal jobs cannot be paused.
 var rejectedResult = await jobs.PauseAsync(outcome, "too late");
 Console.WriteLine($"PauseAsync on terminal -> action={rejectedResult.Action} blocking-status={rejectedResult.Status}");
 

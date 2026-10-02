@@ -19,7 +19,7 @@ await host.StartAsync();
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 // --- Scenario 1: MapAsync, soft handling ---
-// The handler inspects MapOutcome.Failed and returns a partial result; the parent lands Done.
+// The handler inspects MapOutcome.Failed and returns a partial result; the parent lands Succeeded.
 Console.WriteLine("--- scenario 1: map with one failing item, soft handling ---");
 var mapOutcome = await jobs.RunAndWaitAsync<RunMapSoft, MapReport>(new RunMapSoft());
 Console.WriteLine($"parent: {mapOutcome.TerminalStatus}, report: {mapOutcome.Value!.Summary}");
@@ -64,7 +64,7 @@ namespace Acta.Concepts.ChildFailureOutcomes
     public sealed class FailureScenarioJobs
     {
         // Scenario 1: map over three items; one item is rigged to fail. After waiting, the handler
-        // checks MapOutcome.Failed and returns a partial summary; the parent lands Done.
+        // checks MapOutcome.Failed and returns a partial summary; the parent lands Succeeded.
         [Job("run-map-soft")]
         public async Task<MapReport> HandleMapSoft(RunMapSoft _, JobContext context, CancellationToken ct)
         {

@@ -55,7 +55,8 @@ public sealed class JobEnqueueOptionsBuilder
     }
 
     /// <summary>
-    /// Named mutual-exclusion key; at most one Job per (namespace, key) is in-flight at a time.
+    /// Named admission key: at most the definition's <c>ConcurrencyLimit</c> Jobs per (namespace, key)
+    /// are in flight at a time, one when no limit is declared. Trimmed and lowercased.
     /// </summary>
     public JobEnqueueOptionsBuilder ConcurrencyKey(string concurrencyKey)
     {

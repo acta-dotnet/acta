@@ -370,7 +370,7 @@ public static class BenchCli
               Every run writes JSON and Markdown to anvil/Anvil.Bench/.benchmarks/.
 
             Database connection:
-              ACTA_TEST_PG / ACTA_TEST_MSSQL, else the local fallback.
+              ACTA_TEST_PG / ACTA_TEST_MSSQL; with neither the run fails.
 
             Examples:
               acta-bench

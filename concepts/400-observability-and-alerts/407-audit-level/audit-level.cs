@@ -1,5 +1,6 @@
-// Concept: AuditLevel gates which job events are written; Audit emits everything, Failures emits only
-// failure outcomes, and Off suppresses all audit-filtered per-job events.
+// Concept: AuditLevel gates which job events are written; Audit emits everything, Failures emits failure
+// outcomes and the success that follows one (which closes the incident), and Off suppresses all
+// audit-filtered per-job events.
 using Acta;
 using Acta.Concepts.AuditLevel;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,7 +26,7 @@ await Task.Delay(500);
 var auditEvents = await queries.Ledger.ListEventsAsync(new ListEventsQuery(JobId: auditOutcome.JobId));
 Console.WriteLine($"Audit level  -> event count: {auditEvents.Items.Count}");
 
-// Failures: suppresses started/finished for successful runs; only failure events emit.
+// Failures: suppresses started/finished for successful runs that follow no failure; failures emit.
 var failuresOutcome = await jobs.EnqueueAsync(new FailuresWork("report-b"));
 await Task.Delay(500);
 var failuresEvents = await queries.Ledger.ListEventsAsync(new ListEventsQuery(JobId: failuresOutcome.JobId));
@@ -58,7 +59,8 @@ namespace Acta.Concepts.AuditLevel
 
     public static class FailuresWorkJob
     {
-        // Failures: only failure outcomes write an event; a successful run leaves no events.
+        // Failures: a failure writes an event, and so does the success that answers one; a run that
+        // succeeds after no failure leaves none.
         [Job("failures-work", AuditLevel = JobAuditLevelCode.Failures)]
         public static void Handle(FailuresWork input) => Console.WriteLine($"[{input.Id}] running at Failures level");
     }

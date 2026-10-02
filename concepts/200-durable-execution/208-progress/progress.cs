@@ -37,7 +37,7 @@ namespace Acta.Concepts.Progress
 
                 var percent = row * 100 / input.Rows;
 
-                // Writes durable state read out-of-band (the __progress variable), not by the caller.
+                // Writes durable state read out-of-band (the sys.progress checkpoint), not by the caller.
                 await context.SetProgressAsync(percent, ct);
 
                 var filled = percent / 10;

@@ -20,7 +20,7 @@ public interface IDefinitions
     /// <summary>
     /// Retire the definition named by <paramref name="jobNamespace"/> and <paramref name="jobName"/>,
     /// guarded by <paramref name="expectedVersion"/>. The definition moves to
-    /// <see cref="JobDefinitionStatusCode.Retired"/> and its parked jobs (Ready, Suspended, Paused) are
+    /// <see cref="JobDefinitionStatusCode.Retired"/> and its parked jobs (Ready, Blocked, Suspended, Paused) are
     /// cancelled in the same transaction; a running attempt is left to finish. Descendants of a
     /// cancelled job are not cancelled with it. Enqueue is rejected from here on with
     /// <see cref="EnqueueRejectionReason.DefinitionRetired"/>. Registration by a build that carries the

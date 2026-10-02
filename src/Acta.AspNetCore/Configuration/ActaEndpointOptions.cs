@@ -26,14 +26,17 @@ public class ActaEndpointOptions
     public bool UnsafeAllowAnonymousRemoteAccess { get; set; }
 
     /// <summary>
-    /// Whether the POST job-control endpoints (pause, resume, restart, cancel) are mapped.
-    /// Off by default: controls mutate jobs, so the host opts in alongside its authorization.
+    /// Whether every mutating route is mapped: the job controls, enqueue, input amend, signals, and the
+    /// schedule, definition, tenant, namespace, alert, outbox, and tag controls. Off by default: controls
+    /// mutate jobs, so the host opts in alongside its authorization.
     /// </summary>
     public bool EnableControls { get; set; }
 
     /// <summary>
-    /// Whether control requests must carry the confirmation header. This is an anti-accident
-    /// guard against form posts and casual scripts, not authentication.
+    /// Whether control requests must carry the confirmation header. It is the API's barrier against
+    /// cross-site request forgery, since a page on another origin cannot send it without a CORS preflight,
+    /// not authentication. Turn it off only where the host supplies antiforgery of its own and no ambient
+    /// credentials (integrated Windows auth, <c>SameSite=None</c> cookies) reach the API.
     /// </summary>
     public bool RequireControlConfirmationHeader { get; set; } = true;
 

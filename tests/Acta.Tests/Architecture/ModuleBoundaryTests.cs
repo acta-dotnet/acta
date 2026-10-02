@@ -119,7 +119,7 @@ public sealed partial class ModuleBoundaryTests
     public void Cross_module_references_follow_the_declared_graph()
     {
         var modulesRoot = Path.Combine(IntegrationConfig.FindRepoRoot(), "src", "Acta.Runtime", "Modules");
-        var reference = new Regex(@"Acta\.Modules\.(?<module>\w+)(?:\.(?<sub>\w+))?", RegexOptions.Compiled);
+        var reference = new Regex(@"Acta\.Runtime\.Modules\.(?<module>\w+)(?:\.(?<sub>\w+))?", RegexOptions.Compiled);
         var violations = new List<string>();
         foreach (var file in Directory.EnumerateFiles(modulesRoot, "*.cs", SearchOption.AllDirectories))
         {

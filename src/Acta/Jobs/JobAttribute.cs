@@ -38,7 +38,7 @@ public sealed class JobAttribute(string name) : Attribute
     public int ConcurrencyLimit { get; init; }
 
     /// <summary>
-    /// How often attempts of this definition may start, cluster-wide, as <c>N/s</c>, <c>N/m</c>, or
+    /// How often attempts of this definition may start across the namespace's workers, as <c>N/s</c>, <c>N/m</c>, or
     /// <c>N/h</c> (<c>"10/s"</c>). Null means no rate limit. N is a positive whole number and the rate
     /// may not exceed 1000 per second. Admission is a reservation, not a retry loop: a job that arrives
     /// early is booked the instant the meter will admit it, waits it out in process when it is under a
@@ -49,7 +49,8 @@ public sealed class JobAttribute(string name) : Attribute
     /// a window may hold that much of late turns on top: at most <c>R*(T + W) + B</c>. Rate and
     /// <see cref="ConcurrencyLimit"/> are independent gates
     /// and a job passes both; the concurrency slot is taken first and released when the rate denies.
-    /// The meter is per <see cref="RateKey"/>, and the limit is an operator-overridable policy slot.
+    /// The meter is per namespace and <see cref="RateKey"/>: definitions in different namespaces never
+    /// share one. The limit is an operator-overridable policy slot.
     /// </summary>
     public string? RateLimit { get; init; }
 

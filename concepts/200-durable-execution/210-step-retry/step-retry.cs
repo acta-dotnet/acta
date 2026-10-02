@@ -38,6 +38,7 @@ namespace Acta.Concepts.StepRetry
         public async Task Handle(FetchForecast input, JobContext context, CancellationToken ct)
         {
             // Step has its own retry curve, separate from the job's budget; the failure reaches the job only if the step exhausts its attempts.
+            // An exhausted step stays exhausted: a job retry re-throws StepExhaustedException without running it, and only a restart gives it a fresh budget.
             await context.RunStepAsync(
                 "call-weather-api",
                 async inner =>

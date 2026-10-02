@@ -4,6 +4,8 @@ namespace Acta;
 
 /// <summary>
 /// Composes stable, normalized string values for <see cref="JobEnqueueRequest.DeduplicationKey"/>.
+/// Keys are trimmed and lowercased, so two ids that differ only by case are one key; hash a
+/// case-sensitive external id before composing it.
 /// Component normalization permits system-shaped text inside a definition-qualified key; validation
 /// of the completed user key enforces the reserved <c>sys.</c> prefix and storage length boundary.
 /// </summary>

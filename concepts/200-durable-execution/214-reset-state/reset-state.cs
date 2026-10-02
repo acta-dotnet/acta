@@ -29,7 +29,7 @@ namespace Acta.Concepts.ResetState
             var carried = await context.GetVariableOrDefaultAsync("reading-count", 0, ct);
             Console.WriteLine($"{DateTime.Now:HH:mm:ss} cycle start - {carried} readings carried over (0 means last cycle reset)");
 
-            // Checkpoint into durable state so a crash mid-cycle resumes from the last reading.
+            // Write each reading's count to durable state, so the reset below has something to clear.
             var sum = 0;
             for (var i = 1; i <= 3; i++)
             {

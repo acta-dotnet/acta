@@ -5,7 +5,7 @@
 # Why a closed list. Every distinct placeholder name in an ILogger template becomes a property on the
 # emitted event, and an indexing sink maps each property it has never seen as a new field. So the tail
 # of names is not free: it is index schema, paid for once per name and forever, by whoever runs Acta
-# rather than by whoever wrote the log line. Adding a twelfth name is therefore a decision about an
+# rather than by whoever wrote the log line. Adding a thirteenth name is therefore a decision about an
 # operator's index, not a formality about a message - which is why the list lives here and the build
 # fails on a name that is not in it.
 #

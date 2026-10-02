@@ -1,5 +1,6 @@
 // Concept: restarting a terminal job from outside the handler via IJobs.RestartAsync -
-// resets the failure budget and retention, re-arms the same job id.
+// resets the failure budget and retention, gives an exhausted step a fresh budget, and re-arms the same
+// job id (Blocked instead of Ready when a laned job waits behind a running member).
 using Acta;
 using Acta.Concepts.OperatorRestart;
 using Acta.Labs;
