@@ -97,10 +97,13 @@ three evidence harnesses join the release checklist.
   below a running one. The Bulk completion batch promoted the head of every lane it reached, so a late
   flush carrying a finished member made the restarted one Ready beside the running one. The batch now
   checks for a running member first, as every other promoting verb does.
-- **What lanes cost.** On PostgreSQL and SQL Server the claim and settle paths run a few percent
-  slower than before lanes. On SQLite, which prepares every statement of a command on each call, the
-  ancestor check cost a single-job enqueue a sixth of its time even with no parent to check; it is
-  left out when the job has no parent, and the lane-row insert that remains costs about eight percent.
+- **What lanes cost.** Measured beside rc.3 on the same machine: on PostgreSQL drain, enqueue, and
+  pickup latency are level, and on SQL Server too except drain at one worker and Direct drain at
+  sixteen, a tenth to a sixth slower; the job list query reads 6 and 9 percent slower. SQLite, which
+  prepares every statement of a command on each call, pays about an eighth on throughput and drain and
+  a little under a fifth on single enqueue, and gains on batch enqueue. Its ancestor check once cost a
+  single-job enqueue a sixth of its time even with no parent to check; it is left out when the job has
+  no parent.
 
 ### Claim and locking
 
@@ -397,6 +400,30 @@ three evidence harnesses join the release checklist.
   in the slow backlog's band and ran after the kills had stopped, so in five of six earlier seals
   their checks saw no kill. They run at High priority now, and a seal reports how many attempts of
   each shape the kills orphaned (`chaos-by-shape`).
+- A release protocol that takes about two hours for the certifications and ninety minutes for the
+  benchmarks: the three standard gates and the ensemble side by side, then the two million-job runs one
+  after the other, then a `release` benchmark preset run per database on the candidate, compared with
+  the previous tag's round on the same machine, every apparent finding rerun on both trees back to back. `docs/internals/releasing.md` describes it.
+- Lanes are certified under chaos. The crash workload carries laned jobs at High priority, so lane
+  heads run while workers die, and two ledger checks: no lane ever ran two members at once or out of
+  enqueue order, and every lane drained. It also runs three rate meters side by side, at 10, 50, and
+  100 starts a second, each checked against its own budget.
+- The certification round on the certified commit: the four gates and two million-job runs,
+  PostgreSQL and SQL Server, each 1,005,000 jobs through 24 worker processes of 64 executors with a
+  worker killed every five seconds. Every asserted property held on all six; every million-job run
+  brought every job to its expected end with no step recorded twice, the AtMostOnce charges a kill
+  interrupted inside their guarded step ending Failed as the contract requires; laned attempts were
+  killed and re-run in place on every provider, 181 in the SQL Server million-job run alone, with lane
+  order intact; and every meter stayed inside its budget, the busiest at 1,075 starts in ten seconds
+  against 1,200. The seals are in `docs/certification`.
+- The benchmark round, in `docs/benchmarks/rc4-release-round-20261002.md`: level on drain, enqueue,
+  and pickup latency on both servers, except SQL Server's drain at one worker and Direct drain at
+  sixteen, a tenth to a sixth slower, and the job list query, 6 and 9 percent slower; SQLite about an
+  eighth slower on its per-job paths and faster on batch enqueue.
+- The certification's stranded-work check exempts a system job whose lease is still live. The seal
+  reads the ledger while the workers still run, and `sys.alerts` fires on every minute, so a seal
+  that crossed a minute failed a finished run on the fire it met; a system job behind a lapsed lease
+  still fails the check.
 
 ### Documentation
 

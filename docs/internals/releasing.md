@@ -122,8 +122,8 @@ Two commits carry a release, and their roles do not mix:
 ## Benchmark round
 
 A round is evidence only when its files record the commit with `gitDirty = false` and every number
-that looks like a finding has a same-hour control on the previous tag beside it. The rules below are
-what the rounds on this machine cost to learn.
+that looks like a finding was rerun beside the previous tag, back to back, before it counts. The rules
+below are what the rounds on this machine cost to learn.
 
 - Measure from a clean `git worktree` of the exact commit. The harness records `git status`, and an
   untracked file in the main tree marks every JSON of the round dirty.
@@ -143,17 +143,21 @@ what the rounds on this machine cost to learn.
   flushes per second after sustained writes, stays there for hours, and flaps between the two states,
   so take readings minutes apart and start only when several agree. A probe in a tight loop is itself
   a write load and keeps the drive from recovering.
-- Run the `release` preset: every execution profile at the quick matrix's points, one warmup and one
-  measured run, about fifteen minutes a database. Per database, the candidate and then the control on
-  the previous tag, back to back, so each pair shares the drive's state; a pair split across states is
-  discarded whichever way it points. Three pairs take about ninety minutes. The `full` matrix stays for
-  investigating a cell, never for the round. A previous tag whose harness predates a preset gets the
-  preset backported into its worktree's harness alone, and the round's page says so.
+- Run the `release` preset on the candidate: every execution profile at the quick matrix's points, one
+  warmup and one measured run, about twenty minutes a database. Compare against the previous tag's
+  round on this machine: drain, enqueue, latency, and the list query reproduce from day to day within a
+  few percent. A cell that looks like a finding is rerun on both trees, back to back, with
+  `--scenario`, at least twice each, and only a gap that survives the reruns is reported as one. The
+  `full` matrix stays for investigating a cell, never for the round. A previous tag whose harness
+  predates a preset gets the preset backported into its worktree's harness alone, and the round's page
+  says so.
 - One chain at a time. A stopped background chain leaves its child script alive, and that script starts
   its next cell the moment the harness process is killed; list processes by command line
   (`Win32_Process`) and confirm `pg_stat_activity` is empty before starting another round.
-- The `quick` preset's `throughput` cells are bimodal in every tree measured (the enqueue phase
-  runs at about 480 jobs/s or at tens of thousands); read drain and enqueue for the verdict.
+- The `throughput` cells at 1 and 8 executors are bimodal in every tree measured: one run lands at
+  about 165 jobs/s for Buffered at one executor and the next at about 410, for the same binary. SQL
+  Server's Bulk drain at sixteen workers spans about 6,000 to 21,000 jobs/s for one build. Read drain,
+  enqueue, and latency for the verdict, and never compare versions on those cells.
 - `--seed-history N` measures the minute after a million-row bulk change, not a populated steady state,
   until the harness gets a settle step after seeding; report it as informational.
 - Docker Desktop keeps its disk image on C: by default and applies a new location only through its own
@@ -169,7 +173,7 @@ purpose: a target invites tests written to colour lines rather than to falsify b
 The deliverable is [the blind-spot list](../certification/coverage-baseline-rc1.md) — the recorded
 baseline plus, for ten failure areas, which code paths nothing executes — and, per release round, a
 baseline page beside it that records the new numbers with `tools/coverage.ps1` and says which
-entries moved ([coverage-baseline-rc2.md](../certification/coverage-baseline-rc2.md) is the current
+entries moved ([coverage-baseline-rc4.md](../certification/coverage-baseline-rc4.md) is the current
 one); a blind spot that a new test closed should leave the list, and a new one should join it.
 
 ## Packaging
