@@ -19,8 +19,6 @@ them, and migrations do not derive from them.
 Reference docs: [`data-model.md`](../reference/data-model.md) (every table and column),
 [`code-families.md`](../reference/code-families.md) (every status / reason / event code),
 [`conformance-contracts.md`](../reference/conformance-contracts.md) (the tested guarantees).
-For a visual map of the job lifecycle, maintenance flow, and operator surfaces, see
-[`architecture-diagrams.md`](../technical/architecture-diagrams.md).
 
 ## Status quick reference
 

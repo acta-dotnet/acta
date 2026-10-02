@@ -105,28 +105,13 @@
     @media (max-width: 980px) { .hero-grid { grid-template-columns: 1fr; } }
     @media (max-width: 640px) { .stats { grid-template-columns: repeat(2, auto); justify-content: start; } }
 
-    /* worked example and labs: a two-column head with a callout */
+    /* what you can build and labs: a two-column head with a callout */
     .example-head { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(18rem, 0.55fr); gap: clamp(2rem, 6vw, 7rem); align-items: end; }
     .example-head h2 { max-width: 17ch; }
     .example-subtitle { margin: 0.8rem 0 1.1rem; color: var(--verdi); font-family: var(--mono); font-size: clamp(0.92rem, 1.4vw, 1.12rem); letter-spacing: 0.025em; }
-    .incident-flow { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); margin: 2.4rem 0 0; border-block: 1px solid var(--hair); }
-    .incident-flow span { position: relative; padding: 0.9rem 0.6rem; text-align: center; font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
-    .incident-flow span:not(:last-child)::after { content: "→"; position: absolute; right: -0.35em; color: var(--verdi); }
-    .incident-figure { margin: 1.4rem 0 0; border-bottom: 1px solid var(--hair); }
-    .incident-art { padding: clamp(0.6rem, 2vw, 1.6rem) 0 0; background: radial-gradient(circle at 50% 46%, rgba(47, 214, 168, 0.055), transparent 55%); }
-    .incident-art img { width: 100%; max-width: 1120px; height: auto; margin: 0 auto; }
-    .architecture-source { margin-left: auto; font-family: var(--mono); font-size: var(--label); color: var(--verdi); white-space: nowrap; }
-    .possible-stamp { color: var(--verdi); border-color: rgba(47, 214, 168, 0.45); }
     @media (max-width: 980px) {
       .example-head { grid-template-columns: 1fr; }
       .example-head h2 { max-width: 22ch; }
-      .incident-flow { grid-template-columns: repeat(4, 1fr); }
-      .incident-flow span:nth-child(4)::after { content: none; }
-    }
-    @media (max-width: 620px) {
-      .incident-flow { grid-template-columns: 1fr; }
-      .incident-flow span { text-align: left; padding-inline: 0; }
-      .incident-flow span::after { content: none !important; }
     }
 
     /* install block */
@@ -167,7 +152,7 @@
     .shot { margin: 2.6rem auto 0; border: 1px solid var(--hair); border-radius: var(--r-panel); overflow: hidden; box-shadow: 0 48px 120px rgba(0, 0, 0, 0.55); max-width: 1460px; }
     .shot-media { overflow-x: hidden; background: #0e131c; scrollbar-color: var(--faint) var(--panel); }
     .shot-media img { display: block; width: 100%; max-width: 100%; height: auto; }
-    .shot figcaption, .incident-figure figcaption {
+    .shot figcaption {
       display: flex; gap: 1.2rem; align-items: baseline; text-align: left;
       padding: 0.85rem 1.2rem; border-top: 1px solid var(--hair); background: var(--panel);
       font-size: 0.92rem; color: var(--muted);
@@ -179,7 +164,7 @@
     @media (max-width: 700px) {
       .shot-media { overflow-x: auto; }
       .shot-media img { width: 1200px; max-width: none; }
-      .shot figcaption, .incident-figure figcaption { flex-direction: column; gap: 0.5rem; }
+      .shot figcaption { flex-direction: column; gap: 0.5rem; }
     }
 
     /* numbers & boundaries */
@@ -581,16 +566,6 @@
         </div>
       </div>
 
-      <figure class="incident-figure">
-        <div class="incident-art">
-          <img src="assets/ai-incident-response-ring.svg" alt="Eight service-owned namespaces, each with its kebab-case jobs, arranged in a ring around one shared Acta SQL work ledger" loading="lazy" width="1600" height="1300" />
-        </div>
-        <figcaption>
-          <span class="stamp possible-stamp">Worked example</span>
-          <span>One of them in full: an AI incident-response system, where each service owns a namespace and one incident is a durable root job.</span>
-          <a class="architecture-source" href="https://github.com/acta-dotnet/acta/blob/main/docs/designs/incident-response.md">Read the proposed design →</a>
-        </figcaption>
-      </figure>
     </section>
 
     <section class="wrap" id="labs">

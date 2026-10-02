@@ -333,6 +333,5 @@ The shortest paths to the design-review-worthy parts:
 | Source generators | `src/Acta.Generators` |
 | Dashboard / API | `src/Acta.AspNetCore` (`MapActa(...)`) |
 | CI, packaging, smoke checks | `.github/workflows/ci.yml`, `tests/PackageSmoke/` |
-| Architecture map | [`docs/technical/architecture-diagrams.md`](./docs/technical/architecture-diagrams.md) |
 
 Settled design decisions live in [`docs/internals/design.md`](./docs/internals/design.md).

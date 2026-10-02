@@ -19,8 +19,6 @@ One work-unit shape for every kind of work, source-generated dispatch with zero 
 
 **Leaderless** means every worker is a peer, every claim is a competitive race, and there is no persistent leader role, election, or lock. System maintenance runs as ordinary recurring `[Job]`s claimed via the same `Status: Ready -> Dispatched` discipline as user code; singleton-per-namespace comes from row-level claim mutual exclusion, not coordinated leadership.
 
-For the system map, see [`architecture-diagrams.md`](../technical/architecture-diagrams.md).
-
 ## What Acta is not
 
 Deliberate non-goals. Adding any of these is a category-reshaping change. Acta does not provide:
