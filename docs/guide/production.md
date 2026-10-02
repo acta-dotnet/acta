@@ -164,7 +164,7 @@ handler returns, or an operator retires the definition.
 
 Retiring a definition is an operator decision: `IActaOperations.Definitions.RetireAsync`,
 `POST /definitions/{namespace}/{name}/retire`, or the button on the dashboard definition page. It
-marks the definition `Retired`, cancels its parked (`Ready`, `Suspended`, `Paused`) jobs with reason
+marks the definition `Retired`, cancels its parked (`Ready`, `Blocked`, `Suspended`, `Paused`) jobs with reason
 `job.definition-retired`, releases a parent waiting on a cancelled child, leaves executing jobs to
 finish their attempt, and rejects new enqueues. Descendants of a cancelled job are not cancelled. A
 build that carries the handler at an equal or newer manifest generation re-activates the definition
@@ -239,7 +239,8 @@ needs inflating to accommodate them.
 Inline payloads are for durable instructions and small results, not file storage. The default
 `MaxInlinePayloadBytes` is 1 MiB. It is the hard cap for caller-controlled inline writes such as
 enqueue inputs, variables, progress, step results, and signal values. Handler results are measured
-against the same cap but warn-and-persist rather than throwing, because the handler has already run.
+against the same cap, but one past it is dropped rather than thrown, because the handler has already
+run: the job still succeeds, a warning is logged, and its events carry `job.result-oversized`.
 
 For large files, exports, media, archives, reports, ML inputs, or sensitive data, store the body in
 file/blob/object storage and enqueue a small reference that includes enough information to verify
@@ -251,7 +252,8 @@ operator-visible SQL state.
 ## Dashboard exposure and auth
 
 The dashboard and JSON API are local-only by default. `LocalOnly = true` rejects non-loopback remote
-requests with 403.
+requests with 403, and a loopback request too unless it names the host as `localhost`, a `.localhost`
+name, or an IP address: browse to `localhost` or `127.0.0.1`, not the machine name.
 
 Acta ships no login system. The host application owns authentication and authorization. To expose
 the dashboard/API remotely, set `LocalOnly = false` and require authorization through
@@ -314,8 +316,9 @@ Every worker namespace has an implicit `default` log alert channel. Add real cha
 startup configuration:
 
 ```csharp
-j.Run<BillingJobs>("billing", w =>
+j.Run("billing", w =>
 {
+    w.AddManifest<BillingJobs>();
     w.OwnerTeam = "payments";
     w.AddAlertChannel(
         "ops-oncall",
@@ -335,7 +338,7 @@ startup.
 
 Terminal jobs receive `retention_until_utc` from the job definition's `JobRetention` policy. The
 system `sys.retention` job purges terminal rows past that deadline and also purges old event,
-alert, and dead-worker rows according to:
+alert, and terminal (Stopped or Dead) worker rows according to:
 
 - `JobEventsRetention`
 - `AlertRetention`
@@ -363,7 +366,7 @@ process degrades in place or exits.
 | Surface | Failure shows as | Process behavior | Operator action |
 | --- | --- | --- | --- |
 | Worker startup | Any init-time validation failure (invalid `JobsOptions`, clock skew past the fail threshold, an invalid `Backoff` DSL, an unresolvable schedule time zone, payload-contract drift or alert-routing misconfiguration under `Fail` mode) throws out of `IHostedService.StartAsync` with no catch. | Fails to start. Non-zero process exit; no partial startup. | Fix the configuration or manifest and restart. A `*Mode`/`Allow*` option (`PayloadContractDriftMode`, `AlertChannelValidationMode`, `AllowClockSkew`) can deliberately downgrade a check to `LogWarning` + continue instead of failing startup. |
-| Claim / dispatch / heartbeat / policy-reload loops | A per-tick fault logs at Error under the `Acta.Modules.Execution.Workers.WorkerRuntime` category, e.g. `"claim iteration failed; backing off {DurationMs}ms before retry."`, `"heartbeat tick failed; retrying next tick."`, `"definition-policy reload tick failed; retrying next tick."`. A per-job fault logs `"executor faulted on job {JobId}."`. | Degrades. The failing loop backs off (claim: a full `SafetyPollInterval`; heartbeat/policy-reload: the next `PeriodicTimer` tick) and keeps running; one bad job never tears down the loop. Shutdown (host cancellation) exits the loop cleanly with no error log (a provider that reports the cancelled command as a non-cancellation error may emit one final tick-failure line). | Investigate the logged exception (commonly a transient DB outage or command timeout); no restart needed; the loop self-heals once the dependency recovers. |
+| Claim / dispatch / heartbeat / policy-reload loops | A per-tick fault logs at Error under the `Acta.Runtime.Modules.Execution.Workers.WorkerRuntime` category, e.g. `"claim iteration failed; backing off {DurationMs}ms before retry."`, `"heartbeat tick failed; retrying next tick."`, `"definition-policy reload tick failed; retrying next tick."`. A per-job fault logs `"executor faulted on job {JobId}."`. | Degrades. The failing loop backs off (claim: a full `SafetyPollInterval`; heartbeat/policy-reload: the next `PeriodicTimer` tick) and keeps running; one bad job never tears down the loop. Shutdown (host cancellation) exits the loop cleanly with no error log (a provider that reports the cancelled command as a non-cancellation error may emit one final tick-failure line). | Investigate the logged exception (commonly a transient DB outage or command timeout); no restart needed; the loop self-heals once the dependency recovers. |
 | Framework jobs (`sys.recovery`, `sys.retention`, `sys.alerts`) | Alert delivery transport faults log at Warning under the `AlertsJob` category (`"ACTA sys.alerts: transport kind '{Detail}' threw delivering alert {Ref}; will retry."`) and retry on a DB-backed backoff curve, terminal `Failed` past the fifth delivery attempt. `RecoveryJob`/`RetentionJob` carry no catch of their own; a pass failure is an ordinary job outcome retried by the executor on the job's next scheduled tick. | Degrades. Each is a bounded recurring job (about once a minute or once an hour), never a hot loop. | Usually none; a persistent failure shows up as retries/failures and events on the system job's own row. |
 | CLI mode | A rejected verb prints its message to stderr and exits 1; job-not-found exits 2; a usage error exits 64; Ctrl-C during a verb exits 130. `jobs debug`'s lease-heartbeat pump writes one diagnostic line to stderr on a failed tick (`"debug: heartbeat pump tick failed (...); lease may lapse."`) and keeps pumping. | Always exits; the CLI is a one-shot verb, never a long-running host. | Read the exit code and any stderr line, then retry the verb. A missed heartbeat-pump tick during `debug` only risks the job's lease being stolen by another worker, not data loss. |
 | Dashboard / API | An unhandled route exception logs at Error under the literal category `Acta.AspNetCore.Web` (`"Unhandled Acta API exception."`) and returns a fixed, safe ProblemDetails (no driver text or stack): 503 when the cause chain is the known transient family (database/network/timeout, including a provider command timeout surfacing as a non-abort cancellation), 500 for any other server fault. A client disconnect or host shutdown mid-request (`HttpContext.RequestAborted` cancelled) produces no log and no 503: the framework reports the aborted request instead. Known input errors (invalid cursor, malformed query parameters, most `ArgumentException`s) map to 400 via the read-endpoint `Guard`; a server-side `ArgumentException` also logs at Warning before returning 400 so it still leaves a trace. | Degrades. The dashboard process stays up; one bad or aborted request never takes down the host. | A sustained run of 503s with `"database is unreachable"` in the response detail means the database is down; otherwise check the host log for the exception logged at that timestamp. |
@@ -380,6 +383,5 @@ handlers need deduplication keys and reconciliation paths for irreversible side 
 After restore, start workers normally and let recovery handle expired leases. Validate this in a
 staging restore drill before relying on it operationally.
 
-Avoid partial restores of only some Acta tables. Jobs, runtimes, events, checkpoints, steps,
-results, definitions, schedules, workers, alerts, tenants, and migration history are one durable
-system.
+Avoid partial restores of only some Acta tables. Every table in the Acta schema, migration history
+included, is one durable system.

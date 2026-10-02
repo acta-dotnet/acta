@@ -2,7 +2,8 @@
 
 These recipes are Postgres-flavored against the default `acta` schema; on SQL Server, bracket
 identifiers as needed and replace interval arithmetic with `DATEADD`. The first recipe enqueues a job
-(a write, through the installed routine); the rest are operator/debugging reads.
+(a write, through the installed routine) and the outbox recipes repair the producer's table; the rest
+are operator/debugging reads.
 
 For reads, start with the curated operator views: `acta.jobs_view`, `acta.events_view`,
 `acta.checkpoints_view`, `acta.steps_view`, `acta.schedules_view`, `acta.alerts_view`,
@@ -255,6 +256,9 @@ These recipes run against the **producer** database's external-outbox table, not
 schema. The default physical name is `acta_outbox` in the provider's default schema; substitute your
 configured table/schema. Status codes are `10` Pending, `20` Claimed, `90` Quarantined. Only requeue or
 delete rows the relay has quarantined (`status_code = 90`); leave Pending and Claimed rows to the relay.
+Prefer the audited verbs, `IActaOperations.Outbox.RequeueAsync` and `DiscardAsync` or
+`POST /outbox/{jobNamespace}/requeue` and `/discard`, which write `outbox.requeued` and
+`outbox.discarded` events; these statements leave no audit trail.
 Background: [transactional enqueue and the external outbox](./transactional-enqueue-and-outbox.md#retry-and-quarantine).
 
 Inspect quarantined rows:

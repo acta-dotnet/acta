@@ -230,13 +230,18 @@ relay a SQL Server producer outbox when the process installs both provider packa
 services.UseActa(j =>
 {
     j.UsePostgres(pg => pg.ConnectionString = ledgerConnectionString);   // the Acta ledger
-    j.Run<OrdersJobs>(namespaceName: "orders", worker =>
+    j.Run("orders", worker =>
     {
+        worker.AddManifest<OrdersJobs>();
         worker.AddOutboxRelay("orders-outbox", source =>
             source.UseSqlServer(o => o.ConnectionString = businessDbConnectionString));  // the source
     });
 });
 ```
+
+The source reads `acta_outbox` in the provider's default schema; `source.Table` and `source.Schema`
+name another one, and must match the table the producer stages into. `source.QuarantineThreshold`
+(default 5) sets how many recoverable rejections a row takes before it is quarantined.
 
 Registration adds the `sys.outbox` job plus its `sys.recovery` and `sys.alerts` dependencies to that
 namespace, even when `JobsOptions.RegisterSystemJobs` is `false`: that switch suppresses automatically
@@ -250,7 +255,7 @@ unavailable or missing source fails and alerts that relay tick, then retries wit
 jobs. An incompatible or hand-modified table fails the claim or finalize SQL itself with the
 provider's error, failing only `sys.outbox` under its normal alert.
 The tested DDL API is the drift-free way to build the table; the one silent case, a deleted index degrading
-claims to a scan, is the integrator's responsibility, which is why the DDL ships both indexes.
+claims to a scan, is the integrator's responsibility, which is why the DDL ships all three indexes.
 
 ## Ambient System.Transactions scopes are rejected
 
@@ -283,7 +288,8 @@ no separate interval setting; cadence is managed through the existing durable sc
 `sys.outbox/default`.
 
 Distinguish the healthy cadence from crash recovery. The source claim lease reuses the worker-wide
-`JobsOptions.LeaseTtlSeconds` (180 seconds by default) rather than adding an outbox-specific setting. If a
+`JobsOptions.LeaseTtlSeconds` (180 seconds by default, four heartbeat intervals) rather than adding an
+outbox-specific setting. If a
 worker crashes mid-relay, its claimed source rows may stay invisible for up to that lease window (three
 minutes by default) before another relay reclaims them. Healthy pickup still runs on the five-second
 cadence; the lease window only bounds recovery. Expired claims are safe to repeat because finalization is
@@ -335,9 +341,9 @@ Rows that cannot be delivered are handled by classification:
 - **Recoverable row rejections** (routing and target-state rejections such as an unknown route or a
   suspended namespace/tenant) increment `failure_count`, reschedule with increasing backoff, and
   quarantine at a configurable threshold (default **five**). Below the threshold they are logged and
-  rescheduled without failing or alerting the tick. Row retries reuse `Backoff.Default` (one minute
-  growing exponentially to eight hours with ten percent jitter), so a continuously invalid route reaches
-  quarantine after roughly fifteen minutes.
+  rescheduled without failing or alerting the tick. Row retries follow the relay's own curve, one minute
+  doubling to eight hours with ten percent jitter, shorter than a job's default, so a continuously
+  invalid route reaches quarantine after roughly fifteen minutes.
 - **Malformed or oversize rows** quarantine **immediately**. A structurally unreadable row (for example an
   invalid stored tag shape) and a payload over the target's `JobsOptions.MaxInlinePayloadBytes` are
   deterministic and are not worth retrying.
@@ -351,8 +357,11 @@ Quarantined rows are excluded from normal claims, retained in the same table und
 surfaced through the `sys.outbox` alert path. The tick logs each quarantined `outbox_id`, then fails once
 with a bounded summary (source, count, a sample of ids). A recoverable rejection below the threshold does
 not fail the tick; only an infrastructure failure or an actual transition to Quarantined does. An operator
-must explicitly requeue or delete a quarantined row: see
-[SQL recipes · quarantined outbox rows](./sql-recipes.md#quarantined-outbox-rows).
+must explicitly requeue or discard a quarantined row, through `IActaOperations.Outbox`
+(`RequeueAsync`, `DiscardAsync`), `POST /outbox/{jobNamespace}/requeue` or `/discard`, or the
+dashboard's outbox panel. Each writes an audit event and applies on the relay's next pass;
+[SQL recipes · quarantined outbox rows](./sql-recipes.md#quarantined-outbox-rows) is the unaudited
+fallback.
 
 ## Looking up the resulting job
 
@@ -415,6 +424,8 @@ that has its own relational column is never duplicated in `meta`.
 ## Dashboard visibility
 
 The dashboard exposes the `sys.outbox` job, its events, and its alerts, the same as any other system job.
-It does not connect to the producer database or render external-outbox rows directly in v1; direct row
-management remains a compatible future feature. Inspect and manage rows with the
-[SQL recipes](./sql-recipes.md#quarantined-outbox-rows) against the producer database until then.
+Its overview lists every relay source with its last tick, and a source's quarantined rows (identity and
+failure evidence, never the payload) with requeue and discard. The quarantined listing opens the
+producer database, so it works only on a host that registered that namespace's relay; requeue and
+discard work from any host. `GET /outbox/sources` and `GET /outbox/{jobNamespace}/quarantined` serve
+the same reads over HTTP.
