@@ -118,9 +118,10 @@ public sealed class UserJobs(EmailService email)
 // File: Users/EmailService.cs
 namespace Users;
 
-public sealed class EmailService
+public class EmailService
 {
-    public Task SendWelcomeAsync(Guid userId, string email, string displayName, CancellationToken ct)
+    // Virtual so a test can stand in for it (see the testing guide).
+    public virtual Task SendWelcomeAsync(Guid userId, string email, string displayName, CancellationToken ct)
         => Task.CompletedTask;   // stand-in; wire your real sender here
 }
 ```

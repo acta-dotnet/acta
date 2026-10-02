@@ -63,11 +63,11 @@ Interruption is handler-owned policy: uncaught, the exception fails the parent j
 
 `AtMostOnce()` forbids retries by definition, so it is incompatible with any retry override other than `MaxAttempts(1)` (a non-1 `MaxAttempts`, or any `Backoff`/`RetryWindow`): the builder throws. The policy is resolved from the current handler code on replay, not persisted per step row; changing a step to or from `AtMostOnce()` while jobs are in flight may reinterpret a step that is already pending.
 
-Avoid `AtMostOnce()` inside a **recurring** job unless you catch `StepInterruptedException`. An uncaught interruption fails the job through the deliberate-terminal path (the same one `ctx.FailAsync` uses), which stops the whole recurring schedule rather than just the current occurrence; the terminal `Interrupted` step row also persists and re-throws on the next fire until the handler resets step state. Catch it, reconcile, and continue (optionally `ctx.ResetStateAsync` at the end) if the schedule must keep firing.
+Avoid `AtMostOnce()` inside a **recurring** job unless you catch `StepInterruptedException`. An uncaught interruption fails the job through the deliberate-terminal path (the same one `ctx.FailAsync` uses), which stops the whole recurring schedule rather than just the current occurrence; the terminal `Interrupted` step row also persists, so after an operator restarts the job it re-throws on the first fire until the handler resets step state. Catch it, reconcile, and continue (optionally `ctx.ResetStateAsync` at the end) if the schedule must keep firing.
 
 ## Job attribute placement
 
-`[Job]` is valid only on executable handler methods. The method owns the durable job identity; types provide organization, DI, and interface contracts.
+`[Job]` is valid only on executable handler methods. The method owns the durable job identity; types provide organization, DI, and interface contracts. The declaration below is trimmed to its placement and name; the policy knobs (`MaxAttempts`, `ConcurrencyLimit`, `RateLimit`, `Lane`, `Priority`, and the rest) are documented on `JobAttribute` itself.
 
 ```csharp
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
@@ -190,7 +190,7 @@ Rules:
 * Exceptions, including control-signal exceptions, propagate through behaviors to the runtime; a behavior must not swallow them into a success.
 * `IJobPipelineBehavior` is registered, never attributed; `[Job]` is never placed on it.
 
-Behaviors apply uniformly to every handler shape (static method, instance method, `IRequestHandler<>` method) because all dispatch through the same generated invoker the chain wraps. With no behaviors registered, dispatch uses the handler invocation directly. Behaviors run once per attempt, so a retry runs them again; irreversible side effects belong in the handler under durable state (steps, deduplication keys), not in a behavior.
+Behaviors apply uniformly to every handler shape (static or instance method) because all dispatch through the same generated invoker the chain wraps. With no behaviors registered, dispatch uses the handler invocation directly. Behaviors run once per attempt, so a retry runs them again; irreversible side effects belong in the handler under durable state (steps, deduplication keys), not in a behavior.
 
 ## Method handler shapes
 
@@ -397,7 +397,7 @@ For large files, exports, media, archives, reports, or model inputs, store the b
 
 Unhandled exceptions escape the handler and are captured as attempt failures. The framework records exception metadata per audit and redaction policy; retry policy decides whether the job retries or becomes terminal.
 
-`NotImplementedException` and `NotSupportedException` are non-retryable: the job lands terminal `Failed` immediately (reason `non-retryable-exception`) without consuming retry budget, since retrying cannot fix a programming error. For custom non-retryable types, call `ctx.FailAsync` in the handler or register a pipeline behavior that translates them.
+`NotImplementedException` and `NotSupportedException` are non-retryable: the job lands terminal `Failed` immediately (reason `job.non-retryable-exception`) without consuming retry budget, since retrying cannot fix a programming error. For custom non-retryable types, call `ctx.FailAsync` in the handler or register a pipeline behavior that translates them.
 
 Handlers should not return failure-as-result unless the domain considers that a successful outcome.
 
@@ -447,7 +447,7 @@ The token passed to a handler is the current attempt token, not a logical-job to
 | external cancel      | `Cancelled`                          |
 | execution timeout    | retry or fail per policy             |
 | worker shutdown      | retry / reclaim                      |
-| lease lost / revoked | retry / reclaim / worker-lost reason |
+| lease lost / revoked | retry (`job.attempt-aborted`), or reclaim (`job.lease-expired`) once the lease lapses |
 
 The handler honors the token; the framework records the cause and chooses the final transition.
 
@@ -513,12 +513,14 @@ The generators reserve `ACTA01xx` for the `[Job]` surface, `ACTA02xx` for code f
 | `ACTA0102` | Invalid `[Job]` name; kebab-case, at most 128 chars, `sys.` prefix reserved for system jobs.                                                                                                                  |
 | `ACTA0103` | Invalid handler signature; the message names the exact violation (parameter order, `async void`, nested awaitable, extra parameter, forbidden `TIn`, open generic, private method or type, `JobContext` pairing). |
 | `ACTA0104` | Duplicate input type within the manifest (warning); typed enqueue cannot resolve a unique route.                                                                                                                  |
-| `ACTA0105` | Invalid `[Job]` policy value (malformed duration, out-of-bounds retry knobs, undefined code).                                                                                                            |
-| `ACTA0121` | Invalid `[JobSchedule]` declaration (no `[Job]`, bad or duplicate name, blank expression or environment).                                                                                                         |
+| `ACTA0105` | Invalid `[Job]` policy value (malformed duration, out-of-bounds retry knobs, undefined code, invalid lane, rate, or concurrency value).                                                                                                            |
+| `ACTA0106` | Job contract member names collide once separators and case are ignored, such as `send-mail` and `sendmail` (warning); the colliding members are left out of the contract. |
+| `ACTA0121` | Invalid `[JobSchedule]` declaration (no `[Job]`, bad or duplicate name, blank expression or environment, a definition that also declares a `Lane`).                                                                                                         |
 | `ACTA0122` | Invalid schedule expression; cron (Cronos dialect, 5 or 6 fields) or a positive interval duration such as `5m`.                                                                                                                |
 | `ACTA0123` | `[JobSchedule]` handler whose input has no accessible parameterless constructor.                                                                                                                                  |
 | `ACTA0131` | Invalid `[JobPayloadFormatDeclaration]` (reserved id, bad or duplicate name/id, not an `IJobPayloadSerializer`).                                                                                                  |
 | `ACTA0132` | Invalid `[Job]` payload-format usage (`Format` paired with `InputFormat`/`OutputFormat`, `OutputFormat` on a no-result handler, or a name matching no built-in or declared format).                               |
+| `ACTA0142` | A duration written with an uppercase or calendar unit; durations use lowercase `ms`, `s`, `m`, `h`, or `d`. |
 | `ACTA0201` | Invalid code-family declaration (missing or malformed `[CodeKind]`, or a persisted family not backed by `byte`).                                                                                                   |
 | `ACTA0202` | Invalid `[Code]` value (malformed code string or id outside the closed-family `0..254` range).                                                                                                                       |
 | `ACTA0203` | Duplicate `[Code]` value (code string or numeric value repeated within the family).                                                                                                                               |
@@ -591,8 +593,8 @@ Full examples live in `concepts/`.
 
 | Shape                                     | Sample                                                                   |
 | ----------------------------------------- | ------------------------------------------------------------------------ |
-| `(TIn, ct) → Task`                        | [`../concepts/000-fundamentals/001-hello-acta/`](../../concepts/000-fundamentals/001-hello-acta/)             |
-| `(TIn, JobContext, ct) → Task`            | [`../concepts/200-durable-execution/201-durable-checkout/`](../../concepts/200-durable-execution/201-durable-checkout/) |
+| `(TIn) → void`                            | [`../concepts/000-fundamentals/001-hello-acta/`](../../concepts/000-fundamentals/001-hello-acta/)             |
+| `(TIn, JobContext, ct) → Task<TOut>`      | [`../concepts/200-durable-execution/201-durable-checkout/`](../../concepts/200-durable-execution/201-durable-checkout/) |
 | `(TIn, ct) → Task<TOut>`, payload formats | [`../concepts/500-payloads/501-payload-formats/`](../../concepts/500-payloads/501-payload-formats/)   |
 
 ## Invariants
@@ -606,7 +608,7 @@ Full examples live in `concepts/`.
 7. `ct` is the attempt token.
 8. Unhandled exceptions are attempt failures.
 9. Successful result rows are written only on successful completion.
-10. Within a manifest, `TIn` maps to exactly one job.
+10. Typed enqueue routes by `TIn`, so a `TIn` should map to one job; a duplicate is warned (`ACTA0104`), and those jobs enqueue by name through the raw request path.
 11. Payload formats must resolve to registered serializers at startup.
 12. `TIn`, `TOut`, `PayloadFormat`, and `JobName` are durable contract fields.
 13. A declared result value is non-null; returning `null` fails the attempt; no null is ever persisted.

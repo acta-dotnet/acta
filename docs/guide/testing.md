@@ -6,12 +6,13 @@ deterministic single-step drive. No polling loops, no sleeps, no background work
 Runnable version: [`concepts/800-testing/801-testing-jobs`](../../concepts/800-testing/801-testing-jobs/)
 (`dotnet test concepts/800-testing/801-testing-jobs`).
 
-The package is test-framework-agnostic (xUnit, NUnit, MSTest, TUnit). It exposes three types:
+The package is test-framework-agnostic (xUnit, NUnit, MSTest, TUnit). Its types live in
+`Acta.Testing.Hosting`:
 
 | Type | Role |
 |------|------|
-| `ActaTestHost.StartAsync(...)` | Stands up the full Acta runtime on a throwaway schema and returns the host |
-| `IActaTestHost` | `Jobs` (the public `IJobs` surface), `Services`, `Schema`, and `RunOnceAsync` |
+| `ActaTestHost.StartAsync(...)` | Stands up the full Acta runtime on a throwaway schema and returns the host; `ActaTestHostOptions` adds services and picks the schema |
+| `IActaTestHost` | `Jobs` (the public `IJobs` surface), `Operations`, `Services`, `Schema`, `RunOnceAsync`, `RunRecoveryOnceAsync`, and the `Force...DueAsync` helpers that make a retry, timer, wait timeout, or the job itself due now, plus `ExpireExecutionLeaseAsync` |
 | `ActaRunOutcome` | What one drive tick did: `NothingClaimed`, `Completed`, `Failed`, `Rearmed` |
 
 ## The model
@@ -54,9 +55,22 @@ Its `EmailService` dependency is replaced with a fake through `ActaTestHostOptio
 
 ```csharp
 using Acta;
+using Acta.Testing.Hosting;
 using Microsoft.Extensions.DependencyInjection;
+using Users;
 using Users.Jobs;
 using Xunit;
+
+public sealed class FakeEmailService : EmailService
+{
+    public List<(Guid UserId, string Email)> Sent { get; } = [];
+
+    public override Task SendWelcomeAsync(Guid userId, string email, string displayName, CancellationToken ct)
+    {
+        Sent.Add((userId, email));
+        return Task.CompletedTask;
+    }
+}
 
 public sealed class SendWelcomeEmailTests : IAsyncLifetime
 {
@@ -82,7 +96,6 @@ public sealed class SendWelcomeEmailTests : IAsyncLifetime
                 ConfigureServices = s =>
                 {
                     s.AddSingleton<EmailService>(_email);
-                    s.AddScoped<UserRegistrationService>();
                 },
             });
     }
@@ -110,10 +123,11 @@ public sealed class SendWelcomeEmailTests : IAsyncLifetime
 - `Run<TManifest>(...)` makes it a worker host. Without it the host is enqueue-only (for testing
   enqueue-side code such as HTTP handlers); `RunOnceAsync` then throws.
 - `GetStatusAsync(enqueued)` works because `JobEnqueueOutcome` converts implicitly to `JobLookup`;
-  `JobLookup.ById(...)` / `JobLookup.ByDeduplicationKey(...)` are the explicit forms.
-- `RunOnceAsync(enqueued)` is sugar for `RunOnceAsync(enqueued.JobId)`. The by-id drive needs a
-  single-worker host and retries a transiently-missed claim for a few seconds (the claim uses
-  skip-locked reads). Multi-worker hosts disambiguate with `RunOnceAsync(namespace)`.
+  `JobLookup.ByRef(...)` and `JobLookup.ByDeduplicationKey(...)` are the explicit forms, and
+  `JobLookup.ById(...)` is the debug path.
+- `RunOnceAsync(enqueued)` is sugar for `RunOnceAsync(enqueued.JobId)`. The by-id drive routes to
+  the worker that owns the job's namespace, and retries a transiently missed claim for up to five
+  seconds (the claim uses skip-locked reads), stopping as soon as the row can no longer be claimed.
 
 ## Reading the outcome
 
@@ -121,8 +135,8 @@ public sealed class SendWelcomeEmailTests : IAsyncLifetime
 
 | Outcome | Meaning | Row status afterwards |
 |---------|---------|----------------------|
-| `Completed` | The handler finished (or the run was cancelled) | `Succeeded` / `Cancelled` |
-| `Rearmed` | The job re-armed for a later claim: the handler rescheduled, slept, suspended on a signal, or threw with retry attempts remaining | `Ready` (forward-dated `NextRunAtUtc`) or `Suspended` |
+| `Completed` | The handler finished (or the run was cancelled) | `Succeeded` / `Cancelled`; a recurring slot goes back to `Ready` for its next occurrence |
+| `Rearmed` | The job re-armed for a later claim: the handler rescheduled, slept, paused, suspended on a signal, or threw with retry attempts remaining, or a concurrency or rate limit bounced it | `Ready` (forward-dated `NextRunAtUtc`), `Suspended`, or `Paused` |
 | `Failed` | The handler threw and the row settled terminally (attempts exhausted, or an exception classified as non-retryable: `NotImplementedException` / `NotSupportedException`) | `Failed` |
 | `NothingClaimed` | No claimable row this tick (not enqueued, not yet due, or already claimed) | unchanged |
 
@@ -132,8 +146,9 @@ the row is back at `Ready` with backoff applied.
 ## Testing the retry path
 
 After a failed attempt, `NextRunAtUtc` is pushed forward by the backoff policy (default initial
-delay `1m`), so an immediate second `RunOnceAsync` returns `NothingClaimed` (the row is not due).
-To walk the retry path deterministically, give the test job a zero backoff:
+delay `1m`), so an immediate second `RunOnceAsync` spends its five-second retry budget and returns
+`NothingClaimed` (the row is not due). `host.ForceJobDueAsync(jobId)` makes the row due without
+touching the policy; to walk the retry path with no forcing at all, give the test job a zero backoff:
 
 ```csharp
 public static class FlakyJobs

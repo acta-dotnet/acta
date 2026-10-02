@@ -19,10 +19,9 @@ see [`design.md`](../internals/design.md). For a diagram-first view of the same 
 | Term | Meaning |
 | --- | --- |
 | **Job** | The only independently claimable work unit. One identity/input row in the `jobs` table plus its 1:1 live-state row in `runtimes`. One-shot work, delayed work, recurring slots, coordinating parents, child jobs, and system maintenance all use the same tables. |
-| **Execution** | One recorded run of a handler. Every run (success or failure) is recorded as a paired `job.execution-started` / `job.execution-finished` event on `(JobId, ExecutionNumber)`. |
+| **Execution** | One recorded run of a handler. At the default audit level every run (success or failure) is recorded as a paired `job.execution-started` / `job.execution-finished` event on `(JobId, ExecutionNumber)`; the `Failures` and `Off` levels record less. |
 | **Attempt** | One try at the work that counts against retry policy when it fails. `MaxAttempts` is the unified retry budget for both jobs and steps. Successful executions are recorded but do not consume the budget. |
-| **Status** | The lifecycle-or-outcome enum column on every entity that has one (`JobRuntime.Status`, `JobWorker.Status`, ...). The job's `runtimes` row stores current status; events explain transitions. |
-| **state** | The column substrate tables use (`JobCheckpoint.state`, `JobStep.state`), marking them Job-internal rather than operator-facing lifecycle. |
+| **Status** | The lifecycle-or-outcome enum column on every entity that has one (`JobRuntime.Status`, `JobWorker.Status`, `JobStep.Status`, `JobCheckpoint.Status`, ...). The job's `runtimes` row stores current status; events explain transitions. |
 | **Firing** | One scheduled occurrence of a recurring `[JobSchedule]` (a moment in time). 1:1 with an execution in steady state; misfire policy decides what happens to missed firings. |
 | **Namespace** | The service-owned execution boundary. A worker claims only jobs in its own namespace. One `Run(...)` owns one namespace; a process can host several. |
 | **Lane** | An ordered sequence of jobs within a namespace, named at enqueue or on the definition. A lane runs one job at a time, in enqueue order, and the jobs behind its head wait as `Blocked`. See [Lanes](#lanes). |
@@ -108,8 +107,8 @@ Two boundaries to keep straight when designing tenancy around Acta:
 
 ## Executions and attempts
 
-An **Execution** is one recorded run of the handler; the event ledger records started and finished
-events for every run. An **Attempt** is one try that counts against retry policy when it fails.
+An **Execution** is one recorded run of the handler; at the default audit level the event ledger
+records started and finished events for every run. An **Attempt** is one try that counts against retry policy when it fails.
 A handler can be re-entered after a crash, retry, signal, or sleep; completed durable slots are not
 repeated.
 
@@ -149,7 +148,9 @@ may use the old limit until every worker has seen the new one, and attempts alre
 "10/s")]` meters starts against a shared clock: ten a second cluster-wide, with `RateKey` naming the
 meter when several definitions should share one (omit it and the meter is the definition name). A job
 that arrives before its turn is *given* the next free instant and re-arms Ready at exactly that
-instant, budget-neutral, carrying `job.rate-limited`. That booking is what makes it cheap: a backlog
+instant, budget-neutral, carrying `job.rate-limited`; a turn less than a quarter second away is waited
+out in process instead. Definitions that share a `RateKey` must declare the same rate, and worker
+startup refuses a pair that does not. That booking is what makes it cheap: a backlog
 of a thousand jobs costs one re-arm each and drains in arrival order at the rate, rather than a
 thousand workers re-racing a counter. Rate and limit are independent gates and a job passes both.
 
@@ -181,7 +182,8 @@ A lane runs its jobs one at a time, in enqueue order. It is Acta's equivalent of
 group. A job joins a lane through `.Lane("customer-42")` on the enqueue, or through
 `[Job(Lane = "...")]` on its definition. An enqueue lane overrides the definition's lane, and an
 enqueue cannot clear it. Lane names follow the concurrency-key rule: 1 to 128 characters from
-`a-z A-Z 0-9 . - _ : / @ + =`, compared case-insensitively, and scoped to the namespace. Different
+`a-z A-Z 0-9 . - _ : / @ + =`, trimmed and stored lowercased, never under the reserved `sys.` prefix,
+and scoped to the namespace. Different
 lanes run in parallel, and jobs without a lane are unaffected.
 
 Only a lane's head is claimable. The jobs behind it wait as `Blocked`, outside the claim scan, so a
@@ -272,7 +274,11 @@ separate `steps` table.
 ## Schedules, workers, and providers
 
 A **Schedule** is catalog metadata plus a recurring job slot. Due schedules coalesce into one
-execution of the same durable slot; `JobContext.TriggeringScheduleNames` names what fired.
+execution of the same durable slot; `JobContext.TriggeringScheduleNames` names what fired. A failed
+fire re-arms the slot for the next occurrence however many attempts failed; `ctx.FailAsync` or
+`ctx.CancelAsync` stops the whole slot. A job pause holds until a job resume, restart, or cancel,
+whatever startup or the schedule verbs do, and a deploy that drops every schedule pauses the slot
+rather than cancelling it. [Schedule operations](./schedule-operations.md) covers the rest.
 
 A **Worker** is a peer process loop: it registers a namespace, heartbeats, claims ready rows,
 executes handlers, and refreshes leases. There is no leader or control-plane service.

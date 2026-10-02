@@ -9,7 +9,8 @@ expected transition and the application responsibility behind it.
 ## …a worker crashes before starting the handler?
 
 The job can remain `Dispatched` under the worker lease. When the lease expires, `sys.recovery`
-returns it to `Ready` while retry budget remains, or marks it `Failed` when the budget is exhausted.
+returns it to `Ready` while retry budget remains, or marks it `Failed` when the budget is exhausted
+(a recurring slot always returns to `Ready`, for its next occurrence).
 No handler side effect should have occurred because execution never started.
 
 ## …a worker crashes while the handler is running?
@@ -94,6 +95,12 @@ handler, or to retire the definition from the dashboard, which cancels its parke
 handler from a deploy never cancels anything by itself; see
 [Production § rolling deploys](./production.md#rolling-deploys).
 
+A recurring job follows the same rule. A deploy that drops every schedule of one pauses its slot with
+no next run, and a deploy that brings a schedule back makes it `Ready`. A deploy that adds a
+`[JobSchedule]` refuses to start, naming the recurring job, while an ordinary job of the namespace
+holds the slot's deduplication key (the job name): let that job finish and purge it, or enqueue its
+work under another key. See [Schedule operations](./schedule-operations.md).
+
 ## …a checkpoint name changes during a deployment?
 
 The new name is a different durable slot. A step can repeat, a variable can appear absent, or a
@@ -105,7 +112,9 @@ migration, not a refactor.
 
 The schedule's misfire policy decides the cursor when the schedule reloads or resumes. `Skip` moves
 past missed occurrences; `CatchUpOnce` produces one coalesced catch-up execution. Neither policy
-creates one historical job per missed period. See [Schedule operations](./schedule-operations.md).
+creates one historical job per missed period. A worker start counts an occurrence less than a minute
+overdue as due rather than missed, and leaves a slot with an attempt in flight, or parked part-way
+through an occurrence, to the running fleet. See [Schedule operations](./schedule-operations.md).
 
 ## …an operator restarts a failed or cancelled job?
 
