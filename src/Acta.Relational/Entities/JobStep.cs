@@ -6,8 +6,9 @@ namespace Acta.Relational.Entities;
 /// Substrate row carrying durable retry / result state for one step slot inside a Job.
 /// Written by the <c>start_step</c> / <c>complete_step</c> operations that back
 /// <c>ctx.RunStepAsync</c>. One row per <c>(JobId, Name)</c>; INSERT on first invocation
-/// (<c>State = Pending</c>), UPDATE-in-place across retries, terminal transition to <c>Succeeded</c> or
-/// <c>Exhausted</c>.
+/// (<c>Status = Pending</c>), UPDATE-in-place across retries, terminal transition to <c>Succeeded</c>,
+/// <c>Exhausted</c>, or <c>Interrupted</c>. A job restart deletes an <c>Exhausted</c> row, so the step
+/// starts over.
 /// </summary>
 /// <remarks>
 /// The single row tracks the current retry state and the terminal result; per-attempt history is not

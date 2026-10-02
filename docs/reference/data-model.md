@@ -558,7 +558,7 @@ One durable configuration value in the central `settings` table, addressed by `(
 
 ### `acta.steps` <a id="entity-acta-steps"></a>
 
-Substrate row carrying durable retry / result state for one step slot inside a Job. Written by the `start_step` / `complete_step` operations that back `ctx.RunStepAsync`. One row per `(JobId, Name)`; INSERT on first invocation (`State = Pending`), UPDATE-in-place across retries, terminal transition to `Succeeded` or `Exhausted`.
+Substrate row carrying durable retry / result state for one step slot inside a Job. Written by the `start_step` / `complete_step` operations that back `ctx.RunStepAsync`. One row per `(JobId, Name)`; INSERT on first invocation (`Status = Pending`), UPDATE-in-place across retries, terminal transition to `Succeeded`, `Exhausted`, or `Interrupted`. A job restart deletes an `Exhausted` row, so the step starts over.
 
 **CLR type** `Acta.Relational.Entities.JobStep` · **Primary key** `pk_steps` (`id`)
 
