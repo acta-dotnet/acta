@@ -28,6 +28,8 @@ $allowed = @(
     # Prose a reader or a coding agent reads, never compiled or packed into a binary: a correction
     # found after certification lands without moving A. The package README is packed as text only.
     '^docs/.+\.md$',
+    # Design proposals and their illustrations: prose and images, never compiled or packed.
+    '^docs/designs/',
     '^[^/]+\.md$',
     '^(concepts|demos|tests)/.+\.md$',
     '^llms\.txt$',
