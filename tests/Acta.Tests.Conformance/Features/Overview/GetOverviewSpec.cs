@@ -113,9 +113,9 @@ public abstract class GetOverviewSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
     ///   <item>SystemJobCount · 0: no system job definitions registered.</item>
     ///   <item>UnresolvedAlertCount / UnresolvedCriticalAlertCount · 2 / 1: one Error + one Critical raised via RaiseJobAlert.</item>
     ///   <item>DeadWorkerCount · 1: W1 aged 2 h, swept by MarkDeadWorkers with 60 s window.</item>
-    ///   <item>StaleWorkerCount · threshold flip: W2 aged 3 h; staleAfterSeconds=3600 → 1, staleAfterSeconds=14400 → 0.</item>
+    ///   <item>StaleWorkerCount · threshold flip: W2 aged 2 min; staleAfterSeconds=60 → 1, staleAfterSeconds=14400 → 0.</item>
     ///   <item>DueSoonScheduleCount · 0: dueSoonSeconds=0 and the slot cursors are parked a day out, so the zero window can never include them.</item>
-    ///   <item>ExecutorCapacity · threshold flip, inverted from StaleWorkerCount: staleAfterSeconds=3600 → 0, staleAfterSeconds=14400 → 1 (W2's single slot).</item>
+    ///   <item>ExecutorCapacity · threshold flip, inverted from StaleWorkerCount: staleAfterSeconds=60 → 0, staleAfterSeconds=14400 → 1 (W2's single slot).</item>
     ///   <item>ScheduleLagSeconds · null: the parked cursors are a day ahead, so no live schedule is past due.</item>
     /// </list>
     /// </para>
@@ -247,9 +247,9 @@ public abstract class GetOverviewSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
         await Db.From<JobWorker>().Where(w => w.Id == w1.Id).UpdateOnlyAsync(() => new JobWorker { Status = WorkerStatusCode.Dead }, ct);
 
         // ── Stale-worker threshold flip ───────────────────────────────────────────────────────────
-        // W2 is started fresh after W1 is dead, then aged to 3 h ago.
-        // staleAfterSeconds=3600 (1 h) → W2's 3 h > 1 h → stale (count = 1).
-        // staleAfterSeconds=14400 (4 h) → W2's 3 h < 4 h → not stale (count = 0).
+        // W2 is started fresh after W1 is dead, then aged to 2 min ago.
+        // staleAfterSeconds=60 → W2's 2 min > 1 min → stale (count = 1).
+        // staleAfterSeconds=14400 (4 h) → W2's 2 min < 4 h → not stale (count = 0).
         var (_, w2Id) = await WorkerTestOps.StartAsync(
             Services,
             TestNamespace,
@@ -263,19 +263,18 @@ public abstract class GetOverviewSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
             maxConcurrency: 1,
             ct
         );
-        // Stamp W2 Draining + stale rather than Active + stale. StaleWorkerCount counts both Active and
-        // Draining workers, but the global MarkDeadWorkers reaper only sweeps Active, so a Draining stale
-        // worker is still counted stale yet is immune to a concurrent global sweep that would otherwise
-        // flip it Dead and inflate DeadWorkerCount (the off-by-one flake).
+        // Aged two minutes, well inside every dead-after window the suite's global reapers use (five
+        // minutes and up), so a concurrent sweep never flips W2 Dead and inflates DeadWorkerCount (the
+        // off-by-one flake), while the one-minute threshold below still counts it stale.
         await Db.From<JobWorker>()
             .Where(w => w.Id == w2Id)
             .UpdateOnlyAsync(
-                () => new JobWorker { Status = WorkerStatusCode.Draining, LastHeartbeatAtUtc = DateTime.UtcNow.AddHours(-3) },
+                () => new JobWorker { Status = WorkerStatusCode.Draining, LastHeartbeatAtUtc = DateTime.UtcNow.AddMinutes(-2) },
                 ct
             );
 
-        // ── Narrow-threshold assertion (staleAfterSeconds = 1 h) ─────────────────────────────────
-        var ovNarrow = await Overview.GetOverviewAsync(new OverviewQuery(TestNamespace, 3600, 0), ct);
+        // ── Narrow-threshold assertion (staleAfterSeconds = 1 min) ───────────────────────────────
+        var ovNarrow = await Overview.GetOverviewAsync(new OverviewQuery(TestNamespace, 60, 0), ct);
 
         // ReadyCount and JobCount: delta from before (before includes slot jobs seeded by InitializeAsync).
         Assert.Equal(before.ReadyCount + 2, ovNarrow.ReadyCount); // j1, j2 added; j3 Executing, j4 Failed
@@ -284,13 +283,13 @@ public abstract class GetOverviewSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
         Assert.Equal(2, ovNarrow.UnresolvedAlertCount); // 2 raised, none resolved
         Assert.Equal(1, ovNarrow.UnresolvedCriticalAlertCount); // 1 Critical (severity = 40)
         Assert.Equal(1, ovNarrow.DeadWorkerCount); // W1 swept Dead, scoped to TestNamespace
-        Assert.Equal(1, ovNarrow.StaleWorkerCount); // W2 Active, 3 h > 1 h threshold
+        Assert.Equal(1, ovNarrow.StaleWorkerCount); // W2 Draining, 2 min > 1 min threshold
         Assert.Equal(0, ovNarrow.DueSoonScheduleCount); // dueSoonSeconds=0: harness parks slot cursors a day out
         Assert.Equal(before.JobCount + 4, ovNarrow.JobCount); // 4 enqueued on top of slot jobs
         Assert.Equal(0, ovNarrow.SystemJobCount); // RegisterSystemJobs = false, recurring-ping is not a __ job
         Assert.NotNull(ovNarrow.OldestReadyAgeSeconds);
         Assert.True(ovNarrow.OldestReadyAgeSeconds >= 0);
-        // Capacity is StaleWorkerCount's exact inverse here: W1 is Dead and W2 is past the 1 h threshold,
+        // Capacity is StaleWorkerCount's exact inverse here: W1 is Dead and W2 is past the 1 min threshold,
         // so neither contributes a slot. A capacity that ignored freshness would read 1.
         Assert.Equal(0, ovNarrow.ExecutorCapacity);
         Assert.Null(ovNarrow.ScheduleLagSeconds); // the harness parks slot cursors a day out, so none is past due
@@ -298,7 +297,7 @@ public abstract class GetOverviewSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
         // ── Wide-threshold assertion (staleAfterSeconds = 4 h): count flips to 0 ────────────────
         var ovWide = await Overview.GetOverviewAsync(new OverviewQuery(TestNamespace, 14400, 0), ct);
 
-        Assert.Equal(0, ovWide.StaleWorkerCount); // threshold crossed: W2's 3 h < 4 h
+        Assert.Equal(0, ovWide.StaleWorkerCount); // threshold crossed: W2's 2 min < 4 h
         Assert.Equal(1, ovWide.ExecutorCapacity); // same crossing, other direction: W2's single slot is live again
         Assert.Null(ovWide.ScheduleLagSeconds);
         // Cross-check that other counters are unchanged across the threshold call.

@@ -42,8 +42,9 @@ There are exactly two ways a worker process ends, and the terminal status names 
 | `Dead = 200` | Heartbeat went stale past the liveness window; `sys.recovery` flipped it | `122 worker.died` / `101 worker.heartbeat-stale` |
 
 On a terminal worker, `modified_at_utc` is the instant it ended: both transitions stamp it. A worker
-killed outright never reaches the clean path, so it stays `Active` until recovery marks it `Dead` -
-which is why a kill and a crash are indistinguishable here, and correctly so.
+killed outright never reaches the clean path, so it stays `Active`, or `Draining` if the kill landed
+mid-drain, until recovery marks it `Dead` - which is why a kill and a crash are indistinguishable
+here, and correctly so.
 
 ```sql
 -- Workers that died in the last hour, and how long they had been running.

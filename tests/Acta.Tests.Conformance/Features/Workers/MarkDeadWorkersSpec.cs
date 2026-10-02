@@ -9,8 +9,9 @@ namespace Acta.Tests.Conformance.Features.Workers;
 
 /// <summary>
 /// Conformance for <c>sys.recovery</c>'s dead-worker sweep (<c>mark_dead_workers</c>), now namespace-agnostic:
-/// a sweep flips every Active worker whose <c>last_seen_at_utc</c> is past the dead-after window to Dead
-/// across all namespaces, emitting one <c>worker.died</c> event per worker into that worker's own namespace.
+/// a sweep flips every Active or Draining worker whose <c>last_seen_at_utc</c> is past the dead-after window
+/// to Dead across all namespaces, emitting one <c>worker.died</c> event per worker into that worker's own
+/// namespace.
 /// A worker is aged into the past and a positive window is used, so the sweep targets only the aged worker
 /// (a fresh worker in the same shared DB survives). A worker seeded in a second namespace is reaped by the
 /// same global sweep, proving the sweep is global and that each event lands in the dead worker's namespace.
@@ -25,10 +26,10 @@ namespace Acta.Tests.Conformance.Features.Workers;
     "mark-dead-workers.global-heartbeat-sweep",
     "Stale workers in any namespace are marked Dead by a global sweep",
     Area = "Workers",
-    Contract = "MarkDeadWorkers marks every stale Active worker Dead in all namespaces, writes each worker.died event to its own namespace, and skips non-Active workers.",
-    Arrange = "An aged Active worker, a fresh worker and an aged Stopped worker exist in one namespace, and another aged worker exists in a second namespace.",
+    Contract = "MarkDeadWorkers marks every stale Active or Draining worker Dead in all namespaces, writes each worker.died event to its own namespace, and skips Stopped ones.",
+    Arrange = "Aged Active and Draining workers, a fresh worker and an aged Stopped worker exist in one namespace, and another aged worker exists in a second namespace.",
     Act = "MarkDeadWorkers.Run sweeps with a positive dead-after window and no namespace argument, repeated until both aged workers settle Dead.",
-    Assert = "Both aged Active workers are Dead with a worker.died event in their namespace, while the fresh worker stays Active and the aged Stopped worker stays Stopped."
+    Assert = "The aged Active and Draining workers are Dead with a worker.died event in their namespace, the fresh one stays Active and the Stopped one Stopped."
 )]
 [CoversStoreMethod(typeof(IWorkerStore), nameof(IWorkerStore.MarkDeadWorkersAsync))]
 public abstract class MarkDeadWorkersSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
@@ -77,7 +78,7 @@ public abstract class MarkDeadWorkersSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         await Db.From<JobWorker>().Where(w => w.Id == workerBId).UpdateOnlyAsync(() => new JobWorker { LastHeartbeatAtUtc = agedAtB }, ct);
 
         // A cleanly-stopped worker that must ALSO survive, aged past the same window. The sweep matches on
-        // Active status AND a stale heartbeat, so aging this row leaves its status as the only thing
+        // a live status AND a stale heartbeat, so aging this row leaves its status as the only thing
         // keeping it out - the assertion below is then a real negative rather than a vacuous one. A worker
         // that shut down cleanly never went silent, so retiring it as Dead would misreport why it left.
         var (_, stoppedWorkerId) = await WorkerTestOps.StartAsync(
@@ -97,6 +98,25 @@ public abstract class MarkDeadWorkersSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         await Db.From<JobWorker>()
             .Where(w => w.Id == stoppedWorkerId)
             .UpdateOnlyAsync(() => new JobWorker { LastHeartbeatAtUtc = DateTime.UtcNow.AddHours(-1) }, ct);
+
+        // A worker that went silent mid-drain, killed or past its host's shutdown budget: nothing but this
+        // sweep ever moves a Draining row, so it must be reaped like an Active one.
+        var (_, drainingWorkerId) = await WorkerTestOps.StartAsync(
+            Services,
+            TestNamespace,
+            ownerTeam: null,
+            description: null,
+            hostName: "draining-host",
+            deploymentVersion: "test",
+            engineVersion: null,
+            dotnetVersion: null,
+            processId: 0,
+            maxConcurrency: 1,
+            ct
+        );
+        await Db.From<JobWorker>()
+            .Where(w => w.Id == drainingWorkerId)
+            .UpdateOnlyAsync(() => new JobWorker { Status = WorkerStatusCode.Draining, LastHeartbeatAtUtc = DateTime.UtcNow.AddHours(-1) }, ct);
 
         // A fresh worker that must SURVIVE: seed one in namespace A with a current last_seen. Seeded
         // last so the window in which it could itself age past the sweep's own cutoff is one call wide.
@@ -122,19 +142,25 @@ public abstract class MarkDeadWorkersSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         // transaction rolls back and a later sweep takes the row, but not necessarily before a single
         // call returns. So this loops rather than reading once: it re-sweeps every iteration, not merely
         // re-reads, because if the lock holder rolled back, nobody else marks the row and only another
-        // sweep from here will. Re-sweeping is safe because a sweep only transitions Active -> Dead, so
-        // a row already Dead is not matched again - exactly one worker.died event is written per worker
+        // sweep from here will. Re-sweeping is safe because a sweep only transitions a live worker to Dead,
+        // so a row already Dead is not matched again - exactly one worker.died event is written per worker
         // however many sweeps run here, and the Assert.Single(...) checks below hold unchanged regardless
         // of how many iterations it took.
         var deadline = DateTime.UtcNow + SpecWaits.Converge;
         JobWorker? afterA;
         JobWorker? afterB;
+        JobWorker? afterDraining;
         while (true)
         {
             await Services.GetRequiredService<IWorkerStore>().MarkDeadWorkersAsync(DeadAfterSeconds, ct);
             afterA = await Db.From<JobWorker>().Where(w => w.Id == workerA.Id).SingleOrDefaultAsync(ct);
             afterB = await Db.From<JobWorker>().Where(w => w.Id == workerBId).SingleOrDefaultAsync(ct);
-            if (afterA?.Status == WorkerStatusCode.Dead && afterB?.Status == WorkerStatusCode.Dead)
+            afterDraining = await Db.From<JobWorker>().Where(w => w.Id == drainingWorkerId).SingleOrDefaultAsync(ct);
+            if (
+                afterA?.Status == WorkerStatusCode.Dead
+                && afterB?.Status == WorkerStatusCode.Dead
+                && afterDraining?.Status == WorkerStatusCode.Dead
+            )
             {
                 break;
             }
@@ -145,7 +171,8 @@ public abstract class MarkDeadWorkersSpec<TFixture> : ActaRuntimeTestBase<TFixtu
             Assert.True(
                 DateTime.UtcNow < deadline,
                 $"aged workers never settled Dead within {SpecWaits.Converge}, re-sweeping throughout: "
-                    + $"A={afterA?.Status.ToString() ?? "<row gone>"}, B={afterB?.Status.ToString() ?? "<row gone>"}."
+                    + $"A={afterA?.Status.ToString() ?? "<row gone>"}, B={afterB?.Status.ToString() ?? "<row gone>"}, "
+                    + $"draining={afterDraining?.Status.ToString() ?? "<row gone>"}."
             );
             await Task.Delay(50, ct);
         }
@@ -156,7 +183,7 @@ public abstract class MarkDeadWorkersSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         Assert.Equal(WorkerStatusCode.Dead, afterB!.Status);
         Assert.Equal(WorkerStatusCode.Active, afterFresh!.Status);
 
-        // Aged but not Active: the sweep only retires a worker that went silent, so this one stays Stopped
+        // Aged but not live: the sweep only retires a worker that went silent, so this one stays Stopped
         // and no worker.died event is written for it.
         Assert.Equal(WorkerStatusCode.Stopped, afterStopped!.Status);
         Assert.Empty(
@@ -166,6 +193,9 @@ public abstract class MarkDeadWorkersSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         // Each worker.died event lands in the dead worker's OWN namespace.
         var eventA = Assert.Single(
             await Db.From<JobEvent>().Where(e => e.WorkerId == workerA.Id && e.EventCode == EventCode.WorkerDied).ToListAsync(ct)
+        );
+        Assert.Single(
+            await Db.From<JobEvent>().Where(e => e.WorkerId == drainingWorkerId && e.EventCode == EventCode.WorkerDied).ToListAsync(ct)
         );
         var eventB = Assert.Single(
             await Db.From<JobEvent>().Where(e => e.WorkerId == workerBId && e.EventCode == EventCode.WorkerDied).ToListAsync(ct)

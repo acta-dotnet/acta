@@ -3022,10 +3022,10 @@
 ## Workers
 
 ### Stale workers in any namespace are marked Dead by a global sweep
-- **Contract:** MarkDeadWorkers marks every stale Active worker Dead in all namespaces, writes each worker.died event to its own namespace, and skips non-Active workers.
-- **Arrange:** An aged Active worker, a fresh worker and an aged Stopped worker exist in one namespace, and another aged worker exists in a second namespace.
+- **Contract:** MarkDeadWorkers marks every stale Active or Draining worker Dead in all namespaces, writes each worker.died event to its own namespace, and skips Stopped ones.
+- **Arrange:** Aged Active and Draining workers, a fresh worker and an aged Stopped worker exist in one namespace, and another aged worker exists in a second namespace.
 - **Act:** MarkDeadWorkers.Run sweeps with a positive dead-after window and no namespace argument, repeated until both aged workers settle Dead.
-- **Assert:** Both aged Active workers are Dead with a worker.died event in their namespace, while the fresh worker stays Active and the aged Stopped worker stays Stopped.
+- **Assert:** The aged Active and Draining workers are Dead with a worker.died event in their namespace, the fresh one stays Active and the Stopped one Stopped.
 - **Guarantees:**
   - A global sweep marks aged workers Dead in every namespace, keeps fresh and cleanly-stopped workers, and attributes each event to the worker's namespace
 - **Store methods:**

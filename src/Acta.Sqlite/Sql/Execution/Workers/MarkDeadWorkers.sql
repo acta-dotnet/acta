@@ -4,7 +4,9 @@ CREATE TEMP TABLE _dead_workers AS
 SELECT id, namespace_id, worker_ref
 FROM {{schema}}.workers
 WHERE
-    status_code = 10 /* WorkerStatusCode.Active */
+    -- A worker that stopped heartbeating mid-drain, killed or past its host's shutdown budget, is as dead as
+    -- an active one; nothing else ever moves a Draining row.
+    status_code IN (10 /* WorkerStatusCode.Active */, 80 /* WorkerStatusCode.Draining */)
     AND last_seen_at_utc < {{now}} - (@p_dead_after_seconds) * 1000;
 
 INSERT INTO {{schema}}.events (
