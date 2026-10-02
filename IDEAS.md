@@ -12,6 +12,8 @@ look without an LLM to search for them, and I hate that. So 1.0 is postponed. rc
 and rc.5 is the next release, a major reorganisation of `src/` that brings the simplicity back. I will
 move a lot of code around, reorganise the folders, and remove a lot of duplication.
 
+Acta and its docs both go on a slimming mission: fewer types, fewer files, fewer pages, and only what earns its place.
+
 Structure:
 
 - Operations go back to my original idea: much more cohesive, each one complete in one place.
