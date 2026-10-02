@@ -1,7 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
+using Acta.AspNetCore.Web;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -231,5 +234,41 @@ public sealed class ControlAuthorizationTests
         await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         Assert.StartsWith("workers.", Assert.Single(authorizer.Requests).Verb);
+    }
+
+    // Hosts allowlist on these names, so every control route must derive its own, and the set must be
+    // the one the operator guide publishes.
+    [Fact]
+    public async Task Every_control_route_derives_its_own_published_verb()
+    {
+        var (app, _) = await TestDashboardHost.StartAsync(options => options.EnableControls = true);
+        await using var __ = app;
+
+        var verbs = ((IEndpointRouteBuilder)app)
+            .DataSources.SelectMany(d => d.Endpoints)
+            .OfType<RouteEndpoint>()
+            .SelectMany(e =>
+                (e.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods ?? [])
+                    .Where(m => !HttpMethods.IsGet(m) && !HttpMethods.IsHead(m))
+                    .Select(m => ControlAuthorizationFilter.DeriveVerb(e.RoutePattern.RawText ?? "", m))
+            )
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+        Assert.Equal(verbs.Distinct(), verbs);
+        Assert.Equal(PublishedVerbs(), verbs);
+    }
+
+    private static List<string> PublishedVerbs()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (!File.Exists(Path.Combine(dir!.FullName, "Acta.slnx")))
+        {
+            dir = dir.Parent;
+        }
+
+        var guide = File.ReadAllLines(Path.Combine(dir.FullName, "docs", "guide", "operator-guide.md"));
+        var start = Array.IndexOf(guide, "```text", Array.IndexOf(guide, "### Control authorization")) + 1;
+        return [.. guide[start..Array.IndexOf(guide, "```", start)].Order(StringComparer.Ordinal)];
     }
 }

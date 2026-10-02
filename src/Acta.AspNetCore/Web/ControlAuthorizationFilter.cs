@@ -42,7 +42,8 @@ internal static class ControlAuthorizationFilter
                     return await next(context);
                 }
 
-                var request = new ActaControlRequest(DeriveVerb(http), http, http.User?.Identity?.Name);
+                var pattern = (http.GetEndpoint() as RouteEndpoint)?.RoutePattern.RawText ?? "";
+                var request = new ActaControlRequest(DeriveVerb(pattern, http.Request.Method), http, http.User?.Identity?.Name);
                 var decision = await authorizer.AuthorizeAsync(request, http.RequestAborted);
                 return decision.IsAllowed
                     ? await next(context)
@@ -58,18 +59,18 @@ internal static class ControlAuthorizationFilter
     /// <summary>
     /// "jobs" is dropped as the implicit default entity (/jobs/{jobRef}/cancel -&gt; "cancel"); other
     /// families keep their entity prefix (/tenants/{key}/suspend -&gt; "tenants.suspend"). Route parameters
-    /// are skipped; a pattern with no recognized entity or no literal segments left falls back to the
-    /// HTTP method.
+    /// are skipped, and where one route carries two mutations the method names which: a tag write is
+    /// ".add" or ".remove", a PATCH is ".update", and a POST to a bare entity ".register". A pattern with
+    /// no recognized entity or no literal segments left falls back to the HTTP method.
     /// </summary>
-    private static string DeriveVerb(HttpContext http)
+    internal static string DeriveVerb(string pattern, string method)
     {
-        var pattern = (http.GetEndpoint() as RouteEndpoint)?.RoutePattern.RawText ?? "";
         var allSegments = pattern.Split('/', StringSplitOptions.RemoveEmptyEntries);
         var entityIndex = Array.FindLastIndex(allSegments, s => Array.IndexOf(Entities, s) >= 0);
         var segments = (entityIndex < 0 ? allSegments : allSegments[entityIndex..]).Where(s => s[0] != '{').ToArray();
 
         // POST /jobs is the sole control that reduces to the bare "jobs" entity; name it for what it does.
-        if (segments is ["jobs"] && HttpMethods.IsPost(http.Request.Method))
+        if (segments is ["jobs"] && HttpMethods.IsPost(method))
         {
             return "enqueue";
         }
@@ -79,6 +80,18 @@ internal static class ControlAuthorizationFilter
             segments = segments[1..];
         }
 
-        return segments.Length == 0 ? http.Request.Method.ToLowerInvariant() : string.Join('.', segments);
+        var suffix =
+            HttpMethods.IsDelete(method) ? "remove"
+            : HttpMethods.IsPatch(method) ? "update"
+            : !HttpMethods.IsPost(method) ? null
+            : segments is [.., "tags"] ? "add"
+            : segments is [var only] && Array.IndexOf(Entities, only) >= 0 ? "register"
+            : null;
+        if (suffix is not null)
+        {
+            segments = [.. segments, suffix];
+        }
+
+        return segments.Length == 0 ? method.ToLowerInvariant() : string.Join('.', segments);
     }
 }

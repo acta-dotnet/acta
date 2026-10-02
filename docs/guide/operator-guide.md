@@ -510,6 +510,58 @@ text input is also editable in place unless the job is dispatched or executing. 
 for the read surface as authorization to read every payload the ledger holds. See
 `concepts/000-fundamentals/022-dashboard` for a runnable host.
 
+### Control authorization
+
+Register an `IActaControlAuthorizer` and every control request asks it first: a denial answers 403
+before the verb runs, and reads never ask. Each request names its verb, derived from the route:
+`/jobs/{jobRef}/cancel` is `cancel`, `/tenants/{key}/suspend` is `tenants.suspend`, and where one
+route carries two mutations the method says which, as in `tags.add` and `tags.remove`. The request's
+`HttpContext` carries the route values, method, and claims for a rule that needs more. The verbs:
+
+```text
+alerts.acknowledge
+alerts.resolve
+alerts.tags.add
+alerts.tags.remove
+cancel
+definitions.retire
+definitions.tags.add
+definitions.tags.remove
+definitions.update
+enqueue
+input
+namespaces.resume
+namespaces.suspend
+namespaces.tags.add
+namespaces.tags.remove
+namespaces.update
+outbox.discard
+outbox.requeue
+pause
+purge
+reprioritize
+reschedule
+restart
+resume
+schedules.overrides
+schedules.pause
+schedules.resume
+schedules.tags.add
+schedules.tags.remove
+schedules.trigger
+signals
+tags.add
+tags.remove
+tenants.register
+tenants.resume
+tenants.suspend
+tenants.tags.add
+tenants.tags.remove
+tenants.update
+workers.tags.add
+workers.tags.remove
+```
+
 ## Retention and purge
 
 Every terminal landing stamps `retention_until_utc` from the definition's `JobRetention` policy
