@@ -238,7 +238,9 @@ and the rate may not exceed 1000 per second: the interval between admissions is 
 is rejected at build time by the source generator, again at worker startup, and again at the override
 gate. Like every other policy slot the rate has an operator override on the definition row.
 
-`RateKey` names the meter. Omit it and the meter is the definition name, so a rate alone throttles
+`RateKey` names the meter, within the namespace: definitions in different namespaces never share a
+meter, so a quota shared by two services needs its rate split between them. Omit it and the meter is
+the definition name, so a rate alone throttles
 just that definition - and a definition *named* `stripe` is on the same meter as one declaring
 `RateKey = "stripe"`. Definitions that share a meter **must declare the same rate**; worker startup
 rejects a namespace where two of them disagree, because one meter cannot run at two rates. Unlike the

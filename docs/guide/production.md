@@ -168,7 +168,10 @@ marks the definition `Retired`, cancels its parked (`Ready`, `Blocked`, `Suspend
 `job.definition-retired`, releases a parent waiting on a cancelled child, leaves executing jobs to
 finish their attempt, and rejects new enqueues. Descendants of a cancelled job are not cancelled. A
 build that carries the handler at an equal or newer manifest generation re-activates the definition
-when it registers; an older build cannot.
+when it registers; an older build cannot. A retire only holds once no running or restartable worker
+carries the definition: during a rolling deploy, an old-build worker that restarts registers the
+definition at its own generation, which equals the stored one, and makes it Active again. Retire
+after the old fleet is gone.
 
 One cost to know: while a worker's exclusion set is non-empty, each of its claims looks up
 `jobs.definition_id` for every excluded row ahead of the first claimable one. A long run of jobs no

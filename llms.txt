@@ -213,7 +213,9 @@ and restart of a finished laned job runs that job again, right after the lane's 
 
 `[Job("send-invoice", RateLimit = "10/s")]` caps how OFTEN attempts start, which is a different
 gate from how many run at once, and a job passes both. `RateKey` names the meter when several
-definitions should share one; omitted, the meter is the definition name. Definitions on one meter must
+definitions should share one; omitted, the meter is the definition name. A meter belongs to one
+namespace: definitions in different namespaces never share it, so a partner quota shared by two
+services needs its rate split between them. Definitions on one meter must
 declare the same rate. A job that arrives early is BOOKED the next free instant: under a quarter second away
 the executor sleeps it out and takes it, farther away the job re-arms Ready at exactly that instant
 without spending retry budget (reason `job.rate-limited`, never a failure and never an alert), and a
@@ -232,14 +234,17 @@ blob storage with the job carrying a reference: URI, checksum, size.
 - A `Suspended` job is healthy, not stuck: it is waiting on a signal, a child, or a timer. A wait
   armed with a timeout resolves itself when the deadline passes; an unbounded wait parks until
   raised.
+- Deduplication keys are trimmed and lowercased: two ids that differ only by case are one key, so hash
+  a case-sensitive external id first.
 - The enqueue `deduplicationKey` prevents a second job ROW, not a second side effect; execution
   stays at-least-once either way.
 - Tags are for finding jobs, not for carrying data: input is typed and versioned, tags are
   searchable labels.
 - A recurring job keeps its step results and variables from one fire to the next: a step that
   succeeded on Monday returns Monday's result on Tuesday. Put the period in the step name
-  (`$"invoice-{period}"`) or call `ctx.ResetStateAsync` at the top of a handler that must start
-  clean.
+  (`$"invoice-{period}"`), or call `ctx.ResetStateAsync` as the handler's last action so the next fire
+  starts clean. Never at the top: a reset there also runs on every retry and replay of the same fire,
+  erasing its own progress, so a failing step never exhausts and an `AtMostOnce` body can run twice.
 
 ## When you are unsure
 

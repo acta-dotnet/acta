@@ -144,7 +144,7 @@ Check the signal name and target identity:
 - A raise that arrives after a bounded wait timed out releases nothing; its event reads "Signal not
   applied: the wait had already expired."
 - HTTP signal endpoints require controls to be enabled and the same `X-Acta-Control` confirmation
-  header as other control requests. The header is an anti-accident guard, not authentication.
+  header as other control requests. The header is the cross-site request forgery barrier, not authentication.
 
 The handler resumes when it is claimed again, so also check worker liveness and `next_run_at_utc`.
 

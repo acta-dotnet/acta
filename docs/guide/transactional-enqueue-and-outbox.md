@@ -291,9 +291,13 @@ Distinguish the healthy cadence from crash recovery. The source claim lease reus
 `JobsOptions.LeaseTtlSeconds` (180 seconds by default, four heartbeat intervals) rather than adding an
 outbox-specific setting. If a
 worker crashes mid-relay, its claimed source rows may stay invisible for up to that lease window (three
-minutes by default) before another relay reclaims them. Healthy pickup still runs on the five-second
-cadence; the lease window only bounds recovery. Expired claims are safe to repeat because finalization is
-token-CAS and target enqueue is deduplicated.
+minutes by default) before another relay reclaims them, and when the dead worker held the `sys.outbox`
+slot itself, pickup in that namespace waits until recovery reclaims the slot too. Healthy pickup still
+runs on the five-second cadence; the lease window only bounds recovery. Expired claims are safe to repeat
+because finalization is token-CAS and target enqueue is deduplicated, as long as the target job still
+exists: a deduplication key lasts only as long as its job row, so give a definition the outbox targets
+a `JobRetention` well past `LeaseTtlSeconds` plus the cadence, never `0s`, or a redelivery after a lost
+source delete can land a second job.
 
 The job declares `AuditLevel = Failures` and the `SysCritical` alert profile, matching the other quiet
 maintenance jobs: idle and successful ticks produce no audit events, while failures and quarantine alerts
@@ -337,7 +341,8 @@ ledger.
 Rows that cannot be delivered are handled by classification:
 
 - **Infrastructure failures** (connection loss, timeout, deadlock, target unavailability) never consume a
-  quarantine budget. They retry indefinitely with capped backoff and fail the tick so the alert fires.
+  quarantine budget. They retry on every relay tick, five seconds apart, and fail the tick so the alert
+  fires.
 - **Recoverable row rejections** (routing and target-state rejections such as an unknown route or a
   suspended namespace/tenant) increment `failure_count`, reschedule with increasing backoff, and
   quarantine at a configurable threshold (default **five**). Below the threshold they are logged and
@@ -414,7 +419,7 @@ Three canonical claim indexes carry fixed short names so provider truncation nev
 expired claims, and `ix_acta_outbox_lane` is `(job_namespace, lane, id)` for the lane check.
 Check constraints enforce the payload format/data pair, non-negative delay and failure count, the mutual
 exclusion of `next_run_at_utc` and `delay_seconds`, the allowed priority and status codes, valid
-root-object JSON when `meta` is non-null, and the status/claim-field invariant (Claimed requires both
+JSON when `meta` is non-null (a non-object root is quarantined by the relay), and the status/claim-field invariant (Claimed requires both
 claim fields; Pending and Quarantined require both null).
 
 `meta.tags` is an ordered JSON array of `{"name": ..., "value": ...}` objects (`value` is a string or JSON

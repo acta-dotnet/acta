@@ -26,8 +26,11 @@ External systems are not rolled back. Use deduplication keys, reconciliation, or
 
 The same attempt keeps writing the completion, on a one-second-to-thirty-second curve, until it lands
 or the worker stops; the row stays Executing under a lease the heartbeat renews, and the external call
-is not repeated by that worker. Only a worker that dies mid-repeat hands the row to recovery for a new
-attempt, and that attempt can repeat the call. This is the central at-least-once boundary. Pass a
+is not repeated by that worker. A worker that dies mid-repeat hands the row to recovery for a new
+attempt, and that attempt can repeat the call. So does a database outage longer than the lease (180 s
+by default): the heartbeat cannot renew either, and when the database returns, recovery reclaims every
+expired row, finished or not, and re-runs it under the failure budget, which on its last attempt can
+land a job Failed whose work had succeeded. This is the central at-least-once boundary. Pass a
 stable business deduplication key to the external system or reconcile its state before repeating the
 side effect.
 

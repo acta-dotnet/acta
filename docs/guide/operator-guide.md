@@ -478,7 +478,9 @@ stays a problem document with its `reasonCode`. Controls are
 opt-in (`EnableControls = true`)
 because they mutate jobs; enable them alongside your authorization, never on an open surface.
 Unmapped controls answer 404. Control requests must send the `X-Acta-Control: true` header,
-an anti-accident guard (not authentication) the dashboard sends automatically. Body members are
+the API's barrier against cross-site request forgery (a page on another origin cannot send it
+without a CORS preflight), not authentication; the dashboard sends it automatically. A host that turns
+it off needs antiforgery of its own. Body members are
 camelCase and exact: a member the endpoint does not take answers 400 with its path, so a misspelled
 scope never widens a verb to its default. The job detail
 screen surfaces all seven actions with state-aware availability and confirmation for destructive
@@ -668,7 +670,7 @@ worker's `last_seen_at_utc` first; recovery is automatic once the lease lapses.
 Acta ships no login system; the dashboard and JSON API are local-only by default (`LocalOnly = true`, non-loopback requests get 403). Exposing the surface remotely means setting `LocalOnly = false` and wiring host authorization through `ConfigureEndpoints`, as in the `MapActa` example above. Beyond that:
 
 - `LocalOnly` checks the TCP peer address and the host the request names (`localhost`, a `.localhost` name, or an IP address), not the original client: behind a reverse proxy or gateway on the same host, the peer is the proxy's loopback address, so the check passes for every forwarded request that keeps a local host name. Behind a proxy, do not rely on `LocalOnly`: gate on real authorization through `ConfigureEndpoints`, and configure `ForwardedHeaders` if the host needs the true client IP.
-- The `X-Acta-Control: true` header on control POSTs is an anti-accident guard, not auth; enable controls (`EnableControls = true`) only behind authorization.
+- The `X-Acta-Control: true` header on control POSTs is the cross-site request forgery barrier, not auth: a cross-origin page cannot send it without a preflight. Keep it on, unless the host supplies antiforgery of its own and no ambient credentials (integrated Windows auth, `SameSite=None` cookies) reach the API, and enable controls (`EnableControls = true`) only behind authorization.
 - Keep secrets and PII out of job input, result, and tags; store large or sensitive blobs externally and enqueue a reference (URI plus checksum and size). Payloads are readable in full by anyone authorized for the read surface (see the dashboard section above), so this is the data-classification boundary: there is no per-payload redaction or disclosure gate to fall back on.
 - Every host doubles as its own control CLI (`<app> jobs info|pause|resume|restart|cancel|debug`); use `j.DisableCli()` only if the host owns its own command line.
 

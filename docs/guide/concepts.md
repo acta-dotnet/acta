@@ -82,7 +82,9 @@ final key. `AcrossDefinitions` is the explicit cross-definition form. Cross-defi
 are intentionally not exposed as a combined helper; derive that business key in application code
 only when the use case genuinely spans job definitions.
 
-Deduplication and concurrency keys are namespace-scoped, never tenant-scoped: `invoice-123` used by
+Keys are trimmed and lowercased, so two identifiers that differ only by case are one key; hash a
+case-sensitive external id before using it as a key. Deduplication and concurrency keys are
+namespace-scoped, never tenant-scoped: `invoice-123` used by
 two tenants is one key. When the business identity is tenant-relative, compose the key with
 `DeduplicationKey.ForTenant(tenantKey, businessKey)` (also valid for `ConcurrencyKey` values, and
 nestable as the business key of `ForDefinition`).
@@ -145,7 +147,7 @@ change reaches each worker on its next policy reload, so a decrease is honored g
 may use the old limit until every worker has seen the new one, and attempts already running finish.
 
 **`RateLimit` caps how often, where the limit caps how many.** `[Job("send-invoice", RateLimit =
-"10/s")]` meters starts against a shared clock: ten a second cluster-wide, with `RateKey` naming the
+"10/s")]` meters starts against a shared clock: ten a second across every worker of the namespace, with `RateKey` naming the
 meter when several definitions should share one (omit it and the meter is the definition name). A job
 that arrives before its turn is *given* the next free instant and re-arms Ready at exactly that
 instant, budget-neutral, carrying `job.rate-limited`; a turn less than a quarter second away is waited

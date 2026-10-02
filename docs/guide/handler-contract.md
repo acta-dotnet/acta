@@ -57,13 +57,13 @@ catch (StepInterruptedException)
 }
 ```
 
-`AtMostOnce()` guarantees Acta will not invoke the step body more than once. If the worker dies after the framework records the step start but before recording the outcome, replay does **not** re-run the body: the step becomes terminal `Interrupted` and `RunStepAsync` throws `StepInterruptedException`. That exception means the body ran **zero or one times and Acta cannot determine which**: the durable start marker and the external side effect cannot share a transaction. It is never a signal that the side effect definitely happened, so handlers must reconcile against the external system rather than compensate.
+`AtMostOnce()` guarantees Acta will not invoke the step body more than once, provided the step's start marker is durable: on SQLite under the Direct or Bulk profile, which relax `synchronous` to `NORMAL`, it holds across a process crash but not across power loss or an OS crash, so run at-most-once work under Buffered there. If the worker dies after the framework records the step start but before recording the outcome, replay does **not** re-run the body: the step becomes terminal `Interrupted` and `RunStepAsync` throws `StepInterruptedException`. That exception means the body ran **zero or one times and Acta cannot determine which**: the durable start marker and the external side effect cannot share a transaction. It is never a signal that the side effect definitely happened, so handlers must reconcile against the external system rather than compensate.
 
 Interruption is handler-owned policy: uncaught, the exception fails the parent job terminally (reason `job.step-interrupted`, no retry, budget untouched, the parent is never replayed back into the interrupted step); caught, the handler decides and the job proceeds. Because reconciliation needs something stable to ask the external system about, pass the external call a **recomputable** deduplication key derived from durable inputs (not a fresh GUID minted inside the body), so the catch block can reconstruct it.
 
 `AtMostOnce()` forbids retries by definition, so it is incompatible with any retry override other than `MaxAttempts(1)` (a non-1 `MaxAttempts`, or any `Backoff`/`RetryWindow`): the builder throws. The policy is resolved from the current handler code on replay, not persisted per step row; changing a step to or from `AtMostOnce()` while jobs are in flight may reinterpret a step that is already pending.
 
-Avoid `AtMostOnce()` inside a **recurring** job unless you catch `StepInterruptedException`. An uncaught interruption fails the job through the deliberate-terminal path (the same one `ctx.FailAsync` uses), which stops the whole recurring schedule rather than just the current occurrence; the terminal `Interrupted` step row also persists, so after an operator restarts the job it re-throws on the first fire until the handler resets step state. Catch it, reconcile, and continue (optionally `ctx.ResetStateAsync` at the end) if the schedule must keep firing.
+Avoid `AtMostOnce()` inside a **recurring** job unless you catch `StepInterruptedException`. An uncaught interruption fails the job through the deliberate-terminal path (the same one `ctx.FailAsync` uses), which stops the whole recurring schedule rather than just the current occurrence; the terminal `Interrupted` step row also persists, so after an operator restarts the job it re-throws on the first fire until the handler resets step state. Catch it, reconcile, and continue if the schedule must keep firing. Prefer a per-period step name (`$"charge-{period}"`) to a `ctx.ResetStateAsync` at the end: the reset commits before the completion does, so a crash between the two re-runs the fire with no step rows and runs the at-most-once body again.
 
 ## Job attribute placement
 
@@ -395,7 +395,7 @@ For large files, exports, media, archives, reports, or model inputs, store the b
 
 ## Exception semantics
 
-Unhandled exceptions escape the handler and are captured as attempt failures. The framework records exception metadata per audit and redaction policy; retry policy decides whether the job retries or becomes terminal.
+Unhandled exceptions escape the handler and are captured as attempt failures. The framework records the exception's `Message`, truncated to 512 characters, as the attempt's reason, at the job's audit level; retry policy decides whether the job retries or becomes terminal. Nothing redacts that message: it is shown on the read surface and sent to alert channels, so keep secrets and personal data out of exception messages.
 
 `NotImplementedException` and `NotSupportedException` are non-retryable: the job lands terminal `Failed` immediately (reason `job.non-retryable-exception`) without consuming retry budget, since retrying cannot fix a programming error. For custom non-retryable types, call `ctx.FailAsync` in the handler or register a pipeline behavior that translates them.
 
@@ -535,6 +535,8 @@ Placement on anything but a method (for example a request DTO) is rejected by `[
 ## Serializer validation
 
 At startup, every descriptor input and output format must resolve to a registered serializer. Missing serializers fail startup before workers claim jobs.
+
+Under Native AOT the JSON serializer has no reflection, so enums take the shape the source-generated context passed to `UseJsonPayloads` declares. Set `UseStringEnumConverter = true` and camelCase naming on it, the shape a JIT host writes; otherwise a payload a JIT producer enqueued with an enum fails to deserialize on an AOT worker.
 
 ## Versioning and compatibility
 

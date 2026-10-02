@@ -51,7 +51,8 @@ A completion write that fails is repeated until it lands or the worker stops, ba
 second to a thirty-second ceiling with jitter. Every failure is repeated, a provider error and a
 defect alike: the write is a compare-and-swap that is safe to resubmit, and a completion abandoned
 part way leaves the row `Executing` under a lease the worker's heartbeat keeps renewing, which
-recovery can never reclaim. A defect in the completion path therefore loops instead of surfacing
+recovery cannot reclaim while the heartbeat reaches the database. A database outage longer than the
+lease lets every lease lapse, and recovery then reclaims the row and re-runs it, finished or not. A defect in the completion path therefore loops instead of surfacing
 once, so it is logged at `Warning` for the first three tries and at `Error` after, always naming the
 job id, and `acta.completions.unsettled` counts the writes in that state. The start write on the
 hand-back path is repeated the same way and for the same reason: a claim this deployment cannot run
@@ -104,7 +105,8 @@ retry budget, and raises no alert, so a persistent error shows as a job re-armin
 and a warning in the worker log. What it can leave
 behind is a slot the acquire committed without answering: that row is untracked by the worker and
 expires with its lease TTL, so one slot of that key is unavailable for up to that long. A rate turn
-booked without an answer is honoured when the job returns, so nothing is double-counted.
+the meter charged without answering is spent: the job is metered again when it returns, so a lost
+answer costs the meter one turn of capacity and never admits extra.
 
 Crash recovery has one bootstrap dependency. The reclaim sweep, which returns a job whose lease
 lapsed to `Ready`, runs from the `sys.recovery` recurring slot, and that slot is an ordinary job: a
@@ -157,7 +159,11 @@ semantics; the application still owns external side-effect safety.
 `AtMostOnce()` is for selected step bodies where duplicate execution is worse than an ambiguous
 outcome. If the worker dies after Acta records the step start but before recording the outcome,
 replay does not run the body again and the handler must reconcile whether the external side effect
-happened.
+happened. That rests on the start marker being durable: on SQLite under Direct or Bulk, which run
+with `synchronous = NORMAL`, power loss or an OS crash can lose it and the body runs again; a
+`ctx.ResetStateAsync` commits before the completion does, so a crash between the two re-runs the fire
+with no step rows. Use Buffered on SQLite, and per-period step names in recurring jobs, for
+at-most-once work.
 
 The application owns side-effect safety. External systems such as payment providers, email
 providers, webhooks, object storage, and partner APIs need deduplication keys, `AtMostOnce()`
