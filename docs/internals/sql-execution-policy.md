@@ -210,9 +210,10 @@ the lock.
   statuses. A restarted member is older than the members already waiting, so it can wait Blocked below
   the running one.
 - Promotion re-reads under the lock: it takes the lowest-id unfinished member of the lane, promotes it
-  when it is Blocked and no member runs, and otherwise leaves it as the head. A settle ends the one
-  running member, so its promotion never meets another. Pausing the running member, by the pause verb
-  or by its own handler, promotes the same way: a Paused head holds its lane only against younger
+  when it is Blocked and no member runs, and otherwise leaves it as the head. A single settle ends the
+  one running member, so its promotion never meets another; a batch settle also reaches lanes through
+  rows it did not settle, so it checks for a running member like every verb. Pausing the running
+  member, by the pause verb or by its own handler, promotes the same way: a Paused head holds its lane only against younger
   members, so an older restarted member waiting Blocked below it runs next. Promotion never updates
   through a subselect that a concurrent change could turn into a zero-row update.
 - Operator verbs on a laned job (cancel, pause, resume, reschedule, reprioritize, restart, retire)

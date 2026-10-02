@@ -3002,6 +3002,21 @@ BEGIN
                         IF @head_status IS NULL OR @head_status <> 15 /* JobStatusCode.Blocked */
                             BREAK;
 
+                        -- The batch reaches lanes through rows it did not settle, and a restarted member can wait
+                        -- Blocked below a running one, so promote only while no member runs.
+                        IF EXISTS (
+                            SELECT 1
+                            FROM acta.runtimes o WITH (INDEX (ix_runtimes_lane), FORCESEEK)
+                            WHERE
+                                o.lane_id = @lane_next
+                                AND o.lane_id IS NOT NULL
+                                AND o.status_code IN (
+                                    10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                                    40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                                )
+                        )
+                            BREAK;
+
                         UPDATE acta.runtimes
                         SET
                             status_code = 10 /* JobStatusCode.Ready */,
@@ -9704,7 +9719,7 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.6-d5e124bf6e409341d6d561ba7ac620a5', 'acta'
+SELECT -1, 'objects-1.6-dd5099cd0d651c0b363bd75f98bdadd9', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
     WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'jobs_view', 'schedules_view', 'steps_view', 'workers_view', 'events_view', 'tags_view', 'acknowledge_job_alert', 'raise_job_alert', 'resolve_job_alert_manual', 'resolve_job_alerts', 'update_alert_delivery', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_executions_batch', 'complete_step', 'register_job_definitions', 'set_job_definition_overrides', 'cancel_job', 'enqueue_batch', 'enqueue_one', 'pause_job', 'purge_job', 'reprioritize_job', 'reschedule_job', 'reset_job_state', 'restart_job', 'resume_job', 'update_job_input', 'resume_namespace', 'suspend_namespace', 'update_namespace', 'record_job_note', 'reclaim_stuck_jobs', 'repair_recovery_slot', 'pause_schedule', 'register_scheduled_jobs', 'resume_schedule', 'set_schedule_overrides', 'trigger_schedule_now', 'set_setting', 'consume_outbox_signal', 'park_outbox_signal', 'raise_signal', 'record_outbox_event', 'wait_signal', 'start_execution', 'start_step', 'register_tenant', 'resume_tenant', 'suspend_tenant', 'update_tenant', 'arm_or_consume_sleep_timer', 'extend_worker_leases', 'mark_dead_workers', 'start_worker', 'stop_worker', 'purge_expired_data', 'apply_tags', 'acquire_lock', 'acquire_slot', 'extend_lock', 'release_lock', 'reserve_rate')) = 68;
 GO

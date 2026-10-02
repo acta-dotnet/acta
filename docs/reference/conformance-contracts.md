@@ -1533,6 +1533,7 @@
   - Pausing the running member hands the lane to an older restarted job at once
   - A running member its handler pauses hands the lane to an older restarted job
   - Pausing a head with only younger members behind it keeps them Blocked
+  - A batch settle that reaches a lane through a row it did not settle leaves a restarted member Blocked while another runs
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.RestartJobAsync`
 

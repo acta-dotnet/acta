@@ -205,6 +205,21 @@ BEGIN
                         IF @head_status IS NULL OR @head_status <> 15 /* JobStatusCode.Blocked */
                             BREAK;
 
+                        -- The batch reaches lanes through rows it did not settle, and a restarted member can wait
+                        -- Blocked below a running one, so promote only while no member runs.
+                        IF EXISTS (
+                            SELECT 1
+                            FROM {{schema}}.runtimes o WITH (INDEX (ix_runtimes_lane), FORCESEEK)
+                            WHERE
+                                o.lane_id = @lane_next
+                                AND o.lane_id IS NOT NULL
+                                AND o.status_code IN (
+                                    10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                                    40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                                )
+                        )
+                            BREAK;
+
                         UPDATE {{schema}}.runtimes
                         SET
                             status_code = 10 /* JobStatusCode.Ready */,

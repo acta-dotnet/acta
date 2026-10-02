@@ -241,6 +241,39 @@ public abstract class LaneRestartSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
         Assert.Equal(JobStatusCode.Blocked, (await ReadJobAsync(follower.JobId, ct)).Status);
     }
 
+    [Fact(
+        DisplayName = "A batch settle that reaches a lane through a row it did not settle leaves a restarted member Blocked while another runs"
+    )]
+    public async Task A_batch_settle_never_promotes_past_a_running_member()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        if (Services.GetRequiredService<ISqlDialect>().Provider == DbProvider.Sqlite)
+        {
+            Assert.Skip("CompleteExecutionsBatch is not supported on SQLite (Bulk degrades to Direct there).");
+        }
+        var done = await Jobs.EnqueueAsync(Step("orders", "a"), ct);
+        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(TestNamespace, done.JobId, ct));
+        var (older, running) = await RestartedBehindAsync("orders", Step("orders", "c"), ct);
+
+        // A late batch carrying a stale row for the finished member, as a buffered flush that lands after
+        // its attempt was settled elsewhere: it settles nothing, yet it reaches the lane.
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var worker = Assert.IsType<JobWorker>(await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct));
+        var stale = new CompleteExecutionRequest(
+            JobId: done.JobId,
+            WorkerId: worker.Id,
+            ExpectedExecutionNumber: 999,
+            Outcome: ExecutionOutcome.Succeeded,
+            ResultFormatId: 0,
+            Result: ReadOnlyMemory<byte>.Empty
+        );
+        var results = await Services.GetRequiredService<IExecutionStore>().CompleteExecutionsBatchAsync([stale], ct);
+
+        Assert.False(Assert.Single(results).Finalized);
+        Assert.Equal(JobStatusCode.Blocked, (await ReadJobAsync(older.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(running.JobId, ct)).Status);
+    }
+
     // An older job fails in the lane, the given head becomes the lane's running member, and the older job
     // is restarted Blocked behind it.
     private async Task<(JobEnqueueOutcome Older, JobEnqueueOutcome Head)> RestartedBehindAsync(

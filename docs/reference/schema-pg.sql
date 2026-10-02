@@ -2587,6 +2587,20 @@ BEGIN
 
             EXIT WHEN v_head_status IS DISTINCT FROM 15 /* JobStatusCode.Blocked */;
 
+            -- The batch reaches lanes through rows it did not settle, and a restarted member can wait Blocked
+            -- below a running one, so promote only while no member runs.
+            EXIT WHEN EXISTS (
+                SELECT 1
+                FROM acta.runtimes o
+                WHERE
+                    o.lane_id = v_lane_id
+                    AND o.lane_id IS NOT NULL
+                    AND o.status_code IN (
+                        10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                        40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                    )
+            );
+
             UPDATE acta.runtimes pr
             SET
                 status_code = 10 /* JobStatusCode.Ready */,
@@ -8641,7 +8655,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.6-fe5ba6108901adeca0fe078ce12b6c62', 'acta');
+VALUES (-1, 'objects-1.6-6a38ebab2891fc96c87503d4cf945878', 'acta');
 
 COMMIT;
 
