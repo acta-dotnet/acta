@@ -66,8 +66,8 @@ public static class ShippingHandlers
 
 `dotnet run`, watch the job complete, open the dashboard. Rules this sample carries:
 
-- `[Job("ship-order")]` is required and kebab-case: `[a-z][a-z0-9-]*` segments only, no dots, no
-  underscores, at most 128 chars. The `sys.` prefix is reserved for Acta's own jobs. The name is
+- `[Job("ship-order")]` is required and kebab-case, `[a-z][a-z0-9]*(-[a-z0-9]+)*`: no dots, no
+  underscores, no doubled or trailing dash, at most 128 chars. The `sys.` prefix is reserved for Acta's own jobs. The name is
   the durable operator-facing contract in SQL, the dashboard, the CLI, and alerts.
 - `ShippingJobs` is the source-generated manifest, named from the LAST segment of the project's
   `RootNamespace` plus `Jobs` (`Users` → `UsersJobs`; a segment already ending in `Jobs` gets
@@ -96,6 +96,9 @@ public static class ShippingHandlers
   one. A worker hands back a job whose handler it lacks and stops claiming that definition;
   registration never retires a definition the new build omits, so a rollback just works. Retiring
   a dropped definition and cancelling its queue is an operator action on the definition.
+- Schedules follow the last build that registered, so an old worker starting mid-rollout can leave a
+  schedule the new build added Orphaned until a new worker starts, and orphaning drops a schedule
+  pause. To hold a recurring job across a rollback, pause the job, not the schedule.
 
 ## Steps
 
@@ -107,8 +110,10 @@ returns its recorded result instead of running the body. Two honest halves of th
   stable key derived from the job, never from the attempt.
 - Only step-wrapped work is skipped. Bare handler code between steps re-runs on every entry.
 
-A failing step retries on its own backoff without charging the job's retry budget, and a step that
-exhausts its budget fails the job. For side effects where a duplicate is worse than an ambiguous
+A failing step retries on its own backoff without charging the job's retry budget. A step that
+exhausts its budget stays exhausted: every later attempt throws `StepExhaustedException` for it without
+running the body, so left uncaught it fails every retry at once and, in a recurring job, every fire.
+Catch it where the job can go on without the step; an operator restart gives the step a fresh budget. For side effects where a duplicate is worse than an ambiguous
 interruption (a payment capture), `AtMostOnce()` runs the body zero-or-one times and hands the
 handler an explicit interrupted state to reconcile.
 
@@ -154,7 +159,7 @@ and `record-response` re-sends with the same key, which is the at-least-once con
 
 | Instead of | Do | Because |
 | --- | --- | --- |
-| static/instance fields for progress | `SetVariableAsync` / `GetVariableAsync` | fields die with the process; variables are rows |
+| static/instance fields for progress | `SetVariableAsync` / `GetVariableOrDefaultAsync` | fields die with the process; variables are rows |
 | `Task.Delay` or `Thread.Sleep` | `await ctx.SleepAsync("cool-down", delay, ct: ct)` | delays hold a worker; durable sleep frees it and survives deploys |
 | calling an API directly in the body | `await ctx.RunStepAsync("charge", ct => ...)` | a step records its outcome, so a retry does not repeat recorded work |
 | `catch { }` around the body | let it throw, or `await ctx.FailAsync(reason)` | swallowing turns a retryable failure into a silent success |

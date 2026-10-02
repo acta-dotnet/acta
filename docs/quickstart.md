@@ -72,10 +72,12 @@ holds the row. Open the dashboard URL: the Jobs count reads 1, and the Jobs scre
 
 The same program runs on the generic host without the dashboard: `dotnet new console`, swap
 `Acta.AspNetCore` for `Microsoft.Extensions.Hosting` (Acta itself depends only on
-`Hosting.Abstractions`), replace the builder lines with
+`Hosting.Abstractions`), and in `Program.cs` replace `using Acta.AspNetCore;` with
+`using Microsoft.Extensions.DependencyInjection;` and `using Microsoft.Extensions.Hosting;` (a console
+project's implicit usings cover neither), replace the builder lines with
 `var builder = Host.CreateApplicationBuilder(args);` and `using var host = builder.Build();`, drop
-the `MapActa` line and the `using Acta.AspNetCore;` that served it, and start `host` instead of
-`app`. Everything durable — the rows, the retries, the CLI — is identical; only the dashboard
+the `MapActa` line, start `host` instead of `app`, and print just `Enqueued.`, since a generic host
+has no URL to show. Everything durable — the rows, the retries, the CLI — is identical; only the dashboard
 needs a web host.
 
 ## Or explore the repository

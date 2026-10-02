@@ -20,7 +20,8 @@ turning its strongest examples into a hands-on durable-systems course.
 
 ## Run a rung
 
-No rung needs a database server:
+Most rungs need no database server (`705-worker-crash-recovery` needs PostgreSQL or SQL Server, and
+`903-redis-wakeup` needs Redis):
 
 ```bash
 dotnet run --project concepts/000-fundamentals/001-hello-acta
@@ -69,28 +70,28 @@ Notable labels:
 | --- | --- |
 | Dashboard | [`022-dashboard`](../../concepts/000-fundamentals/022-dashboard/), [`410-http-api-controls`](../../concepts/400-observability-and-alerts/410-http-api-controls/) |
 | Testing | [`801-testing-jobs`](../../concepts/800-testing/801-testing-jobs/), [`802-testing-durable-jobs`](../../concepts/800-testing/802-testing-durable-jobs/) |
-| Requires Docker/Redis | [`903-redis-wakeup`](../../concepts/900-runtime-and-tuning/903-redis-wakeup/) |
+| Requires Docker | [`705-worker-crash-recovery`](../../concepts/700-topology-and-deployment/705-worker-crash-recovery/) (PostgreSQL or SQL Server), [`903-redis-wakeup`](../../concepts/900-runtime-and-tuning/903-redis-wakeup/) (Redis) |
 | Long-running | [`101-recurring-job`](../../concepts/100-scheduling/101-recurring-job/), [`102-interval-schedule`](../../concepts/100-scheduling/102-interval-schedule/), [`903-redis-wakeup`](../../concepts/900-runtime-and-tuning/903-redis-wakeup/), [`904-worker-tuning`](../../concepts/900-runtime-and-tuning/904-worker-tuning/) |
 | Engineering Lab | [`021-jobs-cli`](../../concepts/000-fundamentals/021-jobs-cli/), [`022-dashboard`](../../concepts/000-fundamentals/022-dashboard/), [`103-multiple-schedules`](../../concepts/100-scheduling/103-multiple-schedules/), [`106-schedule-misfire`](../../concepts/100-scheduling/106-schedule-misfire/), [`201-durable-checkout`](../../concepts/200-durable-execution/201-durable-checkout/), [`202-durable-step`](../../concepts/200-durable-execution/202-durable-step/), [`204-wait-signal`](../../concepts/200-durable-execution/204-wait-signal/), [`205-durable-sleep`](../../concepts/200-durable-execution/205-durable-sleep/), [`209-concurrency-key`](../../concepts/200-durable-execution/209-concurrency-key/), [`211-child-jobs`](../../concepts/200-durable-execution/211-child-jobs/), [`220-at-most-once-step`](../../concepts/200-durable-execution/220-at-most-once-step/), [`310-operator-restart`](../../concepts/300-failure-and-recovery/310-operator-restart/), [`412-tenant-scope`](../../concepts/400-observability-and-alerts/412-tenant-scope/), [`501-payload-formats`](../../concepts/500-payloads/501-payload-formats/), [`705-worker-crash-recovery`](../../concepts/700-topology-and-deployment/705-worker-crash-recovery/) |
 | Production capstone | [`706-api-worker-split`](../../demos/ApiWorkerSplit/) |
 
 ### Point at a different database or provider
 
-Every helper-backed rung is provider-agnostic: the provider switch lives in
-`support/Acta.LocalHost/Acta.LocalHost.csproj`. Flip one env var and re-run it on SQLite, Postgres, or SQL
+Every helper-backed rung is provider-agnostic: the provider switch is `UseLocalDatabase` in
+`support/Acta.LocalHost/LocalDatabase.cs`. Flip one env var and re-run it on SQLite, Postgres, or SQL
 Server. The full provider/connection/docker-compose setup is documented once in
 [`CONTRIBUTING.md`](../../CONTRIBUTING.md); the short form is:
 
 ```bash
-export ACTA_LOCAL_PROVIDER=sqlserver          # or: postgres, sqlite
-export ConnectionStrings__acta='Host=...;Database=acta-dev;Username=...'
+export ACTA_LOCAL_PROVIDER=postgres           # or: sqlserver, sqlite
+export ConnectionStrings__acta='Host=127.0.0.1;Database=acta-dev;Username=...'
 ```
 
 PowerShell, since most of these run on Windows:
 
 ```powershell
-$env:ACTA_LOCAL_PROVIDER = 'sqlserver'        # or: postgres, sqlite
-$env:ConnectionStrings__acta = 'Host=...;Database=acta-dev;Username=...'
+$env:ACTA_LOCAL_PROVIDER = 'postgres'         # or: sqlserver, sqlite
+$env:ConnectionStrings__acta = 'Host=127.0.0.1;Database=acta-dev;Username=...'
 ```
 
 ## The ladder

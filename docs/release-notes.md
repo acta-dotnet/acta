@@ -249,6 +249,9 @@ three evidence harnesses join the release checklist.
   the endpoint does not take, so every save answered 400.
 - The dashboard's acknowledge and resolve notes reach the server. The shared control mutation
   overwrote them with an empty reason, so every note was lost, the required resolve reason included.
+- The definitions list and the override form read "Concurrency per key", and an unset limit reads
+  "none". "Unlimited" hid that a job enqueued with a key still runs one at a time, and invited an
+  override that widened every key's exclusion.
 
 ### Rate limits
 

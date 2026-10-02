@@ -9,7 +9,7 @@ Two tiers, depending on what you are doing:
 | Goal | You need |
 |---|---|
 | Run concepts, demos, and Anvil on SQLite | The .NET 10 SDK pinned in `global.json`. Nothing else. (The embedded dashboard UI additionally needs Node.js 20.19+ or 22.12+ at build time; everything else runs without it.) |
-| Full contributor checks (providers, dashboard, PR-ready) | Also Docker (Postgres, SQL Server, Redis containers) and Node.js 20.19+ or 22.12+ with npm (dashboard build and tests). |
+| Full contributor checks (providers, dashboard, PR-ready) | Also Docker (Postgres, SQL Server, Redis containers) and Node.js with npm: 20.19+ or 22.12+ builds the dashboard, and its tests need 22.13+ (CI uses 22). |
 
 Environment sanity check at any point: `dotnet run --project tools/Acta.Doctor`. Setup failures are
 tabled in [`docs/guide/troubleshooting.md`](./docs/guide/troubleshooting.md#local-environment-setup-fails).
@@ -39,7 +39,7 @@ Bash:
 docker compose up -d --wait                # Postgres, SQL Server, Redis on 127.0.0.1
 export ACTA_LOCAL_PROVIDER=postgres        # or sqlserver; without this, concepts stay on SQLite
 export ACTA_TEST_PG="Host=localhost;Port=5432;Database=acta-dev;Username=postgres;Password=AbitMOREsecure_PASSWORD"
-export ACTA_TEST_MSSQL="Server=localhost,1433;Initial Catalog=acta-dev;User=sa;Password=AbitMOREsecure_PASSWORD;TrustServerCertificate=true"
+export ACTA_TEST_MSSQL="Server=127.0.0.1,1433;Initial Catalog=acta-dev;User=sa;Password=AbitMOREsecure_PASSWORD;TrustServerCertificate=true"
 dotnet run --project concepts/000-fundamentals/002-job-input
 ```
 
@@ -49,7 +49,7 @@ PowerShell:
 docker compose up -d --wait
 $env:ACTA_LOCAL_PROVIDER = "postgres"      # or sqlserver; without this, concepts stay on SQLite
 $env:ACTA_TEST_PG = "Host=localhost;Port=5432;Database=acta-dev;Username=postgres;Password=AbitMOREsecure_PASSWORD"
-$env:ACTA_TEST_MSSQL = "Server=localhost,1433;Initial Catalog=acta-dev;User=sa;Password=AbitMOREsecure_PASSWORD;TrustServerCertificate=true"
+$env:ACTA_TEST_MSSQL = "Server=127.0.0.1,1433;Initial Catalog=acta-dev;User=sa;Password=AbitMOREsecure_PASSWORD;TrustServerCertificate=true"
 dotnet run --project concepts/000-fundamentals/002-job-input
 ```
 
@@ -70,7 +70,7 @@ Docker notes (all optional):
 | `ACTA_TEST_REDIS` | Redis wakeup concept and tests | Redis endpoint |
 | `ACTA_LOCAL_PROVIDER` | concepts, demos | provider selector; SQLite default, `postgres` or `sqlserver` to opt in |
 
-Maintainer / CI variables: `ACTA_EMIT_DOCS` (regenerate conformance contract docs), `ACTA_AOT_PUBLISH_TEST`, `ASPNETCORE_ENVIRONMENT`.
+Maintainer / CI variables: `ACTA_EMIT_DOCS` (regenerate conformance contract docs), `ACTA_EMIT_API` (regenerate the public API baseline), `ACTA_EMIT_OPENAPI` (regenerate `docs/reference/openapi.json`), `ACTA_AOT_PUBLISH_TEST`, `ASPNETCORE_ENVIRONMENT`. Compose binds SQL Server to IPv4 loopback only, so connection strings name `127.0.0.1`, not `localhost` (`.env.example` has the full set).
 
 ## Database lifecycle: create, migrate, reset, destroy
 
@@ -97,17 +97,11 @@ from your IDE's test runner, or with the xunit v3 in-process runner:
 whitelist (`acta-test`), so `acta-dev` can never be reset by it. Run it when accumulated
 append-only rows get unwieldy or after a destructive schema change.
 
-**Namespace id budget (Postgres / SQL Server).** `namespaces.id` is a `smallint` IDENTITY/sequence
-column on both server providers, and the shared `acta_test` schema is append-only: ids are never
-reclaimed between runs, so every full-solution `dotnet test Acta.slnx` run spends a suite-sized
-slice of the sequence until it reaches its ceiling, at which point both providers fail every
-conformance spec at once with a `nextval` / `IDENTITY` overflow that has nothing to do with
-whatever you were actually testing. The measured per-run cost and the warning arithmetic live in
-one place, `tests/Acta.Tests.Conformance/Testing/NamespaceIdBudget.cs`, so they are not restated
-here. The per-process bootstrap (`PgIntegrationSchema.BootstrapAsync`,
-`SqlServerIntegrationSchema.BootstrapAsync`) fails fast with an actionable message while several
-runs of headroom remain, well ahead of that wall. When it does, drop the whole `acta-test`
-database - not just the schema, since
+**Namespace id budget (Postgres / SQL Server).** `namespaces.id` is an `int` IDENTITY/sequence column,
+and the shared `acta_test` schema is append-only, so ids are never reclaimed between runs. At 32 bits
+the suite never spends them on its own; `tests/Acta.Tests.Conformance/Testing/NamespaceIdBudget.cs`
+keeps a guard that fails the bootstrap when the space is nearly gone, and if it fires, suspect an
+allocator defect first. To reset, drop the whole `acta-test` database - not just the schema, since
 `EnsureDatabaseAndApplyAsync` recreates the database and reapplies the schema on the next run -
 and never `acta-dev`:
 
@@ -132,10 +126,11 @@ database.
 
 ## Test matrix
 
-SQLite-only smoke (no Docker; provider tests skip when `ACTA_TEST_PG` / `ACTA_TEST_MSSQL` are unset):
+The fast unit gate and the SQLite conformance leg (no Docker):
 
 ```bash
 dotnet test tests/Acta.Tests/Acta.Tests.csproj
+dotnet test tests/Acta.Tests.Conformance.Sqlite
 ```
 
 Full suite, CI-equivalent (needs the containers healthy; `tests/Acta.runsettings` supplies the `ACTA_TEST_*` values, which is why CI exports none):
@@ -160,7 +155,8 @@ npm run build            # emits the hashed assets the .NET build embeds
 npm run size             # holds the bundle to its budget; CI runs this after the build
 ```
 
-`npm run test:smoke` runs the Playwright smoke against a live host. The .NET build runs the npm
+`npm run test:smoke` runs the Playwright smoke against a Vite dev server it starts itself, with the API
+mocked; run `npx playwright install chromium` once first. The .NET build runs the npm
 build automatically; pass `-p:ActaDashboardSkipNpm=true` to skip it when you have not touched the
 dashboard. Restart any running host after `npm run build` to pick up new assets.
 
@@ -185,7 +181,10 @@ The full workflow is in [`docs/internals/migrations.md`](./docs/internals/migrat
 
 ## Before opening a PR
 
-The canonical sequence (CI runs the same steps):
+The canonical sequence (CI runs these, plus the markdown link check `bash tools/check-md-links.sh`, the
+Playwright smoke, and the package and doc-sample smokes `tests/PackageSmoke/run.ps1` and
+`tests/DocSamples/run.ps1`, which compile the README, llms.txt, and quickstart samples against the
+packed packages):
 
 ```bash
 dotnet tool restore
@@ -209,10 +208,10 @@ written beside it; see the `[concepts/**/*.cs]` and `[demos/**/*.cs]` blocks for
 `[SuppressMessage]` attribute to production code — the ruling belongs where the next reader will look for
 it, not at the site.
 
-Three trees are exempt on purpose. `concepts/`, `tests/PackageSmoke/` and `tests/DeploymentSmoke/` carry
-their own `Directory.Build.props` that does not chain to the root: concepts are executable documentation
-whose shape is dictated by what they teach, and the two smoke consumers exist to build the way a real
-external consumer would, untouched by this repository's build conventions. Holding any of them to the
+Four trees are exempt on purpose. `concepts/`, `tests/PackageSmoke/`, `tests/DeploymentSmoke/`, and
+`tests/DocSamples/` carry their own `Directory.Build.props` that does not chain to the root: concepts are
+executable documentation whose shape is dictated by what they teach, and the three smoke consumers exist
+to build the way a real external consumer would, untouched by this repository's build conventions. Holding any of them to the
 repo's analyzer tier would defeat the reason it exists.
 
 ## SQL style
@@ -298,20 +297,21 @@ dotnet run --project anvil/Anvil                                        # loopba
 dotnet run --project anvil/Anvil.Bench -- quick --db pg                 # short comparable benchmark capture
 ```
 
-Anvil defaults to SQLite for a quick dashboard look. Anvil.Bench asks for the target database in the interactive menu, or accepts `quick|full --db sqlite|pg|mssql|all` for scripted runs. Prefer PostgreSQL or SQL Server when you want server-database throughput numbers; SQLite is still useful for zero-setup local checks.
+Anvil defaults to SQLite for a quick dashboard look. Anvil.Bench asks for the target database in the interactive menu, or accepts `quick|release|full --db sqlite|pg|mssql|all [--scenario <name>]... [--seed-history <n>]` for scripted runs. Prefer PostgreSQL or SQL Server when you want server-database throughput numbers; SQLite is still useful for zero-setup local checks.
 
 ## Repository layout
 
 ```text
 docs/       hand-written guides + generated references (index: docs/README.md)
-src/        production packages, source generators, emit tooling
+src/        production packages and source generators
 tests/      unit, dashboard, conformance, and provider-specific tests
 concepts/   runnable single-concept tutorial rungs (one idea each)
 demos/      larger multi-project apps (production shapes); consume the published Acta packages,
             so they are not in Acta.slnx and build independently of src/
-anvil/      Acta Anvil (interactive proof/dashboard harness) and Anvil.Bench (benchmark/load rig)
+anvil/      Acta Anvil (interactive proof/dashboard harness), Anvil.Bench (benchmark/load rig), Anvil.Burst
 support/    local-hosting helpers shared by concepts, demos, and Anvil (not shipped)
-tools/      Acta.Emit CLI (generated docs and initial SQL migrations), Acta.Doctor (environment preflight + concept smoke)
+tools/      Acta.Emit CLI (generated docs, SQL migrations, object packages), Acta.Doctor (environment preflight + concept smoke),
+            release-guard.ps1, coverage.ps1, sql-compare.ps1, check-md-links.sh, site-check.mjs
 ```
 
 ## Reading the source
@@ -329,7 +329,7 @@ The shortest paths to the design-review-worthy parts:
 | Public-API design | `src/Acta/Jobs/IJobs.cs`, domain interfaces, query records (+ XML docs) |
 | Durable execution model | [`docs/guide/concepts.md`](./docs/guide/concepts.md), [`docs/guide/handler-contract.md`](./docs/guide/handler-contract.md) |
 | Persistence architecture | `src/Acta.Runtime/Modules/*/I*Store.cs`, `src/Acta.Relational`, `src/Acta.{Postgres,SqlServer,Sqlite}/Sql/` |
-| Provider conformance | `tests/Acta.Tests` (specs), [`docs/reference/conformance-contracts.md`](./docs/reference/conformance-contracts.md) |
+| Provider conformance | `tests/Acta.Tests.Conformance` (specs), run through `tests/Acta.Tests.Conformance.{Postgres,SqlServer,Sqlite}`, [`docs/reference/conformance-contracts.md`](./docs/reference/conformance-contracts.md) |
 | Source generators | `src/Acta.Generators` |
 | Dashboard / API | `src/Acta.AspNetCore` (`MapActa(...)`) |
 | CI, packaging, smoke checks | `.github/workflows/ci.yml`, `tests/PackageSmoke/` |

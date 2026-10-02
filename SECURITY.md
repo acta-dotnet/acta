@@ -2,8 +2,8 @@
 
 ## Supported versions
 
-Only the **latest published version** receives fixes; there are no backports to earlier versions,
-and nothing before 1.0.0 is supported.
+Only the **latest published version** receives fixes; there are no backports to earlier versions.
+Until 1.0.0 ships, that is the latest release candidate; from 1.0.0 on, nothing earlier is supported.
 
 | Version | Supported |
 |---|---|
@@ -34,15 +34,17 @@ vulnerability, you will get the reasoning rather than silence.
 
 Things that are in scope:
 
-- Anything that lets one tenant's or namespace's work be read, claimed, or altered through another.
+- Anything that lets the engine itself read, claim, or alter one namespace's or tenant's work through
+  another's (tenant identity scopes data; it does not authorize callers, see below).
 - SQL injection or parameter-binding escapes in any provider.
 - Privilege escalation through the operator HTTP API or dashboard controls.
 - A durable-state corruption reachable from ordinary API use.
 
 Things that are **not** vulnerabilities, because they are documented design boundaries:
 
-- **The dashboard and API ship without authentication.** They are local-only by default and fail
-  closed when exposed remotely without an authorizer; the host owns authentication and
+- **The dashboard and API ship without authentication.** They are local-only by default (a loopback peer
+  that names the host as `localhost` or an IP address) and fail closed when exposed remotely without
+  host authorization through `ConfigureEndpoints` or the explicit unsafe opt-in; the host owns authentication and
   authorization. Exposing them publicly without configuring that is a deployment choice, not a flaw.
   See `docs/guide/operator-guide.md`.
 - **Execution is at-least-once.** A handler can run more than once, so external side effects need

@@ -85,7 +85,7 @@ namespace and registered once. One worker runtime owns one namespace, and the ho
 also executes, so there is no separate worker process to deploy unless you want one. Swap
 `UseSqlite` for `UsePostgres` or `UseSqlServer` and nothing else changes. No web host? The same
 program runs on `Host.CreateApplicationBuilder` without the dashboard —
-[`docs/quickstart.md`](./docs/quickstart.md) shows both.
+[`docs/quickstart.md`](./docs/quickstart.md) says what to change.
 
 Full walkthrough: [`docs/quickstart.md`](./docs/quickstart.md). Deeper docs start at [`docs/README.md`](./docs/README.md).
 
@@ -147,6 +147,7 @@ More shapes (backlogs, stuck jobs, worker liveness, pending alerts) in [`docs/gu
 
 - Fire-and-forget, delayed, and recurring jobs; durable retries with typed backoff.
 - Named run-once steps, durable sleeps, signals into suspended jobs, child jobs with fan-out / fan-in, result retrieval, and job lineage.
+- Lanes that run one job at a time in enqueue order, concurrency keys and limits, and rate limits that hold across the whole fleet.
 - An append-only SQL event ledger, and transactional enqueue that joins a caller-owned `DbTransaction` (plus an external outbox for atomic handoff from a different database, which an EF Core application joins through its provider transaction).
 - A test host that drives the real runtime one deterministic tick at a time: no sleeps, no polling, real-database tests in tens of milliseconds.
 - A control CLI in every host, including `jobs debug` to claim any persisted job and step through its handler under a breakpoint.
@@ -168,7 +169,7 @@ Start with the guides in [`docs/`](./docs/README.md): choosing Acta, quickstart,
 
 ## Status
 
-- The migration history is frozen: schema changes ship only as additive `Mnnn` migrations, and the baseline (`M001`) is never re-cut. Bootstrap refuses to run on a database whose baseline stamp differs from the one this build ships, so a database an earlier release candidate provisioned needs one reprovision on the way in rather than a silent mismatch.
+- From 1.0.0 the migration history is frozen: schema changes ship only as additive `Mnnn` migrations, and the baseline (`M001`) is never re-cut. Until then a release candidate may re-cut it, and rc.4 does. Bootstrap refuses to run on a database whose baseline stamp differs from the one this build ships, so a database an earlier release candidate provisioned needs one reprovision on the way in rather than a silent mismatch.
 - Acta ships no login system. The dashboard and HTTP API are local-only by default, and control verbs are disabled by default: see [`docs/guide/operator-guide.md`](./docs/guide/operator-guide.md#security-and-exposure) before exposing anything.
 - Known limitations are tracked in [`docs/technical/known-limitations.md`](./docs/technical/known-limitations.md).
 - The supported .NET target, provider tiers, packages, and patch policy are stated in [`docs/support.md`](./docs/support.md).
