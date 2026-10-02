@@ -43,7 +43,8 @@ Do not use it to represent “run the 2026-06-01 occurrence.” A trigger-now ex
 period identity unless the job input or application data supplies one.
 
 The dashboard confirmation records an optional note. Triggering is rejected when the schedule or its
-recurring job is paused, the schedule is missing/orphaned, or its slot already has a firing in flight.
+recurring job is paused, the recurring job is cancelled or failed, the schedule is missing/orphaned,
+or its slot already has a firing in flight.
 
 ## Catch-up and misfire
 
@@ -58,10 +59,13 @@ already in the past?
 still produce one catch-up execution. The handler can inspect its current data and the triggering
 schedule names, but it does not receive ten synthetic occurrence rows.
 
-MisfireStrategy reconciliation occurs when schedules are registered/reloaded and when a paused schedule is
-resumed. A timed pause uses the same policy when it expires. An occurrence less than a minute overdue is
-not missed: it is due, and a running worker is about to claim it, so a worker that starts in that
-minute leaves it due under either policy.
+MisfireStrategy reconciliation occurs when a worker starts and registers its schedules, and when a
+paused schedule is resumed. At a worker start, an occurrence less than a minute overdue is not missed:
+it is due, and a running worker is about to claim it, so the start leaves it due under either policy.
+A start also leaves alone a slot whose occurrence is under way, running or parked on a wait, sleep,
+retry, or bounce: it keeps its status, wake instant, and due cursors. It reconciles under the
+operator's override when one is in force. A resume gets no such grace: under `Skip`, an occurrence
+that came due while the schedule was paused is skipped, however recent.
 
 ## Backfill
 

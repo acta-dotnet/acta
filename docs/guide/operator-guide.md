@@ -24,7 +24,8 @@ For a visual map of the job lifecycle, maintenance flow, and operator surfaces, 
 
 ## Status quick reference
 
-Live statuses: `Ready = 10`, `Suspended = 20`, `Paused = 30`, `Dispatched = 40`, `Executing = 50`.
+Live statuses: `Ready = 10`, `Blocked = 15` (a laned job waiting behind its lane's head), `Suspended = 20`,
+`Paused = 30`, `Dispatched = 40`, `Executing = 50`.
 Terminal statuses follow the band rule: `100` is success (`Succeeded`), `200+` is unsuccessful
 (`Failed = 200`, `Cancelled = 220`). The reason for a transition lives on `events`, not on the
 runtime row.
@@ -166,7 +167,7 @@ JobLookup job = JobRef.Parse("job_2n1t201rmv87aae5j4csam8000");
 await jobs.CancelAsync(job, "superseded by order-9");  // cascades to non-terminal descendants
 await jobs.PauseAsync(job);                             // hold a not-yet-running job
 await jobs.ResumeAsync(job);                            // Paused -> Ready (recurring-aware)
-await jobs.RestartAsync(job);                           // resets failure budget + retention, runs now
+await jobs.RestartAsync(job);                           // resets failure budget + retention and Exhausted steps, runs now
 await jobs.RaiseSignalAsync(job, "approval", payload);  // releases a Suspended WaitSignalAsync
 await jobs.RescheduleAsync(job, inTwoHours);             // move a waiting job's next run (re-arms Ready)
 await jobs.ReprioritizeAsync(job, JobPriorityCode.High); // change claim priority in place
@@ -174,9 +175,9 @@ await jobs.PurgeAsync(job);                              // hard-delete a termin
 ```
 
 Cancel of a parent cancels the whole non-terminal subtree (descendants carry reason
-`parent-cancelled`). Restart leaves a terminal row's history intact and re-arms the same id; there
-is never a replacement row. Reschedule applies to Paused/Suspended/Ready rows and re-arms them
-Ready; purge refuses a non-terminal job, a job that has child jobs, and a child whose parent is not
+`job.parent-cancelled`). Restart leaves a terminal row's history intact and re-arms the same id; there
+is never a replacement row. Reschedule applies to Paused/Suspended/Ready/Blocked rows and re-arms them
+Ready, or Blocked behind their lane; purge refuses a non-terminal job, a job that has child jobs, and a child whose parent is not
 terminal (finish or cancel the tree, then purge the leaves first).
 Every verb returns Applied / Rejected / NotFound rather than throwing on an illegal transition.
 
@@ -196,9 +197,9 @@ var nightly = new ScheduleLookup(
     JobLookup.ByDeduplicationKey("billing", "reconcile-ledger"),
     "nightly");
 
-await operations.Schedules.TriggerNowAsync(nightly, note: "validate repaired upstream");
-await operations.Schedules.PauseAsync(nightly, untilUtc: maintenanceEndsUtc, note: "maintenance");
-await operations.Schedules.ResumeAsync(nightly, note: "maintenance complete");
+await operations.Schedules.TriggerNowAsync(nightly, reasonMessage: "validate repaired upstream");
+await operations.Schedules.PauseAsync(nightly, untilUtc: maintenanceEndsUtc, reasonMessage: "maintenance");
+await operations.Schedules.ResumeAsync(nightly, reasonMessage: "maintenance complete");
 ```
 
 Trigger now, misfire catch-up, normal cursor movement, and historical backfill are deliberately
@@ -212,27 +213,27 @@ Read from the provider routines, not from intent. Every verb answers one of thre
 since you read it), and nothing is written. All four carry the same `JobControlResponse` body, so a
 client reads `action`, the resulting `status`, and the row's `version` without special-casing the code.
 
-`R` Ready · `S` Suspended · `P` Paused · `D` Dispatched · `X` Executing · `✓` Succeeded · `F` Failed ·
-`C` Cancelled. **A** applied, **409** rejected.
+`R` Ready · `B` Blocked · `S` Suspended · `P` Paused · `D` Dispatched · `X` Executing · `✓` Succeeded ·
+`F` Failed · `C` Cancelled. **A** applied, **409** rejected.
 
-| Verb | R | S | P | D | X | ✓ | F | C | Result on applied |
-|---|---|---|---|---|---|---|---|---|---|
-| `pause` | A | A | A | 409 | 409 | 409 | 409 | 409 | Paused |
-| `resume` | 409 | 409 | A | 409 | 409 | 409 | 409 | 409 | Ready |
-| `restart` | A | A | A | A | 409 | A | A | A | Ready, failure budget and retention reset |
-| `cancel` | A | A | A | A | A | 409 | 409 | 409 | Cancelled, cascading to non-terminal descendants |
-| `purge` | 409 | 409 | 409 | 409 | 409 | A | A | A | Row hard-deleted, `job.purged` event kept |
-| `reschedule` | A | A | A | 409 | 409 | 409 | 409 | 409 | Ready at the new instant |
-| `reprioritize` | A | A | A | A | A | 409 | 409 | 409 | Priority changed, status untouched |
-| `input` (amend) | A | A | A | 409 | 409 | A | A | A | Input replaced, format round-tripped |
-| `signal` | A | A | A | A | A | 409 | 409 | 409 | Slot set; a Suspended job waiting on that name goes Ready |
+| Verb | R | B | S | P | D | X | ✓ | F | C | Result on applied |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `pause` | A | A | A | A | 409 | 409 | 409 | 409 | 409 | Paused |
+| `resume` | 409 | 409 | 409 | A | 409 | 409 | 409 | 409 | 409 | Ready, or Blocked behind its lane |
+| `restart` | A | A | A | A | A | 409 | A | A | A | Ready, or Blocked behind its lane; failure budget, retention, and Exhausted steps reset |
+| `cancel` | A | A | A | A | A | A | 409 | 409 | 409 | Cancelled, cascading to non-terminal descendants |
+| `purge` | 409 | 409 | 409 | 409 | 409 | 409 | A | A | A | Row hard-deleted, `job.purged` event kept |
+| `reschedule` | A | A | A | A | 409 | 409 | 409 | 409 | 409 | Ready at the new instant, or Blocked behind its lane |
+| `reprioritize` | A | A | A | A | A | A | 409 | 409 | 409 | Priority changed, status untouched |
+| `input` (amend) | A | A | A | A | 409 | 409 | A | A | A | Input replaced, format round-tripped |
+| `signal` | A | A | A | A | A | A | 409 | 409 | 409 | Slot set; a Suspended job waiting on that name goes Ready |
 
 Repeating a verb is a no-op only where the table says so. **`pause` is idempotent** (Paused stays
 Paused, applied). **`resume` is not**: it accepts only Paused, so resuming an already-running job is
 a 409 rather than a silent success. That asymmetry is deliberate - pausing twice expresses the same
 intent, resuming something that was never paused does not.
 
-Three rules the table cannot show:
+Five rules the table cannot show:
 
 - **`purge` also rejects a job that has children**, whatever its status. `parent_id` carries no
   database cascade, so purging a parent would leave a child pointing at a row that no longer exists.
@@ -247,6 +248,9 @@ Three rules the table cannot show:
   failed job, then `restart` it. Only Dispatched and Executing reject, because those are the two
   states where a worker may already have read the payload. A job that stored no input has nothing to
   amend and answers `409` from the endpoint before the routine is reached.
+- **`restart` and `resume` have two more refusals.** A finished laned job is not restarted while an
+  unfinished ancestor or descendant sits in its lane, and a recurring job whose schedules offer no
+  run is neither resumed nor restarted. A recurring job restarts at its next scheduled run, not now.
 
 ## Tenant and namespace administration
 
@@ -269,22 +273,27 @@ Suspend/resume are idempotent (already-in-state succeeds as a no-op, reported as
 version-CAS guarded, a stale `version` returns a conflict with the current row state instead of writing.
 Tenant metadata is `displayName` + `description`; namespace metadata is `ownerTeam` + `description`
 (namespaces have no display name). Null clears a field. The seeded `sys` namespace cannot be suspended or
-edited. Every applied transition is audited on the events timeline in the 15xx admin band
+edited. Every applied transition is audited on the events timeline in the admin band
 (`tenant.suspended` 10 through `namespace.updated` 22); tenant events land on the seeded
 `sys` namespace, namespace events on the namespace itself.
 
+A tenant is registered with `ITenants.RegisterAsync(tenantKey, displayName, description)` or
+`POST /tenants`; an enqueue that names an unregistered tenant is refused.
+
 Over HTTP the same verbs are control-gated (`EnableControls` + confirmation header):
-`POST /tenants/{key}/suspend|resume`, `PATCH /tenants/{key}`, `POST /namespaces/{name}/suspend|resume`,
+`POST /tenants`, `POST /tenants/{key}/suspend|resume`, `PATCH /tenants/{key}`, `POST /namespaces/{name}/suspend|resume`,
 `PATCH /namespaces/{name}`. Reads are ungated: `GET /tenants` pages the catalog and
 `GET /tenants/{key}` is the point read (`ITenants.GetAsync` in code).
 
 An enqueue that trips a tenant or namespace guard throws a typed `EnqueueRejectedException` whose
 `Reason` is machine-readable: `NamespaceSuspended`, `TenantSuspended`, `TenantUnknown`,
 `TenantRequired` / `TenantForbidden` (the definition's `TenantRequirement` policy), and
-`TenantMismatch` (a child named a different tenant than its parent without the explicit override).
-Guard-wrapped HTTP handlers map it to 409 with the reason in the ProblemDetails. Other enqueue
-failures (unknown namespace/job, retired definition, missing parent) still surface as raw provider
-errors. The same guards apply when the external outbox relays a record: a record that trips one
+`TenantMismatch` (a child named a different tenant than its parent without the explicit override),
+`RouteUnknown` (no definition by that namespace and name), `DefinitionRetired`, `AncestorLane` (a child
+in the lane of an unfinished ancestor), and `LaneIsolation` (a laned enqueue inside a caller
+transaction whose isolation reads a snapshot older than the lane lock). Guard-wrapped HTTP handlers
+map it to 409 with the reason in the ProblemDetails. A missing or terminal parent still surfaces as a
+raw provider error. The same guards apply when the external outbox relays a record: a record that trips one
 (for example a Required definition staged without a tenant) lands in the outbox failure path
 instead of enqueuing.
 
@@ -306,8 +315,8 @@ Call `j.DisableCli()` on the builder to opt out.
 <app> jobs pause   <job-ref|deduplication-key|id> [--reason <msg>]
 <app> jobs resume  <job-ref|deduplication-key|id> [--reason <msg>]
 <app> jobs restart <job-ref|deduplication-key|id> [--reason <msg>]
-<app> jobs signal  <job-ref|deduplication-key|id> <name>
-<app> jobs debug   <job-ref|deduplication-key|id>
+<app> jobs signal  <job-ref|deduplication-key|id> <name> [--value <json>]
+<app> jobs debug   <job-ref|deduplication-key|id> [--break]
 ```
 
 A `job_...` target resolves as a job ref, any other non-numeric target as an deduplication key, and a
@@ -407,6 +416,9 @@ in this process through the normal durable pipeline. Set a breakpoint in the han
 session, including during breakpoint stops. A live worker can still steal the job between the reset
 and the claim; in that case the CLI reports the job was not claimable and exits 1. The exit code
 reflects the handler outcome: a thrown handler exits 1 even when the retry budget re-arms the job.
+A Dispatched or Executing job is refused. A laned job that restarts behind a running member is
+reported Blocked and exits 0 without running. `--break` raises the debugger at the handler seam
+instead of relying on a breakpoint; `jobs signal --value <json>` raises the signal with a payload.
 
 Exit codes:
 
@@ -454,7 +466,7 @@ ids never become a second default identity. The dashboard's jump box accepts the
 a `job_...` ref, an deduplication key, or `id:123` / `#123`; the control POSTs stay ref-only.
 
 The API can also map the job-control verbs as POST endpoints (`/jobs/{jobRef}/pause`, `resume`,
-`restart`, `cancel`, `reschedule`, `reprioritize`, `purge`), thin wrappers over the `IJobs` verbs above: the framework still stamps actor
+`restart`, `cancel`, `reschedule`, `reprioritize`, `purge`, and `input` for the amend), thin wrappers over the `IJobs` verbs above: the framework still stamps actor
 and reason code. The non-purge verbs accept an optional `reasonMessage`; purge retains no caller reason because it removes the job's
 event history. The outcome maps to 200
 (applied), 409 (rejected), or 404 (not found) — and that shape is the whole API's rule, not this
@@ -473,7 +485,7 @@ screen surfaces all seven actions with state-aware availability and confirmation
 changes. Explain links directly to the applicable signal/control/timeline action and shows the
 durable evidence behind its recommendation. The dashboard also exposes schedule
 pause/resume/trigger/preview/overrides, alert acknowledge/resolve, and tenant/namespace
-administration when controls are enabled. The CLI below intentionally has a smaller verb set.
+administration when controls are enabled. The CLI above intentionally has a smaller verb set.
 
 Signals are also raisable over HTTP at `POST /jobs/{jobRef}/signals/{name}`, the inbound counterpart
 to `IJobs.RaiseSignalAsync`. Signals are operator control: the endpoint is mapped only when
@@ -485,7 +497,7 @@ rejects forged internal names: the `sys.`-prefixed internal names (such as the `
 child-latch names) are rejected as reserved, and their dotted shape is not valid kebab either. The outcome
 maps to 200, 409 (terminal job), or 404.
 
-A read-side `GET /capabilities` reports `{ controlsEnabled, version, provider, confirmationHeader }`
+A read-side `GET /capabilities` reports `{ controlsEnabled, version, provider, schema, confirmationHeader }`
 so dashboards can show or hide edit UI without probing a control route; it is always mapped and
 never gated.
 
@@ -655,7 +667,7 @@ worker's `last_seen_at_utc` first; recovery is automatic once the lease lapses.
 
 Acta ships no login system; the dashboard and JSON API are local-only by default (`LocalOnly = true`, non-loopback requests get 403). Exposing the surface remotely means setting `LocalOnly = false` and wiring host authorization through `ConfigureEndpoints`, as in the `MapActa` example above. Beyond that:
 
-- `LocalOnly` checks the TCP peer address, not the original client: behind a reverse proxy or gateway on the same host, the peer is the proxy's loopback address, so the check passes for every forwarded request. Behind a proxy, do not rely on `LocalOnly`: gate on real authorization through `ConfigureEndpoints`, and configure `ForwardedHeaders` if the host needs the true client IP.
+- `LocalOnly` checks the TCP peer address and the host the request names (`localhost`, a `.localhost` name, or an IP address), not the original client: behind a reverse proxy or gateway on the same host, the peer is the proxy's loopback address, so the check passes for every forwarded request that keeps a local host name. Behind a proxy, do not rely on `LocalOnly`: gate on real authorization through `ConfigureEndpoints`, and configure `ForwardedHeaders` if the host needs the true client IP.
 - The `X-Acta-Control: true` header on control POSTs is an anti-accident guard, not auth; enable controls (`EnableControls = true`) only behind authorization.
 - Keep secrets and PII out of job input, result, and tags; store large or sensitive blobs externally and enqueue a reference (URI plus checksum and size). Payloads are readable in full by anyone authorized for the read surface (see the dashboard section above), so this is the data-classification boundary: there is no per-payload redaction or disclosure gate to fall back on.
 - Every host doubles as its own control CLI (`<app> jobs info|pause|resume|restart|cancel|debug`); use `j.DisableCli()` only if the host owns its own command line.
@@ -665,8 +677,8 @@ Acta ships no login system; the dashboard and JSON API are local-only by default
 Use this for staging and production workloads.
 
 Version and schema:
-- The migration history is frozen: schema changes ship as additive `Mnnn` migrations, the baseline is never re-cut, and bootstrap refuses to start on a baseline mismatch rather than applying it. A database provisioned before rc.3 is dropped and reprovisioned once; an rc.3 database upgrades in place with the provisioning script. Keep `ApplyMigrationsOnStartup = false` outside dev and apply migration SQL from a deploy step.
-- Run `dotnet run --project tools/Acta.Emit -- check` in CI. Pin Acta versions across a namespace. Set `DeploymentVersion` to a build id; set `JobsOptions.ManifestGenerationUtc` only when deterministic definition promotion matters for your packaging/deploy shape.
+- The migration history is frozen: schema changes ship as additive `Mnnn` migrations, the baseline is never re-cut, and bootstrap refuses to start on a baseline mismatch rather than applying it. Every release-candidate database, rc.3 included, is dropped and reprovisioned once for 1.0; from 1.0 on the provisioning script upgrades in place. Keep `ApplyMigrationsOnStartup = false` outside dev and apply migration SQL from a deploy step.
+- Pin Acta versions across a namespace. Set `DeploymentVersion` to a build id; set `JobsOptions.ManifestGenerationUtc` only when deterministic definition promotion matters for your packaging/deploy shape.
 
 Provider and database:
 - SQL Server or Postgres for distributed multi-worker; SQLite for embedded single-node. Choose the schema name before installing. Size the connection pool for executors, claim loops, dashboard reads, and alerts. Keep the database clock healthy (`AllowClockSkew = true` bypasses the startup skew check). SQL polling is the correctness baseline; Redis wakeup only lowers pickup latency.

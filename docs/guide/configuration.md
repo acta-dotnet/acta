@@ -192,6 +192,12 @@ concurrency limit, and schedule policy are per-definition contract values from `
 Use `JobsOptions` for deployment behavior and worker/runtime tuning. Use attributes for job
 contract behavior that must travel with the job definition.
 
+An operator overrides a definition's policy without a deploy through
+`IActaOperations.Definitions.UpdateOverridesAsync(namespace, name, expectedVersion, overrides, ...)`,
+`PATCH /definitions/{jobNamespace}/{jobName}`, or the dashboard's definition page. The write carries
+the whole override set: a null field clears that override, and the definition's `version` guards
+against a concurrent edit. Workers pick the new values up on their next policy reload.
+
 The framework retry defaults (`MaxAttempts = 15`, backoff `"1m..1d x2 ~10%"`) mean a persistently
 failing job keeps retrying for roughly 4.4 days before it lands terminal Failed: the
 delay doubles from one minute up to a one-a-day ceiling, so a dependency that breaks on a Friday

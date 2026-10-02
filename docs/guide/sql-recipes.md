@@ -21,10 +21,11 @@ less common codes.
 Acta enforces DB foreign keys in exactly two shapes:
 
 - CASCADE from `jobs` to its transactional substrate children (runtimes, checkpoints, results,
-  steps, tags, schedules): these rows' physical lifetime is owned by the job row.
+  steps, schedules): these rows' physical lifetime is owned by the job row. Tags carry no foreign
+  key; purge and retention delete a job's tags with it.
 - RESTRICT (no action) from transactional tables to dimension rows (schedules → definitions;
-  workers → namespaces): dimensions have no delete surface, and any future hard-delete design must
-  confront referencing rows explicitly. The `jobs` dimension FKs (jobs → namespaces / tenants /
+  workers → namespaces; runtimes → lanes): definitions and namespaces have no delete surface, and
+  retention deletes a lane only once no job references it. The `jobs` dimension FKs (jobs → namespaces / tenants /
   definitions) were cut by the 2026-07-11 bench gate after they regressed enqueue-batch, so those
   references are write-time validated and conformance-tested instead.
 
@@ -179,7 +180,7 @@ job's attempt budget until its own step budget is exhausted.
 ## Recurring Schedules
 
 ```sql
-SELECT namespace, job_name, schedule_name, status, source, expression_effective, time_zone_id_effective, next_run_at_utc, paused_until_utc, description
+SELECT namespace, job_name, schedule_name, status, origin, expression_effective, time_zone_id_effective, next_run_at_utc, paused_until_utc, description
   FROM acta.schedules_view
  ORDER BY namespace, next_run_at_utc NULLS LAST, schedule_name;
 ```
@@ -206,7 +207,9 @@ SELECT namespace, worker_id, host, status, deployment_version, max_concurrency, 
  ORDER BY last_seen_at_utc DESC;
 ```
 
-`sys.recovery` marks workers Dead when `last_seen_at_utc` falls past `JobsOptions.WorkerDeadAfter`.
+`sys.recovery` marks Active and Draining workers Dead when `last_seen_at_utc` falls past
+`JobsOptions.WorkerDeadAfter`. A Dead worker that heartbeats again, after a database outage for
+example, turns Active again.
 
 ## Pending Or Failed Alert Delivery
 
@@ -231,8 +234,10 @@ SELECT namespace, status, COUNT(*) AS jobs_to_purge, MIN(retention_until_utc) AS
  ORDER BY jobs_to_purge DESC;
 ```
 
-`sys.retention` deletes expired terminal jobs and cascading substrate rows. A stopped recurring job
-whose definition is live stays, so it shows here until the definition is retired. Event and alert
+`sys.retention` deletes expired terminal jobs and cascading substrate rows. Three kinds stay and still
+count here: a stopped recurring job whose definition is live (until the definition is retired), a job
+that still has children (the tree drains from the leaves), and a completed child whose parent is not
+terminal. Event and alert
 retention have their own windows in `JobsOptions`.
 
 ## Tags

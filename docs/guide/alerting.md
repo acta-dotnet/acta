@@ -111,7 +111,8 @@ Everything else is invisible to alerting. Two exclusions are worth stating outri
   "next retry would exceed the deadline" paths (`JobExecution.RunAsync`) — all land the job
   `Cancelled`, and the alertable set has no `Cancelled` branch.
 - **Not every re-arm alerts.** A budget-neutral re-arm carrying `job.concurrency-key-held` (62),
-  `job.rate-limited` (66), `job.step-retry-scheduled` (61), or `job.attempt-aborted` (25) falls
+  `job.rate-limited` (66), `job.step-retry-scheduled` (61), `job.attempt-aborted` (25), or
+  `job.unclassified` (10, an admission that failed on a provider error) falls
   outside the three reason codes above, so the attempt ends without producing an alert even though it
   did not succeed (`JobEventReasonCode.JobConcurrencyKeyHeld`, `JobEventReasonCode.JobRateLimited`,
   `JobEventReasonCode.JobStepRetryScheduled`, `JobEventReasonCode.JobAttemptAborted`).
@@ -190,12 +191,12 @@ of its own.
 ## Resolution
 
 A successful execution resolves that job's open automatic alerts and writes nothing
-(`AlertsJob.ProjectAsync`, `ResolveJobAlerts.sql`). It is:
+(`AlertsJob.ProjectAsync`, `ResolveJobAlerts.routine.sql`). It is:
 
 - **Job-instance-scoped** — `job_id` and `origin = Automatic`, kinds `FirstFailure` /
-  `ThresholdReached` / `FinalFailure`, and only rows still unresolved (`ResolveJobAlerts.sql`).
+  `ThresholdReached` / `FinalFailure`, and only rows still unresolved (`ResolveJobAlerts.routine.sql`).
 - **Ordered.** Resolution applies only to alerts whose `last_projected_event_id` precedes the success
-  event (`ResolveJobAlerts.sql`), so a replayed success cannot close an alert that a later failure
+  event (`ResolveJobAlerts.routine.sql`), so a replayed success cannot close an alert that a later failure
   opened.
 - **Idempotent, and run on every success.** Within one batch a job can go fail → success → fail →
   success, where the second failure opens a fresh incident on the same key (the first is already
@@ -295,7 +296,7 @@ channel's kind, and decides in this fixed order (`AlertChannelDecision.Decide`):
 
 A transport that throws is treated as retryable and logged at Warning, never propagated
 (`AlertsJob.SendAsync`). Settlement (`AlertsJob.SettleAsync`) writes a compare-and-swap against the
-`version` the row carried at selection (`UpdateAlertDelivery.sql`): a row that moved in the
+`version` the row carried at selection (`UpdateAlertDelivery.routine.sql`): a row that moved in the
 meantime — an operator resolved it, or a competing worker already settled the same attempt — matches
 no version, and the write is skipped with a Debug log line rather than retried, because the newer state
 is the one that should stand (`AlertsJob.WriteSettlementAsync`).
@@ -517,7 +518,7 @@ from a `None` job naming an unconfigured channel is not caught until it fails de
 | `EventCode.cs` | `src/Acta/Events/EventCode.cs` |
 | `BackoffSchedule.cs` | `src/Acta.Runtime/Kernel/BackoffSchedule.cs` |
 | `WorkerBuilder.cs` | `src/Acta.Runtime/Hosting/WorkerBuilder.cs` |
-| `*.sql` | `src/Acta.Postgres/Sql/{Alerting,Maintenance}/` (SQL Server and SQLite carry dialect twins) |
+| `*.sql`, `*.routine.sql` | `src/Acta.Postgres/Sql/{Alerting,Execution,Maintenance}/` (SQL Server and SQLite carry dialect twins; SQLite has plain `.sql` where the servers install routines) |
 
 Runnable examples: `concepts/400-observability-and-alerts/402-alerts` (manual alert),
 `403-alert-channel` (a declared channel with a severity floor), `405-real-alert-routing` (Slack

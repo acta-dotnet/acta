@@ -61,7 +61,8 @@ Durable work:
 
 Start with `acta.jobs_view` so names and status values are decoded:
 
-- `status`: only `ready` jobs are claimable.
+- `status`: only `ready` jobs are claimable. A `blocked` job waits behind the earlier unfinished job in
+  its `lane` and goes `ready` when that one settles.
 - `next_run_at_utc`: delayed, slept, rescheduled, and recurring jobs may be ready but not due yet.
 - `namespace`: workers only claim inside their own namespace.
 - `job_name`: the worker must have registered the matching definition in that namespace.
@@ -112,6 +113,10 @@ control endpoint.
 Schedules have their own control surface through `operations.Schedules`; pausing a schedule is distinct
 from pausing the job itself.
 
+A recurring job whose schedules are all paused, exhausted, or removed by a deploy is Paused with no next
+run. A job resume answers 409 until a schedule offers a run, and the job goes back to Ready by itself
+once one does. See [Schedule operations](./schedule-operations.md).
+
 ## A Job Keeps Retrying Or Failed
 
 Read the event timeline. Job status tells you where the row landed; `events` explains why it
@@ -136,6 +141,8 @@ Check the signal name and target identity:
 - Signal names are kebab-case and scoped to one job.
 - A terminal job rejects new signals.
 - A paused job records the signal but stays paused.
+- A raise that arrives after a bounded wait timed out releases nothing; its event reads "Signal not
+  applied: the wait had already expired."
 - HTTP signal endpoints require controls to be enabled and the same `X-Acta-Control` confirmation
   header as other control requests. The header is an anti-accident guard, not authentication.
 
@@ -153,8 +160,9 @@ If a producer staged an `acta_outbox` row and no Acta job appeared, check the re
 - Connectivity and table-shape problems fail inside `sys.outbox` and raise a `SysCritical` alert rather
   than blocking unrelated jobs. Check `acta.alerts_view` and the `sys.outbox` event timeline.
 - A row the relay could not deliver is quarantined in place (`status_code = 90`) and excluded from claims.
-  Inspect, requeue, or delete it with the
-  [quarantine SQL recipes](./sql-recipes.md#quarantined-outbox-rows). Recoverable rejections (for example
+  Requeue or discard it through `IActaOperations.Outbox`, `POST /outbox/{jobNamespace}/requeue` or
+  `/discard`, or the dashboard's outbox panel; the
+  [quarantine SQL recipes](./sql-recipes.md#quarantined-outbox-rows) are the unaudited fallback. Recoverable rejections (for example
   an unknown route) quarantine after the failure threshold; malformed or oversize rows quarantine at once.
 - Resolve the resulting job by `(namespace, deduplication key)` with `IJobs.GetJobIdAsync`; a null
   result means the request has not been relayed yet, not that it was lost.
@@ -181,7 +189,9 @@ explicitly. See [Transactional enqueue and the external outbox](./transactional-
 ## The Dashboard Or API Is Not Reachable Remotely
 
 `MapActa(...)` and `MapActaApi(...)` are local-only by default. Remote clients receive 403 until the
-host sets `LocalOnly = false` and adds ASP.NET Core authorization through `ConfigureEndpoints`.
+host sets `LocalOnly = false` and adds ASP.NET Core authorization through `ConfigureEndpoints`. A
+browser on the same machine also gets 403 when it names the machine rather than `localhost` or an IP
+address: local-only accepts only those host names.
 
 Mutating controls are also disabled by default. Enable them explicitly with `EnableControls = true`
 and keep authorization on the mapped endpoint group.
@@ -244,7 +254,7 @@ Do not edit generated files by hand. Change source and regenerate:
 
 ```bash
 dotnet run --project tools/Acta.Emit -- check
-dotnet run --project tools/Acta.Emit -- docs          # if docs 97/98 drifted
+dotnet run --project tools/Acta.Emit -- docs          # if the reference docs (data model, code families, schema scripts) drifted
 dotnet run --project tools/Acta.Emit -- schema add    # if the model changed without a migration
 ```
 
