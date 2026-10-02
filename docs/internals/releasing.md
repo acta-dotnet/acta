@@ -202,6 +202,9 @@ Each line names the evidence that asserts it; none is checked by hand.
   "(unreleased)" says that forever — `v1.0.0-rc.1` ships with exactly that wart, and the GitHub
   release links straight to it.
 - The stability statement in known limitations still matches the release.
+- Install commands (README, `docs/quickstart.md`, `llms.txt` and its `site/` copy, the site pages) carry
+  `--prerelease` while nuget.org holds no stable Acta: without it `dotnet add package` refuses. Drop it
+  in the 1.0.0 release commit.
 
 ## After publishing
 

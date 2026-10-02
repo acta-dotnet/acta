@@ -9,8 +9,8 @@ Three commands from an empty folder. The only prerequisite is the .NET 10 SDK.
 
 ```bash
 dotnet new web -n Shipping && cd Shipping
-dotnet add package Acta.Sqlite
-dotnet add package Acta.AspNetCore
+dotnet add package Acta.Sqlite --prerelease
+dotnet add package Acta.AspNetCore --prerelease
 ```
 
 A single provider package reference delivers everything: the runtime, the `[Job]` source generator,

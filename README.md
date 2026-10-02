@@ -31,8 +31,8 @@ In your own app, from an empty folder. The only prerequisite is the [.NET 10 SDK
 
 ```bash
 dotnet new web -n Shipping && cd Shipping
-dotnet add package Acta.Sqlite
-dotnet add package Acta.AspNetCore
+dotnet add package Acta.Sqlite --prerelease
+dotnet add package Acta.AspNetCore --prerelease
 ```
 
 Replace `Program.cs` with this, all of it:
