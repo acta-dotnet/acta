@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
 [![Website](https://img.shields.io/badge/website-useacta.net-2fd6a8.svg)](https://useacta.net/)
 
-> **1.0.0-rc.4.** The last release candidate before 1.0.0, on the 1.0 baseline. From 1.0.0 the public API, the schema, and the persisted codes are frozen: schema changes ship only as additive migrations, and the persisted vocabulary never changes. Bring a real workload; the evidence behind the tag is in the repository.
+> **1.0.0-rc.4.** A release candidate on the 1.0 baseline. rc.5 comes next, a reorganisation of the source, and 1.0.0 after it. From 1.0.0 the public API, the schema, and the persisted codes are frozen: schema changes ship only as additive migrations, and the persisted vocabulary never changes. Bring a real workload; the evidence behind the tag is in the repository.
 
 Acta records jobs, retries, schedules, checkpoints, events, workers, and operator controls in your database. It gives .NET teams one standard substrate for app-owned background work: simple enough for scheduled jobs, durable enough for retries and recovery, and visible because every state transition is ordinary SQL state you can inspect with `SELECT`.
 

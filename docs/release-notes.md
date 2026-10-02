@@ -2,8 +2,8 @@
 
 ## 1.0.0-rc.4 (unreleased)
 
-The last release candidate before 1.0.0, which follows on the same code unless this candidate turns
-up a defect that needs a schema or public-API change. It carries the 1.0 baseline. From 1.0.0 the
+A release candidate on the 1.0 baseline. rc.5 comes next, a reorganisation of the source so it can be
+maintained by hand again, and 1.0.0 after it. From 1.0.0 the
 public API, the schema, and the persisted codes are frozen: schema changes ship only as additive
 migrations, the baseline is never re-cut, and the release guard refuses a diff that would. The data
 model is the rc.3 model with four counters widened to 32-bit integers and one new feature, lanes, so

@@ -1,8 +1,39 @@
-# Ideas for after 1.0
+# Ideas
 
-These are possible directions for Acta after `1.0.0`, not promises for a roadmap. The aim is to add
-useful things around Acta's durable-work model without slowly turning it into a message bus, a hosted
-control plane, or a BPMN product.
+The first section is the plan for rc.5, before `1.0.0`. The rest are possible directions for Acta
+after `1.0.0`, not promises for a roadmap. The aim is to add useful things around Acta's durable-work
+model without slowly turning it into a message bus, a hosted control plane, or a BPMN product.
+
+## rc.5: make the source maintainable by hand again
+
+Heavy AI-assisted development over the last months did two things to the project. First, every idea
+I want for 1.0 is finally in. Second, the state of maintenance is horrible: nobody can tell where to
+look without an LLM to search for them, and I hate that. So 1.0 is postponed. rc.4 ships as it is,
+and rc.5 is the next release, a major reorganisation of `src/` that brings the simplicity back. I will
+move a lot of code around, reorganise the folders, and remove a lot of duplication.
+
+Structure:
+
+- Operations go back to my original idea: much more cohesive, each one complete in one place.
+- All operations live under one common root folder, listed there directly or under at most one level of grouping folders.
+- Each operation's SQL scripts move back next to the operation, so all of its scripts are nearby. The providers keep only their `Schema` folder.
+- Probably every remaining file in the provider projects moves to the project root.
+- `Acta.Runtime` and `Acta.Relational` merge: I will not pursue a non-relational Acta at all.
+- The seams between operations and the runtime are redefined, so the source can be maintained by hand again.
+- `Acta.Redis` moves its files to the project root too.
+- SQLite targets the newest version the bundled driver ships and uses its features freely, with no legacy compatibility (for example `STRICT` tables and `jsonb`).
+- `AUTOINCREMENT` on the SQLite tables costs a `sqlite_sequence` write per insert but guarantees an id is never reused after a purge; decide whether ids may be reused before dropping it.
+- Once objects sit at the root, folders go away, and we may find we don't need all the classes.
+
+Duplication and conventions:
+
+- AI produces a lot of duplication. We need conventions, and they must be enforced.
+- Today there are DTOs, items, raws, and entities, and a lot of the copying between them is redundant.
+- APIs are redundant, and the services are to be broken up.
+- Each operation gets its own request and response class, and an interface only when many operations share it (job control can be one).
+- The outbox scripts named `*Row.sql` and `*Rows.sql` (`ClaimDueRows.sql`, `QuarantineRow.sql`, and the rest) are renamed.
+- The scenarios code in `Acta.Testing` is deleted.
+- All dead code is deleted.
 
 ## Declarative flows and checkpoint replay
 

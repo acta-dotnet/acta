@@ -6,8 +6,8 @@ Known boundaries to review before using Acta in production-like environments.
 
 ## Stability status
 
-Acta is at 1.0.0-rc.4, which carries the 1.0 baseline; 1.0.0 follows on the same code unless this
-candidate needs a schema or public-API change. From 1.0.0 the public API, schema, and persisted codes
+Acta is at 1.0.0-rc.4, which carries the 1.0 baseline; rc.5, a reorganisation of the source, comes
+before 1.0.0. From 1.0.0 the public API, schema, and persisted codes
 are frozen, and the migration history with them: schema changes ship only as additive `Mnnn`
 migrations, and the baseline (`M001`) is never re-cut, so a database provisioned by a 1.x build
 upgrades by migration alone. A database an earlier release candidate provisioned needs one
