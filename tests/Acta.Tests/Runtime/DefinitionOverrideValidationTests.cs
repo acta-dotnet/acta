@@ -45,8 +45,8 @@ public sealed class DefinitionOverrideValidationTests
                 "invoice",
                 expectedVersion: 1,
                 overrides,
-                actorKey: "tester",
                 reasonMessage: null,
+                actorKey: "tester",
                 TestContext.Current.CancellationToken
             )
             .AsTask();

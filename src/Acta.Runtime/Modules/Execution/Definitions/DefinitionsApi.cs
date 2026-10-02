@@ -11,19 +11,19 @@ internal sealed class DefinitionsApi(DefinitionsService definitions) : IDefiniti
         string jobName,
         int expectedVersion,
         JobDefinitionPolicyOverrides overrides,
-        string? actorKey = null,
         string? reasonMessage = null,
+        string? actorKey = null,
         CancellationToken ct = default
-    ) => definitions.UpdateOverridesAsync(jobNamespace, jobName, expectedVersion, overrides, actorKey, reasonMessage, ct);
+    ) => definitions.UpdateOverridesAsync(jobNamespace, jobName, expectedVersion, overrides, reasonMessage, actorKey, ct);
 
     public ValueTask<DefinitionControlResult> RetireAsync(
         string jobNamespace,
         string jobName,
         int expectedVersion,
-        string? actorKey = null,
         string? reasonMessage = null,
+        string? actorKey = null,
         CancellationToken ct = default
-    ) => definitions.RetireAsync(jobNamespace, jobName, expectedVersion, actorKey, reasonMessage, ct);
+    ) => definitions.RetireAsync(jobNamespace, jobName, expectedVersion, reasonMessage, actorKey, ct);
 
     public ValueTask<JobDefinitionDetail?> GetAsync(string jobNamespace, string jobName, CancellationToken ct = default) =>
         definitions.GetAsync(jobNamespace, jobName, ct);

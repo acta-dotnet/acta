@@ -81,8 +81,8 @@ public sealed class DefinitionKeyResolutionTests
             "invoic",
             expectedVersion: 1,
             new JobDefinitionPolicyOverrides(MaxAttempts: 9),
-            actorKey: "tester",
             reasonMessage: "typo",
+            actorKey: "tester",
             TestContext.Current.CancellationToken
         );
 

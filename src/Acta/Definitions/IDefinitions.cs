@@ -12,8 +12,8 @@ public interface IDefinitions
         string jobName,
         int expectedVersion,
         JobDefinitionPolicyOverrides overrides,
-        string? actorKey = null,
         string? reasonMessage = null,
+        string? actorKey = null,
         CancellationToken ct = default
     );
 
@@ -33,8 +33,8 @@ public interface IDefinitions
         string jobNamespace,
         string jobName,
         int expectedVersion,
-        string? actorKey = null,
         string? reasonMessage = null,
+        string? actorKey = null,
         CancellationToken ct = default
     );
 

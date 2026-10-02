@@ -831,8 +831,8 @@ interface Acta.IAlerts
     System.Threading.Tasks.ValueTask<Acta.AlertDetail> GetAsync(Acta.AlertRef alertRef, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.AlertListItem>> ListAsync(Acta.ListAlertsQuery query, System.Threading.CancellationToken ct = default)
 interface Acta.IDefinitions
-    System.Threading.Tasks.ValueTask<Acta.DefinitionControlResult> RetireAsync(System.String jobNamespace, System.String jobName, System.Int32 expectedVersion, System.String actorKey = default, System.String reasonMessage = default, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.DefinitionControlResult> UpdateOverridesAsync(System.String jobNamespace, System.String jobName, System.Int32 expectedVersion, Acta.JobDefinitionPolicyOverrides overrides, System.String actorKey = default, System.String reasonMessage = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.DefinitionControlResult> RetireAsync(System.String jobNamespace, System.String jobName, System.Int32 expectedVersion, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.DefinitionControlResult> UpdateOverridesAsync(System.String jobNamespace, System.String jobName, System.Int32 expectedVersion, Acta.JobDefinitionPolicyOverrides overrides, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.JobDefinitionDetail> GetAsync(System.String jobNamespace, System.String jobName, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.JobDefinitionListItem>> ListAsync(Acta.ListDefinitionsQuery query, System.Threading.CancellationToken ct = default)
 interface Acta.IJobContextAccessor

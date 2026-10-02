@@ -54,8 +54,8 @@ internal static class DefinitionControlEndpoints
                             jobName,
                             body!.ExpectedVersion,
                             body.Overrides ?? new JobDefinitionPolicyOverrides(),
-                            actorKey,
                             body.ReasonMessage,
+                            actorKey,
                             ct
                         );
                         return ToResult(jobNamespace, jobName, result);
@@ -114,8 +114,8 @@ internal static class DefinitionControlEndpoints
                             jobNamespace,
                             jobName,
                             body!.ExpectedVersion,
-                            actorKey,
                             body.ReasonMessage,
+                            actorKey,
                             ct
                         );
                         return ToResult(

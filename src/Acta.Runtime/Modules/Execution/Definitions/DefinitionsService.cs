@@ -140,8 +140,8 @@ internal sealed class DefinitionsService(IDefinitionStore store, WorkerWakeupPub
         string jobName,
         int expectedVersion,
         JobDefinitionPolicyOverrides overrides,
-        string? actorKey,
         string? reasonMessage,
+        string? actorKey,
         CancellationToken ct
     )
     {
@@ -270,8 +270,8 @@ internal sealed class DefinitionsService(IDefinitionStore store, WorkerWakeupPub
         string jobNamespace,
         string jobName,
         int expectedVersion,
-        string? actorKey,
         string? reasonMessage,
+        string? actorKey,
         CancellationToken ct
     )
     {

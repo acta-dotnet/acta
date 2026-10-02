@@ -198,7 +198,7 @@ public abstract class RetireDefinitionSpec<TFixture> : ActaRuntimeTestBase<TFixt
             ct
         );
 
-        var missing = await Operations.Definitions.RetireAsync(TestNamespace, "no-such-job", 0, ActorKey, Reason, ct);
+        var missing = await Operations.Definitions.RetireAsync(TestNamespace, "no-such-job", 0, Reason, ActorKey, ct);
         Assert.Equal(ControlAction.NotFound, missing.Action);
 
         // The service answers NotFound before the store for an unknown name; an id the catalog never
@@ -210,7 +210,7 @@ public abstract class RetireDefinitionSpec<TFixture> : ActaRuntimeTestBase<TFixt
         Assert.Equal(DefinitionOverrideAction.NotFound, unknownId.Action);
         Assert.Empty(unknownId.CancelledJobs);
 
-        var stale = await Operations.Definitions.RetireAsync(TestNamespace, "add-numbers", 9999, ActorKey, Reason, ct);
+        var stale = await Operations.Definitions.RetireAsync(TestNamespace, "add-numbers", 9999, Reason, ActorKey, ct);
         Assert.Equal(ControlAction.Rejected, stale.Action);
 
         // Neither call wrote: the row keeps its status and version, its parked job is still Ready, and
@@ -233,7 +233,7 @@ public abstract class RetireDefinitionSpec<TFixture> : ActaRuntimeTestBase<TFixt
         var definition = await Operations.Definitions.GetAsync(TestNamespace, "job-wait-signal", ct);
         var eventsBefore = await CountDefinitionEventsAsync(definition!.DefinitionId, ct);
 
-        var second = await Operations.Definitions.RetireAsync(TestNamespace, "job-wait-signal", definition.Version, ActorKey, Reason, ct);
+        var second = await Operations.Definitions.RetireAsync(TestNamespace, "job-wait-signal", definition.Version, Reason, ActorKey, ct);
         Assert.Equal(ControlAction.Applied, second.Action);
 
         Assert.Equal(eventsBefore, await CountDefinitionEventsAsync(definition.DefinitionId, ct));
@@ -270,7 +270,7 @@ public abstract class RetireDefinitionSpec<TFixture> : ActaRuntimeTestBase<TFixt
     {
         var definition = await Operations.Definitions.GetAsync(TestNamespace, jobName, ct);
         Assert.NotNull(definition);
-        return await Operations.Definitions.RetireAsync(TestNamespace, jobName, definition!.Version, ActorKey, Reason, ct);
+        return await Operations.Definitions.RetireAsync(TestNamespace, jobName, definition!.Version, Reason, ActorKey, ct);
     }
 
     private async Task<int> CountDefinitionEventsAsync(int definitionId, CancellationToken ct) =>

@@ -52,6 +52,27 @@ public sealed class PublicApiContractTests
         Assert.Equal(File.ReadAllText(path).ReplaceLineEndings("\n"), actual.ReplaceLineEndings("\n"));
     }
 
+    // Both are optional string?s, so a verb that takes them the other way round compiles every
+    // positional call and files the reason as the actor; only one order across the surface is safe.
+    [Fact]
+    public void Every_operator_verb_takes_the_reason_before_the_actor()
+    {
+        var swapped = ShippedAssemblies
+            .Select(file => Assembly.LoadFrom(Path.Combine(AppContext.BaseDirectory, file)))
+            .SelectMany(a => a.GetExportedTypes())
+            .SelectMany(t => t.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly))
+            .Where(m =>
+            {
+                var names = m.GetParameters().Select(p => p.Name).ToList();
+                var reason = names.IndexOf("reasonMessage");
+                return reason >= 0 && names.Contains("actorKey") && names.IndexOf("actorKey") != reason + 1;
+            })
+            .Select(m => $"{m.DeclaringType!.FullName}.{m.Name}")
+            .ToList();
+
+        Assert.Empty(swapped);
+    }
+
     private static string RenderSurface()
     {
         var sb = new StringBuilder();
