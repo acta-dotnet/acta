@@ -2894,12 +2894,13 @@
   - `Acta.Runtime.Modules.Execution.IExecutionStore.StartStepAsync`
 
 ### Step exhausts by retry-window and re-entry replays without body invocation
-- **Contract:** A step exhausts when a retry would exceed its window before MaxAttempts is reached, and re-entering an exhausted slot throws without running the body.
+- **Contract:** A step exhausts when a retry would exceed its window, re-entering the exhausted slot throws without running the body, and a restart runs it afresh.
 - **Arrange:** One always-failing step has MaxAttempts 2 with zero backoff and another has MaxAttempts 100 with a 5s RetryWindow and 30s backoff.
-- **Act:** Each parent runs until its step exhausts and a replayed handler re-enters the exhausted slot.
-- **Assert:** The windowed step exhausts after one failure far below MaxAttempts, and re-entry throws StepExhaustedException without running the body.
+- **Act:** Each parent runs until its step exhausts, a replayed handler re-enters the exhausted slot, and the failed windowed parent is restarted.
+- **Assert:** The windowed step exhausts after one failure far below MaxAttempts, re-entry throws without running the body, and the restart runs it once more.
 - **Guarantees:**
   - Step with large MaxAttempts exhausts after first failure when retry would exceed RetryWindow
+  - Restarting a job whose step exhausted runs the step body again with a fresh budget
   - Re-entering an exhausted step slot throws StepExhaustedException without invoking the body
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteStepAsync`

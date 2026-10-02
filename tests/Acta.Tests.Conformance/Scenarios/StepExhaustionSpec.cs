@@ -110,16 +110,17 @@ public sealed class StepExhaustionManifest : IJobManifest
 
 /// <summary>
 /// Conformance for step exhaustion guarantees beyond attempt-count: window exhaustion fires
-/// before MaxAttempts is reached, and re-entering an exhausted slot throws without running the body.
+/// before MaxAttempts is reached, re-entering an exhausted slot throws without running the body, and an
+/// operator restart gives the slot a fresh budget, so the body runs again.
 /// </summary>
 [ConformanceSpec(
     "step.exhaustion",
     "Step exhausts by retry-window and re-entry replays without body invocation",
     Area = "Steps",
-    Contract = "A step exhausts when a retry would exceed its window before MaxAttempts is reached, and re-entering an exhausted slot throws without running the body.",
+    Contract = "A step exhausts when a retry would exceed its window, re-entering the exhausted slot throws without running the body, and a restart runs it afresh.",
     Arrange = "One always-failing step has MaxAttempts 2 with zero backoff and another has MaxAttempts 100 with a 5s RetryWindow and 30s backoff.",
-    Act = "Each parent runs until its step exhausts and a replayed handler re-enters the exhausted slot.",
-    Assert = "The windowed step exhausts after one failure far below MaxAttempts, and re-entry throws StepExhaustedException without running the body."
+    Act = "Each parent runs until its step exhausts, a replayed handler re-enters the exhausted slot, and the failed windowed parent is restarted.",
+    Assert = "The windowed step exhausts after one failure far below MaxAttempts, re-entry throws without running the body, and the restart runs it once more."
 )]
 [CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.StartStepAsync))]
 [CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.CompleteStepAsync))]
@@ -148,6 +149,24 @@ public abstract class StepExhaustionSpec<TFixture> : ActaRuntimeTestBase<TFixtur
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Failed, job.Status);
+    }
+
+    [Fact(DisplayName = "Restarting a job whose step exhausted runs the step body again with a fresh budget")]
+    public async Task Restart_runs_an_exhausted_step_again()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "step-window-exhaust", JobPayload.None), ct);
+        Assert.Equal(RunOnceOutcome.Failed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(JobStepStatusCode.Exhausted, Assert.Single(await ReadStepsAsync(enqueued.JobId, ct)).Status);
+
+        Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(enqueued, "provider is back", ct: ct)).Action);
+
+        // Without the restart clearing the slot, this replay would throw on re-entry and the count stay at 1.
+        Assert.Equal(RunOnceOutcome.Failed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(2, StepExhaustionProbes.BodyInvocations.GetValueOrDefault(enqueued.JobId));
+        var step = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
+        Assert.Equal(JobStepStatusCode.Exhausted, step.Status);
+        Assert.Equal(1, step.AttemptNumber);
     }
 
     [Fact(DisplayName = "Re-entering an exhausted step slot throws StepExhaustedException without invoking the body")]

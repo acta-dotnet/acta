@@ -73,8 +73,9 @@ public sealed partial class SqlOwnershipTests
     /// <summary>
     /// "{Capability}/{OperationStem}" routines allowed to write outside their owned tables within
     /// their module: the atomic kernel invariants (enqueue tagging, completion advancing schedules
-    /// and latches, schedule registration materializing job slots, state reset, retention purge,
-    /// and the operator retire cancelling the definition's parked runtimes).
+    /// and latches, schedule registration materializing job slots, state reset, restart re-opening
+    /// exhausted steps, retention purge, and the operator retire cancelling the definition's parked
+    /// runtimes).
     /// </summary>
     private static readonly HashSet<string> CrossOwnerRoutines = new(StringComparer.Ordinal)
     {
@@ -85,6 +86,7 @@ public sealed partial class SqlOwnershipTests
         "Jobs/EnqueueBatch",
         "Jobs/PurgeJob",
         "Jobs/ResetJobState",
+        "Jobs/RestartJob",
         "Schedules/PauseSchedule",
         "Schedules/RegisterScheduledJobs",
         "Schedules/ResumeSchedule",

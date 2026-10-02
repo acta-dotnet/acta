@@ -4857,6 +4857,13 @@ BEGIN
         version = r.version + 1
     WHERE r.job_id = p_id;
 
+    -- An exhausted step runs again from a fresh budget and retry window; an interrupted at-most-once
+    -- step stays, since only someone who reconciled its outcome can say it may run again.
+    DELETE FROM acta.steps s
+    WHERE
+        s.job_id = p_id
+        AND s.status_code = 200 /* JobStepStatusCode.Exhausted */;
+
     IF v_audit_level = 20 /* JobAuditLevelCode.Audit */ THEN
         INSERT INTO acta.events (
             event_code,
@@ -8661,7 +8668,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.6-886bb55f8589f6a7681d8a64ce1b8fe1', 'acta');
+VALUES (-1, 'objects-1.6-d6d0122e2d692873f15891bda673bf3e', 'acta');
 
 COMMIT;
 

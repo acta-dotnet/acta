@@ -132,6 +132,15 @@ WHERE
     AND (@p_expected_version IS NULL OR r.version = @p_expected_version)
     AND s.rejected = 0;
 
+-- An exhausted step runs again from a fresh budget and retry window; an interrupted at-most-once
+-- step stays, since only someone who reconciled its outcome can say it may run again.
+DELETE FROM {{schema}}.steps
+WHERE
+    job_id = @p_id
+    AND status_code = 200 /* JobStepStatusCode.Exhausted */
+    AND (SELECT s.rejected FROM temp._restart_job s) = 0
+    AND (@p_expected_version IS NULL OR (SELECT s.from_version FROM temp._restart_job s) = @p_expected_version);
+
 UPDATE {{schema}}.runtimes
 SET
     status_code = (SELECT s.to_status FROM temp._restart_job s),

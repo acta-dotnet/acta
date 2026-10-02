@@ -111,7 +111,9 @@ creates one historical job per missed period. See [Schedule operations](./schedu
 
 Restart re-arms the same job and keeps its input and event history. Succeeded durable steps still do
 not rerun unless state was explicitly reset, but bare handler code and incomplete steps can run
-again. Fix or understand the original cause before confirming restart.
+again, and an exhausted step runs again with a fresh budget. An interrupted at-most-once step still
+throws until the handler reconciles it. Fix or understand the original cause before confirming
+restart.
 
 ## …an operator purges a job?
 

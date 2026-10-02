@@ -9,7 +9,8 @@ namespace Acta;
 /// An ordinary exception, not a framework control signal: left uncaught it propagates out of the
 /// handler and the parent attempt fails under the normal retry/failure rules. A handler may instead
 /// catch it to run compensation and continue. On a parent replay the slot is already <c>Exhausted</c>,
-/// so the next <c>RunStepAsync</c> call for the same name re-throws this immediately.
+/// so the next <c>RunStepAsync</c> call for the same name re-throws this immediately, until an operator
+/// restart gives the step a fresh budget.
 /// </remarks>
 /// <remarks>
 /// Creates the exception for the exhausted step <paramref name="stepName"/> after

@@ -187,6 +187,13 @@ BEGIN
         WHERE job_id = @p_id;
         SET @version = @version + 1;
 
+        -- An exhausted step runs again from a fresh budget and retry window; an interrupted at-most-once
+        -- step stays, since only someone who reconciled its outcome can say it may run again.
+        DELETE FROM {{schema}}.steps
+        WHERE
+            job_id = @p_id
+            AND status_code = 200 /* JobStepStatusCode.Exhausted */;
+
         IF @audit_level = 20 /* JobAuditLevelCode.Audit */
             BEGIN
                 INSERT INTO {{schema}}.events (

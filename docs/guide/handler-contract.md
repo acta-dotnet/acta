@@ -31,6 +31,11 @@ result on Tuesday instead of running again. That is the point of a durable slot,
 recurring handler that must start clean calls `ctx.ResetStateAsync` rather than relying on the next
 fire to clear anything.
 
+A step that spends its retry budget is recorded `Exhausted`, and from then on `RunStepAsync` throws
+`StepExhaustedException` for it without running the body. Left uncaught, that fails every later
+retry of the job at once and, in a recurring job, every later fire; catch it where the job can go on
+without the step. Restarting the job gives an exhausted step a fresh budget, so it runs again.
+
 ### At-most-once steps
 
 For a non-idempotent side effect where a double execution is worse than a skipped one (charge a card, send an email, call an external API with no deduplication key), configure the step `AtMostOnce`:
