@@ -247,7 +247,12 @@ internal sealed class StepOptionsCapturingContext : JobContext
     public override string JobName => "step-host";
     public override CancellationToken CancellationToken => CancellationToken.None;
 
-    private protected override Task RunStepCoreAsync(string name, Func<CancellationToken, Task> body, StepOptions options, CancellationToken ct)
+    private protected override Task RunStepCoreAsync(
+        string name,
+        Func<CancellationToken, Task> body,
+        StepOptions options,
+        CancellationToken ct
+    )
     {
         LastOptions = options;
         return Task.CompletedTask;
@@ -283,8 +288,13 @@ internal sealed class StepOptionsCapturingContext : JobContext
 
     private protected override Task ResetStateCoreAsync(CancellationToken ct) => Unsupported<Task>();
 
-    private protected override Task SleepCoreAsync(string name, TimeSpan? delay, DateTime? resumeAtUtc, string? reason, CancellationToken ct) =>
-        Unsupported<Task>();
+    private protected override Task SleepCoreAsync(
+        string name,
+        TimeSpan? delay,
+        DateTime? resumeAtUtc,
+        string? reason,
+        CancellationToken ct
+    ) => Unsupported<Task>();
 
     private protected override Task<SignalWaitOutcome> WaitSignalCoreAsync(string name, CancellationToken ct) =>
         Unsupported<Task<SignalWaitOutcome>>();
@@ -292,8 +302,11 @@ internal sealed class StepOptionsCapturingContext : JobContext
     private protected override T? DeserializeSignalPayload<T>(byte valueFormatId, byte[] value)
         where T : default => Unsupported<T?>();
 
-    private protected override Task<JobEnqueueOutcome> StartChildCoreAsync<TInput>(TInput input, JobEnqueueOptions options, CancellationToken ct) =>
-        Unsupported<Task<JobEnqueueOutcome>>();
+    private protected override Task<JobEnqueueOutcome> StartChildCoreAsync<TInput>(
+        TInput input,
+        JobEnqueueOptions options,
+        CancellationToken ct
+    ) => Unsupported<Task<JobEnqueueOutcome>>();
 
     private protected override Task<JobEnqueueOutcome> StartChildCoreAsync(JobEnqueueRequest request, CancellationToken ct) =>
         Unsupported<Task<JobEnqueueOutcome>>();
@@ -301,9 +314,11 @@ internal sealed class StepOptionsCapturingContext : JobContext
     private protected override Task<TResult?> GetChildResultCoreAsync<TResult>(long childJobId, CancellationToken ct)
         where TResult : default => Unsupported<Task<TResult?>>();
 
-    private protected override Task<Guid?> AcquireLockCoreAsync(string key, LockScope scope, CancellationToken ct) => Unsupported<Task<Guid?>>();
+    private protected override Task<Guid?> AcquireLockCoreAsync(string key, LockScope scope, CancellationToken ct) =>
+        Unsupported<Task<Guid?>>();
 
-    private protected override Task ReleaseLockCoreAsync(string key, LockScope scope, Guid holdToken, CancellationToken ct) => Unsupported<Task>();
+    private protected override Task ReleaseLockCoreAsync(string key, LockScope scope, Guid holdToken, CancellationToken ct) =>
+        Unsupported<Task>();
 
     private protected override Task WriteNoteCoreAsync<T>(string message, T? detail, CancellationToken ct)
         where T : default => Unsupported<Task>();

@@ -85,7 +85,10 @@ public abstract class ActaRuntimeTestBase<TFixture, TManifest> : ActaTestBase<TF
             var dialect = Services.GetRequiredService<ISqlDialect>();
             await RetryTransientConflictAsync(
                 dialect,
-                () => Db.From<JobSchedule>().Where(s => slots.Contains(s.JobId)).UpdateOnlyAsync(() => new JobSchedule { NextRunAtUtc = parked }, ct),
+                () =>
+                    Db.From<JobSchedule>()
+                        .Where(s => slots.Contains(s.JobId))
+                        .UpdateOnlyAsync(() => new JobSchedule { NextRunAtUtc = parked }, ct),
                 ct
             );
             await RetryTransientConflictAsync(

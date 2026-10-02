@@ -38,8 +38,12 @@ public abstract class ReviveDeadWorkerSpec<TFixture> : ActaRuntimeTestBase<TFixt
         var (ns, revivedId) = await StartWorkerAsync("revived-host", ct);
         var (_, drainingId) = await StartWorkerAsync("revived-draining-host", ct);
         var (_, stoppedId) = await StartWorkerAsync("stopped-host", ct);
-        await Db.From<JobWorker>().Where(w => w.Id == revivedId).UpdateOnlyAsync(() => new JobWorker { Status = WorkerStatusCode.Dead }, ct);
-        await Db.From<JobWorker>().Where(w => w.Id == drainingId).UpdateOnlyAsync(() => new JobWorker { Status = WorkerStatusCode.Dead }, ct);
+        await Db.From<JobWorker>()
+            .Where(w => w.Id == revivedId)
+            .UpdateOnlyAsync(() => new JobWorker { Status = WorkerStatusCode.Dead }, ct);
+        await Db.From<JobWorker>()
+            .Where(w => w.Id == drainingId)
+            .UpdateOnlyAsync(() => new JobWorker { Status = WorkerStatusCode.Dead }, ct);
         await workers.StopWorkerAsync(ns, stoppedId, ct);
 
         await workers.ExtendWorkerLeasesAsync(revivedId, leaseTtl, false, ct);

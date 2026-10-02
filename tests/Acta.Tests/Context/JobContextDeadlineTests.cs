@@ -15,7 +15,8 @@ public class JobContextDeadlineTests
 
         private protected override Task SetProgressCoreAsync<T>(T value, CancellationToken ct) => Task.CompletedTask;
 
-        private protected override Task SetVariableCoreAsync<T>(string name, T value, CancellationToken ct) => throw new NotSupportedException();
+        private protected override Task SetVariableCoreAsync<T>(string name, T value, CancellationToken ct) =>
+            throw new NotSupportedException();
 
         private protected override Task SetVariableCoreAsync(string name, JobPayload payload, CancellationToken ct) =>
             throw new NotSupportedException();
@@ -29,14 +30,21 @@ public class JobContextDeadlineTests
             CancellationToken ct
         ) => throw new NotSupportedException();
 
-        private protected override Task<bool> ExistsVariableCoreAsync(string name, CancellationToken ct) => throw new NotSupportedException();
+        private protected override Task<bool> ExistsVariableCoreAsync(string name, CancellationToken ct) =>
+            throw new NotSupportedException();
 
-        private protected override Task<bool> DeleteVariableCoreAsync(string name, CancellationToken ct) => throw new NotSupportedException();
+        private protected override Task<bool> DeleteVariableCoreAsync(string name, CancellationToken ct) =>
+            throw new NotSupportedException();
 
         private protected override Task ResetStateCoreAsync(CancellationToken ct) => throw new NotSupportedException();
 
-        private protected override Task SleepCoreAsync(string name, TimeSpan? delay, DateTime? resumeAtUtc, string? reason, CancellationToken ct) =>
-            throw new NotSupportedException();
+        private protected override Task SleepCoreAsync(
+            string name,
+            TimeSpan? delay,
+            DateTime? resumeAtUtc,
+            string? reason,
+            CancellationToken ct
+        ) => throw new NotSupportedException();
 
         private protected override Task<SignalWaitOutcome> WaitSignalCoreAsync(string name, CancellationToken ct) =>
             throw new NotSupportedException();

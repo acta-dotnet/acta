@@ -1178,7 +1178,11 @@ public abstract class JobContext
     /// Subclass sink: typed child enqueue through the shared enqueue path. The options carry the
     /// framework-set parent id and deduplication key.
     /// </summary>
-    private protected abstract Task<JobEnqueueOutcome> StartChildCoreAsync<TInput>(TInput input, JobEnqueueOptions options, CancellationToken ct)
+    private protected abstract Task<JobEnqueueOutcome> StartChildCoreAsync<TInput>(
+        TInput input,
+        JobEnqueueOptions options,
+        CancellationToken ct
+    )
         where TInput : notnull;
 
     /// <summary>
@@ -1546,7 +1550,12 @@ public abstract class JobContext
     /// Returns normally on success; throws the framework step-retry signal to re-arm the Job, or
     /// <see cref="StepExhaustedException"/> when the budget is spent.
     /// </summary>
-    private protected abstract Task RunStepCoreAsync(string name, Func<CancellationToken, Task> body, StepOptions options, CancellationToken ct);
+    private protected abstract Task RunStepCoreAsync(
+        string name,
+        Func<CancellationToken, Task> body,
+        StepOptions options,
+        CancellationToken ct
+    );
 
     /// <summary>
     /// Subclass sink: result-returning step orchestration. Returns the (possibly replayed) result;

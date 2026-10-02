@@ -176,7 +176,13 @@ internal sealed class RuntimeJobContext(
 
     private protected override Task ResetStateCoreAsync(CancellationToken ct) => _jobStore.ResetJobStateAsync(JobId, ct);
 
-    private protected override async Task SleepCoreAsync(string name, TimeSpan? delay, DateTime? resumeAtUtc, string? reason, CancellationToken ct)
+    private protected override async Task SleepCoreAsync(
+        string name,
+        TimeSpan? delay,
+        DateTime? resumeAtUtc,
+        string? reason,
+        CancellationToken ct
+    )
     {
         var delaySeconds = delay is { } d ? (int)d.TotalSeconds : (int?)null;
         var decision = await _executionStore.ArmOrConsumeSleepTimerAsync(
@@ -320,7 +326,12 @@ internal sealed class RuntimeJobContext(
     private IJobs Jobs() =>
         _jobs ?? throw new InvalidOperationException("Child job operations need the IJobs facade; this context was built without one.");
 
-    private protected override Task RunStepCoreAsync(string name, Func<CancellationToken, Task> body, StepOptions options, CancellationToken ct) =>
+    private protected override Task RunStepCoreAsync(
+        string name,
+        Func<CancellationToken, Task> body,
+        StepOptions options,
+        CancellationToken ct
+    ) =>
         RunStepImplAsync<bool>(
             name,
             async token =>

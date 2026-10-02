@@ -116,7 +116,10 @@ public abstract class MarkDeadWorkersSpec<TFixture> : ActaRuntimeTestBase<TFixtu
         );
         await Db.From<JobWorker>()
             .Where(w => w.Id == drainingWorkerId)
-            .UpdateOnlyAsync(() => new JobWorker { Status = WorkerStatusCode.Draining, LastHeartbeatAtUtc = DateTime.UtcNow.AddHours(-1) }, ct);
+            .UpdateOnlyAsync(
+                () => new JobWorker { Status = WorkerStatusCode.Draining, LastHeartbeatAtUtc = DateTime.UtcNow.AddHours(-1) },
+                ct
+            );
 
         // A fresh worker that must SURVIVE: seed one in namespace A with a current last_seen. Seeded
         // last so the window in which it could itself age past the sweep's own cutoff is one call wide.

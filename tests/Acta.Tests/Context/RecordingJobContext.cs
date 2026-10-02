@@ -44,7 +44,11 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>?
     public override string JobName => "parent";
     public override CancellationToken CancellationToken => CancellationToken.None;
 
-    private protected override Task<JobEnqueueOutcome> StartChildCoreAsync<TInput>(TInput input, JobEnqueueOptions options, CancellationToken ct)
+    private protected override Task<JobEnqueueOutcome> StartChildCoreAsync<TInput>(
+        TInput input,
+        JobEnqueueOptions options,
+        CancellationToken ct
+    )
     {
         var name = options.DeduplicationKey ?? throw new InvalidOperationException("child options carried no deduplication key.");
         var id = ++_nextId;
@@ -118,12 +122,18 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>?
     private protected override Task<bool> ExistsVariableCoreAsync(string name, CancellationToken ct) =>
         Task.FromResult(_variables.ContainsKey(name));
 
-    private protected override Task<bool> DeleteVariableCoreAsync(string name, CancellationToken ct) => Task.FromResult(_variables.Remove(name));
+    private protected override Task<bool> DeleteVariableCoreAsync(string name, CancellationToken ct) =>
+        Task.FromResult(_variables.Remove(name));
 
     private protected override Task ResetStateCoreAsync(CancellationToken ct) => Unsupported<Task>();
 
-    private protected override Task SleepCoreAsync(string name, TimeSpan? delay, DateTime? resumeAtUtc, string? reason, CancellationToken ct) =>
-        Unsupported<Task>();
+    private protected override Task SleepCoreAsync(
+        string name,
+        TimeSpan? delay,
+        DateTime? resumeAtUtc,
+        string? reason,
+        CancellationToken ct
+    ) => Unsupported<Task>();
 
     private protected override T? DeserializeSignalPayload<T>(byte valueFormatId, byte[] value)
         where T : default => Unsupported<T?>();
@@ -172,7 +182,8 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>?
         return LockReleaseException is null ? Task.CompletedTask : Task.FromException(LockReleaseException);
     }
 
-    private protected override void OnLockReleaseFailure(string key, LockScope scope, Exception exception) => LockReleaseFailures.Add(exception);
+    private protected override void OnLockReleaseFailure(string key, LockScope scope, Exception exception) =>
+        LockReleaseFailures.Add(exception);
 
     private protected override Task WriteNoteCoreAsync<T>(string message, T? detail, CancellationToken ct)
         where T : default => Unsupported<Task>();
