@@ -950,6 +950,7 @@
 - **Act:** Four producers each enqueue a run of 1000-row batches at the same time, first unlaned, then spread over shared lanes.
 - **Assert:** Every call succeeds and every job lands, each lane with one Ready head and the rest Blocked in batch order.
 - **Guarantees:**
+  - A batch row deduplicated against a producer that commits while the batch waits returns that producer's job
   - Four producers racing 1000-row unlaned batches into one namespace all land as Ready
   - Four producers racing 1000-row batches over shared lanes land in batch order behind one head per lane
 - **Store methods:**

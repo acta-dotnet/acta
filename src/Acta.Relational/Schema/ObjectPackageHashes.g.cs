@@ -13,7 +13,7 @@ internal static class ObjectPackageHashes
 {
     internal const string Mssql = "dd5099cd0d651c0b363bd75f98bdadd9";
 
-    internal const string Pg = "6a38ebab2891fc96c87503d4cf945878";
+    internal const string Pg = "0bf62d8c8dbd79443538ae0a4acac03a";
 
     internal const string Sqlite = "eee0f6cd0cdc17a97048007f2f004bec";
 

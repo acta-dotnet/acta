@@ -3281,6 +3281,7 @@ LANGUAGE plpgsql
 AS $$
 DECLARE
     batch_count INT;
+    inserted_count INT;
     resolved_count INT;
     laned_count INT;
     ns_active_count INT;
@@ -3633,7 +3634,9 @@ BEGIN
     -- Give the planner real row counts for the staged set so the inserts below stay hash/index joins.
     ANALYZE _enq_batch;
 
-    RETURN QUERY
+    -- The inserts run as one statement and the outcomes are read by the next: a row skipped because a
+    -- concurrent producer committed its key while this one waited is invisible to this statement's snapshot,
+    -- and only a later statement's sees it to return its id (the register_tenant pattern).
     WITH inserted_root AS (
         INSERT INTO acta.jobs (
             id,
@@ -3763,35 +3766,30 @@ BEGIN
         INNER JOIN _enq_batch e ON e.ordinal = t.ordinal
         INNER JOIN inserted i ON i.id = e.id
         RETURNING 1
-    ),
-    existing AS (
-        SELECT e.ordinal, j.id, j.job_ref
-        FROM _enq_batch e
-        INNER JOIN acta.jobs j
-            ON (NOT e.is_child
-                AND j.namespace_id = e.namespace_id
-                AND j.deduplication_key = e.deduplication_key
-                AND j.parent_id IS NULL)
-            OR (e.is_child
-                AND j.parent_id = e.parent_id
-                AND j.deduplication_key = e.deduplication_key)
-        WHERE
-            e.deduplication_key IS NOT NULL
-            AND NOT EXISTS (
-                SELECT 1
-                FROM inserted i
-                WHERE i.id = e.id)
     )
+    SELECT count(*) INTO inserted_count FROM inserted;
+
+    RETURN QUERY
     SELECT
         e.ordinal,
-        COALESCE(i.id, ex.id) AS job_id,
-        CASE WHEN i.id IS NOT NULL THEN e.job_ref ELSE ex.job_ref END AS job_ref,
-        CASE WHEN i.id IS NOT NULL
+        COALESCE(mine.id, root.id, child.id) AS job_id,
+        COALESCE(mine.job_ref, root.job_ref, child.job_ref) AS job_ref,
+        CASE WHEN mine.id IS NOT NULL
             THEN 1 /* JobEnqueueAction.Inserted */
             ELSE 2 /* JobEnqueueAction.Deduplicated */ END AS action
     FROM _enq_batch e
-    LEFT JOIN inserted i ON i.id = e.id
-    LEFT JOIN existing ex ON ex.ordinal = e.ordinal
+    LEFT JOIN acta.jobs mine ON mine.id = e.id
+    LEFT JOIN acta.jobs root
+        ON mine.id IS NULL
+        AND NOT e.is_child
+        AND root.namespace_id = e.namespace_id
+        AND root.deduplication_key = e.deduplication_key
+        AND root.parent_id IS NULL
+    LEFT JOIN acta.jobs child
+        ON mine.id IS NULL
+        AND e.is_child
+        AND child.parent_id = e.parent_id
+        AND child.deduplication_key = e.deduplication_key
     ORDER BY e.ordinal;
 END;
 $$;
@@ -8655,7 +8653,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.6-6a38ebab2891fc96c87503d4cf945878', 'acta');
+VALUES (-1, 'objects-1.6-0bf62d8c8dbd79443538ae0a4acac03a', 'acta');
 
 COMMIT;
 

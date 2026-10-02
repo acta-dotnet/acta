@@ -47,6 +47,41 @@ public abstract class ConcurrentEnqueueBatchSpec<TFixture> : ActaRuntimeTestBase
         });
     }
 
+    [Fact(DisplayName = "A batch row deduplicated against a producer that commits while the batch waits returns that producer's job")]
+    public async Task A_batch_row_deduplicated_against_a_concurrent_commit_returns_the_winner()
+    {
+        if (Services.GetRequiredService<ISqlDialect>().Provider == DbProvider.Sqlite)
+        {
+            Assert.Skip("SQLite has one writer: the batch cannot start until the producer commits.");
+        }
+        var ct = TestContext.Current.CancellationToken;
+        var key = TestKey("race-key");
+        await using var conn = await Db.OpenConnectionAsync(ct);
+        await using var tx = await conn.BeginTransactionAsync(ct);
+        var winner = await Jobs.EnqueueAsync(
+            tx,
+            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1)), DeduplicationKey: key),
+            ct
+        );
+
+        // The batch meets the uncommitted key and waits on it; the producer then commits.
+        var batch = Jobs.EnqueueBatchAsync(
+            [
+                new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 2)), DeduplicationKey: key),
+                new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(3, 3))),
+            ],
+            ct
+        );
+        await Task.Delay(500, ct);
+        Assert.False(batch.IsCompleted, "the batch did not wait on the uncommitted key");
+        await tx.CommitAsync(ct);
+        var outcomes = await batch;
+
+        Assert.Equal((JobEnqueueAction.Deduplicated, winner.JobId), (outcomes[0].Action, outcomes[0].JobId));
+        Assert.Equal(winner.JobRef, outcomes[0].JobRef);
+        Assert.Equal(JobEnqueueAction.Inserted, outcomes[1].Action);
+    }
+
     [Fact(DisplayName = "Four producers racing 1000-row unlaned batches into one namespace all land as Ready")]
     public async Task Concurrent_unlaned_batches_all_land()
     {
