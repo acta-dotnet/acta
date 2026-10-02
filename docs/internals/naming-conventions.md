@@ -134,7 +134,7 @@ did not.
 
 ## Telemetry: structured log fields
 
-**There are eleven field names, and a new log line draws from them rather than inventing a twelfth.**
+**There are twelve field names, and a new log line draws from them rather than inventing a thirteenth.**
 Every distinct name becomes a mapped field in the operator's index, so a tail of one-off names is not
 free and it grows with every line anyone adds.
 
@@ -143,12 +143,13 @@ free and it grows with every line anyone adds.
 | `Namespace` | string | The job namespace's name |
 | `JobId` | int64 | The job's internal id |
 | `JobName` | string | The definition's job name |
+| `Attempt` | int32 | An attempt or pass number |
 | `Ref` | string | The public ref of the entity the line is about |
 | `SubjectRef` | string | The second ref, when a line legitimately carries two |
 | `Operation` | string | The named action or phase being reported |
 | `Outcome` | string | How it ended |
 | `Reason` | string | Why it ended that way |
-| `Count` | int16 / int32 / int64 | A cardinal quantity: rows, bytes, attempt number |
+| `Count` | int16 / int32 / int64 | A cardinal quantity: rows, bytes |
 | `DurationMs` | int32 / int64 / double | An elapsed or configured span |
 | `Detail` | string | The genuinely one-off value nobody filters or groups by |
 

@@ -100,8 +100,8 @@ never above the faster.
 A provider error during admission, when the concurrency slot is taken or the rate turn is reserved,
 bounces the attempt instead of escaping, so the row is never stranded that way. The bounce is
 recorded as `job.unclassified` with the message "Admission failed on a provider error", spends no
-retry budget, and raises no alert, so a persistent error shows as a job re-arming every
-`ConcurrencyKeyBounceDelaySeconds` and a warning in the worker log. What it can leave
+retry budget, and raises no alert, so a persistent error shows as a job re-arming every two seconds
+and a warning in the worker log. What it can leave
 behind is a slot the acquire committed without answering: that row is untracked by the worker and
 expires with its lease TTL, so one slot of that key is unavailable for up to that long. A rate turn
 booked without an answer is honoured when the job returns, so nothing is double-counted.
@@ -226,8 +226,9 @@ low-priority tail indefinitely. The intended remedy is a mechanism, not a knob: 
 low-urgency workloads their own namespace, because each declared worker runs its own claim loop and
 executor pool per namespace, so one namespace's flood cannot consume another's slots.
 
-`ConcurrencyKey` provides mutual exclusion, not ordering. While a worker holds a valid lease on the key,
-no other job with that `(namespace, ConcurrencyKey)` is admitted. The exclusion is as strong as the
+`ConcurrencyKey` provides admission, not ordering. While workers hold valid leases on all of a key's
+slots (`ConcurrencyLimit`, one by default), no other job with that `(namespace, ConcurrencyKey)` is
+admitted. The exclusion is as strong as the
 lease and no stronger: a heartbeat renews it while the handler runs, so if that heartbeat stops — a
 stalled process, a long pause, a partition — the lease can expire while the handler is still running
 and another worker can admit the next job. That is the same at-least-once boundary described under
@@ -317,6 +318,10 @@ Dashboard auth is the host application's responsibility. Acta ships no login sys
 The dashboard and JSON API are local-only by default, and controls are disabled by default. Remote
 exposure requires `LocalOnly = false` plus host authorization through `ConfigureEndpoints`; mapping
 without either throws at startup unless `UnsafeAllowAnonymousRemoteAccess = true` is set explicitly.
+
+Local-only also requires the request to name the host as `localhost`, a `.localhost` name, or an IP
+address, so a browser on the same machine that uses the machine name gets 403; browse to `localhost`
+or `127.0.0.1`.
 
 Behind a reverse proxy on the same host, do not rely on `LocalOnly`; use real authorization.
 

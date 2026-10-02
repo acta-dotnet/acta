@@ -87,7 +87,7 @@ Examples:
 - Coordinating jobs are ordinary jobs, no dedicated coordinator table.
 - The `DeduplicationKey` column doubles as the operator-facing secondary key: no separate name-resolution table.
 - Domain metadata lives as fields on the input record, cross-cutting searchable metadata as `Tag` rows: no `JobMeta` table.
-- System jobs (`sys.alerts`, `sys.recovery`, `sys.retention`) are ordinary `Job` rows in the target's own `JobNamespace`, not a global namespace.
+- System jobs (`sys.alerts`, `sys.recovery`, `sys.retention`, and `sys.outbox` where a relay is registered) are ordinary `Job` rows in the target's own `JobNamespace`, not a global namespace.
 - Per-attempt history is paired `JobEvent(job.execution-started)` + `JobEvent(job.execution-finished)` joined on `(JobId, ExecutionNumber)`: no separate execution table.
 - Lanes earned the `lanes` table. A laned enqueue needs a row to lock until it commits, so two producers cannot interleave out of order, and the lane name is stored once. A hash on `runtimes` has no row to lock and can merge two lanes; `locks` rows are expiring leases, a different lifecycle.
 
@@ -104,8 +104,8 @@ successful execution is also an execution), `MaxRetries` (off-by-one trap, `MaxA
 three tries), a `JobAttempt` table (the event pair is the per-attempt record).
 
 **`Status`** is the uniform column name for the operator-facing lifecycle enum; per-execution
-outcome is the event's `ExecutionStatus`; substrate tables use `state` instead, marking them
-job-internal. The `runtimes` row stores current state and events explain transitions: the machine
+outcome is the event's `ExecutionStatus`; steps and checkpoints carry `status_code` like every other
+table, and only their two views name the decoded column `state`. The `runtimes` row stores current state and events explain transitions: the machine
 code is `ReasonCode`, the prose is `ReasonMessage`, both on the event, never on the runtime row.
 
 A **firing** is one scheduled occurrence of a recurring `[JobSchedule]`; the **execution** is the
@@ -148,7 +148,7 @@ the principles above. Reopening an entry means writing a proposal, not editing t
 - **Single-tier retention on `JobEvent`.** One knob (`JobEventsRetentionDays`, default 365) sweeps every row. *Reason:* the two-tier variant added a knob nobody tuned.
 - **`JobResult` is keyed by `(JobId, ExecutionNumber)`** with CASCADE FK. *Reason:* the natural identity callers already address by.
 - **Timer checkpoints are arm/consume only.** `Pending → Consumed`; no `Cancelled` state; `ResetJobState` deletes rows outright. *Reason:* a state the runtime cannot reach is schema debt.
-- **`Lease` carries no acquisition timestamp.** Lifecycle is `expires_at_utc` + `version` alone. *Reason:* no code path ever consulted the acquire instant.
+- **A `Lock` carries no acquisition timestamp.** Lifecycle is `expires_at_utc` plus a per-hold `hold_token` that extend and release compare. *Reason:* no code path ever consulted the acquire instant.
 - **`jobs` + `runtimes` split: immutable identity vs mutable state.** `jobs` is never UPDATEd; the 1:1 `runtimes` row owns every mutable column with `runtimes.version` as the CAS token, and execution ownership lives on it, not in a lease table (that variant cost ~30-40% drain throughput and was reverted). *Reason:* the hot path rewrites a narrow row, and identity is immutable by construction.
 - **Reasons are events, not row state.** Why a job failed/paused lives on `JobEvent`, never on a `runtimes` reason column; snapshots and outcomes expose state only. *Reason:* a denormalized current-reason goes stale on re-arm; an append-only event cannot.
 
@@ -159,13 +159,13 @@ the principles above. Reopening an entry means writing a proposal, not editing t
 - **Workers only claim within their own namespace.** *Reason:* blast-radius firewall, a bug cannot escape its namespace; cross-namespace enqueue allowed, cross-namespace claim impossible by index seek.
 - **One `WorkerRuntime` per `Run(...)`; enqueue-only hosts register nothing.** A process running several `Run(...)` calls fans out one claim/dispatch/heartbeat trio per namespace. `Reference(...)` and enqueue-only frontends create no worker registration and write no catalog rows; typed enqueue resolves `(namespace, jobName)` to ids via SQL JOIN at INSERT time. *Reason:* routing lives in the database, so worker-hosted and enqueue-only deployments share one enqueue code path and a frontend can enqueue for a namespace it never claims.
 - **Tenant is validated identity, not an isolation primitive.** The catalog is global per store; enqueue validates and stamps it, children inherit it, and suspension is admission control only. No tenant-aware claim fairness, per-tenant limits, data security, or failure domain; that isolation = application enforcement + separate deployments. *Reason:* an audit/query scope is a cheap nullable column; fairness would widen every hot index.
-- **System jobs are namespace-local.** `sys.alerts`/`sys.recovery`/`sys.retention` live in the target's own namespace. *Reason:* a global namespace would violate the firewall.
+- **System jobs are namespace-local.** `sys.alerts`/`sys.recovery`/`sys.retention`/`sys.outbox` live in the target's own namespace. *Reason:* a global namespace would violate the firewall.
 
 ### Behavior
 
 - **`MaxAttempts` is the unified cap** on jobs and steps; `Reschedule`/`Suspend`/`Pause` never consume the budget. *Reason:* one retry mental model across both tiers.
 - **Strict priority ordering** in the claim path; no aging, no weighted fairness; within a priority and next-run time the claim breaks ties by job id, which is enqueue order for one producer enqueuing sequentially; concurrent claims promise no global FIFO; strict per-key order is a lane. *Reason:* predictable semantics; fairness = separate namespaces.
-- **`ConcurrencyKey` is execution-time mutual exclusion (size 1), not rate limiting or ordering.** Enforced by a lock taken after claim; losers bounce budget-neutrally. *Reason:* claim-time gating collapsed namespace claim throughput under a hot-key backlog (~20/s vs 500-2,500/s exec-time).
+- **`ConcurrencyKey` is execution-time admission (at most `ConcurrencyLimit` per key, 1 by default), not rate limiting or ordering.** Enforced by a lock taken after claim; losers bounce budget-neutrally. *Reason:* claim-time gating collapsed namespace claim throughput under a hot-key backlog (~20/s vs 500-2,500/s exec-time).
 - **Delayed enqueue: relative delay is DB-clock; absolute is the only caller-instant path.** The two are mutually exclusive. *Reason:* an enqueue-only frontend must not silently depend on its own clock.
 - **Recurring schedules are a single slot job per `(namespace, definition)`** carrying many `schedules` rows; due schedules coalesce into one execution; cursors computed in C#, applied in SQL. *Reason:* single-cursor claim scan, no per-firing row inflation, no Cronos in SQL.
 - **Misfire is a two-strategy per-schedule choice.** `Skip` (default, forward-only) or `CatchUpOnce`. *Reason:* forward-only avoids startup catch-up bursts; catch-up is opt-in.
@@ -205,7 +205,7 @@ the principles above. Reopening an entry means writing a proposal, not editing t
 
 ### Packages
 
-- **Package split by surface:** `Acta` (public API and SDK), `Acta.Runtime` (provider-independent runtime), `Acta.Relational` (shared relational mechanics), providers, `Acta.Redis`, and `Acta.Testing`. *Reason:* an assembly boundary is a stronger API-safety guarantee than `internal` alone.
+- **Package split by surface:** `Acta` (public API and SDK), `Acta.Runtime` (provider-independent runtime), `Acta.Relational` (shared relational mechanics), providers, `Acta.AspNetCore`, `Acta.Redis`, and `Acta.Testing`. *Reason:* an assembly boundary is a stronger API-safety guarantee than `internal` alone.
 - **Relational-provider baseline.** SQL Server, PostgreSQL, and SQLite ship side-by-side against one provider-neutral entity model. *Reason:* shipping distributed and embedded providers in lockstep prevents single-provider assumptions.
 - **No in-memory provider.** *Reason:* it would pass tests the real providers fail.
 - **Visibility default is `internal sealed`** outside the `Acta` SDK project. *Reason:* the API boundary is grep-checkable.

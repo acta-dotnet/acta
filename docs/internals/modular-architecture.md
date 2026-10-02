@@ -92,10 +92,9 @@ It owns:
 - recurring schedule definitions, cursors, and rollover
 - results
 - execution-ledger writes and recovery evidence
-- named locks used by execution
 
 Internal layout as built: subdomain folders (`Jobs`, `Schedules`, `Definitions`, `Namespaces`,
-`Tenants`, `Workers`, `Signals`, `Checkpoints`, `ChildLatches`, `Timers`) with the execution kernel
+`Tenants`, `Workers`, `Signals`, `Checkpoints`, `ChildLatches`, `Timers`, `Settings`) with the execution kernel
 files (`JobExecutor`, `JobExecution`, `RuntimeJobContext`, `RecoveryJob`, `CompletionSink`, store
 ports) at the module root. Catalog and Scheduling are explicit subdomains, not separate top-level
 modules: the SQL proves they participate in execution invariants and atomic completion paths.
@@ -220,12 +219,15 @@ Document an owner for every table or row partition. A starting map is:
 
 ```text
 Execution:
-  namespaces, definitions, tenants
-  jobs, runtimes, results
-  workers, leases
+  namespaces, definitions, tenants, settings
+  jobs, runtimes, lanes, results
+  workers
   steps, checkpoints
   schedules
   events (append ownership; declared Alerting acknowledge/resolve routines are the listed exceptions)
+
+Services:
+  locks (named locks, concurrency slots, rate meters)
 
 Alerting:
   alerts
@@ -346,7 +348,10 @@ public interface IActaOperations
     ITenants Tenants { get; }
     INamespaces Namespaces { get; }
     ITags Tags { get; }
-    ValueTask<ActaOverview> GetOverviewAsync(...);
+    ISettings Settings { get; }
+    IOutbox Outbox { get; }
+    ILedger Ledger { get; }      // overview, job and event lists
+    DbProvider Provider { get; }
 }
 ```
 
@@ -406,8 +411,9 @@ The gates are custom tests under `tests/Acta.Tests/Architecture` (no ArchUnitNET
 - `ArchitectureBoundaryTests` — provider schema migrators stay internal; `Acta.AspNetCore`
   references the public API only; the public `Acta` assembly does not reference `Acta.Runtime`.
 
-Still to add: module boot-with-fakes integration tests, and .NET package/API compatibility
-validation against the previous release once packages ship.
+Still to add: module boot-with-fakes integration tests, and compatibility validation against the
+previous release. `PublicApiContractTests` pins the public surface today; the compatibility guard
+that compares a build with the last release lands first after 1.0.
 
 ## Migration record (all shipped, 2026-07)
 
@@ -424,8 +430,8 @@ validation against the previous release once packages ship.
   dependencies became internal collaborations in one owner.
 - **PR 6 — facade cleanup:** `IJobs` reduced to the application surface; `IActaOperations` carries
   the operator subfacades, overview, and provider capability; the mega `JobsApi` construction is gone.
-- **Post-review hardening:** module cycles broken (`IAlertRoutingCheck`, `IExecutionQueries`,
-  `IJobEventFeed` deleted), operator list reads moved to `IActaOperations`, the Operations blanket
+- **Post-review hardening:** module cycles broken (`IAlertRoutingCheck` and `IExecutionQueries`
+  moved into `Execution.Api` as ports, `IJobEventFeed` deleted), operator list reads moved to `IActaOperations`, the Operations blanket
   reader exemption removed, and the events ledger placed under Execution append ownership.
 
 ## Remaining direction

@@ -39,7 +39,7 @@ flowchart LR
     end
 
     subgraph Storage[Durable SQL substrate]
-        DB[(SQL Server / Postgres)]
+        DB[(SQL Server / Postgres / SQLite)]
         JobTable[(acta.jobs + acta.runtimes)]
         EventTable[(acta.events)]
         Substrate[(steps / checkpoints / locks)]
@@ -153,10 +153,14 @@ sequenceDiagram
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Ready: enqueue / resume / retry due / schedule due
+    [*] --> Ready: enqueue / retry due / schedule due
+    [*] --> Blocked: laned enqueue behind its lane's head
 
-    Ready --> Dispatched: ClaimBatch
+    Ready --> Dispatched: ClaimBatch (Buffered, Bulk)
+    Ready --> Executing: claim and start together (Direct)
+    Suspended --> Dispatched: claim when its wait deadline is due
     Dispatched --> Executing: StartExecution
+    Blocked --> Ready: the lane's head settles
 
     Executing --> Succeeded: succeeded
     Executing --> Ready: failed within retry budget
@@ -172,9 +176,18 @@ stateDiagram-v2
 
     Suspended --> Ready: signal raised
     Paused --> Ready: resume
+    Paused --> Blocked: resume behind a running lane member
+    Ready --> Paused: operator pause
+    Suspended --> Paused: operator pause
+    Blocked --> Paused: operator pause
     Ready --> Cancelled: external cancel
+    Blocked --> Cancelled: external cancel
     Paused --> Cancelled: external cancel
     Suspended --> Cancelled: external cancel
+
+    Succeeded --> Ready: restart
+    Failed --> Ready: restart
+    Cancelled --> Ready: restart
 
     Succeeded --> [*]
     Failed --> [*]
@@ -183,7 +196,9 @@ stateDiagram-v2
 
 ### Key points
 
-- `Ready` is the only claimable state.
+- `Ready` is the claimable state; a `Suspended` row is claimed only when its wait deadline is due, to
+  resolve the timeout. `Blocked` waits behind its lane's head and is never claimed.
+- A restart can also land a laned job `Blocked` behind a running member.
 - `Dispatched` and `Executing` are active lease-owned states.
 - `Succeeded`, `Failed`, and `Cancelled` are terminal states.
 - `Suspended` means waiting on an external signal; sleep/reschedule can also re-arm as `Ready` with a future due time.
@@ -207,10 +222,10 @@ erDiagram
     JOB ||--o{ JOB_CHECKPOINT : has
     JOB ||--o{ JOB_ALERT : raises
 
-    JOB ||--o{ LEASE : protects
+    LANE ||--o{ JOB_RUNTIME : orders
 
     JOB_NAMESPACE {
-      short id
+      int id
       string name
     }
     JOB_DEFINITION {
@@ -234,12 +249,12 @@ erDiagram
     JOB_EVENT {
       long job_id
       short event_code
-      short execution_number
+      int execution_number
       datetime created_at_utc
     }
     JOB_RESULT {
       long job_id
-      short execution_number
+      int execution_number
       bytes result
     }
 ```
@@ -248,6 +263,8 @@ erDiagram
 
 - `jobs` is the only independently claimable work unit; its mutable runtime state (status, cursor, CAS version) lives on the 1:1 `runtimes` row.
 - `events` is both lifecycle timeline and execution ledger.
+- `locks` (named locks, concurrency slots, rate meters) is keyed by `lock_key` and carries no foreign key
+  to `jobs`; execution ownership is the lease on the `runtimes` row.
 - Internal substrate tables (`steps`, `checkpoints` for variables/signals/timers/progress) hang off a parent job and share its claim, lease, retry, cancellation, and audit lifecycle; they are never separately claimable.
 - Catalog tables describe what can run; worker tables describe who is alive; operator tables describe alerts and controls.
 - The full column-level model is generated in [`data-model.md`](../reference/data-model.md).
@@ -273,6 +290,7 @@ flowchart LR
         Maintenance[sys.recovery]
         Alerts[sys.alerts]
         Purge[sys.retention]
+        Relay[sys.outbox]
     end
 
     W1 -->|heartbeat| Worker
@@ -283,7 +301,7 @@ flowchart LR
     W3 -->|claims like ordinary work| Alerts
     W2 -->|claims like ordinary work| Purge
 
-    Maintenance -->|mark stale workers dead| Worker
+    Maintenance -->|mark stale Active / Draining workers dead| Worker
     Maintenance -->|reclaim expired active jobs| Job
     Maintenance -->|append orphaned / worker events| Event
     Alerts -->|materialize deliverable alerts| Event
@@ -294,7 +312,10 @@ flowchart LR
 
 - Maintenance is work, not leadership.
 - Any peer can claim maintenance jobs through the same durable claim path as user jobs.
-- Stale workers are detected through heartbeat state.
+- Stale workers are detected through heartbeat state; a Dead worker that heartbeats again turns Active.
+- `sys.outbox` relays a producer's outbox where a relay is registered.
+- Each worker also checks every seven minutes that its namespace's `sys.recovery` slot is armed, and
+  repairs a stranded one.
 - Expired leases cause orphan/reclaim behavior; handlers still own side-effect idempotency.
 
 ## Review checklist for diagram drift

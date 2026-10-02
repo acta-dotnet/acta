@@ -53,19 +53,23 @@ before reporting success. A C# mapping failure cannot promise rollback of an alr
 operation. SQLite can roll back mapping failures while its owned transaction remains uncommitted.
 
 Owned execution retries only confirmed aborted conflicts: PostgreSQL deadlock `40P01`, SQL Server
-deadlock victim `1205`, and SQLite busy/locked conflicts after cleanup. Failed attempts release their
+deadlock victim `1205` and `2801` (an installed routine changed under a concurrent bootstrap), and
+SQLite busy/locked conflicts after cleanup. Failed attempts release their
 resources before another attempt opens. Binding, mapping, and disposal failures are not database-abort
 evidence and never trigger replay. Connection failures or uncertain commit outcomes are not automatically
 replayed. Session-owned commit and final teardown remain outside the retry region.
 
 ## Explicit exceptions and maintenance
 
-SQL Server's `locks` table must not use `HOLDLOCK` or serializable gap probes. Acquire uses a
-conditional point update followed by an insert on a miss; the primary key arbitrates competing
+Acquiring a lock or a concurrency slot in SQL Server's `locks` table must not use `HOLDLOCK` or
+serializable gap probes. Acquire uses a conditional point update followed by an insert on a miss; the primary key arbitrates competing
 inserts. A duplicate-key loser rolls back its owned transaction and returns not-acquired. Errors
 inside a supplied transaction propagate so its owner can roll it back. Concurrency tests hold the
 insert stage open to verify that unrelated missing keys can reach it together and same-key races
-return exactly one token.
+return exactly one token. `reserve_rate` is the deliberate exception: it probes the meter row with
+`UPDLOCK, HOLDLOCK` before the row exists and holds it to commit, so the expiry sweep's `READPAST`
+skips the row rather than racing it, and the turn the call books is persisted before it admits
+anything.
 
 External-outbox source commands operate on a producer-owned database, so they remain embedded SQL;
 Acta installs no ledger routines there. PostgreSQL executes the claim batch in one implicit transaction;
@@ -81,7 +85,8 @@ section. Each batch is atomic; failure or cancellation later in the sweep preser
 The coordinator never retries the whole sweep. Committed undelivered-alert deletions produce one
 warning per sweep, including when a later batch fails or cancellation stops the sweep.
 
-Every SQL Server statement that updates `runtimes` through a join carries `WITH (FORCESEEK)`. The
+Every SQL Server statement that updates `runtimes` through a join carries `WITH (FORCESEEK)`, except
+`register_scheduled_jobs` (see the foreign-key section below). The
 driving set is always a CTE or table variable, which the optimizer estimates at low cardinality;
 without the hint it may source the update from a clustered scan of `runtimes`, take an update lock per
 row, escalate to a table lock once the backlog passes the escalation threshold, and hold it to commit,
@@ -107,7 +112,10 @@ lease window. On PostgreSQL batch completion locks its rows in `job_id` order, a
 is sorted by job id before its ordinals are assigned.
 
 Routines that lock both `checkpoints` and `runtimes` take the checkpoint slot first; `raise_signal`
-and `complete_execution` both do. `arm_or_consume_sleep_timer` is the one exception, taking the
+and `complete_execution` both do. `reset_job_state` takes the `runtimes` row and then deletes the
+job's checkpoints, and `purge_job` reaches them through the cascade from the job row; both run on a
+job no worker is advancing on another slot at that moment. `arm_or_consume_sleep_timer` is the other
+exception, taking the
 `runtimes` row as a job-level mutex before reading its slot, so a timer arming concurrently with a
 signal raise on the same job acquires the two in opposite orders. No deadlock graph has ever shown
 that pair, and it is not reachable while both hold row locks on different slots, so the mutex stays
@@ -244,9 +252,12 @@ the lock.
 ## Provisioning, compatibility, and SQL access
 
 Tables, columns, indexes, constraints, and durable types belong in numbered `MNNN` migrations.
-Routine and view definitions are versionless objects: `SqlObjectInstaller` reapplies current bodies
+Routine and view definitions carry no migration number: `SqlObjectInstaller` reapplies current bodies
 after checking pending migrations, under the same migration lock, including when no migration is
-pending. A body edit does **not inherently require a numbered migration**. Embedded query changes
+pending, and records the object package it installed. A body edit does **not inherently require a
+numbered migration**, but it is a new package revision (`Acta.Emit objects record`; see
+[migrations](./migrations.md)). A bootstrap that finds a newer migration or a newer package revision
+in the database leaves the installed bodies alone, and the published script refuses such a database. Embedded query changes
 require neither migration nor installed-object replacement.
 
 A routine whose signature changes carries its own cleanup, because `CREATE OR REPLACE` neither
@@ -260,7 +271,9 @@ From 1.0 onward, an installed routine remains a routine. An inline operation may
 deliberately; routine-to-inline demotion is outside the 1.x policy.
 
 During a rolling deployment all workers share the installed routine body. N+1 provisioning changes
-the implementation that N workers invoke; N provisioning during rollback may reinstall N's body.
+the implementation that N workers invoke, and a rollback never reinstalls N's bodies over N+1's: N
+workers keep running on N+1's routines, which the minimum package revision each build declares
+permits.
 Changes must therefore preserve the supported parameter, result, and semantic contracts in both
 deployment directions. Compatible table DDL alone is insufficient. Body replacement avoiding MNNN
 does not remove this executable compatibility obligation.

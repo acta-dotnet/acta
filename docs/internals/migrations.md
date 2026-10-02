@@ -9,8 +9,8 @@ the `migrations` history stamp. Routine and operator-view **bodies** are not mig
 runner's `SqlObjectInstaller` applies the current bodies after pending migrations, in the same
 transaction and lock; every body is idempotent (CREATE OR ALTER / CREATE OR REPLACE, or DROP/CREATE
 for SQLite views), so they simply re-apply on every bootstrap. Editing a routine or view therefore
-needs **no migration at all**: change the collocated `.sql` resource, rebuild, and the next bootstrap
-reinstalls it.
+needs **no migration**: change the collocated `.sql` resource, run `objects record` (below), rebuild,
+and the next bootstrap reinstalls it. A released body is a new package revision.
 
 ## Command execution ownership
 
@@ -32,6 +32,7 @@ dotnet run --project tools/Acta.Emit -- <command>
 | `schema reset [--force]` | Delete every migration + the snapshot + the schema scripts. Deletes only; `--force` required. |
 | `schema add [--name <n>]` | Emit the next migration `M{N}` for every provider; advance the snapshot. |
 | `schema amend [--name <n>]` | Rewrite the tip migration `M{N}` in place. |
+| `objects record` | Record each provider's installed-object package (its routines and views) in `src/Acta.Relational/Schema/object-packages.json` and regenerate `ObjectPackageHashes.g.cs`. |
 
 Production hosts should keep `ApplyMigrationsOnStartup = false` and apply migration SQL from the
 release process before workers start. See [`production.md`](../guide/production.md#migration-ownership).
@@ -61,16 +62,35 @@ So when you hand-edit a generated `Mnnn`, guard what you add:
 The three `*ProvisionScriptSpec` conformance specs run the published file **twice** against one
 schema and assert the second pass changes nothing, so a migration that breaks this fails the build.
 
-Routine and operator-view bodies are exempt by construction: they carry no version, sit after every
-migration, and are rewritten on each run (`CREATE OR ALTER`, `CREATE OR REPLACE`, or drop-create).
+Routine and operator-view bodies are exempt by construction: they carry no migration number, sit after
+every migration, and are rewritten on each run (`CREATE OR ALTER`, `CREATE OR REPLACE`, or drop-create).
+
+## Object packages
+
+The routines and views a provider installs are one versioned **object package**, named by three
+values in `ObjectPackageStamp`: a contract major (`ContractMajor`) that a database and a build must
+share, a package revision (`PackageRevision`) moved whenever released content changes, and a content
+hash that binds the build's bookkeeping and never enters the startup decision. Each build also
+declares the oldest revision it can run on (`MinimumPackageRevision`).
+
+- The installer and the published scripts record the package as a stamp row (version `-1`) in
+  `migrations`, alongside the baseline's version-0 row.
+- `objects record` writes the identity of the current content to `object-packages.json`; `check`
+  refuses a recorded identity whose content moved, so a routine edit without a recorded package
+  fails the drift gate. An unreleased revision may be re-recorded: drop its entries and run the
+  command again.
+- The preflight requires the database's major to equal the build's and its revision to be at or
+  above the build's minimum. A bootstrap that finds a newer migration or a newer revision installs
+  nothing, so a rollback never overwrites the routines a newer build's workers call.
 
 ## Published schema scripts
 
 `docs/reference/schema-{pg,mssql,sqlite}.sql` are generated, drift-checked, complete provisioning
-scripts: the migration-history table, every migration in order (each records its own history row;
-the baseline migration also records the version-0 stamp row), then the operator views and any
-routines, fully rendered for the default schema and
-wrapped in one transaction. They exist for deployments where the application principal is not
+scripts: the installer lock (`<schema>-migrations`, the key the bootstrap takes), a refusal of a
+database a newer release upgraded, the migration-history table, every migration in order (each
+records its own history row; the baseline migration also records the version-0 stamp row), then the
+operator views and any routines, and last the object-package stamp, fully rendered for the default
+schema and wrapped in one transaction. They exist for deployments where the application principal is not
 allowed DDL: a DBA reviews and runs the file under an elevated principal, and because the history
 rows are recorded by the script itself, a bootstrap sees the database as its own work. A conformance
 spec per provider executes the committed file verbatim against a fresh schema, so the published
@@ -89,8 +109,8 @@ separate range checks so consumer formats through `255` remain valid.
 - The **first `add`** (after a `reset`, or in a fresh repo) is the genesis baseline: `M001_init` for
   every provider.
 - A provider with **no history** (genesis, or a late-joining provider like a future Oracle) gets a
-  **full baseline** at the current version: e.g. Oracle joining at release 11 → `M011_init.oracle.sql`
-  (the whole schema, not a delta). Its missing `M001`–`M010` is a harmless leading gap: the runner
+  **full baseline** at the current version: e.g. Oracle joining at release 11 →
+  `src/Acta.Oracle/Schema/Migrations/M011_init.sql` (the whole schema, not a delta). Its missing `M001`–`M010` is a harmless leading gap: the runner
   applies "any version not in `migrations`" and tolerates gaps. No dummy filler migrations.
 - A provider **with** history gets a **delta** (`ALTER`/`CREATE`) at `M{N}`.
 
@@ -149,7 +169,8 @@ Routine and operator-view changes never appear here: their bodies are installed 
 ## Adding a migration: step by step
 
 1. **Change an entity** under `src/Acta.Relational/Entities/*.cs`.
-2. **Generate the migration** (also regenerates docs 97/98 as a side-effect):
+2. **Generate the migration** (also regenerates the reference docs, the `schema-*.sql` scripts, and
+   `BaselineStamps.g.cs` as a side effect):
    ```
    dotnet run --project tools/Acta.Emit -- schema add --name <snake_case_name>
    ```
@@ -172,7 +193,7 @@ applied `M{N}` won't pick up the new body (`migrations` is keyed on version).
 
 ### Per-provider fixes
 
-To fix one provider, hand-edit that provider's `M{N}.<provider>.sql`, or land a forward-fix migration
+To fix one provider, hand-edit that provider's `src/Acta.{Provider}/Schema/Migrations/M{N}_<name>.sql`, or land a forward-fix migration
 that writes a file for only that provider (a leading hole for the others is fine).
 
 ### Starting over: `schema reset`
@@ -214,9 +235,10 @@ These checks run on **every** start, not only when migrations are applied. A hos
 and name rules and additionally requires a history row for every migration the build ships — while
 tolerating rows it has never heard of, so an older worker still starts against a newer database. A
 missing `migrations` table is reported as "not provisioned" with a pointer at the published schema
-script rather than surfacing as a failed query later. The preflight verifies history, not schema:
-routine and view bodies are unversioned and are rewritten only by an applying bootstrap, which is
-why an upgrade must run the current full provisioning script rather than trust a green preflight.
+script rather than surfacing as a failed query later. The preflight verifies history and the object
+package's major and minimum revision, not the schema or the bodies themselves: bodies are rewritten
+only by an applying bootstrap or the script, which is why an upgrade must run the current full
+provisioning script rather than trust a green preflight.
 
 The 2026-07-15 byte-sized persisted-code change used this workflow. Enum member names, textual codes,
 descriptions, and JSON strings did not change; only family-local numeric ids and physical

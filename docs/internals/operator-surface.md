@@ -17,19 +17,21 @@ CLI verbs run as `<exe> jobs <verb>`.
 | Job status | `IJobs.GetStatusAsync` | (in snapshot) | `status` | |
 | Job result | `IJobs.GetResultAsync` | (in detail) | `result` | Explain bundle |
 | Job input | `IJobs.GetInputAsync` | `GET /jobs/{jobRef}/input`, (in detail) | | clone prefill without the aggregate |
-| Job detail | (composition over `IJobs` reads) | `GET /jobs/{jobRef}/detail` | | one aggregate: snapshot + input/result/checkpoints + tags + explain + lineage + schedules + eligible workers |
+| Job detail | (composition over `IJobs` reads) | `GET /jobs/{jobRef}/detail` | | one aggregate: snapshot + input/result/checkpoints + explain + lineage + schedules + eligible workers |
 | Explain | `IJobs.ExplainAsync` | (in detail) | `explain` | Explain AI core input |
 | Lineage map | `IJobs.GetLineageMapAsync` | (in detail) | | cost joins (demo) |
 | Resolve by key | `IJobs.GetJobIdAsync` | `GET /jobs/by-key` | target syntax | |
 | List jobs | `ILedger.ListJobsAsync` | `GET /jobs` | | |
 | List events | `ILedger.ListEventsAsync` | `GET /events`, `GET /jobs/{jobRef}/events`, `GET /definitions/{jobNamespace}/{jobName}/events` | `events` | Explain bundle |
 | Overview | `ILedger.GetOverviewAsync` | `GET /overview` | | |
-| Namespaces | `Namespaces.ListItemsAsync` | `GET /namespaces` | | one representation, the row; `ListAsync` stays for name-only callers |
+| Namespaces | `Namespaces.ListAsync` | `GET /namespaces` | | one representation, the row; `ListNamesAsync` serves name-only callers |
 | Definitions | `Definitions.ListAsync` / `GetAsync` | `GET /definitions`, `GET /definitions/{jobNamespace}/{jobName}` | | |
 | Schedules | `Schedules.ListAsync` / `PreviewAsync` | `GET /schedules`, `GET /schedules/{jobNamespace}/{jobName}/{scheduleName}/preview` | | |
 | Workers | `Workers.ListAsync` / `GetAsync` | `GET /workers`, `GET /workers/{workerRef}` | | |
 | Alerts | `Alerts.ListAsync` / `GetAsync` | `GET /alerts`, `GET /alerts/{alertRef}` | | |
-| Tenants | `Tenants.ListAsync` | `GET /tenants` | | |
+| Tenants | `Tenants.ListAsync` / `GetAsync` | `GET /tenants`, `GET /tenants/{tenantKey}` | | |
+| Outbox | `Outbox.ListSourcesAsync` / `ListQuarantinedAsync` | `GET /outbox/sources`, `GET /outbox/{jobNamespace}/quarantined` | | the quarantined listing runs only on a host that registered the relay |
+| Settings | `Settings.GetAsync` | | | Layer-1 only, no HTTP surface |
 | Tags | `Tags.*` reads | `GET .../tags` per scope | | |
 | Input template | `IJobs.GetInputTemplate` | `GET /jobs/input-template` | | enqueue form shape hint |
 | Job input / result / checkpoints | `GetInputAsync` / `GetResultAsync` / `GetCheckpointsAsync` | (in detail) | | payload panels (size-capped); no standalone route |
@@ -55,12 +57,14 @@ CLI verbs run as `<exe> jobs <verb>`.
 
 | Area | Layer-1 | HTTP |
 | --- | --- | --- |
-| Schedules | `Schedules.Pause/Resume/TriggerNow/SetOverrides` | `POST /schedules/...` |
-| Definitions | `Definitions.SetOverrides` | `PATCH /definitions/{jobNamespace}/{jobName}` |
+| Schedules | `Schedules.Pause/Resume/TriggerNow/UpdateOverrides` | `POST /schedules/...` |
+| Definitions | `Definitions.UpdateOverrides/Retire` | `PATCH /definitions/{jobNamespace}/{jobName}`, `POST /definitions/{jobNamespace}/{jobName}/retire` |
 | Tenants | `Tenants.Register/Suspend/Resume/UpdateAsync` | `POST/PATCH /tenants...` |
 | Namespaces | `Namespaces.Suspend/Resume/UpdateAsync` | `POST/PATCH /namespaces...` |
 | Alerts | `Alerts.Acknowledge/Resolve` | `POST /alerts/{alertRef}/...` |
-| Tags | `Tags.Apply/Remove` | `POST/DELETE .../tags` |
+| Tags | `Tags.Upsert/Remove/Replace` | `POST/DELETE .../tags` (no HTTP replace) |
+| Outbox | `Outbox.Requeue/Discard` | `POST /outbox/{jobNamespace}/requeue`, `/discard` |
+| Settings | `Settings.SetAsync` | Layer-1 only |
 
 ## Known gaps (deliberate)
 
@@ -70,13 +74,17 @@ CLI verbs run as `<exe> jobs <verb>`.
 - CLI has no reschedule/reprioritize/purge/amend; add on demand, always via the IJobs verb.
 - Authorization: the per-request `IActaControlAuthorizer` seam is shipped, gating mutations only
   (a denial short-circuits to 403 before the handler runs); it is a no-op until a host registers it,
-  so mutations otherwise gate on EnableControls alone. The read surface (the aggregate `GET
+  so mutations otherwise gate on EnableControls alone. The outer gate on every route, reads
+  included, is `LocalOnly` (a loopback peer that names the host as localhost, a `.localhost` name, or
+  an IP address) or, with `LocalOnly = false`, the host's own authorization through
+  `ConfigureEndpoints`. The read surface (the aggregate `GET
   /jobs/{jobRef}/detail`, which composes the input/result/checkpoint payloads, the standalone `GET
   /jobs/{jobRef}/input`, and the input-template read) is unconditionally open (mapped regardless of EnableControls, never seen by the authorizer):
   Acta operators see everything, so the only payload-read guard is a size cap. A payload past
   `JobsOptions.MaxInlinePayloadBytes` is projected as its format identity plus byte length with no body
   (`truncated: true`), so the read never ships an outsized blob.
 - One screen, one call: the job page fetches `GET /jobs/{jobRef}/detail` (99% of jobs are lightweight);
-  only the unbounded event history keeps its own paged endpoint (`GET /jobs/{jobRef}/events`).
+  the unbounded event history keeps its own paged endpoint (`GET /jobs/{jobRef}/events`), and the tag
+  editor reads `GET /jobs/{jobRef}/tags` on its own.
   The aggregate's two capped collections (schedules, workers) each ship a filter-wide count, so the
   frontend can tell a complete set from a preview instead of guessing.
