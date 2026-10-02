@@ -46,7 +46,10 @@ namespace Acta.Concepts.NativeAotJson
     public sealed record ProcessOrder(string OrderId, int Quantity);
 
     // Source-generated context: covers every job input/output type so no runtime reflection
-    // is needed under Native AOT. Wired via j.UseJsonPayloads(AotPayloadContext.Default).
+    // is needed under Native AOT. Wired via j.UseJsonPayloads(AotPayloadContext.Default). The two
+    // options give enums the wire shape a JIT host writes (camelCase strings), so an AOT worker reads
+    // what a JIT producer enqueued.
+    [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, UseStringEnumConverter = true)]
     [JsonSerializable(typeof(ProcessOrder))]
     internal sealed partial class AotPayloadContext : JsonSerializerContext;
 

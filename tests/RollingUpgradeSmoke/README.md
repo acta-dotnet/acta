@@ -6,10 +6,9 @@ supports and behind the object-package check at startup, taken from two generati
 rather than one runtime under two manifests.
 
 ```powershell
-./tests/RollingUpgradeSmoke/run.ps1                       # both servers, previous tag v1.0.0-rc.3
+./tests/RollingUpgradeSmoke/run.ps1                       # both servers, overlap phase, this tree against itself
 ./tests/RollingUpgradeSmoke/run.ps1 -Providers pg          # one server
-./tests/RollingUpgradeSmoke/run.ps1 -PreviousRef v1.0.0    # another previous release
-./tests/RollingUpgradeSmoke/run.ps1 -PreviousRef v1.0.0 -Phases Overlap   # both generations at once
+./tests/RollingUpgradeSmoke/run.ps1 -PreviousRef v1.0.0    # a previous release, once 1.0 ships
 ```
 
 `ACTA_TEST_PG` and `ACTA_TEST_MSSQL` name disposable databases. Each provider gets its own
@@ -17,12 +16,12 @@ rather than one runtime under two manifests.
 
 ## What the sequential phases do
 
-These run by default (`-Phases Sequential`). The script archives the previous tag with `git archive`,
+These run with `-Phases Sequential`. The script archives the previous tag with `git archive`,
 builds the same consumer program twice from separate directories, once against the archived tree and
 once against this one, and then runs these phases in order with the same schema throughout. They need a
-previous release that shares the current baseline, and rc.4 re-cut it, so the default pairing with
-`v1.0.0-rc.3` now fails at phase 2 on the baseline check rather than the package check; until 1.0 ships,
-run them with `-PreviousRef HEAD`, as the overlap phase below already says.
+previous release that shares the current baseline and records no object package. rc.3 was the only one,
+and rc.4 re-cut the baseline, so no pair qualifies any more; they stay for the record, and the overlap
+phase below is the default.
 
 1. The previous binary provisions the schema, so the database holds the previous release's objects and
    no object-package row.
@@ -43,7 +42,7 @@ phase. A dirty worktree is fine for a local check and is not release evidence.
 
 ## What the overlap phase does
 
-`-Phases Overlap` runs both generations at the same time, the way a rolling deploy actually looks
+`-Phases Overlap`, the default, runs both generations at the same time, the way a rolling deploy actually looks
 while it is under way. It uses its own `acta_overlap_*` schema, with the same steps for each provider:
 
 1. The previous binary provisions the schema.

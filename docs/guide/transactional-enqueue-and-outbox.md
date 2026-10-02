@@ -213,7 +213,8 @@ the canonical `CREATE TABLE` with provider-correct types and UTC-clock defaults,
 `id`, the unique `outbox_id`, the three named claim indexes, and the named check constraints, with any
 table/schema override rendered correctly.
 `table` and `schema` take the same lowercase identifier validation as the staging extension and the relay
-source; `schema: null` uses the provider's established default. It is documentation input, not an
+source, and on PostgreSQL the table name is at most 41 characters, so every name derived from it stays
+within the 63-byte identifier limit; `schema: null` uses the provider's established default. It is documentation input, not an
 installer: paste or pipe it into DbUp, Flyway, `migrationBuilder.Sql(...)`, or a hand migration. Acta never
 executes it.
 

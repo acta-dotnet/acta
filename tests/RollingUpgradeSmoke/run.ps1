@@ -1,10 +1,12 @@
 [CmdletBinding()]
+# Until 1.0 ships no earlier release shares this baseline, so the default pairs this tree with itself under
+# the overlap phase; from 1.0 the previous release is the pair.
 param(
-    [string]$PreviousRef = 'v1.0.0-rc.3',
+    [string]$PreviousRef = 'HEAD',
     [ValidateSet('pg', 'mssql')]
     [string[]]$Providers = @('pg', 'mssql'),
     [ValidateSet('Sequential', 'Overlap')]
-    [string[]]$Phases = @('Sequential')
+    [string[]]$Phases = @('Overlap')
 )
 
 $ErrorActionPreference = 'Stop'

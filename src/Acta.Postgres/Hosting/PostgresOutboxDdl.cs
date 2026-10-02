@@ -13,9 +13,21 @@ namespace Acta.Postgres.Hosting;
 /// </summary>
 public static class PostgresOutboxDdl
 {
+    private const int MaxTableLength = 63 - 22;
+
     public static string CreateScript(string table = "acta_outbox", string? schema = null)
     {
+        ArgumentNullException.ThrowIfNull(table);
         var t = OutboxIdentifier.Qualify(table, schema);
+        // PostgreSQL truncates a name past 63 bytes, and the longest name derived below adds 22 to the
+        // table's, so a longer table name would give several objects one truncated name.
+        if (table.Length > MaxTableLength)
+        {
+            throw new ArgumentException(
+                $"A PostgreSQL outbox table name may be at most {MaxTableLength} characters, so the constraint and index names derived from it stay within 63 bytes; '{table}' has {table.Length}.",
+                nameof(table)
+            );
+        }
         // Constraint and index names derive from the (bare) table so a non-default table name yields
         // collision-free objects; the default table yields exactly the canonical names.
         return $"""
