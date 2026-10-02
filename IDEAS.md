@@ -34,6 +34,7 @@ Structure:
 Duplication and conventions:
 
 - AI produces a lot of duplication. We need conventions, and they must be enforced.
+- One naming convention for everything; today there are far too many. The data types in `src/` use more than 25 name suffixes, several meaning the same thing: `Result`, `Outcome`, `Response`, and `Decision` for what an operation returns; `Row`, `Record`, `Entity`, `Dto`, `Data`, `Info`, and `Model` for data passed between layers; `Command`, `Request`, and `Spec` for what goes in. Pick one name per role, write it into `docs/internals/naming-conventions.md`, and enforce it with a test.
 - Today there are DTOs, items, raws, and entities, and a lot of the copying between them is redundant.
 - APIs are redundant, and the services are to be broken up.
 - Each operation gets its own request and response class, and an interface only when many operations share it (job control can be one).
