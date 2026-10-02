@@ -43,6 +43,26 @@ three evidence harnesses join the release checklist.
 - **A scheduled job with `RecurringResultCap` below one is refused at startup.** Zero meant keep
   every result forever, and a live recurring slot is never terminal, so nothing else bounded that
   history. The attribute default of one is unchanged.
+- **`IDefinitions` takes the reason before the actor.** `UpdateOverridesAsync` and `RetireAsync`
+  took `(actorKey, reasonMessage)`, the one pair of verbs in that order, so a positional call written
+  to the common order filed the reason as the actor. Both now take `(reasonMessage, actorKey)`. A
+  positional call written against an earlier release candidate needs its two arguments swapped; named
+  arguments are unaffected.
+- **Authorizer verbs name the mutation where one route carries two.** A tag write is `tags.add` or
+  `tags.remove`, and `<entity>.tags.add` or `<entity>.tags.remove` for the other entities;
+  registering a tenant is `tenants.register`; a PATCH is `tenants.update`, `namespaces.update`, or
+  `definitions.update`. The old names were shared, so allowing one allowed the other. The operator
+  guide lists every verb.
+- **Control bodies are exact.** A body member the endpoint does not take answers 400 with its path.
+  It used to be dropped, leaving the verb on its default: a misnamed `outboxIds` discarded every
+  quarantined row in the namespace, and a reprioritize without `priority` moved the job to Bulk,
+  which now also answers 400. Members are camelCase.
+- **Local-only also checks the host name.** A loopback request must name the host as `localhost`, a
+  `.localhost` name, or an IP address, since a web page can rebind its own DNS name to 127.0.0.1 and
+  reach the dashboard through the operator's browser. Browse to `localhost` or `127.0.0.1`, not the
+  machine name.
+- **`JobContext` is not for subclassing.** Its constructor and storage members are `private
+  protected`, so the seam can change within 1.x. Tests drive handlers through `Acta.Testing`.
 
 ### Lanes
 
@@ -73,6 +93,10 @@ three evidence harnesses join the release checklist.
   behind; the job list filters by lane.
 - **Schema.** A `lanes` table, `runtimes.lane_id` with two indexes, `definitions.lane`, a `lane`
   column on the outbox and the published `jobs` view, and status 15.
+- **A batch settle never promotes past a running member.** A restarted member can wait Blocked
+  below a running one. The Bulk completion batch promoted the head of every lane it reached, so a late
+  flush carrying a finished member made the restarted one Ready beside the running one. The batch now
+  checks for a running member first, as every other promoting verb does.
 - **What lanes cost.** On PostgreSQL and SQL Server the claim and settle paths run a few percent
   slower than before lanes. On SQLite, which prepares every statement of a command on each call, the
   ancestor check cost a single-job enqueue a sixth of its time even with no parent to check; it is
@@ -99,6 +123,14 @@ three evidence harnesses join the release checklist.
 - **Waiting on a job no longer misses its completion.** `RunAndWaitAsync` read the job before it
   listened, so a completion landing between the two woke nobody and the caller slept a whole poll
   interval. It now listens first.
+- **SQL Server seeks a lane's members.** Every lookup of a lane's head or of a running member took
+  the lane id as a variable and wanted one row, and SQL Server answered by walking the job table from
+  its oldest row: 7,300 reads per laned completion at 875,000 retained jobs. Each now seeks the lane
+  index, 5 to 9 pages. Reading one blocked job joined it to its head in a way SQL Server could not
+  seek, 4.4 million reads on the same table; it now reads 30.
+- **SQLite reads registered definition ids back by seek.** The read-back after the definitions upsert
+  scanned the namespace's definitions once per name: 15 ms for a 114-definition manifest at every
+  worker start, now 0.3 ms.
 
 ### Completion and recovery
 
@@ -173,6 +205,31 @@ three evidence harnesses join the release checklist.
   nothing started it until the stale attempt ended. `extend_worker_leases` now returns each row's
   execution number beside its job id, and the heartbeat matches on both: it cancels the stale
   attempt and hands the replacement to the orphan release, which returns it to Ready.
+- A worker killed mid-drain, or cut off past its host's shutdown budget, stayed Draining forever,
+  because the dead-worker sweep took only Active rows. It now takes Draining ones too.
+- A database outage longer than the dead-after window marks every worker Dead, though the processes
+  live on. Nothing moved the rows back, so until each process restarted the overview reported ready
+  jobs with no live workers and a clean shutdown wrote no `worker.stopped`. A heartbeat now makes a
+  Dead worker Active again, or Draining when it drains, with no event of its own.
+- **Restart gives an exhausted step a fresh budget.** A step that spent its retry budget throws
+  `StepExhaustedException` on every replay without running, and restart left the step as it was, so a
+  job restarted after its provider recovered failed again at once. Restart now clears the job's
+  Exhausted steps. An Interrupted at-most-once step stays until the handler reconciles it.
+- Replicas of one build starting together, as a first deploy with several pods does, raced to
+  register the same new namespace, definitions, and recurring slots, and the losers failed to start.
+  Registration now takes up to five passes a short pause apart, and a later pass reads what the
+  winner committed.
+- A provider error while taking a concurrency slot or a rate turn is recorded as `job.unclassified`.
+  It was recorded as `job.concurrency-key-held`, which on a rate-only definition named a key the
+  definition does not have.
+- PostgreSQL's `enqueue_batch` read its outcomes in the statement that inserted, so a row that lost
+  its deduplication key to a producer committing at that moment came back with no job id, and the
+  caller got an `InvalidCastException` for a batch that had committed. A second statement now reads
+  the outcomes.
+- Fan-out children are named the same on every host. `MapAsync` formatted a key with the current
+  culture, so a replay under another culture named a different child and started a duplicate. Keys
+  now format invariantly, and `MapAsync` and `ParallelAsync` check every child name before starting
+  the first, where a name past the limit used to throw after the earlier children had started.
 
 ### Dashboard and API
 
@@ -188,6 +245,10 @@ three evidence harnesses join the release checklist.
 - `Acta.AspNetCore` ships `THIRD-PARTY-NOTICES.txt` at the package root, generated by the dashboard
   build from the modules that land in the bundle, transitive ones included. The package smoke checks
   it is packed and names every package known to survive minification.
+- The dashboard saves schedule overrides again. It sent the version it loaded as `version`, which
+  the endpoint does not take, so every save answered 400.
+- The dashboard's acknowledge and resolve notes reach the server. The shared control mutation
+  overwrote them with an empty reason, so every note was lost, the required resolve reason included.
 
 ### Rate limits
 
@@ -222,6 +283,10 @@ three evidence harnesses join the release checklist.
   and reads its result; a child purged first ran a second time. The tree drains from the leaves up
   once the parent is terminal. A parent that waits, sleeps, or stays paused for a long time holds
   its finished children for that long.
+- A cancelled or failed recurring job stays past its retention deadline while its definition is
+  live. The sweep deleted it with its schedules, and the next worker start registered the still
+  declared schedule as a new job, undoing a cancel ninety days on. Retiring the definition lets the
+  job drain, and a manual purge still deletes it.
 
 ### Installed objects
 
@@ -257,6 +322,12 @@ three evidence harnesses join the release checklist.
 - SQL Server compares an installed body with the one it would install exactly, normalizing only the
   header SQL Server rewrites. It used to collapse all whitespace, inside string literals too, and so
   could skip a body whose literal had changed.
+- The installer lock is `<schema>-migrations`. The scripts named it for the default schema, so a
+  script relocated by replacing the schema name, as its header says to, took a different lock from
+  its bootstrap.
+- The SQL Server script's refusals hold in a client that runs on past errors, such as sqlcmd
+  without `-b`: each refusal rolls back and sets `NOEXEC`, so every later batch only compiles. SQLite
+  has no such switch, and its header says to run it with `sqlite3 -bail`.
 
 ### Scheduling
 
@@ -285,6 +356,18 @@ three evidence harnesses join the release checklist.
   recorded steps replayed by the recurring fires, and, when it waited in a lane, released beside the
   lane's head. Registration now takes a row only when it just created it or the row already owns
   schedules, and the worker refuses to start with an error naming the recurring job.
+- **A worker start keeps an operator's schedule override.** The startup reconcile used the declared
+  expression, so a schedule slowed by an override fired once at its declared cadence whenever a start
+  found its cursor past due. An override of the other kind, left by a deploy that switched between
+  interval and cron, is cleared at registration; it used to fail to parse at every fire.
+- **A worker start leaves an occurrence under way alone.** It reconciled every recurring slot as if
+  it were idle, so a slot parked inside an occurrence, on a sleep, a step retry, a bounce, or a wait,
+  moved to the next instant and resumed up to a period late, and an attempt in flight could run its
+  occurrence twice. A parked or running slot now keeps its status, wake instant, and due cursors, and
+  registration never puts a woken wait back to sleep.
+- **A start counts an occurrence less than a minute overdue as due, not missed.** Under Skip, a start
+  that landed between an occurrence coming due and a worker claiming it moved the slot a period on,
+  so a rolling deploy over many minutely jobs lost one now and then.
 
 ### Release evidence
 
@@ -302,6 +385,10 @@ three evidence harnesses join the release checklist.
   round leaves nothing behind and autovacuum stays on.
 - The release checklist names, per boundary the review questioned, the spec or harness that carries
   it.
+- The certification's fragile shapes run inside the chaos window. The charges and meters were seeded
+  in the slow backlog's band and ran after the kills had stopped, so in five of six earlier seals
+  their checks saw no kill. They run at High priority now, and a seal reports how many attempts of
+  each shape the kills orphaned (`chaos-by-shape`).
 
 ### Documentation
 
@@ -310,6 +397,11 @@ three evidence harnesses join the release checklist.
   in enqueue order. Concurrent claims guarantee neither global FIFO nor handler-start order, retries
   may be overtaken by later jobs, and concurrency keys limit simultaneous execution without
   preserving execution order. Strict per-key order is a lane, documented with its limits.
+- The concurrency limit is per concurrency key, the definition name only when an enqueue carries
+  none, and an override resizes every key. A rate override changes only turns not yet booked.
+  Orphaning a schedule drops an operator's pause. Known limitations name the schedule writes that
+  work from a slightly older read, and the concepts and `llms.txt` say when to reach for a lane, a
+  key, a limit, or a rate.
 
 ### Test suite
 
@@ -321,6 +413,10 @@ three evidence harnesses join the release checklist.
 - `Acta.Testing`'s `InsertAsync` runs in an explicit transaction. It repeats an insert the database
   aborted as a transient conflict, and on SQLite an autocommit insert once reported one yet left
   its row behind, so the repeat failed on a unique key; a failed attempt now rolls back whole.
+- The runtime specs park their namespace's seeded recurring slots by job id. They addressed them by
+  namespace and status, which on SQL Server scanned the whole shared runtimes table on every spec.
+  With that and the two SQL Server seeks above, the SQL Server leg went from 80 s to 21 s, and the
+  median end-to-end test takes 13 to 31 ms run one at a time.
 
 ## 1.0.0-rc.3
 
