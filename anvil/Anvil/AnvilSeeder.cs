@@ -55,15 +55,14 @@ public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
     // contract, so those failures are the shape working and the board's target must include them.
     //
     // Another tenth is the metered shape, capped at ten thousand, and both slices come out of
-    // slow-success so the workload keeps its requested size. Metered jobs are due with the bulk rather
-    // than timed like the charges: the meter, not the enqueue, decides when each one starts, and the
-    // slice is sized so those admissions are still being handed out while workers are dying (a tenth
-    // of 4,000 at ten a second is about forty seconds of meter-bound work inside a seven-minute chaos
-    // window). The cap is what keeps a million-job run a run of the ledger rather than of the meter:
-    // its tenth would be 100,000 turns at ten a second, and the ledger would sit drained for the last
-    // two and a half hours while the meter paid them out. The slice is split across three meters, a
-    // fifth at ten a second and two fifths each at fifty and at a hundred, so a million-job run pays its
-    // ten thousand out in minutes and the verdict checks three contracts side by side.
+    // slow-success so the workload keeps its requested size. Metered jobs all come due at once inside
+    // the chaos window, and the meter then decides when each one starts, so admissions are handed out
+    // at full rate while workers are dying. The cap is what keeps a million-job run a run of the ledger
+    // rather than of the meter: its tenth would be 100,000 turns at ten a second, and the ledger would
+    // sit drained for the last two and a half hours while the meter paid them out. The slice is split
+    // across three meters, a fifth at ten a second and two fifths each at fifty and at a hundred, so a
+    // million-job run pays its ten thousand out in minutes and the verdict checks three contracts side
+    // by side.
     //
     // A further tenth, capped at twenty thousand, is laned: ten jobs to a lane, due inside the chaos
     // window like the charges, a lane at a time, so a lane's head is running when its worker dies. Lane
@@ -78,12 +77,23 @@ public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
         var slow = Math.Max(0, spec.Load - charges - metered - laned);
         var spread = Math.Max(1, spec.EffectSpreadSeconds);
         int? DueInChaos(int i) => spec.EffectDelaySeconds <= 0 ? null : spec.EffectDelaySeconds + (i % spread);
+        // The meters' slice is due all at once, so each meter runs at its full rate while workers die: spread
+        // like the charges, it would trickle in below the rate and leave the contract unloaded.
+        int? DueTogetherInChaos(int _) => spec.EffectDelaySeconds <= 0 ? null : spec.EffectDelaySeconds;
         var meterShares = new[] { metered / 5, metered * 2 / 5, metered - (metered / 5) - (metered * 2 / 5) };
         return
         [
             new("slow-success", slow, false, i => AnvilPayloads.Json(new SlowSuccess($"slow-{i}", 5, spec.StepDelayMs))),
             .. MeteredJob.Meters.Select(
-                (meter, m) => new SeedLine(meter.JobName, meterShares[m], false, i => meter.Payload($"{meter.JobName}-{i}"))
+                (meter, m) =>
+                    new SeedLine(
+                        meter.JobName,
+                        meterShares[m],
+                        false,
+                        i => meter.Payload($"{meter.JobName}-{i}"),
+                        DueTogetherInChaos,
+                        Priority: JobPriorityCode.High
+                    )
             ),
             new(
                 "laned",
@@ -95,7 +105,8 @@ public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
                 i => DueInChaos(i % lanes),
                 i => $"lane-{i % lanes}",
                 // High, so a lane's head is claimed the moment it is due rather than behind the slow backlog
-                // seeded earlier in the same band, which drains only after the chaos has ended.
+                // seeded earlier in the same band, which drains only after the chaos has ended. The charges and
+                // the meters are High for the same reason.
                 JobPriorityCode.High
             ),
             new(
@@ -106,7 +117,10 @@ public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
                 // Due inside the window where a kill can actually interrupt a body: after the warm-up,
                 // because nothing is reclaimable before a lease can lapse, and before the chaos ends.
                 // Zero means due now, which is what the cockpit wants and a certification never does.
-                DueInChaos
+                DueInChaos,
+                // High for the reason the laned slice is: in the slow backlog's band it would be claimed
+                // only once that backlog drained, after the chaos had ended.
+                Priority: JobPriorityCode.High
             ),
         ];
     }

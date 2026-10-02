@@ -93,7 +93,10 @@ per-release gate run locally.
   workers.
 - The crash workload carries every property a kill can break: durable steps, an AtMostOnce charge,
   three rate meters side by side (10/s, 50/s, and 100/s, each checked against its own budget), and
-  laned jobs ten to a lane (checked for order and for draining).
+  laned jobs ten to a lane (checked for order and for draining). The charges, the meters, and the
+  laned jobs run at High priority inside the chaos window, ahead of the slow backlog, and every seal
+  reports how many attempts of each the kills orphaned (`chaos-by-shape`); a zero there means that
+  shape's checks ran with no kill in flight.
 - File the JSON/MD seal under `docs/certification/`.
 
 Two commits carry a release, and their roles do not mix:

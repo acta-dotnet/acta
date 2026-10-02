@@ -248,8 +248,12 @@ public static class MeteredJob
     private static async Task<string> AdmitAsync(string label, JobContext ctx, CancellationToken ct)
     {
         await ctx.NoteAsync("metered-admitted", ct);
+        // Long enough that a kill can land inside an admitted attempt, whose reclaim is then metered again.
+        await Task.Delay(MeteredDwellMs, ct);
         return $"metered: {label}";
     }
+
+    private const int MeteredDwellMs = 300;
 }
 
 public static class LanedJob

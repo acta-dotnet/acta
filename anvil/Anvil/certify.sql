@@ -351,3 +351,20 @@ SELECT 'lane-drained' AS check_name, r.job_id, r.lane_id, r.status_code
 FROM   {s}runtimes r
 WHERE  r.lane_id IS NOT NULL
   AND  r.status_code NOT IN (100, 200, 220);
+
+-- ---------------------------------------------------------------------------------------------
+-- 17. where the chaos landed                             [MEASURED: always reports, never fails]
+-- ---------------------------------------------------------------------------------------------
+-- Check 8 proves kills reclaimed something; this says which of the shapes that exist to be
+-- interrupted they reached: the at-most-once charge (check 10), the three meters (check 14), and the
+-- laned jobs (checks 15-16). A zero means that shape's checks ran with no kill in flight and prove
+-- less than their names say.
+SELECT 'chaos-by-shape' AS check_name,
+       SUM(CASE WHEN d.name = 'at-most-once-charge' THEN 1 ELSE 0 END) AS charges_orphaned,
+       SUM(CASE WHEN d.name LIKE 'metered-%' THEN 1 ELSE 0 END) AS metered_orphaned,
+       SUM(CASE WHEN d.name = 'laned' THEN 1 ELSE 0 END) AS laned_orphaned
+FROM   {s}events e
+JOIN   {s}jobs j ON j.id = e.job_id
+JOIN   {s}definitions d ON d.id = j.definition_id
+WHERE  e.event_code = 41 AND e.execution_status_code = 230
+HAVING COUNT(*) >= 0;
