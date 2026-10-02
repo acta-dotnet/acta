@@ -18,10 +18,11 @@ if (!version) {
 const pages = readdirSync(siteDir).filter((f) => f.endsWith(".html")).sort();
 const failures = [];
 
-// 1. Every version literal under site/ names the released version.
+// 1. Every version literal under site/ names the released version. Captured program output is left
+// out: a version there is the sample app's own, printed by a real run, not a claim about Acta's.
 const literal = /\b1\.0\.0(?:-rc\.\d+)?\b|\b[1-9]\d*\.\d+\.\d+(?:-rc\.\d+)?\b/g;
 for (const file of readdirSync(siteDir).filter((f) => /\.(html|txt|xml)$/.test(f))) {
-  const text = readFileSync(resolve(siteDir, file), "utf8");
+  const text = readFileSync(resolve(siteDir, file), "utf8").replace(/<figure class="listing output">[\s\S]*?<\/figure>/g, "");
   for (const m of text.matchAll(literal)) {
     if (m[0] !== version && /^1\.0\.0/.test(m[0])) {
       failures.push(`${file}: version literal '${m[0]}' is not the released '${version}'`);
