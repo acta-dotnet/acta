@@ -43,9 +43,8 @@
 
   // Same two verbs the list drives, at the same alerts/{alertRef}/{action} path; invalidating the
   // 'alerts' key prefix refreshes this screen and every cached list page together.
-  const mutation = useControlMutation<{ action: 'acknowledge' | 'resolve'; note?: string }, AlertControlResponse>({
+  const mutation = useControlMutation<{ action: 'acknowledge' | 'resolve'; reason?: string }, AlertControlResponse>({
     path: (vars) => `alerts/${encodeURIComponent(alertRef)}/${vars.action}`,
-    body: (vars) => ({ reasonMessage: vars.note?.trim() || null }),
     notFound: () => ({ alertRef, action: 'notFound', acknowledgedAtUtc: null, resolvedAtUtc: null }),
     invalidateKeys: () => [['alerts']] as const
   });
@@ -58,7 +57,7 @@
     confirming = null;
     message = '';
     try {
-      const result = await mutation.mutateAsync({ action, note });
+      const result = await mutation.mutateAsync({ action, reason: note });
       const applied = result.action === 'applied';
       message = applied ? (action === 'acknowledge' ? 'Acknowledged.' : 'Resolved.') : 'Alert not found.';
       messageKind = applied ? 'ok' : 'warn';

@@ -48,7 +48,7 @@
   let showActions = $derived(mode !== 'editor');
 
   // pause/resume/trigger/overrides all live at schedules/{ns}/{job}/{schedule}/{action}, share the
-  // note-only body shape (overrides layers version/expression/timeZoneId on top via `extra`), and
+  // note-only body shape (overrides layers expectedVersion/expression/timeZoneId on top via `extra`), and
   // return ScheduleControlResponse; invalidating the 'schedules' key prefix refreshes every cached list.
   const mutation = useControlMutation<
     { action: string; reason?: string; extra?: Record<string, unknown> },
@@ -165,7 +165,7 @@
       const result = await mutation.mutateAsync({
         action: 'overrides',
         reason: overridesNote,
-        extra: { version, ...buildOverridesPayload({ expression: expressionInput, timeZoneId: timeZoneInput }) }
+        extra: { expectedVersion: version, ...buildOverridesPayload({ expression: expressionInput, timeZoneId: timeZoneInput }) }
       });
       if (overridesNeedsReload(result.action)) {
         // Never clobber: the row changed since it was loaded (a stale expectedVersion or a state

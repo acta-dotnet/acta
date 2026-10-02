@@ -87,11 +87,10 @@
   // Both verbs live at alerts/{alertRef}/{action} and return AlertControlResponse; invalidating
   // the 'alerts' key prefix refreshes every cached alerts list/page.
   const mutation = useControlMutation<
-    { alertRef: string; action: 'acknowledge' | 'resolve'; note?: string },
+    { alertRef: string; action: 'acknowledge' | 'resolve'; reason?: string },
     AlertControlResponse
   >({
     path: (vars) => `alerts/${vars.alertRef}/${vars.action}`,
-    body: (vars) => ({ reasonMessage: vars.note?.trim() || null }),
     notFound: (vars) => ({ alertRef: vars.alertRef, action: 'notFound', acknowledgedAtUtc: null, resolvedAtUtc: null }),
     invalidateKeys: () => [['alerts']] as const
   });
@@ -104,7 +103,7 @@
     confirming = null;
     message = '';
     try {
-      const result = await mutation.mutateAsync({ alertRef, action, note });
+      const result = await mutation.mutateAsync({ alertRef, action, reason: note });
       // Only 'applied' is green; anything else (notFound, or a future non-applied action) is a warning,
       // never a false success - same guard as JobControls' `result.action === 'applied' ? 'ok' : 'warn'`.
       const applied = result.action === 'applied';
