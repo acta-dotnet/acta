@@ -25,15 +25,16 @@ namespace Acta.Tests.Conformance.Runtime;
     "The run loop drains a backlog, wakes on publishes, and shuts down cleanly",
     Area = "Execution",
     Contract = "RunLoopAsync drains a backlog, sleeps idle until the claim horizon capped by SafetyPollInterval, wakes early on wakeup publishes, and cancels cleanly.",
-    Arrange = "A backlog is enqueued with an 8s SafetyPollInterval so wakeup-driven pickups are distinguishable from safety polls.",
+    Arrange = "A backlog is enqueued, with an 8s safety poll for the fallback fact and 60s for the rest, so wakeup-driven pickups are distinguishable from safety polls.",
     Act = "RunLoopAsync runs in the background across enqueues, delayed rows, colocated completions, retries, and an unpublished Ready row.",
     Assert = "The loop drains the backlog to Succeeded, wakes early on wakeup publishes, discovers the unpublished row via the safety poll, and cancels cleanly."
 )]
 public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {
-    // Sized for the fallback fact, the only one that waits a safety poll out. The wake facts read how
-    // the idle sleep ENDED rather than racing its length, so its exact value cannot decide them.
+    // Sized for the fallback fact, the only one that waits a safety poll out. The wake facts read how an
+    // idle sleep ended, and a write queued behind a busy SQLite lock can outlast eight seconds, so they
+    // sleep for SpecWaits.Gate: a slow publish then still ends the sleep as a wake.
     private static readonly TimeSpan SafetyPoll = TimeSpan.FromSeconds(8);
 
     // The wake-speed fact's two knobs. The wait budget is a hang guard, not a measurement: one
@@ -55,7 +56,10 @@ public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFi
         services.Configure<JobsOptions>(o =>
         {
             o.RegisterSystemJobs = false;
-            o.SafetyPollInterval = SafetyPoll;
+            o.SafetyPollInterval =
+                TestContext.Current.TestMethod?.MethodName == nameof(An_unpublished_ready_row_is_discovered_by_the_safety_poll)
+                    ? SafetyPoll
+                    : SpecWaits.Gate;
         });
     }
 

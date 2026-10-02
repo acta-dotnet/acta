@@ -22,14 +22,6 @@ public abstract class WorkerCrashRecoveryChaosSpec<TFixture> : ActaRuntimeTestBa
     // A normal positive lease; chaos expires it explicitly via ExpireLeaseAsync, never by waiting.
     private const int LeaseTtlSeconds = 60;
 
-    // Deliberately NOT SpecWaits.Gate: "chaos-blocking" (ChaosProbes.Blocking) carries its own
-    // ExecutionTimeout of PT10S, a second and independent mechanism that also cancels a stuck attempt.
-    // Gate (60s) sits above that decoy, so waiting that long could never tell "heartbeat cancelled it"
-    // apart from "the execution timeout eventually did" - the exact silent-success-path Finding 1
-    // flagged, just moved ten seconds later. This bound must stay well under 10s so a genuinely broken
-    // heartbeat fails the assertion instead of being rescued by the timeout.
-    private static readonly TimeSpan HeartbeatCancelBound = TimeSpan.FromSeconds(5);
-
     private StoreFaultPlan _faults = null!;
 
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
@@ -137,7 +129,10 @@ public abstract class WorkerCrashRecoveryChaosSpec<TFixture> : ActaRuntimeTestBa
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-blocking", ct);
+        // The five-minute framework timeout, not chaos-blocking's ten seconds: a reclaim queued behind a
+        // busy SQLite write lock can outlast ten seconds, and the attempt's own timeout would then settle
+        // the row first and leave the reclaim nothing to find.
+        var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-holding", ct);
         ChaosProbes.Reset(enqueued.JobId);
 
         // --- 1. Start the handler and let it block, then expire its lease mid-run and reclaim.
@@ -146,36 +141,25 @@ public abstract class WorkerCrashRecoveryChaosSpec<TFixture> : ActaRuntimeTestBa
         await ChaosSpecHelpers.ExpireLeaseAsync(Db, enqueued.JobId, ct);
         Assert.Equal(1, await ChaosSpecHelpers.ReclaimAsync(Services, ns, ct));
 
-        // --- 2. Heartbeat cancels the lost lease. Leave the probe blocked when cancellation lands in
-        // time: JobExecutor retries the claim within this same tick, and that retry's own Blocking
-        // invocation is meant to hang on the SAME gate until ITS ExecutionTimeout (PT10S) finalizes the
-        // attempt - that is how a stolen-lease attempt is designed to resolve (see the comment on
-        // ChaosProbes.Blocking). Releasing here regardless of outcome was tried and breaks that: the
-        // retry then sails through as a trivial success instead of timing out, and the job below asserts
-        // Completed instead of the expected stolen-lease outcome. Only release early when cancellation
-        // genuinely did not happen in time, so a real regression fails fast via the assertion instead of
-        // hanging `await run` forever.
+        // --- 2. Heartbeat cancels the handler whose lease was lost. No timeout within the wait can
+        // cancel it instead, so only the heartbeat passes this. The gate then opens for whichever run
+        // claims the reclaimed row next.
         await Runtime.RunHeartbeatOnceAsync(ct);
         var cancelled = ChaosProbes.WaitCancelledAsync(enqueued.JobId, ct);
-        var cancelledInTime = await Task.WhenAny(cancelled, Task.Delay(HeartbeatCancelBound, ct)) == cancelled;
-        if (!cancelledInTime)
-        {
-            ChaosProbes.Release(enqueued.JobId);
-        }
+        var cancelledInTime = await Task.WhenAny(cancelled, Task.Delay(SpecWaits.Gate, ct)) == cancelled;
+        ChaosProbes.Release(enqueued.JobId);
         Assert.True(cancelledInTime, "Heartbeat-driven cancellation did not cancel the handler whose lease was lost.");
 
-        var stolenOutcome = await run;
-        Assert.Contains(stolenOutcome, new[] { RunOnceOutcome.NothingClaimed, RunOnceOutcome.Rearmed });
-        Assert.Equal(JobStatusCode.Ready, await Jobs.GetStatusAsync(enqueued, ct));
-
-        // --- 3. A fresh run completes the job exactly once. The recovered attempt re-armed with a
-        // retry backoff (next_run in the future), so force the row due before the final claim; this
-        // spec verifies recovery + single completion, not the backoff interval.
-        ChaosProbes.Reset(enqueued.JobId);
-        ChaosProbes.Release(enqueued.JobId);
-        await ChaosSpecHelpers.SetReadyAsync(Db, enqueued.JobId, ct);
-        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        // --- 3. The job completes exactly once: in the same tick, which re-claims the reclaimed row,
+        // or in a fresh run when that tick claimed nothing.
+        var outcome = await run;
+        Assert.Contains(outcome, new[] { RunOnceOutcome.Completed, RunOnceOutcome.NothingClaimed });
+        if (outcome == RunOnceOutcome.NothingClaimed)
+        {
+            Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        }
         Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(2, ChaosProbes.CountingInvocations[enqueued.JobId]);
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         ChaosSpecHelpers.AssertRecoveryEvent(events, JobStatusCode.Executing, JobStatusCode.Ready);
