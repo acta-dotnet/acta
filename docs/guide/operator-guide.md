@@ -466,7 +466,9 @@ stays a problem document with its `reasonCode`. Controls are
 opt-in (`EnableControls = true`)
 because they mutate jobs; enable them alongside your authorization, never on an open surface.
 Unmapped controls answer 404. Control requests must send the `X-Acta-Control: true` header,
-an anti-accident guard (not authentication) the dashboard sends automatically. The job detail
+an anti-accident guard (not authentication) the dashboard sends automatically. Body members are
+camelCase and exact: a member the endpoint does not take answers 400 with its path, so a misspelled
+scope never widens a verb to its default. The job detail
 screen surfaces all seven actions with state-aware availability and confirmation for destructive
 changes. Explain links directly to the applicable signal/control/timeline action and shows the
 durable evidence behind its recommendation. The dashboard also exposes schedule

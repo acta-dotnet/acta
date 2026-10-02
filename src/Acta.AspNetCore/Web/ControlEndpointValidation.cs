@@ -84,12 +84,9 @@ internal static class ControlEndpointValidation
             {
                 request = await http.Request.ReadFromJsonAsync(typeInfo, ct);
             }
-            catch (JsonException)
+            catch (JsonException ex)
             {
-                return (
-                    null,
-                    Problem(StatusCodes.Status400BadRequest, "Invalid request body.", "The control request body is not valid JSON.")
-                );
+                return (null, InvalidBody(ex));
             }
         }
 
@@ -101,6 +98,16 @@ internal static class ControlEndpointValidation
 
         return ValidateReasonLength(text, options) is { } lengthError ? (null, lengthError) : (text, null);
     }
+
+    // The path names the member at fault, an unknown one included, so a caller can fix its body.
+    private static IResult InvalidBody(JsonException ex) =>
+        Problem(
+            StatusCodes.Status400BadRequest,
+            "Invalid request body.",
+            ex.Path is { Length: > 1 } path
+                ? $"The control request body is not valid at '{path}': malformed JSON, a wrong type, or a member this endpoint does not take."
+                : "The control request body is not valid JSON."
+        );
 
     /// <summary>
     /// The reason-message length cap shared by every control endpoint. Returns a 400 problem result
@@ -166,9 +173,9 @@ internal static class ControlEndpointValidation
         {
             return (await http.Request.ReadFromJsonAsync(typeInfo, ct), null);
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
-            return (null, Problem(StatusCodes.Status400BadRequest, "Invalid request body.", "The control request body is not valid JSON."));
+            return (null, InvalidBody(ex));
         }
     }
 
@@ -202,9 +209,9 @@ internal static class ControlEndpointValidation
         {
             body = await http.Request.ReadFromJsonAsync(typeInfo, ct);
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
-            return (null, Problem(StatusCodes.Status400BadRequest, "Invalid request body.", "The control request body is not valid JSON."));
+            return (null, InvalidBody(ex));
         }
 
         return body is null

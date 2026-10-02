@@ -111,16 +111,20 @@ public sealed class OutboxControlEndpointTests
         Assert.Empty(jobs.OutboxFake.ControlCalls);
     }
 
+    // The actor is the authenticated principal: a body that names one is refused, not quietly ignored.
     [Fact]
     public async Task Actor_key_comes_from_the_authenticated_principal_not_the_body()
     {
         var jobs = new TestDashboardHost.FakeJobs();
         var (app, client) = await TestDashboardHost.StartAuthenticatedAsync("marko", options => options.EnableControls = true, jobs: jobs);
         await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
 
-        var response = await client.SendAsync(Post("requeue", body: new { actorKey = "spoofed" }), TestContext.Current.CancellationToken);
+        var spoofed = await client.SendAsync(Post("requeue", body: new { actorKey = "spoofed" }), ct);
+        var plain = await client.SendAsync(Post("requeue"), ct);
 
-        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, spoofed.StatusCode);
+        Assert.Equal(HttpStatusCode.Accepted, plain.StatusCode);
         Assert.Equal("marko", Assert.Single(jobs.OutboxFake.ControlCalls).ActorKey);
     }
 

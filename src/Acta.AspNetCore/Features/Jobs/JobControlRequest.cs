@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Acta.AspNetCore.Features.Jobs;
 
 /// <summary>
@@ -21,11 +23,15 @@ internal sealed record JobVersionedControlRequest(string? ReasonMessage = null, 
 internal sealed record JobRescheduleRequest(DateTime NextRunAtUtc = default, string? ReasonMessage = null, int? ExpectedVersion = null);
 
 /// <summary>
-/// Body of a job-reprioritize POST. <c>Priority</c> is mandatory; an unrecognized wire name fails
-/// deserialization (400). The framework stamps the actor and reason code itself. <c>ExpectedVersion</c>
-/// is the optional CAS guard.
+/// Body of a job-reprioritize POST. <c>Priority</c> is mandatory, since its default is the lowest band;
+/// a missing or unrecognized one fails deserialization (400). The framework stamps the actor and reason
+/// code itself. <c>ExpectedVersion</c> is the optional CAS guard.
 /// </summary>
-internal sealed record JobReprioritizeRequest(JobPriorityCode Priority, string? ReasonMessage = null, int? ExpectedVersion = null);
+internal sealed record JobReprioritizeRequest(
+    [property: JsonRequired] JobPriorityCode Priority,
+    string? ReasonMessage = null,
+    int? ExpectedVersion = null
+);
 
 /// <summary>
 /// Body of a job-input-amend POST. Exactly one of <c>Input</c> (raw JSON, stored as json), <c>Text</c>

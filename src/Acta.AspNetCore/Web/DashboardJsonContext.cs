@@ -6,7 +6,9 @@ namespace Acta.AspNetCore.Web;
 
 /// <summary>
 /// Source-generated JSON metadata for every dashboard API response type. Code-family enums carry
-/// their own converters writing the kebab wire names; plain enums serialize camelCase.
+/// their own converters writing the kebab wire names; plain enums serialize camelCase. A request body
+/// member the record does not declare fails the read: a misspelled or differently cased scope would
+/// otherwise vanish and widen the verb to its default, as an outbox discard to every quarantined row.
 /// </summary>
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
@@ -16,7 +18,8 @@ namespace Acta.AspNetCore.Web;
         typeof(CamelCaseAdminControlActionConverter),
         typeof(CamelCaseJobEnqueueActionConverter),
     ],
-    DefaultIgnoreCondition = JsonIgnoreCondition.Never
+    DefaultIgnoreCondition = JsonIgnoreCondition.Never,
+    UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow
 )]
 [JsonSerializable(typeof(PagedResult<JobListItem>))]
 [JsonSerializable(typeof(PagedResult<JobDefinitionListItem>))]
