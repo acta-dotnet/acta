@@ -55,7 +55,7 @@
     { key: 'outputTypeName', header: 'Output', class: 'mono mobile-hide' },
     { key: 'priority', header: 'Priority', align: 'right' },
     { key: 'maxAttempts', header: 'Max attempts', align: 'right' },
-    { key: 'concurrencyLimit', header: 'Concurrency limit', align: 'right' },
+    { key: 'concurrencyLimit', header: 'Concurrency per key', align: 'right' },
     { key: 'rateLimit', header: 'Rate limit', align: 'right' },
     { key: 'modifiedAtUtc', header: 'Modified', class: 'mobile-hide' }
   ];
@@ -89,7 +89,7 @@
     {#snippet outputCell(def: DefinitionRow)}<span title={def.outputTypeName ?? ''}>{displayFormatter.typeName(def.outputTypeName)}</span>{/snippet}
     {#snippet priorityCell(def: DefinitionRow)}{def.priorityEffective}{#if def.priorityOverride != null}<span class="ovr" title="operator override">*</span>{/if}{/snippet}
     {#snippet attemptsCell(def: DefinitionRow)}{displayFormatter.number(def.maxAttemptsEffective)}{#if def.maxAttemptsOverride != null}<span class="ovr" title="operator override">*</span>{/if}{/snippet}
-    {#snippet concurrencyCell(def: DefinitionRow)}{def.concurrencyLimitEffective == null ? 'unlimited' : displayFormatter.number(def.concurrencyLimitEffective)}{#if def.concurrencyLimitOverride != null}<span class="ovr" title="operator override">*</span>{/if}{/snippet}
+    {#snippet concurrencyCell(def: DefinitionRow)}{#if def.concurrencyLimitEffective == null}<span title="No limit set: a job enqueued with a concurrency key still runs one at a time per key">none</span>{:else}{displayFormatter.number(def.concurrencyLimitEffective)}{/if}{#if def.concurrencyLimitOverride != null}<span class="ovr" title="operator override">*</span>{/if}{/snippet}
     {#snippet rateCell(def: DefinitionRow)}<span title={def.rateKey ? 'meter: ' + def.rateKey : ''}>{def.rateLimitEffective ?? 'unlimited'}</span>{#if def.rateLimitOverride != null}<span class="ovr" title="operator override">*</span>{/if}{/snippet}
     {#snippet modifiedCell(def: DefinitionRow)}<RelativeTime value={def.modifiedAtUtc} />{/snippet}
 
