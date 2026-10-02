@@ -200,10 +200,12 @@ worth knowing before you go looking for why a broken job hasn't dead-lettered ye
 
 ### Concurrency limit
 
-`[Job("rebuild-index", ConcurrencyLimit = 4)]` caps how many attempts of that definition execute at
-once, cluster-wide, between 1 and 1024. Like every other policy slot it has an operator override on
-the definition row, so the effective limit is the override when one is set and the declared value
-otherwise.
+`[Job("rebuild-index", ConcurrencyLimit = 4)]` caps how many attempts execute at once per
+concurrency key, cluster-wide, between 1 and 1024; with no key on the enqueue, that is per
+definition. Like every other policy slot it has an operator override on the definition row, so the
+effective limit is the override when one is set and the declared value otherwise. An override
+resizes every key of the definition, so raising it where the keys serve as one-at-a-time locks gives
+up that exclusion; for one at a time per entity, use a lane.
 
 The limit is enforced on a key, and the key is the enqueue's `ConcurrencyKey` when the job carries
 one, otherwise the definition name. A key with no limit admits one at a time, which is what a
@@ -247,6 +249,10 @@ value) or worker startup rejects it, naming the meter and its effective rate. A 
 participants disagree is reported by a startup and policy-reload warning; retune it by overriding
 any participant.
 
+**An override changes the rate of turns not booked yet.** A backlog that arrived early booked its turns
+at the old rate, out to about its size divided by that rate, and those instants stand: lowering the
+rate slows only what the meter books afterwards.
+
 **Admission is a reservation, not a retry loop.** The meter keeps the instant the next admission is
 due. A job that arrives after that instant runs immediately. A job that arrives early is given the
 next free instant, and the attempt re-arms Ready at exactly that instant without spending retry
@@ -279,7 +285,8 @@ the rate caps how fast jobs *start*, so if every executor is busy the realized r
 A booked turn is held for fifteen minutes past its instant, a fixed grace that no worker setting moves, so a late but living job never loses
 one. Past that, the ordinary lock expiry sweep collects it: a job that was cancelled, or reclaimed
 before it came back, simply loses its place and is metered afresh when it next asks - one more re-arm,
-at the tail of the queue. The meter itself is swept the same way once it has been idle for a full
+at the tail of the queue. The turn is not handed back: cancelling a backlog leaves the meter booked
+out to the end of it. The meter itself is swept the same way once it has been idle for a full
 burst, which restores it to a fresh meter with its full burst.
 
 For production-oriented defaults and tradeoffs, including provider choice, migration ownership,

@@ -26,7 +26,7 @@ public sealed class JobAttribute(string name) : Attribute
     public int MaxAttempts { get; init; } = 15;
 
     /// <summary>
-    /// How many attempts of this definition may execute at once, 1..1024. Unset means no limit unless
+    /// How many attempts may execute at once per concurrency key, 1..1024. Unset means no limit unless
     /// an enqueue supplied a <c>ConcurrencyKey</c>, which alone means 1. The gate is the key: the
     /// enqueue's key when there is one, otherwise the definition name, so two definitions that share a
     /// key share its slots. Shared-key capacity is the largest limit among the participants; a
