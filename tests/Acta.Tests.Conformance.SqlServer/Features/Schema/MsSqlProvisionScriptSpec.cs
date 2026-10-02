@@ -123,6 +123,75 @@ public sealed partial class MsSqlProvisionScriptSpec
         }
     }
 
+    [Fact(DisplayName = "An older script over a newer release's package changes nothing, even in a client that runs on past errors")]
+    public async Task An_older_script_over_a_newer_package_changes_nothing_when_errors_are_ignored()
+    {
+        var connString = IntegrationConfig.SqlServerConnectionString;
+        if (connString is null)
+        {
+            Assert.Skip("ACTA_TEST_MSSQL is not set.");
+        }
+        var ct = TestContext.Current.CancellationToken;
+        var schema = $"acta_noexec_{Guid.NewGuid():N}"[..30];
+        var repoRoot = IntegrationConfig.FindRepoRoot();
+        var script = SchemaWord().Replace(File.ReadAllText(Path.Combine(repoRoot, "docs", "reference", "schema-mssql.sql")), schema);
+        await ActaSharedDatabase.EnsureReadyAsync(new SqlServerConformanceFixture());
+        try
+        {
+            await RunScriptAsync(connString, script, ct);
+
+            // A newer release recorded its package, and one of its routines reads differently.
+            await using var conn = new SqlConnection(connString);
+            await conn.OpenAsync(ct);
+            await using (var newer = conn.CreateCommand())
+            {
+                newer.CommandText = $"UPDATE {schema}.migrations SET name = 'objects-1.99-newer' WHERE version = -1";
+                await newer.ExecuteNonQueryAsync(ct);
+            }
+            var marked = File.ReadAllText(
+                    Path.Combine(repoRoot, "src", "Acta.SqlServer", "Sql", "Services", "Locks", "ExtendLock.routine.sql")
+                )
+                .ReplaceLineEndings("\n")
+                .Replace("{{schema}}", schema)
+                .Replace("AS\nBEGIN", "AS\nBEGIN\n    -- newer_release_body");
+            foreach (var batch in SplitOnGo(marked))
+            {
+                await using var alter = conn.CreateCommand();
+                alter.CommandText = batch;
+                await alter.ExecuteNonQueryAsync(ct);
+            }
+
+            // Like sqlcmd without -b: every batch runs, whatever the one before it raised.
+            var refused = false;
+            foreach (var batch in SplitOnGo(script))
+            {
+                try
+                {
+                    await using var cmd = conn.CreateCommand();
+                    cmd.CommandText = batch;
+                    await cmd.ExecuteNonQueryAsync(ct);
+                }
+                catch (SqlException ex) when (ex.Message.Contains("A newer Acta release", StringComparison.Ordinal))
+                {
+                    refused = true;
+                }
+            }
+
+            Assert.True(refused, "the script did not refuse the newer package");
+            await using var probe = conn.CreateCommand();
+            probe.CommandText =
+                $"SELECT OBJECT_DEFINITION(OBJECT_ID('{schema}.extend_lock')), (SELECT name FROM {schema}.migrations WHERE version = -1)";
+            await using var reader = await probe.ExecuteReaderAsync(ct);
+            Assert.True(await reader.ReadAsync(ct));
+            Assert.Contains("newer_release_body", reader.GetString(0));
+            Assert.Equal("objects-1.99-newer", reader.GetString(1));
+        }
+        finally
+        {
+            await DropSchemaAsync(connString, repoRoot, schema);
+        }
+    }
+
     private static async Task RunScriptAsync(string connString, string script, CancellationToken ct)
     {
         await using var conn = new SqlConnection(connString);

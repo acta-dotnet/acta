@@ -68,7 +68,15 @@ internal static class ProvisionScriptEmitter
         script.AppendLine("-- provisioned: every statement is individually guarded, so a re-run applies nothing that is");
         script.AppendLine("-- present and leaves the data in place. Views and routines carry no version and are rewritten");
         script.AppendLine("-- to the definitions shipped here, except over a newer release's package: then the script stops");
-        script.AppendLine("-- before changing anything. A later 1.x release upgrades a 1.x database with");
+        if (sqlite)
+        {
+            script.AppendLine("-- before changing anything, in a client that halts on an error (sqlite3 -bail). A later 1.x");
+            script.AppendLine("-- release upgrades a 1.x database with");
+        }
+        else
+        {
+            script.AppendLine("-- before changing anything. A later 1.x release upgrades a 1.x database with");
+        }
         script.AppendLine("-- its own migrations, carried in its own copy of this script. A database provisioned by a");
         script.AppendLine("-- release candidate (1.0.0-rc.x) has no upgrade path: provision a new one. Startup refuses it");
         script.AppendLine("-- and names its baseline.");
@@ -241,6 +249,12 @@ internal static class ProvisionScriptEmitter
         Append(string.Join("\n", SqlObjectInstaller.StampStatements(schema, token, installed)));
 
         Append(mssql ? "COMMIT TRANSACTION;" : "COMMIT;");
+        if (mssql)
+        {
+            // A refusal above set NOEXEC, so a client that ran on past the error only compiled every batch
+            // since; this last batch hands the session back.
+            Append("SET NOEXEC OFF;");
+        }
         return script.ToString().ReplaceLineEndings("\n");
     }
 
@@ -260,7 +274,11 @@ internal static class ProvisionScriptEmitter
                 DECLARE @lock_rc INT;
                 EXEC @lock_rc = sp_getapplock N'{key}', 'Exclusive', 'Transaction', 60000;
                 IF @lock_rc < 0
-                    THROW 50000, 'sp_getapplock failed acquiring the {key} lock', 1;
+                BEGIN
+                    RAISERROR(N'sp_getapplock failed acquiring the {key} lock', 16, 1);
+                    IF @@TRANCOUNT > 0 ROLLBACK;
+                    SET NOEXEC ON;
+                END
                 """,
             _ => "-- BEGIN IMMEDIATE above holds the database's single write lock from here to COMMIT.",
         };
@@ -270,8 +288,10 @@ internal static class ProvisionScriptEmitter
     /// Stops the script before it changes anything when a newer build already upgraded the database: a
     /// migration past this script's last, or a higher object package revision. The script's half of the
     /// bootstrap's same rule, because rerunning an older release's script during a rollback must not
-    /// rewrite what newer workers call. SQLite has no raise outside a trigger, so a failing CHECK names
-    /// the refusal instead.
+    /// rewrite what newer workers call. On SQL Server the refusal rolls back and sets NOEXEC, so even a
+    /// client that runs on past an error (sqlcmd without -b, SSMS) changes nothing. SQLite has no raise
+    /// outside a trigger, so a failing CHECK names the refusal instead, and stops only a client that halts
+    /// on an error (sqlite3 -bail).
     /// </summary>
     internal static string NoDowngradeGuard(string token, int lastMigration)
     {
@@ -308,7 +328,11 @@ internal static class ProvisionScriptEmitter
                 IF EXISTS (
                 {Indent(newer, 4)}
                 )
-                    THROW 50000, N'{message}', 1;
+                BEGIN
+                    RAISERROR(N'{message}', 16, 1);
+                    IF @@TRANCOUNT > 0 ROLLBACK;
+                    SET NOEXEC ON;
+                END
                 """,
             _ => $"""
                 CREATE TEMP TABLE release_guard (

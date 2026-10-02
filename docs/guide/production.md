@@ -152,7 +152,8 @@ What holds while both builds run:
   the migration before the new build starts.
 - Nothing older overwrites a database a newer build upgraded. An older build's bootstrap leaves the
   newer views and routines in place, and an older release's provisioning script stops before
-  changing anything, so a rollback never rewrites what the newer build calls.
+  changing anything, so a rollback never rewrites what the newer build calls. On SQLite the script
+  stops only in a client that halts on an error, such as `sqlite3 -bail`.
 
 Deploy: apply migrations, start the new workers, stop the old ones once the new ones are healthy.
 Rollback: start the old build, stop the new one. Jobs of a definition only the withdrawn build

@@ -14,7 +14,8 @@
 -- provisioned: every statement is individually guarded, so a re-run applies nothing that is
 -- present and leaves the data in place. Views and routines carry no version and are rewritten
 -- to the definitions shipped here, except over a newer release's package: then the script stops
--- before changing anything. A later 1.x release upgrades a 1.x database with
+-- before changing anything, in a client that halts on an error (sqlite3 -bail). A later 1.x
+-- release upgrades a 1.x database with
 -- its own migrations, carried in its own copy of this script. A database provisioned by a
 -- release candidate (1.0.0-rc.x) has no upgrade path: provision a new one. Startup refuses it
 -- and names its baseline.
