@@ -18,6 +18,7 @@ serialize the work, but the loser has already consumed an executor while it wait
 | `RunWithLockAsync` | A critical section inside a handler |
 | `ConcurrencyKey` (+ `ConcurrencyLimit`) | Admission control for the whole execution, one job at a time or N |
 | `RateLimit` | Admission control on how often, not how many |
+| Lane (`.Lane(...)`, `[Job(Lane = ...)]`) | One job at a time per lane, in enqueue order |
 | Queue partitioning | High-volume, stable partition keys |
 | Database uniqueness | Preventing duplicate durable records |
 | External distributed lock | Coordination beyond Acta's database |
@@ -36,12 +37,12 @@ throttles the whole definition. The limit is an operator-overridable policy slot
 `[Job(RateLimit = "N/s")]` is the third gate and meters how often attempts start, which a limit cannot
 express: five a second is not the same shape as five at once. The lab's third handler,
 `ping-endpoint`, declares "5/s". A job that arrives before its turn is booked the next free instant
-and re-arms once at exactly that instant, so twelve jobs cost twelve starts and seven bounces rather
-than a crowd re-racing a counter. `RateKey` puts several definitions on one meter; definitions that
-share one must declare the same rate.
+and re-arms once at exactly that instant, rather than a crowd re-racing a counter; a turn less than a
+quarter second away is waited out in process instead, with no re-arm. `RateKey` puts several
+definitions of the namespace on one meter; definitions that share one must declare the same rate.
 
-`ConcurrencyKey` provides mutual exclusion, not ordering. While a worker holds a valid lease on the key,
-no other job with that namespace and key is admitted; the exclusion is as strong as the lease, which a
+`ConcurrencyKey` provides admission, not ordering. While workers hold valid leases on all of the key's
+slots (one, unless a limit sizes it), no other job with that namespace and key is admitted; the exclusion is as strong as the lease, which a
 heartbeat renews while the handler runs. Admission order is unspecified: under sustained arrivals that
 keep a key held, an older job can be repeatedly overtaken, and Acta does not bound its wait. Use it for
 exclusive *unordered* work.
@@ -72,8 +73,9 @@ Run with `--all-columns` to execute the visible `SELECT *` Explore query first. 
 queries select the fields that prove the lesson, and the text below explains their meaning.
 
 `jobs_view` shows the owner executing and the competitor ready without a worker. The lab also descends
-one level into the internal `leases` table to reveal the named holder, then uses `events_view` to show
-`job.concurrency-key-held`. Base tables are implementation detail; use the curated views or `IJobs` for
+one level into the internal `locks` table to reveal the named holder (the key's slot rows are
+`<namespace id>.sem.<key>.<slot>`, and the meter's are its `.rate.ping-endpoint` bucket and
+reservations), then uses `events_view` to show `job.concurrency-key-held` and `job.rate-limited`. Base tables are implementation detail; use the curated views or `IJobs` for
 normal operations.
 
 ## Break it
@@ -95,11 +97,12 @@ anything:
    tie-breaker within one claim, not a multi-producer FIFO guarantee, because database identities are
    allocation order, not commit order.
 2. **Exclusive unordered work.** `ConcurrencyKey`, exactly as this lab shows it.
-3. **Strict ordered processing.** A durable coordinator or chain that releases item N+1 only once
-   item N has reached the required outcome. Head-of-line blocking is the price: one stuck item holds
-   everything behind it, so the design needs a poison-item policy.
+3. **Strict ordered processing.** A lane: `.Lane("customer-42")` on the enqueue, or
+   `[Job(Lane = "...")]` on the definition, runs the lane's jobs one at a time in enqueue order.
+   Head-of-line blocking is the price: a failing head retries in place and holds everything behind it,
+   so the design needs a poison-item policy.
 
-Use queue partitioning for sustained, high-volume per-key ordering. Use a unique constraint when the
+Use queue partitioning when per-key ordering must scale past one job at a time per lane. Use a unique constraint when the
 real invariant is “only one record may exist.” Use an external lock when non-Acta participants must
 coordinate too.
 

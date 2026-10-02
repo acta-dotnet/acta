@@ -43,8 +43,8 @@ dotnet run --project concepts/700-topology-and-deployment/705-worker-crash-recov
 dotnet run --project concepts/700-topology-and-deployment/705-worker-crash-recovery -- worker-b
 ```
 
-Worker A intentionally exits non-zero. Worker B uses short lab-only lease timings and triggers the real
-recovery schedule after expiry. Starting worker A creates a new local session token; `enqueue`,
+Worker A intentionally exits non-zero. Both workers run short lab-only lease timings, and worker B
+triggers the real recovery schedule after expiry. Starting worker A creates a new local session token; `enqueue`,
 `inspect`, and worker B reuse it. Worker A crashes only the probe carrying that token, so an unfinished
 probe from an aborted older session cannot terminate the new experiment. Each `enqueue` also updates a
 local current-job marker, making the sequence repeatable against the same shared database.

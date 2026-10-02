@@ -19,7 +19,10 @@ rather than one runtime under two manifests.
 
 These run by default (`-Phases Sequential`). The script archives the previous tag with `git archive`,
 builds the same consumer program twice from separate directories, once against the archived tree and
-once against this one, and then runs these phases in order with the same schema throughout:
+once against this one, and then runs these phases in order with the same schema throughout. They need a
+previous release that shares the current baseline, and rc.4 re-cut it, so the default pairing with
+`v1.0.0-rc.3` now fails at phase 2 on the baseline check rather than the package check; until 1.0 ships,
+run them with `-PreviousRef HEAD`, as the overlap phase below already says.
 
 1. The previous binary provisions the schema, so the database holds the previous release's objects and
    no object-package row.
@@ -61,6 +64,7 @@ The overlap phase needs a previous release that can share the current database. 
 cannot: its baseline is refused at startup and the database is reprovisioned. The script refuses
 `-Phases Overlap` with a release-candidate `-PreviousRef`, so its first real pair is 1.0 against 1.1.
 To exercise the phase before then, run it with `-PreviousRef HEAD`.
+
 ## What it does not claim
 
 It covers one pair of generations and three profiles, not every historical combination. The startup

@@ -17,7 +17,7 @@ what the checkout is waiting for, or how an operator can prove what happened.
 
 - Keep the continuation in memory and lose it when the process stops.
 - Put flags in an application table and build a state-machine runner around them.
-- Replay everything and require every external system to honor an deduplication key.
+- Replay everything and require every external system to honor a deduplication key.
 - Adopt a workflow engine with a separate state model and operating surface.
 - Use a distributed transaction where every participant genuinely supports one.
 
@@ -100,8 +100,7 @@ versioned processes or cross-system orchestration is itself the product.
 
 ## Source trail
 
-- [The schema-as-runtime Engineering Lab](../../../docs/engineering-labs.md)
-- [The split-state Engineering Lab](../../../docs/engineering-labs.md)
+- [The Engineering Labs](../../../docs/engineering-labs.md)
 - [`Checkout.cs`](./Checkout.cs)
 - [`JobContext.cs`](../../../src/Acta/Execution/JobContext.cs)
 - [`Job.cs`](../../../src/Acta.Relational/Entities/Job.cs)

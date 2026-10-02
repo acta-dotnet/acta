@@ -57,7 +57,11 @@ the internal storage tables are not a public compatibility contract.
 ## Break it
 
 Try a mutation while controls are disabled, then opt in and repeat with the required confirmation
-header/UI flow. Also bind beyond localhost only in a deliberately secured test environment.
+header (`X-Acta-Control: true`) or the UI flow; a body member the endpoint does not take answers 400.
+The surface is local-only: a request must come from loopback and name the host as `localhost` or an IP
+address, so browse to `localhost`, not the machine name. Binding beyond localhost exposes nothing by
+itself; serving remote callers takes `LocalOnly = false` plus host authorization through
+`ConfigureEndpoints`, so try it only in a deliberately secured test environment.
 
 ## When not to use
 

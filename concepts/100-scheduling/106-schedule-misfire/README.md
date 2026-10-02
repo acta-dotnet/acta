@@ -19,8 +19,9 @@ After downtime, a schedule cursor can point into the past. “Run everything mis
 
 ## Why this design
 
-Acta makes `Skip` versus `CatchUpOnce` explicit per schedule. Resume reconciles the stored cursor by
-that policy rather than hiding an accidental default in a worker loop.
+Acta makes `Skip` versus `CatchUpOnce` explicit per schedule, with `Skip` the default when a schedule
+names none. Resume reconciles the stored cursor by that policy, and so does a worker start once a cursor
+is more than a minute overdue, rather than hiding an accidental default in a worker loop.
 
 ## Trade-offs
 

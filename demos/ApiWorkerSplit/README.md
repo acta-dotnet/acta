@@ -22,10 +22,11 @@ deployment cadence, or permissions.
 
 Acta uses the relational database as the handoff and coordination authority. Acta atomically creates the
 job row and its runtime state inside its own store operation without requiring a direct worker connection.
-The job row's creation columns are the enqueue record; enqueue does not append a separate event. Acta's
-public enqueue API does not automatically enlist in the application's existing business-data transaction,
-so atomically committing that data and enqueueing a job still requires an application-level transaction or
-outbox strategy. Job claims, heartbeats, and completions consume database capacity, and contract changes
+The job row's creation columns are the enqueue record; enqueue does not append a separate event. Committing
+business data and a job atomically takes one of Acta's two explicit paths: `IJobs.EnqueueAsync` with the
+application's `DbTransaction` when the data lives in Acta's database, or `AddToActaOutboxAsync` and the
+relay when it lives in another; see
+[transactional enqueue and the outbox](../../docs/guide/transactional-enqueue-and-outbox.md). Job claims, heartbeats, and completions consume database capacity, and contract changes
 must remain safe while old and new processes overlap during a deployment.
 
 Use a broker or streaming platform instead when very high event throughput, broad fan-out, or log replay
@@ -92,5 +93,6 @@ reconciliation where duplication matters.
 - [`Worker/Program.cs`](./Worker/Program.cs): worker registration and namespace ownership.
 - [`Worker/SendWelcomeEmailJob.cs`](./Worker/SendWelcomeEmailJob.cs): handler code available only to the
   worker process.
-- [`Directory.Build.props`](./Directory.Build.props): the shared local provider and source references that
-  keep the demo runnable from a repository checkout.
+- [`LocalDatabase.cs`](./LocalDatabase.cs): the local provider switch each project links in, and
+  [`Directory.Packages.props`](../Directory.Packages.props): the published Acta package versions the demo
+  consumes.

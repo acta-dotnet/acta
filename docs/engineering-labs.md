@@ -3,19 +3,19 @@
 A curated index of runnable proof. An Engineering Lab is a small project in
 [`concepts/`](../concepts/) whose README carries the full loop: the decision, the alternatives,
 what the design costs, the exact rows that prove the behavior, what happens when a worker dies at
-the worst moment, and the source files behind it. A few tour stops (`001-hello-acta`,
-`802-testing-durable-jobs`, `901-native-aot-json`, `903-redis-wakeup`) are focused runnable proofs
-rather than full labs. The explanations live beside the runnable code, where they cannot drift from it.
+the worst moment, and the source files behind it. A few entries (`001-hello-acta`, `802-testing-durable-jobs`,
+`901-native-aot-json`, `903-redis-wakeup`) are focused runnable proofs rather than full labs. The explanations live beside the runnable code, where they cannot drift from it.
 
-Everything below runs on embedded SQLite with no server unless a lab says otherwise. From a fresh
+Everything below runs on embedded SQLite with no server, except `705-worker-crash-recovery`
+(PostgreSQL or SQL Server) and `903-redis-wakeup` (Redis on `localhost:6379`). From a fresh
 clone: `dotnet run --project concepts/<category>/<lab>`.
 
 ## The 45-minute tour
 
 Six labs, in order, that cover the model end to end:
 
-1. [`001-hello-acta`](../concepts/000-fundamentals/001-hello-acta/): enqueue a job, watch a worker
-   run it, inspect the row it left behind.
+1. [`001-hello-acta`](../concepts/000-fundamentals/001-hello-acta/): enqueue a job and watch a worker
+   run it.
 2. [`202-durable-step`](../concepts/200-durable-execution/202-durable-step/): a named step records
    its outcome; re-entry returns the stored result instead of repeating the work.
 3. [`204-wait-signal`](../concepts/200-durable-execution/204-wait-signal/): a job suspends on a
@@ -42,14 +42,15 @@ Six labs, in order, that cover the model end to end:
 | [`501-payload-formats`](../concepts/500-payloads/501-payload-formats/) | JSON, MessagePack, and gzip payload codecs per job. |
 | [`211-child-jobs`](../concepts/200-durable-execution/211-child-jobs/) | Fan-out as ordinary jobs with recorded lineage. |
 | [`022-dashboard`](../concepts/000-fundamentals/022-dashboard/) | The embedded dashboard and opt-in operator controls. |
-| [`209-concurrency-key`](../concepts/200-durable-execution/209-concurrency-key/) | Serializing hot keys without blocking unrelated workers. |
+| [`209-concurrency-key`](../concepts/200-durable-execution/209-concurrency-key/) | Admitting hot keys one or N at a time, and metering starts, without blocking unrelated workers. |
 | [`412-tenant-scope`](../concepts/400-observability-and-alerts/412-tenant-scope/) | A tenant as an audit boundary without becoming a queue. |
 | [`310-operator-restart`](../concepts/300-failure-and-recovery/310-operator-restart/) | Restart that preserves evidence without pretending to be exactly-once. |
 | [`903-redis-wakeup`](../concepts/900-runtime-and-tuning/903-redis-wakeup/) | Redis as a wakeup bell only, never a source of truth. |
 | [`901-native-aot-json`](../concepts/900-runtime-and-tuning/901-native-aot-json/) | Jobs under Native AOT with source-generated JSON. |
 
-Beyond the labs, the full [`concepts/`](../concepts/) ladder holds a runnable project for every concept, from
-fundamentals through runtime tuning; [`docs/guide/tutorials.md`](./guide/tutorials.md) sequences
+Beyond the labs, the [`concepts/`](../concepts/) ladder holds a runnable project for most concepts, from
+fundamentals through runtime tuning (lanes and the outbox are covered by the guides, not yet by a
+rung); [`docs/guide/tutorials.md`](./guide/tutorials.md) sequences
 them.
 
 ## Engine-room proofs

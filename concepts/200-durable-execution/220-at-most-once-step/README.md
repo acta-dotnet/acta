@@ -56,7 +56,7 @@ only to make the experiment quick.
 ## Break it
 
 Comment out `AtMostOnce()` and repeat: the body can run again after recovery. Then
-replace the file with a fake external API that accepts an deduplication key and compare the certainty it
+replace the file with a fake external API that accepts a deduplication key and compare the certainty it
 can provide.
 
 ## When not to use

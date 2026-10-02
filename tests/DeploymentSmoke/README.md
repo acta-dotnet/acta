@@ -24,8 +24,9 @@ port. nginx then proxies `/operations/` to it, prefix preserved, on a loopback-o
 
 - Anonymous requests to the page, an asset path, the job list, and the job's input and detail all
   answer 401, including with spoofed forwarded-user and forwarded-proto headers.
-- An authorized request loads the page, and the JavaScript asset the page names loads with a real
-  body; the same asset anonymously answers 401, so the packaged asset route is inside the policy.
+- An authorized request loads the page, its `<base href>` is `/operations/acta/` (the proxy prefix
+  restored through `UsePathBase`), and the JavaScript asset the page names, resolved against that base
+  the way a browser resolves it, loads with a real body; the same asset anonymously answers 401, so the packaged asset route is inside the policy.
 - Authorized input and detail reads return the exact bytes enqueued, returned, and checkpointed, and
   the detail response is marked `no-store`.
 - Capabilities report controls disabled and the cancel endpoint is not mapped, so a read-only mount

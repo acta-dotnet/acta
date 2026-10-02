@@ -47,7 +47,8 @@ Generated from source and drift-checked in CI: [Data model](./reference/data-mod
 ([pg](./reference/schema-pg.sql), [mssql](./reference/schema-mssql.sql),
 [sqlite](./reference/schema-sqlite.sql)):
 complete per-provider SQL (migrations, views, routines) for DBA-run provisioning where the
-application principal is not allowed DDL. The
+application principal is not allowed DDL. The [HTTP API contract](./reference/openapi.json) is the
+OpenAPI document of the dashboard JSON API, and the
 [conformance contracts](./reference/conformance-contracts.md) list every specified behavior with the
 arrange/act/assert that proves it.
 

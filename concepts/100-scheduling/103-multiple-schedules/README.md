@@ -25,7 +25,9 @@ coincident schedules can coalesce into one execution, whose `TriggeringScheduleN
 
 ## Trade-offs
 
-Occurrence history lives in the event/result ledger rather than in a new job identity. Each schedule
+Occurrence history lives in the event/result ledger rather than in a new job identity, as far as the
+slot keeps it: `RecurringResultCap` (one by default) bounds the results and `AuditLevel` decides the
+events. Each schedule
 still needs its own cursor, and coalescing is intentionally not a record of every missed business event.
 
 ## Run the experiment
@@ -42,12 +44,14 @@ Run with `--all-columns` to execute the visible `SELECT *` Explore query first. 
 queries select the fields that prove the lesson, and the text below explains their meaning.
 
 Expect one `jobs_view` row, two `schedules_view` rows, and several `events_view` executions. The view
-queries are operator/learning surfaces; code should normally use `IJobs` and `IJobSchedules`.
+queries are operator/learning surfaces; code should normally use `IJobs` and
+`IActaOperations.Schedules`.
 
 ## Break it
 
-Stop the process for longer than one interval, restart it, and inspect how the configured misfire policy
-advances. Lab [`106-schedule-misfire`](../106-schedule-misfire/) isolates the `Skip` versus
+Stop the process for more than a minute, restart it, and inspect how the misfire policy advances the
+cursors (this lab declares none, so the default `Skip` applies; a cursor less than a minute overdue at a
+start still fires). Lab [`106-schedule-misfire`](../106-schedule-misfire/) isolates the `Skip` versus
 `CatchUpOnce` decision.
 
 ## When not to use

@@ -21,7 +21,10 @@ same durable identity without erasing why it failed or accidentally assuming all
 ## Why this design
 
 `RestartAsync` keeps `job_id`/`job_ref`, resets the failure budget and retention, increments later
-execution numbers, and appends a restart event. Completed durable steps remain available to replay.
+execution numbers, and appends a restart event. Completed durable steps remain available to replay;
+an exhausted step gets a fresh budget, while an interrupted at-most-once step stays until the handler
+reconciles it. A laned job can come back `Blocked` behind its lane's running job, and an `Executing` job
+is refused.
 
 ## Trade-offs
 

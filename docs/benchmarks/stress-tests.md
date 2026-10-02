@@ -35,7 +35,7 @@ dotnet run --project anvil/Anvil.Bench --
 
 The menu asks for:
 
-- preset: `quick` or `full`
+- preset: `quick`, `release`, or `full`
 - database: `pg`, `mssql`, `sqlite`, or `all`
 
 Scripted runs use the same fixed choices:
@@ -46,7 +46,10 @@ dotnet run --project anvil/Anvil.Bench -- quick --db mssql
 dotnet run --project anvil/Anvil.Bench -- quick --db sqlite
 dotnet run --project anvil/Anvil.Bench -- full --db mssql
 dotnet run --project anvil/Anvil.Bench -- full --db all
+dotnet run --project anvil/Anvil.Bench -- release --db pg --scenario drain --scenario rate
 ```
+
+`--scenario` repeats to run only the named cells; without it a preset runs all of them.
 
 SQLite is only included when selected explicitly or when `--db all` is used.
 
@@ -82,6 +85,11 @@ empty-ledger run this harness has always done.
 - drain workers `1` for SQLite, `1,16` for server databases
 - enqueue producers `1,16`
 
+`release` is the release round's preset, run as the candidate and the previous release back to back
+in the same hour for each database ([releasing](../internals/releasing.md)). It runs every execution
+profile at the `quick` matrix's points, with one discarded warmup and one measured run, 5,000 jobs,
+50,000 retained query rows, and 200,000 batch-enqueued rows; about fifteen minutes a database.
+
 `full` is the canonical matrix when you want broad coverage. It uses:
 
 - 1 discarded warmup and median of 3 measured runs
@@ -92,12 +100,15 @@ empty-ledger run this harness has always done.
 - drain workers `1` for SQLite, `1,4,16` for server databases
 - enqueue producers `1,4,16`
 
-Both presets include throughput, latency, drain, single-call enqueue, batch enqueue, and job-list query cells.
+Every preset includes throughput, latency, drain, single-call enqueue, batch enqueue, job-list query,
+rate-limit, lane, and claim-skew cells. Batch enqueue carries its own row count (100,000 under `quick`,
+200,000 under `release`, 500,000 under `full`) so the slowest provider spends several seconds inside
+the measured window.
 
 ## Database Connection
 
-PostgreSQL and SQL Server use `ACTA_TEST_PG` and `ACTA_TEST_MSSQL` when set, otherwise the local
-fallback connection strings. SQLite uses a temporary local database.
+PostgreSQL and SQL Server read `ConnectionStrings:acta`, then `ACTA_TEST_PG` or `ACTA_TEST_MSSQL`; with
+neither set the run fails before it starts. SQLite uses a temporary local database.
 
 The selected database is checked once before the benchmark matrix starts. If it cannot be opened,
 Anvil.Bench exits without writing JSON or Markdown.
@@ -140,6 +151,10 @@ Each baseline captures comparability metadata:
 - git dirty flag
 
 ## Recorded Baselines
+
+Release rounds since rc.2 have their own pages, which link the baselines they ran:
+[rc.2](./rc2-benchmarks-20260910.md), [rc.3](./rc3-full-matrix-20260921.md) (with the SQL Server
+[page-latch note](./rc3-page-latch.md)). The list below is the earlier series.
 
 - [2026-08-22 afternoon full all-provider report](./baseline-20260822T134457Z.md) — **the
   `v1.0.0-rc.1` baseline**: 105 cells, one warmup and three measured repeats per cell, run on the
@@ -186,8 +201,8 @@ Each baseline captures comparability metadata:
 - [2026-07-14 full all-provider report](./baseline-20260714T182846Z.md): 105 cells, one warmup and
   three measured repeats per cell; all aggregated cells and all 315 measured repeats completed.
 
-Source JSON is kept only for the newest baseline; superseded baselines keep their report and their
-JSON lives in git history.
+From the 2026-08-22 afternoon baseline on, each keeps its source JSON beside its report; the earlier ones
+keep only the report, and their JSON lives in git history.
 
 ## Reading benchmark numbers
 

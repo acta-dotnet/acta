@@ -13,9 +13,9 @@ dotnet run --project tests/HardeningSoak -- purge-smoke sqlite artifacts/hardeni
 ```
 
 The arguments are the provider, the run length in seconds, the offered rate in jobs per second, and
-the report path. The rate is a positive multiple of twenty because the producer enqueues in
-fifty-millisecond ticks. PostgreSQL comes from `ACTA_TEST_PG`; SQLite gets its own file under the
-temp folder.
+the report path. The run lasts at least thirty seconds, and the rate is a positive multiple of twenty
+because the producer enqueues in fifty-millisecond ticks. PostgreSQL comes from `ACTA_TEST_PG`, SQL Server
+from `ACTA_TEST_MSSQL`; SQLite gets its own file under the temp folder.
 
 ## What a run does
 
@@ -26,8 +26,9 @@ the workload; each sweep must leave no expired event behind. Roughly once a seco
 one job to its durable result. Once a second the harness samples the oldest due Ready job and the
 unfinished count and appends them to a `.progress.ndjson` sidecar, which survives a failed run.
 
-The run refuses to start when PostgreSQL autovacuum is off or SQLite is not in WAL mode, and records
-the autovacuum count or the WAL autocheckpoint setting at the end. Turning maintenance off to make a
+The run refuses to start when PostgreSQL autovacuum is off, SQL Server automatic statistics updates
+are off, or SQLite is not in WAL mode, and records the autovacuum count, the statistics count, or the
+WAL autocheckpoint setting at the end. Turning maintenance off to make a
 run look better is not an option here, by policy.
 
 At the end the producer stops, the workload has up to two minutes to drain, and the final checks
