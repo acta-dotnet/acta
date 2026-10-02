@@ -3021,6 +3021,16 @@
 
 ## Workers
 
+### A heartbeat makes a worker marked Dead live again
+- **Contract:** A heartbeat from a worker marked Dead makes it Active again, or Draining when it drains, and a Stopped worker stays Stopped.
+- **Arrange:** Three fresh workers are registered, two of them set Dead and the third stopped cleanly.
+- **Act:** Each worker heartbeats once, one of the Dead pair as draining, and that one is then stopped.
+- **Assert:** The Dead pair turn Active and Draining, the Stopped one stays Stopped, and the drained one stops with one worker.stopped event.
+- **Guarantees:**
+  - A heartbeat returns a Dead worker to Active, or to Draining mid-drain, and leaves a Stopped worker Stopped
+- **Store methods:**
+  - `Acta.Runtime.Modules.Execution.Workers.IWorkerStore.ExtendWorkerLeasesAsync`
+
 ### Stale workers in any namespace are marked Dead by a global sweep
 - **Contract:** MarkDeadWorkers marks every stale Active or Draining worker Dead in all namespaces, writes each worker.died event to its own namespace, and skips Stopped ones.
 - **Arrange:** Aged Active and Draining workers, a fresh worker and an aged Stopped worker exist in one namespace, and another aged worker exists in a second namespace.
@@ -3166,7 +3176,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `ITenantStore.ResumeTenantAsync` | Tenant suspend and resume flip status and emit one 15xx event to sys namespace |
 | `ITenantStore.SuspendTenantAsync` | A non-ASCII operator name survives the audit event intact<br>Tenant suspend and resume flip status and emit one 15xx event to sys namespace |
 | `ITenantStore.UpdateTenantAsync` | Tenant update is a version-CAS write that clears fields on null |
-| `IWorkerStore.ExtendWorkerLeasesAsync` | A lease renewal never deadlocks with a child's completion<br>Heartbeat extends a live lease and stamps last_seen |
+| `IWorkerStore.ExtendWorkerLeasesAsync` | A heartbeat makes a worker marked Dead live again<br>A lease renewal never deadlocks with a child's completion<br>Heartbeat extends a live lease and stamps last_seen |
 | `IWorkerStore.GetWorkerAsync` | GetWorker returns one worker by id and null for an unknown id |
 | `IWorkerStore.ListWorkersAsync` | ListWorkers filter-matrix selects exactly matching rows per dimension<br>ListWorkers pages workers most recently seen first without duplicates |
 | `IWorkerStore.MarkDeadWorkersAsync` | One sys.recovery tick reclaims, releases, and wakes<br>Stale workers in any namespace are marked Dead by a global sweep |

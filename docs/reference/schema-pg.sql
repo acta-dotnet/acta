@@ -7829,8 +7829,14 @@ BEGIN
     UPDATE acta.workers
     SET
         last_seen_at_utc = now(),
-        status_code = CASE WHEN p_draining AND status_code = 10 /* WorkerStatusCode.Active */
-            THEN 80 /* WorkerStatusCode.Draining */ ELSE status_code END,
+        -- A worker marked Dead through a database outage longer than its dead-after window is alive again the
+        -- moment it heartbeats; Stopped stays Stopped.
+        status_code = CASE
+            WHEN p_draining AND status_code IN (10 /* WorkerStatusCode.Active */, 200 /* WorkerStatusCode.Dead */)
+                THEN 80 /* WorkerStatusCode.Draining */
+            WHEN status_code = 200 /* WorkerStatusCode.Dead */ THEN 10 /* WorkerStatusCode.Active */
+            ELSE status_code
+        END,
         modified_at_utc = now(),
         version = version + 1
     WHERE id = p_leased_by_worker_id;
@@ -8655,7 +8661,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.6-98dcdadcc73ed9adf0dee81ad9d98d1b', 'acta');
+VALUES (-1, 'objects-1.6-886bb55f8589f6a7681d8a64ce1b8fe1', 'acta');
 
 COMMIT;
 

@@ -44,7 +44,9 @@ There are exactly two ways a worker process ends, and the terminal status names 
 On a terminal worker, `modified_at_utc` is the instant it ended: both transitions stamp it. A worker
 killed outright never reaches the clean path, so it stays `Active`, or `Draining` if the kill landed
 mid-drain, until recovery marks it `Dead` - which is why a kill and a crash are indistinguishable
-here, and correctly so.
+here, and correctly so. A worker cut off by a database outage longer than `WorkerDeadAfter` is
+marked `Dead` too, and its first heartbeat after the outage makes it `Active` again, with no event
+of its own.
 
 ```sql
 -- Workers that died in the last hour, and how long they had been running.

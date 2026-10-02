@@ -86,8 +86,9 @@
       });
     }
 
-    // A dead worker is a tombstone, not an incident - it left or crashed and won't return. Real lost
-    // capacity surfaces as the stalled backlog above, so dead workers do not feed the verdict at all.
+    // A dead worker is not an incident: a crashed one is gone, and one cut off by an outage turns Active
+    // on its next heartbeat. Real lost capacity surfaces as the stalled backlog above, so dead workers
+    // do not feed the verdict at all.
     const soft = [];
     if (o.oldestReadyAgeSeconds > 300 && !stalled) {
       soft.push({ text: 'oldest ready job waiting ' + displayFormatter.duration(o.oldestReadyAgeSeconds), href: routes.jobs({ namespace: ns, status: 'Ready' }) });

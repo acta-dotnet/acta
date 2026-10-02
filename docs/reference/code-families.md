@@ -419,5 +419,5 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Active` | 10 | `active` | Polling claim; accepting work. | Active |
 | `Draining` | 80 | `draining` | Worker stopped polling; finishing in-flight. | Active |
 | `Stopped` | 100 | `stopped` | Worker shut down cleanly; terminal success. | Active |
-| `Dead` | 200 | `dead` | Worker is dead; the sys.recovery system job reclaims leases. | Active |
+| `Dead` | 200 | `dead` | Heartbeat went stale; sys.recovery reclaims lapsed leases, and a resumed heartbeat makes it Active again. | Active |
 
