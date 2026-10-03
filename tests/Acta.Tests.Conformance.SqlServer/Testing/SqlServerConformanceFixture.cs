@@ -12,15 +12,15 @@ namespace Acta.Tests.Conformance.SqlServer.Testing;
 public sealed partial class SqlServerConformanceFixture : IConformanceFixture
 {
     /// <summary>
-    /// Runs a catalog read, retrying a deadlock victim (error 1205).
+    /// Runs a catalog read, retrying a deadlock victim (error 1205) or a command timeout (-2).
     /// </summary>
     /// <remarks>
     /// These reads race the DDL other specs are provisioning in parallel, and SQL Server will pick a
-    /// plain SELECT against <c>sys.*</c> as the victim rather than the writer. A victim is fully rolled
-    /// back and nothing here is transactional, so re-reading is both safe and sufficient. The product
-    /// already classifies 1205 as transient (<c>SqlServerDialect.IsTransientConflict</c>) and
-    /// <c>SqlServerIntegrationSchema</c> handles the same race on the bootstrap side; the fixture's own
-    /// reads were the last unguarded path, and they failed a run on <c>sys.check_constraints</c>.
+    /// plain SELECT against <c>sys.*</c> as the victim rather than the writer, or leave it waiting behind
+    /// that DDL past the command timeout on a loaded runner. Nothing here is transactional, so re-reading
+    /// is both safe and sufficient. The product already classifies 1205 as transient
+    /// (<c>SqlServerDialect.IsTransientConflict</c>) and <c>SqlServerIntegrationSchema</c> handles the
+    /// same race on the bootstrap side.
     /// </remarks>
     private static async ValueTask<T> ReadCatalogAsync<T>(Func<ValueTask<T>> read)
     {
@@ -30,7 +30,7 @@ public sealed partial class SqlServerConformanceFixture : IConformanceFixture
             {
                 return await read();
             }
-            catch (SqlException ex) when (ex.Number == 1205 && attempt < 5)
+            catch (SqlException ex) when (ex.Number is 1205 or -2 && attempt < 5)
             {
                 await Task.Delay(TimeSpan.FromMilliseconds(50 * attempt));
             }
