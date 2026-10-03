@@ -7,7 +7,7 @@ namespace Acta.Runtime;
 /// <summary>
 /// Jobs feature read behavior: job dispatch (id passthrough, ref and deduplication-key resolves
 /// with canonicalization), the read projections (explanation narrative against the database clock,
-/// lineage truncation, result payload decode), and the job-list validation and cursor math.
+/// lineage truncation, result payload decode).
 /// </summary>
 internal sealed class JobsService(
     IJobStore store,
@@ -24,9 +24,6 @@ internal sealed class JobsService(
     internal const long MaxBatchPayloadBytes = 64L * 1024 * 1024;
 
     private readonly int _maxInlinePayloadBytes = options.Value.MaxInlinePayloadBytes;
-
-    private const string OrderCreatedDesc = "created_at_utc desc, id desc";
-    private const string ListOperationName = "ListJobs";
 
     public ValueTask<long?> GetJobIdAsync(JobLookup job, CancellationToken ct) =>
         job.Kind switch
@@ -124,73 +121,6 @@ internal sealed class JobsService(
     {
         var payload = await GetResultAsync(job, ct);
         return payload is { } p ? serializers.Resolve(p.Format.Id).Deserialize<TResult>(p) : default;
-    }
-
-    public async ValueTask<PagedResult<JobListItem>> ListJobsAsync(ListJobsQuery query, CancellationToken ct)
-    {
-        ArgumentNullException.ThrowIfNull(query);
-        query = query with
-        {
-            JobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace)),
-            // RHS reads the source instance (pre-fold); ValidateJobName only null-checks the namespace, so the pre-fold value is fine.
-            JobName = QueryValidation.ValidateJobName(query.JobName, query.JobNamespace, nameof(query.JobName)),
-        };
-        QueryValidation.ValidateEnum(query.Status, nameof(query.Status));
-        QueryValidation.ValidatePositiveId(query.ParentJobId, nameof(query.ParentJobId));
-        QueryValidation.ValidatePositiveId((long?)query.TenantId, nameof(query.TenantId));
-        var tenantKey = string.IsNullOrWhiteSpace(query.TenantKey)
-            ? null
-            : IdentifierSyntax.NormalizeKeyLookup(query.TenantKey, nameof(query.TenantKey));
-        var tagFiltersJson = TagFilterJson.Normalize(query.Tags, nameof(ListJobsQuery));
-        // Tri-state flags: only true restricts, so false folds to null before hashing and binding.
-        var terminalOnly = query.TerminalOnly == true ? (bool?)true : null;
-        var recurringOnly = query.RecurringOnly == true ? (bool?)true : null;
-        var lane = string.IsNullOrWhiteSpace(query.Lane) ? null : IdentifierSyntax.NormalizeKeyLookup(query.Lane, nameof(query.Lane));
-
-        var paging = Paging.Start(
-            ListOperationName,
-            OrderCreatedDesc,
-            [CursorKeyKind.Utc, CursorKeyKind.Long],
-            query.Cursor,
-            query.PageSize,
-            [
-                ("ns", query.JobNamespace),
-                ("status", Num(query.Status)),
-                ("name", query.JobName),
-                ("parent", Num(query.ParentJobId)),
-                ("tenant", query.TenantId?.ToString(CultureInfo.InvariantCulture)),
-                ("tenantKey", tenantKey),
-                ("correlation", query.CorrelationKey),
-                ("tags", tagFiltersJson),
-                ("terminal", terminalOnly is null ? null : "1"),
-                ("recurring", recurringOnly is null ? null : "1"),
-                ("lane", lane),
-            ]
-        );
-
-        // One round trip returns the keyset page and, when asked, the filter-wide count (two result
-        // sets); the count statement short-circuits to NULL and runs no scan when IncludeTotal is false.
-        var page = await store.ListJobsAsync(
-            new JobPageRequest(
-                query.JobNamespace,
-                query.Status,
-                query.JobName,
-                query.ParentJobId,
-                query.TenantId,
-                tenantKey,
-                query.CorrelationKey,
-                tagFiltersJson,
-                terminalOnly,
-                recurringOnly,
-                lane,
-                (DateTime?)paging.After?[0],
-                (long?)paging.After?[1],
-                paging.Fetch,
-                query.IncludeTotal
-            ),
-            ct
-        );
-        return paging.Page(page.Rows, page.Total, static item => [item.CreatedAtUtc, item.JobId]);
     }
 
     /// <summary>
@@ -773,10 +703,4 @@ internal sealed class JobsService(
         var slotMin = ScheduleWalker.RecomputeSlotMin(live, nowUtc);
         return slotMin is null ? (true, null) : (false, slotMin);
     }
-
-    private static string? Num<T>(T? value)
-        where T : struct, Enum =>
-        value is null ? null : Convert.ToInt32(value.Value, CultureInfo.InvariantCulture).ToString(CultureInfo.InvariantCulture);
-
-    private static string? Num(long? value) => value?.ToString(CultureInfo.InvariantCulture);
 }

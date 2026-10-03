@@ -1,4 +1,7 @@
+using System.Data;
+using System.Data.Common;
 using Acta.Runtime;
+using Acta.Tests.Runtime;
 using Microsoft.Extensions.Options;
 using Xunit;
 
@@ -7,16 +10,16 @@ namespace Acta.Tests.Api;
 /// <summary>
 /// Validation behavior of the facade read methods with no database: filter dependencies, identifier
 /// shape, page-size bounds, the events total guard, and cursor envelope rejection. Each read is
-/// exercised on its owner: the job list on <see cref="JobsService"/>, the event list on
-/// <see cref="EventsService"/>, schedules on <see cref="SchedulesApi"/>, alerts on
-/// <see cref="AlertsApi"/>. The store stub returns empty pages so cursor checks run before any data
-/// access matters; unused collaborators are null because the read path only touches the store.
+/// exercised on its owner: the job and event lists on their Ledger handlers, schedules on
+/// <see cref="SchedulesApi"/>, alerts on <see cref="AlertsApi"/>. The stubs return empty pages so cursor
+/// checks run before any data access matters; unused collaborators are null because the read path only
+/// touches the store or the session.
 /// </summary>
 public sealed class FacadeReadValidationTests
 {
-    private static JobsService Jobs() => JobsReadService();
+    private static ListJobsHandler ListJobs() => new(new EmptyPageSession(), null!);
 
-    private static EventsService Events() => new(new EmptyEventStore());
+    private static ListEventsHandler ListEvents() => new(new EmptyPageSession(), null!);
 
     private static JobsService JobsReadService() =>
         new(new EmptyJobStore(), null!, null!, null!, new EmptyScheduleStore(), null!, null!, Options.Create(new JobsOptions()));
@@ -40,9 +43,6 @@ public sealed class FacadeReadValidationTests
 
         public ValueTask<JobLineageData?> GetJobLineageMapAsync(long jobId, int childFetchLimit, CancellationToken ct) =>
             ValueTask.FromResult<JobLineageData?>(null);
-
-        public Task<JobPage> ListJobsAsync(JobPageRequest request, CancellationToken ct) =>
-            Task.FromResult(new JobPage([], request.IncludeTotal ? 0L : null));
 
         public ValueTask<long?> ResolveJobIdByRefAsync(Guid jobRef, CancellationToken ct) => ValueTask.FromResult<long?>(null);
 
@@ -107,10 +107,15 @@ public sealed class FacadeReadValidationTests
         public Task ResetJobStateAsync(long jobId, CancellationToken ct) => throw new NotSupportedException();
     }
 
-    private sealed class EmptyEventStore : IEventStore
+    // Runs the handler's own row reader over an empty result: no rows, and no total.
+    private sealed class EmptyPageSession : DbSessionStub
     {
-        public Task<EventPage> ListEventsAsync(EventPageRequest request, CancellationToken ct) =>
-            Task.FromResult(new EventPage([], request.IncludeTotal ? 0L : null));
+        public override Task<T> QueryAsync<T>(
+            string stem,
+            Action<DbCommand> bind,
+            Func<DbDataReader, CancellationToken, Task<T>> read,
+            CancellationToken ct
+        ) => read(new DataTable().CreateDataReader(), ct);
     }
 
     private sealed class EmptyScheduleStore : IScheduleStore
@@ -195,7 +200,7 @@ public sealed class FacadeReadValidationTests
     public async Task Job_name_requires_namespace()
     {
         await Assert.ThrowsAsync<InvalidQueryException>(async () =>
-            await Jobs().ListJobsAsync(new ListJobsQuery(JobName: "send-invoice"), Ct)
+            await ListJobs().HandleAsync(new ListJobsQuery(JobName: "send-invoice"), Ct)
         );
 
         await Assert.ThrowsAsync<InvalidQueryException>(async () =>
@@ -207,14 +212,14 @@ public sealed class FacadeReadValidationTests
     public async Task Invalid_namespace_shape_throws()
     {
         await Assert.ThrowsAsync<InvalidQueryException>(async () =>
-            await Jobs().ListJobsAsync(new ListJobsQuery(JobNamespace: "Not Kebab"), Ct)
+            await ListJobs().HandleAsync(new ListJobsQuery(JobNamespace: "Not Kebab"), Ct)
         );
     }
 
     [Fact]
     public async Task Framework_job_name_is_accepted()
     {
-        var result = await Jobs().ListJobsAsync(new ListJobsQuery(JobNamespace: "billing", JobName: "sys.recovery"), Ct);
+        var result = await ListJobs().HandleAsync(new ListJobsQuery(JobNamespace: "billing", JobName: "sys.recovery"), Ct);
 
         Assert.Empty(result.Items);
     }
@@ -224,23 +229,25 @@ public sealed class FacadeReadValidationTests
     [InlineData(-5)]
     public async Task Page_size_below_one_throws(int pageSize)
     {
-        await Assert.ThrowsAsync<InvalidQueryException>(async () => await Jobs().ListJobsAsync(new ListJobsQuery(PageSize: pageSize), Ct));
+        await Assert.ThrowsAsync<InvalidQueryException>(async () =>
+            await ListJobs().HandleAsync(new ListJobsQuery(PageSize: pageSize), Ct)
+        );
     }
 
     [Fact]
     public async Task Events_total_without_job_id_throws()
     {
         await Assert.ThrowsAsync<InvalidQueryException>(async () =>
-            await Events().ListJobEventsAsync(new ListEventsQuery(IncludeTotal: true), Ct)
+            await ListEvents().HandleAsync(new ListEventsQuery(IncludeTotal: true), Ct)
         );
     }
 
     [Fact]
     public async Task Events_total_with_job_id_is_allowed()
     {
-        var result = await Events().ListJobEventsAsync(new ListEventsQuery(JobId: 1, IncludeTotal: true), Ct);
+        var result = await ListEvents().HandleAsync(new ListEventsQuery(JobId: 1, IncludeTotal: true), Ct);
 
-        Assert.Equal(0L, result.TotalCount);
+        Assert.Empty(result.Items);
     }
 
     [Fact]
@@ -269,7 +276,7 @@ public sealed class FacadeReadValidationTests
         );
 
         await Assert.ThrowsAsync<InvalidPageCursorException>(async () =>
-            await Jobs().ListJobsAsync(new ListJobsQuery(JobNamespace: "billing", Cursor: unfiltered), Ct)
+            await ListJobs().HandleAsync(new ListJobsQuery(JobNamespace: "billing", Cursor: unfiltered), Ct)
         );
     }
 
@@ -277,7 +284,7 @@ public sealed class FacadeReadValidationTests
     public async Task Undefined_enum_filter_values_throw()
     {
         await Assert.ThrowsAsync<InvalidQueryException>(async () =>
-            await Jobs().ListJobsAsync(new ListJobsQuery(Status: (JobStatusCode)99), Ct)
+            await ListJobs().HandleAsync(new ListJobsQuery(Status: (JobStatusCode)99), Ct)
         );
 
         await Assert.ThrowsAsync<InvalidQueryException>(async () =>
@@ -290,9 +297,7 @@ public sealed class FacadeReadValidationTests
     [InlineData(-7)]
     public async Task Non_positive_id_filters_throw(long jobId)
     {
-        await Assert.ThrowsAsync<InvalidQueryException>(async () =>
-            await Events().ListJobEventsAsync(new ListEventsQuery(JobId: jobId), Ct)
-        );
+        await Assert.ThrowsAsync<InvalidQueryException>(async () => await ListEvents().HandleAsync(new ListEventsQuery(JobId: jobId), Ct));
 
         await Assert.ThrowsAsync<InvalidQueryException>(async () => await Alerts().ListAsync(new ListAlertsQuery(JobId: jobId), Ct));
     }
@@ -300,7 +305,7 @@ public sealed class FacadeReadValidationTests
     [Fact]
     public async Task Total_is_null_unless_requested()
     {
-        var result = await Jobs().ListJobsAsync(new ListJobsQuery(), Ct);
+        var result = await ListJobs().HandleAsync(new ListJobsQuery(), Ct);
 
         Assert.Null(result.TotalCount);
         Assert.False(result.HasMore);

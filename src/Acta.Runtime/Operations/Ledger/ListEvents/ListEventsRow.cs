@@ -3,14 +3,12 @@ using System.Text;
 namespace Acta.Runtime;
 
 /// <summary>
-/// Flat event list row in SELECT order, shared by the provider event stores so the generated binder
-/// and the column contract stay single-sourced. Detail bytes are decoded after binding: only
-/// text-shaped payload formats (json, text) surface as text, using the same UTF-8 convention
-/// operators use in raw SQL; opaque formats surface as absent text instead of mojibake because only
-/// the producing worker knows their schema.
+/// One event list row. Detail bytes are decoded after binding: only text-shaped payload formats (json,
+/// text) surface as text, using the same UTF-8 convention operators use in raw SQL; opaque formats
+/// surface as absent text instead of mojibake because only the producing worker knows their schema.
 /// </summary>
-[DbProjection]
-internal sealed record EventListProjectionRow(
+[DbProjection(ByName = true)]
+internal sealed record ListEventsRow(
     long JobEventId,
     EventCode EventCode,
     DateTime CreatedAtUtc,
@@ -38,7 +36,7 @@ internal sealed record EventListProjectionRow(
     string? TenantKey
 )
 {
-    public EventListItem ToListItem() =>
+    public EventListItem ToItem() =>
         new(
             JobEventId,
             EventCode,

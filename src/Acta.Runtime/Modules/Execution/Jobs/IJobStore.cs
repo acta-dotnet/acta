@@ -3,10 +3,10 @@ using System.Data.Common;
 namespace Acta.Runtime;
 
 /// <summary>
-/// Persistence port for the Jobs feature: snapshot/status/result/explanation/lineage reads, the
-/// keyset job list, and the public-ref and deduplication-key id resolves. Requests arrive validated
-/// with identifiers canonicalized and cursors decoded; implementations own command creation,
-/// parameter binding, row mapping, and the multi-result-set round trips.
+/// Persistence port for the Jobs feature: snapshot/status/result/explanation/lineage reads and the
+/// public-ref and deduplication-key id resolves. Requests arrive validated with identifiers
+/// canonicalized; implementations own command creation, parameter binding, row mapping, and the
+/// multi-result-set round trips.
 /// </summary>
 internal interface IJobStore
 {
@@ -30,12 +30,6 @@ internal interface IJobStore
 
     /// <summary>The lineage focus, ancestors, steps, checkpoints, and children in one round trip, or null.</summary>
     ValueTask<JobLineageData?> GetJobLineageMapAsync(long jobId, int childFetchLimit, CancellationToken ct);
-
-    /// <summary>
-    /// One keyset page of jobs ordered <c>created_at_utc DESC, id DESC</c> plus an opt-in
-    /// filter-wide total, fetched in a single round trip.
-    /// </summary>
-    Task<JobPage> ListJobsAsync(JobPageRequest request, CancellationToken ct);
 
     /// <summary>The job id carrying a public ref, falling back to the surviving events ledger after purge.</summary>
     ValueTask<long?> ResolveJobIdByRefAsync(Guid jobRef, CancellationToken ct);
@@ -105,25 +99,3 @@ internal interface IJobStore
     /// <summary>Clears a job's durable step/checkpoint state ahead of a fresh attempt.</summary>
     Task ResetJobStateAsync(long jobId, CancellationToken ct);
 }
-
-/// <summary>Validated, cursor-decoded request for one job page; Take carries the peek-ahead row.</summary>
-internal sealed record JobPageRequest(
-    string? JobNamespace,
-    JobStatusCode? Status,
-    string? JobName,
-    long? ParentJobId,
-    int? TenantId,
-    string? TenantKey,
-    string? CorrelationKey,
-    string? TagFiltersJson,
-    bool? TerminalOnly,
-    bool? RecurringOnly,
-    string? Lane,
-    DateTime? CursorCreatedAtUtc,
-    long? CursorId,
-    int Take,
-    bool IncludeTotal
-);
-
-/// <summary>One page of mapped job list items plus the opt-in filtered total.</summary>
-internal sealed record JobPage(IReadOnlyList<JobListItem> Rows, long? Total);

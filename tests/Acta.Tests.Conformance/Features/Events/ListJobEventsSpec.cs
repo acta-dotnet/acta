@@ -84,30 +84,8 @@ public sealed class ListJobEventsSpec : ActaRuntimeTestBase<ConformanceFixture, 
         // still pass with a badly wrong TotalCount.
         var expectedTotal = (await Operations.Ledger.ListEventsAsync(new ListEventsQuery(JobId: jobId, PageSize: 100), ct)).Items.Count;
 
-        var page = await Services
-            .GetRequiredService<IEventStore>()
-            .ListEventsAsync(
-                new EventPageRequest(
-                    jobId,
-                    LineageRootId: null,
-                    JobNamespace: null,
-                    EventCode: null,
-                    DefinitionId: null,
-                    TenantId: null,
-                    TenantKey: null,
-                    WorkerId: null,
-                    ActorCode: null,
-                    ReasonCode: null,
-                    CreatedFromUtc: null,
-                    CreatedToUtc: null,
-                    CursorCreatedAtUtc: null,
-                    CursorId: null,
-                    Take: 2,
-                    IncludeTotal: true
-                ),
-                ct
-            );
-        var (rows, total) = (page.Rows, page.Total);
+        var page = await Operations.Ledger.ListEventsAsync(new ListEventsQuery(JobId: jobId, PageSize: 2, IncludeTotal: true), ct);
+        var (rows, total) = (page.Items, page.TotalCount);
 
         Assert.NotEmpty(rows);
         Assert.True(rows.Count <= 2);

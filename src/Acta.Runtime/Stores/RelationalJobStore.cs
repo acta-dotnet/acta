@@ -1,5 +1,4 @@
 using System.Data.Common;
-using System.Globalization;
 
 namespace Acta.Runtime;
 
@@ -162,47 +161,6 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
                 }
 
                 return focus is null ? null : new JobLineageData(focus, ancestors, steps, checkpoints, children);
-            },
-            ct
-        );
-
-    public Task<JobPage> ListJobsAsync(JobPageRequest request, CancellationToken ct) =>
-        session.QueryAsync(
-            "ListJobs",
-            cmd =>
-            {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceFilter, request.JobNamespace));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobRuntime.StatusCode, request.Status));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.JobNameFilter, request.JobName));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ParentIdFilter, request.ParentJobId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.TenantId, request.TenantId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TenantKeyFilter, request.TenantKey));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CorrelationKeyFilter, request.CorrelationKey));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagFiltersJson, request.TagFiltersJson));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TerminalOnlyFlag, request.TerminalOnly));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.RecurringOnlyFlag, request.RecurringOnly));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LaneFilter, request.Lane));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorCreatedAtUtc, request.CursorCreatedAtUtc));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorId, request.CursorId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, request.Take));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.IncludeTotalFlag, request.IncludeTotal ? true : (bool?)null));
-            },
-            async (reader, token) =>
-            {
-                var read = DbProjectionResolver.Resolve<JobListProjectionRow>();
-                var rows = new List<JobListItem>(request.Take);
-                while (await reader.ReadAsync(token))
-                {
-                    rows.Add(read(reader).ToListRow().ToItem());
-                }
-
-                long? total = null;
-                if (await reader.NextResultAsync(token) && await reader.ReadAsync(token) && !reader.IsDBNull(0))
-                {
-                    total = Convert.ToInt64(reader.GetValue(0), CultureInfo.InvariantCulture);
-                }
-
-                return new JobPage(rows, total);
             },
             ct
         );

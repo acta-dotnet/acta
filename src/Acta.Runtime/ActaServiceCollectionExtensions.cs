@@ -63,10 +63,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<IJobPayloadSerializerRegistry, JobPayloadSerializerRegistry>();
         services.TryAddSingleton<IJobs, JobsApi>();
 
-        // Feature services and the property-only store composite. Providers register the store ports
-        // themselves (e.g. IOverviewStore); the composite grows one property per migrated feature.
-        services.TryAddSingleton<OverviewService>();
-        services.TryAddSingleton<EventsService>();
+        // Feature services over the store ports the providers register (e.g. IJobStore).
         services.TryAddSingleton<TenantKeyCache>();
         services.TryAddSingleton<JobsService>();
         services.TryAddSingleton<SignalService>();
@@ -129,6 +126,10 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<SetJobDefinitionOverridesHandler>();
         services.TryAddSingleton<RetireJobDefinitionHandler>();
         services.TryAddSingleton<IDefinitions, Definitions>();
+        services.TryAddSingleton<ListJobsHandler>();
+        services.TryAddSingleton<ListEventsHandler>();
+        services.TryAddSingleton<GetOverviewHandler>();
+        services.TryAddSingleton<ILedger, Ledger>();
 
         // Consumers light up the meter with WithMetrics(m => m.AddMeter(JobMetrics.MeterName)).
         services.TryAddSingleton<JobMetrics>();

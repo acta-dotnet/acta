@@ -520,8 +520,6 @@ internal sealed class JobExecutionHarness(
         public ValueTask<JobLineageData?> GetJobLineageMapAsync(long jobId, int childFetchLimit, CancellationToken ct) =>
             throw new NotSupportedException();
 
-        public Task<JobPage> ListJobsAsync(JobPageRequest request, CancellationToken ct) => throw new NotSupportedException();
-
         public ValueTask<long?> ResolveJobIdByRefAsync(Guid jobRef, CancellationToken ct) => throw new NotSupportedException();
 
         public ValueTask<long?> ResolveJobIdByDeduplicationKeyAsync(string jobNamespace, string deduplicationKey, CancellationToken ct) =>

@@ -7,9 +7,6 @@ JobCheckpointResponse
 JobDetail
 JobLineageChild
 JobLineageJob
-JobListItem
-JobListProjectionRow
-JobListRow
 JobScheduleListRow
 JobSnapshotRow
 LineageChildRow

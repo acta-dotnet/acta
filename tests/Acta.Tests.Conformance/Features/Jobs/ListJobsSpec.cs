@@ -106,13 +106,11 @@ public sealed class ListJobsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         var ct = TestContext.Current.CancellationToken;
         await SeedJobsForList(3);
 
-        var page_total = await Services
-            .GetRequiredService<IJobStore>()
-            .ListJobsAsync(
-                new JobPageRequest(TestNamespace, null, "add-numbers", null, null, null, null, null, null, null, null, null, null, 2, true),
-                ct
-            );
-        var (rows, total) = (page_total.Rows, page_total.Total);
+        var page = await Operations.Ledger.ListJobsAsync(
+            new ListJobsQuery(TestNamespace, JobName: "add-numbers", PageSize: 2, IncludeTotal: true),
+            ct
+        );
+        var (rows, total) = (page.Items, page.TotalCount);
 
         Assert.Equal(2, rows.Count);
         Assert.Equal(3L, total);

@@ -208,39 +208,15 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
         var enqueued = await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: name)], ct);
         var jobId = enqueued[0].JobId;
 
-        var page_matched = await Services
-            .GetRequiredService<IJobStore>()
-            .ListJobsAsync(
-                new JobPageRequest(TestNamespace, null, null, null, tenantId, null, null, null, null, null, null, null, null, 100, false),
-                ct
-            );
-        var (matched, _) = (page_matched.Rows, page_matched.Total);
+        var matched = (
+            await Operations.Ledger.ListJobsAsync(new ListJobsQuery(TestNamespace, TenantId: tenantId, PageSize: 100), ct)
+        ).Items;
         Assert.Contains(matched, r => r.JobId == jobId && r.TenantId == tenantId);
 
         // A different (non-existent) tenant id excludes the row.
-        var page_other = await Services
-            .GetRequiredService<IJobStore>()
-            .ListJobsAsync(
-                new JobPageRequest(
-                    TestNamespace,
-                    null,
-                    null,
-                    null,
-                    tenantId + 100_000,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    100,
-                    false
-                ),
-                ct
-            );
-        var (other, _) = (page_other.Rows, page_other.Total);
+        var other = (
+            await Operations.Ledger.ListJobsAsync(new ListJobsQuery(TestNamespace, TenantId: tenantId + 100_000, PageSize: 100), ct)
+        ).Items;
         Assert.DoesNotContain(other, r => r.JobId == jobId);
     }
 }

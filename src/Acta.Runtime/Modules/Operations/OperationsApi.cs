@@ -1,10 +1,8 @@
 namespace Acta.Runtime;
 
 /// <summary>
-/// <see cref="IActaOperations"/> implementation: composes the module-owned domain facades and the
-/// ledger reads (jobs through Execution's declared query API, events through the module's own read
-/// model). Operations holds no Execution stores; each facade is registered by its owning module and
-/// injected here, so this class is pure composition.
+/// <see cref="IActaOperations"/> implementation: composes the group facades. Each is registered with its
+/// handlers and injected here, so this class is pure composition.
 /// </summary>
 internal sealed class OperationsApi(
     ActaProviderInfo provider,
@@ -17,9 +15,7 @@ internal sealed class OperationsApi(
     ITags tags,
     ISettings settings,
     IOutbox outbox,
-    OverviewService overview,
-    JobsService jobs,
-    EventsService events
+    ILedger ledger
 ) : IActaOperations
 {
     public ISchedules Schedules => schedules;
@@ -32,20 +28,7 @@ internal sealed class OperationsApi(
     public ISettings Settings => settings;
     public IOutbox Outbox => outbox;
 
-    public ILedger Ledger { get; } = new LedgerApi(overview, jobs, events);
+    public ILedger Ledger => ledger;
 
     public DbProvider Provider => provider.Provider;
-}
-
-/// <summary><see cref="ILedger"/> implementation: the cross-resource reads composed from the owning modules.</summary>
-internal sealed class LedgerApi(OverviewService overview, JobsService jobs, EventsService events) : ILedger
-{
-    public ValueTask<PagedResult<JobListItem>> ListJobsAsync(ListJobsQuery query, CancellationToken ct = default) =>
-        jobs.ListJobsAsync(query, ct);
-
-    public ValueTask<PagedResult<EventListItem>> ListEventsAsync(ListEventsQuery query, CancellationToken ct = default) =>
-        events.ListJobEventsAsync(query, ct);
-
-    public ValueTask<OverviewSnapshot> GetOverviewAsync(OverviewQuery query, CancellationToken ct = default) =>
-        overview.GetOverviewAsync(query, ct);
 }

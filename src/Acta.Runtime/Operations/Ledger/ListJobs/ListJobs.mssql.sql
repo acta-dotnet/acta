@@ -8,15 +8,15 @@ IF @p_namespace_name IS NOT NULL
     END;
 
 SELECT TOP (@p_take)
-    j.id,
-    ns.name,
-    jd.name,
-    j.parent_id,
+    j.id AS job_id,
+    ns.name AS job_namespace,
+    jd.name AS job_name,
+    j.parent_id AS parent_job_id,
     j.lineage_root_id,
     j.deduplication_key,
     j.correlation_key,
-    r.status_code,
-    r.priority_code,
+    r.status_code AS status,
+    r.priority_code AS priority,
     j.created_at_utc,
     r.modified_at_utc,
     r.next_run_at_utc,
@@ -27,7 +27,7 @@ SELECT TOP (@p_take)
     rjob.job_ref AS lineage_root_job_ref,
     j.tenant_id,
     t.tenant_key,
-    lane.name
+    lane.name AS lane
 FROM {{schema}}.jobs j
 JOIN {{schema}}.runtimes r ON r.job_id = j.id
 JOIN {{schema}}.namespaces ns ON ns.id = j.namespace_id

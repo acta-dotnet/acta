@@ -89,13 +89,8 @@ public sealed class JobRefSurvivesPurgeSpec : ActaRuntimeTestBase<ConformanceFix
         // and the timeline reads back with the ref intact.
         Assert.Equal(jobId, await Services.GetRequiredService<IJobStore>().ResolveJobIdByRefAsync(jobRef.Value, ct));
         var timeline = (
-            await Services
-                .GetRequiredService<IEventStore>()
-                .ListEventsAsync(
-                    new EventPageRequest(jobId, null, null, null, null, null, null, null, null, null, null, null, null, null, 100, false),
-                    ct
-                )
-        ).Rows;
+            await Services.GetRequiredService<ILedger>().ListEventsAsync(new ListEventsQuery(JobId: jobId, PageSize: 100), ct)
+        ).Items;
         Assert.NotEmpty(timeline);
         Assert.All(timeline, row => Assert.Equal<JobRef?>(jobRef, row.JobRef));
     }
