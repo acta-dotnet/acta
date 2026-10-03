@@ -73,11 +73,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<TenantKeyCache>();
         services.TryAddSingleton<TagsService>();
         services.TryAddSingleton<JobsService>();
-        // Execution's declared read API for the Operations module (tags target resolution, the
-        // operator job list); the same JobsService instance behind IJobs serves it.
-        services.TryAddSingleton<IExecutionQueries>(static sp => sp.GetRequiredService<JobsService>());
         services.TryAddSingleton<SignalService>();
-        services.TryAddSingleton<IAlertSink, AlertStoreSink>();
 
         // The operator facade and its module-owned domain facades. Application code injects IJobs
         // alone; dashboards, CLIs, and operator hosts inject IActaOperations. Each domain facade is
@@ -138,10 +134,8 @@ public static class ActaServiceCollectionExtensions
 
         services.TryAddSingleton<IAlertChannelRegistry>(new AlertChannelRegistry(builder.Workers));
 
-        // Execution's startup routing seam, implemented by Alerting: worker init validates each
-        // namespace's alert routing through this Execution-owned port, keeping the module edge
-        // Alerting -> Execution.Api only.
-        services.TryAddSingleton<IAlertRoutingCheck>(sp => new AlertRoutingCheck(
+        // Worker startup checks each namespace's alert routing against the declared channels.
+        services.TryAddSingleton(sp => new AlertRoutingCheck(
             sp.GetRequiredService<IAlertChannelRegistry>(),
             sp.GetRequiredService<IOptions<JobsOptions>>(),
             sp.GetService<ILogger<AlertRoutingCheck>>()

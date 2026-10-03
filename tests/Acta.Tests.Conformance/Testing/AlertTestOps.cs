@@ -299,7 +299,7 @@ internal static class AlertTestOps
             leaseTtlSeconds: 180,
             jobStore: services.GetRequiredService<IJobStore>(),
             signalStore: services.GetRequiredService<ISignalStore>(),
-            alerts: services.GetRequiredService<IAlertSink>(),
+            alerts: services.GetRequiredService<IAlertStore>(),
             executionStore: services.GetRequiredService<IExecutionStore>(),
             serializers: services.GetRequiredService<IJobPayloadSerializerRegistry>(),
             lockStore: services.GetRequiredService<ILockStore>(),

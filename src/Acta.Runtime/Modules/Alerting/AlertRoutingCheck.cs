@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 namespace Acta.Runtime;
 
 /// <summary>
-/// Alerting's implementation of Execution's startup routing seam: every alerting definition must
+/// Worker startup's alert routing check: every alerting definition must
 /// resolve to a channel configured for its worker namespace - the declared AlertChannelName, else
 /// the implicit "default". Disabled or deprecated channels count as configured here; delivery
 /// policy decides whether a concrete alert is sent.
@@ -15,7 +15,7 @@ internal sealed class AlertRoutingCheck(
     IAlertChannelRegistry channels,
     IOptions<JobsOptions> options,
     ILogger<AlertRoutingCheck>? log = null
-) : IAlertRoutingCheck
+)
 {
     /// <summary>
     /// The one implicit channel: every alert (user or sys-critical) with no declared

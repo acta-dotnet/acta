@@ -208,7 +208,7 @@ A successful execution resolves that job's open automatic alerts and writes noth
 
 Manual alerts are a separate path throughout — separate by key, not by wall. `ctx.AlertAsync`
 writes `origin = Manual`, `kind = Manual` (`JobContext.AlertAsync`,
-`AlertStoreSink.RaiseManualAsync`), which the automatic resolve never matches. A caller that
+`RaiseJobAlertCommand.Manual`), which the automatic resolve never matches. A caller that
 deliberately reuses an automatic `auto:` key merges its raise onto that incident and takes over
 its lifecycle; Acta does not police key choice, it deduplicates on it. The operator verbs `IAlerts.AcknowledgeAsync` and `IAlerts.ResolveAsync`
 (`IAlerts.AcknowledgeAsync`, `IAlerts.ResolveAsync`) are idempotent, emit `alert.acknowledged` (140) /
@@ -502,7 +502,7 @@ from a `None` job naming an unconfigured channel is not caught until it fails de
 | `AlertChannelDecision.cs` | `src/Acta.Runtime/Modules/Alerting/AlertChannelDecision.cs` |
 | `AlertChannelRegistry.cs` | `src/Acta.Runtime/Modules/Alerting/AlertChannelRegistry.cs` |
 | `AlertRoutingCheck.cs` | `src/Acta.Runtime/Modules/Alerting/AlertRoutingCheck.cs` |
-| `AlertStoreSink.cs` | `src/Acta.Runtime/Modules/Alerting/AlertStoreSink.cs` |
+| `IAlertStore.cs` | `src/Acta.Runtime/Modules/Alerting/IAlertStore.cs` |
 | `JobAlert.cs` | `src/Acta.Runtime/Schema/JobAlert.cs` |
 | `AlertProfileCode.cs` | `src/Acta/Operations/Alerts/AlertProfileCode.cs` |
 | `AlertChannelOptions.cs` | `src/Acta/Hosting/AlertChannelOptions.cs` |

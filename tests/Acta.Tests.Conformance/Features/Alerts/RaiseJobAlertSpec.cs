@@ -280,7 +280,7 @@ public abstract class RaiseJobAlertSpec<TFixture> : ActaStorageTestBase<TFixture
             leaseTtlSeconds: 180,
             jobStore: Services.GetRequiredService<IJobStore>(),
             signalStore: Services.GetRequiredService<ISignalStore>(),
-            alerts: Services.GetRequiredService<IAlertSink>(),
+            alerts: Services.GetRequiredService<IAlertStore>(),
             executionStore: Services.GetRequiredService<IExecutionStore>(),
             serializers: Services.GetRequiredService<IJobPayloadSerializerRegistry>(),
             lockStore: Services.GetRequiredService<ILockStore>(),

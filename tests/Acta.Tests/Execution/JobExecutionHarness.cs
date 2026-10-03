@@ -633,7 +633,7 @@ internal sealed class JobExecutionHarness(
             : serviceType == typeof(WorkerWakeupPublisher) ? _wakeup
             : serviceType == typeof(IJobContextAccessor) ? _accessor
             : serviceType == typeof(Acta.Runtime.ISignalStore) ? NoSignals.Instance
-            : serviceType == typeof(IAlertSink) ? NoAlerts.Instance
+            : serviceType == typeof(IAlertStore) ? NoAlerts.Instance
             : null;
 
         public IServiceScope CreateScope() => this;
@@ -658,20 +658,48 @@ internal sealed class JobExecutionHarness(
             ) => throw new NotSupportedException();
         }
 
-        private sealed class NoAlerts : IAlertSink
+        private sealed class NoAlerts : IAlertStore
         {
             public static readonly NoAlerts Instance = new();
 
-            public Task RaiseManualAsync(
-                string jobNamespace,
-                long jobId,
-                AlertSeverityCode severityCode,
-                string title,
-                string message,
-                string? channelName,
-                string? deduplicationKey,
+            public TimeSpan SafeHorizonLag => throw new NotSupportedException();
+
+            public Task<AlertRaiseOutcome> RaiseJobAlertAsync(RaiseJobAlertCommand command, CancellationToken ct) =>
+                throw new NotSupportedException();
+
+            public Task<IReadOnlyList<AlertableEvent>> GetAlertableEventsAsync(
+                int namespaceId,
+                DateTime cursorUtc,
+                long cursorEventId,
+                int batchSize,
+                DateTime horizonUtc,
                 CancellationToken ct
             ) => throw new NotSupportedException();
+
+            public Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(int namespaceId, int batchSize, CancellationToken ct) =>
+                throw new NotSupportedException();
+
+            public Task<bool> UpdateAlertDeliveryAsync(
+                long alertId,
+                int expectedVersion,
+                AlertDeliveryStatusCode status,
+                int retryCount,
+                DateTime? retryAfterUtc,
+                CancellationToken ct
+            ) => throw new NotSupportedException();
+
+            public Task<int> ResolveJobAlertsAsync(int namespaceId, long jobId, long sourceEventId, CancellationToken ct) =>
+                throw new NotSupportedException();
+
+            public Task<AlertControlOutcome> AcknowledgeJobAlertAsync(AlertControlCommand command, CancellationToken ct) =>
+                throw new NotSupportedException();
+
+            public Task<AlertControlOutcome> ResolveJobAlertManualAsync(AlertControlCommand command, CancellationToken ct) =>
+                throw new NotSupportedException();
+
+            public Task<AlertPage> ListJobAlertsAsync(AlertPageRequest request, CancellationToken ct) => throw new NotSupportedException();
+
+            public Task<AlertListItem?> GetJobAlertAsync(Guid alertRef, CancellationToken ct) => throw new NotSupportedException();
         }
     }
 

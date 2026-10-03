@@ -53,7 +53,7 @@ internal sealed class WorkerRuntime
         JobMetrics? metrics = null,
         IWorkerWakeup? wakeup = null,
         WorkerWakeupPublisher? wakeupPublisher = null,
-        IAlertRoutingCheck? alertRouting = null
+        AlertRoutingCheck? alertRouting = null
     )
     {
         var logger = log ?? NullLogger<WorkerRuntime>.Instance;
@@ -162,7 +162,7 @@ internal sealed class WorkerRuntime
             sp.GetService<JobMetrics>(),
             sp.GetRequiredService<IWorkerWakeup>(),
             sp.GetRequiredService<WorkerWakeupPublisher>(),
-            sp.GetRequiredService<IAlertRoutingCheck>()
+            sp.GetRequiredService<AlertRoutingCheck>()
         );
 
     /// <summary>This worker's declared namespace; null for an enqueue-only runtime.</summary>

@@ -2,12 +2,11 @@ namespace Acta.Runtime;
 
 /// <summary>
 /// <see cref="ITags"/> over the tag store. A target names its entity the way operators do - a ref or a
-/// natural key - so every scope but the two that already carry a row id resolves through a declared
-/// seam (<see cref="IExecutionQueries"/> for jobs and schedules, the domain facades for the rest)
+/// natural key - so every scope but the two that already carry a row id resolves through <see cref="JobsService"/>
+/// for jobs and schedules and through the domain facades for the rest,
 /// before the store sees a scope id. An entity that does not exist is an unresolvable target: NotFound.
 /// </summary>
-internal sealed class TagsService(ITagStore store, IExecutionQueries jobs, IDefinitions definitions, IWorkers workers, IAlerts alerts)
-    : ITags
+internal sealed class TagsService(ITagStore store, JobsService jobs, IDefinitions definitions, IWorkers workers, IAlerts alerts) : ITags
 {
     public async ValueTask<TagSet?> GetAsync(TagTarget target, CancellationToken ct = default)
     {

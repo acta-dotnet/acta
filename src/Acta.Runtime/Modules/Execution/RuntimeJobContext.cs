@@ -19,7 +19,7 @@ internal sealed class RuntimeJobContext(
     int leaseTtlSeconds,
     IJobStore jobStore,
     Acta.Runtime.ISignalStore signalStore,
-    IAlertSink alerts,
+    IAlertStore alerts,
     Acta.Runtime.IExecutionStore executionStore,
     IJobPayloadSerializerRegistry serializers,
     ILockStore lockStore,
@@ -42,7 +42,7 @@ internal sealed class RuntimeJobContext(
 
     private readonly IJobStore _jobStore = jobStore;
     private readonly Acta.Runtime.ISignalStore _signalStore = signalStore;
-    private readonly IAlertSink _alerts = alerts;
+    private readonly IAlertStore _alerts = alerts;
     private readonly Acta.Runtime.IExecutionStore _executionStore = executionStore;
     private readonly IJobPayloadSerializerRegistry _serializers = serializers;
     private readonly ILockStore _lockStore = lockStore;
@@ -642,9 +642,10 @@ internal sealed class RuntimeJobContext(
         CancellationToken ct
     )
     {
-        // Alert policy (origin/kind, default channel, the incident-identity upsert) lives behind the
-        // sink on the alerting side; execution only states the intent.
-        await _alerts.RaiseManualAsync(JobNamespace, JobId, severityCode, title, message, channelName, deduplicationKey, ct);
+        await _alerts.RaiseJobAlertAsync(
+            RaiseJobAlertCommand.Manual(JobNamespace, JobId, severityCode, title, message, channelName, deduplicationKey),
+            ct
+        );
     }
 
     /// <summary>

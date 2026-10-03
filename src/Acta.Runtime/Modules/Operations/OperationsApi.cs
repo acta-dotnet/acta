@@ -18,7 +18,7 @@ internal sealed class OperationsApi(
     ISettings settings,
     IOutbox outbox,
     OverviewService overview,
-    IExecutionQueries executionQueries,
+    JobsService jobs,
     EventsService events
 ) : IActaOperations
 {
@@ -32,16 +32,16 @@ internal sealed class OperationsApi(
     public ISettings Settings => settings;
     public IOutbox Outbox => outbox;
 
-    public ILedger Ledger { get; } = new LedgerApi(overview, executionQueries, events);
+    public ILedger Ledger { get; } = new LedgerApi(overview, jobs, events);
 
     public DbProvider Provider => provider.Provider;
 }
 
 /// <summary><see cref="ILedger"/> implementation: the cross-resource reads composed from the owning modules.</summary>
-internal sealed class LedgerApi(OverviewService overview, IExecutionQueries executionQueries, EventsService events) : ILedger
+internal sealed class LedgerApi(OverviewService overview, JobsService jobs, EventsService events) : ILedger
 {
     public ValueTask<PagedResult<JobListItem>> ListJobsAsync(ListJobsQuery query, CancellationToken ct = default) =>
-        executionQueries.ListJobsAsync(query, ct);
+        jobs.ListJobsAsync(query, ct);
 
     public ValueTask<PagedResult<EventListItem>> ListEventsAsync(ListEventsQuery query, CancellationToken ct = default) =>
         events.ListJobEventsAsync(query, ct);

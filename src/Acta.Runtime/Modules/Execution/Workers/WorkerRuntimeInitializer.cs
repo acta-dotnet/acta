@@ -29,7 +29,7 @@ internal sealed class WorkerRuntimeInitializer(
     IActaClock clock,
     IServerClock serverClock,
     IJobPayloadSerializerRegistry serializers,
-    IAlertRoutingCheck? alertRouting,
+    AlertRoutingCheck? alertRouting,
     IOptions<JobsOptions> options,
     WorkerRegistration? workerRegistration,
     WorkerContext context,
@@ -44,7 +44,7 @@ internal sealed class WorkerRuntimeInitializer(
     private readonly IActaClock _clock = clock;
     private readonly IServerClock _serverClock = serverClock;
     private readonly IJobPayloadSerializerRegistry _serializers = serializers;
-    private readonly IAlertRoutingCheck? _alertRouting = alertRouting;
+    private readonly AlertRoutingCheck? _alertRouting = alertRouting;
     private readonly IOptions<JobsOptions> _options = options;
     private readonly WorkerRegistration? _workerRegistration = workerRegistration;
     private readonly WorkerContext _context = context;

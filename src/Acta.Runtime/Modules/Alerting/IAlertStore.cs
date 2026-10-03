@@ -184,6 +184,35 @@ internal sealed record RaiseJobAlertCommand(
             Acta.AlertRef.New().Value
         );
     }
+
+    /// <summary>
+    /// A handler's own <c>JobContext.AlertAsync</c>: manual origin and kind, the <c>default</c> channel when
+    /// none is named, and no projected event behind it, so it always applies and never moves the projection
+    /// high-water mark. A null deduplication key always inserts; a non-null key collapses onto the one open
+    /// row carrying it, and opens a fresh row once that one is resolved.
+    /// </summary>
+    public static RaiseJobAlertCommand Manual(
+        string jobNamespace,
+        long jobId,
+        AlertSeverityCode severity,
+        string title,
+        string message,
+        string? channelName,
+        string? deduplicationKey
+    ) =>
+        Create(
+            jobNamespace,
+            jobId,
+            AlertOriginCode.Manual,
+            severity,
+            AlertKindCode.Manual,
+            title,
+            message,
+            channelName ?? "default",
+            AlertDeliveryStatusCode.Pending,
+            deduplicationKey,
+            sourceEventId: null
+        );
 }
 
 /// <summary>Validated operator control verb target: the alert ref plus the audit actor and reason.</summary>
