@@ -134,13 +134,20 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
     {
         var ct = TestContext.Current.CancellationToken;
         var targets = await CreateTargetsAsync(ct);
+        // The facet value is this run's own, so the tenants and namespaces earlier runs left in a long-lived
+        // database cannot push this run's off the first page; it is stored upper-case and filtered lower-case.
+        var facet = TestKey("blue");
         foreach (var target in targets.All)
         {
-            await Operations.Tags.ReplaceAsync(target, [new TagInput("facet", "Blue"), new TagInput("release", "stable")], ct: ct);
+            await Operations.Tags.ReplaceAsync(
+                target,
+                [new TagInput("facet", facet.ToUpperInvariant()), new TagInput("release", "stable")],
+                ct: ct
+            );
         }
 
-        TagFilter[] filters = [new("facet", "blue"), new("release", "STABLE")];
-        TagFilter[] mismatch = [new("facet", "blue"), new("release", "other")];
+        TagFilter[] filters = [new("facet", facet), new("release", "STABLE")];
+        TagFilter[] mismatch = [new("facet", facet), new("release", "other")];
 
         var tenants = await Operations.Tenants.ListAsync(new ListTenantsQuery(Tags: filters), ct);
         Assert.Contains(tenants.Items, x => x.TenantKey == targets.TenantKey);
