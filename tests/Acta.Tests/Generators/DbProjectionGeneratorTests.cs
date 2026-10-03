@@ -146,6 +146,25 @@ public sealed class DbProjectionGeneratorTests
     }
 
     [Fact]
+    public void Assembly_projection_list_binds_by_name_when_asked()
+    {
+        var (result, compilation) = RunGenerator(
+            """
+            using Acta.Runtime;
+            [assembly: DbProjection(typeof(GenTests.ExternalOutcome), ByName = true)]
+
+            namespace GenTests;
+
+            internal sealed record ExternalOutcome(int Id, string DisplayName);
+            """
+        );
+
+        AssertNoCompileErrors(compilation);
+        var source = SingleGeneratedSource(result, "BindExternalOutcome");
+        Assert.Contains("internal static readonly string[] ExternalOutcomeColumns = [\"id\", \"display_name\"];", source);
+    }
+
+    [Fact]
     public void Class_projection_emits_nullable_bytes_and_utc_reads()
     {
         var (result, compilation) = RunGenerator(

@@ -93,6 +93,7 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
                 continue;
             }
 
+            var byName = attribute.NamedArguments.Any(static n => n.Key == "ByName" && n.Value.Value is true);
             foreach (var argument in attribute.ConstructorArguments)
             {
                 var values = argument.Kind == TypedConstantKind.Array ? argument.Values : [argument];
@@ -100,7 +101,7 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
                 {
                     if (value.Value is INamedTypeSymbol type)
                     {
-                        projections.Add(Transform(type, byName: false, ct));
+                        projections.Add(Transform(type, byName, ct));
                     }
                 }
             }
