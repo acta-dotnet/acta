@@ -1,8 +1,0 @@
-namespace Acta.AspNetCore;
-
-/// <summary>
-/// HTTP projection of an <see cref="AlertControlResult"/>. Returned for both applied (200) and
-/// not-found (404) outcomes; there is no rejected (409) case since re-acknowledging or re-resolving is
-/// always Applied (idempotent, no mutation).
-/// </summary>
-internal sealed record AlertControlResponse(AlertRef AlertRef, ControlAction Action, DateTime? AcknowledgedAtUtc, DateTime? ResolvedAtUtc);

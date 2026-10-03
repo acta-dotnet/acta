@@ -104,7 +104,7 @@ public sealed class ControlEndpointTests
     }
 
     [Fact]
-    public async Task A_rejected_restart_names_the_status_or_the_lane_as_the_reason()
+    public async Task A_rejected_restart_answers_409_with_the_blocking_status()
     {
         var (app, client) = await StartWithControlsAsync();
         await using var _ = app;
@@ -113,7 +113,7 @@ public sealed class ControlEndpointTests
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Contains("status or its lane does not allow it", body);
+        Assert.Contains("\"action\":\"rejected\",\"status\":\"succeeded\"", body);
     }
 
     [Fact]

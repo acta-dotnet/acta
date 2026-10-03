@@ -18,9 +18,9 @@ internal static class OutboxControlEndpoints
     {
         // The two verbs share one response shape across their three outcomes, so declare it once.
         var group = outer.MapGroup("");
-        group.ProducesJson<OutboxControlResponse>(StatusCodes.Status202Accepted);
-        group.ProducesJson<OutboxControlResponse>(StatusCodes.Status409Conflict);
-        group.ProducesJson<OutboxControlResponse>(StatusCodes.Status404NotFound);
+        group.ProducesJson<OutboxControlResult>(StatusCodes.Status202Accepted);
+        group.ProducesJson<OutboxControlResult>(StatusCodes.Status409Conflict);
+        group.ProducesJson<OutboxControlResult>(StatusCodes.Status404NotFound);
         // Both verbs read the optional body, so both can refuse a content type that is not JSON.
         group.ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
 
@@ -81,7 +81,7 @@ internal static class OutboxControlEndpoints
                 verb == "requeue"
                     ? await operations.Outbox.RequeueAsync(jobNamespace, body?.OutboxIds, reasonMessage, actorKey, ct)
                     : await operations.Outbox.DiscardAsync(jobNamespace, body?.OutboxIds, reasonMessage, actorKey, ct);
-            return ToResult(verb, result);
+            return ToResult(result);
         }
         catch (ArgumentException ex)
         {
@@ -90,22 +90,16 @@ internal static class OutboxControlEndpoints
         }
     }
 
-    private static IResult ToResult(string verb, OutboxControlResult result)
-    {
-        var (statusCode, message) = result.Action switch
-        {
-            ControlAction.Accepted => (StatusCodes.Status202Accepted, $"Outbox {verb} accepted; the next relay pass applies it."),
-            ControlAction.Rejected => (
-                StatusCodes.Status409Conflict,
-                $"Outbox {verb} rejected: a pending {verb} command is already parked for this source."
-            ),
-            _ => (StatusCodes.Status404NotFound, "No outbox relay slot exists for that namespace."),
-        };
-
-        return Results.Json(
-            new OutboxControlResponse(result.Action, result.PendingSinceUtc, message),
-            DashboardJsonContext.Default.OutboxControlResponse,
-            statusCode: statusCode
+    // Accepted 202 (the next relay pass applies it), Rejected 409 (a command is already parked), NotFound 404.
+    private static IResult ToResult(OutboxControlResult result) =>
+        Results.Json(
+            result,
+            DashboardJsonContext.Default.OutboxControlResult,
+            statusCode: result.Action switch
+            {
+                ControlAction.Accepted => StatusCodes.Status202Accepted,
+                ControlAction.Rejected => StatusCodes.Status409Conflict,
+                _ => StatusCodes.Status404NotFound,
+            }
         );
-    }
 }

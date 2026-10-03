@@ -123,18 +123,13 @@ internal static class ActaControlEndpoints
                     var jobId = await jobs.GetJobIdAsync(JobLookup.ByRef(parsed), ct);
                     if (jobId is null)
                     {
-                        return Envelope(parsed, ControlAction.NotFound, StatusCodes.Status404NotFound, "Job not found.");
+                        return ToResult(new JobControlResult(0, ControlAction.NotFound, null, null));
                     }
 
                     var current = await jobs.GetInputAsync(JobLookup.ById(jobId.Value), ct);
                     if (current is not { } stored)
                     {
-                        return Envelope(
-                            parsed,
-                            ControlAction.Rejected,
-                            StatusCodes.Status409Conflict,
-                            "Input rejected: the job has no input to amend."
-                        );
+                        return ToResult(new JobControlResult(jobId.Value, ControlAction.Rejected, null, null));
                     }
 
                     var storedFormat = stored.Format;
@@ -194,7 +189,7 @@ internal static class ActaControlEndpoints
                     try
                     {
                         var result = await jobs.UpdateJobInputAsync(JobLookup.ByRef(parsed), payload, reason, actorKey, ct);
-                        return ToResult("input", parsed, result);
+                        return ToResult(result);
                     }
                     catch (PayloadTooLargeException ex)
                     {
@@ -205,9 +200,9 @@ internal static class ActaControlEndpoints
             .WithSummary("Amend a waiting job's stored input.")
             // The body is read manually rather than bound, so the document only learns its shape here.
             .AcceptsJson<JobInputRequest>()
-            .Produces<JobControlResponse>(StatusCodes.Status200OK)
-            .Produces<JobControlResponse>(StatusCodes.Status409Conflict)
-            .Produces<JobControlResponse>(StatusCodes.Status404NotFound);
+            .Produces<JobControlResult>(StatusCodes.Status200OK)
+            .Produces<JobControlResult>(StatusCodes.Status409Conflict)
+            .Produces<JobControlResult>(StatusCodes.Status404NotFound);
     }
 
     /// <summary>
@@ -268,14 +263,14 @@ internal static class ActaControlEndpoints
                         body.ExpectedVersion,
                         ct
                     );
-                    return ToResult("reschedule", parsed, result);
+                    return ToResult(result);
                 }
             )
             .WithSummary("Move the job's next-run instant.")
             .AcceptsJson<JobRescheduleRequest>()
-            .Produces<JobControlResponse>(StatusCodes.Status200OK)
-            .Produces<JobControlResponse>(StatusCodes.Status409Conflict)
-            .Produces<JobControlResponse>(StatusCodes.Status404NotFound);
+            .Produces<JobControlResult>(StatusCodes.Status200OK)
+            .Produces<JobControlResult>(StatusCodes.Status409Conflict)
+            .Produces<JobControlResult>(StatusCodes.Status404NotFound);
     }
 
     /// <summary>
@@ -327,14 +322,14 @@ internal static class ActaControlEndpoints
                         body.ExpectedVersion,
                         ct
                     );
-                    return ToResult("reprioritize", parsed, result);
+                    return ToResult(result);
                 }
             )
             .WithSummary("Change the job's priority.")
             .AcceptsJson<JobReprioritizeRequest>()
-            .Produces<JobControlResponse>(StatusCodes.Status200OK)
-            .Produces<JobControlResponse>(StatusCodes.Status409Conflict)
-            .Produces<JobControlResponse>(StatusCodes.Status404NotFound);
+            .Produces<JobControlResult>(StatusCodes.Status200OK)
+            .Produces<JobControlResult>(StatusCodes.Status409Conflict)
+            .Produces<JobControlResult>(StatusCodes.Status404NotFound);
     }
 
     /// <summary>
@@ -399,7 +394,7 @@ internal static class ActaControlEndpoints
                     try
                     {
                         var result = await jobs.RaiseSignalAsync(JobLookup.ByRef(parsed), signalName, payload, actorKey, ct);
-                        return ToResult("signal", parsed, result);
+                        return ToResult(result);
                     }
                     catch (PayloadTooLargeException ex)
                     {
@@ -415,9 +410,9 @@ internal static class ActaControlEndpoints
             // The signal value is free-form JSON passed through verbatim, so the declared body type is
             // "any JSON" rather than a record; optional because an empty body raises a presence-only signal.
             .AcceptsJson<System.Text.Json.JsonElement>(optional: true)
-            .Produces<JobControlResponse>(StatusCodes.Status200OK)
-            .Produces<JobControlResponse>(StatusCodes.Status409Conflict)
-            .Produces<JobControlResponse>(StatusCodes.Status404NotFound);
+            .Produces<JobControlResult>(StatusCodes.Status200OK)
+            .Produces<JobControlResult>(StatusCodes.Status409Conflict)
+            .Produces<JobControlResult>(StatusCodes.Status404NotFound);
     }
 
     private static void MapVerb(
@@ -461,7 +456,7 @@ internal static class ActaControlEndpoints
                 // body; the verb stamps actor = Operator.
                 var actorKey = http.User?.Identity?.Name;
                 var result = await invoke(jobs, JobLookup.ByRef(parsed), reason, actorKey, expectedVersion, ct);
-                return ToResult(verb, parsed, result);
+                return ToResult(result);
             }
         );
 
@@ -483,49 +478,23 @@ internal static class ActaControlEndpoints
         }
 
         builder
-            .Produces<JobControlResponse>(StatusCodes.Status200OK)
-            .Produces<JobControlResponse>(StatusCodes.Status409Conflict)
-            .Produces<JobControlResponse>(StatusCodes.Status404NotFound);
+            .Produces<JobControlResult>(StatusCodes.Status200OK)
+            .Produces<JobControlResult>(StatusCodes.Status409Conflict)
+            .Produces<JobControlResult>(StatusCodes.Status404NotFound);
     }
 
-    /// <summary>
-    /// The two outcomes /input settles before the verb runs, in the family envelope rather than as a
-    /// ProblemDetails: an unresolvable ref is the same not-found the other verbs report, and a job with
-    /// no stored input is a rejected transition, not a malformed request. Status is null because neither
-    /// outcome read one.
-    /// </summary>
-    private static IResult Envelope(JobRef jobRef, ControlAction action, int statusCode, string message) =>
+    // Applied 200, Rejected and VersionConflict 409, NotFound 404, each with the result as the body. The
+    // two outcomes /input settles before the verb runs arrive here too: an unresolvable ref is NotFound,
+    // and a job with no stored input is Rejected with a null status, since neither read one.
+    private static IResult ToResult(JobControlResult result) =>
         Results.Json(
-            new JobControlResponse(jobRef, action, null, message, null),
-            DashboardJsonContext.Default.JobControlResponse,
-            statusCode: statusCode
+            result,
+            DashboardJsonContext.Default.JobControlResult,
+            statusCode: result.Action switch
+            {
+                ControlAction.Applied => StatusCodes.Status200OK,
+                ControlAction.Rejected or ControlAction.VersionConflict => StatusCodes.Status409Conflict,
+                _ => StatusCodes.Status404NotFound,
+            }
         );
-
-    private static IResult ToResult(string verb, JobRef jobRef, JobControlResult result)
-    {
-        var (statusCode, message) = result.Action switch
-        {
-            ControlAction.Applied => (StatusCodes.Status200OK, $"{Title(verb)} applied."),
-            ControlAction.Rejected => (
-                StatusCodes.Status409Conflict,
-                // A restart can also be refused by the job's lane, so its message names both reasons.
-                verb == "restart"
-                    ? "Restart rejected: the job's status or its lane does not allow it."
-                    : $"{Title(verb)} rejected: the job's current status does not allow it."
-            ),
-            ControlAction.VersionConflict => (
-                StatusCodes.Status409Conflict,
-                $"{Title(verb)} rejected: the job changed since you loaded it (version conflict). Reload and retry."
-            ),
-            _ => (StatusCodes.Status404NotFound, "Job not found."),
-        };
-
-        return Results.Json(
-            new JobControlResponse(jobRef, result.Action, result.Status, message, result.Version),
-            DashboardJsonContext.Default.JobControlResponse,
-            statusCode: statusCode
-        );
-    }
-
-    private static string Title(string verb) => char.ToUpperInvariant(verb[0]) + verb[1..];
 }

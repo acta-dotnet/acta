@@ -33,7 +33,7 @@
   const mutation = useControlMutation<{ jobRef: string; body: Record<string, unknown>; reason?: string }, JobControlResponse>({
     path: (vars) => `jobs/${vars.jobRef}/input`,
     body: (vars) => vars.body,
-    notFound: (vars) => ({ jobRef: vars.jobRef, action: 'notFound', status: null, message: 'Job not found.', version: null }),
+    notFound: () => ({ action: 'notFound', status: null, version: null }),
     invalidateKeys: () => [['jobs']] as const
   });
 
@@ -49,7 +49,7 @@
     }
     try {
       const result = await mutation.mutateAsync({ jobRef, body: built.body, reason });
-      const outcome = amendOutcomeMessage(result.action, result.message);
+      const outcome = amendOutcomeMessage(result.action, result.status);
       message = outcome.text;
       messageKind = outcome.kind;
       if (result.action === 'applied') {

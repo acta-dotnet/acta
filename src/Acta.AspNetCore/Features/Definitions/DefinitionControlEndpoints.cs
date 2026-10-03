@@ -58,7 +58,7 @@ internal static class DefinitionControlEndpoints
                             actorKey,
                             ct
                         );
-                        return ToResult(jobNamespace, jobName, result);
+                        return ToResult(result);
                     }
                     catch (ArgumentException ex)
                     {
@@ -75,9 +75,9 @@ internal static class DefinitionControlEndpoints
             .AcceptsJson<SetDefinitionOverridesRequest>()
             // Applied, version-conflict, and not-found carry the same body, so a client reads `action`
             // without special-casing the status code.
-            .Produces<DefinitionControlResponse>(StatusCodes.Status200OK)
-            .Produces<DefinitionControlResponse>(StatusCodes.Status409Conflict)
-            .Produces<DefinitionControlResponse>(StatusCodes.Status404NotFound)
+            .Produces<DefinitionControlResult>(StatusCodes.Status200OK)
+            .Produces<DefinitionControlResult>(StatusCodes.Status409Conflict)
+            .Produces<DefinitionControlResult>(StatusCodes.Status404NotFound)
             // The body is mandatory here, so a non-JSON content type is refused before it is read.
             .ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
 
@@ -118,13 +118,7 @@ internal static class DefinitionControlEndpoints
                             actorKey,
                             ct
                         );
-                        return ToResult(
-                            jobNamespace,
-                            jobName,
-                            result,
-                            "Definition retired.",
-                            "Retire rejected: the definition changed since you loaded it (version conflict). Reload and retry."
-                        );
+                        return ToResult(result);
                     }
                     catch (ArgumentException ex)
                     {
@@ -135,32 +129,21 @@ internal static class DefinitionControlEndpoints
             )
             .WithSummary("Retire the definition and cancel its parked jobs.")
             .AcceptsJson<RetireDefinitionRequest>()
-            .Produces<DefinitionControlResponse>(StatusCodes.Status200OK)
-            .Produces<DefinitionControlResponse>(StatusCodes.Status409Conflict)
-            .Produces<DefinitionControlResponse>(StatusCodes.Status404NotFound)
+            .Produces<DefinitionControlResult>(StatusCodes.Status200OK)
+            .Produces<DefinitionControlResult>(StatusCodes.Status409Conflict)
+            .Produces<DefinitionControlResult>(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
     }
 
-    private static IResult ToResult(
-        string jobNamespace,
-        string jobName,
-        DefinitionControlResult result,
-        string appliedMessage = "Definition overrides applied.",
-        string rejectedMessage =
-            "Definition override rejected: the definition changed since you loaded it (version conflict). Reload and retry."
-    )
-    {
-        var (statusCode, message) = result.Action switch
-        {
-            ControlAction.Applied => (StatusCodes.Status200OK, appliedMessage),
-            ControlAction.Rejected => (StatusCodes.Status409Conflict, rejectedMessage),
-            _ => (StatusCodes.Status404NotFound, "Definition not found."),
-        };
-
-        return Results.Json(
-            new DefinitionControlResponse(jobNamespace, jobName, result.Action, message),
-            DashboardJsonContext.Default.DefinitionControlResponse,
-            statusCode: statusCode
+    private static IResult ToResult(DefinitionControlResult result) =>
+        Results.Json(
+            result,
+            DashboardJsonContext.Default.DefinitionControlResult,
+            statusCode: result.Action switch
+            {
+                ControlAction.Applied => StatusCodes.Status200OK,
+                ControlAction.Rejected => StatusCodes.Status409Conflict,
+                _ => StatusCodes.Status404NotFound,
+            }
         );
-    }
 }

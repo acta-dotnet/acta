@@ -74,8 +74,8 @@ internal static class AlertControlEndpoints
             .AcceptsJson<AlertControlRequest>(optional: true)
             // Applied and not-found carry the same body, so a client reads `action` without
             // special-casing the status code.
-            .Produces<AlertControlResponse>(StatusCodes.Status200OK)
-            .Produces<AlertControlResponse>(StatusCodes.Status404NotFound)
+            .Produces<AlertControlResult>(StatusCodes.Status200OK)
+            .Produces<AlertControlResult>(StatusCodes.Status404NotFound)
             // Both verbs read the optional note body, so both can refuse a non-JSON content type.
             .ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
     }
@@ -83,10 +83,6 @@ internal static class AlertControlEndpoints
     private static IResult ToResult(AlertControlResult result)
     {
         var statusCode = result.Action == ControlAction.NotFound ? StatusCodes.Status404NotFound : StatusCodes.Status200OK;
-        return Results.Json(
-            new AlertControlResponse(result.AlertRef, result.Action, result.AcknowledgedAtUtc, result.ResolvedAtUtc),
-            DashboardJsonContext.Default.AlertControlResponse,
-            statusCode: statusCode
-        );
+        return Results.Json(result, DashboardJsonContext.Default.AlertControlResult, statusCode: statusCode);
     }
 }

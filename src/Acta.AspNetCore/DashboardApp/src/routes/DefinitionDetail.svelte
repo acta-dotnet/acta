@@ -10,6 +10,7 @@
   import ChangeHistory from '../components/ChangeHistory.svelte';
   import ConfirmAction from '../components/ConfirmAction.svelte';
   import { mergeHistory } from '../components/changeHistory.ts';
+  import { definitionControlMessage } from '../lib/controlMessages.ts';
   import PageFreshness from '../components/PageFreshness.svelte';
   import TagEditor from '../components/TagEditor.svelte';
   import { routes } from '../routes';
@@ -130,7 +131,7 @@
     }
     try {
       const res = await setDefinitionOverrides(def.jobNamespace, def.jobName, def.version, overrides, note);
-      message = res.message;
+      message = definitionControlMessage('overrides', res.action);
       messageKind = res.action === 'applied' ? 'ok' : 'warn';
       if (res.action === 'applied') {
         note = '';
@@ -157,7 +158,7 @@
     message = '';
     try {
       const res = await retireDefinition(def.jobNamespace, def.jobName, def.version, reason);
-      message = res.message;
+      message = definitionControlMessage('retire', res.action);
       messageKind = res.action === 'applied' ? 'ok' : 'warn';
       if (res.action === 'applied') {
         note = '';

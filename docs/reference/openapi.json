@@ -101,7 +101,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResponse"
+                  "$ref": "#/components/schemas/JobControlResult"
                 }
               }
             }
@@ -111,7 +111,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResponse"
+                  "$ref": "#/components/schemas/JobControlResult"
                 }
               }
             }
@@ -121,7 +121,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResponse"
+                  "$ref": "#/components/schemas/JobControlResult"
                 }
               }
             }
@@ -220,7 +220,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResponse"
+                  "$ref": "#/components/schemas/JobControlResult"
                 }
               }
             }
@@ -230,7 +230,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResponse"
+                  "$ref": "#/components/schemas/JobControlResult"
                 }
               }
             }
@@ -240,7 +240,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResponse"
+                  "$ref": "#/components/schemas/JobControlResult"
                 }
               }
             }
@@ -339,7 +339,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResponse"
+                  "$ref": "#/components/schemas/JobControlResult"
                 }
               }
             }
@@ -349,7 +349,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResponse"
+                  "$ref": "#/components/schemas/JobControlResult"
                 }
               }
             }
@@ -359,7 +359,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResponse"
+                  "$ref": "#/components/schemas/JobControlResult"
                 }
               }
             }
@@ -458,7 +458,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResponse"
+                  "$ref": "#/components/schemas/JobControlResult"
                 }
               }
             }
@@ -468,7 +468,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResponse"
+                  "$ref": "#/components/schemas/JobControlResult"
                 }
               }
             }
@@ -478,7 +478,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResponse"
+                  "$ref": "#/components/schemas/JobControlResult"
                 }
               }
             }
@@ -577,7 +577,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResponse"
+                  "$ref": "#/components/schemas/JobControlResult"
                 }
               }
             }
@@ -587,7 +587,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResponse"
+                  "$ref": "#/components/schemas/JobControlResult"
                 }
               }
             }
@@ -597,7 +597,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResponse"
+                  "$ref": "#/components/schemas/JobControlResult"
                 }
               }
             }
@@ -697,7 +697,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResponse"
+                  "$ref": "#/components/schemas/JobControlResult"
                 }
               }
             }
@@ -707,7 +707,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResponse"
+                  "$ref": "#/components/schemas/JobControlResult"
                 }
               }
             }
@@ -717,7 +717,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResponse"
+                  "$ref": "#/components/schemas/JobControlResult"
                 }
               }
             }
@@ -817,7 +817,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResponse"
+                  "$ref": "#/components/schemas/JobControlResult"
                 }
               }
             }
@@ -827,7 +827,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResponse"
+                  "$ref": "#/components/schemas/JobControlResult"
                 }
               }
             }
@@ -837,7 +837,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResponse"
+                  "$ref": "#/components/schemas/JobControlResult"
                 }
               }
             }
@@ -937,7 +937,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResponse"
+                  "$ref": "#/components/schemas/JobControlResult"
                 }
               }
             }
@@ -947,7 +947,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResponse"
+                  "$ref": "#/components/schemas/JobControlResult"
                 }
               }
             }
@@ -957,7 +957,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResponse"
+                  "$ref": "#/components/schemas/JobControlResult"
                 }
               }
             }
@@ -1142,7 +1142,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResponse"
+                  "$ref": "#/components/schemas/JobControlResult"
                 }
               }
             }
@@ -1152,7 +1152,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResponse"
+                  "$ref": "#/components/schemas/JobControlResult"
                 }
               }
             }
@@ -1162,7 +1162,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResponse"
+                  "$ref": "#/components/schemas/JobControlResult"
                 }
               }
             }
@@ -1559,7 +1559,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DefinitionControlResponse"
+                  "$ref": "#/components/schemas/DefinitionControlResult"
                 }
               }
             }
@@ -1569,7 +1569,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DefinitionControlResponse"
+                  "$ref": "#/components/schemas/DefinitionControlResult"
                 }
               }
             }
@@ -1579,7 +1579,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DefinitionControlResponse"
+                  "$ref": "#/components/schemas/DefinitionControlResult"
                 }
               }
             }
@@ -1773,7 +1773,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DefinitionControlResponse"
+                  "$ref": "#/components/schemas/DefinitionControlResult"
                 }
               }
             }
@@ -1783,7 +1783,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DefinitionControlResponse"
+                  "$ref": "#/components/schemas/DefinitionControlResult"
                 }
               }
             }
@@ -1793,7 +1793,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DefinitionControlResponse"
+                  "$ref": "#/components/schemas/DefinitionControlResult"
                 }
               }
             }
@@ -1892,7 +1892,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AlertControlResponse"
+                  "$ref": "#/components/schemas/AlertControlResult"
                 }
               }
             }
@@ -1902,7 +1902,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AlertControlResponse"
+                  "$ref": "#/components/schemas/AlertControlResult"
                 }
               }
             }
@@ -2001,7 +2001,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AlertControlResponse"
+                  "$ref": "#/components/schemas/AlertControlResult"
                 }
               }
             }
@@ -2011,7 +2011,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AlertControlResponse"
+                  "$ref": "#/components/schemas/AlertControlResult"
                 }
               }
             }
@@ -2126,7 +2126,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ScheduleControlResponse"
+                  "$ref": "#/components/schemas/ScheduleControlResult"
                 }
               }
             }
@@ -2136,7 +2136,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ScheduleControlResponse"
+                  "$ref": "#/components/schemas/ScheduleControlResult"
                 }
               }
             }
@@ -2146,7 +2146,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ScheduleControlResponse"
+                  "$ref": "#/components/schemas/ScheduleControlResult"
                 }
               }
             }
@@ -2261,7 +2261,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ScheduleControlResponse"
+                  "$ref": "#/components/schemas/ScheduleControlResult"
                 }
               }
             }
@@ -2271,7 +2271,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ScheduleControlResponse"
+                  "$ref": "#/components/schemas/ScheduleControlResult"
                 }
               }
             }
@@ -2281,7 +2281,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ScheduleControlResponse"
+                  "$ref": "#/components/schemas/ScheduleControlResult"
                 }
               }
             }
@@ -2396,7 +2396,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ScheduleControlResponse"
+                  "$ref": "#/components/schemas/ScheduleControlResult"
                 }
               }
             }
@@ -2406,7 +2406,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ScheduleControlResponse"
+                  "$ref": "#/components/schemas/ScheduleControlResult"
                 }
               }
             }
@@ -2416,7 +2416,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ScheduleControlResponse"
+                  "$ref": "#/components/schemas/ScheduleControlResult"
                 }
               }
             }
@@ -2532,7 +2532,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ScheduleControlResponse"
+                  "$ref": "#/components/schemas/ScheduleControlResult"
                 }
               }
             }
@@ -2542,7 +2542,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ScheduleControlResponse"
+                  "$ref": "#/components/schemas/ScheduleControlResult"
                 }
               }
             }
@@ -2552,7 +2552,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ScheduleControlResponse"
+                  "$ref": "#/components/schemas/ScheduleControlResult"
                 }
               }
             }
@@ -2867,7 +2867,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -2877,7 +2877,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -2976,7 +2976,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -2986,7 +2986,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -3086,7 +3086,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -3096,7 +3096,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -3106,7 +3106,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -3273,7 +3273,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -3283,7 +3283,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -3382,7 +3382,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -3392,7 +3392,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -3492,7 +3492,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -3502,7 +3502,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -3522,7 +3522,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -3611,7 +3611,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OutboxControlResponse"
+                  "$ref": "#/components/schemas/OutboxControlResult"
                 }
               }
             }
@@ -3621,7 +3621,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OutboxControlResponse"
+                  "$ref": "#/components/schemas/OutboxControlResult"
                 }
               }
             }
@@ -3631,7 +3631,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OutboxControlResponse"
+                  "$ref": "#/components/schemas/OutboxControlResult"
                 }
               }
             }
@@ -3730,7 +3730,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OutboxControlResponse"
+                  "$ref": "#/components/schemas/OutboxControlResult"
                 }
               }
             }
@@ -3740,7 +3740,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OutboxControlResponse"
+                  "$ref": "#/components/schemas/OutboxControlResult"
                 }
               }
             }
@@ -3750,7 +3750,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OutboxControlResponse"
+                  "$ref": "#/components/schemas/OutboxControlResult"
                 }
               }
             }
@@ -3850,7 +3850,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -3860,7 +3860,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -4049,7 +4049,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -4059,7 +4059,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -4264,7 +4264,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -4274,7 +4274,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -4471,7 +4471,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -4481,7 +4481,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -4662,7 +4662,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -4672,7 +4672,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -4853,7 +4853,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -4863,7 +4863,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -5044,7 +5044,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -5054,7 +5054,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -5233,7 +5233,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -5243,7 +5243,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -5339,7 +5339,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -5349,7 +5349,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -5453,7 +5453,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -5463,7 +5463,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -5551,7 +5551,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -5561,7 +5561,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -5649,7 +5649,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -5659,7 +5659,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -5747,7 +5747,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -5757,7 +5757,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -5845,7 +5845,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -5855,7 +5855,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResponse"
+                  "$ref": "#/components/schemas/AdminControlResult"
                 }
               }
             }
@@ -8009,7 +8009,7 @@
   "components": {
     "schemas": {
       "ActorCode": { },
-      "AdminControlResponse": {
+      "AdminControlResult": {
         "required": [
           "action",
           "version"
@@ -8028,7 +8028,8 @@
             ],
             "format": "int32"
           }
-        }
+        },
+        "description": "Result of an admin control transition: the action plus the row version after the attempt."
       },
       "AlertControlRequest": {
         "type": "object",
@@ -8041,7 +8042,7 @@
           }
         }
       },
-      "AlertControlResponse": {
+      "AlertControlResult": {
         "required": [
           "alertRef",
           "action",
@@ -8051,9 +8052,11 @@
         "type": "object",
         "properties": {
           "alertRef": {
+            "description": "The targeted alert's public ref.",
             "$ref": "#/components/schemas/AlertRef"
           },
           "action": {
+            "description": "Whether the control verb was applied or the alert was absent.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "acknowledgedAtUtc": {
@@ -8061,6 +8064,7 @@
               "null",
               "string"
             ],
+            "description": "When the alert was acknowledged; null until acknowledged.",
             "format": "date-time"
           },
           "resolvedAtUtc": {
@@ -8068,9 +8072,11 @@
               "null",
               "string"
             ],
+            "description": "When the alert was resolved; null until resolved.",
             "format": "date-time"
           }
-        }
+        },
+        "description": "Outcome of an IAlerts control verb (Acknowledge / Resolve). Re-acknowledging an\nalready-acknowledged alert (or re-resolving an already-resolved one) is\nControlAction.Applied without mutation: the existing timestamp is returned\nunchanged and no second event is emitted. Never ControlAction.Rejected: there is\nno transition-legality guard beyond the alert existing."
       },
       "AlertDeliveryStatusCode": {
         "description": "Delivery state of one alert row. Numeric bands are a readability convention only; behavior\nfollows the explicit members."
@@ -8356,28 +8362,18 @@
       "DeadlineBehaviorCode": {
         "description": "How the engine treats a job that has passed its deadline."
       },
-      "DefinitionControlResponse": {
+      "DefinitionControlResult": {
         "required": [
-          "jobNamespace",
-          "jobName",
-          "action",
-          "message"
+          "action"
         ],
         "type": "object",
         "properties": {
-          "jobNamespace": {
-            "type": "string"
-          },
-          "jobName": {
-            "type": "string"
-          },
           "action": {
+            "description": "Whether the override write was applied, rejected (version conflict), or the definition was absent.",
             "$ref": "#/components/schemas/ControlAction"
-          },
-          "message": {
-            "type": "string"
           }
-        }
+        },
+        "description": "Outcome of an ValueTask&lt;DefinitionControlResult&gt; IDefinitions.UpdateOverridesAsync(string jobNamespace, string jobName, int expectedVersion, JobDefinitionPolicyOverrides overrides, string? reasonMessage = null, string? actorKey = null, CancellationToken ct = default(CancellationToken)) call: whether the override set was\napplied, the definition was absent, or the supplied version was stale (rejected). Reuses\nControlAction so the dashboard maps it the same way as the job/schedule verbs\n(Applied -&gt; 200, Rejected -&gt; 409, NotFound -&gt; 404)."
       },
       "EventCode": {
         "description": "Stable family-local event identifiers. Nearby values improve catalog readability but carry no\nruntime subject, subgroup, or outcome semantics. Match events by enum member or textual code."
@@ -8639,20 +8635,16 @@
           }
         }
       },
-      "JobControlResponse": {
+      "JobControlResult": {
         "required": [
-          "jobRef",
           "action",
           "status",
-          "message",
           "version"
         ],
         "type": "object",
         "properties": {
-          "jobRef": {
-            "$ref": "#/components/schemas/JobRef"
-          },
           "action": {
+            "description": "Whether the control transition was applied, rejected, conflicted, or the job was absent.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "status": {
@@ -8661,12 +8653,10 @@
                 "type": "null"
               },
               {
+                "description": "The job's status after the attempt; see remarks.",
                 "$ref": "#/components/schemas/JobStatusCode"
               }
             ]
-          },
-          "message": {
-            "type": "string"
           },
           "version": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -8675,9 +8665,11 @@
               "integer",
               "string"
             ],
+            "description": "The job runtime row's version after the attempt; see remarks.",
             "format": "int32"
           }
-        }
+        },
+        "description": "Outcome of an IJobs control verb: the targeted long JobControlResult.JobId, the coarse\nControlAction, and the job's JobStatusCode? JobControlResult.Status and row int? JobControlResult.Version after the attempt."
       },
       "JobDefinitionDetail": {
         "required": [
@@ -10471,15 +10463,15 @@
           }
         }
       },
-      "OutboxControlResponse": {
+      "OutboxControlResult": {
         "required": [
           "action",
-          "pendingSinceUtc",
-          "message"
+          "pendingSinceUtc"
         ],
         "type": "object",
         "properties": {
           "action": {
+            "description": "Accepted (parked), Rejected (an unapplied command is pending), or NotFound (no relay slot).",
             "$ref": "#/components/schemas/ControlAction"
           },
           "pendingSinceUtc": {
@@ -10487,12 +10479,11 @@
               "null",
               "string"
             ],
+            "description": "When the blocking pending command was parked; null except on Rejected.",
             "format": "date-time"
-          },
-          "message": {
-            "type": "string"
           }
-        }
+        },
+        "description": "Outcome of an IOutbox control verb (Requeue / Discard). These verbs park a durable\ncommand that the next relay pass applies, so success is ControlAction.Accepted\n(parked, with application owed to that pass); once applied, the evidence lands as an audit event\non the namespace's `sys.outbox` slot job."
       },
       "OutboxQuarantinedItem": {
         "required": [
@@ -11313,18 +11304,18 @@
           }
         }
       },
-      "ScheduleControlResponse": {
+      "ScheduleControlResult": {
         "required": [
           "action",
           "status",
           "pausedUntilUtc",
           "nextRunAtUtc",
-          "version",
-          "message"
+          "version"
         ],
         "type": "object",
         "properties": {
           "action": {
+            "description": "Whether the control verb was applied, rejected, or the schedule was absent.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "status": {
@@ -11333,6 +11324,7 @@
                 "type": "null"
               },
               {
+                "description": "The schedule's status after the attempt.",
                 "$ref": "#/components/schemas/ScheduleStatusCode"
               }
             ]
@@ -11342,6 +11334,7 @@
               "null",
               "string"
             ],
+            "description": "When a timed pause expires; null for an indefinite pause or after resume.",
             "format": "date-time"
           },
           "nextRunAtUtc": {
@@ -11349,6 +11342,7 @@
               "null",
               "string"
             ],
+            "description": "The schedule's cursor after the attempt.",
             "format": "date-time"
           },
           "version": {
@@ -11358,12 +11352,11 @@
               "integer",
               "string"
             ],
+            "description": "The schedule row's optimistic-concurrency version after the attempt.",
             "format": "int32"
-          },
-          "message": {
-            "type": "string"
           }
-        }
+        },
+        "description": "Outcome of an ISchedules control verb (Pause / Resume). Carries the coarse\nControlAction and, on a successful attempt, the schedule's resulting state:\nits ScheduleStatusCode? ScheduleControlResult.Status, the timed-pause expiry (DateTime? ScheduleControlResult.PausedUntilUtc), the per-schedule\ncursor (DateTime? ScheduleControlResult.NextRunAtUtc), and the row int? ScheduleControlResult.Version for optimistic concurrency."
       },
       "ScheduleExpressionKindCode": { },
       "ScheduleListItem": {

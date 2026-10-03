@@ -30,18 +30,22 @@ export interface AmendMessage {
   kind: 'ok' | 'warn' | 'bad';
 }
 
-// Maps the JobControlResponse action (and its server message) to the operator-facing banner. A
-// rejection is the in-flight 409; not-found means the job vanished between load and save.
-export function amendOutcomeMessage(action: string, serverMessage?: string | null): AmendMessage {
+// Maps the JobControlResponse outcome to the operator-facing banner. A rejection with a status is the
+// in-flight 409; one without is a job with no input to amend; not-found means the job vanished between
+// load and save.
+export function amendOutcomeMessage(action: string, status: string | null): AmendMessage {
   switch (action) {
     case 'applied':
       return { text: 'Input amended. The job runs with the new input on its next attempt.', kind: 'ok' };
     case 'rejected':
       return {
-        text: serverMessage || 'Input rejected: the job is in flight and cannot be amended right now.',
+        text:
+          status === null
+            ? 'Input rejected: the job has no input to amend.'
+            : 'Input rejected: the job is in flight and cannot be amended right now.',
         kind: 'warn'
       };
     default:
-      return { text: serverMessage || 'Job not found.', kind: 'bad' };
+      return { text: 'Job not found.', kind: 'bad' };
   }
 }

@@ -91,11 +91,11 @@ internal static class TagEndpoints
     {
         // Same shape for all fourteen mutations: every one resolves a target then applies, so an
         // applied change and a target the write matched no row for both answer with the same
-        // AdminControlResponse and a client reads `action` without special-casing the status code. A
+        // AdminControlResult and a client reads `action` without special-casing the status code. A
         // target that is not addressable never gets that far; it is the group-wide 400.
         var group = outer.MapGroup("");
-        group.ProducesJson<AdminControlResponse>();
-        group.ProducesJson<AdminControlResponse>(StatusCodes.Status404NotFound);
+        group.ProducesJson<AdminControlResult>();
+        group.ProducesJson<AdminControlResult>(StatusCodes.Status404NotFound);
 
         // The seven upserts read a JSON body and can refuse a content type that is not JSON; the
         // seven removes name their tag in the route and read nothing, so they cannot. That is the one
@@ -296,7 +296,7 @@ internal static class TagEndpoints
         {
             var result = await apply(resolve());
             return result.IsApplied
-                ? Results.Json(new AdminControlResponse(ControlAction.Applied, null), DashboardJsonContext.Default.AdminControlResponse)
+                ? Results.Json(new AdminControlResult(ControlAction.Applied, null), DashboardJsonContext.Default.AdminControlResult)
                 : MutationNotFound();
         }
         catch (ArgumentException ex)
@@ -366,8 +366,8 @@ internal static class TagEndpoints
     /// </summary>
     private static IResult MutationNotFound() =>
         Results.Json(
-            new AdminControlResponse(ControlAction.NotFound, null),
-            DashboardJsonContext.Default.AdminControlResponse,
+            new AdminControlResult(ControlAction.NotFound, null),
+            DashboardJsonContext.Default.AdminControlResult,
             statusCode: StatusCodes.Status404NotFound
         );
 }

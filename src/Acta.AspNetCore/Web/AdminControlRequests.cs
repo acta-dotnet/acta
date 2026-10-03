@@ -20,12 +20,9 @@ internal sealed record NamespacePatchRequest(
     string? ReasonMessage = null
 );
 
-/// <summary>HTTP projection of an admin control transition.</summary>
-internal sealed record AdminControlResponse(ControlAction Action, int? Version);
-
 /// <summary>
 /// Maps an <see cref="AdminControlResult"/> to an HTTP result: Applied/AlreadyInState 200, NotFound
-/// 404, VersionConflict 409. All three carry the same <see cref="AdminControlResponse"/> body, so a
+/// 404, VersionConflict 409. All three carry the result itself as the body, so a
 /// client reads <c>action</c> without special-casing the status code, and a version conflict carries
 /// the row's current <c>version</c> so the caller retries without a re-read. Only an outcome outside
 /// the enum is a fault, and a fault is the one thing this answers as a problem document.
@@ -42,9 +39,5 @@ internal static class AdminControlHttp
         };
 
     private static IResult Json(AdminControlResult result, int statusCode) =>
-        Results.Json(
-            new AdminControlResponse(result.Action, result.Version),
-            DashboardJsonContext.Default.AdminControlResponse,
-            statusCode: statusCode
-        );
+        Results.Json(result, DashboardJsonContext.Default.AdminControlResult, statusCode: statusCode);
 }

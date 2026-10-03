@@ -3,6 +3,7 @@
   import { useControlMutation } from '../lib/useControlMutation.ts';
   import { capabilitiesQuery, canControl } from '../query.ts';
   import type { JobControlResponse } from '../api.ts';
+  import { jobControlMessage } from '../lib/controlMessages.ts';
   import { validateSignalName, validateSignalPayload } from './signalDrawerState.ts';
 
   let {
@@ -32,7 +33,7 @@
   const mutation = useControlMutation<{ jobRef: string; name: string; payload: unknown }, JobControlResponse>({
     path: (vars) => `jobs/${vars.jobRef}/signals/${vars.name}`,
     rawBody: (vars) => vars.payload,
-    notFound: (vars) => ({ jobRef: vars.jobRef, action: 'notFound', status: null, message: 'Job not found.', version: null }),
+    notFound: () => ({ action: 'notFound', status: null, version: null }),
     invalidateKeys: () => [['jobs']] as const
   });
   let busy = $derived(mutation.isPending);
@@ -59,7 +60,7 @@
     message = '';
     try {
       const result = await mutation.mutateAsync(vars);
-      message = result.message;
+      message = jobControlMessage('signal', result.action, result.status);
       messageKind = result.action === 'applied' ? 'ok' : 'warn';
       onSent();
     } catch (e) {

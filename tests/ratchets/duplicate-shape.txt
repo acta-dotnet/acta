@@ -1,6 +1,4 @@
 # Known duplicate-shape violations; entries may only be removed.
-AlertControlResponse
-AlertControlResult
 AlertDetail
 AlertListItem
 CheckpointValue

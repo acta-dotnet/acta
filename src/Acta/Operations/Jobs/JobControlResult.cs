@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Acta;
 
 /// <summary>
@@ -11,9 +13,9 @@ namespace Acta;
 /// two. Both are <c>null</c> wherever the verb settled without reading the row, <c>NotFound</c> included.
 /// Pass <c>Version</c> as a subsequent call's expectedVersion to make that call a compare-and-set.
 /// </remarks>
-/// <param name="JobId">The targeted job's id; <c>0</c> when the lookup matched no row.</param> <param name="Action">Whether the control transition was applied, rejected, conflicted, or the job was absent.</param>
+/// <param name="JobId">The targeted job's id, never serialized; <c>0</c> when the lookup matched no row.</param> <param name="Action">Whether the control transition was applied, rejected, conflicted, or the job was absent.</param>
 /// <param name="Status">The job's status after the attempt; see remarks.</param> <param name="Version">The job runtime row's version after the attempt; see remarks.</param>
-public sealed record JobControlResult(long JobId, ControlAction Action, JobStatusCode? Status, int? Version);
+public sealed record JobControlResult([property: JsonIgnore] long JobId, ControlAction Action, JobStatusCode? Status, int? Version);
 
 /// <summary>
 /// Coarse outcome of a control verb: on jobs, schedules, alerts, the outbox, tenants, namespaces, and settings.

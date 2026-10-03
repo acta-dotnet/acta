@@ -16,8 +16,8 @@ internal static class NamespaceControlEndpoints
         // the same body: applied or already-in-state is 200, an unknown target is 404. Only the patch
         // takes an ExpectedVersion, so only the patch declares the 409 below.
         var group = outer.MapGroup("");
-        group.ProducesJson<AdminControlResponse>();
-        group.ProducesJson<AdminControlResponse>(StatusCodes.Status404NotFound);
+        group.ProducesJson<AdminControlResult>();
+        group.ProducesJson<AdminControlResult>(StatusCodes.Status404NotFound);
         // All three read a body, so all three can refuse a content type that is not JSON.
         group.ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
 
@@ -152,7 +152,7 @@ internal static class NamespaceControlEndpoints
             .AcceptsJson<NamespacePatchRequest>()
             // A stale ExpectedVersion is 409 carrying the row's current version, so the caller retries
             // without a re-read.
-            .Produces<AdminControlResponse>(StatusCodes.Status409Conflict)
+            .Produces<AdminControlResult>(StatusCodes.Status409Conflict)
             .WithSummary("Update the namespace's owner team and description.");
     }
 }

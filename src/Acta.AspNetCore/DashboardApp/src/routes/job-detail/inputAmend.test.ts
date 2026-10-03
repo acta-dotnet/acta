@@ -29,24 +29,24 @@ test('amendBody text format sends the raw text verbatim, never a quoted json str
 });
 
 test('applied outcome reports success', () => {
-  const message = amendOutcomeMessage('applied');
+  const message = amendOutcomeMessage('applied', 'ready');
   assert.equal(message.kind, 'ok');
   assert.match(message.text, /amended/);
 });
 
-test('rejected outcome surfaces the in-flight server message as a warning', () => {
-  const message = amendOutcomeMessage('rejected', 'Input rejected: the job is in flight.');
-  assert.equal(message.kind, 'warn');
-  assert.equal(message.text, 'Input rejected: the job is in flight.');
-});
-
-test('rejected outcome falls back to a default when the server sends no message', () => {
-  const message = amendOutcomeMessage('rejected', null);
+test('a rejection carrying the job status is the in-flight 409, as a warning', () => {
+  const message = amendOutcomeMessage('rejected', 'executing');
   assert.equal(message.kind, 'warn');
   assert.match(message.text, /in flight/);
 });
 
+test('a rejection without a status is a job with no input to amend', () => {
+  const message = amendOutcomeMessage('rejected', null);
+  assert.equal(message.kind, 'warn');
+  assert.equal(message.text, 'Input rejected: the job has no input to amend.');
+});
+
 test('not-found outcome is a bad-kind message', () => {
-  const message = amendOutcomeMessage('notFound');
+  const message = amendOutcomeMessage('notFound', null);
   assert.equal(message.kind, 'bad');
 });

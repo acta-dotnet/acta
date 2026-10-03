@@ -115,8 +115,8 @@ internal static class TenantControlEndpoints
             .AcceptsJson<JobControlRequest>(optional: true)
             // Applied and not-found carry the same body, so a client reads `action` without
             // special-casing the status code. There is no 409: the verb takes no expected version.
-            .Produces<AdminControlResponse>(StatusCodes.Status200OK)
-            .Produces<AdminControlResponse>(StatusCodes.Status404NotFound);
+            .Produces<AdminControlResult>(StatusCodes.Status200OK)
+            .Produces<AdminControlResult>(StatusCodes.Status404NotFound);
 
         group
             .MapPost(
@@ -142,8 +142,8 @@ internal static class TenantControlEndpoints
             )
             .WithSummary("Resume a suspended tenant.")
             .AcceptsJson<JobControlRequest>(optional: true)
-            .Produces<AdminControlResponse>(StatusCodes.Status200OK)
-            .Produces<AdminControlResponse>(StatusCodes.Status404NotFound);
+            .Produces<AdminControlResult>(StatusCodes.Status200OK)
+            .Produces<AdminControlResult>(StatusCodes.Status404NotFound);
 
         group
             .MapPatch(
@@ -217,8 +217,8 @@ internal static class TenantControlEndpoints
             .AcceptsJson<TenantPatchRequest>()
             // A stale ExpectedVersion is 409 carrying the row's current version, so the caller retries
             // without a re-read.
-            .Produces<AdminControlResponse>(StatusCodes.Status200OK)
-            .Produces<AdminControlResponse>(StatusCodes.Status404NotFound)
-            .Produces<AdminControlResponse>(StatusCodes.Status409Conflict);
+            .Produces<AdminControlResult>(StatusCodes.Status200OK)
+            .Produces<AdminControlResult>(StatusCodes.Status404NotFound)
+            .Produces<AdminControlResult>(StatusCodes.Status409Conflict);
     }
 }

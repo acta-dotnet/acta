@@ -3,6 +3,7 @@
   import { useControlMutation } from '../lib/useControlMutation.ts';
   import { capabilitiesQuery, canControl } from '../query.ts';
   import type { JobControlResponse } from '../api.ts';
+  import { jobControlMessage } from '../lib/controlMessages.ts';
   import { displayFormatter, parseUtcDateTimeInput } from '../format.ts';
   import { jobControlState } from './jobControlState.ts';
   import ConfirmAction from './ConfirmAction.svelte';
@@ -155,7 +156,7 @@
   >({
     path: (vars) => `jobs/${vars.jobRef}/${vars.action}`,
     body: (vars) => vars.extra ?? {},
-    notFound: (vars) => ({ jobRef: vars.jobRef, action: 'notFound', status: null, message: 'Job not found.', version: null }),
+    notFound: () => ({ action: 'notFound', status: null, version: null }),
     invalidateKeys: () => [['jobs']] as const
   });
   let busy = $derived(mutation.isPending);
@@ -168,7 +169,7 @@
     message = '';
     try {
       const result = await mutation.mutateAsync({ jobRef, action, reason, extra });
-      message = result.message;
+      message = jobControlMessage(action, result.action, result.status);
       messageKind = result.action === 'applied' ? 'ok' : 'warn';
       onChanged();
     } catch (e) {

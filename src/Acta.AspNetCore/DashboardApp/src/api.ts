@@ -201,10 +201,8 @@ export type ControlAction = 'applied' | 'notFound' | 'rejected' | 'versionConfli
 // (api.ts's controlRequest, via useControlMutation.ts) rather than a per-verb fetch function. The
 // dashboard sends no expectedVersion, so 'versionConflict' only reaches other API callers.
 export interface JobControlResponse {
-  jobRef: string;
   action: ControlAction;
   status: string | null;
-  message: string;
   version: number | null;
 }
 
@@ -303,10 +301,7 @@ export async function registerTenant(
 }
 
 export interface DefinitionControlResponse {
-  jobNamespace: string;
-  jobName: string;
   action: ControlAction;
-  message: string;
 }
 
 // PATCH a definition's operator overrides, addressed by its natural key. The body carries the
@@ -333,12 +328,7 @@ export async function setDefinitionOverrides(
       return body as DefinitionControlResponse;
     }
     if (response.status === 404) {
-      return {
-        jobNamespace,
-        jobName,
-        action: 'notFound',
-        message: problemValue(body, 'detail') ?? problemValue(body, 'title') ?? 'Definition not found.'
-      };
+      return { action: 'notFound' };
     }
   }
 
@@ -362,7 +352,7 @@ export async function retireDefinition(
   return controlRequest<DefinitionControlResponse>(
     `definitions/${encodeURIComponent(jobNamespace)}/${encodeURIComponent(jobName)}/retire`,
     { expectedVersion, reasonMessage: note?.trim() || null },
-    { jobNamespace, jobName, action: 'notFound', message: 'Definition not found.' }
+    { action: 'notFound' }
   );
 }
 
@@ -372,7 +362,6 @@ export interface ScheduleControlResponse {
   pausedUntilUtc: string | null;
   nextRunAtUtc: string | null;
   version: number | null;
-  message: string;
 }
 
 // Schedule pause/resume/trigger/overrides live at schedules/{ns}/{job}/{schedule}/{action} - the

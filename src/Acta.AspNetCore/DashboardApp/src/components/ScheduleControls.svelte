@@ -3,6 +3,7 @@
   import { useControlMutation } from '../lib/useControlMutation.ts';
   import ZonePicker from './ZonePicker.svelte';
   import { previewSchedule, type ScheduleControlResponse, type SchedulePreview } from '../api.ts';
+  import { scheduleControlMessage } from '../lib/controlMessages.ts';
   import { capabilitiesQuery, canControl } from '../query.ts';
   import { scheduleControlState } from './scheduleControlState.ts';
   import { buildOverridesPayload, overridesNeedsReload } from './scheduleOverrides.ts';
@@ -64,8 +65,7 @@
       status: null,
       pausedUntilUtc: null,
       nextRunAtUtc: null,
-      version: null,
-      message: 'Schedule not found.'
+      version: null
     }),
     invalidateKeys: () => [['schedules']] as const
   });
@@ -79,7 +79,7 @@
       const result = await mutation.mutateAsync({ action, reason, extra });
       // Rejected (e.g. the backend cleanly rejects a terminal-slot trigger) is a warning, never a
       // false success or a hard error - same guard as JobControls' `result.action === 'applied'`.
-      message = result.message;
+      message = scheduleControlMessage(action, result.action);
       messageKind = result.action === 'applied' ? 'ok' : 'warn';
       if (result.action === 'applied') onChanged();
     } catch (e) {
@@ -170,11 +170,11 @@
       if (overridesNeedsReload(result.action)) {
         // Never clobber: the row changed since it was loaded (a stale expectedVersion or a state
         // that no longer accepts the override) - surface it and refetch, do not resend.
-        overridesMessage = `${result.message} Changed since you loaded it - reload and try again.`;
+        overridesMessage = `${scheduleControlMessage('overrides', result.action)} Changed since you loaded it - reload and try again.`;
         overridesMessageKind = 'warn';
         overridesReloadRequired = true;
       } else {
-        overridesMessage = result.message;
+        overridesMessage = scheduleControlMessage('overrides', result.action);
         overridesMessageKind = 'ok';
         overridesReloadRequired = false;
         overridesOpen = false;

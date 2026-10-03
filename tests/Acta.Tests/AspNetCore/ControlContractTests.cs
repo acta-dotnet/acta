@@ -213,7 +213,7 @@ public sealed class ControlContractTests
                 "versionConflict",
                 $"/jobs/{Found}/{verb}",
                 StatusCodes.Status409Conflict,
-                typeof(JobControlResponse),
+                typeof(JobControlResult),
                 "versionConflict",
                 body,
                 TestDashboardHost.CurrentJobVersion
@@ -262,7 +262,7 @@ public sealed class ControlContractTests
         string action,
         object? body = null,
         Action<TestDashboardHost.FakeJobs>? stage = null
-    ) => new("jobs", route, "POST", outcome, path, status, typeof(JobControlResponse), action, body, Stage: stage);
+    ) => new("jobs", route, "POST", outcome, path, status, typeof(JobControlResult), action, body, Stage: stage);
 
     // Enqueue is control-gated but creates a job rather than transitioning one, so its two outcomes
     // are inserted and deduplicated. Its rejection stays a problem document (the guard reports why the
@@ -323,7 +323,7 @@ public sealed class ControlContractTests
     }
 
     private static Case Schedule(string route, string outcome, string path, int status, string action, object body, int? version = null) =>
-        new("schedules", route, "POST", outcome, path, status, typeof(ScheduleControlResponse), action, body, version);
+        new("schedules", route, "POST", outcome, path, status, typeof(ScheduleControlResult), action, body, version);
 
     private static IEnumerable<Case> DefinitionOverrides()
     {
@@ -336,7 +336,7 @@ public sealed class ControlContractTests
                 outcome,
                 path,
                 status,
-                typeof(DefinitionControlResponse),
+                typeof(DefinitionControlResult),
                 action,
                 new { expectedVersion, reasonMessage = "because" }
             );
@@ -359,7 +359,7 @@ public sealed class ControlContractTests
                 outcome,
                 path,
                 status,
-                typeof(DefinitionControlResponse),
+                typeof(DefinitionControlResult),
                 action,
                 new { expectedVersion, reasonMessage = "because" }
             );
@@ -376,7 +376,7 @@ public sealed class ControlContractTests
     {
         var route = $"/alerts/{{alertRef}}/{verb}";
         Case Row(string outcome, string alertRef, int status, string action) =>
-            new("alerts", route, "POST", outcome, $"/alerts/{alertRef}/{verb}", status, typeof(AlertControlResponse), action, Reason);
+            new("alerts", route, "POST", outcome, $"/alerts/{alertRef}/{verb}", status, typeof(AlertControlResult), action, Reason);
         return
         [
             Row("applied", KnownAlert, StatusCodes.Status200OK, "applied"),
@@ -390,7 +390,7 @@ public sealed class ControlContractTests
     {
         var route = $"/outbox/{{jobNamespace}}/{verb}";
         Case Row(string outcome, string jobNamespace, int status, string action) =>
-            new("outbox", route, "POST", outcome, $"/outbox/{jobNamespace}/{verb}", status, typeof(OutboxControlResponse), action, Reason);
+            new("outbox", route, "POST", outcome, $"/outbox/{jobNamespace}/{verb}", status, typeof(OutboxControlResult), action, Reason);
         return
         [
             Row("accepted", "billing", StatusCodes.Status202Accepted, "accepted"),
@@ -452,7 +452,7 @@ public sealed class ControlContractTests
         string action,
         object body,
         int? version = null
-    ) => new(family, route, method, outcome, path, status, typeof(AdminControlResponse), action, body, version);
+    ) => new(family, route, method, outcome, path, status, typeof(AdminControlResult), action, body, version);
 
     // Registration is insert-or-get and answers with the canonical key rather than an action, so this
     // row asserts the shape and leaves the action unchecked.
@@ -483,7 +483,7 @@ public sealed class ControlContractTests
                 action,
                 pathPrefix + pathSuffix,
                 status,
-                typeof(AdminControlResponse),
+                typeof(AdminControlResult),
                 action,
                 body,
                 Stage: status == StatusCodes.Status200OK ? TagApplies : TagTargetMissing

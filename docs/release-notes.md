@@ -26,6 +26,11 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   verb (the admin enum had 4). The JSON strings do not change. The routines behind those verbs now
   return the new values, so the object package moves to revision 9 and a host refuses a database whose
   installed objects are older; apply `docs/reference/schema-<provider>.sql` before starting it.
+- **HTTP control responses are the public results.** A control endpoint answers with the same record
+  its `I*` verb returns, so the `message` text is gone from job, schedule, outbox, and definition
+  responses (the dashboard words outcomes itself), a job control no longer echoes `jobRef`, and a
+  definition control no longer echoes `jobNamespace` and `jobName`. Status codes are unchanged. A
+  client that showed `message` builds its text from `action` and `status`.
 - **The `Acta.Relational` package is gone.** Its code ships in `Acta.Runtime`, which every provider
   package already brings. A project that referenced `Acta.Relational` directly drops the reference.
 

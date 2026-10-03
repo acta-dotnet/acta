@@ -20,9 +20,9 @@ internal static class ScheduleControlEndpoints
         // it once here rather than four times below. Applied, rejected, and not-found carry the same
         // body, so a client reads `action` without special-casing the status code.
         var group = outer.MapGroup("");
-        group.ProducesJson<ScheduleControlResponse>();
-        group.ProducesJson<ScheduleControlResponse>(StatusCodes.Status409Conflict);
-        group.ProducesJson<ScheduleControlResponse>(StatusCodes.Status404NotFound);
+        group.ProducesJson<ScheduleControlResult>();
+        group.ProducesJson<ScheduleControlResult>(StatusCodes.Status409Conflict);
+        group.ProducesJson<ScheduleControlResult>(StatusCodes.Status404NotFound);
         // All four read a body, so all four can refuse a content type that is not JSON.
         group.ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
 
@@ -209,7 +209,7 @@ internal static class ScheduleControlEndpoints
     {
         try
         {
-            return ToResult(verb, await action());
+            return ToResult(await action());
         }
         catch (ArgumentException ex)
         {
@@ -217,22 +217,15 @@ internal static class ScheduleControlEndpoints
         }
     }
 
-    private static IResult ToResult(string verb, ScheduleControlResult result)
-    {
-        var (statusCode, message) = result.Action switch
-        {
-            ControlAction.Applied => (StatusCodes.Status200OK, $"Schedule {verb} applied."),
-            ControlAction.Rejected => (
-                StatusCodes.Status409Conflict,
-                $"Schedule {verb} rejected: the schedule's current state does not allow it."
-            ),
-            _ => (StatusCodes.Status404NotFound, "Schedule not found."),
-        };
-
-        return Results.Json(
-            new ScheduleControlResponse(result.Action, result.Status, result.PausedUntilUtc, result.NextRunAtUtc, result.Version, message),
-            DashboardJsonContext.Default.ScheduleControlResponse,
-            statusCode: statusCode
+    private static IResult ToResult(ScheduleControlResult result) =>
+        Results.Json(
+            result,
+            DashboardJsonContext.Default.ScheduleControlResult,
+            statusCode: result.Action switch
+            {
+                ControlAction.Applied => StatusCodes.Status200OK,
+                ControlAction.Rejected => StatusCodes.Status409Conflict,
+                _ => StatusCodes.Status404NotFound,
+            }
         );
-    }
 }

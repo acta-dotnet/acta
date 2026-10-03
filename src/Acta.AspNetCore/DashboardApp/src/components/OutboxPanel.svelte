@@ -3,6 +3,7 @@
   import { useControlMutation } from '../lib/useControlMutation.ts';
   import { capabilitiesQuery, canControl } from '../query.ts';
   import { displayFormatter } from '../format.ts';
+  import { outboxControlMessage } from '../lib/controlMessages.ts';
   import ConfirmAction from './ConfirmAction.svelte';
   import DataTable from './DataTable.svelte';
 
@@ -20,7 +21,6 @@
   interface OutboxControlResponse {
     action: string;
     pendingSinceUtc: string | null;
-    message: string;
   }
 
   let {
@@ -44,7 +44,7 @@
   const mutation = useControlMutation<{ verb: 'requeue' | 'discard'; jobNamespace: string; reason?: string }, OutboxControlResponse>({
     path: (vars) => `outbox/${vars.jobNamespace}/${vars.verb}`,
     rawBody: (vars) => ({ reasonMessage: vars.reason?.trim() || null }),
-    notFound: () => ({ action: 'notFound', pendingSinceUtc: null, message: 'No outbox relay slot exists for that namespace.' }),
+    notFound: () => ({ action: 'notFound', pendingSinceUtc: null }),
     invalidateKeys: () => [['overview']] as const
   });
   let busy = $derived(mutation.isPending);
@@ -59,8 +59,8 @@
       messageKind = result.action === 'accepted' ? 'ok' : 'warn';
       message =
         result.pendingSinceUtc && result.action === 'rejected'
-          ? result.message + ' Pending since ' + displayFormatter.timestamp(result.pendingSinceUtc) + '.'
-          : result.message;
+          ? outboxControlMessage(verb, result.action) + ' Pending since ' + displayFormatter.timestamp(result.pendingSinceUtc) + '.'
+          : outboxControlMessage(verb, result.action);
       if (result.action === 'accepted') onChanged();
     } catch (e) {
       message = (e as Error).message;
