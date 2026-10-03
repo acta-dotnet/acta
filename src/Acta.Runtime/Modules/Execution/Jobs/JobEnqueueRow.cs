@@ -35,6 +35,7 @@ internal sealed record JobEnqueueRow(
 /// The (ordinal, id, ref, action) outcome row both enqueue routines return; the scalar routine
 /// always returns ordinal 0.
 /// </summary>
+[DbProjection]
 internal readonly record struct EnqueueOutcomeRow(int Ordinal, long JobId, Guid JobRef, JobEnqueueAction Action);
 
 /// <summary>

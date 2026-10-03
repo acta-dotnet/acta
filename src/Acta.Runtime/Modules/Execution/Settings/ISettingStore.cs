@@ -32,6 +32,7 @@ internal sealed record SetSettingCommand(
 );
 
 /// <summary>Flat setting row projected from storage.</summary>
+[DbProjection]
 internal sealed record SettingRow(
     string Name,
     byte ValueFormatId,

@@ -103,6 +103,7 @@ internal enum CompleteExecutionAction : byte
 /// <param name="DbNowUtc">The routine's clock reading, for due-now comparison against <paramref name="FinalNextRunAtUtc"/> with no host-clock assumption.</param>
 /// <param name="ParentReleased">True when this terminal landing's child-done raise flipped a Suspended parent to Ready; the caller wakes all worker namespaces (the parent may live in another namespace).</param>
 /// <param name="LanePromoted">True when this terminal landing handed its lane to the next member, which is now Ready; the caller wakes its namespace.</param>
+[DbProjection]
 internal sealed record CompleteExecutionResult(
     CompleteExecutionAction Action,
     byte? FinalStatusCode,

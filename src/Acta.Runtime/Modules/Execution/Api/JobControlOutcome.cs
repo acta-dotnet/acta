@@ -16,12 +16,14 @@ internal sealed record JobControlInput(
 /// Result of a control transition: the action plus the job's status and row version after the attempt.
 /// Shared by the job control verbs, whose routines all return one (action, status_code, version) row.
 /// </summary>
+[DbProjection]
 internal sealed record JobControlOutcome(JobControlActionInternal Action, JobStatusCode? Status, int? Version);
 
 /// <summary>
 /// Flat row of the control routines that carry no expected version (purge, input amend, signal raise);
 /// their result sets are (action, status_code) and the outcome's version is null.
 /// </summary>
+[DbProjection]
 internal sealed record JobControlActionRow(JobControlActionInternal Action, JobStatusCode? Status)
 {
     public JobControlOutcome ToOutcome() => new(Action, Status, null);

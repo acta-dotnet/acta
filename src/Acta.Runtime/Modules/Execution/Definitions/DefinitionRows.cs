@@ -43,6 +43,7 @@ internal sealed record StoredDefinitionContract(
 /// <summary>
 /// Flat database row for a stored definition; maps into the nested contract/policy shape after binding.
 /// </summary>
+[DbProjection]
 internal sealed record StoredDefinitionContractRow(
     string Name,
     DateTime ManifestGenerationAtUtc,
@@ -106,6 +107,7 @@ internal sealed record StoredDefinitionContractRow(
 /// DB-computed <c>effective</c>), and audit bookkeeping. The grid-shaped subset lives on
 /// <c>JobDefinitionListRow</c>; this row is read one at a time by id.
 /// </summary>
+[DbProjection]
 internal sealed record JobDefinitionDetailRow(
     int DefinitionId,
     string JobNamespace,
@@ -178,6 +180,7 @@ internal sealed record JobDefinitionDetailRow(
 /// operator override). The full row - every policy triple, formats, audit bookkeeping - is read on
 /// demand by <c>GetDefinitionAsync</c>.
 /// </summary>
+[DbProjection]
 internal sealed record JobDefinitionListRow(
     int DefinitionId,
     string JobNamespace,
@@ -252,6 +255,7 @@ internal readonly record struct DefinitionContract(
 /// <summary>
 /// Name/id row returned by <c>register_job_definitions</c>.
 /// </summary>
+[DbProjection]
 internal readonly record struct RegisteredJobDefinition(string Name, int Id);
 
 /// <summary>
@@ -264,6 +268,7 @@ internal enum DefinitionOverrideAction : byte
     VersionConflict = 3,
 }
 
+[DbProjection]
 internal readonly record struct DefinitionOverrideOutcome(DefinitionOverrideAction Action);
 
 /// <summary>
@@ -271,6 +276,7 @@ internal readonly record struct DefinitionOverrideOutcome(DefinitionOverrideActi
 /// member, both repeated on every row, plus one cancelled job's id and its parent. <c>JobId</c> is null
 /// on the single row a retire that cancelled nothing returns.
 /// </summary>
+[DbProjection]
 internal readonly record struct DefinitionRetireRow(DefinitionOverrideAction Action, long? JobId, long? ParentId, bool LanePromoted);
 
 /// <summary>One job the retire sweep cancelled, with the parent whose child latch it owes.</summary>

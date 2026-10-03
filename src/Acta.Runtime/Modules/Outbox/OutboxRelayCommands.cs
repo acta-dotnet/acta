@@ -9,6 +9,7 @@ namespace Acta.Runtime;
 /// reconstructed request. <c>Id</c> is the producer insert order (the identity key, the rowid on SQLite)
 /// that the claim and the relay batch follow.
 /// </summary>
+[DbProjection]
 internal sealed record OutboxRow(
     Guid OutboxId,
     string JobNamespace,
@@ -63,6 +64,7 @@ internal readonly record struct OutboxQuarantine(Guid OutboxId, int FailureCount
 /// evidence, never the payload (opaque bytes stay in the producer's database). The constructor order is
 /// the <c>[DbProjection]</c> contract against every provider's <c>ListQuarantinedRows.sql</c>.
 /// </summary>
+[DbProjection]
 internal sealed record OutboxQuarantinedRow(
     Guid OutboxId,
     string JobNamespace,
@@ -98,6 +100,7 @@ internal sealed record DiscardQuarantinedOutboxCommand(IReadOnlyList<Guid>? Outb
 /// The single-column id projection the operator verbs return: the rows a requeue or discard actually
 /// touched, in the same command.
 /// </summary>
+[DbProjection]
 internal sealed record OutboxAffectedRow(Guid OutboxId);
 
 /// <summary>

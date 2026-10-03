@@ -14,4 +14,5 @@ internal enum SleepOutcome : byte
 }
 
 /// <summary>The arm/consume decision plus the stored due instant when the outcome is <see cref="SleepOutcome.Suspend"/>.</summary>
+[DbProjection]
 internal sealed record SleepDecision(SleepOutcome Outcome, DateTime? DueAtUtc);

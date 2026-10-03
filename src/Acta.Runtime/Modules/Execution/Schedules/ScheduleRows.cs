@@ -8,6 +8,7 @@ namespace Acta.Runtime;
 /// effective value without a second read. <c>Version</c> is the row version the read observed, which a
 /// fire plan hands back so its advance is refused if the row moved in the meantime.
 /// </summary>
+[DbProjection]
 internal sealed record LiveSchedule(
     long Id,
     string Name,
@@ -33,6 +34,7 @@ internal sealed record LiveSchedule(
 /// <see cref="MisfireStrategy"/>, and <see cref="Description"/> are the stored declaration; an operator's
 /// <see cref="ExpressionOverride"/> was validated against its kind.
 /// </summary>
+[DbProjection]
 internal sealed record StoredScheduleState(
     int DefinitionId,
     string ScheduleName,
@@ -54,6 +56,7 @@ internal sealed record StoredScheduleState(
 /// One <c>schedules</c> row projected for the schedules list read; expression and time zone are
 /// the effective values (override when present, else original).
 /// </summary>
+[DbProjection]
 internal sealed record JobScheduleListRow(
     long JobScheduleId,
     long JobId,
@@ -105,6 +108,7 @@ internal sealed record JobScheduleListRow(
 /// attempt. Every control statement returns exactly one
 /// <c>(action, status_code, paused_until_utc, next_run_at_utc, version)</c> row.
 /// </summary>
+[DbProjection]
 internal sealed record ScheduleControlOutcome(
     JobControlActionInternal Action,
     ScheduleStatusCode? Status,
@@ -147,4 +151,5 @@ internal sealed record DefinitionSchedules(
 /// <summary>
 /// Definition/slot id pair returned by <c>register_scheduled_jobs</c>.
 /// </summary>
+[DbProjection]
 internal readonly record struct RegisteredScheduleSlot(int DefinitionId, long SlotId);

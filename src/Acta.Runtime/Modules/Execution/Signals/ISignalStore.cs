@@ -56,4 +56,5 @@ internal enum SignalWaitOutcomeCode : byte
 }
 
 /// <summary>The wait decision plus the stored payload when the outcome is ContinueSet.</summary>
+[DbProjection]
 internal sealed record SignalWaitDecision(SignalWaitOutcomeCode Outcome, byte ValueFormatId, byte[]? Value);

@@ -9,6 +9,7 @@ namespace Acta.Runtime;
 /// <see cref="CreatedAtUtc"/> is carried for one purpose only, the projector's cursor, which walks the
 /// stream by (stamp, id) because id order alone can invert against commit order.
 /// </summary>
+[DbProjection]
 internal sealed record AlertableEvent(
     long EventId,
     DateTime CreatedAtUtc,
@@ -33,6 +34,7 @@ internal sealed record AlertableEvent(
 /// an automatic alert tracks a condition Acta itself watches and re-notifies while it stays open; a
 /// manual one belongs to the handler that raised it.
 /// </summary>
+[DbProjection]
 internal sealed record DeliverableAlert(
     long AlertId,
     long? JobId,
@@ -56,6 +58,7 @@ internal sealed record DeliverableAlert(
 /// <c>acknowledged_at_utc</c> / <c>resolved_at_utc</c> after the attempt. Shared by both verbs, which
 /// each return one <c>(action, acknowledged_at_utc, resolved_at_utc)</c> row.
 /// </summary>
+[DbProjection]
 internal sealed record AlertControlOutcome(JobControlActionInternal Action, DateTime? AcknowledgedAtUtc, DateTime? ResolvedAtUtc);
 
 /// <summary>
@@ -70,6 +73,7 @@ internal sealed record AlertRaiseOutcome(int OccurrenceCount, long? LastProjecte
 /// <summary>
 /// Flat alert list row in SELECT order; dedupe and channel-config columns are never selected.
 /// </summary>
+[DbProjection]
 internal sealed record JobAlertListProjectionRow(
     long AlertId,
     string JobNamespace,

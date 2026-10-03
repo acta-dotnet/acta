@@ -5,6 +5,7 @@ namespace Acta.Runtime;
 /// <c>[DbProjection]</c> contract: it must match the SELECT column order in every provider's
 /// <c>ListNamespaceItems.sql</c> at every position.
 /// </summary>
+[DbProjection]
 internal sealed record NamespaceListRow(
     int Id,
     string Name,

@@ -3,6 +3,7 @@ namespace Acta.Runtime;
 /// <summary>
 /// Flat job snapshot row in SELECT order; maps public refs after binding.
 /// </summary>
+[DbProjection]
 internal sealed record JobSnapshotRow(
     long JobId,
     Guid JobRef,
@@ -81,6 +82,7 @@ internal sealed record JobSnapshotRow(
 /// (the most recent <c>events</c> row carrying a reason, joined by <c>MAX(id)</c>). Columns are in
 /// SELECT order; worker and reason columns are null when the Job holds no lease / has no reasoned event.
 /// </summary>
+[DbProjection]
 internal sealed record ExplainHeaderRow(
     long JobId,
     Guid JobRef,
@@ -105,6 +107,7 @@ internal sealed record ExplainHeaderRow(
 );
 
 /// <summary>One <c>steps</c> row for the explain read, in SELECT order.</summary>
+[DbProjection]
 internal sealed record ExplainStepRow(
     string Name,
     JobStepStatusCode Status,
@@ -114,6 +117,7 @@ internal sealed record ExplainStepRow(
 );
 
 /// <summary>One <c>checkpoints</c> row for the explain read (signal / timer / variable / progress / child-latch), in SELECT order.</summary>
+[DbProjection]
 internal sealed record ExplainCheckpointRow(JobCheckpointKindCode Kind, string Name, JobCheckpointStatusCode? Status, DateTime? DueAtUtc);
 
 /// <summary>The three consistent result sets the explain read returns for one Job.</summary>
@@ -124,6 +128,7 @@ internal sealed record JobExplainData(
 );
 
 /// <summary>One Job node (focus or ancestor) for the lineage read, in SELECT order.</summary>
+[DbProjection]
 internal sealed record LineageJobRow(
     long JobId,
     Guid JobRef,
@@ -139,9 +144,11 @@ internal sealed record LineageJobRow(
 );
 
 /// <summary>One <c>steps</c> row of the focused Job for the lineage read, in SELECT order.</summary>
+[DbProjection]
 internal sealed record LineageStepRow(string Name, JobStepStatusCode Status);
 
 /// <summary>One direct child of the focused Job for the lineage read, in SELECT order.</summary>
+[DbProjection]
 internal sealed record LineageChildRow(
     long JobId,
     Guid JobRef,
@@ -169,6 +176,7 @@ internal sealed record JobResultRecord(int ExecutionNumber, JobPayloadFormat For
 internal sealed record JobInputRecord(byte FormatId, ReadOnlyMemory<byte> Data);
 
 /// <summary>Flat input row (input_format_id, input); the input buffer is NULL for a no-input job.</summary>
+[DbProjection]
 internal sealed record JobInputRow(byte FormatId, byte[]? Input)
 {
     public JobInputRecord ToRecord() => new(FormatId, Input ?? ReadOnlyMemory<byte>.Empty);
@@ -178,6 +186,7 @@ internal sealed record JobInputRow(byte FormatId, byte[]? Input)
 /// Flat <c>checkpoints</c> row for the job read surface, in SELECT order; value bytes reconstitute a
 /// <see cref="JobPayload"/> after binding (None format id / null value means no payload).
 /// </summary>
+[DbProjection]
 internal sealed record JobCheckpointReadRow(
     JobCheckpointKindCode Kind,
     string Name,
@@ -204,6 +213,7 @@ internal sealed record JobCheckpointReadRow(
 /// <summary>
 /// Flat result row; resolves the payload format registry value after binding.
 /// </summary>
+[DbProjection]
 internal sealed record JobResultRow(int ExecutionNumber, byte FormatId, ReadOnlyMemory<byte> Data, DateTime CreatedAtUtc)
 {
     public JobResultRecord ToRecord() => new(ExecutionNumber, JobPayloadFormat.ForId(FormatId), Data, CreatedAtUtc);
@@ -238,6 +248,7 @@ internal sealed record JobListRow(
 /// <summary>
 /// Flat jobs list row in SELECT order.
 /// </summary>
+[DbProjection]
 internal sealed record JobListProjectionRow(
     long JobId,
     string JobNamespace,

@@ -9,6 +9,7 @@ namespace Acta.Runtime;
 /// operators use in raw SQL; opaque formats surface as absent text instead of mojibake because only
 /// the producing worker knows their schema.
 /// </summary>
+[DbProjection]
 internal sealed record EventListProjectionRow(
     long JobEventId,
     EventCode EventCode,

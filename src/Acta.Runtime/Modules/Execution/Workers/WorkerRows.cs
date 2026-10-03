@@ -3,11 +3,13 @@ namespace Acta.Runtime;
 /// <summary>
 /// The namespace and worker ids the bootstrap routine assigns - the single-row result of the start.
 /// </summary>
+[DbProjection]
 internal readonly record struct StartWorkerRow(int NamespaceId, int WorkerId);
 
 /// <summary>
 /// One <c>workers</c> row projected for the workers list read.
 /// </summary>
+[DbProjection]
 internal sealed record JobWorkerListRow(
     int WorkerId,
     string JobNamespace,

@@ -70,6 +70,7 @@ internal sealed record ClaimResult(IReadOnlyList<ClaimedJob> Jobs, ClaimHorizon?
 /// <summary>
 /// Flat claim routine row. <see cref="JobId"/> is null only on the empty-claim horizon sentinel row.
 /// </summary>
+[DbProjection]
 internal sealed record ClaimReadyRow(
     long? JobId,
     int? NamespaceId,

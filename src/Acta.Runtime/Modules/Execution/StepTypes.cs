@@ -36,6 +36,7 @@ internal enum StartStepOutcomeCode : byte
 /// version for the completion CAS, the retry instant (Suspend), the stored result (ReplaySuccess), and
 /// the final reason (Exhausted).
 /// </summary>
+[DbProjection]
 internal sealed record StartStepDecision(
     StartStepOutcomeCode Outcome,
     int AttemptNumber,
@@ -71,6 +72,7 @@ internal enum CompleteStepOutcomeCode : byte
 /// <summary>
 /// The completion decision plus the retry instant when the outcome is <c>RetryScheduled</c>.
 /// </summary>
+[DbProjection]
 internal sealed record CompleteStepDecision(CompleteStepOutcomeCode Outcome, DateTime? NextRetryAtUtc);
 
 /// <summary>

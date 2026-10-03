@@ -39,12 +39,15 @@ internal sealed record ParkOutboxSignalCommand(long JobId, string Name, byte Val
 /// pending one, 3 = rejected while another is pending), and <c>PendingSinceUtc</c> is the pending
 /// command's park instant - the age the rejection reports to the operator.
 /// </summary>
+[DbProjection]
 internal sealed record OutboxSignalAdmissionRow(byte Action, DateTime? PendingSinceUtc);
 
 /// <summary>One pending command row as the applying tick reads it; <c>Version</c> feeds the consume CAS.</summary>
+[DbProjection]
 internal sealed record OutboxSignalRow(byte ValueFormatId, byte[] Value, int Version);
 
 /// <summary>The consume outcome projection: how many rows the version-CAS delete removed (0 or 1).</summary>
+[DbProjection]
 internal sealed record OutboxSignalConsumeRow(long Consumed);
 
 /// <summary>

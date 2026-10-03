@@ -3,6 +3,7 @@ namespace Acta.Runtime;
 /// <summary>
 /// Flat tenant list row projected from storage.
 /// </summary>
+[DbProjection]
 internal sealed record TenantListRow(
     int TenantId,
     string TenantKey,
