@@ -13,25 +13,27 @@ namespace Acta.Tests.Conformance.Features.Tenants;
 /// </summary>
 [ConformanceSpec(
     "get-tenant.point-read",
-    "GetTenant returns the tenant for a known key or id and null for an unknown one",
+    "GetTenant reads a tenant by key and GetTenantKey reads its key by id",
     Area = "Catalog",
-    Contract = "GetTenant returns the TenantListItem projection for a matching key or internal id regardless of status and null when no row matches."
+    Contract = "GetTenant returns the TenantDetail for a known key in any status or null, and GetTenantKey returns that tenant's key for its id."
 )]
 public sealed class GetTenantSpec : ActaStorageTestBase<ConformanceFixture>
 {
-    private TenantsService Tenants() => Services.GetRequiredService<TenantsService>();
+    private ITenants Tenants() => Services.GetRequiredService<ITenants>();
 
-    private ITenantStore Store() => Services.GetRequiredService<ITenantStore>();
+    private GetTenantHandler GetTenant() => Services.GetRequiredService<GetTenantHandler>();
 
-    [Fact(DisplayName = "A known key returns the populated row and by-id returns the same row")]
+    private GetTenantKeyHandler GetTenantKey() => Services.GetRequiredService<GetTenantKeyHandler>();
+
+    [Fact(DisplayName = "A known key returns the populated row and its id reads back the key")]
     public async Task Known_key_and_id_return_the_row()
     {
         var ct = TestContext.Current.CancellationToken;
         var key = TestKey("get-ten");
-        var id = await Tenants().RegisterAsync(key, "Acme Corp", "desc", ct);
+        var id = (await Tenants().RegisterAsync(key, "Acme Corp", "desc", ct)).TenantId;
 
-        var byKey = await Store().GetTenantAsync(new TenantPointLookup(key, null), ct);
-        var byId = await Store().GetTenantAsync(new TenantPointLookup(null, id), ct);
+        var byKey = await GetTenant().HandleAsync(new GetTenantQuery(key), ct);
+        var keyById = await GetTenantKey().HandleAsync(new GetTenantKeyQuery(id), ct);
 
         Assert.NotNull(byKey);
         Assert.Equal(id, byKey!.TenantId);
@@ -39,7 +41,7 @@ public sealed class GetTenantSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Equal("Acme Corp", byKey.DisplayName);
         Assert.Equal("desc", byKey.Description);
         Assert.Equal(TenantStatusCode.Active, byKey.Status);
-        Assert.Equal(byKey, byId);
+        Assert.Equal(key, keyById);
     }
 
     [Fact(DisplayName = "A suspended tenant still resolves with status Suspended")]
@@ -47,10 +49,10 @@ public sealed class GetTenantSpec : ActaStorageTestBase<ConformanceFixture>
     {
         var ct = TestContext.Current.CancellationToken;
         var key = TestKey("get-ten-susp");
-        var id = await Tenants().RegisterAsync(key, null, null, ct);
+        var id = (await Tenants().RegisterAsync(key, null, null, ct)).TenantId;
         await Tenants().SuspendAsync(key, null, null, ct);
 
-        var row = await Store().GetTenantAsync(new TenantPointLookup(key, null), ct);
+        var row = await GetTenant().HandleAsync(new GetTenantQuery(key), ct);
 
         Assert.NotNull(row);
         Assert.Equal(id, row!.TenantId);
@@ -62,7 +64,7 @@ public sealed class GetTenantSpec : ActaStorageTestBase<ConformanceFixture>
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var row = await Store().GetTenantAsync(new TenantPointLookup(TestKey("get-ten-ghost"), null), ct);
+        var row = await GetTenant().HandleAsync(new GetTenantQuery(TestKey("get-ten-ghost")), ct);
 
         Assert.Null(row);
     }

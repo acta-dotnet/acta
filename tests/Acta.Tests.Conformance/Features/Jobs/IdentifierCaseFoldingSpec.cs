@@ -30,8 +30,8 @@ public sealed class IdentifierCaseFoldingSpec : ActaRuntimeTestBase<ConformanceF
         var key = TestKey("tk.fold-tenant");
         var upper = key.ToUpperInvariant();
 
-        var id1 = await Services.GetRequiredService<TenantsService>().RegisterAsync(upper, null, "first", ct);
-        var id2 = await Services.GetRequiredService<TenantsService>().RegisterAsync(key, null, "second", ct);
+        var id1 = (await Operations.Tenants.RegisterAsync(upper, null, "first", ct)).TenantId;
+        var id2 = (await Operations.Tenants.RegisterAsync(key, null, "second", ct)).TenantId;
 
         Assert.Equal(id1, id2);
 

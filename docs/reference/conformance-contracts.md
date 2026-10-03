@@ -212,10 +212,10 @@
   - Retiring an already retired definition is applied and writes no further events
   - An equal manifest generation reactivates a retired definition and an older one cannot
 
-### GetTenant returns the tenant for a known key or id and null for an unknown one
-- **Contract:** GetTenant returns the TenantListItem projection for a matching key or internal id regardless of status and null when no row matches.
+### GetTenant reads a tenant by key and GetTenantKey reads its key by id
+- **Contract:** GetTenant returns the TenantDetail for a known key in any status or null, and GetTenantKey returns that tenant's key for its id.
 - **Guarantees:**
-  - A known key returns the populated row and by-id returns the same row
+  - A known key returns the populated row and its id reads back the key
   - A suspended tenant still resolves with status Suspended
   - An unknown key returns null
 
@@ -1916,6 +1916,7 @@
 | `GetStaleChildLatches` | yes | yes | yes |
 | `GetTags` | yes | yes | yes |
 | `GetTenant` | yes | yes | yes |
+| `GetTenantKey` | yes | yes | yes |
 | `GetUtcNow` | yes | yes | yes |
 | `GetWorker` | yes | yes | yes |
 | `JobsView` | yes | yes | yes |

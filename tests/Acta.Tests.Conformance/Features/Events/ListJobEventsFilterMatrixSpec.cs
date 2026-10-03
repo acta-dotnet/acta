@@ -249,8 +249,8 @@ public sealed class ListJobEventsFilterMatrixSpec : ActaRuntimeTestBase<Conforma
 
         var t1Key = TestKey("t1");
         var t2Key = TestKey("t2");
-        var t1Id = await Services.GetRequiredService<TenantsService>().RegisterAsync(t1Key, null, null, ct);
-        var t2Id = await Services.GetRequiredService<TenantsService>().RegisterAsync(t2Key, null, null, ct);
+        var t1Id = (await Operations.Tenants.RegisterAsync(t1Key, null, null, ct)).TenantId;
+        var t2Id = (await Operations.Tenants.RegisterAsync(t2Key, null, null, ct)).TenantId;
 
         // Two jobs under t1, one under t2
         var t1Outcomes = await EnqueueTestOps.EnqueueBatchAsync(

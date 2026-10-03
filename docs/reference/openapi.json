@@ -2867,7 +2867,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/SuspendTenantResponse"
                 }
               }
             }
@@ -2877,7 +2877,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/SuspendTenantResponse"
                 }
               }
             }
@@ -2976,7 +2976,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/ResumeTenantResponse"
                 }
               }
             }
@@ -2986,7 +2986,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/ResumeTenantResponse"
                 }
               }
             }
@@ -3086,7 +3086,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/UpdateTenantResponse"
                 }
               }
             }
@@ -3096,7 +3096,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/UpdateTenantResponse"
                 }
               }
             }
@@ -3106,7 +3106,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/UpdateTenantResponse"
                 }
               }
             }
@@ -11285,6 +11285,28 @@
           }
         }
       },
+      "ResumeTenantResponse": {
+        "required": [
+          "action",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ControlAction"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "What resuming a tenant did, and the tenant's version after the attempt."
+      },
       "RetireDefinitionRequest": {
         "type": "object",
         "properties": {
@@ -11578,6 +11600,28 @@
           }
         }
       },
+      "SuspendTenantResponse": {
+        "required": [
+          "action",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ControlAction"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "What suspending a tenant did, and the tenant's version after the attempt."
+      },
       "TagItem": {
         "required": [
           "name"
@@ -11797,6 +11841,28 @@
       },
       "TenantStatusCode": {
         "description": "Tenant state machine. 10-spaced ids; live states 10..80."
+      },
+      "UpdateTenantResponse": {
+        "required": [
+          "action",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ControlAction"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "What updating a tenant did, and the tenant's version after the attempt."
       },
       "WorkerDetail": {
         "required": [

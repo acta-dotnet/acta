@@ -15,8 +15,6 @@ namespace Acta.Tests.Conformance.Features.Tenants;
 )]
 public sealed class SuspendResumeTenantSpec : ActaStorageTestBase<ConformanceFixture>
 {
-    private static JobControlActor Actor() => new(ActorCode.Operator, "op-1");
-
     private async Task<Tenant?> ReadTenantAsync(string key, CancellationToken ct) =>
         await Db.From<Tenant>().Where(t => t.TenantKey == key).SingleOrDefaultAsync(ct);
 
@@ -28,12 +26,10 @@ public sealed class SuspendResumeTenantSpec : ActaStorageTestBase<ConformanceFix
     {
         var ct = TestContext.Current.CancellationToken;
         var key = TestKey("adm-suspend");
-        var id = await Services.GetRequiredService<TenantsService>().RegisterAsync(key, null, null, ct);
+        var id = (await Services.GetRequiredService<ITenants>().RegisterAsync(key, null, null, ct)).TenantId;
         var before = await ReadTenantAsync(key, ct);
 
-        var outcome = await Services
-            .GetRequiredService<ITenantStore>()
-            .SuspendTenantAsync(new TenantControlCommand(key, Actor(), "hold"), ct);
+        var outcome = await Services.GetRequiredService<ITenants>().SuspendAsync(key, "hold", "op-1", ct);
 
         Assert.Equal(ControlAction.Applied, outcome.Action);
         var after = await ReadTenantAsync(key, ct);
@@ -54,10 +50,10 @@ public sealed class SuspendResumeTenantSpec : ActaStorageTestBase<ConformanceFix
     {
         var ct = TestContext.Current.CancellationToken;
         var key = TestKey("adm-suspend-idem");
-        var id = await Services.GetRequiredService<TenantsService>().RegisterAsync(key, null, null, ct);
-        await Services.GetRequiredService<ITenantStore>().SuspendTenantAsync(new TenantControlCommand(key, Actor(), null), ct);
+        var id = (await Services.GetRequiredService<ITenants>().RegisterAsync(key, null, null, ct)).TenantId;
+        await Services.GetRequiredService<ITenants>().SuspendAsync(key, null, "op-1", ct);
 
-        var again = await Services.GetRequiredService<ITenantStore>().SuspendTenantAsync(new TenantControlCommand(key, Actor(), null), ct);
+        var again = await Services.GetRequiredService<ITenants>().SuspendAsync(key, null, "op-1", ct);
 
         Assert.Equal(ControlAction.AlreadyInState, again.Action);
         Assert.Equal(1, await EventCountAsync(id, EventCode.TenantSuspended, ct));
@@ -68,12 +64,10 @@ public sealed class SuspendResumeTenantSpec : ActaStorageTestBase<ConformanceFix
     {
         var ct = TestContext.Current.CancellationToken;
         var key = TestKey("adm-resume");
-        var id = await Services.GetRequiredService<TenantsService>().RegisterAsync(key, null, null, ct);
-        await Services.GetRequiredService<ITenantStore>().SuspendTenantAsync(new TenantControlCommand(key, Actor(), null), ct);
+        var id = (await Services.GetRequiredService<ITenants>().RegisterAsync(key, null, null, ct)).TenantId;
+        await Services.GetRequiredService<ITenants>().SuspendAsync(key, null, "op-1", ct);
 
-        var outcome = await Services
-            .GetRequiredService<ITenantStore>()
-            .ResumeTenantAsync(new TenantControlCommand(key, Actor(), "back"), ct);
+        var outcome = await Services.GetRequiredService<ITenants>().ResumeAsync(key, "back", "op-1", ct);
 
         Assert.Equal(ControlAction.Applied, outcome.Action);
         Assert.Equal(TenantStatusCode.Active, (await ReadTenantAsync(key, ct))!.Status);
@@ -85,9 +79,9 @@ public sealed class SuspendResumeTenantSpec : ActaStorageTestBase<ConformanceFix
     {
         var ct = TestContext.Current.CancellationToken;
         var key = TestKey("adm-resume-idem");
-        var id = await Services.GetRequiredService<TenantsService>().RegisterAsync(key, null, null, ct);
+        var id = (await Services.GetRequiredService<ITenants>().RegisterAsync(key, null, null, ct)).TenantId;
 
-        var outcome = await Services.GetRequiredService<ITenantStore>().ResumeTenantAsync(new TenantControlCommand(key, Actor(), null), ct);
+        var outcome = await Services.GetRequiredService<ITenants>().ResumeAsync(key, null, "op-1", ct);
 
         Assert.Equal(ControlAction.AlreadyInState, outcome.Action);
         Assert.Equal(0, await EventCountAsync(id, EventCode.TenantResumed, ct));
@@ -97,9 +91,7 @@ public sealed class SuspendResumeTenantSpec : ActaStorageTestBase<ConformanceFix
     public async Task Unknown_key_not_found()
     {
         var ct = TestContext.Current.CancellationToken;
-        var outcome = await Services
-            .GetRequiredService<ITenantStore>()
-            .SuspendTenantAsync(new TenantControlCommand(TestKey("adm-ghost"), Actor(), null), ct);
+        var outcome = await Services.GetRequiredService<ITenants>().SuspendAsync(TestKey("adm-ghost"), null, "op-1", ct);
         Assert.Equal(ControlAction.NotFound, outcome.Action);
         Assert.Null(outcome.Version);
     }

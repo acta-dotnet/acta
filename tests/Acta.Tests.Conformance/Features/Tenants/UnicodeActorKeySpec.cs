@@ -29,11 +29,9 @@ public sealed class UnicodeActorKeySpec : ActaStorageTestBase<ConformanceFixture
     {
         var ct = TestContext.Current.CancellationToken;
         var key = TestKey("adm-unicode-actor");
-        var id = await Services.GetRequiredService<TenantsService>().RegisterAsync(key, null, null, ct);
+        var id = (await Services.GetRequiredService<ITenants>().RegisterAsync(key, null, null, ct)).TenantId;
 
-        var outcome = await Services
-            .GetRequiredService<ITenantStore>()
-            .SuspendTenantAsync(new TenantControlCommand(key, new JobControlActor(ActorCode.Operator, OperatorName), "hold"), ct);
+        var outcome = await Services.GetRequiredService<ITenants>().SuspendAsync(key, "hold", OperatorName, ct);
 
         Assert.Equal(ControlAction.Applied, outcome.Action);
         var ev = await Db.From<JobEvent>()

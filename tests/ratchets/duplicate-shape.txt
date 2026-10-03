@@ -27,7 +27,6 @@ ScheduleControlResult
 ScheduleListItem
 TenantDetail
 TenantListItem
-TenantListRow
 TenantRegistrationRequest
 WorkerDetail
 WorkerListItem

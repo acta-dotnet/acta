@@ -1,4 +1,4 @@
-SELECT t.id, t.tenant_key, t.display_name, t.description, t.status_code, t.created_at_utc, t.modified_at_utc, t.version
+SELECT t.id AS tenant_id, t.tenant_key, t.display_name, t.description, t.status_code AS status, t.created_at_utc, t.modified_at_utc, t.version
 FROM {{schema}}.tenants t
 WHERE
     (@p_search IS NULL OR POSITION(@p_search IN LOWER(t.tenant_key)) > 0 OR POSITION(@p_search IN LOWER(t.display_name)) > 0 OR POSITION(@p_search IN LOWER(t.description)) > 0)

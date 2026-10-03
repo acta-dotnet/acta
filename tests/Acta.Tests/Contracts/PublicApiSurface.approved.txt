@@ -705,6 +705,9 @@ interface Acta.IAlerts
     System.Threading.Tasks.ValueTask<Acta.AlertControlResult> ResolveAsync(Acta.AlertRef alertRef, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.AlertDetail> GetAsync(Acta.AlertRef alertRef, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.AlertListItem>> ListAsync(Acta.ListAlertsQuery query, System.Threading.CancellationToken ct = default)
+interface Acta.IControlResponse
+    Acta.ControlAction Action { get; }
+    System.Nullable<System.Int32> Version { get; }
 interface Acta.IDefinitions
     System.Threading.Tasks.ValueTask<Acta.DefinitionControlResult> RetireAsync(System.String jobNamespace, System.String jobName, System.Int32 expectedVersion, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.DefinitionControlResult> UpdateOverridesAsync(System.String jobNamespace, System.String jobName, System.Int32 expectedVersion, Acta.JobDefinitionPolicyOverrides overrides, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
@@ -797,12 +800,12 @@ interface Acta.ITags
     System.Threading.Tasks.ValueTask<Acta.TagMutationResult> UpsertAsync(Acta.TagTarget target, Acta.TagInput tag, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.TagSet> GetAsync(Acta.TagTarget target, System.Threading.CancellationToken ct = default)
 interface Acta.ITenants
-    System.Threading.Tasks.ValueTask<Acta.AdminControlResult> ResumeAsync(System.String tenantKey, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.AdminControlResult> SuspendAsync(System.String tenantKey, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.AdminControlResult> UpdateAsync(System.String tenantKey, System.Int32 expectedVersion, System.String displayName, System.String description, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.TenantListItem>> ListAsync(Acta.ListTenantsQuery query, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.RegisterTenantResponse> RegisterAsync(System.String tenantKey, System.String displayName = default, System.String description = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.ResumeTenantResponse> ResumeAsync(System.String tenantKey, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.SuspendTenantResponse> SuspendAsync(System.String tenantKey, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.TenantDetail> GetAsync(System.String tenantKey, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<System.Int32> RegisterAsync(System.String tenantKey, System.String displayName = default, System.String description = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.UpdateTenantResponse> UpdateAsync(System.String tenantKey, System.Int32 expectedVersion, System.String displayName, System.String description, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
 interface Acta.IWorkerBuilder
     Acta.IWorkerBuilder AddAlertChannel(System.String name, System.String transportKind, System.String endpoint, System.Action<Acta.AlertChannelOptions> configure = default)
     Acta.IWorkerBuilder AddManifest<TManifest>()
@@ -1912,6 +1915,9 @@ sealed class Acta.PayloadTooLargeException
     System.Int32 ActualBytes { get; }
     System.Int32 MaxBytes { get; }
     System.String EntryPoint { get; }
+sealed class Acta.RegisterTenantResponse
+    .ctor(System.Int32 TenantId)
+    System.Int32 TenantId { get;init; }
 sealed class Acta.RescheduleJobException
     .ctor(System.DateTimeOffset resumeAtUtc, System.String message = default)
     .ctor(System.TimeSpan delay, System.String message = default)
@@ -1927,6 +1933,10 @@ sealed class Acta.ReservedCodeRangeAttribute
     System.Byte End { get; }
     System.Byte Start { get; }
     System.String Reason { get; }
+sealed class Acta.ResumeTenantResponse
+    .ctor(Acta.ControlAction Action, System.Nullable<System.Int32> Version)
+    Acta.ControlAction Action { get;init; }
+    System.Nullable<System.Int32> Version { get;init; }
 sealed class Acta.ScheduleControlResult
     .ctor(Acta.ControlAction Action, System.Nullable<Acta.ScheduleStatusCode> Status, System.Nullable<System.DateTime> PausedUntilUtc, System.Nullable<System.DateTime> NextRunAtUtc, System.Nullable<System.Int32> Version)
     Acta.ControlAction Action { get;init; }
@@ -2104,6 +2114,10 @@ sealed class Acta.StepResultContractMismatchException
     .ctor(System.String stepName, System.Type expectedType, System.Exception innerException)
     System.String StepName { get; }
     System.Type ExpectedType { get; }
+sealed class Acta.SuspendTenantResponse
+    .ctor(Acta.ControlAction Action, System.Nullable<System.Int32> Version)
+    Acta.ControlAction Action { get;init; }
+    System.Nullable<System.Int32> Version { get;init; }
 sealed class Acta.TagFilter
     .ctor(System.String Name, System.String Value = default)
     System.String Name { get;init; }
@@ -2209,6 +2223,10 @@ sealed class Acta.TextJobPayloadSerializer
     Acta.JobPayloadFormat Format { get; }
     Acta.TextJobPayloadSerializer Default { get; }
     T Deserialize<T>(Acta.JobPayload payload)
+sealed class Acta.UpdateTenantResponse
+    .ctor(Acta.ControlAction Action, System.Nullable<System.Int32> Version)
+    Acta.ControlAction Action { get;init; }
+    System.Nullable<System.Int32> Version { get;init; }
 sealed class Acta.WorkerDetail
     .ctor(Acta.WorkerRef WorkerRef, System.Int32 WorkerId, System.String JobNamespace, Acta.WorkerStatusCode Status, System.String Host, System.String DeploymentVersion, System.String EngineVersion, System.String DotnetVersion, System.Nullable<System.Int32> ProcessId, System.Int32 MaxConcurrency, System.DateTime LastHeartbeatAtUtc, System.DateTime StartedAtUtc, System.DateTime ModifiedAtUtc)
     Acta.WorkerRef WorkerRef { get;init; }

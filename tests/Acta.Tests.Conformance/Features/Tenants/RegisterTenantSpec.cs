@@ -20,7 +20,7 @@ namespace Acta.Tests.Conformance.Features.Tenants;
 )]
 public sealed class RegisterTenantSpec : ActaStorageTestBase<ConformanceFixture>
 {
-    private TenantsService Tenants() => Services.GetRequiredService<TenantsService>();
+    private ITenants Tenants() => Services.GetRequiredService<ITenants>();
 
     private async Task<Tenant?> ReadAsync(string key, CancellationToken ct)
     {
@@ -35,7 +35,7 @@ public sealed class RegisterTenantSpec : ActaStorageTestBase<ConformanceFixture>
         var key = $"550E8400-{TestKey("tenant-new")}";
         var canonical = key.ToLowerInvariant();
 
-        var id = await Tenants().RegisterAsync(key, null, "Acme Corp", ct);
+        var id = (await Tenants().RegisterAsync(key, null, "Acme Corp", ct)).TenantId;
 
         Assert.True(id > 0);
         var row = await ReadAsync(canonical, ct); // stored key is the folded form
@@ -52,8 +52,8 @@ public sealed class RegisterTenantSpec : ActaStorageTestBase<ConformanceFixture>
         var ct = TestContext.Current.CancellationToken;
         var key = TestKey("tenant-dup");
 
-        var first = await Tenants().RegisterAsync(key, null, null, ct);
-        var second = await Tenants().RegisterAsync(key, null, null, ct);
+        var first = (await Tenants().RegisterAsync(key, null, null, ct)).TenantId;
+        var second = (await Tenants().RegisterAsync(key, null, null, ct)).TenantId;
 
         Assert.Equal(first, second);
     }
@@ -64,10 +64,10 @@ public sealed class RegisterTenantSpec : ActaStorageTestBase<ConformanceFixture>
         var ct = TestContext.Current.CancellationToken;
         var key = TestKey("tenant-keep");
 
-        var id = await Tenants().RegisterAsync(key, "Acme Corp", "before", ct);
+        var id = (await Tenants().RegisterAsync(key, "Acme Corp", "before", ct)).TenantId;
         var before = await ReadAsync(key, ct);
 
-        var again = await Tenants().RegisterAsync(key, "Other Name", "after", ct);
+        var again = (await Tenants().RegisterAsync(key, "Other Name", "after", ct)).TenantId;
         var after = await ReadAsync(key, ct);
 
         Assert.Equal(id, again);
@@ -83,11 +83,11 @@ public sealed class RegisterTenantSpec : ActaStorageTestBase<ConformanceFixture>
         var ct = TestContext.Current.CancellationToken;
         var key = TestKey("tenant-stays-suspended");
 
-        var id = await Tenants().RegisterAsync(key, null, null, ct);
+        var id = (await Tenants().RegisterAsync(key, null, null, ct)).TenantId;
         await Tenants().SuspendAsync(key, "hold", null, ct);
         var suspended = await ReadAsync(key, ct);
 
-        var again = await Tenants().RegisterAsync(key, "New Name", "new-desc", ct);
+        var again = (await Tenants().RegisterAsync(key, "New Name", "new-desc", ct)).TenantId;
         var after = await ReadAsync(key, ct);
 
         Assert.Equal(id, again);
@@ -108,7 +108,7 @@ public sealed class RegisterTenantSpec : ActaStorageTestBase<ConformanceFixture>
         // returning no row (or a different id) is the failure mode this pins per provider.
         var ids = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => Tenants().RegisterAsync(key, null, null, ct).AsTask()));
 
-        Assert.True(ids[0] > 0);
+        Assert.True(ids[0].TenantId > 0);
         Assert.All(ids, id => Assert.Equal(ids[0], id));
     }
 

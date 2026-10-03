@@ -15,7 +15,12 @@ public interface ITenants
     /// <paramref name="displayName"/> is the human display label for dashboards; null keeps the
     /// column empty (dashboards fall back to the key).
     /// </summary>
-    ValueTask<int> RegisterAsync(string tenantKey, string? displayName = null, string? description = null, CancellationToken ct = default);
+    ValueTask<RegisterTenantResponse> RegisterAsync(
+        string tenantKey,
+        string? displayName = null,
+        string? description = null,
+        CancellationToken ct = default
+    );
 
     /// <summary>Point-read one registered tenant by opaque key; null when it does not exist.</summary>
     ValueTask<TenantDetail?> GetAsync(string tenantKey, CancellationToken ct = default);
@@ -24,7 +29,7 @@ public interface ITenants
     ValueTask<PagedResult<TenantListItem>> ListAsync(ListTenantsQuery query, CancellationToken ct = default);
 
     /// <summary>Suspend a registered tenant by key (status-only, idempotent). Emits tenant.suspended.</summary>
-    ValueTask<AdminControlResult> SuspendAsync(
+    ValueTask<SuspendTenantResponse> SuspendAsync(
         string tenantKey,
         string? reasonMessage = null,
         string? actorKey = null,
@@ -32,7 +37,7 @@ public interface ITenants
     );
 
     /// <summary>Resume a suspended tenant by key (status-only, idempotent). Emits tenant.resumed.</summary>
-    ValueTask<AdminControlResult> ResumeAsync(
+    ValueTask<ResumeTenantResponse> ResumeAsync(
         string tenantKey,
         string? reasonMessage = null,
         string? actorKey = null,
@@ -40,7 +45,7 @@ public interface ITenants
     );
 
     /// <summary>Update a tenant display name / description with a version CAS. Null clears the field. Emits tenant.updated.</summary>
-    ValueTask<AdminControlResult> UpdateAsync(
+    ValueTask<UpdateTenantResponse> UpdateAsync(
         string tenantKey,
         int expectedVersion,
         string? displayName,

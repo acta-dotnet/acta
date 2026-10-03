@@ -1,8 +1,9 @@
 using System.Data.Common;
+using System.Globalization;
 
 namespace Acta.Runtime;
 
-/// <summary>The two shapes most handlers run, each as one call over <see cref="IDbSession"/>.</summary>
+/// <summary>The shapes most handlers run, each as one call over <see cref="IDbSession"/>.</summary>
 internal static class DbSessionExtensions
 {
     /// <summary>Runs a read and maps its first row, or returns null when it has none.</summary>
@@ -15,6 +16,35 @@ internal static class DbSessionExtensions
     )
         where T : class =>
         session.QueryAsync(stem, bind, async (reader, token) => await reader.ReadAsync(token) ? mapRow(reader) : null, ct);
+
+    /// <summary>
+    /// Runs a list read: every row of the first result set, then the total from a second one, which the SQL
+    /// returns only when the caller asked for a count.
+    /// </summary>
+    public static Task<(IReadOnlyList<T> Rows, long? Total)> QueryPageAsync<T>(
+        this IDbSession session,
+        string stem,
+        Action<DbCommand> bind,
+        Func<DbDataReader, T> mapRow,
+        CancellationToken ct
+    ) =>
+        session.QueryAsync<(IReadOnlyList<T>, long?)>(
+            stem,
+            bind,
+            async (reader, token) =>
+            {
+                var rows = new List<T>();
+                while (await reader.ReadAsync(token))
+                {
+                    rows.Add(mapRow(reader));
+                }
+
+                return await reader.NextResultAsync(token) && await reader.ReadAsync(token) && !reader.IsDBNull(0)
+                    ? (rows, Convert.ToInt64(reader.GetValue(0), CultureInfo.InvariantCulture))
+                    : (rows, null);
+            },
+            ct
+        );
 
     /// <summary>
     /// Runs a write whose SQL always answers one row and maps it. No row is a defect in that SQL, so it

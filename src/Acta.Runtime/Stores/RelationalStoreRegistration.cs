@@ -17,7 +17,6 @@ internal static class RelationalStoreRegistration
         services.AddSingleton<IEventStore, RelationalEventStore>();
         services.AddSingleton<IDefinitionStore, RelationalDefinitionStore>();
         services.AddSingleton<INamespaceStore, RelationalNamespaceStore>();
-        services.AddSingleton<ITenantStore, RelationalTenantStore>();
         services.AddSingleton<IJobStore, RelationalJobStore>();
         services.AddSingleton<ITagStore, RelationalTagStore>();
         services.AddSingleton<ISignalStore, RelationalSignalStore>();

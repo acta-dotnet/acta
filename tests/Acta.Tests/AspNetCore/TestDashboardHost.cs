@@ -1286,7 +1286,7 @@ internal static class TestDashboardHost
             Func<bool> listThrows
         ) : ITenants
         {
-            public ValueTask<int> RegisterAsync(
+            public ValueTask<RegisterTenantResponse> RegisterAsync(
                 string tenantKey,
                 string? displayName = null,
                 string? description = null,
@@ -1300,7 +1300,7 @@ internal static class TestDashboardHost
                 }
 
                 tenantCalls.Add((tenantKey, displayName, description));
-                return ValueTask.FromResult(7);
+                return ValueTask.FromResult(new RegisterTenantResponse(7));
             }
 
             public ValueTask<TenantDetail?> GetAsync(string tenantKey, CancellationToken ct = default) =>
@@ -1323,21 +1323,21 @@ internal static class TestDashboardHost
                         )
                     );
 
-            public ValueTask<AdminControlResult> SuspendAsync(
+            public ValueTask<SuspendTenantResponse> SuspendAsync(
                 string tenantKey,
                 string? reasonMessage = null,
                 string? actorKey = null,
                 CancellationToken ct = default
-            ) => Apply(tenantKey, reasonMessage, actorKey);
+            ) => Apply(tenantKey, reasonMessage, actorKey, static (action, version) => new SuspendTenantResponse(action, version));
 
-            public ValueTask<AdminControlResult> ResumeAsync(
+            public ValueTask<ResumeTenantResponse> ResumeAsync(
                 string tenantKey,
                 string? reasonMessage = null,
                 string? actorKey = null,
                 CancellationToken ct = default
-            ) => Apply(tenantKey, reasonMessage, actorKey);
+            ) => Apply(tenantKey, reasonMessage, actorKey, static (action, version) => new ResumeTenantResponse(action, version));
 
-            public ValueTask<AdminControlResult> UpdateAsync(
+            public ValueTask<UpdateTenantResponse> UpdateAsync(
                 string tenantKey,
                 int expectedVersion,
                 string? displayName,
@@ -1354,19 +1354,19 @@ internal static class TestDashboardHost
 
                 if (tenantKey == "missing")
                 {
-                    return ValueTask.FromResult(new AdminControlResult(ControlAction.NotFound, null));
+                    return ValueTask.FromResult(new UpdateTenantResponse(ControlAction.NotFound, null));
                 }
 
                 if (expectedVersion == 999)
                 {
-                    return ValueTask.FromResult(new AdminControlResult(ControlAction.VersionConflict, 5));
+                    return ValueTask.FromResult(new UpdateTenantResponse(ControlAction.VersionConflict, 5));
                 }
 
                 suspendResumeCalls.Add((tenantKey, reasonMessage, actorKey));
-                return ValueTask.FromResult(new AdminControlResult(ControlAction.Applied, 2));
+                return ValueTask.FromResult(new UpdateTenantResponse(ControlAction.Applied, 2));
             }
 
-            private ValueTask<AdminControlResult> Apply(string tenantKey, string? reasonMessage, string? actorKey)
+            private ValueTask<T> Apply<T>(string tenantKey, string? reasonMessage, string? actorKey, Func<ControlAction, int?, T> response)
             {
                 if (tenantKey is "bad key" or "sys")
                 {
@@ -1375,11 +1375,11 @@ internal static class TestDashboardHost
 
                 if (tenantKey == "missing")
                 {
-                    return ValueTask.FromResult(new AdminControlResult(ControlAction.NotFound, null));
+                    return ValueTask.FromResult(response(ControlAction.NotFound, null));
                 }
 
                 suspendResumeCalls.Add((tenantKey, reasonMessage, actorKey));
-                return ValueTask.FromResult(new AdminControlResult(ControlAction.Applied, 2));
+                return ValueTask.FromResult(response(ControlAction.Applied, 2));
             }
         }
 

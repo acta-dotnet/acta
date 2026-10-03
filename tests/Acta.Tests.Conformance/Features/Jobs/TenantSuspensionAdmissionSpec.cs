@@ -24,7 +24,7 @@ public sealed class TenantSuspensionAdmissionSpec : ActaRuntimeTestBase<Conforma
 {
     protected override bool RunAsWorker => true;
 
-    private TenantsService Tenants() => Services.GetRequiredService<TenantsService>();
+    private ITenants Tenants() => Operations.Tenants;
 
     private JobEnqueueRow Row(string? tenantKey, long? parentId = null)
     {
@@ -44,7 +44,7 @@ public sealed class TenantSuspensionAdmissionSpec : ActaRuntimeTestBase<Conforma
     {
         var ct = TestContext.Current.CancellationToken;
         var key = TestKey("adm-inherit");
-        var tenantId = await Tenants().RegisterAsync(key, null, null, ct);
+        var tenantId = (await Tenants().RegisterAsync(key, null, null, ct)).TenantId;
 
         var parent = await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: key)], ct);
         await Tenants().SuspendAsync(key, "hold", null, ct);
@@ -76,7 +76,7 @@ public sealed class TenantSuspensionAdmissionSpec : ActaRuntimeTestBase<Conforma
     {
         var ct = TestContext.Current.CancellationToken;
         var key = TestKey("adm-race");
-        var tenantId = await Tenants().RegisterAsync(key, null, null, ct);
+        var tenantId = (await Tenants().RegisterAsync(key, null, null, ct)).TenantId;
 
         // Overlap a burst of enqueues with the suspend. Interleaving is unconstrained: each enqueue
         // either fully lands (admitted before the suspend committed) or fully rejects; nothing else.

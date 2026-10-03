@@ -53,7 +53,7 @@ public sealed class JobContextDiResolutionSpec : ActaRuntimeTestBase<Conformance
     {
         var ct = TestContext.Current.CancellationToken;
         var tenantKey = TestKey("ctx-tenant");
-        var tenantId = await Operations.Tenants.RegisterAsync(tenantKey, ct: ct);
+        var tenantId = (await Operations.Tenants.RegisterAsync(tenantKey, ct: ct)).TenantId;
 
         var enqueued = await Jobs.EnqueueAsync(
             new JobEnqueueRequest(TestNamespace, "context-probe", JobPayload.Json(new ContextProbe("scoped")), TenantKey: tenantKey),

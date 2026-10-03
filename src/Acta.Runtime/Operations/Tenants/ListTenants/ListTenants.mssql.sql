@@ -1,9 +1,9 @@
 SELECT TOP (@p_take)
-    t.id,
+    t.id AS tenant_id,
     t.tenant_key,
     t.display_name,
     t.description,
-    t.status_code,
+    t.status_code AS status,
     t.created_at_utc,
     t.modified_at_utc,
     t.version

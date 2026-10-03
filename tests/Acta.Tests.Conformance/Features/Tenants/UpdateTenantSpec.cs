@@ -15,8 +15,6 @@ namespace Acta.Tests.Conformance.Features.Tenants;
 )]
 public sealed class UpdateTenantSpec : ActaStorageTestBase<ConformanceFixture>
 {
-    private static JobControlActor Actor() => new(ActorCode.Operator, "op-1");
-
     private async Task<Tenant?> ReadAsync(string key, CancellationToken ct) =>
         await Db.From<Tenant>().Where(t => t.TenantKey == key).SingleOrDefaultAsync(ct);
 
@@ -28,12 +26,10 @@ public sealed class UpdateTenantSpec : ActaStorageTestBase<ConformanceFixture>
     {
         var ct = TestContext.Current.CancellationToken;
         var key = TestKey("adm-meta");
-        var id = await Services.GetRequiredService<TenantsService>().RegisterAsync(key, "Old", "old-desc", ct);
+        var id = (await Services.GetRequiredService<ITenants>().RegisterAsync(key, "Old", "old-desc", ct)).TenantId;
         var v = (await ReadAsync(key, ct))!.Version;
 
-        var outcome = await Services
-            .GetRequiredService<ITenantStore>()
-            .UpdateTenantAsync(new UpdateTenantCommand(key, "New", "new-desc", v, Actor(), "edit"), ct);
+        var outcome = await Services.GetRequiredService<ITenants>().UpdateAsync(key, v, "New", "new-desc", "edit", "op-1", ct);
 
         Assert.Equal(ControlAction.Applied, outcome.Action);
         var row = await ReadAsync(key, ct);
@@ -49,10 +45,10 @@ public sealed class UpdateTenantSpec : ActaStorageTestBase<ConformanceFixture>
     {
         var ct = TestContext.Current.CancellationToken;
         var key = TestKey("adm-meta-clear");
-        await Services.GetRequiredService<TenantsService>().RegisterAsync(key, "Old", "old-desc", ct);
+        await Services.GetRequiredService<ITenants>().RegisterAsync(key, "Old", "old-desc", ct);
         var v = (await ReadAsync(key, ct))!.Version;
 
-        await Services.GetRequiredService<ITenantStore>().UpdateTenantAsync(new UpdateTenantCommand(key, null, null, v, Actor(), null), ct);
+        await Services.GetRequiredService<ITenants>().UpdateAsync(key, v, null, null, null, "op-1", ct);
 
         var row = await ReadAsync(key, ct);
         Assert.Null(row!.DisplayName);
@@ -64,12 +60,10 @@ public sealed class UpdateTenantSpec : ActaStorageTestBase<ConformanceFixture>
     {
         var ct = TestContext.Current.CancellationToken;
         var key = TestKey("adm-meta-cas");
-        var id = await Services.GetRequiredService<TenantsService>().RegisterAsync(key, "Old", null, ct);
+        var id = (await Services.GetRequiredService<ITenants>().RegisterAsync(key, "Old", null, ct)).TenantId;
         var v = (await ReadAsync(key, ct))!.Version;
 
-        var outcome = await Services
-            .GetRequiredService<ITenantStore>()
-            .UpdateTenantAsync(new UpdateTenantCommand(key, "New", null, v + 5, Actor(), null), ct);
+        var outcome = await Services.GetRequiredService<ITenants>().UpdateAsync(key, v + 5, "New", null, null, "op-1", ct);
 
         Assert.Equal(ControlAction.VersionConflict, outcome.Action);
         Assert.Equal(v, outcome.Version);
@@ -81,9 +75,7 @@ public sealed class UpdateTenantSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Unknown_not_found()
     {
         var ct = TestContext.Current.CancellationToken;
-        var outcome = await Services
-            .GetRequiredService<ITenantStore>()
-            .UpdateTenantAsync(new UpdateTenantCommand(TestKey("adm-meta-ghost"), "x", null, 0, Actor(), null), ct);
+        var outcome = await Services.GetRequiredService<ITenants>().UpdateAsync(TestKey("adm-meta-ghost"), 0, "x", null, null, "op-1", ct);
         Assert.Equal(ControlAction.NotFound, outcome.Action);
     }
 
@@ -91,11 +83,11 @@ public sealed class UpdateTenantSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Overlong_metadata_is_rejected()
     {
         var ct = TestContext.Current.CancellationToken;
-        var service = Services.GetRequiredService<TenantsService>();
+        var service = Services.GetRequiredService<ITenants>();
         var key = TestKey("adm-meta-long");
 
         await Assert.ThrowsAsync<ArgumentException>(async () =>
-            await service.UpdateAsync(key, new string('x', AdminTextLimits.TenantDisplayName + 1), null, 0, null, null, ct)
+            await service.UpdateAsync(key, 0, new string('x', AdminTextLimits.TenantDisplayName + 1), null, null, null, ct)
         );
     }
 }

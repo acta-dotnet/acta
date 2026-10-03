@@ -69,7 +69,6 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<EventsService>();
         services.TryAddSingleton<DefinitionsService>();
         services.TryAddSingleton<NamespacesService>();
-        services.TryAddSingleton<TenantsService>();
         services.TryAddSingleton<TenantKeyCache>();
         services.TryAddSingleton<TagsService>();
         services.TryAddSingleton<JobsService>();
@@ -82,7 +81,6 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<IDefinitions, DefinitionsApi>();
         services.TryAddSingleton<IWorkers, WorkersApi>();
         services.TryAddSingleton<IAlerts, AlertsApi>();
-        services.TryAddSingleton<ITenants, TenantsApi>();
         services.TryAddSingleton<INamespaces, NamespacesApi>();
         services.TryAddSingleton<ITags>(static sp => sp.GetRequiredService<TagsService>());
         services.TryAddSingleton<IOutbox, OutboxApi>();
@@ -94,6 +92,14 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<GetSettingHandler>();
         services.TryAddSingleton<SetSettingHandler>();
         services.TryAddSingleton<ISettings, Settings>();
+        services.TryAddSingleton<RegisterTenantHandler>();
+        services.TryAddSingleton<GetTenantHandler>();
+        services.TryAddSingleton<GetTenantKeyHandler>();
+        services.TryAddSingleton<ListTenantsHandler>();
+        services.TryAddSingleton<SuspendTenantHandler>();
+        services.TryAddSingleton<ResumeTenantHandler>();
+        services.TryAddSingleton<UpdateTenantHandler>();
+        services.TryAddSingleton<ITenants, Tenants>();
 
         // Consumers light up the meter with WithMetrics(m => m.AddMeter(JobMetrics.MeterName)).
         services.TryAddSingleton<JobMetrics>();

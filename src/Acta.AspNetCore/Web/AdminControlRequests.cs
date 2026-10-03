@@ -21,7 +21,7 @@ internal sealed record NamespacePatchRequest(
 );
 
 /// <summary>
-/// Maps an <see cref="AdminControlResult"/> to an HTTP result: Applied/AlreadyInState 200, NotFound
+/// Maps an <see cref="IControlResponse"/> to an HTTP result: Applied/AlreadyInState 200, NotFound
 /// 404, VersionConflict 409. All three carry the result itself as the body, so a
 /// client reads <c>action</c> without special-casing the status code, and a version conflict carries
 /// the row's current <c>version</c> so the caller retries without a re-read. Only an outcome outside
@@ -29,7 +29,7 @@ internal sealed record NamespacePatchRequest(
 /// </summary>
 internal static class AdminControlHttp
 {
-    public static IResult ToResult(AdminControlResult result) =>
+    public static IResult ToResult(IControlResponse result) =>
         result.Action switch
         {
             ControlAction.Applied or ControlAction.AlreadyInState => Json(result, StatusCodes.Status200OK),
@@ -38,6 +38,7 @@ internal static class AdminControlHttp
             _ => Results.Problem(statusCode: StatusCodes.Status500InternalServerError, title: "Unknown admin outcome."),
         };
 
-    private static IResult Json(AdminControlResult result, int statusCode) =>
-        Results.Json(result, DashboardJsonContext.Default.AdminControlResult, statusCode: statusCode);
+    // The response's own type, so the body is the verb's record; DashboardJsonContext must list it.
+    private static IResult Json(IControlResponse result, int statusCode) =>
+        Results.Json(result, result.GetType(), DashboardJsonContext.Default, statusCode: statusCode);
 }

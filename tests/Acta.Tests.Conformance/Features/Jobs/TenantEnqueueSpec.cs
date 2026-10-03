@@ -65,7 +65,7 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
         var ct = TestContext.Current.CancellationToken;
         var (_, _) = Store();
         var name = TestKey("ten-known");
-        var tenantId = await Services.GetRequiredService<TenantsService>().RegisterAsync(name, null, null, ct);
+        var tenantId = (await Operations.Tenants.RegisterAsync(name, null, null, ct)).TenantId;
 
         var result = await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: name)], ct);
         var job = await ReadJobAsync(result[0].JobId, ct);
@@ -94,8 +94,8 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
         var name = TestKey("ten-off");
-        await Services.GetRequiredService<TenantsService>().RegisterAsync(name, null, null, ct);
-        await Services.GetRequiredService<TenantsService>().SuspendAsync(name, null, null, ct);
+        await Operations.Tenants.RegisterAsync(name, null, null, ct);
+        await Operations.Tenants.SuspendAsync(name, null, null, ct);
         var before = await CountJobsAsync(ct);
 
         // A second benign row keeps this on the batch routine (single-row lists route to EnqueueOne).
@@ -112,7 +112,7 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
         var good = TestKey("ten-good");
-        await Services.GetRequiredService<TenantsService>().RegisterAsync(good, null, null, ct);
+        await Operations.Tenants.RegisterAsync(good, null, null, ct);
         var before = await CountJobsAsync(ct);
 
         JobEnqueueRow[] command = [Row(tenantKey: good), Row(tenantKey: TestKey("ten-missing"))];
@@ -127,7 +127,7 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
         var ct = TestContext.Current.CancellationToken;
         var (_, _) = Store();
         var name = TestKey("ten-parent");
-        var tenantId = await Services.GetRequiredService<TenantsService>().RegisterAsync(name, null, null, ct);
+        var tenantId = (await Operations.Tenants.RegisterAsync(name, null, null, ct)).TenantId;
 
         var parent = await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: name)], ct);
         var child = await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: null, parentId: parent[0].JobId)], ct);
@@ -144,8 +144,8 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
         var (_, _) = Store();
         var parentName = TestKey("ten-p2");
         var childName = TestKey("ten-c2");
-        await Services.GetRequiredService<TenantsService>().RegisterAsync(parentName, null, null, ct);
-        var childTenantId = await Services.GetRequiredService<TenantsService>().RegisterAsync(childName, null, null, ct);
+        await Operations.Tenants.RegisterAsync(parentName, null, null, ct);
+        var childTenantId = (await Operations.Tenants.RegisterAsync(childName, null, null, ct)).TenantId;
 
         var parent = await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: parentName)], ct);
         var child = await EnqueueTestOps.EnqueueBatchAsync(
@@ -166,8 +166,8 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
         var (db, dialect) = Store();
         var parentName = TestKey("ten-p3");
         var childName = TestKey("ten-c3");
-        await Services.GetRequiredService<TenantsService>().RegisterAsync(parentName, null, null, ct);
-        await Services.GetRequiredService<TenantsService>().RegisterAsync(childName, null, null, ct);
+        await Operations.Tenants.RegisterAsync(parentName, null, null, ct);
+        await Operations.Tenants.RegisterAsync(childName, null, null, ct);
 
         var parent = await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: parentName)], ct);
         var before = await CountJobsAsync(ct);
@@ -187,7 +187,7 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
         var ct = TestContext.Current.CancellationToken;
         var (_, _) = Store();
         var childName = TestKey("ten-c4");
-        var childTenantId = await Services.GetRequiredService<TenantsService>().RegisterAsync(childName, null, null, ct);
+        var childTenantId = (await Operations.Tenants.RegisterAsync(childName, null, null, ct)).TenantId;
 
         var parent = await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: null)], ct);
         var child = await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: childName, parentId: parent[0].JobId)], ct);
@@ -203,7 +203,7 @@ public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, 
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
         var name = TestKey("ten-filter");
-        var tenantId = await Services.GetRequiredService<TenantsService>().RegisterAsync(name, null, null, ct);
+        var tenantId = (await Operations.Tenants.RegisterAsync(name, null, null, ct)).TenantId;
 
         var enqueued = await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: name)], ct);
         var jobId = enqueued[0].JobId;

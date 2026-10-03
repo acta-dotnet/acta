@@ -24,8 +24,6 @@ internal sealed class SetSettingHandler(IDbSession session, ISqlDialect dialect,
             throw new PayloadTooLargeException($"setting '{command.Name}'", value.Length, cap);
         }
 
-        var actor = JobControlActor.Operator(command.ActorKey);
-
         return await session.ExecuteOneAsync(
             new StoreCommand("SetSetting"),
             cmd =>
@@ -36,11 +34,7 @@ internal sealed class SetSettingHandler(IDbSession session, ISqlDialect dialect,
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Setting.Description, command.Description));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ScopeNamespaceName, command.NamespaceName));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ScopeJobName, command.JobName));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorCode, actor.ActorCode));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorKey, actor.ActorKey));
-                cmd.Parameters.Add(
-                    dialect.CreateParameter(ActaSchema.JobEvent.ReasonMessage, command.ReasonMessage.Truncate(ActaTextLimits.ReasonMessage))
-                );
+                cmd.AddOperatorAudit(dialect, command.ActorKey, command.ReasonMessage);
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ExpectedRowVersionOptional, command.ExpectedVersion));
             },
             DbProjectionResolver.Resolve<SetSettingResponse>(),

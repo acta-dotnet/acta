@@ -38,7 +38,7 @@ public sealed class TenantRequirementEnqueueSpec : ActaRuntimeTestBase<Conforman
     private async Task<string> RegisterTenantAsync(string hint, CancellationToken ct)
     {
         var key = TestKey(hint);
-        await Services.GetRequiredService<TenantsService>().RegisterAsync(key, null, null, ct);
+        await Operations.Tenants.RegisterAsync(key, null, null, ct);
         return key;
     }
 

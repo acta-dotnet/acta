@@ -33,9 +33,12 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   client that showed `message` builds its text from `action` and `status`.
 - **The `Acta.Relational` package is gone.** Its code ships in `Acta.Runtime`, which every provider
   package already brings. A project that referenced `Acta.Relational` directly drops the reference.
-- **A command returns its own response.** `ISettings.SetAsync` returns `SetSettingResponse` instead of
-  the shared `AdminControlResult`; it carries the same `Action` and `Version`, so only the declared type
-  changes.
+- **A command returns its own response.** `ISettings.SetAsync` returns `SetSettingResponse`, and
+  `ITenants` answers `SuspendAsync`, `ResumeAsync`, and `UpdateAsync` with `SuspendTenantResponse`,
+  `ResumeTenantResponse`, and `UpdateTenantResponse`, instead of the shared `AdminControlResult`. Each
+  carries the same `Action` and `Version` and implements the new `IControlResponse`.
+  `ITenants.RegisterAsync` returns `RegisterTenantResponse`, whose `TenantId` is the id it returned
+  before. The HTTP bodies do not change; the OpenAPI document names each response type.
 
 ### Additions
 

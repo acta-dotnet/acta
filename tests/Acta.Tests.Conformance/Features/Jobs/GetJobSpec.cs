@@ -67,7 +67,7 @@ public sealed class GetJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
         var ct = TestContext.Current.CancellationToken;
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var tenantKey = TestKey("get-job-ten");
-        var tenantId = await Services.GetRequiredService<Acta.Runtime.TenantsService>().RegisterAsync(tenantKey, null, null, ct);
+        var tenantId = (await Operations.Tenants.RegisterAsync(tenantKey, null, null, ct)).TenantId;
 
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
         var results = await EnqueueTestOps.EnqueueBatchAsync(

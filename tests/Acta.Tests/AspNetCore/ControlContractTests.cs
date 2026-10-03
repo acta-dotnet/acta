@@ -104,12 +104,12 @@ public sealed class ControlContractTests
         .. AlertVerb("resolve"),
         .. OutboxVerb("requeue"),
         .. OutboxVerb("discard"),
-        .. AdminVerb("namespaces", "/namespaces/{jobNamespace}", "billing", "suspend"),
-        .. AdminVerb("namespaces", "/namespaces/{jobNamespace}", "billing", "resume"),
-        .. AdminPatch("namespaces", "/namespaces/{jobNamespace}", "billing", "ownerTeam", "payments"),
-        .. AdminVerb("tenants", "/tenants/{tenantKey}", "cust-001", "suspend"),
-        .. AdminVerb("tenants", "/tenants/{tenantKey}", "cust-001", "resume"),
-        .. AdminPatch("tenants", "/tenants/{tenantKey}", "cust-001", "displayName", "Acme"),
+        .. AdminVerb("namespaces", "/namespaces/{jobNamespace}", "billing", "suspend", typeof(AdminControlResult)),
+        .. AdminVerb("namespaces", "/namespaces/{jobNamespace}", "billing", "resume", typeof(AdminControlResult)),
+        .. AdminPatch("namespaces", "/namespaces/{jobNamespace}", "billing", "ownerTeam", "payments", typeof(AdminControlResult)),
+        .. AdminVerb("tenants", "/tenants/{tenantKey}", "cust-001", "suspend", typeof(SuspendTenantResponse)),
+        .. AdminVerb("tenants", "/tenants/{tenantKey}", "cust-001", "resume", typeof(ResumeTenantResponse)),
+        .. AdminPatch("tenants", "/tenants/{tenantKey}", "cust-001", "displayName", "Acme", typeof(UpdateTenantResponse)),
         .. TenantRegistration(),
         .. Tags("/jobs/{jobRef}", $"/jobs/{Found}"),
         .. Tags("/definitions/{jobNamespace}/{jobName}", "/definitions/billing/send-invoice"),
@@ -400,13 +400,25 @@ public sealed class ControlContractTests
     }
 
     // Suspend and resume take no expected version, so a version conflict is not among their outcomes.
-    private static IEnumerable<Case> AdminVerb(string family, string routePrefix, string key, string verb)
+    private static IEnumerable<Case> AdminVerb(string family, string routePrefix, string key, string verb, Type declared)
     {
         var route = $"{routePrefix}/{verb}";
         return
         [
-            Admin(family, route, "POST", "applied", $"{Path(routePrefix, key)}/{verb}", StatusCodes.Status200OK, "applied", Reason, 2),
             Admin(
+                declared,
+                family,
+                route,
+                "POST",
+                "applied",
+                $"{Path(routePrefix, key)}/{verb}",
+                StatusCodes.Status200OK,
+                "applied",
+                Reason,
+                2
+            ),
+            Admin(
+                declared,
                 family,
                 route,
                 "POST",
@@ -421,13 +433,14 @@ public sealed class ControlContractTests
 
     // The patch is the one admin verb with a CAS token, so it is the one that can version-conflict; a
     // stale expectedVersion of 999 is how both admin fakes stage that outcome.
-    private static IEnumerable<Case> AdminPatch(string family, string route, string key, string field, string value)
+    private static IEnumerable<Case> AdminPatch(string family, string route, string key, string field, string value, Type declared)
     {
         JsonObject Body(int expectedVersion) => new() { [field] = value, ["expectedVersion"] = expectedVersion };
         return
         [
-            Admin(family, route, "PATCH", "applied", Path(route, key), StatusCodes.Status200OK, "applied", Body(1), 2),
+            Admin(declared, family, route, "PATCH", "applied", Path(route, key), StatusCodes.Status200OK, "applied", Body(1), 2),
             Admin(
+                declared,
                 family,
                 route,
                 "PATCH",
@@ -438,11 +451,12 @@ public sealed class ControlContractTests
                 Body(999),
                 5
             ),
-            Admin(family, route, "PATCH", "notFound", Path(route, "missing"), StatusCodes.Status404NotFound, "notFound", Body(1)),
+            Admin(declared, family, route, "PATCH", "notFound", Path(route, "missing"), StatusCodes.Status404NotFound, "notFound", Body(1)),
         ];
     }
 
     private static Case Admin(
+        Type declared,
         string family,
         string route,
         string method,
@@ -452,7 +466,7 @@ public sealed class ControlContractTests
         string action,
         object body,
         int? version = null
-    ) => new(family, route, method, outcome, path, status, typeof(AdminControlResult), action, body, version);
+    ) => new(family, route, method, outcome, path, status, declared, action, body, version);
 
     // Registration is insert-or-get and answers with the canonical key rather than an action, so this
     // row asserts the shape and leaves the action unchecked.
