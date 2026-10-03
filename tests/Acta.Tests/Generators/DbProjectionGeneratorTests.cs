@@ -15,11 +15,9 @@ public sealed class DbProjectionGeneratorTests
             using System;
             using System.Data;
 
-            [AttributeUsage(AttributeTargets.Assembly | AttributeTargets.Class | AttributeTargets.Struct, Inherited = false)]
+            [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, Inherited = false)]
             internal sealed class DbProjectionAttribute : Attribute
             {
-                public DbProjectionAttribute(params Type[] projectionTypes) { }
-
                 public bool ByName { get; set; }
             }
 
@@ -127,41 +125,52 @@ public sealed class DbProjectionGeneratorTests
     }
 
     [Fact]
-    public void Assembly_projection_list_emits_binder_for_unannotated_type()
+    public void A_type_the_code_resolves_binds_by_name_without_an_attribute()
     {
         var (result, compilation) = RunGenerator(
             """
-            using Acta.Runtime;
-            [assembly: DbProjection(typeof(GenTests.ExternalOutcome))]
-
             namespace GenTests;
-
-            internal sealed record ExternalOutcome(int Id, string Name);
-            """
-        );
-
-        AssertNoCompileErrors(compilation);
-        var source = SingleGeneratedSource(result, "BindExternalOutcome");
-        Assert.Contains("public static global::GenTests.ExternalOutcome BindExternalOutcome(DbDataReader r, int[] o)", source);
-    }
-
-    [Fact]
-    public void Assembly_projection_list_binds_by_name_when_asked()
-    {
-        var (result, compilation) = RunGenerator(
-            """
             using Acta.Runtime;
-            [assembly: DbProjection(typeof(GenTests.ExternalOutcome), ByName = true)]
-
-            namespace GenTests;
 
             internal sealed record ExternalOutcome(int Id, string DisplayName);
+
+            internal static class Caller
+            {
+                internal static object Read() => DbProjectionResolver.Resolve<ExternalOutcome>();
+            }
             """
         );
 
         AssertNoCompileErrors(compilation);
         var source = SingleGeneratedSource(result, "BindExternalOutcome");
         Assert.Contains("internal static readonly string[] ExternalOutcomeColumns = [\"id\", \"display_name\"];", source);
+    }
+
+    [Fact]
+    public void A_declared_projection_keeps_its_binding_when_the_code_also_resolves_it()
+    {
+        var (result, compilation) = RunGenerator(
+            """
+            namespace GenTests;
+            using Acta.Runtime;
+
+            [DbProjection]
+            internal sealed record PositionalRow(int Id, string Name);
+
+            internal static class Caller
+            {
+                internal static object Read() => DbProjectionResolver.Resolve<PositionalRow>();
+            }
+            """
+        );
+
+        AssertNoCompileErrors(compilation);
+        var source = SingleGeneratedSource(result, "BindPositionalRow");
+        Assert.Contains(
+            "DbProjectionResolver.ByPosition<global::GenTests.PositionalRow>(PositionalRowColumns.Length, BindPositionalRow);",
+            source
+        );
+        Assert.DoesNotContain("DbProjectionResolver.ByName<global::GenTests.PositionalRow>", source);
     }
 
     [Fact]

@@ -1,8 +1,6 @@
 using System.Text;
 using Microsoft.Extensions.Options;
 
-[assembly: Acta.Runtime.DbProjection(typeof(Acta.SetSettingResponse), ByName = true)]
-
 namespace Acta.Runtime;
 
 /// <summary>

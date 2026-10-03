@@ -1,5 +1,3 @@
-[assembly: Acta.Runtime.DbProjection(typeof(Acta.SettingDetail), ByName = true)]
-
 namespace Acta.Runtime;
 
 /// <summary><see cref="ISettings.GetAsync"/>: checks the name and the scope targets, then one point read.</summary>

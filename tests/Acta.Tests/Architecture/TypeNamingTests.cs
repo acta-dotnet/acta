@@ -78,18 +78,17 @@ public sealed class TypeNamingTests
         }
     }
 
-    // A row is projected by [DbProjection] on the type or by an assembly-level [DbProjection(typeof(...))] list.
+    // A row is projected when the generator emitted its binder, Bind<Type>, whether the type declares
+    // [DbProjection] or the code only resolves it.
     private static HashSet<Type> ProjectedTypes() =>
         [
             .. ShippedCode
-                .Assemblies.SelectMany(assembly => assembly.GetCustomAttributesData())
-                .Where(IsDbProjection)
-                .SelectMany(attribute => (IEnumerable<CustomAttributeTypedArgument>)attribute.ConstructorArguments[0].Value!)
-                .Select(argument => (Type)argument.Value!)
-                .Concat(ShippedCode.Types.Where(type => type.GetCustomAttributesData().Any(IsDbProjection))),
+                .Types.SelectMany(type =>
+                    type.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly)
+                )
+                .Where(method => method.Name == "Bind" + method.ReturnType.Name)
+                .Select(method => method.ReturnType),
         ];
-
-    private static bool IsDbProjection(CustomAttributeData attribute) => attribute.AttributeType.Name == "DbProjectionAttribute";
 
     // The last PascalCase word: "Store" in IAlertStore, "Dto" in OutboxMetaDto.
     private static string LastWord(string name)

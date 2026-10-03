@@ -13,8 +13,9 @@ using Microsoft.CodeAnalysis.Text;
 namespace Acta.Generators;
 
 /// <summary>
-/// Emits ordinal-only <c>DbDataReader</c> binders for provider result-row types marked with
-/// <c>[DbProjection]</c>. The marker carries no SQL meaning; provider stores own selection order.
+/// Emits <c>DbDataReader</c> binders: for each type marked <c>[DbProjection]</c>, by position unless it
+/// asks for <c>ByName</c>, and for every other type the code passes to <c>DbProjectionResolver.Resolve&lt;T&gt;()</c>,
+/// by column name. The call is the declaration, so a public model in <c>Acta</c> binds without an attribute.
 /// </summary>
 [Generator(LanguageNames.CSharp)]
 public sealed class DbProjectionGenerator : IIncrementalGenerator
@@ -42,13 +43,18 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
             .Where(static p => p is not null)
             .Select(static (p, _) => p!.Value);
 
-        var referencedProjections = context.CompilationProvider.Select(
-            static (compilation, ct) => TransformAssemblyProjections(compilation, ct)
-        );
+        var resolvedProjections = context
+            .SyntaxProvider.CreateSyntaxProvider(
+                predicate: static (node, _) => IsResolveCall(node),
+                transform: static (ctx, ct) => TransformResolved(ctx, ct)
+            )
+            .Where(static p => p is not null)
+            .Select(static (p, _) => p!.Value);
 
+        // A declared type keeps its declared binding when the code also resolves it: declarations come first.
         var projections = declaredProjections
             .Collect()
-            .Combine(referencedProjections)
+            .Combine(resolvedProjections.Collect())
             .Select(
                 static (pair, _) =>
                     pair
@@ -83,32 +89,21 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
         return Transform(type, byName, ct);
     }
 
-    private static ImmutableArray<ProjectionInfo> TransformAssemblyProjections(Compilation compilation, CancellationToken ct)
-    {
-        var projections = ImmutableArray.CreateBuilder<ProjectionInfo>();
-        foreach (var attribute in compilation.Assembly.GetAttributes())
-        {
-            if (!string.Equals(attribute.AttributeClass?.ToDisplayString(), DbProjectionAttr, StringComparison.Ordinal))
-            {
-                continue;
-            }
+    // DbProjectionResolver.Resolve<T>(), matched by shape: the resolver is this generator's own output, so the
+    // call cannot bind to a symbol while the generator runs.
+    private static bool IsResolveCall(SyntaxNode node) =>
+        node is GenericNameSyntax { Identifier.ValueText: "Resolve", TypeArgumentList.Arguments.Count: 1 } name
+        && name.Parent is MemberAccessExpressionSyntax access
+        && access.Name == name
+        && access.Expression
+            is IdentifierNameSyntax { Identifier.ValueText: "DbProjectionResolver" }
+                or MemberAccessExpressionSyntax { Name.Identifier.ValueText: "DbProjectionResolver" };
 
-            var byName = attribute.NamedArguments.Any(static n => n.Key == "ByName" && n.Value.Value is true);
-            foreach (var argument in attribute.ConstructorArguments)
-            {
-                var values = argument.Kind == TypedConstantKind.Array ? argument.Values : [argument];
-                foreach (var value in values)
-                {
-                    if (value.Value is INamedTypeSymbol type)
-                    {
-                        projections.Add(Transform(type, byName, ct));
-                    }
-                }
-            }
-        }
-
-        return projections.ToImmutable();
-    }
+    // A type parameter is left to the concrete call that supplies it.
+    private static ProjectionInfo? TransformResolved(GeneratorSyntaxContext ctx, CancellationToken ct) =>
+        ctx.SemanticModel.GetTypeInfo(((GenericNameSyntax)ctx.Node).TypeArgumentList.Arguments[0], ct).Type is INamedTypeSymbol type
+            ? Transform(type, byName: true, ct)
+            : null;
 
     private static ProjectionInfo Transform(INamedTypeSymbol type, bool byName, CancellationToken ct)
     {
