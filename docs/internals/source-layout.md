@@ -47,7 +47,8 @@ tests/Acta.Tests.Conformance/Operations/Jobs/PauseJobSpec.cs
 ## The other Runtime folders
 
 - `Db/`: the session, `ISqlDialect`, value coercion, deadlock retry, the SQL resource catalog, and paging.
-- `Schema/`: the table models, the schema model, the migration runner and installer, baseline stamps, the schema commands, and the operator views in `Schema/Views/`.
+- `Entities/`: the table models, one class per table.
+- `Schema/`: the schema model, the migration runner and installer, baseline stamps, the schema commands, and the operator views in `Schema/Views/`.
 - `Hosting/`: `ActaBuilder`, `AddActa`, provider registration, and option validators.
 - `Cli/`: the operator CLI, a presenter over the public facades.
 
