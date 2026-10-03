@@ -49,7 +49,7 @@ public abstract class SessionProviderDiscriminatorSpec<TFixture> : IntegrationSp
         var services = new ServiceCollection();
         services.UseActa(j => Fixture.ApplyProvider(j, Schema.SchemaName));
 
-        var descriptor = Assert.Single(services.Where(d => d.ServiceType == typeof(IDbSession)));
+        var descriptor = Assert.Single(services, d => d.ServiceType == typeof(IDbSession));
         Assert.Equal(ServiceLifetime.Singleton, descriptor.Lifetime);
 
         using var provider = services.BuildServiceProvider(validateScopes: true);

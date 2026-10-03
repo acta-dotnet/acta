@@ -46,9 +46,8 @@ public abstract class SignalStepWakeChaosSpec<TFixture> : ActaRuntimeTestBase<TF
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         Assert.Single(
-            events.Where(e =>
-                e.EventCode == EventCode.JobSignalRaised && e.FromStatus == JobStatusCode.Ready && e.ToStatus == JobStatusCode.Ready
-            )
+            events,
+            e => e.EventCode == EventCode.JobSignalRaised && e.FromStatus == JobStatusCode.Ready && e.ToStatus == JobStatusCode.Ready
         );
         Assert.DoesNotContain(events, e => e.EventCode == EventCode.JobSuspended);
         Assert.DoesNotContain(events, e => e.EventCode == EventCode.JobResumed);
@@ -72,21 +71,19 @@ public abstract class SignalStepWakeChaosSpec<TFixture> : ActaRuntimeTestBase<TF
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         Assert.Single(
-            events.Where(e =>
-                e.EventCode == EventCode.JobSuspended && e.FromStatus == JobStatusCode.Executing && e.ToStatus == JobStatusCode.Suspended
-            )
+            events,
+            e => e.EventCode == EventCode.JobSuspended && e.FromStatus == JobStatusCode.Executing && e.ToStatus == JobStatusCode.Suspended
         );
         // RaiseSignal records the raise without moving status (from == to); the Suspended->Ready
         // transition is the separate JobResumed event below.
         Assert.Single(
-            events.Where(e =>
+            events,
+            e =>
                 e.EventCode == EventCode.JobSignalRaised && e.FromStatus == JobStatusCode.Suspended && e.ToStatus == JobStatusCode.Suspended
-            )
         );
         Assert.Single(
-            events.Where(e =>
-                e.EventCode == EventCode.JobResumed && e.FromStatus == JobStatusCode.Suspended && e.ToStatus == JobStatusCode.Ready
-            )
+            events,
+            e => e.EventCode == EventCode.JobResumed && e.FromStatus == JobStatusCode.Suspended && e.ToStatus == JobStatusCode.Ready
         );
     }
 
@@ -113,7 +110,7 @@ public abstract class SignalStepWakeChaosSpec<TFixture> : ActaRuntimeTestBase<TF
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         var finished = events.Where(e => e.EventCode == EventCode.JobExecutionFinished).OrderByDescending(e => e.Id).First();
         Assert.Equal(JobEventReasonCode.JobUnhandledException, finished.JobEventReasonCode);
-        Assert.Single(events.Where(e => e.EventCode == EventCode.JobRescheduled));
+        Assert.Single(events, e => e.EventCode == EventCode.JobRescheduled);
         Assert.Equal(2, JobStepProbes.BodyInvocations[enqueued.JobId]);
     }
 

@@ -84,7 +84,7 @@ public abstract class WorkerCrashRecoveryChaosSpec<TFixture> : ActaRuntimeTestBa
         // --- 2. Reclaim orphans the started execution before retry.
         Assert.Equal(1, await ChaosSpecHelpers.ReclaimAsync(Services, ns, ct));
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        Assert.Single(events.Where(e => e.EventCode == EventCode.JobExecutionStarted));
+        Assert.Single(events, e => e.EventCode == EventCode.JobExecutionStarted);
         ChaosSpecHelpers.AssertRecoveryEvent(events, JobStatusCode.Executing, JobStatusCode.Ready);
 
         // --- 3. A later tick finishes the job with a single Succeeded execution.

@@ -81,7 +81,7 @@ public abstract class SignalSuspendHandoffRaceChaosSpec<TFixture> : ActaRuntimeT
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         Assert.DoesNotContain(events, e => e.EventCode == EventCode.JobSuspended);
         Assert.DoesNotContain(events, e => e.EventCode == EventCode.JobResumed);
-        Assert.Single(events.Where(e => e.EventCode == EventCode.JobSignalRaised));
+        Assert.Single(events, e => e.EventCode == EventCode.JobSignalRaised);
 
         // The other half of not losing the wake: complete_execution is the only site that can see this
         // transition, so a Ready row it reports without a publish is a job nobody is told about.
@@ -111,6 +111,6 @@ public abstract class SignalSuspendHandoffRaceChaosSpec<TFixture> : ActaRuntimeT
         Assert.Equal(RunOnceOutcome.NothingClaimed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        Assert.Single(events.Where(e => e.EventCode == EventCode.JobSuspended));
+        Assert.Single(events, e => e.EventCode == EventCode.JobSuspended);
     }
 }

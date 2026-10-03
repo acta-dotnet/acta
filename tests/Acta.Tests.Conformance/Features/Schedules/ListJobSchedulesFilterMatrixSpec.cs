@@ -106,7 +106,7 @@ public abstract class ListJobSchedulesFilterMatrixSpec<TFixture> : ActaRuntimeTe
         var aIds = all.Where(s => s.JobName == "recurring-ping").Select(s => s.JobScheduleId).ToHashSet();
         var bIds = all.Where(s => s.JobName == jobBName).Select(s => s.JobScheduleId).ToHashSet();
         Assert.NotEmpty(aIds);
-        Assert.Equal(1, bIds.Count);
+        Assert.Single(bIds);
 
         // Filter by recurring-ping: exact set + total, job B excluded
         var aPage = await Queries.Schedules.ListAsync(
@@ -227,7 +227,7 @@ public abstract class ListJobSchedulesFilterMatrixSpec<TFixture> : ActaRuntimeTe
         var ns2Ids = ns2Page.Items.Select(s => s.JobScheduleId).ToHashSet();
 
         // ns2 has exactly 1 (the one we seeded)
-        Assert.Equal(1, ns2Ids.Count);
+        Assert.Single(ns2Ids);
         Assert.Equal(1L, ns2Page.TotalCount);
 
         // ns1 has at least the manifest schedule plus our synthetic one

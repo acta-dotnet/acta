@@ -104,7 +104,7 @@ public abstract class AlertThresholdReachedSpec<TFixture> : ActaRuntimeTestBase<
 
         var alerts = await ReadAlertsAsync(NamespaceId, ct);
         Assert.Equal(2, alerts.Count);
-        Assert.Empty(alerts.Where(a => a.Kind == AlertKindCode.ThresholdReached));
+        Assert.DoesNotContain(alerts, a => a.Kind == AlertKindCode.ThresholdReached);
 
         // FirstFailure.OccurrenceCount == 2 proves events were processed; threshold just wasn't reached.
         var first = Assert.Single(alerts, a => a.Kind == AlertKindCode.FirstFailure);

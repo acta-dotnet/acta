@@ -59,7 +59,7 @@ public abstract class RecoveryDuplicationChaosSpec<TFixture> : ActaRuntimeTestBa
             .ClaimOneAsync(new ClaimRequest(ns, workers[1].Id, MaxBatch: 1), LeaseTtlSeconds, maintenanceJob.Id, ct);
         await Task.WhenAll(first, secondClaim);
 
-        var claimed = first.Result.Jobs.Concat(secondClaim.Result.Jobs).ToList();
+        var claimed = (await first).Jobs.Concat((await secondClaim).Jobs).ToList();
         Assert.Single(claimed);
 
         // Read the runtime row directly to assert which worker holds the execution lease.

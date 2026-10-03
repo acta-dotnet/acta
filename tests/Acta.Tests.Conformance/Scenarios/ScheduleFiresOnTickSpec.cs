@@ -214,7 +214,7 @@ public abstract class ScheduleFiresOnTickSpec<TFixture> : ActaRuntimeTestBase<TF
         Assert.Null(slot.NextRunAtUtc);
 
         var events = await GetEventsByJobId.Run(Services, slotId, ct);
-        var cancelEvent = Assert.Single(events.Where(e => e.EventCode == EventCode.JobCancelled));
+        var cancelEvent = Assert.Single(events, e => e.EventCode == EventCode.JobCancelled);
         Assert.Equal(JobEventReasonCode.JobHandlerCancelled, cancelEvent.JobEventReasonCode);
     }
 

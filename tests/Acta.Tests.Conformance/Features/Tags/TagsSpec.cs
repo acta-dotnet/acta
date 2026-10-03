@@ -327,8 +327,8 @@ public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJob
         var purgeTask = Jobs.PurgeAsync(lookup, ct: ct).AsTask();
         await Task.WhenAll(mutationTask, purgeTask);
 
-        Assert.Contains(mutationTask.Result.Action, new[] { TagMutationAction.Applied, TagMutationAction.NotFound });
-        Assert.Equal(ControlAction.Applied, purgeTask.Result.Action);
+        Assert.Contains((await mutationTask).Action, new[] { TagMutationAction.Applied, TagMutationAction.NotFound });
+        Assert.Equal(ControlAction.Applied, (await purgeTask).Action);
         Assert.Null(await Db.From<Job>().Where(x => x.Id == jobId).SingleOrDefaultAsync(ct));
         Assert.Empty(await Db.From<Tag>().Where(x => x.ScopeCode == TagScopeCode.Job && x.ScopeId == jobId).ToListAsync(ct));
     }

@@ -282,9 +282,8 @@ public abstract class ChildJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
         await SetJobStatusAsync(Db, child.Id, 220, ct);
 
         var latch = Assert.Single(
-            (await Services.GetRequiredService<IExecutionStore>().GetStaleChildLatchesAsync(ns, ct)).Where(l =>
-                l.ParentJobId == parent.JobId
-            )
+            await Services.GetRequiredService<IExecutionStore>().GetStaleChildLatchesAsync(ns, ct),
+            l => l.ParentJobId == parent.JobId
         );
         Assert.Equal(child.Id, latch.ChildJobId);
         Assert.Equal(JobStatusCode.Cancelled, latch.ChildStatus);
@@ -299,10 +298,9 @@ public abstract class ChildJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, Tes
             )
         );
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(parent.JobId, ct)).Status);
-        Assert.Empty(
-            (await Services.GetRequiredService<IExecutionStore>().GetStaleChildLatchesAsync(ns, ct)).Where(l =>
-                l.ParentJobId == parent.JobId
-            )
+        Assert.DoesNotContain(
+            await Services.GetRequiredService<IExecutionStore>().GetStaleChildLatchesAsync(ns, ct),
+            l => l.ParentJobId == parent.JobId
         );
     }
 

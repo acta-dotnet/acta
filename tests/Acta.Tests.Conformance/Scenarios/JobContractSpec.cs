@@ -56,24 +56,27 @@ public abstract class JobContractSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
         var ct = TestContext.Current.CancellationToken;
 
         using var loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        var driver = Task.Run(async () =>
-        {
-            while (!loopCts.IsCancellationRequested)
+        var driver = Task.Run(
+            async () =>
             {
-                try
+                while (!loopCts.IsCancellationRequested)
                 {
-                    await Runtime.RunOnceAsync(TestNamespace, loopCts.Token);
-                    await Task.Delay(50, loopCts.Token);
+                    try
+                    {
+                        await Runtime.RunOnceAsync(TestNamespace, loopCts.Token);
+                        await Task.Delay(50, loopCts.Token);
+                    }
+                    catch (Exception) when (loopCts.IsCancellationRequested)
+                    {
+                        // Teardown cancels an in-flight tick; under a slow SQL Server SqlClient can surface
+                        // that as a SqlException ("Operation cancelled by user") rather than
+                        // OperationCanceledException: both are expected once we are shutting down.
+                        return;
+                    }
                 }
-                catch (Exception) when (loopCts.IsCancellationRequested)
-                {
-                    // Teardown cancels an in-flight tick; under a slow SQL Server SqlClient can surface
-                    // that as a SqlException ("Operation cancelled by user") rather than
-                    // OperationCanceledException: both are expected once we are shutting down.
-                    return;
-                }
-            }
-        });
+            },
+            ct
+        );
 
         try
         {

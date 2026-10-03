@@ -87,7 +87,7 @@ public abstract class ListJobAlertsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
         var aIds = all.Where(a => a.JobId == j1).Select(a => a.AlertId).ToHashSet();
         var bIds = all.Where(a => a.JobId == j2).Select(a => a.AlertId).ToHashSet();
         Assert.Equal(2, aIds.Count);
-        Assert.Equal(1, bIds.Count);
+        Assert.Single(bIds);
 
         // Filter by j1: exact set + total, j2 excluded
         var j1Page = await queries.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: TestNamespace, JobId: j1, IncludeTotal: true), ct);
@@ -117,7 +117,7 @@ public abstract class ListJobAlertsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
         var pendingIds = all.Where(a => a.DeliveryStatus == AlertDeliveryStatusCode.Pending).Select(a => a.AlertId).ToHashSet();
         var failedIds = all.Where(a => a.DeliveryStatus == AlertDeliveryStatusCode.Failed).Select(a => a.AlertId).ToHashSet();
         Assert.Equal(2, pendingIds.Count);
-        Assert.Equal(1, failedIds.Count);
+        Assert.Single(failedIds);
 
         // Filter by Pending
         var pPage = await queries.Alerts.ListAsync(
@@ -241,7 +241,7 @@ public abstract class ListJobAlertsFilterMatrixSpec<TFixture> : ActaRuntimeTestB
         Assert.Equal(2L, ns1Page.TotalCount);
         Assert.Equal(1L, ns2Page.TotalCount);
         Assert.Equal(2, ns1Ids.Count);
-        Assert.Equal(1, ns2Ids.Count);
+        Assert.Single(ns2Ids);
 
         // Cross-exclusion: neither namespace bleeds into the other
         Assert.Empty(ns1Ids.Intersect(ns2Ids));
