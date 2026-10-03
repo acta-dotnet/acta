@@ -29,7 +29,7 @@ internal static class RelationalStoreRegistration
         services.AddSingleton<IRetentionStore, RelationalRetentionStore>();
         services.AddSingleton<IExecutionStore, RelationalExecutionStore>();
         services.TryAddSingleton<ILockStore, RelationalLockStore>();
-        services.AddSingleton<IServerClock, RelationalActaClock>();
+        services.AddSingleton<IServerClock, GetUtcNowHandler>();
         services.TryAddSingleton<IActaClock>(sp => sp.GetRequiredService<IServerClock>());
     }
 }

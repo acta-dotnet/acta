@@ -1,11 +1,10 @@
 namespace Acta.Runtime;
 
 /// <summary>
-/// Shared relational <see cref="IServerClock"/> over <see cref="IDbSession"/>: one scalar round trip
-/// to the DB server's UTC clock. Needs no Acta schema, so it is safe to read at bootstrap before
-/// schema installation (the clock-skew check).
+/// Reads the database server's UTC clock in one scalar round trip. It needs no Acta schema, so the
+/// clock-skew check can call it at bootstrap before schema installation.
 /// </summary>
-internal sealed class RelationalActaClock(IDbSession session) : IServerClock
+internal sealed class GetUtcNowHandler(IDbSession session) : IServerClock
 {
     public async ValueTask<DateTime> GetUtcNowAsync(CancellationToken ct) =>
         await session.QueryAsync(

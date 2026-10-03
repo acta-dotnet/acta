@@ -32,7 +32,7 @@ src/Acta.Runtime/Operations/Jobs/
 tests/Acta.Tests.Conformance/Operations/Jobs/PauseJobSpec.cs
 ```
 
-- A write operation has an `XCommand`, an `XHandler`, and a public `XResponse`. A read operation has an `XQuery` and an `XHandler`, and returns a `Detail`, a `Snapshot`, a value, or `PagedResult<XListItem>`. The suffixes are in [naming conventions](naming-conventions.md).
+- A write operation has an `XCommand`, an `XHandler`, and a public `XResponse`. A read operation has an `XQuery` (none when it takes no input) and an `XHandler`, and returns a `Detail`, a `Snapshot`, a value, or `PagedResult<XListItem>`. The suffixes are in [naming conventions](naming-conventions.md).
 - The public half mirrors the Runtime path: every `src/Acta/Operations/<Group>/<Operation>/` folder has a Runtime operation at the same path, and types a whole group shares sit in the group folder. `Acta` has one namespace, so moving a public type never changes its name.
 - The facade is hand-written, one line per operation: `PauseAsync(...) => pauseJob.HandleAsync(new PauseJobCommand(...), ct)`. There is no mediator and no partial class.
 - Every operation has its own input and its own response. Related responses share an interface; operations share no classes.
