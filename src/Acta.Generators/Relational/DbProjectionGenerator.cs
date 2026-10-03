@@ -74,7 +74,13 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
 
     private static ProjectionInfo? Transform(GeneratorAttributeSyntaxContext ctx, CancellationToken ct)
     {
-        return ctx.TargetSymbol is not INamedTypeSymbol type ? null : Transform(type, ct);
+        if (ctx.TargetSymbol is not INamedTypeSymbol type)
+        {
+            return null;
+        }
+
+        var byName = ctx.Attributes.Any(static a => a.NamedArguments.Any(static n => n.Key == "ByName" && n.Value.Value is true));
+        return Transform(type, byName, ct);
     }
 
     private static ImmutableArray<ProjectionInfo> TransformAssemblyProjections(Compilation compilation, CancellationToken ct)
@@ -94,7 +100,7 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
                 {
                     if (value.Value is INamedTypeSymbol type)
                     {
-                        projections.Add(Transform(type, ct));
+                        projections.Add(Transform(type, byName: false, ct));
                     }
                 }
             }
@@ -103,7 +109,7 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
         return projections.ToImmutable();
     }
 
-    private static ProjectionInfo Transform(INamedTypeSymbol type, CancellationToken ct)
+    private static ProjectionInfo Transform(INamedTypeSymbol type, bool byName, CancellationToken ct)
     {
         var diagnostics = ImmutableArray.CreateBuilder<DiagnosticInfo>();
         var typeLocation = type.Locations.FirstOrDefault();
@@ -186,6 +192,7 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
             TypeName: type.Name,
             TypeFqn: type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
             MethodName: "Bind" + type.Name,
+            ByName: byName,
             Containers: containers.ToImmutable(),
             Members: members.ToImmutable(),
             Diagnostics: diagnostics.ToImmutable()
@@ -368,9 +375,88 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
             sb.Append("        ").Append(target).Append('.').Append(ResolverMethodName).AppendLine("(ref read);");
         }
         sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.Append(RowBindingSource);
         sb.AppendLine("}");
         return sb.ToString();
     }
+
+    // A [DbProjection(ByName = true)] row binds by column name: the ordinals are looked up on the first row a
+    // reader hands over and reused for the rest of it, so each query resolves its own binder and never shares
+    // one across readers. Every other row binds by position, its columns in SELECT order.
+    private const string RowBindingSource = """
+            internal static Func<DbDataReader, T> ByPosition<T>(int columns, Func<DbDataReader, int[], T> bind)
+            {
+                var ordinals = new int[columns];
+                for (var i = 0; i < columns; i++)
+                {
+                    ordinals[i] = i;
+                }
+
+                return r => bind(r, ordinals);
+            }
+
+            internal static Func<DbDataReader, T> ByName<T>(string projection, string[] columns, Func<DbDataReader, int[], T> bind)
+            {
+                DbDataReader? reader = null;
+                var ordinals = Array.Empty<int>();
+                return r =>
+                {
+                    if (!ReferenceEquals(r, reader))
+                    {
+                        ordinals = Ordinals(r, projection, columns);
+                        reader = r;
+                    }
+
+                    return bind(r, ordinals);
+                };
+            }
+
+            private static int[] Ordinals(DbDataReader r, string projection, string[] columns)
+            {
+                var ordinals = new int[columns.Length];
+                var missing = new System.Collections.Generic.List<string>();
+                for (var c = 0; c < columns.Length; c++)
+                {
+                    ordinals[c] = -1;
+                    for (var i = 0; i < r.FieldCount; i++)
+                    {
+                        if (!string.Equals(r.GetName(i), columns[c], StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+
+                        if (ordinals[c] >= 0)
+                        {
+                            throw new InvalidOperationException($"{projection} reads column '{columns[c]}', which the result holds twice.");
+                        }
+
+                        ordinals[c] = i;
+                    }
+
+                    if (ordinals[c] < 0)
+                    {
+                        missing.Add(columns[c]);
+                    }
+                }
+
+                if (missing.Count > 0)
+                {
+                    var actual = new string[r.FieldCount];
+                    for (var i = 0; i < actual.Length; i++)
+                    {
+                        actual[i] = r.GetName(i);
+                    }
+
+                    throw new InvalidOperationException(
+                        $"{projection} reads {string.Join(", ", missing)}, which the result ({string.Join(", ", actual)}) does not have."
+                    );
+                }
+
+                return ordinals;
+            }
+
+        """;
 
     private static StringBuilder NewSourceBuilder()
     {
@@ -395,12 +481,20 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
 
     private static void AppendBindMethod(StringBuilder sb, ProjectionInfo projection, string indent)
     {
+        var columns = projection.Members.SelectMany(static m => m.Columns).Select(static c => "\"" + c + "\"");
+        sb.Append(indent)
+            .Append("internal static readonly string[] ")
+            .Append(projection.ColumnsName)
+            .Append(" = [")
+            .Append(string.Join(", ", columns))
+            .AppendLine("];");
+        sb.AppendLine();
         sb.Append(indent)
             .Append("public static ")
             .Append(projection.TypeFqn)
             .Append(' ')
             .Append(projection.MethodName)
-            .AppendLine("(DbDataReader r) =>");
+            .AppendLine("(DbDataReader r, int[] o) =>");
 
         if (projection.Members.Length == 0)
         {
@@ -410,11 +504,13 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
         }
 
         sb.Append(indent).AppendLine("    new(");
+        var column = 0;
         for (var i = 0; i < projection.Members.Length; i++)
         {
             var member = projection.Members[i];
-            sb.Append(indent).Append("        ").Append(EscapeIdentifier(member.Name)).Append(": ").Append(BindExpression(member, i));
+            sb.Append(indent).Append("        ").Append(EscapeIdentifier(member.Name)).Append(": ").Append(BindExpression(member, column));
             sb.AppendLine(i == projection.Members.Length - 1 ? "" : ",");
+            column += member.Columns.Length;
         }
         sb.Append(indent).AppendLine("    );");
         sb.AppendLine();
@@ -440,10 +536,16 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
             sb.Append(indent).Append("    if (typeof(T) == typeof(").Append(projection.TypeFqn).AppendLine("))");
             sb.Append(indent).AppendLine("    {");
             sb.Append(indent)
-                .Append("        read = static r => (T)(object)")
+                .Append("        read = (Func<DbDataReader, T>)(object)global::Acta.Runtime.DbProjectionResolver.")
+                .Append(projection.ByName ? "ByName<" : "ByPosition<")
+                .Append(projection.TypeFqn)
+                .Append(projection.ByName ? ">(\"" + projection.TypeName + "\", " : ">(")
+                .Append(binderPrefix)
+                .Append(projection.ColumnsName)
+                .Append(projection.ByName ? ", " : ".Length, ")
                 .Append(binderPrefix)
                 .Append(projection.MethodName)
-                .AppendLine("(r);");
+                .AppendLine(");");
             sb.Append(indent).AppendLine("        return;");
             sb.Append(indent).AppendLine("    }");
             sb.AppendLine();
@@ -453,15 +555,32 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
         sb.AppendLine();
     }
 
-    private static string BindExpression(ProjectionMemberInfo member, int ordinal)
+    // `column` indexes the projection's column list; o[column] is that column's ordinal in the reader.
+    private static string BindExpression(ProjectionMemberInfo member, int column)
     {
-        var typed = BindTypedExpression(member, ordinal);
-        return member.IsNullable ? "r.IsDBNull(" + ordinal + ") ? null : " + typed : typed;
+        var ord = "o[" + column.ToString(CultureInfo.InvariantCulture) + "]";
+        if (member.Kind == ProjectionMemberKind.Payload)
+        {
+            // A payload is its format id and its bytes; format id 0 is no payload, null when the member allows it.
+            var bytes = "o[" + (column + 1).ToString(CultureInfo.InvariantCulture) + "]";
+            var formatId = "Convert.ToByte(r.GetValue(" + ord + "), CultureInfo.InvariantCulture)";
+            var payload =
+                "global::Acta.JobPayload.FromBytes(global::Acta.JobPayloadFormat.ForId("
+                + formatId
+                + "), r.IsDBNull("
+                + bytes
+                + ") ? [] : (byte[])r.GetValue("
+                + bytes
+                + "))";
+            return member.IsNullable ? "r.IsDBNull(" + ord + ") || " + formatId + " == 0 ? null : " + payload : payload;
+        }
+
+        var typed = BindTypedExpression(member, ord);
+        return member.IsNullable ? "r.IsDBNull(" + ord + ") ? null : " + typed : typed;
     }
 
-    private static string BindTypedExpression(ProjectionMemberInfo member, int ordinal)
+    private static string BindTypedExpression(ProjectionMemberInfo member, string ord)
     {
-        var ord = ordinal.ToString(CultureInfo.InvariantCulture);
         var readExpr = member.Kind switch
         {
             ProjectionMemberKind.Boolean => "Convert.ToBoolean(r.GetValue(" + ord + "), CultureInfo.InvariantCulture)",
@@ -474,6 +593,7 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
             ProjectionMemberKind.Int64 => "Convert.ToInt64(r.GetValue(" + ord + "), CultureInfo.InvariantCulture)",
             ProjectionMemberKind.UInt64 => "Convert.ToUInt64(r.GetValue(" + ord + "), CultureInfo.InvariantCulture)",
             ProjectionMemberKind.Guid => "r.GetGuid(" + ord + ")",
+            ProjectionMemberKind.Ref => "new " + member.RefTypeFqn + "(r.GetGuid(" + ord + "))",
             ProjectionMemberKind.UtcInstant => "r.GetDateTimeUtc(" + ord + ")",
             ProjectionMemberKind.Decimal => "Convert.ToDecimal(r.GetValue(" + ord + "), CultureInfo.InvariantCulture)",
             ProjectionMemberKind.String => "r.GetString(" + ord + ")",
@@ -537,11 +657,14 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
         string TypeName,
         string TypeFqn,
         string MethodName,
+        bool ByName,
         ImmutableArray<ContainingTypeInfo> Containers,
         ImmutableArray<ProjectionMemberInfo> Members,
         ImmutableArray<DiagnosticInfo> Diagnostics
     )
     {
+        public string ColumnsName => TypeName + "Columns";
+
         public string ContainerKey => NamespaceName + "." + string.Join(".", Containers.Select(static c => c.Name));
 
         public string ContainerFqn
@@ -561,9 +684,31 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
         bool IsNullable,
         ProjectionMemberKind Kind,
         string? EnumTypeFqn,
-        string? ExtensibleDecoderFqn
+        string? ExtensibleDecoderFqn,
+        string? RefTypeFqn
     )
     {
+        /// <summary>
+        /// The columns the member reads: its name in snake_case, and for a payload the format id before it
+        /// (<c>input_format_id</c>, <c>input</c>).
+        /// </summary>
+        public string[] Columns =>
+            Kind == ProjectionMemberKind.Payload ? [SnakeCase(Name) + "_format_id", SnakeCase(Name)] : [SnakeCase(Name)];
+
+        private static string SnakeCase(string name)
+        {
+            var sb = new StringBuilder(name.Length + 4);
+            for (var i = 0; i < name.Length; i++)
+            {
+                if (char.IsUpper(name[i]) && i > 0)
+                {
+                    sb.Append('_');
+                }
+                sb.Append(char.ToLowerInvariant(name[i]));
+            }
+            return sb.ToString();
+        }
+
         public static ProjectionMemberInfo? Create(
             IParameterSymbol parameter,
             LocationInfo location,
@@ -605,7 +750,9 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
                 return null;
             }
 
-            return new ProjectionMemberInfo(parameter.Name, isNullable, kind, enumTypeFqn, extensibleDecoderFqn);
+            var refTypeFqn =
+                kind == ProjectionMemberKind.Ref ? nonNullableType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) : null;
+            return new ProjectionMemberInfo(parameter.Name, isNullable, kind, enumTypeFqn, extensibleDecoderFqn, refTypeFqn);
         }
 
         private static (bool IsNullable, ITypeSymbol NonNullableType) AnalyzeType(ITypeSymbol type)
@@ -677,6 +824,14 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
             {
                 return ProjectionMemberKind.UtcInstant;
             }
+            if (type.ToDisplayString() == "Acta.JobPayload")
+            {
+                return ProjectionMemberKind.Payload;
+            }
+            if (IsRef(type))
+            {
+                return ProjectionMemberKind.Ref;
+            }
             if (IsByteArray(type))
             {
                 return ProjectionMemberKind.Bytes;
@@ -689,6 +844,15 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
                 ? ProjectionMemberKind.MemoryBytes
                 : ProjectionMemberKind.Unsupported;
         }
+
+        // A ref is a struct wrapping one Guid: JobRef, AlertRef, WorkerRef.
+        private static bool IsRef(ITypeSymbol type) =>
+            type is INamedTypeSymbol { TypeKind: TypeKind.Struct } named
+            && named.InstanceConstructors.Any(static c =>
+                c.Parameters.Length == 1
+                && c.Parameters[0].Type.ToDisplayString() == "System.Guid"
+                && c.DeclaredAccessibility is Accessibility.Public or Accessibility.Internal
+            );
 
         private static bool IsByteArray(ITypeSymbol type) => type is IArrayTypeSymbol array && IsByteType(array.ElementType);
 
@@ -711,6 +875,8 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
         Int64,
         UInt64,
         Guid,
+        Ref,
+        Payload,
         UtcInstant,
         Decimal,
         String,

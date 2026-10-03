@@ -19,6 +19,8 @@ public sealed class DbProjectionGeneratorTests
             internal sealed class DbProjectionAttribute : Attribute
             {
                 public DbProjectionAttribute(params Type[] projectionTypes) { }
+
+                public bool ByName { get; set; }
             }
 
             internal static class DbCellCoercion
@@ -30,7 +32,7 @@ public sealed class DbProjectionGeneratorTests
         """;
 
     [Fact]
-    public void Record_projection_emits_ordinal_binder()
+    public void Record_projection_binds_by_position_by_default()
     {
         var (result, compilation) = RunGenerator(
             """
@@ -51,14 +53,20 @@ public sealed class DbProjectionGeneratorTests
         AssertNoCompileErrors(compilation);
         var source = SingleGeneratedSource(result, "BindEnqueueOutcomeRow");
         Assert.Contains("internal static partial class DbProjectionBinder", source);
-        Assert.Contains("public static global::GenTests.EnqueueOutcomeRow BindEnqueueOutcomeRow(DbDataReader r)", source);
-        Assert.Contains("Ordinal: Convert.ToInt32(r.GetValue(0), CultureInfo.InvariantCulture)", source);
-        Assert.Contains("JobId: Convert.ToInt64(r.GetValue(1), CultureInfo.InvariantCulture)", source);
-        Assert.Contains("JobRef: r.GetGuid(2)", source);
-        Assert.Contains("Action: (global::GenTests.ProjectionAction)Convert.ToByte(r.GetValue(3), CultureInfo.InvariantCulture)", source);
+        Assert.Contains("public static global::GenTests.EnqueueOutcomeRow BindEnqueueOutcomeRow(DbDataReader r, int[] o)", source);
+        Assert.Contains("Ordinal: Convert.ToInt32(r.GetValue(o[0]), CultureInfo.InvariantCulture)", source);
+        Assert.Contains("JobId: Convert.ToInt64(r.GetValue(o[1]), CultureInfo.InvariantCulture)", source);
+        Assert.Contains("JobRef: r.GetGuid(o[2])", source);
+        Assert.Contains(
+            "Action: (global::GenTests.ProjectionAction)Convert.ToByte(r.GetValue(o[3]), CultureInfo.InvariantCulture)",
+            source
+        );
         Assert.Contains("internal static void __ActaTryResolveDbProjection<T>(ref Func<DbDataReader, T>? read)", source);
         Assert.Contains("if (typeof(T) == typeof(global::GenTests.EnqueueOutcomeRow))", source);
-        Assert.Contains("read = static r => (T)(object)BindEnqueueOutcomeRow(r);", source);
+        Assert.Contains(
+            "read = (Func<DbDataReader, T>)(object)global::Acta.Runtime.DbProjectionResolver.ByPosition<global::GenTests.EnqueueOutcomeRow>(EnqueueOutcomeRowColumns.Length, BindEnqueueOutcomeRow);",
+            source
+        );
 
         var resolver = SingleGeneratedSource(result, "TryResolveGenerated");
         Assert.Contains("namespace Acta.Runtime;", resolver);
@@ -108,14 +116,14 @@ public sealed class DbProjectionGeneratorTests
         AssertNoCompileErrors(compilation);
         var source = SingleGeneratedSource(result, "BindCodedRow");
         Assert.Contains(
-            "Open: global::GenTests.OpenCodeExtensions.FromId(Convert.ToByte(r.GetValue(0), CultureInfo.InvariantCulture))",
+            "Open: global::GenTests.OpenCodeExtensions.FromId(Convert.ToByte(r.GetValue(o[0]), CultureInfo.InvariantCulture))",
             source
         );
         Assert.Contains(
-            "MaybeOpen: r.IsDBNull(1) ? null : global::GenTests.OpenCodeExtensions.FromId(Convert.ToByte(r.GetValue(1), CultureInfo.InvariantCulture))",
+            "MaybeOpen: r.IsDBNull(o[1]) ? null : global::GenTests.OpenCodeExtensions.FromId(Convert.ToByte(r.GetValue(o[1]), CultureInfo.InvariantCulture))",
             source
         );
-        Assert.Contains("Closed: (global::GenTests.ClosedCode)Convert.ToByte(r.GetValue(2), CultureInfo.InvariantCulture)", source);
+        Assert.Contains("Closed: (global::GenTests.ClosedCode)Convert.ToByte(r.GetValue(o[2]), CultureInfo.InvariantCulture)", source);
     }
 
     [Fact]
@@ -134,7 +142,7 @@ public sealed class DbProjectionGeneratorTests
 
         AssertNoCompileErrors(compilation);
         var source = SingleGeneratedSource(result, "BindExternalOutcome");
-        Assert.Contains("public static global::GenTests.ExternalOutcome BindExternalOutcome(DbDataReader r)", source);
+        Assert.Contains("public static global::GenTests.ExternalOutcome BindExternalOutcome(DbDataReader r, int[] o)", source);
     }
 
     [Fact]
@@ -158,11 +166,11 @@ public sealed class DbProjectionGeneratorTests
 
         AssertNoCompileErrors(compilation);
         var source = SingleGeneratedSource(result, "BindPayloadRow");
-        Assert.Contains("Id: Convert.ToInt32(r.GetValue(0), CultureInfo.InvariantCulture)", source);
-        Assert.Contains("Name: r.IsDBNull(1) ? null : r.GetString(1)", source);
-        Assert.Contains("Payload: (byte[])r.GetValue(2)", source);
-        Assert.Contains("CreatedAtUtc: r.GetDateTimeUtc(3)", source);
-        Assert.Contains("AvailableAtUtc: r.IsDBNull(4) ? null : r.GetDateTimeUtc(4)", source);
+        Assert.Contains("Id: Convert.ToInt32(r.GetValue(o[0]), CultureInfo.InvariantCulture)", source);
+        Assert.Contains("Name: r.IsDBNull(o[1]) ? null : r.GetString(o[1])", source);
+        Assert.Contains("Payload: (byte[])r.GetValue(o[2])", source);
+        Assert.Contains("CreatedAtUtc: r.GetDateTimeUtc(o[3])", source);
+        Assert.Contains("AvailableAtUtc: r.IsDBNull(o[4]) ? null : r.GetDateTimeUtc(o[4])", source);
     }
 
     [Fact]
@@ -175,7 +183,7 @@ public sealed class DbProjectionGeneratorTests
 
             internal static partial class Operation
             {
-                public static object Read(System.Data.Common.DbDataReader reader) => DbProjectionBinder.BindPrivateRow(reader);
+                public static object Read(System.Data.Common.DbDataReader reader) => DbProjectionBinder.BindPrivateRow(reader, [0]);
 
                 [DbProjection]
                 private sealed record PrivateRow(int Id);
@@ -187,13 +195,88 @@ public sealed class DbProjectionGeneratorTests
         var source = SingleGeneratedSource(result, "BindPrivateRow");
         Assert.Contains("internal static partial class Operation", source);
         Assert.Contains("private static partial class DbProjectionBinder", source);
-        Assert.Contains("public static global::GenTests.Operation.PrivateRow BindPrivateRow(DbDataReader r)", source);
+        Assert.Contains("public static global::GenTests.Operation.PrivateRow BindPrivateRow(DbDataReader r, int[] o)", source);
         Assert.Contains("internal static void __ActaTryResolveDbProjection<T>(ref Func<DbDataReader, T>? read)", source);
         Assert.Contains("if (typeof(T) == typeof(global::GenTests.Operation.PrivateRow))", source);
-        Assert.Contains("read = static r => (T)(object)DbProjectionBinder.BindPrivateRow(r);", source);
+        Assert.Contains(
+            "read = (Func<DbDataReader, T>)(object)global::Acta.Runtime.DbProjectionResolver.ByPosition<global::GenTests.Operation.PrivateRow>(DbProjectionBinder.PrivateRowColumns.Length, DbProjectionBinder.BindPrivateRow);",
+            source
+        );
 
         var resolver = SingleGeneratedSource(result, "TryResolveGenerated");
         Assert.Contains("global::GenTests.Operation.__ActaTryResolveDbProjection(ref read);", resolver);
+    }
+
+    [Fact]
+    public void ByName_projection_reads_each_parameter_from_its_snake_case_column()
+    {
+        var (result, compilation) = RunGenerator(
+            """
+            namespace GenTests;
+            using System;
+            using Acta.Runtime;
+
+            [DbProjection(ByName = true)]
+            internal sealed record ListRow(long JobId, string JobNamespace, DateTime CreatedAtUtc);
+            """
+        );
+
+        AssertNoCompileErrors(compilation);
+        var source = SingleGeneratedSource(result, "BindListRow");
+        Assert.Contains("internal static readonly string[] ListRowColumns = [\"job_id\", \"job_namespace\", \"created_at_utc\"];", source);
+        Assert.Contains(
+            "read = (Func<DbDataReader, T>)(object)global::Acta.Runtime.DbProjectionResolver.ByName<global::GenTests.ListRow>(\"ListRow\", ListRowColumns, BindListRow);",
+            source
+        );
+    }
+
+    [Fact]
+    public void Ref_and_payload_members_build_from_their_columns()
+    {
+        var (result, compilation) = RunGenerator(
+            """
+            namespace Acta
+            {
+                public readonly record struct JobRef(System.Guid Value);
+
+                public readonly struct JobPayloadFormat
+                {
+                    public static JobPayloadFormat ForId(byte id) => default;
+                }
+
+                public readonly struct JobPayload
+                {
+                    public static JobPayload FromBytes(JobPayloadFormat format, byte[] ownedBytes) => default;
+                }
+            }
+
+            namespace GenTests
+            {
+                using Acta;
+                using Acta.Runtime;
+
+                [DbProjection(ByName = true)]
+                internal sealed record DetailRow(JobRef JobRef, JobRef? ParentJobRef, JobPayload Input, JobPayload? Result);
+            }
+            """
+        );
+
+        AssertNoCompileErrors(compilation);
+        var source = SingleGeneratedSource(result, "BindDetailRow");
+        Assert.Contains(
+            "DetailRowColumns = [\"job_ref\", \"parent_job_ref\", \"input_format_id\", \"input\", \"result_format_id\", \"result\"];",
+            source
+        );
+        Assert.Contains("JobRef: new global::Acta.JobRef(r.GetGuid(o[0]))", source);
+        Assert.Contains("ParentJobRef: r.IsDBNull(o[1]) ? null : new global::Acta.JobRef(r.GetGuid(o[1]))", source);
+        Assert.Contains(
+            "Input: global::Acta.JobPayload.FromBytes(global::Acta.JobPayloadFormat.ForId(Convert.ToByte(r.GetValue(o[2]), CultureInfo.InvariantCulture)), r.IsDBNull(o[3]) ? [] : (byte[])r.GetValue(o[3]))",
+            source
+        );
+        Assert.Contains(
+            "Result: r.IsDBNull(o[4]) || Convert.ToByte(r.GetValue(o[4]), CultureInfo.InvariantCulture) == 0 ? null : global::Acta.JobPayload.FromBytes(",
+            source
+        );
     }
 
     [Fact]
