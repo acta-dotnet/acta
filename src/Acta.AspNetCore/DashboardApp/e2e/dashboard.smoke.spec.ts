@@ -163,7 +163,7 @@ async function mockDashboard(page: Page, options: { controls: boolean; onRestart
     if (path === `jobs/${jobRef}/restart` && request.method() === 'POST') {
       if (!options.controls) return json({ title: 'Controls disabled.' }, 404);
       options.onRestart?.();
-      return json({ jobRef, action: 'applied', status: 'ready', message: 'Job restarted.' });
+      return json({ action: 'applied', status: 'ready', version: 4 });
     }
 
     return json({ title: `No mock for ${request.method()} ${path}` }, 404);
@@ -226,7 +226,7 @@ test('safe single-job control sends exactly one restart request', async ({ page 
   await dialog.getByLabel(/Reason \(required/).fill('Provider recovered; operator retry.');
   await dialog.getByRole('button', { name: 'Run again' }).click();
 
-  await expect(page.getByText('Job restarted.')).toBeVisible();
+  await expect(page.getByText('Restart applied.')).toBeVisible();
   expect(restartRequests).toBe(1);
 });
 

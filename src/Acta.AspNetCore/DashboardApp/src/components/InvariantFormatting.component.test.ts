@@ -31,10 +31,9 @@ function mockControlFetch(requests: CapturedRequest[]) {
           status: 'paused',
           pausedUntilUtc: '2026-07-15T08:26:00.000Z',
           nextRunAtUtc: null,
-          version: 2,
-          message: 'Schedule paused.'
+          version: 2
         }
-      : { jobRef: 'job_test', action: 'applied', status: 'ready', message: 'Job rescheduled.' };
+      : { action: 'applied', status: 'ready', version: 3 };
     return new Response(JSON.stringify(body), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }

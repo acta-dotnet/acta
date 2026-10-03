@@ -160,7 +160,7 @@ describe('DefinitionDetail retire', () => {
         calls.push({ url, init });
         if (url.pathname.endsWith('/retire')) {
           return new Response(
-            JSON.stringify({ jobNamespace, jobName, action: 'applied', message: 'Definition retired.' }),
+            JSON.stringify({ action: 'applied' }),
             { status: 200 }
           );
         }

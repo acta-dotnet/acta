@@ -31,12 +31,12 @@ test('invalidateAll marks every caller-named query key invalidated', () => {
 
 test('controlRequest maps a 409 with a typed body to the rejected result', async () => {
   globalThis.fetch = (async () =>
-    new Response(JSON.stringify({ action: 'rejected', message: 'Job is not pausable.' }), { status: 409 })) as typeof fetch;
+    new Response(JSON.stringify({ action: 'rejected', status: 'succeeded', version: 3 }), { status: 409 })) as typeof fetch;
 
   const result = await controlRequest(
     'jobs/J1/pause',
     { reasonMessage: null },
-    { action: 'notFound', jobRef: 'J1', status: null, message: 'Job not found.' },
+    { action: 'notFound', status: null, version: null },
     'POST'
   );
 
@@ -46,7 +46,7 @@ test('controlRequest maps a 409 with a typed body to the rejected result', async
 test('controlRequest maps a 404 with no body to the caller-supplied not-found fallback', async () => {
   globalThis.fetch = (async () => new Response(null, { status: 404 })) as typeof fetch;
 
-  const notFound = { action: 'notFound', jobRef: 'J1', status: null, message: 'Job not found.' };
+  const notFound = { action: 'notFound', status: null, version: null };
   const result = await controlRequest('jobs/J1/pause', { reasonMessage: null }, notFound, 'POST');
 
   assert.deepEqual(result, notFound);
@@ -54,29 +54,29 @@ test('controlRequest maps a 404 with no body to the caller-supplied not-found fa
 
 test('controlRequest returns the parsed body on 200', async () => {
   globalThis.fetch = (async () =>
-    new Response(JSON.stringify({ action: 'applied', message: 'Paused.' }), { status: 200 })) as typeof fetch;
+    new Response(JSON.stringify({ action: 'applied', status: 'paused', version: 2 }), { status: 200 })) as typeof fetch;
 
   const result = await controlRequest(
     'jobs/J1/pause',
     { reasonMessage: null },
-    { action: 'notFound', jobRef: 'J1', status: null, message: 'Job not found.' },
+    { action: 'notFound', status: null, version: null },
     'POST'
   );
 
-  assert.deepEqual(result, { action: 'applied', message: 'Paused.' });
+  assert.deepEqual(result, { action: 'applied', status: 'paused', version: 2 });
 });
 
 test('controlRequest sends a truly empty body (no bytes) when body is undefined - presence-only signal', async () => {
   let capturedBody: unknown;
   globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
     capturedBody = init?.body;
-    return new Response(JSON.stringify({ action: 'applied', message: 'Signal raised.' }), { status: 200 });
+    return new Response(JSON.stringify({ action: 'applied', status: 'ready', version: 2 }), { status: 200 });
   }) as typeof fetch;
 
   const result = await controlRequest(
     'jobs/J1/signals/retry',
     undefined,
-    { action: 'notFound', jobRef: 'J1', status: null, message: 'Job not found.' },
+    { action: 'notFound', status: null, version: null },
     'POST'
   );
 
@@ -116,7 +116,7 @@ test('controlRequest throws with the problem detail on an unmapped status', asyn
       controlRequest(
         'jobs/J1/pause',
         { reasonMessage: null },
-        { action: 'notFound', jobRef: 'J1', status: null, message: 'Job not found.' },
+        { action: 'notFound', status: null, version: null },
         'POST'
       ),
     /Controls are disabled on this host\./
