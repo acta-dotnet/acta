@@ -5,15 +5,10 @@ using Xunit;
 namespace Acta.Tests.Architecture;
 
 /// <summary>
-/// Two-tier table-ownership gate over provider SQL, whose layout is <c>Sql/{Module}/{Capability}/</c>
-/// (single-capability modules keep their files at the module root). The capability tier is the fine
-/// gate: every INSERT/UPDATE/DELETE target must be owned by the writing capability, with the atomic
-/// kernel routines declared one by one. The module tier is the architectural gate: a write crossing
-/// module lines needs its own declaration, so within-Execution coupling (enqueue touching runtimes,
-/// completion advancing schedules) stays visible at the fine tier without weakening the module rule.
-/// The <c>events</c> ledger is Execution-owned: Execution capabilities append freely, any other
-/// module's append is declared one by one, and nothing outside the declared purge routines may
-/// update or delete ledger rows.
+/// Table-ownership gate over provider SQL, whose layout is <c>Sql/{Area}/{Capability}/</c> (a
+/// single-capability area keeps its files at the area root): every INSERT/UPDATE/DELETE target must be
+/// owned by the writing capability, with the atomic kernel routines declared one by one. Any capability
+/// may append to the <c>events</c> ledger; only its owners and the declared routines update or delete it.
 /// </summary>
 public sealed partial class SqlOwnershipTests
 {
@@ -43,39 +38,11 @@ public sealed partial class SqlOwnershipTests
         ["workers"] = ["Workers"],
     };
 
-    /// <summary>Capability -> owning module, for the module tier (mirrors the Sql/ folder layout).</summary>
-    private static readonly Dictionary<string, string> CapabilityModule = new(StringComparer.Ordinal)
-    {
-        ["Execution"] = "Execution",
-        ["Checkpoints"] = "Execution",
-        ["ChildLatches"] = "Execution",
-        ["Schema"] = "Schema",
-        ["Timers"] = "Execution",
-        ["Jobs"] = "Execution",
-        ["Signals"] = "Execution",
-        ["Notes"] = "Execution",
-        ["Workers"] = "Execution",
-        ["Schedules"] = "Execution",
-        ["Definitions"] = "Execution",
-        ["Namespaces"] = "Execution",
-        ["Tenants"] = "Execution",
-        ["Alerting"] = "Alerting",
-        ["Outbox"] = "Outbox",
-        ["Overview"] = "Operations",
-        ["Events"] = "Operations",
-        ["Tags"] = "Operations",
-        ["Settings"] = "Execution",
-        ["Maintenance"] = "Maintenance",
-        ["Locks"] = "Services",
-        ["Time"] = "Services",
-    };
-
     /// <summary>
-    /// "{Capability}/{OperationStem}" routines allowed to write outside their owned tables within
-    /// their module: the atomic kernel invariants (enqueue tagging, completion advancing schedules
-    /// and latches, schedule registration materializing job slots, state reset, restart re-opening
-    /// exhausted steps, retention purge, and the operator retire cancelling the definition's parked
-    /// runtimes).
+    /// "{Capability}/{OperationStem}" routines allowed to write outside their owned tables: the atomic
+    /// kernel invariants (enqueue tagging, completion advancing schedules and latches, schedule
+    /// registration materializing job slots, state reset, restart re-opening exhausted steps, retention
+    /// purge, and the operator retire cancelling the definition's parked runtimes).
     /// </summary>
     private static readonly HashSet<string> CrossOwnerRoutines = new(StringComparer.Ordinal)
     {
@@ -99,43 +66,6 @@ public sealed partial class SqlOwnershipTests
         "Maintenance/PurgeExpiredData",
     };
 
-    /// <summary>
-    /// The declared process-manager routines (the proposal's cross-owner atomic exception), each
-    /// with the exact foreign tables it may write: enqueue stamping tags, single-job purge removing
-    /// the job's tag/alert satellites, and the retention sweep. A new foreign-table write inside one
-    /// of these routines fails until its table is declared here.
-    /// </summary>
-    private static readonly Dictionary<string, string[]> ProcessManagerRoutines = new(StringComparer.Ordinal)
-    {
-        ["Jobs/EnqueueOne"] = ["tags"],
-        ["Jobs/EnqueueBatch"] = ["tags"],
-        ["Jobs/PurgeJob"] = ["tags", "alerts"],
-        ["Maintenance/PurgeExpiredData"] =
-        [
-            "jobs",
-            "runtimes",
-            "checkpoints",
-            "steps",
-            "results",
-            "events",
-            "alerts",
-            "workers",
-            "locks",
-            "lanes",
-            "tags",
-        ],
-    };
-
-    /// <summary>
-    /// Non-Execution routines allowed to APPEND to the Execution-owned <c>events</c> ledger:
-    /// Alerting's operator verbs record their audit event with the status flip in one transaction.
-    /// </summary>
-    private static readonly HashSet<string> ForeignEventAppendRoutines = new(StringComparer.Ordinal)
-    {
-        "Alerting/AcknowledgeJobAlert",
-        "Alerting/ResolveJobAlertManual",
-    };
-
     // Write targets across dialects: plain INSERT/UPDATE/DELETE plus the T-SQL alias forms
     // ("DELETE a FROM {{schema}}.alerts a", "UPDATE r ... FROM {{schema}}.runtimes r"), which the
     // plain patterns would silently skip.
@@ -155,24 +85,12 @@ public sealed partial class SqlOwnershipTests
         var violations = new List<string>();
         foreach (var (path, sql) in ProviderSqlResources.Enumerate(dialect))
         {
-            // Sql/{Module}/{Capability}/{Stem}[.routine].sql, or Sql/{Module}/{Stem}[.routine].sql
-            // when the module has a single capability (capability == module folder name).
+            // Sql/{Area}/{Capability}/{Stem}[.routine].sql, or Sql/{Area}/{Stem}[.routine].sql when the area
+            // has a single capability (capability == area folder name).
             var segments = path.Split('/');
-            var module = segments[1];
             var capability = segments.Length > 3 ? segments[2] : segments[1];
             var stem = segments[^1].Replace(".routine", "").Replace(".sql", "");
             var routine = $"{capability}/{stem}";
-
-            if (!CapabilityModule.TryGetValue(capability, out var declaredModule))
-            {
-                violations.Add($"{dialect}:{path}: unmapped capability folder '{capability}'");
-                continue;
-            }
-
-            if (declaredModule != module)
-            {
-                violations.Add($"{dialect}:{path}: capability '{capability}' belongs under Sql/{declaredModule}/, not Sql/{module}/");
-            }
 
             var writes = WriteTarget
                 .Matches(sql)
@@ -185,7 +103,7 @@ public sealed partial class SqlOwnershipTests
                 .Concat(AliasedUpdateTarget.Matches(sql).Select(m => (Table: m.Groups["table"].Value.ToLowerInvariant(), IsInsert: false)));
             foreach (var (table, isInsert) in writes)
             {
-                if (table == "events" && isInsert && (module == "Execution" || ForeignEventAppendRoutines.Contains(routine)))
+                if (table == "events" && isInsert)
                 {
                     continue;
                 }
@@ -199,17 +117,6 @@ public sealed partial class SqlOwnershipTests
                 if (!owners.Contains(capability) && !CrossOwnerRoutines.Contains(routine))
                 {
                     violations.Add($"{dialect}:{path}: writes {owners[0]}-owned table '{table}' (declare '{routine}' or move the write)");
-                }
-
-                var ownerModule = CapabilityModule[owners[0]];
-                if (
-                    ownerModule != module
-                    && !(ProcessManagerRoutines.TryGetValue(routine, out var foreignTables) && foreignTables.Contains(table))
-                )
-                {
-                    violations.Add(
-                        $"{dialect}:{path}: {module}-module routine writes {ownerModule}-owned table '{table}' (declare the table under '{routine}' in ProcessManagerRoutines or move the write)"
-                    );
                 }
             }
         }

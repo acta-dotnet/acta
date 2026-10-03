@@ -1,6 +1,6 @@
 # Source layout
 
-Where code lives in `src/`, and the tests that hold it there. rc.5 moves the tree to this layout one group at a time. Until it lands, `tests/ratchets/` lists what still differs, and [modular architecture](modular-architecture.md) describes the code that has not moved yet.
+Where code lives in `src/`, and the tests that hold it there. rc.5 moves the tree to this layout one group at a time. Until it lands, `tests/ratchets/` lists what still differs.
 
 ## Projects
 

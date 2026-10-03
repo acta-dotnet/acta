@@ -61,5 +61,4 @@ Contributor-facing; not needed to use Acta: [design principles and settled decis
 [source layout](./internals/source-layout.md),
 [benchmarks](./benchmarks/stress-tests.md),
 [certification seals](./certification/README.md),
-[modular architecture](./internals/modular-architecture.md),
 and [operator surface](./internals/operator-surface.md).
