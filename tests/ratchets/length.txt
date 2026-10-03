@@ -1,0 +1,16 @@
+# Known length violations; entries may only be removed.
+ActaApiEndpoints.cs
+ActaManifestGenerator.cs
+ActaSchema.Sql.cs
+ActaSchemaGenerator.cs
+AlertsJob.cs
+CodeGenerator.cs
+DbProjectionGenerator.cs
+DefinitionsService.cs
+JobContext.cs
+JobExecution.cs
+JobExecutor.cs
+JobsService.cs
+RuntimeJobContext.cs
+SqlServerDialect.cs
+WorkerRuntimeInitializer.cs
