@@ -95,8 +95,7 @@ public sealed class AtMostOnceStepManifest : IJobManifest
     Area = "Steps",
     Contract = "AtMostOnce runs the body 0 or 1 times: a pending slot re-entered on replay terminalizes Interrupted and throws instead of re-invoking, version-idempotently."
 )]
-public abstract class StepAtMostOnceSpec<TFixture> : ActaRuntimeTestBase<TFixture, AtMostOnceStepManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture, AtMostOnceStepManifest>
 {
     private const string StepName = AtMostOnceStepHandler.StepName;
 

@@ -39,6 +39,9 @@
          of 0, a batch size of 2, an alert delivery retry cap of 2. A spec proving the behaviour has to
          reach the knob a deployment must not. -->
     <InternalsVisibleTo Include="Acta.Tests.Conformance" />
+    <InternalsVisibleTo Include="Acta.Tests.Conformance.Postgres" />
+    <InternalsVisibleTo Include="Acta.Tests.Conformance.SqlServer" />
+    <InternalsVisibleTo Include="Acta.Tests.Conformance.Sqlite" />
     <!-- The benchmark sweeps the lease window as an experiment variable, which a deployment cannot. -->
     <InternalsVisibleTo Include="Anvil.Bench" />
   </ItemGroup>

@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     Area = "Control",
     Contract = "Restart revives Failed or Cancelled resetting failure_count, Cancel stamps retention and rejects re-cancel, Pause allows re-pause, Resume coalesces next run."
 )]
-public abstract class ControlVerbStateMatrixSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class ControlVerbStateMatrixSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "Restart revives Failed and Cancelled jobs resetting failure_count to 0 and clearing retention")]
     public async Task Restart_revives_Failed_and_Cancelled_resetting_failure_count_and_retention()

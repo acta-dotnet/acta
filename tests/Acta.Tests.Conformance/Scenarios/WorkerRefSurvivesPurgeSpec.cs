@@ -19,8 +19,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Retention",
     Contract = "Purging the workers row leaves its events with a null joined worker ref, a canonical wrk_ actor key, and the historical worker id still selecting them."
 )]
-public abstract class WorkerRefSurvivesPurgeSpec<TFixture> : ActaStorageTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class WorkerRefSurvivesPurgeSpec : ActaStorageTestBase<ConformanceFixture>
 {
     // Windows wide enough that the jobs, events, and alerts sections are no-ops: only the worker
     // section, driven by a future cutoff, may delete anything in this spec.

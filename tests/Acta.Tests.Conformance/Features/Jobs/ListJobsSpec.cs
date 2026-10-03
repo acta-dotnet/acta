@@ -17,8 +17,7 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     Area = "Reads",
     Contract = "ListJobs pages newest first by cursor without duplicates and reads the page plus an opt-in filter-wide count in one command."
 )]
-public abstract class ListJobsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class ListJobsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private async Task<IReadOnlyList<long>> SeedJobsForList(int count)
     {

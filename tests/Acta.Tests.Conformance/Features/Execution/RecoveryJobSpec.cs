@@ -21,8 +21,7 @@ namespace Acta.Tests.Conformance.Features.Execution;
     Area = "Recovery",
     Contract = "One sys.recovery tick returns lease-expired jobs to Ready, re-raises child latches lost to a crash, and wakes the workers that can claim them."
 )]
-public abstract class RecoveryJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class RecoveryJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // Claim with a negative TTL so the lease lands in the past, deterministically simulating a worker
     // that claimed then died long enough ago for its lease to lapse.

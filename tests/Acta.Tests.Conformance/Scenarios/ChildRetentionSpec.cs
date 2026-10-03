@@ -19,8 +19,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "ChildJobs",
     Contract = "Retention and manual purge keep a completed child whose parent is not terminal, and release it, leaves first, once the parent is."
 )]
-public abstract class ChildRetentionSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class ChildRetentionSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private int NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 

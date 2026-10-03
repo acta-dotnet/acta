@@ -17,8 +17,7 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     Area = "Alerts",
     Contract = "A repeat firing absorbed by an open incident bumps occurrence_count on the existing row and leaves its public alert ref exactly as the first firing minted it."
 )]
-public abstract class AlertRefDedupeStabilitySpec<TFixture> : ActaStorageTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class AlertRefDedupeStabilitySpec : ActaStorageTestBase<ConformanceFixture>
 {
     private long JobIdValue;
 

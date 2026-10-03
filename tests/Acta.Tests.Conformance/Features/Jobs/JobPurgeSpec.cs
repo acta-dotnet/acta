@@ -19,8 +19,7 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     Area = "Control",
     Contract = "PurgeAsync deletes a terminal job's events, alerts, and row (cascade sweeps the rest), always emits job.purged, and rejects non-terminal or live-child jobs."
 )]
-public abstract class JobPurgeSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class JobPurgeSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "PurgeAsync hard-deletes a Succeeded job and audits job.purged")]
     public async Task Purge_done_job_deletes_it_and_audits()

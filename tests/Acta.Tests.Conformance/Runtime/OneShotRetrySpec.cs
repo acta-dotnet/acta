@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Area = "Execution",
     Contract = "A failed one-shot re-arms to Ready incrementing failure_count while attempts remain and lands terminal Failed once MaxAttempts is reached."
 )]
-public abstract class OneShotRetrySpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class OneShotRetrySpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(
         DisplayName = "In-budget failures re-arm to Ready bumping failure_count and an exhausted budget lands Failed with the failure reason preserved"

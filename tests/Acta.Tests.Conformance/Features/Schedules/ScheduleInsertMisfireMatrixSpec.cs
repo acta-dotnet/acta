@@ -19,8 +19,7 @@ namespace Acta.Tests.Conformance.Features.Schedules;
     Area = "Scheduling",
     Contract = "The startup schedule insert persists the misfire-reconciled next-run cursor and upserts the single schedule row."
 )]
-public abstract class ScheduleInsertMisfireMatrixSpec<TFixture> : ActaStorageTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class ScheduleInsertMisfireMatrixSpec : ActaStorageTestBase<ConformanceFixture>
 {
     private static readonly DateTime Generation = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private static readonly DateTime Base = new(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc);

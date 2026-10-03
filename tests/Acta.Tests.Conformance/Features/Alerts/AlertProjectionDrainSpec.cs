@@ -22,8 +22,7 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     Area = "Alerts",
     Contract = "One sys.alerts generate pass drains repeated batches until the backlog empties or a bound is reached, checkpointing its cursor after every batch."
 )]
-public abstract class AlertProjectionDrainSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class AlertProjectionDrainSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
 {
     // Small enough that a fact reaches the cap in twenty staged events, and shaped so the cap
     // (4 x 3 = 12) lands strictly inside a 20-event backlog: the pass must stop with events left, or

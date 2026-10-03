@@ -91,8 +91,7 @@ public sealed class MultiScheduleSlotManifest : IJobManifest
     Area = "Scheduling",
     Contract = "A slot with multiple schedules arms next_run_at_utc to the MIN cursor and recomputes the MIN after each fire."
 )]
-public abstract class MultiScheduleSlotSpec<TFixture> : ActaRuntimeTestBase<TFixture, MultiScheduleSlotManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class MultiScheduleSlotSpec : ActaRuntimeTestBase<ConformanceFixture, MultiScheduleSlotManifest>
 {
     // Live slot cursors are this spec's subject; the harness default would park them.
     protected override bool ParkScheduleSlots => false;

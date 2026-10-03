@@ -8,7 +8,7 @@ namespace Acta.Tests.Conformance.Runtime;
 /// <summary>
 /// Asserts the catalog side-effects of <c>WorkerRuntime.InitializeAsync</c> for a generated
 /// <c>TestJobs.TestJobsManifest</c>. <c>InitializeAsync</c> ran before the test body via
-/// <see cref="ActaRuntimeTestBase{TFixture, TManifest}.AfterInitializeAsync"/>; <c>StartAsync</c>
+/// <see cref="ActaRuntimeTestBase{ConformanceFixture, TManifest}.AfterInitializeAsync"/>; <c>StartAsync</c>
 /// was deliberately NOT called.
 /// </summary>
 [ConformanceSpec(
@@ -17,8 +17,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Area = "Catalog",
     Contract = "InitializeAsync writes namespace and worker rows with a WorkerStarted event, persists each definition's full policy or framework defaults, and is idempotent."
 )]
-public abstract class WorkerRuntimeRegistrationSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class WorkerRuntimeRegistrationSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "Init assigns a namespace id and writes the namespace row")]
     public async Task Initialize_assigns_namespace_id_and_writes_namespace_row()

@@ -6,12 +6,11 @@ namespace Acta.Tests.Conformance.Features.Outbox;
 
 /// <summary>
 /// Base for external-outbox source-store specs. Each test gets its own canonical source table (keyed by
-/// <see cref="ActaTestBase{TFixture}.TestId"/>) so parallel specs never claim each other's rows, and a
+/// <see cref="ActaTestBase{ConformanceFixture}.TestId"/>) so parallel specs never claim each other's rows, and a
 /// store built over that table. The store is exercised directly, with no Acta-ledger session or DI: a
 /// worker relays a source database independently of its own ledger provider.
 /// </summary>
-public abstract class OutboxSpecBase<TFixture> : ActaTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public abstract class OutboxSpecBase : ActaTestBase<ConformanceFixture>
 {
     private protected string TableName { get; private set; } = null!;
 
@@ -52,7 +51,7 @@ public abstract class OutboxSpecBase<TFixture> : ActaTestBase<TFixture>
 
     // A row already Claimed by a prior relay whose lease has expired, so a fresh claim must recover it.
     private protected OutboxSeed ClaimedExpiredRow(string dedup, Guid staleToken) =>
-        OutboxSpecBase<TFixture>.DueRow(dedup) with
+        OutboxSpecBase.DueRow(dedup) with
         {
             StatusCode = (byte)OutboxStatusCode.Claimed,
             ClaimToken = staleToken,
@@ -65,7 +64,7 @@ public abstract class OutboxSpecBase<TFixture> : ActaTestBase<TFixture>
     // Seed one due row and claim it, returning its id and the owning token for a finalize proof.
     private protected async Task<(Guid Id, Guid Token)> SeedAndClaimAsync(string dedup, CancellationToken ct)
     {
-        var row = OutboxSpecBase<TFixture>.DueRow(dedup);
+        var row = OutboxSpecBase.DueRow(dedup);
         await Fixture.SeedOutboxRowAsync(TableName, row);
         var token = Guid.NewGuid();
         var claimed = await ClaimAsync(token, batchSize: 10, ct);

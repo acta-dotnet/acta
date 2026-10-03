@@ -24,15 +24,22 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Acta.Tests.Conformance is a class library (NOT IsTestProject) publishing the
-         provider-neutral abstract spec base classes. Subclasses in this project inherit them and
-         supply a Postgres-backed host. xUnit auto-discovers tests on the concrete subclasses in
-         this assembly. The shared-library shape avoids the CS0436 SelfRegisteredExtensions
-         duplicate that surfaces when two IsTestProject=true assemblies reference each other. -->
+    <!-- Acta.Tests.Conformance is a class library (NOT IsTestProject) holding the shared test
+         infrastructure; the shared specs compile into this project instead (the Compile items below).
+         The library shape avoids the CS0436 SelfRegisteredExtensions duplicate that surfaces when two
+         IsTestProject=true assemblies reference each other. -->
     <ProjectReference Include="..\Acta.Tests.Conformance\Acta.Tests.Conformance.csproj" />
     <ProjectReference Include="..\..\src\Acta.Postgres\Acta.Postgres.csproj" />
     <!-- Source-only reference for the one mixed-provider case: a SQLite outbox source relayed into the
          Postgres ledger, proving the source and target provider registrations are independent. -->
     <ProjectReference Include="..\..\src\Acta.Sqlite\Acta.Sqlite.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The shared specs, bound to this provider by the ConformanceFixture alias in GlobalUsings.cs. -->
+    <Compile Include="..\Acta.Tests.Conformance\GlobalUsings.cs" Link="Shared\GlobalUsings.cs" />
+    <Compile Include="..\Acta.Tests.Conformance\DbSession\**\*.cs" LinkBase="Shared\DbSession" />
+    <Compile Include="..\Acta.Tests.Conformance\Features\**\*.cs" LinkBase="Shared\Features" />
+    <Compile Include="..\Acta.Tests.Conformance\Runtime\**\*.cs" LinkBase="Shared\Runtime" />
+    <Compile Include="..\Acta.Tests.Conformance\Scenarios\**\*.cs" LinkBase="Shared\Scenarios" />
   </ItemGroup>
 </Project>

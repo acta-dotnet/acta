@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.Features.Locks;
     Area = "Locks",
     Contract = "Extending a held lock renews it so a competing acquirer stays blocked, and extending after release is a version-CAS miss that frees the key."
 )]
-public abstract class ExtendLockSpec<TFixture> : ActaStorageTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class ExtendLockSpec : ActaStorageTestBase<ConformanceFixture>
 {
     [Fact(DisplayName = "A held lock extends and blocks rivals, and after release the extend is a CAS miss leaving the key re-acquirable")]
     public async Task ExtendAsync_RenewsAHeldLock_AndMissesAfterRelease()

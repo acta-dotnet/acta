@@ -13,8 +13,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
 /// wired <c>sys.outbox</c> job uses in production. Declares no <c>[Fact]</c> so it is not itself a
 /// candidate contract spec; each concrete spec adds its own metadata and guarantees.
 /// </summary>
-public abstract class OutboxRelayIntegrationBase<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public abstract class OutboxRelayIntegrationBase : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private protected string SourceTable { get; private set; } = null!;
 

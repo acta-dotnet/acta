@@ -19,8 +19,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Steps",
     Contract = "A step runs its body once, replay-skips a succeeded slot, retries an in-budget failure budget-neutrally, and exhausts to StepExhaustedException."
 )]
-public abstract class StepSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "A typed step runs its body once and returns the stored result")]
     public async Task Typed_step_runs_once_and_returns_result()

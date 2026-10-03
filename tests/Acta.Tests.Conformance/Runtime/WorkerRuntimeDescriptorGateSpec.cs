@@ -19,8 +19,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Area = "Catalog",
     Contract = "InitializeAsync validates every descriptor's shape before writing the worker row, so an invalid descriptor leaves no workers row and no WorkerStarted event."
 )]
-public abstract class WorkerRuntimeDescriptorGateSpec<TFixture> : ActaRuntimeTestBase<TFixture, InvalidBackoffManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class WorkerRuntimeDescriptorGateSpec : ActaRuntimeTestBase<ConformanceFixture, InvalidBackoffManifest>
 {
     // Every other runtime spec initializes in the fixture. Here the failure is the subject, so it has
     // to happen inside the test body, where the throw and the untouched catalog are both assertable.

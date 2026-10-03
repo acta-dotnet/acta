@@ -20,8 +20,7 @@ namespace Acta.Tests.Conformance.Features.Workers;
     Area = "Workers",
     Contract = "A heartbeat from a worker marked Dead makes it Active again, or Draining when it drains, and a Stopped worker stays Stopped."
 )]
-public abstract class ReviveDeadWorkerSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class ReviveDeadWorkerSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "A heartbeat returns a Dead worker to Active, or to Draining mid-drain, and leaves a Stopped worker Stopped")]
     public async Task Heartbeat_revives_a_dead_worker()

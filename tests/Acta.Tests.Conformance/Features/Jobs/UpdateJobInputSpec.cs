@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     Area = "Control",
     Contract = "UpdateJobInput replaces a job's input in any status except Dispatched/Executing and audits job.input-amended with prior-payload metadata, never the payload."
 )]
-public abstract class UpdateJobInputSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "UpdateJobInput amends a Ready job's input and audits the old payload's format and byte count")]
     public async Task Amend_ready_job_applies_new_input_and_audits_old_payload()

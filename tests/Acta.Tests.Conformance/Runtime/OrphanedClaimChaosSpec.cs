@@ -20,8 +20,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Area = "Runtime",
     Contract = "A row leased by this worker with no attempt behind it for two heartbeats is re-armed Ready, and a row an attempt or the buffer holds is left alone."
 )]
-public abstract class OrphanedClaimChaosSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class OrphanedClaimChaosSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private StoreFaultPlan _faults = null!;
 

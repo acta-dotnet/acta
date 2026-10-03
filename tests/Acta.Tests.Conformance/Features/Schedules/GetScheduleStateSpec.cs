@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.Features.Schedules;
     Area = "Scheduling",
     Contract = "GetScheduleState returns the non-orphaned per-schedule cursors for the given namespace id, or an empty list when none exist."
 )]
-public abstract class GetScheduleStateSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class GetScheduleStateSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // Live slot cursors are this spec's subject; the harness default would park them.
     protected override bool ParkScheduleSlots => false;

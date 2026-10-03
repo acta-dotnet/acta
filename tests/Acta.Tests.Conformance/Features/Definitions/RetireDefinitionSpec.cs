@@ -20,8 +20,7 @@ namespace Acta.Tests.Conformance.Features.Definitions;
     Area = "Catalog",
     Contract = "Retiring a definition cancels its Ready, Suspended and Paused jobs with reason JobDefinitionRetired, leaves a running attempt alone, and refuses enqueue."
 )]
-public abstract class RetireDefinitionSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
 {
     private const string ActorKey = "spec-operator";
 

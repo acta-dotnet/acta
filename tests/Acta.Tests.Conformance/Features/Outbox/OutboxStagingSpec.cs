@@ -17,8 +17,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     Area = "Outbox",
     Contract = "The staging extension writes one canonical outbox row on the caller transaction, so it commits or rolls back with the business write and is then claimable."
 )]
-public abstract class OutboxStagingSpec<TFixture> : ActaTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class OutboxStagingSpec : ActaTestBase<ConformanceFixture>
 {
     [Fact(DisplayName = "A committed stage persists the business row and a claimable, reconstructable outbox row")]
     public async Task Commit_persists_and_row_is_claimable()

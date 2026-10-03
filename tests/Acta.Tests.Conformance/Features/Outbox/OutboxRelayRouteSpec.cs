@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     Area = "Outbox",
     Contract = "A row toward an unregistered route reschedules quietly with a bumped failure count and delivers once the route is later registered."
 )]
-public abstract class OutboxRelayRouteSpec<TFixture> : OutboxRelayIntegrationBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class OutboxRelayRouteSpec : OutboxRelayIntegrationBase
 {
     [Fact(DisplayName = "A row toward an unregistered route reschedules quietly, then delivers exactly once after the route is registered")]
     public async Task Unknown_route_reschedules_then_delivers_after_later_registration()

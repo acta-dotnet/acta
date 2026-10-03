@@ -20,8 +20,7 @@ namespace Acta.Tests.Conformance.Features.Execution;
     Area = "Recovery",
     Contract = "An expired-lease job returns to Ready with failure_count incremented, or lands terminal Failed once MaxAttempts is reached."
 )]
-public abstract class ReclaimStuckJobsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // Claim with a negative TTL so the lease lands in the past, deterministically simulating a worker
     // that claimed then died long enough ago for its lease to lapse. Passed straight to ClaimOneAsync,

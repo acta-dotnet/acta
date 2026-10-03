@@ -20,8 +20,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Retention",
     Contract = "Retention sweeps racing over the same expired lock rows each reap rows no other sweep holds, and together they reap all of them without a deadlock."
 )]
-public abstract class ConcurrentLockSweepSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class ConcurrentLockSweepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private const int ExpiredRows = 1000;
     private const int Sweeps = 8;

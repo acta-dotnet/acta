@@ -13,8 +13,7 @@ namespace Acta.Tests.Conformance.Features.Namespaces;
     Area = "Admin",
     Contract = "Suspend and resume flip namespace status with a version bump, emit namespace.suspended/resumed to the namespace, and reject sys at the facade."
 )]
-public abstract class SuspendResumeNamespaceSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class SuspendResumeNamespaceSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     protected override bool RunAsWorker => true;
 

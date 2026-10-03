@@ -22,8 +22,7 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     Area = "Control",
     Contract = "AcknowledgeAsync and ResolveAsync stamp and audit once and are idempotent, and only ResolveAsync suppresses a queued delivery and ends the reminders."
 )]
-public abstract class AlertAcknowledgeResolveSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class AlertAcknowledgeResolveSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "AcknowledgeAsync sets the timestamp, audits alert.acknowledged, and updates the acknowledged list filter")]
     public async Task Acknowledge_applies_and_audits()

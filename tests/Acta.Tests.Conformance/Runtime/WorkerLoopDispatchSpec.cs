@@ -24,8 +24,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Area = "Execution",
     Contract = "RunLoopAsync drains a backlog, sleeps idle until the claim horizon capped by SafetyPollInterval, wakes early on wakeup publishes, and cancels cleanly."
 )]
-public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class WorkerLoopDispatchSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // Sized for the fallback fact, the only one that waits a safety poll out. The wake facts read how an
     // idle sleep ended, and a write queued behind a busy SQLite lock can outlast eight seconds, so they

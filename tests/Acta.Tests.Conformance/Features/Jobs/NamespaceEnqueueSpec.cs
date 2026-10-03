@@ -13,7 +13,7 @@ namespace Acta.Tests.Conformance.Features.Jobs;
 /// UPDATE rather than through <c>INamespaces.SuspendAsync</c>, so this spec pins the enqueue gate on
 /// the persisted status alone and stays independent of the admin verb (which
 /// <c>SuspendResumeNamespaceSpec</c> covers), mirroring
-/// <see cref="TenantEnqueueSpec{TFixture}"/>'s suspended-tenant coverage.
+/// <see cref="TenantEnqueueSpec{ConformanceFixture}"/>'s suspended-tenant coverage.
 /// </summary>
 [ConformanceSpec(
     "enqueue-jobs.namespace-gate",
@@ -21,8 +21,7 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     Area = "Enqueue",
     Contract = "EnqueueOne/EnqueueBatch reject enqueue into a suspended namespace and accept it again once the namespace is reactivated."
 )]
-public abstract class NamespaceEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class NamespaceEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     protected override bool RunAsWorker => true;
 

@@ -13,8 +13,7 @@ namespace Acta.Tests.Conformance.Features.Schema;
     Area = "Schema",
     Contract = "Applying M001 to a fresh schema installs exactly the modelled entity tables."
 )]
-public abstract class M001InstallSpec<TFixture> : IntegrationSpec<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class M001InstallSpec : IntegrationSpec<ConformanceFixture>
 {
     // The migration runner's own bookkeeping ledger (created by the runner's EnsureMigrations step)
     // is not an entity in the model, so it is the one base table permitted beyond the entity set.

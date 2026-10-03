@@ -19,8 +19,7 @@ namespace Acta.Tests.Conformance.Features.Schedules;
     Area = "Scheduling",
     Contract = "Pausing a schedule excludes it from the slot MIN without moving its cursor, resume reconciles by misfire and operator pause survives redeploy."
 )]
-public abstract class SchedulePauseResumeSpec<TFixture> : ActaStorageTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class SchedulePauseResumeSpec : ActaStorageTestBase<ConformanceFixture>
 {
     private static readonly DateTime Generation = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private const string Cron5 = "*/5 * * * *";

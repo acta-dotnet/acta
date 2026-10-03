@@ -16,8 +16,7 @@ namespace Acta.Tests.Conformance.Features.Tenants;
     Area = "Reads",
     Contract = "ListTenants pages tenants by key ascending without duplicates and reads the page plus an opt-in filter-wide count in one command."
 )]
-public abstract class ListTenantsSpec<TFixture> : ActaStorageTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class ListTenantsSpec : ActaStorageTestBase<ConformanceFixture>
 {
     private IDbSession Store() => Db;
 

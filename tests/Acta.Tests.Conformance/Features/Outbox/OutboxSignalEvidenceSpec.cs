@@ -17,8 +17,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     Area = "Outbox",
     Contract = "RecordApplied appends the outbox event against the slot job with the operator actor and reason evidence, even when the job's audit level records nothing else."
 )]
-public abstract class OutboxSignalEvidenceSpec<TFixture> : ActaStorageTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class OutboxSignalEvidenceSpec : ActaStorageTestBase<ConformanceFixture>
 {
     [Fact(DisplayName = "The evidence event lands on the slot job with the operator actor and reason intact")]
     public async Task Applied_command_evidence_event_is_always_emitted()

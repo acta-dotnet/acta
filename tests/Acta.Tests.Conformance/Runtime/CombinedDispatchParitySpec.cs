@@ -21,8 +21,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Area = "Execution",
     Contract = "Under ExecutionProfile.Direct the combined claim-execute loop drains a backlog exactly once, claiming Ready to Executing in one round-trip."
 )]
-public abstract class CombinedDispatchParitySpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class CombinedDispatchParitySpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private const int JobCount = 50;
 

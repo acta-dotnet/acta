@@ -21,8 +21,7 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     Area = "Alerts",
     Contract = "A null deduplication key always inserts, a non-null key collapses repeats onto its one open row, and a raise after resolution opens a fresh row."
 )]
-public abstract class RaiseJobAlertSpec<TFixture> : ActaStorageTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class RaiseJobAlertSpec : ActaStorageTestBase<ConformanceFixture>
 {
     private const int ExecNo = 3;
 

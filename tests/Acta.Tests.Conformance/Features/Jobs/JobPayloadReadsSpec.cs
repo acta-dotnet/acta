@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     Area = "Reads",
     Contract = "GetJobInput returns a job's stored input payload and format or null when no row matches, and GetJobCheckpoints lists slots ordered by kind then name."
 )]
-public abstract class JobPayloadReadsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class JobPayloadReadsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "GetJobInput returns the payload the job was enqueued with")]
     public async Task Input_readable_after_enqueue_equals_enqueued()

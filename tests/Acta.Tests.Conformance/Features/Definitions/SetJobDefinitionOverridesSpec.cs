@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.Features.Definitions;
     Area = "Catalog",
     Contract = "Applies an override set version-guarded, recomputes effective, leaves defaults and definition_hash untouched, and emits a policy-changed event."
 )]
-public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class SetJobDefinitionOverridesSpec : ActaStorageTestBase<ConformanceFixture>
 {
     private static readonly DateTime Gen = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private static JobControlActor Actor => new(ActorCode.Operator, "tester");

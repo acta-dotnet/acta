@@ -23,8 +23,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Retention",
     Contract = "Purge deletes terminal jobs with cascade, expired events, aged alerts settled or not under separate counts, terminal workers and expired locks."
 )]
-public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // Window args that make a section a no-op for the rows produced in these tests: a huge positive
     // retention pushes the cutoff far into the past, so recent rows survive.

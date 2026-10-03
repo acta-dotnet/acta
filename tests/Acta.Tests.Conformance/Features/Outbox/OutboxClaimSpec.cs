@@ -16,8 +16,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     Area = "Outbox",
     Contract = "ClaimDue claims a bounded batch of due Pending rows in due-then-staging order, stamps one token and a database-clock lease, and claims no row twice."
 )]
-public abstract class OutboxClaimSpec<TFixture> : OutboxSpecBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class OutboxClaimSpec : OutboxSpecBase
 {
     [Fact(DisplayName = "Claim takes the earliest staged row whatever its priority and leaves the rest Pending")]
     public async Task Claim_follows_staging_order()

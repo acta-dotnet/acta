@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.Features.Execution;
     Area = "Execution",
     Contract = "A recurring completion never advances an orphaned or edited schedule, and derives the slot's status and next run from the schedules current at completion."
 )]
-public abstract class SchedulesChangedDuringExecutionSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class SchedulesChangedDuringExecutionSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     protected override bool ParkScheduleSlots => false;
 

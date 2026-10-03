@@ -9,7 +9,7 @@ namespace Acta.Tests.Conformance.Features.Definitions;
 /// Conformance for system-job auto-registration: <c>InitializeAsync</c> registers the
 /// <c>sys.recovery</c> system definition, its recurring slot (deduplication_key = the job name), and its
 /// schedule into the worker's namespace. The one spec that opts back into
-/// <see cref="ActaRuntimeTestBase{TFixture,TManifest}.RegisterSystemJobs"/>; every other execution
+/// <see cref="ActaRuntimeTestBase{ConformanceFixture,TManifest}.RegisterSystemJobs"/>; every other execution
 /// spec keeps the slots out so a single drive deterministically claims its own probe.
 /// </summary>
 [ConformanceSpec(
@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.Features.Definitions;
     Area = "Catalog",
     Contract = "InitializeAsync registers system definitions with a Ready recurring slot keyed on the job name and a default schedule."
 )]
-public abstract class FrameworkJobRegistrationSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class FrameworkJobRegistrationSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // Live slot cursors are this spec's subject; the harness default would park them.
     protected override bool ParkScheduleSlots => false;

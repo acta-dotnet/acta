@@ -17,8 +17,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     Area = "Outbox",
     Contract = "The DDL API emits a canonical outbox table the real relay store can claim, reschedule, quarantine, and delete against, proving the shape by behavior."
 )]
-public abstract class OutboxDdlSpec<TFixture> : ActaTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class OutboxDdlSpec : ActaTestBase<ConformanceFixture>
 {
     private const int LeaseTtlSeconds = 180;
 

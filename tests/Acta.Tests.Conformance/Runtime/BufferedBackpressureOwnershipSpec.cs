@@ -21,8 +21,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Area = "Runtime",
     Contract = "A row claimed but not written to a full Buffered channel is left alone by the heartbeat and handed back to Ready by a drain."
 )]
-public abstract class BufferedBackpressureOwnershipSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class BufferedBackpressureOwnershipSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // Six claimable rows behind the holding job: the channel holds three, so the second batch's write
     // blocks with rows behind it, and the sixth row stays Ready because the loop never gets to it.

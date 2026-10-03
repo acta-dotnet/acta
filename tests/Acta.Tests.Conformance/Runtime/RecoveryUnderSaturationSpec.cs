@@ -20,8 +20,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Area = "Recovery",
     Contract = "A recovery slot claimed by the Buffered loop runs outside the channel, so a stranded job is reclaimed while every executor is held."
 )]
-public abstract class RecoveryUnderSaturationSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class RecoveryUnderSaturationSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // The recovery slot is a system slot; the base leaves system slots out unless a spec asks for them.
     protected override bool RegisterSystemJobs => true;

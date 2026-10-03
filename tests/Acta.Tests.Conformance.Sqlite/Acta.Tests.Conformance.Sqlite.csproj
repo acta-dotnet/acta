@@ -29,4 +29,12 @@
     <ProjectReference Include="..\Acta.Tests.Conformance\Acta.Tests.Conformance.csproj" />
     <ProjectReference Include="..\..\src\Acta.Sqlite\Acta.Sqlite.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- The shared specs, bound to this provider by the ConformanceFixture alias in GlobalUsings.cs. -->
+    <Compile Include="..\Acta.Tests.Conformance\GlobalUsings.cs" Link="Shared\GlobalUsings.cs" />
+    <Compile Include="..\Acta.Tests.Conformance\DbSession\**\*.cs" LinkBase="Shared\DbSession" />
+    <Compile Include="..\Acta.Tests.Conformance\Features\**\*.cs" LinkBase="Shared\Features" />
+    <Compile Include="..\Acta.Tests.Conformance\Runtime\**\*.cs" LinkBase="Shared\Runtime" />
+    <Compile Include="..\Acta.Tests.Conformance\Scenarios\**\*.cs" LinkBase="Shared\Scenarios" />
+  </ItemGroup>
 </Project>

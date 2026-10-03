@@ -17,8 +17,7 @@ namespace Acta.Tests.Conformance.Features.Tenants;
     Area = "Catalog",
     Contract = "GetTenant returns the TenantListItem projection for a matching key or internal id regardless of status and null when no row matches."
 )]
-public abstract class GetTenantSpec<TFixture> : ActaStorageTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class GetTenantSpec : ActaStorageTestBase<ConformanceFixture>
 {
     private TenantsService Tenants() => Services.GetRequiredService<TenantsService>();
 

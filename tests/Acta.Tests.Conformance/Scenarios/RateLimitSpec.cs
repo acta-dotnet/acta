@@ -25,8 +25,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Concurrency",
     Contract = "A rate key admits its burst at once and then one per interval, booking each early job a turn it waits for or returns to."
 )]
-public abstract class RateLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private const int Burst = 10;
     private const int IntervalMilliseconds = 100;
@@ -613,7 +612,7 @@ public abstract class RateLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, Te
     private static JobDescriptor Descriptor(string name, string rateLimit) =>
         new(
             JobName: name,
-            HandlerType: typeof(RateLimitSpec<TFixture>),
+            HandlerType: typeof(RateLimitSpec),
             MethodName: "N/A",
             InputType: typeof(string),
             OutputType: null,

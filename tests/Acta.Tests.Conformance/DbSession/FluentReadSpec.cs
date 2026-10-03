@@ -19,8 +19,7 @@ namespace Acta.Tests.Conformance.DbSession;
     Area = "Testing",
     Contract = "The fluent reader materializes whole entities, prunes columns on projection, supports compound and IN predicates, and counts matching rows."
 )]
-public abstract class FluentReadSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class FluentReadSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     protected override bool RunAsWorker => true;
 

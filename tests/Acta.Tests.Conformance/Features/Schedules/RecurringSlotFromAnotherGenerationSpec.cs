@@ -32,8 +32,7 @@ public sealed class UnscheduledPingManifest : IJobManifest
     Area = "Scheduling",
     Contract = "An older worker fires a slot a newer generation registered as recurring, and no registration adopts an ordinary job holding the key."
 )]
-public abstract class RecurringSlotFromAnotherGenerationSpec<TFixture> : ActaRuntimeTestBase<TFixture, UnscheduledPingManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class RecurringSlotFromAnotherGenerationSpec : ActaRuntimeTestBase<ConformanceFixture, UnscheduledPingManifest>
 {
     private const string ScheduleName = "every-5-minutes";
 

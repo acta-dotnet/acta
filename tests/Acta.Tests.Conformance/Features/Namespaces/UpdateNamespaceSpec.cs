@@ -13,8 +13,7 @@ namespace Acta.Tests.Conformance.Features.Namespaces;
     Area = "Admin",
     Contract = "Update writes owner_team/description under a version CAS, clears fields on null, emits namespace.updated, and guards sys."
 )]
-public abstract class UpdateNamespaceSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class UpdateNamespaceSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     protected override bool RunAsWorker => true;
 

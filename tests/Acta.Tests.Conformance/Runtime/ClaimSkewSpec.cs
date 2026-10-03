@@ -19,8 +19,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Area = "Claim",
     Contract = "Parked waits and future rows in a higher band never enter a claim, due rows arrive in claim order across bands, and the horizon is the earliest waiting instant."
 )]
-public abstract class ClaimSkewSpec<TFixture> : ClaimSkewTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class ClaimSkewSpec : ClaimSkewTestBase
 {
     private const int Batch = 4;
 

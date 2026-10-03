@@ -24,8 +24,7 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     Area = "Alerts",
     Contract = "A throwing transport retries to terminal Failed, a missing transport fails at once, and settling schedules the reminder that re-sends an open automatic alert."
 )]
-public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFixture>
 {
     private const string ThrowingKind = "spy-throw";
     private const string MissingKind = "spy-missing";

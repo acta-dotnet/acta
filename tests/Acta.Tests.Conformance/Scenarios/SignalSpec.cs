@@ -19,8 +19,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Signals",
     Contract = "WaitSignalAsync suspends a job on a Pending slot and RaiseSignalAsync sets the slot last-writer-wins releasing only a Suspended job to Ready."
 )]
-public abstract class SignalSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private WakeupParkProbe _wakeup = null!;
 

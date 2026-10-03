@@ -20,8 +20,7 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     Area = "Alerts",
     Contract = "A recurring slot re-arming Ready after a failed fire records why that attempt failed, so the projector can alert on a job that would otherwise fail unwatched."
 )]
-public abstract class RecurringFailureAlertSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class RecurringFailureAlertSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // The manifest's recurring slot: one stable job id that survives every failed fire, which is the
     // whole reason this failure shape exists as something separate from a one-off's retry.

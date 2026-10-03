@@ -13,8 +13,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Testing",
     Contract = "IActaTestHost makes a parked timer, step retry, bounded wait, child wait, or group wait due at once, and refuses a wait that has no deadline to move."
 )]
-public abstract class TestHostHelpersSpec<TFixture> : ActaTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
 {
     private const int MaxTicks = 20;
 

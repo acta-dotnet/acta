@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.Features.Locks;
     Area = "Locks",
     Contract = "AcquireLock inserts a leases row on a free key and returns null when the key is already held by a live lease."
 )]
-public abstract class AcquireLockSpec<TFixture> : ActaStorageTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class AcquireLockSpec : ActaStorageTestBase<ConformanceFixture>
 {
     [Fact(DisplayName = "Simultaneous acquisitions of a new key return exactly one live token")]
     public async Task Concurrent_acquires_have_one_winner()

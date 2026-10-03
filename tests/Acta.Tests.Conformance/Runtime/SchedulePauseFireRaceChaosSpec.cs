@@ -24,8 +24,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Area = "Scheduling",
     Contract = "A pause applied while a fire is in flight survives the completion, and only a timed pause that has elapsed is auto-resumed by an advance."
 )]
-public abstract class SchedulePauseFireRaceChaosSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class SchedulePauseFireRaceChaosSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // Live slot cursors are this spec's subject; the harness default would park them.
     protected override bool ParkScheduleSlots => false;

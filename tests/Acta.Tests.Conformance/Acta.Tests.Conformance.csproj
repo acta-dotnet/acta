@@ -23,4 +23,8 @@
     <ProjectReference Include="..\..\src\Acta.Testing\Acta.Testing.csproj" />
     <ProjectReference Include="..\Acta.Tests.TestJobs\Acta.Tests.TestJobs.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- The specs compile into each provider test project, against its own ConformanceFixture. -->
+    <Compile Remove="DbSession/**;Features/**;Runtime/**;Scenarios/**" />
+  </ItemGroup>
 </Project>

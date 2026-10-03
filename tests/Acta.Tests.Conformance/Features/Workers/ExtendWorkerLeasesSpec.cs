@@ -19,8 +19,7 @@ namespace Acta.Tests.Conformance.Features.Workers;
     Area = "Execution",
     Contract = "The heartbeat pushes a live lease further out and advances the worker's last_seen without bumping the runtime version, and a reclaim sweep leaves it claimed."
 )]
-public abstract class ExtendWorkerLeasesSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "The heartbeat pushes a live lease further out, advances worker last_seen, and the lease survives a reclaim sweep")]
     public async Task Heartbeat_extends_a_live_lease_and_reclaim_leaves_it_alone()

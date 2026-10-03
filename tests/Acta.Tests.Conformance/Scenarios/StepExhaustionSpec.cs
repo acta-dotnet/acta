@@ -118,8 +118,7 @@ public sealed class StepExhaustionManifest : IJobManifest
     Area = "Steps",
     Contract = "A step exhausts when a retry would exceed its window, re-entering the exhausted slot throws without running the body, and a restart runs it afresh."
 )]
-public abstract class StepExhaustionSpec<TFixture> : ActaRuntimeTestBase<TFixture, StepExhaustionManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class StepExhaustionSpec : ActaRuntimeTestBase<ConformanceFixture, StepExhaustionManifest>
 {
     [Fact(DisplayName = "Step with large MaxAttempts exhausts after first failure when retry would exceed RetryWindow")]
     public async Task Step_exhausts_by_window_before_MaxAttempts_is_reached()

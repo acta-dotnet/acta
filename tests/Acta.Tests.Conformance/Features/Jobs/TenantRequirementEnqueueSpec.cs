@@ -19,8 +19,7 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     Area = "Enqueue",
     Contract = "A Required definition rejects tenant-less rows and accepts explicit or inherited tenants while a Forbidden one rejects explicit keys and stores NULL."
 )]
-public abstract class TenantRequirementEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class TenantRequirementEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     protected override bool RunAsWorker => true;
 

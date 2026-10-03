@@ -19,8 +19,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     Area = "Outbox",
     Contract = "IOutbox resolves the sys.outbox slot by fixed key and name, parks commands the tick applies, and reports accepted, rejected, or not-found admission."
 )]
-public abstract class OutboxOperatorFacadeSpec<TFixture> : OutboxRelayIntegrationBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class OutboxOperatorFacadeSpec : OutboxRelayIntegrationBase
 {
     private IOutbox Outbox => Services.GetRequiredService<IActaOperations>().Outbox;
 

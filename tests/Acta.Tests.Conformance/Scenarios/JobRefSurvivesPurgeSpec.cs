@@ -19,8 +19,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Retention",
     Contract = "After the job row is purged, the denormalized job_ref on surviving events rows still resolves the public ref to its historical id and timeline."
 )]
-public abstract class JobRefSurvivesPurgeSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class JobRefSurvivesPurgeSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // A wide retention window makes the events/alerts/workers sections no-ops, so only the
     // zero-retention job row is deleted, leaving its events behind.

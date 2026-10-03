@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Control",
     Contract = "Handler control verbs and non-retryable exceptions finalize the attempt without returning to user code, budget untouched and no result written."
 )]
-public abstract class HandlerControlSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class HandlerControlSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(
         DisplayName = "Handler fail lands terminal Failed with budget untouched, no result, the matching reason, and no post-control user code"

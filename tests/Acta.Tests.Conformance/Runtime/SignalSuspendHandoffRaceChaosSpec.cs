@@ -23,8 +23,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Area = "Signals",
     Contract = "complete_execution re-reads the awaited slot under lock, so a raise that beat the suspend write lands the job Ready and claimable, payload intact."
 )]
-public abstract class SignalSuspendHandoffRaceChaosSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class SignalSuspendHandoffRaceChaosSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private const string JobName = "job-wait-signal-typed";
     private const string SignalName = "review";

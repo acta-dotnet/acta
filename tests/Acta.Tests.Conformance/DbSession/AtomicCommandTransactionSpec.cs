@@ -13,8 +13,7 @@ namespace Acta.Tests.Conformance.DbSession;
     Area = "Storage",
     Contract = "SQL failure rolls back the operation and successful caller-owned writes leave transaction finalization to the caller."
 )]
-public abstract class AtomicCommandTransactionSpec<TFixture> : ActaStorageTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class AtomicCommandTransactionSpec : ActaStorageTestBase<ConformanceFixture>
 {
     private static readonly StoreCommand Command = new("Execution", "Namespaces/UpdateNamespace");
 

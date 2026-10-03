@@ -29,8 +29,7 @@ namespace Acta.Tests.Conformance.Features.Locks;
     Area = "Locks",
     Contract = "ReleaseLock deletes the leases row when the version matches and returns false when the token's version no longer matches."
 )]
-public abstract class ReleaseLockSpec<TFixture> : ActaStorageTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class ReleaseLockSpec : ActaStorageTestBase<ConformanceFixture>
 {
     [Fact(
         DisplayName = "Live token release returns true and deletes the lease row, a stale token returns false, and the freed key is re-acquirable"

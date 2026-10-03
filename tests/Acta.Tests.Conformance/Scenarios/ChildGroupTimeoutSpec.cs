@@ -20,8 +20,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "ChildJobs",
     Contract = "A bounded group wait stores one absolute deadline, spends it across all children and replays, and cancels only unfinished members on expiry."
 )]
-public abstract class ChildGroupTimeoutSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "A group that finishes before its deadline returns what the unbounded form returns")]
     public async Task Group_before_the_deadline_matches_the_unbounded_form()

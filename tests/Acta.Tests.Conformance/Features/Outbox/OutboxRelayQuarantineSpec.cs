@@ -16,8 +16,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     Area = "Outbox",
     Contract = "The fifth persistent recoverable rejection quarantines a row, and malformed or oversized rows quarantine immediately."
 )]
-public abstract class OutboxRelayQuarantineSpec<TFixture> : OutboxRelayIntegrationBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class OutboxRelayQuarantineSpec : OutboxRelayIntegrationBase
 {
     [Fact(DisplayName = "The fifth routing rejection quarantines the row and raises one summarized failure, earlier ticks staying quiet")]
     public async Task Threshold_routing_rejection_quarantines_on_the_fifth_tick()

@@ -25,8 +25,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Concurrency",
     Contract = "Reservations delayed behind a held bucket row are judged at the clock when the row frees, so the release admits the burst and books the rest."
 )]
-public abstract class RateLimitConvoySpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class RateLimitConvoySpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private const int Burst = 10;
     private const int IntervalMilliseconds = 100;

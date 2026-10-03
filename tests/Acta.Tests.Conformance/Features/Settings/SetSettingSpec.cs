@@ -14,8 +14,7 @@ namespace Acta.Tests.Conformance.Features.Settings;
     Area = "Admin",
     Contract = "Set upserts one setting at the scope inferred from its targets with a version bump and emits setting.updated naming the setting."
 )]
-public abstract class SetSettingSpec<TFixture> : ActaStorageTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class SetSettingSpec : ActaStorageTestBase<ConformanceFixture>
 {
     private static readonly DateTime Gen = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 

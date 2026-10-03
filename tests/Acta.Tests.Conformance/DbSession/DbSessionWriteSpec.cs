@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.DbSession;
     Area = "Test ORM",
     Contract = "The test ORM round-trips writes on every provider: insert assigns an identity, update sets only listed columns, delete removes by predicate."
 )]
-public abstract class DbSessionWriteSpec<TFixture> : ActaStorageTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class DbSessionWriteSpec : ActaStorageTestBase<ConformanceFixture>
 {
     [Fact(DisplayName = "InsertAsync returns a non-zero DB-assigned identity and the row is readable")]
     public async Task InsertAsync_assigns_identity_and_row_is_readable()

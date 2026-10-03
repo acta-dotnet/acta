@@ -13,8 +13,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Area = "Chaos",
     Contract = "Signals raised before or after waiter creation, step retry exhaustion, and lost wake notifications each produce one legal final state."
 )]
-public abstract class SignalStepWakeChaosSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class SignalStepWakeChaosSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private ControlledWakeup _wakeup = null!;
 

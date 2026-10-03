@@ -15,8 +15,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Area = "Execution",
     Contract = "A payload deserialization exception follows normal failure and retry semantics and records an operator-readable reason on JobExecutionFinished."
 )]
-public abstract class InputDeserializationFailureSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class InputDeserializationFailureSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "Malformed input leaves Executing and records the deserialization exception")]
     public async Task Malformed_input_is_settled_and_recorded_on_the_job_timeline()

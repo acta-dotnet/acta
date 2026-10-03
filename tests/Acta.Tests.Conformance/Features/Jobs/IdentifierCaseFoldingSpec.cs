@@ -17,8 +17,7 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     Area = "Enqueue",
     Contract = "Acta-owned keys are normalized to lowercase for provider-stable equality, while Acta-owned names must already be lowercase kebab/dotted-kebab."
 )]
-public abstract class IdentifierCaseFoldingSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class IdentifierCaseFoldingSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // Enqueue-only: InitializeAsync registers the namespace + job definition so EnqueueBatch.Run
     // can resolve them. No claim/execute loop is started.

@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.Features.Events;
     Area = "Reads",
     Contract = "ListJobEvents filters partition the event rows to exactly the matching ids and exclude all non-matching ids for each filter dimension."
 )]
-public abstract class ListJobEventsFilterMatrixSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class ListJobEventsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private JobEnqueueRow AddNumbersRow(string? tenantKey = null, long? parentId = null)
     {

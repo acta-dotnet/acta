@@ -22,8 +22,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Area = "Locks",
     Contract = "The heartbeat extends every lock an attempt holds so a long critical section stays exclusive, and a lost held lock aborts the attempt into a retryable failure."
 )]
-public abstract class HandlerLockHeartbeatSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class HandlerLockHeartbeatSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // A hang guard, not a measurement: the waits below are for a probe gate and the run task, both
     // driven by acts that already happened. See SpecWaits.

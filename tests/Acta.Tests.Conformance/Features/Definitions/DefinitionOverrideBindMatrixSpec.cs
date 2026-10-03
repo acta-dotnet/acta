@@ -17,8 +17,7 @@ namespace Acta.Tests.Conformance.Features.Definitions;
     Area = "Catalog",
     Contract = "All 13 override slots bind to their own column, COALESCE recomputes each effective, and null clears the override to fall back to base."
 )]
-public abstract class DefinitionOverrideBindMatrixSpec<TFixture> : ActaStorageTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class DefinitionOverrideBindMatrixSpec : ActaStorageTestBase<ConformanceFixture>
 {
     private static readonly DateTime Gen = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private static JobControlActor Actor => new(ActorCode.Operator, "tester");

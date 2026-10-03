@@ -13,8 +13,7 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     Area = "Execution",
     Contract = "ctx.NoteAsync appends a job.note-recorded event carrying the message, the job's identity, the optional JSON detail, and the attempt that authored it."
 )]
-public abstract class JobNoteSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class JobNoteSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "A note for an unknown job throws the stable marker before committing")]
     public async Task Unknown_job_is_rejected()

@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     Area = "Reads",
     Contract = "GetJob returns the JobDetail projection for a matching job row and null when no row matches the supplied id."
 )]
-public abstract class GetJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class GetJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "A known job id returns a populated JobDetail whose id and Ready status match the enqueued row")]
     public async Task Returns_snapshot_for_known_job_id()

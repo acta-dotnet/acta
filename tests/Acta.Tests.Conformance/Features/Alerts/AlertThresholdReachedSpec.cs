@@ -22,8 +22,7 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     Area = "Alerts",
     Contract = "AlertsJob emits one ThresholdReached alert when occurrence_count hits the threshold, and the count restarts at 1 in the incident that opens after a resolution."
 )]
-public abstract class AlertThresholdReachedSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class AlertThresholdReachedSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
 {
     private int NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 

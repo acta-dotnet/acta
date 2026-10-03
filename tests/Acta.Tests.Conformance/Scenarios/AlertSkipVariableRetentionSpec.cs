@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Retention",
     Contract = "Purge deletes sys.alerts poison-skip variables past the alert window, leaving the projector cursor and every other slot's variables alone."
 )]
-public abstract class AlertSkipVariableRetentionSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class AlertSkipVariableRetentionSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private const int NoEventPurgeDays = 100_000;
     private const int NoAlertPurgeDays = 100_000;

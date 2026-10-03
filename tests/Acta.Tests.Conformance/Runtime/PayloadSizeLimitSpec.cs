@@ -17,8 +17,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Area = "Payloads",
     Contract = "Caller writes past the cap throw PayloadTooLargeException and an oversize handler result is dropped so the job still completes."
 )]
-public abstract class PayloadSizeLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class PayloadSizeLimitSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private const int Cap = 1024;
 

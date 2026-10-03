@@ -16,8 +16,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Area = "Execution",
     Contract = "A handler receives the same public JobRef via ctx.JobRef that the caller gets from JobEnqueueOutcome."
 )]
-public abstract class JobRefContextSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class JobRefContextSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "Handler reads the same JobRef the enqueue outcome returned, stable across claim and execution")]
     public async Task Handler_sees_its_public_JobRef()

@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     Area = "Outbox",
     Contract = "The external-outbox source store claims and deletes purely against its source database, needing no Acta ledger IJobs or session."
 )]
-public abstract class OutboxSourceIndependenceSpec<TFixture> : OutboxSpecBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class OutboxSourceIndependenceSpec : OutboxSpecBase
 {
     [Fact(DisplayName = "The source store round-trips with no ledger IJobs configured")]
     public async Task Source_store_needs_no_ledger()

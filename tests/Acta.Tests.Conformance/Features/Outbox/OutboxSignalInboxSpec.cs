@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     Area = "Outbox",
     Contract = "Park inserts when free, rejects with the pending instant while a younger command pends, supersedes a stale one bumping the version consume must match to delete."
 )]
-public abstract class OutboxSignalInboxSpec<TFixture> : ActaStorageTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class OutboxSignalInboxSpec : ActaStorageTestBase<ConformanceFixture>
 {
     [Fact(DisplayName = "Free and stale slots admit, a pending slot rejects with its age, and consume is version-CAS")]
     public async Task Park_admission_and_consume_follow_the_inbox_contract()

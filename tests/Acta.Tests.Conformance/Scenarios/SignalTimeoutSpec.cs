@@ -20,8 +20,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Signals",
     Contract = "A bounded wait stores an absolute expiration on its slot, wakes the Suspended job at that instant, resolves TimedOut once, and revives on no later raise."
 )]
-public abstract class SignalTimeoutSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "Arming stores an expiration on the slot and carries it into the Suspended job's next run")]
     public async Task Arming_stores_the_expiration_on_the_slot_and_the_job()

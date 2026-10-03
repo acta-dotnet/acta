@@ -16,8 +16,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     Area = "Outbox",
     Contract = "ClaimDue recovers a Claimed row whose lease expired back to Pending and reclaims it under a new token, but never steals a live lease."
 )]
-public abstract class OutboxLeaseRecoverySpec<TFixture> : OutboxSpecBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class OutboxLeaseRecoverySpec : OutboxSpecBase
 {
     // PostgreSQL and SQL Server reject a negative LIMIT/TOP at execution, so the claim fails after its
     // recovery statement ran; that failure must not commit the recovery.

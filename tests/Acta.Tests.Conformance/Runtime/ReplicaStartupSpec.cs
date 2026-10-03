@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Area = "Workers",
     Contract = "Replicas that register the same new namespace, definitions, and recurring slots at once all start and agree on one catalog."
 )]
-public abstract class ReplicaStartupSpec<TFixture> : ActaTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class ReplicaStartupSpec : ActaTestBase<ConformanceFixture>
 {
     private const int Replicas = 4;
 

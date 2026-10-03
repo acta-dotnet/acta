@@ -16,8 +16,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Area = "Execution",
     Contract = "A per-attempt timeout re-arms the job to Ready incrementing failure_count while budget remains and lands terminal Failed once MaxAttempts is exhausted."
 )]
-public abstract class TimeoutRetryBudgetSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class TimeoutRetryBudgetSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "Timeout re-arms within budget bumping failure_count, then terminates Failed once MaxAttempts is exhausted")]
     public async Task Timeout_rearms_within_budget_then_terminates_at_max_attempts()

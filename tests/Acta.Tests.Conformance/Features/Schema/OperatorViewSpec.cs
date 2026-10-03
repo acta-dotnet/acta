@@ -15,8 +15,7 @@ namespace Acta.Tests.Conformance.Features.Schema;
     Area = "Schema",
     Contract = "Schema bootstrap installs curated plural _view surfaces while jobs_view decodes status plus tenant key and tags_view decodes exact target scope."
 )]
-public abstract partial class OperatorViewSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed partial class OperatorViewSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private static readonly string[] OperatorViews =
     [

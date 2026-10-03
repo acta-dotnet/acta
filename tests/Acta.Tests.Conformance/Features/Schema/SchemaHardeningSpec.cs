@@ -21,8 +21,7 @@ namespace Acta.Tests.Conformance.Features.Schema;
     Area = "Schema",
     Contract = "The hardened M001 schema enforces every new CHECK, admits one unresolved alert per deduplication key, seeds sys, and keeps runtimes in step with jobs."
 )]
-public abstract class SchemaHardeningSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
 {
     [Fact(DisplayName = "The seeded sys namespace (id 1, name sys) exists on a fresh install")]
     public async Task Sys_namespace_seed_row_exists()

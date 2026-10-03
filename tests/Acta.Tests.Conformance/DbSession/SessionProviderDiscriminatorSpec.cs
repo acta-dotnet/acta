@@ -15,8 +15,7 @@ namespace Acta.Tests.Conformance.DbSession;
     Area = "Provider",
     Contract = "Provider registration wires IDbSession with the correct provider discriminator and the configured schema."
 )]
-public abstract class SessionProviderDiscriminatorSpec<TFixture> : IntegrationSpec<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class SessionProviderDiscriminatorSpec : IntegrationSpec<ConformanceFixture>
 {
     private DbProvider ExpectedProvider =>
         Fixture.DialectToken switch

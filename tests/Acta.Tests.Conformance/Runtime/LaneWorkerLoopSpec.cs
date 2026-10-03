@@ -11,8 +11,7 @@ namespace Acta.Tests.Conformance.Runtime;
 /// member of a lane runs at a time and the lane drains in enqueue order, while different lanes run side
 /// by side. Each profile is its own contract below.
 /// </summary>
-public abstract class LaneWorkerLoopSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public abstract class LaneWorkerLoopSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private const int PerLane = 6;
 
@@ -66,8 +65,7 @@ public abstract class LaneWorkerLoopSpec<TFixture> : ActaRuntimeTestBase<TFixtur
     Area = "Lanes",
     Contract = "Under the Direct profile with several executors each lane runs one member at a time in enqueue order while different lanes run in parallel."
 )]
-public abstract class LaneDirectWorkerLoopSpec<TFixture> : LaneWorkerLoopSpec<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class LaneDirectWorkerLoopSpec : LaneWorkerLoopSpec
 {
     protected override ExecutionProfile Profile => ExecutionProfile.Direct;
 
@@ -81,8 +79,7 @@ public abstract class LaneDirectWorkerLoopSpec<TFixture> : LaneWorkerLoopSpec<TF
     Area = "Lanes",
     Contract = "Under the Buffered profile with several executors each lane runs one member at a time in enqueue order while different lanes run in parallel."
 )]
-public abstract class LaneBufferedWorkerLoopSpec<TFixture> : LaneWorkerLoopSpec<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class LaneBufferedWorkerLoopSpec : LaneWorkerLoopSpec
 {
     protected override ExecutionProfile Profile => ExecutionProfile.Buffered;
 

@@ -17,8 +17,7 @@ namespace Acta.Tests.Conformance.Features.Schedules;
     Area = "Scheduling",
     Contract = "Triggering an eligible schedule makes its slot claimable now without moving the schedule's own cursor, while paused or in-flight schedules reject."
 )]
-public abstract class ScheduleTriggerNowSpec<TFixture> : ActaStorageTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class ScheduleTriggerNowSpec : ActaStorageTestBase<ConformanceFixture>
 {
     private static readonly DateTime Generation = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private const string Cron5 = "*/5 * * * *";

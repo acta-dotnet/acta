@@ -15,8 +15,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     Area = "Outbox",
     Contract = "DeleteClaimed removes a claimed row only when the command token matches the row's claim token, and a stale token deletes nothing."
 )]
-public abstract class OutboxDeleteSpec<TFixture> : OutboxSpecBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class OutboxDeleteSpec : OutboxSpecBase
 {
     [Fact(DisplayName = "A stale token deletes nothing and the owning token deletes the row")]
     public async Task Delete_is_token_cas()

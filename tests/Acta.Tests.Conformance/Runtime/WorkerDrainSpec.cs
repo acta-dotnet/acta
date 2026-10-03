@@ -20,8 +20,7 @@ namespace Acta.Tests.Conformance.Runtime;
 /// until the test releases it so the Draining window is observable. Concrete per-profile specs derive from
 /// this base.
 /// </remarks>
-public abstract class WorkerDrainSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public abstract class WorkerDrainSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // A hang guard, not a measurement: these specs drive the real claim loop and its DB round-trips,
     // which run slow under the suite's cross-test parallelism and finish well under a second in
@@ -130,8 +129,7 @@ public abstract class WorkerDrainSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
     Area = "Recovery",
     Contract = "Under the Buffered profile a graceful stop flips the worker Active to Draining, runs the in-flight handler to completion, then stamps Stopped."
 )]
-public abstract class BufferedWorkerDrainSpec<TFixture> : WorkerDrainSpec<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class BufferedWorkerDrainSpec : WorkerDrainSpec
 {
     protected override ExecutionProfile Profile => ExecutionProfile.Buffered;
 
@@ -148,8 +146,7 @@ public abstract class BufferedWorkerDrainSpec<TFixture> : WorkerDrainSpec<TFixtu
     Area = "Recovery",
     Contract = "Under the Direct profile a graceful stop flips the worker Active to Draining, runs the in-flight handler to completion, then stamps Stopped."
 )]
-public abstract class DirectWorkerDrainSpec<TFixture> : WorkerDrainSpec<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class DirectWorkerDrainSpec : WorkerDrainSpec
 {
     protected override ExecutionProfile Profile => ExecutionProfile.Direct;
 

@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Scheduling",
     Contract = "Reschedule re-arms to Ready without charging the budget and durable sleep arms one idempotent timer checkpoint consumed by the replayed handler once due."
 )]
-public abstract class RescheduleSleepSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // P0: Reschedule
     [Fact(DisplayName = "Reschedule re-arms Ready with a forward-dated next_run, no budget charge and no result")]

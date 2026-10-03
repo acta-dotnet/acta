@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Area = "Chaos",
     Contract = "A stale attempt that unwinds after its job was reclaimed and re-dispatched in-process leaves the replacement attempt tracked for heartbeat cancellation."
 )]
-public abstract class AttemptOverlapChaosSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class AttemptOverlapChaosSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // A hang guard, not a measurement: every wait below is for an in-process signal the act just
     // before it already caused, so only a genuine hang reaches this bound. See SpecWaits.

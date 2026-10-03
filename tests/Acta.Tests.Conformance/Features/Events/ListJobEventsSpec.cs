@@ -17,8 +17,7 @@ namespace Acta.Tests.Conformance.Features.Events;
     Area = "Reads",
     Contract = "ListJobEvents pages a job timeline newest first by cursor and reads the page plus an opt-in job-scoped count in one command."
 )]
-public abstract class ListJobEventsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class ListJobEventsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "A job timeline pages newest first with only that job's events and a job-scoped TotalCount matching the walk")]
     public async Task Lists_a_job_timeline_newest_first_with_job_scoped_total()

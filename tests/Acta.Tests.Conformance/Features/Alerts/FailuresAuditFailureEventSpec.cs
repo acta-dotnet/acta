@@ -21,8 +21,7 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     Area = "Alerts",
     Contract = "At AuditLevel.Failures a failure carrying no reschedule writes its finished event, and a success writes one only when the newest finished event is a failure."
 )]
-public abstract class FailuresAuditFailureEventSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class FailuresAuditFailureEventSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private const string JobName = "failures-audit-probe";
     private const string SlotName = "failures-audit-slot";

@@ -11,8 +11,7 @@ namespace Acta.Tests.Conformance.Features.Namespaces;
     Area = "Catalog",
     Contract = "A seeded namespace is persisted with a positive db-assigned id and is readable back by that id."
 )]
-public abstract class RegisterNamespaceSpec<TFixture> : ActaStorageTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class RegisterNamespaceSpec : ActaStorageTestBase<ConformanceFixture>
 {
     [Fact(DisplayName = "Seeded namespace row persists and is readable by id with the expected name")]
     public async Task Seeded_namespace_is_readable_by_id()

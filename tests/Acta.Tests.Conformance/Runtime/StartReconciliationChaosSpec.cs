@@ -21,8 +21,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Area = "Runtime",
     Contract = "A start is reconciled against the row on LostClaim or LeaseExpired, a committed start is not made twice, and a failing setup read is repeated."
 )]
-public abstract class StartReconciliationChaosSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class StartReconciliationChaosSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private StoreFaultPlan _faults = null!;
 

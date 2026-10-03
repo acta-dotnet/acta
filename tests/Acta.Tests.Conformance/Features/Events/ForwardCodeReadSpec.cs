@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.Features.Events;
     Area = "Reads",
     Contract = "An unassigned id in events.event_code, events.reason_code, or alerts.kind_code reads back as Unspecified on every read path and serializes as \"unspecified\"."
 )]
-public abstract class ForwardCodeReadSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class ForwardCodeReadSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // No member of EventCode, JobEventReasonCode, or AlertKindCode holds this id, and none of the three
     // columns carries an IN-list CHECK, so a newer Acta may write it.

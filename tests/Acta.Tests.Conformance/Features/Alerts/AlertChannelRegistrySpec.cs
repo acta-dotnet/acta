@@ -17,8 +17,7 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     Area = "Alerts",
     Contract = "The registry provides a default channel per namespace, applies builder declarations as last-write-wins, and isolates namespaces."
 )]
-public abstract class AlertChannelRegistrySpec<TFixture> : ActaTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class AlertChannelRegistrySpec : ActaTestBase<ConformanceFixture>
 {
     private string PrimaryNamespace => "acr-" + TestId;
 

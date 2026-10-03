@@ -17,8 +17,7 @@ namespace Acta.Tests.Conformance.Features.Definitions;
     Area = "Reads",
     Contract = "ListJobDefinitions filters partition the definition rows to exactly the matching ids and exclude all non-matching ids for each filter dimension."
 )]
-public abstract class ListJobDefinitionsFilterMatrixSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class ListJobDefinitionsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private static readonly DateTime Gen = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 

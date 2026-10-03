@@ -19,8 +19,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     Area = "Outbox",
     Contract = "The relay pass applies a parked requeue before draining: the row returns to Pending, the evidence event lands, the signal is consumed, and the freed row relays."
 )]
-public abstract class OutboxRelaySignalApplySpec<TFixture> : OutboxRelayIntegrationBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class OutboxRelaySignalApplySpec : OutboxRelayIntegrationBase
 {
     [Fact(DisplayName = "Requeue applies before the drain: row freed, evidence written, signal consumed, job relayed")]
     public async Task Parked_requeue_frees_the_row_and_the_same_pass_relays_it()

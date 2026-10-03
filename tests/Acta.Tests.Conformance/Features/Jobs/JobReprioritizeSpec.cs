@@ -17,8 +17,7 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     Area = "Control",
     Contract = "ReprioritizeAsync sets priority_code on any non-terminal row (including in-flight), leaving status and cursor unchanged, and rejects terminal rows."
 )]
-public abstract class JobReprioritizeSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class JobReprioritizeSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "ReprioritizeAsync changes a Ready job's priority and bumps the runtime version")]
     public async Task Reprioritize_ready_job_changes_priority()

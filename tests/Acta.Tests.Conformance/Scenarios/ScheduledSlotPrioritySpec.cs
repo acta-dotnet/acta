@@ -77,8 +77,7 @@ public sealed class ScheduledSlotPriorityManifest : IJobManifest
     Area = "Scheduling",
     Contract = "A recurring slot's runtime priority is stamped from the owning definition's effective priority, and re-registration propagates a changed priority."
 )]
-public abstract class ScheduledSlotPrioritySpec<TFixture> : ActaRuntimeTestBase<TFixture, ScheduledSlotPriorityManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class ScheduledSlotPrioritySpec : ActaRuntimeTestBase<ConformanceFixture, ScheduledSlotPriorityManifest>
 {
     // Live slot cursors are this spec's subject; the harness default would park them.
     protected override bool ParkScheduleSlots => false;

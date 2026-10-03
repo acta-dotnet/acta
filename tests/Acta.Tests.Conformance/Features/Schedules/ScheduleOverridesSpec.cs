@@ -19,8 +19,7 @@ namespace Acta.Tests.Conformance.Features.Schedules;
     Area = "Scheduling",
     Contract = "A matching version applies the override and moves the cursor to the new expression, while a stale version is rejected with current state."
 )]
-public abstract class ScheduleOverridesSpec<TFixture> : ActaStorageTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class ScheduleOverridesSpec : ActaStorageTestBase<ConformanceFixture>
 {
     private static readonly DateTime Generation = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private const string Cron5 = "*/5 * * * *";

@@ -17,8 +17,7 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     Area = "Alerts",
     Contract = "Definition AlertChannelName validates against worker startup configuration while Off, Warn, and Fail modes keep their documented behavior."
 )]
-public abstract class AlertChannelValidationSpec<TFixture> : ActaTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class AlertChannelValidationSpec : ActaTestBase<ConformanceFixture>
 {
     [Fact(DisplayName = "Fail mode rejects a missing configured channel")]
     public async Task Fail_mode_rejects_missing_configured_channel()

@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "ChildJobs",
     Contract = "A bounded child wait resolves TimedOut once, cancels the awaited child and its descendants, and leaves the parent free to continue."
 )]
-public abstract class ChildTimeoutSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "A child that lands before the deadline resolves Completed with its succeeded outcome")]
     public async Task Child_before_the_deadline_resolves_completed()

@@ -8,7 +8,7 @@ namespace Acta.Tests.Conformance;
 /// <summary>
 /// The shared conformance specs, read from source under <c>tests/Acta.Tests.Conformance</c>. Every provider
 /// test project compiles them, so no one assembly holds them for reflection. A spec is a class that
-/// declares its own <c>[Fact]</c> or <c>[Theory]</c> methods; the parity meta-specs are not specs.
+/// declares its own <c>[Fact]</c> or <c>[Theory]</c> methods.
 /// </summary>
 internal static class ConformanceSpecSources
 {
@@ -48,9 +48,7 @@ internal static class ConformanceSpecSources
                     .Where(m => m.Fact is not null)
                     .Select(m => new FactInfo(m.Method.Identifier.ValueText, Named(m.Fact!, "DisplayName")))
                     .ToList();
-                var meta =
-                    type.BaseList?.Types.Any(t => t.Type.ToString().StartsWith("IConformanceMetaSpec", StringComparison.Ordinal)) == true;
-                if (facts.Count > 0 && !meta)
+                if (facts.Count > 0)
                 {
                     specs.Add(new Spec(type.Identifier.ValueText, Contract(type), facts));
                 }

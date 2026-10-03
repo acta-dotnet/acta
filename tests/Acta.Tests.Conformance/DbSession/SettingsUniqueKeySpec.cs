@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.DbSession;
     Area = "Settings",
     Contract = "The settings table admits one row per (scope_code, scope_id, name), including the NULL-scope global form, on every provider."
 )]
-public abstract class SettingsUniqueKeySpec<TFixture> : ActaStorageTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class SettingsUniqueKeySpec : ActaStorageTestBase<ConformanceFixture>
 {
     private static Setting NewSetting(SettingScopeCode scope, int? scopeId, string name) =>
         new()

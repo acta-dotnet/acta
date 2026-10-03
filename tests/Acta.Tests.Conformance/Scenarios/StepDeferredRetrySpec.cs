@@ -84,8 +84,7 @@ public sealed class DeferredRetryStepManifest : IJobManifest
     Area = "Steps",
     Contract = "A step failure with nonzero backoff re-arms the parent Ready at the retry instant budget-neutrally and gates re-invocation until that instant."
 )]
-public abstract class StepDeferredRetrySpec<TFixture> : ActaRuntimeTestBase<TFixture, DeferredRetryStepManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class StepDeferredRetrySpec : ActaRuntimeTestBase<ConformanceFixture, DeferredRetryStepManifest>
 {
     private const string ProbeName = "deferred-retry-step-probe";
     private const string StepName = "the-step";

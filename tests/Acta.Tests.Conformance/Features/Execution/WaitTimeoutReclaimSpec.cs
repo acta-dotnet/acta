@@ -26,8 +26,7 @@ namespace Acta.Tests.Conformance.Features.Execution;
     Area = "Recovery",
     Contract = "An expired-lease attempt whose awaited wait had already expired returns to Suspended uncharged, and still raises the job's automatic incident."
 )]
-public abstract class WaitTimeoutReclaimSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class WaitTimeoutReclaimSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // Claim with a negative TTL so the lease lands in the past: the worker that took this attempt is
     // dead before it can do anything else, with no wall-clock wait and no fault injection.

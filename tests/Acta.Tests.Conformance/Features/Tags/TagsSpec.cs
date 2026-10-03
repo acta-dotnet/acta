@@ -12,8 +12,7 @@ namespace Acta.Tests.Conformance.Features.Tags;
     Area = "Tags",
     Contract = "ITags distinguishes missing from empty targets, atomically replaces, idempotently upserts/removes, and typed queries require every exact tag filter."
 )]
-public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
 {
     [Fact(DisplayName = "All eight existing targets read empty while missing targets read null and mutate NotFound")]
     public async Task Missing_and_empty_are_distinct_for_every_target()

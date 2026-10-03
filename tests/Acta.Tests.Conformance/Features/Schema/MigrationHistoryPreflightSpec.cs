@@ -17,8 +17,7 @@ namespace Acta.Tests.Conformance.Features.Schema;
     Area = "Schema",
     Contract = "Provider bootstrap requires this build's baseline stamp and every migration it ships, and tolerates newer ones."
 )]
-public abstract class MigrationHistoryPreflightSpec<TFixture> : IntegrationSpec<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class MigrationHistoryPreflightSpec : IntegrationSpec<ConformanceFixture>
 {
     [Fact(DisplayName = "A provisioned schema passes bootstrap with ApplyMigrationsOnStartup false")]
     public async Task Provisioned_schema_passes()

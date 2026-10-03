@@ -332,7 +332,7 @@ The shortest paths to the design-review-worthy parts:
 | Public-API design | `src/Acta/Operations/Jobs/IJobs.cs`, domain interfaces, query records (+ XML docs) |
 | Durable execution model | [`docs/guide/concepts.md`](./docs/guide/concepts.md), [`docs/guide/handler-contract.md`](./docs/guide/handler-contract.md) |
 | Persistence architecture | `src/Acta.Runtime/Modules/*/I*Store.cs`, `src/Acta.Runtime/{Db,Schema,Stores}/`, `src/Acta.{Postgres,SqlServer,Sqlite}/Sql/` |
-| Provider conformance | `tests/Acta.Tests.Conformance` (specs), run through `tests/Acta.Tests.Conformance.{Postgres,SqlServer,Sqlite}`, [`docs/reference/conformance-contracts.md`](./docs/reference/conformance-contracts.md) |
+| Provider conformance | `tests/Acta.Tests.Conformance` (specs and test infrastructure); each of `tests/Acta.Tests.Conformance.{Postgres,SqlServer,Sqlite}` compiles the specs against its own `ConformanceFixture` alias, [`docs/reference/conformance-contracts.md`](./docs/reference/conformance-contracts.md) |
 | Source generators | `src/Acta.Generators` |
 | Dashboard / API | `src/Acta.AspNetCore` (`MapActa(...)`) |
 | CI, packaging, smoke checks | `.github/workflows/ci.yml`, `tests/PackageSmoke/` |

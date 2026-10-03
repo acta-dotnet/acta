@@ -11,7 +11,7 @@ namespace Acta.Tests.Conformance.Postgres.Features.Execution;
 /// ordered scan of ix_runtimes_claim_ready keyed per priority band, and the empty claim's horizon reads the
 /// head of each band once. Parked waits and a band of delayed High rows crowd the index around the due rows.
 /// </summary>
-public sealed class PgClaimPlanTests : ClaimSkewTestBase<PgConformanceFixture>
+public sealed class PgClaimPlanTests : ClaimSkewTestBase
 {
     [Fact(
         DisplayName = "claim_batch seeks ix_runtimes_claim_ready per priority band without sorting, and its horizon reads each band's head"

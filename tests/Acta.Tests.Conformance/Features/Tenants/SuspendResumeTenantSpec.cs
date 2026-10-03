@@ -13,8 +13,7 @@ namespace Acta.Tests.Conformance.Features.Tenants;
     Area = "Admin",
     Contract = "Suspend and resume flip tenant status with a version bump, emit tenant.suspended/tenant.resumed to sys namespace 1, and report NotFound for unknown keys."
 )]
-public abstract class SuspendResumeTenantSpec<TFixture> : ActaStorageTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class SuspendResumeTenantSpec : ActaStorageTestBase<ConformanceFixture>
 {
     private static JobControlActor Actor() => new(ActorCode.Operator, "op-1");
 

@@ -19,8 +19,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Enqueue",
     Contract = "Relative Delayed enqueue sends only an integer delay the server resolves as db_now plus delay, and NextRunAt persists the absolute caller instant."
 )]
-public abstract class RelativeDelayUsesDbClockSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class RelativeDelayUsesDbClockSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "Relative delay resolves next_run_at_utc to db_now plus the delay, not the caller clock")]
     public async Task Relative_delay_is_resolved_on_the_db_clock_not_the_caller_clock()

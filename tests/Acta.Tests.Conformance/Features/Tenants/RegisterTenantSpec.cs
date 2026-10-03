@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.Features.Tenants;
     Area = "Catalog",
     Contract = "Registering a new tenant inserts it Active and returns a new id, and re-registering returns the same id without changing status, metadata, or version."
 )]
-public abstract class RegisterTenantSpec<TFixture> : ActaStorageTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class RegisterTenantSpec : ActaStorageTestBase<ConformanceFixture>
 {
     private TenantsService Tenants() => Services.GetRequiredService<TenantsService>();
 

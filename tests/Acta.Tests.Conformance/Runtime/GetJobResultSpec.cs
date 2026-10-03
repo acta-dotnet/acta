@@ -17,8 +17,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Area = "Results",
     Contract = "GetJobResult is a non-blocking read that returns null before the job produces a result and the typed and raw payload after a successful run."
 )]
-public abstract class GetJobResultSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class GetJobResultSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "Returns null before a result exists without blocking")]
     public async Task Result_is_null_before_the_job_produces_one()

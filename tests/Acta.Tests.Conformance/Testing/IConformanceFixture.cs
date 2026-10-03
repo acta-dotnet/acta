@@ -9,14 +9,14 @@ public readonly record struct DbForeignKeyInfo(string Column, string TargetTable
 public readonly record struct DbCheckInfo(string Name);
 
 /// <summary>
-/// Per-provider hook bundle injected into conformance spec classes via a generic type argument. The
-/// fixture is stateless and constructed via <c>new()</c> by the spec base class.
+/// Per-provider hook bundle a conformance spec reaches through its base class. The fixture is stateless
+/// and constructed via <c>new()</c> by the spec base class.
 /// </summary>
 /// <remarks>
 /// xunit v3 instantiates a fresh test class (and therefore a fresh fixture) per <c>[Fact]</c>, so
 /// state on the fixture would leak across parallel-running tests; the instance methods are thin
-/// dispatch into static factories that own the schema lifecycle. The generic <c>TFixture</c> parameter
-/// keeps the per-provider concrete spec subclasses to one line each.
+/// dispatch into static factories that own the schema lifecycle. The shared specs name the fixture
+/// through the <c>ConformanceFixture</c> alias each provider test project declares in GlobalUsings.cs.
 /// </remarks>
 public interface IConformanceFixture
 {

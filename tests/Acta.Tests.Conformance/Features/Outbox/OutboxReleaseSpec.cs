@@ -16,8 +16,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     Area = "Outbox",
     Contract = "Release returns a claimed row to Pending with its next attempt unchanged so it is immediately reclaimable, only under its token."
 )]
-public abstract class OutboxReleaseSpec<TFixture> : OutboxSpecBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class OutboxReleaseSpec : OutboxSpecBase
 {
     [Fact(DisplayName = "A stale token no-ops and the owning token releases the row for immediate reclaim")]
     public async Task Release_is_token_cas_and_reclaimable()

@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Lanes",
     Contract = "A laned head settled by reclaim, retire, or completion hands its lane to the next member, and a promoting completion wakes the namespace."
 )]
-public abstract class LaneSettlePathsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class LaneSettlePathsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private readonly RecordingWakeup _wakeups = new();
 

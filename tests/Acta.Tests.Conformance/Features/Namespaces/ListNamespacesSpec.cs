@@ -16,8 +16,7 @@ namespace Acta.Tests.Conformance.Features.Namespaces;
     Area = "Reads",
     Contract = "ListNamespaces pages namespace names ascending without duplicates and reads the page plus an opt-in filter-wide count in one command."
 )]
-public abstract class ListNamespacesSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class ListNamespacesSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "Walking the cursor visits the registered TestNamespace once with no duplicates")]
     public async Task Contains_registered_namespace_with_no_duplicates()

@@ -15,8 +15,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     Area = "Outbox",
     Contract = "CountBacklog returns the number of Pending source rows, due or backed off, excluding Claimed and Quarantined rows."
 )]
-public abstract class OutboxBacklogCountSpec<TFixture> : OutboxSpecBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class OutboxBacklogCountSpec : OutboxSpecBase
 {
     [Fact(DisplayName = "Pending rows count as backlog while Claimed and Quarantined rows do not")]
     public async Task Backlog_counts_pending_only()

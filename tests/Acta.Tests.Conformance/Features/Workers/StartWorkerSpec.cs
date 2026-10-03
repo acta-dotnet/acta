@@ -19,8 +19,7 @@ namespace Acta.Tests.Conformance.Features.Workers;
     Area = "Workers",
     Contract = "StartWorker writes the namespace only when its hash changed or the name is new, appends a fresh worker row, and emits one WorkerStarted event per worker."
 )]
-public abstract class StartWorkerSpec<TFixture> : ActaStorageTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class StartWorkerSpec : ActaStorageTestBase<ConformanceFixture>
 {
     [Fact(DisplayName = "Namespace version is unchanged on same-metadata call and bumped on metadata change")]
     public async Task Namespace_upsert_is_idempotent_then_churns_on_metadata_change()

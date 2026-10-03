@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     Area = "Reads",
     Contract = "GetJobExplanation returns the header, step, and checkpoint result sets for a matching job id and null when no row matches."
 )]
-public abstract class GetJobExplanationSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class GetJobExplanationSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "A known job id returns a populated header (Ready) with no steps or checkpoints")]
     public async Task Returns_explain_data_for_known_job_id()

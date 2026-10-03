@@ -14,7 +14,7 @@ namespace Acta.Tests.Conformance.SqlServer.Features.Execution;
 /// empty claim's horizon reads the head of each band once. Parked waits, which SQL Server sorts first in
 /// their band, and a band of delayed High rows crowd the index around the due rows.
 /// </summary>
-public sealed class SqlServerClaimPlanTests : ClaimSkewTestBase<SqlServerConformanceFixture>
+public sealed class SqlServerClaimPlanTests : ClaimSkewTestBase
 {
     private static readonly XNamespace Showplan = "http://schemas.microsoft.com/sqlserver/2004/07/showplan";
 

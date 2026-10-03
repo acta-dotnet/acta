@@ -22,8 +22,7 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     Area = "Alerts",
     Contract = "Delivery selects unresolved rows whose retry_after_utc has come, on the retry arm or the reminder arm, and settles only at the version the read handed out."
 )]
-public abstract class AlertDeliverySpec<TFixture> : ActaStorageTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class AlertDeliverySpec : ActaStorageTestBase<ConformanceFixture>
 {
     private static readonly DateTime PastInstant = new(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private static readonly DateTime FutureInstant = new(2999, 1, 1, 0, 0, 0, DateTimeKind.Utc);

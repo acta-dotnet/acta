@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     Area = "Control",
     Contract = "Control verbs apply their status transition unconditionally and only write a job event when the job's audit level is full (code 20)."
 )]
-public abstract class ControlVerbAuditGatingSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class ControlVerbAuditGatingSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "Pause applies transition regardless of audit level and emits event only at full audit")]
     public async Task Pause_applies_transition_regardless_of_audit_level_and_emits_event_only_at_full_audit()

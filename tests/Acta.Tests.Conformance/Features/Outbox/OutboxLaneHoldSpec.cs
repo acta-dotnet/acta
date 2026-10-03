@@ -17,8 +17,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     Area = "Outbox",
     Contract = "A laned outbox row is claimed only while no older row of its lane is Pending or Claimed, so a lane reaches the ledger in staging order."
 )]
-public abstract class OutboxLaneHoldSpec<TFixture> : OutboxRelayIntegrationBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class OutboxLaneHoldSpec : OutboxRelayIntegrationBase
 {
     [Fact(DisplayName = "A rejected row holds its lane across ticks while another lane relays")]
     public async Task A_rejected_row_holds_its_lane()

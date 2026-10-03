@@ -16,8 +16,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     Area = "Outbox",
     Contract = "A relay tick that fails before target enqueue reclaims the row, and one that fails after enqueue still yields exactly one target job."
 )]
-public abstract class OutboxRelayHandoffSpec<TFixture> : OutboxRelayIntegrationBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class OutboxRelayHandoffSpec : OutboxRelayIntegrationBase
 {
     [Fact(DisplayName = "A failure before target enqueue releases the claim and a later tick delivers the row exactly once")]
     public async Task Failure_before_target_enqueue_reclaims_and_delivers_the_row()

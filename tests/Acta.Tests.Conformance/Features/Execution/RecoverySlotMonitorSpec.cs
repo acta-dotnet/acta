@@ -22,8 +22,7 @@ namespace Acta.Tests.Conformance.Features.Execution;
     Area = "Execution",
     Contract = "A recovery slot in flight under a lapsed lease is re-armed once by a repair whose guard reads the lease against database time inside the statement."
 )]
-public abstract class RecoverySlotMonitorSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class RecoverySlotMonitorSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // The slot under test is the framework's own; it exists only when system jobs register.
     protected override bool RegisterSystemJobs => true;

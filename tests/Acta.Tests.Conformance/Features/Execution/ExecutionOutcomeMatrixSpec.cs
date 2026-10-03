@@ -17,8 +17,7 @@ namespace Acta.Tests.Conformance.Features.Execution;
     Area = "Execution",
     Contract = "No-op StartExecution and CompleteExecution outcomes (wrong owner, already-terminal) never emit events and return the exact discriminated action."
 )]
-public abstract class ExecutionOutcomeMatrixSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class ExecutionOutcomeMatrixSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private const int LiveLeaseTtl = 30;
 

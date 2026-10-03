@@ -16,8 +16,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     Area = "Outbox",
     Contract = "ListQuarantined pages every Quarantined row by outbox_id with identity and failure evidence, and CountQuarantined reports the current total."
 )]
-public abstract class OutboxListQuarantinedSpec<TFixture> : OutboxSpecBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class OutboxListQuarantinedSpec : OutboxSpecBase
 {
     [Fact(DisplayName = "Two keyset pages cover every quarantined row exactly once, evidence intact")]
     public async Task Listing_pages_by_outbox_id_and_count_reports_the_total()

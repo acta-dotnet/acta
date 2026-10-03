@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.Runtime;
 /// worker-shutdown guard a routine restart would finalize every in-flight job as terminal Failed. Concrete
 /// per-profile specs derive from this base.
 /// </remarks>
-public abstract class WorkerShutdownDrainSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public abstract class WorkerShutdownDrainSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // A hang guard, not a measurement: these specs drive the real claim loop and its DB round-trips,
     // which run slow under the suite's cross-test parallelism and finish well under a second in
@@ -101,8 +100,7 @@ public abstract class WorkerShutdownDrainSpec<TFixture> : ActaRuntimeTestBase<TF
     Area = "Recovery",
     Contract = "Under the Buffered profile a graceful worker stop with a job in-flight writes no completion and leaves it Executing for recovery, never terminal Failed."
 )]
-public abstract class BufferedWorkerShutdownDrainSpec<TFixture> : WorkerShutdownDrainSpec<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class BufferedWorkerShutdownDrainSpec : WorkerShutdownDrainSpec
 {
     protected override ExecutionProfile Profile => ExecutionProfile.Buffered;
 
@@ -122,8 +120,7 @@ public abstract class BufferedWorkerShutdownDrainSpec<TFixture> : WorkerShutdown
     Area = "Recovery",
     Contract = "Under the Direct profile a graceful worker stop with a job in-flight writes no completion and leaves it Executing for recovery, never terminal Failed."
 )]
-public abstract class DirectWorkerShutdownDrainSpec<TFixture> : WorkerShutdownDrainSpec<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class DirectWorkerShutdownDrainSpec : WorkerShutdownDrainSpec
 {
     protected override ExecutionProfile Profile => ExecutionProfile.Direct;
 

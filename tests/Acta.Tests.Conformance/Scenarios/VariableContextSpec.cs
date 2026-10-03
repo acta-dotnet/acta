@@ -14,8 +14,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Variables",
     Contract = "The variable context API persists set/get/get-or-set/delete/exists with last-writer-wins versioning, idempotent delete, format fidelity and payload validation."
 )]
-public abstract class VariableContextSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "The full variable lifecycle round-trips through the context API with a factory run once and idempotent delete")]
     public async Task Variable_lifecycle_round_trips_through_context_api()

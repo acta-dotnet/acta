@@ -28,8 +28,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Area = "Claim",
     Contract = "A claim returns up to ClaimBatchSize rows, an empty claim returns one horizon sentinel, and an excluded definition is invisible to both."
 )]
-public abstract class ClaimBatchSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class ClaimBatchSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private const int Batch = 5;
 

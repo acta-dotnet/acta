@@ -13,7 +13,7 @@ namespace Acta.Tests.Conformance.Sqlite.Features.Execution;
 /// claim order, so SQLite never sorts, and the horizon searches the head of each band. Parked waits, which
 /// SQLite sorts first in their band, and a band of delayed High rows crowd the index around the due rows.
 /// </summary>
-public sealed class SqliteClaimPlanTests : ClaimSkewTestBase<SqliteConformanceFixture>
+public sealed class SqliteClaimPlanTests : ClaimSkewTestBase
 {
     private const string BandSeek = "USING COVERING INDEX ix_runtimes_claim_ready (namespace_id=? AND priority_code=?";
 

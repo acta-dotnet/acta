@@ -20,8 +20,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "ChildJobs",
     Contract = "StartChildAsync dedupes by name per parent and a terminal child raises a durable latch that releases a waiting parent while cancel cascades to the live subtree."
 )]
-public abstract class ChildJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private const int LeaseTtlSeconds = -5;
 

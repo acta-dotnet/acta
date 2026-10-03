@@ -17,8 +17,7 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     Area = "Reads",
     Contract = "ListJobAlerts returns alert rows ordered created_at_utc then id descending with severity floor and an opt-in filter-wide count in one command."
 )]
-public abstract class ListJobAlertsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class ListJobAlertsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "Alerts page newest first with the severity floor excluding lower rows, full stored text, and a filter-wide total")]
     public async Task Lists_alerts_newest_first_with_severity_floor_and_full_text()

@@ -12,8 +12,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Area = "Chaos",
     Contract = "Repeated runtime initialization for system maintenance jobs is idempotent, and the recurring maintenance slot is claimed by only one worker."
 )]
-public abstract class RecoveryDuplicationChaosSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class RecoveryDuplicationChaosSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // A normal positive lease; the race here is decided by claim ownership.
     private const int LeaseTtlSeconds = 60;

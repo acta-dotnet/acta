@@ -27,8 +27,7 @@ namespace Acta.Tests.Conformance.Features.Workers;
     Area = "Workers",
     Contract = "MarkDeadWorkers marks every stale Active or Draining worker Dead in all namespaces, writes each worker.died event to its own namespace, and skips Stopped ones."
 )]
-public abstract class MarkDeadWorkersSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class MarkDeadWorkersSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // 300s, comfortably above SpecWaits.Converge's 90s bound below. The convergence loop re-sweeps with
     // this same window every iteration, and the fresh worker's survival is asserted only after the loop

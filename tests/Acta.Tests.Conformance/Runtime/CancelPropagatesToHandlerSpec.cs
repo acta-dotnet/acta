@@ -16,8 +16,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Area = "Control",
     Contract = "An external cancel reaches the handler's CancellationToken through the next heartbeat tick so the handler stops cooperatively and the row settles Cancelled."
 )]
-public abstract class CancelPropagatesToHandlerSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class CancelPropagatesToHandlerSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(
         DisplayName = "An external cancel fires the handler token via heartbeat, the handler stops cooperatively, and the job settles Cancelled"

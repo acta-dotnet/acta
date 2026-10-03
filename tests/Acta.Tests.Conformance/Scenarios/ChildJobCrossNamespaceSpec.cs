@@ -17,8 +17,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "ChildJobs",
     Contract = "StartChildAsync targets any namespace and the child's terminal landing releases the waiting parent across the namespace boundary."
 )]
-public abstract class ChildJobCrossNamespaceSpec<TFixture> : ActaTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class ChildJobCrossNamespaceSpec : ActaTestBase<ConformanceFixture>
 {
     private WorkerRuntime _parentRuntime = null!;
     private WorkerRuntime _childRuntime = null!;

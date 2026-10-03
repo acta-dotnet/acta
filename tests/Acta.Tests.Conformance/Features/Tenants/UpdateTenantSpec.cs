@@ -13,8 +13,7 @@ namespace Acta.Tests.Conformance.Features.Tenants;
     Area = "Admin",
     Contract = "Update writes display_name/description under a version CAS, clears null fields, and emits tenant.updated to sys namespace 1."
 )]
-public abstract class UpdateTenantSpec<TFixture> : ActaStorageTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class UpdateTenantSpec : ActaStorageTestBase<ConformanceFixture>
 {
     private static JobControlActor Actor() => new(ActorCode.Operator, "op-1");
 

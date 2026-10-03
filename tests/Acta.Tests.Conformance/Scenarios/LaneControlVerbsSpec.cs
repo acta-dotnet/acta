@@ -17,8 +17,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Lanes",
     Contract = "Pause, resume, reschedule, restart, and reprioritize on a laned job never let it run ahead of an older unfinished member of its lane."
 )]
-public abstract class LaneControlVerbsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class LaneControlVerbsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "A paused follower holds the lane after the head finishes, and resuming it makes it the head")]
     public async Task Paused_follower_holds_the_lane_until_resumed()

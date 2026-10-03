@@ -17,8 +17,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Enqueue",
     Contract = "The contract IJobs façade resolves namespace and format from a JobContract, and supports no-input, fire-and-forget, and RunAndWaitAsync result paths."
 )]
-public abstract class JobContractSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class JobContractSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     protected override bool RunAsWorker => true;
 

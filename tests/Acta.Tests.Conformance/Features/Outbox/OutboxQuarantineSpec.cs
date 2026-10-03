@@ -16,8 +16,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     Area = "Outbox",
     Contract = "Quarantine retains a claimed row at status 90 with its error and clears the claim pair, only under its token, excluding it from claims."
 )]
-public abstract class OutboxQuarantineSpec<TFixture> : OutboxSpecBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class OutboxQuarantineSpec : OutboxSpecBase
 {
     [Fact(DisplayName = "A stale token no-ops and the owning token quarantines and retains the row")]
     public async Task Quarantine_is_token_cas_and_retained()

@@ -13,8 +13,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Area = "Chaos",
     Contract = "A crash after claim, after start, after handler completion, or during a running handler is recovered by lease reclaim and has a single legal final state."
 )]
-public abstract class WorkerCrashRecoveryChaosSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // A normal positive lease; chaos expires it explicitly via ExpireLeaseAsync, never by waiting.
     private const int LeaseTtlSeconds = 60;

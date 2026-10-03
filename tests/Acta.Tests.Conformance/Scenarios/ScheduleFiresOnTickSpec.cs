@@ -33,8 +33,7 @@ internal sealed class FakeClock(DateTime initialUtc) : IActaClock
     Area = "Scheduling",
     Contract = "A recurring slot fires on one stable id, advancing cursors, trimming the result ring buffer, applying the failure budget and emitting rollover events."
 )]
-public abstract class ScheduleFiresOnTickSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // Live slot cursors are this spec's subject; the harness default would park them.
     protected override bool ParkScheduleSlots => false;

@@ -16,8 +16,7 @@ namespace Acta.Tests.Conformance.Features.Definitions;
     Area = "Reads",
     Contract = "GetJobDefinition returns the fully-projected definitions row matching the supplied id and null when no row matches."
 )]
-public abstract class GetJobDefinitionSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class GetJobDefinitionSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "A known id returns the matching definition row")]
     public async Task Returns_definition_for_known_id()

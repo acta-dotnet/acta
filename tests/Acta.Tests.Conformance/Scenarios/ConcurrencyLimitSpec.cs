@@ -22,8 +22,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Concurrency",
     Contract = "A concurrency key admits at most its definition's limit at once, one lock row per slot, taken lowest free slot first."
 )]
-public abstract class ConcurrencyLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class ConcurrencyLimitSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private static readonly TimeSpan HeldTtl = TimeSpan.FromMinutes(5);
 

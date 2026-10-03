@@ -17,8 +17,7 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     Area = "Reads",
     Contract = "ListJobs filters partition the result to exactly the matching rows and exclude all non-matching rows for each filter dimension."
 )]
-public abstract class ListJobsFilterMatrixSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private JobEnqueueRow AddNumbersRow(
         string? tenantKey = null,

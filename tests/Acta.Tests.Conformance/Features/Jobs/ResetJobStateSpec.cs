@@ -21,8 +21,7 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     Area = "Execution",
     Contract = "Reset clears a job's substrate rows leaving siblings intact and emits one audit-gated state-reset event with no status transition."
 )]
-public abstract class ResetJobStateSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "Target job substrate is cleared while sibling jobs are left untouched")]
     public async Task Reset_clears_all_substrate_for_the_job_and_leaves_siblings_intact()

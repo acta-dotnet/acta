@@ -13,8 +13,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Area = "Chaos",
     Contract = "Transient storage failures before and after CompleteExecution converge to one state, and DB/app clock skew is enforced at initialization."
 )]
-public abstract class CompleteAndClockChaosSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class CompleteAndClockChaosSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private StoreFaultPlan _faults = null!;
 
@@ -99,8 +98,7 @@ public abstract class CompleteAndClockChaosSpec<TFixture> : ActaRuntimeTestBase<
     Area = "Chaos",
     Contract = "Worker initialization fails when DB/app clocks differ beyond the fail threshold unless AllowClockSkew is set."
 )]
-public abstract class ClockSkewInitializationChaosSpec<TFixture> : ActaTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class ClockSkewInitializationChaosSpec : ActaTestBase<ConformanceFixture>
 {
     private StoreFaultPlan _faults = null!;
 

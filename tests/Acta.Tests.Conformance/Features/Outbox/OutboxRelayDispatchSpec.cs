@@ -17,8 +17,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     Area = "Outbox",
     Contract = "A worker with AddOutboxRelay registers and dispatches sys.outbox, and an unavailable source fails only that tick."
 )]
-public abstract class OutboxRelayDispatchSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class OutboxRelayDispatchSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
     {

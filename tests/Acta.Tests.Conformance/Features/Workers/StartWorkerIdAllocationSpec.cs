@@ -26,8 +26,7 @@ namespace Acta.Tests.Conformance.Features.Workers;
     Area = "Workers",
     Contract = "A worker start against an existing namespace allocates no namespace id, so the id space tracks namespaces created, not workers started."
 )]
-public abstract class StartWorkerIdAllocationSpec<TFixture> : ActaStorageTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class StartWorkerIdAllocationSpec : ActaStorageTestBase<ConformanceFixture>
 {
     // A burning registration opens one hole per restart, so this is both the signal and the margin:
     // eight holes to fail on, against the single stray deletion a full run is known to leave.

@@ -17,8 +17,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     Area = "Outbox",
     Contract = "RequeueQuarantined moves targeted (or all, when ids are null) Quarantined rows to Pending, due now, failure_count reset, last_error kept, returning the ids."
 )]
-public abstract class OutboxRequeueSpec<TFixture> : OutboxSpecBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class OutboxRequeueSpec : OutboxSpecBase
 {
     [Fact(DisplayName = "Id-scoped requeue frees one row, the null form sweeps the rest, and freed rows claim again")]
     public async Task Requeue_resets_budget_keeps_evidence_and_makes_rows_claimable()

@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.Features.Time;
     Area = "Clock",
     Contract = "GetUtcNow executes a scalar round-trip and returns the DB server's UTC clock aligned with the C# UTC clock within a two-minute window."
 )]
-public abstract class GetUtcNowSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class GetUtcNowSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "The returned DateTime is UTC-kinded and within two minutes of the calling process clock")]
     public async Task Returns_utc_instant_within_two_minutes_of_process_clock()

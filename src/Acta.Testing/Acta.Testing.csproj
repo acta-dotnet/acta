@@ -22,5 +22,8 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Acta.Tests" />
     <InternalsVisibleTo Include="Acta.Tests.Conformance" />
+    <InternalsVisibleTo Include="Acta.Tests.Conformance.Postgres" />
+    <InternalsVisibleTo Include="Acta.Tests.Conformance.SqlServer" />
+    <InternalsVisibleTo Include="Acta.Tests.Conformance.Sqlite" />
   </ItemGroup>
 </Project>

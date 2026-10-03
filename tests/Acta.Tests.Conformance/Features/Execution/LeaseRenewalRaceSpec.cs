@@ -22,8 +22,7 @@ namespace Acta.Tests.Conformance.Features.Execution;
     Area = "Execution",
     Contract = "A lease renewal skips an in-flight row another transaction holds, reporting it unrenewed, so it never waits on a completing child."
 )]
-public abstract class LeaseRenewalRaceSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class LeaseRenewalRaceSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
     {

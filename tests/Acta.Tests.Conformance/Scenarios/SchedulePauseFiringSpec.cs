@@ -20,8 +20,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Scheduling",
     Contract = "A paused schedule's slot is not claimable, and a timed pause resumes at its expiry by the misfire policy, firing only an occurrence due by then."
 )]
-public abstract class SchedulePauseFiringSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class SchedulePauseFiringSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // Live slot cursors are this spec's subject; the harness default would park them.
     protected override bool ParkScheduleSlots => false;

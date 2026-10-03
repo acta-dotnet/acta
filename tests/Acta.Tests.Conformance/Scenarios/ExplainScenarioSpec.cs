@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     Area = "Reads",
     Contract = "ExplainAsync reports a suspended job as awaiting its signal or its child, and a finished job as Succeeded."
 )]
-public abstract class ExplainScenarioSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class ExplainScenarioSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "Explain reports a signal-suspended job as Suspended awaiting its signal")]
     public async Task Explains_a_suspended_job()

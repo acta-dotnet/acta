@@ -28,8 +28,7 @@ namespace Acta.Tests.Conformance.Features.Execution;
     Area = "Execution",
     Contract = "A claimed job this worker has no descriptor for returns to Ready budget-neutral, and the worker stops claiming that definition."
 )]
-public abstract class UnsupportedDefinitionClaimSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private const string AuditedJob = "add-numbers";
 

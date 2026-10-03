@@ -16,8 +16,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     Area = "Outbox",
     Contract = "Reschedule returns a claimed row to Pending with a bumped failure count, a future attempt, and the error, only under its token."
 )]
-public abstract class OutboxRescheduleSpec<TFixture> : OutboxSpecBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class OutboxRescheduleSpec : OutboxSpecBase
 {
     [Fact(DisplayName = "A stale token no-ops and the owning token reschedules with backoff")]
     public async Task Reschedule_is_token_cas()

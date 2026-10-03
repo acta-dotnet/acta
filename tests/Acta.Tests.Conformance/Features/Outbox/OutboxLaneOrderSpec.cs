@@ -17,8 +17,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     Area = "Outbox",
     Contract = "The relay claims a lane's rows in staging order, so a lane's rows reach the ledger in that order however their priorities differ."
 )]
-public abstract class OutboxLaneOrderSpec<TFixture> : OutboxRelayIntegrationBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class OutboxLaneOrderSpec : OutboxRelayIntegrationBase
 {
     [Fact(DisplayName = "A low-priority row staged first leads its lane ahead of a high-priority row staged after it")]
     public async Task Staging_order_wins_over_priority()

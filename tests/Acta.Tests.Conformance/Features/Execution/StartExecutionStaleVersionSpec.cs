@@ -19,8 +19,7 @@ namespace Acta.Tests.Conformance.Features.Execution;
     Area = "Execution",
     Contract = "Start transitions a fresh claim to Executing but refuses a stale-version claim as LostClaim and an expired-lease claim as LeaseExpired."
 )]
-public abstract class StartExecutionStaleVersionSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class StartExecutionStaleVersionSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "A fresh matching claim starts execution and the job goes Executing")]
     public async Task Fresh_claim_version_starts_execution()

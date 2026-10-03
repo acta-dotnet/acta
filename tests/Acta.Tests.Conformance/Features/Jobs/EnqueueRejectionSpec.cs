@@ -19,8 +19,7 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     Area = "Enqueue",
     Contract = "A batch with a same-batch duplicate DeduplicationKey, duplicate tag names, or an unknown namespace or job is rejected atomically and no job rows are inserted."
 )]
-public abstract class EnqueueRejectionSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class EnqueueRejectionSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // Enqueue-only spec - InitializeAsync (worker mode) registers the namespace so EnqueueBatch.Run
     // can resolve it; we never start the claim/execute loop.

@@ -16,8 +16,7 @@ namespace Acta.Tests.Conformance.Features.Namespaces;
     Area = "Reads",
     Contract = "ListNamespaceItems pages namespaces name-ascending carrying id, status, owner_team, description, and version, and includes the seeded sys row."
 )]
-public abstract class ListNamespaceItemsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class ListNamespaceItemsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     protected override bool RunAsWorker => true;
 

@@ -19,8 +19,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Area = "Execution",
     Contract = "ctx.ExecutionNumber and ctx.WorkerId report the running attempt's ledger identity, advancing with each retry."
 )]
-public abstract class JobAttemptIdentitySpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class JobAttemptIdentitySpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "ctx.ExecutionNumber advances with each attempt and ctx.WorkerId matches the executing worker")]
     public async Task Context_reports_the_ledger_attempt_identity()

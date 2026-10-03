@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.Features.Overview;
     Area = "Reads",
     Contract = "GetOverview returns non-negative health counters for the requested namespace and a globally-scoped result that is a superset of any namespace-scoped result."
 )]
-public abstract class GetOverviewSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private IOverviewStore Overview => Services.GetRequiredService<IOverviewStore>();
 

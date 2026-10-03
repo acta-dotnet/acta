@@ -79,8 +79,7 @@ public sealed class RollingGenerationBManifest : IJobManifest
     Area = "Runtime",
     Contract = "A worker hands back a claim it has no handler for, stops claiming that definition, and leaves the catalog entry Active."
 )]
-public abstract class RollingDeploySpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class RollingDeploySpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
 {
     private const string SharedJob = RollingGenerationBManifest.SharedJob;
 

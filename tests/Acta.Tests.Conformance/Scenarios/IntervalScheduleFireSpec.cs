@@ -81,8 +81,7 @@ public sealed class IntervalPingManifest : IJobManifest
     Area = "Scheduling",
     Contract = "An interval slot fires, advances its cursor by exactly one period, coalesces misses with Skip, and claims exclusively under contention."
 )]
-public abstract class IntervalScheduleFireSpec<TFixture> : ActaRuntimeTestBase<TFixture, IntervalPingManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class IntervalScheduleFireSpec : ActaRuntimeTestBase<ConformanceFixture, IntervalPingManifest>
 {
     // Live slot cursors are this spec's subject; the harness default would park them.
     protected override bool ParkScheduleSlots => false;

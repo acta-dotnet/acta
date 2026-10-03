@@ -21,8 +21,7 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     Area = "Alerts",
     Contract = "Raising, resolving, and sweeping alerts while their jobs are purged never deadlocks and never leaves an alert on a purged job."
 )]
-public abstract class AlertPurgeRaceSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
-    where TFixture : IConformanceFixture, new()
+public sealed class AlertPurgeRaceSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private const int JobsPerRound = 40;
     private const int Rounds = 3;

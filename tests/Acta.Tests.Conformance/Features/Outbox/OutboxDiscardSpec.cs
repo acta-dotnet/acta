@@ -17,8 +17,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     Area = "Outbox",
     Contract = "DiscardQuarantined deletes targeted (or all, when ids are null) Quarantined rows, returns the deleted ids, and never touches a row in any other status."
 )]
-public abstract class OutboxDiscardSpec<TFixture> : OutboxSpecBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class OutboxDiscardSpec : OutboxSpecBase
 {
     [Fact(DisplayName = "Discard deletes only quarantined rows, returns their ids, and cannot touch a claimed row")]
     public async Task Discard_deletes_quarantined_rows_and_spares_claimed_work()

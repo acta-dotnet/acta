@@ -18,8 +18,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Area = "Workers",
     Contract = "Three Run calls in one process register three workers each owning its own namespace and manifest catalog and each claims and runs jobs only in its namespace."
 )]
-public abstract class MultiWorkerRegistrationSpec<TFixture> : ActaTestBase<TFixture>
-    where TFixture : IConformanceFixture, new()
+public sealed class MultiWorkerRegistrationSpec : ActaTestBase<ConformanceFixture>
 {
     private string[] Namespaces => [TestKey("mw-a"), TestKey("mw-b"), TestKey("mw-c")];
 
