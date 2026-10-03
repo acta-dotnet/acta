@@ -172,9 +172,16 @@ child table, but it locks only the batch's own keys.
 
 A routine that writes a job's alerts locks the job row first, then the alert rows. `purge_job` holds the
 job row while it deletes the job's alerts, and `raise_job_alert` and `resolve_job_alerts` lock the same
-row before they touch an alert: `UPDLOCK` on SQL Server, `FOR KEY SHARE` on PostgreSQL against the
+row before they touch an alert: `UPDLOCK` on SQL Server, `FOR SHARE` on PostgreSQL against the
 purge's `FOR UPDATE`. A raise or resolve that meets a purge of its job waits for it. A raise that then
 finds the job gone is refused, so no alert outlives its job.
+
+- PostgreSQL takes `FOR SHARE`, not `FOR KEY SHARE`. The key-share path in `heap_lock_tuple` releases
+  the buffer lock, relocks it, and then rechecks only for an update. A `FOR UPDATE` taken in that window
+  leaves the row only locked, so the key-share joins it instead of waiting. The purge then waits on the
+  resolve to delete the job row while the resolve waits on the purge's alert rows. The window opens when
+  a raiser's key-share ends under a waiting purge. The share path rechecks for an exclusive lock after
+  relocking, and on `jobs` it adds a conflict only with `UpdateJobInput`'s update.
 
 - `ix_alerts_job` (`job_id, id`, filtered to rows with a job) holds a job's alerts. On SQL Server,
   purge and resolve seek it without locks, which the held job row makes safe, and then lock each row by

@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 6)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 7)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -977,8 +977,8 @@ BEGIN
 
     -- The job row is locked before any of its alert rows, the order purge_job takes with FOR UPDATE
     -- (docs/internals/sql-execution-policy.md, "Alert lock order"), so a raise waits out a purge of its job
-    -- rather than landing an alert on the deleted job.
-    SELECT job_ref INTO v_job_ref FROM acta.jobs WHERE id = p_job_id FOR KEY SHARE;
+    -- rather than landing an alert on the deleted job. FOR SHARE, not FOR KEY SHARE: see that section.
+    SELECT job_ref INTO v_job_ref FROM acta.jobs WHERE id = p_job_id FOR SHARE;
 
     IF p_job_id IS NOT NULL AND v_job_ref IS NULL THEN
         RAISE EXCEPTION 'ACTA:ALERT_UNKNOWN_JOB:raise_job_alert: unknown job id'
@@ -1231,7 +1231,8 @@ AS $$
 BEGIN
     -- The job row first, then its alert rows (docs/internals/sql-execution-policy.md, "Alert lock order"):
     -- purge_job holds the row FOR UPDATE while it deletes the job's alerts in id order.
-    PERFORM 1 FROM acta.jobs j WHERE j.id = p_job_id FOR KEY SHARE;
+    -- FOR SHARE, not FOR KEY SHARE: see that section.
+    PERFORM 1 FROM acta.jobs j WHERE j.id = p_job_id FOR SHARE;
 
     RETURN QUERY
     WITH resolved AS (
@@ -8668,7 +8669,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.6-d6d0122e2d692873f15891bda673bf3e', 'acta');
+VALUES (-1, 'objects-1.7-7eb0529ec5d380eef4b937632f565194', 'acta');
 
 COMMIT;
 

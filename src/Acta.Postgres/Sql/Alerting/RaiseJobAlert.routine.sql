@@ -31,8 +31,8 @@ BEGIN
 
     -- The job row is locked before any of its alert rows, the order purge_job takes with FOR UPDATE
     -- (docs/internals/sql-execution-policy.md, "Alert lock order"), so a raise waits out a purge of its job
-    -- rather than landing an alert on the deleted job.
-    SELECT job_ref INTO v_job_ref FROM {{schema}}.jobs WHERE id = p_job_id FOR KEY SHARE;
+    -- rather than landing an alert on the deleted job. FOR SHARE, not FOR KEY SHARE: see that section.
+    SELECT job_ref INTO v_job_ref FROM {{schema}}.jobs WHERE id = p_job_id FOR SHARE;
 
     IF p_job_id IS NOT NULL AND v_job_ref IS NULL THEN
         RAISE EXCEPTION 'ACTA:ALERT_UNKNOWN_JOB:raise_job_alert: unknown job id'

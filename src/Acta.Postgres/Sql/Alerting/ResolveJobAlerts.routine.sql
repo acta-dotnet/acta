@@ -9,7 +9,8 @@ AS $$
 BEGIN
     -- The job row first, then its alert rows (docs/internals/sql-execution-policy.md, "Alert lock order"):
     -- purge_job holds the row FOR UPDATE while it deletes the job's alerts in id order.
-    PERFORM 1 FROM {{schema}}.jobs j WHERE j.id = p_job_id FOR KEY SHARE;
+    -- FOR SHARE, not FOR KEY SHARE: see that section.
+    PERFORM 1 FROM {{schema}}.jobs j WHERE j.id = p_job_id FOR SHARE;
 
     RETURN QUERY
     WITH resolved AS (
