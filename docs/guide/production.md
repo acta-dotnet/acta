@@ -214,11 +214,9 @@ latency, failure rate, and downstream saturation.
 
 ## Execution profiles
 
-Profile choice is a durability decision, not only a throughput one. `Buffered` is the conservative
-default, `Direct` trades the `Dispatched` visibility window for fewer round trips, and `Bulk`
-relaxes completion durability: a crash can re-run handler work that already finished, so it is only
-for idempotent or safely repeatable jobs. The full profile guide, including tuning knobs and good
-and bad `Bulk` candidates, is in [Configuration](./configuration.md).
+`Buffered` is the conservative default, and `Direct` trades the `Dispatched` visibility window for
+fewer round trips. Both commit every completion in its own transaction; on SQLite, `Direct` also
+relaxes the commit fsync. The full profile guide is in [Configuration](./configuration.md).
 
 ## Database clock and lease safety
 

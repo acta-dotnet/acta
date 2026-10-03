@@ -66,12 +66,6 @@ would be abandoned in turn. Repairing the underlying database failure lets the p
 land without restarting the worker, as long as each attempt still owns its row. Recovery itself is
 unaffected, because the slot monitor runs the sweep outside the executor pool.
 
-`Bulk` pays that cost per entry, never per batch. A flush settles its entries side by side, with as
-many completions in flight as the executors each flusher stands in for, so an entry whose write keeps
-failing holds up neither its siblings' completions nor any deferred wakeup, including the wakeups for
-rows the batch statement already committed. What it does hold is its own flusher, which is the executor trade again: a worker
-runs several flushers, so the others keep draining.
-
 A worker that dies mid-repeat still loses the write. The row stays `Executing` until its lease
 lapses, `sys.recovery` reclaims it, and the handler runs again. A graceful drain keeps repeating
 while the host's shutdown budget lasts, so completions land; a hard stop ends the repeat and leaves
@@ -159,8 +153,8 @@ semantics; the application still owns external side-effect safety.
 `AtMostOnce()` is for selected step bodies where duplicate execution is worse than an ambiguous
 outcome. If the worker dies after Acta records the step start but before recording the outcome,
 replay does not run the body again and the handler must reconcile whether the external side effect
-happened. That rests on the start marker being durable: on SQLite under Direct or Bulk, which run
-with `synchronous = NORMAL`, power loss or an OS crash can lose it and the body runs again; a
+happened. That rests on the start marker being durable: on SQLite under Direct, which runs with
+`synchronous = NORMAL`, power loss or an OS crash can lose it and the body runs again; a
 `ctx.ResetStateAsync` commits before the completion does, so a crash between the two re-runs the fire
 with no step rows. Use Buffered on SQLite, and per-period step names in recurring jobs, for
 at-most-once work.
@@ -168,10 +162,6 @@ at-most-once work.
 The application owns side-effect safety. External systems such as payment providers, email
 providers, webhooks, object storage, and partner APIs need deduplication keys, `AtMostOnce()`
 placement, or reconciliation paths.
-
-`Bulk` has relaxed completion durability. A crash can lose unflushed completion records and recovery
-can re-run handler work that already finished in process. Use `Bulk` only for idempotent or safely
-repeatable work.
 
 A recurring job's failure is a rollover, not a terminal failure, and the quieter alert profiles wait
 for a terminal one. `MaxAttempts` is the one-shot retry budget: a recurring slot never exhausts it,
@@ -267,10 +257,6 @@ operational promise, not a runtime invariant.
   cancel of the rest of the lane.
 - **One job per lane is in flight.** A lane's throughput is one handler at a time; SQS can hand a
   consumer several messages of one group in a batch, and Acta never does.
-- **`Bulk` delays the handoff.** The next job is released when the head's completion is written,
-  and `Bulk` buffers completions for up to 250 ms while traffic is light. A quiet lane then moves
-  about four jobs a second. Under load the batches fill and flush early. Run lanes that need a fast
-  handoff in a namespace on `Buffered` or `Direct`.
 - **An open transaction holds its lane.** A laned enqueue locks the lane row until its transaction
   commits, and the head's completion waits for that lock. Keep transactions that enqueue into a lane
   short.
@@ -335,15 +321,6 @@ Behind a reverse proxy on the same host, do not rely on `LocalOnly`; use real au
 
 SQLite has concurrency limits compared with server databases. Use SQL Server or PostgreSQL for
 distributed multi-worker deployments.
-
-On SQLite the `Bulk` execution profile degrades to `Direct`, silently. Group-committed completions
-need a batched-completion routine, and the SQLite provider has none, so the completion buffer is
-never created: the worker runs `Direct`'s combined claim-execute loop and commits every completion per
-job. Nothing logs the downgrade and no setting rejects it. The degradation is complete: a `Bulk`
-worker on SQLite gets `Direct`'s behavior on both axes, including the relaxed commit fsync
-(`PRAGMA synchronous = NORMAL`) that `Direct` selects there — you asked for relaxed durability in
-exchange for throughput, and relaxed durability is the half SQLite can honor. The result is correct
-and durable to `Direct`'s standard; it simply performs like `Direct`, not like `Bulk`.
 
 On SQLite, a `JobId` returned by a transactional enqueue that then rolls back is handed out again.
 `sqlite_sequence`, which backs `AUTOINCREMENT`, is an ordinary table, so the counter is rolled back with

@@ -1,5 +1,25 @@
 # Release notes
 
+## 1.0.0-rc.5
+
+Not yet tagged. rc.5 reorganises the source into one folder per operation, so it can be maintained by
+hand again. The public API and the HTTP routes stay as they are except where listed below.
+
+### What a consumer must change
+
+- **The Bulk execution profile is gone.** `ExecutionProfile.Bulk` is removed; set `Direct`, the profile
+  Bulk built on. Every completion is now written in its own transaction, so a crash never re-runs a
+  handler that already finished. The cost is throughput: in the rc.4 round, PostgreSQL drain at sixteen
+  workers ran about 29,000 jobs a second on Bulk and about 10,000 on Direct. The installed routines
+  lose `complete_executions_batch`, and the object package moves to revision 8.
+
+### Fixes
+
+- **Raising or resolving an alert no longer deadlocks against a purge of its job on PostgreSQL.** The
+  two routines took the job row `FOR KEY SHARE`, and PostgreSQL's key-share path can join a `FOR UPDATE`
+  taken while it rechecks the row instead of waiting for it. They now take `FOR SHARE`. A deadlock was
+  retried, so in production this cost a retry rather than an error.
+
 ## 1.0.0-rc.4
 
 Tagged 2026-10-03. A release candidate on the 1.0 baseline. rc.5 comes next, a reorganisation of the

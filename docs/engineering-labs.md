@@ -57,7 +57,7 @@ them.
 
 Some claims are proven by suites rather than sample projects: the cross-provider conformance suite
 (one contract certifying PostgreSQL, SQL Server, and SQLite), the SQL policy guardrails over
-handwritten SQL, the shared real-database test host, batched Bulk completions, PostgreSQL batch
-enqueue staging, and the benchmark baselines in [`docs/benchmarks/`](./benchmarks/stress-tests.md).
+handwritten SQL, the shared real-database test host, PostgreSQL batch enqueue staging, and the
+benchmark baselines in [`docs/benchmarks/`](./benchmarks/stress-tests.md).
 Anvil (`anvil/Anvil`) is the load-and-failure laboratory: enqueue a million jobs, kill real worker
 processes, and watch recovery, with the dashboard attached.

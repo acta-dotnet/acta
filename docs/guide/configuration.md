@@ -90,8 +90,7 @@ dead-worker window - and lengthen it to cut idle database chatter. Long-running 
 longer lease; they stay alive by heartbeating.
 
 Engine tuning with no operator-legible meaning is not configurable: the poll floor, claim jitter,
-concurrency-key bounce delay, alert delivery retries, and the Bulk-profile completion-buffer thresholds
-are fixed. A value nobody can set correctly is a way to break a deployment, not a feature.
+concurrency-key bounce delay, and alert delivery retries are fixed. A value nobody can set correctly is a way to break a deployment, not a feature.
 
 `AlertReminderInterval` (24 hours) is the exception, and it is settable because the correct value
 depends on something Acta cannot see: how often you want to be paged again about a job that is still
@@ -143,7 +142,6 @@ and your operators, kept where the rest of the system of record already lives.
 | --- | --- | --- |
 | Buffered | Conservative default | More observable state, more round trips |
 | Direct | Higher throughput with durable completion | Less `Dispatched` visibility |
-| Bulk | Re-runnable high-volume work | Relaxed completion durability; crash can re-run completed handler work |
 
 `Buffered` claims jobs into `Dispatched`, then starts execution with a second durable transition.
 That intermediate state is useful when operators care about "claimed but not yet running" as a
@@ -152,20 +150,14 @@ visible state.
 `Direct` claims straight into execution. It removes the `Dispatched` visibility window and reduces
 round trips while keeping per-job completion durable on SQL Server and PostgreSQL. On SQLite, Direct
 also uses SQLite's faster synchronous mode, appropriate for local and embedded scenarios where that
-tradeoff is accepted. `Bulk` on SQLite degrades to `Direct` in full — no completion batching exists
-there, and it selects the same relaxed synchronous mode — see
-[known limitations](../technical/known-limitations.md#storage-and-providers).
+tradeoff is accepted.
 
-`Bulk` is Direct plus group-committed completions. The handler may finish successfully before Acta
-flushes the completion batch; if the process crashes in that window, recovery sees the job as still
-executing and can run the handler again. `Bulk` is therefore only for jobs whose side effects are
-idempotent or safely repeatable. Good candidates: cache warmers, search indexing, rebuildable
-projections, idempotent batch transforms. Bad candidates: charging cards, sending emails without
-idempotency, irreversible external side effects, one-time webhooks.
+Both profiles write each completion in its own transaction, so a finished handler's result is never
+held in memory waiting for a batch when the process stops.
 
-Tune profiles together with `MaxConcurrentExecutors` and `ClaimBatchSize`; the Bulk group-commit
-thresholds are fixed. Measure after each change: throughput gains that overload the database,
-downstream APIs, or the connection pool are not real capacity.
+Tune profiles together with `MaxConcurrentExecutors` and `ClaimBatchSize`. Measure after each change:
+throughput gains that overload the database, downstream APIs, or the connection pool are not real
+capacity.
 
 ## External Outbox Relay
 

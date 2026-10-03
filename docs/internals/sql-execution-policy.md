@@ -4,7 +4,7 @@ PostgreSQL and SQL Server execute Acta ledger mutations through atomic routines;
 SQL and installed views; SQLite implements the same store contracts with transactional inline SQL.
 
 This is the execution policy referenced by [the design decisions](design.md). The server
-providers each install 59 routines: the 54 mutation operations plus `UpdateAlertDelivery`,
+providers each install 58 routines: the 53 mutation operations plus `UpdateAlertDelivery`,
 `ResolveJobAlerts`, `RepairRecoverySlot`, `AcquireSlot`, and `ReserveRate`. Hot paths, control operations, catalog registration,
 recovery, and maintenance all follow the same rule. Routine placement is a compatibility decision,
 not an inference from SQL size.
@@ -18,8 +18,7 @@ not an inference from SQL size.
 
 `SqlResourceCatalog` resolves exactly one implementation for each operation/provider. Missing or
 ambiguous resources fail before a connection opens. `DbSession` uses the resource kind to configure
-the command. There is no provider-wide routine switch. `SupportsBatchCompletion` describes only
-native batch completion, which SQLite does not implement.
+the command. There is no provider-wide routine switch.
 
 Shared stores use query methods for reads and execute methods for mutations. Stores never decide
 transaction ownership from the number of SQL statements. Parameter binding stays provider-specific,
@@ -136,9 +135,6 @@ child table, but it locks only the batch's own keys.
 
 - Both `runtimes` inserts in `enqueue_batch` carry `OPTION (LOOP JOIN)`, so `fk_runtimes_jobs` and
   `fk_runtimes_lanes` seek each parent by key and lock only rows the batch inserted or already holds.
-- The `results` insert in `complete_executions_batch` carries it for `fk_results_jobs`. Flushers hold no
-  lock on `jobs`, so an unhinted scan there waits behind an uncommitted enqueue rather than deadlocking,
-  but it still reads the whole table per batch.
 - The same rule covers set-based deletes and locking reads driven by a table variable.
   `purge_expired_data` names every permanent table it deletes from or reads under `UPDLOCK` through
   `@del` or `@lock_del` with `WITH (FORCESEEK)`, so the table is always the inner side, sought by key.

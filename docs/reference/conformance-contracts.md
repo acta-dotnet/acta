@@ -1503,9 +1503,9 @@
   - A retire whose caller is cancelled after the commit still leaves no live laned job of the definition
 
 ### Every settle of a lane head promotes the next member
-- **Contract:** A laned head settled by reclaim, retire, or batch completion hands its lane to the next member, and a promoting completion wakes the namespace.
+- **Contract:** A laned head settled by reclaim, retire, or completion hands its lane to the next member, and a promoting completion wakes the namespace.
 - **Arrange:** Laned heads with Blocked followers sit in a private namespace, one lane per path.
-- **Act:** The head is reclaimed to Failed, cancelled by a definition retire, completed under Bulk, or completed with a recording wakeup.
+- **Act:** The head is reclaimed to Failed, cancelled by a definition retire, or completed with a recording wakeup.
 - **Assert:** The follower is Ready or has run after each settle, and the promoting completion published a worker-namespace wake.
 - **Guarantees:**
   - A head reclaimed to Failed promotes the next member

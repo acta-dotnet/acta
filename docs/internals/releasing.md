@@ -29,8 +29,7 @@ certified commit.
 
 - A completion write that keeps failing while the heartbeat still renews the lease settles once the
   provider returns, on the same worker, with no restart: `CompleteAndClockChaosSpec` and
-  `WorkerCrashRecoveryChaosSpec` on every provider, `CompletionWriteTests` for the repeat itself, and
-  `CompletionSinkBulkFallbackSpec` for a Bulk batch whose failing entry holds up nobody else.
+  `WorkerCrashRecoveryChaosSpec` on every provider, and `CompletionWriteTests` for the repeat itself.
 - A completion that commits and loses its response is reconciled by the repeat, not rerun, and never
   advances a recurring slot twice: the after-commit case in `CompleteAndClockChaosSpec`.
 - The recovery sweep runs while every executor is busy, because it runs outside the executor pool,
@@ -155,9 +154,8 @@ below are what the rounds on this machine cost to learn.
   its next cell the moment the harness process is killed; list processes by command line
   (`Win32_Process`) and confirm `pg_stat_activity` is empty before starting another round.
 - The `throughput` cells at 1 and 8 executors are bimodal in every tree measured: one run lands at
-  about 165 jobs/s for Buffered at one executor and the next at about 410, for the same binary. SQL
-  Server's Bulk drain at sixteen workers spans about 6,000 to 21,000 jobs/s for one build. Read drain,
-  enqueue, and latency for the verdict, and never compare versions on those cells.
+  about 165 jobs/s for Buffered at one executor and the next at about 410, for the same binary. Read
+  drain, enqueue, and latency for the verdict, and never compare versions on those cells.
 - `--seed-history N` measures the minute after a million-row bulk change, not a populated steady state,
   until the harness gets a settle step after seeding; report it as informational.
 - Docker Desktop keeps its disk image on C: by default and applies a new location only through its own
