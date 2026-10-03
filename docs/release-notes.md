@@ -1,8 +1,8 @@
 # Release notes
 
-## 1.0.0-rc.4 (unreleased)
+## 1.0.0-rc.4
 
-A release candidate on the 1.0 baseline. rc.5 comes next, a reorganisation of the source so it can be
+Tagged 2026-10-03. A release candidate on the 1.0 baseline. rc.5 comes next, a reorganisation of the source so it can be
 maintained by hand again, and 1.0.0 after it. From 1.0.0 the
 public API, the schema, and the persisted codes are frozen: schema changes ship only as additive
 migrations, the baseline is never re-cut, and the release guard refuses a diff that would. The data
