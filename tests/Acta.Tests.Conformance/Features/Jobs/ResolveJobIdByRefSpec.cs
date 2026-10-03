@@ -16,14 +16,8 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     "resolve-job-id-by-ref.lookup",
     "Enqueue assigns a job ref that resolves to the job; unknown refs return null",
     Area = "Enqueue",
-    Contract = "Every enqueued job carries a server-generated job_ref that resolves to its internal id, and an unknown ref resolves to null.",
-    Arrange = "A job is enqueued so the server assigns its job_ref.",
-    Act = "The ref is resolved and read via ByRef, the same deduplication key is re-enqueued, and a random ref is resolved.",
-    Assert = "The ref round-trips to the same job, the dedup echoes the existing row's ref, and the unknown ref returns null."
+    Contract = "Every enqueued job carries a server-generated job_ref that resolves to its internal id, and an unknown ref resolves to null."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.ResolveJobIdByRefAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueOneAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueBatchAsync))]
 public abstract class ResolveJobIdByRefSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

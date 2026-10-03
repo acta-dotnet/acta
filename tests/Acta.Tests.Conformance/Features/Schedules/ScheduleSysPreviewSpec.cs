@@ -9,10 +9,7 @@ namespace Acta.Tests.Conformance.Features.Schedules;
     "schedule.sys-preview",
     "Preview resolves a sys. schedule through the lookup-permissive canonicalizer",
     Area = "Scheduling",
-    Contract = "Schedule preview resolves a sys.-prefixed system schedule name through the lookup-permissive canonicalizer rather than the write-validating one.",
-    Arrange = "The runtime registers the framework sys. jobs and their schedules.",
-    Act = "Preview is requested for a sys.-prefixed system schedule.",
-    Assert = "Preview returns occurrences rather than throwing the reserved-name ArgumentException."
+    Contract = "Schedule preview resolves a sys.-prefixed system schedule name through the lookup-permissive canonicalizer rather than the write-validating one."
 )]
 public abstract class ScheduleSysPreviewSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()

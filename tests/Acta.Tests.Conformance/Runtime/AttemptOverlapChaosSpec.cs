@@ -16,10 +16,7 @@ namespace Acta.Tests.Conformance.Runtime;
     "chaos.attempt-overlap",
     "A stale attempt's unwind does not untrack its in-process replacement",
     Area = "Chaos",
-    Contract = "A stale attempt that unwinds after its job was reclaimed and re-dispatched in-process leaves the replacement attempt tracked for heartbeat cancellation.",
-    Arrange = "A blocking attempt-overlap probe is registered so the first attempt can outlive its lease.",
-    Act = "The lease expires, the job is reclaimed and re-dispatched in-process, the stale attempt unwinds, and an external cancel is issued.",
-    Assert = "The replacement attempt stays tracked so the cancel reaches it via heartbeat and the job settles Cancelled."
+    Contract = "A stale attempt that unwinds after its job was reclaimed and re-dispatched in-process leaves the replacement attempt tracked for heartbeat cancellation."
 )]
 public abstract class AttemptOverlapChaosSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()

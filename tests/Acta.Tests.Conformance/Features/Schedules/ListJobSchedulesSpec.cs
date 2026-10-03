@@ -14,12 +14,8 @@ namespace Acta.Tests.Conformance.Features.Schedules;
     "list-job-schedules.keyset-page",
     "ListJobSchedules pages live schedules next-run first without duplicates",
     Area = "Reads",
-    Contract = "ListJobSchedules pages live schedules next-run first by cursor without duplicates and reads the page plus an opt-in filter-wide count in one command.",
-    Arrange = "A namespace holds live schedules, including the system recurring definitions.",
-    Act = "The schedules are walked one per page via NextCursor, then read again with IncludeTotal.",
-    Assert = "The walk visits every live schedule once in ascending next-run order and the page plus filter-wide total arrive from one command."
+    Contract = "ListJobSchedules pages live schedules next-run first by cursor without duplicates and reads the page plus an opt-in filter-wide count in one command."
 )]
-[CoversStoreMethod(typeof(IScheduleStore), nameof(IScheduleStore.ListJobSchedulesAsync))]
 public abstract class ListJobSchedulesSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

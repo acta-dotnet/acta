@@ -16,12 +16,8 @@ namespace Acta.Tests.Conformance.Features.Schedules;
     "get-schedule-state.namespace-read",
     "GetScheduleState returns live cursors for the namespace, empty when none exist",
     Area = "Scheduling",
-    Contract = "GetScheduleState returns the non-orphaned per-schedule cursors for the given namespace id, or an empty list when none exist.",
-    Arrange = "InitializeAsync has seeded the test namespace with the TestJobs recurring definition's live schedule rows.",
-    Act = "GetScheduleState runs for a namespace id with no schedule rows and for the seeded namespace.",
-    Assert = "The empty namespace returns an empty list and the seeded namespace returns its non-orphaned per-schedule cursors."
+    Contract = "GetScheduleState returns the non-orphaned per-schedule cursors for the given namespace id, or an empty list when none exist."
 )]
-[CoversStoreMethod(typeof(IScheduleStore), nameof(IScheduleStore.GetScheduleStateAsync))]
 public abstract class GetScheduleStateSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

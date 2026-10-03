@@ -27,13 +27,8 @@ namespace Acta.Tests.Conformance.Features.Locks;
     "release-lock.cas-delete",
     "Release removes the lease row and a stale token misses on version CAS",
     Area = "Locks",
-    Contract = "ReleaseLock deletes the leases row when the version matches and returns false when the token's version no longer matches.",
-    Arrange = "A lock is held with a live token through ILockStore.",
-    Act = "The lock is released with its live token, released again with the now-stale token, and the freed key is re-acquired.",
-    Assert = "The live release deletes the leases row and returns true, the stale release misses on version CAS returning false, and the key re-acquires."
+    Contract = "ReleaseLock deletes the leases row when the version matches and returns false when the token's version no longer matches."
 )]
-[CoversStoreMethod(typeof(ILockStore), nameof(ILockStore.ReleaseAsync))]
-[CoversStoreMethod(typeof(ILockStore), nameof(ILockStore.ReleaseAsync))]
 public abstract class ReleaseLockSpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

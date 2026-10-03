@@ -13,10 +13,7 @@ namespace Acta.Tests.Conformance.Runtime;
     "input-deserialization.failure-timeline",
     "Input deserialization failures settle the attempt and stay on the timeline",
     Area = "Execution",
-    Contract = "A payload deserialization exception follows normal failure and retry semantics and records an operator-readable reason on JobExecutionFinished.",
-    Arrange = "An add-numbers job is enqueued with malformed JSON input.",
-    Act = "The runtime claims the job and attempts to deserialize its stored payload.",
-    Assert = "The job leaves Executing, re-arms Ready within its retry budget, and its finished event identifies the deserialization exception."
+    Contract = "A payload deserialization exception follows normal failure and retry semantics and records an operator-readable reason on JobExecutionFinished."
 )]
 public abstract class InputDeserializationFailureSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()

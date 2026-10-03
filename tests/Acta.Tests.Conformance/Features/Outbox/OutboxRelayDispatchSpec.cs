@@ -15,10 +15,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     "outbox.relay-dispatch",
     "AddOutboxRelay dispatches sys.outbox and a broken source fails only it",
     Area = "Outbox",
-    Contract = "A worker with AddOutboxRelay registers and dispatches sys.outbox, and an unavailable source fails only that tick.",
-    Arrange = "A worker registers the relay against a source table that does not exist, with automatic framework jobs off.",
-    Act = "The runtime initializes, an ordinary job runs, and the due sys.outbox slot is dispatched.",
-    Assert = "sys.outbox is registered without the automatic jobs, its tick fails on the broken source, and other jobs still complete."
+    Contract = "A worker with AddOutboxRelay registers and dispatches sys.outbox, and an unavailable source fails only that tick."
 )]
 public abstract class OutboxRelayDispatchSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()

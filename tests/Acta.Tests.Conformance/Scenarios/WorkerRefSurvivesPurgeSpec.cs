@@ -17,14 +17,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "worker-ref.survives-purge",
     "Events outlive a purged worker with a canonical actor key",
     Area = "Retention",
-    Contract = "Purging the workers row leaves its events with a null joined worker ref, a canonical wrk_ actor key, and the historical worker id still selecting them.",
-    Arrange = "A worker starts and stops in the test namespace, leaving lifecycle events stamped with its actor key, and its Stopped row is left for retention to reap.",
-    Act = "PurgeExpiredData runs with a future worker cutoff, then the events are listed by the purged worker's historical id.",
-    Assert = "The workers row is gone while its events remain with a null worker ref, a canonical wrk_ actor key, and the historical worker id still selecting them."
+    Contract = "Purging the workers row leaves its events with a null joined worker ref, a canonical wrk_ actor key, and the historical worker id still selecting them."
 )]
-[CoversStoreMethod(typeof(IWorkerStore), nameof(IWorkerStore.StopWorkerAsync))]
-[CoversStoreMethod(typeof(IEventStore), nameof(IEventStore.ListEventsAsync))]
-[CoversStoreMethod(typeof(IRetentionStore), nameof(IRetentionStore.PurgeBatchAsync))]
 public abstract class WorkerRefSurvivesPurgeSpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

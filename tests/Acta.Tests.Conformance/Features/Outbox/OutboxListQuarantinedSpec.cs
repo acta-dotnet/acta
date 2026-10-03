@@ -14,13 +14,8 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     "outbox-quarantine.listing",
     "Quarantined rows list in keyset pages with their failure evidence",
     Area = "Outbox",
-    Contract = "ListQuarantined pages every Quarantined row by outbox_id with identity and failure evidence, and CountQuarantined reports the current total.",
-    Arrange = "Three claimed rows are quarantined with distinct errors.",
-    Act = "The listing is read in two keyset pages and the quarantine total is counted.",
-    Assert = "The two pages cover all three rows exactly once with failure evidence intact, and the count is three."
+    Contract = "ListQuarantined pages every Quarantined row by outbox_id with identity and failure evidence, and CountQuarantined reports the current total."
 )]
-[CoversStoreMethod(typeof(IOutboxRelayStore), nameof(IOutboxRelayStore.ListQuarantinedAsync))]
-[CoversStoreMethod(typeof(IOutboxRelayStore), nameof(IOutboxRelayStore.CountQuarantinedAsync))]
 public abstract class OutboxListQuarantinedSpec<TFixture> : OutboxSpecBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

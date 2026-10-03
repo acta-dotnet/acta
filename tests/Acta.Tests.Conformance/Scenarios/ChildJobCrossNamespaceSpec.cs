@@ -15,10 +15,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     "child-jobs.cross-namespace",
     "A child started in another namespace releases its waiting parent",
     Area = "ChildJobs",
-    Contract = "StartChildAsync targets any namespace and the child's terminal landing releases the waiting parent across the namespace boundary.",
-    Arrange = "Two worker runtimes serve sibling namespaces from one process.",
-    Act = "A parent in one namespace starts and waits on a child routed to the second namespace, and the child completes.",
-    Assert = "The child's terminal landing releases the waiting parent across the namespace boundary."
+    Contract = "StartChildAsync targets any namespace and the child's terminal landing releases the waiting parent across the namespace boundary."
 )]
 public abstract class ChildJobCrossNamespaceSpec<TFixture> : ActaTestBase<TFixture>
     where TFixture : IConformanceFixture, new()

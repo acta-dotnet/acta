@@ -31,15 +31,8 @@ internal sealed class FakeClock(DateTime initialUtc) : IActaClock
     "schedule.fires-on-tick",
     "A recurring slot fires repeatedly on one stable id advancing cursors",
     Area = "Scheduling",
-    Contract = "A recurring slot fires on one stable id, advancing cursors, trimming the result ring buffer, applying the failure budget and emitting rollover events.",
-    Arrange = "A recurring-ping definition with an every-5-minutes schedule, MaxAttempts 2 and a result cap of 3 is registered under a fake clock.",
-    Act = "The fake clock advances to each due instant and runtime ticks fire the slot repeatedly, including failing fires and a handler cancel.",
-    Assert = "The slot fires repeatedly on one stable id, returning to Ready and advancing its cursors one period per fire."
+    Contract = "A recurring slot fires on one stable id, advancing cursors, trimming the result ring buffer, applying the failure budget and emitting rollover events."
 )]
-[CoversStoreMethod(typeof(IScheduleStore), nameof(IScheduleStore.RegisterScheduledJobsAsync))]
-[CoversStoreMethod(typeof(IScheduleStore), nameof(IScheduleStore.GetLiveSchedulesAsync))]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.ClaimBatchAsync))]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.CompleteExecutionAsync))]
 public abstract class ScheduleFiresOnTickSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

@@ -15,12 +15,8 @@ namespace Acta.Tests.Conformance.Features.Definitions;
     "list-job-definitions.filter-matrix",
     "ListJobDefinitions filter-matrix selects exactly matching rows per dimension",
     Area = "Reads",
-    Contract = "ListJobDefinitions filters partition the definition rows to exactly the matching ids and exclude all non-matching ids for each filter dimension.",
-    Arrange = "Definition rows are seeded per-test in isolation along the filtered dimension.",
-    Act = "ListJobDefinitions runs once per filter dimension with the opt-in total.",
-    Assert = "The returned definition-id set equals exactly the matching ids with non-matching ids absent, and the total applies the same filter."
+    Contract = "ListJobDefinitions filters partition the definition rows to exactly the matching ids and exclude all non-matching ids for each filter dimension."
 )]
-[CoversStoreMethod(typeof(IDefinitionStore), nameof(IDefinitionStore.ListDefinitionsAsync))]
 public abstract class ListJobDefinitionsFilterMatrixSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

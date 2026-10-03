@@ -11,10 +11,7 @@ namespace Acta.Tests.Conformance.Runtime;
     "chaos.claim-control-races",
     "Claim and operator-control races have one legal final state",
     Area = "Chaos",
-    Contract = "Concurrent claims and control verbs at dispatched/executing boundaries resolve to exactly one legal state with explicit events.",
-    Arrange = "Probe jobs are enqueued in a namespace with two registered workers so claim and control verbs can collide at status boundaries.",
-    Act = "Two workers race one claim, then pause is tried on a Dispatched job, restart and cancel on an Executing job, and pause then resume on a Ready job.",
-    Assert = "Each race resolves to exactly one legal state: one claim wins, mid-flight pause and restart are rejected, and cancel and resume apply with explicit events."
+    Contract = "Concurrent claims and control verbs at dispatched/executing boundaries resolve to exactly one legal state with explicit events."
 )]
 public abstract class ClaimAndControlRaceChaosSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()

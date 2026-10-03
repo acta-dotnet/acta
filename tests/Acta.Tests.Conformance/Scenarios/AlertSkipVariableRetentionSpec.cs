@@ -16,12 +16,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "alerts-skip.retention",
     "Aged projector skip variables are pruned on the alert window",
     Area = "Retention",
-    Contract = "Purge deletes sys.alerts poison-skip variables past the alert window, leaving the projector cursor and every other slot's variables alone.",
-    Arrange = "Two skip variables and the cursor are written on the sys.alerts slot, and one skip-named variable on another system slot.",
-    Act = "PurgeExpiredData.Run executes with a wide alert window and then with a cutoff in the future.",
-    Assert = "The wide window keeps every variable and the future cutoff deletes only the projector slot's skip variables."
+    Contract = "Purge deletes sys.alerts poison-skip variables past the alert window, leaving the projector cursor and every other slot's variables alone."
 )]
-[CoversStoreMethod(typeof(IRetentionStore), nameof(IRetentionStore.PurgeBatchAsync))]
 public abstract class AlertSkipVariableRetentionSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

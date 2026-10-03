@@ -19,10 +19,7 @@ namespace Acta.Tests.Conformance.Runtime;
     "runtime.combined-dispatch-parity",
     "The combined claim-execute loop drains a backlog exactly once",
     Area = "Execution",
-    Contract = "Under ExecutionProfile.Direct the combined claim-execute loop drains a backlog exactly once, claiming Ready to Executing in one round-trip.",
-    Arrange = "A worker is configured with ExecutionProfile.Direct, 8 concurrent executors, and an execution counter, and a 50-job backlog is enqueued.",
-    Act = "The run loop drains the backlog through the combined claim-execute coordinator.",
-    Assert = "Every enqueued job executes exactly once, with the counter recording one execution per job."
+    Contract = "Under ExecutionProfile.Direct the combined claim-execute loop drains a backlog exactly once, claiming Ready to Executing in one round-trip."
 )]
 public abstract class CombinedDispatchParitySpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()

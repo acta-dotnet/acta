@@ -11,12 +11,8 @@ namespace Acta.Tests.Conformance.Features.Tenants;
     "update-tenant.cas",
     "Tenant update is a version-CAS write that clears fields on null",
     Area = "Admin",
-    Contract = "Update writes display_name/description under a version CAS, clears null fields, and emits tenant.updated to sys namespace 1.",
-    Arrange = "An active tenant with a known version is registered.",
-    Act = "Fields are updated with the current version, with null fields, with a stale version, and against an unknown key.",
-    Assert = "A match updates, bumps, and emits tenant.updated, null clears, stale conflicts, and unknown keys report NotFound."
+    Contract = "Update writes display_name/description under a version CAS, clears null fields, and emits tenant.updated to sys namespace 1."
 )]
-[CoversStoreMethod(typeof(ITenantStore), nameof(ITenantStore.UpdateTenantAsync))]
 public abstract class UpdateTenantSpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

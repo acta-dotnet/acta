@@ -17,10 +17,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     "outbox-operator.facade",
     "IOutbox parks accepted-then-applied commands against the namespace's relay slot",
     Area = "Outbox",
-    Contract = "IOutbox resolves the sys.outbox slot by fixed key and name, parks commands the tick applies, and reports accepted, rejected, or not-found admission.",
-    Arrange = "A quarantined source row and a stand-in sys.outbox slot job exist in the test namespace.",
-    Act = "Operator verbs run through IActaOperations.Outbox and one operator-signal apply runs.",
-    Assert = "Requeue is accepted then rejected while pending, the apply frees the row and empties the inbox, and lookups without a proper slot report not found."
+    Contract = "IOutbox resolves the sys.outbox slot by fixed key and name, parks commands the tick applies, and reports accepted, rejected, or not-found admission."
 )]
 public abstract class OutboxOperatorFacadeSpec<TFixture> : OutboxRelayIntegrationBase<TFixture>
     where TFixture : IConformanceFixture, new()

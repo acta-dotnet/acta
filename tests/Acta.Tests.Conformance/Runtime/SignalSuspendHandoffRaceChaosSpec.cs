@@ -21,13 +21,8 @@ namespace Acta.Tests.Conformance.Runtime;
     "signals.suspend-handoff-race",
     "A raise inside the suspend handoff lands the job Ready, not Suspended",
     Area = "Signals",
-    Contract = "complete_execution re-reads the awaited slot under lock, so a raise that beat the suspend write lands the job Ready and claimable, payload intact.",
-    Arrange = "A job waiting on a typed signal runs with the raise issued from inside the completion window, before the suspend reaches the ledger.",
-    Act = "The handler suspends on its wait, the signal is raised while the completion is held, and the completion is then allowed to run.",
-    Assert = "The job lands Ready and claimable with no suspend on its timeline, a wake is published, and the next tick consumes the Set slot with its payload."
+    Contract = "complete_execution re-reads the awaited slot under lock, so a raise that beat the suspend write lands the job Ready and claimable, payload intact."
 )]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.CompleteExecutionAsync))]
-[CoversStoreMethod(typeof(ISignalStore), nameof(ISignalStore.RaiseSignalAsync))]
 public abstract class SignalSuspendHandoffRaceChaosSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

@@ -116,13 +116,8 @@ public sealed class StepExhaustionManifest : IJobManifest
     "step.exhaustion",
     "Step exhausts by retry-window and re-entry replays without body invocation",
     Area = "Steps",
-    Contract = "A step exhausts when a retry would exceed its window, re-entering the exhausted slot throws without running the body, and a restart runs it afresh.",
-    Arrange = "One always-failing step has MaxAttempts 2 with zero backoff and another has MaxAttempts 100 with a 5s RetryWindow and 30s backoff.",
-    Act = "Each parent runs until its step exhausts, a replayed handler re-enters the exhausted slot, and the failed windowed parent is restarted.",
-    Assert = "The windowed step exhausts after one failure far below MaxAttempts, re-entry throws without running the body, and the restart runs it once more."
+    Contract = "A step exhausts when a retry would exceed its window, re-entering the exhausted slot throws without running the body, and a restart runs it afresh."
 )]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.StartStepAsync))]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.CompleteStepAsync))]
 public abstract class StepExhaustionSpec<TFixture> : ActaRuntimeTestBase<TFixture, StepExhaustionManifest>
     where TFixture : IConformanceFixture, new()
 {

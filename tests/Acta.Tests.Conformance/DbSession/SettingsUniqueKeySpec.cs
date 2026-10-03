@@ -16,10 +16,7 @@ namespace Acta.Tests.Conformance.DbSession;
     "settings.unique-key",
     "Settings rows are unique per (scope_code, scope_id, name)",
     Area = "Settings",
-    Contract = "The settings table admits one row per (scope_code, scope_id, name), including the NULL-scope global form, on every provider.",
-    Arrange = "A live provider schema exposes the settings table with its filtered unique pair over (scope_code, scope_id, name).",
-    Act = "Scoped and NULL-scope global settings rows are inserted twice each through the IDbSession seam, along with distinct names and scope ids.",
-    Assert = "Each duplicate insert is rejected while distinct names and scope ids insert cleanly on every provider."
+    Contract = "The settings table admits one row per (scope_code, scope_id, name), including the NULL-scope global form, on every provider."
 )]
 public abstract class SettingsUniqueKeySpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()

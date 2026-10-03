@@ -17,13 +17,8 @@ namespace Acta.Tests.Conformance.Features.Schedules;
     "register-scheduled-jobs.insert-misfire-matrix",
     "Schedule insert reconciles the cursor per misfire policy and upserts one row",
     Area = "Scheduling",
-    Contract = "The startup schedule insert persists the misfire-reconciled next-run cursor and upserts the single schedule row.",
-    Arrange = "Cron and interval schedules are prepared with new, future, and missed stored cursors under each misfire policy.",
-    Act = "The startup reconcile reads the stored state, reconciles each cell, registers the result, then re-registers the same definition.",
-    Assert = "Every (kind x stored-state x misfire) cell persists the reconciled next-run cursor and re-registration upserts one row without duplicating."
+    Contract = "The startup schedule insert persists the misfire-reconciled next-run cursor and upserts the single schedule row."
 )]
-[CoversStoreMethod(typeof(IScheduleStore), nameof(IScheduleStore.RegisterScheduledJobsAsync))]
-[CoversStoreMethod(typeof(IScheduleStore), nameof(IScheduleStore.GetScheduleStateAsync))]
 public abstract class ScheduleInsertMisfireMatrixSpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

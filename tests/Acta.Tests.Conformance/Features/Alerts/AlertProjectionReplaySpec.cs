@@ -21,14 +21,8 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     "alerts-projection.replay",
     "A replayed alert batch neither inflates an incident nor opens a ghost one",
     Area = "Alerts",
-    Contract = "Re-projecting events the sys.alerts cursor never advanced past leaves the incidents they moved untouched and opens none behind a resolution.",
-    Arrange = "A recurring slot is orphaned, then fires successfully, then is orphaned again, with the projector cursor still at zero.",
-    Act = "The projector consumes the whole batch, loses its cursor advance to a crash, and consumes the identical batch again.",
-    Assert = "The two incident rows keep the counts, refs, and open/resolved state the first pass left them, unwritten by the replay."
+    Contract = "Re-projecting events the sys.alerts cursor never advanced past leaves the incidents they moved untouched and opens none behind a resolution."
 )]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.GetAlertableEventsAsync))]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.RaiseJobAlertAsync))]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.ResolveJobAlertsAsync))]
 public abstract class AlertProjectionReplaySpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

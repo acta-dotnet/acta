@@ -17,14 +17,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "job-ref.survives-purge",
     "A purged job's public ref still resolves to its surviving event timeline",
     Area = "Retention",
-    Contract = "After the job row is purged, the denormalized job_ref on surviving events rows still resolves the public ref to its historical id and timeline.",
-    Arrange = "A zero-retention job definition exists and purge retention windows keep events while deleting the job row.",
-    Act = "The job completes, PurgeExpiredData runs, then the public ref is resolved and its events listed.",
-    Assert = "The job row is gone but the denormalized job_ref on surviving events still resolves the ref to its historical id and timeline."
+    Contract = "After the job row is purged, the denormalized job_ref on surviving events rows still resolves the public ref to its historical id and timeline."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.ResolveJobIdByRefAsync))]
-[CoversStoreMethod(typeof(IEventStore), nameof(IEventStore.ListEventsAsync))]
-[CoversStoreMethod(typeof(IRetentionStore), nameof(IRetentionStore.PurgeBatchAsync))]
 public abstract class JobRefSurvivesPurgeSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

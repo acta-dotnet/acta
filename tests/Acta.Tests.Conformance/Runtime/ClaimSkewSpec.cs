@@ -17,12 +17,8 @@ namespace Acta.Tests.Conformance.Runtime;
     "claim-batch.skew",
     "Claim returns only due rows, in claim order, past parked and delayed rows",
     Area = "Claim",
-    Contract = "Parked waits and future rows in a higher band never enter a claim, due rows arrive in claim order across bands, and the horizon is the earliest waiting instant.",
-    Arrange = "Normal rows parked on an unbounded wait, High rows due in an hour, and due Critical, Normal, and Bulk rows, one a Suspended row past its deadline.",
-    Act = "Claims of four rows run until one comes back empty.",
-    Assert = "The batches are the due rows in claim order, four at a time, and the empty claim's horizon is the earliest High row's instant."
+    Contract = "Parked waits and future rows in a higher band never enter a claim, due rows arrive in claim order across bands, and the horizon is the earliest waiting instant."
 )]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.ClaimBatchAsync))]
 public abstract class ClaimSkewSpec<TFixture> : ClaimSkewTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

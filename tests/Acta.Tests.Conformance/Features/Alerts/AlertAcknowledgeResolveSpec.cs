@@ -20,13 +20,8 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     "alert.acknowledge-resolve",
     "Operator acknowledge/resolve verbs on IAlerts.",
     Area = "Control",
-    Contract = "AcknowledgeAsync and ResolveAsync stamp and audit once and are idempotent, and only ResolveAsync suppresses a queued delivery and ends the reminders.",
-    Arrange = "One open alert raised in the test namespace, plus one parked mid-retry, one already delivered, and one whose reminder has come round.",
-    Act = "AcknowledgeAsync/ResolveAsync are invoked once, then again, then against an unknown alert ref, and against alerts in RetryAfter and Delivered.",
-    Assert = "Applied with its timestamp and one event, unchanged on the second call, NotFound for an unknown id, a resolved RetryAfter row Suppressed, a due reminder intact."
+    Contract = "AcknowledgeAsync and ResolveAsync stamp and audit once and are idempotent, and only ResolveAsync suppresses a queued delivery and ends the reminders."
 )]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.AcknowledgeJobAlertAsync))]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.ResolveJobAlertManualAsync))]
 public abstract class AlertAcknowledgeResolveSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

@@ -17,13 +17,8 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     "enqueue-jobs.tenant-scope",
     "Enqueue resolves, inherits, rejects, and filters by tenant",
     Area = "Enqueue",
-    Contract = "Enqueue resolves TenantKey to tenant_id, inherits it to children, rejects bad keys atomically, and gates cross-tenant children on an explicit override.",
-    Arrange = "Active and suspended tenants are registered.",
-    Act = "Jobs are enqueued with and without a tenant as roots and children, including cross-tenant children with and without the override.",
-    Assert = "TenantKey resolves with children inheriting, a cross-tenant child lands only with the override, and bad keys reject the whole batch atomically."
+    Contract = "Enqueue resolves TenantKey to tenant_id, inherits it to children, rejects bad keys atomically, and gates cross-tenant children on an explicit override."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueOneAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueBatchAsync))]
 public abstract class TenantEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

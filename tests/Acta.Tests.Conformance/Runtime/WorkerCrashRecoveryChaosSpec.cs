@@ -11,10 +11,7 @@ namespace Acta.Tests.Conformance.Runtime;
     "chaos.worker-crash-recovery",
     "Worker crash boundaries recover through one legal final state",
     Area = "Chaos",
-    Contract = "A crash after claim, after start, after handler completion, or during a running handler is recovered by lease reclaim and has a single legal final state.",
-    Arrange = "Store fault injection is armed to crash a worker at the claim, start, post-complete, and mid-handler boundaries.",
-    Act = "A worker crashes at each boundary, its lease is expired, and reclaim orphans the attempt for a later worker.",
-    Assert = "Every boundary recovers to a single legal final state, the job completes exactly once, and a reclaimed recurring slot re-arms Ready instead of terminalizing."
+    Contract = "A crash after claim, after start, after handler completion, or during a running handler is recovered by lease reclaim and has a single legal final state."
 )]
 public abstract class WorkerCrashRecoveryChaosSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()

@@ -89,15 +89,8 @@ public sealed class MultiScheduleSlotManifest : IJobManifest
     "schedule.multi-slot-min",
     "Multi-schedule slot picks MIN next_run and recomputes on fire",
     Area = "Scheduling",
-    Contract = "A slot with multiple schedules arms next_run_at_utc to the MIN cursor and recomputes the MIN after each fire.",
-    Arrange = "A multi-ping job carries two interval schedules, PT30S fast and PT50S slow, anchored at T0 under a fake clock.",
-    Act = "The clock advances so the fast schedule fires alone at T0+30s and both schedules are due at T0+60s.",
-    Assert = "The slot arms next_run_at_utc to the MIN cursor, advances only the fired schedules, and re-arms to the recomputed MIN after each fire."
+    Contract = "A slot with multiple schedules arms next_run_at_utc to the MIN cursor and recomputes the MIN after each fire."
 )]
-[CoversStoreMethod(typeof(IScheduleStore), nameof(IScheduleStore.RegisterScheduledJobsAsync))]
-[CoversStoreMethod(typeof(IScheduleStore), nameof(IScheduleStore.GetLiveSchedulesAsync))]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.ClaimBatchAsync))]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.CompleteExecutionAsync))]
 public abstract class MultiScheduleSlotSpec<TFixture> : ActaRuntimeTestBase<TFixture, MultiScheduleSlotManifest>
     where TFixture : IConformanceFixture, new()
 {

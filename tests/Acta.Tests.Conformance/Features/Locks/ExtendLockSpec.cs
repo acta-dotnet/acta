@@ -16,13 +16,8 @@ namespace Acta.Tests.Conformance.Features.Locks;
     "extend-lock.renew",
     "A held lock renews while owned and misses after release",
     Area = "Locks",
-    Contract = "Extending a held lock renews it so a competing acquirer stays blocked, and extending after release is a version-CAS miss that frees the key.",
-    Arrange = "A lock key is acquired and held by an owner.",
-    Act = "The holder extends the lock, releases it, and then attempts another extend with the released token.",
-    Assert = "The held extend renews the lock keeping rivals blocked, and the post-release extend fails as a version-CAS miss leaving the key re-acquirable."
+    Contract = "Extending a held lock renews it so a competing acquirer stays blocked, and extending after release is a version-CAS miss that frees the key."
 )]
-[CoversStoreMethod(typeof(ILockStore), nameof(ILockStore.ExtendAsync))]
-[CoversStoreMethod(typeof(ILockStore), nameof(ILockStore.ExtendAsync))]
 public abstract class ExtendLockSpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

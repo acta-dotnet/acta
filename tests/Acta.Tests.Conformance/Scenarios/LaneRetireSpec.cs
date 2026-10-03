@@ -16,10 +16,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     "lanes.retire",
     "A retire cancels its laned jobs atomically and promotes each lane once",
     Area = "Lanes",
-    Contract = "A definition retire cancels its parked laned jobs in its own transaction and then promotes each lane's lowest Blocked member once, even if the caller is gone.",
-    Arrange = "A lane holds two parked jobs of one definition ahead of a job of another definition, beside an unlaned job of the first.",
-    Act = "The first definition is retired by a caller whose token is cancelled at the first wake it publishes.",
-    Assert = "No job of the retired definition is live, and the other definition's job leads the lane Ready."
+    Contract = "A definition retire cancels its parked laned jobs in its own transaction and then promotes each lane's lowest Blocked member once, even if the caller is gone."
 )]
 public abstract class LaneRetireSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()

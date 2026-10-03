@@ -19,12 +19,8 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     "reset-job-state.clears-substrate",
     "Reset clears one job's substrate and emits an audit-gated state-reset event",
     Area = "Execution",
-    Contract = "Reset clears a job's substrate rows leaving siblings intact and emits one audit-gated state-reset event with no status transition.",
-    Arrange = "Two jobs are seeded with checkpoint, step, and result substrate rows.",
-    Act = "ResetJobState targets one job, repeated with audit on and audit off.",
-    Assert = "Only the target job's substrate clears with no status transition, and one state-reset event is emitted only when audit is on."
+    Contract = "Reset clears a job's substrate rows leaving siblings intact and emits one audit-gated state-reset event with no status transition."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.ResetJobStateAsync))]
 public abstract class ResetJobStateSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

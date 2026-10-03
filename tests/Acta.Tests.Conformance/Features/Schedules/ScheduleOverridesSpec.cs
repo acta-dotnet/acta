@@ -17,13 +17,8 @@ namespace Acta.Tests.Conformance.Features.Schedules;
     "schedule.set-overrides",
     "Operator sets a CAS-guarded full-set schedule expression/time-zone override",
     Area = "Scheduling",
-    Contract = "A matching version applies the override and moves the cursor to the new expression, while a stale version is rejected with current state.",
-    Arrange = "A recurring slot carries one schedule at its default expression and time zone.",
-    Act = "An operator sets, clears, or attempts a stale-version override through ISchedules.UpdateOverridesAsync.",
-    Assert = "Applied writes recompute the cursor from the new effective expression and bump version, while rejected or invalid attempts leave the row untouched."
+    Contract = "A matching version applies the override and moves the cursor to the new expression, while a stale version is rejected with current state."
 )]
-[CoversStoreMethod(typeof(IScheduleStore), nameof(IScheduleStore.SetScheduleOverridesAsync))]
-[CoversStoreMethod(typeof(IScheduleStore), nameof(IScheduleStore.GetLiveSchedulesAsync))]
 public abstract class ScheduleOverridesSpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

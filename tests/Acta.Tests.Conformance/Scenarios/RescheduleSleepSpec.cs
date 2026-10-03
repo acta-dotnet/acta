@@ -16,13 +16,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "reschedule-sleep.rearm-and-timer",
     "Reschedule re-arms Ready and durable sleep arms an idempotent timer",
     Area = "Scheduling",
-    Contract = "Reschedule re-arms to Ready without charging the budget and durable sleep arms one idempotent timer checkpoint consumed by the replayed handler once due.",
-    Arrange = "Handlers that reschedule or durably sleep are registered.",
-    Act = "The runtime runs each job before and after the timer instant, and invalid, duplicate and unknown control paths are exercised.",
-    Assert = "Reschedule re-arms Ready with a forward-dated next run and no budget charge, and one idempotent timer is consumed once due."
+    Contract = "Reschedule re-arms to Ready without charging the budget and durable sleep arms one idempotent timer checkpoint consumed by the replayed handler once due."
 )]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.ArmOrConsumeSleepTimerAsync))]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.CompleteExecutionAsync))]
 public abstract class RescheduleSleepSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

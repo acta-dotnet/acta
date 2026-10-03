@@ -19,14 +19,8 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     "alerts-projection.failures-audit-gate",
     "The failures-only audit level records a failure and the success that answers it",
     Area = "Alerts",
-    Contract = "At AuditLevel.Failures a failure carrying no reschedule writes its finished event, and a success writes one only when the newest finished event is a failure.",
-    Arrange = "A one-shot probe and a recurring slot, both declared at AuditLevel.Failures with the default OnFailure profile, in a namespace holding no alerts.",
-    Act = "The probe fails out of budget and is restarted to success, succeeds first time, and succeeds after retries, and the slot fails one fire then succeeds three.",
-    Assert = "The terminal failure and its answering success write once each and the incident resolves, other successes write nothing, and the slot writes two events only."
+    Contract = "At AuditLevel.Failures a failure carrying no reschedule writes its finished event, and a success writes one only when the newest finished event is a failure."
 )]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.CompleteExecutionAsync))]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.GetAlertableEventsAsync))]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.ResolveJobAlertsAsync))]
 public abstract class FailuresAuditFailureEventSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

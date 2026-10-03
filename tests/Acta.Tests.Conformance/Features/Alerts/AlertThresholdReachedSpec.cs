@@ -20,14 +20,8 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     "alert.threshold-reached",
     "ThresholdReached fires once per incident at the exact occurrence",
     Area = "Alerts",
-    Contract = "AlertsJob emits one ThresholdReached alert when occurrence_count hits the threshold, and the count restarts at 1 in the incident that opens after a resolution.",
-    Arrange = "A retry-probe job with the OnFailure profile and MaxAttempts 3 is registered, with per-fact ThresholdReached thresholds of 1, 2, and 5.",
-    Act = "The job is driven to terminal Failed with the projector running, and a recurring slot is then failed, recovered, and failed again across projector passes.",
-    Assert = "One ThresholdReached fires at the crossing occurrence, further failures in that incident do not re-fire it, and the next incident emits one of its own."
+    Contract = "AlertsJob emits one ThresholdReached alert when occurrence_count hits the threshold, and the count restarts at 1 in the incident that opens after a resolution."
 )]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.GetAlertableEventsAsync))]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.RaiseJobAlertAsync))]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.ResolveJobAlertsAsync))]
 public abstract class AlertThresholdReachedSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

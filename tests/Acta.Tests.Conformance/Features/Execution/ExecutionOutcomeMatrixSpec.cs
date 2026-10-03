@@ -15,13 +15,8 @@ namespace Acta.Tests.Conformance.Features.Execution;
     "execution.outcome-matrix",
     "StartExecution and CompleteExecution no-op outcomes return exact action enums",
     Area = "Execution",
-    Contract = "No-op StartExecution and CompleteExecution outcomes (wrong owner, already-terminal) never emit events and return the exact discriminated action.",
-    Arrange = "Enqueued jobs are claimed and driven into owned, terminal, and displaced states.",
-    Act = "StartExecution and CompleteExecution are invoked with a wrong worker, on terminal jobs, as a double complete, and from a displaced worker.",
-    Assert = "Each no-op path returns its exact action such as NotOwner or AlreadyTerminal and writes no new event."
+    Contract = "No-op StartExecution and CompleteExecution outcomes (wrong owner, already-terminal) never emit events and return the exact discriminated action."
 )]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.StartExecutionAsync))]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.CompleteExecutionAsync))]
 public abstract class ExecutionOutcomeMatrixSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

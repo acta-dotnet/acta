@@ -14,10 +14,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     "lanes.retention",
     "Retention deletes a lane that no runtime references",
     Area = "Lanes",
-    Contract = "A retention sweep deletes a lane that no runtime row references, keeps a lane with any runtime row, and never strands an enqueue racing the delete.",
-    Arrange = "One lane lost its only job to a purge, one holds a finished job, one holds a live job, and more lanes are emptied for an enqueue race.",
-    Act = "Retention sweeps the namespace, alone and alongside enqueues into the emptied lanes.",
-    Assert = "Only the unreferenced lane is gone, and every racing enqueue lands in a lane row that exists with its job Ready."
+    Contract = "A retention sweep deletes a lane that no runtime row references, keeps a lane with any runtime row, and never strands an enqueue racing the delete."
 )]
 public abstract class LaneRetentionSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()

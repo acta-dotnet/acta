@@ -16,12 +16,8 @@ namespace Acta.Tests.Conformance.Features.Definitions;
     "set-definition-overrides.write",
     "Override writes are version-guarded, recompute effective, and audited",
     Area = "Catalog",
-    Contract = "Applies an override set version-guarded, recomputes effective, leaves defaults and definition_hash untouched, and emits a policy-changed event.",
-    Arrange = "A registered definition carries code-default policy columns.",
-    Act = "An override set is applied then cleared, and stale-version and unknown-name writes are attempted.",
-    Assert = "Only the override columns change with effective recomputed, defaults and definition_hash stay put, bad writes reject, and a policy-changed event lands."
+    Contract = "Applies an override set version-guarded, recomputes effective, leaves defaults and definition_hash untouched, and emits a policy-changed event."
 )]
-[CoversStoreMethod(typeof(IDefinitionStore), nameof(IDefinitionStore.SetDefinitionOverridesAsync))]
 public abstract class SetJobDefinitionOverridesSpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

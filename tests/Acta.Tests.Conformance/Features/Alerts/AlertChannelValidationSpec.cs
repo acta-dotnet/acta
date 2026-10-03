@@ -15,10 +15,7 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     "alert-channel-validation.configured",
     "Alert channel validation uses startup configuration",
     Area = "Alerts",
-    Contract = "Definition AlertChannelName validates against worker startup configuration while Off, Warn, and Fail modes keep their documented behavior.",
-    Arrange = "A manifest containing policy-probe routes its alerts to an ops channel that worker startup may leave missing, configure, or configure disabled.",
-    Act = "Worker startup is attempted under Off, Warn, and Fail validation modes.",
-    Assert = "Fail mode rejects the missing ops channel while Warn and Off allow it, and a disabled channel still counts as configured."
+    Contract = "Definition AlertChannelName validates against worker startup configuration while Off, Warn, and Fail modes keep their documented behavior."
 )]
 public abstract class AlertChannelValidationSpec<TFixture> : ActaTestBase<TFixture>
     where TFixture : IConformanceFixture, new()

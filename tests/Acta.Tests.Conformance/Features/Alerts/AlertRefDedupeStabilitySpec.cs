@@ -15,12 +15,8 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     "alert-ref.survives-dedupe",
     "An open incident keeps the ref its first firing minted",
     Area = "Alerts",
-    Contract = "A repeat firing absorbed by an open incident bumps occurrence_count on the existing row and leaves its public alert ref exactly as the first firing minted it.",
-    Arrange = "A seeded job and definition give the alert a subject, and one deduplication key names the incident every firing collapses onto.",
-    Act = "The same deduplication key is raised three times while the incident stays open, and a second key is raised alongside it.",
-    Assert = "Occurrence count grows with each firing while the alert ref is unchanged, and the second key mints a ref of its own."
+    Contract = "A repeat firing absorbed by an open incident bumps occurrence_count on the existing row and leaves its public alert ref exactly as the first firing minted it."
 )]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.RaiseJobAlertAsync))]
 public abstract class AlertRefDedupeStabilitySpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

@@ -26,12 +26,8 @@ namespace Acta.Tests.Conformance.Runtime;
     "claim-batch.size-cap",
     "Claim caps at the batch size, reports the horizon, and skips excluded rows",
     Area = "Claim",
-    Contract = "A claim returns up to ClaimBatchSize rows, an empty claim returns one horizon sentinel, and an excluded definition is invisible to both.",
-    Arrange = "ClaimBatchSize is set to 5, system jobs are disabled, and a backlog, a delayed job, and two definitions' rows are enqueued.",
-    Act = "Single claim ticks run against the surplus, the drained namespace, and an excluded definition set, then the loop drains the backlog.",
-    Assert = "A claim caps at 5 rows, the empty sentinel carries db_now and the delayed row's time, and an all-excluded namespace reports none."
+    Contract = "A claim returns up to ClaimBatchSize rows, an empty claim returns one horizon sentinel, and an excluded definition is invisible to both."
 )]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.ClaimBatchAsync))]
 public abstract class ClaimBatchSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

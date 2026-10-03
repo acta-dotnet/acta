@@ -14,12 +14,8 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     "job.reschedule",
     "Operator reschedule moves a job's cursor, rejecting in-flight or terminal jobs.",
     Area = "Control",
-    Contract = "RescheduleAsync moves Paused, Suspended, or Ready rows to the requested instant, re-arms Paused or Suspended Ready, and rejects in-flight or terminal rows.",
-    Arrange = "A Ready job due far in the future, one job mid-execution, one completed job, and no job for an unknown lookup.",
-    Act = "RescheduleAsync is invoked against each job.",
-    Assert = "The Ready job reaches the requested instant with an audited event, in-flight and terminal jobs are rejected unchanged, and the unknown lookup is NotFound."
+    Contract = "RescheduleAsync moves Paused, Suspended, or Ready rows to the requested instant, re-arms Paused or Suspended Ready, and rejects in-flight or terminal rows."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.RescheduleJobAsync))]
 public abstract class JobRescheduleSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

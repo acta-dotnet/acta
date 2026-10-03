@@ -16,13 +16,8 @@ namespace Acta.Tests.Conformance.Features.Definitions;
     "register-definitions.monotonic-promotion",
     "Newer-or-equal generation promotes policy; older cannot downgrade",
     Area = "Catalog",
-    Contract = "Writes a definition only when the incoming manifest generation is at or above the stored one, and never touches a definition the manifest omits.",
-    Arrange = "A job definition is stored at a known manifest generation.",
-    Act = "Definitions are re-registered at newer, equal, and older manifest generations, and with one of them omitted.",
-    Assert = "Newer or equal generations update policy, older generations leave the stored row unchanged, and an omitted definition stays Active with its jobs."
+    Contract = "Writes a definition only when the incoming manifest generation is at or above the stored one, and never touches a definition the manifest omits."
 )]
-[CoversStoreMethod(typeof(IDefinitionStore), nameof(IDefinitionStore.RegisterDefinitionsAsync))]
-[CoversStoreMethod(typeof(IDefinitionStore), nameof(IDefinitionStore.GetDefinitionContractsAsync))]
 public abstract class MonotonicDefinitionPromotionSpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

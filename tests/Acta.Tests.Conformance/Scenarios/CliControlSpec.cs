@@ -16,17 +16,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "cli.control-surface",
     "CLI verbs map onto IJobs and debug runs the targeted job in-process",
     Area = "Control",
-    Contract = "CLI verbs apply the matching IJobs control or read with banded exit codes and debug claims only the targeted job for an in-process run.",
-    Arrange = "A CliCommandRunner is wired over a namespace with one enqueued Ready job.",
-    Act = "The pause, resume, cancel, restart, signal, info, status, debug, result, and events verbs run against the job.",
-    Assert = "Each verb maps to the matching IJobs call with banded exit codes and debug claims only the targeted job for an in-process run."
+    Contract = "CLI verbs apply the matching IJobs control or read with banded exit codes and debug claims only the targeted job for an in-process run."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.PauseJobAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.ResumeJobAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.CancelJobAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.RestartJobAsync))]
-[CoversStoreMethod(typeof(ISignalStore), nameof(ISignalStore.RaiseSignalAsync))]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.ClaimOneAsync))]
 public abstract class CliControlSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

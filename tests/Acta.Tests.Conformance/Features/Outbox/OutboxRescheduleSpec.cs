@@ -14,12 +14,8 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     "outbox-reschedule.token-cas",
     "Reschedule returns a claimed row to Pending with backoff, only under its token",
     Area = "Outbox",
-    Contract = "Reschedule returns a claimed row to Pending with a bumped failure count, a future attempt, and the error, only under its token.",
-    Arrange = "A source row is claimed under one token.",
-    Act = "Reschedule runs first with a stale token, then with the owning token and a backoff duration.",
-    Assert = "The stale reschedule is a no-op and the owning reschedule makes the row Pending, unclaimed, and due only after source_db_now plus the backoff."
+    Contract = "Reschedule returns a claimed row to Pending with a bumped failure count, a future attempt, and the error, only under its token."
 )]
-[CoversStoreMethod(typeof(IOutboxRelayStore), nameof(IOutboxRelayStore.RescheduleAsync))]
 public abstract class OutboxRescheduleSpec<TFixture> : OutboxSpecBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

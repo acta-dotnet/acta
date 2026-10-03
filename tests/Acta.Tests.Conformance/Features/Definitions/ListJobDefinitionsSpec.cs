@@ -14,12 +14,8 @@ namespace Acta.Tests.Conformance.Features.Definitions;
     "list-job-definitions.keyset-page",
     "ListJobDefinitions pages the catalog by name order without duplicates",
     Area = "Reads",
-    Contract = "ListJobDefinitions pages the catalog ordered namespace then name then id and reads the page plus an opt-in filter-wide count in one command.",
-    Arrange = "A namespace holds its registered definitions from the TestJobs manifest.",
-    Act = "The catalog is walked one definition per page via NextCursor and read once un-paged with the opt-in total.",
-    Assert = "The walk visits every definition exactly once in namespace, name, id order and the total matches the walk."
+    Contract = "ListJobDefinitions pages the catalog ordered namespace then name then id and reads the page plus an opt-in filter-wide count in one command."
 )]
-[CoversStoreMethod(typeof(IDefinitionStore), nameof(IDefinitionStore.ListDefinitionsAsync))]
 public abstract class ListJobDefinitionsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

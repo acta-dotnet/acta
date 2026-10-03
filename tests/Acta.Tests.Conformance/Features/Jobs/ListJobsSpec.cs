@@ -15,12 +15,8 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     "list-jobs.keyset-page",
     "ListJobs pages newest first by keyset cursor without duplicates",
     Area = "Reads",
-    Contract = "ListJobs pages newest first by cursor without duplicates and reads the page plus an opt-in filter-wide count in one command.",
-    Arrange = "Five jobs are enqueued in the test namespace.",
-    Act = "The jobs are paged two per page via NextCursor and the list is read with and without IncludeTotal.",
-    Assert = "Pages arrive newest first without duplicates, the page plus filter-wide count come from one trip, and no item exposes a payload."
+    Contract = "ListJobs pages newest first by cursor without duplicates and reads the page plus an opt-in filter-wide count in one command."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.ListJobsAsync))]
 public abstract class ListJobsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

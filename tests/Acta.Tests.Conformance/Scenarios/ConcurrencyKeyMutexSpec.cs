@@ -21,12 +21,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "concurrency-key.mutex",
     "At most one same-key handler executes, admitted at execution time",
     Area = "Concurrency",
-    Contract = "At most one same-key handler executes at a time: the runner takes the key lock after claim and a loser is re-armed Ready after a fixed bounce delay.",
-    Arrange = "Several same-key jobs sit Ready in a private namespace with a 1s bounce delay and system jobs disabled.",
-    Act = "The runtime claims the same-key rows together and drains them while one run holds the key lock.",
-    Assert = "At most one same-key handler executes at a time and a loser skips its handler, re-arming Ready budget-neutral after the bounce delay."
+    Contract = "At most one same-key handler executes at a time: the runner takes the key lock after claim and a loser is re-armed Ready after a fixed bounce delay."
 )]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.ClaimBatchAsync))]
 public abstract class ConcurrencyKeyMutexSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

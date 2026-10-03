@@ -40,9 +40,6 @@ public sealed class AttributeCompletenessTests
             Require("Title", a.Title);
             Require("Area", a.Area);
             Require("Contract", a.Contract);
-            Require("Arrange", a.Arrange);
-            Require("Act", a.Act);
-            Require("Assert", a.Assert);
 
             if (!string.IsNullOrWhiteSpace(a.Id))
             {

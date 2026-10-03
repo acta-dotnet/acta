@@ -22,10 +22,7 @@ namespace Acta.Tests.Conformance.Runtime;
     "worker-loop.dispatch",
     "The run loop drains a backlog, wakes on publishes, and shuts down cleanly",
     Area = "Execution",
-    Contract = "RunLoopAsync drains a backlog, sleeps idle until the claim horizon capped by SafetyPollInterval, wakes early on wakeup publishes, and cancels cleanly.",
-    Arrange = "A backlog is enqueued, with an 8s safety poll for the fallback fact and 60s for the rest, so wakeup-driven pickups are distinguishable from safety polls.",
-    Act = "RunLoopAsync runs in the background across enqueues, delayed rows, colocated completions, retries, and an unpublished Ready row.",
-    Assert = "The loop drains the backlog to Succeeded, wakes early on wakeup publishes, discovers the unpublished row via the safety poll, and cancels cleanly."
+    Contract = "RunLoopAsync drains a backlog, sleeps idle until the claim horizon capped by SafetyPollInterval, wakes early on wakeup publishes, and cancels cleanly."
 )]
 public abstract class WorkerLoopDispatchSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()

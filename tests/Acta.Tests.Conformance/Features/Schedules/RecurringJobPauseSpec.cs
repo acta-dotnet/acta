@@ -16,10 +16,7 @@ namespace Acta.Tests.Conformance.Features.Schedules;
     "schedule.job-pause-holds",
     "A paused or cancelled recurring job stays so until an operator lifts it",
     Area = "Scheduling",
-    Contract = "A recurring job an operator paused or cancelled keeps that status through worker restarts, schedule edits, and trigger-now.",
-    Arrange = "The manifest's recurring job is registered at startup, then paused or cancelled through IJobs, or its schedules dropped by a deploy.",
-    Act = "The worker starts again, the schedule's expression is overridden, trigger-now is asked for, and then the job is resumed.",
-    Assert = "A paused or cancelled job keeps its status until an operator acts, and a job whose schedules returned runs again."
+    Contract = "A recurring job an operator paused or cancelled keeps that status through worker restarts, schedule edits, and trigger-now."
 )]
 public abstract class RecurringJobPauseSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()

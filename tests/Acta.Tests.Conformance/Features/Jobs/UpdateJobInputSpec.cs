@@ -16,12 +16,8 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     "job.update-input",
     "Operator update-input amends stored input and audits bounded payload metadata.",
     Area = "Control",
-    Contract = "UpdateJobInput replaces a job's input in any status except Dispatched/Executing and audits job.input-amended with prior-payload metadata, never the payload.",
-    Arrange = "A Ready job, an executing job, a dispatched job, a failed job, a terminal job later purged, and no job for an unknown lookup.",
-    Act = "UpdateJobInput is invoked with a new payload against each job, a failed job is re-run after restart, and the retention sweep purges the terminal job.",
-    Assert = "Applied amends audit only the old payload's format and byte count, in-flight jobs reject, unknown is NotFound, and no purged payload byte survives."
+    Contract = "UpdateJobInput replaces a job's input in any status except Dispatched/Executing and audits job.input-amended with prior-payload metadata, never the payload."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.UpdateJobInputAsync))]
 public abstract class UpdateJobInputSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

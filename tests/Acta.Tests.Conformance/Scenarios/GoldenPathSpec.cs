@@ -20,18 +20,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "golden-path.end-to-end",
     "A job registers, enqueues, claims, executes, persists and reads back",
     Area = "Execution",
-    Contract = "A registered job enqueued through IJobs is claimed, executed and lands Succeeded with the canonical claim/start/finish timeline and a deserializable result.",
-    Arrange = "The add-numbers job definition is registered in the test namespace.",
-    Act = "One AddNumbers job is enqueued through IJobs and a single runtime tick claims, executes, and completes it.",
-    Assert = "The job lands Succeeded with the canonical Started then Finished timeline and a result that deserializes to the handler output."
+    Contract = "A registered job enqueued through IJobs is claimed, executed and lands Succeeded with the canonical claim/start/finish timeline and a deserializable result."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueOneAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueBatchAsync))]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.ClaimBatchAsync))]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.StartExecutionAsync))]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.CompleteExecutionAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.GetJobResultAsync))]
-[CoversStoreMethod(typeof(IEventStore), nameof(IEventStore.ListEventsAsync))]
 public abstract class GoldenPathSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

@@ -15,10 +15,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     "outbox.lane-hold",
     "An outbox lane waits behind its oldest waiting row until that row leaves",
     Area = "Outbox",
-    Contract = "A laned outbox row is claimed only while no older row of its lane is Pending or Claimed, so a lane reaches the ledger in staging order.",
-    Arrange = "Rows are staged into lanes behind a row the target rejects, behind a row another claim holds, and in one long lane.",
-    Act = "Relay ticks run, with a quarantine threshold of one where the spec quarantines the rejected row.",
-    Assert = "A lane's later rows stay in the outbox while an older row waits, other lanes relay, quarantine releases the lane, and a long lane lands in staging order."
+    Contract = "A laned outbox row is claimed only while no older row of its lane is Pending or Claimed, so a lane reaches the ledger in staging order."
 )]
 public abstract class OutboxLaneHoldSpec<TFixture> : OutboxRelayIntegrationBase<TFixture>
     where TFixture : IConformanceFixture, new()

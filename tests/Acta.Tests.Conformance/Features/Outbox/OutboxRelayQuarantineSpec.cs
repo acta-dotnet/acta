@@ -14,12 +14,8 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     "outbox.relay-quarantine",
     "Threshold and contract failures quarantine with one bounded summary",
     Area = "Outbox",
-    Contract = "The fifth persistent recoverable rejection quarantines a row, and malformed or oversized rows quarantine immediately.",
-    Arrange = "A live source table holds a row toward an unregistered route, or rows carrying malformed meta, an oversized payload, or an unsupported format id.",
-    Act = "The relay ticks five times against the unresolved route, or once with rows the reconstruction rejects before the target.",
-    Assert = "Every offending row is quarantined and the tick raises exactly one summarized failure covering all of them."
+    Contract = "The fifth persistent recoverable rejection quarantines a row, and malformed or oversized rows quarantine immediately."
 )]
-[CoversStoreMethod(typeof(IOutboxRelayStore), nameof(IOutboxRelayStore.QuarantineAsync))]
 public abstract class OutboxRelayQuarantineSpec<TFixture> : OutboxRelayIntegrationBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

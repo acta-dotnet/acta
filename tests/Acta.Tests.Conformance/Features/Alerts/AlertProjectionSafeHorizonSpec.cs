@@ -28,13 +28,8 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     "alerts-projection.safe-horizon",
     "The alerts projector reads behind a safe horizon rather than up to the present",
     Area = "Alerts",
-    Contract = "The sys.alerts read offers an event only once its stamp is behind the safe horizon, cursored by (created_at_utc, id) so no uncommitted event is stepped over.",
-    Arrange = "Alertable failure events are written with the database's own stamps, aged past the horizon or left inside it, one under a lower id than a projected neighbour.",
-    Act = "The projector passes over them while a stamp is still inside the horizon, and again once that stamp has been aged past it.",
-    Assert = "A pass projects only what is behind the horizon and stops its cursor below the withheld event, which the next pass takes once it ages out, lower id or not."
+    Contract = "The sys.alerts read offers an event only once its stamp is behind the safe horizon, cursored by (created_at_utc, id) so no uncommitted event is stepped over."
 )]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.GetAlertableEventsAsync))]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.RaiseJobAlertAsync))]
 public abstract class AlertProjectionSafeHorizonSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

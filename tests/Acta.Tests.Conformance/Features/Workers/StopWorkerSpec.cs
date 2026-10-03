@@ -15,12 +15,8 @@ namespace Acta.Tests.Conformance.Features.Workers;
     "stop-worker.clean-shutdown",
     "Stop flips an active worker to Stopped once and is idempotent",
     Area = "Workers",
-    Contract = "Stopping an active worker flips it to Stopped and emits one worker.stopped event, and a second stop on the terminal worker is a no-op.",
-    Arrange = "A just-registered worker sits Active in the test namespace.",
-    Act = "StopWorker runs on the worker, then a second time on the now-terminal worker.",
-    Assert = "The first stop flips the worker to Stopped with exactly one worker.stopped event and the second stop is a no-op writing nothing."
+    Contract = "Stopping an active worker flips it to Stopped and emits one worker.stopped event, and a second stop on the terminal worker is a no-op."
 )]
-[CoversStoreMethod(typeof(IWorkerStore), nameof(IWorkerStore.StopWorkerAsync))]
 public abstract class StopWorkerSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

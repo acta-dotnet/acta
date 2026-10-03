@@ -18,12 +18,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "lanes.restart",
     "Restarting a finished laned job reactivates it in place",
     Area = "Lanes",
-    Contract = "A restart of a finished laned job reactivates the same row, Blocked while another member runs and Ready otherwise, and it runs next.",
-    Arrange = "Laned jobs have finished in a private namespace, some with live members behind them and some with laned descendants.",
-    Act = "An operator restarts finished members, alone, repeated with one version, and racing the running member's completion.",
-    Assert = "Each lane keeps at most one running member, the restarted job runs before the members already waiting, and lineage cycles are refused."
+    Contract = "A restart of a finished laned job reactivates the same row, Blocked while another member runs and Ready otherwise, and it runs next."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.RestartJobAsync))]
 public abstract class LaneRestartSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

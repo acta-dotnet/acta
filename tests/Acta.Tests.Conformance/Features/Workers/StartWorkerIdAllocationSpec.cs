@@ -24,12 +24,8 @@ namespace Acta.Tests.Conformance.Features.Workers;
     "worker.start.id-allocation",
     "StartWorker allocates a namespace id only when it creates the namespace",
     Area = "Workers",
-    Contract = "A worker start against an existing namespace allocates no namespace id, so the id space tracks namespaces created, not workers started.",
-    Arrange = "One namespace is created by its first worker start.",
-    Act = "Workers restart repeatedly against that namespace, then one worker starts a brand-new namespace.",
-    Assert = "The id range spanned by the two namespaces carries a row for all but at most a stray id, so the restarts allocated nothing."
+    Contract = "A worker start against an existing namespace allocates no namespace id, so the id space tracks namespaces created, not workers started."
 )]
-[CoversStoreMethod(typeof(IWorkerStore), nameof(IWorkerStore.StartWorkerAsync))]
 public abstract class StartWorkerIdAllocationSpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

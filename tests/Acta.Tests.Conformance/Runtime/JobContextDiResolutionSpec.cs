@@ -19,10 +19,7 @@ namespace Acta.Tests.Conformance.Runtime;
     "job-context.di-resolution",
     "JobContext is resolvable by constructor injection in the attempt scope",
     Area = "Execution",
-    Contract = "An instance handler receives a populated JobContext by constructor injection matching the running job's identity and its resolved tenant scope.",
-    Arrange = "A context-probe instance handler taking JobContext by constructor injection is registered, with and without a tenant on the enqueue.",
-    Act = "The job runs once through the per-attempt DI scope.",
-    Assert = "The persisted result echoes the context's job id, name, tenant id, and external tenant key, with both tenant fields null on a tenant-less job."
+    Contract = "An instance handler receives a populated JobContext by constructor injection matching the running job's identity and its resolved tenant scope."
 )]
 public abstract class JobContextDiResolutionSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()

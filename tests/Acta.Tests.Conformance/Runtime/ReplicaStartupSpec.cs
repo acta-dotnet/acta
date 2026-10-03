@@ -16,10 +16,7 @@ namespace Acta.Tests.Conformance.Runtime;
     "worker.replica-startup",
     "Replicas registering a new namespace at the same moment all start",
     Area = "Workers",
-    Contract = "Replicas that register the same new namespace, definitions, and recurring slots at once all start and agree on one catalog.",
-    Arrange = "Four worker containers share one manifest and one namespace that no worker has registered yet.",
-    Act = "All four initialize at the same moment.",
-    Assert = "Every initialization completes and all four resolve the same namespace and definition ids."
+    Contract = "Replicas that register the same new namespace, definitions, and recurring slots at once all start and agree on one catalog."
 )]
 public abstract class ReplicaStartupSpec<TFixture> : ActaTestBase<TFixture>
     where TFixture : IConformanceFixture, new()

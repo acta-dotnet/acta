@@ -19,12 +19,8 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     "raise-job-alert.write-and-dedupe",
     "Manual alert write collapses onto the open incident and truncates bounded prose",
     Area = "Alerts",
-    Contract = "A null deduplication key always inserts, a non-null key collapses repeats onto its one open row, and a raise after resolution opens a fresh row.",
-    Arrange = "A test namespace is seeded and a job context is configured over a seeded definition and job.",
-    Act = "RaiseJobAlert.Run and ctx.AlertAsync are called with null, repeated, post-resolution, and oversized dedupe and prose inputs.",
-    Assert = "A null key always inserts a fresh row, a repeated key collapses onto one row bumping occurrence_count, and a post-resolution raise opens a second row."
+    Contract = "A null deduplication key always inserts, a non-null key collapses repeats onto its one open row, and a raise after resolution opens a fresh row."
 )]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.RaiseJobAlertAsync))]
 public abstract class RaiseJobAlertSpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

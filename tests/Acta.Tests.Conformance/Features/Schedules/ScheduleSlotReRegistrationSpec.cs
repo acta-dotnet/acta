@@ -15,12 +15,8 @@ namespace Acta.Tests.Conformance.Features.Schedules;
     "schedule.slot-re-registration",
     "A second host starting does not disturb a slot the first host is executing",
     Area = "Scheduling",
-    Contract = "Registration writes an idle slot only on a changed declaration, leaves one in flight, finished, or parked mid-occurrence, and never adopts an ordinary job.",
-    Arrange = "A recurring slot is registered, then put in flight with a worker lease as if another host had claimed it.",
-    Act = "The same definition is registered again, as a second host does on startup, with the declaration changed or identical.",
-    Assert = "In-flight and parked slots keep their status, lease or wake, and due cursors, while an idle slot takes a changed declaration and ignores an identical one."
+    Contract = "Registration writes an idle slot only on a changed declaration, leaves one in flight, finished, or parked mid-occurrence, and never adopts an ordinary job."
 )]
-[CoversStoreMethod(typeof(IScheduleStore), nameof(IScheduleStore.RegisterScheduledJobsAsync))]
 public abstract class ScheduleSlotReRegistrationSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

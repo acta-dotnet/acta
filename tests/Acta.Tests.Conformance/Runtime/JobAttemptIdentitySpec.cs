@@ -17,10 +17,7 @@ namespace Acta.Tests.Conformance.Runtime;
     "job-context.attempt-identity",
     "A handler reads the attempt number and worker the ledger recorded for it",
     Area = "Execution",
-    Contract = "ctx.ExecutionNumber and ctx.WorkerId report the running attempt's ledger identity, advancing with each retry.",
-    Arrange = "An attempt-identity probe notes both values per attempt and throws on its first attempt.",
-    Act = "The runtime drives the job through its failed first attempt to a successful second.",
-    Assert = "Two notes read attempts 1 then 2, each matching the execution number the engine stamped on its own event, and both name the registered worker."
+    Contract = "ctx.ExecutionNumber and ctx.WorkerId report the running attempt's ledger identity, advancing with each retry."
 )]
 public abstract class JobAttemptIdentitySpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()

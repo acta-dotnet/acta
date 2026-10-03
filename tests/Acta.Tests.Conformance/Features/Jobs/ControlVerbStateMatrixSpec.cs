@@ -16,15 +16,8 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     "control.state-matrix",
     "Control verbs apply per-status guards and correct side effects",
     Area = "Control",
-    Contract = "Restart revives Failed or Cancelled resetting failure_count, Cancel stamps retention and rejects re-cancel, Pause allows re-pause, Resume coalesces next run.",
-    Arrange = "Enqueued jobs are placed into each source status via raw SQL UPDATE.",
-    Act = "Pause, Resume, Cancel, and Restart are invoked against jobs in each source status.",
-    Assert = "Each verb returns the expected outcome and status and applies its side effects such as failure_count reset and retention stamping."
+    Contract = "Restart revives Failed or Cancelled resetting failure_count, Cancel stamps retention and rejects re-cancel, Pause allows re-pause, Resume coalesces next run."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.PauseJobAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.ResumeJobAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.CancelJobAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.RestartJobAsync))]
 public abstract class ControlVerbStateMatrixSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

@@ -79,15 +79,8 @@ public sealed class IntervalPingManifest : IJobManifest
     "schedule.interval-fire",
     "Interval slot fires end-to-end advancing cursors and coalescing misses",
     Area = "Scheduling",
-    Contract = "An interval slot fires, advances its cursor by exactly one period, coalesces misses with Skip, and claims exclusively under contention.",
-    Arrange = "An interval-ping job carries a PT30S ISO 8601 schedule with Skip misfire under a fake clock.",
-    Act = "The clock advances so the slot fires on time, catches up over a 3.5-interval overdue window, and is claimed under worker contention.",
-    Assert = "The cursor advances by exactly one period per fire, misses coalesce into one run, and only one contender claims the due slot."
+    Contract = "An interval slot fires, advances its cursor by exactly one period, coalesces misses with Skip, and claims exclusively under contention."
 )]
-[CoversStoreMethod(typeof(IScheduleStore), nameof(IScheduleStore.RegisterScheduledJobsAsync))]
-[CoversStoreMethod(typeof(IScheduleStore), nameof(IScheduleStore.GetLiveSchedulesAsync))]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.ClaimBatchAsync))]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.CompleteExecutionAsync))]
 public abstract class IntervalScheduleFireSpec<TFixture> : ActaRuntimeTestBase<TFixture, IntervalPingManifest>
     where TFixture : IConformanceFixture, new()
 {

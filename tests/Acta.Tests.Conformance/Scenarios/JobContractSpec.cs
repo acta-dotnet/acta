@@ -15,14 +15,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "job-contract.facade",
     "Contract enqueue names the job explicitly and resolves its route",
     Area = "Enqueue",
-    Contract = "The contract IJobs façade resolves namespace and format from a JobContract, and supports no-input, fire-and-forget, and RunAndWaitAsync result paths.",
-    Arrange = "TestJobsManifest exposes typed JobContract members bound to namespace and payload format.",
-    Act = "Jobs are enqueued and executed through the typed overloads, including no-input, fire-and-forget, RunAndWaitAsync, and a mismatched contract.",
-    Assert = "The contract façade resolves each route without input-type inference and round-trips the typed result."
+    Contract = "The contract IJobs façade resolves namespace and format from a JobContract, and supports no-input, fire-and-forget, and RunAndWaitAsync result paths."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueOneAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueBatchAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.GetJobResultAsync))]
 public abstract class JobContractSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

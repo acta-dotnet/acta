@@ -21,12 +21,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "purge-expired-data.sweeps",
     "Purge reaps expired jobs events alerts and terminal workers within batches",
     Area = "Retention",
-    Contract = "Purge deletes terminal jobs with cascade, expired events, aged alerts settled or not under separate counts, terminal workers and expired locks.",
-    Arrange = "Terminal purge-now jobs, events, settled and undelivered alerts, Stopped, Dead and Active workers, and expired and live lock rows are seeded.",
-    Act = "PurgeExpiredData.Run executes with wide and future-cutoff windows driving each sweep section to a deterministic boundary.",
-    Assert = "Expired jobs delete with cascade alongside expired events, aged alerts of every delivery status, both terminal worker statuses and expired locks."
+    Contract = "Purge deletes terminal jobs with cascade, expired events, aged alerts settled or not under separate counts, terminal workers and expired locks."
 )]
-[CoversStoreMethod(typeof(IRetentionStore), nameof(IRetentionStore.PurgeBatchAsync))]
 public abstract class PurgeExpiredDataSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

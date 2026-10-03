@@ -18,13 +18,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "signals.wait-timeout",
     "A bounded wait expires on its slot's stored instant, once and for good",
     Area = "Signals",
-    Contract = "A bounded wait stores an absolute expiration on its slot, wakes the Suspended job at that instant, resolves TimedOut once, and revives on no later raise.",
-    Arrange = "Handlers waiting with a 30-minute timeout are registered so only a deliberate rewind of the stored expiration can expire a wait.",
-    Act = "The runtime ticks each job before and after the persisted expiration is moved into the past, with raises landing before, during and after the deadline.",
-    Assert = "An expired wait cancels budget-neutrally or resumes TimedOut, replay never extends the stored instant, and a late raise leaves the slot Expired."
+    Contract = "A bounded wait stores an absolute expiration on its slot, wakes the Suspended job at that instant, resolves TimedOut once, and revives on no later raise."
 )]
-[CoversStoreMethod(typeof(ISignalStore), nameof(ISignalStore.WaitSignalAsync))]
-[CoversStoreMethod(typeof(ISignalStore), nameof(ISignalStore.RaiseSignalAsync))]
 public abstract class SignalTimeoutSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

@@ -17,10 +17,7 @@ namespace Acta.Tests.Conformance.DbSession;
     "fluent-read.testing-seam",
     "The fluent reader materializes projects and counts entities",
     Area = "Testing",
-    Contract = "The fluent reader materializes whole entities, prunes columns on projection, supports compound and IN predicates, and counts matching rows.",
-    Arrange = "One job is enqueued in the test namespace on a live provider schema.",
-    Act = "The job is read back through From<Job>() and the From<JobRuntime, JobSummary>() projection with compound and IN predicates and Count.",
-    Assert = "Whole entities materialize, projections prune columns, predicates filter to the matching rows, and Count returns the matching total."
+    Contract = "The fluent reader materializes whole entities, prunes columns on projection, supports compound and IN predicates, and counts matching rows."
 )]
 public abstract class FluentReadSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()

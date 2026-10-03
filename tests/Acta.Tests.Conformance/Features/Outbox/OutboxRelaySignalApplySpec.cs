@@ -17,10 +17,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     "outbox-signal.applied-by-tick",
     "A parked requeue is applied, evidenced, consumed, and the freed row relays",
     Area = "Outbox",
-    Contract = "The relay pass applies a parked requeue before draining: the row returns to Pending, the evidence event lands, the signal is consumed, and the freed row relays.",
-    Arrange = "A source row sits Quarantined and a requeue command is parked on the slot job's signal inbox.",
-    Act = "One operator-signal apply runs, then one relay tick.",
-    Assert = "The apply reports one requeued row and consumes the signal, the evidence event carries actor and ids, and the tick relays the freed row into a ledger job."
+    Contract = "The relay pass applies a parked requeue before draining: the row returns to Pending, the evidence event lands, the signal is consumed, and the freed row relays."
 )]
 public abstract class OutboxRelaySignalApplySpec<TFixture> : OutboxRelayIntegrationBase<TFixture>
     where TFixture : IConformanceFixture, new()

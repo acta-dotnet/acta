@@ -15,12 +15,8 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     "outbox-signal.evidence",
     "An applied operator command leaves an always-emitted evidence event",
     Area = "Outbox",
-    Contract = "RecordApplied appends the outbox event against the slot job with the operator actor and reason evidence, even when the job's audit level records nothing else.",
-    Arrange = "A ledger job with audit level Off stands in for the sys.outbox slot.",
-    Act = "A discard evidence event is recorded with an actor key and reason message.",
-    Assert = "Exactly one outbox.discarded event exists on the job, stamped Operator with the actor key and reason intact."
+    Contract = "RecordApplied appends the outbox event against the slot job with the operator actor and reason evidence, even when the job's audit level records nothing else."
 )]
-[CoversStoreMethod(typeof(IOutboxSignalStore), nameof(IOutboxSignalStore.RecordAppliedAsync))]
 public abstract class OutboxSignalEvidenceSpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

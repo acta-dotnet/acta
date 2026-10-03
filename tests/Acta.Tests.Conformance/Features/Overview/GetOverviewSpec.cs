@@ -16,12 +16,8 @@ namespace Acta.Tests.Conformance.Features.Overview;
     "get-overview.health-counters",
     "GetOverview returns accurate health counters scoped to a namespace and globally",
     Area = "Reads",
-    Contract = "GetOverview returns non-negative health counters for the requested namespace and a globally-scoped result that is a superset of any namespace-scoped result.",
-    Arrange = "One job is enqueued in the test namespace.",
-    Act = "The overview is read scoped to the namespace, globally, and for an unknown namespace.",
-    Assert = "Namespace counters are non-negative and reflect the enqueued job, and the global result is a superset of any namespace-scoped result."
+    Contract = "GetOverview returns non-negative health counters for the requested namespace and a globally-scoped result that is a superset of any namespace-scoped result."
 )]
-[CoversStoreMethod(typeof(IOverviewStore), nameof(IOverviewStore.GetOverviewAsync))]
 public abstract class GetOverviewSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

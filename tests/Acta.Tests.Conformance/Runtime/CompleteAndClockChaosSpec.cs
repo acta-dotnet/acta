@@ -11,10 +11,7 @@ namespace Acta.Tests.Conformance.Runtime;
     "chaos.complete-clock",
     "CompleteExecution transient failures and DB clock skew are explicit",
     Area = "Chaos",
-    Contract = "Transient storage failures before and after CompleteExecution converge to one state, and DB/app clock skew is enforced at initialization.",
-    Arrange = "A counting probe job is enqueued with store fault injection armed to fail CompleteExecution once, before or after its commit.",
-    Act = "The runtime runs the job through the injected completion failure, and the before-commit case is then reclaimed and rerun.",
-    Assert = "A before-commit failure reruns to one Succeeded finish, a provider error is retried in place, and an after-commit failure leaves Succeeded with no rerun."
+    Contract = "Transient storage failures before and after CompleteExecution converge to one state, and DB/app clock skew is enforced at initialization."
 )]
 public abstract class CompleteAndClockChaosSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
@@ -101,10 +98,7 @@ public abstract class CompleteAndClockChaosSpec<TFixture> : ActaRuntimeTestBase<
     "chaos.clock-skew-init",
     "Worker initialization enforces DB/app clock skew",
     Area = "Chaos",
-    Contract = "Worker initialization fails when DB/app clocks differ beyond the fail threshold unless AllowClockSkew is set.",
-    Arrange = "A worker runtime is configured with a 30-second injected GetUtcNow skew and AllowClockSkew off, alongside a second runtime with AllowClockSkew on.",
-    Act = "InitializeAsync is called on both skewed runtimes.",
-    Assert = "The default runtime is rejected with a clock-skew error and records no worker while the AllowClockSkew runtime initializes an Active worker."
+    Contract = "Worker initialization fails when DB/app clocks differ beyond the fail threshold unless AllowClockSkew is set."
 )]
 public abstract class ClockSkewInitializationChaosSpec<TFixture> : ActaTestBase<TFixture>
     where TFixture : IConformanceFixture, new()

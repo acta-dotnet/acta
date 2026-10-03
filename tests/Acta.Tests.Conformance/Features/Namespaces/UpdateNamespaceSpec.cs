@@ -11,12 +11,8 @@ namespace Acta.Tests.Conformance.Features.Namespaces;
     "update-namespace.cas",
     "Namespace update writes owner_team/description under a version CAS",
     Area = "Admin",
-    Contract = "Update writes owner_team/description under a version CAS, clears fields on null, emits namespace.updated, and guards sys.",
-    Arrange = "The worker registers the test namespace with a known version.",
-    Act = "Fields are updated with the current version, with null fields, with a stale version, and sys is attempted through the facade.",
-    Assert = "A match updates, bumps, and emits namespace.updated, null clears, stale conflicts without an event, and sys is rejected."
+    Contract = "Update writes owner_team/description under a version CAS, clears fields on null, emits namespace.updated, and guards sys."
 )]
-[CoversStoreMethod(typeof(INamespaceStore), nameof(INamespaceStore.UpdateNamespaceAsync))]
 public abstract class UpdateNamespaceSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

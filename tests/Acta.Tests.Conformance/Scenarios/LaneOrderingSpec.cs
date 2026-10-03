@@ -18,12 +18,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "lanes.ordering",
     "A lane runs its jobs one at a time in enqueue order",
     Area = "Lanes",
-    Contract = "Jobs of one lane run one at a time in job-id order, each settle promoting the next unfinished member, and no retry, delay, or priority reorders them.",
-    Arrange = "Laned probe jobs are enqueued singly and in batches into a private namespace, with heads that retry, fail for good, carry a delay, or are cancelled.",
-    Act = "The runtime drains the namespace one tick at a time, and operators cancel heads and followers.",
-    Assert = "Each lane's probes ran in enqueue order, only the lane head was ever Ready, and each settle made the next unfinished member the head."
+    Contract = "Jobs of one lane run one at a time in job-id order, each settle promoting the next unfinished member, and no retry, delay, or priority reorders them."
 )]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.ClaimBatchAsync))]
 public abstract class LaneOrderingSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

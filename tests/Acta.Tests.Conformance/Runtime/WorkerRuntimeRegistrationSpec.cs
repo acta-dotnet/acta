@@ -15,13 +15,8 @@ namespace Acta.Tests.Conformance.Runtime;
     "worker-runtime.initialize-catalog",
     "Init writes namespace worker and full definition policy idempotently",
     Area = "Catalog",
-    Contract = "InitializeAsync writes namespace and worker rows with a WorkerStarted event, persists each definition's full policy or framework defaults, and is idempotent.",
-    Arrange = "A worker runtime is built from a generated TestJobs manifest, with StartAsync deliberately not called.",
-    Act = "InitializeAsync runs against the namespace, then a second init repeats it.",
-    Assert = "The namespace, one worker row, a WorkerStarted event, and each definition's full policy or framework defaults are written with no duplicates."
+    Contract = "InitializeAsync writes namespace and worker rows with a WorkerStarted event, persists each definition's full policy or framework defaults, and is idempotent."
 )]
-[CoversStoreMethod(typeof(IWorkerStore), nameof(IWorkerStore.StartWorkerAsync))]
-[CoversStoreMethod(typeof(IDefinitionStore), nameof(IDefinitionStore.RegisterDefinitionsAsync))]
 public abstract class WorkerRuntimeRegistrationSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

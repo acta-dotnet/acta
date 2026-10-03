@@ -11,10 +11,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     "testing.test-host-helpers",
     "The test host's fast-forward helpers make only the named job's wait due",
     Area = "Testing",
-    Contract = "IActaTestHost makes a parked timer, step retry, bounded wait, child wait, or group wait due at once, and refuses a wait that has no deadline to move.",
-    Arrange = "An ActaTestHost is started for TestJobsManifest in an isolated namespace.",
-    Act = "Jobs park on a timer, a step retry, a bounded signal wait, a child wait, and a group wait, and the host's Force helpers make each due.",
-    Assert = "Each job runs on to Succeeded with its slot settled, and the helpers throw for an unbounded wait and for a job without a group."
+    Contract = "IActaTestHost makes a parked timer, step retry, bounded wait, child wait, or group wait due at once, and refuses a wait that has no deadline to move."
 )]
 public abstract class TestHostHelpersSpec<TFixture> : ActaTestBase<TFixture>
     where TFixture : IConformanceFixture, new()

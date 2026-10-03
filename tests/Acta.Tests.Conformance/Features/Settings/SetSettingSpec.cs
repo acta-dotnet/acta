@@ -12,13 +12,8 @@ namespace Acta.Tests.Conformance.Features.Settings;
     "settings.set-get",
     "A setting is set and read back by name at its inferred scope",
     Area = "Admin",
-    Contract = "Set upserts one setting at the scope inferred from its targets with a version bump and emits setting.updated naming the setting.",
-    Arrange = "A unique setting name, the test namespace, and one registered definition.",
-    Act = "The setting is set and read at global, namespace, and definition scope, twice at one scope, and against an unknown namespace.",
-    Assert = "Scopes address distinct rows, rewrites bump the version, unknown targets are NotFound, and each set emits its event."
+    Contract = "Set upserts one setting at the scope inferred from its targets with a version bump and emits setting.updated naming the setting."
 )]
-[CoversStoreMethod(typeof(ISettingStore), nameof(ISettingStore.GetSettingAsync))]
-[CoversStoreMethod(typeof(ISettingStore), nameof(ISettingStore.SetSettingAsync))]
 public abstract class SetSettingSpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

@@ -16,12 +16,8 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     "get-job-explanation.point-read",
     "GetJobExplanation returns explain sets for a known id and null otherwise",
     Area = "Reads",
-    Contract = "GetJobExplanation returns the header, step, and checkpoint result sets for a matching job id and null when no row matches.",
-    Arrange = "A job is enqueued so a known job id exists in Ready.",
-    Act = "GetJobExplanation is called with the enqueued id and then with an id that matches no row.",
-    Assert = "The known id returns data whose header is Ready with no steps or checkpoints and the unknown id returns null."
+    Contract = "GetJobExplanation returns the header, step, and checkpoint result sets for a matching job id and null when no row matches."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.GetJobExplanationAsync))]
 public abstract class GetJobExplanationSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

@@ -11,13 +11,8 @@ namespace Acta.Tests.Conformance.Features.Namespaces;
     "suspend-resume-namespace.status-flip",
     "Namespace suspend/resume flip status, emit one 15xx event, and reject sys",
     Area = "Admin",
-    Contract = "Suspend and resume flip namespace status with a version bump, emit namespace.suspended/resumed to the namespace, and reject sys at the facade.",
-    Arrange = "The worker registers the test namespace.",
-    Act = "The namespace is suspended, suspended again, resumed, an unknown name is attempted, and sys is attempted through the facade.",
-    Assert = "Suspend/resume apply with a version bump and one event each, repeats are AlreadyInState, unknown names NotFound, and sys throws with its row untouched."
+    Contract = "Suspend and resume flip namespace status with a version bump, emit namespace.suspended/resumed to the namespace, and reject sys at the facade."
 )]
-[CoversStoreMethod(typeof(INamespaceStore), nameof(INamespaceStore.SuspendNamespaceAsync))]
-[CoversStoreMethod(typeof(INamespaceStore), nameof(INamespaceStore.ResumeNamespaceAsync))]
 public abstract class SuspendResumeNamespaceSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

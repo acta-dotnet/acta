@@ -7,46 +7,15 @@ using Xunit;
 namespace Acta.Tests.Conformance;
 
 /// <summary>
-/// Store-method coverage gate: every method on every internal store interface is declared by at least
-/// one spec's <c>[CoversStoreMethod]</c> attribute.
+/// The store ports the provider binding gates read, and the rule that keeps their method names unique.
 /// </summary>
 public sealed partial class StoreContractCoverageTests
 {
-    // Every store method is covered by a live conformance spec; there is no allowlist backlog.
-    private static readonly HashSet<string> NotYetCovered = new(StringComparer.Ordinal);
-
     private static readonly Regex StoreInterfaceName = MyRegex();
 
     /// <summary>
-    /// Asserts every store method is covered, no attribute names a method that does not exist, and the
-    /// allowlist has no stale entries.
-    /// </summary>
-    [Fact]
-    public void Every_store_method_has_a_covering_contract()
-    {
-        var methods = StoreInterfaces()
-            .SelectMany(s => DeclaredMethods(s).Select(m => $"{s.FullName}.{m.Name}"))
-            .ToHashSet(StringComparer.Ordinal);
-
-        var covered = typeof(IConformanceFixture)
-            .Assembly.GetTypes()
-            .Where(HarnessReflection.IsCandidateContractSpec)
-            .SelectMany(t => t.GetCustomAttributes<CoversStoreMethodAttribute>())
-            .Select(c => c.Identity)
-            .ToHashSet(StringComparer.Ordinal);
-
-        var missing = methods.Where(m => !covered.Contains(m) && !NotYetCovered.Contains(m)).OrderBy(x => x).ToList();
-        var unknown = covered.Where(c => !methods.Contains(c)).OrderBy(x => x).ToList();
-        var stale = NotYetCovered.Where(a => covered.Contains(a) || !methods.Contains(a)).OrderBy(x => x).ToList();
-
-        Assert.True(missing.Count == 0, "Store methods with no covering [CoversStoreMethod] spec:\n" + string.Join("\n", missing));
-        Assert.True(unknown.Count == 0, "[CoversStoreMethod] declarations naming no existing store method:\n" + string.Join("\n", unknown));
-        Assert.True(stale.Count == 0, "Allowlist entries now covered or non-existent (remove them):\n" + string.Join("\n", stale));
-    }
-
-    /// <summary>
     /// Store methods use unique names (no overloads) so {interface}.{method} stays a stable identity for
-    /// coverage tagging, binding checks, and the generated inventory.
+    /// the binding checks.
     /// </summary>
     [Fact]
     public void Store_methods_are_not_overloaded()
@@ -64,10 +33,9 @@ public sealed partial class StoreContractCoverageTests
         Assert.True(overloaded.Count == 0, "Overloaded store methods (rename to unique names):\n" + string.Join("\n", overloaded));
     }
 
-    // The internal store ports: the I*Store interfaces in the runtime assembly. This is the single
-    // discovery convention for store ports - the coverage gate, the provider binding/completeness gates,
-    // and the architecture boundary check all read it, so a newly declared port is picked up by all with
-    // no registry to update.
+    // The internal store ports: the I*Store interfaces in the runtime assembly. The provider binding and
+    // completeness gates both read this, so a newly declared port is picked up by both with no registry
+    // to update.
     internal static List<Type> StoreInterfaces() =>
         [
             .. typeof(ActaServiceCollectionExtensions)

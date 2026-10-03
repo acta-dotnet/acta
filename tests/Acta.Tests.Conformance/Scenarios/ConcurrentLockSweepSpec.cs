@@ -18,12 +18,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "purge-expired-data.concurrent-lock-sweeps",
     "Concurrent retention sweeps reap a shared lock backlog without a deadlock",
     Area = "Retention",
-    Contract = "Retention sweeps racing over the same expired lock rows each reap rows no other sweep holds, and together they reap all of them without a deadlock.",
-    Arrange = "A thousand expired lock rows are acquired with a negative TTL, and deadlock retry is off so a deadlock victim surfaces.",
-    Act = "Eight retention sweeps run at once with small batches, so their lock-section batches interleave.",
-    Assert = "Every sweep completes and none of the expired rows is left."
+    Contract = "Retention sweeps racing over the same expired lock rows each reap rows no other sweep holds, and together they reap all of them without a deadlock."
 )]
-[CoversStoreMethod(typeof(IRetentionStore), nameof(IRetentionStore.PurgeBatchAsync))]
 public abstract class ConcurrentLockSweepSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

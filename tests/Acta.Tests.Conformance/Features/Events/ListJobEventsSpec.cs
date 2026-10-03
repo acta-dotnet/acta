@@ -15,12 +15,8 @@ namespace Acta.Tests.Conformance.Features.Events;
     "list-job-events.keyset-page",
     "ListJobEvents pages a job timeline newest first and scopes totals to a job",
     Area = "Reads",
-    Contract = "ListJobEvents pages a job timeline newest first by cursor and reads the page plus an opt-in job-scoped count in one command.",
-    Arrange = "A job is enqueued and run once so it owns a multi-event timeline.",
-    Act = "The timeline is walked one event per page by job id, then a page plus the job-scoped total are read in one trip.",
-    Assert = "Pages return newest first containing only that job's events and the job-scoped total matches the walk."
+    Contract = "ListJobEvents pages a job timeline newest first by cursor and reads the page plus an opt-in job-scoped count in one command."
 )]
-[CoversStoreMethod(typeof(IEventStore), nameof(IEventStore.ListEventsAsync))]
 public abstract class ListJobEventsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

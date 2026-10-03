@@ -75,12 +75,8 @@ public sealed class ScheduledSlotPriorityManifest : IJobManifest
     "schedule.slot-priority",
     "Recurring slot claims at its definition's priority",
     Area = "Scheduling",
-    Contract = "A recurring slot's runtime priority is stamped from the owning definition's effective priority, and re-registration propagates a changed priority.",
-    Arrange = "A recurring job declares Priority Critical and one interval schedule, registered into the worker namespace.",
-    Act = "The slot is registered, then the definition priority is changed to High and the whole-namespace registration runs again.",
-    Assert = "The slot runtime priority is Critical after registration and High after re-registration, tracking the definition."
+    Contract = "A recurring slot's runtime priority is stamped from the owning definition's effective priority, and re-registration propagates a changed priority."
 )]
-[CoversStoreMethod(typeof(IScheduleStore), nameof(IScheduleStore.RegisterScheduledJobsAsync))]
 public abstract class ScheduledSlotPrioritySpec<TFixture> : ActaRuntimeTestBase<TFixture, ScheduledSlotPriorityManifest>
     where TFixture : IConformanceFixture, new()
 {

@@ -19,13 +19,8 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     "enqueue-jobs.namespace-gate",
     "Enqueue rejects a suspended namespace and resumes once reactivated",
     Area = "Enqueue",
-    Contract = "EnqueueOne/EnqueueBatch reject enqueue into a suspended namespace and accept it again once the namespace is reactivated.",
-    Arrange = "A namespace is registered via StartWorker, then its status_code is flipped directly, keeping the gate independent of the suspend API.",
-    Act = "A job is enqueued while the namespace is suspended, then again after it is reactivated.",
-    Assert = "The suspended attempt throws and persists nothing, and the reactivated attempt succeeds."
+    Contract = "EnqueueOne/EnqueueBatch reject enqueue into a suspended namespace and accept it again once the namespace is reactivated."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueOneAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueBatchAsync))]
 public abstract class NamespaceEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

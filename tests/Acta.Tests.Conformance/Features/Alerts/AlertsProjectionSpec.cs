@@ -20,14 +20,8 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     "alerts-projection.classify",
     "The alerts projector classifies failures off events and resolves on success",
     Area = "Alerts",
-    Contract = "The sys.alerts projector classifies finished events into first-failure and final-failure alerts, resolves them on success, and advances its cursor.",
-    Arrange = "A failing retry-probe with the OnFailure profile and a flaky-recover job are registered in the test namespace.",
-    Act = "Both jobs run to their terminal outcomes and the alerts projector passes over the finished events twice.",
-    Assert = "First-failures collapse onto one row, the terminal transition emits FinalFailure, success resolves without adding a row, and the second pass emits nothing."
+    Contract = "The sys.alerts projector classifies finished events into first-failure and final-failure alerts, resolves them on success, and advances its cursor."
 )]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.GetAlertableEventsAsync))]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.RaiseJobAlertAsync))]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.ResolveJobAlertsAsync))]
 public abstract class AlertsProjectionSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

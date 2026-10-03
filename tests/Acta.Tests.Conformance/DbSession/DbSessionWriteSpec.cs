@@ -16,10 +16,7 @@ namespace Acta.Tests.Conformance.DbSession;
     "test-orm.write-roundtrip",
     "IDbSession insert/update-only/delete round-trip on every provider",
     Area = "Test ORM",
-    Contract = "The test ORM round-trips writes on every provider: insert assigns an identity, update sets only listed columns, delete removes by predicate.",
-    Arrange = "A live provider schema exposes namespace rows through the IDbSession test ORM.",
-    Act = "InsertAsync, UpdateOnlyAsync, and DeleteAsync run against namespace rows.",
-    Assert = "Insert returns the DB-assigned identity, update sets only the listed columns with UTC normalization, and delete removes rows matching the predicate."
+    Contract = "The test ORM round-trips writes on every provider: insert assigns an identity, update sets only listed columns, delete removes by predicate."
 )]
 public abstract class DbSessionWriteSpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()

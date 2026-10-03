@@ -17,12 +17,8 @@ namespace Acta.Tests.Conformance.Features.Workers;
     "worker.start",
     "StartWorker hash-gates the namespace write and appends a fresh worker row",
     Area = "Workers",
-    Contract = "StartWorker writes the namespace only when its hash changed or the name is new, appends a fresh worker row, and emits one WorkerStarted event per worker.",
-    Arrange = "A fresh unique namespace isolates each StartWorker.Run call.",
-    Act = "StartWorker runs repeatedly with unchanged metadata, changed metadata, and a duplicate worker identity.",
-    Assert = "The namespace write is hash-gated with no churn on unchanged metadata, every call appends a fresh worker row, and each worker emits one WorkerStarted event."
+    Contract = "StartWorker writes the namespace only when its hash changed or the name is new, appends a fresh worker row, and emits one WorkerStarted event per worker."
 )]
-[CoversStoreMethod(typeof(IWorkerStore), nameof(IWorkerStore.StartWorkerAsync))]
 public abstract class StartWorkerSpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

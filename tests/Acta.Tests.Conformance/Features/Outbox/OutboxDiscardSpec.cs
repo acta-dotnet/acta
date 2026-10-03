@@ -15,12 +15,8 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     "outbox-discard.operator-exit",
     "Discard deletes quarantined rows and returns the ids as the evidence handle",
     Area = "Outbox",
-    Contract = "DiscardQuarantined deletes targeted (or all, when ids are null) Quarantined rows, returns the deleted ids, and never touches a row in any other status.",
-    Arrange = "Two rows are quarantined and a third is claimed in-flight.",
-    Act = "One quarantined row is discarded by id, then the null all-form runs, then the claimed row is named explicitly.",
-    Assert = "Each discard returns exactly the deleted ids, discarded rows are gone, and the claimed row survives both the sweep and being named."
+    Contract = "DiscardQuarantined deletes targeted (or all, when ids are null) Quarantined rows, returns the deleted ids, and never touches a row in any other status."
 )]
-[CoversStoreMethod(typeof(IOutboxRelayStore), nameof(IOutboxRelayStore.DiscardQuarantinedAsync))]
 public abstract class OutboxDiscardSpec<TFixture> : OutboxSpecBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

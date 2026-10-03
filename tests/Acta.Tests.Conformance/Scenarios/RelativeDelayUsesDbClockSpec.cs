@@ -17,13 +17,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "relative-delay.db-clock",
     "Relative delay resolves on the DB clock; absolute run-at is preserved",
     Area = "Enqueue",
-    Contract = "Relative Delayed enqueue sends only an integer delay the server resolves as db_now plus delay, and NextRunAt persists the absolute caller instant.",
-    Arrange = "The add-numbers job definition is registered in the test namespace.",
-    Act = "Jobs are enqueued with a relative delay, an absolute run-at, a Local-kind run-at, and with both delay channels set at once.",
-    Assert = "The relative delay resolves to the database clock plus the delay, absolute instants persist verbatim, and setting both channels is rejected."
+    Contract = "Relative Delayed enqueue sends only an integer delay the server resolves as db_now plus delay, and NextRunAt persists the absolute caller instant."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueOneAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueBatchAsync))]
 public abstract class RelativeDelayUsesDbClockSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

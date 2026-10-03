@@ -16,13 +16,8 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     "job-payload-reads.input-and-checkpoints",
     "GetJobInput reads stored input and GetJobCheckpoints lists a job's slots",
     Area = "Reads",
-    Contract = "GetJobInput returns a job's stored input payload and format or null when no row matches, and GetJobCheckpoints lists slots ordered by kind then name.",
-    Arrange = "A job is enqueued with a known input, and a separate job is seeded with a variable and a signal checkpoint.",
-    Act = "GetJobInput reads the enqueued input and a missing id, and GetJobCheckpoints reads the seeded and an empty job.",
-    Assert = "Input equals what was enqueued and is null for a missing id, and the checkpoint list round-trips kind, state, and value and is empty for a job with none."
+    Contract = "GetJobInput returns a job's stored input payload and format or null when no row matches, and GetJobCheckpoints lists slots ordered by kind then name."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.GetJobInputAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.GetJobCheckpointsAsync))]
 public abstract class JobPayloadReadsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

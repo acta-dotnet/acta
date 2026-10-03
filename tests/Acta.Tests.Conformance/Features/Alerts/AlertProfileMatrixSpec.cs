@@ -17,14 +17,8 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     "alert.profile-matrix",
     "Alert profiles gate emission and severity per profile",
     Area = "Alerts",
-    Contract = "Each alert profile gates non-terminal emission and severity, and a re-fire on a resolved alert's key opens a fresh incident rather than re-opening it.",
-    Arrange = "Probe jobs with OnTerminal, Info, and SysCritical alert profiles are registered in the test namespace.",
-    Act = "Each probe fails non-terminally then terminally with the projector run after each attempt, and a resolved FinalFailure re-fires on its deduplication key.",
-    Assert = "OnTerminal and Info emit only a terminal FinalFailure at their profile severity, SysCritical always emits Critical, and a resolved alert stays resolved."
+    Contract = "Each alert profile gates non-terminal emission and severity, and a re-fire on a resolved alert's key opens a fresh incident rather than re-opening it."
 )]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.GetAlertableEventsAsync))]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.RaiseJobAlertAsync))]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.ResolveJobAlertsAsync))]
 public abstract class AlertProfileMatrixSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

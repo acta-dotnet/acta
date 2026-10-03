@@ -13,10 +13,7 @@ namespace Acta.Tests.Conformance.DbSession;
     "provider.discriminator",
     "Provider registration surfaces the discriminator and schema",
     Area = "Provider",
-    Contract = "Provider registration wires IDbSession with the correct provider discriminator and the configured schema.",
-    Arrange = "A service collection registers the provider under the test schema.",
-    Act = "IDbSession is resolved and its testing raw-connection helper is opened.",
-    Assert = "The session surfaces the correct provider discriminator and configured schema and the raw connection opens."
+    Contract = "Provider registration wires IDbSession with the correct provider discriminator and the configured schema."
 )]
 public abstract class SessionProviderDiscriminatorSpec<TFixture> : IntegrationSpec<TFixture>
     where TFixture : IConformanceFixture, new()

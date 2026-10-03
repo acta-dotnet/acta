@@ -17,13 +17,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "steps.run-and-retry",
     "RunStepAsync runs once, replays results, and retries until exhausted",
     Area = "Steps",
-    Contract = "A step runs its body once, replay-skips a succeeded slot, retries an in-budget failure budget-neutrally, and exhausts to StepExhaustedException.",
-    Arrange = "Handlers wrap their work in ctx.RunStepAsync durable steps with per-fact budgets.",
-    Act = "Steps succeed, replay after a suspend, fail then succeed, or exhaust, and CompleteStep CAS losses hit advanced or absent slots.",
-    Assert = "A body runs once per outcome, a succeeded slot replay-skips, in-budget failures retry budget-neutrally, and exhaustion throws StepExhaustedException."
+    Contract = "A step runs its body once, replay-skips a succeeded slot, retries an in-budget failure budget-neutrally, and exhausts to StepExhaustedException."
 )]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.StartStepAsync))]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.CompleteStepAsync))]
 public abstract class StepSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

@@ -9,12 +9,8 @@ namespace Acta.Tests.Conformance.Features.Workers;
     "get-worker.by-id",
     "GetWorker returns one worker by id and null for an unknown id",
     Area = "Reads",
-    Contract = "GetWorker returns the durable worker projection matching the supplied id and null when no row matches.",
-    Arrange = "A worker is started with known host, version, process, and concurrency values.",
-    Act = "GetWorker is called with the assigned id and then with an id that matches no row.",
-    Assert = "The known worker preserves every durable identity and lifecycle field and the unknown id returns null."
+    Contract = "GetWorker returns the durable worker projection matching the supplied id and null when no row matches."
 )]
-[CoversStoreMethod(typeof(IWorkerStore), nameof(IWorkerStore.GetWorkerAsync))]
 public abstract class GetWorkerSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

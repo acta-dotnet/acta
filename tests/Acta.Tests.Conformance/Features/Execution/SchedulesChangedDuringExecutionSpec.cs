@@ -16,12 +16,8 @@ namespace Acta.Tests.Conformance.Features.Execution;
     "execution.schedules-changed-during-execution",
     "Completing an in-flight attempt respects schedule changes made while it ran",
     Area = "Execution",
-    Contract = "A recurring completion never advances an orphaned or edited schedule, and derives the slot's status and next run from the schedules current at completion.",
-    Arrange = "A slot is leased in flight, then its schedules are removed, partly removed, extended by a re-registration, or one of them is edited.",
-    Act = "The attempt completes with the advances it planned before the handler ran.",
-    Assert = "Orphaned schedules stay orphaned, an edited one keeps its edit, the slot re-arms from the schedules as they stand, and the events and result row match it."
+    Contract = "A recurring completion never advances an orphaned or edited schedule, and derives the slot's status and next run from the schedules current at completion."
 )]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.CompleteExecutionAsync))]
 public abstract class SchedulesChangedDuringExecutionSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

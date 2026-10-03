@@ -26,12 +26,8 @@ namespace Acta.Tests.Conformance.Features.Execution;
     "execution.unsupported-definition-claim",
     "A claim with no handler is handed back, and its definition is not claimed again",
     Area = "Execution",
-    Contract = "A claimed job this worker has no descriptor for returns to Ready budget-neutral, and the worker stops claiming that definition.",
-    Arrange = "Jobs are enqueued, then their descriptors are dropped from the live worker index the way a deployment that removed the handler would.",
-    Act = "The worker claims and ticks, by job id for the hand-back facts and namespace-wide for the exclusion.",
-    Assert = "The job is Ready with no lease and failure_count untouched, nothing renews its lease, and later namespace claims skip it."
+    Contract = "A claimed job this worker has no descriptor for returns to Ready budget-neutral, and the worker stops claiming that definition."
 )]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.CompleteExecutionAsync))]
 public abstract class UnsupportedDefinitionClaimSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

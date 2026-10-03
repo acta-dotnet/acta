@@ -15,12 +15,8 @@ namespace Acta.Tests.Conformance.Features.Tenants;
     "get-tenant.point-read",
     "GetTenant returns the tenant for a known key or id and null for an unknown one",
     Area = "Catalog",
-    Contract = "GetTenant returns the TenantListItem projection for a matching key or internal id regardless of status and null when no row matches.",
-    Arrange = "A tenant is registered and optionally suspended so a known key and id exist.",
-    Act = "GetTenant is called by key, by id, and with a key that matches no row.",
-    Assert = "The known key and id return the same populated row including its status and the unknown key returns null."
+    Contract = "GetTenant returns the TenantListItem projection for a matching key or internal id regardless of status and null when no row matches."
 )]
-[CoversStoreMethod(typeof(ITenantStore), nameof(ITenantStore.GetTenantAsync))]
 public abstract class GetTenantSpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

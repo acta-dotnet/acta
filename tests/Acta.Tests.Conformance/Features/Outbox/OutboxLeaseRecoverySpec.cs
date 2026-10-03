@@ -14,12 +14,8 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     "outbox-claim.expired-lease-recovery",
     "A claim recovers an expired lease and reclaims it, leaving a live lease alone",
     Area = "Outbox",
-    Contract = "ClaimDue recovers a Claimed row whose lease expired back to Pending and reclaims it under a new token, but never steals a live lease.",
-    Arrange = "A source row is Claimed with an expired lease, and another is Claimed with a live lease.",
-    Act = "ClaimDue runs with a fresh token.",
-    Assert = "The expired row is reclaimed under the new token while the live-lease row keeps its owner and token."
+    Contract = "ClaimDue recovers a Claimed row whose lease expired back to Pending and reclaims it under a new token, but never steals a live lease."
 )]
-[CoversStoreMethod(typeof(IOutboxRelayStore), nameof(IOutboxRelayStore.ClaimDueAsync))]
 public abstract class OutboxLeaseRecoverySpec<TFixture> : OutboxSpecBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

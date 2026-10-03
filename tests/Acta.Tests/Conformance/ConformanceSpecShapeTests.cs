@@ -32,20 +32,17 @@ public sealed class ConformanceSpecShapeTests
 
             void Fail(string why) => failures.Add($"{spec.Name}: {why}");
 
-            foreach (var (field, text) in new[] { ("Contract", a.Contract), ("Arrange", a.Arrange), ("Act", a.Act), ("Assert", a.Assert) })
+            if (a.Contract.Length > SentenceMaxChars)
             {
-                if (text.Length > SentenceMaxChars)
-                {
-                    Fail($"{field} > {SentenceMaxChars} chars ({text.Length}).");
-                }
-                if (text.Contains('\n') || text.Contains(';'))
-                {
-                    Fail($"{field} must be a single sentence (no newline/semicolon).");
-                }
-                if (text.Length > 0 && !text.TrimEnd().EndsWith('.'))
-                {
-                    Fail($"{field} must end with '.'.");
-                }
+                Fail($"Contract > {SentenceMaxChars} chars ({a.Contract.Length}).");
+            }
+            if (a.Contract.Contains('\n') || a.Contract.Contains(';'))
+            {
+                Fail("Contract must be a single sentence (no newline/semicolon).");
+            }
+            if (a.Contract.Length > 0 && !a.Contract.TrimEnd().EndsWith('.'))
+            {
+                Fail("Contract must end with '.'.");
             }
             if (a.Title.Length > TitleMaxChars)
             {

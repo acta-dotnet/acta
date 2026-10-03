@@ -82,13 +82,8 @@ public sealed class DeferredRetryStepManifest : IJobManifest
     "step.deferred-retry",
     "Nonzero backoff defers the parent to the retry instant and re-invokes the body",
     Area = "Steps",
-    Contract = "A step failure with nonzero backoff re-arms the parent Ready at the retry instant budget-neutrally and gates re-invocation until that instant.",
-    Arrange = "A deferred-retry step that fails once then succeeds is registered with MaxAttempts 3 and a 30s initial backoff.",
-    Act = "The job runs, is re-run before the retry instant, and runs again after the clock advances to it.",
-    Assert = "The parent re-arms Ready at the retry instant budget-neutrally, the early run claims nothing, and the re-invoked body completes the job Succeeded, reason gone."
+    Contract = "A step failure with nonzero backoff re-arms the parent Ready at the retry instant budget-neutrally and gates re-invocation until that instant."
 )]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.StartStepAsync))]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.CompleteStepAsync))]
 public abstract class StepDeferredRetrySpec<TFixture> : ActaRuntimeTestBase<TFixture, DeferredRetryStepManifest>
     where TFixture : IConformanceFixture, new()
 {

@@ -13,13 +13,8 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     "enqueue-rejection.taxonomy",
     "Typed enqueue rejection reasons for namespace, tenant, route, and definition",
     Area = "Enqueue",
-    Contract = "Maps suspended namespace/tenant, unknown tenant, unknown route, and retired definition to EnqueueRejectedException reasons, preserving the provider exception.",
-    Arrange = "The worker registers the test namespace and a suspended tenant.",
-    Act = "Enqueues are attempted into a suspended namespace, with a suspended tenant, with an unknown tenant, against an unknown job, and against a retired definition.",
-    Assert = "Each guarded case throws EnqueueRejectedException with the matching reason, including RouteUnknown and DefinitionRetired, and the provider exception as inner."
+    Contract = "Maps suspended namespace/tenant, unknown tenant, unknown route, and retired definition to EnqueueRejectedException reasons, preserving the provider exception."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueOneAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueBatchAsync))]
 public abstract class EnqueueRejectionTaxonomySpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

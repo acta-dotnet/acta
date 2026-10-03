@@ -15,13 +15,8 @@ namespace Acta.Tests.Conformance.Features.Schedules;
     "schedule.trigger-now",
     "Operator manually fires a schedule now without disturbing its cadence",
     Area = "Scheduling",
-    Contract = "Triggering an eligible schedule makes its slot claimable now without moving the schedule's own cursor, while paused or in-flight schedules reject.",
-    Arrange = "A recurring slot carries one schedule at a far-future cursor, optionally paused or mid-execution.",
-    Act = "An operator triggers the named schedule through ISchedules.TriggerNowAsync.",
-    Assert = "An eligible trigger pulls the slot cursor to now and audits it, while paused, in-flight, or unknown targets reject or report not found untouched."
+    Contract = "Triggering an eligible schedule makes its slot claimable now without moving the schedule's own cursor, while paused or in-flight schedules reject."
 )]
-[CoversStoreMethod(typeof(IScheduleStore), nameof(IScheduleStore.TriggerScheduleNowAsync))]
-[CoversStoreMethod(typeof(IScheduleStore), nameof(IScheduleStore.GetLiveSchedulesAsync))]
 public abstract class ScheduleTriggerNowSpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

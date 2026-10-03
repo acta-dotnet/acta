@@ -17,13 +17,8 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     "enqueue-jobs.batch-rejection",
     "Same-batch duplicate deduplication keys or malformed rows reject the batch",
     Area = "Enqueue",
-    Contract = "A batch with a same-batch duplicate DeduplicationKey, duplicate tag names, or an unknown namespace or job is rejected atomically and no job rows are inserted.",
-    Arrange = "A namespace with an add-numbers definition is registered so only the pre-SQL enqueue guards are in play.",
-    Act = "Batches with duplicate DeduplicationKeys, duplicate tag names, or an unknown namespace or job are enqueued, plus one batch of distinct and null keys.",
-    Assert = "Each violating batch is rejected atomically persisting nothing, while the batch of distinct and null keys inserts."
+    Contract = "A batch with a same-batch duplicate DeduplicationKey, duplicate tag names, or an unknown namespace or job is rejected atomically and no job rows are inserted."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueOneAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueBatchAsync))]
 public abstract class EnqueueRejectionSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

@@ -16,12 +16,8 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     "get-job-status.status-read",
     "GetJobStatus returns the status for a known id and null for an unknown id",
     Area = "Reads",
-    Contract = "GetJobStatus returns the current JobStatusCode for a matching job row and null when no row matches the supplied id.",
-    Arrange = "A job is freshly enqueued so a known job id exists in Ready.",
-    Act = "GetJobStatus is called with the enqueued id and then with an id that matches no row.",
-    Assert = "The known id returns JobStatusCode Ready and the unknown id returns null."
+    Contract = "GetJobStatus returns the current JobStatusCode for a matching job row and null when no row matches the supplied id."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.GetJobStatusAsync))]
 public abstract class GetJobStatusSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

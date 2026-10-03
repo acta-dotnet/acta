@@ -19,14 +19,8 @@ namespace Acta.Tests.Conformance.Features.Execution;
     "execution.recovery-job",
     "One sys.recovery tick reclaims, releases, and wakes",
     Area = "Recovery",
-    Contract = "One sys.recovery tick returns lease-expired jobs to Ready, re-raises child latches lost to a crash, and wakes the workers that can claim them.",
-    Arrange = "A claimed job's lease is lapsed and a terminal child's latch raise is lost, in the namespace whose sys.recovery slot is due.",
-    Act = "The runtime claims the due sys.recovery slot by id, and the generated dispatch invokes its handler.",
-    Assert = "The stranded job is Ready again, the waiting parent is released, and both the namespace and the all-namespaces wakeup are published."
+    Contract = "One sys.recovery tick returns lease-expired jobs to Ready, re-raises child latches lost to a crash, and wakes the workers that can claim them."
 )]
-[CoversStoreMethod(typeof(IWorkerStore), nameof(IWorkerStore.MarkDeadWorkersAsync))]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.ReclaimStuckJobsAsync))]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.GetStaleChildLatchesAsync))]
 public abstract class RecoveryJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

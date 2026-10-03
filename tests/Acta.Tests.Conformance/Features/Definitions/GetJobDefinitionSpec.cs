@@ -14,12 +14,8 @@ namespace Acta.Tests.Conformance.Features.Definitions;
     "get-job-definition.by-id",
     "GetJobDefinition returns one definition by id and null for an unknown id",
     Area = "Reads",
-    Contract = "GetJobDefinition returns the fully-projected definitions row matching the supplied id and null when no row matches.",
-    Arrange = "A definition is registered in the test namespace and its id is known from a list read.",
-    Act = "GetJobDefinition is called with the known id and then with an id that matches no row.",
-    Assert = "The known id returns the fully-projected definition row matching the list read and the unknown id returns null."
+    Contract = "GetJobDefinition returns the fully-projected definitions row matching the supplied id and null when no row matches."
 )]
-[CoversStoreMethod(typeof(IDefinitionStore), nameof(IDefinitionStore.GetDefinitionAsync))]
 public abstract class GetJobDefinitionSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

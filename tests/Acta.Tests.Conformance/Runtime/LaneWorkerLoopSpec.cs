@@ -64,10 +64,7 @@ public abstract class LaneWorkerLoopSpec<TFixture> : ActaRuntimeTestBase<TFixtur
     "lanes.worker-loop.direct",
     "Under the Direct profile each lane runs one member at a time in enqueue order",
     Area = "Lanes",
-    Contract = "Under the Direct profile with several executors each lane runs one member at a time in enqueue order while different lanes run in parallel.",
-    Arrange = "Two lanes of probe jobs are enqueued in one batch into a private namespace served by a multi-executor Direct worker.",
-    Act = "The worker loop drains the namespace.",
-    Assert = "Every probe ran once, each lane in enqueue order, and no lane ever had two probes running at once."
+    Contract = "Under the Direct profile with several executors each lane runs one member at a time in enqueue order while different lanes run in parallel."
 )]
 public abstract class LaneDirectWorkerLoopSpec<TFixture> : LaneWorkerLoopSpec<TFixture>
     where TFixture : IConformanceFixture, new()
@@ -82,10 +79,7 @@ public abstract class LaneDirectWorkerLoopSpec<TFixture> : LaneWorkerLoopSpec<TF
     "lanes.worker-loop.buffered",
     "Under the Buffered profile each lane runs one member at a time in enqueue order",
     Area = "Lanes",
-    Contract = "Under the Buffered profile with several executors each lane runs one member at a time in enqueue order while different lanes run in parallel.",
-    Arrange = "Two lanes of probe jobs are enqueued in one batch into a private namespace served by a multi-executor Buffered worker.",
-    Act = "The worker loop drains the namespace.",
-    Assert = "Every probe ran once, each lane in enqueue order, and no lane ever had two probes running at once."
+    Contract = "Under the Buffered profile with several executors each lane runs one member at a time in enqueue order while different lanes run in parallel."
 )]
 public abstract class LaneBufferedWorkerLoopSpec<TFixture> : LaneWorkerLoopSpec<TFixture>
     where TFixture : IConformanceFixture, new()

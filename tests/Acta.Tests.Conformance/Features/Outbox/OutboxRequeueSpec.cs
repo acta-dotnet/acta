@@ -15,12 +15,8 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     "outbox-requeue.operator-exit",
     "Requeue returns quarantined rows to Pending, budget reset, evidence kept",
     Area = "Outbox",
-    Contract = "RequeueQuarantined moves targeted (or all, when ids are null) Quarantined rows to Pending, due now, failure_count reset, last_error kept, returning the ids.",
-    Arrange = "Two rows are quarantined with their errors and one row stays Pending.",
-    Act = "One row is requeued by id, then the remainder by the null all-form, then the all-form again on an empty quarantine.",
-    Assert = "Each requeue returns exactly the touched ids, rows land Pending with failure_count 0 and last_error kept, claim again, and the empty sweep returns nothing."
+    Contract = "RequeueQuarantined moves targeted (or all, when ids are null) Quarantined rows to Pending, due now, failure_count reset, last_error kept, returning the ids."
 )]
-[CoversStoreMethod(typeof(IOutboxRelayStore), nameof(IOutboxRelayStore.RequeueQuarantinedAsync))]
 public abstract class OutboxRequeueSpec<TFixture> : OutboxSpecBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

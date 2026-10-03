@@ -16,12 +16,8 @@ namespace Acta.Tests.Conformance.Features.Tenants;
     "register-tenant.insert-or-get",
     "Tenant registration inserts a new Active tenant or returns the existing row",
     Area = "Catalog",
-    Contract = "Registering a new tenant inserts it Active and returns a new id, and re-registering returns the same id without changing status, metadata, or version.",
-    Arrange = "A fresh tenant key exists only in the caller's hands, optionally suspended after its first registration.",
-    Act = "The key is registered, then registered again with different metadata, reading the stored row after each call.",
-    Assert = "The first registration returns a new Active row and repeats return the same id with status, metadata, and version unchanged."
+    Contract = "Registering a new tenant inserts it Active and returns a new id, and re-registering returns the same id without changing status, metadata, or version."
 )]
-[CoversStoreMethod(typeof(ITenantStore), nameof(ITenantStore.RegisterTenantAsync))]
 public abstract class RegisterTenantSpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

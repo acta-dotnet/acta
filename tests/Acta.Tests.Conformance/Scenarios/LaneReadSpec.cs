@@ -13,10 +13,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     "lanes.read",
     "Job reads name the lane and the member a Blocked job waits behind",
     Area = "Lanes",
-    Contract = "A job read carries its lane and, while Blocked, the lane's lowest-id unfinished member, and the jobs list filters by lane.",
-    Arrange = "Two lanes and an unlaned job are enqueued into a private namespace, so each lane holds a head and a Blocked follower.",
-    Act = "Each job is read, and the namespace's jobs are listed with a lane filter spelled in another case.",
-    Assert = "Laned jobs carry their lane, only the follower names its head, and the filtered list holds exactly that lane's jobs."
+    Contract = "A job read carries its lane and, while Blocked, the lane's lowest-id unfinished member, and the jobs list filters by lane."
 )]
 public abstract class LaneReadSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()

@@ -15,10 +15,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     "outbox-staging.commit-rollback-defaults",
     "Provider outbox staging commits or rolls back with the business write",
     Area = "Outbox",
-    Contract = "The staging extension writes one canonical outbox row on the caller transaction, so it commits or rolls back with the business write and is then claimable.",
-    Arrange = "A per-test outbox table exists and a request carries a payload, correlation key, priority, and tags.",
-    Act = "A business row and the staged outbox row are written on one caller transaction, then committed or rolled back.",
-    Assert = "On commit both rows persist and the staged row claims once with failure count zero and reconstructs the request, on rollback neither row exists."
+    Contract = "The staging extension writes one canonical outbox row on the caller transaction, so it commits or rolls back with the business write and is then claimable."
 )]
 public abstract class OutboxStagingSpec<TFixture> : ActaTestBase<TFixture>
     where TFixture : IConformanceFixture, new()

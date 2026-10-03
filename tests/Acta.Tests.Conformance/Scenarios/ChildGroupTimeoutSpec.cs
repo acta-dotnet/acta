@@ -18,15 +18,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "child-jobs.group-wait-timeout",
     "A bounded group wait spends one stored deadline across every child and replay",
     Area = "ChildJobs",
-    Contract = "A bounded group wait stores one absolute deadline, spends it across all children and replays, and cancels only unfinished members on expiry.",
-    Arrange = "Parents wait on child groups with a 30-minute bound so only a deliberate rewind of the stored group deadline can expire one.",
-    Act = "The runtime ticks parents and children around the persisted group deadline, with members landing before it, after it, and never.",
-    Assert = "The stored deadline never moves, unfinished members and their subtrees are cancelled with job.wait-timed-out, and the parent keeps running."
+    Contract = "A bounded group wait stores one absolute deadline, spends it across all children and replays, and cancels only unfinished members on expiry."
 )]
-[CoversStoreMethod(typeof(ISignalStore), nameof(ISignalStore.WaitSignalAsync))]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.CheckpointSlotAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.CancelJobAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.GetJobLineageMapAsync))]
 public abstract class ChildGroupTimeoutSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

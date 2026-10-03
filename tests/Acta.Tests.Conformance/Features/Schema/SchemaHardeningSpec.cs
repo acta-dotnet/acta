@@ -19,10 +19,7 @@ namespace Acta.Tests.Conformance.Features.Schema;
     "schema.hardening-facts",
     "Hardened schema enforces its checks, seed, and denormalized invariants",
     Area = "Schema",
-    Contract = "The hardened M001 schema enforces every new CHECK, admits one unresolved alert per deduplication key, seeds sys, and keeps runtimes in step with jobs.",
-    Arrange = "A live provider schema carries the seeded sys namespace and jobs enqueued through EnqueueOne, EnqueueBatch, a child enqueue, and Restart.",
-    Act = "Constraint-violating writes are attempted directly, a second unresolved alert is inserted on a key that already has one, and denormalized rows are read back.",
-    Assert = "Every violating statement fails with a provider exception, a deduplication key admits a new row only once its incident is resolved, and denormalized rows agree."
+    Contract = "The hardened M001 schema enforces every new CHECK, admits one unresolved alert per deduplication key, seeds sys, and keeps runtimes in step with jobs."
 )]
 public abstract class SchemaHardeningSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobsManifest>
     where TFixture : IConformanceFixture, new()

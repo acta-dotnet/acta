@@ -22,13 +22,8 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     "alert.delivery-failure",
     "Alert delivery retries with backoff, goes terminal, and reminds open incidents",
     Area = "Alerts",
-    Contract = "A throwing transport retries to terminal Failed, a missing transport fails at once, and settling schedules the reminder that re-sends an open automatic alert.",
-    Arrange = "Pending alerts of both origins are seeded against a throwing transport, a missing transport kind, and a transport that resolves the row while it sends.",
-    Act = "The delivery phase settles each attempt while the clock advances past each backoff and retry_after_utc is moved to stage a due reminder.",
-    Assert = "Retries park until Failed, a due automatic reminder re-sends and reschedules, a delivered manual alert never reminds, and a mid-send resolve voids the settle."
+    Contract = "A throwing transport retries to terminal Failed, a missing transport fails at once, and settling schedules the reminder that re-sends an open automatic alert."
 )]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.GetDeliverableAlertsAsync))]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.UpdateAlertDeliveryAsync))]
 public abstract class AlertDeliveryFailureSpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

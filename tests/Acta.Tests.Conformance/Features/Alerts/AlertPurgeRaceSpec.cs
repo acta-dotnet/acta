@@ -19,14 +19,8 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     "alerts.purge-race",
     "Alert writers race job purges without a deadlock or an orphaned alert",
     Area = "Alerts",
-    Contract = "Raising, resolving, and sweeping alerts while their jobs are purged never deadlocks and never leaves an alert on a purged job.",
-    Arrange = "Forty terminal jobs each carry two open automatic alerts, and deadlock retry is off so a deadlock victim surfaces.",
-    Act = "Per job, a raiser, a resolver, and a purge run at once, beside a retention sweep of the namespace's alerts, over several rounds.",
-    Assert = "Every purge applies, every raise either lands or is refused for an unknown job, and no alert names a purged job."
+    Contract = "Raising, resolving, and sweeping alerts while their jobs are purged never deadlocks and never leaves an alert on a purged job."
 )]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.RaiseJobAlertAsync))]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.ResolveJobAlertsAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.PurgeJobAsync))]
 public abstract class AlertPurgeRaceSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

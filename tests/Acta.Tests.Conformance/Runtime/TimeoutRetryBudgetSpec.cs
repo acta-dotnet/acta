@@ -14,10 +14,7 @@ namespace Acta.Tests.Conformance.Runtime;
     "timeout.retry-budget",
     "A timeout within budget re-arms to Ready; exhausted budget lands Failed",
     Area = "Execution",
-    Contract = "A per-attempt timeout re-arms the job to Ready incrementing failure_count while budget remains and lands terminal Failed once MaxAttempts is exhausted.",
-    Arrange = "A timeout-budget-probe is registered with MaxAttempts 2, zero backoff, and a short per-attempt timeout.",
-    Act = "The runtime claims and runs the job twice and both attempts time out.",
-    Assert = "The first timeout re-arms the job Ready with failure_count 1 and the second lands it terminal Failed with failure_count 2."
+    Contract = "A per-attempt timeout re-arms the job to Ready incrementing failure_count while budget remains and lands terminal Failed once MaxAttempts is exhausted."
 )]
 public abstract class TimeoutRetryBudgetSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()

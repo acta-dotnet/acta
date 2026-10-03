@@ -13,12 +13,8 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     "outbox-backlog.count",
     "Backlog counts Pending rows only",
     Area = "Outbox",
-    Contract = "CountBacklog returns the number of Pending source rows, due or backed off, excluding Claimed and Quarantined rows.",
-    Arrange = "Four rows: a due Pending, a backed-off Pending, a Claimed row under a live lease, and a Quarantined row.",
-    Act = "CountBacklog runs.",
-    Assert = "The count is exactly the two Pending rows."
+    Contract = "CountBacklog returns the number of Pending source rows, due or backed off, excluding Claimed and Quarantined rows."
 )]
-[CoversStoreMethod(typeof(IOutboxRelayStore), nameof(IOutboxRelayStore.CountBacklogAsync))]
 public abstract class OutboxBacklogCountSpec<TFixture> : OutboxSpecBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

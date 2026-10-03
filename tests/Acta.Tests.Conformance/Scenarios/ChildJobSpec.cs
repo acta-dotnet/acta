@@ -18,20 +18,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "child-jobs.start-wait-cascade",
     "Child jobs start deduped, join on completion latches, and cancel cascades",
     Area = "ChildJobs",
-    Contract = "StartChildAsync dedupes by name per parent and a terminal child raises a durable latch that releases a waiting parent while cancel cascades to the live subtree.",
-    Arrange = "A parent job and named child definitions are registered, with the parent set to wait on its children.",
-    Act = "The parent starts named children that finish in any order, fail, exhaust their budget, or are cancelled with an ancestor.",
-    Assert = "Terminal children raise durable sys.child latches that release or fail the waiting parent, and cancel cascades to the live subtree."
+    Contract = "StartChildAsync dedupes by name per parent and a terminal child raises a durable latch that releases a waiting parent while cancel cascades to the live subtree."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueOneAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueBatchAsync))]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.CompleteExecutionAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.CancelJobAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.CancelJobAsync))]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.ReclaimStuckJobsAsync))]
-[CoversStoreMethod(typeof(ISignalStore), nameof(ISignalStore.WaitSignalAsync))]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.GetChildJobIdsAsync))]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.GetStaleChildLatchesAsync))]
 public abstract class ChildJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

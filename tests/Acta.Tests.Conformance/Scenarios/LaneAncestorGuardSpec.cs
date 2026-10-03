@@ -15,13 +15,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "lanes.ancestor-guard",
     "A child in the lane of an unfinished ancestor is rejected",
     Area = "Lanes",
-    Contract = "An enqueue whose effective lane equals the lane of an unfinished ancestor is rejected with AncestorLane, and a child never inherits its parent's lane.",
-    Arrange = "An unfinished laned parent, an unlaned child of it, and a laned definition parent exist in a private namespace.",
-    Act = "Children and grandchildren are enqueued single and batched into the ancestors' lanes, another lane, and no lane.",
-    Assert = "Every enqueue into an unfinished ancestor's lane is rejected with AncestorLane and every other enqueue lands."
+    Contract = "An enqueue whose effective lane equals the lane of an unfinished ancestor is rejected with AncestorLane, and a child never inherits its parent's lane."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueOneAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueBatchAsync))]
 public abstract class LaneAncestorGuardSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

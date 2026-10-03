@@ -13,12 +13,8 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     "outbox-delete.token-cas",
     "Delete removes a claimed row only under its token, a stale token no-ops",
     Area = "Outbox",
-    Contract = "DeleteClaimed removes a claimed row only when the command token matches the row's claim token, and a stale token deletes nothing.",
-    Arrange = "A source row is claimed under one token.",
-    Act = "DeleteClaimed runs first with a stale token, then with the owning token.",
-    Assert = "The stale delete leaves the claimed row intact and the owning delete removes it."
+    Contract = "DeleteClaimed removes a claimed row only when the command token matches the row's claim token, and a stale token deletes nothing."
 )]
-[CoversStoreMethod(typeof(IOutboxRelayStore), nameof(IOutboxRelayStore.DeleteClaimedAsync))]
 public abstract class OutboxDeleteSpec<TFixture> : OutboxSpecBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

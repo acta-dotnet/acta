@@ -15,10 +15,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     "outbox.lane-order",
     "Rows staged into one lane relay in staging order whatever their priority",
     Area = "Outbox",
-    Contract = "The relay claims a lane's rows in staging order, so a lane's rows reach the ledger in that order however their priorities differ.",
-    Arrange = "A low-priority row and then a high-priority row are staged into one lane in one producer transaction.",
-    Act = "One relay tick relays the source.",
-    Assert = "The low-priority row's job leads the lane Ready and the high-priority row's job waits Blocked behind it."
+    Contract = "The relay claims a lane's rows in staging order, so a lane's rows reach the ledger in that order however their priorities differ."
 )]
 public abstract class OutboxLaneOrderSpec<TFixture> : OutboxRelayIntegrationBase<TFixture>
     where TFixture : IConformanceFixture, new()

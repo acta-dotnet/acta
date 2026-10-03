@@ -15,13 +15,8 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     "list-job-alerts.keyset-page",
     "ListJobAlerts pages alerts newest first with severity floor and full stored text",
     Area = "Reads",
-    Contract = "ListJobAlerts returns alert rows ordered created_at_utc then id descending with severity floor and an opt-in filter-wide count in one command.",
-    Arrange = "Three alerts of rising severity with a 200-char title are raised in the test namespace.",
-    Act = "Alerts are listed with an opt-in total, a severity floor, unresolved-only, and as one combined page plus count.",
-    Assert = "Rows return newest first with lower severities excluded by the floor, full stored text, and a filter-wide total in one command."
+    Contract = "ListJobAlerts returns alert rows ordered created_at_utc then id descending with severity floor and an opt-in filter-wide count in one command."
 )]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.ListJobAlertsAsync))]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.GetJobAlertAsync))]
 public abstract class ListJobAlertsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

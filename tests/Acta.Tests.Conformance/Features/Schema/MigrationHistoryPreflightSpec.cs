@@ -15,10 +15,7 @@ namespace Acta.Tests.Conformance.Features.Schema;
     "schema.migration-history-preflight",
     "Bootstrap verifies migration history even when it applies nothing",
     Area = "Schema",
-    Contract = "Provider bootstrap requires this build's baseline stamp and every migration it ships, and tolerates newer ones.",
-    Arrange = "A probe location carries a hand-built migration history, or the shared provisioned schema is used as is.",
-    Act = "The provider bootstrap runs against that location with ApplyMigrationsOnStartup left false.",
-    Assert = "A complete or newer history passes, while a missing ledger, a foreign baseline, or a missing migration is refused by name."
+    Contract = "Provider bootstrap requires this build's baseline stamp and every migration it ships, and tolerates newer ones."
 )]
 public abstract class MigrationHistoryPreflightSpec<TFixture> : IntegrationSpec<TFixture>
     where TFixture : IConformanceFixture, new()

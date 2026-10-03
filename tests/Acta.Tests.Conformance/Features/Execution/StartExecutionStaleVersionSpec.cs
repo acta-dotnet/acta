@@ -17,12 +17,8 @@ namespace Acta.Tests.Conformance.Features.Execution;
     "start-execution.claim-cas",
     "Start execution honors the version CAS and the live-lease guard",
     Area = "Execution",
-    Contract = "Start transitions a fresh claim to Executing but refuses a stale-version claim as LostClaim and an expired-lease claim as LeaseExpired.",
-    Arrange = "A claimed job sits buffered between claim and start.",
-    Act = "StartExecution runs with a matching version, with a bumped version, and with an expired lease.",
-    Assert = "The fresh claim goes Executing while the stale version fails as LostClaim and the expired lease as LeaseExpired, leaving the row to its owner."
+    Contract = "Start transitions a fresh claim to Executing but refuses a stale-version claim as LostClaim and an expired-lease claim as LeaseExpired."
 )]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.StartExecutionAsync))]
 public abstract class StartExecutionStaleVersionSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

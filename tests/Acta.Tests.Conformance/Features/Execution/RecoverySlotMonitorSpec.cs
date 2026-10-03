@@ -20,12 +20,8 @@ namespace Acta.Tests.Conformance.Features.Execution;
     "execution.recovery-slot-monitor",
     "A stranded recovery slot is repaired under a guard by any worker",
     Area = "Execution",
-    Contract = "A recovery slot in flight under a lapsed lease is re-armed once by a repair whose guard reads the lease against database time inside the statement.",
-    Arrange = "The namespace's sys.recovery slot is put in flight under a lease that is live or lapsed, or its row is absent.",
-    Act = "The check runs, two repairs race on one lapsed slot, a renewal commits under a waiting repair, a worker starts over a lapsed one, and the loop ticks.",
-    Assert = "A live lease is untouched, a lapsed one is re-armed with one finished event naming its state, a renewal wins the race, and startup and the loop each re-arm."
+    Contract = "A recovery slot in flight under a lapsed lease is re-armed once by a repair whose guard reads the lease against database time inside the statement."
 )]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.RepairRecoverySlotAsync))]
 public abstract class RecoverySlotMonitorSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

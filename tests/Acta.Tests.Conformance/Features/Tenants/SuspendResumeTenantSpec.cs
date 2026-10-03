@@ -11,13 +11,8 @@ namespace Acta.Tests.Conformance.Features.Tenants;
     "suspend-resume-tenant.status-flip",
     "Tenant suspend and resume flip status and emit one 15xx event to sys namespace",
     Area = "Admin",
-    Contract = "Suspend and resume flip tenant status with a version bump, emit tenant.suspended/tenant.resumed to sys namespace 1, and report NotFound for unknown keys.",
-    Arrange = "An active tenant is registered.",
-    Act = "The tenant is suspended, suspended again, resumed, resumed again, and an unknown key is attempted.",
-    Assert = "The first suspend/resume apply with a bumped version and one event each, repeats report AlreadyInState with no new event, and unknown keys report NotFound."
+    Contract = "Suspend and resume flip tenant status with a version bump, emit tenant.suspended/tenant.resumed to sys namespace 1, and report NotFound for unknown keys."
 )]
-[CoversStoreMethod(typeof(ITenantStore), nameof(ITenantStore.SuspendTenantAsync))]
-[CoversStoreMethod(typeof(ITenantStore), nameof(ITenantStore.ResumeTenantAsync))]
 public abstract class SuspendResumeTenantSpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

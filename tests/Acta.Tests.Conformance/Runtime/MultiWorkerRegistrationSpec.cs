@@ -16,10 +16,7 @@ namespace Acta.Tests.Conformance.Runtime;
     "multi-worker.registration",
     "Three Run calls register three workers isolated per namespace",
     Area = "Workers",
-    Contract = "Three Run calls in one process register three workers each owning its own namespace and manifest catalog and each claims and runs jobs only in its namespace.",
-    Arrange = "One process configures three j.Run calls, one per namespace.",
-    Act = "Each namespace enqueues a job and its owning runtime runs one tick.",
-    Assert = "Three workers are registered and each completes only its own namespace's job to Succeeded."
+    Contract = "Three Run calls in one process register three workers each owning its own namespace and manifest catalog and each claims and runs jobs only in its namespace."
 )]
 public abstract class MultiWorkerRegistrationSpec<TFixture> : ActaTestBase<TFixture>
     where TFixture : IConformanceFixture, new()

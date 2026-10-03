@@ -10,13 +10,8 @@ namespace Acta.Tests.Conformance.Features.Tags;
     "tags.exact-target-metadata",
     "Tags read and mutate all first-class targets and filter typed queries",
     Area = "Tags",
-    Contract = "ITags distinguishes missing from empty targets, atomically replaces, idempotently upserts/removes, and typed queries require every exact tag filter.",
-    Arrange = "A tenant, namespace, definition, job, schedule, worker, alert, and event are created in one isolated namespace.",
-    Act = "Every target is read and mutated, then every typed list is filtered by two attached tags.",
-    Assert = "Existing targets return ordered sets, missing targets return null/NotFound, mutations converge, and every typed list returns only matches."
+    Contract = "ITags distinguishes missing from empty targets, atomically replaces, idempotently upserts/removes, and typed queries require every exact tag filter."
 )]
-[CoversStoreMethod(typeof(ITagStore), nameof(ITagStore.GetAsync))]
-[CoversStoreMethod(typeof(ITagStore), nameof(ITagStore.ApplyAsync))]
 public abstract class TagsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

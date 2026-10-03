@@ -11,10 +11,7 @@ namespace Acta.Tests.Conformance.DbSession;
     "session.atomic-command",
     "Commands keep mutation and audit in one transaction",
     Area = "Storage",
-    Contract = "SQL failure rolls back the operation and successful caller-owned writes leave transaction finalization to the caller.",
-    Arrange = "A namespace with known metadata and version is updated using the provider's embedded command.",
-    Act = "The audit insert or mapper fails, or the caller explicitly commits or rolls back the successful command.",
-    Assert = "Mutation and audit persist or roll back together without replay after client mapping failures."
+    Contract = "SQL failure rolls back the operation and successful caller-owned writes leave transaction finalization to the caller."
 )]
 public abstract class AtomicCommandTransactionSpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()

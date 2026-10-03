@@ -12,12 +12,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "variables.context-api",
     "Job variables round-trip through the context API with versioning and validation",
     Area = "Variables",
-    Contract = "The variable context API persists set/get/get-or-set/delete/exists with last-writer-wins versioning, idempotent delete, format fidelity and payload validation.",
-    Arrange = "Variable-exercising job definitions are registered, including a race probe and a job that reads a deliberately corrupted JSON variable.",
-    Act = "Handlers drive the full variable API - set, get, get-or-set, delete, exists, and progress - across lifecycle, versioning, race, and validation jobs.",
-    Assert = "Variables persist with last-writer-wins versioning and idempotent delete, and invalid names or payloads are rejected."
+    Contract = "The variable context API persists set/get/get-or-set/delete/exists with last-writer-wins versioning, idempotent delete, format fidelity and payload validation."
 )]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.CheckpointSlotAsync))]
 public abstract class VariableContextSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

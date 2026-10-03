@@ -14,10 +14,7 @@ namespace Acta.Tests.Conformance.Runtime;
     "job-context.job-ref",
     "Handler sees its public JobRef matching the enqueue outcome",
     Area = "Execution",
-    Contract = "A handler receives the same public JobRef via ctx.JobRef that the caller gets from JobEnqueueOutcome.",
-    Arrange = "A jobref-probe handler that stores ctx.JobRef into a variable is registered.",
-    Act = "The job is enqueued and runs once.",
-    Assert = "The JobRef the handler stored matches the JobRef the enqueue outcome returned."
+    Contract = "A handler receives the same public JobRef via ctx.JobRef that the caller gets from JobEnqueueOutcome."
 )]
 public abstract class JobRefContextSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()

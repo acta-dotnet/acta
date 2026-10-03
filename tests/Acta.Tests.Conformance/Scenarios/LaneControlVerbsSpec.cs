@@ -15,13 +15,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "lanes.control-verbs",
     "Operator verbs keep a lane's order",
     Area = "Lanes",
-    Contract = "Pause, resume, reschedule, restart, and reprioritize on a laned job never let it run ahead of an older unfinished member of its lane.",
-    Arrange = "A laned head with Blocked followers sits in a private namespace.",
-    Act = "Followers are paused, resumed, rescheduled, restarted, and reprioritized while the head is unfinished, then the head completes.",
-    Assert = "No follower became Ready while an older member was unfinished, and a paused member held the lane until it was resumed."
+    Contract = "Pause, resume, reschedule, restart, and reprioritize on a laned job never let it run ahead of an older unfinished member of its lane."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.PauseJobAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.ResumeJobAsync))]
 public abstract class LaneControlVerbsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

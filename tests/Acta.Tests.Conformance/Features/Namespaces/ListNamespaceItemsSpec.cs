@@ -14,12 +14,8 @@ namespace Acta.Tests.Conformance.Features.Namespaces;
     "list-namespace-items.admin-page",
     "ListNamespaceItems pages namespaces with status, fields, and version",
     Area = "Reads",
-    Contract = "ListNamespaceItems pages namespaces name-ascending carrying id, status, owner_team, description, and version, and includes the seeded sys row.",
-    Arrange = "The worker registers the test namespace and its owner team, description, and version are set to distinct non-null values.",
-    Act = "Namespaces are paged by cursor to reach the test row and the sys prefix is read.",
-    Assert = "The test row carries the distinct owner_team, description, id, and bumped version, and the sys row is present as id 1 name sys status active."
+    Contract = "ListNamespaceItems pages namespaces name-ascending carrying id, status, owner_team, description, and version, and includes the seeded sys row."
 )]
-[CoversStoreMethod(typeof(INamespaceStore), nameof(INamespaceStore.ListNamespaceItemsAsync))]
 public abstract class ListNamespaceItemsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

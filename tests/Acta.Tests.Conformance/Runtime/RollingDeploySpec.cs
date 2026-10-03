@@ -77,10 +77,7 @@ public sealed class RollingGenerationBManifest : IJobManifest
     "runtime.rolling-deploy",
     "Two generations share a namespace and the rollback still runs",
     Area = "Runtime",
-    Contract = "A worker hands back a claim it has no handler for, stops claiming that definition, and leaves the catalog entry Active.",
-    Arrange = "Two runtimes register different manifest generations into one namespace, and one job of each generation's definitions is enqueued.",
-    Act = "The old generation ticks, then the new one, a rolled-back process takes over, and an operator retires the definition the fleet dropped.",
-    Assert = "Each generation runs what it carries, the rollback still runs the omitted definition, and the retire cancels the stranded row and closes enqueue."
+    Contract = "A worker hands back a claim it has no handler for, stops claiming that definition, and leaves the catalog entry Active."
 )]
 public abstract class RollingDeploySpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobsManifest>
     where TFixture : IConformanceFixture, new()

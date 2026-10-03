@@ -11,10 +11,7 @@ namespace Acta.Tests.Conformance.Runtime;
     "chaos.signal-step-wake",
     "Signals, step exhaustion, and lost wakes converge without timing assumptions",
     Area = "Chaos",
-    Contract = "Signals raised before or after waiter creation, step retry exhaustion, and lost wake notifications each produce one legal final state.",
-    Arrange = "Signal and step probes run with system jobs disabled and a 5-minute safety poll under a controlled wakeup.",
-    Act = "Signals are raised before and after waiter creation, a step exhausts its retries, and a wake notification is dropped.",
-    Assert = "Each path converges to one legal final state, with the pre-set signal consumed without suspending and the lost wake recovered by polling."
+    Contract = "Signals raised before or after waiter creation, step retry exhaustion, and lost wake notifications each produce one legal final state."
 )]
 public abstract class SignalStepWakeChaosSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()

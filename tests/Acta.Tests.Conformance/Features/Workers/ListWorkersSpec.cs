@@ -14,12 +14,8 @@ namespace Acta.Tests.Conformance.Features.Workers;
     "list-workers.keyset-page",
     "ListWorkers pages workers most recently seen first without duplicates",
     Area = "Reads",
-    Contract = "ListWorkers pages worker rows newest seen first by cursor and reads the page plus an opt-in filter-wide count in one command.",
-    Arrange = "Two more workers are started alongside the fixture's worker.",
-    Act = "The worker list is walked one per page via NextCursor and read once with IncludeTotal.",
-    Assert = "The walk visits every worker once in descending last-seen order and the page plus filter-wide total come from one command."
+    Contract = "ListWorkers pages worker rows newest seen first by cursor and reads the page plus an opt-in filter-wide count in one command."
 )]
-[CoversStoreMethod(typeof(IWorkerStore), nameof(IWorkerStore.ListWorkersAsync))]
 public abstract class ListWorkersSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

@@ -15,10 +15,7 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     "alert-channel-registry.configured",
     "Alert channel registry is built from worker startup configuration",
     Area = "Alerts",
-    Contract = "The registry provides a default channel per namespace, applies builder declarations as last-write-wins, and isolates namespaces.",
-    Arrange = "Two worker namespaces are configured, one with a default channel override and duplicate ops-oncall declarations and one with no declarations.",
-    Act = "The in-memory registry is read for both namespaces without touching SQL transport configuration.",
-    Assert = "Each namespace resolves a default channel, duplicate declarations are last-write-wins, and channel names stay isolated per namespace."
+    Contract = "The registry provides a default channel per namespace, applies builder declarations as last-write-wins, and isolates namespaces."
 )]
 public abstract class AlertChannelRegistrySpec<TFixture> : ActaTestBase<TFixture>
     where TFixture : IConformanceFixture, new()

@@ -17,15 +17,8 @@ namespace Acta.Tests.Conformance.Features.Schedules;
     "schedule.pause-resume",
     "Operator pause and resume control a schedule and recompute the owning slot",
     Area = "Scheduling",
-    Contract = "Pausing a schedule excludes it from the slot MIN without moving its cursor, resume reconciles by misfire and operator pause survives redeploy.",
-    Arrange = "Recurring slots carry single and multi-schedule, timed, missed, orphaned, and redeployed schedule rows.",
-    Act = "An operator pauses and resumes named schedules through ISchedules across each case.",
-    Assert = "Pause excludes the schedule from the slot MIN without moving its cursor, resume reconciles by misfire, and operator state survives redeploy."
+    Contract = "Pausing a schedule excludes it from the slot MIN without moving its cursor, resume reconciles by misfire and operator pause survives redeploy."
 )]
-[CoversStoreMethod(typeof(IScheduleStore), nameof(IScheduleStore.PauseScheduleAsync))]
-[CoversStoreMethod(typeof(IScheduleStore), nameof(IScheduleStore.ResumeScheduleAsync))]
-[CoversStoreMethod(typeof(IScheduleStore), nameof(IScheduleStore.RegisterScheduledJobsAsync))]
-[CoversStoreMethod(typeof(IScheduleStore), nameof(IScheduleStore.GetLiveSchedulesAsync))]
 public abstract class SchedulePauseResumeSpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

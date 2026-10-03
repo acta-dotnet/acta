@@ -15,14 +15,8 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     "identifier.normalization-boundaries",
     "Acta keys normalize to lowercase while Acta names reject mixed case",
     Area = "Enqueue",
-    Contract = "Acta-owned keys are normalized to lowercase for provider-stable equality, while Acta-owned names must already be lowercase kebab/dotted-kebab.",
-    Arrange = "Tenant, idempotency, and concurrency keys are prepared in mixed case while namespace and signal controls use mixed-case names.",
-    Act = "Keys are written and resolved using different casing while mixed-case names are submitted at control/query boundaries.",
-    Assert = "Key lookups converge on canonical lowercase rows, and mixed-case Acta names are rejected before hitting storage."
+    Contract = "Acta-owned keys are normalized to lowercase for provider-stable equality, while Acta-owned names must already be lowercase kebab/dotted-kebab."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueOneAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueBatchAsync))]
-[CoversStoreMethod(typeof(ITenantStore), nameof(ITenantStore.RegisterTenantAsync))]
 public abstract class IdentifierCaseFoldingSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

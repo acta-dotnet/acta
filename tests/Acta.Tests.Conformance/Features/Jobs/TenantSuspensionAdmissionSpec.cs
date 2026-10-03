@@ -18,13 +18,8 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     "enqueue-jobs.tenant-admission-suspension",
     "Tenant suspension is admission control, not work closure",
     Area = "Enqueue",
-    Contract = "Suspension rejects new enqueues naming the tenant key while admitted workflows may expand through inherited children after the suspend commits.",
-    Arrange = "A tenant is registered, a root job is admitted for it, and the tenant is then suspended.",
-    Act = "A child without a key, a child naming the suspended key, and overlapping suspend and enqueue calls are attempted.",
-    Assert = "The inherited child lands under the suspended tenant, explicit-key enqueues after the suspend commit reject, and overlapping enqueues land or reject atomically."
+    Contract = "Suspension rejects new enqueues naming the tenant key while admitted workflows may expand through inherited children after the suspend commits."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueOneAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueBatchAsync))]
 public abstract class TenantSuspensionAdmissionSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

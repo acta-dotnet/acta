@@ -16,12 +16,8 @@ namespace Acta.Tests.Conformance.Features.Tenants;
     "admin.unicode-actor-key",
     "A non-ASCII operator name survives the audit event intact",
     Area = "Admin",
-    Contract = "The actor key stamped on a control event round-trips byte-identical through every provider, including non-ASCII and astral characters.",
-    Arrange = "An active tenant is registered.",
-    Act = "The tenant is suspended by an operator named with a diacritic and an astral-plane character.",
-    Assert = "The tenant.suspended event carries the operator name exactly as supplied."
+    Contract = "The actor key stamped on a control event round-trips byte-identical through every provider, including non-ASCII and astral characters."
 )]
-[CoversStoreMethod(typeof(ITenantStore), nameof(ITenantStore.SuspendTenantAsync))]
 public abstract class UnicodeActorKeySpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

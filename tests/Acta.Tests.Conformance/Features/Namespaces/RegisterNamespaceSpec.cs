@@ -9,10 +9,7 @@ namespace Acta.Tests.Conformance.Features.Namespaces;
     "schema.namespace-row",
     "Worker init writes a readable namespace row with a positive id",
     Area = "Catalog",
-    Contract = "A seeded namespace is persisted with a positive db-assigned id and is readable back by that id.",
-    Arrange = "The harness has seeded the test namespace row.",
-    Act = "The namespace row is read back by its db-assigned id.",
-    Assert = "The row carries the expected name and a positive db-assigned id."
+    Contract = "A seeded namespace is persisted with a positive db-assigned id and is readable back by that id."
 )]
 public abstract class RegisterNamespaceSpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()

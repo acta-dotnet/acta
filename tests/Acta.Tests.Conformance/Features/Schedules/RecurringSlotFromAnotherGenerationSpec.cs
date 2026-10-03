@@ -30,10 +30,7 @@ public sealed class UnscheduledPingManifest : IJobManifest
     "schedule.slot-from-another-generation",
     "An older generation fires a slot a newer one registered as recurring",
     Area = "Scheduling",
-    Contract = "An older worker fires a slot a newer generation registered as recurring, and no registration adopts an ordinary job holding the key.",
-    Arrange = "The older generation starts without the schedule, and in one fact ordinary laned jobs already hold the slot's key.",
-    Act = "A newer generation registers the schedule, and the older generation claims and runs the slot.",
-    Assert = "The slot is Ready again with its next run ahead, and the newer generation refuses to start over an ordinary job, leaving its lane."
+    Contract = "An older worker fires a slot a newer generation registered as recurring, and no registration adopts an ordinary job holding the key."
 )]
 public abstract class RecurringSlotFromAnotherGenerationSpec<TFixture> : ActaRuntimeTestBase<TFixture, UnscheduledPingManifest>
     where TFixture : IConformanceFixture, new()

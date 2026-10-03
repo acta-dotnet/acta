@@ -20,12 +20,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "concurrency-limit.slots",
     "A definition's concurrency limit is how many of its key's slots exist",
     Area = "Concurrency",
-    Contract = "A concurrency key admits at most its definition's limit at once, one lock row per slot, taken lowest free slot first.",
-    Arrange = "A definition declaring a limit and a shared key whose slots are seeded by the lock store.",
-    Act = "Admissions take slots through the store, and real same-key handlers drain past an externally held slot.",
-    Assert = "Admission fills the lowest free slot, stops when every slot is held, and reuses a slot whose lease expired."
+    Contract = "A concurrency key admits at most its definition's limit at once, one lock row per slot, taken lowest free slot first."
 )]
-[CoversStoreMethod(typeof(ILockStore), nameof(ILockStore.TryAcquireSlotAsync))]
 public abstract class ConcurrencyLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

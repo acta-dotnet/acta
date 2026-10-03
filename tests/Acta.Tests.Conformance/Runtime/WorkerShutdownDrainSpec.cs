@@ -99,10 +99,7 @@ public abstract class WorkerShutdownDrainSpec<TFixture> : ActaRuntimeTestBase<TF
     "runtime.worker-shutdown-drain.standard",
     "Buffered worker stop leaves an in-flight job reclaimable, never Failed",
     Area = "Recovery",
-    Contract = "Under the Buffered profile a graceful worker stop with a job in-flight writes no completion and leaves it Executing for recovery, never terminal Failed.",
-    Arrange = "A worker runs the Buffered profile with a handler that blocks in-flight until its token is cancelled.",
-    Act = "The worker token is cancelled mid-execution and the loop drains, after which the lapsed lease is swept by recovery.",
-    Assert = "The job is left Executing with no completion written and recovery re-arms it to Ready, never terminal Failed."
+    Contract = "Under the Buffered profile a graceful worker stop with a job in-flight writes no completion and leaves it Executing for recovery, never terminal Failed."
 )]
 public abstract class BufferedWorkerShutdownDrainSpec<TFixture> : WorkerShutdownDrainSpec<TFixture>
     where TFixture : IConformanceFixture, new()
@@ -123,10 +120,7 @@ public abstract class BufferedWorkerShutdownDrainSpec<TFixture> : WorkerShutdown
     "runtime.worker-shutdown-drain.fast",
     "Direct worker stop leaves an in-flight job reclaimable, never Failed",
     Area = "Recovery",
-    Contract = "Under the Direct profile a graceful worker stop with a job in-flight writes no completion and leaves it Executing for recovery, never terminal Failed.",
-    Arrange = "A worker runs the Direct profile with a handler that blocks in-flight until its token is cancelled.",
-    Act = "The worker token is cancelled mid-execution and the loop drains, after which the lapsed lease is swept by recovery.",
-    Assert = "The job is left Executing with no completion written and recovery re-arms it to Ready, never terminal Failed."
+    Contract = "Under the Direct profile a graceful worker stop with a job in-flight writes no completion and leaves it Executing for recovery, never terminal Failed."
 )]
 public abstract class DirectWorkerShutdownDrainSpec<TFixture> : WorkerShutdownDrainSpec<TFixture>
     where TFixture : IConformanceFixture, new()

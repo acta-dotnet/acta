@@ -14,12 +14,8 @@ namespace Acta.Tests.Conformance.Features.Namespaces;
     "list-namespaces.keyset-page",
     "ListNamespaces pages namespaces name-ascending with an opt-in total",
     Area = "Reads",
-    Contract = "ListNamespaces pages namespace names ascending without duplicates and reads the page plus an opt-in filter-wide count in one command.",
-    Arrange = "The fixture's test namespace is registered.",
-    Act = "Namespaces are paged by cursor, filtered by prefix, and read with and without IncludeTotal.",
-    Assert = "The walk visits the registered namespace once with no duplicates, the prefix filter scopes the rows, and the opt-in total arrives with the page."
+    Contract = "ListNamespaces pages namespace names ascending without duplicates and reads the page plus an opt-in filter-wide count in one command."
 )]
-[CoversStoreMethod(typeof(INamespaceStore), nameof(INamespaceStore.ListNamespacesAsync))]
 public abstract class ListNamespacesSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

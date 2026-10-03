@@ -18,12 +18,8 @@ namespace Acta.Tests.Conformance.Runtime;
     "runtime.orphaned-claim",
     "A claim whose answer was lost is returned to Ready by the heartbeat",
     Area = "Runtime",
-    Contract = "A row leased by this worker with no attempt behind it for two heartbeats is re-armed Ready, and a row an attempt or the buffer holds is left alone.",
-    Arrange = "A counting one-shot claimed by the runtime, with the claim's answer lost after the store committed it.",
-    Act = "The heartbeat ticks twice with nothing running, then the job is run once.",
-    Assert = "The row is Ready and unleased after the second tick, and the attempt then runs once to Succeeded."
+    Contract = "A row leased by this worker with no attempt behind it for two heartbeats is re-armed Ready, and a row an attempt or the buffer holds is left alone."
 )]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.ClaimOneAsync))]
 public abstract class OrphanedClaimChaosSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

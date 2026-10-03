@@ -19,15 +19,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "control-verbs.transitions",
     "Cancel Pause Resume Restart apply legal transitions and audit",
     Area = "Control",
-    Contract = "IJobs control verbs apply legal transitions stamping Operator/ControlManual, persist reason on reason-bearing states, reject illegal moves and report not-found.",
-    Arrange = "A Ready job is enqueued with no worker loop contending for claims.",
-    Act = "The job is paused, resumed, cancelled, and restarted, then an illegal resume-of-Ready and a control on a missing id are invoked.",
-    Assert = "Legal transitions apply with Operator/ControlManual audit and persisted reasons while illegal moves reject and the missing id reports not-found."
+    Contract = "IJobs control verbs apply legal transitions stamping Operator/ControlManual, persist reason on reason-bearing states, reject illegal moves and report not-found."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.PauseJobAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.ResumeJobAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.CancelJobAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.RestartJobAsync))]
 public abstract class ControlVerbsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

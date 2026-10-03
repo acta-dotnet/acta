@@ -15,12 +15,8 @@ namespace Acta.Tests.Conformance.Runtime;
     "get-job-result.non-blocking",
     "GetJobResult returns null before completion and the typed result after",
     Area = "Results",
-    Contract = "GetJobResult is a non-blocking read that returns null before the job produces a result and the typed and raw payload after a successful run.",
-    Arrange = "An add-numbers job is enqueued and has not yet run.",
-    Act = "GetJobResult is read before the run and again after one completing run.",
-    Assert = "The pre-run read returns null without blocking, then the typed overload deserializes the sum and the raw overload returns the stored JSON payload."
+    Contract = "GetJobResult is a non-blocking read that returns null before the job produces a result and the typed and raw payload after a successful run."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.GetJobResultAsync))]
 public abstract class GetJobResultSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

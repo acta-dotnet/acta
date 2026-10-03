@@ -16,12 +16,8 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     "resolve-job-id-by-deduplication-key.lookup",
     "ResolveJobIdByDeduplicationKey returns the id for a known key, null otherwise",
     Area = "Enqueue",
-    Contract = "ResolveJobIdByDeduplicationKey resolves a root job's id from its namespace and deduplication key, and returns null when no row matches.",
-    Arrange = "A job is enqueued with a known deduplication key.",
-    Act = "The id is resolved by that key and by an unknown key.",
-    Assert = "The known key resolves to the enqueued job's id and the unknown key returns null."
+    Contract = "ResolveJobIdByDeduplicationKey resolves a root job's id from its namespace and deduplication key, and returns null when no row matches."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.ResolveJobIdByDeduplicationKeyAsync))]
 public abstract class ResolveJobIdByDeduplicationKeySpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

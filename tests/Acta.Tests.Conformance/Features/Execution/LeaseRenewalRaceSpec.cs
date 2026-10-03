@@ -20,12 +20,8 @@ namespace Acta.Tests.Conformance.Features.Execution;
     "execution.lease-renewal-race",
     "A lease renewal never deadlocks with a child's completion",
     Area = "Execution",
-    Contract = "A lease renewal skips an in-flight row another transaction holds, reporting it unrenewed, so it never waits on a completing child.",
-    Arrange = "One worker runs a parent and its child, and the child's completion is held after it locked the child's row.",
-    Act = "The worker renews its leases while the completion waits, and then the completion is released.",
-    Assert = "Both succeed without a deadlock, the parent's lease is renewed, and the held child is reported still in flight."
+    Contract = "A lease renewal skips an in-flight row another transaction holds, reporting it unrenewed, so it never waits on a completing child."
 )]
-[CoversStoreMethod(typeof(IWorkerStore), nameof(IWorkerStore.ExtendWorkerLeasesAsync))]
 public abstract class LeaseRenewalRaceSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

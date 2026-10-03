@@ -17,10 +17,7 @@ namespace Acta.Tests.Conformance.Runtime;
     "worker-runtime.descriptor-gate",
     "An invalid descriptor fails startup before the catalog is written",
     Area = "Catalog",
-    Contract = "InitializeAsync validates every descriptor's shape before writing the worker row, so an invalid descriptor leaves no workers row and no WorkerStarted event.",
-    Arrange = "A hand-authored manifest declares one descriptor whose Backoff expression does not parse.",
-    Act = "InitializeAsync runs against the namespace.",
-    Assert = "It throws naming the job and the expression, and the namespace holds no worker row and no WorkerStarted event."
+    Contract = "InitializeAsync validates every descriptor's shape before writing the worker row, so an invalid descriptor leaves no workers row and no WorkerStarted event."
 )]
 public abstract class WorkerRuntimeDescriptorGateSpec<TFixture> : ActaRuntimeTestBase<TFixture, InvalidBackoffManifest>
     where TFixture : IConformanceFixture, new()

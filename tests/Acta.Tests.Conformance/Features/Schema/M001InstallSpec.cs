@@ -11,10 +11,7 @@ namespace Acta.Tests.Conformance.Features.Schema;
     "schema.m001-install",
     "M001 installs exactly the modelled entity tables",
     Area = "Schema",
-    Contract = "Applying M001 to a fresh schema installs exactly the modelled entity tables.",
-    Arrange = "A fresh empty schema is allocated by the fixture.",
-    Act = "The M001 migration is applied to the fresh schema.",
-    Assert = "The installed base tables, columns, indexes, and constraints exactly match the ActaSchema entity set."
+    Contract = "Applying M001 to a fresh schema installs exactly the modelled entity tables."
 )]
 public abstract class M001InstallSpec<TFixture> : IntegrationSpec<TFixture>
     where TFixture : IConformanceFixture, new()

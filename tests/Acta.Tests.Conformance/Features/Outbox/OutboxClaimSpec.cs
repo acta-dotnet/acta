@@ -14,12 +14,8 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     "outbox-claim.staging-order",
     "Claim takes a bounded batch in staging order under one token, no double claim",
     Area = "Outbox",
-    Contract = "ClaimDue claims a bounded batch of due Pending rows in due-then-staging order, stamps one token and a database-clock lease, and claims no row twice.",
-    Arrange = "A source outbox table holds several due Pending rows of differing priority plus a future row.",
-    Act = "ClaimDue runs with a batch smaller than the due set, then again with a fresh token.",
-    Assert = "The earliest staged row is claimed first, each claimed row is disjoint and leased, and the future row stays Pending."
+    Contract = "ClaimDue claims a bounded batch of due Pending rows in due-then-staging order, stamps one token and a database-clock lease, and claims no row twice."
 )]
-[CoversStoreMethod(typeof(IOutboxRelayStore), nameof(IOutboxRelayStore.ClaimDueAsync))]
 public abstract class OutboxClaimSpec<TFixture> : OutboxSpecBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

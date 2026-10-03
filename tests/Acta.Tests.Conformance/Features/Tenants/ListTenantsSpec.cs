@@ -14,12 +14,8 @@ namespace Acta.Tests.Conformance.Features.Tenants;
     "list-tenants.keyset-page",
     "ListTenants pages tenants key-ascending with an opt-in total",
     Area = "Reads",
-    Contract = "ListTenants pages tenants by key ascending without duplicates and reads the page plus an opt-in filter-wide count in one command.",
-    Arrange = "One tenant is registered with an Active status.",
-    Act = "Tenants are paged by cursor and read with and without IncludeTotal.",
-    Assert = "The walk visits the registered tenant once with no duplicates and the opt-in total arrives with the page."
+    Contract = "ListTenants pages tenants by key ascending without duplicates and reads the page plus an opt-in filter-wide count in one command."
 )]
-[CoversStoreMethod(typeof(ITenantStore), nameof(ITenantStore.ListTenantsAsync))]
 public abstract class ListTenantsSpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

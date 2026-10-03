@@ -20,13 +20,8 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     "alerts-projection.drain",
     "The alerts projector drains a backlog in bounded batches within one invocation",
     Area = "Alerts",
-    Contract = "One sys.alerts generate pass drains repeated batches until the backlog empties or a bound is reached, checkpointing its cursor after every batch.",
-    Arrange = "A backlog of alertable failure events is staged above the projector's cursor on one seeded job.",
-    Act = "The projector runs one or more passes, under the shipped bounds and under reduced ones that make each bound reachable.",
-    Assert = "A multi-batch backlog clears in one pass, each bound ends the pass at the last completed batch, and a lost checkpoint replays only the in-flight batch."
+    Contract = "One sys.alerts generate pass drains repeated batches until the backlog empties or a bound is reached, checkpointing its cursor after every batch."
 )]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.GetAlertableEventsAsync))]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.RaiseJobAlertAsync))]
 public abstract class AlertProjectionDrainSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

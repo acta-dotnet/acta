@@ -17,12 +17,8 @@ namespace Acta.Tests.Conformance.Features.Schedules;
     "register-scheduled-jobs.environment-gating",
     "Schedule registration is gated by the worker's environment",
     Area = "Scheduling",
-    Contract = "Schedule registration honors each schedule's declared environments, registering only those active in the worker's environment and withholding the rest.",
-    Arrange = "Jobs mix staging-scoped, production-scoped, and unscoped wildcard schedules while the worker's EnvironmentName is staging.",
-    Act = "The worker initializer reconciles and registers the declared schedules.",
-    Assert = "Only staging-active and wildcard schedules register, and a job whose only schedule is production-scoped gets no slot."
+    Contract = "Schedule registration honors each schedule's declared environments, registering only those active in the worker's environment and withholding the rest."
 )]
-[CoversStoreMethod(typeof(IScheduleStore), nameof(IScheduleStore.RegisterScheduledJobsAsync))]
 public abstract class ScheduleEnvironmentGatingSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

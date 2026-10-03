@@ -23,12 +23,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "rate-limit.meter",
     "A definition's rate limit admits at the rate and books every early job a turn",
     Area = "Concurrency",
-    Contract = "A rate key admits its burst at once and then one per interval, booking each early job a turn it waits for or returns to.",
-    Arrange = "Definitions declaring a rate, alone and sharing a key, plus meters driven through the lock store.",
-    Act = "Real handlers drain a backlog through the rate, and store-level requests spend and stage turns.",
-    Assert = "Admissions stay inside the rate, a booked turn is honoured for a second, and one key means one bucket."
+    Contract = "A rate key admits its burst at once and then one per interval, booking each early job a turn it waits for or returns to."
 )]
-[CoversStoreMethod(typeof(ILockStore), nameof(ILockStore.ReserveRateAsync))]
 public abstract class RateLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

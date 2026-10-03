@@ -22,13 +22,8 @@ namespace Acta.Tests.Conformance.Runtime;
     "schedule.pause-fire-race",
     "An operator pause landing inside a planned fire keeps the schedule paused",
     Area = "Scheduling",
-    Contract = "A pause applied while a fire is in flight survives the completion, and only a timed pause that has elapsed is auto-resumed by an advance.",
-    Arrange = "A due recurring-ping slot runs under a deterministic clock with the pause issued from inside the completion window.",
-    Act = "The slot fires while an operator pauses its only schedule before the advance is written.",
-    Assert = "The schedule stays Paused on its original cursor with no pause-expired event, and a separately elapsed timed pause still auto-resumes."
+    Contract = "A pause applied while a fire is in flight survives the completion, and only a timed pause that has elapsed is auto-resumed by an advance."
 )]
-[CoversStoreMethod(typeof(IScheduleStore), nameof(IScheduleStore.PauseScheduleAsync))]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.CompleteExecutionAsync))]
 public abstract class SchedulePauseFireRaceChaosSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

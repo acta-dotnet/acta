@@ -20,14 +20,8 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     "alert-delivery.read-and-settle",
     "Deliverable alerts read due rows, remind open incidents, and settle by version",
     Area = "Alerts",
-    Contract = "Delivery selects unresolved rows whose retry_after_utc has come, on the retry arm or the reminder arm, and settles only at the version the read handed out.",
-    Arrange = "Pending alerts are raised in the test namespace, some against a seeded job the resolve verb can close, with retry_after_utc moved to stage due-ness.",
-    Act = "GetDeliverableAlerts reads due rows and UpdateAlertDelivery settles them at the version it handed out, interleaved with ResolveJobAlerts and repeat raises.",
-    Assert = "A resolved alert is never selected and its Pending row is Suppressed, a due Delivered or Failed row is re-selected after a repeat, and a stale settle no-ops."
+    Contract = "Delivery selects unresolved rows whose retry_after_utc has come, on the retry arm or the reminder arm, and settles only at the version the read handed out."
 )]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.GetDeliverableAlertsAsync))]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.UpdateAlertDeliveryAsync))]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.ResolveJobAlertsAsync))]
 public abstract class AlertDeliverySpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

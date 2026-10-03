@@ -16,13 +16,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "lanes.settle-paths",
     "Every settle of a lane head promotes the next member",
     Area = "Lanes",
-    Contract = "A laned head settled by reclaim, retire, or completion hands its lane to the next member, and a promoting completion wakes the namespace.",
-    Arrange = "Laned heads with Blocked followers sit in a private namespace, one lane per path.",
-    Act = "The head is reclaimed to Failed, cancelled by a definition retire, or completed with a recording wakeup.",
-    Assert = "The follower is Ready or has run after each settle, and the promoting completion published a worker-namespace wake."
+    Contract = "A laned head settled by reclaim, retire, or completion hands its lane to the next member, and a promoting completion wakes the namespace."
 )]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.ReclaimStuckJobsAsync))]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.CompleteExecutionAsync))]
 public abstract class LaneSettlePathsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

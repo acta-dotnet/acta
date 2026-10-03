@@ -14,12 +14,8 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     "outbox-release.token-cas",
     "Release returns a claimed row to Pending, attempt unchanged, reclaimable",
     Area = "Outbox",
-    Contract = "Release returns a claimed row to Pending with its next attempt unchanged so it is immediately reclaimable, only under its token.",
-    Arrange = "A due source row is claimed under one token.",
-    Act = "Release runs first with a stale token, then with the owning token, and a fresh claim follows.",
-    Assert = "The stale release is a no-op and the owning release makes the row Pending and immediately reclaimable."
+    Contract = "Release returns a claimed row to Pending with its next attempt unchanged so it is immediately reclaimable, only under its token."
 )]
-[CoversStoreMethod(typeof(IOutboxRelayStore), nameof(IOutboxRelayStore.ReleaseClaimedAsync))]
 public abstract class OutboxReleaseSpec<TFixture> : OutboxSpecBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

@@ -14,10 +14,7 @@ namespace Acta.Tests.Conformance.Runtime;
     "execution-timeout.per-attempt",
     "A handler exceeding its timeout fails with the timeout reason",
     Area = "Execution",
-    Contract = "A handler that exceeds its ExecutionTimeout has its token fired by the timeout source and the completion records ExecutionTimeout applying the retry budget.",
-    Arrange = "A timeout-probe whose handler blocks on its token is registered with a 1s ExecutionTimeout and MaxAttempts 1.",
-    Act = "The runtime claims and runs the job and the attempt exceeds its timeout.",
-    Assert = "The timeout source fires the handler token and the job lands terminal Failed with the ExecutionTimeout reason, distinct from an external cancel."
+    Contract = "A handler that exceeds its ExecutionTimeout has its token fired by the timeout source and the completion records ExecutionTimeout applying the retry budget."
 )]
 public abstract class ExecutionTimeoutSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()

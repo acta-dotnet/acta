@@ -18,12 +18,8 @@ namespace Acta.Tests.Conformance.Features.Execution;
     "reclaim-stuck-jobs.recovery",
     "Reclaim returns an expired-lease job to Ready or fails it at MaxAttempts",
     Area = "Recovery",
-    Contract = "An expired-lease job returns to Ready with failure_count incremented, or lands terminal Failed once MaxAttempts is reached.",
-    Arrange = "An add-numbers job is enqueued and claimed with a negative lease TTL so its lease is already expired.",
-    Act = "ReclaimStuckJobs sweeps the namespace after each claim cycle.",
-    Assert = "The job returns to Ready with failure_count incremented until MaxAttempts is reached, where it lands terminal Failed."
+    Contract = "An expired-lease job returns to Ready with failure_count incremented, or lands terminal Failed once MaxAttempts is reached."
 )]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.ReclaimStuckJobsAsync))]
 public abstract class ReclaimStuckJobsSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

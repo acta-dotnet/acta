@@ -16,16 +16,8 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     "control.audit-gating",
     "Control verbs transition unconditionally but emit events only at full audit",
     Area = "Control",
-    Contract = "Control verbs apply their status transition unconditionally and only write a job event when the job's audit level is full (code 20).",
-    Arrange = "For each control verb two jobs are enqueued, one set to audit level Off and one to full Audit.",
-    Act = "Pause, Resume, Cancel, Restart, and RaiseSignal are invoked against both jobs of each pair.",
-    Assert = "Both jobs apply the status transition but only the full-audit job gains a verb event row."
+    Contract = "Control verbs apply their status transition unconditionally and only write a job event when the job's audit level is full (code 20)."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.PauseJobAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.ResumeJobAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.CancelJobAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.RestartJobAsync))]
-[CoversStoreMethod(typeof(ISignalStore), nameof(ISignalStore.RaiseSignalAsync))]
 public abstract class ControlVerbAuditGatingSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

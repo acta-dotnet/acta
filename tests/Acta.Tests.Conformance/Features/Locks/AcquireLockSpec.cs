@@ -16,13 +16,8 @@ namespace Acta.Tests.Conformance.Features.Locks;
     "acquire-lock.steal-on-expiry",
     "Acquire lands a lease row and blocks a competing acquire on a live key",
     Area = "Locks",
-    Contract = "AcquireLock inserts a leases row on a free key and returns null when the key is already held by a live lease.",
-    Arrange = "A lock key exists with no live lease held on it.",
-    Act = "AcquireLock takes the free key and a competing acquire is attempted on the same key while the lease is still live.",
-    Assert = "The first acquire lands a live lease row and the competing acquire returns null."
+    Contract = "AcquireLock inserts a leases row on a free key and returns null when the key is already held by a live lease."
 )]
-[CoversStoreMethod(typeof(ILockStore), nameof(ILockStore.TryAcquireAsync))]
-[CoversStoreMethod(typeof(ILockStore), nameof(ILockStore.TryAcquireAsync))]
 public abstract class AcquireLockSpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

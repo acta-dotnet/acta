@@ -14,13 +14,8 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     "job.control-version-guard",
     "A job control verb takes an optional expected version and refuses a stale one.",
     Area = "Control",
-    Contract = "A null expectedVersion applies unconditionally, a matching one applies and returns version + 1, and a stale one is VersionConflict that writes nothing.",
-    Arrange = "A Ready job whose runtime version is read before each attempt.",
-    Act = "PauseAsync and RescheduleAsync are invoked with a stale token, a matching token, and no token.",
-    Assert = "The stale attempt leaves status, version and events untouched, the matching and null attempts apply and bump the version, and an unknown lookup is NotFound."
+    Contract = "A null expectedVersion applies unconditionally, a matching one applies and returns version + 1, and a stale one is VersionConflict that writes nothing."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.PauseJobAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.RescheduleJobAsync))]
 public abstract class JobControlVersionGuardSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

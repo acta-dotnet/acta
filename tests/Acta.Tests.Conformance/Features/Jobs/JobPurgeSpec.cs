@@ -17,12 +17,8 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     "job.purge",
     "Operator purge hard-deletes a terminal job.",
     Area = "Control",
-    Contract = "PurgeAsync deletes a terminal job's events, alerts, and row (cascade sweeps the rest), always emits job.purged, and rejects non-terminal or live-child jobs.",
-    Arrange = "A Succeeded job with its own events and an alert, an Executing job, a Succeeded parent with child jobs, no job for an unknown lookup.",
-    Act = "PurgeAsync is invoked against each job.",
-    Assert = "The Succeeded job is Applied with its row, events, and alerts gone plus a job.purged event, the others are Rejected, and the unknown lookup is NotFound."
+    Contract = "PurgeAsync deletes a terminal job's events, alerts, and row (cascade sweeps the rest), always emits job.purged, and rejects non-terminal or live-child jobs."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.PurgeJobAsync))]
 public abstract class JobPurgeSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

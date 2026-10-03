@@ -16,13 +16,8 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     "outbox-source.ledger-independent",
     "The source store round-trips with no Acta ledger configured",
     Area = "Outbox",
-    Contract = "The external-outbox source store claims and deletes purely against its source database, needing no Acta ledger IJobs or session.",
-    Arrange = "A source outbox table holds a due row and the container has no Acta ledger registered.",
-    Act = "The source store claims the row and deletes it under the claim token.",
-    Assert = "No ledger IJobs is resolvable, the claim succeeds, and the deleted row leaves the source table empty."
+    Contract = "The external-outbox source store claims and deletes purely against its source database, needing no Acta ledger IJobs or session."
 )]
-[CoversStoreMethod(typeof(IOutboxRelayStore), nameof(IOutboxRelayStore.ClaimDueAsync))]
-[CoversStoreMethod(typeof(IOutboxRelayStore), nameof(IOutboxRelayStore.DeleteClaimedAsync))]
 public abstract class OutboxSourceIndependenceSpec<TFixture> : OutboxSpecBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

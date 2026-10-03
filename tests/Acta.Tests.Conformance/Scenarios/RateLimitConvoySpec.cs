@@ -23,12 +23,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "rate-limit.convoy",
     "A meter freed after a lock convoy admits its burst, not every queued call",
     Area = "Concurrency",
-    Contract = "Reservations delayed behind a held bucket row are judged at the clock when the row frees, so the release admits the burst and books the rest.",
-    Arrange = "A primed meter whose bucket row is held by an outside transaction while reservations arrive every fifty milliseconds.",
-    Act = "The outside transaction commits and the queued reservations execute.",
-    Assert = "The admissions among them are bounded by the burst and the interval, not by the queue's length."
+    Contract = "Reservations delayed behind a held bucket row are judged at the clock when the row frees, so the release admits the burst and books the rest."
 )]
-[CoversStoreMethod(typeof(ILockStore), nameof(ILockStore.ReserveRateAsync))]
 public abstract class RateLimitConvoySpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

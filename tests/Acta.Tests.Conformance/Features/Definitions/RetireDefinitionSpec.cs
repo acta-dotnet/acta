@@ -18,12 +18,8 @@ namespace Acta.Tests.Conformance.Features.Definitions;
     "definitions.retire",
     "Retire flips a definition and cancels its parked jobs",
     Area = "Catalog",
-    Contract = "Retiring a definition cancels its Ready, Suspended and Paused jobs with reason JobDefinitionRetired, leaves a running attempt alone, and refuses enqueue.",
-    Arrange = "A definition carries one job in each parked status, one running attempt, and a Suspended parent waiting on a child of it.",
-    Act = "An operator retires the definition by its natural key and version, then enqueues again and re-registers the manifest.",
-    Assert = "Parked jobs are Cancelled with retention and one audited event each, the attempt still completes, enqueue is rejected, and an equal generation reactivates."
+    Contract = "Retiring a definition cancels its Ready, Suspended and Paused jobs with reason JobDefinitionRetired, leaves a running attempt alone, and refuses enqueue."
 )]
-[CoversStoreMethod(typeof(IDefinitionStore), nameof(IDefinitionStore.RetireDefinitionAsync))]
 public abstract class RetireDefinitionSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

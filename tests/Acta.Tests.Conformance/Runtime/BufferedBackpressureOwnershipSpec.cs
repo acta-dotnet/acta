@@ -19,12 +19,8 @@ namespace Acta.Tests.Conformance.Runtime;
     "runtime.buffered-backpressure-ownership",
     "Rows waiting behind a full Buffered channel are not released as orphans",
     Area = "Runtime",
-    Contract = "A row claimed but not written to a full Buffered channel is left alone by the heartbeat and handed back to Ready by a drain.",
-    Arrange = "A Buffered worker with one executor held by a blocking job, a claim batch larger than the channel's free space, and several claimable jobs.",
-    Act = "The heartbeat ticks twice while the claim loop is blocked on the full channel, or a drain begins there.",
-    Assert = "No waiting row is rescheduled by the heartbeats, and the drain reschedules the rows it never wrote."
+    Contract = "A row claimed but not written to a full Buffered channel is left alone by the heartbeat and handed back to Ready by a drain."
 )]
-[CoversStoreMethod(typeof(Acta.Runtime.IExecutionStore), nameof(Acta.Runtime.IExecutionStore.ClaimBatchAsync))]
 public abstract class BufferedBackpressureOwnershipSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

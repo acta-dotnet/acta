@@ -93,13 +93,8 @@ public sealed class AtMostOnceStepManifest : IJobManifest
     "step.at-most-once",
     "At-most-once step re-entered before completion is interrupted",
     Area = "Steps",
-    Contract = "AtMostOnce runs the body 0 or 1 times: a pending slot re-entered on replay terminalizes Interrupted and throws instead of re-invoking, version-idempotently.",
-    Arrange = "A durable step slot is durably started (pending, never completed) to model a worker that died mid-flight.",
-    Act = "The step is re-entered under AtMostOnce, directly through start_step (also on a slot with a due retry instant) and through the runtime, uncaught and caught.",
-    Assert = "start_step returns Interrupted with one bump and no retry instant left, the body never re-runs, an uncaught throw fails the parent while a caught one proceeds."
+    Contract = "AtMostOnce runs the body 0 or 1 times: a pending slot re-entered on replay terminalizes Interrupted and throws instead of re-invoking, version-idempotently."
 )]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.StartStepAsync))]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.CompleteStepAsync))]
 public abstract class StepAtMostOnceSpec<TFixture> : ActaRuntimeTestBase<TFixture, AtMostOnceStepManifest>
     where TFixture : IConformanceFixture, new()
 {

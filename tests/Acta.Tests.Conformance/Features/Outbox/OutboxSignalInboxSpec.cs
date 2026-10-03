@@ -16,14 +16,8 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     "outbox-signal.inbox",
     "Park admission and version-CAS consume bound the operator inbox",
     Area = "Outbox",
-    Contract = "Park inserts when free, rejects with the pending instant while a younger command pends, supersedes a stale one bumping the version consume must match to delete.",
-    Arrange = "A ledger job stands in for the sys.outbox slot.",
-    Act = "Commands are parked against a free, a pending, and a stale slot, then consumed with a stale and a live version.",
-    Assert = "Free and stale parks apply, the younger pending park rejects with its incumbent's instant, the stale consume misses, and the live consume empties the slot."
+    Contract = "Park inserts when free, rejects with the pending instant while a younger command pends, supersedes a stale one bumping the version consume must match to delete."
 )]
-[CoversStoreMethod(typeof(IOutboxSignalStore), nameof(IOutboxSignalStore.ParkAsync))]
-[CoversStoreMethod(typeof(IOutboxSignalStore), nameof(IOutboxSignalStore.GetAsync))]
-[CoversStoreMethod(typeof(IOutboxSignalStore), nameof(IOutboxSignalStore.ConsumeAsync))]
 public abstract class OutboxSignalInboxSpec<TFixture> : ActaStorageTestBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

@@ -14,12 +14,8 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     "outbox-quarantine.token-cas",
     "Quarantine retains a claimed row at status 90 and excludes it from claims",
     Area = "Outbox",
-    Contract = "Quarantine retains a claimed row at status 90 with its error and clears the claim pair, only under its token, excluding it from claims.",
-    Arrange = "A source row is claimed under one token.",
-    Act = "Quarantine runs first with a stale token, then with the owning token.",
-    Assert = "The stale quarantine is a no-op and the owning quarantine retains the row at status 90 and it is never reclaimed."
+    Contract = "Quarantine retains a claimed row at status 90 with its error and clears the claim pair, only under its token, excluding it from claims."
 )]
-[CoversStoreMethod(typeof(IOutboxRelayStore), nameof(IOutboxRelayStore.QuarantineAsync))]
 public abstract class OutboxQuarantineSpec<TFixture> : OutboxSpecBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

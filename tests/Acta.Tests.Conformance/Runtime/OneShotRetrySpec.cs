@@ -16,10 +16,7 @@ namespace Acta.Tests.Conformance.Runtime;
     "one-shot-retry.budget",
     "A failed one-shot retries to Ready until MaxAttempts then Fails",
     Area = "Execution",
-    Contract = "A failed one-shot re-arms to Ready incrementing failure_count while attempts remain and lands terminal Failed once MaxAttempts is reached.",
-    Arrange = "A retry-probe that always throws is registered with MaxAttempts 3 and zero backoff.",
-    Act = "The runtime claims and runs the job three times.",
-    Assert = "Attempts 1 and 2 re-arm Ready bumping failure_count and attempt 3 lands terminal Failed with UnhandledException."
+    Contract = "A failed one-shot re-arms to Ready incrementing failure_count while attempts remain and lands terminal Failed once MaxAttempts is reached."
 )]
 public abstract class OneShotRetrySpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()

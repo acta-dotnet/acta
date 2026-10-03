@@ -25,13 +25,8 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     "enqueue-jobs.batch-insert",
     "Batch enqueue lands one job row per input ordinal with no enqueue event",
     Area = "Enqueue",
-    Contract = "A batch enqueue inserts one Ready job per input row with positionally-aligned outcomes, persists tags, and writes no events on enqueue.",
-    Arrange = "An add-numbers definition is registered in the test namespace.",
-    Act = "A one-row batch with tags is enqueued, followed by a 1000-row batch.",
-    Assert = "Each input row lands one Ready job with positionally-aligned outcomes and byte-exact input, its tags are persisted, and no events are written on enqueue."
+    Contract = "A batch enqueue inserts one Ready job per input row with positionally-aligned outcomes, persists tags, and writes no events on enqueue."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueOneAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueBatchAsync))]
 public abstract class EnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

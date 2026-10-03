@@ -22,13 +22,8 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     "enqueue-jobs.transactional-contract",
     "Transactional enqueue is provisional, validated, wake-free, and caller-owned",
     Area = "Enqueue",
-    Contract = "Every transactional enqueue overload joins the caller transaction, rejects invalid transactions, publishes no wakeup, and leaves completion to the caller.",
-    Arrange = "The test namespace is registered and a one-column business probe table exists in the Acta schema.",
-    Act = "Typed, contract, deduplicated, rejected, and invalid transactional enqueues run against a caller transaction with a recording wakeup seam installed.",
-    Assert = "Each overload persists or vanishes with the caller transaction, invalid transactions throw before executing, and no wakeup is published."
+    Contract = "Every transactional enqueue overload joins the caller transaction, rejects invalid transactions, publishes no wakeup, and leaves completion to the caller."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueOneInTransactionAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueBatchInTransactionAsync))]
 public abstract class TransactionalEnqueueContractSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

@@ -14,14 +14,8 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     "outbox.relay-handoff",
     "Relay crash windows never lose a row or duplicate a target job",
     Area = "Outbox",
-    Contract = "A relay tick that fails before target enqueue reclaims the row, and one that fails after enqueue still yields exactly one target job.",
-    Arrange = "A live ledger with the echo route and a live source table hold one or more due producer rows.",
-    Act = "The relay ticks with a failure injected before the target enqueue, after the source finalize, or not at all.",
-    Assert = "Each row is delivered exactly once, duplicates coalesce, all source rows delete, and a deleted row is never recreated."
+    Contract = "A relay tick that fails before target enqueue reclaims the row, and one that fails after enqueue still yields exactly one target job."
 )]
-[CoversStoreMethod(typeof(IOutboxRelayStore), nameof(IOutboxRelayStore.ClaimDueAsync))]
-[CoversStoreMethod(typeof(IOutboxRelayStore), nameof(IOutboxRelayStore.DeleteClaimedAsync))]
-[CoversStoreMethod(typeof(IOutboxRelayStore), nameof(IOutboxRelayStore.ReleaseClaimedAsync))]
 public abstract class OutboxRelayHandoffSpec<TFixture> : OutboxRelayIntegrationBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {

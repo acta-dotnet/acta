@@ -16,12 +16,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "explain.live-states",
     "Explain reports live Suspended and Succeeded states through the facade",
     Area = "Reads",
-    Contract = "ExplainAsync reports a suspended job as awaiting its signal or its child, and a finished job as Succeeded.",
-    Arrange = "Signal-waiting, child-waiting and step handlers are enqueued and driven through the real runtime loop.",
-    Act = "ExplainAsync is called while a job is suspended on a wait and again after it runs to completion.",
-    Assert = "The suspended reads name the pending signal or child wait and its deadline, and the completed read reports Succeeded."
+    Contract = "ExplainAsync reports a suspended job as awaiting its signal or its child, and a finished job as Succeeded."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.GetJobExplanationAsync))]
 public abstract class ExplainScenarioSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

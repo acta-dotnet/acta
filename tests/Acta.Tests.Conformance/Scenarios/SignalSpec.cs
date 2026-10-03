@@ -17,13 +17,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "signals.wait-and-raise",
     "Wait suspends a job and a raise releases it last-writer-wins",
     Area = "Signals",
-    Contract = "WaitSignalAsync suspends a job on a Pending slot and RaiseSignalAsync sets the slot last-writer-wins releasing only a Suspended job to Ready.",
-    Arrange = "Waiting handlers are registered with system jobs disabled and a long safety poll so wake-on-raise is attributable.",
-    Act = "Signals are raised after and before waits with typed and presence payloads, duplicates, and against paused, terminal and unknown jobs.",
-    Assert = "A wait suspends the job with no NextRunAtUtc and a raise sets the slot last-writer-wins, releasing only a Suspended job to Ready."
+    Contract = "WaitSignalAsync suspends a job on a Pending slot and RaiseSignalAsync sets the slot last-writer-wins releasing only a Suspended job to Ready."
 )]
-[CoversStoreMethod(typeof(ISignalStore), nameof(ISignalStore.WaitSignalAsync))]
-[CoversStoreMethod(typeof(ISignalStore), nameof(ISignalStore.RaiseSignalAsync))]
 public abstract class SignalSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

@@ -16,12 +16,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "lanes.stranded-repair",
     "The recovery pass releases the Blocked head of a stranded lane",
     Area = "Lanes",
-    Contract = "A recovery pass promotes the lowest Blocked member of a lane with no live head, records why, and wakes the namespace, leaving lanes with a live head alone.",
-    Arrange = "Laned heads with Blocked followers sit in a private namespace, one head hand-set to Succeeded and the others Ready, Paused, or Suspended.",
-    Act = "One recovery pass runs for the namespace.",
-    Assert = "Only the stranded lane's follower is Ready, with a sys event carrying job.lane-repaired and a namespace wake."
+    Contract = "A recovery pass promotes the lowest Blocked member of a lane with no live head, records why, and wakes the namespace, leaving lanes with a live head alone."
 )]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.ReclaimStuckJobsAsync))]
 public abstract class LaneRepairSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

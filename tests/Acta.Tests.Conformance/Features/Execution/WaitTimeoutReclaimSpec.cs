@@ -24,15 +24,8 @@ namespace Acta.Tests.Conformance.Features.Execution;
     "reclaim-wait-timeout.recovery",
     "Reclaiming a crashed timeout resolution costs the job no retry budget",
     Area = "Recovery",
-    Contract = "An expired-lease attempt whose awaited wait had already expired returns to Suspended uncharged, and still raises the job's automatic incident.",
-    Arrange = "A bounded wait is armed, moved past its deadline, and claimed with an already-expired lease so the attempt reads as a dead worker.",
-    Act = "The awaited slot is resolved through the wait routine or left Pending, the sweep reclaims the dead attempt, and the alerts projector passes over it.",
-    Assert = "The uncharged re-arm opens an incident a later success resolves, while a Pending or already-passed wait is charged as an ordinary lost lease."
+    Contract = "An expired-lease attempt whose awaited wait had already expired returns to Suspended uncharged, and still raises the job's automatic incident."
 )]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.ReclaimStuckJobsAsync))]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.GetAlertableEventsAsync))]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.RaiseJobAlertAsync))]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.ResolveJobAlertsAsync))]
 public abstract class WaitTimeoutReclaimSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

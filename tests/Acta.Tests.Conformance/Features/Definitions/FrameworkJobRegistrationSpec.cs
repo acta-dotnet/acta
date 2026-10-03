@@ -16,13 +16,8 @@ namespace Acta.Tests.Conformance.Features.Definitions;
     "system-jobs.auto-register",
     "Init auto-registers system definitions, slots and schedules",
     Area = "Catalog",
-    Contract = "InitializeAsync registers system definitions with a Ready recurring slot keyed on the job name and a default schedule.",
-    Arrange = "A worker namespace opts into system-job registration.",
-    Act = "InitializeAsync runs and auto-registers the system definitions.",
-    Assert = "Each system definition is Active with a Ready slot keyed on the job name, a NextRunAtUtc, and a default schedule."
+    Contract = "InitializeAsync registers system definitions with a Ready recurring slot keyed on the job name and a default schedule."
 )]
-[CoversStoreMethod(typeof(IDefinitionStore), nameof(IDefinitionStore.RegisterDefinitionsAsync))]
-[CoversStoreMethod(typeof(IScheduleStore), nameof(IScheduleStore.RegisterScheduledJobsAsync))]
 public abstract class FrameworkJobRegistrationSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

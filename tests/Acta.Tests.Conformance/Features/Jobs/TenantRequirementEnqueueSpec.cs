@@ -17,13 +17,8 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     "enqueue-jobs.tenant-requirement",
     "The definition's tenant requirement is enforced at the enqueue boundary",
     Area = "Enqueue",
-    Contract = "A Required definition rejects tenant-less rows and accepts explicit or inherited tenants while a Forbidden one rejects explicit keys and stores NULL.",
-    Arrange = "Definitions declaring Required and Forbidden tenant requirements are registered along with an active tenant.",
-    Act = "Roots and children are enqueued with an explicit key, with inheritance only, and with no tenant at all.",
-    Assert = "Tenant-less Required rows reject, inherited tenants satisfy Required, explicit keys on Forbidden reject, and Forbidden children store tenant NULL."
+    Contract = "A Required definition rejects tenant-less rows and accepts explicit or inherited tenants while a Forbidden one rejects explicit keys and stores NULL."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueOneAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueBatchAsync))]
 public abstract class TenantRequirementEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

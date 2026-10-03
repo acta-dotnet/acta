@@ -19,14 +19,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "typed-enqueue.facade",
     "Typed enqueue resolves the route and delayed jobs gate on next_run",
     Area = "Enqueue",
-    Contract = "The typed IJobs façade resolves the route from the input type, applies deduplication-key dedupe and delayed-run options, and RunAndWaitAsync waits.",
-    Arrange = "The add-numbers job and companion probe definitions are registered with typed inputs and results under the per-test namespace.",
-    Act = "Typed inputs including scalars are enqueued with deduplication-key and delayed options, and RunAndWaitAsync is driven to completion.",
-    Assert = "Each route is resolved from the input type and the typed result round-trips back to the caller."
+    Contract = "The typed IJobs façade resolves the route from the input type, applies deduplication-key dedupe and delayed-run options, and RunAndWaitAsync waits."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueOneAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueBatchAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.GetJobResultAsync))]
 public abstract class TypedEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

@@ -19,12 +19,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "lanes.lock-order",
     "Operations racing on one lane serialize on the lane lock without deadlocking",
     Area = "Lanes",
-    Contract = "Concurrent enqueues, completions, and cancels on a lane take the lane lock first, so a younger enqueue waits for an older open one and none of them deadlocks.",
-    Arrange = "Laned jobs sit in a private namespace, and deadlock retry is off so a deadlock victim surfaces.",
-    Act = "Open transactions, parent enqueues, completions, cancels, and batches with opposite lane orders race on shared lanes, many times over.",
-    Assert = "Every operation succeeds, the older transaction's job leads its lane, and each lane ends in a consistent state."
+    Contract = "Concurrent enqueues, completions, and cancels on a lane take the lane lock first, so a younger enqueue waits for an older open one and none of them deadlocks."
 )]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.CompleteExecutionAsync))]
 public abstract class LaneLockOrderSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

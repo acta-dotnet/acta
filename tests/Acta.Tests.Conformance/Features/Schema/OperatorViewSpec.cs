@@ -13,10 +13,7 @@ namespace Acta.Tests.Conformance.Features.Schema;
     "schema.operator-views",
     "Schema bootstrap installs curated operator views",
     Area = "Schema",
-    Contract = "Schema bootstrap installs curated plural _view surfaces while jobs_view decodes status plus tenant key and tags_view decodes exact target scope.",
-    Arrange = "A provider schema is bootstrapped, a retry-probe job is driven to terminal Failed, and one job is enqueued for a registered tenant.",
-    Act = "The provider catalog is queried for views, every view is smoke-queried, and jobs_view is filtered by status = 'failed' and by job id.",
-    Assert = "Only curated views exist, all are queryable, jobs decode failed status and resolve tenant keys, and tags decode job scope beside raw codes."
+    Contract = "Schema bootstrap installs curated plural _view surfaces while jobs_view decodes status plus tenant key and tags_view decodes exact target scope."
 )]
 public abstract partial class OperatorViewSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()

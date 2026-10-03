@@ -16,14 +16,8 @@ namespace Acta.Tests.Conformance.Features.Events;
     "persisted-codes.forward-read",
     "An event or alert code from a newer Acta reads back as unspecified",
     Area = "Reads",
-    Contract = "An unassigned id in events.event_code, events.reason_code, or alerts.kind_code reads back as Unspecified on every read path and serializes as \"unspecified\".",
-    Arrange = "A job's timeline and one alert are written, then their extensible code columns are overwritten with an id no member holds.",
-    Act = "The events and the alert are read through IActaOperations and the table query surface, then serialized with web JSON defaults.",
-    Assert = "Every read decodes to Unspecified without throwing, and the JSON names the code \"unspecified\"."
+    Contract = "An unassigned id in events.event_code, events.reason_code, or alerts.kind_code reads back as Unspecified on every read path and serializes as \"unspecified\"."
 )]
-[CoversStoreMethod(typeof(IEventStore), nameof(IEventStore.ListEventsAsync))]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.ListJobAlertsAsync))]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.GetJobAlertAsync))]
 public abstract class ForwardCodeReadSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

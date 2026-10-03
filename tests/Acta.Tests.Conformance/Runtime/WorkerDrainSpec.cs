@@ -128,10 +128,7 @@ public abstract class WorkerDrainSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
     "runtime.worker-drain.standard",
     "Buffered drain finishes the in-flight job, then Active to Draining to Stopped",
     Area = "Recovery",
-    Contract = "Under the Buffered profile a graceful stop flips the worker Active to Draining, runs the in-flight handler to completion, then stamps Stopped.",
-    Arrange = "A worker runs the Buffered profile with a gate handler that holds its job in-flight until released.",
-    Act = "With the handler in-flight, BeginDrain is called, the gate is released, and the worker is stopped.",
-    Assert = "The worker walks Active to Draining to Stopped and the in-flight job finishes Succeeded rather than being cancelled."
+    Contract = "Under the Buffered profile a graceful stop flips the worker Active to Draining, runs the in-flight handler to completion, then stamps Stopped."
 )]
 public abstract class BufferedWorkerDrainSpec<TFixture> : WorkerDrainSpec<TFixture>
     where TFixture : IConformanceFixture, new()
@@ -149,10 +146,7 @@ public abstract class BufferedWorkerDrainSpec<TFixture> : WorkerDrainSpec<TFixtu
     "runtime.worker-drain.fast",
     "Direct drain finishes the in-flight job, then Active to Draining to Stopped",
     Area = "Recovery",
-    Contract = "Under the Direct profile a graceful stop flips the worker Active to Draining, runs the in-flight handler to completion, then stamps Stopped.",
-    Arrange = "A worker runs the Direct profile with a gate handler that holds its job in-flight until released.",
-    Act = "With the handler in-flight, BeginDrain is called, the gate is released, and the worker is stopped.",
-    Assert = "The worker walks Active to Draining to Stopped and the in-flight job finishes Succeeded rather than being cancelled."
+    Contract = "Under the Direct profile a graceful stop flips the worker Active to Draining, runs the in-flight handler to completion, then stamps Stopped."
 )]
 public abstract class DirectWorkerDrainSpec<TFixture> : WorkerDrainSpec<TFixture>
     where TFixture : IConformanceFixture, new()

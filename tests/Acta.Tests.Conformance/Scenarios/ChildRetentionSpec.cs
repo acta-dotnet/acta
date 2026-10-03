@@ -17,13 +17,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "child-jobs.retention-under-live-parent",
     "A completed child outlives its retention deadline while its parent is live",
     Area = "ChildJobs",
-    Contract = "Retention and manual purge keep a completed child whose parent is not terminal, and release it, leaves first, once the parent is.",
-    Arrange = "A parent starts one named child, the child completes, and the child's retention deadline is moved into the past while the parent is still live.",
-    Act = "The retention sweep runs, a manual purge of the child is attempted, the parent replays, and the sweep runs again once the whole tree is terminal and expired.",
-    Assert = "The child survives the sweep and the purge, the replay reads its result without running it again, and the terminal tree drains child first, then parent."
+    Contract = "Retention and manual purge keep a completed child whose parent is not terminal, and release it, leaves first, once the parent is."
 )]
-[CoversStoreMethod(typeof(IRetentionStore), nameof(IRetentionStore.PurgeBatchAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.PurgeJobAsync))]
 public abstract class ChildRetentionSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

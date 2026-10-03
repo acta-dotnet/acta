@@ -21,13 +21,8 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     "enqueue-jobs.transactional-commit-rollback",
     "Transactional enqueue commits or rolls back with the business write",
     Area = "Enqueue",
-    Contract = "A caller-transaction enqueue joins the supplied DbTransaction, so a business write and the enqueue persist together on commit and vanish together on rollback.",
-    Arrange = "The test namespace is registered and a one-column business probe table exists in the Acta schema.",
-    Act = "A business row is inserted and a job is enqueued on one caller-owned transaction through the transactional IJobs overloads, then committed or rolled back.",
-    Assert = "After commit both the business row and the job row are durable, and after rollback neither the business row nor the provisional job row exists."
+    Contract = "A caller-transaction enqueue joins the supplied DbTransaction, so a business write and the enqueue persist together on commit and vanish together on rollback."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueOneInTransactionAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueBatchInTransactionAsync))]
 public abstract class TransactionalEnqueueSmokeSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

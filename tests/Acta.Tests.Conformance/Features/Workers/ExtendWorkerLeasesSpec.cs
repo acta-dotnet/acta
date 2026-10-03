@@ -17,13 +17,8 @@ namespace Acta.Tests.Conformance.Features.Workers;
     "extend-worker-leases.heartbeat",
     "Heartbeat extends a live lease and stamps last_seen",
     Area = "Execution",
-    Contract = "The heartbeat pushes a live lease further out and advances the worker's last_seen without bumping the runtime version, and a reclaim sweep leaves it claimed.",
-    Arrange = "A job is enqueued and claimed by a worker so a live lease exists at the default TTL.",
-    Act = "The heartbeat runs ExtendWorkerLeases and a reclaim sweep is driven over the live lease.",
-    Assert = "The lease is pushed further out with last_seen advanced and the runtime version unbumped, and the sweep leaves it claimed."
+    Contract = "The heartbeat pushes a live lease further out and advances the worker's last_seen without bumping the runtime version, and a reclaim sweep leaves it claimed."
 )]
-[CoversStoreMethod(typeof(IWorkerStore), nameof(IWorkerStore.ExtendWorkerLeasesAsync))]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.StartExecutionAsync))]
 public abstract class ExtendWorkerLeasesSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

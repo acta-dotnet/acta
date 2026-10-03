@@ -18,12 +18,8 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     "enqueue-jobs.concurrent-batches",
     "Concurrent batch producers in one namespace never deadlock each other",
     Area = "Enqueue",
-    Contract = "Batch enqueues racing into one namespace all land without a deadlock, unlaned ones as Ready and laned ones in batch order behind their lane head.",
-    Arrange = "An add-numbers definition is registered in the test namespace, and deadlock retry is off so a deadlock victim surfaces.",
-    Act = "Four producers each enqueue a run of 1000-row batches at the same time, first unlaned, then spread over shared lanes.",
-    Assert = "Every call succeeds and every job lands, each lane with one Ready head and the rest Blocked in batch order."
+    Contract = "Batch enqueues racing into one namespace all land without a deadlock, unlaned ones as Ready and laned ones in batch order behind their lane head."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueBatchAsync))]
 public abstract class ConcurrentEnqueueBatchSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

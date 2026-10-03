@@ -17,12 +17,8 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     "get-job-lineage-map.point-read",
     "GetJobLineageMap returns the focus job with ancestors and children or null",
     Area = "Reads",
-    Contract = "GetJobLineageMap returns the focus job, its ancestors root-first, its steps and checkpoints, and its capped direct children, or null when no row matches.",
-    Arrange = "A parent/child job tree is enqueued so a focus job has ancestors and direct children.",
-    Act = "GetJobLineageMap is called on a focus job, on a leaf to read ancestor order, with a small fetch limit, and with an id that matches no row.",
-    Assert = "The focus job returns its ancestors root-first and its capped direct children, and the unmatched id returns null."
+    Contract = "GetJobLineageMap returns the focus job, its ancestors root-first, its steps and checkpoints, and its capped direct children, or null when no row matches."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.GetJobLineageMapAsync))]
 public abstract class GetJobLineageMapSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

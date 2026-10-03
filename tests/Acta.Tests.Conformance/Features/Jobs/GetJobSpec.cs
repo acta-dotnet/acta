@@ -16,12 +16,8 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     "get-job.point-read",
     "GetJob returns the snapshot for a known id and null for an unknown id",
     Area = "Reads",
-    Contract = "GetJob returns the JobDetail projection for a matching job row and null when no row matches the supplied id.",
-    Arrange = "A job is enqueued so a known job id exists.",
-    Act = "GetJob is called with the enqueued id and then with an id that matches no row.",
-    Assert = "The known id returns a populated JobDetail with Ready status and the unknown id returns null."
+    Contract = "GetJob returns the JobDetail projection for a matching job row and null when no row matches the supplied id."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.GetJobAsync))]
 public abstract class GetJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

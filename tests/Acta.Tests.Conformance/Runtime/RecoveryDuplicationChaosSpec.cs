@@ -10,10 +10,7 @@ namespace Acta.Tests.Conformance.Runtime;
     "chaos.maintenance-duplication",
     "Duplicated maintenance registration still has one slot and one claimant",
     Area = "Chaos",
-    Contract = "Repeated runtime initialization for system maintenance jobs is idempotent, and the recurring maintenance slot is claimed by only one worker.",
-    Arrange = "Two worker runtimes target the same namespace with system maintenance jobs enabled.",
-    Act = "Both runtimes initialize the namespace, then race to claim the due recurring recovery slot.",
-    Assert = "One sys.recovery definition, slot job, and schedule exist, and exactly one claimant wins the due slot."
+    Contract = "Repeated runtime initialization for system maintenance jobs is idempotent, and the recurring maintenance slot is claimed by only one worker."
 )]
 public abstract class RecoveryDuplicationChaosSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()

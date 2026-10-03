@@ -16,12 +16,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "handler-control.terminal-decisions",
     "Handler Fail Cancel Pause finalize the attempt without returning to user code",
     Area = "Control",
-    Contract = "Handler control verbs and non-retryable exceptions finalize the attempt without returning to user code, budget untouched and no result written.",
-    Arrange = "Handlers that call ctx.FailAsync, CancelAsync, or PauseAsync, or throw a non-retryable exception, are registered.",
-    Act = "Each job runs once, then held jobs are resumed via external control.",
-    Assert = "Each attempt finalizes through complete_execution to its terminal or hold status without returning to user code, budget untouched, no result written."
+    Contract = "Handler control verbs and non-retryable exceptions finalize the attempt without returning to user code, budget untouched and no result written."
 )]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.CompleteExecutionAsync))]
 public abstract class HandlerControlSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

@@ -16,15 +16,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "child-jobs.wait-timeout",
     "A bounded child wait expires, cancels its subtree, and leaves the parent running",
     Area = "ChildJobs",
-    Contract = "A bounded child wait resolves TimedOut once, cancels the awaited child and its descendants, and leaves the parent free to continue.",
-    Arrange = "Parents waiting on children with a 30-minute bound are registered so only a deliberate rewind of the stored expiration can expire a wait.",
-    Act = "The runtime ticks parents and children around the persisted expiration, with children landing before it, after it, and never.",
-    Assert = "A timed-out wait cancels the awaited subtree with job.wait-timed-out, spares siblings and the parent, and no late landing revives it."
+    Contract = "A bounded child wait resolves TimedOut once, cancels the awaited child and its descendants, and leaves the parent free to continue."
 )]
-[CoversStoreMethod(typeof(ISignalStore), nameof(ISignalStore.WaitSignalAsync))]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.CompleteExecutionAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.CancelJobAsync))]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.GetChildJobIdsAsync))]
 public abstract class ChildTimeoutSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

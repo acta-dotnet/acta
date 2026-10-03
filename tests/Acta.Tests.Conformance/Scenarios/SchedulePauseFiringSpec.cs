@@ -18,15 +18,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "schedule.pause-firing",
     "A paused slot does not fire, and a timed pause resumes by the misfire policy",
     Area = "Scheduling",
-    Contract = "A paused schedule's slot is not claimable, and a timed pause resumes at its expiry by the misfire policy, firing only an occurrence due by then.",
-    Arrange = "A recurring-ping slot with a single every-5-minutes schedule is registered under a deterministic fake clock.",
-    Act = "The schedule is paused indefinitely, and paused until its own occurrence, until before it, and until past it, as the clock advances.",
-    Assert = "The paused slot yields NothingClaimed, the pause ending on its occurrence fires once, and the others clear without a run and fire next on time."
+    Contract = "A paused schedule's slot is not claimable, and a timed pause resumes at its expiry by the misfire policy, firing only an occurrence due by then."
 )]
-[CoversStoreMethod(typeof(IScheduleStore), nameof(IScheduleStore.PauseScheduleAsync))]
-[CoversStoreMethod(typeof(IScheduleStore), nameof(IScheduleStore.GetLiveSchedulesAsync))]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.ClaimBatchAsync))]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.CompleteExecutionAsync))]
 public abstract class SchedulePauseFiringSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

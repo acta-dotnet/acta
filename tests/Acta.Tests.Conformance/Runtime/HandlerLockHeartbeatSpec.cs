@@ -20,10 +20,7 @@ namespace Acta.Tests.Conformance.Runtime;
     "handler-lock.heartbeat",
     "Heartbeat extends a handler-held lock and a lost lock cancels the attempt",
     Area = "Locks",
-    Contract = "The heartbeat extends every lock an attempt holds so a long critical section stays exclusive, and a lost held lock aborts the attempt into a retryable failure.",
-    Arrange = "A lock-holder handler that holds a RunWithLock lock through a long critical section is registered.",
-    Act = "One run holds the lock across heartbeat ticks, and in a second run the held lock is deleted out-of-band.",
-    Assert = "The heartbeat advances the held lock's lease expiry, and the lost lock cancels the attempt, which re-arms Ready under the retry budget."
+    Contract = "The heartbeat extends every lock an attempt holds so a long critical section stays exclusive, and a lost held lock aborts the attempt into a retryable failure."
 )]
 public abstract class HandlerLockHeartbeatSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()

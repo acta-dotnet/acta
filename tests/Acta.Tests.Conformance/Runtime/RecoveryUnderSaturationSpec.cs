@@ -18,12 +18,8 @@ namespace Acta.Tests.Conformance.Runtime;
     "runtime.recovery-under-saturation",
     "A Buffered worker with every executor held still runs the recovery sweep",
     Area = "Recovery",
-    Contract = "A recovery slot claimed by the Buffered loop runs outside the channel, so a stranded job is reclaimed while every executor is held.",
-    Arrange = "A Buffered worker with one executor held by a blocking job, a job stranded under a lapsed lease, and the recovery slot due.",
-    Act = "The claim loop takes the due slot while the executor is still held.",
-    Assert = "The stranded job returns to Ready before the executor is released."
+    Contract = "A recovery slot claimed by the Buffered loop runs outside the channel, so a stranded job is reclaimed while every executor is held."
 )]
-[CoversStoreMethod(typeof(Acta.Runtime.IExecutionStore), nameof(Acta.Runtime.IExecutionStore.ClaimBatchAsync))]
 public abstract class RecoveryUnderSaturationSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

@@ -15,12 +15,8 @@ namespace Acta.Tests.Conformance.Features.Jobs;
     "job.reprioritize",
     "Operator reprioritize changes claim priority, rejecting only terminal jobs.",
     Area = "Control",
-    Contract = "ReprioritizeAsync sets priority_code on any non-terminal row (including in-flight), leaving status and cursor unchanged, and rejects terminal rows.",
-    Arrange = "A Ready job, one job mid-execution, one completed job, and no job for an unknown lookup.",
-    Act = "ReprioritizeAsync is invoked against each job with a new priority.",
-    Assert = "The Ready and executing jobs adopt the new priority with an audited event, the terminal job is rejected unchanged, and the unknown lookup is NotFound."
+    Contract = "ReprioritizeAsync sets priority_code on any non-terminal row (including in-flight), leaving status and cursor unchanged, and rejects terminal rows."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.ReprioritizeJobAsync))]
 public abstract class JobReprioritizeSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

@@ -15,10 +15,7 @@ namespace Acta.Tests.Conformance.Runtime;
     "payload-size-limit.enforcement",
     "Caller writes hard-throw past the cap but an oversize result is dropped",
     Area = "Payloads",
-    Contract = "Caller writes past the cap throw PayloadTooLargeException and an oversize handler result is dropped so the job still completes.",
-    Arrange = "MaxInlinePayloadBytes is configured to a small 1 KB cap.",
-    Act = "Oversize enqueue input, signal value, and handler variable writes are attempted, and a handler returns an oversize result.",
-    Assert = "Each caller write throws PayloadTooLargeException while the oversize result body is dropped and the job lands Succeeded."
+    Contract = "Caller writes past the cap throw PayloadTooLargeException and an oversize handler result is dropped so the job still completes."
 )]
 public abstract class PayloadSizeLimitSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()

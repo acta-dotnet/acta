@@ -19,12 +19,8 @@ namespace Acta.Tests.Conformance.Runtime;
     "runtime.start-reconciliation",
     "A claim survives what happens between its claim and its handler",
     Area = "Runtime",
-    Contract = "A start is reconciled against the row on LostClaim or LeaseExpired, a committed start is not made twice, and a failing setup read is repeated.",
-    Arrange = "A counting one-shot and a recurring slot, with faults staged between the claim and the start write and on the database clock read.",
-    Act = "The row is reprioritized or its lease lapses between claim and start, a start commits and loses its answer, and a recurring fire's clock read fails once.",
-    Assert = "Each attempt runs once to Succeeded with one started event, and the recurring fire completes with its slot Ready and unleased."
+    Contract = "A start is reconciled against the row on LostClaim or LeaseExpired, a committed start is not made twice, and a failing setup read is repeated."
 )]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.StartExecutionAsync))]
 public abstract class StartReconciliationChaosSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

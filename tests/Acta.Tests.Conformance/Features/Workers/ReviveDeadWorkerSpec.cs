@@ -18,12 +18,8 @@ namespace Acta.Tests.Conformance.Features.Workers;
     "extend-worker-leases.revives-dead",
     "A heartbeat makes a worker marked Dead live again",
     Area = "Workers",
-    Contract = "A heartbeat from a worker marked Dead makes it Active again, or Draining when it drains, and a Stopped worker stays Stopped.",
-    Arrange = "Three fresh workers are registered, two of them set Dead and the third stopped cleanly.",
-    Act = "Each worker heartbeats once, one of the Dead pair as draining, and that one is then stopped.",
-    Assert = "The Dead pair turn Active and Draining, the Stopped one stays Stopped, and the drained one stops with one worker.stopped event."
+    Contract = "A heartbeat from a worker marked Dead makes it Active again, or Draining when it drains, and a Stopped worker stays Stopped."
 )]
-[CoversStoreMethod(typeof(IWorkerStore), nameof(IWorkerStore.ExtendWorkerLeasesAsync))]
 public abstract class ReviveDeadWorkerSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

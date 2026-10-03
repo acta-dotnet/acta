@@ -15,10 +15,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     "outbox-ddl.create-script",
     "Generated outbox DDL yields a working relay source table",
     Area = "Outbox",
-    Contract = "The DDL API emits a canonical outbox table the real relay store can claim, reschedule, quarantine, and delete against, proving the shape by behavior.",
-    Arrange = "The provider DDL CreateScript output is applied to the test database to create the canonical outbox table.",
-    Act = "The relay store claims a seeded row and finalizes seeded rows by delete, reschedule, and quarantine.",
-    Assert = "The claimed row deletes, the rescheduled row returns to pending with an incremented failure count, and the quarantined row moves to status ninety."
+    Contract = "The DDL API emits a canonical outbox table the real relay store can claim, reschedule, quarantine, and delete against, proving the shape by behavior."
 )]
 public abstract class OutboxDdlSpec<TFixture> : ActaTestBase<TFixture>
     where TFixture : IConformanceFixture, new()

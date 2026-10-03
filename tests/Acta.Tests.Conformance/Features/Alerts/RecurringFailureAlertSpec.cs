@@ -18,14 +18,8 @@ namespace Acta.Tests.Conformance.Features.Alerts;
     "alerts-projection.recurring-failure",
     "A recurring job whose handler throws raises an alert",
     Area = "Alerts",
-    Contract = "A recurring slot re-arming Ready after a failed fire records why that attempt failed, so the projector can alert on a job that would otherwise fail unwatched.",
-    Arrange = "A recurring-ping slot in a namespace holding no alerts, with its handler armed to throw on every fire.",
-    Act = "The slot fires twice, throwing both times, and the sys.alerts projector runs after each fire.",
-    Assert = "Each rollover event carries the unhandled-exception reason, and the namespace holds exactly one open FirstFailure alert counting both fires."
+    Contract = "A recurring slot re-arming Ready after a failed fire records why that attempt failed, so the projector can alert on a job that would otherwise fail unwatched."
 )]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.GetAlertableEventsAsync))]
-[CoversStoreMethod(typeof(IAlertStore), nameof(IAlertStore.RaiseJobAlertAsync))]
-[CoversStoreMethod(typeof(IExecutionStore), nameof(IExecutionStore.CompleteExecutionAsync))]
 public abstract class RecurringFailureAlertSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

@@ -16,10 +16,7 @@ namespace Acta.Tests.Conformance.Features.Outbox;
     "outbox.relay-unknown-route",
     "An unknown route reschedules quietly and delivers after the route is registered",
     Area = "Outbox",
-    Contract = "A row toward an unregistered route reschedules quietly with a bumped failure count and delivers once the route is later registered.",
-    Arrange = "A live source table holds one due row targeting a namespace and job not yet registered in the ledger.",
-    Act = "The relay ticks before the route exists, a worker then registers it, the row is rewound to due, and the relay ticks again.",
-    Assert = "The first tick throws nothing and leaves the row Pending with failure_count 1 and a future attempt, and the second tick delivers exactly one target job."
+    Contract = "A row toward an unregistered route reschedules quietly with a bumped failure count and delivers once the route is later registered."
 )]
 public abstract class OutboxRelayRouteSpec<TFixture> : OutboxRelayIntegrationBase<TFixture>
     where TFixture : IConformanceFixture, new()

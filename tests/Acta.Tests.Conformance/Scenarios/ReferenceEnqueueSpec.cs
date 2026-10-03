@@ -17,13 +17,8 @@ namespace Acta.Tests.Conformance.Scenarios;
     "typed-enqueue.reference",
     "A Reference-only host typed-enqueues without running a worker",
     Area = "Enqueue",
-    Contract = "j.Reference<TManifest> feeds the typed route index without declaring a worker, so the host typed-enqueues and the namespace's Run worker completes it.",
-    Arrange = "An enqueue-only host declares j.Reference<TestJobsManifest> against the same schema as the namespace's Run worker.",
-    Act = "The Reference host typed-enqueues an input, repeats the enqueue, and the Run worker claims the row.",
-    Assert = "The typed route resolves without a worker on the Reference host, the repeat dedupes, and the Run worker completes the job."
+    Contract = "j.Reference<TManifest> feeds the typed route index without declaring a worker, so the host typed-enqueues and the namespace's Run worker completes it."
 )]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueOneAsync))]
-[CoversStoreMethod(typeof(IJobStore), nameof(IJobStore.EnqueueBatchAsync))]
 public abstract class ReferenceEnqueueSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

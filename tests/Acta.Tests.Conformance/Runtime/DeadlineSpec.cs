@@ -16,10 +16,7 @@ namespace Acta.Tests.Conformance.Runtime;
     "deadline.strict",
     "A Strict deadline terminates an overdue job and blocks a retry past the deadline",
     Area = "Execution",
-    Contract = "A Strict deadline lands the job Cancelled with JobDeadlineExceeded at admission or when the next retry would overshoot, without consuming the retry budget.",
-    Arrange = "Strict and Advisory deadline probes are registered with short whole-job deadlines.",
-    Act = "An overdue Strict job runs, a Strict job retries past its deadline, and an overdue Advisory job runs its handler.",
-    Assert = "The Strict jobs land Cancelled with JobDeadlineExceeded without consuming retry budget while the Advisory handler observes IsOverdue true."
+    Contract = "A Strict deadline lands the job Cancelled with JobDeadlineExceeded at admission or when the next retry would overshoot, without consuming the retry budget."
 )]
 public abstract class DeadlineSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
