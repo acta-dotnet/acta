@@ -4,29 +4,25 @@ using Xunit;
 
 namespace Acta.Tests.Emit;
 
-public sealed class CodeFamilySourceLocatorTests
+public sealed class CodeFamilyEmitterTests
 {
+    // The persisted vocabulary sits in one folder; JobPayloadFormat stays with the payload API.
     [Fact]
-    public void Every_code_family_resolves_to_its_source_folder()
+    public void Every_code_family_is_declared_in_the_codes_folder()
     {
-        var repoRoot = ResolveRepoRoot();
-        var names = CodeFamilyDiscovery
+        var codes = Path.Combine(ResolveRepoRoot(), "src", "Acta", "Codes");
+        var misplaced = CodeFamilyDiscovery
             .DiscoverAll(SchemaModel.Discover())
             .Select(family => family.Name)
-            .Append("JobPayloadFormat")
-            .ToArray();
+            .Where(name => !File.Exists(Path.Combine(codes, name + ".cs")));
 
-        var areas = CodeFamilySourceLocator.ResolveAreas(repoRoot, names);
-
-        Assert.Equal(names.Length, areas.Count);
-        Assert.All(names, name => Assert.True(File.Exists(Path.Combine(repoRoot, "src", "Acta", areas[name], name + ".cs"))));
+        Assert.Empty(misplaced);
     }
 
     [Fact]
     public void Code_family_inventory_is_sorted_by_family_name()
     {
-        var repoRoot = ResolveRepoRoot();
-        var markdown = CodeFamilyEmitter.EmitCodes(SchemaModel.Discover(), repoRoot);
+        var markdown = CodeFamilyEmitter.EmitCodes(SchemaModel.Discover());
         var lines = markdown.ReplaceLineEndings("\n").Split('\n');
         var inventoryStart = Array.IndexOf(lines, "## Code-family inventory");
         Assert.True(inventoryStart >= 0);
@@ -39,8 +35,7 @@ public sealed class CodeFamilySourceLocatorTests
     [Fact]
     public void Code_family_reference_contains_no_editorial_metadata()
     {
-        var repoRoot = ResolveRepoRoot();
-        var markdown = CodeFamilyEmitter.EmitCodes(SchemaModel.Discover(), repoRoot);
+        var markdown = CodeFamilyEmitter.EmitCodes(SchemaModel.Discover());
 
         Assert.DoesNotContain("| Style |", markdown, StringComparison.Ordinal);
         Assert.DoesNotContain("| Set by |", markdown, StringComparison.Ordinal);

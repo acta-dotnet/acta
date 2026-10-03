@@ -20,7 +20,7 @@ internal static class DocsCommand
         Console.WriteLine($"  wrote {dataModelPath}");
 
         var codesPath = Path.Combine(referenceDir, "code-families.md");
-        File.WriteAllText(codesPath, CodeFamilyEmitter.EmitCodes(model, repoRoot));
+        File.WriteAllText(codesPath, CodeFamilyEmitter.EmitCodes(model));
         Console.WriteLine($"  wrote {codesPath}");
 
         foreach (var (token, _, _) in ProvisionScriptEmitter.Providers)

@@ -32,44 +32,42 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 ## Code-family inventory
 
-| Family | Code kind | Backing | Folder |
-|---|---|---|---|
-| [`ActorCode`](#code-family-actorcode) | `actor` | `byte` | `Codes` |
-| [`AlertChannelStatusCode`](#code-family-alertchannelstatuscode) | `alert-channel-status` | `byte` | `Codes` |
-| [`AlertDeliveryStatusCode`](#code-family-alertdeliverystatuscode) | `alert-delivery-status` | `byte` | `Codes` |
-| [`AlertKindCode`](#code-family-alertkindcode) | `alert-kind` | `byte` | `Codes` |
-| [`AlertOriginCode`](#code-family-alertorigincode) | `alert-origin` | `byte` | `Codes` |
-| [`AlertProfileCode`](#code-family-alertprofilecode) | `alert-profile` | `byte` | `Codes` |
-| [`AlertSeverityCode`](#code-family-alertseveritycode) | `alert-severity` | `byte` | `Codes` |
-| [`DeadlineBehaviorCode`](#code-family-deadlinebehaviorcode) | `deadline-behavior` | `byte` | `Codes` |
-| [`EventCode`](#code-family-eventcode) | `event` | `byte` | `Codes` |
-| [`ExecutionStatusCode`](#code-family-executionstatuscode) | `execution-status` | `byte` | `Codes` |
-| [`JobAuditLevelCode`](#code-family-jobauditlevelcode) | `job-audit-level` | `byte` | `Codes` |
-| [`JobCheckpointKindCode`](#code-family-jobcheckpointkindcode) | `job-checkpoint-kind` | `byte` | `Codes` |
-| [`JobCheckpointStatusCode`](#code-family-jobcheckpointstatuscode) | `job-checkpoint-status` | `byte` | `Codes` |
-| [`JobDefinitionStatusCode`](#code-family-jobdefinitionstatuscode) | `job-definition-status` | `byte` | `Codes` |
-| [`JobEventReasonCode`](#code-family-jobeventreasoncode) | `job-event-reason` | `byte` | `Codes` |
-| [`JobPayloadFormat`](#code-family-jobpayloadformat) | `payload-format` | `byte` | `Payloads` |
-| [`JobPriorityCode`](#code-family-jobprioritycode) | `job-priority` | `byte` | `Codes` |
-| [`JobStatusCode`](#code-family-jobstatuscode) | `job-status` | `byte` | `Codes` |
-| [`JobStepStatusCode`](#code-family-jobstepstatuscode) | `job-step-status` | `byte` | `Codes` |
-| [`JobTenantRequirementCode`](#code-family-jobtenantrequirementcode) | `job-tenant-requirement` | `byte` | `Codes` |
-| [`MisfireStrategyCode`](#code-family-misfirestrategycode) | `misfire-strategy` | `byte` | `Codes` |
-| [`NamespaceStatusCode`](#code-family-namespacestatuscode) | `namespace-status` | `byte` | `Codes` |
-| [`OutboxStatusCode`](#code-family-outboxstatuscode) | `outbox-status` | `byte` | `Codes` |
-| [`ScheduleExpressionKindCode`](#code-family-scheduleexpressionkindcode) | `schedule-expression-kind` | `byte` | `Codes` |
-| [`ScheduleOriginCode`](#code-family-scheduleorigincode) | `schedule-origin` | `byte` | `Codes` |
-| [`ScheduleStatusCode`](#code-family-schedulestatuscode) | `schedule-status` | `byte` | `Codes` |
-| [`SettingScopeCode`](#code-family-settingscopecode) | `setting-scope` | `byte` | `Codes` |
-| [`TagScopeCode`](#code-family-tagscopecode) | `tag-scope` | `byte` | `Codes` |
-| [`TenantStatusCode`](#code-family-tenantstatuscode) | `tenant-status` | `byte` | `Codes` |
-| [`WorkerStatusCode`](#code-family-workerstatuscode) | `worker-status` | `byte` | `Codes` |
+| Family | Code kind | Backing |
+|---|---|---|
+| [`ActorCode`](#code-family-actorcode) | `actor` | `byte` |
+| [`AlertChannelStatusCode`](#code-family-alertchannelstatuscode) | `alert-channel-status` | `byte` |
+| [`AlertDeliveryStatusCode`](#code-family-alertdeliverystatuscode) | `alert-delivery-status` | `byte` |
+| [`AlertKindCode`](#code-family-alertkindcode) | `alert-kind` | `byte` |
+| [`AlertOriginCode`](#code-family-alertorigincode) | `alert-origin` | `byte` |
+| [`AlertProfileCode`](#code-family-alertprofilecode) | `alert-profile` | `byte` |
+| [`AlertSeverityCode`](#code-family-alertseveritycode) | `alert-severity` | `byte` |
+| [`DeadlineBehaviorCode`](#code-family-deadlinebehaviorcode) | `deadline-behavior` | `byte` |
+| [`EventCode`](#code-family-eventcode) | `event` | `byte` |
+| [`ExecutionStatusCode`](#code-family-executionstatuscode) | `execution-status` | `byte` |
+| [`JobAuditLevelCode`](#code-family-jobauditlevelcode) | `job-audit-level` | `byte` |
+| [`JobCheckpointKindCode`](#code-family-jobcheckpointkindcode) | `job-checkpoint-kind` | `byte` |
+| [`JobCheckpointStatusCode`](#code-family-jobcheckpointstatuscode) | `job-checkpoint-status` | `byte` |
+| [`JobDefinitionStatusCode`](#code-family-jobdefinitionstatuscode) | `job-definition-status` | `byte` |
+| [`JobEventReasonCode`](#code-family-jobeventreasoncode) | `job-event-reason` | `byte` |
+| [`JobPayloadFormat`](#code-family-jobpayloadformat) | `payload-format` | `byte` |
+| [`JobPriorityCode`](#code-family-jobprioritycode) | `job-priority` | `byte` |
+| [`JobStatusCode`](#code-family-jobstatuscode) | `job-status` | `byte` |
+| [`JobStepStatusCode`](#code-family-jobstepstatuscode) | `job-step-status` | `byte` |
+| [`JobTenantRequirementCode`](#code-family-jobtenantrequirementcode) | `job-tenant-requirement` | `byte` |
+| [`MisfireStrategyCode`](#code-family-misfirestrategycode) | `misfire-strategy` | `byte` |
+| [`NamespaceStatusCode`](#code-family-namespacestatuscode) | `namespace-status` | `byte` |
+| [`OutboxStatusCode`](#code-family-outboxstatuscode) | `outbox-status` | `byte` |
+| [`ScheduleExpressionKindCode`](#code-family-scheduleexpressionkindcode) | `schedule-expression-kind` | `byte` |
+| [`ScheduleOriginCode`](#code-family-scheduleorigincode) | `schedule-origin` | `byte` |
+| [`ScheduleStatusCode`](#code-family-schedulestatuscode) | `schedule-status` | `byte` |
+| [`SettingScopeCode`](#code-family-settingscopecode) | `setting-scope` | `byte` |
+| [`TagScopeCode`](#code-family-tagscopecode) | `tag-scope` | `byte` |
+| [`TenantStatusCode`](#code-family-tenantstatuscode) | `tenant-status` | `byte` |
+| [`WorkerStatusCode`](#code-family-workerstatuscode) | `worker-status` | `byte` |
 
 ## Codes
 
-### Codes
-
-#### `ActorCode` · `actor` <a id="code-family-actorcode"></a>
+### `ActorCode` · `actor` <a id="code-family-actorcode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
@@ -78,7 +76,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Job` | 50 | `job` | ctx.* throw-to-transition inside a user handler. ActorKey = "{jobId}". | Active |
 | `Worker` | 70 | `worker` | Worker-process lifecycle (registered / heartbeat / dead-marking) AND worker-mediated hot-path actions (claim, lease renewal). ActorKey stores the acting worker's public ref as canonical lowercase uuid text; read projections render it as wrk_.... | Active |
 
-#### `AlertChannelStatusCode` · `alert-channel-status` <a id="code-family-alertchannelstatuscode"></a>
+### `AlertChannelStatusCode` · `alert-channel-status` <a id="code-family-alertchannelstatuscode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
@@ -86,7 +84,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Disabled` | 30 | `disabled` | Configured but intentionally muted; matching alerts are suppressed. | Active |
 | `Deprecated` | 240 | `deprecated` | Configured but decommissioned; matching alerts are suppressed. | Active |
 
-#### `AlertDeliveryStatusCode` · `alert-delivery-status` <a id="code-family-alertdeliverystatuscode"></a>
+### `AlertDeliveryStatusCode` · `alert-delivery-status` <a id="code-family-alertdeliverystatuscode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
@@ -96,7 +94,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Delivered` | 100 | `delivered` | Successfully sent to the channel transport. | Active |
 | `Failed` | 200 | `failed` | Send attempt failed and the retry path is done with it; re-sent as a reminder while the incident stays unresolved. | Active |
 
-#### `AlertKindCode` · `alert-kind` <a id="code-family-alertkindcode"></a>
+### `AlertKindCode` · `alert-kind` <a id="code-family-alertkindcode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
@@ -106,14 +104,14 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `FinalFailure` | 30 | `final-failure` | Terminal failure; emitted by Automatic origin on Status to Failed. | Active |
 | `Manual` | 40 | `manual` | Hand-raised; ctx.AlertAsync from inside a handler. | Active |
 
-#### `AlertOriginCode` · `alert-origin` <a id="code-family-alertorigincode"></a>
+### `AlertOriginCode` · `alert-origin` <a id="code-family-alertorigincode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `Automatic` | 10 | `automatic` | System-emitted from a state-mutating SP (failure / timeout / orphan / deadline). | Active |
 | `Manual` | 20 | `manual` | ctx.AlertAsync from inside a user handler. | Active |
 
-#### `AlertProfileCode` · `alert-profile` <a id="code-family-alertprofilecode"></a>
+### `AlertProfileCode` · `alert-profile` <a id="code-family-alertprofilecode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
@@ -123,7 +121,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `OnTerminal` | 30 | `on-terminal` | Alert on terminal failure only: retry budget exhausted, ctx.FailAsync, a non-retryable exception, or an interrupted at-most-once step. Resolves on recovery, which the projector reads from the Job's success event, so audit level off leaves the incident open. A deadline lands the job Cancelled rather than Failed and so alerts under no profile. A recurring slot never exhausts a budget and re-arms after an unhandled exception or a lost lease, so use on-failure to hear about those. | Active |
 | `SysCritical` | 40 | `sys-critical` | Reserved for system Jobs. Emits at Severity = Critical to the Job's channel, or the configured "default" channel when none is declared. | Active |
 
-#### `AlertSeverityCode` · `alert-severity` <a id="code-family-alertseveritycode"></a>
+### `AlertSeverityCode` · `alert-severity` <a id="code-family-alertseveritycode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
@@ -132,14 +130,14 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Error` | 30 | `error` | Terminal failure or operator-attention event. | Active |
 | `Critical` | 40 | `critical` | Highest severity; emitted by system Jobs (AlertProfile = SysCritical) and operator alerts for incidents. Whether it pages depends on the routed channel's transport and config. | Active |
 
-#### `DeadlineBehaviorCode` · `deadline-behavior` <a id="code-family-deadlinebehaviorcode"></a>
+### `DeadlineBehaviorCode` · `deadline-behavior` <a id="code-family-deadlinebehaviorcode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `Strict` | 10 | `strict` | Engine auto-terminates an overdue job at admission and refuses to re-arm a retry past the deadline. | Active |
 | `Advisory` | 20 | `advisory` | Deadline is informational; the engine never auto-terminates, the handler reads ctx.IsOverdue. | Active |
 
-#### `EventCode` · `event` <a id="code-family-eventcode"></a>
+### `EventCode` · `event` <a id="code-family-eventcode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
@@ -187,7 +185,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 |---:|---|---|
 | 224–254 | Architecture-controlled reserve | Held |
 
-#### `ExecutionStatusCode` · `execution-status` <a id="code-family-executionstatuscode"></a>
+### `ExecutionStatusCode` · `execution-status` <a id="code-family-executionstatuscode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
@@ -200,7 +198,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Cancelled` | 220 | `cancelled` | Handler ended via cancel; does not charge budget. | Active |
 | `Orphaned` | 230 | `orphaned` | Lease lapsed past grace; reclaimed by the sys.recovery system job. Charges budget. | Active |
 
-#### `JobAuditLevelCode` · `job-audit-level` <a id="code-family-jobauditlevelcode"></a>
+### `JobAuditLevelCode` · `job-audit-level` <a id="code-family-jobauditlevelcode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
@@ -208,7 +206,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Failures` | 10 | `failures` | Emit job.execution-finished for a failed attempt and for the success that answers one; suppress other audit-filtered per-job events. | Active |
 | `Audit` | 20 | `audit` | Emit all audit-filtered per-job events. User Jobs default. | Active |
 
-#### `JobCheckpointKindCode` · `job-checkpoint-kind` <a id="code-family-jobcheckpointkindcode"></a>
+### `JobCheckpointKindCode` · `job-checkpoint-kind` <a id="code-family-jobcheckpointkindcode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
@@ -218,7 +216,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Progress` | 40 | `progress` | Progress slot; UPSERT, last-writer-wins, one per job. | Active |
 | `ChildLatch` | 50 | `child-latch` | Child terminal-outcome latch on the parent; Pending while awaited, Set when the child lands terminal. | Active |
 
-#### `JobCheckpointStatusCode` · `job-checkpoint-status` <a id="code-family-jobcheckpointstatuscode"></a>
+### `JobCheckpointStatusCode` · `job-checkpoint-status` <a id="code-family-jobcheckpointstatuscode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
@@ -227,14 +225,14 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Expired` | 30 | `expired` | The re-entering wait found the slot overdue and settled it TimedOut; a raise then skips the slot. | Active |
 | `Consumed` | 100 | `consumed` | Due instant reached; the replayed handler consumed the timer and proceeded. | Active |
 
-#### `JobDefinitionStatusCode` · `job-definition-status` <a id="code-family-jobdefinitionstatuscode"></a>
+### `JobDefinitionStatusCode` · `job-definition-status` <a id="code-family-jobdefinitionstatuscode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `Active` | 10 | `active` | Enqueue allowed; claim allowed. | Active |
 | `Retired` | 240 | `retired` | Enqueue REJECTED; an operator decision, never written by registration (a definition absent from a manifest stays Active). Retiring cancels parked rows (Ready/Paused/Suspended) with ReasonCode = 'job.definition-retired'; in-flight executions finish their attempt. | Active |
 
-#### `JobEventReasonCode` · `job-event-reason` <a id="code-family-jobeventreasoncode"></a>
+### `JobEventReasonCode` · `job-event-reason` <a id="code-family-jobeventreasoncode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
@@ -266,7 +264,16 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `WorkerCleanShutdown` | 100 | `worker.clean-shutdown` | Worker process exited cleanly via SIGTERM / IHostedService.StopAsync. | Active |
 | `WorkerHeartbeatStale` | 101 | `worker.heartbeat-stale` | Worker heartbeat exceeded the liveness window; the sys.recovery system job flipped Status to Dead. | Active |
 
-#### `JobPriorityCode` · `job-priority` <a id="code-family-jobprioritycode"></a>
+### `JobPayloadFormat` · `payload-format` <a id="code-family-jobpayloadformat"></a>
+
+| Member | Id | Code | Description | Lifecycle |
+|---|---:|---|---|---|
+| `None` | 0 | `none` | No payload: zero id, null backing name, `Name` returns `"none"`. | Active |
+| `Json` | 1 | `json` | UTF-8 JSON; default for record / class inputs. | Active |
+| `Bytes` | 2 | `bytes` | Raw `byte[]` / `ReadOnlyMemory<byte>` passthrough. | Active |
+| `Text` | 3 | `text` | UTF-8 passthrough: strings and scalar values rendered through `Encoding.UTF8`. | Active |
+
+### `JobPriorityCode` · `job-priority` <a id="code-family-jobprioritycode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
@@ -276,7 +283,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Critical` | 85 | `critical` | Critical priority; close-to-realtime operator workloads. | Active |
 | `Realtime` | 100 | `realtime` | Highest priority; always pages. | Active |
 
-#### `JobStatusCode` · `job-status` <a id="code-family-jobstatuscode"></a>
+### `JobStatusCode` · `job-status` <a id="code-family-jobstatuscode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
@@ -290,7 +297,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Failed` | 200 | `failed` | Terminal failure: MaxAttempts exhausted, expiration fired, or ctx.Fail called. | Active |
 | `Cancelled` | 220 | `cancelled` | Terminal cancellation by IJobs.CancelAsync or ctx.Cancel. | Active |
 
-#### `JobStepStatusCode` · `job-step-status` <a id="code-family-jobstepstatuscode"></a>
+### `JobStepStatusCode` · `job-step-status` <a id="code-family-jobstepstatuscode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
@@ -299,7 +306,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Exhausted` | 200 | `exhausted` | Step exhausted retry budget; parent handler receives StepExhaustedException. | Active |
 | `Interrupted` | 230 | `interrupted` | At-most-once step was re-entered before completion; outcome is unknown (ran 0 or 1 times). Parent receives StepInterruptedException. | Active |
 
-#### `JobTenantRequirementCode` · `job-tenant-requirement` <a id="code-family-jobtenantrequirementcode"></a>
+### `JobTenantRequirementCode` · `job-tenant-requirement` <a id="code-family-jobtenantrequirementcode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
@@ -307,21 +314,21 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Required` | 10 | `required` | Every enqueue must carry a tenant, by explicit TenantKey or parent inheritance; a tenant-less enqueue is rejected. | Active |
 | `Forbidden` | 20 | `forbidden` | An explicit TenantKey is rejected and a child never inherits its parent's tenant; rows always store tenant NULL. | Active |
 
-#### `MisfireStrategyCode` · `misfire-strategy` <a id="code-family-misfirestrategycode"></a>
+### `MisfireStrategyCode` · `misfire-strategy` <a id="code-family-misfirestrategycode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `CatchUpOnce` | 10 | `catch-up-once` | After downtime, fire once immediately for all missed occurrences, then resume from the next occurrence after now. | Active |
 | `Skip` | 20 | `skip` | After downtime, skip all missed occurrences and resume from the first occurrence strictly after now. | Active |
 
-#### `NamespaceStatusCode` · `namespace-status` <a id="code-family-namespacestatuscode"></a>
+### `NamespaceStatusCode` · `namespace-status` <a id="code-family-namespacestatuscode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `Active` | 10 | `active` | Namespace resolves at enqueue; enqueue allowed. | Active |
 | `Suspended` | 20 | `suspended` | Enqueue into the namespace is rejected. Reversible (operator hold). Existing in-flight jobs are unaffected. | Active |
 
-#### `OutboxStatusCode` · `outbox-status` <a id="code-family-outboxstatuscode"></a>
+### `OutboxStatusCode` · `outbox-status` <a id="code-family-outboxstatuscode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
@@ -329,21 +336,21 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Claimed` | 20 | `claimed` | Leased by a relay claim; claim_token and claim_until_utc are set until the lease finalizes or expires. | Active |
 | `Quarantined` | 90 | `quarantined` | Excluded from normal claims after exhausting delivery policy or a non-recoverable contract error; requires an operator requeue or delete. | Active |
 
-#### `ScheduleExpressionKindCode` · `schedule-expression-kind` <a id="code-family-scheduleexpressionkindcode"></a>
+### `ScheduleExpressionKindCode` · `schedule-expression-kind` <a id="code-family-scheduleexpressionkindcode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `Cron` | 10 | `cron` | Cron expression (Cronos dialect). Set at compile time by the source generator. | Active |
 | `Interval` | 20 | `interval` | Interval duration: human (e.g. "5m") or ISO 8601 (e.g. "PT5M", "P1D"). Set at compile time by the source generator. | Active |
 
-#### `ScheduleOriginCode` · `schedule-origin` <a id="code-family-scheduleorigincode"></a>
+### `ScheduleOriginCode` · `schedule-origin` <a id="code-family-scheduleorigincode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `Operator` | 20 | `operator` | Operator-driven schedule add/remove. No code path produces rows with this origin today. | Active |
 | `Definition` | 40 | `definition` | Declared in [JobSchedule] attribute; refreshed by catalog upsert. | Active |
 
-#### `ScheduleStatusCode` · `schedule-status` <a id="code-family-schedulestatuscode"></a>
+### `ScheduleStatusCode` · `schedule-status` <a id="code-family-schedulestatuscode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
@@ -351,7 +358,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Paused` | 30 | `paused` | Operator-paused; does not fire until resumed, or until PausedUntilUtc passes when set. | Active |
 | `Orphaned` | 230 | `orphaned` | Origin declaration disappeared from the catalog; set by reconciliation. Cannot fire or be paused/resumed. | Active |
 
-#### `SettingScopeCode` · `setting-scope` <a id="code-family-settingscopecode"></a>
+### `SettingScopeCode` · `setting-scope` <a id="code-family-settingscopecode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
@@ -359,7 +366,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Namespace` | 30 | `namespace` | Setting scoped to one namespace; scope_id = namespaces.id. | Active |
 | `Definition` | 40 | `definition` | Setting scoped to one job definition; scope_id = definitions.id. | Active |
 
-#### `TagScopeCode` · `tag-scope` <a id="code-family-tagscopecode"></a>
+### `TagScopeCode` · `tag-scope` <a id="code-family-tagscopecode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
@@ -372,14 +379,14 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Alert` | 80 | `alert` | Tag attached to one alert. | Active |
 | `Event` | 90 | `event` | Tag attached to one event. | Active |
 
-#### `TenantStatusCode` · `tenant-status` <a id="code-family-tenantstatuscode"></a>
+### `TenantStatusCode` · `tenant-status` <a id="code-family-tenantstatuscode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `Active` | 10 | `active` | Tenant key resolves at enqueue; enqueue allowed. | Active |
 | `Suspended` | 20 | `suspended` | Admission suspended: new enqueues naming the tenant key are rejected, while already admitted jobs keep running and may expand through inherited children. Applies to enqueue transactions beginning after the suspend commits. Reversible (billing/abuse hold, admin pause). | Active |
 
-#### `WorkerStatusCode` · `worker-status` <a id="code-family-workerstatuscode"></a>
+### `WorkerStatusCode` · `worker-status` <a id="code-family-workerstatuscode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
@@ -387,15 +394,4 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Draining` | 80 | `draining` | Worker stopped polling; finishing in-flight. | Active |
 | `Stopped` | 100 | `stopped` | Worker shut down cleanly; terminal success. | Active |
 | `Dead` | 200 | `dead` | Heartbeat went stale; sys.recovery reclaims lapsed leases, and a resumed heartbeat makes it Active again. | Active |
-
-### Payloads
-
-#### `JobPayloadFormat` · `payload-format` <a id="code-family-jobpayloadformat"></a>
-
-| Member | Id | Code | Description | Lifecycle |
-|---|---:|---|---|---|
-| `None` | 0 | `none` | No payload: zero id, null backing name, `Name` returns `"none"`. | Active |
-| `Json` | 1 | `json` | UTF-8 JSON; default for record / class inputs. | Active |
-| `Bytes` | 2 | `bytes` | Raw `byte[]` / `ReadOnlyMemory<byte>` passthrough. | Active |
-| `Text` | 3 | `text` | UTF-8 passthrough: strings and scalar values rendered through `Encoding.UTF8`. | Active |
 

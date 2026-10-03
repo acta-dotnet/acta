@@ -10,16 +10,15 @@ internal static class CodeFamilyEmitter
 {
     private const string PayloadFormatName = "JobPayloadFormat";
 
-    internal static string EmitCodes(SchemaModel schema, string repoRoot)
+    internal static string EmitCodes(SchemaModel schema)
     {
         var families = CodeFamilyDiscovery.DiscoverAll(schema);
         var payload = PayloadFormatFamily.Discover();
-        var areas = CodeFamilySourceLocator.ResolveAreas(repoRoot, families.Select(family => family.Name).Append(PayloadFormatName));
 
         var sb = new StringBuilder();
         EmitHeader(sb, families.Count + 1, families.Sum(family => family.Values.Count) + payload.Values.Count);
-        EmitInventory(sb, families, areas);
-        EmitCodesByArea(sb, families, payload, areas);
+        EmitInventory(sb, families);
+        EmitCodes(sb, families, payload);
         return sb.ToString();
     }
 
@@ -71,54 +70,38 @@ internal static class CodeFamilyEmitter
         sb.AppendLine();
     }
 
-    private static void EmitInventory(StringBuilder sb, IReadOnlyList<CodeFamilyModel> families, IReadOnlyDictionary<string, string> areas)
+    private static void EmitInventory(StringBuilder sb, IReadOnlyList<CodeFamilyModel> families)
     {
         var rows = families
-            .Select(family => new InventoryRow(family.Name, family.CodeKind, family.Storage, areas[family.Name], family.IsMeta))
-            .Append(new InventoryRow(PayloadFormatName, "payload-format", "byte", areas[PayloadFormatName], IsMeta: false))
+            .Select(family => new InventoryRow(family.Name, family.CodeKind, family.Storage, family.IsMeta))
+            .Append(new InventoryRow(PayloadFormatName, "payload-format", "byte", IsMeta: false))
             .OrderBy(row => row.Name, StringComparer.Ordinal);
 
         sb.AppendLine("## Code-family inventory");
         sb.AppendLine();
-        sb.AppendLine("| Family | Code kind | Backing | Folder |");
-        sb.AppendLine("|---|---|---|---|");
+        sb.AppendLine("| Family | Code kind | Backing |");
+        sb.AppendLine("|---|---|---|");
         foreach (var row in rows)
         {
             var codeKind = row.IsMeta ? "_(meta-enum)_" : $"`{row.CodeKind}`";
-            sb.AppendLine(
-                CultureInfo.InvariantCulture,
-                $"| {Anchors.LinkCodeFamilyLocal(row.Name)} | {codeKind} | `{row.Storage}` | `{row.Area}` |"
-            );
+            sb.AppendLine(CultureInfo.InvariantCulture, $"| {Anchors.LinkCodeFamilyLocal(row.Name)} | {codeKind} | `{row.Storage}` |");
         }
         sb.AppendLine();
     }
 
-    private static void EmitCodesByArea(
-        StringBuilder sb,
-        IReadOnlyList<CodeFamilyModel> families,
-        PayloadFormatFamily payload,
-        IReadOnlyDictionary<string, string> areas
-    )
+    private static void EmitCodes(StringBuilder sb, IReadOnlyList<CodeFamilyModel> families, PayloadFormatFamily payload)
     {
-        var familiesByName = families.ToDictionary(family => family.Name, StringComparer.Ordinal);
-
         sb.AppendLine("## Codes");
         sb.AppendLine();
-        foreach (var areaGroup in areas.GroupBy(entry => entry.Value).OrderBy(group => group.Key, StringComparer.Ordinal))
+        foreach (var name in families.Select(family => family.Name).Append(PayloadFormatName).Order(StringComparer.Ordinal))
         {
-            sb.Append("### ").AppendLine(areaGroup.Key);
-            sb.AppendLine();
-
-            foreach (var name in areaGroup.Select(entry => entry.Key).OrderBy(name => name, StringComparer.Ordinal))
+            if (string.Equals(name, PayloadFormatName, StringComparison.Ordinal))
             {
-                if (string.Equals(name, PayloadFormatName, StringComparison.Ordinal))
-                {
-                    EmitPayloadFormat(sb, payload);
-                }
-                else
-                {
-                    EmitFamily(sb, familiesByName[name]);
-                }
+                EmitPayloadFormat(sb, payload);
+            }
+            else
+            {
+                EmitFamily(sb, families.Single(family => family.Name == name));
             }
         }
     }
@@ -126,7 +109,7 @@ internal static class CodeFamilyEmitter
     private static void EmitFamily(StringBuilder sb, CodeFamilyModel family)
     {
         var kind = family.IsMeta ? "meta-enum" : family.CodeKind;
-        sb.Append("#### `")
+        sb.Append("### `")
             .Append(family.Name)
             .Append("` · `")
             .Append(kind)
@@ -178,7 +161,7 @@ internal static class CodeFamilyEmitter
 
     private static void EmitPayloadFormat(StringBuilder sb, PayloadFormatFamily payload)
     {
-        sb.Append("#### `")
+        sb.Append("### `")
             .Append(PayloadFormatName)
             .Append("` · `payload-format` ")
             .AppendLine(Anchors.Tag(Anchors.CodeFamily(PayloadFormatName)));
@@ -196,7 +179,7 @@ internal static class CodeFamilyEmitter
         sb.AppendLine();
     }
 
-    private sealed record InventoryRow(string Name, string? CodeKind, string Storage, string Area, bool IsMeta);
+    private sealed record InventoryRow(string Name, string? CodeKind, string Storage, bool IsMeta);
 }
 
 internal sealed record PayloadFormatFamily(IReadOnlyList<PayloadFormatEntry> Values)
