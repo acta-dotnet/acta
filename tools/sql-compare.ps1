@@ -22,34 +22,20 @@ $providerProjects = [ordered]@{
     sqlite = 'Acta.Sqlite'
 }
 
+# A SQL file is named by its stem, the part before the first dot: PauseJob for PauseJob.pg.sql.
 function ConvertTo-LogicalResource([string]$relativePath) {
-    $path = $relativePath.Replace('\', '/')
-    if ($path.StartsWith('Sql/', [StringComparison]::Ordinal)) {
-        $path = $path.Substring('Sql/'.Length)
-    }
-
-    if ($path.EndsWith('.sql', [StringComparison]::OrdinalIgnoreCase)) {
-        $path = $path.Substring(0, $path.Length - '.sql'.Length)
-    }
-    foreach ($suffix in @('.routine', '.view')) {
-        if ($path.EndsWith($suffix, [StringComparison]::OrdinalIgnoreCase)) {
-            $path = $path.Substring(0, $path.Length - $suffix.Length)
-        }
-    }
-
-    return $path
+    return (Split-Path -Leaf $relativePath.Replace('\', '/')).Split('.')[0]
 }
 
 function Get-ProviderInventory([string]$token) {
-    $projectRoot = Join-Path $repoRoot "src/$($providerProjects[$token])"
+    $runtimeRoot = Join-Path $repoRoot 'src/Acta.Runtime'
     $inventory = [Collections.Generic.Dictionary[string, string]]::new([StringComparer]::OrdinalIgnoreCase)
-    foreach ($owner in @('Sql')) {
-        $ownerRoot = Join-Path $projectRoot $owner
+    foreach ($owner in @('Operations', 'Schema')) {
+        $ownerRoot = Join-Path $runtimeRoot $owner
         if (-not (Test-Path -LiteralPath $ownerRoot)) { continue }
 
-        foreach ($file in Get-ChildItem -LiteralPath $ownerRoot -Recurse -File -Filter '*.sql') {
-            $relative = [IO.Path]::GetRelativePath($projectRoot, $file.FullName)
-            $logical = ConvertTo-LogicalResource $relative
+        foreach ($file in Get-ChildItem -LiteralPath $ownerRoot -Recurse -File -Filter "*.$token.sql") {
+            $logical = ConvertTo-LogicalResource $file.Name
             if ($inventory.ContainsKey($logical)) {
                 throw "Provider '$token' has duplicate logical SQL resource '$logical': '$($inventory[$logical])' and '$($file.FullName)'."
             }
@@ -81,7 +67,7 @@ if ($List) {
 
 if ($ChangedSince) {
     $range = "$ChangedSince...HEAD"
-    $changedFiles = @(& git -C $repoRoot diff --name-only $range -- src/Acta.Postgres src/Acta.SqlServer src/Acta.Sqlite)
+    $changedFiles = @(& git -C $repoRoot diff --name-only $range -- src/Acta.Runtime/Operations src/Acta.Runtime/Schema)
     if ($LASTEXITCODE -ne 0) { throw "git diff failed for '$range'." }
 
     $changed = @{}
@@ -89,21 +75,15 @@ if ($ChangedSince) {
         if (-not $path.EndsWith('.sql', [StringComparison]::OrdinalIgnoreCase)) { continue }
 
         $token = $null
-        $project = $null
         foreach ($candidate in $providerProjects.Keys) {
-            $prefix = "src/$($providerProjects[$candidate])/"
-            if ($path.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
+            if ($path.EndsWith(".$candidate.sql", [StringComparison]::OrdinalIgnoreCase)) {
                 $token = $candidate
-                $project = $providerProjects[$candidate]
                 break
             }
         }
         if ($null -eq $token) { continue }
 
-        $relative = $path.Substring("src/$project/".Length)
-        if (-not $relative.StartsWith('Sql/', [StringComparison]::OrdinalIgnoreCase)) { continue }
-
-        $logical = ConvertTo-LogicalResource $relative
+        $logical = ConvertTo-LogicalResource $path
         if (-not $changed.ContainsKey($logical)) {
             $changed[$logical] = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
         }
@@ -111,7 +91,7 @@ if ($ChangedSince) {
     }
 
     if ($changed.Count -eq 0) {
-        Write-Output 'No provider feature/service SQL resources changed.'
+        Write-Output 'No SQL files changed.'
         exit 0
     }
 
@@ -119,7 +99,7 @@ if ($ChangedSince) {
     Write-Output ''
     Write-Output "Compared changes since ``$ChangedSince`` (range ``$range``). A changed resource should prompt review of every sibling, even when a dialect-specific edit leaves it untouched."
     Write-Output ''
-    Write-Output '| Logical resource | PostgreSQL | SQL Server | SQLite |'
+    Write-Output '| SQL stem | PostgreSQL | SQL Server | SQLite |'
     Write-Output '| --- | --- | --- | --- |'
     foreach ($logical in $changed.Keys | Sort-Object) {
         $cells = foreach ($token in $providerProjects.Keys) {
@@ -137,14 +117,14 @@ if ($ChangedSince) {
 }
 
 if ([string]::IsNullOrWhiteSpace($Resource)) {
-    throw 'Specify a logical resource such as Jobs/EnqueueOne, or use -List / -ChangedSince.'
+    throw 'Specify a SQL stem such as EnqueueOne, or use -List / -ChangedSince.'
 }
 
 $logicalResource = ConvertTo-LogicalResource $Resource.Trim()
 $resolved = @()
 foreach ($token in $Provider) {
     if (-not $inventories[$token].ContainsKey($logicalResource)) {
-        throw "Provider '$token' has no SQL resource '$logicalResource'. Run tools/sql-compare.ps1 -List to inspect the inventory."
+        throw "Provider '$token' has no SQL resource '$logicalResource'. Run tools/sql-compare.ps1 -List to see every stem."
     }
     $path = $inventories[$token][$logicalResource]
     $resolved += [pscustomobject]@{
@@ -154,7 +134,7 @@ foreach ($token in $Provider) {
     }
 }
 
-Write-Output "Logical resource: $logicalResource"
+Write-Output "SQL stem: $logicalResource"
 foreach ($item in $resolved) {
     Write-Output ("  {0,-6} {1}" -f $item.Token, $item.RelativePath)
 }

@@ -3,9 +3,8 @@ using System.Reflection;
 namespace Acta.Tests.Conformance.Sql;
 
 /// <summary>
-/// Enumerates one dialect's executable SQL as the catalog sees it: the <c>X.{dialect}.sql</c> files
-/// <c>Acta.Runtime</c> embeds, the provider's own <c>Sql/</c> tree until the move beside the slices
-/// lands, and on request the provider's ordered migrations.
+/// Enumerates one dialect's executable SQL as the catalog sees it, the <c>X.{dialect}.sql</c> files
+/// <c>Acta.Runtime</c> embeds, and on request the provider's ordered migrations.
 /// </summary>
 internal static class ProviderSqlResources
 {
@@ -38,30 +37,21 @@ internal static class ProviderSqlResources
             }
         }
 
-        var assembly = Assembly.Load(ProviderAssemblyName(dialectToken));
-        var prefix = assembly.GetName().Name + ".";
-
-        foreach (var resource in assembly.GetManifestResourceNames().OrderBy(static n => n, StringComparer.Ordinal))
+        if (!includeVersionedMigrations)
         {
-            if (!resource.StartsWith(prefix, StringComparison.Ordinal) || !resource.EndsWith(".sql", StringComparison.Ordinal))
-            {
-                continue;
-            }
+            yield break;
+        }
 
-            var tail = resource[prefix.Length..];
-            var executable = tail.StartsWith("Sql.", StringComparison.Ordinal);
-            var migration = tail.StartsWith("Schema.Migrations.M", StringComparison.Ordinal);
-            if (!executable && !(includeVersionedMigrations && migration))
-            {
-                continue;
-            }
-            var path = LogicalPath(tail);
-            if (!includeViews && SqlResourceCatalog.IsView(Stem(path)))
-            {
-                continue;
-            }
-
-            yield return (path, ReadResource(assembly, resource));
+        var provider = Assembly.Load(ProviderAssemblyName(dialectToken));
+        var migrations = provider.GetName().Name + ".Schema.Migrations.";
+        foreach (
+            var resource in provider
+                .GetManifestResourceNames()
+                .Where(n => n.StartsWith(migrations + "M", StringComparison.Ordinal))
+                .Order(StringComparer.Ordinal)
+        )
+        {
+            yield return ("Schema/Migrations/" + resource[migrations.Length..], ReadResource(provider, resource));
         }
     }
 
@@ -91,39 +81,5 @@ internal static class ProviderSqlResources
             ?? throw new InvalidOperationException($"Resource '{resource}' disappeared during enumeration.");
         using var reader = new StreamReader(stream);
         return reader.ReadToEnd();
-    }
-
-    private static string LogicalPath(string resourceTail)
-    {
-        const string migrationPrefix = "Schema.Migrations.";
-        return resourceTail.StartsWith(migrationPrefix, StringComparison.Ordinal)
-            ? "Schema/Migrations/" + resourceTail[migrationPrefix.Length..]
-            : SqlLogicalPath.FromResourceTail(resourceTail);
-    }
-}
-
-/// <summary>
-/// Turns a dotted embedded-resource tail back into its <c>Sql/{Capability}/{Operation}.sql</c> path.
-/// Directory separators and the dots inside a file name are indistinguishable once embedded, so the
-/// rule is positional: strip <c>.sql</c> and any <c>.routine</c>/<c>.view</c> execution infix, treat
-/// the last remaining segment as the file stem, and every segment before it as a directory.
-/// </summary>
-internal static class SqlLogicalPath
-{
-    public static string FromResourceTail(string resourceTail)
-    {
-        var body = resourceTail[..^".sql".Length];
-        var infix = "";
-        foreach (var candidate in (string[])[".routine", ".view"])
-        {
-            if (body.EndsWith(candidate, StringComparison.Ordinal))
-            {
-                infix = candidate;
-                body = body[..^candidate.Length];
-            }
-        }
-
-        var lastDot = body.LastIndexOf('.');
-        return lastDot < 0 ? body + infix + ".sql" : body[..lastDot].Replace('.', '/') + "/" + body[(lastDot + 1)..] + infix + ".sql";
     }
 }

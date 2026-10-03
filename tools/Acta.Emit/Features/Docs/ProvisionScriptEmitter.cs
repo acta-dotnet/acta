@@ -357,24 +357,15 @@ internal static class ProvisionScriptEmitter
     internal static IEnumerable<(string Name, string Body)> Routines(string repoRoot, string token) =>
         Installed(SqlFiles(repoRoot, token).Where(f => !SqlResourceCatalog.IsView(f.Stem) && SqlResourceCatalog.DefinesRoutine(f.Body)));
 
-    // One dialect's files as Acta.Runtime embeds them, X.<token>.sql under Operations/ and Schema/, and,
-    // until the move beside the slices lands, the provider's own Sql/ tree.
-    private static IEnumerable<(string Stem, string Body)> SqlFiles(string repoRoot, string token)
-    {
-        var runtime = Path.Combine(repoRoot, "src", "Acta.Runtime");
-        var project = ProviderCatalog.All.Single(p => string.Equals(p.Token, token, StringComparison.Ordinal)).Project;
-        string[] roots =
-        [
-            Path.Combine(runtime, "Operations"),
-            Path.Combine(runtime, "Schema"),
-            Path.Combine(repoRoot, "src", project, "Sql"),
-        ];
-        return roots
+    private static readonly string[] SqlFolders = ["Operations", "Schema"];
+
+    // One dialect's files as Acta.Runtime embeds them: X.<token>.sql under Operations/ and Schema/.
+    private static IEnumerable<(string Stem, string Body)> SqlFiles(string repoRoot, string token) =>
+        SqlFolders
+            .Select(folder => Path.Combine(repoRoot, "src", "Acta.Runtime", folder))
             .Where(Directory.Exists)
-            .SelectMany(root => Directory.EnumerateFiles(root, "*.sql", SearchOption.AllDirectories))
-            .Where(path => path.StartsWith(roots[2], StringComparison.Ordinal) || path.EndsWith($".{token}.sql", StringComparison.Ordinal))
+            .SelectMany(root => Directory.EnumerateFiles(root, $"*.{token}.sql", SearchOption.AllDirectories))
             .Select(path => (Path.GetFileName(path).Split('.')[0], File.ReadAllText(path)));
-    }
 
     private static IEnumerable<(string Name, string Body)> Installed(IEnumerable<(string Stem, string Body)> files) =>
         files.Select(f => (Name: JsonNamingPolicy.SnakeCaseLower.ConvertName(f.Stem), f.Body)).OrderBy(o => o.Name, StringComparer.Ordinal);

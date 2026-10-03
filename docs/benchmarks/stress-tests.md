@@ -7,13 +7,13 @@ When a provider A/B points at SQL, resolve the feature-local siblings by logical
 than by the former core operation path:
 
 ```powershell
-tools/sql-compare.ps1 Jobs/EnqueueBatch
+tools/sql-compare.ps1 EnqueueBatch
 tools/sql-compare.ps1 -List
 ```
 
-The resolver maps `Jobs/EnqueueBatch` to each provider's
-`src/Acta.<Provider>/Sql/Execution/Jobs/EnqueueBatch*.sql` file and runs pairwise diffs. CI emits the
-same logical-resource sibling report whenever provider feature/service SQL changes in a pull request.
+The resolver maps `EnqueueBatch` to each dialect's
+`src/Acta.Runtime/Operations/Jobs/EnqueueBatch/EnqueueBatch.<dialect>.sql` file and runs pairwise diffs.
+CI emits the same sibling report whenever a SQL file changes in a pull request.
 
 Every run writes two files with the same timestamped basename:
 

@@ -13,13 +13,6 @@ public sealed partial class DialectParityTests
 {
     private const string Scalar = "(scalar)";
 
-    private static readonly Dictionary<string, string> Providers = new(StringComparer.Ordinal)
-    {
-        ["Acta.Postgres"] = "pg",
-        ["Acta.SqlServer"] = "mssql",
-        ["Acta.Sqlite"] = "sqlite",
-    };
-
     private static readonly HashSet<string> Boundaries = new(["BEGIN", "END", "THEN", "ELSE", "GO", ";"], StringComparer.OrdinalIgnoreCase);
 
     private static readonly HashSet<string> NotResults = new(["INSERT", "MERGE", "TABLE"], StringComparer.OrdinalIgnoreCase);
@@ -82,17 +75,13 @@ public sealed partial class DialectParityTests
         Ratchet.Check("dialect-parity", differences, "Return the same column names, in the same order, from every dialect.");
     }
 
-    // The provider Sql/ trees today, schema commands aside, and X.<dialect>.sql beside operations once they move.
+    // X.<dialect>.sql beside each operation; the schema commands and views are not operations.
     private static IEnumerable<(string File, string Stem, string Dialect)> SqlFiles()
     {
         foreach (var (path, relative) in ShippedCode.SourceFiles("*.sql"))
         {
             var parts = relative.Split('/');
-            if (parts.Length > 3 && Providers.TryGetValue(parts[1], out var dialect) && parts[2] == "Sql" && parts[3] != "Schema")
-            {
-                yield return (path, ProviderStem().Replace(parts[^1], ""), dialect);
-            }
-            else if (parts[1] == "Acta.Runtime" && parts[2] == "Operations" && OperationFile().Match(parts[^1]) is { Success: true } match)
+            if (parts[1] == "Acta.Runtime" && parts[2] == "Operations" && OperationFile().Match(parts[^1]) is { Success: true } match)
             {
                 yield return (path, match.Groups[1].Value, match.Groups[2].Value);
             }
@@ -263,9 +252,6 @@ public sealed partial class DialectParityTests
 
     [GeneratedRegex(@"""[^""]*""|\[[^\]]*\]|[@#]?[A-Za-z_][A-Za-z0-9_$]*|\d+(?:\.\d+)?|\S")]
     private static partial Regex TokenPattern();
-
-    [GeneratedRegex(@"(\.routine|\.view)?\.sql$")]
-    private static partial Regex ProviderStem();
 
     [GeneratedRegex(@"^(.+)\.(pg|mssql|sqlite)\.sql$")]
     private static partial Regex OperationFile();

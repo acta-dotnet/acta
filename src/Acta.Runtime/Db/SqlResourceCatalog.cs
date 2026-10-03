@@ -15,10 +15,11 @@ namespace Acta.Runtime;
 /// </summary>
 internal sealed class SqlResourceCatalog
 {
+    private readonly Assembly _assembly;
     private readonly string _dialect;
     private readonly string? _schema;
     private readonly string? _table;
-    private readonly Dictionary<string, (Assembly Assembly, string Name)> _resources = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _resources = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, string> _rendered = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, StoreExecutionKind> _kinds = new(StringComparer.Ordinal);
 
@@ -28,6 +29,7 @@ internal sealed class SqlResourceCatalog
     /// <summary>A catalog over another assembly's <c>X.{dialect}.sql</c> resources, for test fixtures.</summary>
     internal SqlResourceCatalog(Assembly assembly, string dialect, string? schema, string? table = null)
     {
+        _assembly = assembly;
         _dialect = dialect;
         _schema = schema;
         _table = table;
@@ -35,31 +37,13 @@ internal sealed class SqlResourceCatalog
         foreach (var resource in assembly.GetManifestResourceNames().Where(n => n.EndsWith(suffix, StringComparison.Ordinal)))
         {
             var name = resource[..^suffix.Length];
-            Add(name[(name.LastIndexOf('.') + 1)..], assembly, resource);
-        }
-
-        // Until the move beside the slices lands, the provider assembly still embeds its SQL under Sql/.
-        var provider = dialect switch
-        {
-            "pg" => "Acta.Postgres",
-            "mssql" => "Acta.SqlServer",
-            "sqlite" => "Acta.Sqlite",
-            _ => null,
-        };
-        if (provider is null)
-        {
-            return;
-        }
-
-        var legacy = Assembly.Load(provider);
-        foreach (var resource in legacy.GetManifestResourceNames().Where(n => n.StartsWith(provider + ".Sql.", StringComparison.Ordinal)))
-        {
-            var name = resource[..^".sql".Length];
-            name =
-                name.EndsWith(".routine", StringComparison.Ordinal) ? name[..^".routine".Length]
-                : name.EndsWith(".view", StringComparison.Ordinal) ? name[..^".view".Length]
-                : name;
-            Add(name[(name.LastIndexOf('.') + 1)..], legacy, resource);
+            var stem = name[(name.LastIndexOf('.') + 1)..];
+            if (!_resources.TryAdd(stem, resource))
+            {
+                throw new InvalidOperationException(
+                    $"The {dialect} SQL has two files with the stem '{stem}': '{_resources[stem]}' and '{resource}'."
+                );
+            }
         }
     }
 
@@ -121,16 +105,6 @@ internal sealed class SqlResourceCatalog
         return false;
     }
 
-    private void Add(string stem, Assembly assembly, string resource)
-    {
-        if (!_resources.TryAdd(stem, (assembly, resource)))
-        {
-            throw new InvalidOperationException(
-                $"The {_dialect} SQL has two files with the stem '{stem}': '{_resources[stem].Name}' and '{resource}'."
-            );
-        }
-    }
-
     private IEnumerable<(string Name, string Body)> Installed(IEnumerable<string> stems) =>
         stems
             .Select(stem => (Name: JsonNamingPolicy.SnakeCaseLower.ConvertName(stem), Stem: stem))
@@ -144,7 +118,7 @@ internal sealed class SqlResourceCatalog
             throw new InvalidOperationException($"The {_dialect} SQL has no file for '{stem}'.");
         }
 
-        using var stream = resource.Assembly.GetManifestResourceStream(resource.Name)!;
+        using var stream = _assembly.GetManifestResourceStream(resource)!;
         using var reader = new StreamReader(stream);
         // {{table}} and {{table_ref}} are substituted only for the external-outbox source catalog, whose
         // commands target a producer-owned table whose name is configurable; ledger resources never use

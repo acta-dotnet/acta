@@ -22,8 +22,8 @@
     <PackageReference Include="Npgsql" />
   </ItemGroup>
   <ItemGroup>
-    <!-- Provider-owned migrations, schema commands, feature SQL, and service SQL. -->
-    <EmbeddedResource Include="Sql/**/*.sql;Schema/Migrations/**/*.sql" Exclude="$(DefaultItemExcludes)">
+    <!-- The ordered migrations; every other SQL file lives beside its operation in Acta.Runtime. -->
+    <EmbeddedResource Include="Schema/Migrations/**/*.sql" Exclude="$(DefaultItemExcludes)">
       <LogicalName>$(AssemblyName).$([MSBuild]::ValueOrDefault('%(RelativeDir)', '').Replace('\', '.').Replace('/', '.'))%(Filename)%(Extension)</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
