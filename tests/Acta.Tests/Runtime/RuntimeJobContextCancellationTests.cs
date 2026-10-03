@@ -176,12 +176,12 @@ public sealed class RuntimeJobContextCancellationTests
         public bool IsRegistered(byte formatId) => false;
     }
 
-    private sealed class ThrowingLockStore : ILockStore
+    private sealed class ThrowingLockStore : ILocks
     {
-        public Task<LockToken?> TryAcquireAsync(string key, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
+        public Task<LockToken?> AcquireLockAsync(string key, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
             throw new NotSupportedException();
 
-        public Task<LockToken?> TryAcquireSlotAsync(string keyPrefix, int limit, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
+        public Task<LockToken?> AcquireSlotAsync(string keyPrefix, int limit, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
             throw new NotSupportedException();
 
         public Task<RateReservation> ReserveRateAsync(
@@ -193,8 +193,8 @@ public sealed class RuntimeJobContextCancellationTests
             CancellationToken ct
         ) => throw new NotSupportedException();
 
-        public Task<bool> ExtendAsync(LockToken token, TimeSpan ttl, CancellationToken ct) => throw new NotSupportedException();
+        public Task<bool> ExtendLockAsync(LockToken token, TimeSpan ttl, CancellationToken ct) => throw new NotSupportedException();
 
-        public Task<bool> ReleaseAsync(LockToken token, CancellationToken ct) => throw new NotSupportedException();
+        public Task<bool> ReleaseLockAsync(LockToken token, CancellationToken ct) => throw new NotSupportedException();
     }
 }

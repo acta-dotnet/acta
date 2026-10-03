@@ -9,7 +9,7 @@ namespace Acta.Tests.Conformance.Features.Locks;
 
 /// <summary>
 /// Conformance for <c>AcquireLock</c> - the steal-on-expiry acquire that backs
-/// <c>ILockStore.TryAcquireAsync</c>. A free key is acquired and the lease row lands; a competing
+/// <c>ILocks.AcquireLockAsync</c>. A free key is acquired and the lease row lands; a competing
 /// acquire on the same live key is blocked (returns <c>null</c>).
 /// </summary>
 [ConformanceSpec(
@@ -24,7 +24,7 @@ public sealed class AcquireLockSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Concurrent_acquires_have_one_winner()
     {
         var ct = TestContext.Current.CancellationToken;
-        var store = Services.GetRequiredService<ILockStore>();
+        var store = Services.GetRequiredService<ILocks>();
         var key = TestKey("lock-race");
         var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var attempts = Enumerable
@@ -32,7 +32,7 @@ public sealed class AcquireLockSpec : ActaStorageTestBase<ConformanceFixture>
             .Select(async i =>
             {
                 await start.Task;
-                return await store.TryAcquireAsync(key, TimeSpan.FromMinutes(1), -i, ct);
+                return await store.AcquireLockAsync(key, TimeSpan.FromMinutes(1), -i, ct);
             })
             .ToArray();
         start.SetResult();
@@ -41,17 +41,17 @@ public sealed class AcquireLockSpec : ActaStorageTestBase<ConformanceFixture>
         var row = await Db.From<Lock>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct);
         Assert.NotNull(row);
         Assert.Equal(winner.HoldToken, row.HoldToken);
-        Assert.True(await store.ReleaseAsync(winner, ct));
+        Assert.True(await store.ReleaseLockAsync(winner, ct));
     }
 
     [Fact(DisplayName = "First acquire returns a token and lands a lease row, and a competing acquire on a live key returns null")]
     public async Task Acquire_lands_a_lease_row_and_blocks_a_competing_acquire()
     {
         var ct = TestContext.Current.CancellationToken;
-        var lockStore = Services.GetRequiredService<ILockStore>();
+        var locks = Services.GetRequiredService<ILocks>();
         var key = TestKey("ck.acquire-lock-spec");
 
-        var token = await lockStore.TryAcquireAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -1, ct);
+        var token = await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -1, ct);
         Assert.NotNull(token);
 
         var lease = await Db.From<Lock>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct);
@@ -61,23 +61,23 @@ public sealed class AcquireLockSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.True(lease.ExpiresAtUtc > DateTime.UtcNow);
 
         // A competing acquire on the still-live lease returns null.
-        var rival = await lockStore.TryAcquireAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -2, ct);
+        var rival = await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -2, ct);
         Assert.Null(rival);
 
         // Release so the row is cleaned up (idempotent - no assertion needed here).
-        await lockStore.ReleaseAsync(token!.Value, ct);
+        await locks.ReleaseLockAsync(token!.Value, ct);
     }
 
     [Fact(DisplayName = "A competing acquire steals an expired lease and bumps the version")]
     public async Task Competing_acquire_steals_expired_lease_and_bumps_version()
     {
         var ct = TestContext.Current.CancellationToken;
-        var lockStore = Services.GetRequiredService<ILockStore>();
+        var locks = Services.GetRequiredService<ILocks>();
         var key = TestKey("ck.steal-on-expiry");
 
         // Initial acquire: lands a lease row. Owners are negative synthetic ids so they can never
         // collide with a real job identity under the parallel suite.
-        var tokenA = await lockStore.TryAcquireAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -1, ct);
+        var tokenA = await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -1, ct);
         Assert.NotNull(tokenA);
 
         // Deterministically expire the lease by back-dating expires_at_utc.
@@ -87,20 +87,20 @@ public sealed class AcquireLockSpec : ActaStorageTestBase<ConformanceFixture>
         }
 
         // A competing acquire on the now-expired lease must succeed (steal). Poll briefly: under SQL Server
-        // contention on the shared leases table TryAcquireAsync can transiently return null even though
+        // contention on the shared leases table AcquireLockAsync can transiently return null even though
         // the lease is expired and stealable, so one miss should not fail the test.
-        var tokenB = await lockStore.TryAcquireAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -2, ct);
+        var tokenB = await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -2, ct);
         var stealDeadline = DateTime.UtcNow.AddSeconds(10);
         while (tokenB is null && DateTime.UtcNow < stealDeadline)
         {
             await Task.Delay(50, ct);
-            tokenB = await lockStore.TryAcquireAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -2, ct);
+            tokenB = await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -2, ct);
         }
         Assert.NotNull(tokenB);
 
         // Post-steal: the new owner is the stealer. We do NOT assert the version strictly
         // increased: a concurrent PurgeExpiredData can reap the back-dated (expired) lease before the
-        // steal, in which case TryAcquireAsync re-inserts a fresh lease (version resets) rather than
+        // steal, in which case AcquireLockAsync re-inserts a fresh lease (version resets) rather than
         // updating it in place.
         {
             var postSteal = await Db.From<Lock>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct);
@@ -113,10 +113,10 @@ public sealed class AcquireLockSpec : ActaStorageTestBase<ConformanceFixture>
         // fresh insert can reuse version 1, making token A indistinguishable from token B.
         if (tokenA!.Value.HoldToken != tokenB!.Value.HoldToken)
         {
-            Assert.False(await lockStore.ReleaseAsync(tokenA.Value, ct));
+            Assert.False(await locks.ReleaseLockAsync(tokenA.Value, ct));
         }
 
         // Clean up: release the stealer's token.
-        await lockStore.ReleaseAsync(tokenB!.Value, ct);
+        await locks.ReleaseLockAsync(tokenB!.Value, ct);
     }
 }

@@ -37,14 +37,14 @@ public sealed class ConcurrencyLimitSpec : ActaRuntimeTestBase<ConformanceFixtur
         var prefix = SlotPrefix(TestKey("cl-mutex"));
         var locks = Locks;
 
-        var first = await locks.TryAcquireSlotAsync(prefix, limit: 1, HeldTtl, ownerJobId: 1, ct);
-        var second = await locks.TryAcquireSlotAsync(prefix, limit: 1, HeldTtl, ownerJobId: 2, ct);
+        var first = await locks.AcquireSlotAsync(prefix, limit: 1, HeldTtl, ownerJobId: 1, ct);
+        var second = await locks.AcquireSlotAsync(prefix, limit: 1, HeldTtl, ownerJobId: 2, ct);
 
         Assert.NotNull(first);
         Assert.Equal($"{prefix}.0", first!.Value.Key);
         Assert.Null(second);
 
-        await locks.ReleaseAsync(first.Value, ct);
+        await locks.ReleaseLockAsync(first.Value, ct);
     }
 
     [Fact(DisplayName = "Admission fills the lowest free slot and stops at the limit")]
@@ -57,21 +57,21 @@ public sealed class ConcurrencyLimitSpec : ActaRuntimeTestBase<ConformanceFixtur
         var held = new List<LockToken>();
         for (var i = 0; i < 2; i++)
         {
-            var token = await locks.TryAcquireSlotAsync(prefix, limit: 2, HeldTtl, ownerJobId: 100 + i, ct);
+            var token = await locks.AcquireSlotAsync(prefix, limit: 2, HeldTtl, ownerJobId: 100 + i, ct);
             Assert.NotNull(token);
             Assert.Equal($"{prefix}.{i}", token!.Value.Key);
             held.Add(token.Value);
         }
 
-        Assert.Null(await locks.TryAcquireSlotAsync(prefix, limit: 2, HeldTtl, ownerJobId: 999, ct));
+        Assert.Null(await locks.AcquireSlotAsync(prefix, limit: 2, HeldTtl, ownerJobId: 999, ct));
 
         // Releasing the lowest slot hands it back first: the scan is by slot number, not by age.
-        await locks.ReleaseAsync(held[0], ct);
-        var reused = await locks.TryAcquireSlotAsync(prefix, limit: 2, HeldTtl, ownerJobId: 1000, ct);
+        await locks.ReleaseLockAsync(held[0], ct);
+        var reused = await locks.AcquireSlotAsync(prefix, limit: 2, HeldTtl, ownerJobId: 1000, ct);
         Assert.Equal($"{prefix}.0", reused?.Key);
 
-        await locks.ReleaseAsync(reused!.Value, ct);
-        await locks.ReleaseAsync(held[1], ct);
+        await locks.ReleaseLockAsync(reused!.Value, ct);
+        await locks.ReleaseLockAsync(held[1], ct);
     }
 
     [Fact(DisplayName = "A shared key's capacity is the largest limit among its participants")]
@@ -85,26 +85,26 @@ public sealed class ConcurrencyLimitSpec : ActaRuntimeTestBase<ConformanceFixtur
         var small = new List<LockToken>();
         for (var i = 0; i < 2; i++)
         {
-            var token = await locks.TryAcquireSlotAsync(prefix, limit: 2, HeldTtl, ownerJobId: 200 + i, ct);
+            var token = await locks.AcquireSlotAsync(prefix, limit: 2, HeldTtl, ownerJobId: 200 + i, ct);
             Assert.NotNull(token);
             small.Add(token!.Value);
         }
-        Assert.Null(await locks.TryAcquireSlotAsync(prefix, limit: 2, HeldTtl, ownerJobId: 209, ct));
+        Assert.Null(await locks.AcquireSlotAsync(prefix, limit: 2, HeldTtl, ownerJobId: 209, ct));
 
         // The larger-limit participant still reaches slots 2 and 3: the small limit took nothing away.
         var large = new List<LockToken>();
         for (var i = 2; i < 4; i++)
         {
-            var token = await locks.TryAcquireSlotAsync(prefix, limit: 4, HeldTtl, ownerJobId: 300 + i, ct);
+            var token = await locks.AcquireSlotAsync(prefix, limit: 4, HeldTtl, ownerJobId: 300 + i, ct);
             Assert.Equal($"{prefix}.{i}", token?.Key);
             large.Add(token!.Value);
         }
 
-        Assert.Null(await locks.TryAcquireSlotAsync(prefix, limit: 4, HeldTtl, ownerJobId: 399, ct));
+        Assert.Null(await locks.AcquireSlotAsync(prefix, limit: 4, HeldTtl, ownerJobId: 399, ct));
 
         foreach (var token in small.Concat(large))
         {
-            await locks.ReleaseAsync(token, ct);
+            await locks.ReleaseLockAsync(token, ct);
         }
     }
 
@@ -120,16 +120,16 @@ public sealed class ConcurrencyLimitSpec : ActaRuntimeTestBase<ConformanceFixtur
         var high = new List<LockToken>();
         for (var i = 0; i < 4; i++)
         {
-            var token = await locks.TryAcquireSlotAsync(prefix, limit: 4, HeldTtl, ownerJobId: 400 + i, ct);
+            var token = await locks.AcquireSlotAsync(prefix, limit: 4, HeldTtl, ownerJobId: 400 + i, ct);
             high.Add(token!.Value);
         }
-        await locks.ReleaseAsync(high[0], ct);
-        await locks.ReleaseAsync(high[1], ct);
+        await locks.ReleaseLockAsync(high[0], ct);
+        await locks.ReleaseLockAsync(high[1], ct);
 
         // A worker that has observed the lowered limit sees exactly two slots and fills both.
-        Assert.Equal($"{prefix}.0", (await locks.TryAcquireSlotAsync(prefix, limit: 2, HeldTtl, ownerJobId: 500, ct))?.Key);
-        Assert.Equal($"{prefix}.1", (await locks.TryAcquireSlotAsync(prefix, limit: 2, HeldTtl, ownerJobId: 501, ct))?.Key);
-        Assert.Null(await locks.TryAcquireSlotAsync(prefix, limit: 2, HeldTtl, ownerJobId: 502, ct));
+        Assert.Equal($"{prefix}.0", (await locks.AcquireSlotAsync(prefix, limit: 2, HeldTtl, ownerJobId: 500, ct))?.Key);
+        Assert.Equal($"{prefix}.1", (await locks.AcquireSlotAsync(prefix, limit: 2, HeldTtl, ownerJobId: 501, ct))?.Key);
+        Assert.Null(await locks.AcquireSlotAsync(prefix, limit: 2, HeldTtl, ownerJobId: 502, ct));
     }
 
     [Fact(DisplayName = "A slot whose lease expired is stolen by the next admission")]
@@ -141,16 +141,16 @@ public sealed class ConcurrencyLimitSpec : ActaRuntimeTestBase<ConformanceFixtur
 
         // Slot 0 is held by an owner whose lease has already run out (the crashed-worker shape), so
         // the next admission steals it in place rather than moving on to slot 1.
-        var stale = await locks.TryAcquireSlotAsync(prefix, limit: 2, ExpiredTtl, ownerJobId: 600, ct);
+        var stale = await locks.AcquireSlotAsync(prefix, limit: 2, ExpiredTtl, ownerJobId: 600, ct);
         Assert.Equal($"{prefix}.0", stale?.Key);
 
-        var stolen = await locks.TryAcquireSlotAsync(prefix, limit: 2, HeldTtl, ownerJobId: 601, ct);
+        var stolen = await locks.AcquireSlotAsync(prefix, limit: 2, HeldTtl, ownerJobId: 601, ct);
         Assert.Equal($"{prefix}.0", stolen?.Key);
 
         // The steal re-minted the hold token, so the stale owner can no longer free its successor.
-        Assert.False(await locks.ReleaseAsync(stale!.Value, ct));
+        Assert.False(await locks.ReleaseLockAsync(stale!.Value, ct));
 
-        await locks.ReleaseAsync(stolen!.Value, ct);
+        await locks.ReleaseLockAsync(stolen!.Value, ct);
     }
 
     [Fact(DisplayName = "Real same-key handlers run at the limit minus the slots held elsewhere")]
@@ -164,7 +164,7 @@ public sealed class ConcurrencyLimitSpec : ActaRuntimeTestBase<ConformanceFixtur
 
         // One of the definition's two slots is held on behalf of a foreign owner, as another worker's
         // live execution would hold it, leaving exactly one for this namespace's executors.
-        var foreign = await locks.TryAcquireSlotAsync(SlotPrefix(key), ConcurrencyLimitProbe.Limit, HeldTtl, long.MaxValue, ct);
+        var foreign = await locks.AcquireSlotAsync(SlotPrefix(key), ConcurrencyLimitProbe.Limit, HeldTtl, long.MaxValue, ct);
         Assert.NotNull(foreign);
 
         ConcurrencyLimitProbe.Reset(TestNamespace);
@@ -200,10 +200,10 @@ public sealed class ConcurrencyLimitSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(jobs, completed);
         Assert.Equal(1, ConcurrencyLimitProbe.MaxObserved(TestNamespace));
 
-        await locks.ReleaseAsync(foreign!.Value, ct);
+        await locks.ReleaseLockAsync(foreign!.Value, ct);
     }
 
-    private ILockStore Locks => Services.GetRequiredService<ILockStore>();
+    private ILocks Locks => Services.GetRequiredService<ILocks>();
 
     // The composition the runner uses: namespace id, the sem discriminator, and the canonical key.
     private string SlotPrefix(string key) =>

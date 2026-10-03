@@ -115,9 +115,9 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
         // The worker-lease store being down must not stop the (independent) lock store from renewing.
         var lockA = new LockToken("orders.a", Guid.NewGuid());
         var lockB = new LockToken("orders.b", Guid.NewGuid());
-        var lockStore = new RecordingLockStore(_ => true);
+        var locks = new RecordingLockStore(_ => true);
         var context = Context();
-        var lockHeartbeat = new LockLeaseHeartbeat(lockStore, Options(), Registration, context, NullLogger.Instance);
+        var lockHeartbeat = new LockLeaseHeartbeat(locks, Options(), Registration, context, NullLogger.Instance);
 
         using var cts = new CancellationTokenSource();
         // Job lease healthy (seeded far out); the lock deadlines start nearly lapsed so a successful extend
@@ -133,8 +133,8 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
         await lockHeartbeat.TickAsync(TestContext.Current.CancellationToken);
 
         Assert.False(cts.IsCancellationRequested);
-        Assert.Contains(lockA, lockStore.Extended);
-        Assert.Contains(lockB, lockStore.Extended);
+        Assert.Contains(lockA, locks.Extended);
+        Assert.Contains(lockB, locks.Extended);
         // Both deadlines advanced to ~now + TTL, so the attempt has a full runway again.
         Assert.True(attempt.EarliestLeaseGoodUntil() - Stopwatch.GetTimestamp() > TicksFor(Interval));
     }
@@ -143,9 +143,9 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
     public async Task Lock_heartbeat_cancels_immediately_when_a_held_lock_is_lost()
     {
         var lost = new LockToken("orders.lost", Guid.NewGuid());
-        var lockStore = new RecordingLockStore(_ => false);
+        var locks = new RecordingLockStore(_ => false);
         var context = Context();
-        var lockHeartbeat = new LockLeaseHeartbeat(lockStore, Options(), Registration, context, NullLogger.Instance);
+        var lockHeartbeat = new LockLeaseHeartbeat(locks, Options(), Registration, context, NullLogger.Instance);
 
         using var cts = new CancellationTokenSource();
         var attempt = new RunningAttempt(cts);
@@ -155,16 +155,16 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
         await lockHeartbeat.TickAsync(TestContext.Current.CancellationToken);
 
         Assert.True(cts.IsCancellationRequested);
-        Assert.Single(lockStore.Extended, lost);
+        Assert.Single(locks.Extended, lost);
     }
 
     [Fact]
     public async Task Lock_heartbeat_tolerates_a_transient_throw_without_cancelling_or_feeding()
     {
         var flaky = new LockToken("orders.flaky", Guid.NewGuid());
-        var lockStore = new ThrowingLockStore(flaky);
+        var locks = new ThrowingLockStore(flaky);
         var context = Context();
-        var lockHeartbeat = new LockLeaseHeartbeat(lockStore, Options(), Registration, context, NullLogger.Instance);
+        var lockHeartbeat = new LockLeaseHeartbeat(locks, Options(), Registration, context, NullLogger.Instance);
 
         using var cts = new CancellationTokenSource();
         var deadline = Stopwatch.GetTimestamp() + TicksFor(TimeSpan.FromSeconds(LeaseTtlSeconds));
@@ -191,8 +191,8 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
         attempt.TrackLock(released, Stopwatch.GetTimestamp() + TicksFor(TimeSpan.FromSeconds(LeaseTtlSeconds)));
         context.RunningAttempts[1] = attempt;
 
-        var lockStore = new ThrowingLockStore(released, onExtend: () => attempt.UntrackLock(released));
-        var lockHeartbeat = new LockLeaseHeartbeat(lockStore, Options(), Registration, context, NullLogger.Instance);
+        var locks = new ThrowingLockStore(released, onExtend: () => attempt.UntrackLock(released));
+        var lockHeartbeat = new LockLeaseHeartbeat(locks, Options(), Registration, context, NullLogger.Instance);
 
         await lockHeartbeat.TickAsync(TestContext.Current.CancellationToken);
 
@@ -359,16 +359,16 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
         ) => throw new InvalidOperationException("synthetic transient worker-store fault");
     }
 
-    private sealed class RecordingLockStore(Func<LockToken, bool> result) : ILockStore
+    private sealed class RecordingLockStore(Func<LockToken, bool> result) : ILocks
     {
         private readonly List<LockToken> _extended = [];
 
         public IReadOnlyList<LockToken> Extended => _extended;
 
-        public Task<LockToken?> TryAcquireAsync(string key, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
+        public Task<LockToken?> AcquireLockAsync(string key, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
             throw new NotSupportedException();
 
-        public Task<LockToken?> TryAcquireSlotAsync(string keyPrefix, int limit, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
+        public Task<LockToken?> AcquireSlotAsync(string keyPrefix, int limit, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
             throw new NotSupportedException();
 
         public Task<RateReservation> ReserveRateAsync(
@@ -380,21 +380,21 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
             CancellationToken ct
         ) => throw new NotSupportedException();
 
-        public Task<bool> ExtendAsync(LockToken token, TimeSpan ttl, CancellationToken ct)
+        public Task<bool> ExtendLockAsync(LockToken token, TimeSpan ttl, CancellationToken ct)
         {
             _extended.Add(token);
             return Task.FromResult(result(token));
         }
 
-        public Task<bool> ReleaseAsync(LockToken token, CancellationToken ct) => throw new NotSupportedException();
+        public Task<bool> ReleaseLockAsync(LockToken token, CancellationToken ct) => throw new NotSupportedException();
     }
 
-    private sealed class ThrowingLockStore(LockToken flaky, Action? onExtend = null) : ILockStore
+    private sealed class ThrowingLockStore(LockToken flaky, Action? onExtend = null) : ILocks
     {
-        public Task<LockToken?> TryAcquireAsync(string key, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
+        public Task<LockToken?> AcquireLockAsync(string key, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
             throw new NotSupportedException();
 
-        public Task<LockToken?> TryAcquireSlotAsync(string keyPrefix, int limit, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
+        public Task<LockToken?> AcquireSlotAsync(string keyPrefix, int limit, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
             throw new NotSupportedException();
 
         public Task<RateReservation> ReserveRateAsync(
@@ -406,7 +406,7 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
             CancellationToken ct
         ) => throw new NotSupportedException();
 
-        public Task<bool> ExtendAsync(LockToken token, TimeSpan ttl, CancellationToken ct)
+        public Task<bool> ExtendLockAsync(LockToken token, TimeSpan ttl, CancellationToken ct)
         {
             if (token == flaky)
             {
@@ -416,6 +416,6 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
             return Task.FromResult(true);
         }
 
-        public Task<bool> ReleaseAsync(LockToken token, CancellationToken ct) => throw new NotSupportedException();
+        public Task<bool> ReleaseLockAsync(LockToken token, CancellationToken ct) => throw new NotSupportedException();
     }
 }

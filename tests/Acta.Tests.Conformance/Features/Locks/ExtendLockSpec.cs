@@ -7,9 +7,9 @@ using Xunit;
 namespace Acta.Tests.Conformance.Features.Locks;
 
 /// <summary>
-/// Conformance for <c>ILockStore.ExtendAsync</c> - the heartbeat's lock-lease renewal seam. A held lock
+/// Conformance for <c>ILocks.ExtendLockAsync</c> - the heartbeat's lock-lease renewal seam. A held lock
 /// renews while owned (a competing acquirer stays blocked), and a renew after release is a version-CAS
-/// miss. Proves the swappable-store contract the worker heartbeat relies on to keep a long handler's
+/// miss. Proves the contract the lock heartbeat relies on to keep a long handler's
 /// concurrency lock alive.
 /// </summary>
 [ConformanceSpec(
@@ -21,22 +21,22 @@ namespace Acta.Tests.Conformance.Features.Locks;
 public sealed class ExtendLockSpec : ActaStorageTestBase<ConformanceFixture>
 {
     [Fact(DisplayName = "A held lock extends and blocks rivals, and after release the extend is a CAS miss leaving the key re-acquirable")]
-    public async Task ExtendAsync_RenewsAHeldLock_AndMissesAfterRelease()
+    public async Task ExtendLock_renews_a_held_lock_and_misses_after_release()
     {
         var ct = TestContext.Current.CancellationToken;
-        var lockStore = Services.GetRequiredService<ILockStore>();
+        var locks = Services.GetRequiredService<ILocks>();
         var key = TestKey("ck.lease-renewal");
 
-        var token = await lockStore.TryAcquireAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -1, ct);
+        var token = await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -1, ct);
         Assert.NotNull(token);
 
         // Renew the held lock: the holder keeps the key, so a competing acquirer is still blocked.
-        Assert.True(await lockStore.ExtendAsync(token!.Value, TimeSpan.FromSeconds(60), ct));
-        Assert.Null(await lockStore.TryAcquireAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -2, ct));
+        Assert.True(await locks.ExtendLockAsync(token!.Value, TimeSpan.FromSeconds(60), ct));
+        Assert.Null(await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -2, ct));
 
         // After release the token no longer renews (version-CAS miss) and the key is acquirable again.
-        Assert.True(await lockStore.ReleaseAsync(token.Value, ct));
-        Assert.False(await lockStore.ExtendAsync(token.Value, TimeSpan.FromSeconds(60), ct));
-        Assert.NotNull(await lockStore.TryAcquireAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -3, ct));
+        Assert.True(await locks.ReleaseLockAsync(token.Value, ct));
+        Assert.False(await locks.ExtendLockAsync(token.Value, TimeSpan.FromSeconds(60), ct));
+        Assert.NotNull(await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -3, ct));
     }
 }

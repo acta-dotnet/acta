@@ -302,7 +302,7 @@ internal static class AlertTestOps
             alerts: services.GetRequiredService<IAlertStore>(),
             executionStore: services.GetRequiredService<IExecutionStore>(),
             serializers: services.GetRequiredService<IJobPayloadSerializerRegistry>(),
-            lockStore: services.GetRequiredService<ILockStore>(),
+            locks: services.GetRequiredService<ILocks>(),
             cancellationToken: CancellationToken.None,
             triggeringScheduleNames: [],
             deadlineAtUtc: null

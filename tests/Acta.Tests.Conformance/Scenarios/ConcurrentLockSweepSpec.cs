@@ -44,11 +44,11 @@ public sealed class ConcurrentLockSweepSpec : ActaRuntimeTestBase<ConformanceFix
         DeadlockRetryOff.SkipOnSqlite(Services);
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var locks = Services.GetRequiredService<ILockStore>();
+        var locks = Services.GetRequiredService<ILocks>();
         var keys = Enumerable.Range(0, ExpiredRows).Select(i => TestKey($"sweep-race.{i:D4}")).ToList();
         foreach (var key in keys)
         {
-            Assert.NotNull(await locks.TryAcquireAsync(key, TimeSpan.FromSeconds(-1), ownerJobId: -1, ct));
+            Assert.NotNull(await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(-1), ownerJobId: -1, ct));
         }
 
         var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

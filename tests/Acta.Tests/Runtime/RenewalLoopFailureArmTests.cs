@@ -256,14 +256,14 @@ public sealed class RenewalLoopFailureArmTests
     // torn down under a running query at shutdown: the exact state in which a tick failure reaches
     // RunAsync's arms rather than being absorbed inside TickAsync. Every other call renews normally.
     private sealed class ScriptedLockStore(CancellationTokenSource cts, int failOn, Exception? failure = null, bool cancellation = false)
-        : ILockStore
+        : ILocks
     {
         private int _calls;
 
-        public Task<LockToken?> TryAcquireAsync(string key, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
+        public Task<LockToken?> AcquireLockAsync(string key, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
             throw new NotSupportedException();
 
-        public Task<LockToken?> TryAcquireSlotAsync(string keyPrefix, int limit, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
+        public Task<LockToken?> AcquireSlotAsync(string keyPrefix, int limit, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
             throw new NotSupportedException();
 
         public Task<RateReservation> ReserveRateAsync(
@@ -275,7 +275,7 @@ public sealed class RenewalLoopFailureArmTests
             CancellationToken ct
         ) => throw new NotSupportedException();
 
-        public Task<bool> ExtendAsync(LockToken token, TimeSpan ttl, CancellationToken ct)
+        public Task<bool> ExtendLockAsync(LockToken token, TimeSpan ttl, CancellationToken ct)
         {
             if (Interlocked.Increment(ref _calls) != failOn)
             {
@@ -286,7 +286,7 @@ public sealed class RenewalLoopFailureArmTests
             throw cancellation ? new OperationCanceledException(cts.Token) : failure!;
         }
 
-        public Task<bool> ReleaseAsync(LockToken token, CancellationToken ct) => throw new NotSupportedException();
+        public Task<bool> ReleaseLockAsync(LockToken token, CancellationToken ct) => throw new NotSupportedException();
     }
 
     private sealed class ScriptedWorkerStore(CancellationTokenSource cts, int failOn, Exception? failure = null, bool cancellation = false)

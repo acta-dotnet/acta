@@ -734,7 +734,7 @@ internal sealed class JobExecutionHarness(
         int? rateWaitMilliseconds,
         bool slotThrows,
         bool rateThrows
-    ) : ILockStore
+    ) : ILocks
     {
         private readonly List<SlotRequest> _slotRequests = [];
         private readonly List<RateRequest> _rateRequests = [];
@@ -748,10 +748,10 @@ internal sealed class JobExecutionHarness(
 
         public int SlotReleases { get; private set; }
 
-        public Task<LockToken?> TryAcquireAsync(string key, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
+        public Task<LockToken?> AcquireLockAsync(string key, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
             throw new NotSupportedException();
 
-        public Task<LockToken?> TryAcquireSlotAsync(string keyPrefix, int limit, TimeSpan ttl, long ownerJobId, CancellationToken ct)
+        public Task<LockToken?> AcquireSlotAsync(string keyPrefix, int limit, TimeSpan ttl, long ownerJobId, CancellationToken ct)
         {
             _slotRequests.Add(new SlotRequest(keyPrefix, limit));
             if (slotThrows)
@@ -792,9 +792,9 @@ internal sealed class JobExecutionHarness(
             );
         }
 
-        public Task<bool> ExtendAsync(LockToken token, TimeSpan ttl, CancellationToken ct) => throw new NotSupportedException();
+        public Task<bool> ExtendLockAsync(LockToken token, TimeSpan ttl, CancellationToken ct) => throw new NotSupportedException();
 
-        public Task<bool> ReleaseAsync(LockToken token, CancellationToken ct)
+        public Task<bool> ReleaseLockAsync(LockToken token, CancellationToken ct)
         {
             SlotReleases++;
             return Task.FromResult(true);

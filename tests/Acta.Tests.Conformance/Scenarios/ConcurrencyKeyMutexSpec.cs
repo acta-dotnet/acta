@@ -141,8 +141,8 @@ public sealed class ConcurrencyKeyMutexSpec : ActaRuntimeTestBase<ConformanceFix
 
         // Hold the key's only execution slot on behalf of a foreign owner, as another worker's live
         // execution would. Same composition the runner uses ({ns_id}.sem.{canonical key}).
-        var lockStore = Services.GetRequiredService<ILockStore>();
-        var held = await lockStore.TryAcquireSlotAsync(
+        var locks = Services.GetRequiredService<ILocks>();
+        var held = await locks.AcquireSlotAsync(
             $"{ns}.sem.{IdentifierSyntax.NormalizeLowerInvariant(key)}",
             limit: 1,
             TimeSpan.FromMinutes(5),
@@ -170,7 +170,7 @@ public sealed class ConcurrencyKeyMutexSpec : ActaRuntimeTestBase<ConformanceFix
         var bounce = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobRescheduled, ct);
         Assert.Equal(JobEventReasonCode.JobConcurrencyKeyHeld, bounce.ReasonCode);
 
-        await lockStore.ReleaseAsync(held.Value, ct);
+        await locks.ReleaseLockAsync(held.Value, ct);
     }
 
     // Enqueues through the public IJobs surface with JobEnqueueRequest.ConcurrencyKey, so these specs

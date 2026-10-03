@@ -25,6 +25,5 @@ internal static class RelationalStoreRegistration
         services.AddSingleton<IAlertStore, RelationalAlertStore>();
         services.AddSingleton<IRetentionStore, RelationalRetentionStore>();
         services.AddSingleton<IExecutionStore, RelationalExecutionStore>();
-        services.TryAddSingleton<ILockStore, RelationalLockStore>();
     }
 }

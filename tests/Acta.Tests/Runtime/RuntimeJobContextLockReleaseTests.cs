@@ -9,18 +9,18 @@ public sealed class RuntimeJobContextLockReleaseTests
     [Fact]
     public async Task Concurrency_slot_release_failure_is_logged_and_does_not_escape()
     {
-        var lockStore = new ReleaseFailureLockStore();
+        var locks = new ReleaseFailureLockStore();
         var logger = new RecordingLogger();
-        var ctx = CreateContext(lockStore, logger);
+        var ctx = CreateContext(locks, logger);
         Assert.True(await ctx.TryAcquireConcurrencySlotAsync("customer-1", limit: 1, CancellationToken.None));
 
         await ctx.ReleaseConcurrencySlotAsync(CancellationToken.None);
 
-        Assert.Equal(1, lockStore.ReleaseCalls);
+        Assert.Equal(1, locks.ReleaseCalls);
         Assert.Equal(LogLevel.Warning, Assert.Single(logger.Levels));
     }
 
-    private static RuntimeJobContext CreateContext(ILockStore lockStore, ILogger logger) =>
+    private static RuntimeJobContext CreateContext(ILocks locks, ILogger logger) =>
         new(
             new ClaimedJob(
                 JobId: 42,
@@ -49,21 +49,21 @@ public sealed class RuntimeJobContextLockReleaseTests
             alerts: null!,
             executionStore: null!,
             new ThrowingSerializerRegistry(),
-            lockStore,
+            locks,
             cancellationToken: CancellationToken.None,
             triggeringScheduleNames: [],
             deadlineAtUtc: null,
             log: logger
         );
 
-    private sealed class ReleaseFailureLockStore : ILockStore
+    private sealed class ReleaseFailureLockStore : ILocks
     {
         public int ReleaseCalls { get; private set; }
 
-        public Task<LockToken?> TryAcquireAsync(string key, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
+        public Task<LockToken?> AcquireLockAsync(string key, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
             Task.FromResult<LockToken?>(new LockToken(key, Guid.NewGuid()));
 
-        public Task<LockToken?> TryAcquireSlotAsync(string keyPrefix, int limit, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
+        public Task<LockToken?> AcquireSlotAsync(string keyPrefix, int limit, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
             Task.FromResult<LockToken?>(new LockToken($"{keyPrefix}.0", Guid.NewGuid()));
 
         public Task<RateReservation> ReserveRateAsync(
@@ -75,9 +75,9 @@ public sealed class RuntimeJobContextLockReleaseTests
             CancellationToken ct
         ) => throw new NotSupportedException();
 
-        public Task<bool> ExtendAsync(LockToken token, TimeSpan ttl, CancellationToken ct) => throw new NotSupportedException();
+        public Task<bool> ExtendLockAsync(LockToken token, TimeSpan ttl, CancellationToken ct) => throw new NotSupportedException();
 
-        public Task<bool> ReleaseAsync(LockToken token, CancellationToken ct)
+        public Task<bool> ReleaseLockAsync(LockToken token, CancellationToken ct)
         {
             ReleaseCalls++;
             throw new TimeoutException("release failed");

@@ -14,7 +14,7 @@ surface, the HTTP surface, the SQL schema plus persisted codes, and the telemetr
 - **`lock` is the object, `lease` is the grant.** A lock is the mutual-exclusion thing with an
   identity; a lease is a time-bounded, renewable ownership grant. Lease names mechanics only -
   columns, TTLs, heartbeats: the execution lease on `runtimes`, the lease on a lock hold - never a
-  table or a store. `ILockStore.ExtendAsync` "extends the lease of the lock"; that layering is the
+  table or a store. `ILocks.ExtendLockAsync` "extends the lease of the lock"; that layering is the
   rule.
 - **`run` is the verb, `execution` is the noun.** You run a step (`RunStepAsync`,
   `RunWithLockAsync`, `builder.Run`, `RunAndWaitAsync`); the ledger records an execution

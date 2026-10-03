@@ -22,7 +22,7 @@ internal sealed class RuntimeJobContext(
     IAlertStore alerts,
     Acta.Runtime.IExecutionStore executionStore,
     IJobPayloadSerializerRegistry serializers,
-    ILockStore lockStore,
+    ILocks locks,
     IReadOnlyList<string> triggeringScheduleNames,
     DateTime? deadlineAtUtc,
     CancellationToken cancellationToken,
@@ -45,7 +45,7 @@ internal sealed class RuntimeJobContext(
     private readonly IAlertStore _alerts = alerts;
     private readonly Acta.Runtime.IExecutionStore _executionStore = executionStore;
     private readonly IJobPayloadSerializerRegistry _serializers = serializers;
-    private readonly ILockStore _lockStore = lockStore;
+    private readonly ILocks _locks = locks;
     private readonly int _namespaceId = namespaceId;
     private readonly int _leaseTtlSeconds = leaseTtlSeconds;
     private readonly int _maxInlinePayloadBytes = maxInlinePayloadBytes;
@@ -518,7 +518,7 @@ internal sealed class RuntimeJobContext(
         // Capture the request-start BEFORE the acquire: the store stamps the lease no earlier than this
         // instant, so requestStart + TTL is a conservative lower bound on when the lock actually expires.
         var requestedAt = Stopwatch.GetTimestamp();
-        var token = await _lockStore.TryAcquireAsync(ComposeLockKey(key, scope), TimeSpan.FromSeconds(_leaseTtlSeconds), JobId, ct);
+        var token = await _locks.AcquireLockAsync(ComposeLockKey(key, scope), TimeSpan.FromSeconds(_leaseTtlSeconds), JobId, ct);
         if (token is { } held)
         {
             // Register so the lock heartbeat extends this handler-acquired lock for as long as the
@@ -537,7 +537,7 @@ internal sealed class RuntimeJobContext(
         // Untrack before the store release so a heartbeat tick racing this release sees Holds()==false
         // and does not mistake the normal release for a steal.
         _runningAttempt?.UntrackLock(token);
-        return _lockStore.ReleaseAsync(token, ct);
+        return _locks.ReleaseLockAsync(token, ct);
     }
 
     private protected override void OnLockReleaseFailure(string key, LockScope scope, Exception exception) =>
@@ -557,7 +557,7 @@ internal sealed class RuntimeJobContext(
     {
         var prefix = $"{_namespaceId}.sem.{IdentifierSyntax.NormalizeKeyLookup(concurrencyKey, nameof(concurrencyKey))}";
         var requestedAt = Stopwatch.GetTimestamp();
-        var token = await _lockStore.TryAcquireSlotAsync(prefix, limit, TimeSpan.FromSeconds(_leaseTtlSeconds), JobId, ct);
+        var token = await _locks.AcquireSlotAsync(prefix, limit, TimeSpan.FromSeconds(_leaseTtlSeconds), JobId, ct);
         if (token is { } held)
         {
             _runningAttempt?.TrackLock(held, requestedAt + LeaseTtlStopwatchTicks());
@@ -578,7 +578,7 @@ internal sealed class RuntimeJobContext(
     internal Task<RateReservation> ReserveRateAsync(string rateKey, RateLimitSpec rate, CancellationToken ct)
     {
         var bucket = $"{_namespaceId}.rate.{IdentifierSyntax.NormalizeKeyLookup(rateKey, nameof(rateKey))}";
-        return _lockStore.ReserveRateAsync(bucket, JobId, rate.IntervalMilliseconds, rate.Burst, RateReservationGraceSeconds, ct);
+        return _locks.ReserveRateAsync(bucket, JobId, rate.IntervalMilliseconds, rate.Burst, RateReservationGraceSeconds, ct);
     }
 
     /// <summary>
@@ -597,7 +597,7 @@ internal sealed class RuntimeJobContext(
         _runningAttempt?.UntrackLock(token);
         try
         {
-            await _lockStore.ReleaseAsync(token, ct);
+            await _locks.ReleaseLockAsync(token, ct);
         }
         catch (Exception ex)
         {

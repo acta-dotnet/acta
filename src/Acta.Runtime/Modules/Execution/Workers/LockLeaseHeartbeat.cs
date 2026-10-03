@@ -6,22 +6,22 @@ namespace Acta.Runtime;
 
 /// <summary>
 /// Renews the handler-acquired locks (<c>RunWithLock</c> and the concurrency slot) running attempts
-/// hold, through the swappable <see cref="ILockStore"/>, on its own loop - separate from the worker
-/// heartbeat because the lock store is a distinct failure domain (relational today, Redis tomorrow). Each
+/// hold, through <see cref="ILocks"/>, on its own loop - separate from the worker heartbeat so a lock
+/// outage and a worker-lease outage are told apart. Each
 /// tick feeds a still-held lock's deadline on a confirmed extend and cancels the attempt when a still-held
-/// lock is definitively lost (<see cref="ILockStore.ExtendAsync"/> returns <c>false</c>); an uncertain
+/// lock is definitively lost (<see cref="ILocks.ExtendLockAsync"/> returns <c>false</c>); an uncertain
 /// extend (exception/timeout) feeds nothing, left to the <see cref="AttemptWatchdog"/>. A no-op in
 /// enqueue-only mode.
 /// </summary>
 internal sealed class LockLeaseHeartbeat(
-    ILockStore lockStore,
+    ILocks locks,
     IOptions<JobsOptions> options,
     WorkerRegistration? workerRegistration,
     WorkerContext context,
     ILogger log
 )
 {
-    private readonly ILockStore _lockStore = lockStore;
+    private readonly ILocks _locks = locks;
     private readonly WorkerRegistration? _workerRegistration = workerRegistration;
     private readonly WorkerContext _context = context;
     private readonly TimeSpan _interval = options.Value.HeartbeatInterval;
@@ -100,14 +100,14 @@ internal sealed class LockLeaseHeartbeat(
                     // earlier than this instant, so requestStart + TTL is a conservative lower bound on it.
                     var requestedAt = Stopwatch.GetTimestamp();
 
-                    // Bound the extend so a hung lock store (a stalled Redis connection) cannot hold the
+                    // Bound the extend so a hung lock round trip cannot hold the
                     // tick past a beat; a timeout surfaces as an OCE off callCts (ct not cancelled) and is
                     // handled exactly like a transient throw below.
                     using var callCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                     callCts.CancelAfter(_interval);
                     try
                     {
-                        var stillHeld = await _lockStore.ExtendAsync(token, _lockTtl, callCts.Token);
+                        var stillHeld = await _locks.ExtendLockAsync(token, _lockTtl, callCts.Token);
                         if (stillHeld)
                         {
                             // Confirmed extend: advance this lock's deadline (no-op if the handler released

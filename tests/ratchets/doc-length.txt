@@ -34,7 +34,6 @@ IExecutionStore.cs
 IJobContextAccessor.cs
 IJobPayloadSerializerRegistry.cs
 IJobs.cs
-ILockStore.cs
 IOutboxRelayStore.cs
 IScheduleStore.cs
 ISchedules.cs
@@ -115,7 +114,6 @@ RateLimitSpec.cs
 RecoveryPass.cs
 RecoverySlotMonitor.cs
 RelationalAlertStore.cs
-RelationalLockStore.cs
 RelationalOutboxRelayStore.cs
 RuntimeJobContext.cs
 ScheduleControlResult.cs

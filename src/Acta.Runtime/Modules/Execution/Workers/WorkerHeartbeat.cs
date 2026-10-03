@@ -10,9 +10,8 @@ namespace Acta.Runtime;
 /// <see cref="IWorkerStore.ExtendWorkerLeasesAsync"/> and feeds each running attempt's job-lease deadline
 /// on a confirmed renewal of its own execution, cancelling one only when an authoritative refresh drops its
 /// execution (operator cancel, a reclaimed lease, or the job claimed again into a newer execution). It does not enforce deadlines on an outage - the <see cref="AttemptWatchdog"/>
-/// does - nor renew handler locks - <see cref="LockLeaseHeartbeat"/> does, so the swappable
-/// <see cref="Acta.Runtime.ILockStore"/> (relational today, Redis tomorrow) stays a distinct failure
-/// domain. Runs on its own <see cref="PeriodicTimer"/>; a no-op in enqueue-only mode.
+/// does - nor renew handler locks - <see cref="LockLeaseHeartbeat"/> does, so a lock outage stays
+/// apart from a worker-lease one. Runs on its own <see cref="PeriodicTimer"/>; a no-op in enqueue-only mode.
 /// </summary>
 internal sealed class WorkerHeartbeat(
     IWorkerStore workers,

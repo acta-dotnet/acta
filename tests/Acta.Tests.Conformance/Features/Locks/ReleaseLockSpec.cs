@@ -9,7 +9,7 @@ namespace Acta.Tests.Conformance.Features.Locks;
 
 /// <summary>
 /// Conformance for <c>ReleaseLock</c> - the version-CAS DELETE that backs
-/// <c>ILockStore.ReleaseAsync</c>. Releasing a held lock removes the lease row and makes the key
+/// <c>ILocks.ReleaseLockAsync</c>. Releasing a held lock removes the lease row and makes the key
 /// re-acquirable; releasing an already-released token is a token-CAS miss that returns false.
 /// </summary>
 /// <remarks>
@@ -37,13 +37,13 @@ public sealed class ReleaseLockSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Release_deletes_the_row_and_returns_false_for_stale_token()
     {
         var ct = TestContext.Current.CancellationToken;
-        var lockStore = Services.GetRequiredService<ILockStore>();
+        var locks = Services.GetRequiredService<ILocks>();
         var key = TestKey("ck.release-lock-spec");
 
-        var token = await lockStore.TryAcquireAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -1, ct);
+        var token = await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -1, ct);
         Assert.NotNull(token);
 
-        Assert.True(await lockStore.ReleaseAsync(token!.Value, ct));
+        Assert.True(await locks.ReleaseLockAsync(token!.Value, ct));
 
         // Gone, not expired in place: the query carries no expiry filter, so an expire-style
         // release would still return the row and fail here. See the class remarks for why
@@ -52,12 +52,12 @@ public sealed class ReleaseLockSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Null(lease);
 
         // Releasing again with the same (now-stale) token is a token-CAS miss.
-        Assert.False(await lockStore.ReleaseAsync(token.Value, ct));
+        Assert.False(await locks.ReleaseLockAsync(token.Value, ct));
 
         // Key is free: a new acquire succeeds.
-        var reacquired = await lockStore.TryAcquireAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -2, ct);
+        var reacquired = await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -2, ct);
         Assert.NotNull(reacquired);
 
-        await lockStore.ReleaseAsync(reacquired!.Value, ct);
+        await locks.ReleaseLockAsync(reacquired!.Value, ct);
     }
 }

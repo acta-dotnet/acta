@@ -104,6 +104,12 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ResumeNamespaceHandler>();
         services.TryAddSingleton<UpdateNamespaceHandler>();
         services.TryAddSingleton<INamespaces, Namespaces>();
+        services.TryAddSingleton<AcquireLockHandler>();
+        services.TryAddSingleton<AcquireSlotHandler>();
+        services.TryAddSingleton<ReserveRateHandler>();
+        services.TryAddSingleton<ExtendLockHandler>();
+        services.TryAddSingleton<ReleaseLockHandler>();
+        services.TryAddSingleton<ILocks, Locks>();
 
         // Consumers light up the meter with WithMetrics(m => m.AddMeter(JobMetrics.MeterName)).
         services.TryAddSingleton<JobMetrics>();

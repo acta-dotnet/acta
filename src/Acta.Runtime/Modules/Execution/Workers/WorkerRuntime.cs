@@ -42,7 +42,7 @@ internal sealed class WorkerRuntime
     private readonly CancellationTokenSource _drainCts = new();
 
     public WorkerRuntime(
-        ILockStore lockStore,
+        ILocks locks,
         IActaClock clock,
         IJobPayloadSerializerRegistry serializers,
         IServiceProvider rootServices,
@@ -98,7 +98,7 @@ internal sealed class WorkerRuntime
             logger,
             metrics
         );
-        _executor = new JobExecutor(lockStore, clock, serializers, rootServices, options, _context, jobExecution, logger, metrics);
+        _executor = new JobExecutor(locks, clock, serializers, rootServices, options, _context, jobExecution, logger, metrics);
         _loop = new WorkerLoop(
             rootServices.GetRequiredService<IExecutionStore>(),
             _executor,
@@ -124,7 +124,7 @@ internal sealed class WorkerRuntime
                     token
                 )
         );
-        _lockHeartbeat = new LockLeaseHeartbeat(lockStore, options, workerRegistration, _context, logger);
+        _lockHeartbeat = new LockLeaseHeartbeat(locks, options, workerRegistration, _context, logger);
         _watchdog = new AttemptWatchdog(options, workerRegistration, _context, logger);
         _recoveryMonitor = new RecoverySlotMonitor(
             rootServices.GetRequiredService<IExecutionStore>(),
@@ -151,7 +151,7 @@ internal sealed class WorkerRuntime
     /// </summary>
     public static WorkerRuntime Create(IServiceProvider sp, WorkerRegistration worker) =>
         new(
-            sp.GetRequiredService<ILockStore>(),
+            sp.GetRequiredService<ILocks>(),
             sp.GetRequiredService<IActaClock>(),
             sp.GetRequiredService<IJobPayloadSerializerRegistry>(),
             sp,
