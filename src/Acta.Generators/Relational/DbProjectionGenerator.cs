@@ -418,7 +418,7 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
                 }
 
                 var ordinals = new int[columns.Length];
-                var missing = new System.Collections.Generic.List<string>();
+                System.Collections.Generic.List<string>? missing = null;
                 for (var c = 0; c < columns.Length; c++)
                 {
                     ordinals[c] = -1;
@@ -439,11 +439,11 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
 
                     if (ordinals[c] < 0)
                     {
-                        missing.Add(columns[c]);
+                        (missing ??= []).Add(columns[c]);
                     }
                 }
 
-                if (missing.Count > 0)
+                if (missing is not null)
                 {
                     throw new InvalidOperationException(
                         $"{projection} reads {string.Join(", ", missing)}, which the result ({string.Join(", ", actual)}) does not have."
