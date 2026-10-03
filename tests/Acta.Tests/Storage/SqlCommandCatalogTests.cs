@@ -28,7 +28,7 @@ public sealed class SqlCommandCatalogTests
                 Assert.Equal(StoreExecutionKind.Inline, sqlite.Resolve(command));
                 Assert.NotEmpty(sqlite.Load(command.Operation));
             }
-            Assert.Equal(StoreExecutionKind.Inline, catalog.Resolve(new StoreCommand("ClaimDueRows")));
+            Assert.Equal(StoreExecutionKind.Inline, catalog.Resolve(new StoreCommand("ClaimOutbox")));
             Assert.NotEmpty(catalog.Views());
         }
         Assert.Equal(

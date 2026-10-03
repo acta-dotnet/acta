@@ -34,7 +34,7 @@ internal sealed class RelationalOutboxRelayStore(IDbSession session, ISqlDialect
         var read = DbProjectionResolver.Resolve<OutboxRow>();
         // RETURNING and OUTPUT carry no order, so the batch is put back in staging order here.
         var claimed = await session.ExecuteAsync(
-            new StoreCommand("ClaimDueRows"),
+            new StoreCommand("ClaimOutbox"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.ClaimToken, command.ClaimToken));
@@ -49,7 +49,7 @@ internal sealed class RelationalOutboxRelayStore(IDbSession session, ISqlDialect
 
     public Task DeleteClaimedAsync(FinalizeOutboxCommand command, CancellationToken ct) =>
         session.ExecuteAsync(
-            new StoreCommand("DeleteClaimedRow"),
+            new StoreCommand("DeleteClaimedOutbox"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.ClaimToken, command.ClaimToken));
@@ -60,7 +60,7 @@ internal sealed class RelationalOutboxRelayStore(IDbSession session, ISqlDialect
 
     public Task RescheduleAsync(RescheduleOutboxCommand command, CancellationToken ct) =>
         session.ExecuteAsync(
-            new StoreCommand("RescheduleRow"),
+            new StoreCommand("RescheduleOutbox"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.ClaimToken, command.ClaimToken));
@@ -71,7 +71,7 @@ internal sealed class RelationalOutboxRelayStore(IDbSession session, ISqlDialect
 
     public Task QuarantineAsync(QuarantineOutboxCommand command, CancellationToken ct) =>
         session.ExecuteAsync(
-            new StoreCommand("QuarantineRow"),
+            new StoreCommand("QuarantineOutbox"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.ClaimToken, command.ClaimToken));
@@ -82,7 +82,7 @@ internal sealed class RelationalOutboxRelayStore(IDbSession session, ISqlDialect
 
     public Task ReleaseClaimedAsync(FinalizeOutboxCommand command, CancellationToken ct) =>
         session.ExecuteAsync(
-            new StoreCommand("ReleaseClaimedRow"),
+            new StoreCommand("ReleaseClaimedOutbox"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.ClaimToken, command.ClaimToken));
@@ -119,7 +119,7 @@ internal sealed class RelationalOutboxRelayStore(IDbSession session, ISqlDialect
     {
         var read = DbProjectionResolver.Resolve<OutboxQuarantinedRow>();
         return await session.QueryAsync(
-            new StoreCommand("ListQuarantinedRows"),
+            new StoreCommand("ListQuarantinedOutbox"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.PageSize, command.PageSize));
@@ -141,7 +141,7 @@ internal sealed class RelationalOutboxRelayStore(IDbSession session, ISqlDialect
     public async Task<IReadOnlyList<Guid>> RequeueQuarantinedAsync(RequeueQuarantinedOutboxCommand command, CancellationToken ct)
     {
         var affected = await session.ExecuteAsync(
-            new StoreCommand("RequeueQuarantinedRows"),
+            new StoreCommand("RequeueQuarantinedOutbox"),
             cmd => cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.OutboxIdsOptional, ToOptionalIdArray(command.OutboxIds))),
             DbProjectionResolver.Resolve<OutboxAffectedRow>(),
             ct
@@ -152,7 +152,7 @@ internal sealed class RelationalOutboxRelayStore(IDbSession session, ISqlDialect
     public async Task<IReadOnlyList<Guid>> DiscardQuarantinedAsync(DiscardQuarantinedOutboxCommand command, CancellationToken ct)
     {
         var affected = await session.ExecuteAsync(
-            new StoreCommand("DiscardQuarantinedRows"),
+            new StoreCommand("DiscardQuarantinedOutbox"),
             cmd => cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.OutboxIdsOptional, ToOptionalIdArray(command.OutboxIds))),
             DbProjectionResolver.Resolve<OutboxAffectedRow>(),
             ct

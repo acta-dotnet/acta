@@ -696,7 +696,7 @@ internal static partial class ActaSchema
         );
 
         /// <summary>
-        /// ListJobEvents created-instant range: inclusive lower bound / exclusive upper bound; NULL skips each.
+        /// ListEvents created-instant range: inclusive lower bound / exclusive upper bound; NULL skips each.
         /// </summary>
         public static readonly DbValueSpec<DateTime?> EventCreatedFromUtc = new(
             ParameterName: "p_created_from_utc",

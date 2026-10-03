@@ -4,7 +4,7 @@ namespace Acta.Runtime;
 /// One claimed external-outbox row: the positional projection of a source row and the fields the relay
 /// needs to reconstruct a <see cref="JobEnqueueRequest"/> and finalize under the current claim token. The
 /// constructor order is the <c>[DbProjection]</c> contract: it must match the SELECT column order in every
-/// provider's <c>ClaimDueRows.sql</c> at every position. Binary is read as <c>byte[]?</c> like the ledger
+/// provider's <c>ClaimOutbox.sql</c> at every position. Binary is read as <c>byte[]?</c> like the ledger
 /// input projections. <c>PriorityCode</c> stays null when the producer set no override, and so does the
 /// reconstructed request. <c>Id</c> is the producer insert order (the identity key, the rowid on SQLite)
 /// that the claim and the relay batch follow.
@@ -62,7 +62,7 @@ internal readonly record struct OutboxQuarantine(Guid OutboxId, int FailureCount
 /// <summary>
 /// One Quarantined row as the operator surface lists it: identity and routing fields plus the failure
 /// evidence, never the payload (opaque bytes stay in the producer's database). The constructor order is
-/// the <c>[DbProjection]</c> contract against every provider's <c>ListQuarantinedRows.sql</c>.
+/// the <c>[DbProjection]</c> contract against every provider's <c>ListQuarantinedOutbox.sql</c>.
 /// </summary>
 [DbProjection]
 internal sealed record OutboxQuarantinedRow(

@@ -20,7 +20,7 @@ public class DbSessionRetryRegionTests
     private sealed class TransientException : Exception { }
 
     private static readonly StoreCommand Command = new("CompleteStep");
-    private static readonly StoreCommand InlineCommand = new("ClaimDueRows");
+    private static readonly StoreCommand InlineCommand = new("ClaimOutbox");
 
     private static DbSession NewSession(FakeDialect dialect, int retryAttempts = 5) =>
         new(

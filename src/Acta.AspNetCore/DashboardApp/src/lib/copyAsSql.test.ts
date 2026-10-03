@@ -41,7 +41,7 @@ test('jobsListSql ignores blank and whitespace-only filter values', () => {
 });
 
 test('eventsListSql filters code families through the decoded columns and a time range', () => {
-  // The "to" bound is strictly exclusive to match every provider's ListJobEvents.sql (`created_at_utc < to`).
+  // The "to" bound is strictly exclusive to match every provider's ListEvents.sql (`created_at_utc < to`).
   assert.equal(
     eventsListSql({
       namespace: 'billing',

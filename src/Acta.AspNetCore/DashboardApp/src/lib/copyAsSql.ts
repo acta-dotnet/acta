@@ -99,7 +99,7 @@ export function eventsListSql(filters: EventsSqlFilters, dialect: SqlDialect = {
   if (workerRef !== null) predicates.push({ column: 'worker_ref', op: '=', value: workerRef });
   if (text(filters.createdFromUtc))
     predicates.push({ column: 'created_at_utc', op: '>=', value: text(filters.createdFromUtc) });
-  // Exclusive upper bound to match every provider's ListJobEvents.sql (`created_at_utc < to`); a `<=`
+  // Exclusive upper bound to match every provider's ListEvents.sql (`created_at_utc < to`); a `<=`
   // here would copy back rows the grid excluded.
   if (text(filters.createdToUtc))
     predicates.push({ column: 'created_at_utc', op: '<', value: text(filters.createdToUtc) });
