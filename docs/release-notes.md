@@ -12,6 +12,10 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   handler that already finished. The cost is throughput: in the rc.4 round, PostgreSQL drain at sixteen
   workers ran about 29,000 jobs a second on Bulk and about 10,000 on Direct. The installed routines
   lose `complete_executions_batch`, and the object package moves to revision 8.
+- **The `Acta.Testing` scenario API is gone.** `Scenario.For`, `ScenarioSession`, and their snapshot and
+  diagnostics types are removed. Drive a job through `IActaTestHost` itself: enqueue through
+  `host.Jobs`, tick with `RunOnceAsync`, and make a timer, step retry, or wait due with the `Force*`
+  helpers.
 
 ### Fixes
 

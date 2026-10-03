@@ -109,7 +109,7 @@ The boundary has three sides, and only two of them are inside it:
   - **Write outcomes, failures, and their ids**: `JobEnqueueOutcome`, `JobControlResult`, the other
     `Job*Outcome` records, `JobFailedException.JobId`,
     `DuplicateDeduplicationKeyInBatchException.ParentJobId` / its `ForChild` factory, and the
-    `Acta.Testing` pass-throughs of these members (`ScenarioSession<TInput>.JobId`).
+    `Acta.Testing` host helpers that take a job id (`IActaTestHost.RunOnceAsync(long)` and the `Force*` helpers).
   - **The child-job APIs**, which take or return a child's id: `WaitChildAsync`, `WaitChildrenAsync`,
     `GetChildResultAsync`, `ChildJobOutcome.ChildJobId`, `MapItemOutcome<TKey>.ChildJobId`, and
     `JobEnqueueOptionsBuilder.ParentJobId(long)`.

@@ -2898,19 +2898,16 @@
   - Count returns the matching row count
   - An IN predicate filters to the matching status set
 
-### Scenario sessions drive jobs through common durable states
-- **Contract:** Scenario sessions pin one enqueued job and drive typed results, signals, timers, retries, diagnostics and failures without conformance boilerplate.
+### The test host's fast-forward helpers make only the named job's wait due
+- **Contract:** IActaTestHost makes a parked timer, step retry, bounded wait, child wait, or group wait due at once, and refuses a wait that has no deadline to move.
 - **Arrange:** An ActaTestHost is started for TestJobsManifest in an isolated namespace.
-- **Act:** The public Scenario API enqueues typed and contract jobs, ticks them, raises signals, fast-forwards due rows and reads diagnostics.
-- **Assert:** Sessions observe pinned job state, return typed results, expose diagnostics and drive Succeeded or Failed outcomes deterministically.
+- **Act:** Jobs park on a timer, a step retry, a bounded signal wait, a child wait, and a group wait, and the host's Force helpers make each due.
+- **Assert:** Each job runs on to Succeeded with its slot settled, and the helpers throw for an unbounded wait and for a job without a group.
 - **Guarantees:**
-  - Typed result sessions run to Succeeded and return TResult plus timeline diagnostics
-  - No-input contract sessions run until a signal, raise it and complete
-  - Timer and step retry helpers fast-forward only the pinned session job
-  - The wait-timeout helper expires the pinned bounded wait and rejects an unbounded one
-  - The wait-timeout helper expires a pinned bounded child wait by its latch name
+  - The timer and step-retry helpers make the parked job due
+  - The wait-timeout helper expires a bounded wait and rejects an unbounded one
+  - The wait-timeout helper expires a bounded child wait by its latch name
   - The group wait-timeout helper expires a whole group and rejects a job without one
-  - RunUntilFailed stops on Failed and assertion failures include a scenario dump
 
 ## Variables
 

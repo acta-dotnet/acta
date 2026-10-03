@@ -24,10 +24,13 @@ public static class ScriptProvisionedRuntime
     )
     {
         await using var host = await StartAsync(applyProvider, schema, ct);
-        var session = await Scenario.For<AddNumbers, AddNumbersResult>(host).EnqueueAsync(new AddNumbers(left, right), ct: ct);
-        await session.RunUntilDoneAsync(ct: ct);
-        Assert.Equal(new AddNumbersResult(left + right), await session.ResultAsync(ct));
-        return session.JobRef;
+        var enqueued = await host.Jobs.EnqueueAsync(new AddNumbers(left, right), ct: ct);
+        Assert.Equal(ActaRunOutcome.Completed, await host.RunOnceAsync(enqueued, ct));
+        Assert.Equal(
+            new AddNumbersResult(left + right),
+            await host.Jobs.GetResultAsync<AddNumbersResult>(JobLookup.ByRef(enqueued.JobRef), ct)
+        );
+        return enqueued.JobRef;
     }
 
     /// <summary>Asserts that a job run earlier still reads back as succeeded with its result.</summary>

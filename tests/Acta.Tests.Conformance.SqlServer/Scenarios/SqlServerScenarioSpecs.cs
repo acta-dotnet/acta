@@ -7,8 +7,6 @@ namespace Acta.Tests.Conformance.SqlServer.Scenarios;
 
 public sealed class SqlServerStepSpec : StepSpec<SqlServerConformanceFixture>;
 
-public sealed class SqlServerScenarioSessionSpec : ScenarioSessionSpec<SqlServerConformanceFixture>;
-
 public sealed class SqlServerChildJobCrossNamespaceSpec : ChildJobCrossNamespaceSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerChildJobSpec : ChildJobSpec<SqlServerConformanceFixture>;
@@ -98,3 +96,5 @@ public sealed class SqlServerStepDeferredRetrySpec : StepDeferredRetrySpec<SqlSe
 public sealed class SqlServerStepExhaustionSpec : StepExhaustionSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerStepAtMostOnceSpec : StepAtMostOnceSpec<SqlServerConformanceFixture>;
+
+public sealed class SqlServerTestHostHelpersSpec : TestHostHelpersSpec<SqlServerConformanceFixture>;

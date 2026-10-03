@@ -14,7 +14,7 @@ Console.WriteLine($"outbox DDL bytes: {OutboxProducer.Ddl().Length}");
 Console.WriteLine($"redis package: {typeof(Acta.Redis.RedisActaBuilderExtensions).FullName}");
 #endif
 #if SMOKE_TESTING
-Console.WriteLine($"testing package: {typeof(Acta.Testing.Scenarios.Scenario).FullName}");
+Console.WriteLine($"testing package: {typeof(Acta.Testing.Hosting.ActaTestHost).FullName}");
 #endif
 #if SMOKE_ASPNETCORE
 Console.WriteLine($"aspnetcore package: {typeof(Acta.AspNetCore.ActaEndpointRouteBuilderExtensions).FullName}");

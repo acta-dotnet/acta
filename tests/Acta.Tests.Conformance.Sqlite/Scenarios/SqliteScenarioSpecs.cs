@@ -5,8 +5,6 @@ namespace Acta.Tests.Conformance.Sqlite.Scenarios;
 
 public sealed class SqliteStepSpec : StepSpec<SqliteConformanceFixture>;
 
-public sealed class SqliteScenarioSessionSpec : ScenarioSessionSpec<SqliteConformanceFixture>;
-
 public sealed class SqliteConcurrencyKeyMutexSpec : ConcurrencyKeyMutexSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteLaneAncestorGuardSpec : LaneAncestorGuardSpec<SqliteConformanceFixture>;
@@ -96,3 +94,5 @@ public sealed class SqliteStepDeferredRetrySpec : StepDeferredRetrySpec<SqliteCo
 public sealed class SqliteStepExhaustionSpec : StepExhaustionSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteStepAtMostOnceSpec : StepAtMostOnceSpec<SqliteConformanceFixture>;
+
+public sealed class SqliteTestHostHelpersSpec : TestHostHelpersSpec<SqliteConformanceFixture>;

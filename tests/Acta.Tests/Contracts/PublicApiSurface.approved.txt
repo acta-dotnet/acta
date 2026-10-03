@@ -106,71 +106,6 @@ static class Acta.Sqlite.SqliteOutboxStagingExtensions
     System.Threading.Tasks.Task AddToActaOutboxAsync(Microsoft.Data.Sqlite.SqliteTransaction transaction, Acta.JobEnqueueRequest request, System.String table = default, System.String schema = default, System.Threading.CancellationToken cancellationToken = default)
 
 ## Acta.Testing
-sealed class Acta.Testing.Diagnostics.ScenarioAssertionException
-    .ctor(System.String message)
-    .ctor(System.String message, System.Exception innerException)
-sealed class Acta.Testing.Diagnostics.ScenarioCheckpointSnapshot
-    .ctor()
-    Acta.JobCheckpointKindCode Kind { get;init; }
-    System.DateTime CreatedAtUtc { get;init; }
-    System.DateTime ModifiedAtUtc { get;init; }
-    System.Int32 Version { get;init; }
-    System.Int64 JobId { get;init; }
-    System.Nullable<Acta.JobCheckpointStatusCode> Status { get;init; }
-    System.Nullable<Acta.JobPayload> Value { get;init; }
-    System.Nullable<System.DateTime> DueAtUtc { get;init; }
-    System.String Name { get;init; }
-sealed class Acta.Testing.Diagnostics.ScenarioEventSnapshot
-    .ctor()
-    Acta.ActorCode ActorCode { get;init; }
-    Acta.EventCode EventCode { get;init; }
-    System.DateTime CreatedAtUtc { get;init; }
-    System.Int64 EventId { get;init; }
-    System.Nullable<Acta.ExecutionStatusCode> ExecutionStatus { get;init; }
-    System.Nullable<Acta.JobEventReasonCode> ReasonCode { get;init; }
-    System.Nullable<Acta.JobStatusCode> FromStatus { get;init; }
-    System.Nullable<Acta.JobStatusCode> ToStatus { get;init; }
-    System.Nullable<System.Int32> DurationMs { get;init; }
-    System.Nullable<System.Int32> ExecutionNumber { get;init; }
-    System.Nullable<System.Int64> JobId { get;init; }
-    System.String ActorKey { get;init; }
-    System.String DetailText { get;init; }
-    System.String Namespace { get;init; }
-    System.String ReasonMessage { get;init; }
-sealed class Acta.Testing.Diagnostics.ScenarioJobSnapshot
-    .ctor()
-    Acta.JobPriorityCode Priority { get;init; }
-    Acta.JobRef JobRef { get;init; }
-    Acta.JobStatusCode Status { get;init; }
-    System.DateTime CreatedAtUtc { get;init; }
-    System.DateTime ModifiedAtUtc { get;init; }
-    System.Int32 ExecutionNumber { get;init; }
-    System.Int32 FailureCount { get;init; }
-    System.Int64 JobId { get;init; }
-    System.Nullable<System.DateTime> LeaseExpiresAtUtc { get;init; }
-    System.Nullable<System.DateTime> NextRunAtUtc { get;init; }
-    System.Nullable<System.Int32> LeasedByWorkerId { get;init; }
-    System.Nullable<System.Int64> LineageRootId { get;init; }
-    System.Nullable<System.Int64> ParentJobId { get;init; }
-    System.String ConcurrencyKey { get;init; }
-    System.String CorrelationKey { get;init; }
-    System.String DeduplicationKey { get;init; }
-    System.String JobName { get;init; }
-    System.String Namespace { get;init; }
-sealed class Acta.Testing.Diagnostics.ScenarioStepSnapshot
-    .ctor()
-    Acta.JobStepStatusCode Status { get;init; }
-    System.DateTime CreatedAtUtc { get;init; }
-    System.DateTime ModifiedAtUtc { get;init; }
-    System.Int32 AttemptNumber { get;init; }
-    System.Int32 Version { get;init; }
-    System.Int64 JobId { get;init; }
-    System.Int64 StepId { get;init; }
-    System.Nullable<Acta.JobEventReasonCode> ReasonCode { get;init; }
-    System.Nullable<Acta.JobPayload> Result { get;init; }
-    System.Nullable<System.DateTime> NextRetryAtUtc { get;init; }
-    System.String Name { get;init; }
-    System.String ReasonMessage { get;init; }
 sealed class Acta.Testing.Hosting.ActaRecoveryOutcome
     .ctor(System.Int32 DeadWorkersMarked, System.Int32 ReclaimedJobs, System.Int32 ReleasedChildLatches)
     System.Int32 DeadWorkersMarked { get;init; }
@@ -202,61 +137,6 @@ interface Acta.Testing.Hosting.IActaTestHost
     System.Threading.Tasks.Task<Acta.Testing.Hosting.ActaRunOutcome> RunOnceAsync(Acta.JobEnqueueOutcome enqueued, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.Testing.Hosting.ActaRunOutcome> RunOnceAsync(System.Int64 jobId, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.Testing.Hosting.ActaRunOutcome> RunOnceAsync(System.String jobNamespace, System.Threading.CancellationToken ct = default)
-static class Acta.Testing.Scenarios.Scenario
-    Acta.Testing.Scenarios.ScenarioContractBuilder<TInput, TResult> For<TInput, TResult>(Acta.JobContract<TInput, TResult> contract, Acta.Testing.Hosting.IActaTestHost host)
-    Acta.Testing.Scenarios.ScenarioContractBuilder<TInput> For<TInput>(Acta.JobContract<TInput> contract, Acta.Testing.Hosting.IActaTestHost host)
-    Acta.Testing.Scenarios.ScenarioNoInputBuilder For(Acta.JobContract<Acta.NoInput> contract, Acta.Testing.Hosting.IActaTestHost host)
-    Acta.Testing.Scenarios.ScenarioNoInputBuilder<TResult> For<TResult>(Acta.JobContract<Acta.NoInput, TResult> contract, Acta.Testing.Hosting.IActaTestHost host)
-    Acta.Testing.Scenarios.ScenarioTypedBuilder<TInput, TResult> For<TInput, TResult>(Acta.Testing.Hosting.IActaTestHost host)
-    Acta.Testing.Scenarios.ScenarioTypedBuilder<TInput> For<TInput>(Acta.Testing.Hosting.IActaTestHost host)
-sealed class Acta.Testing.Scenarios.ScenarioContractBuilder<TInput>
-    System.Threading.Tasks.ValueTask<Acta.Testing.Scenarios.ScenarioSession<TInput>> EnqueueAsync(TInput input, Acta.JobEnqueueOptions options = default, System.Threading.CancellationToken ct = default)
-sealed class Acta.Testing.Scenarios.ScenarioContractBuilder<TInput, TResult>
-    System.Threading.Tasks.ValueTask<Acta.Testing.Scenarios.ScenarioSession<TInput, TResult>> EnqueueAsync(TInput input, Acta.JobEnqueueOptions options = default, System.Threading.CancellationToken ct = default)
-sealed class Acta.Testing.Scenarios.ScenarioNoInputBuilder
-    System.Threading.Tasks.ValueTask<Acta.Testing.Scenarios.ScenarioSession<Acta.NoInput>> EnqueueAsync(Acta.JobEnqueueOptions options = default, System.Threading.CancellationToken ct = default)
-sealed class Acta.Testing.Scenarios.ScenarioNoInputBuilder<TResult>
-    System.Threading.Tasks.ValueTask<Acta.Testing.Scenarios.ScenarioSession<Acta.NoInput, TResult>> EnqueueAsync(Acta.JobEnqueueOptions options = default, System.Threading.CancellationToken ct = default)
-class Acta.Testing.Scenarios.ScenarioSession<TInput>
-    Acta.JobEnqueueOutcome EnqueueOutcome { get; }
-    Acta.JobLookup Lookup { get; }
-    Acta.JobRef JobRef { get; }
-    System.Int64 JobId { get; }
-    System.String JobName { get; }
-    System.String Namespace { get; }
-    System.Threading.Tasks.Task ExpireLeaseAsync(System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task FastForwardToGroupWaitTimeoutAsync(System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task FastForwardToNextTimerAsync(System.String name, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task FastForwardToNextTimerAsync(System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task FastForwardToStepRetryAsync(System.String name, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task FastForwardToStepRetryAsync(System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task FastForwardToWaitTimeoutAsync(System.String name, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task FastForwardToWaitTimeoutAsync(System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task RunUntilDoneAsync(System.Int32 maxTicks = default, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task RunUntilFailedAsync(System.Int32 maxTicks = default, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task RunUntilSignalAsync(System.String name = default, System.Int32 maxTicks = default, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task<Acta.JobStatusCode> StatusAsync(System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task<Acta.Testing.Diagnostics.ScenarioCheckpointSnapshot> SignalAsync(System.String name, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task<Acta.Testing.Diagnostics.ScenarioCheckpointSnapshot> TimerAsync(System.String name, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task<Acta.Testing.Diagnostics.ScenarioJobSnapshot> JobAsync(System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task<Acta.Testing.Diagnostics.ScenarioStepSnapshot> StepAsync(System.String name, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task<Acta.Testing.Hosting.ActaRecoveryOutcome> RecoverAsync(System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task<Acta.Testing.Hosting.ActaRunOutcome> RunOnceAsync(System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<Acta.Testing.Diagnostics.ScenarioCheckpointSnapshot>> CheckpointsAsync(Acta.JobCheckpointKindCode kind, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<Acta.Testing.Diagnostics.ScenarioCheckpointSnapshot>> SignalsAsync(System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<Acta.Testing.Diagnostics.ScenarioCheckpointSnapshot>> TimersAsync(System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<Acta.Testing.Diagnostics.ScenarioEventSnapshot>> EventsAsync(System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<Acta.Testing.Diagnostics.ScenarioStepSnapshot>> StepsAsync(System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.JobControlResult> RaiseSignalAsync(System.String name, Acta.JobPayload value, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.JobControlResult> RaiseSignalAsync(System.String name, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.JobControlResult> RaiseSignalAsync<T>(System.String name, T value, System.Threading.CancellationToken ct = default)
-sealed class Acta.Testing.Scenarios.ScenarioSession<TInput, TResult>
-    System.Threading.Tasks.Task AssertResultAsync(TResult expected, System.Collections.Generic.IEqualityComparer<TResult> comparer = default, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task<TResult> ResultAsync(System.Threading.CancellationToken ct = default)
-sealed class Acta.Testing.Scenarios.ScenarioTypedBuilder<TInput>
-    System.Threading.Tasks.ValueTask<Acta.Testing.Scenarios.ScenarioSession<TInput>> EnqueueAsync(TInput input, Acta.JobEnqueueOptions options = default, System.Threading.CancellationToken ct = default)
-sealed class Acta.Testing.Scenarios.ScenarioTypedBuilder<TInput, TResult>
-    System.Threading.Tasks.ValueTask<Acta.Testing.Scenarios.ScenarioSession<TInput, TResult>> EnqueueAsync(TInput input, Acta.JobEnqueueOptions options = default, System.Threading.CancellationToken ct = default)
 
 ## Acta
 enum Acta.ActorCode

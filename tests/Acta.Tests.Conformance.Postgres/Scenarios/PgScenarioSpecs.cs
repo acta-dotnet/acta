@@ -7,8 +7,6 @@ namespace Acta.Tests.Conformance.Postgres.Scenarios;
 
 public sealed class PgStepSpec : StepSpec<PgConformanceFixture>;
 
-public sealed class PgScenarioSessionSpec : ScenarioSessionSpec<PgConformanceFixture>;
-
 public sealed class PgChildJobCrossNamespaceSpec : ChildJobCrossNamespaceSpec<PgConformanceFixture>;
 
 public sealed class PgChildJobSpec : ChildJobSpec<PgConformanceFixture>;
@@ -98,3 +96,5 @@ public sealed class PgStepDeferredRetrySpec : StepDeferredRetrySpec<PgConformanc
 public sealed class PgStepExhaustionSpec : StepExhaustionSpec<PgConformanceFixture>;
 
 public sealed class PgStepAtMostOnceSpec : StepAtMostOnceSpec<PgConformanceFixture>;
+
+public sealed class PgTestHostHelpersSpec : TestHostHelpersSpec<PgConformanceFixture>;

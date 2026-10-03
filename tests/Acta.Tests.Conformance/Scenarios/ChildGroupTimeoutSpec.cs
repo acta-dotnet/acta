@@ -492,7 +492,7 @@ public abstract class ChildGroupTimeoutSpec<TFixture> : ActaRuntimeTestBase<TFix
 
     // The same staging the public ForceGroupWaitTimeoutDueAsync helper performs, called through the one
     // implementation both share: this spec drives a WorkerRuntime rather than an IActaTestHost, so it
-    // reaches the code rather than the facade. ScenarioSessionSpec covers the public helper itself.
+    // reaches the code rather than the facade. TestHostHelpersSpec covers the public helper itself.
     private Task ExpireGroupWaitAsync(long parentId, CancellationToken ct) => ExpireGroupWaitAsync(parentId, slotName: null, ct);
 
     // A named slot expires one group on a job holding several. The public helper takes no name on
