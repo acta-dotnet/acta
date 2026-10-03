@@ -65,4 +65,4 @@ explicitly instead.
 
 - [The related Engineering Lab](../../../docs/engineering-labs.md)
 - [`operator-restart.cs`](./operator-restart.cs)
-- [`RestartJob.sql`](../../../src/Acta.Sqlite/Sql/Execution/Jobs/RestartJob.sql)
+- [`RestartJob.sql`](../../../src/Acta.Runtime/Operations/Jobs/RestartJob/RestartJob.sqlite.sql)

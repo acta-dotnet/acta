@@ -1,4 +1,1 @@
 # Known layout violations; entries may only be removed.
-sql-placement: src/Acta.Postgres/Sql
-sql-placement: src/Acta.SqlServer/Sql
-sql-placement: src/Acta.Sqlite/Sql
