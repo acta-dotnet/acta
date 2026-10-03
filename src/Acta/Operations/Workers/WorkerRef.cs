@@ -30,8 +30,9 @@ public readonly record struct WorkerRef(Guid Value)
         TryParse(value, out var workerRef) ? workerRef : throw new FormatException($"'{value}' is not a valid worker ref.");
 
     /// <summary>
-    /// Parse a worker ref. Accepts any input casing and the Crockford o/i/l aliases; rejects
-    /// malformed values (another entity's prefix included) after normalization.
+    /// Parse a worker ref: <c>wrk_</c> plus its Crockford payload, in any casing and with the o/i/l
+    /// aliases, or the worker's Guid written plainly, with the prefix or without it. Rejects malformed values,
+    /// another entity's prefix included.
     /// </summary>
     public static bool TryParse(string? value, out WorkerRef workerRef)
     {

@@ -67,7 +67,9 @@ then the creation timestamp, then random entropy. The pieces each earn their pla
   characters it is also shorter than a hyphenated GUID and double-click-selects as one token.
 - **In the database it is a plain 16-byte `Guid`** (`jobs.job_ref`, unique-indexed), allocated in
   C# by `JobRef.New()` and passed into the inserting routine, never defaulted by the database. The
-  encoding is presentation; the bytes are the identity.
+  encoding is presentation; the bytes are the identity, so a lookup also accepts that Guid written
+  plainly, with the `job_` prefix or without it (`job_550e8400-e29b-41d4-a716-446655440000`,
+  `550e8400e29b41d4a716446655440000`), which is how it reads in a SQL query result.
 
 The ref is denormalized onto the audit tables (events, alerts) at write time, so the public
 identity an operator holds keeps resolving after the job row itself is purged by retention.

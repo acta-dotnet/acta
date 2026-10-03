@@ -30,8 +30,9 @@ public readonly record struct AlertRef(Guid Value)
         TryParse(value, out var alertRef) ? alertRef : throw new FormatException($"'{value}' is not a valid alert ref.");
 
     /// <summary>
-    /// Parse an alert ref. Accepts any input casing and the Crockford o/i/l aliases; rejects
-    /// malformed values (another entity's prefix included) after normalization.
+    /// Parse an alert ref: <c>alr_</c> plus its Crockford payload, in any casing and with the o/i/l
+    /// aliases, or the alert's Guid written plainly, with the prefix or without it. Rejects malformed values,
+    /// another entity's prefix included.
     /// </summary>
     public static bool TryParse(string? value, out AlertRef alertRef)
     {

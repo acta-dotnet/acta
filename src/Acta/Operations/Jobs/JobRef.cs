@@ -29,8 +29,9 @@ public readonly record struct JobRef(Guid Value)
         TryParse(value, out var jobRef) ? jobRef : throw new FormatException($"'{value}' is not a valid job ref.");
 
     /// <summary>
-    /// Parse a job ref. Accepts any input casing and the Crockford o/i/l aliases; rejects
-    /// malformed values (another entity's prefix included) after normalization.
+    /// Parse a job ref: <c>job_</c> plus its Crockford payload, in any casing and with the o/i/l aliases,
+    /// or the job's Guid written plainly, with the <c>job_</c> prefix or without it. Rejects malformed
+    /// values, another entity's prefix included. <see cref="ToString"/> always renders the Crockford form.
     /// </summary>
     public static bool TryParse(string? value, out JobRef jobRef)
     {

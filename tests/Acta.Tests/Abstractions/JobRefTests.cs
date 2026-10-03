@@ -26,6 +26,19 @@ public class JobRefTests
         Assert.Equal(GoldenGuid, jobRef.Value);
     }
 
+    [Theory]
+    [InlineData("job_550e8400-e29b-41d4-a716-446655440000")]
+    [InlineData("JOB_550E8400-E29B-41D4-A716-446655440000")]
+    [InlineData("job_550e8400e29b41d4a716446655440000")]
+    [InlineData("550e8400-e29b-41d4-a716-446655440000")]
+    [InlineData("550e8400e29b41d4a716446655440000")]
+    public void Parses_a_plain_guid_with_or_without_the_prefix(string value)
+    {
+        Assert.True(JobRef.TryParse(value, out var jobRef));
+        Assert.Equal(GoldenGuid, jobRef.Value);
+        Assert.Equal(GoldenRef, jobRef.ToString());
+    }
+
     [Fact]
     public void Parses_case_insensitively_and_emits_canonical_lowercase()
     {
@@ -56,6 +69,9 @@ public class JobRefTests
     [InlineData("job_zn1t201rmv87aae5j4csam8000")]
     [InlineData("ref_2n1t201rmv87aae5j4csam8000")]
     [InlineData("job-2n1t201rmv87aae5j4csam8000")]
+    [InlineData("alr_550e8400-e29b-41d4-a716-446655440000")]
+    [InlineData("{550e8400-e29b-41d4-a716-446655440000}")]
+    [InlineData(" 550e8400-e29b-41d4-a716-446655440000")]
     public void Rejects_malformed_refs(string? value)
     {
         Assert.False(JobRef.TryParse(value, out _));

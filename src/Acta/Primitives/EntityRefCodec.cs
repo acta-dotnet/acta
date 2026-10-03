@@ -17,30 +17,42 @@ internal static class EntityRefCodec
     }
 
     /// <summary>
-    /// Parse one ref form: exact length, case-insensitive prefix match, Crockford payload (with
-    /// the o/i/l aliases). A value carrying another entity's prefix fails the prefix match, so
-    /// each typed ref only ever parses values minted for its own entity.
+    /// Parse a ref: the rendered form (case-insensitive prefix plus a Crockford payload, with the o/i/l
+    /// aliases), or the same Guid written plainly (<c>D</c> or <c>N</c> format), with the prefix or without
+    /// it. A value carrying another entity's prefix never parses, so a typed ref only ever accepts values
+    /// minted for its own entity or a bare Guid its caller has already typed.
     /// </summary>
     public static bool TryParse(string prefix, string? value, out Guid parsed)
     {
         parsed = default;
-        if (value is null || value.Length != prefix.Length + CrockfordBase32.EncodedLength)
+        if (value is null)
         {
             return false;
         }
 
-        if (!value.AsSpan(0, prefix.Length).Equals(prefix, StringComparison.OrdinalIgnoreCase))
+        var body = value.AsSpan();
+        if (body.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
         {
-            return false;
+            body = body[prefix.Length..];
+            if (body.Length == CrockfordBase32.EncodedLength)
+            {
+                Span<byte> bytes = stackalloc byte[16];
+                if (!CrockfordBase32.TryDecode(body, bytes))
+                {
+                    return false;
+                }
+
+                parsed = new Guid(bytes, bigEndian: true);
+                return true;
+            }
         }
 
-        Span<byte> bytes = stackalloc byte[16];
-        if (!CrockfordBase32.TryDecode(value.AsSpan(prefix.Length), bytes))
+        // Exact lengths, since Guid parsing would otherwise forgive surrounding whitespace.
+        return body.Length switch
         {
-            return false;
-        }
-
-        parsed = new Guid(bytes, bigEndian: true);
-        return true;
+            36 => Guid.TryParseExact(body, "D", out parsed),
+            32 => Guid.TryParseExact(body, "N", out parsed),
+            _ => false,
+        };
     }
 }

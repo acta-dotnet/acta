@@ -34,6 +34,13 @@ hand again. The public API and the HTTP routes stay as they are except where lis
 - **The `Acta.Relational` package is gone.** Its code ships in `Acta.Runtime`, which every provider
   package already brings. A project that referenced `Acta.Relational` directly drops the reference.
 
+### Additions
+
+- **A ref also parses as a plain Guid.** `JobRef`, `AlertRef`, and `WorkerRef` accept the Guid behind
+  the ref, hyphenated or not, with their prefix or without it (`job_550e8400-e29b-41d4-a716-446655440000`,
+  `550e8400e29b41d4a716446655440000`), so an id copied from a SQL query result works in a route or a
+  `JobLookup`. A ref still renders in its Crockford form.
+
 ### Fixes
 
 - **Raising or resolving an alert no longer deadlocks against a purge of its job on PostgreSQL.** The
