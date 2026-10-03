@@ -1,5 +1,4 @@
 using System.Text.RegularExpressions;
-using Acta.Sqlite;
 using Acta.Tests.Conformance.Runtime;
 using Acta.Tests.Conformance.Sqlite.Testing;
 using Microsoft.Data.Sqlite;
@@ -65,12 +64,8 @@ public sealed class SqliteClaimPlanTests : ClaimSkewTestBase
 
     private static IEnumerable<string> Statements()
     {
-        using var stream = typeof(SqliteProviderOptions).Assembly.GetManifestResourceStream("Acta.Sqlite.Sql.Execution.ClaimBatch.sql")!;
-        using var reader = new StreamReader(stream);
-        var sql = reader
-            .ReadToEnd()
-            .Replace("{{schema}}", "main", StringComparison.Ordinal)
-            .Replace("{{now}}", "CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)", StringComparison.Ordinal);
+        var sql = new SqlResourceCatalog("sqlite", "main").Load("ClaimBatch");
+
         // A statement ends at a semicolon that ends its line; a comment may carry one mid-line.
         return Regex.Split(sql, @";[ \t]*\r?\n").Select(StripLeadingComments).Where(s => s.Length > 0);
     }
