@@ -12,7 +12,7 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
 {
     public Task<CheckpointSlotRow> CheckpointSlotAsync(CheckpointSlotCommand command, CancellationToken ct) =>
         ExecuteRowAsync(
-            new StoreCommand("Execution", "Checkpoints/CheckpointSlot"),
+            new StoreCommand("CheckpointSlot"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.SlotAction, (short)command.Action));
@@ -29,7 +29,7 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
 
     public Task RecordJobNoteAsync(long jobId, int executionNumber, string message, JobPayload? detail, CancellationToken ct) =>
         session.ExecuteAsync(
-            new StoreCommand("Execution", "Notes/RecordJobNote"),
+            new StoreCommand("RecordJobNote"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.JobId, jobId));
@@ -48,7 +48,7 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
 
     public Task<IReadOnlyList<long>> GetChildJobIdsAsync(long parentJobId, CancellationToken ct) =>
         session.QueryAsync<IReadOnlyList<long>>(
-            "Sql/Execution/ChildLatches/GetChildJobIds.sql",
+            "GetChildJobIds",
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.ParentId, parentJobId)),
             async (reader, token) =>
             {
@@ -65,7 +65,7 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
 
     public Task<IReadOnlyList<StaleChildLatch>> GetStaleChildLatchesAsync(int namespaceId, CancellationToken ct) =>
         session.QueryAsync<IReadOnlyList<StaleChildLatch>>(
-            "Sql/Execution/ChildLatches/GetStaleChildLatches.sql",
+            "GetStaleChildLatches",
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.NamespaceId, namespaceId)),
             async (reader, token) =>
             {
@@ -83,7 +83,7 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
 
     public Task<SleepDecision> ArmOrConsumeSleepTimerAsync(ArmOrConsumeSleepTimerCommand command, CancellationToken ct) =>
         ExecuteRowAsync(
-            new StoreCommand("Execution", "Timers/ArmOrConsumeSleepTimer"),
+            new StoreCommand("ArmOrConsumeSleepTimer"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.JobId, command.JobId));
@@ -101,7 +101,7 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
         return request.MaxBatch <= 0
             ? Task.FromResult(ClaimResult.Empty)
             : MapClaimAsync(
-                new StoreCommand("Execution", "ClaimBatch"),
+                new StoreCommand("ClaimBatch"),
                 cmd =>
                 {
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.NamespaceId, request.NamespaceId));
@@ -121,7 +121,7 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
         return jobId is null
             ? ClaimBatchAsync(request with { MaxBatch = 1 }, leaseTtlSeconds, ct)
             : MapClaimAsync(
-                new StoreCommand("Execution", "ClaimOne"),
+                new StoreCommand("ClaimOne"),
                 cmd =>
                 {
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.NamespaceId, request.NamespaceId));
@@ -152,7 +152,7 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
     )
     {
         var rows = await session.ExecuteAsync(
-            new StoreCommand("Execution", "StartExecution"),
+            new StoreCommand("StartExecution"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId));
@@ -172,7 +172,7 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
 
     public Task<CompleteExecutionResult> CompleteExecutionAsync(CompleteExecutionRequest request, CancellationToken ct) =>
         ExecuteRowAsync(
-            new StoreCommand("Execution", "CompleteExecution"),
+            new StoreCommand("CompleteExecution"),
             cmd =>
             {
                 if (request.FinalStatus is null)
@@ -197,7 +197,7 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
     public async Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct)
     {
         var rows = await session.ExecuteAsync(
-            new StoreCommand("Execution", "ReclaimStuckJobs"),
+            new StoreCommand("ReclaimStuckJobs"),
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.NamespaceId, namespaceId)),
             DbProjectionResolver.Resolve<ReclaimedJobRow>(),
             ct
@@ -209,7 +209,7 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
     public async Task<RecoverySlotRepair> RepairRecoverySlotAsync(int namespaceId, long jobId, CancellationToken ct)
     {
         var rows = await session.ExecuteAsync(
-            new StoreCommand("Execution", "RepairRecoverySlot"),
+            new StoreCommand("RepairRecoverySlot"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.NamespaceId, namespaceId));
@@ -225,7 +225,7 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
 
     public Task<StartStepDecision> StartStepAsync(long jobId, string name, bool atMostOnce, CancellationToken ct) =>
         ExecuteRowAsync(
-            new StoreCommand("Execution", "StartStep"),
+            new StoreCommand("StartStep"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobStep.JobId, jobId));
@@ -239,7 +239,7 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
 
     public Task<CompleteStepDecision> CompleteStepAsync(CompleteStepCommand command, CancellationToken ct) =>
         ExecuteRowAsync(
-            new StoreCommand("Execution", "CompleteStep"),
+            new StoreCommand("CompleteStep"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobStep.JobId, command.JobId));

@@ -73,7 +73,7 @@ internal sealed class DbSession : IDbSession
     }
 
     public Task<T> QueryAsync<T>(
-        string sqlPath,
+        string stem,
         Action<DbCommand> bind,
         Func<DbDataReader, CancellationToken, Task<T>> read,
         CancellationToken ct
@@ -83,7 +83,7 @@ internal sealed class DbSession : IDbSession
             {
                 await using var conn = await OpenConnectionAsync(token);
                 await using var cmd = conn.CreateCommand();
-                cmd.CommandText = _sql.Load(sqlPath);
+                cmd.CommandText = _sql.Load(stem);
                 cmd.CommandTimeout = _commandTimeoutSeconds;
                 bind(cmd);
                 await using var reader = await cmd.ExecuteReaderAsync(token);
@@ -113,7 +113,7 @@ internal sealed class DbSession : IDbSession
                 }
                 else
                 {
-                    cmd.CommandText = _sql.Load(command.SqlPath);
+                    cmd.CommandText = _sql.Load(command.Operation);
                     bind(cmd);
                 }
 
@@ -344,7 +344,7 @@ internal sealed class DbSession : IDbSession
             }
             else
             {
-                cmd.CommandText = _sql.Load(command.SqlPath);
+                cmd.CommandText = _sql.Load(command.Operation);
                 bind(cmd);
             }
 

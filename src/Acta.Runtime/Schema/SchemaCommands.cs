@@ -25,7 +25,7 @@ internal static class SchemaCommands
         await using var cmd = conn.CreateCommand();
         cmd.Transaction = tx;
         cmd.CommandTimeout = hooks.CommandTimeoutSeconds;
-        cmd.CommandText = sql.Load("Sql/Schema/AcquireSchemaLock.sql");
+        cmd.CommandText = sql.Load("AcquireSchemaLock");
         var parameter = cmd.CreateParameter();
         parameter.ParameterName = "@p_key";
         parameter.Value = LockKey(schemaName);
@@ -44,7 +44,7 @@ internal static class SchemaCommands
         await using var cmd = conn.CreateCommand();
         cmd.Transaction = tx;
         cmd.CommandTimeout = hooks.CommandTimeoutSeconds;
-        cmd.CommandText = sql.Load("Sql/Schema/EnsureMigrations.sql");
+        cmd.CommandText = sql.Load("EnsureMigrations");
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
@@ -62,7 +62,7 @@ internal static class SchemaCommands
     {
         await using var cmd = conn.CreateCommand();
         cmd.CommandTimeout = hooks.CommandTimeoutSeconds;
-        cmd.CommandText = sql.Load("Sql/Schema/MigrationsTableExists.sql");
+        cmd.CommandText = sql.Load("MigrationsTableExists");
         var found = await cmd.ExecuteScalarAsync(ct);
         return found is not null and not DBNull && Convert.ToInt64(found, CultureInfo.InvariantCulture) > 0;
     }
@@ -83,7 +83,7 @@ internal static class SchemaCommands
         await using var cmd = conn.CreateCommand();
         cmd.Transaction = tx;
         cmd.CommandTimeout = hooks.CommandTimeoutSeconds;
-        cmd.CommandText = sql.Load("Sql/Schema/LoadAppliedVersions.sql");
+        cmd.CommandText = sql.Load("LoadAppliedVersions");
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
         {
@@ -96,7 +96,7 @@ internal static class SchemaCommands
     public static async Task DropSchema(DbConnection conn, SchemaMigrationProviderHooks hooks, SqlResourceCatalog sql, CancellationToken ct)
     {
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = sql.Load("Sql/Schema/DropSchema.sql");
+        cmd.CommandText = sql.Load("DropSchema");
         cmd.CommandTimeout = hooks.CommandTimeoutSeconds;
         await cmd.ExecuteNonQueryAsync(ct);
     }

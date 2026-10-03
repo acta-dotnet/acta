@@ -15,13 +15,8 @@ internal interface IDbSession
 
     Task<DbConnection> OpenConnectionAsync(CancellationToken ct);
 
-    /// <summary>Runs a read command loaded by resource path with no write transaction.</summary>
-    Task<T> QueryAsync<T>(
-        string sqlPath,
-        Action<DbCommand> bind,
-        Func<DbDataReader, CancellationToken, Task<T>> read,
-        CancellationToken ct
-    );
+    /// <summary>Runs a read command loaded by SQL stem with no write transaction.</summary>
+    Task<T> QueryAsync<T>(string stem, Action<DbCommand> bind, Func<DbDataReader, CancellationToken, Task<T>> read, CancellationToken ct);
 
     /// <summary>
     /// Runs a read command with no write transaction. Its provider resource selects routine or inline

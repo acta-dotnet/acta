@@ -53,7 +53,7 @@ public sealed class AlertProjectionSafeHorizonTests
 
         // Two command timeouts of 45 s behind the pass clock.
         Assert.Equal(nowUtc.AddSeconds(-90), horizonUtc);
-        Assert.Equal("Sql/Alerting/GetAlertableEvents.sql", session.SqlPath);
+        Assert.Equal("GetAlertableEvents", session.Stem);
         // Both instants reach the SQL bound the way the dialect binds every instant, under their own names.
         var dialect = new SqliteDialect(ExecutionProfile.Direct);
         var parameters = session.Command.Parameters.Cast<DbParameter>().ToList();
@@ -73,20 +73,20 @@ public sealed class AlertProjectionSafeHorizonTests
     {
         public SqliteCommand Command { get; } = new();
 
-        public string? SqlPath { get; private set; }
+        public string? Stem { get; private set; }
 
         public DbProvider Provider => DbProvider.Sqlite;
 
         public string Schema => "main";
 
         public Task<T> QueryAsync<T>(
-            string sqlPath,
+            string stem,
             Action<DbCommand> bind,
             Func<DbDataReader, CancellationToken, Task<T>> read,
             CancellationToken ct
         )
         {
-            SqlPath = sqlPath;
+            Stem = stem;
             bind(Command);
             return Task.FromResult<T>(default!);
         }

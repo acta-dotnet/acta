@@ -24,31 +24,23 @@ public sealed class ProviderStoreBindingCheckTests
         Assert.True(failures.Count == 0, "Shared store methods with no command-preparation path:\n" + string.Join("\n", failures));
     }
 
-    [Fact]
-    public void Every_requested_resource_exists_and_every_executable_resource_has_an_owner()
+    [Theory]
+    [InlineData("pg", typeof(PostgresProviderOptions))]
+    [InlineData("mssql", typeof(SqlServerProviderOptions))]
+    [InlineData("sqlite", typeof(SqliteProviderOptions))]
+    public void Every_executable_resource_has_an_owner(string dialect, Type provider)
     {
-        var failures = ProviderAssemblies()
-            .SelectMany(ProviderStoreBindingCheck.FindResourceOwnershipFailures)
-            .OrderBy(static failure => failure, StringComparer.Ordinal)
+        var failures = ProviderStoreBindingCheck
+            .FindResourceOwnershipFailures(dialect, provider.Assembly)
+            .Order(StringComparer.Ordinal)
             .ToList();
 
         Assert.True(failures.Count == 0, "Provider SQL resource ownership failures:\n" + string.Join("\n", failures));
     }
-
-    private static Assembly[] ProviderAssemblies() =>
-        [typeof(PostgresProviderOptions).Assembly, typeof(SqlServerProviderOptions).Assembly, typeof(SqliteProviderOptions).Assembly];
 }
 
 internal static partial class ProviderStoreBindingCheck
 {
-    private static readonly IReadOnlyDictionary<string, string> MissingSharedSchemaCommands = new Dictionary<string, string>(
-        StringComparer.Ordinal
-    )
-    {
-        ["Acta.Sqlite|Sql/Schema/DropSchema.sql"] =
-            "SQLite resets sqlite_master objects in provider code because it has no DROP SCHEMA operation.",
-    };
-
     private static readonly Dictionary<ushort, OpCode> OpCodesByValue = typeof(OpCodes)
         .GetFields(BindingFlags.Public | BindingFlags.Static)
         .Where(static field => field.FieldType == typeof(OpCode))
@@ -82,79 +74,25 @@ internal static partial class ProviderStoreBindingCheck
         }
     }
 
-    public static IEnumerable<string> FindResourceOwnershipFailures(Assembly providerAssembly)
+    // Every executable resource has a code owner: a store names its stem, and a routine provider calls
+    // the snake_case routine named after it. Views are installed, never called.
+    public static IEnumerable<string> FindResourceOwnershipFailures(string dialect, Assembly providerAssembly)
     {
-        var assemblyName = providerAssembly.GetName().Name!;
-        var prefix = assemblyName + ".";
-        var embedded = providerAssembly
-            .GetManifestResourceNames()
-            .Where(name =>
-                name.StartsWith(prefix, StringComparison.Ordinal)
-                && name.EndsWith(".sql", StringComparison.Ordinal)
-                && IsExecutable(name[prefix.Length..])
-            )
-            .ToHashSet(StringComparer.Ordinal);
-        var relationalAssembly = Assembly.Load("Acta.Runtime");
-        var providerLiterals = providerAssembly
+        var literals = providerAssembly
             .GetTypes()
+            .Concat(Assembly.Load("Acta.Runtime").GetTypes())
             .SelectMany(AllMethods)
             .SelectMany(ReadStringOperands)
             .ToHashSet(StringComparer.Ordinal);
-        var sharedLiterals = relationalAssembly
-            .GetTypes()
-            .SelectMany(AllMethods)
-            .SelectMany(ReadStringOperands)
-            .ToHashSet(StringComparer.Ordinal);
-        var literals = providerLiterals.Concat(sharedLiterals).ToHashSet(StringComparer.Ordinal);
 
-        foreach (
-            var requestedPath in providerLiterals
-                .Concat(sharedLiterals.Where(static value => value.StartsWith("Sql/Schema/", StringComparison.Ordinal)))
-                .Where(IsRequestedSqlPath)
-        )
+        foreach (var (path, _) in ProviderSqlResources.Enumerate(dialect))
         {
-            var resource = prefix + requestedPath.Replace('/', '.');
-            var exceptionKey = assemblyName + "|" + requestedPath;
-            if (!embedded.Contains(resource) && !MissingSharedSchemaCommands.ContainsKey(exceptionKey))
+            var stem = ProviderSqlResources.Stem(path);
+            if (!literals.Contains(stem) && !literals.Contains(JsonNamingPolicy.SnakeCaseLower.ConvertName(stem)))
             {
-                yield return $"{assemblyName}: requested resource does not exist: {requestedPath}";
-            }
-            else if (embedded.Contains(resource) && MissingSharedSchemaCommands.TryGetValue(exceptionKey, out var reason))
-            {
-                yield return $"{assemblyName}: stale missing-schema-command exception for {requestedPath}: {reason}";
+                yield return $"{dialect}: executable resource has no code owner: {path}";
             }
         }
-
-        foreach (var resource in embedded)
-        {
-            var tail = resource[prefix.Length..];
-            if (tail.EndsWith(".view.sql", StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            // Every executable resource is owned by a shared store: a read references its literal path,
-            // and a write references its StoreCommand operation sub-path (the segment(s) between Sql/ and
-            // the extension, e.g. "CancelJob" or "Checkpoints/CheckpointSlot"). Routine providers resolve
-            // the snake_case routine name from that same sub-path's final segment.
-            var path = ResourcePath(tail);
-            var operation = OperationSubPath(path);
-            var routine = JsonNamingPolicy.SnakeCaseLower.ConvertName(operation[(operation.LastIndexOf('/') + 1)..]);
-            if (!literals.Contains(path) && !literals.Contains(operation) && !literals.Contains(routine))
-            {
-                yield return $"{assemblyName}: executable resource has no code owner: {path}";
-            }
-        }
-    }
-
-    // The StoreCommand operation for a resource path: everything after "Sql/{Capability}/", minus the
-    // extension and the ".routine" infix, e.g. Sql/Execution/Checkpoints/CheckpointSlot.routine.sql
-    // -> Checkpoints/CheckpointSlot.
-    private static string OperationSubPath(string resourcePath)
-    {
-        var after = resourcePath[(resourcePath.IndexOf('/', "Sql/".Length) + 1)..];
-        after = after[..^".sql".Length];
-        return after.EndsWith(".routine", StringComparison.Ordinal) ? after[..^".routine".Length] : after;
     }
 
     private static IEnumerable<Type> StoreContracts() => StoreContractCoverageTests.StoreInterfaces();
@@ -326,11 +264,4 @@ internal static partial class ProviderStoreBindingCheck
             yield return (opCode, token);
         }
     }
-
-    private static bool IsExecutable(string tail) => tail.StartsWith("Sql.", StringComparison.Ordinal);
-
-    private static bool IsRequestedSqlPath(string value) =>
-        value.EndsWith(".sql", StringComparison.Ordinal) && value.StartsWith("Sql/", StringComparison.Ordinal);
-
-    private static string ResourcePath(string tail) => SqlLogicalPath.FromResourceTail(tail);
 }

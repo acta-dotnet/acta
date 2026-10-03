@@ -13,7 +13,7 @@ internal sealed class RelationalTenantStore(IDbSession session, ISqlDialect dial
     public async Task<int> RegisterTenantAsync(RegisterTenantCommand command, CancellationToken ct)
     {
         var rows = await session.ExecuteAsync(
-            new StoreCommand("Execution", "Tenants/RegisterTenant"),
+            new StoreCommand("RegisterTenant"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Tenant.TenantKey, command.TenantKey));
@@ -29,7 +29,7 @@ internal sealed class RelationalTenantStore(IDbSession session, ISqlDialect dial
 
     public Task<TenantListItem?> GetTenantAsync(TenantPointLookup lookup, CancellationToken ct) =>
         session.QueryAsync(
-            "Sql/Execution/Tenants/GetTenant.sql",
+            "GetTenant",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Tenant.TenantKey, lookup.TenantKey));
@@ -45,7 +45,7 @@ internal sealed class RelationalTenantStore(IDbSession session, ISqlDialect dial
 
     public Task<TenantPage> ListTenantsAsync(TenantPageRequest request, CancellationToken ct) =>
         session.QueryAsync(
-            "Sql/Execution/Tenants/ListTenants.sql",
+            "ListTenants",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TenantSearch, request.SearchPattern));
@@ -76,14 +76,14 @@ internal sealed class RelationalTenantStore(IDbSession session, ISqlDialect dial
         );
 
     public Task<AdminControlOutcome> SuspendTenantAsync(TenantControlCommand command, CancellationToken ct) =>
-        ControlAsync("Tenants/SuspendTenant", command, ct);
+        ControlAsync("SuspendTenant", command, ct);
 
     public Task<AdminControlOutcome> ResumeTenantAsync(TenantControlCommand command, CancellationToken ct) =>
-        ControlAsync("Tenants/ResumeTenant", command, ct);
+        ControlAsync("ResumeTenant", command, ct);
 
     public async Task<AdminControlOutcome> UpdateTenantAsync(UpdateTenantCommand command, CancellationToken ct) =>
         await session.ExecuteSingleAsync(
-            new StoreCommand("Execution", "Tenants/UpdateTenant"),
+            new StoreCommand("UpdateTenant"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Tenant.TenantKey, command.TenantKey));
@@ -103,7 +103,7 @@ internal sealed class RelationalTenantStore(IDbSession session, ISqlDialect dial
 
     private async Task<AdminControlOutcome> ControlAsync(string operation, TenantControlCommand command, CancellationToken ct) =>
         await session.ExecuteSingleAsync(
-            new StoreCommand("Execution", operation),
+            new StoreCommand(operation),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Tenant.TenantKey, command.Key));

@@ -50,6 +50,13 @@ internal static class ProviderSqlResources
     public static IEnumerable<(string LogicalPath, string Sql)> EnumerateIncludingViews(string dialectToken) =>
         Enumerate(dialectToken, includeViews: true);
 
+    /// <summary>The SQL of one dialect's file with this stem.</summary>
+    public static string Read(string dialectToken, string stem) =>
+        EnumerateIncludingViews(dialectToken).Single(r => Stem(r.LogicalPath) == stem).Sql;
+
+    /// <summary>The file stem of a logical path, the name a caller addresses it by: <c>PauseJob</c>.</summary>
+    public static string Stem(string logicalPath) => Path.GetFileName(logicalPath).Split('.')[0];
+
     public static string ProviderAssemblyName(string dialectToken) =>
         dialectToken switch
         {

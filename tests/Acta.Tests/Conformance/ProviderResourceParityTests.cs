@@ -111,10 +111,7 @@ public sealed class TagRetentionLockPolicyTests
     [Fact]
     public void SqlServer_schedule_tag_cleanup_waits_for_locked_schedule_targets()
     {
-        var sql = ProviderSqlResources
-            .Enumerate("mssql")
-            .Single(resource => resource.LogicalPath == "Sql/Maintenance/PurgeExpiredData.routine.sql")
-            .Sql;
+        var sql = ProviderSqlResources.Read("mssql", "PurgeExpiredData");
         var captureStart = sql.IndexOf("INSERT INTO @schedule_del", StringComparison.Ordinal);
         var cleanupStart = sql.IndexOf("DELETE FROM {{schema}}.tags", captureStart, StringComparison.Ordinal);
 

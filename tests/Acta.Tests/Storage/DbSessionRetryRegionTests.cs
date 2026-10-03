@@ -19,8 +19,8 @@ public class DbSessionRetryRegionTests
 {
     private sealed class TransientException : Exception { }
 
-    private static readonly StoreCommand Command = new("Execution", "CompleteStep");
-    private static readonly StoreCommand InlineCommand = new("Outbox", "ClaimDueRows");
+    private static readonly StoreCommand Command = new("CompleteStep");
+    private static readonly StoreCommand InlineCommand = new("ClaimDueRows");
 
     private static DbSession NewSession(FakeDialect dialect, int retryAttempts = 5) =>
         new(
@@ -61,7 +61,7 @@ public class DbSessionRetryRegionTests
         var log = new List<string>();
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             NewSession(new FakeDialect(log))
-                .ExecuteAsync(new StoreCommand("Missing", "Command"), static _ => { }, TestContext.Current.CancellationToken)
+                .ExecuteAsync(new StoreCommand("Command"), static _ => { }, TestContext.Current.CancellationToken)
         );
         Assert.Empty(log);
     }

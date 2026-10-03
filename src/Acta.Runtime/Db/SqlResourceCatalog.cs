@@ -4,67 +4,59 @@ using System.Reflection;
 namespace Acta.Runtime;
 
 /// <summary>
-/// Convention-based catalog of one provider assembly's executable SQL resources, all under a single
-/// <c>Sql/{Capability}/{Operation}.sql</c> root (schema commands live at <c>Sql/Schema/</c>; ordered
-/// DDL migrations are not catalog resources and stay under <c>Schema/Migrations/</c>). Resources are
-/// embedded with the assembly-name-prefixed dotted logical name. Each provider owns its complete
-/// executable SQL set, so lookups never fall back across dialects or assemblies; a missing resource
-/// is a provider defect and throws. Rendered text substitutes <c>{{schema}}</c>, <c>{{now}}</c> (the
-/// SQLite epoch-milliseconds instant encoding; only SQLite bodies carry the token), and
-/// <c>{{decode:...}}</c> tokens, cached per resource for the process lifetime.
+/// Catalog of one provider assembly's executable SQL resources, all under a single <c>Sql/</c> root and
+/// addressed by file stem: the stem is unique per provider, so a caller names <c>GetOverview</c> and never
+/// the folder it lives in. Ordered DDL migrations are not catalog resources and stay under
+/// <c>Schema/Migrations/</c>. Each provider owns its complete executable SQL set, so lookups never fall
+/// back across dialects or assemblies; a missing resource is a provider defect and throws. Rendered text
+/// substitutes <c>{{schema}}</c>, <c>{{now}}</c> (the SQLite epoch-milliseconds instant encoding; only
+/// SQLite bodies carry the token), and <c>{{decode:...}}</c> tokens, cached per resource for the process
+/// lifetime.
 /// </summary>
 internal sealed class SqlResourceCatalog
 {
     private readonly Assembly _assembly;
-    private readonly string _prefix;
     private readonly string? _schema;
     private readonly string? _table;
-    private readonly HashSet<string> _resources;
+    private readonly Dictionary<string, string> _resources = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, string> _rendered = new(StringComparer.Ordinal);
-    private readonly ConcurrentDictionary<StoreCommand, StoreExecutionKind> _commands = new();
 
     public SqlResourceCatalog(Assembly assembly, string? schema, string? table = null)
     {
         _assembly = assembly;
-        _prefix = assembly.GetName().Name + ".";
         _schema = schema;
         _table = table;
-        _resources = assembly
-            .GetManifestResourceNames()
-            .Where(n =>
-                n.StartsWith(_prefix, StringComparison.Ordinal)
-                && n.EndsWith(".sql", StringComparison.Ordinal)
-                && n.AsSpan(_prefix.Length).StartsWith("Sql.", StringComparison.Ordinal)
-            )
-            .ToHashSet(StringComparer.Ordinal);
+        var prefix = assembly.GetName().Name + ".Sql.";
+        foreach (var resource in assembly.GetManifestResourceNames())
+        {
+            if (!resource.StartsWith(prefix, StringComparison.Ordinal) || !resource.EndsWith(".sql", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var name = resource[..^".sql".Length];
+            name =
+                name.EndsWith(".routine", StringComparison.Ordinal) ? name[..^".routine".Length]
+                : name.EndsWith(".view", StringComparison.Ordinal) ? name[..^".view".Length]
+                : name;
+            var stem = name[(name.LastIndexOf('.') + 1)..];
+            if (!_resources.TryAdd(stem, resource))
+            {
+                throw new InvalidOperationException(
+                    $"Provider assembly '{assembly.GetName().Name}' embeds two SQL resources with the stem '{stem}': '{_resources[stem]}' and '{resource}'."
+                );
+            }
+        }
     }
 
-    /// <summary>
-    /// Rendered SQL for a capability-local resource path such as <c>Sql/Overview/GetOverview.sql</c>.
-    /// </summary>
-    public string Load(string path) => Render(_prefix + path.Replace('/', '.'));
+    /// <summary>Rendered SQL for a stem such as <c>GetOverview</c>.</summary>
+    public string Load(string stem) => Render(Resource(stem));
 
     /// <summary>Each command has exactly one provider-owned form; no provider-wide fallback.</summary>
     public StoreExecutionKind Resolve(StoreCommand command) =>
-        _commands.GetOrAdd(
-            command,
-            c =>
-            {
-                var inlineName = _prefix + c.SqlPath.Replace('/', '.');
-                var routineName = inlineName[..^".sql".Length] + ".routine.sql";
-                var inline = _resources.Contains(inlineName);
-                var routine = _resources.Contains(routineName);
-                if (inline == routine)
-                {
-                    throw new InvalidOperationException(
-                        $"Provider assembly '{_assembly.GetName().Name}' must embed exactly one SQL form for '{c.SqlPath}'; "
-                            + (inline ? "both inline and routine resources exist." : "neither inline nor routine resource exists.")
-                    );
-                }
-
-                return routine ? StoreExecutionKind.Routine : StoreExecutionKind.Inline;
-            }
-        );
+        Resource(command.Operation).EndsWith(".routine.sql", StringComparison.Ordinal)
+            ? StoreExecutionKind.Routine
+            : StoreExecutionKind.Inline;
 
     /// <summary>
     /// The provider's feature-local routine bodies (<c>*.routine.sql</c>), each paired with its
@@ -72,12 +64,12 @@ internal sealed class SqlResourceCatalog
     /// </summary>
     public IEnumerable<(string Name, string Body)> Routines()
     {
-        var routines = _resources.Where(r => r.EndsWith(".routine.sql", StringComparison.Ordinal)).OrderBy(r => r, StringComparer.Ordinal);
-        foreach (var resource in routines)
+        var routines = _resources
+            .Where(r => r.Value.EndsWith(".routine.sql", StringComparison.Ordinal))
+            .OrderBy(r => r.Value, StringComparer.Ordinal);
+        foreach (var (stem, resource) in routines)
         {
-            var stem = resource[..^".routine.sql".Length];
-            var operation = stem[(stem.LastIndexOf('.') + 1)..];
-            yield return (System.Text.Json.JsonNamingPolicy.SnakeCaseLower.ConvertName(operation), Render(resource));
+            yield return (System.Text.Json.JsonNamingPolicy.SnakeCaseLower.ConvertName(stem), Render(resource));
         }
     }
 
@@ -88,28 +80,28 @@ internal sealed class SqlResourceCatalog
     /// </summary>
     public IEnumerable<(string Name, string Body)> Views()
     {
-        var views = _resources.Where(r => r.EndsWith(".view.sql", StringComparison.Ordinal)).OrderBy(r => r, StringComparer.Ordinal);
-        foreach (var resource in views)
+        var views = _resources
+            .Where(r => r.Value.EndsWith(".view.sql", StringComparison.Ordinal))
+            .OrderBy(r => r.Value, StringComparer.Ordinal);
+        foreach (var (stem, resource) in views)
         {
-            var stem = resource[..^".view.sql".Length];
-            var view = stem[(stem.LastIndexOf('.') + 1)..];
-            var name = System.Text.Json.JsonNamingPolicy.SnakeCaseLower.ConvertName(view);
+            var name = System.Text.Json.JsonNamingPolicy.SnakeCaseLower.ConvertName(stem);
             yield return !name.EndsWith("_view", StringComparison.Ordinal)
                 ? throw new InvalidOperationException($"Provider view resource '{resource}' must install as a plural '_view' name.")
                 : ((string Name, string Body))(name, Render(resource));
         }
     }
 
+    private string Resource(string stem) =>
+        _resources.TryGetValue(stem, out var resource)
+            ? resource
+            : throw new InvalidOperationException($"Provider assembly '{_assembly.GetName().Name}' embeds no SQL for '{stem}'.");
+
     private string Render(string resourceName) =>
         _rendered.GetOrAdd(
             resourceName,
             name =>
             {
-                if (!_resources.Contains(name))
-                {
-                    throw new InvalidOperationException($"Provider assembly '{_assembly.GetName().Name}' embeds no SQL resource '{name}'.");
-                }
-
                 using var stream = _assembly.GetManifestResourceStream(name)!;
                 using var reader = new StreamReader(stream);
                 // {{table}} and {{table_ref}} are substituted only for the external-outbox source catalog,

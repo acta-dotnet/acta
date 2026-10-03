@@ -38,7 +38,7 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
         try
         {
             var rows = await session.ExecuteAsync(
-                new StoreCommand("Alerting", "RaiseJobAlert"),
+                new StoreCommand("RaiseJobAlert"),
                 cmd => AddRaiseParameters(cmd, command),
                 reader =>
                     reader.IsDBNull(0)
@@ -71,7 +71,7 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
         CancellationToken ct
     ) =>
         session.QueryAsync<IReadOnlyList<AlertableEvent>>(
-            "Sql/Alerting/GetAlertableEvents.sql",
+            "GetAlertableEvents",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.NamespaceId, namespaceId));
@@ -96,7 +96,7 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
 
     public Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(int namespaceId, int batchSize, CancellationToken ct) =>
         session.QueryAsync<IReadOnlyList<DeliverableAlert>>(
-            "Sql/Alerting/GetDeliverableAlerts.sql",
+            "GetDeliverableAlerts",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.NamespaceId, namespaceId));
@@ -129,7 +129,7 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
     ) =>
         (
             await session.ExecuteAsync(
-                new StoreCommand("Alerting", "UpdateAlertDelivery"),
+                new StoreCommand("UpdateAlertDelivery"),
                 cmd =>
                 {
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.Id, alertId));
@@ -149,7 +149,7 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
     public async Task<int> ResolveJobAlertsAsync(int namespaceId, long jobId, long sourceEventId, CancellationToken ct) =>
         (
             await session.ExecuteAsync(
-                new StoreCommand("Alerting", "ResolveJobAlerts"),
+                new StoreCommand("ResolveJobAlerts"),
                 cmd =>
                 {
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.NamespaceId, namespaceId));
@@ -169,7 +169,7 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
 
     public Task<AlertPage> ListJobAlertsAsync(AlertPageRequest request, CancellationToken ct) =>
         session.QueryAsync(
-            "Sql/Alerting/ListJobAlerts.sql",
+            "ListJobAlerts",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceFilter, request.JobNamespace));
@@ -206,7 +206,7 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
 
     public Task<AlertListItem?> GetJobAlertAsync(Guid alertRef, CancellationToken ct) =>
         session.QueryAsync(
-            "Sql/Alerting/GetJobAlert.sql",
+            "GetJobAlert",
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.AlertRef, alertRef)),
             async (reader, token) =>
             {
@@ -234,7 +234,7 @@ internal sealed class RelationalAlertStore(IDbSession session, ISqlDialect diale
 
     private async Task<AlertControlOutcome> ControlAsync(string operation, AlertControlCommand command, CancellationToken ct) =>
         await session.ExecuteSingleAsync(
-            new StoreCommand("Alerting", operation),
+            new StoreCommand(operation),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.AlertRef, command.AlertRef));

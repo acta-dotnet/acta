@@ -13,12 +13,12 @@ namespace Acta.Tests.Conformance;
 public sealed partial class ClaimBandListTests
 {
     [Theory]
-    [InlineData("pg", "Sql/Execution/ClaimBatch.routine.sql")]
-    [InlineData("mssql", "Sql/Execution/ClaimBatch.routine.sql")]
-    [InlineData("sqlite", "Sql/Execution/ClaimBatch.sql")]
-    public void Claim_band_list_names_every_priority_code_once(string dialect, string path)
+    [InlineData("pg")]
+    [InlineData("mssql")]
+    [InlineData("sqlite")]
+    public void Claim_band_list_names_every_priority_code_once(string dialect)
     {
-        var sql = ProviderSqlResources.Enumerate(dialect).Single(r => r.LogicalPath == path).Sql;
+        var sql = ProviderSqlResources.Read(dialect, "ClaimBatch");
 
         var listed = PriorityMember().Matches(sql).Select(m => m.Groups["member"].Value).Order(StringComparer.Ordinal);
 

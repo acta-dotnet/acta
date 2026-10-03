@@ -13,7 +13,7 @@ internal sealed class RelationalRetentionStore(IDbSession session, ISqlDialect d
             throw new ArgumentOutOfRangeException(nameof(command));
         }
         var rows = await session.ExecuteAsync(
-            new StoreCommand("Maintenance", "PurgeExpiredData"),
+            new StoreCommand("PurgeExpiredData"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.NamespaceId, command.NamespaceId));

@@ -8,7 +8,7 @@ internal sealed class RelationalOverviewStore(IDbSession session, ISqlDialect di
 {
     public async ValueTask<OverviewSnapshot> GetOverviewAsync(OverviewQuery query, CancellationToken ct) =>
         await session.QueryAsync(
-            "Sql/Operations/Overview/GetOverview.sql",
+            "GetOverview",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceFilter, query.JobNamespace));

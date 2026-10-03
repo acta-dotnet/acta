@@ -13,7 +13,7 @@ internal sealed class RelationalWorkerStore(IDbSession session, ISqlDialect dial
     public async Task<StartWorkerRow> StartWorkerAsync(StartWorkerCommand command, CancellationToken ct)
     {
         var rows = await session.ExecuteAsync(
-            new StoreCommand("Execution", "Workers/StartWorker"),
+            new StoreCommand("StartWorker"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobNamespace.Name, command.NamespaceName));
@@ -38,7 +38,7 @@ internal sealed class RelationalWorkerStore(IDbSession session, ISqlDialect dial
 
     public Task StopWorkerAsync(int namespaceId, int workerId, CancellationToken ct) =>
         session.ExecuteAsync(
-            new StoreCommand("Execution", "Workers/StopWorker"),
+            new StoreCommand("StopWorker"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.NamespaceId, namespaceId));
@@ -54,7 +54,7 @@ internal sealed class RelationalWorkerStore(IDbSession session, ISqlDialect dial
         CancellationToken ct
     ) =>
         session.ExecuteAsync(
-            new StoreCommand("Execution", "Workers/ExtendWorkerLeases"),
+            new StoreCommand("ExtendWorkerLeases"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeasedByWorkerId, workerId));
@@ -72,7 +72,7 @@ internal sealed class RelationalWorkerStore(IDbSession session, ISqlDialect dial
     public async Task<int> MarkDeadWorkersAsync(int deadAfterSeconds, CancellationToken ct)
     {
         var counts = await session.ExecuteAsync(
-            new StoreCommand("Execution", "Workers/MarkDeadWorkers"),
+            new StoreCommand("MarkDeadWorkers"),
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.DeadAfterSeconds, deadAfterSeconds)),
             reader => reader.IsDBNull(0) ? (int?)null : Convert.ToInt32(reader.GetValue(0), CultureInfo.InvariantCulture),
             ct
@@ -85,7 +85,7 @@ internal sealed class RelationalWorkerStore(IDbSession session, ISqlDialect dial
 
     public async ValueTask<WorkerDetail?> GetWorkerAsync(Guid workerRef, CancellationToken ct) =>
         await session.QueryAsync<WorkerDetail?>(
-            "Sql/Execution/Workers/GetWorker.sql",
+            "GetWorker",
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobWorker.WorkerRef, workerRef)),
             async (reader, token) =>
                 await reader.ReadAsync(token) ? DbProjectionResolver.Resolve<JobWorkerListRow>()(reader).ToDetail() : null,
@@ -94,7 +94,7 @@ internal sealed class RelationalWorkerStore(IDbSession session, ISqlDialect dial
 
     public Task<WorkerPage> ListWorkersAsync(WorkerPageRequest request, CancellationToken ct) =>
         session.QueryAsync(
-            "Sql/Execution/Workers/ListWorkers.sql",
+            "ListWorkers",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceFilter, request.JobNamespace));

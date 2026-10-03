@@ -10,7 +10,7 @@ internal sealed class RelationalOutboxSignalStore(IDbSession session, ISqlDialec
 {
     public async Task<OutboxSignalAdmissionRow> ParkAsync(ParkOutboxSignalCommand command, CancellationToken ct) =>
         await session.ExecuteSingleAsync(
-            new StoreCommand("Execution", "Signals/ParkOutboxSignal"),
+            new StoreCommand("ParkOutboxSignal"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.JobId, command.JobId));
@@ -25,7 +25,7 @@ internal sealed class RelationalOutboxSignalStore(IDbSession session, ISqlDialec
 
     public Task<OutboxSignalRow?> GetAsync(long jobId, string name, CancellationToken ct) =>
         session.QueryAsync<OutboxSignalRow?>(
-            "Sql/Execution/Signals/GetOutboxSignal.sql",
+            "GetOutboxSignal",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.JobId, jobId));
@@ -38,7 +38,7 @@ internal sealed class RelationalOutboxSignalStore(IDbSession session, ISqlDialec
     public async Task<bool> ConsumeAsync(long jobId, string name, int version, CancellationToken ct)
     {
         var row = await session.ExecuteSingleAsync(
-            new StoreCommand("Execution", "Signals/ConsumeOutboxSignal"),
+            new StoreCommand("ConsumeOutboxSignal"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.JobId, jobId));
@@ -53,7 +53,7 @@ internal sealed class RelationalOutboxSignalStore(IDbSession session, ISqlDialec
 
     public Task RecordAppliedAsync(RecordOutboxEventCommand command, CancellationToken ct) =>
         session.ExecuteAsync(
-            new StoreCommand("Execution", "Signals/RecordOutboxEvent"),
+            new StoreCommand("RecordOutboxEvent"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.JobId, command.JobId));

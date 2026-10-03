@@ -9,7 +9,7 @@ internal sealed class RelationalActaClock(IDbSession session) : IServerClock
 {
     public async ValueTask<DateTime> GetUtcNowAsync(CancellationToken ct) =>
         await session.QueryAsync(
-            "Sql/Services/Time/GetUtcNow.sql",
+            "GetUtcNow",
             static _ => { },
             static async (reader, token) =>
                 await reader.ReadAsync(token) && !reader.IsDBNull(0)

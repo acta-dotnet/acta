@@ -12,7 +12,7 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
 {
     public async ValueTask<JobDetail?> GetJobAsync(long jobId, CancellationToken ct) =>
         await session.QueryAsync<JobDetail?>(
-            "Sql/Execution/Jobs/GetJob.sql",
+            "GetJob",
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId)),
             async (reader, token) =>
                 await reader.ReadAsync(token) ? DbProjectionResolver.Resolve<JobSnapshotRow>()(reader).ToSnapshot() : null,
@@ -21,7 +21,7 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
 
     public async ValueTask<JobStatusCode?> GetJobStatusAsync(long jobId, CancellationToken ct) =>
         await session.QueryAsync<JobStatusCode?>(
-            "Sql/Execution/Jobs/GetJobStatus.sql",
+            "GetJobStatus",
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId)),
             async (reader, token) => await reader.ReadAsync(token) ? (JobStatusCode)reader.GetByteFromNumeric(0) : (JobStatusCode?)null,
             ct
@@ -29,7 +29,7 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
 
     public Task<JobInputRecord?> GetJobInputAsync(long jobId, CancellationToken ct) =>
         session.QueryAsync<JobInputRecord?>(
-            "Sql/Execution/Jobs/GetJobInput.sql",
+            "GetJobInput",
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId)),
             async (reader, token) => await reader.ReadAsync(token) ? DbProjectionResolver.Resolve<JobInputRow>()(reader).ToRecord() : null,
             ct
@@ -37,7 +37,7 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
 
     public Task<JobResultRecord?> GetJobResultAsync(long jobId, int? executionNumber, CancellationToken ct) =>
         session.QueryAsync<JobResultRecord?>(
-            "Sql/Execution/Jobs/GetJobResult.sql",
+            "GetJobResult",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobResult.JobId, jobId));
@@ -49,7 +49,7 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
 
     public async Task<IReadOnlyList<JobCheckpointItem>> GetJobCheckpointsAsync(long jobId, CancellationToken ct) =>
         await session.QueryAsync<IReadOnlyList<JobCheckpointItem>>(
-            "Sql/Execution/Jobs/GetJobCheckpoints.sql",
+            "GetJobCheckpoints",
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.JobId, jobId)),
             async (reader, token) =>
             {
@@ -67,7 +67,7 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
 
     public async ValueTask<JobExplainData?> GetJobExplanationAsync(long jobId, CancellationToken ct) =>
         await session.QueryAsync<JobExplainData?>(
-            "Sql/Execution/Jobs/GetJobExplanation.sql",
+            "GetJobExplanation",
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId)),
             async (reader, token) =>
             {
@@ -106,7 +106,7 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
 
     public async ValueTask<JobLineageData?> GetJobLineageMapAsync(long jobId, int childFetchLimit, CancellationToken ct) =>
         await session.QueryAsync<JobLineageData?>(
-            "Sql/Execution/Jobs/GetJobLineageMap.sql",
+            "GetJobLineageMap",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId));
@@ -168,7 +168,7 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
 
     public Task<JobPage> ListJobsAsync(JobPageRequest request, CancellationToken ct) =>
         session.QueryAsync(
-            "Sql/Execution/Jobs/ListJobs.sql",
+            "ListJobs",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceFilter, request.JobNamespace));
@@ -209,7 +209,7 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
 
     public async ValueTask<long?> ResolveJobIdByRefAsync(Guid jobRef, CancellationToken ct) =>
         await session.QueryAsync<long?>(
-            "Sql/Execution/Jobs/ResolveJobIdByRef.sql",
+            "ResolveJobIdByRef",
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.JobRef, jobRef)),
             async (reader, token) => await reader.ReadAsync(token) ? (reader.IsDBNull(0) ? (long?)null : reader.GetInt64(0)) : null,
             ct
@@ -217,7 +217,7 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
 
     public async ValueTask<long?> ResolveJobIdByDeduplicationKeyAsync(string jobNamespace, string deduplicationKey, CancellationToken ct) =>
         await session.QueryAsync<long?>(
-            "Sql/Execution/Jobs/ResolveJobIdByDeduplicationKey.sql",
+            "ResolveJobIdByDeduplicationKey",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceName, jobNamespace));
@@ -229,7 +229,7 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
 
     public Task<IReadOnlyList<EnqueueOutcomeRow>> EnqueueOneAsync(JobEnqueueRow row, Guid jobRef, CancellationToken ct) =>
         session.ExecuteAsync(
-            new StoreCommand("Execution", "Jobs/EnqueueOne"),
+            new StoreCommand("EnqueueOne"),
             cmd => dialect.BindEnqueueOne(cmd, row, jobRef, session.Schema),
             DbProjectionResolver.Resolve<EnqueueOutcomeRow>(),
             ct
@@ -241,7 +241,7 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
         CancellationToken ct
     ) =>
         session.ExecuteAsync(
-            new StoreCommand("Execution", "Jobs/EnqueueBatch"),
+            new StoreCommand("EnqueueBatch"),
             cmd => dialect.BindEnqueueBatch(cmd, rows, jobRefs, session.Schema),
             DbProjectionResolver.Resolve<EnqueueOutcomeRow>(),
             ct
@@ -259,7 +259,7 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
     ) =>
         session.ExecuteInTransactionAsync(
             transaction,
-            new StoreCommand("Execution", "Jobs/EnqueueOne"),
+            new StoreCommand("EnqueueOne"),
             cmd => dialect.BindEnqueueOne(cmd, row, jobRef, session.Schema),
             DbProjectionResolver.Resolve<EnqueueOutcomeRow>(),
             ct
@@ -273,7 +273,7 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
     ) =>
         session.ExecuteInTransactionAsync(
             transaction,
-            new StoreCommand("Execution", "Jobs/EnqueueBatch"),
+            new StoreCommand("EnqueueBatch"),
             cmd => dialect.BindEnqueueBatch(cmd, rows, jobRefs, session.Schema),
             DbProjectionResolver.Resolve<EnqueueOutcomeRow>(),
             ct
@@ -282,7 +282,7 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
     public async Task<CancelJobOutcome> CancelJobAsync(long jobId, JobControlInput input, CancellationToken ct)
     {
         var rows = await session.ExecuteAsync(
-            new StoreCommand("Execution", "Jobs/CancelJob"),
+            new StoreCommand("CancelJob"),
             cmd =>
             {
                 AddControlParameters(cmd, jobId, input, includeReasonMessage: true);
@@ -302,7 +302,7 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
     public async Task<PauseJobOutcome> PauseJobAsync(long jobId, JobControlInput input, CancellationToken ct)
     {
         var rows = await session.ExecuteAsync(
-            new StoreCommand("Execution", "Jobs/PauseJob"),
+            new StoreCommand("PauseJob"),
             cmd =>
             {
                 AddControlParameters(cmd, jobId, input, includeReasonMessage: true);
@@ -321,7 +321,7 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
 
     public Task<JobControlOutcome> ResumeJobAsync(long jobId, JobControlInput input, DateTime? nextRunAtUtc, CancellationToken ct) =>
         VersionedControlAsync(
-            "Jobs/ResumeJob",
+            "ResumeJob",
             cmd =>
             {
                 AddControlParameters(cmd, jobId, input, includeReasonMessage: true);
@@ -333,7 +333,7 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
 
     public Task<JobControlOutcome> RestartJobAsync(long jobId, JobControlInput input, DateTime? nextRunAtUtc, CancellationToken ct) =>
         VersionedControlAsync(
-            "Jobs/RestartJob",
+            "RestartJob",
             cmd =>
             {
                 AddControlParameters(cmd, jobId, input, includeReasonMessage: true);
@@ -345,7 +345,7 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
 
     public Task<JobControlOutcome> RescheduleJobAsync(long jobId, DateTime nextRunAtUtc, JobControlInput input, CancellationToken ct) =>
         VersionedControlAsync(
-            "Jobs/RescheduleJob",
+            "RescheduleJob",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId));
@@ -363,7 +363,7 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
         CancellationToken ct
     ) =>
         VersionedControlAsync(
-            "Jobs/ReprioritizeJob",
+            "ReprioritizeJob",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId));
@@ -376,7 +376,7 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
 
     public Task<JobControlOutcome> UpdateJobInputAsync(long jobId, JobPayload input, JobControlInput controlInput, CancellationToken ct) =>
         ControlAsync(
-            "Jobs/UpdateJobInput",
+            "UpdateJobInput",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId));
@@ -388,22 +388,17 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
         );
 
     public Task<JobControlOutcome> PurgeJobAsync(long jobId, JobControlInput input, CancellationToken ct) =>
-        ControlAsync("Jobs/PurgeJob", cmd => AddControlParameters(cmd, jobId, input, includeReasonMessage: false), ct);
+        ControlAsync("PurgeJob", cmd => AddControlParameters(cmd, jobId, input, includeReasonMessage: false), ct);
 
     public Task ResetJobStateAsync(long jobId, CancellationToken ct) =>
         session.ExecuteAsync(
-            new StoreCommand("Execution", "Jobs/ResetJobState"),
+            new StoreCommand("ResetJobState"),
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId)),
             ct
         );
 
     private async Task<JobControlOutcome> ControlAsync(string operation, Action<DbCommand> bind, CancellationToken ct) =>
-        await session.ExecuteSingleAsync(
-            new StoreCommand("Execution", operation),
-            bind,
-            DbProjectionResolver.Resolve<JobControlActionRow>(),
-            ct
-        )
+        await session.ExecuteSingleAsync(new StoreCommand(operation), bind, DbProjectionResolver.Resolve<JobControlActionRow>(), ct)
             is { } row
             ? row.ToOutcome()
             : throw new InvalidOperationException(
@@ -411,12 +406,7 @@ internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect
             );
 
     private async Task<JobControlOutcome> VersionedControlAsync(string operation, Action<DbCommand> bind, CancellationToken ct) =>
-        await session.ExecuteSingleAsync(
-            new StoreCommand("Execution", operation),
-            bind,
-            DbProjectionResolver.Resolve<JobControlOutcome>(),
-            ct
-        )
+        await session.ExecuteSingleAsync(new StoreCommand(operation), bind, DbProjectionResolver.Resolve<JobControlOutcome>(), ct)
         ?? throw new InvalidOperationException(
             $"Control command '{operation}' returned no rows; it must return exactly one (action, status_code, version) row."
         );

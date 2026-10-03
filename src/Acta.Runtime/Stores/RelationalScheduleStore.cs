@@ -12,7 +12,7 @@ internal sealed class RelationalScheduleStore(IDbSession session, ISqlDialect di
 {
     public Task<IReadOnlyList<LiveSchedule>> GetLiveSchedulesAsync(long jobId, CancellationToken ct) =>
         session.QueryAsync<IReadOnlyList<LiveSchedule>>(
-            "Sql/Execution/Schedules/GetLiveSchedules.sql",
+            "GetLiveSchedules",
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.JobId, jobId)),
             async (reader, token) =>
             {
@@ -30,7 +30,7 @@ internal sealed class RelationalScheduleStore(IDbSession session, ISqlDialect di
 
     public Task<IReadOnlyList<StoredScheduleState>> GetScheduleStateAsync(int namespaceId, CancellationToken ct) =>
         session.QueryAsync<IReadOnlyList<StoredScheduleState>>(
-            "Sql/Execution/Schedules/GetScheduleState.sql",
+            "GetScheduleState",
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.NamespaceId, namespaceId)),
             async (reader, token) =>
             {
@@ -48,7 +48,7 @@ internal sealed class RelationalScheduleStore(IDbSession session, ISqlDialect di
 
     public Task<SchedulePage> ListJobSchedulesAsync(SchedulePageRequest request, CancellationToken ct) =>
         session.QueryAsync(
-            "Sql/Execution/Schedules/ListJobSchedules.sql",
+            "ListJobSchedules",
             cmd => AddListParameters(cmd, request),
             async (reader, token) =>
             {
@@ -75,7 +75,7 @@ internal sealed class RelationalScheduleStore(IDbSession session, ISqlDialect di
         CancellationToken ct
     ) =>
         session.ExecuteAsync(
-            new StoreCommand("Execution", "Schedules/RegisterScheduledJobs"),
+            new StoreCommand("RegisterScheduledJobs"),
             cmd => dialect.BindRegisterScheduledJobs(cmd, command.Definitions, command.SlotRefs, session.Schema),
             DbProjectionResolver.Resolve<RegisteredScheduleSlot>(),
             ct
@@ -83,7 +83,7 @@ internal sealed class RelationalScheduleStore(IDbSession session, ISqlDialect di
 
     public Task<ScheduleControlOutcome> PauseScheduleAsync(PauseScheduleCommand command, CancellationToken ct) =>
         ControlAsync(
-            "Schedules/PauseSchedule",
+            "PauseSchedule",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.JobId, command.JobId));
@@ -96,7 +96,7 @@ internal sealed class RelationalScheduleStore(IDbSession session, ISqlDialect di
 
     public Task<ScheduleControlOutcome> ResumeScheduleAsync(ResumeScheduleCommand command, CancellationToken ct) =>
         ControlAsync(
-            "Schedules/ResumeSchedule",
+            "ResumeSchedule",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.JobId, command.JobId));
@@ -109,7 +109,7 @@ internal sealed class RelationalScheduleStore(IDbSession session, ISqlDialect di
 
     public Task<ScheduleControlOutcome> SetScheduleOverridesAsync(SetScheduleOverridesCommand command, CancellationToken ct) =>
         ControlAsync(
-            "Schedules/SetScheduleOverrides",
+            "SetScheduleOverrides",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.JobId, command.JobId));
@@ -129,7 +129,7 @@ internal sealed class RelationalScheduleStore(IDbSession session, ISqlDialect di
 
     public Task<ScheduleControlOutcome> TriggerScheduleNowAsync(TriggerScheduleNowCommand command, CancellationToken ct) =>
         ControlAsync(
-            "Schedules/TriggerScheduleNow",
+            "TriggerScheduleNow",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.JobId, command.JobId));
@@ -142,12 +142,7 @@ internal sealed class RelationalScheduleStore(IDbSession session, ISqlDialect di
         );
 
     private async Task<ScheduleControlOutcome> ControlAsync(string operation, Action<DbCommand> bind, CancellationToken ct) =>
-        await session.ExecuteSingleAsync(
-            new StoreCommand("Execution", operation),
-            bind,
-            DbProjectionResolver.Resolve<ScheduleControlOutcome>(),
-            ct
-        )
+        await session.ExecuteSingleAsync(new StoreCommand(operation), bind, DbProjectionResolver.Resolve<ScheduleControlOutcome>(), ct)
         ?? throw new InvalidOperationException($"Control command '{operation}' returned no rows; it must return exactly one outcome row.");
 
     private void AddListParameters(DbCommand cmd, SchedulePageRequest request)

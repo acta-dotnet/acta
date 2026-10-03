@@ -15,7 +15,7 @@ namespace Acta.Tests.Conformance.DbSession;
 )]
 public sealed class AtomicCommandTransactionSpec : ActaStorageTestBase<ConformanceFixture>
 {
-    private static readonly StoreCommand Command = new("Execution", "Namespaces/UpdateNamespace");
+    private static readonly StoreCommand Command = new("UpdateNamespace");
 
     private Action<DbCommand> Bind(int version, ActorCode actor = ActorCode.Operator) =>
         cmd =>

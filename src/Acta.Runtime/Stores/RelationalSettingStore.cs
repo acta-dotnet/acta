@@ -9,7 +9,7 @@ internal sealed class RelationalSettingStore(IDbSession session, ISqlDialect dia
 {
     public Task<SettingRow?> GetSettingAsync(SettingPointLookup lookup, CancellationToken ct) =>
         session.QueryAsync(
-            "Sql/Execution/Settings/GetSetting.sql",
+            "GetSetting",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Setting.Name, lookup.Name));
@@ -26,7 +26,7 @@ internal sealed class RelationalSettingStore(IDbSession session, ISqlDialect dia
 
     public async Task<AdminControlOutcome> SetSettingAsync(SetSettingCommand command, CancellationToken ct) =>
         await session.ExecuteSingleAsync(
-            new StoreCommand("Execution", "Settings/SetSetting"),
+            new StoreCommand("SetSetting"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Setting.Name, command.Name));

@@ -17,7 +17,7 @@ internal sealed class RelationalLockStore(IDbSession session, ISqlDialect dialec
     {
         var holdToken = Guid.NewGuid();
         var rows = await session.ExecuteAsync(
-            new StoreCommand("Services", "Locks/AcquireLock"),
+            new StoreCommand("AcquireLock"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Lock.LockKey, key));
@@ -35,7 +35,7 @@ internal sealed class RelationalLockStore(IDbSession session, ISqlDialect dialec
     {
         var holdToken = Guid.NewGuid();
         var rows = await session.ExecuteAsync(
-            new StoreCommand("Services", "Locks/AcquireSlot"),
+            new StoreCommand("AcquireSlot"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LockKeyPrefix, keyPrefix));
@@ -63,7 +63,7 @@ internal sealed class RelationalLockStore(IDbSession session, ISqlDialect dialec
     )
     {
         var rows = await session.ExecuteAsync(
-            new StoreCommand("Services", "Locks/ReserveRate"),
+            new StoreCommand("ReserveRate"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Lock.LockKey, bucketKey));
@@ -89,7 +89,7 @@ internal sealed class RelationalLockStore(IDbSession session, ISqlDialect dialec
     public async Task<bool> ExtendAsync(LockToken token, TimeSpan ttl, CancellationToken ct)
     {
         var rows = await session.ExecuteAsync(
-            new StoreCommand("Services", "Locks/ExtendLock"),
+            new StoreCommand("ExtendLock"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Lock.LockKey, token.Key));
@@ -105,7 +105,7 @@ internal sealed class RelationalLockStore(IDbSession session, ISqlDialect dialec
     public async Task<bool> ReleaseAsync(LockToken token, CancellationToken ct)
     {
         var rows = await session.ExecuteAsync(
-            new StoreCommand("Services", "Locks/ReleaseLock"),
+            new StoreCommand("ReleaseLock"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Lock.LockKey, token.Key));
