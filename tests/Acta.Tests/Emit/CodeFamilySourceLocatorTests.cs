@@ -19,7 +19,14 @@ public sealed class CodeFamilySourceLocatorTests
         var areas = CodeFamilySourceLocator.ResolveAreas(repoRoot, names);
 
         Assert.Equal(names.Length, areas.Count);
-        Assert.All(names, name => Assert.True(File.Exists(Path.Combine(repoRoot, "src", "Acta", areas[name], name + ".cs"))));
+        Assert.All(
+            names,
+            name =>
+                Assert.True(
+                    File.Exists(Path.Combine(repoRoot, "src", "Acta", areas[name], name + ".cs"))
+                        || File.Exists(Path.Combine(repoRoot, "src", "Acta", "Operations", areas[name], name + ".cs"))
+                )
+        );
     }
 
     [Fact]

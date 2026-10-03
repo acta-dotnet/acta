@@ -42,14 +42,17 @@ internal static class CodeFamilySourceLocator
                 [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
                 StringSplitOptions.RemoveEmptyEntries
             );
-            if (parts.Length != 2 || !string.Equals(parts[1], name + ".cs", StringComparison.Ordinal))
+            // A capability folder (Payloads/) or an operation group (Operations/Jobs/) names the area.
+            var area = parts switch
             {
-                throw new InvalidOperationException(
-                    $"Code family '{name}' must be declared at src/Acta/<Area>/{name}.cs; found {Path.GetRelativePath(repoRoot, matches[0])}."
-                );
-            }
+                [var folder, var file] when file == name + ".cs" => folder,
+                ["Operations", var group, var file] when file == name + ".cs" => group,
+                _ => throw new InvalidOperationException(
+                    $"Code family '{name}' must be declared at src/Acta/<Area>/{name}.cs or src/Acta/Operations/<Group>/{name}.cs; found {Path.GetRelativePath(repoRoot, matches[0])}."
+                ),
+            };
 
-            areas.Add(name, parts[0]);
+            areas.Add(name, area);
         }
 
         return areas;
