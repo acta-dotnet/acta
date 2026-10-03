@@ -46,13 +46,33 @@ surface, the HTTP surface, the SQL schema plus persisted codes, and the telemetr
 - **No `Job` prefix on types that are not jobs.** The prefix marks the job aggregate's own types,
   not "belongs to Acta".
 
-## Read-model shapes
+## Type names: one suffix per role
 
-- **`Detail`** is a single-entity read model (`JobDetail`, `TenantDetail`).
-- **`Snapshot`** is a point-in-time aggregate (`OverviewSnapshot`).
-- **`ListItem`** is a paged element (`JobListItem`, `OutboxSourceListItem`).
-- **`Item`** is a plain list element outside paging (`TagItem`, `OutboxQuarantinedItem` when the
-  page wrapper already names the paging).
+A type is named `{Subject}{Role}`, and each role has exactly one suffix. An operation is named `VerbNoun` (`PauseJob`, `ListJobs`), and that name is also its folder, its SQL file stem, and its facade method without `Async` ([source layout](source-layout.md)).
+
+| Role | Suffix | Example |
+|---|---|---|
+| Input to a write operation (internal) | `Command` | `PauseJobCommand` |
+| Input to a read operation, including public list filters | `Query` | `ListJobsQuery` |
+| Executes one command or query | `Handler` | `PauseJobHandler` |
+| What a command returns (public) | `Response` | `PauseJobResponse : IJobControlResponse` |
+| Bound straight from a reader, internal, no public twin | `Row` | `ClaimBatchRow` |
+| Public single-entity read model | `Detail` | `JobDetail`, `TenantDetail` |
+| Public point-in-time aggregate | `Snapshot` | `OverviewSnapshot` |
+| Public paged element | `ListItem` | `JobListItem`, `OutboxSourceListItem` |
+| Public facade implementation | the interface name without `I` | `Jobs : IJobs` |
+| Route table of a group, one special route | `Endpoints`, `Endpoint` | `JobsEndpoints`, `EnqueueOneEndpoint` |
+| HTTP body that differs from its command or response | `HttpRequest`, `HttpResponse` | `EnqueueOneHttpRequest` |
+| Schema table model | `Table` | `JobsTable` |
+| Persisted enum, options, fluent builder, error, attribute | `Code`, `Options`, `Builder`, `Exception`, `Attribute` | `JobStatusCode` |
+| How a job or an attempt ended, for handler code only | `Outcome` | `JobOutcome`, `ChildJobOutcome`, `MapOutcome` |
+
+- **A `Get` query returns one thing and a `List` query returns a page.** `Get` returns a `Detail`, a `Snapshot`, or a single value, and `null` when nothing is found. `List` always returns `PagedResult<XListItem>`, never an unpaged list. `PagedResult<T>` keeps its name: it is a page, not an operation's response.
+- **Every operation has its own input and its own response.** Responses that belong together share an interface (`IJobControlResponse`), never a class, so changing one operation's response changes no other operation.
+- **`Row` means the database loaded it.** Every `*Row` carries `[DbProjection]`. A model the public API exposes is never a row; SQL fills it directly.
+- **`Outcome` is a domain noun, never a return type.** It names how a job, a child, or a map ended inside handler code; what an operation returns is a `Response`.
+- **Banned suffixes:** `Result`, `Dto`, `Data`, `Info`, `Model`, `Entity`, `Record`, `Item` outside `ListItem`, `Store`, `Service`, `Api`, `Page`, `PageRequest`, `Decision`.
+- **`TypeNamingTests` enforces the banned suffixes, the `Row` rule, and the `Table` suffix** over every shipped assembly. Names that predate the table are listed in `tests/ratchets/naming.txt`, and entries may only be removed.
 
 ## Public identity: refs and the wire boundary
 

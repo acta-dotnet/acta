@@ -58,6 +58,7 @@ Contributor-facing; not needed to use Acta: [design principles and settled decis
 [SQL execution policy](./internals/sql-execution-policy.md),
 [migration tooling](./internals/migrations.md),
 [releasing](./internals/releasing.md), [naming conventions](./internals/naming-conventions.md),
+[source layout](./internals/source-layout.md),
 [benchmarks](./benchmarks/stress-tests.md),
 [certification seals](./certification/README.md),
 [modular architecture](./internals/modular-architecture.md),
