@@ -290,7 +290,7 @@ public sealed class RenewalLoopFailureArmTests
     }
 
     private sealed class ScriptedWorkerStore(CancellationTokenSource cts, int failOn, Exception? failure = null, bool cancellation = false)
-        : IWorkerStore
+        : IWorkerLifecycle
     {
         private int _calls;
 
@@ -315,10 +315,6 @@ public sealed class RenewalLoopFailureArmTests
         public Task StopWorkerAsync(int namespaceId, int workerId, CancellationToken ct) => throw new NotSupportedException();
 
         public Task<int> MarkDeadWorkersAsync(int deadAfterSeconds, CancellationToken ct) => throw new NotSupportedException();
-
-        public Task<WorkerPage> ListWorkersAsync(WorkerPageRequest request, CancellationToken ct) => throw new NotSupportedException();
-
-        public ValueTask<WorkerDetail?> GetWorkerAsync(Guid workerRef, CancellationToken ct) => throw new NotSupportedException();
     }
 
     private sealed class RecordingLogger : ILogger

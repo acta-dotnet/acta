@@ -119,7 +119,7 @@ public sealed class RecoveryPassTests
         ) => throw new NotSupportedException();
     }
 
-    private sealed class FakeWorkerStore : IWorkerStore
+    private sealed class FakeWorkerStore : IWorkerLifecycle
     {
         public int Marked { get; init; }
 
@@ -141,10 +141,6 @@ public sealed class RecoveryPassTests
             bool draining,
             CancellationToken ct
         ) => throw new NotSupportedException();
-
-        public ValueTask<WorkerDetail?> GetWorkerAsync(Guid workerRef, CancellationToken ct) => throw new NotSupportedException();
-
-        public Task<WorkerPage> ListWorkersAsync(WorkerPageRequest request, CancellationToken ct) => throw new NotSupportedException();
     }
 
     private sealed class FakeExecutionStore : IExecutionStore

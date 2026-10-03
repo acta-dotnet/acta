@@ -47,7 +47,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         // strictly-greater assertion below is deterministic under load (claim->extend can be sub-ms).
         await Task.Delay(5, ct);
 
-        var extended = await Services.GetRequiredService<IWorkerStore>().ExtendWorkerLeasesAsync(workerId, leaseTtl, false, ct);
+        var extended = await Services.GetRequiredService<IWorkerLifecycle>().ExtendWorkerLeasesAsync(workerId, leaseTtl, false, ct);
         Assert.Equal(new LeaseRenewalRow(enqueued.JobId, claimedRow.ExecutionNumber, Renewed: true), Assert.Single(extended));
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
@@ -88,7 +88,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         // The worker's own heartbeat refreshes the lease while this claim is still buffered (Dispatched,
         // not yet started). It must not advance the runtime version, or the claim-time version below
         // fails the start CAS as LostClaim and the row stalls leased-but-never-run.
-        var extended = await Services.GetRequiredService<IWorkerStore>().ExtendWorkerLeasesAsync(workerId, leaseTtl, false, ct);
+        var extended = await Services.GetRequiredService<IWorkerLifecycle>().ExtendWorkerLeasesAsync(workerId, leaseTtl, false, ct);
         Assert.Equal(new LeaseRenewalRow(enqueued.JobId, claimed.ExecutionNumber, Renewed: true), Assert.Single(extended));
 
         var action = await Services

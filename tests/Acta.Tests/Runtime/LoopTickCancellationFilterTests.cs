@@ -138,7 +138,7 @@ public sealed class LoopTickCancellationFilterTests
     }
 
     // Worker-store seams for WorkerHeartbeat: the heartbeat's only store call is the lease extend.
-    private abstract class WorkerStoreStub : IWorkerStore
+    private abstract class WorkerStoreStub : IWorkerLifecycle
     {
         public abstract Task<IReadOnlyList<LeaseRenewalRow>> ExtendWorkerLeasesAsync(
             int workerId,
@@ -152,10 +152,6 @@ public sealed class LoopTickCancellationFilterTests
         public Task StopWorkerAsync(int namespaceId, int workerId, CancellationToken ct) => throw new NotSupportedException();
 
         public Task<int> MarkDeadWorkersAsync(int deadAfterSeconds, CancellationToken ct) => throw new NotSupportedException();
-
-        public Task<WorkerPage> ListWorkersAsync(WorkerPageRequest request, CancellationToken ct) => throw new NotSupportedException();
-
-        public ValueTask<WorkerDetail?> GetWorkerAsync(Guid workerRef, CancellationToken ct) => throw new NotSupportedException();
     }
 
     private sealed class ThrowingWorkerStore(Exception failure) : WorkerStoreStub

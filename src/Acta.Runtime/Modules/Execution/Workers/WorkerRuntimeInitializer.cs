@@ -24,7 +24,7 @@ internal sealed class WorkerRuntimeInitializer(
     DefinitionsService definitions,
     IDefinitionStore definitionStore,
     IScheduleStore schedules,
-    IWorkerStore workers,
+    IWorkerLifecycle workers,
     IExecutionStore execution,
     IActaClock clock,
     IServerClock serverClock,
@@ -39,7 +39,7 @@ internal sealed class WorkerRuntimeInitializer(
     private readonly DefinitionsService _definitions = definitions;
     private readonly IDefinitionStore _definitionStore = definitionStore;
     private readonly IScheduleStore _schedules = schedules;
-    private readonly IWorkerStore _workers = workers;
+    private readonly IWorkerLifecycle _workers = workers;
     private readonly IExecutionStore _execution = execution;
     private readonly IActaClock _clock = clock;
     private readonly IServerClock _serverClock = serverClock;

@@ -94,7 +94,7 @@ public sealed class StartReconciliationChaosSpec : ActaRuntimeTestBase<Conforman
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-counting", ct);
         var namespaceId = await ChaosSpecHelpers.NamespaceIdAsync(Db, TestNamespace, ct);
-        var workers = Services.GetRequiredService<IWorkerStore>();
+        var workers = Services.GetRequiredService<IWorkerLifecycle>();
 
         // The first start answers LeaseExpired on a row that is still this worker's Dispatched execution;
         // the heartbeat's renewal is staged before the second start and after no recovery pass, the

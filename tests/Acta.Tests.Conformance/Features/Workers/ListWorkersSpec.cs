@@ -65,12 +65,12 @@ public sealed class ListWorkersSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         await WorkerTestOps.StartAsync(Services, TestNamespace, "test", null, "host-c", "v3", "engine-c", ".NET test", 1003, 16, ct);
 
         var page = await Services
-            .GetRequiredService<IWorkerStore>()
-            .ListWorkersAsync(new WorkerPageRequest(TestNamespace, null, null, null, Take: 2, IncludeTotal: true), ct);
-        var (rows, total) = (page.Rows, page.Total);
+            .GetRequiredService<IWorkers>()
+            .ListAsync(new ListWorkersQuery(TestNamespace, PageSize: 2, IncludeTotal: true), ct);
+        var rows = page.Items;
 
         Assert.Equal(2, rows.Count);
-        Assert.True(total >= 3, $"expected filter-wide total of at least 3, saw {total}");
+        Assert.True(page.TotalCount >= 3, $"expected filter-wide total of at least 3, saw {page.TotalCount}");
 
         var newest = rows[0];
         Assert.Equal("engine-c", newest.EngineVersion);

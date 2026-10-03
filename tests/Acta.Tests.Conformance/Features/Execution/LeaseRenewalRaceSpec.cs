@@ -66,7 +66,7 @@ public sealed class LeaseRenewalRaceSpec : ActaRuntimeTestBase<ConformanceFixtur
         var completion = complete();
         await Task.Delay(TimeSpan.FromMilliseconds(300), ct);
         Assert.False(completion.IsCompleted, "the completion did not wait for the parent's latch");
-        var store = Services.GetRequiredService<IWorkerStore>();
+        var store = Services.GetRequiredService<IWorkerLifecycle>();
         var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
         // The renewal must finish while the completion still holds the child's row; one that waited for it
         // would hold the parent's row and deadlock with the completion once the gate opened, so it would never

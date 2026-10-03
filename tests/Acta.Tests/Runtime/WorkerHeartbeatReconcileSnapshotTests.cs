@@ -52,7 +52,7 @@ public sealed class WorkerHeartbeatReconcileSnapshotTests
     // Blocks the extend call on a gate so the test can register a new RunningAttempt while the
     // tick is mid-flight, then releases it to return a fixed "live" id set. Every other member
     // throws NotSupportedException - WorkerHeartbeat.TickAsync only ever extends leases.
-    private sealed class GatedWorkerStore(IReadOnlyList<long> liveJobIds) : IWorkerStore
+    private sealed class GatedWorkerStore(IReadOnlyList<long> liveJobIds) : IWorkerLifecycle
     {
         private readonly TaskCompletionSource _entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource _gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -78,9 +78,5 @@ public sealed class WorkerHeartbeatReconcileSnapshotTests
         public Task StopWorkerAsync(int namespaceId, int workerId, CancellationToken ct) => throw new NotSupportedException();
 
         public Task<int> MarkDeadWorkersAsync(int deadAfterSeconds, CancellationToken ct) => throw new NotSupportedException();
-
-        public Task<WorkerPage> ListWorkersAsync(WorkerPageRequest request, CancellationToken ct) => throw new NotSupportedException();
-
-        public ValueTask<WorkerDetail?> GetWorkerAsync(Guid workerRef, CancellationToken ct) => throw new NotSupportedException();
     }
 }

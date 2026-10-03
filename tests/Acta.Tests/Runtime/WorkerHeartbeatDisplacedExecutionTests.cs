@@ -48,7 +48,7 @@ public sealed class WorkerHeartbeatDisplacedExecutionTests
         Assert.Equal([7L], await handed.Task.WaitAsync(TimeSpan.FromSeconds(30), ct));
     }
 
-    private sealed class RenewingWorkerStore(LeaseRenewalRow row) : IWorkerStore
+    private sealed class RenewingWorkerStore(LeaseRenewalRow row) : IWorkerLifecycle
     {
         public Task<IReadOnlyList<LeaseRenewalRow>> ExtendWorkerLeasesAsync(
             int workerId,
@@ -62,9 +62,5 @@ public sealed class WorkerHeartbeatDisplacedExecutionTests
         public Task StopWorkerAsync(int namespaceId, int workerId, CancellationToken ct) => throw new NotSupportedException();
 
         public Task<int> MarkDeadWorkersAsync(int deadAfterSeconds, CancellationToken ct) => throw new NotSupportedException();
-
-        public Task<WorkerPage> ListWorkersAsync(WorkerPageRequest request, CancellationToken ct) => throw new NotSupportedException();
-
-        public ValueTask<WorkerDetail?> GetWorkerAsync(Guid workerRef, CancellationToken ct) => throw new NotSupportedException();
     }
 }

@@ -20,7 +20,6 @@ internal static class RelationalStoreRegistration
         services.AddSingleton<ISignalStore, RelationalSignalStore>();
         services.AddSingleton<IOutboxSignalStore, RelationalOutboxSignalStore>();
         services.AddSingleton<IScheduleStore, RelationalScheduleStore>();
-        services.AddSingleton<IWorkerStore, RelationalWorkerStore>();
         services.AddSingleton<IAlertStore, RelationalAlertStore>();
         services.AddSingleton<IExecutionStore, RelationalExecutionStore>();
     }

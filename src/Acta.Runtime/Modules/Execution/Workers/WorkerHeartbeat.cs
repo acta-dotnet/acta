@@ -7,14 +7,14 @@ namespace Acta.Runtime;
 /// <summary>
 /// The runtime-owned worker heartbeat loop. Every <see cref="JobsOptions.HeartbeatInterval"/> it renews
 /// this worker's batched job leases + <c>workers.last_seen_at_utc</c> via
-/// <see cref="IWorkerStore.ExtendWorkerLeasesAsync"/> and feeds each running attempt's job-lease deadline
+/// <see cref="IWorkerLifecycle.ExtendWorkerLeasesAsync"/> and feeds each running attempt's job-lease deadline
 /// on a confirmed renewal of its own execution, cancelling one only when an authoritative refresh drops its
 /// execution (operator cancel, a reclaimed lease, or the job claimed again into a newer execution). It does not enforce deadlines on an outage - the <see cref="AttemptWatchdog"/>
 /// does - nor renew handler locks - <see cref="LockLeaseHeartbeat"/> does, so a lock outage stays
 /// apart from a worker-lease one. Runs on its own <see cref="PeriodicTimer"/>; a no-op in enqueue-only mode.
 /// </summary>
 internal sealed class WorkerHeartbeat(
-    IWorkerStore workers,
+    IWorkerLifecycle workers,
     IOptions<JobsOptions> options,
     WorkerRegistration? workerRegistration,
     WorkerContext context,
@@ -22,7 +22,7 @@ internal sealed class WorkerHeartbeat(
     Func<IReadOnlyList<long>, CancellationToken, Task>? releaseOrphanedClaims = null
 )
 {
-    private readonly IWorkerStore _workers = workers;
+    private readonly IWorkerLifecycle _workers = workers;
     private readonly WorkerRegistration? _workerRegistration = workerRegistration;
     private readonly WorkerContext _context = context;
     private readonly Func<IReadOnlyList<long>, CancellationToken, Task>? _releaseOrphanedClaims = releaseOrphanedClaims;

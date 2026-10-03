@@ -83,7 +83,7 @@ public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<Conform
         // worker to have released it. This is the assertion the defect failed.
         var workerId = await WorkerIdAsync(ct);
         var renewed = await Services
-            .GetRequiredService<IWorkerStore>()
+            .GetRequiredService<IWorkerLifecycle>()
             .ExtendWorkerLeasesAsync(workerId, leaseTtlSeconds: 600, draining: false, ct);
         Assert.DoesNotContain(renewed, r => r.JobId == enqueued.JobId);
 

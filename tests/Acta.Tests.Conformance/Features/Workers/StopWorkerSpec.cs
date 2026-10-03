@@ -31,7 +31,7 @@ public sealed class StopWorkerSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         Assert.NotNull(worker);
         Assert.Equal(WorkerStatusCode.Active, worker!.Status);
 
-        await Services.GetRequiredService<IWorkerStore>().StopWorkerAsync(ns, worker.Id, ct);
+        await Services.GetRequiredService<IWorkerLifecycle>().StopWorkerAsync(ns, worker.Id, ct);
 
         var after = await Db.From<JobWorker>().Where(w => w.Id == worker.Id).SingleOrDefaultAsync(ct);
         Assert.NotNull(after);
@@ -56,8 +56,8 @@ public sealed class StopWorkerSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var worker = await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);
 
-        await Services.GetRequiredService<IWorkerStore>().StopWorkerAsync(ns, worker!.Id, ct);
-        await Services.GetRequiredService<IWorkerStore>().StopWorkerAsync(ns, worker.Id, ct);
+        await Services.GetRequiredService<IWorkerLifecycle>().StopWorkerAsync(ns, worker!.Id, ct);
+        await Services.GetRequiredService<IWorkerLifecycle>().StopWorkerAsync(ns, worker.Id, ct);
 
         // The second stop is a no-op on the now-terminal worker: still exactly one worker.stopped event.
         var events = await Db.From<JobEvent>()

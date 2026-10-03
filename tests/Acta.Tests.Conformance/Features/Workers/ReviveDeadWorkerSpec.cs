@@ -26,7 +26,7 @@ public sealed class ReviveDeadWorkerSpec : ActaRuntimeTestBase<ConformanceFixtur
     public async Task Heartbeat_revives_a_dead_worker()
     {
         var ct = TestContext.Current.CancellationToken;
-        var workers = Services.GetRequiredService<IWorkerStore>();
+        var workers = Services.GetRequiredService<IWorkerLifecycle>();
         var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
 
         var (ns, revivedId) = await StartWorkerAsync("revived-host", ct);

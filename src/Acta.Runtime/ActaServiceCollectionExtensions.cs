@@ -77,7 +77,6 @@ public static class ActaServiceCollectionExtensions
         // registered here (the composition root may see every module) but owned by its module.
         services.TryAddSingleton<ISchedules, SchedulesApi>();
         services.TryAddSingleton<IDefinitions, DefinitionsApi>();
-        services.TryAddSingleton<IWorkers, WorkersApi>();
         services.TryAddSingleton<IAlerts, AlertsApi>();
         services.TryAddSingleton<IOutbox, OutboxApi>();
         services.TryAddSingleton<IActaOperations, OperationsApi>();
@@ -116,6 +115,14 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<UpsertTagsHandler>();
         services.TryAddSingleton<RemoveTagsHandler>();
         services.TryAddSingleton<ITags, Tags>();
+        services.TryAddSingleton<StartWorkerHandler>();
+        services.TryAddSingleton<StopWorkerHandler>();
+        services.TryAddSingleton<ExtendWorkerLeasesHandler>();
+        services.TryAddSingleton<MarkDeadWorkersHandler>();
+        services.TryAddSingleton<IWorkerLifecycle, WorkerLifecycle>();
+        services.TryAddSingleton<GetWorkerHandler>();
+        services.TryAddSingleton<ListWorkersHandler>();
+        services.TryAddSingleton<IWorkers, Workers>();
 
         // Consumers light up the meter with WithMetrics(m => m.AddMeter(JobMetrics.MeterName)).
         services.TryAddSingleton<JobMetrics>();

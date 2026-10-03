@@ -76,7 +76,7 @@ internal sealed class WorkerRuntime
             rootServices.GetRequiredService<DefinitionsService>(),
             rootServices.GetRequiredService<IDefinitionStore>(),
             rootServices.GetRequiredService<IScheduleStore>(),
-            rootServices.GetRequiredService<IWorkerStore>(),
+            rootServices.GetRequiredService<IWorkerLifecycle>(),
             rootServices.GetRequiredService<IExecutionStore>(),
             clock,
             rootServices.GetRequiredService<IServerClock>(),
@@ -110,7 +110,7 @@ internal sealed class WorkerRuntime
             metrics
         );
         _heartbeat = new WorkerHeartbeat(
-            rootServices.GetRequiredService<IWorkerStore>(),
+            rootServices.GetRequiredService<IWorkerLifecycle>(),
             options,
             workerRegistration,
             _context,
