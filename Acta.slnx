@@ -172,7 +172,6 @@
     <File Path="docs/reference/data-model.md" />
   </Folder>
   <Folder Name="/docs/technical/">
-    <File Path="docs/technical/architecture-diagrams.md" />
     <File Path="docs/technical/known-limitations.md" />
   </Folder>
 </Solution>
