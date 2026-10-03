@@ -17,13 +17,16 @@ Acta and its docs both go on a slimming mission: fewer types, fewer files, fewer
 Structure:
 
 - Operations go back to my original idea: much more cohesive, each one complete in one place.
-- All operations live under one common root folder, listed there directly or under at most one level of grouping folders.
+- All operations live under one common root folder, under at most one level of grouping folders, and each operation has its own folder: a vertical slice holding its request, response, endpoint, SQL per dialect, and documentation (`Operations/Jobs/PauseJob/`). The groups are mapped before implementation starts.
+- Types in a slice carry a role postfix and the folder does not, so namespaces never clash with folders: `PauseJob/` holds `PauseJobCommand` (the input), `PauseJobHandler` (executes it), and `PauseJobResponse`; `ListJobs/` holds `ListJobsQuery` and `ListJobsHandler`. A `Get` query returns one `Detail`, `Snapshot`, or value; a `List` query always returns `PagedResult<XListItem>`; a command returns its own `XResponse`. The public facade (`Jobs : IJobs`) is one hand-written file calling the handlers; no partial classes, no mediator.
+- `Engine/` is the runtime engine with the worker implementations; `Operations/` holds the lego blocks the engine needs.
+- The Bulk execution profile goes: it relaxes durability, which is Acta's core claim, and its group-commit path is the most intricate part of the engine. Every completion is durable per job.
 - Each operation's SQL scripts move back next to the operation, so all of its scripts are nearby. The providers keep only their `Schema` folder.
 - Probably every remaining file in the provider projects moves to the project root.
 - `Acta.Runtime` and `Acta.Relational` merge: I will not pursue a non-relational Acta at all.
 - The seams between operations and the runtime are redefined, so the source can be maintained by hand again.
 - `Acta.Redis` moves its files to the project root too.
-- SQLite targets the newest version the bundled driver ships and uses its features freely, with no legacy compatibility (for example `STRICT` tables and `jsonb`).
+- SQLite targets the newest version the bundled driver ships and uses its features freely, with no legacy compatibility (for example `STRICT` tables; not `jsonb`, which Acta has no use for).
 - `AUTOINCREMENT` on the SQLite tables costs a `sqlite_sequence` write per insert but guarantees an id is never reused after a purge; decide whether ids may be reused before dropping it.
 - Once objects sit at the root, folders go away, and we may find we don't need all the classes.
 
