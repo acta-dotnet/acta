@@ -29,7 +29,7 @@ public sealed class SetSettingSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Null(await Service.GetAsync(name, namespaceName: null, jobName: null, ct));
 
         var created = await Service.SetAsync(name, "42", null, "the answer", namespaceName: null, jobName: null, null, "op-1", ct);
-        Assert.Equal(AdminControlAction.Applied, created.Action);
+        Assert.Equal(ControlAction.Applied, created.Action);
         Assert.Equal(0, created.Version);
 
         var first = await Service.GetAsync(name, namespaceName: null, jobName: null, ct);
@@ -39,7 +39,7 @@ public sealed class SetSettingSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Equal(0, first.Version);
 
         var overwritten = await Service.SetAsync(name, "43", null, "the answer", namespaceName: null, jobName: null, null, "op-1", ct);
-        Assert.Equal(AdminControlAction.Applied, overwritten.Action);
+        Assert.Equal(ControlAction.Applied, overwritten.Action);
         Assert.Equal(1, overwritten.Version);
 
         var second = await Service.GetAsync(name, namespaceName: null, jobName: null, ct);
@@ -71,10 +71,10 @@ public sealed class SetSettingSpec : ActaStorageTestBase<ConformanceFixture>
         var name = TestKey("cfg-miss");
 
         var unknownNamespace = await Service.SetAsync(name, "x", null, null, TestKey("no-such-ns"), jobName: null, null, "op-1", ct);
-        Assert.Equal(AdminControlAction.NotFound, unknownNamespace.Action);
+        Assert.Equal(ControlAction.NotFound, unknownNamespace.Action);
 
         var unknownDefinition = await Service.SetAsync(name, "x", null, null, TestNamespace, TestKey("no-such-job"), null, "op-1", ct);
-        Assert.Equal(AdminControlAction.NotFound, unknownDefinition.Action);
+        Assert.Equal(ControlAction.NotFound, unknownDefinition.Action);
 
         Assert.Null(await Service.GetAsync(name, TestNamespace, null, ct));
         Assert.Empty(await Db.From<Setting>().Where(s => s.Name == name).ToListAsync(ct));
@@ -109,14 +109,14 @@ public sealed class SetSettingSpec : ActaStorageTestBase<ConformanceFixture>
 
         // Expecting a version of a row that does not exist is NotFound, and nothing is created.
         var absent = await Service.SetAsync(name, "v", 0, null, namespaceName: null, jobName: null, null, "op-1", ct);
-        Assert.Equal(AdminControlAction.NotFound, absent.Action);
+        Assert.Equal(ControlAction.NotFound, absent.Action);
         Assert.Null(await Service.GetAsync(name, namespaceName: null, jobName: null, ct));
 
         await Service.SetAsync(name, "one", null, null, namespaceName: null, jobName: null, reason, "op-1", ct);
 
         // Matching CAS applies and bumps: 0 -> 1.
         var applied = await Service.SetAsync(name, "two", 0, null, namespaceName: null, jobName: null, reason, "op-1", ct);
-        Assert.Equal(AdminControlAction.Applied, applied.Action);
+        Assert.Equal(ControlAction.Applied, applied.Action);
         Assert.Equal(1, applied.Version);
 
         // Stale CAS rejects, reports the row's current version, and writes neither the row nor an event.
@@ -126,7 +126,7 @@ public sealed class SetSettingSpec : ActaStorageTestBase<ConformanceFixture>
         // setting during these two reads - which is not this fact, and not true.
         var eventsBefore = await SettingEventCountAsync(reason, ct);
         var stale = await Service.SetAsync(name, "three", 0, null, namespaceName: null, jobName: null, reason, "op-1", ct);
-        Assert.Equal(AdminControlAction.VersionConflict, stale.Action);
+        Assert.Equal(ControlAction.VersionConflict, stale.Action);
         Assert.Equal(1, stale.Version);
 
         var current = await Service.GetAsync(name, namespaceName: null, jobName: null, ct);

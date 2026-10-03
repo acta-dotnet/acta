@@ -158,14 +158,9 @@ sealed class Acta.ActorCodeJsonConverter
     .ctor()
     Acta.ActorCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.ActorCode value, System.Text.Json.JsonSerializerOptions options)
-enum Acta.AdminControlAction
-    AlreadyInState = 3
-    Applied = 1
-    NotFound = 2
-    VersionConflict = 4
 sealed class Acta.AdminControlResult
-    .ctor(Acta.AdminControlAction Action, System.Nullable<System.Int32> Version)
-    Acta.AdminControlAction Action { get;init; }
+    .ctor(Acta.ControlAction Action, System.Nullable<System.Int32> Version)
+    Acta.ControlAction Action { get;init; }
     System.Nullable<System.Int32> Version { get;init; }
 static class Acta.AdminTextLimits
     System.Int32 AlertChannelName = 128
@@ -446,6 +441,7 @@ static class Acta.CodeManifests
     System.String MarkdownReport = <26740 chars, sha256:92BA079A>
 enum Acta.ControlAction
     Accepted = 4
+    AlreadyInState = 6
     Applied = 1
     NotFound = 2
     Rejected = 3

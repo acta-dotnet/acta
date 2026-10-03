@@ -17,11 +17,11 @@ BEGIN
     WHERE n.name = p_namespace_name
     FOR UPDATE;
     IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* AdminControlAction.NotFound */::SMALLINT, NULL::INT;
+        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::INT;
         RETURN;
     END IF;
     IF v_status = 10 /* NamespaceStatusCode.Active */ THEN
-        RETURN QUERY SELECT 3 /* AdminControlAction.AlreadyInState */::SMALLINT, v_version;
+        RETURN QUERY SELECT 6 /* ControlAction.AlreadyInState */::SMALLINT, v_version;
         RETURN;
     END IF;
     UPDATE {{schema}}.namespaces AS n
@@ -69,6 +69,6 @@ BEGIN
         NULL,
         NULL,
         p_reason_message);
-    RETURN QUERY SELECT 1 /* AdminControlAction.Applied */::SMALLINT, v_version;
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_version;
 END;
 $$;

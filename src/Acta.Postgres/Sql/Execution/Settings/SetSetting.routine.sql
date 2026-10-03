@@ -26,7 +26,7 @@ BEGIN
     IF p_namespace_name IS NOT NULL THEN
         SELECT n.id INTO v_namespace_id FROM {{schema}}.namespaces n WHERE n.name = p_namespace_name;
         IF NOT FOUND THEN
-            RETURN QUERY SELECT 2 /* AdminControlAction.NotFound */::SMALLINT, NULL::INT;
+            RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::INT;
             RETURN;
         END IF;
         IF p_job_name IS NULL THEN
@@ -39,7 +39,7 @@ BEGIN
                 d.namespace_id = v_namespace_id
                 AND d.name = p_job_name;
             IF NOT FOUND THEN
-                RETURN QUERY SELECT 2 /* AdminControlAction.NotFound */::SMALLINT, NULL::INT;
+                RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::INT;
                 RETURN;
             END IF;
             v_scope_code := 40 /* SettingScopeCode.Definition */;
@@ -71,9 +71,9 @@ BEGIN
                 AND s.scope_id IS NOT DISTINCT FROM v_scope_id
                 AND s.name = p_name;
             IF FOUND THEN
-                RETURN QUERY SELECT 4 /* AdminControlAction.VersionConflict */::SMALLINT, v_version;
+                RETURN QUERY SELECT 5 /* ControlAction.VersionConflict */::SMALLINT, v_version;
             ELSE
-                RETURN QUERY SELECT 2 /* AdminControlAction.NotFound */::SMALLINT, NULL::INT;
+                RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::INT;
             END IF;
             RETURN;
         END IF;
@@ -180,6 +180,6 @@ BEGIN
         1 /* JobPayloadFormat.Json */,
         convert_to('{"name":"' || p_name || '"}', 'UTF8'));
 
-    RETURN QUERY SELECT 1 /* AdminControlAction.Applied */::SMALLINT, v_version;
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_version;
 END;
 $$;

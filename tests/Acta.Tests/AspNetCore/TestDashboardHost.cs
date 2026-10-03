@@ -1354,16 +1354,16 @@ internal static class TestDashboardHost
 
                 if (tenantKey == "missing")
                 {
-                    return ValueTask.FromResult(new AdminControlResult(AdminControlAction.NotFound, null));
+                    return ValueTask.FromResult(new AdminControlResult(ControlAction.NotFound, null));
                 }
 
                 if (expectedVersion == 999)
                 {
-                    return ValueTask.FromResult(new AdminControlResult(AdminControlAction.VersionConflict, 5));
+                    return ValueTask.FromResult(new AdminControlResult(ControlAction.VersionConflict, 5));
                 }
 
                 suspendResumeCalls.Add((tenantKey, reasonMessage, actorKey));
-                return ValueTask.FromResult(new AdminControlResult(AdminControlAction.Applied, 2));
+                return ValueTask.FromResult(new AdminControlResult(ControlAction.Applied, 2));
             }
 
             private ValueTask<AdminControlResult> Apply(string tenantKey, string? reasonMessage, string? actorKey)
@@ -1375,11 +1375,11 @@ internal static class TestDashboardHost
 
                 if (tenantKey == "missing")
                 {
-                    return ValueTask.FromResult(new AdminControlResult(AdminControlAction.NotFound, null));
+                    return ValueTask.FromResult(new AdminControlResult(ControlAction.NotFound, null));
                 }
 
                 suspendResumeCalls.Add((tenantKey, reasonMessage, actorKey));
-                return ValueTask.FromResult(new AdminControlResult(AdminControlAction.Applied, 2));
+                return ValueTask.FromResult(new AdminControlResult(ControlAction.Applied, 2));
             }
         }
 
@@ -1434,16 +1434,16 @@ internal static class TestDashboardHost
 
                 if (name == "missing")
                 {
-                    return ValueTask.FromResult(new AdminControlResult(AdminControlAction.NotFound, null));
+                    return ValueTask.FromResult(new AdminControlResult(ControlAction.NotFound, null));
                 }
 
                 if (expectedVersion == 999)
                 {
-                    return ValueTask.FromResult(new AdminControlResult(AdminControlAction.VersionConflict, 5));
+                    return ValueTask.FromResult(new AdminControlResult(ControlAction.VersionConflict, 5));
                 }
 
                 adminCalls.Add(("patch", name, reasonMessage, actorKey));
-                return ValueTask.FromResult(new AdminControlResult(AdminControlAction.Applied, 2));
+                return ValueTask.FromResult(new AdminControlResult(ControlAction.Applied, 2));
             }
 
             private ValueTask<AdminControlResult> Apply(string verb, string name, string? reasonMessage, string? actorKey)
@@ -1455,11 +1455,11 @@ internal static class TestDashboardHost
 
                 if (name == "missing")
                 {
-                    return ValueTask.FromResult(new AdminControlResult(AdminControlAction.NotFound, null));
+                    return ValueTask.FromResult(new AdminControlResult(ControlAction.NotFound, null));
                 }
 
                 adminCalls.Add((verb, name, reasonMessage, actorKey));
-                return ValueTask.FromResult(new AdminControlResult(AdminControlAction.Applied, 2));
+                return ValueTask.FromResult(new AdminControlResult(ControlAction.Applied, 2));
             }
         }
     }

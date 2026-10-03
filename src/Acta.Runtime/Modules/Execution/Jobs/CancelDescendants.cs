@@ -48,7 +48,7 @@ internal static class CancelDescendants
         foreach (var childId in await execution.GetChildJobIdsAsync(parentJobId, ct))
         {
             var cancel = await store.CancelJobAsync(childId, input, ct);
-            if (cancel.Outcome.Action == JobControlActionInternal.Applied)
+            if (cancel.Outcome.Action == ControlAction.Applied)
             {
                 cancelled.Add(childId);
                 promoted |= cancel.LanePromoted;

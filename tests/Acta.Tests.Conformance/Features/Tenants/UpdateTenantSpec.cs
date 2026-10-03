@@ -35,7 +35,7 @@ public sealed class UpdateTenantSpec : ActaStorageTestBase<ConformanceFixture>
             .GetRequiredService<ITenantStore>()
             .UpdateTenantAsync(new UpdateTenantCommand(key, "New", "new-desc", v, Actor(), "edit"), ct);
 
-        Assert.Equal(AdminControlAction.Applied, outcome.Action);
+        Assert.Equal(ControlAction.Applied, outcome.Action);
         var row = await ReadAsync(key, ct);
         Assert.Equal("New", row!.DisplayName);
         Assert.Equal("new-desc", row.Description);
@@ -71,7 +71,7 @@ public sealed class UpdateTenantSpec : ActaStorageTestBase<ConformanceFixture>
             .GetRequiredService<ITenantStore>()
             .UpdateTenantAsync(new UpdateTenantCommand(key, "New", null, v + 5, Actor(), null), ct);
 
-        Assert.Equal(AdminControlAction.VersionConflict, outcome.Action);
+        Assert.Equal(ControlAction.VersionConflict, outcome.Action);
         Assert.Equal(v, outcome.Version);
         Assert.Equal("Old", (await ReadAsync(key, ct))!.DisplayName);
         Assert.Equal(0, await EventCountAsync(id, ct));
@@ -84,7 +84,7 @@ public sealed class UpdateTenantSpec : ActaStorageTestBase<ConformanceFixture>
         var outcome = await Services
             .GetRequiredService<ITenantStore>()
             .UpdateTenantAsync(new UpdateTenantCommand(TestKey("adm-meta-ghost"), "x", null, 0, Actor(), null), ct);
-        Assert.Equal(AdminControlAction.NotFound, outcome.Action);
+        Assert.Equal(ControlAction.NotFound, outcome.Action);
     }
 
     [Fact(DisplayName = "Overlong tenant fields is rejected before the store write")]

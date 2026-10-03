@@ -172,7 +172,7 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
             new TriggerScheduleNowCommand(ctx.JobId, ctx.Target.Name, Operator(actorKey), reason),
             ct
         );
-        if (outcome.Action == JobControlActionInternal.Applied)
+        if (outcome.Action == ControlAction.Applied)
         {
             // A trigger always makes the slot due right now, so unlike Pause/Resume this wake is
             // unconditional on Applied rather than gated on an upcoming jobNextRun.
@@ -358,15 +358,15 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
     }
 
     private static ScheduleControlResult ToResult(ScheduleControlOutcome o) =>
-        new((ControlAction)(byte)o.Action, o.Status, o.PausedUntilUtc, o.NextRunAtUtc, o.Version);
+        new(o.Action, o.Status, o.PausedUntilUtc, o.NextRunAtUtc, o.Version);
 
     /// <summary>
     /// When recomputation finds an upcoming slot, the slot job lands ready. It may carry a
     /// scheduled run time, but waking idle loops makes them re-read their horizon. Without an
     /// upcoming slot, the job stays paused and needs no wake.
     /// </summary>
-    private ValueTask PublishScheduleWakeAsync(DateTime? jobNextRun, JobControlActionInternal action, CancellationToken ct) =>
-        action == JobControlActionInternal.Applied && jobNextRun is not null
+    private ValueTask PublishScheduleWakeAsync(DateTime? jobNextRun, ControlAction action, CancellationToken ct) =>
+        action == ControlAction.Applied && jobNextRun is not null
             ? wakeupPublisher.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct)
             : ValueTask.CompletedTask;
 

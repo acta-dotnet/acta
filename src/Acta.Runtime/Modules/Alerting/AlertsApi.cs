@@ -144,5 +144,5 @@ internal sealed class AlertsApi(IAlertStore store) : IAlerts
         (reasonMessage is null ? $"alert {alertRef}" : $"alert {alertRef}: {reasonMessage}").Truncate(ActaTextLimits.ReasonMessage)!;
 
     private static AlertControlResult ToResult(AlertRef alertRef, AlertControlOutcome o) =>
-        new(alertRef, (ControlAction)(byte)o.Action, o.AcknowledgedAtUtc, o.ResolvedAtUtc);
+        new(alertRef, o.Action, o.AcknowledgedAtUtc, o.ResolvedAtUtc);
 }

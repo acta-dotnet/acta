@@ -59,7 +59,7 @@ internal sealed record DeliverableAlert(
 /// each return one <c>(action, acknowledged_at_utc, resolved_at_utc)</c> row.
 /// </summary>
 [DbProjection]
-internal sealed record AlertControlOutcome(JobControlActionInternal Action, DateTime? AcknowledgedAtUtc, DateTime? ResolvedAtUtc);
+internal sealed record AlertControlOutcome(ControlAction Action, DateTime? AcknowledgedAtUtc, DateTime? ResolvedAtUtc);
 
 /// <summary>
 /// Result of one alert raise: the row's post-raise <c>occurrence_count</c> and

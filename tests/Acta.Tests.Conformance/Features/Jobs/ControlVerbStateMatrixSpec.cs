@@ -36,9 +36,9 @@ public sealed class ControlVerbStateMatrixSpec : ActaRuntimeTestBase<Conformance
         var outcomeFromFailed = await Services.GetRequiredService<IJobStore>().RestartJobAsync(failedJob, input, null, ct);
         var outcomeFromCancelled = await Services.GetRequiredService<IJobStore>().RestartJobAsync(cancelledJob, input, null, ct);
 
-        Assert.Equal(JobControlActionInternal.Applied, outcomeFromFailed.Action);
+        Assert.Equal(ControlAction.Applied, outcomeFromFailed.Action);
         Assert.Equal(JobStatusCode.Ready, outcomeFromFailed.Status);
-        Assert.Equal(JobControlActionInternal.Applied, outcomeFromCancelled.Action);
+        Assert.Equal(ControlAction.Applied, outcomeFromCancelled.Action);
         Assert.Equal(JobStatusCode.Ready, outcomeFromCancelled.Status);
 
         var failedState = await ReadJobAsync(failedJob, ct);
@@ -63,7 +63,7 @@ public sealed class ControlVerbStateMatrixSpec : ActaRuntimeTestBase<Conformance
 
         var outcome = await Services.GetRequiredService<IJobStore>().RestartJobAsync(jobId, input, null, ct);
 
-        Assert.Equal(JobControlActionInternal.Rejected, outcome.Action);
+        Assert.Equal(ControlAction.Rejected, outcome.Action);
         Assert.Equal(JobStatusCode.Executing, outcome.Status);
 
         var state = await ReadJobAsync(jobId, ct);
@@ -90,9 +90,9 @@ public sealed class ControlVerbStateMatrixSpec : ActaRuntimeTestBase<Conformance
         var cancelDispatched = await Services.GetRequiredService<IJobStore>().CancelJobAsync(dispatchedJob, input, ct);
         var tAfter = (await NowAsync(ct)).AddDays(91);
 
-        Assert.Equal(JobControlActionInternal.Applied, cancelSuspended.Outcome.Action);
+        Assert.Equal(ControlAction.Applied, cancelSuspended.Outcome.Action);
         Assert.Equal(JobStatusCode.Cancelled, cancelSuspended.Outcome.Status);
-        Assert.Equal(JobControlActionInternal.Applied, cancelDispatched.Outcome.Action);
+        Assert.Equal(ControlAction.Applied, cancelDispatched.Outcome.Action);
         Assert.Equal(JobStatusCode.Cancelled, cancelDispatched.Outcome.Status);
 
         var suspendedState = await ReadJobAsync(suspendedJob, ct);
@@ -115,14 +115,14 @@ public sealed class ControlVerbStateMatrixSpec : ActaRuntimeTestBase<Conformance
         var jobId = await EnqueueAsync(ct);
 
         var first = await Services.GetRequiredService<IJobStore>().CancelJobAsync(jobId, input, ct);
-        Assert.Equal(JobControlActionInternal.Applied, first.Outcome.Action);
+        Assert.Equal(ControlAction.Applied, first.Outcome.Action);
         Assert.Equal(JobStatusCode.Cancelled, first.Outcome.Status);
 
         var afterFirst = await ReadJobAsync(jobId, ct);
         var retentionAfterFirst = afterFirst.RetentionUntilUtc;
 
         var second = await Services.GetRequiredService<IJobStore>().CancelJobAsync(jobId, input, ct);
-        Assert.Equal(JobControlActionInternal.Rejected, second.Outcome.Action);
+        Assert.Equal(ControlAction.Rejected, second.Outcome.Action);
         Assert.Equal(JobStatusCode.Cancelled, second.Outcome.Status);
 
         var afterSecond = await ReadJobAsync(jobId, ct);
@@ -140,14 +140,14 @@ public sealed class ControlVerbStateMatrixSpec : ActaRuntimeTestBase<Conformance
         await SetJobStatusAsync(Db, jobId, (byte)JobStatusCode.Suspended, ct);
 
         var firstPause = (await Services.GetRequiredService<IJobStore>().PauseJobAsync(jobId, input, ct)).Outcome;
-        Assert.Equal(JobControlActionInternal.Applied, firstPause.Action);
+        Assert.Equal(ControlAction.Applied, firstPause.Action);
         Assert.Equal(JobStatusCode.Paused, firstPause.Status);
 
         var afterFirst = await ReadJobAsync(jobId, ct);
         Assert.Equal(JobStatusCode.Paused, afterFirst.Status);
 
         var secondPause = (await Services.GetRequiredService<IJobStore>().PauseJobAsync(jobId, input, ct)).Outcome;
-        Assert.Equal(JobControlActionInternal.Applied, secondPause.Action);
+        Assert.Equal(ControlAction.Applied, secondPause.Action);
         Assert.Equal(JobStatusCode.Paused, secondPause.Status);
 
         var afterSecond = await ReadJobAsync(jobId, ct);
@@ -175,9 +175,9 @@ public sealed class ControlVerbStateMatrixSpec : ActaRuntimeTestBase<Conformance
         var outcomeDefault = await Services.GetRequiredService<IJobStore>().ResumeJobAsync(defaultJob, input, null, ct);
         var tAfter = (await NowAsync(ct)).AddSeconds(1);
 
-        Assert.Equal(JobControlActionInternal.Applied, outcomeExplicit.Action);
+        Assert.Equal(ControlAction.Applied, outcomeExplicit.Action);
         Assert.Equal(JobStatusCode.Ready, outcomeExplicit.Status);
-        Assert.Equal(JobControlActionInternal.Applied, outcomeDefault.Action);
+        Assert.Equal(ControlAction.Applied, outcomeDefault.Action);
         Assert.Equal(JobStatusCode.Ready, outcomeDefault.Status);
 
         var explicitState = await ReadJobAsync(explicitJob, ct);

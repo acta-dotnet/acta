@@ -21,6 +21,11 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   `Acta.Postgres.Hosting`, and the SQL Server and SQLite equivalents), `RedisWakeupOptions`, the
   dashboard options and control authorization types in `Acta.AspNetCore.Configuration`, and the test
   host in `Acta.Testing.Hosting`. Replace those usings with the package root, such as `using Acta.Postgres;`.
+- **One control vocabulary.** `AdminControlAction` is gone: the tenant, namespace, and setting verbs
+  answer with `ControlAction`, which gains `AlreadyInState = 6`, and `VersionConflict` is 5 for every
+  verb (the admin enum had 4). The JSON strings do not change. The routines behind those verbs now
+  return the new values, so the object package moves to revision 9 and a host refuses a database whose
+  installed objects are older; apply `docs/reference/schema-<provider>.sql` before starting it.
 - **The `Acta.Relational` package is gone.** Its code ships in `Acta.Runtime`, which every provider
   package already brings. A project that referenced `Acta.Relational` directly drops the reference.
 

@@ -55,9 +55,9 @@ WHERE
 
 SELECT
     CASE
-        WHEN s.id IS NULL THEN 2 /* AdminControlAction.NotFound */
-        WHEN s.from_version <> @p_expected_version THEN 4 /* AdminControlAction.VersionConflict */
-        ELSE 1 /* AdminControlAction.Applied */
+        WHEN s.id IS NULL THEN 2 /* ControlAction.NotFound */
+        WHEN s.from_version <> @p_expected_version THEN 5 /* ControlAction.VersionConflict */
+        ELSE 1 /* ControlAction.Applied */
     END AS action,
     CASE
         WHEN s.id IS NULL THEN NULL

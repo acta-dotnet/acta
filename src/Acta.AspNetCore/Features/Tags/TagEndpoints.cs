@@ -296,10 +296,7 @@ internal static class TagEndpoints
         {
             var result = await apply(resolve());
             return result.IsApplied
-                ? Results.Json(
-                    new AdminControlResponse(AdminControlAction.Applied, null),
-                    DashboardJsonContext.Default.AdminControlResponse
-                )
+                ? Results.Json(new AdminControlResponse(ControlAction.Applied, null), DashboardJsonContext.Default.AdminControlResponse)
                 : MutationNotFound();
         }
         catch (ArgumentException ex)
@@ -369,7 +366,7 @@ internal static class TagEndpoints
     /// </summary>
     private static IResult MutationNotFound() =>
         Results.Json(
-            new AdminControlResponse(AdminControlAction.NotFound, null),
+            new AdminControlResponse(ControlAction.NotFound, null),
             DashboardJsonContext.Default.AdminControlResponse,
             statusCode: StatusCodes.Status404NotFound
         );

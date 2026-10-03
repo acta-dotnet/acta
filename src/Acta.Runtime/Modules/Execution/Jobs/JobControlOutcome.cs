@@ -17,32 +17,14 @@ internal sealed record JobControlInput(
 /// Shared by the job control verbs, whose routines all return one (action, status_code, version) row.
 /// </summary>
 [DbProjection]
-internal sealed record JobControlOutcome(JobControlActionInternal Action, JobStatusCode? Status, int? Version);
+internal sealed record JobControlOutcome(ControlAction Action, JobStatusCode? Status, int? Version);
 
 /// <summary>
 /// Flat row of the control routines that carry no expected version (purge, input amend, signal raise);
 /// their result sets are (action, status_code) and the outcome's version is null.
 /// </summary>
 [DbProjection]
-internal sealed record JobControlActionRow(JobControlActionInternal Action, JobStatusCode? Status)
+internal sealed record JobControlActionRow(ControlAction Action, JobStatusCode? Status)
 {
     public JobControlOutcome ToOutcome() => new(Action, Status, null);
-}
-
-/// <summary>
-/// Internal mirror of <see cref="ControlAction"/>; the facade maps it to the public enum.
-/// </summary>
-internal enum JobControlActionInternal : byte
-{
-    /// <summary>The transition was applied.</summary>
-    Applied = 1,
-
-    /// <summary>No job matched the id.</summary>
-    NotFound = 2,
-
-    /// <summary>The current status did not permit the transition.</summary>
-    Rejected = 3,
-
-    /// <summary>A non-null expected version did not match the row's version.</summary>
-    VersionConflict = 5,
 }

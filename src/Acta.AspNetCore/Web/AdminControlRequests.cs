@@ -21,7 +21,7 @@ internal sealed record NamespacePatchRequest(
 );
 
 /// <summary>HTTP projection of an admin control transition.</summary>
-internal sealed record AdminControlResponse(AdminControlAction Action, int? Version);
+internal sealed record AdminControlResponse(ControlAction Action, int? Version);
 
 /// <summary>
 /// Maps an <see cref="AdminControlResult"/> to an HTTP result: Applied/AlreadyInState 200, NotFound
@@ -35,9 +35,9 @@ internal static class AdminControlHttp
     public static IResult ToResult(AdminControlResult result) =>
         result.Action switch
         {
-            AdminControlAction.Applied or AdminControlAction.AlreadyInState => Json(result, StatusCodes.Status200OK),
-            AdminControlAction.NotFound => Json(result, StatusCodes.Status404NotFound),
-            AdminControlAction.VersionConflict => Json(result, StatusCodes.Status409Conflict),
+            ControlAction.Applied or ControlAction.AlreadyInState => Json(result, StatusCodes.Status200OK),
+            ControlAction.NotFound => Json(result, StatusCodes.Status404NotFound),
+            ControlAction.VersionConflict => Json(result, StatusCodes.Status409Conflict),
             _ => Results.Problem(statusCode: StatusCodes.Status500InternalServerError, title: "Unknown admin outcome."),
         };
 

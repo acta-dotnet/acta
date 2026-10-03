@@ -41,7 +41,7 @@ internal sealed class SignalService(
             new RaiseSignalCommand(jobId.Value, JobCheckpointKindCode.Signal, name, valueFormatId, value, input),
             ct
         );
-        var result = new JobControlResult(jobId.Value, (ControlAction)(byte)outcome.Action, outcome.Status, outcome.Version);
+        var result = new JobControlResult(jobId.Value, outcome.Action, outcome.Status, outcome.Version);
         if (result is { Action: ControlAction.Applied, Status: JobStatusCode.Ready })
         {
             await wakeupPublisher.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct);

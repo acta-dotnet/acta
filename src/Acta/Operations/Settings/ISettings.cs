@@ -20,8 +20,8 @@ public interface ISettings
     /// Write one setting by name at the inferred scope: created when absent, overwritten when
     /// present (last write wins), with a version bump either way. A non-null <paramref name="expectedVersion"/>
     /// makes the write a CAS: it applies only against an existing row at exactly that version,
-    /// answering <see cref="AdminControlAction.VersionConflict"/> with the current version on a
-    /// mismatch and <see cref="AdminControlAction.NotFound"/> when no row exists at the scope. NotFound when the scope target
+    /// answering <see cref="ControlAction.VersionConflict"/> with the current version on a
+    /// mismatch and <see cref="ControlAction.NotFound"/> when no row exists at the scope. NotFound when the scope target
     /// (namespace or definition) is not registered. Emits <c>setting.updated</c> with the setting
     /// name as evidence. The value is stored as text; callers needing structure store JSON text.
     /// Throws <see cref="PayloadTooLargeException"/> when the value exceeds

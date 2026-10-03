@@ -120,11 +120,11 @@ WHERE
 
 SELECT
     CASE
-        WHEN r.scope_code = 30 /* SettingScopeCode.Namespace */ AND r.namespace_id IS NULL THEN 2 /* AdminControlAction.NotFound */
-        WHEN r.scope_code = 40 /* SettingScopeCode.Definition */ AND r.definition_id IS NULL THEN 2 /* AdminControlAction.NotFound */
-        WHEN @p_expected_version IS NOT NULL AND r.current_version IS NULL THEN 2 /* AdminControlAction.NotFound */
-        WHEN @p_expected_version IS NOT NULL AND r.current_version <> @p_expected_version THEN 4 /* AdminControlAction.VersionConflict */
-        ELSE 1 /* AdminControlAction.Applied */
+        WHEN r.scope_code = 30 /* SettingScopeCode.Namespace */ AND r.namespace_id IS NULL THEN 2 /* ControlAction.NotFound */
+        WHEN r.scope_code = 40 /* SettingScopeCode.Definition */ AND r.definition_id IS NULL THEN 2 /* ControlAction.NotFound */
+        WHEN @p_expected_version IS NOT NULL AND r.current_version IS NULL THEN 2 /* ControlAction.NotFound */
+        WHEN @p_expected_version IS NOT NULL AND r.current_version <> @p_expected_version THEN 5 /* ControlAction.VersionConflict */
+        ELSE 1 /* ControlAction.Applied */
     END AS action,
     (
         SELECT s.version

@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 8)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 9)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -4967,11 +4967,11 @@ BEGIN
     WHERE n.name = p_namespace_name
     FOR UPDATE;
     IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* AdminControlAction.NotFound */::SMALLINT, NULL::INT;
+        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::INT;
         RETURN;
     END IF;
     IF v_status = 10 /* NamespaceStatusCode.Active */ THEN
-        RETURN QUERY SELECT 3 /* AdminControlAction.AlreadyInState */::SMALLINT, v_version;
+        RETURN QUERY SELECT 6 /* ControlAction.AlreadyInState */::SMALLINT, v_version;
         RETURN;
     END IF;
     UPDATE acta.namespaces AS n
@@ -5019,7 +5019,7 @@ BEGIN
         NULL,
         NULL,
         p_reason_message);
-    RETURN QUERY SELECT 1 /* AdminControlAction.Applied */::SMALLINT, v_version;
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_version;
 END;
 $$;
 
@@ -5043,12 +5043,12 @@ BEGIN
     FOR UPDATE;
 
     IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* AdminControlAction.NotFound */::SMALLINT, NULL::INT;
+        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::INT;
         RETURN;
     END IF;
 
     IF v_status = 20 /* NamespaceStatusCode.Suspended */ THEN
-        RETURN QUERY SELECT 3 /* AdminControlAction.AlreadyInState */::SMALLINT, v_version;
+        RETURN QUERY SELECT 6 /* ControlAction.AlreadyInState */::SMALLINT, v_version;
         RETURN;
     END IF;
 
@@ -5099,7 +5099,7 @@ BEGIN
         NULL,
         p_reason_message);
 
-    RETURN QUERY SELECT 1 /* AdminControlAction.Applied */::SMALLINT, v_version;
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_version;
 END;
 $$;
 
@@ -5125,12 +5125,12 @@ BEGIN
     FOR UPDATE;
 
     IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* AdminControlAction.NotFound */::SMALLINT, NULL::INT;
+        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::INT;
         RETURN;
     END IF;
 
     IF v_version <> p_expected_version THEN
-        RETURN QUERY SELECT 4 /* AdminControlAction.VersionConflict */::SMALLINT, v_version;
+        RETURN QUERY SELECT 5 /* ControlAction.VersionConflict */::SMALLINT, v_version;
         RETURN;
     END IF;
 
@@ -5182,7 +5182,7 @@ BEGIN
         NULL,
         p_reason_message);
 
-    RETURN QUERY SELECT 1 /* AdminControlAction.Applied */::SMALLINT, v_version;
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_version;
 END;
 $$;
 
@@ -6432,7 +6432,7 @@ BEGIN
     IF p_namespace_name IS NOT NULL THEN
         SELECT n.id INTO v_namespace_id FROM acta.namespaces n WHERE n.name = p_namespace_name;
         IF NOT FOUND THEN
-            RETURN QUERY SELECT 2 /* AdminControlAction.NotFound */::SMALLINT, NULL::INT;
+            RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::INT;
             RETURN;
         END IF;
         IF p_job_name IS NULL THEN
@@ -6445,7 +6445,7 @@ BEGIN
                 d.namespace_id = v_namespace_id
                 AND d.name = p_job_name;
             IF NOT FOUND THEN
-                RETURN QUERY SELECT 2 /* AdminControlAction.NotFound */::SMALLINT, NULL::INT;
+                RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::INT;
                 RETURN;
             END IF;
             v_scope_code := 40 /* SettingScopeCode.Definition */;
@@ -6477,9 +6477,9 @@ BEGIN
                 AND s.scope_id IS NOT DISTINCT FROM v_scope_id
                 AND s.name = p_name;
             IF FOUND THEN
-                RETURN QUERY SELECT 4 /* AdminControlAction.VersionConflict */::SMALLINT, v_version;
+                RETURN QUERY SELECT 5 /* ControlAction.VersionConflict */::SMALLINT, v_version;
             ELSE
-                RETURN QUERY SELECT 2 /* AdminControlAction.NotFound */::SMALLINT, NULL::INT;
+                RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::INT;
             END IF;
             RETURN;
         END IF;
@@ -6586,7 +6586,7 @@ BEGIN
         1 /* JobPayloadFormat.Json */,
         convert_to('{"name":"' || p_name || '"}', 'UTF8'));
 
-    RETURN QUERY SELECT 1 /* AdminControlAction.Applied */::SMALLINT, v_version;
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_version;
 END;
 $$;
 
@@ -7288,12 +7288,12 @@ BEGIN
     FOR UPDATE;
 
     IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* AdminControlAction.NotFound */::SMALLINT, NULL::INT;
+        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::INT;
         RETURN;
     END IF;
 
     IF v_status = 10 /* TenantStatusCode.Active */ THEN
-        RETURN QUERY SELECT 3 /* AdminControlAction.AlreadyInState */::SMALLINT, v_version;
+        RETURN QUERY SELECT 6 /* ControlAction.AlreadyInState */::SMALLINT, v_version;
         RETURN;
     END IF;
 
@@ -7345,7 +7345,7 @@ BEGIN
         NULL,
         p_reason_message);
 
-    RETURN QUERY SELECT 1 /* AdminControlAction.Applied */::SMALLINT, v_version;
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_version;
 END;
 $$;
 
@@ -7370,12 +7370,12 @@ BEGIN
     FOR UPDATE;
 
     IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* AdminControlAction.NotFound */::SMALLINT, NULL::INT;
+        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::INT;
         RETURN;
     END IF;
 
     IF v_status = 20 /* TenantStatusCode.Suspended */ THEN
-        RETURN QUERY SELECT 3 /* AdminControlAction.AlreadyInState */::SMALLINT, v_version;
+        RETURN QUERY SELECT 6 /* ControlAction.AlreadyInState */::SMALLINT, v_version;
         RETURN;
     END IF;
 
@@ -7427,7 +7427,7 @@ BEGIN
         NULL,
         p_reason_message);
 
-    RETURN QUERY SELECT 1 /* AdminControlAction.Applied */::SMALLINT, v_version;
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_version;
 END;
 $$;
 
@@ -7453,12 +7453,12 @@ BEGIN
     FOR UPDATE;
 
     IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* AdminControlAction.NotFound */::SMALLINT, NULL::INT;
+        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::INT;
         RETURN;
     END IF;
 
     IF v_version <> p_expected_version THEN
-        RETURN QUERY SELECT 4 /* AdminControlAction.VersionConflict */::SMALLINT, v_version;
+        RETURN QUERY SELECT 5 /* ControlAction.VersionConflict */::SMALLINT, v_version;
         RETURN;
     END IF;
 
@@ -7511,7 +7511,7 @@ BEGIN
         NULL,
         p_reason_message);
 
-    RETURN QUERY SELECT 1 /* AdminControlAction.Applied */::SMALLINT, v_version;
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_version;
 END;
 $$;
 
@@ -8446,7 +8446,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.8-40094370f6cf2d900fc822e4fdccefac', 'acta');
+VALUES (-1, 'objects-1.9-c078d5138fef8365a291cbe0d0a467a2', 'acta');
 
 COMMIT;
 

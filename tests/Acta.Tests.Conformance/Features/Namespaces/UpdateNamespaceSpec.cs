@@ -36,7 +36,7 @@ public sealed class UpdateNamespaceSpec : ActaRuntimeTestBase<ConformanceFixture
             .GetRequiredService<INamespaceStore>()
             .UpdateNamespaceAsync(new UpdateNamespaceCommand(TestNamespace, "team-a", "new-desc", v, Actor(), "edit"), ct);
 
-        Assert.Equal(AdminControlAction.Applied, outcome.Action);
+        Assert.Equal(ControlAction.Applied, outcome.Action);
         var row = await ReadNsAsync(ct);
         Assert.Equal("team-a", row!.OwnerTeam);
         Assert.Equal("new-desc", row.Description);
@@ -66,7 +66,7 @@ public sealed class UpdateNamespaceSpec : ActaRuntimeTestBase<ConformanceFixture
         var outcome = await Services
             .GetRequiredService<INamespaceStore>()
             .UpdateNamespaceAsync(new UpdateNamespaceCommand(TestNamespace, "x", null, v + 5, Actor(), null), ct);
-        Assert.Equal(AdminControlAction.VersionConflict, outcome.Action);
+        Assert.Equal(ControlAction.VersionConflict, outcome.Action);
         Assert.Equal(v, outcome.Version);
         Assert.Equal(0, await EventCountAsync(nsId, ct));
     }

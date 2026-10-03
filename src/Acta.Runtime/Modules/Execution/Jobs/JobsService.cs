@@ -450,12 +450,7 @@ internal sealed class JobsService(
         }
 
         var cancel = await store.CancelJobAsync(jobId.Value, Input(reasonMessage, actorKey, expectedVersion), ct);
-        var result = new JobControlResult(
-            jobId.Value,
-            (ControlAction)(byte)cancel.Outcome.Action,
-            cancel.Outcome.Status,
-            cancel.Outcome.Version
-        );
+        var result = new JobControlResult(jobId.Value, cancel.Outcome.Action, cancel.Outcome.Status, cancel.Outcome.Version);
 
         if (result.Action == ControlAction.Applied)
         {
@@ -759,7 +754,7 @@ internal sealed class JobsService(
     /// Resume and restart reject a recurring slot with no upcoming run before touching the store, so
     /// this outcome carries no row version.
     /// </summary>
-    private static readonly JobControlOutcome EmptySlotRejection = new(JobControlActionInternal.Rejected, JobStatusCode.Paused, null);
+    private static readonly JobControlOutcome EmptySlotRejection = new(ControlAction.Rejected, JobStatusCode.Paused, null);
 
     private static JobControlActor Operator(string? actorKey) => new(ActorCode.Operator, actorKey.Truncate(ActaTextLimits.ActorKey));
 
@@ -776,7 +771,7 @@ internal sealed class JobsService(
         }
 
         var result = await invoke(jobId.Value, ct);
-        return new JobControlResult(jobId.Value, (ControlAction)(byte)result.Action, result.Status, result.Version);
+        return new JobControlResult(jobId.Value, result.Action, result.Status, result.Version);
     }
 
     private ValueTask PublishControlWakeAsync(JobControlResult result, CancellationToken ct) =>

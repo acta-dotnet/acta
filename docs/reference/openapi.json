@@ -8009,15 +8009,6 @@
   "components": {
     "schemas": {
       "ActorCode": { },
-      "AdminControlAction": {
-        "enum": [
-          "applied",
-          "notFound",
-          "alreadyInState",
-          "versionConflict"
-        ],
-        "description": "Coarse outcome of an admin control verb (tenant/namespace suspend/resume/update)."
-      },
       "AdminControlResponse": {
         "required": [
           "action",
@@ -8026,7 +8017,7 @@
         "type": "object",
         "properties": {
           "action": {
-            "$ref": "#/components/schemas/AdminControlAction"
+            "$ref": "#/components/schemas/ControlAction"
           },
           "version": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -8357,9 +8348,10 @@
           "notFound",
           "rejected",
           "accepted",
-          "versionConflict"
+          "versionConflict",
+          "alreadyInState"
         ],
-        "description": "Coarse outcome of an IJobs control verb."
+        "description": "Coarse outcome of a control verb: on jobs, schedules, alerts, the outbox, tenants, namespaces, and settings."
       },
       "DeadlineBehaviorCode": {
         "description": "How the engine treats a job that has passed its deadline."

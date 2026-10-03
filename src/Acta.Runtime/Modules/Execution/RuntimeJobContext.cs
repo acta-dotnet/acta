@@ -266,7 +266,7 @@ internal sealed class RuntimeJobContext(
         );
 
         var cancel = await _jobStore.CancelJobAsync(childJobId, input, ct);
-        if (cancel.Outcome.Action == JobControlActionInternal.Applied)
+        if (cancel.Outcome.Action == ControlAction.Applied)
         {
             await WakeCompletionAsync(childJobId, ct);
         }

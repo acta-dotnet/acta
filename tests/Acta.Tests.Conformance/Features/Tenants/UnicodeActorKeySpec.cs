@@ -35,7 +35,7 @@ public sealed class UnicodeActorKeySpec : ActaStorageTestBase<ConformanceFixture
             .GetRequiredService<ITenantStore>()
             .SuspendTenantAsync(new TenantControlCommand(key, new JobControlActor(ActorCode.Operator, OperatorName), "hold"), ct);
 
-        Assert.Equal(AdminControlAction.Applied, outcome.Action);
+        Assert.Equal(ControlAction.Applied, outcome.Action);
         var ev = await Db.From<JobEvent>()
             .Where(e => e.TenantId == id && e.EventCode == EventCode.TenantSuspended)
             .SingleOrDefaultAsync(ct);

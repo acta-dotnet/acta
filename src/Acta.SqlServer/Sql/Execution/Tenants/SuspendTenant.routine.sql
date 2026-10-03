@@ -27,7 +27,7 @@ BEGIN
             BEGIN
 
                 SELECT
-                    CAST(2 /* AdminControlAction.NotFound */ AS SMALLINT) AS action,
+                    CAST(2 /* ControlAction.NotFound */ AS SMALLINT) AS action,
                     CAST(NULL AS INT) AS version;
                 GOTO Finish;
             END;
@@ -36,7 +36,7 @@ BEGIN
             BEGIN
 
                 SELECT
-                    CAST(3 /* AdminControlAction.AlreadyInState */ AS SMALLINT) AS action,
+                    CAST(6 /* ControlAction.AlreadyInState */ AS SMALLINT) AS action,
                     @version AS version;
                 GOTO Finish;
             END;
@@ -59,7 +59,7 @@ BEGIN
         );
 
         SELECT
-            CAST(1 /* AdminControlAction.Applied */ AS SMALLINT) AS action,
+            CAST(1 /* ControlAction.Applied */ AS SMALLINT) AS action,
             @version AS version;
 
     Finish:

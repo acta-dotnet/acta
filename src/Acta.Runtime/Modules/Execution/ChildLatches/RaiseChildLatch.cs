@@ -33,6 +33,6 @@ internal static class RaiseChildLatch
             new RaiseSignalCommand(parentJobId, JobCheckpointKindCode.ChildLatch, slotName, JobPayloadFormat.Json.Id, envelope, input),
             ct
         );
-        return outcome.Action == JobControlActionInternal.Applied && outcome.Status == JobStatusCode.Ready;
+        return outcome.Action == ControlAction.Applied && outcome.Status == JobStatusCode.Ready;
     }
 }

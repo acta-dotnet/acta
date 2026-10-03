@@ -58,7 +58,7 @@ public sealed class ListTenantsSpec : ActaStorageTestBase<ConformanceFixture>
 
         // Bump the row version off its default so a broken projection cannot pass by reading a stray 0.
         var suspended = await tenants.SuspendAsync(key, null, null, ct);
-        Assert.Equal(AdminControlAction.Applied, suspended.Action);
+        Assert.Equal(ControlAction.Applied, suspended.Action);
         Assert.NotNull(suspended.Version);
 
         // The shared provider DB accumulates tenants across runs, so page by cursor to reach our row.

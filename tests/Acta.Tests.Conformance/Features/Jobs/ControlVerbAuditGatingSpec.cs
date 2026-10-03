@@ -34,11 +34,11 @@ public sealed class ControlVerbAuditGatingSpec : ActaRuntimeTestBase<Conformance
         var outcomeL = (await Services.GetRequiredService<IJobStore>().PauseJobAsync(jobL, input, ct)).Outcome;
         var outcomeF = (await Services.GetRequiredService<IJobStore>().PauseJobAsync(jobF, input, ct)).Outcome;
 
-        Assert.Equal(JobControlActionInternal.Applied, outcomeL.Action);
+        Assert.Equal(ControlAction.Applied, outcomeL.Action);
         Assert.Equal(JobStatusCode.Paused, outcomeL.Status);
         Assert.Equal(0, await CountEventsAsync(jobL, EventCode.JobPaused, ct));
 
-        Assert.Equal(JobControlActionInternal.Applied, outcomeF.Action);
+        Assert.Equal(ControlAction.Applied, outcomeF.Action);
         Assert.Equal(JobStatusCode.Paused, outcomeF.Status);
         Assert.Equal(1, await CountEventsAsync(jobF, EventCode.JobPaused, ct));
     }
@@ -59,11 +59,11 @@ public sealed class ControlVerbAuditGatingSpec : ActaRuntimeTestBase<Conformance
         var outcomeL = await Services.GetRequiredService<IJobStore>().ResumeJobAsync(jobL, input, null, ct);
         var outcomeF = await Services.GetRequiredService<IJobStore>().ResumeJobAsync(jobF, input, null, ct);
 
-        Assert.Equal(JobControlActionInternal.Applied, outcomeL.Action);
+        Assert.Equal(ControlAction.Applied, outcomeL.Action);
         Assert.Equal(JobStatusCode.Ready, outcomeL.Status);
         Assert.Equal(0, await CountEventsAsync(jobL, EventCode.JobResumed, ct));
 
-        Assert.Equal(JobControlActionInternal.Applied, outcomeF.Action);
+        Assert.Equal(ControlAction.Applied, outcomeF.Action);
         Assert.Equal(JobStatusCode.Ready, outcomeF.Status);
         Assert.Equal(1, await CountEventsAsync(jobF, EventCode.JobResumed, ct));
     }
@@ -82,11 +82,11 @@ public sealed class ControlVerbAuditGatingSpec : ActaRuntimeTestBase<Conformance
         var outcomeL = await Services.GetRequiredService<IJobStore>().CancelJobAsync(jobL, input, ct);
         var outcomeF = await Services.GetRequiredService<IJobStore>().CancelJobAsync(jobF, input, ct);
 
-        Assert.Equal(JobControlActionInternal.Applied, outcomeL.Outcome.Action);
+        Assert.Equal(ControlAction.Applied, outcomeL.Outcome.Action);
         Assert.Equal(JobStatusCode.Cancelled, outcomeL.Outcome.Status);
         Assert.Equal(0, await CountEventsAsync(jobL, EventCode.JobCancelled, ct));
 
-        Assert.Equal(JobControlActionInternal.Applied, outcomeF.Outcome.Action);
+        Assert.Equal(ControlAction.Applied, outcomeF.Outcome.Action);
         Assert.Equal(JobStatusCode.Cancelled, outcomeF.Outcome.Status);
         Assert.Equal(1, await CountEventsAsync(jobF, EventCode.JobCancelled, ct));
     }
@@ -107,11 +107,11 @@ public sealed class ControlVerbAuditGatingSpec : ActaRuntimeTestBase<Conformance
         var outcomeL = await Services.GetRequiredService<IJobStore>().RestartJobAsync(jobL, input, null, ct);
         var outcomeF = await Services.GetRequiredService<IJobStore>().RestartJobAsync(jobF, input, null, ct);
 
-        Assert.Equal(JobControlActionInternal.Applied, outcomeL.Action);
+        Assert.Equal(ControlAction.Applied, outcomeL.Action);
         Assert.Equal(JobStatusCode.Ready, outcomeL.Status);
         Assert.Equal(0, await CountEventsAsync(jobL, EventCode.JobRestarted, ct));
 
-        Assert.Equal(JobControlActionInternal.Applied, outcomeF.Action);
+        Assert.Equal(ControlAction.Applied, outcomeF.Action);
         Assert.Equal(JobStatusCode.Ready, outcomeF.Status);
         Assert.Equal(1, await CountEventsAsync(jobF, EventCode.JobRestarted, ct));
     }
@@ -134,12 +134,12 @@ public sealed class ControlVerbAuditGatingSpec : ActaRuntimeTestBase<Conformance
             .GetRequiredService<ISignalStore>()
             .RaiseSignalAsync(new RaiseSignalCommand(jobF, JobCheckpointKindCode.Signal, "gate", 0, null, input), ct);
 
-        Assert.Equal(JobControlActionInternal.Applied, outcomeL.Action);
+        Assert.Equal(ControlAction.Applied, outcomeL.Action);
         Assert.Equal(JobStatusCode.Ready, outcomeL.Status);
         Assert.Equal(JobCheckpointStatusCode.Set, (await ReadSignalsAsync(jobL, ct)).Single().Status);
         Assert.Equal(0, await CountEventsAsync(jobL, EventCode.JobSignalRaised, ct));
 
-        Assert.Equal(JobControlActionInternal.Applied, outcomeF.Action);
+        Assert.Equal(ControlAction.Applied, outcomeF.Action);
         Assert.Equal(JobStatusCode.Ready, outcomeF.Status);
         Assert.Equal(JobCheckpointStatusCode.Set, (await ReadSignalsAsync(jobF, ct)).Single().Status);
         Assert.Equal(1, await CountEventsAsync(jobF, EventCode.JobSignalRaised, ct));

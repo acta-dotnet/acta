@@ -16,7 +16,7 @@ namespace Acta;
 public sealed record JobControlResult(long JobId, ControlAction Action, JobStatusCode? Status, int? Version);
 
 /// <summary>
-/// Coarse outcome of an <see cref="IJobs"/> control verb.
+/// Coarse outcome of a control verb: on jobs, schedules, alerts, the outbox, tenants, namespaces, and settings.
 /// </summary>
 public enum ControlAction : byte
 {
@@ -34,4 +34,7 @@ public enum ControlAction : byte
 
     /// <summary>A non-null expectedVersion did not match the row; <c>Status</c> is the current status and <c>Version</c> the current version, and nothing was written.</summary>
     VersionConflict = 5,
+
+    /// <summary>The target was already in the requested state, so nothing was written; <c>Version</c> is the current version. Answered by the tenant and namespace suspend and resume verbs.</summary>
+    AlreadyInState = 6,
 }

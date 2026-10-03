@@ -12,11 +12,7 @@ namespace Acta.AspNetCore;
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     UseStringEnumConverter = true,
-    Converters = [
-        typeof(CamelCaseJobControlActionConverter),
-        typeof(CamelCaseAdminControlActionConverter),
-        typeof(CamelCaseJobEnqueueActionConverter),
-    ],
+    Converters = [typeof(CamelCaseJobControlActionConverter), typeof(CamelCaseJobEnqueueActionConverter)],
     DefaultIgnoreCondition = JsonIgnoreCondition.Never,
     UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow
 )]
@@ -80,13 +76,6 @@ internal sealed partial class DashboardJsonContext : JsonSerializerContext;
 /// </summary>
 internal sealed class CamelCaseJobControlActionConverter()
     : JsonStringEnumConverter<ControlAction>(System.Text.Json.JsonNamingPolicy.CamelCase);
-
-/// <summary>
-/// Serializes <see cref="AdminControlAction"/> camelCase ("applied", "notFound", "alreadyInState",
-/// "versionConflict") to match the response property convention.
-/// </summary>
-internal sealed class CamelCaseAdminControlActionConverter()
-    : JsonStringEnumConverter<AdminControlAction>(System.Text.Json.JsonNamingPolicy.CamelCase);
 
 /// <summary>
 /// Serializes <see cref="JobEnqueueAction"/> camelCase ("inserted", "deduplicated"), the same

@@ -110,7 +110,7 @@ internal sealed record JobScheduleListRow(
 /// </summary>
 [DbProjection]
 internal sealed record ScheduleControlOutcome(
-    JobControlActionInternal Action,
+    ControlAction Action,
     ScheduleStatusCode? Status,
     DateTime? PausedUntilUtc,
     DateTime? NextRunAtUtc,

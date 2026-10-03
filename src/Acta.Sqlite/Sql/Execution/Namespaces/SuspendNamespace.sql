@@ -54,9 +54,9 @@ WHERE
 
 SELECT
     CASE
-        WHEN s.id IS NULL THEN 2 /* AdminControlAction.NotFound */
-        WHEN s.from_status = 20 /* NamespaceStatusCode.Suspended */ THEN 3 /* AdminControlAction.AlreadyInState */
-        ELSE 1 /* AdminControlAction.Applied */
+        WHEN s.id IS NULL THEN 2 /* ControlAction.NotFound */
+        WHEN s.from_status = 20 /* NamespaceStatusCode.Suspended */ THEN 6 /* ControlAction.AlreadyInState */
+        ELSE 1 /* ControlAction.Applied */
     END AS action,
     CASE
         WHEN s.id IS NULL THEN NULL

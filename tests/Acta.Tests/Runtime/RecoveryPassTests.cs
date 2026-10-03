@@ -106,8 +106,8 @@ public sealed class RecoveryPassTests
         public Task<JobControlOutcome> RaiseSignalAsync(RaiseSignalCommand command, CancellationToken ct) =>
             Task.FromResult(
                 Releases
-                    ? new JobControlOutcome(JobControlActionInternal.Applied, JobStatusCode.Ready, null)
-                    : new JobControlOutcome(JobControlActionInternal.Rejected, null, null)
+                    ? new JobControlOutcome(ControlAction.Applied, JobStatusCode.Ready, null)
+                    : new JobControlOutcome(ControlAction.Rejected, null, null)
             );
 
         public Task<SignalWaitDecision> WaitSignalAsync(

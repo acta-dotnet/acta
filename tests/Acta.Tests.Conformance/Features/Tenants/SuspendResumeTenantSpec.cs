@@ -35,7 +35,7 @@ public sealed class SuspendResumeTenantSpec : ActaStorageTestBase<ConformanceFix
             .GetRequiredService<ITenantStore>()
             .SuspendTenantAsync(new TenantControlCommand(key, Actor(), "hold"), ct);
 
-        Assert.Equal(AdminControlAction.Applied, outcome.Action);
+        Assert.Equal(ControlAction.Applied, outcome.Action);
         var after = await ReadTenantAsync(key, ct);
         Assert.Equal(TenantStatusCode.Suspended, after!.Status);
         Assert.True(after.Version > before!.Version);
@@ -59,7 +59,7 @@ public sealed class SuspendResumeTenantSpec : ActaStorageTestBase<ConformanceFix
 
         var again = await Services.GetRequiredService<ITenantStore>().SuspendTenantAsync(new TenantControlCommand(key, Actor(), null), ct);
 
-        Assert.Equal(AdminControlAction.AlreadyInState, again.Action);
+        Assert.Equal(ControlAction.AlreadyInState, again.Action);
         Assert.Equal(1, await EventCountAsync(id, EventCode.TenantSuspended, ct));
     }
 
@@ -75,7 +75,7 @@ public sealed class SuspendResumeTenantSpec : ActaStorageTestBase<ConformanceFix
             .GetRequiredService<ITenantStore>()
             .ResumeTenantAsync(new TenantControlCommand(key, Actor(), "back"), ct);
 
-        Assert.Equal(AdminControlAction.Applied, outcome.Action);
+        Assert.Equal(ControlAction.Applied, outcome.Action);
         Assert.Equal(TenantStatusCode.Active, (await ReadTenantAsync(key, ct))!.Status);
         Assert.Equal(1, await EventCountAsync(id, EventCode.TenantResumed, ct));
     }
@@ -89,7 +89,7 @@ public sealed class SuspendResumeTenantSpec : ActaStorageTestBase<ConformanceFix
 
         var outcome = await Services.GetRequiredService<ITenantStore>().ResumeTenantAsync(new TenantControlCommand(key, Actor(), null), ct);
 
-        Assert.Equal(AdminControlAction.AlreadyInState, outcome.Action);
+        Assert.Equal(ControlAction.AlreadyInState, outcome.Action);
         Assert.Equal(0, await EventCountAsync(id, EventCode.TenantResumed, ct));
     }
 
@@ -100,7 +100,7 @@ public sealed class SuspendResumeTenantSpec : ActaStorageTestBase<ConformanceFix
         var outcome = await Services
             .GetRequiredService<ITenantStore>()
             .SuspendTenantAsync(new TenantControlCommand(TestKey("adm-ghost"), Actor(), null), ct);
-        Assert.Equal(AdminControlAction.NotFound, outcome.Action);
+        Assert.Equal(ControlAction.NotFound, outcome.Action);
         Assert.Null(outcome.Version);
     }
 }

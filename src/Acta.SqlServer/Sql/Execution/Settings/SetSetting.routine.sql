@@ -33,7 +33,7 @@ BEGIN
                 IF @namespace_id IS NULL
                     BEGIN
                         SELECT
-                            CAST(2 /* AdminControlAction.NotFound */ AS SMALLINT) AS action,
+                            CAST(2 /* ControlAction.NotFound */ AS SMALLINT) AS action,
                             CAST(NULL AS INT) AS version;
                         GOTO Finish;
                     END;
@@ -49,7 +49,7 @@ BEGIN
                         IF @definition_id IS NULL
                             BEGIN
                                 SELECT
-                                    CAST(2 /* AdminControlAction.NotFound */ AS SMALLINT) AS action,
+                                    CAST(2 /* ControlAction.NotFound */ AS SMALLINT) AS action,
                                     CAST(NULL AS INT) AS version;
                                 GOTO Finish;
                             END;
@@ -69,7 +69,7 @@ BEGIN
             BEGIN
 
                 SELECT
-                    CAST(2 /* AdminControlAction.NotFound */ AS SMALLINT) AS action,
+                    CAST(2 /* ControlAction.NotFound */ AS SMALLINT) AS action,
                     CAST(NULL AS INT) AS version;
                 GOTO Finish;
             END;
@@ -77,7 +77,7 @@ BEGIN
             BEGIN
 
                 SELECT
-                    CAST(4 /* AdminControlAction.VersionConflict */ AS SMALLINT) AS action,
+                    CAST(5 /* ControlAction.VersionConflict */ AS SMALLINT) AS action,
                     @version AS version;
                 GOTO Finish;
             END;
@@ -117,7 +117,7 @@ BEGIN
         );
 
         SELECT
-            CAST(1 /* AdminControlAction.Applied */ AS SMALLINT) AS action,
+            CAST(1 /* ControlAction.Applied */ AS SMALLINT) AS action,
             @version AS version;
 
     Finish:

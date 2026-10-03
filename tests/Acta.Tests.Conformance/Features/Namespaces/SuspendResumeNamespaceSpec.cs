@@ -36,7 +36,7 @@ public sealed class SuspendResumeNamespaceSpec : ActaRuntimeTestBase<Conformance
             .GetRequiredService<INamespaceStore>()
             .SuspendNamespaceAsync(new NamespaceControlCommand(TestNamespace, Actor(), "hold"), ct);
 
-        Assert.Equal(AdminControlAction.Applied, outcome.Action);
+        Assert.Equal(ControlAction.Applied, outcome.Action);
         var after = await ReadNsAsync(ct);
         Assert.Equal(NamespaceStatusCode.Suspended, after!.Status);
         Assert.True(after.Version > before!.Version);
@@ -60,7 +60,7 @@ public sealed class SuspendResumeNamespaceSpec : ActaRuntimeTestBase<Conformance
         var again = await Services
             .GetRequiredService<INamespaceStore>()
             .SuspendNamespaceAsync(new NamespaceControlCommand(TestNamespace, Actor(), null), ct);
-        Assert.Equal(AdminControlAction.AlreadyInState, again.Action);
+        Assert.Equal(ControlAction.AlreadyInState, again.Action);
         Assert.Equal(1, await EventCountAsync(nsId, EventCode.NamespaceSuspended, ct));
     }
 
@@ -75,7 +75,7 @@ public sealed class SuspendResumeNamespaceSpec : ActaRuntimeTestBase<Conformance
         var outcome = await Services
             .GetRequiredService<INamespaceStore>()
             .ResumeNamespaceAsync(new NamespaceControlCommand(TestNamespace, Actor(), "back"), ct);
-        Assert.Equal(AdminControlAction.Applied, outcome.Action);
+        Assert.Equal(ControlAction.Applied, outcome.Action);
         Assert.Equal(NamespaceStatusCode.Active, (await ReadNsAsync(ct))!.Status);
         Assert.Equal(1, await EventCountAsync(nsId, EventCode.NamespaceResumed, ct));
     }
@@ -87,7 +87,7 @@ public sealed class SuspendResumeNamespaceSpec : ActaRuntimeTestBase<Conformance
         var outcome = await Services
             .GetRequiredService<INamespaceStore>()
             .SuspendNamespaceAsync(new NamespaceControlCommand("no-such-namespace-xyz", Actor(), null), ct);
-        Assert.Equal(AdminControlAction.NotFound, outcome.Action);
+        Assert.Equal(ControlAction.NotFound, outcome.Action);
     }
 
     [Fact(DisplayName = "Rejected sys suspend/resume leave the seeded row untouched and still listed")]

@@ -12,7 +12,7 @@ internal sealed record CancelJobOutcome(JobControlOutcome Outcome, long? ParentI
 /// </summary>
 [DbProjection]
 internal readonly record struct CancelJobOutcomeRow(
-    JobControlActionInternal Action,
+    ControlAction Action,
     JobStatusCode? Status,
     long? ParentId,
     int? Version,
@@ -32,7 +32,7 @@ internal sealed record PauseJobOutcome(JobControlOutcome Outcome, bool LanePromo
 /// Flat pause routine row; wraps the shared control outcome after binding.
 /// </summary>
 [DbProjection]
-internal readonly record struct PauseJobOutcomeRow(JobControlActionInternal Action, JobStatusCode? Status, int? Version, bool LanePromoted)
+internal readonly record struct PauseJobOutcomeRow(ControlAction Action, JobStatusCode? Status, int? Version, bool LanePromoted)
 {
     public PauseJobOutcome ToOutcome() => new(new JobControlOutcome(Action, Status, Version), LanePromoted);
 }
