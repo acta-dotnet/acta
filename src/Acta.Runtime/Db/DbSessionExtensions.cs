@@ -1,5 +1,4 @@
 using System.Data.Common;
-using System.Globalization;
 
 namespace Acta.Runtime;
 
@@ -39,9 +38,7 @@ internal static class DbSessionExtensions
                     rows.Add(mapRow(reader));
                 }
 
-                return await reader.NextResultAsync(token) && await reader.ReadAsync(token) && !reader.IsDBNull(0)
-                    ? (rows, Convert.ToInt64(reader.GetValue(0), CultureInfo.InvariantCulture))
-                    : (rows, null);
+                return (rows, await DbCellCoercion.ReadOptionalTotalAsync(reader, token));
             },
             ct
         );
