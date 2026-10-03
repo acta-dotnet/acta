@@ -38,7 +38,10 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   `ResumeTenantResponse`, and `UpdateTenantResponse`; and `INamespaces` answers them with
   `SuspendNamespaceResponse`, `ResumeNamespaceResponse`, and `UpdateNamespaceResponse`, instead of the
   shared `AdminControlResult`. Each carries the same `Action` and `Version` and implements the new
-  `IControlResponse`.
+  `IControlResponse`. `ITags` answers `ReplaceAsync`, `UpsertAsync`, and `RemoveAsync` with
+  `ReplaceTagsResponse`, `UpsertTagsResponse`, and `RemoveTagsResponse` instead of `TagMutationResult`;
+  each carries the same `Action` and implements the new `ITagMutationResponse`, and `IsApplied` is gone (compare `Action` with
+  `TagMutationAction.Applied`).
   `ITenants.RegisterAsync` returns `RegisterTenantResponse`, whose `TenantId` is the id it returned
   before. The HTTP bodies do not change; the OpenAPI document names each response type.
 

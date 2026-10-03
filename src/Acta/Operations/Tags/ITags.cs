@@ -14,7 +14,7 @@ public interface ITags
     ValueTask<TagSet?> GetAsync(TagTarget target, CancellationToken ct = default);
 
     /// <summary>Atomically replaces all tags on an existing target. An empty list clears the target.</summary>
-    ValueTask<TagMutationResult> ReplaceAsync(
+    ValueTask<ReplaceTagsResponse> ReplaceAsync(
         TagTarget target,
         IReadOnlyList<TagInput> tags,
         string? reasonMessage = null,
@@ -23,7 +23,7 @@ public interface ITags
     );
 
     /// <summary>Inserts or replaces one tag on an existing target; repeating the same write is harmless.</summary>
-    ValueTask<TagMutationResult> UpsertAsync(
+    ValueTask<UpsertTagsResponse> UpsertAsync(
         TagTarget target,
         TagInput tag,
         string? reasonMessage = null,
@@ -32,7 +32,7 @@ public interface ITags
     );
 
     /// <summary>Removes one normalized tag name from an existing target; a missing tag is harmless.</summary>
-    ValueTask<TagMutationResult> RemoveAsync(
+    ValueTask<RemoveTagsResponse> RemoveAsync(
         TagTarget target,
         string name,
         string? reasonMessage = null,

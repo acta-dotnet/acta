@@ -48,37 +48,8 @@ internal static class JobEnqueueRequestValidation
     private static string? NormalizeOpaque(string? value, string paramName) =>
         value is null ? null : IdentifierSyntax.NormalizeKey(value, paramName);
 
-    private static TagInput[]? NormalizeTags(IReadOnlyList<TagInput>? tags, string paramName)
-    {
-        if (tags is null)
-        {
-            return null;
-        }
-
-        if (tags.Count > TagLimits.MaxTagsPerTarget)
-        {
-            throw new ArgumentException(
-                $"A job may carry at most {TagLimits.MaxTagsPerTarget} tags.",
-                Field(paramName, nameof(JobEnqueueRequest.Tags))
-            );
-        }
-
-        var normalized = new TagInput[tags.Count];
-        var names = new HashSet<string>(StringComparer.Ordinal);
-        for (var i = 0; i < tags.Count; i++)
-        {
-            normalized[i] = TagInput.Normalize(tags[i], Field(paramName, $"{nameof(JobEnqueueRequest.Tags)}[{i}]"));
-            if (!names.Add(normalized[i].Name))
-            {
-                throw new ArgumentException(
-                    $"Duplicate normalized tag name '{normalized[i].Name}'.",
-                    Field(paramName, $"{nameof(JobEnqueueRequest.Tags)}[{i}].{nameof(TagInput.Name)}")
-                );
-            }
-        }
-
-        return normalized;
-    }
+    private static TagInput[]? NormalizeTags(IReadOnlyList<TagInput>? tags, string paramName) =>
+        tags is null ? null : TagInput.NormalizeSet(tags, Field(paramName, nameof(JobEnqueueRequest.Tags)), "job");
 
     private static void ValidateSchedule(JobEnqueueRequest request, string paramName)
     {

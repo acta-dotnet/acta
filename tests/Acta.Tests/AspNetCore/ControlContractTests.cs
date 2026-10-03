@@ -513,11 +513,9 @@ public sealed class ControlContractTests
         ];
     }
 
-    private static void TagApplies(TestDashboardHost.FakeJobs jobs) =>
-        jobs.TagsFake.MutationResult = new TagMutationResult(TagMutationAction.Applied);
+    private static void TagApplies(TestDashboardHost.FakeJobs jobs) => jobs.TagsFake.MutationAction = TagMutationAction.Applied;
 
-    private static void TagTargetMissing(TestDashboardHost.FakeJobs jobs) =>
-        jobs.TagsFake.MutationResult = new TagMutationResult(TagMutationAction.NotFound);
+    private static void TagTargetMissing(TestDashboardHost.FakeJobs jobs) => jobs.TagsFake.MutationAction = TagMutationAction.NotFound;
 
     private static string Path(string route, string key) => route[..route.IndexOf('{', StringComparison.Ordinal)] + key;
 

@@ -69,7 +69,6 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<EventsService>();
         services.TryAddSingleton<DefinitionsService>();
         services.TryAddSingleton<TenantKeyCache>();
-        services.TryAddSingleton<TagsService>();
         services.TryAddSingleton<JobsService>();
         services.TryAddSingleton<SignalService>();
 
@@ -80,7 +79,6 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<IDefinitions, DefinitionsApi>();
         services.TryAddSingleton<IWorkers, WorkersApi>();
         services.TryAddSingleton<IAlerts, AlertsApi>();
-        services.TryAddSingleton<ITags>(static sp => sp.GetRequiredService<TagsService>());
         services.TryAddSingleton<IOutbox, OutboxApi>();
         services.TryAddSingleton<IActaOperations, OperationsApi>();
 
@@ -112,6 +110,12 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ILocks, Locks>();
         services.TryAddSingleton<PurgeExpiredDataHandler>();
         services.TryAddSingleton<IMaintenance, Maintenance>();
+        services.TryAddSingleton<TagTargetResolution>();
+        services.TryAddSingleton<GetTagsHandler>();
+        services.TryAddSingleton<ReplaceTagsHandler>();
+        services.TryAddSingleton<UpsertTagsHandler>();
+        services.TryAddSingleton<RemoveTagsHandler>();
+        services.TryAddSingleton<ITags, Tags>();
 
         // Consumers light up the meter with WithMetrics(m => m.AddMeter(JobMetrics.MeterName)).
         services.TryAddSingleton<JobMetrics>();

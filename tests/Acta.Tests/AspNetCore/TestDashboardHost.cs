@@ -950,12 +950,12 @@ internal static class TestDashboardHost
         }
 
         /// <summary>Target-agnostic tag fake: GetAsync returns <see cref="Current"/> (null reports an
-        /// unknown target); mutations record their inputs and report <see cref="MutationResult"/>.</summary>
+        /// unknown target); mutations record their inputs and report <see cref="MutationAction"/>.</summary>
         public sealed class FakeTags : ITags
         {
             public TagSet? Current { get; set; } = new([new TagItem("env", "prod"), new TagItem("team")]);
 
-            public TagMutationResult MutationResult { get; set; } = new(TagMutationAction.Applied);
+            public TagMutationAction MutationAction { get; set; } = TagMutationAction.Applied;
 
             public List<TagInput> UpsertCalls { get; } = [];
 
@@ -965,7 +965,7 @@ internal static class TestDashboardHost
 
             public ValueTask<TagSet?> GetAsync(TagTarget target, CancellationToken ct = default) => ValueTask.FromResult(Current);
 
-            public ValueTask<TagMutationResult> ReplaceAsync(
+            public ValueTask<ReplaceTagsResponse> ReplaceAsync(
                 TagTarget target,
                 IReadOnlyList<TagInput> tags,
                 string? reasonMessage = null,
@@ -974,10 +974,10 @@ internal static class TestDashboardHost
             )
             {
                 ReplaceCalls.Add(tags);
-                return ValueTask.FromResult(MutationResult);
+                return ValueTask.FromResult(new ReplaceTagsResponse(MutationAction));
             }
 
-            public ValueTask<TagMutationResult> UpsertAsync(
+            public ValueTask<UpsertTagsResponse> UpsertAsync(
                 TagTarget target,
                 TagInput tag,
                 string? reasonMessage = null,
@@ -986,10 +986,10 @@ internal static class TestDashboardHost
             )
             {
                 UpsertCalls.Add(tag);
-                return ValueTask.FromResult(MutationResult);
+                return ValueTask.FromResult(new UpsertTagsResponse(MutationAction));
             }
 
-            public ValueTask<TagMutationResult> RemoveAsync(
+            public ValueTask<RemoveTagsResponse> RemoveAsync(
                 TagTarget target,
                 string name,
                 string? reasonMessage = null,
@@ -998,7 +998,7 @@ internal static class TestDashboardHost
             )
             {
                 RemoveCalls.Add(name);
-                return ValueTask.FromResult(MutationResult);
+                return ValueTask.FromResult(new RemoveTagsResponse(MutationAction));
             }
         }
 

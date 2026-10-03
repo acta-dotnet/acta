@@ -240,7 +240,7 @@ internal static class TagEndpoints
         TagSet? set;
         try
         {
-            // Both the resolver and the service canonicalize identifiers, and either can report one
+            // Both the resolver and ITags canonicalize identifiers, and either can report one
             // this API cannot address; that is caller input, so it is the 400 and never a miss.
             set = await operations.Tags.GetAsync(resolve(), ct);
         }
@@ -290,12 +290,13 @@ internal static class TagEndpoints
             : await Mutate(resolve, target => operations.Tags.RemoveAsync(target, tagName, ct: ct));
     }
 
-    private static async Task<IResult> Mutate(Func<TagTarget> resolve, Func<TagTarget, ValueTask<TagMutationResult>> apply)
+    private static async Task<IResult> Mutate<T>(Func<TagTarget> resolve, Func<TagTarget, ValueTask<T>> apply)
+        where T : ITagMutationResponse
     {
         try
         {
-            var result = await apply(resolve());
-            return result.IsApplied
+            var response = await apply(resolve());
+            return response.Action == TagMutationAction.Applied
                 ? Results.Json(new AdminControlResult(ControlAction.Applied, null), DashboardJsonContext.Default.AdminControlResult)
                 : MutationNotFound();
         }

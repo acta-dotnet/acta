@@ -33,4 +33,30 @@ public sealed record TagInput(string Name, string? Value = null)
             Name = name,
         };
     }
+
+    /// <summary>
+    /// Normalize a whole set: at most <see cref="TagLimits.MaxTagsPerTarget"/> tags, each as
+    /// <see cref="Normalize"/> does it, no two with one name. <paramref name="setName"/> is the caller's
+    /// path to the list, and <paramref name="owner"/> words the cap message ("job", "target").
+    /// </summary>
+    internal static TagInput[] NormalizeSet(IReadOnlyList<TagInput> tags, string setName, string owner)
+    {
+        if (tags.Count > TagLimits.MaxTagsPerTarget)
+        {
+            throw new ArgumentException($"A {owner} may carry at most {TagLimits.MaxTagsPerTarget} tags.", setName);
+        }
+
+        var normalized = new TagInput[tags.Count];
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        for (var i = 0; i < tags.Count; i++)
+        {
+            normalized[i] = Normalize(tags[i], $"{setName}[{i}]");
+            if (!names.Add(normalized[i].Name))
+            {
+                throw new ArgumentException($"Duplicate normalized tag name '{normalized[i].Name}'.", $"{setName}[{i}].{nameof(Name)}");
+            }
+        }
+
+        return normalized;
+    }
 }

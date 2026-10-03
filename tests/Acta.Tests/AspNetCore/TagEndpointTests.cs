@@ -161,7 +161,7 @@ public sealed class TagEndpointTests
     public async Task Tag_mutations_map_not_found_and_invalid_targets()
     {
         var jobs = new TestDashboardHost.FakeJobs();
-        jobs.TagsFake.MutationResult = new TagMutationResult(TagMutationAction.NotFound);
+        jobs.TagsFake.MutationAction = TagMutationAction.NotFound;
         var (app, client) = await StartControlsAsync(jobs);
         await using var _ = app;
 
