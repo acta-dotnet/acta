@@ -62,12 +62,16 @@ public abstract class RecurringSlotFromAnotherGenerationSpec<TFixture> : ActaRun
         await newGeneration.GetServices<WorkerRuntime>().Single().InitializeAsync(ct);
         var triggered = await Operations.Schedules.TriggerNowAsync(new ScheduleLookup(Slot, ScheduleName), ct: ct);
         Assert.Equal(ControlAction.Applied, triggered.Action);
+        var slotId = (await Jobs.GetJobIdAsync(Slot, ct))!.Value;
+        // Against the triggered due instant, not the clock: a run that ends just before a five-minute
+        // boundary re-arms onto that boundary, which a check against now would read as not re-armed.
+        var due = (await ReadJobAsync(slotId, ct)).NextRunAtUtc;
 
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(TestNamespace, ct));
 
-        var slot = await ReadJobAsync((await Jobs.GetJobIdAsync(Slot, ct))!.Value, ct);
+        var slot = await ReadJobAsync(slotId, ct);
         Assert.Equal(JobStatusCode.Ready, slot.Status);
-        Assert.True(slot.NextRunAtUtc > DateTime.UtcNow);
+        Assert.True(slot.NextRunAtUtc > due);
     }
 
     [Fact(
