@@ -13,7 +13,7 @@ internal sealed class GetSettingHandler(IDbSession session, ISqlDialect dialect)
         SettingScope.Validate(query.NamespaceName, query.JobName);
 
         return new(
-            session.QueryAsync(
+            session.QuerySingleAsync(
                 "GetSetting",
                 cmd =>
                 {
@@ -21,8 +21,7 @@ internal sealed class GetSettingHandler(IDbSession session, ISqlDialect dialect)
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ScopeNamespaceName, query.NamespaceName));
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ScopeJobName, query.JobName));
                 },
-                static async (reader, token) =>
-                    await reader.ReadAsync(token) ? DbProjectionResolver.Resolve<SettingDetail>()(reader) : null,
+                DbProjectionResolver.Resolve<SettingDetail>(),
                 ct
             )
         );
