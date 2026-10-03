@@ -2,18 +2,18 @@
 
 ## 1.0.0-rc.4
 
-Tagged 2026-10-03. A release candidate on the 1.0 baseline. rc.5 comes next, a reorganisation of the source so it can be
-maintained by hand again, and 1.0.0 after it. From 1.0.0 the
-public API, the schema, and the persisted codes are frozen: schema changes ship only as additive
-migrations, the baseline is never re-cut, and the release guard refuses a diff that would. The data
-model is the rc.3 model with four counters widened to 32-bit integers and one new feature, lanes, so
-the baseline is cut once more and every earlier release-candidate database is reprovisioned. What changed since rc.3 answers the external reviews
-of it: the execution and alerting paths, the installed routines, and what a release has to prove. A
-completion write is repeated until it lands, a claim is kept through a lost start answer or a lapsed
-lease while the row is still this worker's, the recovery sweep runs on capacity the executors cannot
-exhaust, the installed routines carry a version that startup checks, an incident opened at the
-failures-only audit level closes on its own, a completed child is kept while its parent is live, and
-three evidence harnesses join the release checklist.
+Tagged 2026-10-03. A release candidate on the 1.0 baseline. rc.5 comes next, a reorganisation of the
+source so it can be maintained by hand again, and 1.0.0 after it. From 1.0.0 the public API, the
+schema, and the persisted codes are frozen: schema changes ship only as additive migrations, the
+baseline is never re-cut, and the release guard refuses a diff that would. The data model is the
+rc.3 model with four counters widened to 32-bit integers and one new feature, lanes, so the baseline
+is cut once more and every earlier release-candidate database is reprovisioned. What changed since
+rc.3 answers the external reviews of it: the execution and alerting paths, the installed routines,
+and what a release has to prove. A completion write is repeated until it lands, a claim is kept
+through a lost start answer or a lapsed lease while the row is still this worker's, the recovery
+sweep runs on capacity the executors cannot exhaust, the installed routines carry a version that
+startup checks, an incident opened at the failures-only audit level closes on its own, a completed
+child is kept while its parent is live, and three evidence harnesses join the release checklist.
 
 ### What a consumer must change
 
