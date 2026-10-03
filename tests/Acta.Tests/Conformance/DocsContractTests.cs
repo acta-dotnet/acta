@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Text;
-using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Xunit;
 
@@ -14,12 +13,9 @@ public sealed class DocsContractTests
 {
     private static string Generate()
     {
-        var specs = typeof(IConformanceFixture)
-            .Assembly.GetTypes()
-            .Where(HarnessReflection.IsCandidateContractSpec)
-            .Select(t => (Type: t, Attr: HarnessReflection.ConformanceSpec(t)))
-            .Where(x => x.Attr is not null)
-            .Select(x => (Attr: x.Attr!, Guarantees: HarnessReflection.Guarantees(x.Type)))
+        var specs = ConformanceSpecSources
+            .All.Where(s => s.Contract is not null)
+            .Select(s => (Attr: s.Contract!, s.Guarantees))
             .OrderBy(x => x.Attr.Area)
             .ThenBy(x => x.Attr.Id)
             .ToList();

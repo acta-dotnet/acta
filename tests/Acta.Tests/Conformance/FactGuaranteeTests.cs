@@ -1,5 +1,3 @@
-using Acta.Tests.Conformance.Contracts;
-using Acta.Tests.Conformance.Testing;
 using Xunit;
 
 namespace Acta.Tests.Conformance;
@@ -16,16 +14,16 @@ public sealed class FactGuaranteeTests
     [Fact]
     public void Every_fact_declares_a_display_name()
     {
-        var candidates = typeof(IConformanceFixture).Assembly.GetTypes().Where(HarnessReflection.IsCandidateContractSpec).ToList();
+        var candidates = ConformanceSpecSources.All;
         var failures = new List<string>();
 
         foreach (var spec in candidates)
         {
-            foreach (var method in HarnessReflection.FactMethods(spec))
+            foreach (var fact in spec.Facts)
             {
-                if (string.IsNullOrWhiteSpace(HarnessReflection.DisplayName(method)))
+                if (string.IsNullOrWhiteSpace(fact.DisplayName))
                 {
-                    failures.Add($"{spec.Name}.{method.Name}: [Fact]/[Theory] is missing a DisplayName guarantee.");
+                    failures.Add($"{spec.Name}.{fact.Method}: [Fact]/[Theory] is missing a DisplayName guarantee.");
                 }
             }
         }

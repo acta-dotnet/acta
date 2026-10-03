@@ -1,5 +1,3 @@
-using Acta.Tests.Conformance.Contracts;
-using Acta.Tests.Conformance.Testing;
 using Xunit;
 
 namespace Acta.Tests.Conformance;
@@ -19,12 +17,12 @@ public sealed class ConformanceSpecShapeTests
     [Fact]
     public void Every_contract_is_thin_and_absorbable()
     {
-        var candidates = typeof(IConformanceFixture).Assembly.GetTypes().Where(HarnessReflection.IsCandidateContractSpec).ToList();
+        var candidates = ConformanceSpecSources.All;
         var failures = new List<string>();
 
         foreach (var spec in candidates)
         {
-            var a = HarnessReflection.ConformanceSpec(spec);
+            var a = spec.Contract;
             if (a is null)
             {
                 continue;
@@ -49,7 +47,7 @@ public sealed class ConformanceSpecShapeTests
                 Fail($"Title > {TitleMaxChars} chars.");
             }
 
-            var guarantees = HarnessReflection.Guarantees(spec);
+            var guarantees = spec.Guarantees;
             if (guarantees.Count is 0 or > GuaranteesMax)
             {
                 Fail($"Guarantees must be 1..{GuaranteesMax} (was {guarantees.Count}).");
