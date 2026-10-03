@@ -57,12 +57,15 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         // denies, so the loop is bounded by the clock, not by a count.
         var admittedPastBurst = 0;
         RateReservation? denied = null;
+        var deniedAt = DateTime.MinValue;
         while (clock.Elapsed < TimeSpan.FromSeconds(2))
         {
+            var sentAt = DateTime.UtcNow;
             var next = await ReserveAsync(bucket, jobId: 1099 + admittedPastBurst, ct);
             if (!next.Admitted)
             {
                 denied = next;
+                deniedAt = sentAt;
                 break;
             }
             admittedPastBurst++;
@@ -74,11 +77,15 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
             admittedPastBurst <= refilled,
             $"{admittedPastBurst} request(s) past the burst were admitted, but at most {refilled} turn(s) could have refilled in {clock.Elapsed.TotalMilliseconds:0}ms"
         );
+        // The denial books a turn ahead of the database clock while the SQL runs, so the turn is measured
+        // against the moment the request was sent: on a busy runner the round trip back can outlast the
+        // turn's lead, and "now" after the call would fail a correct booking. The interval of slack covers
+        // the host and database clocks disagreeing.
         if (denied is { } booked)
         {
             Assert.True(
-                booked.ResumeAtUtc > DateTime.UtcNow.AddMilliseconds(-IntervalMilliseconds),
-                $"the reserved turn {booked.ResumeAtUtc:O} is not ahead of now"
+                booked.ResumeAtUtc > deniedAt.AddMilliseconds(-IntervalMilliseconds),
+                $"the reserved turn {booked.ResumeAtUtc:O} is not ahead of the request sent at {deniedAt:O}"
             );
         }
     }
