@@ -9,11 +9,11 @@ namespace Acta.Runtime;
 /// Shared relational <see cref="IOutboxRelayStore"/> over a source-bound <see cref="IDbSession"/> and its
 /// dialect (a distinct instance from the Acta-ledger session). Claim and finalize commands are prepared
 /// here with <c>DbParams.For</c> and the source dialect, then run through the source-bound
-/// <see cref="IDbSession"/>; every finalize is token-CAS. The provider packages own the executable
-/// <c>Sql/Outbox/*.sql</c> bodies and the source connection creation. Delete, release,
-/// reschedule, and quarantine all finalize the whole claimed group in one set-based command: delete and
-/// release bind a JSON id array, reschedule and quarantine bind a JSON array of per-row records (each with
-/// its own failure count, per-row backoff, and error) that the provider SQL unnests server-side.
+/// <see cref="IDbSession"/>; every finalize is token-CAS. The provider packages own the source
+/// connection creation. Delete, release, reschedule, and quarantine all finalize the whole claimed group
+/// in one set-based command: delete and release bind a JSON id array, reschedule and quarantine bind a
+/// JSON array of per-row records (each with its own failure count, per-row backoff, and error) that the
+/// SQL unnests server-side.
 /// </summary>
 internal sealed class RelationalOutboxRelayStore(IDbSession session, ISqlDialect dialect, string? schema, string table) : IOutboxRelayStore
 {

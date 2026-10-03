@@ -112,18 +112,16 @@ public sealed class RoutineBodyParameterAssertTests
 
     [Fact]
     public void Mssql_dead_param_fails() =>
-        Assert.NotEmpty(RoutineBodyParameterAssert.ScanContent("mssql", "Fake/Fake.routine.sql", MssqlWithDeadParam));
+        Assert.NotEmpty(RoutineBodyParameterAssert.ScanContent("mssql", "Fake.sql", MssqlWithDeadParam));
 
     [Fact]
-    public void Mssql_all_used_passes() =>
-        Assert.Empty(RoutineBodyParameterAssert.ScanContent("mssql", "Fake/Fake.routine.sql", MssqlAllUsed));
+    public void Mssql_all_used_passes() => Assert.Empty(RoutineBodyParameterAssert.ScanContent("mssql", "Fake.sql", MssqlAllUsed));
 
     [Fact]
-    public void Pg_dead_param_fails() =>
-        Assert.NotEmpty(RoutineBodyParameterAssert.ScanContent("pg", "Fake/Fake.routine.sql", PgWithDeadParam));
+    public void Pg_dead_param_fails() => Assert.NotEmpty(RoutineBodyParameterAssert.ScanContent("pg", "Fake.sql", PgWithDeadParam));
 
     [Fact]
-    public void Pg_all_used_passes() => Assert.Empty(RoutineBodyParameterAssert.ScanContent("pg", "Fake/Fake.routine.sql", PgAllUsed));
+    public void Pg_all_used_passes() => Assert.Empty(RoutineBodyParameterAssert.ScanContent("pg", "Fake.sql", PgAllUsed));
 }
 
 public sealed class SqlCodePolicyAssertTests
@@ -163,7 +161,7 @@ public sealed class SqlCodePolicyAssertTests
     public void Unannotated_postgres_positional_code_result_fails() =>
         Assert.NotEmpty(
             SqlCodePolicyAssert.ScanRequiredAnnotations(
-                "Fake/Fake.routine.sql",
+                "Fake.sql",
                 "CREATE FUNCTION fake() RETURNS TABLE(out_action SMALLINT, out_status_code SMALLINT) LANGUAGE plpgsql AS $$ BEGIN RETURN QUERY SELECT 1::SMALLINT, 30::SMALLINT; END; $$;"
             )
         );

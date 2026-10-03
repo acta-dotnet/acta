@@ -5,7 +5,7 @@ using Acta.Tests.Conformance.Sql;
 namespace Acta.Tests.Conformance.Testing;
 
 /// <summary>
-/// The provider's own <c>Sql/Schema/EnsureMigrations.sql</c>, rendered for a schema name. The
+/// The dialect's own <c>EnsureMigrations</c> SQL, rendered for a schema name. The
 /// migration-history probes build their ledger from this rather than from a copy, so a probe cannot
 /// disagree with the table the real migration runner creates and the preflight then reads.
 /// </summary>

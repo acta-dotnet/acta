@@ -73,4 +73,4 @@ workflow engine for very large or externally authored graphs.
 - [The related Engineering Lab](../../../docs/engineering-labs.md)
 - [`child-jobs.cs`](./child-jobs.cs)
 - [`JobContext.cs`](../../../src/Acta/Execution/JobContext.cs)
-- [`ChildLatches`](../../../src/Acta.Sqlite/Sql/Execution/ChildLatches/)
+- [`GetStaleChildLatches.sqlite.sql`](../../../src/Acta.Runtime/Operations/Execution/GetStaleChildLatches/GetStaleChildLatches.sqlite.sql)

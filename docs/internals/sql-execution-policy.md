@@ -11,14 +11,12 @@ not an inference from SQL size.
 
 ## Resources and execution
 
-- `Operation.routine.sql` defines an installed atomic ledger operation on PostgreSQL or SQL Server.
-- `Operation.sql` is executable SQL shipped with the binary. Ledger reads use this form on every
-  provider; SQLite also uses it for mutations.
-- `Name.view.sql` defines an installed read model. Views remain database objects, queryable with SELECT.
+- Each operation has one file per dialect, `Operation.pg.sql`, `Operation.mssql.sql`, and `Operation.sqlite.sql`, addressed by its stem.
+- A file whose first statement, after comments, is `CREATE OR REPLACE FUNCTION` or `CREATE OR ALTER PROCEDURE` defines an installed atomic ledger operation on PostgreSQL or SQL Server.
+- Any other operation file is executable SQL shipped with the binary. Ledger reads use this form on every provider; SQLite also uses it for mutations.
+- A file whose stem ends in `View`, under `Schema/Views/`, defines an installed read model. Views remain database objects, queryable with SELECT.
 
-`SqlResourceCatalog` resolves exactly one implementation for each operation/provider. Missing or
-ambiguous resources fail before a connection opens. `DbSession` uses the resource kind to configure
-the command. There is no provider-wide routine switch.
+`SqlResourceCatalog` resolves exactly one file for each stem and dialect. Two files with one stem fail when the catalog is built, and a missing one fails before a connection opens. `DbSession` uses the file's kind to configure the command. There is no provider-wide routine switch.
 
 Shared stores use query methods for reads and execute methods for mutations. Stores never decide
 transaction ownership from the number of SQL statements. Parameter binding stays provider-specific,

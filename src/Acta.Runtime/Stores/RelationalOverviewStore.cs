@@ -2,7 +2,7 @@ namespace Acta.Runtime;
 
 /// <summary>
 /// Shared relational <see cref="IOverviewStore"/> over <see cref="IDbSession"/>: one round trip over the
-/// provider-owned <c>Sql/Overview/GetOverview.sql</c>, bound and mapped directly here.
+/// dialect's <c>GetOverview</c> SQL, bound and mapped directly here.
 /// </summary>
 internal sealed class RelationalOverviewStore(IDbSession session, ISqlDialect dialect) : IOverviewStore
 {

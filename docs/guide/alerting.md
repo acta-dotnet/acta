@@ -80,7 +80,7 @@ Only `job.execution-finished` events, and only four shapes of them (`GetAlertabl
 
 All of this rides the event stream, so the job's `AuditLevel` decides whether alerting can see the job
 at all. The default `Audit` writes every `job.execution-finished`. **`AuditLevel = Failures` writes it
-for a failed attempt that carries no reschedule** (`CompleteExecution.routine.sql`): not a success,
+for a failed attempt that carries no reschedule** (`CompleteExecution.*.sql`): not a success,
 not an attempt the job is being re-armed from, and not a handler that cancelled or paused its own
 job. Two things follow, and the first one surprises people.
 
@@ -161,7 +161,7 @@ row, are the long-horizon record. This key names an **incident**, not a time buc
 index on `(namespace_id, dedupe_key)` filtered to unresolved rows, so at most one OPEN row exists per
 key at any moment (`JobAlert.cs`). A repeat of the same condition while that row is open folds onto it
 — `occurrence_count + 1`, title/message/severity refreshed — with no time component at all
-(`RaiseJobAlert.routine.sql`). `resolved_at_utc` is terminal for a row (see [Resolution](#resolution)):
+(`RaiseJobAlert.*.sql`). `resolved_at_utc` is terminal for a row (see [Resolution](#resolution)):
 once a success stamps it, the row never reopens, and the next failure on the same key opens a fresh
 incident with a fresh ref and fresh delivery state.
 
@@ -179,24 +179,24 @@ Four things follow from the key's shape:
 
 Automatic writes are replay-safe. Each carries the projecting event's id, and the upsert increments and
 re-stamps only when that id is strictly newer than the row's `last_projected_event_id`
-(`AlertsJob.EmitAsync`, `RaiseJobAlert.routine.sql`). Because resolution is terminal, a failure event
+(`AlertsJob.EmitAsync`, `RaiseJobAlert.*.sql`). Because resolution is terminal, a failure event
 replayed after the incident it belongs to has already closed must not reopen it: the insert arm is
 guarded against every row of the identity, resolved ones included, not just the open one, so a raise
 whose event the identity has already absorbed at or past that id opens nothing — the ghost-incident
-guard (`RaiseJobAlert.routine.sql`). The public `alert_ref` is applied on the INSERT arm only, and is
-absent from the `DO UPDATE SET` list (`RaiseJobAlert.routine.sql`), so a row keeps the ref its first
+guard (`RaiseJobAlert.*.sql`). The public `alert_ref` is applied on the INSERT arm only, and is
+absent from the `DO UPDATE SET` list (`RaiseJobAlert.*.sql`), so a row keeps the ref its first
 firing minted for as long as the incident stays open, and the next incident on the same key gets a ref
 of its own.
 
 ## Resolution
 
 A successful execution resolves that job's open automatic alerts and writes nothing
-(`AlertsJob.ProjectAsync`, `ResolveJobAlerts.routine.sql`). It is:
+(`AlertsJob.ProjectAsync`, `ResolveJobAlerts.*.sql`). It is:
 
 - **Job-instance-scoped** — `job_id` and `origin = Automatic`, kinds `FirstFailure` /
-  `ThresholdReached` / `FinalFailure`, and only rows still unresolved (`ResolveJobAlerts.routine.sql`).
+  `ThresholdReached` / `FinalFailure`, and only rows still unresolved (`ResolveJobAlerts.*.sql`).
 - **Ordered.** Resolution applies only to alerts whose `last_projected_event_id` precedes the success
-  event (`ResolveJobAlerts.routine.sql`), so a replayed success cannot close an alert that a later failure
+  event (`ResolveJobAlerts.*.sql`), so a replayed success cannot close an alert that a later failure
   opened.
 - **Idempotent, and run on every success.** Within one batch a job can go fail → success → fail →
   success, where the second failure opens a fresh incident on the same key (the first is already
@@ -214,7 +214,7 @@ its lifecycle; Acta does not police key choice, it deduplicates on it. The opera
 (`IAlerts.AcknowledgeAsync`, `IAlerts.ResolveAsync`) are idempotent, emit `alert.acknowledged` (140) /
 `alert.resolved` (141) regardless of the job's audit level (`EventCode.AlertAcknowledged`,
 `EventCode.AlertResolved`), and leave `last_projected_event_id` untouched
-(`ResolveJobAlertManual.routine.sql`). Neither verb changes the underlying job.
+(`ResolveJobAlertManual.*.sql`). Neither verb changes the underlying job.
 
 Reminders follow the same split. A manual alert that delivers is notified once and never again: Acta
 has no way to tell whether one handler's statement still holds, so it schedules no reminder and the
@@ -243,7 +243,7 @@ restarts the count at 1 (`JobsOptions.AlertFailureThreshold`).
 Delivery selects an unresolved incident whose delivery is `Pending`/`RetryAfter` due now, or whose
 delivery already settled (`Delivered`/`Failed`) and whose scheduled reminder has come
 (`GetDeliverableAlerts.sql`; see [Delivery](#delivery)). Every newly inserted row is born `Pending`
-(`AlertsJob.EmitAsync`, `RaiseJobAlert.routine.sql`), so a new incident's first notification is
+(`AlertsJob.EmitAsync`, `RaiseJobAlert.*.sql`), so a new incident's first notification is
 immediate.
 
 **A job that is permanently broken produces exactly one open incident row per (kind, reason) — one for
@@ -296,7 +296,7 @@ channel's kind, and decides in this fixed order (`AlertChannelDecision.Decide`):
 
 A transport that throws is treated as retryable and logged at Warning, never propagated
 (`AlertsJob.SendAsync`). Settlement (`AlertsJob.SettleAsync`) writes a compare-and-swap against the
-`version` the row carried at selection (`UpdateAlertDelivery.routine.sql`): a row that moved in the
+`version` the row carried at selection (`UpdateAlertDelivery.*.sql`): a row that moved in the
 meantime — an operator resolved it, or a competing worker already settled the same attempt — matches
 no version, and the write is skipped with a Debug log line rather than retried, because the newer state
 is the one that should stand (`AlertsJob.WriteSettlementAsync`).
@@ -326,8 +326,8 @@ The delivery guarantee:
 > An alert resolved before delivery selection is not sent. Resolution suppresses further pending and
 > retry attempts. A transport attempt already in progress may still complete.
 
-Both resolve paths settle the delivery they close (`ResolveJobAlerts.routine.sql`,
-`ResolveJobAlertManual.routine.sql`): a `Pending` or `RetryAfter` row moves to `Suppressed` and its
+Both resolve paths settle the delivery they close (`ResolveJobAlerts.*.sql`,
+`ResolveJobAlertManual.*.sql`): a `Pending` or `RetryAfter` row moves to `Suppressed` and its
 retry timer clears, so a notification queued for a condition that has cleared is cancelled rather than
 sent. An already-settled row (`Delivered`, `Failed`, `Suppressed`) keeps its status — resolving does
 not edit the record of what the send actually did. Selection itself excludes every resolved row
@@ -396,18 +396,18 @@ both carrying `AlertControlResponse` — behind
 `EnableControls` and the `X-Acta-Control` header (the gate lives in `ActaApiEndpoints`, the header
 name in `ActaEndpointOptions.ControlConfirmationHeaderName`; the verbs themselves in
 `AlertControlEndpoints`). In SQL, `acta.alerts_view` renders the coded columns and aliases
-`dedupe_key` to `deduplication_key` (`AlertsView.view.sql`); see [SQL recipes](./sql-recipes.md) for
+`dedupe_key` to `deduplication_key` (`AlertsView.*.sql`); see [SQL recipes](./sql-recipes.md) for
 ready queries.
 
 Acknowledge means an operator has seen the alert; resolve means the incident is considered settled.
 Neither changes the job. Acknowledging also does not quiet the alert: a reminder already due still
 fires, because seeing an outage is not fixing one. Resolving is what ends the reminders — it clears
 the row's scheduled instant along with everything else it settles
-(`ResolveJobAlertManual.routine.sql`).
+(`ResolveJobAlertManual.*.sql`).
 
 Retention is separate from the job's. `sys.retention` deletes alerts older than `AlertRetention`
 (default 90 days, `JobsOptions.AlertRetention`) **whether or not delivery settled**
-(`PurgeExpiredData.routine.sql`). Settled rows — `Suppressed`, `Delivered`, `Failed` — and rows still
+(`PurgeExpiredData.*.sql`). Settled rows — `Suppressed`, `Delivered`, `Failed` — and rows still
 stuck `Pending` or `RetryAfter` are counted separately, and a pass that aged out an undelivered row
 logs one warning naming how many: an alert deleted before it ever reached a channel is a signal
 nobody got. Nothing is immortal under this rule, an open incident included — the deduplication index
@@ -518,7 +518,7 @@ from a `None` job naming an unconfigured channel is not caught until it fails de
 | `EventCode.cs` | `src/Acta/Codes/EventCode.cs` |
 | `BackoffSchedule.cs` | `src/Acta.Runtime/Kernel/BackoffSchedule.cs` |
 | `WorkerBuilder.cs` | `src/Acta.Runtime/Hosting/WorkerBuilder.cs` |
-| `*.sql`, `*.routine.sql` | `src/Acta.Postgres/Sql/{Alerting,Execution,Maintenance}/` (SQL Server and SQLite carry dialect twins; SQLite has plain `.sql` where the servers install routines) |
+| `*.{pg,mssql,sqlite}.sql` | `src/Acta.Runtime/Operations/{Alerts,Execution,Maintenance}/` and `src/Acta.Runtime/Schema/Views/` (one file per dialect beside each operation; SQLite runs inline what the servers install as routines) |
 
 Runnable examples: `concepts/400-observability-and-alerts/402-alerts` (manual alert),
 `403-alert-channel` (a declared channel with a severity floor), `405-real-alert-routing` (Slack
