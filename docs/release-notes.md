@@ -419,7 +419,9 @@ child is kept while its parent is live, and three evidence harnesses join the re
 - The benchmark round, in `docs/benchmarks/rc4-release-round-20261002.md`: level on drain, enqueue,
   and pickup latency on both servers, except SQL Server's drain at one worker and Direct drain at
   sixteen, a tenth to a sixth slower, and the job list query, 6 and 9 percent slower; SQLite about an
-  eighth slower on its per-job paths and faster on batch enqueue.
+  eighth slower on its per-job paths and faster on batch enqueue. At full scale, 10,000 jobs per cell,
+  PostgreSQL's Bulk drain at sixteen workers reads about 13 percent below rc.3; the cause is not yet
+  found.
 - The certification's stranded-work check exempts a system job whose lease is still live. The seal
   reads the ledger while the workers still run, and `sys.alerts` fires on every minute, so a seal
   that crossed a minute failed a finished run on the fire it met; a system job behind a lapsed lease

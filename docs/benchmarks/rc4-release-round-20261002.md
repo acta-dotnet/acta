@@ -30,7 +30,7 @@ Bulk drain at sixteen workers read anywhere from 5,713 to 20,884 across twelve r
 between the 2026-10-01 candidate and this one, none of which changes the unlaned Bulk path. The verdict therefore reads drain, enqueue, latency, and the list query, and quotes the
 throughput cells without weighing them.
 
-## PostgreSQL: level, the list query a little slower
+## PostgreSQL: level at the preset, Bulk drain slower at full scale
 
 Drain, jobs/s, workers 1 and 16 of 16 executors:
 
@@ -52,6 +52,14 @@ round.
 Throughput, jobs/s at 1, 8, 32 executors: rc.4 Buffered 163 / 1,034 / 3,571, Direct 166 / 1,621 /
 4,787, Bulk 328 / 2,423 / 7,948; rc.3 Buffered 408 / 2,488 / 6,275, Direct 203 / 793 / 2,723, Bulk
 315 / 2,275 / 7,711.
+
+At full scale the drain is not level. The `full` preset's drain cells (10,000 jobs, the median of
+three runs), run with rc.4 and rc.3 alternating, read Bulk at sixteen workers 38,280, 33,910, 31,717,
+28,943, 31,820, and 34,277 jobs/s for rc.4 against 38,293, 39,114, 38,827, 36,271, 38,631, and 37,786
+for rc.3: about 13 percent below. Direct and Buffered at sixteen workers read about 5 percent below,
+Bulk at four workers 2 to 6 percent, and one worker is level. The `release` preset's 5,000-job cells
+are too short to show it. The cause is not found: a bisect over the commits since rc.3 was misled by
+the drive slowing during the hour and named a commit that changes only a test.
 
 ## SQL Server: level, one-worker drain a little slower
 
@@ -133,8 +141,9 @@ is level on Direct and Bulk.
 
 ## Verdict
 
-No drain, enqueue, latency, or list-query cell on PostgreSQL moves beyond a single run's spread except
-the list query, about 6 percent slower. SQL Server is level on latency, enqueue, and Buffered drain at
+No drain, enqueue, latency, or list-query cell on PostgreSQL moves beyond a single run's spread at the
+`release` preset except the list query, about 6 percent slower; at full scale Bulk drain at sixteen
+workers reads about 13 percent below rc.3, cause not yet found. SQL Server is level on latency, enqueue, and Buffered drain at
 sixteen workers, and reads a tenth to a sixth slower on Direct drain, one-worker Buffered drain, and the
 list query. SQLite pays about an
 eighth on its per-job paths, where lanes add work to every claim and settle, and gains on batch
