@@ -90,7 +90,7 @@ public sealed class TypeNamingTests
                 .Select(method => method.ReturnType),
         ];
 
-    // The last PascalCase word: "Store" in IAlertStore, "Dto" in OutboxMetaDto.
+    // The last PascalCase word: "Store" in IJobStore, "Dto" in OutboxMetaDto.
     private static string LastWord(string name)
     {
         for (var i = name.Length - 1; i > 0; i--)

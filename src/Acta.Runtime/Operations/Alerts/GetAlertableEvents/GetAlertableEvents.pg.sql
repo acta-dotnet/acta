@@ -1,13 +1,13 @@
 SELECT
-    e.id,
+    e.id AS event_id,
     e.created_at_utc,
     e.job_id,
     e.definition_id,
-    jd.name,
-    jd.alert_profile_code_effective AS alert_profile_code,
+    jd.name AS job_name,
+    jd.alert_profile_code_effective AS alert_profile,
     jd.alert_channel_name_effective AS alert_channel_name,
-    e.execution_status_code,
-    e.to_status_code,
+    e.execution_status_code AS execution_status,
+    e.to_status_code AS to_status,
     e.reason_code,
     e.reason_message
 FROM {{schema}}.events e

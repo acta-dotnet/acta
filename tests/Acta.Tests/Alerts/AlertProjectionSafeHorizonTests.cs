@@ -19,21 +19,21 @@ public sealed class AlertProjectionSafeHorizonTests
     [InlineData(1, 2)]
     [InlineData(120, 240)]
     public void Horizon_is_two_command_timeouts(int commandTimeoutSeconds, int expectedLagSeconds) =>
-        Assert.Equal(expectedLagSeconds, RelationalAlertStore.SafeHorizonLagSeconds(TimeSpan.FromSeconds(commandTimeoutSeconds)));
+        Assert.Equal(expectedLagSeconds, GetAlertableEventsHandler.SafeHorizonLagSeconds(TimeSpan.FromSeconds(commandTimeoutSeconds)));
 
     [Fact]
     public void Sub_second_command_timeout_still_leaves_a_horizon()
     {
         // Rounded up before doubling, because a horizon of zero is the defect this exists to prevent:
         // it would let the read take an event the instant it was stamped.
-        Assert.Equal(2, RelationalAlertStore.SafeHorizonLagSeconds(TimeSpan.FromMilliseconds(100)));
+        Assert.Equal(2, GetAlertableEventsHandler.SafeHorizonLagSeconds(TimeSpan.FromMilliseconds(100)));
     }
 
     [Fact]
     public async Task Horizon_reaches_the_read_as_a_bound_parameter()
     {
         var session = new BindCapturingSession();
-        var store = new RelationalAlertStore(
+        var handler = new GetAlertableEventsHandler(
             session,
             new SqliteDialect(ExecutionProfile.Direct),
             new SqliteProviderOptions { ConnectionString = "Data Source=:memory:", CommandTimeout = TimeSpan.FromSeconds(45) }
@@ -41,13 +41,9 @@ public sealed class AlertProjectionSafeHorizonTests
 
         var nowUtc = new DateTime(2026, 9, 11, 12, 0, 0, DateTimeKind.Utc);
         var cursorUtc = nowUtc.AddMinutes(-5);
-        var horizonUtc = AlertsJob.SafeHorizon(nowUtc, store.SafeHorizonLag);
-        await store.GetAlertableEventsAsync(
-            namespaceId: 7,
-            cursorUtc,
-            cursorEventId: 100,
-            batchSize: 256,
-            horizonUtc,
+        var horizonUtc = AlertsJob.SafeHorizon(nowUtc, handler.SafeHorizonLag);
+        await handler.HandleAsync(
+            new GetAlertableEventsQuery(NamespaceId: 7, cursorUtc, CursorEventId: 100, BatchSize: 256, horizonUtc),
             TestContext.Current.CancellationToken
         );
 

@@ -6,21 +6,14 @@ namespace Acta.Runtime;
 /// </summary>
 internal sealed class GetDefinitionContractsHandler(IDbSession session, ISqlDialect dialect)
 {
-    public Task<IReadOnlyList<StoredDefinitionContract>> HandleAsync(GetDefinitionContractsQuery query, CancellationToken ct) =>
-        session.QueryAsync<IReadOnlyList<StoredDefinitionContract>>(
+    public Task<IReadOnlyList<StoredDefinitionContract>> HandleAsync(GetDefinitionContractsQuery query, CancellationToken ct)
+    {
+        var read = DbProjectionResolver.Resolve<GetDefinitionContractsRow>();
+        return session.QueryListAsync(
             "GetDefinitionContracts",
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.NamespaceId, query.NamespaceId)),
-            static async (reader, token) =>
-            {
-                var read = DbProjectionResolver.Resolve<GetDefinitionContractsRow>();
-                var contracts = new List<StoredDefinitionContract>();
-                while (await reader.ReadAsync(token))
-                {
-                    contracts.Add(read(reader).ToContract());
-                }
-
-                return contracts;
-            },
+            reader => read(reader).ToContract(),
             ct
         );
+    }
 }

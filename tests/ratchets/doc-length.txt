@@ -1,7 +1,6 @@
 # Known doc-length violations; entries may only be removed.
 ActaServiceCollectionExtensions.cs
 AdminTextLimits.cs
-AlertControlResult.cs
 AlertDetail.cs
 AlertListItem.cs
 AlertRows.cs
@@ -26,7 +25,6 @@ EffectivePolicyOverlay.cs
 EventCode.cs
 EventListItem.cs
 IActaBuilder.cs
-IAlertStore.cs
 IAlerts.cs
 IDefinitions.cs
 IExecutionStore.cs
@@ -111,7 +109,6 @@ PostgresOutboxStagingExtensions.cs
 RateLimitSpec.cs
 RecoveryPass.cs
 RecoverySlotMonitor.cs
-RelationalAlertStore.cs
 RelationalOutboxRelayStore.cs
 RuntimeJobContext.cs
 ScheduleControlResult.cs

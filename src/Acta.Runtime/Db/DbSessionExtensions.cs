@@ -16,6 +16,30 @@ internal static class DbSessionExtensions
         where T : class =>
         session.QueryAsync(stem, bind, async (reader, token) => await reader.ReadAsync(token) ? mapRow(reader) : null, ct);
 
+    /// <summary>Runs a read and maps every row of its result.</summary>
+    public static Task<IReadOnlyList<T>> QueryListAsync<T>(
+        this IDbSession session,
+        string stem,
+        Action<DbCommand> bind,
+        Func<DbDataReader, T> mapRow,
+        CancellationToken ct
+    ) =>
+        session.QueryAsync<IReadOnlyList<T>>(
+            stem,
+            bind,
+            async (reader, token) =>
+            {
+                var rows = new List<T>();
+                while (await reader.ReadAsync(token))
+                {
+                    rows.Add(mapRow(reader));
+                }
+
+                return rows;
+            },
+            ct
+        );
+
     /// <summary>
     /// Runs a list read: every row of the first result set, then the total from a second one, which the SQL
     /// returns only when the caller asked for a count.

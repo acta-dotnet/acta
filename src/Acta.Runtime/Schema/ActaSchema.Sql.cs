@@ -452,7 +452,7 @@ internal static partial class ActaSchema
 
         /// <summary>
         /// sys.alerts safe horizon: the instant the projection read stops at, computed once per pass
-        /// from the database clock less the command-timeout lag (RelationalAlertStore.SafeHorizonLagSeconds)
+        /// from the database clock less the command-timeout lag (GetAlertableEventsHandler.SafeHorizonLagSeconds)
         /// and handed to every read of that pass, so an event whose id was allocated before a still-open
         /// transaction's is never stepped over, and no two reads of one pass can disagree on the boundary.
         /// </summary>

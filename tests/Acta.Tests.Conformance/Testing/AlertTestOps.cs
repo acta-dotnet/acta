@@ -18,7 +18,7 @@ internal static class AlertTestOps
     /// high-water mark. Specs that need the projector's event-scoped behavior drive
     /// <c>AlertsJob</c> itself.
     /// </summary>
-    public static Task<AlertRaiseOutcome> RaiseAsync(
+    public static Task<AlertOccurrence> RaiseAsync(
         IServiceProvider services,
         string jobNamespace,
         long? jobId,
@@ -33,7 +33,7 @@ internal static class AlertTestOps
         CancellationToken ct
     ) =>
         services
-            .GetRequiredService<IAlertStore>()
+            .GetRequiredService<IAlertLifecycle>()
             .RaiseJobAlertAsync(
                 RaiseJobAlertCommand.Create(
                     jobNamespace,
@@ -83,7 +83,7 @@ internal static class AlertTestOps
         }
 
         var alertsJob = new AlertsJob(
-            services.GetRequiredService<IAlertStore>(),
+            services.GetRequiredService<IAlertLifecycle>(),
             services.GetRequiredService<IActaClock>(),
             services.GetRequiredService<IAlertChannelRegistry>(),
             services.GetRequiredService<IAlertTransportRegistry>(),
@@ -127,7 +127,7 @@ internal static class AlertTestOps
     public static async Task<DateTime> HorizonOfThisMomentAsync(IServiceProvider services, CancellationToken ct) =>
         AlertsJob.SafeHorizon(
             await services.GetRequiredService<IServerClock>().GetUtcNowAsync(ct),
-            services.GetRequiredService<IAlertStore>().SafeHorizonLag
+            services.GetRequiredService<IAlertLifecycle>().SafeHorizonLag
         );
 
     /// <summary>
@@ -299,7 +299,7 @@ internal static class AlertTestOps
             leaseTtlSeconds: 180,
             jobStore: services.GetRequiredService<IJobStore>(),
             signalStore: services.GetRequiredService<ISignalStore>(),
-            alerts: services.GetRequiredService<IAlertStore>(),
+            alerts: services.GetRequiredService<IAlertLifecycle>(),
             executionStore: services.GetRequiredService<IExecutionStore>(),
             serializers: services.GetRequiredService<IJobPayloadSerializerRegistry>(),
             locks: services.GetRequiredService<ILocks>(),

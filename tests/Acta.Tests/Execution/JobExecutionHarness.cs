@@ -631,7 +631,7 @@ internal sealed class JobExecutionHarness(
             : serviceType == typeof(WorkerWakeupPublisher) ? _wakeup
             : serviceType == typeof(IJobContextAccessor) ? _accessor
             : serviceType == typeof(Acta.Runtime.ISignalStore) ? NoSignals.Instance
-            : serviceType == typeof(IAlertStore) ? NoAlerts.Instance
+            : serviceType == typeof(IAlertLifecycle) ? NoAlerts.Instance
             : null;
 
         public IServiceScope CreateScope() => this;
@@ -656,13 +656,13 @@ internal sealed class JobExecutionHarness(
             ) => throw new NotSupportedException();
         }
 
-        private sealed class NoAlerts : IAlertStore
+        private sealed class NoAlerts : IAlertLifecycle
         {
             public static readonly NoAlerts Instance = new();
 
             public TimeSpan SafeHorizonLag => throw new NotSupportedException();
 
-            public Task<AlertRaiseOutcome> RaiseJobAlertAsync(RaiseJobAlertCommand command, CancellationToken ct) =>
+            public Task<AlertOccurrence> RaiseJobAlertAsync(RaiseJobAlertCommand command, CancellationToken ct) =>
                 throw new NotSupportedException();
 
             public Task<IReadOnlyList<AlertableEvent>> GetAlertableEventsAsync(
@@ -688,16 +688,6 @@ internal sealed class JobExecutionHarness(
 
             public Task<int> ResolveJobAlertsAsync(int namespaceId, long jobId, long sourceEventId, CancellationToken ct) =>
                 throw new NotSupportedException();
-
-            public Task<AlertControlOutcome> AcknowledgeJobAlertAsync(AlertControlCommand command, CancellationToken ct) =>
-                throw new NotSupportedException();
-
-            public Task<AlertControlOutcome> ResolveJobAlertManualAsync(AlertControlCommand command, CancellationToken ct) =>
-                throw new NotSupportedException();
-
-            public Task<AlertPage> ListJobAlertsAsync(AlertPageRequest request, CancellationToken ct) => throw new NotSupportedException();
-
-            public Task<AlertListItem?> GetJobAlertAsync(Guid alertRef, CancellationToken ct) => throw new NotSupportedException();
         }
     }
 

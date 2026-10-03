@@ -107,7 +107,7 @@ public sealed class RaiseJobAlertSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Raise_after_resolution_opens_a_fresh_incident_rather_than_reopening()
     {
         var ct = TestContext.Current.CancellationToken;
-        var store = Services.GetRequiredService<IAlertStore>();
+        var store = Services.GetRequiredService<IAlertLifecycle>();
 
         await RunAsync(Db, deduplicationKey: "incident-key", title: "first", ct);
         var opened = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
@@ -275,7 +275,7 @@ public sealed class RaiseJobAlertSpec : ActaStorageTestBase<ConformanceFixture>
             leaseTtlSeconds: 180,
             jobStore: Services.GetRequiredService<IJobStore>(),
             signalStore: Services.GetRequiredService<ISignalStore>(),
-            alerts: Services.GetRequiredService<IAlertStore>(),
+            alerts: Services.GetRequiredService<IAlertLifecycle>(),
             executionStore: Services.GetRequiredService<IExecutionStore>(),
             serializers: Services.GetRequiredService<IJobPayloadSerializerRegistry>(),
             locks: Services.GetRequiredService<ILocks>(),

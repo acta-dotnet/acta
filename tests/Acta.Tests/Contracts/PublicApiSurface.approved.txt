@@ -139,6 +139,12 @@ interface Acta.Testing.IActaTestHost
     System.Threading.Tasks.Task<Acta.Testing.ActaRunOutcome> RunOnceAsync(System.String jobNamespace, System.Threading.CancellationToken ct = default)
 
 ## Acta
+sealed class Acta.AcknowledgeJobAlertResponse
+    .ctor(Acta.AlertRef AlertRef, Acta.ControlAction Action, System.Nullable<System.DateTime> AcknowledgedAtUtc, System.Nullable<System.DateTime> ResolvedAtUtc)
+    Acta.AlertRef AlertRef { get;init; }
+    Acta.ControlAction Action { get;init; }
+    System.Nullable<System.DateTime> AcknowledgedAtUtc { get;init; }
+    System.Nullable<System.DateTime> ResolvedAtUtc { get;init; }
 enum Acta.ActorCode
     Job = 50
     Operator = 20
@@ -197,12 +203,6 @@ enum Acta.AlertChannelValidationMode
     Fail = 2
     Off = 0
     Warn = 1
-sealed class Acta.AlertControlResult
-    .ctor(Acta.AlertRef AlertRef, Acta.ControlAction Action, System.Nullable<System.DateTime> AcknowledgedAtUtc, System.Nullable<System.DateTime> ResolvedAtUtc)
-    Acta.AlertRef AlertRef { get;init; }
-    Acta.ControlAction Action { get;init; }
-    System.Nullable<System.DateTime> AcknowledgedAtUtc { get;init; }
-    System.Nullable<System.DateTime> ResolvedAtUtc { get;init; }
 enum Acta.AlertDeliveryOutcome
     Delivered = 1
     Permanent = 3
@@ -692,16 +692,21 @@ interface Acta.IActaOperations
     Acta.ITags Tags { get; }
     Acta.ITenants Tenants { get; }
     Acta.IWorkers Workers { get; }
+interface Acta.IAlertControlResponse
+    Acta.AlertRef AlertRef { get; }
+    Acta.ControlAction Action { get; }
+    System.Nullable<System.DateTime> AcknowledgedAtUtc { get; }
+    System.Nullable<System.DateTime> ResolvedAtUtc { get; }
 interface Acta.IAlertTransport
     System.String TransportKind { get; }
     System.Threading.Tasks.Task<Acta.AlertDeliveryOutcome> SendAsync(Acta.AlertNotification notification, Acta.AlertTarget target, System.Threading.CancellationToken ct)
 interface Acta.IAlertTransportRegistry
     Acta.IAlertTransport Resolve(System.String transportKind)
 interface Acta.IAlerts
-    System.Threading.Tasks.ValueTask<Acta.AlertControlResult> AcknowledgeAsync(Acta.AlertRef alertRef, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.AlertControlResult> ResolveAsync(Acta.AlertRef alertRef, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.AcknowledgeJobAlertResponse> AcknowledgeAsync(Acta.AlertRef alertRef, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.AlertDetail> GetAsync(Acta.AlertRef alertRef, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.AlertListItem>> ListAsync(Acta.ListAlertsQuery query, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.ResolveJobAlertManualResponse> ResolveAsync(Acta.AlertRef alertRef, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
 interface Acta.IControlResponse
     Acta.ControlAction Action { get; }
     System.Nullable<System.Int32> Version { get; }
@@ -1940,6 +1945,12 @@ sealed class Acta.ReservedCodeRangeAttribute
     System.Byte End { get; }
     System.Byte Start { get; }
     System.String Reason { get; }
+sealed class Acta.ResolveJobAlertManualResponse
+    .ctor(Acta.AlertRef AlertRef, Acta.ControlAction Action, System.Nullable<System.DateTime> AcknowledgedAtUtc, System.Nullable<System.DateTime> ResolvedAtUtc)
+    Acta.AlertRef AlertRef { get;init; }
+    Acta.ControlAction Action { get;init; }
+    System.Nullable<System.DateTime> AcknowledgedAtUtc { get;init; }
+    System.Nullable<System.DateTime> ResolvedAtUtc { get;init; }
 sealed class Acta.ResumeNamespaceResponse
     .ctor(Acta.ControlAction Action, System.Nullable<System.Int32> Version)
     Acta.ControlAction Action { get;init; }

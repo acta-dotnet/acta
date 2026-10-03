@@ -136,7 +136,7 @@ public sealed class AlertsJobDrainTests
         Assert.Equal(20L, (await ctx.GetRequiredVariableAsync<AlertsCursor>(AlertsJob.CursorVariableName, ct)).EventId);
     }
 
-    private static AlertsJob CreateJob(IAlertStore store, AlertDrainBudget drain) =>
+    private static AlertsJob CreateJob(IAlertLifecycle store, AlertDrainBudget drain) =>
         new(store, new FixedClock(), channels: null!, transports: null!, Options.Create(new JobsOptions())) { Drain = drain };
 
     /// <summary>
@@ -167,7 +167,7 @@ public sealed class AlertsJobDrainTests
     /// above the cursor, up to the batch size, in id order. <c>ThrowOnRead</c> fails the read at that
     /// 1-based ordinal, standing in for the pass dying between batches.
     /// </summary>
-    private sealed class BacklogAlertStore(int backlog) : IAlertStore
+    private sealed class BacklogAlertStore(int backlog) : IAlertLifecycle
     {
         public List<(long Cursor, int BatchSize)> Reads { get; } = [];
 
@@ -211,10 +211,10 @@ public sealed class AlertsJobDrainTests
             return Task.FromResult<IReadOnlyList<AlertableEvent>>(rows);
         }
 
-        public Task<AlertRaiseOutcome> RaiseJobAlertAsync(RaiseJobAlertCommand command, CancellationToken ct)
+        public Task<AlertOccurrence> RaiseJobAlertAsync(RaiseJobAlertCommand command, CancellationToken ct)
         {
             Raises++;
-            return Task.FromResult(new AlertRaiseOutcome(Raises, command.SourceEventId));
+            return Task.FromResult(new AlertOccurrence(Raises, command.SourceEventId));
         }
 
         public Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(int namespaceId, int batchSize, CancellationToken ct) =>
@@ -231,16 +231,6 @@ public sealed class AlertsJobDrainTests
 
         public Task<int> ResolveJobAlertsAsync(int namespaceId, long jobId, long sourceEventId, CancellationToken ct) =>
             throw new NotSupportedException();
-
-        public Task<AlertControlOutcome> AcknowledgeJobAlertAsync(AlertControlCommand command, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<AlertControlOutcome> ResolveJobAlertManualAsync(AlertControlCommand command, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<AlertPage> ListJobAlertsAsync(AlertPageRequest request, CancellationToken ct) => throw new NotSupportedException();
-
-        public Task<AlertListItem?> GetJobAlertAsync(Guid alertRef, CancellationToken ct) => throw new NotSupportedException();
 
         // Stamps climb with ids, one second apart, so the stream orders the same way by either half.
         public static DateTime Stamp(long eventId) => DateTime.UnixEpoch.AddSeconds(eventId);

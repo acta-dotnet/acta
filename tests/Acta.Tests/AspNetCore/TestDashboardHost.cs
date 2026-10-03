@@ -1216,7 +1216,7 @@ internal static class TestDashboardHost
             public static readonly DateTime AcknowledgedAt = new(2026, 6, 12, 7, 0, 0, DateTimeKind.Utc);
             public static readonly DateTime ResolvedAt = new(2026, 6, 12, 8, 0, 0, DateTimeKind.Utc);
 
-            public ValueTask<AlertControlResult> AcknowledgeAsync(
+            public ValueTask<AcknowledgeJobAlertResponse> AcknowledgeAsync(
                 AlertRef alertRef,
                 string? reasonMessage = null,
                 string? actorKey = null,
@@ -1225,14 +1225,14 @@ internal static class TestDashboardHost
             {
                 if (alertRef == default)
                 {
-                    return ValueTask.FromResult(new AlertControlResult(alertRef, ControlAction.NotFound, null, null));
+                    return ValueTask.FromResult(new AcknowledgeJobAlertResponse(alertRef, ControlAction.NotFound, null, null));
                 }
 
                 acknowledgeCalls.Add((alertRef, reasonMessage, actorKey));
-                return ValueTask.FromResult(new AlertControlResult(alertRef, ControlAction.Applied, AcknowledgedAt, null));
+                return ValueTask.FromResult(new AcknowledgeJobAlertResponse(alertRef, ControlAction.Applied, AcknowledgedAt, null));
             }
 
-            public ValueTask<AlertControlResult> ResolveAsync(
+            public ValueTask<ResolveJobAlertManualResponse> ResolveAsync(
                 AlertRef alertRef,
                 string? reasonMessage = null,
                 string? actorKey = null,
@@ -1241,11 +1241,11 @@ internal static class TestDashboardHost
             {
                 if (alertRef == default)
                 {
-                    return ValueTask.FromResult(new AlertControlResult(alertRef, ControlAction.NotFound, null, null));
+                    return ValueTask.FromResult(new ResolveJobAlertManualResponse(alertRef, ControlAction.NotFound, null, null));
                 }
 
                 resolveCalls.Add((alertRef, reasonMessage, actorKey));
-                return ValueTask.FromResult(new AlertControlResult(alertRef, ControlAction.Applied, null, ResolvedAt));
+                return ValueTask.FromResult(new ResolveJobAlertManualResponse(alertRef, ControlAction.Applied, null, ResolvedAt));
             }
 
             /// <summary>Only <see cref="FakeJobs.KnownAlertRef"/> exists; every other ref reads as absent.</summary>

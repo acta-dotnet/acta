@@ -10,8 +10,8 @@ namespace Acta.Tests.Api;
 /// <summary>
 /// Validation behavior of the facade read methods with no database: filter dependencies, identifier
 /// shape, page-size bounds, the events total guard, and cursor envelope rejection. Each read is
-/// exercised on its owner: the job and event lists on their Ledger handlers, schedules on
-/// <see cref="SchedulesApi"/>, alerts on <see cref="AlertsApi"/>. The stubs return empty pages so cursor
+/// exercised on its owner: the job, event, and alert lists on their handlers, schedules on
+/// <see cref="SchedulesApi"/>. The stubs return empty pages so cursor
 /// checks run before any data access matters; unused collaborators are null because the read path only
 /// touches the store or the session.
 /// </summary>
@@ -147,50 +147,7 @@ public sealed class FacadeReadValidationTests
             throw new NotSupportedException();
     }
 
-    private sealed class EmptyAlertStore : IAlertStore
-    {
-        public Task<AlertRaiseOutcome> RaiseJobAlertAsync(RaiseJobAlertCommand command, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public TimeSpan SafeHorizonLag => throw new NotSupportedException();
-
-        public Task<IReadOnlyList<AlertableEvent>> GetAlertableEventsAsync(
-            int namespaceId,
-            DateTime cursorUtc,
-            long cursorEventId,
-            int batchSize,
-            DateTime horizonUtc,
-            CancellationToken ct
-        ) => throw new NotSupportedException();
-
-        public Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(int namespaceId, int batchSize, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<bool> UpdateAlertDeliveryAsync(
-            long alertId,
-            int expectedVersion,
-            AlertDeliveryStatusCode status,
-            int retryCount,
-            DateTime? retryAfterUtc,
-            CancellationToken ct
-        ) => throw new NotSupportedException();
-
-        public Task<int> ResolveJobAlertsAsync(int namespaceId, long jobId, long sourceEventId, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<AlertControlOutcome> AcknowledgeJobAlertAsync(AlertControlCommand command, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<AlertControlOutcome> ResolveJobAlertManualAsync(AlertControlCommand command, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<AlertPage> ListJobAlertsAsync(AlertPageRequest request, CancellationToken ct) =>
-            Task.FromResult(new AlertPage([], request.IncludeTotal ? 0L : null));
-
-        public Task<AlertListItem?> GetJobAlertAsync(Guid alertRef, CancellationToken ct) => Task.FromResult<AlertListItem?>(null);
-    }
-
-    private static AlertsApi Alerts() => new(new EmptyAlertStore());
+    private static ListJobAlertsHandler ListAlerts() => new(new EmptyPageSession(), null!);
 
     private static SchedulesApi Schedules() => new(new EmptyScheduleStore(), null!, null!, JobsReadService());
 
@@ -261,7 +218,7 @@ public sealed class FacadeReadValidationTests
         );
 
         await Assert.ThrowsAsync<InvalidPageCursorException>(async () =>
-            await Alerts().ListAsync(new ListAlertsQuery(Cursor: jobsCursor), Ct)
+            await ListAlerts().HandleAsync(new ListAlertsQuery(Cursor: jobsCursor), Ct)
         );
     }
 
@@ -288,7 +245,7 @@ public sealed class FacadeReadValidationTests
         );
 
         await Assert.ThrowsAsync<InvalidQueryException>(async () =>
-            await Alerts().ListAsync(new ListAlertsQuery(SeverityAtLeast: (AlertSeverityCode)200), Ct)
+            await ListAlerts().HandleAsync(new ListAlertsQuery(SeverityAtLeast: (AlertSeverityCode)200), Ct)
         );
     }
 
@@ -299,7 +256,7 @@ public sealed class FacadeReadValidationTests
     {
         await Assert.ThrowsAsync<InvalidQueryException>(async () => await ListEvents().HandleAsync(new ListEventsQuery(JobId: jobId), Ct));
 
-        await Assert.ThrowsAsync<InvalidQueryException>(async () => await Alerts().ListAsync(new ListAlertsQuery(JobId: jobId), Ct));
+        await Assert.ThrowsAsync<InvalidQueryException>(async () => await ListAlerts().HandleAsync(new ListAlertsQuery(JobId: jobId), Ct));
     }
 
     [Fact]

@@ -1,8 +1,8 @@
 SELECT TOP (@p_alert_batch_size)
-    a.id,
+    a.id AS alert_id,
     a.job_id,
-    a.severity_code,
-    a.kind_code,
+    a.severity_code AS severity,
+    a.kind_code AS kind,
     a.title,
     a.message,
     jd.runbook_url_effective AS runbook_url,
@@ -13,7 +13,7 @@ SELECT TOP (@p_alert_batch_size)
     a.alert_ref,
     a.job_ref,
     a.version,
-    a.origin_code
+    a.origin_code AS origin
 FROM {{schema}}.alerts a
 LEFT JOIN {{schema}}.jobs j
     ON j.id = a.job_id

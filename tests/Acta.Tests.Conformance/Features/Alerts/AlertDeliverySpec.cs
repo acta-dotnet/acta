@@ -287,7 +287,7 @@ public sealed class AlertDeliverySpec : ActaStorageTestBase<ConformanceFixture>
     // --- Helpers ---
 
     private Task<IReadOnlyList<DeliverableAlert>> DueAsync(CancellationToken ct) =>
-        Services.GetRequiredService<IAlertStore>().GetDeliverableAlertsAsync(TestNamespaceId, 50, ct);
+        Services.GetRequiredService<IAlertLifecycle>().GetDeliverableAlertsAsync(TestNamespaceId, 50, ct);
 
     private Task<bool> SettleAsync(
         long alertId,
@@ -298,14 +298,14 @@ public sealed class AlertDeliverySpec : ActaStorageTestBase<ConformanceFixture>
         CancellationToken ct
     ) =>
         Services
-            .GetRequiredService<IAlertStore>()
+            .GetRequiredService<IAlertLifecycle>()
             .UpdateAlertDeliveryAsync(alertId, expectedVersion, status, retryCount, retryAfterUtc, ct);
 
     private Task<int> ResolveAsync(CancellationToken ct) => ResolveAsync(JobIdValue, ct);
 
     private async Task<int> ResolveAsync(long jobId, CancellationToken ct) =>
         await Services
-            .GetRequiredService<IAlertStore>()
+            .GetRequiredService<IAlertLifecycle>()
             .ResolveJobAlertsAsync(TestNamespaceId, jobId, await NextEventIdAsync(jobId, ct), ct);
 
     // Moves the row's scheduled instant without touching anything else, which is how these facts travel

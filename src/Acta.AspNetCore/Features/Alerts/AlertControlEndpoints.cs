@@ -30,13 +30,14 @@ internal static class AlertControlEndpoints
         );
     }
 
-    private static void MapVerb(
+    private static void MapVerb<TResponse>(
         RouteGroupBuilder group,
         ActaEndpointOptions options,
         string verb,
         string summary,
-        Func<IActaOperations, AlertRef, string?, string?, CancellationToken, ValueTask<AlertControlResult>> invoke
+        Func<IActaOperations, AlertRef, string?, string?, CancellationToken, ValueTask<TResponse>> invoke
     )
+        where TResponse : IAlertControlResponse
     {
         group
             .MapPost(
@@ -74,15 +75,15 @@ internal static class AlertControlEndpoints
             .AcceptsJson<AlertControlRequest>(optional: true)
             // Applied and not-found carry the same body, so a client reads `action` without
             // special-casing the status code.
-            .Produces<AlertControlResult>(StatusCodes.Status200OK)
-            .Produces<AlertControlResult>(StatusCodes.Status404NotFound)
+            .Produces<TResponse>(StatusCodes.Status200OK)
+            .Produces<TResponse>(StatusCodes.Status404NotFound)
             // Both verbs read the optional note body, so both can refuse a non-JSON content type.
             .ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
     }
 
-    private static IResult ToResult(AlertControlResult result)
+    private static IResult ToResult(IAlertControlResponse result)
     {
         var statusCode = result.Action == ControlAction.NotFound ? StatusCodes.Status404NotFound : StatusCodes.Status200OK;
-        return Results.Json(result, DashboardJsonContext.Default.AlertControlResult, statusCode: statusCode);
+        return Results.Json(result, result.GetType(), DashboardJsonContext.Default, statusCode: statusCode);
     }
 }

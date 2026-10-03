@@ -123,12 +123,9 @@ public sealed class ListJobAlertsSpec : ActaRuntimeTestBase<ConformanceFixture, 
         }
 
         var page = await Services
-            .GetRequiredService<IAlertStore>()
-            .ListJobAlertsAsync(
-                new AlertPageRequest(TestNamespace, null, null, null, null, null, null, null, Take: 2, IncludeTotal: true),
-                ct
-            );
-        var (rows, total) = (page.Rows, page.Total);
+            .GetRequiredService<IAlerts>()
+            .ListAsync(new ListAlertsQuery(JobNamespace: TestNamespace, PageSize: 2, IncludeTotal: true), ct);
+        var (rows, total) = (page.Items, page.TotalCount);
 
         Assert.Equal(2, rows.Count);
         Assert.Equal(3L, total);
@@ -183,12 +180,7 @@ public sealed class ListJobAlertsSpec : ActaRuntimeTestBase<ConformanceFixture, 
         var acked = alerts.First(a => a.Title == "ack-me");
         var ackedRef = new AlertRef(acked.AlertRef);
 
-        await Services
-            .GetRequiredService<IAlertStore>()
-            .AcknowledgeJobAlertAsync(
-                new AlertControlCommand(acked.AlertRef, new JobControlActor(ActorCode.Operator, "op"), $"alert {ackedRef}"),
-                ct
-            );
+        await queries.Alerts.AcknowledgeAsync(ackedRef, actorKey: "op", ct: ct);
 
         var page = await queries.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: TestNamespace, PageSize: 50), ct);
         var ackedItem = page.Items.Single(a => a.AlertRef == ackedRef);

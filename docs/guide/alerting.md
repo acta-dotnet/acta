@@ -502,7 +502,7 @@ from a `None` job naming an unconfigured channel is not caught until it fails de
 | `AlertChannelDecision.cs` | `src/Acta.Runtime/Modules/Alerting/AlertChannelDecision.cs` |
 | `AlertChannelRegistry.cs` | `src/Acta.Runtime/Modules/Alerting/AlertChannelRegistry.cs` |
 | `AlertRoutingCheck.cs` | `src/Acta.Runtime/Modules/Alerting/AlertRoutingCheck.cs` |
-| `IAlertStore.cs` | `src/Acta.Runtime/Modules/Alerting/IAlertStore.cs` |
+| `IAlertLifecycle.cs` | `src/Acta.Runtime/Operations/Alerts/IAlertLifecycle.cs` |
 | `JobAlert.cs` | `src/Acta.Runtime/Entities/JobAlert.cs` |
 | `AlertProfileCode.cs` | `src/Acta/Codes/AlertProfileCode.cs` |
 | `AlertChannelOptions.cs` | `src/Acta/Hosting/AlertChannelOptions.cs` |

@@ -46,7 +46,7 @@ public sealed class AlertPurgeRaceSpec : ActaRuntimeTestBase<ConformanceFixture,
         DeadlockRetryOff.SkipOnSqlite(Services);
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var store = Services.GetRequiredService<IAlertStore>();
+        var store = Services.GetRequiredService<IAlertLifecycle>();
 
         for (var round = 0; round < Rounds; round++)
         {
@@ -103,7 +103,7 @@ public sealed class AlertPurgeRaceSpec : ActaRuntimeTestBase<ConformanceFixture,
         }
     }
 
-    private Task<AlertRaiseOutcome> RaiseAsync(long jobId, AlertKindCode kind, CancellationToken ct) =>
+    private Task<AlertOccurrence> RaiseAsync(long jobId, AlertKindCode kind, CancellationToken ct) =>
         AlertTestOps.RaiseAsync(
             Services,
             TestNamespace,

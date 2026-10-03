@@ -44,7 +44,10 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   gone (compare `Action` with `TagMutationAction.Applied`). `IDefinitions` answers `UpdateOverridesAsync`
   and `RetireAsync` with `SetJobDefinitionOverridesResponse` and `RetireJobDefinitionResponse` instead
   of `DefinitionControlResult`; each carries the same `Action` and implements the new
-  `IDefinitionControlResponse`. `ITenants.RegisterAsync` returns
+  `IDefinitionControlResponse`. `IAlerts` answers `AcknowledgeAsync` and `ResolveAsync` with
+  `AcknowledgeJobAlertResponse` and `ResolveJobAlertManualResponse` instead of `AlertControlResult`;
+  each carries the same four members and implements the new `IAlertControlResponse`.
+  `ITenants.RegisterAsync` returns
   `RegisterTenantResponse`, whose `TenantId` is the id it returned before. The HTTP bodies do not
   change; the OpenAPI document names each response type.
 

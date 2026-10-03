@@ -100,8 +100,8 @@ public sealed class ControlContractTests
         .. ScheduleOverrides(),
         .. DefinitionOverrides(),
         .. DefinitionRetire(),
-        .. AlertVerb("acknowledge"),
-        .. AlertVerb("resolve"),
+        .. AlertVerb("acknowledge", typeof(AcknowledgeJobAlertResponse)),
+        .. AlertVerb("resolve", typeof(ResolveJobAlertManualResponse)),
         .. OutboxVerb("requeue"),
         .. OutboxVerb("discard"),
         .. AdminVerb("namespaces", "/namespaces/{jobNamespace}", "billing", "suspend", typeof(SuspendNamespaceResponse)),
@@ -372,11 +372,11 @@ public sealed class ControlContractTests
     }
 
     // Acknowledge and resolve are idempotent, so they have no rejection: only applied and not-found.
-    private static IEnumerable<Case> AlertVerb(string verb)
+    private static IEnumerable<Case> AlertVerb(string verb, Type declared)
     {
         var route = $"/alerts/{{alertRef}}/{verb}";
         Case Row(string outcome, string alertRef, int status, string action) =>
-            new("alerts", route, "POST", outcome, $"/alerts/{alertRef}/{verb}", status, typeof(AlertControlResult), action, Reason);
+            new("alerts", route, "POST", outcome, $"/alerts/{alertRef}/{verb}", status, declared, action, Reason);
         return
         [
             Row("applied", KnownAlert, StatusCodes.Status200OK, "applied"),

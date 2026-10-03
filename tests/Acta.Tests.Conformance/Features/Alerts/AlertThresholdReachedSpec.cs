@@ -181,7 +181,9 @@ public sealed class AlertThresholdReachedSpec : ActaRuntimeTestBase<ConformanceF
         Assert.Null(opened.ResolvedAtUtc);
 
         // Resolve it (simulates a recovery event closing the row).
-        await Services.GetRequiredService<IAlertStore>().ResolveJobAlertsAsync(NamespaceId, jobId, await NextEventIdAsync(jobId, ct), ct);
+        await Services
+            .GetRequiredService<IAlertLifecycle>()
+            .ResolveJobAlertsAsync(NamespaceId, jobId, await NextEventIdAsync(jobId, ct), ct);
         var resolved = Assert.Single(await ReadAlertsAsync(NamespaceId, ct), a => a.Id == opened.Id);
         Assert.NotNull(resolved.ResolvedAtUtc);
 
@@ -201,7 +203,7 @@ public sealed class AlertThresholdReachedSpec : ActaRuntimeTestBase<ConformanceF
         Assert.NotEqual(rows[0].AlertRef, rows[1].AlertRef);
     }
 
-    private Task<AlertRaiseOutcome> RaiseThresholdAsync(long jobId, string deduplicationKey, CancellationToken ct) =>
+    private Task<AlertOccurrence> RaiseThresholdAsync(long jobId, string deduplicationKey, CancellationToken ct) =>
         AlertTestOps.RaiseAsync(
             Services,
             TestNamespace,

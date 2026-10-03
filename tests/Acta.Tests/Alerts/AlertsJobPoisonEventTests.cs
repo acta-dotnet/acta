@@ -62,21 +62,21 @@ public sealed class AlertsJobPoisonEventTests
         Assert.False(await ctx.ExistsVariableAsync("alerts-skip-11", ct));
     }
 
-    private static AlertsJob CreateJob(IAlertStore store, ILogger<AlertsJob> logger) =>
+    private static AlertsJob CreateJob(IAlertLifecycle store, ILogger<AlertsJob> logger) =>
         new(store, new FixedClock(), channels: null!, transports: null!, Options.Create(new JobsOptions()), logger);
 
-    private sealed class PoisonAlertStore(bool deterministicFailure, Exception? failure = null) : IAlertStore
+    private sealed class PoisonAlertStore(bool deterministicFailure, Exception? failure = null) : IAlertLifecycle
     {
         private static readonly AlertableEvent[] Events = [Event(11, 101), Event(12, 102)];
 
         public List<long> RaiseAttempts { get; } = [];
 
-        public Task<AlertRaiseOutcome> RaiseJobAlertAsync(RaiseJobAlertCommand command, CancellationToken ct)
+        public Task<AlertOccurrence> RaiseJobAlertAsync(RaiseJobAlertCommand command, CancellationToken ct)
         {
             var eventId = command.JobId == 101 ? 11L : 12L;
             RaiseAttempts.Add(eventId);
             return command.JobId == 101
-                ? Task.FromException<AlertRaiseOutcome>(
+                ? Task.FromException<AlertOccurrence>(
                     failure
                         ?? (
                             deterministicFailure
@@ -84,7 +84,7 @@ public sealed class AlertsJobPoisonEventTests
                                 : new TimeoutException("provider timeout")
                         )
                 )
-                : Task.FromResult(new AlertRaiseOutcome(1, command.SourceEventId));
+                : Task.FromResult(new AlertOccurrence(1, command.SourceEventId));
         }
 
         // Zero lag against the fixed epoch clock puts every staged event exactly on the horizon, so this
@@ -114,16 +114,6 @@ public sealed class AlertsJobPoisonEventTests
 
         public Task<int> ResolveJobAlertsAsync(int namespaceId, long jobId, long sourceEventId, CancellationToken ct) =>
             throw new NotSupportedException();
-
-        public Task<AlertControlOutcome> AcknowledgeJobAlertAsync(AlertControlCommand command, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<AlertControlOutcome> ResolveJobAlertManualAsync(AlertControlCommand command, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<AlertPage> ListJobAlertsAsync(AlertPageRequest request, CancellationToken ct) => throw new NotSupportedException();
-
-        public Task<AlertListItem?> GetJobAlertAsync(Guid alertRef, CancellationToken ct) => throw new NotSupportedException();
 
         private static AlertableEvent Event(long eventId, long jobId) =>
             new(

@@ -114,7 +114,7 @@ public sealed class AlertAcknowledgeResolveSpec : ActaRuntimeTestBase<Conformanc
     public async Task Resolve_settles_the_queued_delivery()
     {
         var ct = TestContext.Current.CancellationToken;
-        var store = Services.GetRequiredService<IAlertStore>();
+        var store = Services.GetRequiredService<IAlertLifecycle>();
 
         // One alert parked mid-retry, one already delivered: the two halves of the settlement table the
         // operator verb has to honour.
@@ -163,7 +163,7 @@ public sealed class AlertAcknowledgeResolveSpec : ActaRuntimeTestBase<Conformanc
     public async Task Acknowledge_does_not_defer_a_due_reminder()
     {
         var ct = TestContext.Current.CancellationToken;
-        var store = Services.GetRequiredService<IAlertStore>();
+        var store = Services.GetRequiredService<IAlertLifecycle>();
         var (alertRef, jobId) = await RaiseAlertAsync(ct);
 
         // A delivered alert whose next notification has come round.

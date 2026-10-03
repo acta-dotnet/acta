@@ -21,7 +21,7 @@ namespace Acta.Runtime;
 /// and retry attempts. A transport attempt already in progress may still complete.</para>
 /// </summary>
 internal sealed class AlertsJob(
-    IAlertStore store,
+    IAlertLifecycle alerts,
     IActaClock clock,
     IAlertChannelRegistry channels,
     IAlertTransportRegistry transports,
@@ -68,7 +68,7 @@ internal sealed class AlertsJob(
     /// </summary>
     private static readonly Backoff RetryBackoff = Backoff.Parse("30s..1h");
 
-    private readonly IAlertStore _store = store;
+    private readonly IAlertLifecycle _alerts = alerts;
     private readonly IActaClock _clock = clock;
     private readonly IAlertChannelRegistry _channels = channels;
     private readonly IAlertTransportRegistry _transports = transports;
@@ -120,7 +120,7 @@ internal sealed class AlertsJob(
     }
 
     /// <summary>
-    /// The horizon of a pass whose database clock read <paramref name="nowUtc"/>: the store's lag behind
+    /// The horizon of a pass whose database clock read <paramref name="nowUtc"/>: the safe-horizon lag behind
     /// it, floored to the millisecond, the coarsest precision a provider keeps a stamp at, so the instant
     /// a short batch checkpoints is one a stored stamp can equal exactly rather than fall a rounding short of.
     /// </summary>
@@ -139,14 +139,14 @@ internal sealed class AlertsJob(
     /// raise and resolve paths refuse to move an incident an equal-or-newer event already marked.
     /// <para>The cursor is the (stamp, id) pair of the last row read, never an id alone, because the
     /// two orders can invert and an id cursor would step over a row for good. The read is bounded by
-    /// the store's safe horizon, behind which every alertable row has committed; a short batch is the
+    /// the safe horizon, behind which every alertable row has committed; a short batch is the
     /// proof that nothing alertable is left behind that horizon, so the cursor's instant advances to
     /// it and the next pass never rescans the history this one walked. Any change here that reads
-    /// events from a source other than IAlertStore.GetAlertableEventsAsync reopens that.</para>
+    /// events from a source other than IAlertLifecycle.GetAlertableEventsAsync reopens that.</para>
     /// </summary>
     private async Task GenerateAsync(JobContext ctx, DateTime nowUtc, CancellationToken ct)
     {
-        var horizonUtc = SafeHorizon(nowUtc, _store.SafeHorizonLag);
+        var horizonUtc = SafeHorizon(nowUtc, _alerts.SafeHorizonLag);
         var cursor = await ctx.GetVariableOrDefaultAsync(CursorVariableName, new AlertsCursor(0L, 0L), ct);
         var cursorUtc = cursor.Utc;
         var cursorId = cursor.EventId;
@@ -157,7 +157,7 @@ internal sealed class AlertsJob(
 
         for (var batch = 0; batch < Drain.MaxBatches; batch++)
         {
-            var events = await _store.GetAlertableEventsAsync(ctx.NamespaceId, cursorUtc, cursorId, Drain.BatchSize, horizonUtc, ct);
+            var events = await _alerts.GetAlertableEventsAsync(ctx.NamespaceId, cursorUtc, cursorId, Drain.BatchSize, horizonUtc, ct);
 
             foreach (var e in events)
             {
@@ -284,11 +284,11 @@ internal sealed class AlertsJob(
             // -> success, where the second failure opened a SECOND incident on the same key; only
             // resolving each success keeps it from lingering unresolved. The op is idempotent and a
             // success with nothing open closes nothing, so the repeat costs a no-op. The success event's
-            // own id rides along: the store closes only alerts an OLDER event moved, so replaying this
+            // own id rides along: the resolve closes only alerts an OLDER event moved, so replaying this
             // success behind a newer failure leaves the alert that failure opened open.
             if (e.JobId is { } jobId)
             {
-                await _store.ResolveJobAlertsAsync(ctx.NamespaceId, jobId, e.EventId, ct);
+                await _alerts.ResolveJobAlertsAsync(ctx.NamespaceId, jobId, e.EventId, ct);
             }
             return;
         }
@@ -332,7 +332,7 @@ internal sealed class AlertsJob(
         }
     }
 
-    private async Task<AlertRaiseOutcome> EmitAsync(
+    private async Task<AlertOccurrence> EmitAsync(
         JobContext ctx,
         AlertableEvent e,
         string channel,
@@ -365,7 +365,7 @@ internal sealed class AlertsJob(
                 channel,
                 AlertDeliveryStatusCode.Pending,
                 deduplicationKey,
-                // The projecting event's id: the store increments and re-stamps only when it is newer
+                // The projecting event's id: the raise increments and re-stamps only when it is newer
                 // than the row's mark, and refuses to open an incident behind a mark this identity
                 // already carries, so re-projecting a batch after a crash changes nothing.
                 e.EventId
@@ -380,7 +380,7 @@ internal sealed class AlertsJob(
 
         try
         {
-            return await _store.RaiseJobAlertAsync(command, ct);
+            return await _alerts.RaiseJobAlertAsync(command, ct);
         }
         catch (ArgumentException ex) when (string.Equals(ex.ParamName, "jobId", StringComparison.Ordinal))
         {
@@ -413,7 +413,7 @@ internal sealed class AlertsJob(
 
     private async Task DeliverAsync(JobContext ctx, AlertSettlementClock settlement, CancellationToken ct)
     {
-        var due = await _store.GetDeliverableAlertsAsync(ctx.NamespaceId, DeliverBatchSize, ct);
+        var due = await _alerts.GetDeliverableAlertsAsync(ctx.NamespaceId, DeliverBatchSize, ct);
         foreach (var a in due)
         {
             var channel = _channels.Resolve(ctx.JobNamespace, a.ChannelName);
@@ -612,7 +612,7 @@ internal sealed class AlertsJob(
         CancellationToken ct
     )
     {
-        if (!await _store.UpdateAlertDeliveryAsync(a.AlertId, a.Version, status, retryCount, retryAfterUtc, ct))
+        if (!await _alerts.UpdateAlertDeliveryAsync(a.AlertId, a.Version, status, retryCount, retryAfterUtc, ct))
         {
             _log.LogDebug(
                 "ACTA sys.alerts: alert ({Ref}) moved while its delivery attempt was in flight; settlement is ({Outcome}) ({Detail}).",
