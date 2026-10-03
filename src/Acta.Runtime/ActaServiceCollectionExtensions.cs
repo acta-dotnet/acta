@@ -68,7 +68,6 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<OverviewService>();
         services.TryAddSingleton<EventsService>();
         services.TryAddSingleton<DefinitionsService>();
-        services.TryAddSingleton<NamespacesService>();
         services.TryAddSingleton<TenantKeyCache>();
         services.TryAddSingleton<TagsService>();
         services.TryAddSingleton<JobsService>();
@@ -81,7 +80,6 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<IDefinitions, DefinitionsApi>();
         services.TryAddSingleton<IWorkers, WorkersApi>();
         services.TryAddSingleton<IAlerts, AlertsApi>();
-        services.TryAddSingleton<INamespaces, NamespacesApi>();
         services.TryAddSingleton<ITags>(static sp => sp.GetRequiredService<TagsService>());
         services.TryAddSingleton<IOutbox, OutboxApi>();
         services.TryAddSingleton<IActaOperations, OperationsApi>();
@@ -100,6 +98,12 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ResumeTenantHandler>();
         services.TryAddSingleton<UpdateTenantHandler>();
         services.TryAddSingleton<ITenants, Tenants>();
+        services.TryAddSingleton<ListNamespacesHandler>();
+        services.TryAddSingleton<ListNamespaceItemsHandler>();
+        services.TryAddSingleton<SuspendNamespaceHandler>();
+        services.TryAddSingleton<ResumeNamespaceHandler>();
+        services.TryAddSingleton<UpdateNamespaceHandler>();
+        services.TryAddSingleton<INamespaces, Namespaces>();
 
         // Consumers light up the meter with WithMetrics(m => m.AddMeter(JobMetrics.MeterName)).
         services.TryAddSingleton<JobMetrics>();

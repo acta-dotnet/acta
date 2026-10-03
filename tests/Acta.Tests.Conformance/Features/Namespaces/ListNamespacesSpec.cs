@@ -1,14 +1,12 @@
-using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
-using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Acta.Tests.Conformance.Features.Namespaces;
 
 /// <summary>
 /// Conformance for <c>ListNamespaces</c>: a keyset page of namespace names ordered name
-/// ascending, with an optional prefix filter and an opt-in filter-wide total, all in one round trip.
+/// ascending, with an optional name filter and an opt-in filter-wide total, all in one round trip.
 /// </summary>
 [ConformanceSpec(
     "list-namespaces.keyset-page",
@@ -30,12 +28,9 @@ public sealed class ListNamespacesSpec : ActaRuntimeTestBase<ConformanceFixture,
         var pages = 0;
         do
         {
-            var page_rows = await Services
-                .GetRequiredService<INamespaceStore>()
-                .ListNamespacesAsync(new NamespacePageRequest(null, null, cursor, 50, false), ct);
-            var (rows, _) = (page_rows.Rows, page_rows.Total);
-            seen.AddRange(rows);
-            cursor = rows.Count == 50 ? rows[^1] : null;
+            var page = await Operations.Namespaces.ListNamesAsync(new ListNamespacesQuery(PageSize: 50, Cursor: cursor), ct);
+            seen.AddRange(page.Items);
+            cursor = page.NextCursor;
             Assert.True(++pages < 100_000, "pagination did not terminate");
         } while (cursor is not null);
 
@@ -43,23 +38,17 @@ public sealed class ListNamespacesSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal(seen.Count, seen.Distinct(StringComparer.Ordinal).Count());
     }
 
-    [Fact(DisplayName = "A name filter narrows to the matching namespace and IncludeTotal returns its prefix-wide count")]
-    public async Task Total_is_prefix_wide_and_opt_in()
+    [Fact(DisplayName = "A name filter narrows to the matching namespaces and IncludeTotal counts them")]
+    public async Task Total_counts_the_filtered_names_and_is_opt_in()
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var page__ = await Services
-            .GetRequiredService<INamespaceStore>()
-            .ListNamespacesAsync(new NamespacePageRequest(null, null, null, 1, false), ct);
-        var (_, noTotal) = (page__.Rows, page__.Total);
-        Assert.Null(noTotal);
+        Assert.Null((await Operations.Namespaces.ListNamesAsync(new ListNamespacesQuery(PageSize: 1), ct)).TotalCount);
 
-        // No '%' is an exact LIKE, so the pattern matches only the fixture namespace: one row, total one.
-        var page_rows = await Services
-            .GetRequiredService<INamespaceStore>()
-            .ListNamespacesAsync(new NamespacePageRequest(TestNamespace, null, null, 50, true), ct);
-        var (rows, total) = (page_rows.Rows, page_rows.Total);
-        Assert.Equal([TestNamespace], rows);
-        Assert.Equal(1L, total);
+        // The fixture namespace is this run's own name, so only names containing it can match.
+        var page = await Operations.Namespaces.ListNamesAsync(new ListNamespacesQuery(NameContains: TestNamespace, IncludeTotal: true), ct);
+        Assert.Contains(TestNamespace, page.Items);
+        Assert.All(page.Items, name => Assert.Contains(TestNamespace, name, StringComparison.Ordinal));
+        Assert.Equal(page.Items.Count, page.TotalCount);
     }
 }

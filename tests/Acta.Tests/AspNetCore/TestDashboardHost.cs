@@ -1403,21 +1403,21 @@ internal static class TestDashboardHost
                     )
                 );
 
-            public ValueTask<AdminControlResult> SuspendAsync(
+            public ValueTask<SuspendNamespaceResponse> SuspendAsync(
                 string name,
                 string? reasonMessage = null,
                 string? actorKey = null,
                 CancellationToken ct = default
-            ) => Apply("suspend", name, reasonMessage, actorKey);
+            ) => Apply("suspend", name, reasonMessage, actorKey, static (action, version) => new SuspendNamespaceResponse(action, version));
 
-            public ValueTask<AdminControlResult> ResumeAsync(
+            public ValueTask<ResumeNamespaceResponse> ResumeAsync(
                 string name,
                 string? reasonMessage = null,
                 string? actorKey = null,
                 CancellationToken ct = default
-            ) => Apply("resume", name, reasonMessage, actorKey);
+            ) => Apply("resume", name, reasonMessage, actorKey, static (action, version) => new ResumeNamespaceResponse(action, version));
 
-            public ValueTask<AdminControlResult> UpdateAsync(
+            public ValueTask<UpdateNamespaceResponse> UpdateAsync(
                 string name,
                 int expectedVersion,
                 string? ownerTeam,
@@ -1434,19 +1434,25 @@ internal static class TestDashboardHost
 
                 if (name == "missing")
                 {
-                    return ValueTask.FromResult(new AdminControlResult(ControlAction.NotFound, null));
+                    return ValueTask.FromResult(new UpdateNamespaceResponse(ControlAction.NotFound, null));
                 }
 
                 if (expectedVersion == 999)
                 {
-                    return ValueTask.FromResult(new AdminControlResult(ControlAction.VersionConflict, 5));
+                    return ValueTask.FromResult(new UpdateNamespaceResponse(ControlAction.VersionConflict, 5));
                 }
 
                 adminCalls.Add(("patch", name, reasonMessage, actorKey));
-                return ValueTask.FromResult(new AdminControlResult(ControlAction.Applied, 2));
+                return ValueTask.FromResult(new UpdateNamespaceResponse(ControlAction.Applied, 2));
             }
 
-            private ValueTask<AdminControlResult> Apply(string verb, string name, string? reasonMessage, string? actorKey)
+            private ValueTask<T> Apply<T>(
+                string verb,
+                string name,
+                string? reasonMessage,
+                string? actorKey,
+                Func<ControlAction, int?, T> response
+            )
             {
                 if (name is "sys" or "bad key")
                 {
@@ -1455,11 +1461,11 @@ internal static class TestDashboardHost
 
                 if (name == "missing")
                 {
-                    return ValueTask.FromResult(new AdminControlResult(ControlAction.NotFound, null));
+                    return ValueTask.FromResult(response(ControlAction.NotFound, null));
                 }
 
                 adminCalls.Add((verb, name, reasonMessage, actorKey));
-                return ValueTask.FromResult(new AdminControlResult(ControlAction.Applied, 2));
+                return ValueTask.FromResult(response(ControlAction.Applied, 2));
             }
         }
     }

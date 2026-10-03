@@ -1,7 +1,6 @@
 using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
-using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Acta.Tests.Conformance.Features.Namespaces;
@@ -17,8 +16,6 @@ public sealed class UpdateNamespaceSpec : ActaRuntimeTestBase<ConformanceFixture
 {
     protected override bool RunAsWorker => true;
 
-    private static JobControlActor Actor() => new(ActorCode.Operator, "op-1");
-
     private async Task<JobNamespace?> ReadNsAsync(CancellationToken ct) =>
         await Db.From<JobNamespace>().Where(n => n.Name == TestNamespace).SingleOrDefaultAsync(ct);
 
@@ -32,9 +29,7 @@ public sealed class UpdateNamespaceSpec : ActaRuntimeTestBase<ConformanceFixture
         var nsId = Runtime.RegisteredNamespaceIds[TestNamespace];
         var v = (await ReadNsAsync(ct))!.Version;
 
-        var outcome = await Services
-            .GetRequiredService<INamespaceStore>()
-            .UpdateNamespaceAsync(new UpdateNamespaceCommand(TestNamespace, "team-a", "new-desc", v, Actor(), "edit"), ct);
+        var outcome = await Operations.Namespaces.UpdateAsync(TestNamespace, v, "team-a", "new-desc", "edit", "op-1", ct);
 
         Assert.Equal(ControlAction.Applied, outcome.Action);
         var row = await ReadNsAsync(ct);
@@ -49,9 +44,7 @@ public sealed class UpdateNamespaceSpec : ActaRuntimeTestBase<ConformanceFixture
     {
         var ct = TestContext.Current.CancellationToken;
         var v = (await ReadNsAsync(ct))!.Version;
-        await Services
-            .GetRequiredService<INamespaceStore>()
-            .UpdateNamespaceAsync(new UpdateNamespaceCommand(TestNamespace, null, null, v, Actor(), null), ct);
+        await Operations.Namespaces.UpdateAsync(TestNamespace, v, null, null, null, "op-1", ct);
         var row = await ReadNsAsync(ct);
         Assert.Null(row!.OwnerTeam);
         Assert.Null(row.Description);
@@ -63,9 +56,7 @@ public sealed class UpdateNamespaceSpec : ActaRuntimeTestBase<ConformanceFixture
         var ct = TestContext.Current.CancellationToken;
         var nsId = Runtime.RegisteredNamespaceIds[TestNamespace];
         var v = (await ReadNsAsync(ct))!.Version;
-        var outcome = await Services
-            .GetRequiredService<INamespaceStore>()
-            .UpdateNamespaceAsync(new UpdateNamespaceCommand(TestNamespace, "x", null, v + 5, Actor(), null), ct);
+        var outcome = await Operations.Namespaces.UpdateAsync(TestNamespace, v + 5, "x", null, null, "op-1", ct);
         Assert.Equal(ControlAction.VersionConflict, outcome.Action);
         Assert.Equal(v, outcome.Version);
         Assert.Equal(0, await EventCountAsync(nsId, ct));

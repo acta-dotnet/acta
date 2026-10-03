@@ -1,4 +1,4 @@
-SELECT ns.id, ns.name, ns.status_code, ns.owner_team, ns.description, ns.version
+SELECT ns.id AS namespace_id, ns.name AS job_namespace, ns.status_code AS status, ns.owner_team, ns.description, ns.version
 FROM {{schema}}.namespaces ns
 WHERE
     (@p_name_search IS NULL OR ns.name LIKE @p_name_search)

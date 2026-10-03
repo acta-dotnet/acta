@@ -12,12 +12,7 @@ internal static class NamespaceControlEndpoints
 {
     public static void Map(RouteGroupBuilder outer, ActaEndpointOptions options)
     {
-        // All three go through AdminControlHttp.ToResult, so all three answer the same two ways with
-        // the same body: applied or already-in-state is 200, an unknown target is 404. Only the patch
-        // takes an ExpectedVersion, so only the patch declares the 409 below.
         var group = outer.MapGroup("");
-        group.ProducesJson<AdminControlResult>();
-        group.ProducesJson<AdminControlResult>(StatusCodes.Status404NotFound);
         // All three read a body, so all three can refuse a content type that is not JSON.
         group.ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
 
@@ -50,7 +45,9 @@ internal static class NamespaceControlEndpoints
             // The body is read manually rather than bound, so the document only learns its shape from
             // this declaration; optional because a bare POST suspends with no reason.
             .AcceptsJson<JobControlRequest>(optional: true)
-            .WithSummary("Suspend the namespace: new work is rejected at enqueue.");
+            .WithSummary("Suspend the namespace: new work is rejected at enqueue.")
+            .Produces<SuspendNamespaceResponse>(StatusCodes.Status200OK)
+            .Produces<SuspendNamespaceResponse>(StatusCodes.Status404NotFound);
 
         group
             .MapPost(
@@ -79,7 +76,9 @@ internal static class NamespaceControlEndpoints
                 }
             )
             .AcceptsJson<JobControlRequest>(optional: true)
-            .WithSummary("Resume a suspended namespace.");
+            .WithSummary("Resume a suspended namespace.")
+            .Produces<ResumeNamespaceResponse>(StatusCodes.Status200OK)
+            .Produces<ResumeNamespaceResponse>(StatusCodes.Status404NotFound);
 
         group
             .MapPatch(
@@ -152,7 +151,9 @@ internal static class NamespaceControlEndpoints
             .AcceptsJson<NamespacePatchRequest>()
             // A stale ExpectedVersion is 409 carrying the row's current version, so the caller retries
             // without a re-read.
-            .Produces<AdminControlResult>(StatusCodes.Status409Conflict)
+            .Produces<UpdateNamespaceResponse>(StatusCodes.Status200OK)
+            .Produces<UpdateNamespaceResponse>(StatusCodes.Status404NotFound)
+            .Produces<UpdateNamespaceResponse>(StatusCodes.Status409Conflict)
             .WithSummary("Update the namespace's owner team and description.");
     }
 }

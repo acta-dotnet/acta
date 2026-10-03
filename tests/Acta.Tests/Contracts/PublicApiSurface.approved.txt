@@ -769,11 +769,11 @@ interface Acta.ILedger
     System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.EventListItem>> ListEventsAsync(Acta.ListEventsQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.JobListItem>> ListJobsAsync(Acta.ListJobsQuery query, System.Threading.CancellationToken ct = default)
 interface Acta.INamespaces
-    System.Threading.Tasks.ValueTask<Acta.AdminControlResult> ResumeAsync(System.String name, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.AdminControlResult> SuspendAsync(System.String name, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.AdminControlResult> UpdateAsync(System.String name, System.Int32 expectedVersion, System.String ownerTeam, System.String description, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.NamespaceListItem>> ListAsync(Acta.ListNamespacesQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PagedResult<System.String>> ListNamesAsync(Acta.ListNamespacesQuery query, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.ResumeNamespaceResponse> ResumeAsync(System.String name, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.SuspendNamespaceResponse> SuspendAsync(System.String name, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.UpdateNamespaceResponse> UpdateAsync(System.String name, System.Int32 expectedVersion, System.String ownerTeam, System.String description, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
 interface Acta.IOutbox
     System.Threading.Tasks.ValueTask<Acta.OutboxControlResult> DiscardAsync(System.String jobNamespace, System.Collections.Generic.IReadOnlyList<System.Guid> outboxIds = default, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.OutboxControlResult> RequeueAsync(System.String jobNamespace, System.Collections.Generic.IReadOnlyList<System.Guid> outboxIds = default, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
@@ -1933,6 +1933,10 @@ sealed class Acta.ReservedCodeRangeAttribute
     System.Byte End { get; }
     System.Byte Start { get; }
     System.String Reason { get; }
+sealed class Acta.ResumeNamespaceResponse
+    .ctor(Acta.ControlAction Action, System.Nullable<System.Int32> Version)
+    Acta.ControlAction Action { get;init; }
+    System.Nullable<System.Int32> Version { get;init; }
 sealed class Acta.ResumeTenantResponse
     .ctor(Acta.ControlAction Action, System.Nullable<System.Int32> Version)
     Acta.ControlAction Action { get;init; }
@@ -2114,6 +2118,10 @@ sealed class Acta.StepResultContractMismatchException
     .ctor(System.String stepName, System.Type expectedType, System.Exception innerException)
     System.String StepName { get; }
     System.Type ExpectedType { get; }
+sealed class Acta.SuspendNamespaceResponse
+    .ctor(Acta.ControlAction Action, System.Nullable<System.Int32> Version)
+    Acta.ControlAction Action { get;init; }
+    System.Nullable<System.Int32> Version { get;init; }
 sealed class Acta.SuspendTenantResponse
     .ctor(Acta.ControlAction Action, System.Nullable<System.Int32> Version)
     Acta.ControlAction Action { get;init; }
@@ -2223,6 +2231,10 @@ sealed class Acta.TextJobPayloadSerializer
     Acta.JobPayloadFormat Format { get; }
     Acta.TextJobPayloadSerializer Default { get; }
     T Deserialize<T>(Acta.JobPayload payload)
+sealed class Acta.UpdateNamespaceResponse
+    .ctor(Acta.ControlAction Action, System.Nullable<System.Int32> Version)
+    Acta.ControlAction Action { get;init; }
+    System.Nullable<System.Int32> Version { get;init; }
 sealed class Acta.UpdateTenantResponse
     .ctor(Acta.ControlAction Action, System.Nullable<System.Int32> Version)
     Acta.ControlAction Action { get;init; }

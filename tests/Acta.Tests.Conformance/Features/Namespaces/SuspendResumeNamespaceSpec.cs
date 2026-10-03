@@ -1,7 +1,6 @@
 using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
-using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Acta.Tests.Conformance.Features.Namespaces;
@@ -17,8 +16,6 @@ public sealed class SuspendResumeNamespaceSpec : ActaRuntimeTestBase<Conformance
 {
     protected override bool RunAsWorker => true;
 
-    private static JobControlActor Actor() => new(ActorCode.Operator, "op-1");
-
     private async Task<JobNamespace?> ReadNsAsync(CancellationToken ct) =>
         await Db.From<JobNamespace>().Where(n => n.Name == TestNamespace).SingleOrDefaultAsync(ct);
 
@@ -32,9 +29,7 @@ public sealed class SuspendResumeNamespaceSpec : ActaRuntimeTestBase<Conformance
         var nsId = Runtime.RegisteredNamespaceIds[TestNamespace];
         var before = await ReadNsAsync(ct);
 
-        var outcome = await Services
-            .GetRequiredService<INamespaceStore>()
-            .SuspendNamespaceAsync(new NamespaceControlCommand(TestNamespace, Actor(), "hold"), ct);
+        var outcome = await Operations.Namespaces.SuspendAsync(TestNamespace, "hold", "op-1", ct);
 
         Assert.Equal(ControlAction.Applied, outcome.Action);
         var after = await ReadNsAsync(ct);
@@ -54,12 +49,8 @@ public sealed class SuspendResumeNamespaceSpec : ActaRuntimeTestBase<Conformance
     {
         var ct = TestContext.Current.CancellationToken;
         var nsId = Runtime.RegisteredNamespaceIds[TestNamespace];
-        await Services
-            .GetRequiredService<INamespaceStore>()
-            .SuspendNamespaceAsync(new NamespaceControlCommand(TestNamespace, Actor(), null), ct);
-        var again = await Services
-            .GetRequiredService<INamespaceStore>()
-            .SuspendNamespaceAsync(new NamespaceControlCommand(TestNamespace, Actor(), null), ct);
+        await Operations.Namespaces.SuspendAsync(TestNamespace, null, "op-1", ct);
+        var again = await Operations.Namespaces.SuspendAsync(TestNamespace, null, "op-1", ct);
         Assert.Equal(ControlAction.AlreadyInState, again.Action);
         Assert.Equal(1, await EventCountAsync(nsId, EventCode.NamespaceSuspended, ct));
     }
@@ -69,12 +60,8 @@ public sealed class SuspendResumeNamespaceSpec : ActaRuntimeTestBase<Conformance
     {
         var ct = TestContext.Current.CancellationToken;
         var nsId = Runtime.RegisteredNamespaceIds[TestNamespace];
-        await Services
-            .GetRequiredService<INamespaceStore>()
-            .SuspendNamespaceAsync(new NamespaceControlCommand(TestNamespace, Actor(), null), ct);
-        var outcome = await Services
-            .GetRequiredService<INamespaceStore>()
-            .ResumeNamespaceAsync(new NamespaceControlCommand(TestNamespace, Actor(), "back"), ct);
+        await Operations.Namespaces.SuspendAsync(TestNamespace, null, "op-1", ct);
+        var outcome = await Operations.Namespaces.ResumeAsync(TestNamespace, "back", "op-1", ct);
         Assert.Equal(ControlAction.Applied, outcome.Action);
         Assert.Equal(NamespaceStatusCode.Active, (await ReadNsAsync(ct))!.Status);
         Assert.Equal(1, await EventCountAsync(nsId, EventCode.NamespaceResumed, ct));
@@ -84,9 +71,7 @@ public sealed class SuspendResumeNamespaceSpec : ActaRuntimeTestBase<Conformance
     public async Task Unknown_not_found()
     {
         var ct = TestContext.Current.CancellationToken;
-        var outcome = await Services
-            .GetRequiredService<INamespaceStore>()
-            .SuspendNamespaceAsync(new NamespaceControlCommand("no-such-namespace-xyz", Actor(), null), ct);
+        var outcome = await Operations.Namespaces.SuspendAsync("no-such-namespace-xyz", null, "op-1", ct);
         Assert.Equal(ControlAction.NotFound, outcome.Action);
     }
 

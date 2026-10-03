@@ -132,10 +132,7 @@ public sealed class StartWorkerSpec : ActaStorageTestBase<ConformanceFixture>
             WorkerTestOps.StartAsync(Services, "sys", "team-a", "desc", "host1", "v1", null, null, 1001, 4, ct)
         );
 
-        var page_rows = await Services
-            .GetRequiredService<INamespaceStore>()
-            .ListNamespacesAsync(new NamespacePageRequest("sys", null, null, 50, false), ct);
-        var (rows, _) = (page_rows.Rows, page_rows.Total);
-        Assert.Contains("sys", rows);
+        var names = await Services.GetRequiredService<INamespaces>().ListNamesAsync(new ListNamespacesQuery(NameContains: "sys"), ct);
+        Assert.Contains("sys", names.Items);
     }
 }

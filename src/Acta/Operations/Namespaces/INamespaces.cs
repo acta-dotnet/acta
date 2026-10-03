@@ -6,22 +6,22 @@ namespace Acta;
 /// </summary>
 public interface INamespaces
 {
-    /// <summary>List registered namespace names alphabetically, optionally restricted to a name prefix.</summary>
+    /// <summary>List registered namespace names alphabetically, optionally restricted to names containing a fragment.</summary>
     ValueTask<PagedResult<string>> ListNamesAsync(ListNamespacesQuery query, CancellationToken ct = default);
 
     /// <summary>List registered namespaces alphabetically with their status, owner team, description, and version for the admin page.</summary>
     ValueTask<PagedResult<NamespaceListItem>> ListAsync(ListNamespacesQuery query, CancellationToken ct = default);
 
-    /// <summary>Suspend a namespace by name (status-only, idempotent). Emits namespace.suspended. Rejects the sys namespace.</summary>
-    ValueTask<AdminControlResult> SuspendAsync(
+    /// <summary>Suspend a namespace by name (status-only, idempotent). Emits namespace.suspended.</summary>
+    ValueTask<SuspendNamespaceResponse> SuspendAsync(
         string name,
         string? reasonMessage = null,
         string? actorKey = null,
         CancellationToken ct = default
     );
 
-    /// <summary>Resume a suspended namespace by name (status-only, idempotent). Emits namespace.resumed. Rejects the sys namespace.</summary>
-    ValueTask<AdminControlResult> ResumeAsync(
+    /// <summary>Resume a suspended namespace by name (status-only, idempotent). Emits namespace.resumed.</summary>
+    ValueTask<ResumeNamespaceResponse> ResumeAsync(
         string name,
         string? reasonMessage = null,
         string? actorKey = null,
@@ -30,9 +30,9 @@ public interface INamespaces
 
     /// <summary>
     /// Update a namespace owner team / description with a version CAS. Null clears the field.
-    /// Emits namespace.updated. Rejects the sys namespace.
+    /// Emits namespace.updated.
     /// </summary>
-    ValueTask<AdminControlResult> UpdateAsync(
+    ValueTask<UpdateNamespaceResponse> UpdateAsync(
         string name,
         int expectedVersion,
         string? ownerTeam,

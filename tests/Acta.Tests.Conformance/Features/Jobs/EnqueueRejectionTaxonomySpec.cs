@@ -30,9 +30,7 @@ public sealed class EnqueueRejectionTaxonomySpec : ActaRuntimeTestBase<Conforman
     public async Task Namespace_suspended()
     {
         var ct = TestContext.Current.CancellationToken;
-        await Services
-            .GetRequiredService<INamespaceStore>()
-            .SuspendNamespaceAsync(new NamespaceControlCommand(TestNamespace, new JobControlActor(ActorCode.Operator, "op"), null), ct);
+        await Operations.Namespaces.SuspendAsync(TestNamespace, null, "op", ct);
         var ex = await Assert.ThrowsAsync<EnqueueRejectedException>(async () => await Jobs.EnqueueAsync(Request(), ct));
         Assert.Equal(EnqueueRejectionReason.NamespaceSuspended, ex.Reason);
     }
@@ -62,9 +60,7 @@ public sealed class EnqueueRejectionTaxonomySpec : ActaRuntimeTestBase<Conforman
     public async Task Batch_namespace_suspended()
     {
         var ct = TestContext.Current.CancellationToken;
-        await Services
-            .GetRequiredService<INamespaceStore>()
-            .SuspendNamespaceAsync(new NamespaceControlCommand(TestNamespace, new JobControlActor(ActorCode.Operator, "op"), null), ct);
+        await Operations.Namespaces.SuspendAsync(TestNamespace, null, "op", ct);
         var ex = await Assert.ThrowsAsync<EnqueueRejectedException>(async () => await Jobs.EnqueueBatchAsync([Request(), Request()], ct));
         Assert.Equal(EnqueueRejectionReason.NamespaceSuspended, ex.Reason);
     }

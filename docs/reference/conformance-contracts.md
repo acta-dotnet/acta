@@ -1304,7 +1304,7 @@
 - **Contract:** ListNamespaces pages namespace names ascending without duplicates and reads the page plus an opt-in filter-wide count in one command.
 - **Guarantees:**
   - Walking the cursor visits the registered TestNamespace once with no duplicates
-  - A name filter narrows to the matching namespace and IncludeTotal returns its prefix-wide count
+  - A name filter narrows to the matching namespaces and IncludeTotal counts them
 
 ### ListTenants pages tenants key-ascending with an opt-in total
 - **Contract:** ListTenants pages tenants by key ascending without duplicates and reads the page plus an opt-in filter-wide count in one command.

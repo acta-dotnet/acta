@@ -3268,12 +3268,22 @@
               }
             }
           },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "200": {
             "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/SuspendNamespaceResponse"
                 }
               }
             }
@@ -3283,17 +3293,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
-                }
-              }
-            }
-          },
-          "415": {
-            "description": "Unsupported Media Type",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/SuspendNamespaceResponse"
                 }
               }
             }
@@ -3377,12 +3377,22 @@
               }
             }
           },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "200": {
             "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/ResumeNamespaceResponse"
                 }
               }
             }
@@ -3392,17 +3402,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
-                }
-              }
-            }
-          },
-          "415": {
-            "description": "Unsupported Media Type",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/ResumeNamespaceResponse"
                 }
               }
             }
@@ -3487,26 +3487,6 @@
               }
             }
           },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
-                }
-              }
-            }
-          },
           "415": {
             "description": "Unsupported Media Type",
             "content": {
@@ -3517,12 +3497,32 @@
               }
             }
           },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateNamespaceResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateNamespaceResponse"
+                }
+              }
+            }
+          },
           "409": {
             "description": "Conflict",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminControlResult"
+                  "$ref": "#/components/schemas/UpdateNamespaceResponse"
                 }
               }
             }
@@ -11285,6 +11285,28 @@
           }
         }
       },
+      "ResumeNamespaceResponse": {
+        "required": [
+          "action",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ControlAction"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "What resuming a namespace did, and the namespace's version after the attempt."
+      },
       "ResumeTenantResponse": {
         "required": [
           "action",
@@ -11600,6 +11622,28 @@
           }
         }
       },
+      "SuspendNamespaceResponse": {
+        "required": [
+          "action",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ControlAction"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "What suspending a namespace did, and the namespace's version after the attempt."
+      },
       "SuspendTenantResponse": {
         "required": [
           "action",
@@ -11841,6 +11885,28 @@
       },
       "TenantStatusCode": {
         "description": "Tenant state machine. 10-spaced ids; live states 10..80."
+      },
+      "UpdateNamespaceResponse": {
+        "required": [
+          "action",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ControlAction"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "What updating a namespace did, and the namespace's version after the attempt."
       },
       "UpdateTenantResponse": {
         "required": [

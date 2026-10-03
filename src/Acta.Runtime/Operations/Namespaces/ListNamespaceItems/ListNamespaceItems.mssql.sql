@@ -1,7 +1,7 @@
 SELECT TOP (@p_take)
-    ns.id,
-    ns.name,
-    ns.status_code,
+    ns.id AS namespace_id,
+    ns.name AS job_namespace,
+    ns.status_code AS status,
     ns.owner_team,
     ns.description,
     ns.version

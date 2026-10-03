@@ -1,7 +1,6 @@
 using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
-using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Acta.Tests.Conformance.Features.Namespaces;
@@ -20,24 +19,9 @@ public sealed class ListNamespaceItemsSpec : ActaRuntimeTestBase<ConformanceFixt
 {
     protected override bool RunAsWorker => true;
 
-    private async Task<NamespaceListItem?> FindAsync(string name, System.Threading.CancellationToken ct)
-    {
-        var store = Services.GetRequiredService<INamespaceStore>();
-        string? cursor = null;
-        var pages = 0;
-        do
-        {
-            var page = await store.ListNamespaceItemsAsync(new NamespacePageRequest(null, null, cursor, 50, false), ct);
-            var hit = page.Rows.FirstOrDefault(r => r.JobNamespace == name);
-            if (hit is not null)
-            {
-                return hit;
-            }
-            cursor = page.Rows.Count == 50 ? page.Rows[^1].JobNamespace : null;
-            Assert.True(++pages < 100_000, "pagination did not terminate");
-        } while (cursor is not null);
-        return null;
-    }
+    // The name is this run's own, so filtering on it reaches the row in a database holding earlier runs.
+    private async Task<NamespaceListItem> FindAsync(string name, CancellationToken ct) =>
+        (await Operations.Namespaces.ListAsync(new ListNamespacesQuery(NameContains: name), ct)).Items.Single(r => r.JobNamespace == name);
 
     [Fact(DisplayName = "The admin row carries the namespace id, status, owner team, description, and version")]
     public async Task Row_carries_status_fields_and_version()
@@ -46,7 +30,7 @@ public sealed class ListNamespaceItemsSpec : ActaRuntimeTestBase<ConformanceFixt
         var nsId = Runtime.RegisteredNamespaceIds[TestNamespace];
 
         // Write distinct non-null owner_team/description and bump the version off its default so a broken
-        // positional projection cannot pass by reading a stray null or a stray 0.
+        // projection cannot pass by reading a stray null or a stray 0.
         var current = (await Db.From<JobNamespace>().Where(n => n.Name == TestNamespace).SingleOrDefaultAsync(ct))!;
         var updated = await Operations.Namespaces.UpdateAsync(
             TestNamespace,
@@ -60,7 +44,6 @@ public sealed class ListNamespaceItemsSpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.NotNull(updated.Version);
 
         var row = await FindAsync(TestNamespace, ct);
-        Assert.NotNull(row);
         Assert.Equal(nsId, row.NamespaceId);
         Assert.Equal(TestNamespace, row.JobNamespace);
         Assert.Equal(NamespaceStatusCode.Active, row.Status);
@@ -73,13 +56,12 @@ public sealed class ListNamespaceItemsSpec : ActaRuntimeTestBase<ConformanceFixt
     public async Task Sys_row_is_present()
     {
         var ct = TestContext.Current.CancellationToken;
-        var store = Services.GetRequiredService<INamespaceStore>();
 
-        var page = await store.ListNamespaceItemsAsync(new NamespacePageRequest("sys", null, null, 50, true), ct);
-        var sys = page.Rows.Single(r => r.JobNamespace == "sys");
+        var page = await Operations.Namespaces.ListAsync(new ListNamespacesQuery(NameContains: "sys", IncludeTotal: true), ct);
+        var sys = page.Items.Single(r => r.JobNamespace == "sys");
         Assert.Equal(1, sys.NamespaceId);
         Assert.Equal(NamespaceStatusCode.Active, sys.Status);
-        Assert.NotNull(page.Total);
-        Assert.True(page.Total >= 1);
+        Assert.NotNull(page.TotalCount);
+        Assert.True(page.TotalCount >= 1);
     }
 }
