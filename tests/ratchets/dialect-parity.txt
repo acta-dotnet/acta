@@ -1,0 +1,20 @@
+# Known dialect-parity violations; entries may only be removed.
+AcknowledgeJobAlert
+AcquireSlot
+ClaimBatch
+CompleteExecution
+ConsumeOutboxSignal
+ParkOutboxSignal
+PauseSchedule
+RaiseJobAlert
+ReclaimStuckJobs
+RegisterJobDefinitions
+RegisterScheduledJobs
+ResetJobState
+ResolveJobAlertManual
+ResumeSchedule
+RetireJobDefinition
+SetScheduleOverrides
+StartExecution
+StopWorker
+TriggerScheduleNow
