@@ -11,7 +11,7 @@ namespace Acta.Tests.Runtime;
 /// What a worker does when the claim query itself fails - a database outage, a failover, a connection
 /// pool exhausted - in both loop shapes the runtime ships: the producer/consumer dispatch loop
 /// (<see cref="ExecutionProfile.Buffered"/>) and the combined claim-execute coordinator
-/// (<see cref="ExecutionProfile.Direct"/> and <see cref="ExecutionProfile.Bulk"/>). Two arms per loop.
+// (<see cref="ExecutionProfile.Direct"/>). Two arms per loop.
 /// A failed claim must not tear the loop down and must not retry at the anti-spin poll floor either -
 /// the floor exists for deadline races, and hammering a down database at that cadence spams errors many
 /// times a second - so it backs off a full safety interval and says how long it is waiting. A stop or
@@ -181,11 +181,6 @@ public sealed class WorkerLoopClaimFailureTests
 
         public Task<CompleteExecutionResult> CompleteExecutionAsync(CompleteExecutionRequest request, CancellationToken ct) =>
             throw new NotSupportedException();
-
-        public Task<IReadOnlyList<BatchCompletionOutcome>> CompleteExecutionsBatchAsync(
-            IReadOnlyList<CompleteExecutionRequest> requests,
-            CancellationToken ct
-        ) => throw new NotSupportedException();
 
         public Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct) =>
             throw new NotSupportedException();

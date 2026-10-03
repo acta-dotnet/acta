@@ -29,8 +29,7 @@ builder.Services.UseActa(j =>
         // enqueue below, so the poll interval is not on the critical path for this run.
         o.SafetyPollInterval = TimeSpan.FromSeconds(1);
 
-        // Direct profile: combined claim-execute path (no Dispatched visibility window). Bulk is a
-        // separate profile for re-runnable high-volume work; it relaxes completion durability.
+        // Direct profile: combined claim-execute path (no Dispatched visibility window).
         o.ExecutionProfile = ExecutionProfile.Direct;
     });
 

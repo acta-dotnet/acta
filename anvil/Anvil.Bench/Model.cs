@@ -7,7 +7,7 @@ namespace Anvil.Bench;
 /// The parameter set for one benchmark cell. A run expands comma-separated CLI lists into the
 /// cartesian product of these, one cell each. <c>Workers</c> drives the multi-worker scenarios and
 /// <c>Rows</c> the opt-in big-data ones; both default so the original scenarios are unaffected.
-/// <c>Profile</c> selects the execution profile (Buffered/Direct/Bulk) for the comparison scenarios.
+/// <c>Profile</c> selects the execution profile (Buffered or Direct) for the comparison scenarios.
 /// <c>Rate</c> is the rate scenario's declaration (<c>"100/s"</c>) and <c>SideJobs</c> the unmetered
 /// backlog it drains alongside; <c>Variant</c> names a lanes or claim-skew cell's workload shape. All three default so
 /// every other scenario is unaffected.

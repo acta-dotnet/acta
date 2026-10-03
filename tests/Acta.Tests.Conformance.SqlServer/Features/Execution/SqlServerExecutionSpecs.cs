@@ -5,8 +5,6 @@ namespace Acta.Tests.Conformance.SqlServer.Features.Execution;
 
 // One concrete class per spec; xunit v3 runs each class as its own parallel test collection.
 
-public sealed class SqlServerCompleteExecutionsBatchSpec : CompleteExecutionsBatchSpec<SqlServerConformanceFixture>;
-
 public sealed class SqlServerExecutionOutcomeMatrixSpec : ExecutionOutcomeMatrixSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerReclaimStuckJobsSpec : ReclaimStuckJobsSpec<SqlServerConformanceFixture>;

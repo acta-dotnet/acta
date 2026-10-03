@@ -15,7 +15,6 @@ ClaimTypes.cs
 CliCommandRunner.cs
 ClockSkewValidator.cs
 CodeKindAttribute.cs
-CompletionSink.cs
 CompletionTypes.cs
 CompletionWrite.cs
 DbSession.cs

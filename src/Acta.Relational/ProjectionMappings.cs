@@ -10,7 +10,6 @@
     typeof(global::Acta.Runtime.Modules.Execution.Definitions.RegisteredJobDefinition),
     typeof(global::Acta.Runtime.Modules.Execution.Definitions.StoredDefinitionContractRow),
     typeof(global::Acta.Runtime.Modules.Operations.Events.EventListProjectionRow),
-    typeof(global::Acta.Runtime.Modules.Execution.BatchOutcomeRow),
     typeof(global::Acta.Runtime.Modules.Execution.Checkpoints.CheckpointSlotRow),
     typeof(global::Acta.Runtime.Modules.Execution.Checkpoints.CheckpointValue),
     typeof(global::Acta.Runtime.Modules.Execution.ChildLatches.StaleChildLatch),

@@ -24,34 +24,4 @@ public sealed class JobExecutorOrphanReleaseTests
         Assert.Equal(1, harness.StartAttempts);
         Assert.Equal(ExecutionOutcome.Rescheduled, harness.Completion.Outcome);
     }
-
-    [Fact]
-    public async Task A_row_whose_current_execution_has_a_pending_bulk_completion_is_left_to_that_completion()
-    {
-        // The Bulk executor has returned and its attempt is gone, but the completion it buffered is still
-        // being written: rescheduling the row now would make that completion lose its CAS and run the
-        // handler again.
-        var harness = new JobExecutionHarness(rowAfterLostClaim: JobExecutionHarness.Row(JobStatusCode.Executing, version: 2));
-
-        var context = await harness.ReleaseOrphanWithPendingCompletionAsync(pendingExecutionNumber: 3);
-
-        Assert.Empty(harness.Submitted);
-        Assert.Contains((4242L, 3), context.PendingCompletions.Keys);
-    }
-
-    [Fact]
-    public async Task A_pending_completion_for_an_older_execution_neither_shields_the_row_nor_is_touched_by_its_release()
-    {
-        // The row has moved on to execution 4 under this worker with nothing behind it; the completion
-        // still pending for execution 3 speaks for execution 3 alone.
-        var harness = new JobExecutionHarness(
-            rowAfterLostClaim: JobExecutionHarness.Row(JobStatusCode.Executing, version: 5, executionNumber: 4)
-        );
-
-        var context = await harness.ReleaseOrphanWithPendingCompletionAsync(pendingExecutionNumber: 3);
-
-        Assert.Equal(ExecutionOutcome.Rescheduled, harness.Completion.Outcome);
-        Assert.Equal(4, harness.Completion.ExpectedExecutionNumber);
-        Assert.Contains((4242L, 3), context.PendingCompletions.Keys);
-    }
 }

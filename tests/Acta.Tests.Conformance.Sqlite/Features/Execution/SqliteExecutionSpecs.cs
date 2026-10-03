@@ -5,8 +5,6 @@ namespace Acta.Tests.Conformance.Sqlite.Features.Execution;
 
 // One concrete class per spec; xunit v3 runs each class as its own parallel test collection.
 
-public sealed class SqliteCompleteExecutionsBatchSpec : CompleteExecutionsBatchSpec<SqliteConformanceFixture>;
-
 public sealed class SqliteExecutionOutcomeMatrixSpec : ExecutionOutcomeMatrixSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteReclaimStuckJobsSpec : ReclaimStuckJobsSpec<SqliteConformanceFixture>;

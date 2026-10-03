@@ -37,19 +37,13 @@ internal sealed class SqliteDialect : ISqlDialect
 
     public SqliteDialect(ExecutionProfile profile)
     {
-        // Bulk is Direct plus group-committed completions, and SQLite has no batched-completion
-        // routine, so Bulk degrades to Direct here. It therefore relaxes the commit fsync exactly as
-        // Direct does: asking for the faster profile and getting Buffered's synchronous = FULL would
-        // be slower than the profile it degrades to.
-        var synchronous = profile is ExecutionProfile.Direct or ExecutionProfile.Bulk ? "NORMAL" : "FULL";
+        var synchronous = profile == ExecutionProfile.Direct ? "NORMAL" : "FULL";
         _connectionPragmas = $"PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000; PRAGMA synchronous = {synchronous};";
     }
 
     public DbProvider Provider => DbProvider.Sqlite;
 
     public string DialectToken => "sqlite";
-
-    public bool SupportsBatchCompletion => false;
 
     public void BindNonRecurringCompletionDefaults(DbCommand command, CompleteExecutionRequest request)
     {
@@ -429,15 +423,6 @@ internal sealed class SqliteDialect : ISqlDialect
         );
         AddText(command, "@p_schedule_advances", json);
     }
-
-    /// <summary>
-    /// Unreachable, and kept because ISqlDialect requires the member. Two seams stop a batch before
-    /// any binding: WorkerRuntime builds no CompletionSink for a provider with SupportsBatchCompletion false,
-    /// so nothing buffers completions here, and RelationalExecutionStore.CompleteExecutionsBatchAsync
-    /// throws on the same flag if something calls it directly anyway.
-    /// </summary>
-    public void BindCompleteExecutionsBatch(DbCommand command, IReadOnlyList<CompleteExecutionRequest> requests, string schema) =>
-        throw new NotSupportedException("The SQLite provider has no batched-completion routine; Bulk degrades to Direct.");
 
     /// <summary>Typed SQLite parameter primitives the dialect's own binders use.</summary>
     private static void AddText(DbCommand command, string name, string value) =>

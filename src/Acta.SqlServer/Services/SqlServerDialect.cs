@@ -22,8 +22,6 @@ internal sealed class SqlServerDialect : ISqlDialect
 
     public string DialectToken => "mssql";
 
-    public bool SupportsBatchCompletion => true;
-
     /// <summary>
     /// 1205: deadlock victim. 2801: an installed routine changed during concurrent bootstrap.
     /// </summary>
@@ -501,17 +499,6 @@ internal sealed class SqlServerDialect : ISqlDialect
         );
     }
 
-    public void BindCompleteExecutionsBatch(DbCommand command, IReadOnlyList<CompleteExecutionRequest> requests, string schema)
-    {
-        AddParameter(
-            (SqlCommand)command,
-            "@p_batch",
-            SqlDbType.Structured,
-            BuildCompleteBatchRecords(requests)!,
-            typeName: $"{schema}.complete_executions_batch"
-        );
-    }
-
     private static void AddParameter(
         SqlCommand command,
         string name,
@@ -536,49 +523,6 @@ internal sealed class SqlServerDialect : ISqlDialect
             parameter.TypeName = typeName;
         }
         command.Parameters.Add(parameter);
-    }
-
-    private static readonly SqlMetaData[] CompleteBatchColumns =
-    [
-        new("ordinal", SqlDbType.Int),
-        new("job_id", SqlDbType.BigInt),
-        new("worker_id", SqlDbType.Int),
-        new("execution_number", SqlDbType.Int),
-        new("succeeded", SqlDbType.Bit),
-        new("duration_ms", SqlDbType.Int),
-        new("reason_code", SqlDbType.TinyInt),
-        new("reason_message", SqlDbType.NVarChar, 512),
-        new("result_format_id", SqlDbType.TinyInt),
-        new("result", SqlDbType.VarBinary, -1),
-        new("failure_count", SqlDbType.Int),
-        new("retention_seconds", SqlDbType.Int),
-    ];
-
-    private static IEnumerable<SqlDataRecord>? BuildCompleteBatchRecords(IReadOnlyList<CompleteExecutionRequest> requests)
-    {
-        return requests.Count == 0 ? null : Stream(requests);
-
-        static IEnumerable<SqlDataRecord> Stream(IReadOnlyList<CompleteExecutionRequest> requests)
-        {
-            var record = new SqlDataRecord(CompleteBatchColumns);
-            for (var i = 0; i < requests.Count; i++)
-            {
-                var request = requests[i];
-                record.SetInt32(0, i);
-                record.SetInt64(1, request.JobId);
-                record.SetInt32(2, request.WorkerId);
-                record.SetInt32(3, request.ExpectedExecutionNumber);
-                record.SetBoolean(4, request.Outcome == ExecutionOutcome.Succeeded);
-                SetNullableInt32(record, 5, request.DurationMs);
-                SetNullableByte(record, 6, request.JobEventReasonCode is { } reason ? (byte)reason : null);
-                SetNullableString(record, 7, request.ReasonMessage);
-                record.SetByte(8, request.ResultFormatId);
-                SetBytesOrNull(record, 9, request.Result, !request.Result.IsEmpty);
-                SetNullableInt32(record, 10, request.FailureCount);
-                SetNullableInt32(record, 11, request.RetentionSeconds);
-                yield return record;
-            }
-        }
     }
 
     private static readonly SqlMetaData[] ScheduleAdvanceColumns =
@@ -629,7 +573,6 @@ internal sealed class SqlServerDialect : ISqlDialect
         ["job_schedule_slot_batch"] = SlotColumns,
         ["job_schedule_upsert_batch"] = ScheduleUpsertColumns,
         ["job_schedule_advance_batch"] = ScheduleAdvanceColumns,
-        ["complete_executions_batch"] = CompleteBatchColumns,
     };
 
     /// <summary>

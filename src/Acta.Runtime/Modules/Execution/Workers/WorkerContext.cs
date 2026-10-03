@@ -152,19 +152,6 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
     /// </summary>
     public ConcurrentDictionary<(long JobId, int ExecutionNumber), byte> AttemptOwners { get; } = new();
 
-    /// <summary>
-    /// The Bulk completions this process has buffered whose write has not settled, keyed by job and
-    /// execution number. The completion sink registers an entry as the executor hands it over, while
-    /// the executor still holds the attempt, and removes it only once the write lands, is refused, or
-    /// is abandoned at shutdown; a batch row that falls back to the per-job write is still pending.
-    /// Past the attempt this entry is all that says the execution is still this worker's, so the
-    /// orphan release leaves a row alone whose current execution number has one: a flush held across
-    /// two heartbeats would otherwise see its job rescheduled and run again. An entry for an older
-    /// execution accounts for nothing, and removal is by entry, so a stale settle never drops a newer
-    /// execution's entry.
-    /// </summary>
-    public ConcurrentDictionary<(long JobId, int ExecutionNumber), BufferedCompletion> PendingCompletions { get; } = new();
-
     public IReadOnlyDictionary<string, int> RegisteredNamespaceIds => NamespaceIds;
 
     public bool TryGetDefinitionId(string namespaceName, string jobName, out int definitionId)

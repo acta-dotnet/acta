@@ -23,8 +23,6 @@ internal sealed class PostgresDialect : ISqlDialect
 
     public string DialectToken => "pg";
 
-    public bool SupportsBatchCompletion => true;
-
     public bool IsTransientConflict(Exception exception) =>
         exception is PostgresException { SqlState: PostgresErrorCodes.DeadlockDetected };
 
@@ -486,55 +484,6 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_advance_schedule_ids", NpgsqlDbType.Bigint, scheduleIds);
         AddArray(postgres, "@p_advance_next_runs", NpgsqlDbType.TimestampTz, nextRuns);
         AddArray(postgres, "@p_advance_versions", NpgsqlDbType.Integer, versions);
-    }
-
-    public void BindCompleteExecutionsBatch(DbCommand command, IReadOnlyList<CompleteExecutionRequest> requests, string schema)
-    {
-        var postgres = (NpgsqlCommand)command;
-        var count = requests.Count;
-        var ordinals = new int[count];
-        var ids = new long[count];
-        var workerIds = new int[count];
-        var executionNumbers = new int[count];
-        var succeeded = new bool[count];
-        var durationMs = new int?[count];
-        var reasonCodes = new short?[count];
-        var reasonMessages = new string?[count];
-        var resultFormatIds = new short[count];
-        var results = new byte[count][];
-        var failureCounts = new int?[count];
-        var retentionSeconds = new int?[count];
-
-        for (var i = 0; i < count; i++)
-        {
-            var request = requests[i];
-            ordinals[i] = i;
-            ids[i] = request.JobId;
-            workerIds[i] = request.WorkerId;
-            executionNumbers[i] = request.ExpectedExecutionNumber;
-            succeeded[i] = request.Outcome == ExecutionOutcome.Succeeded;
-            durationMs[i] = request.DurationMs;
-            reasonCodes[i] = request.JobEventReasonCode is { } reason ? (short)reason : null;
-            reasonMessages[i] = request.ReasonMessage;
-            resultFormatIds[i] = request.ResultFormatId;
-            results[i] = request.Result.IsEmpty ? [] : request.Result.ToArray();
-            failureCounts[i] = request.FailureCount;
-            retentionSeconds[i] = request.RetentionSeconds;
-        }
-
-        // PostgreSQL routine arguments are positional; this order matches complete_executions_batch.
-        AddArray(postgres, "@p_b_ordinal", NpgsqlDbType.Integer, ordinals);
-        AddArray(postgres, "@p_b_job_id", NpgsqlDbType.Bigint, ids);
-        AddArray(postgres, "@p_b_worker_id", NpgsqlDbType.Integer, workerIds);
-        AddArray(postgres, "@p_b_execution_number", NpgsqlDbType.Integer, executionNumbers);
-        AddArray(postgres, "@p_b_succeeded", NpgsqlDbType.Boolean, succeeded);
-        AddArray(postgres, "@p_b_duration_ms", NpgsqlDbType.Integer, durationMs);
-        AddArray(postgres, "@p_b_reason_code", NpgsqlDbType.Smallint, reasonCodes);
-        AddArray(postgres, "@p_b_reason_message", NpgsqlDbType.Varchar, reasonMessages);
-        AddArray(postgres, "@p_b_result_format_id", NpgsqlDbType.Smallint, resultFormatIds);
-        AddArray(postgres, "@p_b_result", NpgsqlDbType.Bytea, results);
-        AddArray(postgres, "@p_b_failure_count", NpgsqlDbType.Integer, failureCounts);
-        AddArray(postgres, "@p_b_retention_seconds", NpgsqlDbType.Integer, retentionSeconds);
     }
 
     /// <summary>Npgsql parameter primitives the dialect's own binders use to shape command parameters.</summary>

@@ -154,7 +154,7 @@ public static class BaselineSuite
         FullMatrix: false
     )
     {
-        Profiles = [ExecutionProfile.Buffered, ExecutionProfile.Direct, ExecutionProfile.Bulk],
+        Profiles = [ExecutionProfile.Buffered, ExecutionProfile.Direct],
     };
 
     /// <summary>One rate cell: the rate its meter is overridden to, and the load put through it.</summary>
@@ -178,23 +178,15 @@ public static class BaselineSuite
     ];
 
     private static readonly string[] Providers = ["sqlite", "pg", "mssql"];
-    private static readonly ExecutionProfile[] ExecutionProfiles =
-    [
-        ExecutionProfile.Buffered,
-        ExecutionProfile.Direct,
-        ExecutionProfile.Bulk,
-    ];
+    private static readonly ExecutionProfile[] ExecutionProfiles = [ExecutionProfile.Buffered, ExecutionProfile.Direct];
 
     /// <summary>
-    /// A lanes cell's job count: the preset's shared count, except Bulk lane-deep. There every handoff waits
-    /// for the completion flush, a few jobs a second, so the shared count would outrun the drain deadline.
-    /// Outside the full matrix the two serial cells, one hot key and one deep lane, run a thousand: they
-    /// drain one job at a time, so a larger count only makes the cell longer.
+    /// A lanes cell's job count: the preset's shared count, except outside the full matrix, where the two
+    /// serial cells, one hot key and one deep lane, run a thousand: they drain one job at a time, so a larger
+    /// count only makes the cell longer.
     /// </summary>
-    public static int LanesJobs(BenchPreset preset, ExecutionProfile profile, string variant) =>
-        profile == ExecutionProfile.Bulk && variant == LanesScenario.LaneDeep ? (preset.FullMatrix ? 200 : 50)
-        : !preset.FullMatrix && variant is LanesScenario.KeyHot or LanesScenario.LaneDeep ? Math.Min(preset.Jobs, 1_000)
-        : preset.Jobs;
+    public static int LanesJobs(BenchPreset preset, string variant) =>
+        !preset.FullMatrix && variant is LanesScenario.KeyHot or LanesScenario.LaneDeep ? Math.Min(preset.Jobs, 1_000) : preset.Jobs;
 
     public static BenchPreset Preset(string name)
     {
@@ -398,7 +390,7 @@ public static class BaselineSuite
                     dbVersion,
                     keyProfile: profile,
                     actualProfile: profile,
-                    jobs: LanesJobs(preset, profile, variant),
+                    jobs: LanesJobs(preset, variant),
                     executors: 8,
                     claimBatch: 16,
                     payloadBytes: 0,
@@ -1008,9 +1000,8 @@ public static class BaselineReport
     private static double Extra(BaselineCellResult cell, string key) =>
         cell.MedianMetrics.ExtraMetrics is { } extra && extra.TryGetValue(key, out var value) ? value : 0;
 
-    // Production-default first, then combined-durable, then relaxed - so a reader scans profiles in
-    // increasing-speed / decreasing-durability order rather than alphabetically.
-    private static readonly string[] ProfileRank = ["Buffered", "Direct", "Bulk"];
+    // Production default first, then the combined claim-execute path, rather than alphabetically.
+    private static readonly string[] ProfileRank = ["Buffered", "Direct"];
 
     private static int ProfileOrder(string? profile)
     {
@@ -1315,8 +1306,7 @@ public static class BaselineReport
         sb.AppendLine();
         sb.AppendLine(
             "Enqueue and drain overlapped at 8 executors: unlaned jobs, 1000 lanes round-robin, one hot concurrency key "
-                + "(limit 1), and one lane holding every job. Pickup is enqueue to handler entry. Bulk lane-deep runs fewer jobs, "
-                + "since each of its handoffs waits for the completion flush."
+                + "(limit 1), and one lane holding every job. Pickup is enqueue to handler entry."
         );
         sb.AppendLine();
         sb.AppendLine("| provider | profile | cell | jobs | jobs/s | p50 | p99 | status |");

@@ -201,37 +201,6 @@ internal sealed class RelationalExecutionStore(IDbSession session, ISqlDialect d
             ct
         );
 
-    public async Task<IReadOnlyList<BatchCompletionOutcome>> CompleteExecutionsBatchAsync(
-        IReadOnlyList<CompleteExecutionRequest> requests,
-        CancellationToken ct
-    )
-    {
-        if (!dialect.SupportsBatchCompletion)
-        {
-            throw new NotSupportedException("The SQLite provider has no batched-completion routine; Bulk degrades to Direct.");
-        }
-
-        var rows = await session.ExecuteAsync(
-            new StoreCommand("Execution", "CompleteExecutionsBatch"),
-            cmd => dialect.BindCompleteExecutionsBatch(cmd, requests, session.Schema),
-            DbProjectionResolver.Resolve<BatchOutcomeRow>(),
-            ct
-        );
-
-        if (rows.Count != requests.Count)
-        {
-            throw new InvalidOperationException($"complete_executions_batch returned {rows.Count} outcomes for {requests.Count} requests.");
-        }
-
-        var outcomes = new BatchCompletionOutcome[requests.Count];
-        foreach (var row in rows)
-        {
-            outcomes[row.Ordinal] = new BatchCompletionOutcome(row.Finalized, row.LanePromoted);
-        }
-
-        return outcomes;
-    }
-
     public async Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct)
     {
         var rows = await session.ExecuteAsync(

@@ -1394,8 +1394,8 @@ public sealed class RateScenario : IScenario
 
 /// <summary>
 /// Lanes against a hot concurrency key, in the throughput shape: enqueue and drain overlapped under one
-/// wall clock, no-op handlers, pickup read as enqueue to handler entry. Four cells share one job count,
-/// except Bulk lane-deep (see <see cref="BaselineSuite.LanesJobs"/>). <c>unlaned</c> is the control.
+/// wall clock, no-op handlers, pickup read as enqueue to handler entry. Four cells share one job count
+/// (see <see cref="BaselineSuite.LanesJobs"/>). <c>unlaned</c> is the control.
 /// <c>lane-wide</c> spreads the jobs round-robin over 1000 lanes, which is what lanes cost the aggregate
 /// rate at the normal executor count. <c>key-hot</c> puts every job under
 /// one concurrency key with its implicit limit of 1, and <c>lane-deep</c> puts every job in one lane;

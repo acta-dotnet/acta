@@ -282,36 +282,9 @@ public sealed class JobsOptions
     /// Selects the claim/dispatch strategy for the worker's execution loop.
     /// <see cref="ExecutionProfile.Buffered"/> (default) is the conservative two-phase path.
     /// <see cref="ExecutionProfile.Direct"/> uses the combined claim-execute path with no Dispatched
-    /// visibility window. <see cref="ExecutionProfile.Bulk"/> is Direct plus group-committed completions
-    /// with relaxed completion durability; use it only for idempotent or safely repeatable work.
+    /// visibility window. Both commit every completion durably, per job.
     /// </summary>
     public ExecutionProfile ExecutionProfile { get; set; } = ExecutionProfile.Buffered;
-
-    /// <summary>
-    /// <see cref="ExecutionProfile.Bulk"/> only. Maximum number of simple terminal completions buffered
-    /// before the flusher group-commits them in one transaction. Amortizes the per-job completion commit;
-    /// commit cost has sharp diminishing returns past ~100, and a larger batch widens the crash
-    /// re-execution window. Fixed at 100.
-    /// </summary>
-    internal int BatchCompletionSize { get; set; } = 100;
-
-    /// <summary>
-    /// <see cref="ExecutionProfile.Bulk"/> only. How long a flusher accumulates its batch before a
-    /// flush is forced (so a trickle still settles promptly). This bounds batch accumulation, not
-    /// end-to-end buffered latency: a completion can additionally wait behind a slow store call. That
-    /// wait is lease-safe while the worker lives (the heartbeat renews every row the worker leases,
-    /// flushed or not); a crash loses the buffer under Bulk's at-least-once contract. Stays well below
-    /// the lease window so buffering is a small fraction of it. Fixed at 250ms.
-    /// </summary>
-    internal TimeSpan BatchCompletionInterval { get; set; } = TimeSpan.FromMilliseconds(250);
-
-    /// <summary>
-    /// <see cref="ExecutionProfile.Bulk"/> only. Maximum accumulated <c>results</c> bytes buffered
-    /// before a flush is forced, bounding the batch transaction regardless of individual result sizes
-    /// (100 results at the 1 MiB cap would otherwise be ~100 MiB in one commit). A single result larger
-    /// than this still flushes alone. Fixed at 4 MiB.
-    /// </summary>
-    internal int BatchCompletionMaxBytes { get; set; } = 4 * 1024 * 1024;
 }
 
 /// <summary>
@@ -345,11 +318,9 @@ public enum AlertChannelValidationMode : byte
 
 /// <summary>
 /// Selects the claim/dispatch strategy for the worker's execution loop; see
-/// JobsOptions.ExecutionProfile. On networked providers (Postgres, SQL Server), Buffered and Direct
-/// keep per-job completion durable. Bulk relaxes completion durability by batching successful terminal
-/// writes, so a crash can re-run handler work whose completion was not flushed. On SQLite, Direct
-/// and Bulk (which degrades to Direct there) additionally set PRAGMA synchronous = NORMAL (vs FULL
-/// on Buffered), trading a power-loss window for far fewer commit fsyncs.
+/// JobsOptions.ExecutionProfile. Both profiles commit every completion durably, per job. On SQLite, Direct
+/// additionally sets PRAGMA synchronous = NORMAL (vs FULL on Buffered), trading a power-loss window for far
+/// fewer commit fsyncs.
 /// </summary>
 public enum ExecutionProfile : byte
 {
@@ -358,16 +329,4 @@ public enum ExecutionProfile : byte
 
     /// <summary>Combined claim-execute via a semaphore coordinator; no Dispatched window. Lower per-job latency; on SQLite relaxes commit fsync to PRAGMA synchronous = NORMAL.</summary>
     Direct = 1,
-
-    /// <summary>
-    /// Direct plus group-committed completions: simple terminal completions are buffered and flushed in one
-    /// set-based transaction (every <c>BatchCompletionSize</c> jobs, <c>BatchCompletionInterval</c>, or
-    /// <c>BatchCompletionMaxBytes</c>, whichever first). Relaxed durability: a crash loses the unflushed
-    /// buffer, so those jobs stay Executing and <c>sys.recovery</c> re-runs them (at-least-once). For high-volume,
-    /// cheap-to-re-run, idempotent work; not for exactly-once or per-job-atomic finalization. Completions
-    /// needing a cross-row side effect (parent child-done latch) or a control branch
-    /// (recurring, re-arm, suspend, handler fail/cancel/pause) fall back to the per-job complete_execution.
-    /// On SQLite, behaves as Direct.
-    /// </summary>
-    Bulk = 2,
 }

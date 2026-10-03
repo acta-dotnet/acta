@@ -168,11 +168,6 @@ public sealed class RuntimeJobContextCancellationTests
         public Task<CompleteExecutionResult> CompleteExecutionAsync(CompleteExecutionRequest request, CancellationToken ct) =>
             throw new NotSupportedException();
 
-        public Task<IReadOnlyList<BatchCompletionOutcome>> CompleteExecutionsBatchAsync(
-            IReadOnlyList<CompleteExecutionRequest> requests,
-            CancellationToken ct
-        ) => throw new NotSupportedException();
-
         public Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct) =>
             throw new NotSupportedException();
 

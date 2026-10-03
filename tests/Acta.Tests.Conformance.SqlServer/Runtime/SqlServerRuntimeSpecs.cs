@@ -17,10 +17,6 @@ public sealed class SqlServerClaimSkewSpec : ClaimSkewSpec<SqlServerConformanceF
 
 public sealed class SqlServerCombinedDispatchParitySpec : CombinedDispatchParitySpec<SqlServerConformanceFixture>;
 
-public sealed class SqlServerBulkCompletionParitySpec : BulkCompletionParitySpec<SqlServerConformanceFixture>;
-
-public sealed class SqlServerConcurrentCompletionBatchSpec : ConcurrentCompletionBatchSpec<SqlServerConformanceFixture>;
-
 public sealed class SqlServerClockSkewInitializationChaosSpec : ClockSkewInitializationChaosSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerCompleteAndClockChaosSpec : CompleteAndClockChaosSpec<SqlServerConformanceFixture>;
@@ -28,8 +24,6 @@ public sealed class SqlServerCompleteAndClockChaosSpec : CompleteAndClockChaosSp
 public sealed class SqlServerStartReconciliationChaosSpec : StartReconciliationChaosSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerOrphanedClaimChaosSpec : OrphanedClaimChaosSpec<SqlServerConformanceFixture>;
-
-public sealed class SqlServerBulkPendingCompletionOwnershipSpec : BulkPendingCompletionOwnershipSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerRecoveryUnderSaturationSpec : RecoveryUnderSaturationSpec<SqlServerConformanceFixture>;
 
@@ -77,26 +71,16 @@ public sealed class SqlServerBufferedWorkerShutdownDrainSpec : BufferedWorkerShu
 
 public sealed class SqlServerDirectWorkerShutdownDrainSpec : DirectWorkerShutdownDrainSpec<SqlServerConformanceFixture>;
 
-public sealed class SqlServerBulkWorkerShutdownDrainSpec : BulkWorkerShutdownDrainSpec<SqlServerConformanceFixture>;
-
 public sealed class SqlServerBufferedWorkerDrainSpec : BufferedWorkerDrainSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerDirectWorkerDrainSpec : DirectWorkerDrainSpec<SqlServerConformanceFixture>;
 
-public sealed class SqlServerBulkWorkerDrainSpec : BulkWorkerDrainSpec<SqlServerConformanceFixture>;
-
 public sealed class SqlServerWorkerRuntimeRegistrationSpec : WorkerRuntimeRegistrationSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerWorkerRuntimeDescriptorGateSpec : WorkerRuntimeDescriptorGateSpec<SqlServerConformanceFixture>;
-
-public sealed class SqlServerCompletionSinkBulkFallbackSpec : CompletionSinkBulkFallbackSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerRollingDeploySpec : RollingDeploySpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerLaneDirectWorkerLoopSpec : LaneDirectWorkerLoopSpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerLaneBufferedWorkerLoopSpec : LaneBufferedWorkerLoopSpec<SqlServerConformanceFixture>;
-
-public sealed class SqlServerLaneBulkWorkerLoopSpec : LaneBulkWorkerLoopSpec<SqlServerConformanceFixture>;
-
-public sealed class SqlServerLaneBulkPromotionWakeSpec : LaneBulkPromotionWakeSpec<SqlServerConformanceFixture>;

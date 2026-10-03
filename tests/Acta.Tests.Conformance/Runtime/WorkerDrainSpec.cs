@@ -19,7 +19,7 @@ namespace Acta.Tests.Conformance.Runtime;
 /// Drives the runtime directly: <see cref="WorkerRuntime.RunAsync"/> runs the claim loop and heartbeat,
 /// <see cref="WorkerRuntime.BeginDrainAsync"/> begins the drain, and a gate handler holds the job in-flight
 /// until the test releases it so the Draining window is observable. Concrete per-profile specs derive from
-/// this base; SQLite has no completion routine, so Bulk there runs as Direct.
+/// this base.
 /// </remarks>
 public abstract class WorkerDrainSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
@@ -37,7 +37,6 @@ public abstract class WorkerDrainSpec<TFixture> : ActaRuntimeTestBase<TFixture, 
         services.Configure<JobsOptions>(o =>
         {
             o.ExecutionProfile = Profile;
-            o.BatchCompletionSize = 1;
 
             // The real mechanism this used to paper over: WorkerHeartbeat.TickAsync built its "live" set
             // from the extend-leases queries, then reconciled whatever was in RunningAttempts by the time
@@ -162,24 +161,5 @@ public abstract class DirectWorkerDrainSpec<TFixture> : WorkerDrainSpec<TFixture
     protected override ExecutionProfile Profile => ExecutionProfile.Direct;
 
     [Fact(DisplayName = "Direct: a graceful stop drains the in-flight job to Succeeded and walks the worker Active -> Draining -> Stopped")]
-    public Task Drain_finishes_in_flight_then_stops() => DrainFinishesInFlightThenStopsAsync(TestContext.Current.CancellationToken);
-}
-
-/// <summary>Graceful drain under the Bulk (group-commit) profile.</summary>
-[ConformanceSpec(
-    "runtime.worker-drain.bulk",
-    "Bulk drain finishes the in-flight job, then Active to Draining to Stopped",
-    Area = "Recovery",
-    Contract = "Under the Bulk profile a graceful stop flips the worker Active to Draining, runs the in-flight handler to completion and group-commits it, then stamps Stopped.",
-    Arrange = "A worker runs the Bulk profile with a one-row completion batch and a gate handler that holds its job in-flight until released.",
-    Act = "With the handler in-flight, BeginDrain is called, the gate is released, and the worker is stopped.",
-    Assert = "The worker walks Active to Draining to Stopped and the flusher group-commits the in-flight job Succeeded rather than cancelling it."
-)]
-public abstract class BulkWorkerDrainSpec<TFixture> : WorkerDrainSpec<TFixture>
-    where TFixture : IConformanceFixture, new()
-{
-    protected override ExecutionProfile Profile => ExecutionProfile.Bulk;
-
-    [Fact(DisplayName = "Bulk: a graceful stop drains the in-flight job to Succeeded and walks the worker Active -> Draining -> Stopped")]
     public Task Drain_finishes_in_flight_then_stops() => DrainFinishesInFlightThenStopsAsync(TestContext.Current.CancellationToken);
 }

@@ -18,7 +18,7 @@ public sealed class SqlCommandCatalogTests
         foreach (var assembly in servers)
         {
             var catalog = new SqlResourceCatalog(assembly, "acta");
-            Assert.Equal(59, catalog.Routines().Count());
+            Assert.Equal(58, catalog.Routines().Count());
             var prefix = assembly.GetName().Name + ".Sql.";
             foreach (var resource in assembly.GetManifestResourceNames().Where(n => n.EndsWith(".routine.sql", StringComparison.Ordinal)))
             {
@@ -26,11 +26,8 @@ public sealed class SqlCommandCatalogTests
                 var slash = path.IndexOf('/');
                 var command = new StoreCommand(path[..slash], path[(slash + 1)..]);
                 Assert.Equal(StoreExecutionKind.Routine, catalog.Resolve(command));
-                if (path != "Execution/CompleteExecutionsBatch")
-                {
-                    Assert.Equal(StoreExecutionKind.Inline, sqlite.Resolve(command));
-                    Assert.NotEmpty(sqlite.Load(command.SqlPath));
-                }
+                Assert.Equal(StoreExecutionKind.Inline, sqlite.Resolve(command));
+                Assert.NotEmpty(sqlite.Load(command.SqlPath));
             }
             Assert.Equal(StoreExecutionKind.Inline, catalog.Resolve(new StoreCommand("Outbox", "ClaimDueRows")));
             Assert.NotEmpty(catalog.Views());

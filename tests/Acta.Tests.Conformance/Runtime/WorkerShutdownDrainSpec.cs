@@ -14,13 +14,9 @@ namespace Acta.Tests.Conformance.Runtime;
 /// worker-shutdown -&gt; retry/reclaim contract.
 /// </summary>
 /// <remarks>
-/// The trap this guards is the Bulk profile. A shutdown-cancelled handler maps to
-/// <c>ExecutionOutcome.Failed</c> with no reason, which is the exact shape Bulk buffers for group commit -
-/// and the flusher commits under <see cref="System.Threading.CancellationToken.None"/>, so without the
-/// runner's worker-shutdown guard a routine restart would group-commit every in-flight job as a terminal
-/// Failed. Buffered/Direct never buffered (their inline completion throws on the cancelled token and is
-/// abandoned), but the guard makes all three profiles behave identically and explicitly. Concrete
-/// per-profile specs derive from this base; SQLite has no completion routine, so Bulk there runs as Direct.
+/// A shutdown-cancelled handler maps to <c>ExecutionOutcome.Failed</c> with no reason, so without the runner's
+/// worker-shutdown guard a routine restart would finalize every in-flight job as terminal Failed. Concrete
+/// per-profile specs derive from this base.
 /// </remarks>
 public abstract class WorkerShutdownDrainSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
@@ -39,9 +35,6 @@ public abstract class WorkerShutdownDrainSpec<TFixture> : ActaRuntimeTestBase<TF
         services.Configure<JobsOptions>(o =>
         {
             o.ExecutionProfile = Profile;
-            // One completion per batch so a Bulk flusher commits immediately during the drain - the exact
-            // window where the unguarded bug would group-commit a shutdown-cancelled attempt as Failed.
-            o.BatchCompletionSize = 1;
         });
     }
 
@@ -73,8 +66,7 @@ public abstract class WorkerShutdownDrainSpec<TFixture> : ActaRuntimeTestBase<TF
         var enqueued = await RunInFlightThenShutdownAsync(ct);
 
         // The worker wrote NO completion: the row is still Executing and still leased, exactly the
-        // reclaimable state sys.recovery keys on. Pre-fix, Bulk would have group-committed a terminal Failed
-        // here (status 200, one execution-finished event) - this is the assertion that catches it.
+        // reclaimable state sys.recovery keys on, not a terminal Failed with an execution-finished event.
         var after = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Executing, after.Status);
         Assert.NotNull(after.LeasedByWorkerId);
@@ -93,7 +85,7 @@ public abstract class WorkerShutdownDrainSpec<TFixture> : ActaRuntimeTestBase<TF
         Assert.Equal(1, await ChaosSpecHelpers.ReclaimAsync(Services, ns, ct));
 
         // Reclaim re-armed it to Ready (a retry) with failure_count bumped and an Orphaned execution-finished
-        // event - never the terminal Failed the unguarded Bulk path would have stamped.
+        // event, never a terminal Failed.
         var reclaimed = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, reclaimed.Status);
         Assert.Null(reclaimed.LeasedByWorkerId);
@@ -146,33 +138,6 @@ public abstract class DirectWorkerShutdownDrainSpec<TFixture> : WorkerShutdownDr
         ShutdownLeavesInFlightJobReclaimableAsync(TestContext.Current.CancellationToken);
 
     [Fact(DisplayName = "Direct: after a worker stop, recovery reclaims the abandoned in-flight job back to Ready (it retries)")]
-    public Task Shutdown_abandoned_job_is_reclaimed_and_retried() =>
-        ShutdownAbandonedJobIsReclaimedAndRetriedAsync(TestContext.Current.CancellationToken);
-}
-
-/// <summary>
-/// Worker-shutdown drain under the Bulk (group-commit) profile - the profile whose buffered completion path
-/// the runner's worker-shutdown guard exists to protect.
-/// </summary>
-[ConformanceSpec(
-    "runtime.worker-shutdown-drain.bulk",
-    "Bulk worker stop never group-commits an in-flight job as Failed",
-    Area = "Recovery",
-    Contract = "Under the Bulk profile a graceful worker stop with a job in-flight buffers no completion and leaves it Executing for recovery, never a group-committed Failed.",
-    Arrange = "A worker runs the Bulk profile with a one-row completion batch and a handler that blocks in-flight until its token is cancelled.",
-    Act = "The worker token is cancelled mid-execution and the drain and flusher complete, after which the lapsed lease is swept by recovery.",
-    Assert = "The job is left Executing with no group-committed completion and recovery re-arms it to Ready, never terminal Failed."
-)]
-public abstract class BulkWorkerShutdownDrainSpec<TFixture> : WorkerShutdownDrainSpec<TFixture>
-    where TFixture : IConformanceFixture, new()
-{
-    protected override ExecutionProfile Profile => ExecutionProfile.Bulk;
-
-    [Fact(DisplayName = "Bulk: a worker stop with a job in-flight leaves it Executing for recovery and group-commits no terminal Failed")]
-    public Task Worker_shutdown_leaves_an_in_flight_job_reclaimable() =>
-        ShutdownLeavesInFlightJobReclaimableAsync(TestContext.Current.CancellationToken);
-
-    [Fact(DisplayName = "Bulk: after a worker stop, recovery reclaims the abandoned in-flight job back to Ready (it retries)")]
     public Task Shutdown_abandoned_job_is_reclaimed_and_retried() =>
         ShutdownAbandonedJobIsReclaimedAndRetriedAsync(TestContext.Current.CancellationToken);
 }

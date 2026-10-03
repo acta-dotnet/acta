@@ -341,8 +341,6 @@ public class DbSessionRetryRegionTests
 
         public string DialectToken => "sqlite";
 
-        public bool SupportsBatchCompletion => true;
-
         public bool OwnsWriteTransaction { get; init; } = true;
 
         public bool IsTransientConflict(Exception exception) => exception is TransientException;
@@ -407,9 +405,6 @@ public class DbSessionRetryRegionTests
         ) => throw new NotSupportedException();
 
         public void BindRecurringCompletion(DbCommand command, CompleteExecutionRequest request, string schema) =>
-            throw new NotSupportedException();
-
-        public void BindCompleteExecutionsBatch(DbCommand command, IReadOnlyList<CompleteExecutionRequest> requests, string schema) =>
             throw new NotSupportedException();
     }
 

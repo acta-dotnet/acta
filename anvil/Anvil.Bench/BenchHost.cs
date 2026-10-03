@@ -752,7 +752,7 @@ public sealed record BenchHostOptions
     public int Executors { get; init; } = 16;
     public int ClaimBatch { get; init; } = 64;
 
-    /// <summary>The execution profile (Buffered/Direct/Bulk) the host runs under; defaults to Direct for throughput runs.</summary>
+    /// <summary>The execution profile (Buffered or Direct) the host runs under; defaults to Direct for throughput runs.</summary>
     public ExecutionProfile Profile { get; init; } = ExecutionProfile.Direct;
 
     /// <summary>Short for the recovery scenario so a lapsed lease is observable in seconds; null keeps the default.</summary>

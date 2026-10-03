@@ -95,30 +95,6 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
             failures.Add("JobsOptions.MaxInlinePayloadBytes must be >= 1: it is the hard cap on inline payload size.");
         }
 
-        // Bulk-profile group-commit knobs. Validated unconditionally (harmless on other profiles). The
-        // interval bounds batch accumulation only; lease safety for buffered rows comes from the worker
-        // heartbeat, which renews every row the worker leases whether flushed or not.
-        if (options.BatchCompletionSize < 1)
-        {
-            failures.Add("JobsOptions.BatchCompletionSize must be >= 1: it is the Bulk-profile group-commit batch size.");
-        }
-
-        if (options.BatchCompletionMaxBytes < 1)
-        {
-            failures.Add("JobsOptions.BatchCompletionMaxBytes must be >= 1: it is the Bulk-profile result-byte flush budget.");
-        }
-
-        if (options.BatchCompletionInterval <= TimeSpan.Zero)
-        {
-            failures.Add("JobsOptions.BatchCompletionInterval must be > 0: it is the Bulk-profile forced-flush cadence.");
-        }
-        else if (options.LeaseTtlSeconds > 0 && options.BatchCompletionInterval > TimeSpan.FromSeconds(options.LeaseTtlSeconds / 4.0))
-        {
-            failures.Add(
-                "JobsOptions.BatchCompletionInterval must be <= LeaseTtlSeconds / 4: buffered Bulk completions should settle in a small fraction of the lease window."
-            );
-        }
-
         if (options.AlertDeliveryMaxRetries < 1)
         {
             failures.Add("JobsOptions.AlertDeliveryMaxRetries must be >= 1: at least one delivery attempt must be allowed.");
@@ -245,11 +221,6 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
         if (options.WorkerDeadAfter > TimeSpan.FromDays(30))
         {
             failures.Add("JobsOptions.WorkerDeadAfter must be <= 30 days.");
-        }
-
-        if (options.BatchCompletionSize > 100_000)
-        {
-            failures.Add("JobsOptions.BatchCompletionSize must be <= 100000.");
         }
 
         // Config binding accepts any numeric literal for an enum; an undefined value would otherwise

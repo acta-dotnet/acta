@@ -17,10 +17,6 @@ public sealed class PgClaimSkewSpec : ClaimSkewSpec<PgConformanceFixture>;
 
 public sealed class PgCombinedDispatchParitySpec : CombinedDispatchParitySpec<PgConformanceFixture>;
 
-public sealed class PgBulkCompletionParitySpec : BulkCompletionParitySpec<PgConformanceFixture>;
-
-public sealed class PgConcurrentCompletionBatchSpec : ConcurrentCompletionBatchSpec<PgConformanceFixture>;
-
 public sealed class PgClockSkewInitializationChaosSpec : ClockSkewInitializationChaosSpec<PgConformanceFixture>;
 
 public sealed class PgCompleteAndClockChaosSpec : CompleteAndClockChaosSpec<PgConformanceFixture>;
@@ -28,8 +24,6 @@ public sealed class PgCompleteAndClockChaosSpec : CompleteAndClockChaosSpec<PgCo
 public sealed class PgStartReconciliationChaosSpec : StartReconciliationChaosSpec<PgConformanceFixture>;
 
 public sealed class PgOrphanedClaimChaosSpec : OrphanedClaimChaosSpec<PgConformanceFixture>;
-
-public sealed class PgBulkPendingCompletionOwnershipSpec : BulkPendingCompletionOwnershipSpec<PgConformanceFixture>;
 
 public sealed class PgRecoveryUnderSaturationSpec : RecoveryUnderSaturationSpec<PgConformanceFixture>;
 
@@ -77,26 +71,16 @@ public sealed class PgBufferedWorkerShutdownDrainSpec : BufferedWorkerShutdownDr
 
 public sealed class PgDirectWorkerShutdownDrainSpec : DirectWorkerShutdownDrainSpec<PgConformanceFixture>;
 
-public sealed class PgBulkWorkerShutdownDrainSpec : BulkWorkerShutdownDrainSpec<PgConformanceFixture>;
-
 public sealed class PgBufferedWorkerDrainSpec : BufferedWorkerDrainSpec<PgConformanceFixture>;
 
 public sealed class PgDirectWorkerDrainSpec : DirectWorkerDrainSpec<PgConformanceFixture>;
 
-public sealed class PgBulkWorkerDrainSpec : BulkWorkerDrainSpec<PgConformanceFixture>;
-
 public sealed class PgWorkerRuntimeRegistrationSpec : WorkerRuntimeRegistrationSpec<PgConformanceFixture>;
 
 public sealed class PgWorkerRuntimeDescriptorGateSpec : WorkerRuntimeDescriptorGateSpec<PgConformanceFixture>;
-
-public sealed class PgCompletionSinkBulkFallbackSpec : CompletionSinkBulkFallbackSpec<PgConformanceFixture>;
 
 public sealed class PgRollingDeploySpec : RollingDeploySpec<PgConformanceFixture>;
 
 public sealed class PgLaneDirectWorkerLoopSpec : LaneDirectWorkerLoopSpec<PgConformanceFixture>;
 
 public sealed class PgLaneBufferedWorkerLoopSpec : LaneBufferedWorkerLoopSpec<PgConformanceFixture>;
-
-public sealed class PgLaneBulkWorkerLoopSpec : LaneBulkWorkerLoopSpec<PgConformanceFixture>;
-
-public sealed class PgLaneBulkPromotionWakeSpec : LaneBulkPromotionWakeSpec<PgConformanceFixture>;

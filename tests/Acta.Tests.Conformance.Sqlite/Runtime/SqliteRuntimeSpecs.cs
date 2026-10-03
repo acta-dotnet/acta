@@ -21,17 +21,11 @@ public sealed class SqliteStartReconciliationChaosSpec : StartReconciliationChao
 
 public sealed class SqliteOrphanedClaimChaosSpec : OrphanedClaimChaosSpec<SqliteConformanceFixture>;
 
-public sealed class SqliteBulkPendingCompletionOwnershipSpec : BulkPendingCompletionOwnershipSpec<SqliteConformanceFixture>;
-
 public sealed class SqliteRecoveryUnderSaturationSpec : RecoveryUnderSaturationSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteBufferedBackpressureOwnershipSpec : BufferedBackpressureOwnershipSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteCombinedDispatchParitySpec : CombinedDispatchParitySpec<SqliteConformanceFixture>;
-
-public sealed class SqliteBulkCompletionParitySpec : BulkCompletionParitySpec<SqliteConformanceFixture>;
-
-public sealed class SqliteConcurrentCompletionBatchSpec : ConcurrentCompletionBatchSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteHandlerLockHeartbeatSpec : HandlerLockHeartbeatSpec<SqliteConformanceFixture>;
 
@@ -79,27 +73,16 @@ public sealed class SqliteBufferedWorkerShutdownDrainSpec : BufferedWorkerShutdo
 
 public sealed class SqliteDirectWorkerShutdownDrainSpec : DirectWorkerShutdownDrainSpec<SqliteConformanceFixture>;
 
-public sealed class SqliteBulkWorkerShutdownDrainSpec : BulkWorkerShutdownDrainSpec<SqliteConformanceFixture>;
-
 public sealed class SqliteBufferedWorkerDrainSpec : BufferedWorkerDrainSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteDirectWorkerDrainSpec : DirectWorkerDrainSpec<SqliteConformanceFixture>;
 
-public sealed class SqliteBulkWorkerDrainSpec : BulkWorkerDrainSpec<SqliteConformanceFixture>;
-
 public sealed class SqliteWorkerRuntimeRegistrationSpec : WorkerRuntimeRegistrationSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteWorkerRuntimeDescriptorGateSpec : WorkerRuntimeDescriptorGateSpec<SqliteConformanceFixture>;
-
-public sealed class SqliteCompletionSinkBulkFallbackSpec : CompletionSinkBulkFallbackSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteRollingDeploySpec : RollingDeploySpec<SqliteConformanceFixture>;
 
 public sealed class SqliteLaneDirectWorkerLoopSpec : LaneDirectWorkerLoopSpec<SqliteConformanceFixture>;
 
 public sealed class SqliteLaneBufferedWorkerLoopSpec : LaneBufferedWorkerLoopSpec<SqliteConformanceFixture>;
-
-// SQLite has no set-based completion routine, so Bulk runs as Direct here.
-public sealed class SqliteLaneBulkWorkerLoopSpec : LaneBulkWorkerLoopSpec<SqliteConformanceFixture>;
-
-public sealed class SqliteLaneBulkPromotionWakeSpec : LaneBulkPromotionWakeSpec<SqliteConformanceFixture>;

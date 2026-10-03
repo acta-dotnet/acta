@@ -21,20 +21,6 @@ public class M001CodeChecksTests
     private static string SqliteM001 =>
         File.ReadAllText(Path.Combine(IntegrationConfig.FindRepoRoot(), "src", "Acta.Sqlite", "Schema", "Migrations", "M001_init.sql"));
 
-    // Routine bodies live in provider-owned feature resources (installed by SqlObjectInstaller),
-    // not in M001, so the transaction-shape check reads the resource file directly.
-    private static string CompleteExecutionsBatchMssql =>
-        File.ReadAllText(
-            Path.Combine(
-                IntegrationConfig.FindRepoRoot(),
-                "src",
-                "Acta.SqlServer",
-                "Sql",
-                "Execution",
-                "CompleteExecutionsBatch.routine.sql"
-            )
-        );
-
     // JobStatusCode = { Ready=10, Suspended=20, Paused=30, Dispatched=40, Executing=50,
     //               Succeeded=100, Failed=200, Cancelled=220 }. Anchor enum for the test -
     // small, stable, and non-nullable on `runtimes.status_code`.
@@ -137,47 +123,5 @@ public class M001CodeChecksTests
     {
         Assert.DoesNotContain("OPTIMIZE_FOR_SEQUENTIAL_KEY", PgM001, StringComparison.Ordinal);
         Assert.DoesNotContain("OPTIMIZE_FOR_SEQUENTIAL_KEY", SqliteM001, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void SqlServerM001_CompleteExecutionsBatch_DmlIsInsideOneTransaction()
-    {
-        var routine = ExtractRoutine(CompleteExecutionsBatchMssql, "complete_executions_batch");
-        var lines = routine.Split(["\r\n", "\n"], StringSplitOptions.None);
-        var beginTransaction = Array.FindIndex(lines, static line => line.Trim() == "BEGIN TRANSACTION;");
-        var commitTransaction = Array.FindIndex(lines, static line => line.Trim() == "COMMIT TRANSACTION;");
-        var rollbackTransaction = Array.FindIndex(lines, static line => line.Trim() == "ROLLBACK TRANSACTION;");
-
-        Assert.True(beginTransaction >= 0, "complete_executions_batch must open an explicit transaction.");
-        Assert.True(commitTransaction > beginTransaction, "complete_executions_batch must commit after its DML.");
-        Assert.True(rollbackTransaction > commitTransaction, "complete_executions_batch must roll back in CATCH.");
-
-        var dmlLines = lines
-            .Select((line, index) => new { Line = line.TrimStart(), Index = index })
-            .Where(x =>
-                x.Line.StartsWith("UPDATE ", StringComparison.Ordinal) || x.Line.StartsWith("INSERT INTO ", StringComparison.Ordinal)
-            )
-            .ToArray();
-
-        Assert.NotEmpty(dmlLines);
-        Assert.All(
-            dmlLines,
-            dml =>
-                Assert.True(
-                    dml.Index > beginTransaction && dml.Index < commitTransaction,
-                    $"DML line must be inside the transaction: {dml.Line}"
-                )
-        );
-    }
-
-    private static string ExtractRoutine(string sql, string routineName)
-    {
-        sql = sql.ReplaceLineEndings("\n");
-        var marker = $"CREATE OR ALTER PROCEDURE {{{{schema}}}}.{routineName}";
-        var start = sql.IndexOf(marker, StringComparison.Ordinal);
-        Assert.True(start >= 0, $"Missing routine {routineName}.");
-
-        var end = sql.IndexOf("\nGO", start, StringComparison.Ordinal);
-        return end > start ? sql[start..end] : sql[start..];
     }
 }

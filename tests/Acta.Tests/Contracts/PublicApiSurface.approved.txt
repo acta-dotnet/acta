@@ -760,7 +760,6 @@ enum Acta.ExecutionBehavior
     Succeeded = 2
 enum Acta.ExecutionProfile
     Buffered = 0
-    Bulk = 2
     Direct = 1
 enum Acta.ExecutionStatusCode
     Cancelled = 220

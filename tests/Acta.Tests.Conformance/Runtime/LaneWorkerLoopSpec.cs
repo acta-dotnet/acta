@@ -95,21 +95,3 @@ public abstract class LaneBufferedWorkerLoopSpec<TFixture> : LaneWorkerLoopSpec<
     [Fact(DisplayName = "Buffered: each lane drains in order with one member in flight while lanes run in parallel")]
     public Task Each_lane_drains_in_order_with_one_member_in_flight() => EachLaneDrainsInOrderAsync(TestContext.Current.CancellationToken);
 }
-
-[ConformanceSpec(
-    "lanes.worker-loop.bulk",
-    "Under the Bulk profile each lane runs one member at a time in enqueue order",
-    Area = "Lanes",
-    Contract = "Under the Bulk profile with several executors each lane runs one member at a time in enqueue order, the batch completion promoting each next member.",
-    Arrange = "Two lanes of probe jobs are enqueued in one batch into a private namespace served by a multi-executor Bulk worker.",
-    Act = "The worker loop drains the namespace.",
-    Assert = "Every probe ran once, each lane in enqueue order, and no lane ever had two probes running at once."
-)]
-public abstract class LaneBulkWorkerLoopSpec<TFixture> : LaneWorkerLoopSpec<TFixture>
-    where TFixture : IConformanceFixture, new()
-{
-    protected override ExecutionProfile Profile => ExecutionProfile.Bulk;
-
-    [Fact(DisplayName = "Bulk: each lane drains in order with one member in flight while lanes run in parallel")]
-    public Task Each_lane_drains_in_order_with_one_member_in_flight() => EachLaneDrainsInOrderAsync(TestContext.Current.CancellationToken);
-}

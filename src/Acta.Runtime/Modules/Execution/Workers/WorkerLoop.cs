@@ -21,8 +21,7 @@ internal sealed class WorkerLoop(
     WorkerContext context,
     IWorkerWakeup wakeup,
     ILogger? log = null,
-    JobMetrics? metrics = null,
-    CompletionSink? completionSink = null
+    JobMetrics? metrics = null
 )
 {
     private readonly Acta.Runtime.Modules.Execution.IExecutionStore _execution = execution;
@@ -32,7 +31,6 @@ internal sealed class WorkerLoop(
     private readonly WorkerRegistration? _workerRegistration = workerRegistration;
     private readonly WorkerContext _context = context;
     private readonly IWorkerWakeup _wakeup = wakeup;
-    private readonly CompletionSink? _completionSink = completionSink;
     private readonly ILogger _log = log ?? NullLogger.Instance;
     private readonly JobMetrics? _metrics = metrics;
 
@@ -67,38 +65,9 @@ internal sealed class WorkerLoop(
             $"claim batch {claimBatchSize}, poll floor {(long)_options.Value.MinPollFloor.TotalMilliseconds}ms"
         );
 
-        var profile = _options.Value.ExecutionProfile;
-        if (profile is ExecutionProfile.Direct or ExecutionProfile.Bulk)
+        if (_options.Value.ExecutionProfile == ExecutionProfile.Direct)
         {
-            // Bulk is Direct plus a group-commit completion buffer: run the same combined claim-execute loop,
-            // but with the flusher draining buffered completions alongside it. On shutdown the dispatch
-            // loop drains its in-flight handlers (so every completion is buffered), then CompleteWriter
-            // lets the flusher group-commit the remainder.
-            if (profile == ExecutionProfile.Bulk && _completionSink is { } sink)
-            {
-                // Several flushers run in parallel so group commit does not serialize all completions
-                // through one connection (that would lose the parallelism Direct gets from N executors).
-                var flusherCount = Math.Clamp(executorCount / 4, 1, 16);
-                // Each flusher stands in for this many executors, which is what bounds the per-job
-                // completions it has in flight, so fallback connections never exceed the executors they
-                // replace. hostCt rather than claimCt, so a drain keeps a failing completion repeating.
-                var executorsPerFlusher = (executorCount + flusherCount - 1) / flusherCount;
-                var flusher = sink.RunFlushersAsync(flusherCount, executorsPerFlusher, hostCt);
-                try
-                {
-                    await CombinedLoopAsync(ns, namespaceId, workerId, executorCount, claimBatchSize, hostCt, claimStop.Token);
-                }
-                finally
-                {
-                    sink.CompleteWriter();
-                    await flusher;
-                }
-            }
-            else
-            {
-                await CombinedLoopAsync(ns, namespaceId, workerId, executorCount, claimBatchSize, hostCt, claimStop.Token);
-            }
-
+            await CombinedLoopAsync(ns, namespaceId, workerId, executorCount, claimBatchSize, hostCt, claimStop.Token);
             return;
         }
 

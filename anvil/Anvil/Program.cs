@@ -284,7 +284,6 @@ static ExecutionProfile ParseExecutionProfile(string? s) =>
     s?.Trim().ToLowerInvariant() switch
     {
         "buffered" => ExecutionProfile.Buffered,
-        "bulk" => ExecutionProfile.Bulk,
         _ => ExecutionProfile.Direct,
     };
 

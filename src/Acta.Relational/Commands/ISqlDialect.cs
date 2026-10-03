@@ -18,11 +18,6 @@ internal interface ISqlDialect
     string DialectToken { get; }
 
     /// <summary>
-    /// Whether execution completion accepts a native batch. Independent of SQL resource placement.
-    /// </summary>
-    bool SupportsBatchCompletion { get; }
-
-    /// <summary>
     /// Whether an inline command's result rows come from the LAST result set. SQLite and external
     /// outbox commands use this convention; server ledger commands expose one business result set.
     /// </summary>
@@ -108,7 +103,4 @@ internal interface ISqlDialect
 
     /// <summary>Binds a recurring-completion command (scalars plus the schedule-advance batch) in the provider-native shape.</summary>
     void BindRecurringCompletion(DbCommand command, CompleteExecutionRequest request, string schema);
-
-    /// <summary>Binds the whole-batch execution-completion set in the provider-native shape (routine providers only).</summary>
-    void BindCompleteExecutionsBatch(DbCommand command, IReadOnlyList<CompleteExecutionRequest> requests, string schema);
 }

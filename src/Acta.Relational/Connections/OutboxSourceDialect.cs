@@ -22,8 +22,6 @@ internal abstract class OutboxSourceDialect : ISqlDialect
 
     public abstract string DialectToken { get; }
 
-    public bool SupportsBatchCompletion => false;
-
     public bool ResultSetIsLast => true;
 
     /// <summary>
@@ -75,7 +73,4 @@ internal abstract class OutboxSourceDialect : ISqlDialect
     ) => throw NotOutbox();
 
     public void BindRecurringCompletion(DbCommand command, CompleteExecutionRequest request, string schema) => throw NotOutbox();
-
-    public void BindCompleteExecutionsBatch(DbCommand command, IReadOnlyList<CompleteExecutionRequest> requests, string schema) =>
-        throw NotOutbox();
 }

@@ -235,19 +235,11 @@ internal sealed class WorkerHeartbeat(
             return;
         }
 
-        // A row with a Bulk completion pending is handed over too, but only the release can read which
-        // execution the row carries and so whether the pending entry speaks for it; announcing it here
-        // would repeat on every tick of a stalled flush.
-        var pendingJobIds = _context.PendingCompletions.Keys.Select(k => k.JobId).ToHashSet();
-        var suspected = confirmed.Where(jobId => !pendingJobIds.Contains(jobId)).ToList();
-        if (suspected.Count > 0)
-        {
-            _log.LogWarning(
-                "WorkerRuntime: {Count} leased rows have had no attempt on this worker for two heartbeats; returning them to Ready ({Detail}).",
-                suspected.Count,
-                string.Join(", ", suspected)
-            );
-        }
+        _log.LogWarning(
+            "WorkerRuntime: {Count} leased rows have had no attempt on this worker for two heartbeats; returning them to Ready ({Detail}).",
+            confirmed.Count,
+            string.Join(", ", confirmed)
+        );
         var release = _releaseOrphanedClaims;
         _orphanRelease = Task.Run(
             async () =>

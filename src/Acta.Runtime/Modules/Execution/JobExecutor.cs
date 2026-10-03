@@ -451,13 +451,6 @@ internal sealed class JobExecutor(
 
         try
         {
-            // Checked under the owner entry: an executor registers its Bulk completion before it gives
-            // the entry up, so an execution whose completion is still being written is seen here.
-            if (_context.PendingCompletions.ContainsKey(execution))
-            {
-                return;
-            }
-
             await ReleaseOwnedClaimAsync(row, jobId, workerId, jobStore, reason, ct);
         }
         finally

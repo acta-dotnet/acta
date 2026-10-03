@@ -35,8 +35,7 @@ internal sealed class JobExecution(
     JobBehaviorPipeline pipeline,
     WorkerWakeupPublisher wakeupPublisher,
     ILogger? log = null,
-    JobMetrics? metrics = null,
-    CompletionSink? completionSink = null
+    JobMetrics? metrics = null
 )
 {
     private readonly IJobStore _jobStore = jobStore;
@@ -44,8 +43,6 @@ internal sealed class JobExecution(
     private readonly IJobPayloadSerializerRegistry _serializers = serializers;
     private readonly JobBehaviorPipeline _pipeline = pipeline;
     private readonly WorkerWakeupPublisher _wakeupPublisher = wakeupPublisher;
-    private readonly CompletionSink? _completionSink = completionSink;
-    private readonly ExecutionProfile _executionProfile = options.Value.ExecutionProfile;
     private readonly int _maxInlinePayloadBytes = options.Value.MaxInlinePayloadBytes;
     private readonly int _leaseTtlSeconds = options.Value.LeaseTtlSeconds;
     private readonly int _concurrencyKeyBounceDelaySeconds = options.Value.ConcurrencyKeyBounceDelaySeconds;
@@ -567,9 +564,8 @@ internal sealed class JobExecution(
                     // just the per-attempt token (an external operator cancel or a stolen lease cancels
                     // only the attempt token via the heartbeat, leaving ct live). Leave the row Executing
                     // and write NOTHING - sys.recovery reclaims it after the lease lapses, honoring the
-                    // documented worker-shutdown -> retry/reclaim contract. Completing here would be wrong
-                    // on every profile and actively harmful on Bulk, whose group-commit buffers under
-                    // CancellationToken.None and would finalize this never-failed attempt as terminal Failed.
+                    // documented worker-shutdown -> retry/reclaim contract; completing here would finalize a
+                    // never-failed attempt as terminal Failed.
                     _log.LogInformation(
                         "WorkerRuntime: job {JobId} interrupted by worker shutdown; left Executing for recovery.",
                         job.JobId
@@ -937,29 +933,6 @@ internal sealed class JobExecution(
             };
         }
 
-        // Bulk profile: a plain terminal completion (Succeeded/Failed, no re-arm / handler-control / recurring /
-        // signal branch) is buffered for group commit instead of committed per job. The handler already
-        // ran; the slot frees now and the flusher durably finalizes the batch and publishes the deferred
-        // wakeups. Everything needing a cross-row side effect or a control branch falls through to the
-        // per-job complete_execution below with its full wakeup/cascade handling.
-        if (
-            _completionSink is { } sink
-            && _executionProfile == ExecutionProfile.Bulk
-            && completeCommand is { FinalStatus: null, RescheduleStatusCode: null, HandlerStatusCode: null, WaitSignalName: null }
-        )
-        {
-            // No metric here: the sink records "acta.executions" when the flush durably finalizes the
-            // row, so Bulk counts what the store confirmed, same as the post-CAS emit below.
-            await sink.EnqueueAsync(
-                new BufferedCompletion(completeCommand, jobContext.JobNamespace, descriptor.JobName, job.JobId, resultBytes.Length)
-            );
-            return outcome switch
-            {
-                ExecutionOutcome.Succeeded or ExecutionOutcome.Cancelled => RunOnceOutcome.Completed,
-                _ => RunOnceOutcome.Failed,
-            };
-        }
-
         // ct is the worker's host token, never jobContext.CancellationToken; CompletionWrite says why.
         var (complete, retried) = await CompletionWrite.RetryAsync(
             token => _execution.CompleteExecutionAsync(completeCommand, token),
@@ -1061,10 +1034,9 @@ internal sealed class JobExecution(
 
     /// <summary>
     /// Stable low-cardinality tag value for the executions/duration metrics. Kept off ToString() so
-    /// an enum rename can't silently rename an operator-facing metric dimension. Internal: the Bulk
-    /// completion sink emits the same metric at durable finalization and must share the tag values.
+    /// an enum rename can't silently rename an operator-facing metric dimension.
     /// </summary>
-    internal static string OutcomeTag(ExecutionOutcome outcome) =>
+    private static string OutcomeTag(ExecutionOutcome outcome) =>
         outcome switch
         {
             ExecutionOutcome.Succeeded => "succeeded",

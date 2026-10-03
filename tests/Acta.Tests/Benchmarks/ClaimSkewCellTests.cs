@@ -14,10 +14,10 @@ public sealed class ClaimSkewCellTests
     {
         var cells = BaselineSuite.Cells(BaselineSuite.FullPreset).Where(s => s.Scenario == "claim-skew").ToList();
 
-        Assert.Equal(3 * 3 * ClaimSkewScenario.Variants.Length, cells.Count);
+        Assert.Equal(3 * 2 * ClaimSkewScenario.Variants.Length, cells.Count);
         foreach (var provider in new[] { "sqlite", "pg", "mssql" })
         {
-            foreach (var profile in new[] { ExecutionProfile.Buffered, ExecutionProfile.Direct, ExecutionProfile.Bulk })
+            foreach (var profile in new[] { ExecutionProfile.Buffered, ExecutionProfile.Direct })
             {
                 Assert.Equal(
                     ClaimSkewScenario.Variants,

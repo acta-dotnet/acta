@@ -15,9 +15,7 @@ public sealed class ProviderResourceParityTests
 {
     // Reviewed provider-specific supplemental resources, exempt from cross-provider parity. Every entry
     // needs a reason; an entry that becomes shared (or disappears) is stale and fails the gate.
-    // SQLite has no batched-completion routine: the Bulk profile degrades to Direct there, so
-    // complete_executions_batch exists only on the routine providers (Postgres, SQL Server).
-    private static readonly HashSet<string> ProviderSpecific = new(StringComparer.Ordinal) { "Execution/CompleteExecutionsBatch" };
+    private static readonly HashSet<string> ProviderSpecific = new(StringComparer.Ordinal);
 
     internal static readonly string[] Dialects = ["pg", "mssql", "sqlite"];
 

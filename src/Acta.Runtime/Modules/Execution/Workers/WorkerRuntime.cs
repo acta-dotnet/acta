@@ -50,7 +50,6 @@ internal sealed class WorkerRuntime
     private readonly CancellationTokenSource _drainCts = new();
 
     public WorkerRuntime(
-        ActaProviderInfo provider,
         ILockStore lockStore,
         IActaClock clock,
         IJobPayloadSerializerRegistry serializers,
@@ -97,22 +96,6 @@ internal sealed class WorkerRuntime
             logger
         );
 
-        // One per-runtime completion buffer, shared by the execution (which buffers plain terminal
-        // completions under the Bulk profile) and the loop (which runs the flusher). Inert on other
-        // profiles: nothing is ever enqueued and the flusher is never started. Only routine providers
-        // (SQL Server, Postgres) get a sink - Bulk degrades to Direct on inline-only providers (SQLite),
-        // which have no batched-completion routine.
-        var completionSink = provider.SupportsBatchCompletion
-            ? new CompletionSink(
-                rootServices.GetRequiredService<IExecutionStore>(),
-                publisher,
-                options,
-                logger,
-                metrics,
-                _context.PendingCompletions
-            )
-            : null;
-
         var jobExecution = new JobExecution(
             rootServices.GetRequiredService<IJobStore>(),
             rootServices.GetRequiredService<IExecutionStore>(),
@@ -121,8 +104,7 @@ internal sealed class WorkerRuntime
             pipeline,
             publisher,
             logger,
-            metrics,
-            completionSink
+            metrics
         );
         _executor = new JobExecutor(lockStore, clock, serializers, rootServices, options, _context, jobExecution, logger, metrics);
         _loop = new WorkerLoop(
@@ -133,8 +115,7 @@ internal sealed class WorkerRuntime
             _context,
             wake,
             logger,
-            metrics,
-            completionSink
+            metrics
         );
         _heartbeat = new WorkerHeartbeat(
             rootServices.GetRequiredService<IWorkerStore>(),
@@ -178,7 +159,6 @@ internal sealed class WorkerRuntime
     /// </summary>
     public static WorkerRuntime Create(IServiceProvider sp, WorkerRegistration worker) =>
         new(
-            sp.GetRequiredService<ActaProviderInfo>(),
             sp.GetRequiredService<ILockStore>(),
             sp.GetRequiredService<IActaClock>(),
             sp.GetRequiredService<IJobPayloadSerializerRegistry>(),

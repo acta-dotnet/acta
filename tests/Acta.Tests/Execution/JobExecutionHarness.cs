@@ -268,35 +268,6 @@ internal sealed class JobExecutionHarness(
         return lateClaim;
     }
 
-    /// <summary>
-    /// The heartbeat's orphan release on the row while this worker holds a buffered Bulk completion for
-    /// <paramref name="pendingExecutionNumber"/> of the same job, whose attempt has already been unwound.
-    /// Returns the worker state so a fact can read the registry after the release.
-    /// </summary>
-    public async Task<WorkerContext> ReleaseOrphanWithPendingCompletionAsync(int pendingExecutionNumber)
-    {
-        var context = new WorkerContext(null);
-        context.WorkerIdByNamespace["harness"] = WorkerId;
-        var job = Job(failureCount, concurrencyKey);
-        context.PendingCompletions[(job.JobId, pendingExecutionNumber)] = new BufferedCompletion(
-            new CompleteExecutionRequest(
-                job.JobId,
-                WorkerId,
-                pendingExecutionNumber,
-                ExecutionOutcome.Succeeded,
-                0,
-                ReadOnlyMemory<byte>.Empty
-            ),
-            "harness",
-            jobName,
-            job.JobId,
-            ResultBytes: 0
-        );
-
-        await Executor(context).ReleaseOrphanedClaimsAsync([job.JobId], "lost answer", CancellationToken.None);
-        return context;
-    }
-
     private JobExecutor Executor(WorkerContext context)
     {
         var options = Options.Create(new JobsOptions());
@@ -509,11 +480,6 @@ internal sealed class JobExecutionHarness(
 
         public Task<ClaimResult> ClaimOneAsync(ClaimRequest request, int leaseTtlSeconds, long? jobId, CancellationToken ct) =>
             throw new NotSupportedException();
-
-        public Task<IReadOnlyList<BatchCompletionOutcome>> CompleteExecutionsBatchAsync(
-            IReadOnlyList<CompleteExecutionRequest> requests,
-            CancellationToken ct
-        ) => throw new NotSupportedException();
 
         public Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct) =>
             throw new NotSupportedException();

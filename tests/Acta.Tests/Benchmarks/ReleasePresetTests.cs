@@ -10,7 +10,7 @@ namespace Acta.Tests.Benchmarks;
 /// </summary>
 public sealed class ReleasePresetTests
 {
-    private static readonly ExecutionProfile[] AllProfiles = [ExecutionProfile.Buffered, ExecutionProfile.Direct, ExecutionProfile.Bulk];
+    private static readonly ExecutionProfile[] AllProfiles = [ExecutionProfile.Buffered, ExecutionProfile.Direct];
 
     [Fact]
     public void Release_covers_every_profile_at_the_quick_points_with_one_measured_run()
@@ -31,9 +31,8 @@ public sealed class ReleasePresetTests
     {
         var preset = BaselineSuite.ReleasePreset;
 
-        Assert.Equal(1_000, BaselineSuite.LanesJobs(preset, ExecutionProfile.Direct, LanesScenario.KeyHot));
-        Assert.Equal(1_000, BaselineSuite.LanesJobs(preset, ExecutionProfile.Buffered, LanesScenario.LaneDeep));
-        Assert.Equal(50, BaselineSuite.LanesJobs(preset, ExecutionProfile.Bulk, LanesScenario.LaneDeep));
-        Assert.Equal(preset.Jobs, BaselineSuite.LanesJobs(preset, ExecutionProfile.Direct, LanesScenario.LaneWide));
+        Assert.Equal(1_000, BaselineSuite.LanesJobs(preset, LanesScenario.KeyHot));
+        Assert.Equal(1_000, BaselineSuite.LanesJobs(preset, LanesScenario.LaneDeep));
+        Assert.Equal(preset.Jobs, BaselineSuite.LanesJobs(preset, LanesScenario.LaneWide));
     }
 }

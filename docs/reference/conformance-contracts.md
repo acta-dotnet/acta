@@ -1169,32 +1169,6 @@
 
 ## Execution
 
-### CompleteExecutionsBatch self-filters and aligns outcomes to original ordinals
-- **Contract:** CompleteExecutionsBatch finalizes plain Executing rows, declines parented or mismatched-lease rows, and accepts duplicate job ids, one bool per ordinal.
-- **Arrange:** Plain, child, concurrency-key, and stale-lease jobs are enqueued and driven into Executing under a claimed lease.
-- **Act:** CompleteExecutionsBatch runs over the Executing rows batched in interleaved order.
-- **Assert:** The returned bool list aligns to the original ordinals, finalizing eligible rows and declining the rest, even when one job id appears twice.
-- **Guarantees:**
-  - Mixed batch [plain,child,excl,plain,stale] returns exact [true,false,true,true,false] aligned to original ordinals
-  - Second permutation [child,plain,stale,plain] returns exact [false,true,false,true] proving alignment is not positional luck
-  - All-plain batch finalizes all rows and returns all-true
-  - Batch with a terminal failure row finalizes it as Failed and the event keeps the reason code
-  - Duplicate job id in one batch: stale attempt declines, current attempt finalizes, unrelated row unaffected
-  - Wrong-owner batch entry declines with false and scalar CompleteExecution returns NotOwner
-- **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionsBatchAsync`
-
-### CompletionSink fallback path applies full completion semantics
-- **Contract:** Sink fallback (batch self-filter) applies full completion semantics: parent latch flip and lifecycle events matching scalar CompleteExecution.
-- **Arrange:** A Suspended parent with a running child and a plain job exist under ExecutionProfile.Bulk.
-- **Act:** The child completes through the sink's scalar fallback while the plain job finalizes via CompleteExecutionsBatch.
-- **Assert:** The fallback flips the Suspended parent to Ready with lifecycle events matching scalar completion, and the plain row finalizes with exact statuses.
-- **Guarantees:**
-  - Parent latch flip via fallback: child Succeeded via sink releases Suspended parent to Ready
-  - Fallback equals scalar parity: child completion via sink emits exact Succeeded status and Succeeded JobExecutionFinished event
-  - Plain row finalized by batch (guard): plain job reaches Succeeded via batch path and JobFinished wake fires
-  - One failed per-job completion leaves only that job for recovery: later jobs in the batch still complete and already-committed jobs still get their wake
-
 ### A Strict deadline terminates an overdue job and blocks a retry past the deadline
 - **Contract:** A Strict deadline lands the job Cancelled with JobDeadlineExceeded at admission or when the next retry would overshoot, without consuming the retry budget.
 - **Arrange:** Strict and Advisory deadline probes are registered with short whole-job deadlines.
@@ -1378,14 +1352,6 @@
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.ResetJobStateAsync`
 
-### The Bulk profile group-commits completions and drains a backlog exactly once
-- **Contract:** Under ExecutionProfile.Bulk, plain terminal completions are buffered and group-committed by parallel flushers, and the whole backlog still drains exactly once.
-- **Arrange:** A backlog larger than BatchCompletionSize is preloaded under ExecutionProfile.Bulk.
-- **Act:** The combined claim-execute loop drains the backlog through the buffered completion sink and its parallel flushers.
-- **Assert:** Every enqueued job finalizes exactly once, counted as one execution per job.
-- **Guarantees:**
-  - Every enqueued job is group-committed exactly once under Bulk and the whole backlog drains to completion
-
 ### The combined claim-execute loop drains a backlog exactly once
 - **Contract:** Under ExecutionProfile.Direct the combined claim-execute loop drains a backlog exactly once, claiming Ready to Executing in one round-trip.
 - **Arrange:** A worker is configured with ExecutionProfile.Direct, 8 concurrent executors, and an execution counter, and a 50-job backlog is enqueued.
@@ -1393,16 +1359,6 @@
 - **Assert:** Every enqueued job executes exactly once, with the counter recording one execution per job.
 - **Guarantees:**
   - Every enqueued job executes exactly once via the combined loop and the whole backlog drains to completion
-
-### Concurrent Bulk flushers group-commit large batches without a deadlock
-- **Contract:** Batched completions racing in one namespace all finalize without a deadlock, each job Succeeded with its result stored.
-- **Arrange:** Twenty thousand jobs are staged Executing under one worker, and deadlock retry is off so a deadlock victim surfaces.
-- **Act:** Four flushers each group-commit a run of 1000-row completion batches with results at the same time.
-- **Assert:** Every call succeeds, every row finalizes, and every job is Succeeded with its result row.
-- **Guarantees:**
-  - Four flushers racing 1000-row completion batches with results in one namespace all finalize
-- **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionsBatchAsync`
 
 ### Start execution honors the version CAS and the live-lease guard
 - **Contract:** Start transitions a fresh claim to Executing but refuses a stale-version claim as LostClaim and an expired-lease claim as LeaseExpired.
@@ -1453,14 +1409,6 @@
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueBatchAsync`
   - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueOneAsync`
-
-### A Bulk batch completion that promotes a lane member wakes the claim loop
-- **Contract:** Under the Bulk profile a batch completion that promotes a lane's next member wakes the namespace's claim loop, so the lane drains at flush pace.
-- **Arrange:** A lane of ten no-op probes sits in a private namespace served by an otherwise idle Bulk worker with a sixty-second safety poll.
-- **Act:** The worker loop drains the lane.
-- **Assert:** All ten probes ran in order within fifty seconds, under the sixty-second safety poll one unannounced promotion would cost.
-- **Guarantees:**
-  - A Bulk lane of ten no-op jobs drains at flush pace, not at safety-poll pace
 
 ### Operator verbs keep a lane's order
 - **Contract:** Pause, resume, reschedule, restart, and reprioritize on a laned job never let it run ahead of an older unfinished member of its lane.
@@ -1534,7 +1482,6 @@
   - Pausing the running member hands the lane to an older restarted job at once
   - A running member its handler pauses hands the lane to an older restarted job
   - Pausing a head with only younger members behind it keeps them Blocked
-  - A batch settle that reaches a lane through a row it did not settle leaves a restarted member Blocked while another runs
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.RestartJobAsync`
 
@@ -1592,14 +1539,6 @@
 - **Assert:** Every probe ran once, each lane in enqueue order, and no lane ever had two probes running at once.
 - **Guarantees:**
   - Buffered: each lane drains in order with one member in flight while lanes run in parallel
-
-### Under the Bulk profile each lane runs one member at a time in enqueue order
-- **Contract:** Under the Bulk profile with several executors each lane runs one member at a time in enqueue order, the batch completion promoting each next member.
-- **Arrange:** Two lanes of probe jobs are enqueued in one batch into a private namespace served by a multi-executor Bulk worker.
-- **Act:** The worker loop drains the namespace.
-- **Assert:** Every probe ran once, each lane in enqueue order, and no lane ever had two probes running at once.
-- **Guarantees:**
-  - Bulk: each lane drains in order with one member in flight while lanes run in parallel
 
 ### Under the Direct profile each lane runs one member at a time in enqueue order
 - **Contract:** Under the Direct profile with several executors each lane runs one member at a time in enqueue order while different lanes run in parallel.
@@ -2288,14 +2227,6 @@
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.ClaimBatchAsync`
 
-### Bulk drain finishes the in-flight job, then Active to Draining to Stopped
-- **Contract:** Under the Bulk profile a graceful stop flips the worker Active to Draining, runs the in-flight handler to completion and group-commits it, then stamps Stopped.
-- **Arrange:** A worker runs the Bulk profile with a one-row completion batch and a gate handler that holds its job in-flight until released.
-- **Act:** With the handler in-flight, BeginDrain is called, the gate is released, and the worker is stopped.
-- **Assert:** The worker walks Active to Draining to Stopped and the flusher group-commits the in-flight job Succeeded rather than cancelling it.
-- **Guarantees:**
-  - Bulk: a graceful stop drains the in-flight job to Succeeded and walks the worker Active -> Draining -> Stopped
-
 ### Direct drain finishes the in-flight job, then Active to Draining to Stopped
 - **Contract:** Under the Direct profile a graceful stop flips the worker Active to Draining, runs the in-flight handler to completion, then stamps Stopped.
 - **Arrange:** A worker runs the Direct profile with a gate handler that holds its job in-flight until released.
@@ -2311,15 +2242,6 @@
 - **Assert:** The worker walks Active to Draining to Stopped and the in-flight job finishes Succeeded rather than being cancelled.
 - **Guarantees:**
   - Buffered: a graceful stop drains the in-flight job to Succeeded and walks the worker Active -> Draining -> Stopped
-
-### Bulk worker stop never group-commits an in-flight job as Failed
-- **Contract:** Under the Bulk profile a graceful worker stop with a job in-flight buffers no completion and leaves it Executing for recovery, never a group-committed Failed.
-- **Arrange:** A worker runs the Bulk profile with a one-row completion batch and a handler that blocks in-flight until its token is cancelled.
-- **Act:** The worker token is cancelled mid-execution and the drain and flusher complete, after which the lapsed lease is swept by recovery.
-- **Assert:** The job is left Executing with no group-committed completion and recovery re-arms it to Ready, never terminal Failed.
-- **Guarantees:**
-  - Bulk: a worker stop with a job in-flight leaves it Executing for recovery and group-commits no terminal Failed
-  - Bulk: after a worker stop, recovery reclaims the abandoned in-flight job back to Ready (it retries)
 
 ### Direct worker stop leaves an in-flight job reclaimable, never Failed
 - **Contract:** Under the Direct profile a graceful worker stop with a job in-flight writes no completion and leaves it Executing for recovery, never terminal Failed.
@@ -2434,17 +2356,6 @@
   - A drain that lands on a blocked channel write hands the rows it never wrote back to Ready
 - **Store methods:**
   - `Acta.Runtime.Modules.Execution.IExecutionStore.ClaimBatchAsync`
-
-### A Bulk completion waiting to be written keeps its row through the heartbeat
-- **Contract:** A row whose Bulk completion is buffered or being written is not released as an orphan, including while a row the set call turned back is written per job.
-- **Arrange:** A Bulk worker whose set-based completion write, or the per-job write after the set call turns the row back, is held open after the handler ran.
-- **Act:** The heartbeat ticks twice while the write is held, and then the write is let go.
-- **Assert:** No Rescheduled event is written, the handler ran once, and the job is Succeeded with its result.
-- **Guarantees:**
-  - A held Bulk flush keeps its row across two heartbeats and the job completes once with its result
-  - A row the set call turned back stays owned while its per-job write is held across two heartbeats
-- **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionsBatchAsync`
 
 ### A claim whose answer was lost is returned to Ready by the heartbeat
 - **Contract:** A row leased by this worker with no attempt behind it for two heartbeats is re-armed Ready, and a row an attempt or the buffer holds is left alone.
@@ -3124,7 +3035,6 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IExecutionStore.ClaimBatchAsync` | A Buffered worker with every executor held still runs the recovery sweep<br>A job registers, enqueues, claims, executes, persists and reads back<br>A lane runs its jobs one at a time in enqueue order<br>A paused slot does not fire, and a timed pause resumes by the misfire policy<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>At most one same-key handler executes, admitted at execution time<br>Claim caps at the batch size, reports the horizon, and skips excluded rows<br>Claim returns only due rows, in claim order, past parked and delayed rows<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Rows waiting behind a full Buffered channel are not released as orphans |
 | `IExecutionStore.ClaimOneAsync` | A claim whose answer was lost is returned to Ready by the heartbeat<br>CLI verbs map onto IJobs and debug runs the targeted job in-process |
 | `IExecutionStore.CompleteExecutionAsync` | A bounded child wait expires, cancels its subtree, and leaves the parent running<br>A claim with no handler is handed back, and its definition is not claimed again<br>A job registers, enqueues, claims, executes, persists and reads back<br>A paused slot does not fire, and a timed pause resumes by the misfire policy<br>A raise inside the suspend handoff lands the job Ready, not Suspended<br>A recurring job whose handler throws raises an alert<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>An operator pause landing inside a planned fire keeps the schedule paused<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Completing an in-flight attempt respects schedule changes made while it ran<br>Every settle of a lane head promotes the next member<br>Handler Fail Cancel Pause finalize the attempt without returning to user code<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Operations racing on one lane serialize on the lane lock without deadlocking<br>Reschedule re-arms Ready and durable sleep arms an idempotent timer<br>StartExecution and CompleteExecution no-op outcomes return exact action enums<br>The failures-only audit level records a failure and the success that answers it |
-| `IExecutionStore.CompleteExecutionsBatchAsync` | A Bulk completion waiting to be written keeps its row through the heartbeat<br>CompleteExecutionsBatch self-filters and aligns outcomes to original ordinals<br>Concurrent Bulk flushers group-commit large batches without a deadlock |
 | `IExecutionStore.CompleteStepAsync` | At-most-once step re-entered before completion is interrupted<br>Nonzero backoff defers the parent to the retry instant and re-invokes the body<br>RunStepAsync runs once, replays results, and retries until exhausted<br>Step exhausts by retry-window and re-entry replays without body invocation |
 | `IExecutionStore.GetChildJobIdsAsync` | A bounded child wait expires, cancels its subtree, and leaves the parent running<br>Child jobs start deduped, join on completion latches, and cancel cascades |
 | `IExecutionStore.GetStaleChildLatchesAsync` | Child jobs start deduped, join on completion latches, and cancel cascades<br>One sys.recovery tick reclaims, releases, and wakes |
@@ -3230,7 +3140,6 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `Execution/ClaimBatch` | yes | yes | yes |
 | `Execution/ClaimOne` | yes | yes | yes |
 | `Execution/CompleteExecution` | yes | yes | yes |
-| `Execution/CompleteExecutionsBatch` | yes | yes | · |
 | `Execution/CompleteStep` | yes | yes | yes |
 | `Execution/Definitions/DefinitionsView` | yes | yes | yes |
 | `Execution/Definitions/GetDefinitionContracts` | yes | yes | yes |

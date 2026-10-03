@@ -100,30 +100,6 @@ internal sealed class StoreFaultPlan
     /// </remarks>
     public void RunBeforeCompleteOnce(Func<Task> action) => Interlocked.Exchange(ref _beforeComplete, action);
 
-    private Func<Task>? _beforeBatchComplete;
-    private long _turnBackFromBatch;
-
-    /// <summary>Runs <paramref name="action"/> once, before the next Bulk set-based completion reaches the store.</summary>
-    public void RunBeforeBatchCompleteOnce(Func<Task> action) => Interlocked.Exchange(ref _beforeBatchComplete, action);
-
-    public Task RunBeforeBatchCompleteAsync() =>
-        Interlocked.Exchange(ref _beforeBatchComplete, null) is { } action ? action() : Task.CompletedTask;
-
-    /// <summary>
-    /// Keeps <paramref name="jobId"/> out of the next set-based completion that carries it and answers false
-    /// for it, the way the routine answers for a row it self-filters, so the sink falls back to the per-job
-    /// write. The row is never handed to the set call, so the fallback finds it still Executing.
-    /// </summary>
-    public void TurnBackFromBatchOnce(long jobId) => Interlocked.Exchange(ref _turnBackFromBatch, jobId);
-
-    public long TakeTurnBackFromBatch(IReadOnlyList<CompleteExecutionRequest> requests)
-    {
-        var jobId = Interlocked.Read(ref _turnBackFromBatch);
-        return jobId != 0 && requests.Any(r => r.JobId == jobId) && Interlocked.CompareExchange(ref _turnBackFromBatch, 0, jobId) == jobId
-            ? jobId
-            : 0;
-    }
-
     public void MaybeThrowBefore(string operation, long jobId)
     {
         if (operation != "CompleteExecution")
@@ -237,30 +213,6 @@ internal sealed class FaultInjectingExecutionStore(IExecutionStore inner, StoreF
         var action = await inner.StartExecutionAsync(jobId, workerId, expectedExecutionNumber, expectedVersion, leaseTtlSeconds, ct);
         plan.MaybeThrowAfterStart();
         return action;
-    }
-
-    public async Task<IReadOnlyList<BatchCompletionOutcome>> CompleteExecutionsBatchAsync(
-        IReadOnlyList<CompleteExecutionRequest> requests,
-        CancellationToken ct
-    )
-    {
-        await plan.RunBeforeBatchCompleteAsync();
-        var turnedBack = plan.TakeTurnBackFromBatch(requests);
-        if (turnedBack == 0)
-        {
-            return await inner.CompleteExecutionsBatchAsync(requests, ct);
-        }
-
-        var passed = requests.Where(r => r.JobId != turnedBack).ToList();
-        var answers = passed.Count == 0 ? [] : await inner.CompleteExecutionsBatchAsync(passed, ct);
-        var outcomes = new List<BatchCompletionOutcome>(requests.Count);
-        var next = 0;
-        foreach (var request in requests)
-        {
-            outcomes.Add(request.JobId == turnedBack ? default : answers[next++]);
-        }
-
-        return outcomes;
     }
 
     public Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct) =>

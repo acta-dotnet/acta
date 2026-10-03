@@ -6,7 +6,7 @@ namespace Acta.Runtime.Modules.Execution;
 
 /// <summary>
 /// Persistence port for the execution runtime: the claim scan and by-id claim, the start CAS, the
-/// per-attempt completion (scalar and recurring), the Bulk-profile batched completion, the stuck-job
+/// per-attempt completion (scalar and recurring), the stuck-job
 /// reclaim, the durable step transitions, and the durable-context subfeatures (checkpoint slot CRUD,
 /// child-latch reads, sleep-timer arm/consume).
 /// </summary>
@@ -56,18 +56,6 @@ internal interface IExecutionStore
     /// disagree.</para>
     /// </summary>
     Task<CompleteExecutionResult> CompleteExecutionAsync(CompleteExecutionRequest request, CancellationToken ct);
-
-    /// <summary>
-    /// Bulk-profile group-committed completion: finalizes N simple terminal attempts in one set-based
-    /// round trip (PG typed arrays, SQL Server TVP). Returns an outcome per request (positionally
-    /// aligned); an unfinalized one means the caller must complete that row per-job via
-    /// <see cref="CompleteExecutionAsync"/>, and a promoted lane member means the caller wakes its namespace.
-    /// Not supported on inline-only providers.
-    /// </summary>
-    Task<IReadOnlyList<BatchCompletionOutcome>> CompleteExecutionsBatchAsync(
-        IReadOnlyList<CompleteExecutionRequest> requests,
-        CancellationToken ct
-    );
 
     /// <summary>
     /// Recovery pass for one namespace: in-flight jobs whose lease expired return to Ready, or go
