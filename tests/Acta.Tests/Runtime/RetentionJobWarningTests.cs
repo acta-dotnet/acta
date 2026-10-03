@@ -135,20 +135,20 @@ public sealed class RetentionJobWarningTests
         Assert.Contains("alert-retention-cap", record.Message, StringComparison.Ordinal);
     }
 
-    private static RetentionJob CreateJob(IRetentionStore store, ILogger<RetentionJob> logger) =>
+    private static RetentionJob CreateJob(IMaintenance store, ILogger<RetentionJob> logger) =>
         new(new RetentionCoordinator(store, new StubClock()), Options.Create(new JobsOptions()), logger);
 
-    private sealed class DelegateRetentionStore(Func<RetentionSection, int> execute) : IRetentionStore
+    private sealed class DelegateRetentionStore(Func<RetentionSection, int> execute) : IMaintenance
     {
-        public Task<int> PurgeBatchAsync(PurgeExpiredDataBatchCommand command, CancellationToken ct) =>
+        public Task<int> PurgeExpiredDataAsync(PurgeExpiredDataCommand command, CancellationToken ct) =>
             Task.FromResult(execute(command.Section));
     }
 
-    private sealed class StubRetentionStore(int undelivered) : IRetentionStore
+    private sealed class StubRetentionStore(int undelivered) : IMaintenance
     {
         private readonly HashSet<RetentionSection> _visited = [];
 
-        public Task<int> PurgeBatchAsync(PurgeExpiredDataBatchCommand command, CancellationToken ct) =>
+        public Task<int> PurgeExpiredDataAsync(PurgeExpiredDataCommand command, CancellationToken ct) =>
             Task.FromResult(
                 _visited.Add(command.Section)
                     ? command.Section == RetentionSection.UndeliveredAlerts

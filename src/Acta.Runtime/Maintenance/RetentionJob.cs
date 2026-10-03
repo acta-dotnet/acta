@@ -8,7 +8,7 @@ namespace Acta.Runtime;
 /// <c>sys.retention</c>, the system retention sweep. A recurring, competitively-claimed
 /// <c>[Job]</c> auto-registered into every worker namespace; whichever live worker claims the hourly
 /// tick runs one namespace-scoped <c>purge_expired_data</c> pass (sections and bounds:
-/// <see cref="IRetentionStore"/>). Leaderless: the recurring slot's single claim per tick is the
+/// <see cref="RetentionSection"/>, <see cref="RetentionSweep"/>). Leaderless: the recurring slot's single claim per tick is the
 /// only coordination, so exactly one pass runs per namespace per tick. <c>AuditLevel.Failures</c>
 /// keeps idle ticks out of <c>events</c>: a purge pass emits no per-row events.
 /// </summary>
@@ -47,7 +47,7 @@ internal sealed class RetentionJob(RetentionCoordinator coordinator, IOptions<Jo
     public async Task Handle(JobContext ctx, CancellationToken ct)
     {
         await coordinator.PurgeExpiredDataAsync(
-            new PurgeExpiredDataCommand(
+            new RetentionSweep(
                 ctx.NamespaceId,
                 _eventsRetentionDays,
                 _alertRetentionDays,

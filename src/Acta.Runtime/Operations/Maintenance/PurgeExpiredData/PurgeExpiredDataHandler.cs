@@ -1,11 +1,9 @@
 namespace Acta.Runtime;
 
-/// <summary>
-/// Shared relational port for one atomic batch. The runtime coordinator owns the sweep loops.
-/// </summary>
-internal sealed class RelationalRetentionStore(IDbSession session, ISqlDialect dialect) : IRetentionStore
+/// <summary>Deletes one bounded batch of a retention section and returns how many roots it deleted.</summary>
+internal sealed class PurgeExpiredDataHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async Task<int> PurgeBatchAsync(PurgeExpiredDataBatchCommand command, CancellationToken ct)
+    public async Task<int> HandleAsync(PurgeExpiredDataCommand command, CancellationToken ct)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(command.BatchSize);
         if (command.Section is < RetentionSection.Jobs or > RetentionSection.Lanes)

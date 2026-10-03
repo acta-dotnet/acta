@@ -6,7 +6,7 @@ namespace Acta.Tests.Runtime;
 public sealed class RetentionCoordinatorTests
 {
     private static readonly DateTime Now = new(2026, 9, 6, 12, 0, 0, DateTimeKind.Utc);
-    private static readonly PurgeExpiredDataCommand Sweep = new(42, 2, 3, 4, 10, 2);
+    private static readonly RetentionSweep Sweep = new(42, 2, 3, 4, 10, 2);
 
     [Fact]
     public async Task Sections_are_ordered_bounded_and_share_one_database_clock_read()
@@ -115,11 +115,11 @@ public sealed class RetentionCoordinatorTests
         public ValueTask<DateTime> GetUtcNowAsync(CancellationToken ct) => ValueTask.FromResult(Now.AddDays(Reads++));
     }
 
-    private sealed class Store(Func<PurgeExpiredDataBatchCommand, CancellationToken, Task<int>> execute) : IRetentionStore
+    private sealed class Store(Func<PurgeExpiredDataCommand, CancellationToken, Task<int>> execute) : IMaintenance
     {
-        public List<PurgeExpiredDataBatchCommand> Calls { get; } = [];
+        public List<PurgeExpiredDataCommand> Calls { get; } = [];
 
-        public Task<int> PurgeBatchAsync(PurgeExpiredDataBatchCommand command, CancellationToken ct)
+        public Task<int> PurgeExpiredDataAsync(PurgeExpiredDataCommand command, CancellationToken ct)
         {
             Calls.Add(command);
             return execute(command, ct);

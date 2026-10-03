@@ -23,7 +23,6 @@ internal static class RelationalStoreRegistration
         services.AddSingleton<IScheduleStore, RelationalScheduleStore>();
         services.AddSingleton<IWorkerStore, RelationalWorkerStore>();
         services.AddSingleton<IAlertStore, RelationalAlertStore>();
-        services.AddSingleton<IRetentionStore, RelationalRetentionStore>();
         services.AddSingleton<IExecutionStore, RelationalExecutionStore>();
     }
 }

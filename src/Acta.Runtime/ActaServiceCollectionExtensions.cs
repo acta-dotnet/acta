@@ -110,6 +110,8 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ExtendLockHandler>();
         services.TryAddSingleton<ReleaseLockHandler>();
         services.TryAddSingleton<ILocks, Locks>();
+        services.TryAddSingleton<PurgeExpiredDataHandler>();
+        services.TryAddSingleton<IMaintenance, Maintenance>();
 
         // Consumers light up the meter with WithMetrics(m => m.AddMeter(JobMetrics.MeterName)).
         services.TryAddSingleton<JobMetrics>();
