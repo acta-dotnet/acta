@@ -418,7 +418,7 @@
       <div class="facts two">
         <div>
           <b>Measured, on one rig</b>
-          <p>32 logical cores, NVMe, zero-work handlers, 8 executors, on the 1.0 release candidate's benchmark round. One lane holding a thousand jobs ran about <em>280 to 330 jobs a second</em> on PostgreSQL and SQL Server with the Direct profile, about <em>700 to 730</em> on SQLite with no network hop. A thousand lanes in round-robin ran at <em>80 to 95 percent</em> of unlaned throughput. One hot concurrency key with limit 1 managed <em>21 to 24 jobs a second</em> on the servers, because every loser is claimed, bounced, and re-armed. Rough illustrations of the shape of each gate, not capacity claims. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/rc4-release-round-20261002.md">Benchmark round</a></p>
+          <p>32 logical cores, NVMe, zero-work handlers, 8 executors, on the rc.4 benchmark round. One lane holding a thousand jobs ran about <em>280 to 330 jobs a second</em> on PostgreSQL and SQL Server with the Direct profile, about <em>700 to 730</em> on SQLite with no network hop. A thousand lanes in round-robin ran at <em>80 to 95 percent</em> of unlaned throughput. One hot concurrency key with limit 1 managed <em>21 to 24 jobs a second</em> on the servers, because every loser is claimed, bounced, and re-armed. Rough illustrations of the shape of each gate, not capacity claims. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/benchmarks/rc4-release-round-20261002.md">Benchmark round</a></p>
         </div>
         <div>
           <b>Certified, under chaos</b>
@@ -490,7 +490,7 @@
         </div>
         <div>
           <b>Measured, under chaos</b>
-          <p>The 1.0 certification ran <em>24 worker processes of 64 executors each</em>, 1,536 concurrent slots on one database, with a worker killed every five seconds. <em>Every one of a million jobs finished</em> and no recorded step ran twice, checked afterwards from the database's own ledger, on PostgreSQL and on SQL Server. What one run showed, not a capacity claim. <a class="golink" href="https://github.com/acta-dotnet/acta/tree/main/docs/certification">Certification records</a></p>
+          <p>The rc.4 certification ran <em>24 worker processes of 64 executors each</em>, 1,536 concurrent slots on one database, with a worker killed every five seconds. <em>Every one of a million jobs finished</em> and no recorded step ran twice, checked afterwards from the database's own ledger, on PostgreSQL and on SQL Server. What one run showed, not a capacity claim. <a class="golink" href="https://github.com/acta-dotnet/acta/tree/main/docs/certification">Certification records</a></p>
         </div>
       </div>
     </section>
@@ -625,7 +625,7 @@
         </div>
         <div class="build">
           <h3 id="data-model">Can the data model stay this small?</h3>
-          <p>Every persisted code family is a small integer, a <code>tinyint</code> or <code>smallint</code> rather than a status string, with the names generated beside it. The job row is append-mostly: only an operator’s input amendment rewrites it; the hot runtime row carries only what changes, keeps the definition behind a surrogate id, and stores no JSON. Column widths come from one fixed ladder, so a hot row stays narrow, an index stays dense, and an update rewrites bytes, not pages. The model is frozen at 1.0: no renames, drops, retypes, or renumbered codes, ever, and anything new arrives as an additive migration a rolling deploy can run.</p>
+          <p>Every persisted code family is a small integer, a <code>tinyint</code> or <code>smallint</code> rather than a status string, with the names generated beside it. The job row is append-mostly: only an operator’s input amendment rewrites it; the hot runtime row carries only what changes, keeps the definition behind a surrogate id, and stores no JSON. Column widths come from one fixed ladder, so a hot row stays narrow, an index stays dense, and an update rewrites bytes, not pages. The model freezes at 1.0: no renames, drops, retypes, or renumbered codes, ever, and anything new arrives as an additive migration a rolling deploy can run.</p>
           <span class="carries"><a href="https://github.com/acta-dotnet/acta/blob/main/docs/reference/data-model.md"><b>docs/reference/data-model.md</b></a><br /><a href="https://github.com/acta-dotnet/acta/blob/main/docs/internals/design.md"><b>docs/internals/design.md</b></a></span>
         </div>
       </div>
@@ -847,7 +847,7 @@
           <div class="ref-row"><dt>Payload codecs</dt><dd>JSON, text, and bytes ship built in; the serializer registry is pluggable per job, with worked MessagePack and gzip examples in the concepts.</dd></div>
           <div class="ref-row"><dt>Redis as a bell, only</dt><dd>Optional <code>Acta.Redis</code> wakes idle workers faster. It is never a source of truth: lose Redis and you degrade to polling, not to data loss.</dd></div>
           <div class="ref-row"><dt>Anvil · the failure lab</dt><dd>The bundled load-and-failure laboratory: enqueue a million jobs, kill real worker processes mid-flight, and watch leases lapse and recovery reclaim the work, on your machine.</dd></div>
-          <div class="ref-row"><dt>Published baselines</dt><dd>The benchmark matrix and its methodology ship in the repo, with dated results on documented hardware: sixteen worker processes on the conservative Buffered profile drained about 6,800 jobs/s on PostgreSQL and 6,300 on SQL Server (1.0 release candidate round, 32 logical cores, NVMe). Regression evidence and rough sizing, not capacity promises: re-run it on yours.</dd></div>
+          <div class="ref-row"><dt>Published baselines</dt><dd>The benchmark matrix and its methodology ship in the repo, with dated results on documented hardware: sixteen worker processes on the conservative Buffered profile drained about 6,800 jobs/s on PostgreSQL and 6,300 on SQL Server (rc.4 round, 32 logical cores, NVMe). Regression evidence and rough sizing, not capacity promises: re-run it on yours.</dd></div>
         </dl>
 
         <h3 class="ref-group">Policy &amp; operations</h3>
