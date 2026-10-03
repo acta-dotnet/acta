@@ -91,7 +91,7 @@ public sealed partial class PgConformanceFixture
         await c.OpenAsync();
         await using var cmd = c.CreateCommand();
         cmd.CommandText = $"SELECT COUNT(*) FROM {Schema}.jobs WHERE namespace_id = @ns AND deduplication_key = @dedup;";
-        cmd.Parameters.Add(new NpgsqlParameter("@ns", NpgsqlDbType.Smallint) { Value = namespaceId });
+        cmd.Parameters.Add(new NpgsqlParameter("@ns", NpgsqlDbType.Integer) { Value = namespaceId });
         cmd.Parameters.Add(new NpgsqlParameter("@dedup", NpgsqlDbType.Varchar) { Value = dedup });
         return Convert.ToInt32(await cmd.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
     }
