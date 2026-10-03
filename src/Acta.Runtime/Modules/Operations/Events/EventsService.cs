@@ -15,7 +15,6 @@ internal sealed class EventsService(IEventStore store)
     public async ValueTask<PagedResult<EventListItem>> ListJobEventsAsync(ListEventsQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
-        var pageSize = JobsQueryLimits.NormalizePageSize(query.PageSize);
         query = query with { JobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace)) };
         QueryValidation.ValidateEnum(query.EventCode, nameof(query.EventCode));
         QueryValidation.ValidateEnum(query.ActorCode, nameof(query.ActorCode));
@@ -34,36 +33,28 @@ internal sealed class EventsService(IEventStore store)
         QueryValidation.ValidatePositiveId((long?)query.WorkerId, nameof(query.WorkerId));
         var tagFilters = TagFilterJson.Normalize(query.Tags, nameof(ListEventsQuery));
 
-        var filterHash = QueryFilterHash.Compute([
-            ("job", Num(query.JobId)),
-            ("root", Num(query.LineageRootId)),
-            ("ns", query.JobNamespace),
-            ("event", Num(query.EventCode)),
-            ("def", Num(query.DefinitionId)),
-            ("tenant", query.TenantId?.ToString(CultureInfo.InvariantCulture)),
-            ("tenantKey", tenantKey),
-            ("worker", query.WorkerId?.ToString(CultureInfo.InvariantCulture)),
-            ("actor", Num(query.ActorCode)),
-            ("reason", Num(query.ReasonCode)),
-            ("from", query.CreatedFromUtc?.ToString("O", CultureInfo.InvariantCulture)),
-            ("to", query.CreatedToUtc?.ToString("O", CultureInfo.InvariantCulture)),
-            ("tags", tagFilters),
-        ]);
-
-        DateTime? cursorCreatedAtUtc = null;
-        long? cursorId = null;
-        if (query.Cursor is not null)
-        {
-            var keys = PageCursorCodec.Decode(
-                query.Cursor,
-                OperationName,
-                OrderCreatedDesc,
-                filterHash,
-                [CursorKeyKind.Utc, CursorKeyKind.Long]
-            );
-            cursorCreatedAtUtc = (DateTime)keys[0];
-            cursorId = (long)keys[1];
-        }
+        var paging = Paging.Start(
+            OperationName,
+            OrderCreatedDesc,
+            [CursorKeyKind.Utc, CursorKeyKind.Long],
+            query.Cursor,
+            query.PageSize,
+            [
+                ("job", Num(query.JobId)),
+                ("root", Num(query.LineageRootId)),
+                ("ns", query.JobNamespace),
+                ("event", Num(query.EventCode)),
+                ("def", Num(query.DefinitionId)),
+                ("tenant", query.TenantId?.ToString(CultureInfo.InvariantCulture)),
+                ("tenantKey", tenantKey),
+                ("worker", query.WorkerId?.ToString(CultureInfo.InvariantCulture)),
+                ("actor", Num(query.ActorCode)),
+                ("reason", Num(query.ReasonCode)),
+                ("from", query.CreatedFromUtc?.ToString("O", CultureInfo.InvariantCulture)),
+                ("to", query.CreatedToUtc?.ToString("O", CultureInfo.InvariantCulture)),
+                ("tags", tagFilters),
+            ]
+        );
 
         var page = await store.ListEventsAsync(
             new EventPageRequest(
@@ -79,24 +70,15 @@ internal sealed class EventsService(IEventStore store)
                 query.ReasonCode,
                 query.CreatedFromUtc,
                 query.CreatedToUtc,
-                cursorCreatedAtUtc,
-                cursorId,
-                pageSize + 1,
+                (DateTime?)paging.After?[0],
+                (long?)paging.After?[1],
+                paging.Fetch,
                 query.IncludeTotal,
                 tagFilters
             ),
             ct
         );
-
-        var rows = page.Rows;
-        var hasMore = rows.Count > pageSize;
-        var items = hasMore ? rows.Take(pageSize).ToList() : rows;
-
-        var nextCursor = hasMore
-            ? PageCursorCodec.Encode(OperationName, OrderCreatedDesc, filterHash, [items[^1].CreatedAtUtc, items[^1].JobEventId])
-            : null;
-
-        return new PagedResult<EventListItem>(items, nextCursor, hasMore, pageSize, page.Total);
+        return paging.Page(page.Rows, page.Total, static item => [item.CreatedAtUtc, item.JobEventId]);
     }
 
     private static string? Num<T>(T? value)

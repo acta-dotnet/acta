@@ -46,36 +46,25 @@ internal sealed class TenantsService(ITenantStore store)
     public async ValueTask<PagedResult<TenantListItem>> ListAsync(ListTenantsQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
-        var pageSize = JobsQueryLimits.NormalizePageSize(query.PageSize);
 
         // The providers perform a literal substring search against LOWER()ed columns. Keep the
         // normalized term free of LIKE metacharacters so %, _, and [ retain their literal meaning.
         var search = string.IsNullOrWhiteSpace(query.NameContains) ? null : query.NameContains.Trim().ToLowerInvariant();
         var tagFilters = TagFilterJson.Normalize(query.Tags, nameof(ListTenantsQuery));
-        var filterHash = QueryFilterHash.Compute([
-            ("search", search),
-            ("status", ((byte?)query.Status)?.ToString(CultureInfo.InvariantCulture)),
-            ("tags", tagFilters),
-        ]);
-
-        string? cursorTenantKey = null;
-        if (query.Cursor is not null)
-        {
-            var keys = PageCursorCodec.Decode(query.Cursor, ListOperationName, OrderTenants, filterHash, [CursorKeyKind.Text]);
-            cursorTenantKey = (string)keys[0];
-        }
-
-        var page = await store.ListTenantsAsync(
-            new TenantPageRequest(search, query.Status, cursorTenantKey, pageSize + 1, query.IncludeTotal, tagFilters),
-            ct
+        var paging = Paging.Start(
+            ListOperationName,
+            OrderTenants,
+            [CursorKeyKind.Text],
+            query.Cursor,
+            query.PageSize,
+            [("search", search), ("status", ((byte?)query.Status)?.ToString(CultureInfo.InvariantCulture)), ("tags", tagFilters)]
         );
 
-        var rows = page.Rows;
-        var hasMore = rows.Count > pageSize;
-        var items = hasMore ? rows.Take(pageSize).ToList() : rows;
-        var nextCursor = hasMore ? PageCursorCodec.Encode(ListOperationName, OrderTenants, filterHash, [items[^1].TenantKey]) : null;
-
-        return new PagedResult<TenantListItem>(items, nextCursor, hasMore, pageSize, page.Total);
+        var page = await store.ListTenantsAsync(
+            new TenantPageRequest(search, query.Status, (string?)paging.After?[0], paging.Fetch, query.IncludeTotal, tagFilters),
+            ct
+        );
+        return paging.Page(page.Rows, page.Total, static item => [item.TenantKey]);
     }
 
     public async ValueTask<AdminControlResult> SuspendAsync(string tenantKey, string? reasonMessage, string? actorKey, CancellationToken ct)

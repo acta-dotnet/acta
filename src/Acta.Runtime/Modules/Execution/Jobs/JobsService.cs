@@ -129,7 +129,6 @@ internal sealed class JobsService(
     public async ValueTask<PagedResult<JobListItem>> ListJobsAsync(ListJobsQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
-        var pageSize = JobsQueryLimits.NormalizePageSize(query.PageSize);
         query = query with
         {
             JobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace)),
@@ -148,34 +147,26 @@ internal sealed class JobsService(
         var recurringOnly = query.RecurringOnly == true ? (bool?)true : null;
         var lane = string.IsNullOrWhiteSpace(query.Lane) ? null : IdentifierSyntax.NormalizeKeyLookup(query.Lane, nameof(query.Lane));
 
-        var filterHash = QueryFilterHash.Compute([
-            ("ns", query.JobNamespace),
-            ("status", Num(query.Status)),
-            ("name", query.JobName),
-            ("parent", Num(query.ParentJobId)),
-            ("tenant", query.TenantId?.ToString(CultureInfo.InvariantCulture)),
-            ("tenantKey", tenantKey),
-            ("correlation", query.CorrelationKey),
-            ("tags", tagFiltersJson),
-            ("terminal", terminalOnly is null ? null : "1"),
-            ("recurring", recurringOnly is null ? null : "1"),
-            ("lane", lane),
-        ]);
-
-        DateTime? cursorCreatedAtUtc = null;
-        long? cursorId = null;
-        if (query.Cursor is not null)
-        {
-            var keys = PageCursorCodec.Decode(
-                query.Cursor,
-                ListOperationName,
-                OrderCreatedDesc,
-                filterHash,
-                [CursorKeyKind.Utc, CursorKeyKind.Long]
-            );
-            cursorCreatedAtUtc = (DateTime)keys[0];
-            cursorId = (long)keys[1];
-        }
+        var paging = Paging.Start(
+            ListOperationName,
+            OrderCreatedDesc,
+            [CursorKeyKind.Utc, CursorKeyKind.Long],
+            query.Cursor,
+            query.PageSize,
+            [
+                ("ns", query.JobNamespace),
+                ("status", Num(query.Status)),
+                ("name", query.JobName),
+                ("parent", Num(query.ParentJobId)),
+                ("tenant", query.TenantId?.ToString(CultureInfo.InvariantCulture)),
+                ("tenantKey", tenantKey),
+                ("correlation", query.CorrelationKey),
+                ("tags", tagFiltersJson),
+                ("terminal", terminalOnly is null ? null : "1"),
+                ("recurring", recurringOnly is null ? null : "1"),
+                ("lane", lane),
+            ]
+        );
 
         // One round trip returns the keyset page and, when asked, the filter-wide count (two result
         // sets); the count statement short-circuits to NULL and runs no scan when IncludeTotal is false.
@@ -192,23 +183,14 @@ internal sealed class JobsService(
                 terminalOnly,
                 recurringOnly,
                 lane,
-                cursorCreatedAtUtc,
-                cursorId,
-                pageSize + 1,
+                (DateTime?)paging.After?[0],
+                (long?)paging.After?[1],
+                paging.Fetch,
                 query.IncludeTotal
             ),
             ct
         );
-
-        var rows = page.Rows;
-        var hasMore = rows.Count > pageSize;
-        var items = hasMore ? rows.Take(pageSize).ToList() : rows;
-
-        var nextCursor = hasMore
-            ? PageCursorCodec.Encode(ListOperationName, OrderCreatedDesc, filterHash, [items[^1].CreatedAtUtc, items[^1].JobId])
-            : null;
-
-        return new PagedResult<JobListItem>(items, nextCursor, hasMore, pageSize, page.Total);
+        return paging.Page(page.Rows, page.Total, static item => [item.CreatedAtUtc, item.JobId]);
     }
 
     /// <summary>

@@ -63,38 +63,31 @@ internal sealed class OutboxApi(
         ArgumentNullException.ThrowIfNull(query);
         ArgumentNullException.ThrowIfNull(query.JobNamespace);
         var jobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace))!;
-        var pageSize = JobsQueryLimits.NormalizePageSize(query.PageSize);
+        var paging = Paging.Start(
+            ListQuarantinedOperationName,
+            OrderQuarantined,
+            [CursorKeyKind.Text],
+            query.Cursor,
+            query.PageSize,
+            [("ns", jobNamespace)]
+        );
         var store = ResolveLocalStore(jobNamespace);
 
-        var filterHash = QueryFilterHash.Compute([("ns", jobNamespace)]);
         Guid? afterOutboxId = null;
-        if (query.Cursor is not null)
+        if (paging.After is [string key])
         {
-            var keys = PageCursorCodec.Decode(
-                query.Cursor,
-                ListQuarantinedOperationName,
-                OrderQuarantined,
-                filterHash,
-                [CursorKeyKind.Text]
-            );
-            if (!Guid.TryParse((string)keys[0], out var parsed))
+            if (!Guid.TryParse(key, out var parsed))
             {
                 throw new InvalidPageCursorException("Cursor key is not a valid outbox id.");
             }
             afterOutboxId = parsed;
         }
 
-        var rows = await store.ListQuarantinedAsync(new ListQuarantinedOutboxCommand(pageSize + 1, afterOutboxId), ct);
-        var hasMore = rows.Count > pageSize;
-        var items = hasMore ? rows.Take(pageSize).ToList() : rows;
-        var nextCursor = hasMore
-            ? PageCursorCodec.Encode(ListQuarantinedOperationName, OrderQuarantined, filterHash, [items[^1].OutboxId.ToString("D")])
-            : null;
+        var rows = await store.ListQuarantinedAsync(new ListQuarantinedOutboxCommand(paging.Fetch, afterOutboxId), ct);
         long? total = query.IncludeTotal ? await store.CountQuarantinedAsync(ct) : null;
-
-        return new PagedResult<OutboxQuarantinedItem>(
+        return paging.Page<OutboxQuarantinedItem>(
             [
-                .. items.Select(r => new OutboxQuarantinedItem(
+                .. rows.Select(r => new OutboxQuarantinedItem(
                     r.OutboxId,
                     r.JobNamespace,
                     r.JobName,
@@ -106,10 +99,8 @@ internal sealed class OutboxApi(
                     r.CreatedAtUtc
                 )),
             ],
-            nextCursor,
-            hasMore,
-            pageSize,
-            total
+            total,
+            static item => [item.OutboxId.ToString("D")]
         );
     }
 

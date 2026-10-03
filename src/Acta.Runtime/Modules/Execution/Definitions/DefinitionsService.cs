@@ -66,66 +66,36 @@ internal sealed class DefinitionsService(IDefinitionStore store, WorkerWakeupPub
     public async ValueTask<PagedResult<JobDefinitionListItem>> ListAsync(ListDefinitionsQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
-        var pageSize = JobsQueryLimits.NormalizePageSize(query.PageSize);
         query = query with { JobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace)) };
         QueryValidation.ValidateEnum(query.Status, nameof(query.Status));
         query = query with { NameContains = QueryValidation.ValidateJobNameFragment(query.NameContains, nameof(query.NameContains)) };
 
         var nameSearch = query.NameContains is null ? null : "%" + query.NameContains + "%";
         var tagFilters = TagFilterJson.Normalize(query.Tags, nameof(ListDefinitionsQuery));
-        var filterHash = QueryFilterHash.Compute([
-            ("ns", query.JobNamespace),
-            ("contains", query.NameContains),
-            ("status", Num(query.Status)),
-            ("tags", tagFilters),
-        ]);
-
-        string? cursorNamespace = null;
-        string? cursorName = null;
-        int? cursorId = null;
-        if (query.Cursor is not null)
-        {
-            var keys = PageCursorCodec.Decode(
-                query.Cursor,
-                ListOperationName,
-                OrderDefinitions,
-                filterHash,
-                [CursorKeyKind.Text, CursorKeyKind.Text, CursorKeyKind.Int]
-            );
-            cursorNamespace = (string)keys[0];
-            cursorName = (string)keys[1];
-            cursorId = (int)keys[2];
-        }
+        var paging = Paging.Start(
+            ListOperationName,
+            OrderDefinitions,
+            [CursorKeyKind.Text, CursorKeyKind.Text, CursorKeyKind.Int],
+            query.Cursor,
+            query.PageSize,
+            [("ns", query.JobNamespace), ("contains", query.NameContains), ("status", Num(query.Status)), ("tags", tagFilters)]
+        );
 
         var page = await store.ListDefinitionsAsync(
             new DefinitionPageRequest(
                 query.JobNamespace,
                 nameSearch,
                 query.Status,
-                cursorNamespace,
-                cursorName,
-                cursorId,
-                pageSize + 1,
+                (string?)paging.After?[0],
+                (string?)paging.After?[1],
+                (int?)paging.After?[2],
+                paging.Fetch,
                 query.IncludeTotal,
                 tagFilters
             ),
             ct
         );
-
-        var rows = page.Rows;
-        var hasMore = rows.Count > pageSize;
-        var items = hasMore ? rows.Take(pageSize).ToList() : rows;
-
-        var nextCursor = hasMore
-            ? PageCursorCodec.Encode(
-                ListOperationName,
-                OrderDefinitions,
-                filterHash,
-                [items[^1].JobNamespace, items[^1].JobName, items[^1].DefinitionId]
-            )
-            : null;
-
-        return new PagedResult<JobDefinitionListItem>(items, nextCursor, hasMore, pageSize, page.Total);
+        return paging.Page(page.Rows, page.Total, static item => [item.JobNamespace, item.JobName, item.DefinitionId]);
     }
 
     public async ValueTask<DefinitionControlResult> UpdateOverridesAsync(

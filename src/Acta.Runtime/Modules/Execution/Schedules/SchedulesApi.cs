@@ -196,7 +196,6 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
     public async ValueTask<PagedResult<ScheduleListItem>> ListAsync(ListSchedulesQuery query, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(query);
-        var pageSize = JobsQueryLimits.NormalizePageSize(query.PageSize);
         query = query with
         {
             JobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace)),
@@ -207,28 +206,20 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
 
         var liveOnly = query.LiveOnly is null or true ? true : (bool?)null;
         var tagFilters = TagFilterJson.Normalize(query.Tags, nameof(ListSchedulesQuery));
-        var filterHash = QueryFilterHash.Compute([
-            ("ns", query.JobNamespace),
-            ("name", query.JobName),
-            ("origin", Num(query.Origin)),
-            ("live", liveOnly?.ToString()),
-            ("tags", tagFilters),
-        ]);
-
-        DateTime? cursorNextRunAtUtc = null;
-        long? cursorId = null;
-        if (query.Cursor is not null)
-        {
-            var keys = PageCursorCodec.Decode(
-                query.Cursor,
-                ListOperationName,
-                OrderSchedules,
-                filterHash,
-                [CursorKeyKind.Utc, CursorKeyKind.Long]
-            );
-            cursorNextRunAtUtc = (DateTime)keys[0];
-            cursorId = (long)keys[1];
-        }
+        var paging = Paging.Start(
+            ListOperationName,
+            OrderSchedules,
+            [CursorKeyKind.Utc, CursorKeyKind.Long],
+            query.Cursor,
+            query.PageSize,
+            [
+                ("ns", query.JobNamespace),
+                ("name", query.JobName),
+                ("origin", Num(query.Origin)),
+                ("live", liveOnly?.ToString()),
+                ("tags", tagFilters),
+            ]
+        );
 
         var page = await store.ListJobSchedulesAsync(
             new SchedulePageRequest(
@@ -236,30 +227,17 @@ internal sealed class SchedulesApi(IScheduleStore store, IActaClock clock, Worke
                 query.JobName,
                 query.Origin,
                 liveOnly,
-                cursorNextRunAtUtc,
-                cursorId,
-                pageSize + 1,
+                (DateTime?)paging.After?[0],
+                (long?)paging.After?[1],
+                paging.Fetch,
                 query.IncludeTotal,
                 tagFilters
             ),
             ct
         );
 
-        var rows = page.Rows;
-        var hasMore = rows.Count > pageSize;
-        var items = hasMore ? rows.Take(pageSize).ToList() : rows;
-
         // The list excludes rows without a next run, so the cursor key is always present.
-        var nextCursor = hasMore
-            ? PageCursorCodec.Encode(
-                ListOperationName,
-                OrderSchedules,
-                filterHash,
-                [items[^1].NextRunAtUtc!.Value, items[^1].JobScheduleId]
-            )
-            : null;
-
-        return new PagedResult<ScheduleListItem>(items, nextCursor, hasMore, pageSize, page.Total);
+        return paging.Page(page.Rows, page.Total, static item => [item.NextRunAtUtc!.Value, item.JobScheduleId]);
     }
 
     /// <summary>
