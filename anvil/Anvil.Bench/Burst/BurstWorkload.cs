@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using System.Text.Json.Serialization;
 using Acta;
 
-namespace Anvil.Burst;
+namespace Anvil.Bench;
 
 /// <summary>
 /// The one input every burst definition takes. <see cref="Heal"/> is what turns a job that was seeded to

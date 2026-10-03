@@ -3,7 +3,7 @@ using System.Globalization;
 using System.Text;
 using Acta;
 
-namespace Anvil.Burst;
+namespace Anvil.Bench;
 
 /// <summary>What one <c>sys.alerts</c> invocation did, measured from outside the engine.</summary>
 /// <param name="Ordinal">1-based position in the run.</param>

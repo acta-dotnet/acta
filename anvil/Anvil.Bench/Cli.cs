@@ -131,6 +131,7 @@ public static class BenchCli
             {
                 ["--help"] or ["-h"] => Usage(),
                 [] => await InteractiveRunAsync(ct),
+                ["burst", .. var rest] => await BurstCommand.RunAsync(rest, ct),
                 [var presetName, .. var rest] => await ScriptedRunAsync(presetName, rest, ct),
             };
         }
@@ -352,6 +353,7 @@ public static class BenchCli
               acta-bench
               acta-bench quick --db sqlite|pg|mssql|all [--scenario <name>] [--seed-history <N>]
               acta-bench full --db sqlite|pg|mssql|all [--scenario <name>] [--seed-history <N>]
+              acta-bench burst [options]   The sys.alerts burst certification; burst --help lists its options.
 
             Presets:
               quick   Local 5-10 minute run for one database. Uses 1 measured run, 1,000 jobs, and 10,000 query rows.

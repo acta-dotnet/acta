@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Anvil.Burst;
+namespace Anvil.Bench;
 
 /// <summary>How one line of the verdict block reads.</summary>
 internal enum BurstOutcome

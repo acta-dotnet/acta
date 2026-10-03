@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace Anvil.Burst;
+namespace Anvil.Bench;
 
 /// <summary>
 /// Samples this process's footprint across a phase: peak working set, peak thread count, and the bytes

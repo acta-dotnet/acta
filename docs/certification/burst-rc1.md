@@ -141,7 +141,7 @@ Three things to know before reading the blocks:
 
 ## Reproducing
 
-`anvil/Anvil.Burst` mints a fresh `anvil_burst_*` schema per run and leaves it behind for
-inspection. The exact command lines, flag meanings, and the harness's measurement seams are
+`dotnet run --project anvil/Anvil.Bench -- burst` (the harness lived in `anvil/Anvil.Burst` until rc.5) mints
+a fresh `anvil_burst_*` schema per run and leaves it behind for inspection. The exact command lines, flag meanings, and the harness's measurement seams are
 documented in the runner's own source; the SQL Server 10K run exists in part to exercise the
 `DateTime2` branch of the raw-SQL instant binding that neither other provider touches.

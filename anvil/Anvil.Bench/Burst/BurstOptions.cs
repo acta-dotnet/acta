@@ -1,7 +1,7 @@
 using System.Globalization;
 using Acta;
 
-namespace Anvil.Burst;
+namespace Anvil.Bench;
 
 /// <summary>
 /// The shipped bounds this certification is measured against, copied here with the symbol that owns each
@@ -136,9 +136,9 @@ internal sealed record BurstOptions
     public static void PrintUsage()
     {
         Console.WriteLine();
-        Console.WriteLine("  Anvil.Burst - the sys.alerts burst certification (C6).");
+        Console.WriteLine("  acta-bench burst - the sys.alerts burst certification (C6).");
         Console.WriteLine();
-        Console.WriteLine("  dotnet run --project anvil/Anvil.Burst -- [options]");
+        Console.WriteLine("  dotnet run --project anvil/Anvil.Bench -- burst [options]");
         Console.WriteLine();
         Console.WriteLine("    --provider <sqlite|pg|mssql>  durable provider (default: ACTA_LOCAL_PROVIDER, else sqlite)");
         Console.WriteLine("    --schema <name>               schema to run in (default: a fresh anvil_burst_* schema)");

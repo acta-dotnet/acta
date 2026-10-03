@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace Anvil.Burst;
+namespace Anvil.Bench;
 
 /// <summary>
 /// The one process the certification runs in: a real Acta worker on the burst namespace, plus the enqueue
@@ -93,7 +93,7 @@ internal sealed class BurstHost : IAsyncDisposable
                 options.Namespace,
                 w =>
                 {
-                    w.AddManifest<BurstJobs>();
+                    w.AddManifest<BenchJobs>();
                     // Overrides the framework's implicit "default" log channel. Every burst definition
                     // declares no channel of its own, so this is the channel the whole backlog delivers
                     // to, which is what makes one counter the answer for the whole namespace.

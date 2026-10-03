@@ -7,7 +7,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
 
-namespace Anvil.Burst;
+namespace Anvil.Bench;
 
 /// <summary>
 /// The three row operations the certification needs and no public Acta API exposes: reading the numeric
