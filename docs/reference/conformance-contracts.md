@@ -1154,11 +1154,11 @@
   - Explain reports a child-suspended parent as awaiting that child, with its deadline
   - Explain reports a completed durable step as non-rerunning
 
-### GetJobDefinition returns one definition by id and null for an unknown id
-- **Contract:** GetJobDefinition returns the fully-projected definitions row matching the supplied id and null when no row matches.
+### GetJobDefinition returns one definition by name and null for an unknown name
+- **Contract:** GetJobDefinition returns the fully-projected definitions row for the supplied namespace and name, and null when none matches.
 - **Guarantees:**
-  - A known id returns the matching definition row
-  - An unknown id returns null
+  - A known name returns the matching definition row
+  - An unknown name returns null
   - Display name and description overrides round-trip through the detail projection
 
 ### GetJobExplanation returns explain sets for a known id and null otherwise
@@ -1239,7 +1239,6 @@
 - **Contract:** ListJobDefinitions pages the catalog ordered namespace then name then id and reads the page plus an opt-in filter-wide count in one command.
 - **Guarantees:**
   - Walking NextCursor visits every definition exactly once in ascending order and TotalCount matches the walk
-  - ListJobDefinitions returns the keyset page and the filter-wide total from one command
 
 ### ListJobEvents filter-matrix selects exactly matching rows per dimension
 - **Contract:** ListJobEvents filters partition the event rows to exactly the matching ids and exclude all non-matching ids for each filter dimension.

@@ -1,12 +1,22 @@
 SELECT
-    jd.id, ns.name, jd.name, jd.status_code, jd.input_type_name, jd.output_type_name,
-    jd.priority_code_override, jd.priority_code_effective,
-    jd.max_attempts_override, jd.max_attempts_effective,
-    jd.concurrency_limit_override, jd.concurrency_limit_effective,
-    jd.rate_limit_override, jd.rate_limit_effective,
+    jd.id AS definition_id,
+    ns.name AS job_namespace,
+    jd.name AS job_name,
+    jd.status_code AS status,
+    jd.input_type_name,
+    jd.output_type_name,
+    jd.priority_code_override AS priority_override,
+    jd.priority_code_effective AS priority_effective,
+    jd.max_attempts_override,
+    jd.max_attempts_effective,
+    jd.concurrency_limit_override,
+    jd.concurrency_limit_effective,
+    jd.rate_limit_override,
+    jd.rate_limit_effective,
     jd.rate_key,
     jd.lane,
-    jd.modified_at_utc, jd.version
+    jd.modified_at_utc,
+    jd.version
 FROM {{schema}}.definitions jd
 JOIN {{schema}}.namespaces ns ON ns.id = jd.namespace_id
 WHERE

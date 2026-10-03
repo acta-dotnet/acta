@@ -6,7 +6,6 @@ ActaSchemaGenerator.cs
 AlertsJob.cs
 CodeGenerator.cs
 DbProjectionGenerator.cs
-DefinitionsService.cs
 JobContext.cs
 JobExecution.cs
 JobsService.cs

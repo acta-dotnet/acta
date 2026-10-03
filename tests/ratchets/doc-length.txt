@@ -21,7 +21,6 @@ DbSession.cs
 DbValueCoercion.cs
 DeduplicationKey.cs
 DefinitionPolicyReloader.cs
-DefinitionsService.cs
 DriverVersionPolicy.cs
 EffectivePolicyOverlay.cs
 EventCode.cs
@@ -53,7 +52,6 @@ JobControlResult.cs
 JobDefinitionDetail.cs
 JobDefinitionListItem.cs
 JobDefinitionPolicyOverrides.cs
-JobDefinitionRegistration.cs
 JobDetail.cs
 JobEnqueueOptions.cs
 JobEnqueueRequest.cs

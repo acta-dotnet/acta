@@ -34,7 +34,7 @@ public class ContractDriftDetectorTests
         new(
             name,
             gen,
-            DefinitionsService.ContractOf(Desc(name, inputType)),
+            JobDefinitionRegistration.ContractOf(Desc(name, inputType)),
             Id: 0,
             DefinitionHash: "",
             Status: JobDefinitionStatusCode.Active,

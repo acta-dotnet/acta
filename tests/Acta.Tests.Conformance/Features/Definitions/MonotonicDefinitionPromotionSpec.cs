@@ -173,12 +173,9 @@ public sealed class MonotonicDefinitionPromotionSpec : ActaStorageTestBase<Confo
     {
         var definition = await ReadAsync(name, ct);
         var outcome = await Services
-            .GetRequiredService<IDefinitionStore>()
-            .RetireDefinitionAsync(
-                new RetireDefinitionCommand(definition.Id, definition.Version, new JobControlActor(ActorCode.Operator, "tester"), null),
-                ct
-            );
-        Assert.Equal(DefinitionOverrideAction.Applied, outcome.Action);
+            .GetRequiredService<IDefinitions>()
+            .RetireAsync(TestNamespace, name, definition.Version, actorKey: "tester", ct: ct);
+        Assert.Equal(ControlAction.Applied, outcome.Action);
     }
 
     [Fact(DisplayName = "Fail-mode contract drift blocks before any registration write")]
@@ -191,7 +188,9 @@ public sealed class MonotonicDefinitionPromotionSpec : ActaStorageTestBase<Confo
         await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen1, [Def(job, 1, typeof(int))], ct);
         var before = await ReadAsync(job, ct);
 
-        var stored = await Services.GetRequiredService<IDefinitionStore>().GetDefinitionContractsAsync(TestNamespaceId, ct);
+        var stored = await Services
+            .GetRequiredService<GetDefinitionContractsHandler>()
+            .HandleAsync(new GetDefinitionContractsQuery(TestNamespaceId), ct);
         var incoming = ImmutableArray.Create(Def(job, 1, typeof(string)));
         var drifts = ContractDriftDetector.Detect(Gen2, incoming, stored);
 

@@ -521,9 +521,6 @@ static class Acta.DeduplicationKey
     System.String PerHour(System.String definitionName, System.String businessKey, System.DateTimeOffset instant)
     System.String PerTimeBucket(System.String definitionName, System.String businessKey, System.DateTimeOffset instant, System.TimeSpan bucketSize)
     System.String PerTimeBucket(System.String definitionName, System.String businessKey, System.TimeSpan bucketSize)
-sealed class Acta.DefinitionControlResult
-    .ctor(Acta.ControlAction Action)
-    Acta.ControlAction Action { get;init; }
 enum Acta.DriverVersionPolicy
     Fail = 0
     Warn = 1
@@ -708,11 +705,13 @@ interface Acta.IAlerts
 interface Acta.IControlResponse
     Acta.ControlAction Action { get; }
     System.Nullable<System.Int32> Version { get; }
+interface Acta.IDefinitionControlResponse
+    Acta.ControlAction Action { get; }
 interface Acta.IDefinitions
-    System.Threading.Tasks.ValueTask<Acta.DefinitionControlResult> RetireAsync(System.String jobNamespace, System.String jobName, System.Int32 expectedVersion, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.DefinitionControlResult> UpdateOverridesAsync(System.String jobNamespace, System.String jobName, System.Int32 expectedVersion, Acta.JobDefinitionPolicyOverrides overrides, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.JobDefinitionDetail> GetAsync(System.String jobNamespace, System.String jobName, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.JobDefinitionListItem>> ListAsync(Acta.ListDefinitionsQuery query, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.RetireJobDefinitionResponse> RetireAsync(System.String jobNamespace, System.String jobName, System.Int32 expectedVersion, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.SetJobDefinitionOverridesResponse> UpdateOverridesAsync(System.String jobNamespace, System.String jobName, System.Int32 expectedVersion, Acta.JobDefinitionPolicyOverrides overrides, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
 interface Acta.IJobContextAccessor
     Acta.JobContext JobContext { get;set; }
 interface Acta.IJobManifest
@@ -1949,6 +1948,9 @@ sealed class Acta.ResumeTenantResponse
     .ctor(Acta.ControlAction Action, System.Nullable<System.Int32> Version)
     Acta.ControlAction Action { get;init; }
     System.Nullable<System.Int32> Version { get;init; }
+sealed class Acta.RetireJobDefinitionResponse
+    .ctor(Acta.ControlAction Action)
+    Acta.ControlAction Action { get;init; }
 sealed class Acta.ScheduleControlResult
     .ctor(Acta.ControlAction Action, System.Nullable<Acta.ScheduleStatusCode> Status, System.Nullable<System.DateTime> PausedUntilUtc, System.Nullable<System.DateTime> NextRunAtUtc, System.Nullable<System.Int32> Version)
     Acta.ControlAction Action { get;init; }
@@ -2048,6 +2050,9 @@ sealed class Acta.ScheduleStatusCodeJsonConverter
     .ctor()
     Acta.ScheduleStatusCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.ScheduleStatusCode value, System.Text.Json.JsonSerializerOptions options)
+sealed class Acta.SetJobDefinitionOverridesResponse
+    .ctor(Acta.ControlAction Action)
+    Acta.ControlAction Action { get;init; }
 sealed class Acta.SetSettingResponse
     .ctor(Acta.ControlAction Action, System.Nullable<System.Int32> Version)
     Acta.ControlAction Action { get;init; }

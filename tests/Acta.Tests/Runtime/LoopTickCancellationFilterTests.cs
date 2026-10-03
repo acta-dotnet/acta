@@ -1,3 +1,4 @@
+using System.Data.Common;
 using Acta.Runtime;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -59,7 +60,13 @@ public sealed class LoopTickCancellationFilterTests
         var registration = new WorkerRegistration("orders", null, null, [], []);
         var options = Options.Create(new JobsOptions { SafetyPollInterval = TimeSpan.FromMilliseconds(20) });
 
-        var reloader = new DefinitionPolicyReloader(new ThrowingDefinitionStore(failure), options, registration, context, logger);
+        var reloader = new DefinitionPolicyReloader(
+            new GetDefinitionContractsHandler(new ThrowingSession(failure), null!),
+            options,
+            registration,
+            context,
+            logger
+        );
 
         using var cts = new CancellationTokenSource();
         var runTask = reloader.RunAsync(cts.Token);
@@ -109,7 +116,10 @@ public sealed class LoopTickCancellationFilterTests
         var options = Options.Create(new JobsOptions { SafetyPollInterval = TimeSpan.FromMilliseconds(20) });
 
         var reloader = new DefinitionPolicyReloader(
-            new CancelThenThrowDefinitionStore(cts, new InvalidOperationException("synthetic connection torn down")),
+            new GetDefinitionContractsHandler(
+                new CancelThenThrowSession(cts, new InvalidOperationException("synthetic connection torn down")),
+                null!
+            ),
             options,
             registration,
             context,
@@ -181,32 +191,6 @@ public sealed class LoopTickCancellationFilterTests
         }
     }
 
-    // Cancels the loop's own token from inside the store call, then throws a non-cancellation
-    // exception - the shutdown-window shape RunAsync's catch ordering must swallow.
-    private sealed class CancelThenThrowDefinitionStore(CancellationTokenSource cts, Exception toThrow) : IDefinitionStore
-    {
-        public Task<IReadOnlyList<StoredDefinitionContract>> GetDefinitionContractsAsync(int namespaceId, CancellationToken ct)
-        {
-            cts.Cancel();
-            throw toThrow;
-        }
-
-        public ValueTask<Acta.JobDefinitionDetail?> GetDefinitionAsync(int definitionId, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<DefinitionPage> ListDefinitionsAsync(DefinitionPageRequest request, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<IReadOnlyDictionary<string, int>> RegisterDefinitionsAsync(RegisterDefinitionsCommand command, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<DefinitionOverrideOutcome> SetDefinitionOverridesAsync(SetDefinitionOverridesCommand command, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<DefinitionRetireOutcome> RetireDefinitionAsync(RetireDefinitionCommand command, CancellationToken ct) =>
-            throw new NotSupportedException();
-    }
-
     private sealed class RecordingLogger : ILogger
     {
         private readonly List<Entry> _entries = [];
@@ -244,24 +228,29 @@ public sealed class LoopTickCancellationFilterTests
         public sealed record Entry(LogLevel Level, string Message);
     }
 
-    private sealed class ThrowingDefinitionStore(Exception failure) : IDefinitionStore
+    private sealed class ThrowingSession(Exception failure) : DbSessionStub
     {
-        public Task<IReadOnlyList<StoredDefinitionContract>> GetDefinitionContractsAsync(int namespaceId, CancellationToken ct) =>
-            throw failure;
+        public override Task<T> QueryAsync<T>(
+            string stem,
+            Action<DbCommand> bind,
+            Func<DbDataReader, CancellationToken, Task<T>> read,
+            CancellationToken ct
+        ) => throw failure;
+    }
 
-        public ValueTask<Acta.JobDefinitionDetail?> GetDefinitionAsync(int definitionId, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<DefinitionPage> ListDefinitionsAsync(DefinitionPageRequest request, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<IReadOnlyDictionary<string, int>> RegisterDefinitionsAsync(RegisterDefinitionsCommand command, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<DefinitionOverrideOutcome> SetDefinitionOverridesAsync(SetDefinitionOverridesCommand command, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<DefinitionRetireOutcome> RetireDefinitionAsync(RetireDefinitionCommand command, CancellationToken ct) =>
-            throw new NotSupportedException();
+    // Cancels the loop's own token from inside the read, then throws a non-cancellation exception - the
+    // shutdown-window shape RunAsync's catch ordering must swallow.
+    private sealed class CancelThenThrowSession(CancellationTokenSource cts, Exception toThrow) : DbSessionStub
+    {
+        public override Task<T> QueryAsync<T>(
+            string stem,
+            Action<DbCommand> bind,
+            Func<DbDataReader, CancellationToken, Task<T>> read,
+            CancellationToken ct
+        )
+        {
+            cts.Cancel();
+            throw toThrow;
+        }
     }
 }

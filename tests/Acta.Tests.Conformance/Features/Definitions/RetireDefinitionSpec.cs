@@ -192,15 +192,6 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         var missing = await Operations.Definitions.RetireAsync(TestNamespace, "no-such-job", 0, Reason, ActorKey, ct);
         Assert.Equal(ControlAction.NotFound, missing.Action);
 
-        // The service answers NotFound before the store for an unknown name; an id the catalog never
-        // assigned reaches the verb itself and must answer the same.
-        var actor = new JobControlActor(ActorCode.Operator, ActorKey);
-        var unknownId = await Services
-            .GetRequiredService<IDefinitionStore>()
-            .RetireDefinitionAsync(new RetireDefinitionCommand(int.MaxValue, 0, actor, Reason), ct);
-        Assert.Equal(DefinitionOverrideAction.NotFound, unknownId.Action);
-        Assert.Empty(unknownId.CancelledJobs);
-
         var stale = await Operations.Definitions.RetireAsync(TestNamespace, "add-numbers", 9999, Reason, ActorKey, ct);
         Assert.Equal(ControlAction.Rejected, stale.Action);
 
@@ -257,7 +248,7 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(accepted.JobId, ct)).Status);
     }
 
-    private async Task<DefinitionControlResult> RetireAsync(string jobName, CancellationToken ct)
+    private async Task<RetireJobDefinitionResponse> RetireAsync(string jobName, CancellationToken ct)
     {
         var definition = await Operations.Definitions.GetAsync(TestNamespace, jobName, ct);
         Assert.NotNull(definition);

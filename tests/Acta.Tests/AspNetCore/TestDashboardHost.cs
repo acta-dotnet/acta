@@ -1004,7 +1004,7 @@ internal static class TestDashboardHost
 
         private sealed class FakeDefinitions : IDefinitions
         {
-            public ValueTask<DefinitionControlResult> UpdateOverridesAsync(
+            public ValueTask<SetJobDefinitionOverridesResponse> UpdateOverridesAsync(
                 string jobNamespace,
                 string jobName,
                 int expectedVersion,
@@ -1023,7 +1023,7 @@ internal static class TestDashboardHost
                 // A job name of "missing" has no definition row, and an expectedVersion of 999 is the
                 // stale CAS token - the same two stagings the tenant and namespace fakes answer to.
                 return ValueTask.FromResult(
-                    new DefinitionControlResult(
+                    new SetJobDefinitionOverridesResponse(
                         jobName == "missing" ? ControlAction.NotFound
                         : expectedVersion == 999 ? ControlAction.Rejected
                         : ControlAction.Applied
@@ -1033,7 +1033,7 @@ internal static class TestDashboardHost
 
             // Same two stagings the override write answers to: "missing" has no definition row and
             // expectedVersion 999 is the stale CAS token.
-            public ValueTask<DefinitionControlResult> RetireAsync(
+            public ValueTask<RetireJobDefinitionResponse> RetireAsync(
                 string jobNamespace,
                 string jobName,
                 int expectedVersion,
@@ -1042,7 +1042,7 @@ internal static class TestDashboardHost
                 CancellationToken ct = default
             ) =>
                 ValueTask.FromResult(
-                    new DefinitionControlResult(
+                    new RetireJobDefinitionResponse(
                         jobName == "missing" ? ControlAction.NotFound
                         : expectedVersion == 999 ? ControlAction.Rejected
                         : ControlAction.Applied
@@ -1051,7 +1051,7 @@ internal static class TestDashboardHost
 
             /// <summary>
             /// Only billing/send-invoice exists; every other natural key reads as absent. Mirrors the
-            /// production guard first: DefinitionsService validates the key before it resolves, so a
+            /// production guard first: DefinitionKeyResolution validates the key before it resolves, so a
             /// non-canonical one (uppercase, a wildcard) is an InvalidQueryException the edge maps to 400,
             /// never a miss.
             /// </summary>
@@ -1128,7 +1128,7 @@ internal static class TestDashboardHost
                 );
             }
 
-            // The same shape QueryValidation applies inside DefinitionsService: a lookup-permissive
+            // The same shape QueryValidation applies inside DefinitionKeyResolution: a lookup-permissive
             // kebab namespace and a dotted-kebab name, both rejected rather than folded.
             private static void ValidateKey(string jobNamespace, string jobName)
             {

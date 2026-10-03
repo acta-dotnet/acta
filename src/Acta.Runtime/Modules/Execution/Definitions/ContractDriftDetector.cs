@@ -44,7 +44,7 @@ internal static class ContractDriftDetector
                 continue;
             }
 
-            var incoming = DefinitionsService.ContractOf(descriptor);
+            var incoming = JobDefinitionRegistration.ContractOf(descriptor);
             if (incoming != existing.Contract)
             {
                 drifts.Add(new ContractDrift(descriptor.JobName, existing.Contract, incoming));

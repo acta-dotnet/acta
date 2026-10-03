@@ -75,9 +75,9 @@ internal static class DefinitionControlEndpoints
             .AcceptsJson<SetDefinitionOverridesRequest>()
             // Applied, version-conflict, and not-found carry the same body, so a client reads `action`
             // without special-casing the status code.
-            .Produces<DefinitionControlResult>(StatusCodes.Status200OK)
-            .Produces<DefinitionControlResult>(StatusCodes.Status409Conflict)
-            .Produces<DefinitionControlResult>(StatusCodes.Status404NotFound)
+            .Produces<SetJobDefinitionOverridesResponse>(StatusCodes.Status200OK)
+            .Produces<SetJobDefinitionOverridesResponse>(StatusCodes.Status409Conflict)
+            .Produces<SetJobDefinitionOverridesResponse>(StatusCodes.Status404NotFound)
             // The body is mandatory here, so a non-JSON content type is refused before it is read.
             .ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
 
@@ -129,16 +129,17 @@ internal static class DefinitionControlEndpoints
             )
             .WithSummary("Retire the definition and cancel its parked jobs.")
             .AcceptsJson<RetireDefinitionRequest>()
-            .Produces<DefinitionControlResult>(StatusCodes.Status200OK)
-            .Produces<DefinitionControlResult>(StatusCodes.Status409Conflict)
-            .Produces<DefinitionControlResult>(StatusCodes.Status404NotFound)
+            .Produces<RetireJobDefinitionResponse>(StatusCodes.Status200OK)
+            .Produces<RetireJobDefinitionResponse>(StatusCodes.Status409Conflict)
+            .Produces<RetireJobDefinitionResponse>(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
     }
 
-    private static IResult ToResult(DefinitionControlResult result) =>
+    private static IResult ToResult(IDefinitionControlResponse result) =>
         Results.Json(
             result,
-            DashboardJsonContext.Default.DefinitionControlResult,
+            result.GetType(),
+            DashboardJsonContext.Default,
             statusCode: result.Action switch
             {
                 ControlAction.Applied => StatusCodes.Status200OK,

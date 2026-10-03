@@ -336,7 +336,7 @@ public sealed class ControlContractTests
                 outcome,
                 path,
                 status,
-                typeof(DefinitionControlResult),
+                typeof(SetJobDefinitionOverridesResponse),
                 action,
                 new { expectedVersion, reasonMessage = "because" }
             );
@@ -359,7 +359,7 @@ public sealed class ControlContractTests
                 outcome,
                 path,
                 status,
-                typeof(DefinitionControlResult),
+                typeof(RetireJobDefinitionResponse),
                 action,
                 new { expectedVersion, reasonMessage = "because" }
             );

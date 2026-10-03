@@ -1,36 +1,31 @@
 using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
-using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Acta.Tests.Conformance.Features.Definitions;
 
 /// <summary>
-/// Conformance for <c>GetJobDefinition</c>: a single fully-projected <c>definitions</c> row read by
-/// surrogate id (the same projection/mapper as the definitions list), and <c>null</c> for an unknown id.
+/// Conformance for <c>GetJobDefinition</c>: a single fully-projected <c>definitions</c> row read by its
+/// natural key (namespace and name), and <c>null</c> for a name no definition carries.
 /// </summary>
 [ConformanceSpec(
-    "get-job-definition.by-id",
-    "GetJobDefinition returns one definition by id and null for an unknown id",
+    "get-job-definition.by-key",
+    "GetJobDefinition returns one definition by name and null for an unknown name",
     Area = "Reads",
-    Contract = "GetJobDefinition returns the fully-projected definitions row matching the supplied id and null when no row matches."
+    Contract = "GetJobDefinition returns the fully-projected definitions row for the supplied namespace and name, and null when none matches."
 )]
 public sealed class GetJobDefinitionSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
-    [Fact(DisplayName = "A known id returns the matching definition row")]
-    public async Task Returns_definition_for_known_id()
+    [Fact(DisplayName = "A known name returns the matching definition row")]
+    public async Task Returns_definition_for_known_name()
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var page_all = await Services
-            .GetRequiredService<IDefinitionStore>()
-            .ListDefinitionsAsync(new DefinitionPageRequest(TestNamespace, null, null, null, null, null, 1, false), ct);
-        var (all, _) = (page_all.Rows, page_all.Total);
-        Assert.NotEmpty(all);
-        var expected = all[0];
+        var page = await Operations.Definitions.ListAsync(new ListDefinitionsQuery(TestNamespace, PageSize: 1), ct);
+        var expected = Assert.Single(page.Items);
 
-        var def = await Services.GetRequiredService<IDefinitionStore>().GetDefinitionAsync(expected.DefinitionId, ct);
+        var def = await Operations.Definitions.GetAsync(expected.JobNamespace, expected.JobName, ct);
 
         Assert.NotNull(def);
         Assert.Equal(expected.DefinitionId, def!.DefinitionId);
@@ -41,12 +36,12 @@ public sealed class GetJobDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.False(string.IsNullOrEmpty(def.DefinitionHash));
     }
 
-    [Fact(DisplayName = "An unknown id returns null")]
-    public async Task Returns_null_for_unknown_id()
+    [Fact(DisplayName = "An unknown name returns null")]
+    public async Task Returns_null_for_unknown_name()
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var def = await Services.GetRequiredService<IDefinitionStore>().GetDefinitionAsync(int.MaxValue, ct);
+        var def = await Operations.Definitions.GetAsync(TestNamespace, "no-such-job", ct);
 
         Assert.Null(def);
     }
@@ -56,22 +51,18 @@ public sealed class GetJobDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var page_all = await Services
-            .GetRequiredService<IDefinitionStore>()
-            .ListDefinitionsAsync(new DefinitionPageRequest(TestNamespace, null, null, null, null, null, 1, false), ct);
-        var (all, _) = (page_all.Rows, page_all.Total);
-        Assert.NotEmpty(all);
-        var definitionId = all[0].DefinitionId;
+        var page = await Operations.Definitions.ListAsync(new ListDefinitionsQuery(TestNamespace, PageSize: 1), ct);
+        var definition = Assert.Single(page.Items);
 
-        var before = await Services.GetRequiredService<IDefinitionStore>().GetDefinitionAsync(definitionId, ct);
+        var before = await Operations.Definitions.GetAsync(definition.JobNamespace, definition.JobName, ct);
         Assert.NotNull(before);
 
         const string displayName = "Renamed By Operator";
         const string description = "Operator description.";
         await DefinitionTestOps.UpdateOverridesAsync(
             Services,
-            all[0].JobNamespace,
-            all[0].JobName,
+            definition.JobNamespace,
+            definition.JobName,
             before!.Version,
             new JobDefinitionPolicyOverrides(DisplayName: displayName, Description: description),
             new JobControlActor(ActorCode.Operator, "tester"),
@@ -81,7 +72,7 @@ public sealed class GetJobDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
 
         // The dashboard save/reload cycle reads back through this exact projection - if it omitted
         // these two columns, a save would look applied but the reload would show them as unset.
-        var after = await Services.GetRequiredService<IDefinitionStore>().GetDefinitionAsync(definitionId, ct);
+        var after = await Operations.Definitions.GetAsync(definition.JobNamespace, definition.JobName, ct);
 
         Assert.NotNull(after);
         Assert.Equal(displayName, after!.DisplayNameOverride);

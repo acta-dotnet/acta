@@ -238,7 +238,8 @@ public sealed class SetJobDefinitionOverridesSpec : ActaStorageTestBase<Conforma
         var before = await ReadAsync(name, ct);
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
-            new DefinitionsApi(Services.GetRequiredService<DefinitionsService>())
+            Services
+                .GetRequiredService<IDefinitions>()
                 .UpdateOverridesAsync(
                     TestNamespace,
                     name,
@@ -249,8 +250,8 @@ public sealed class SetJobDefinitionOverridesSpec : ActaStorageTestBase<Conforma
                         DeadlineSeconds: deadlineSeconds,
                         JobRetentionSeconds: jobRetentionSeconds
                     ),
-                    Actor.ActorKey,
                     "out of range",
+                    Actor.ActorKey,
                     ct
                 )
                 .AsTask()
@@ -268,15 +269,17 @@ public sealed class SetJobDefinitionOverridesSpec : ActaStorageTestBase<Conforma
         await RegisterAsync(name, 3, ct);
         var before = await ReadAsync(name, ct);
 
-        var result = await new DefinitionsApi(Services.GetRequiredService<DefinitionsService>()).UpdateOverridesAsync(
-            TestNamespace,
-            name,
-            before.Version,
-            new JobDefinitionPolicyOverrides(MaxAttempts: 1, DeadlineSeconds: 0, JobRetentionSeconds: 0),
-            Actor.ActorKey,
-            "boundary",
-            ct
-        );
+        var result = await Services
+            .GetRequiredService<IDefinitions>()
+            .UpdateOverridesAsync(
+                TestNamespace,
+                name,
+                before.Version,
+                new JobDefinitionPolicyOverrides(MaxAttempts: 1, DeadlineSeconds: 0, JobRetentionSeconds: 0),
+                "boundary",
+                Actor.ActorKey,
+                ct
+            );
 
         Assert.Equal(ControlAction.Applied, result.Action);
     }

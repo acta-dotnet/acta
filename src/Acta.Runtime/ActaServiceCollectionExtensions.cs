@@ -67,7 +67,6 @@ public static class ActaServiceCollectionExtensions
         // themselves (e.g. IOverviewStore); the composite grows one property per migrated feature.
         services.TryAddSingleton<OverviewService>();
         services.TryAddSingleton<EventsService>();
-        services.TryAddSingleton<DefinitionsService>();
         services.TryAddSingleton<TenantKeyCache>();
         services.TryAddSingleton<JobsService>();
         services.TryAddSingleton<SignalService>();
@@ -76,7 +75,6 @@ public static class ActaServiceCollectionExtensions
         // alone; dashboards, CLIs, and operator hosts inject IActaOperations. Each domain facade is
         // registered here (the composition root may see every module) but owned by its module.
         services.TryAddSingleton<ISchedules, SchedulesApi>();
-        services.TryAddSingleton<IDefinitions, DefinitionsApi>();
         services.TryAddSingleton<IAlerts, AlertsApi>();
         services.TryAddSingleton<IOutbox, OutboxApi>();
         services.TryAddSingleton<IActaOperations, OperationsApi>();
@@ -123,6 +121,14 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<GetWorkerHandler>();
         services.TryAddSingleton<ListWorkersHandler>();
         services.TryAddSingleton<IWorkers, Workers>();
+        services.TryAddSingleton<GetDefinitionContractsHandler>();
+        services.TryAddSingleton<RegisterJobDefinitionsHandler>();
+        services.TryAddSingleton<DefinitionKeyResolution>();
+        services.TryAddSingleton<GetJobDefinitionHandler>();
+        services.TryAddSingleton<ListJobDefinitionsHandler>();
+        services.TryAddSingleton<SetJobDefinitionOverridesHandler>();
+        services.TryAddSingleton<RetireJobDefinitionHandler>();
+        services.TryAddSingleton<IDefinitions, Definitions>();
 
         // Consumers light up the meter with WithMetrics(m => m.AddMeter(JobMetrics.MeterName)).
         services.TryAddSingleton<JobMetrics>();

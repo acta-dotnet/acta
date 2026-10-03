@@ -4,10 +4,6 @@ AlertListItem
 CheckpointValue
 JobCheckpointItem
 JobCheckpointResponse
-JobDefinitionDetail
-JobDefinitionDetailRow
-JobDefinitionListItem
-JobDefinitionListRow
 JobDetail
 JobLineageChild
 JobLineageJob

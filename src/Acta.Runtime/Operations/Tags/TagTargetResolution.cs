@@ -6,7 +6,7 @@ namespace Acta.Runtime;
 /// group's read; an entity that does not exist resolves to null, which the tag operations report as
 /// NotFound.
 /// </summary>
-internal sealed class TagTargetResolution(JobsService jobs, IDefinitions definitions, IWorkers workers, IAlerts alerts)
+internal sealed class TagTargetResolution(JobsService jobs, DefinitionKeyResolution definitionKeys, IWorkers workers, IAlerts alerts)
 {
     public async ValueTask<ResolvedTagTarget?> ResolveAsync(TagTarget target, CancellationToken ct)
     {
@@ -22,8 +22,8 @@ internal sealed class TagTargetResolution(JobsService jobs, IDefinitions definit
             case TagScopeCode.Definition:
             {
                 var (jobNamespace, jobName) = ((string, string))target.Lookup;
-                var definition = await definitions.GetAsync(jobNamespace, jobName, ct);
-                return definition is null ? null : new ResolvedTagTarget(TagScopeCode.Definition, definition.DefinitionId, null);
+                var definitionId = await definitionKeys.ResolveAsync(jobNamespace, jobName, ct);
+                return definitionId is null ? null : new ResolvedTagTarget(TagScopeCode.Definition, definitionId, null);
             }
 
             case TagScopeCode.Worker:

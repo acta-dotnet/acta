@@ -1559,7 +1559,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DefinitionControlResult"
+                  "$ref": "#/components/schemas/SetJobDefinitionOverridesResponse"
                 }
               }
             }
@@ -1569,7 +1569,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DefinitionControlResult"
+                  "$ref": "#/components/schemas/SetJobDefinitionOverridesResponse"
                 }
               }
             }
@@ -1579,7 +1579,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DefinitionControlResult"
+                  "$ref": "#/components/schemas/SetJobDefinitionOverridesResponse"
                 }
               }
             }
@@ -1773,7 +1773,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DefinitionControlResult"
+                  "$ref": "#/components/schemas/RetireJobDefinitionResponse"
                 }
               }
             }
@@ -1783,7 +1783,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DefinitionControlResult"
+                  "$ref": "#/components/schemas/RetireJobDefinitionResponse"
                 }
               }
             }
@@ -1793,7 +1793,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DefinitionControlResult"
+                  "$ref": "#/components/schemas/RetireJobDefinitionResponse"
                 }
               }
             }
@@ -8362,19 +8362,6 @@
       "DeadlineBehaviorCode": {
         "description": "How the engine treats a job that has passed its deadline."
       },
-      "DefinitionControlResult": {
-        "required": [
-          "action"
-        ],
-        "type": "object",
-        "properties": {
-          "action": {
-            "description": "Whether the override write was applied, rejected (version conflict), or the definition was absent.",
-            "$ref": "#/components/schemas/ControlAction"
-          }
-        },
-        "description": "Outcome of an ValueTask&lt;DefinitionControlResult&gt; IDefinitions.UpdateOverridesAsync(string jobNamespace, string jobName, int expectedVersion, JobDefinitionPolicyOverrides overrides, string? reasonMessage = null, string? actorKey = null, CancellationToken ct = default(CancellationToken)) call: whether the override set was\napplied, the definition was absent, or the supplied version was stale (rejected). Reuses\nControlAction so the dashboard maps it the same way as the job/schedule verbs\n(Applied -&gt; 200, Rejected -&gt; 409, NotFound -&gt; 404)."
-      },
       "EventCode": {
         "description": "Stable family-local event identifiers. Nearby values improve catalog readability but carry no\nruntime subject, subgroup, or outcome semantics. Match events by enum member or textual code."
       },
@@ -11348,6 +11335,18 @@
           }
         }
       },
+      "RetireJobDefinitionResponse": {
+        "required": [
+          "action"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ControlAction"
+          }
+        },
+        "description": "What retiring a definition did."
+      },
       "ScheduleControlResult": {
         "required": [
           "action",
@@ -11589,6 +11588,18 @@
             ]
           }
         }
+      },
+      "SetJobDefinitionOverridesResponse": {
+        "required": [
+          "action"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ControlAction"
+          }
+        },
+        "description": "What setting a definition's policy overrides did."
       },
       "SetScheduleOverridesRequest": {
         "type": "object",

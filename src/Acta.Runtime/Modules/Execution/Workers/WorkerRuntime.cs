@@ -73,8 +73,8 @@ internal sealed class WorkerRuntime
         }
 
         _initializer = new WorkerRuntimeInitializer(
-            rootServices.GetRequiredService<DefinitionsService>(),
-            rootServices.GetRequiredService<IDefinitionStore>(),
+            rootServices.GetRequiredService<RegisterJobDefinitionsHandler>(),
+            rootServices.GetRequiredService<GetDefinitionContractsHandler>(),
             rootServices.GetRequiredService<IScheduleStore>(),
             rootServices.GetRequiredService<IWorkerLifecycle>(),
             rootServices.GetRequiredService<IExecutionStore>(),
@@ -137,7 +137,7 @@ internal sealed class WorkerRuntime
             (namespaceName, slotJobId, token) => _executor.RunOnceAsync(namespaceName, slotJobId, token)
         );
         _policyReloader = new DefinitionPolicyReloader(
-            rootServices.GetRequiredService<IDefinitionStore>(),
+            rootServices.GetRequiredService<GetDefinitionContractsHandler>(),
             options,
             workerRegistration,
             _context,

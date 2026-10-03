@@ -5,7 +5,7 @@ using Xunit;
 namespace Acta.Tests.Runtime;
 
 /// <summary>
-/// Registration-time bounds in <see cref="DefinitionsService"/>: a code-declared ExecutionTimeout past
+/// Registration-time bounds in <see cref="RegisterJobDefinitionsHandler"/>: a code-declared ExecutionTimeout past
 /// CancelAfter's ceiling, a ConcurrencyLimit outside 1..1024, a malformed RateLimit or RateKey, two
 /// definitions disagreeing about the rate on a shared key, a non-ASCII or over-length RunbookUrl,
 /// or over-length display text fails worker init with a named error, the same contract the operator
@@ -43,11 +43,8 @@ public sealed class DefinitionRegistrationValidationTests
     private static Task RegisterAsync(params JobDescriptor[] descriptors) => RegisterAsync([.. descriptors], []);
 
     private static Task RegisterAsync(JobDescriptor[] descriptors, StoredDefinitionContract[] stored) =>
-        new DefinitionsService(new RejectingDefinitionStore(), null!, null!).RegisterAsync(
-            1,
-            Gen,
-            [.. descriptors],
-            stored,
+        new RegisterJobDefinitionsHandler(new DbSessionStub(), null!).HandleAsync(
+            new RegisterJobDefinitionsCommand(1, Gen, [.. descriptors], stored),
             TestContext.Current.CancellationToken
         );
 
@@ -298,28 +295,7 @@ public sealed class DefinitionRegistrationValidationTests
             Description = new string('x', ActaTextLimits.DefinitionDescription),
         };
 
-        // The store fake rejects every call, so reaching it is the proof that the row was built.
+        // The session stub rejects every call, so reaching it is the proof that the row was built.
         await Assert.ThrowsAsync<NotSupportedException>(() => RegisterAsync(descriptor));
-    }
-
-    private sealed class RejectingDefinitionStore : IDefinitionStore
-    {
-        public Task<DefinitionPage> ListDefinitionsAsync(DefinitionPageRequest request, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<DefinitionOverrideOutcome> SetDefinitionOverridesAsync(SetDefinitionOverridesCommand command, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<DefinitionRetireOutcome> RetireDefinitionAsync(RetireDefinitionCommand command, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public ValueTask<JobDefinitionDetail?> GetDefinitionAsync(int definitionId, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<IReadOnlyList<StoredDefinitionContract>> GetDefinitionContractsAsync(int namespaceId, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<IReadOnlyDictionary<string, int>> RegisterDefinitionsAsync(RegisterDefinitionsCommand command, CancellationToken ct) =>
-            throw new NotSupportedException();
     }
 }

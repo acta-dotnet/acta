@@ -13,14 +13,14 @@ namespace Acta.Runtime;
 /// to a no-op in enqueue-only mode.
 /// </summary>
 internal sealed class DefinitionPolicyReloader(
-    IDefinitionStore store,
+    GetDefinitionContractsHandler getDefinitionContracts,
     IOptions<JobsOptions> options,
     WorkerRegistration? workerRegistration,
     WorkerContext context,
     ILogger log
 )
 {
-    private readonly IDefinitionStore _store = store;
+    private readonly GetDefinitionContractsHandler _getDefinitionContracts = getDefinitionContracts;
     private readonly WorkerRegistration? _workerRegistration = workerRegistration;
     private readonly WorkerContext _context = context;
     private readonly TimeSpan _interval = options.Value.SafetyPollInterval;
@@ -79,7 +79,7 @@ internal sealed class DefinitionPolicyReloader(
             return;
         }
 
-        var catalog = await _store.GetDefinitionContractsAsync(namespaceId, ct);
+        var catalog = await _getDefinitionContracts.HandleAsync(new GetDefinitionContractsQuery(namespaceId), ct);
         foreach (var c in catalog)
         {
             if (_context.DescriptorByDefinitionId.TryGetValue(c.Id, out var descriptor))

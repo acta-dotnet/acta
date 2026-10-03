@@ -45,9 +45,7 @@ public sealed class GetJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
         Assert.Equal(TestNamespace, snapshot.JobNamespace);
         Assert.Equal("add-numbers", snapshot.JobName);
         // The job's namespace+name pair addresses the catalog row its definition id points at.
-        var definition = await Services
-            .GetRequiredService<Acta.Runtime.DefinitionsService>()
-            .GetAsync(snapshot.JobNamespace, snapshot.JobName, ct);
+        var definition = await Services.GetRequiredService<IDefinitions>().GetAsync(snapshot.JobNamespace, snapshot.JobName, ct);
         Assert.NotNull(definition);
         Assert.Equal("add-numbers", definition!.JobName);
         Assert.Equal(TestNamespace, definition.JobNamespace);
