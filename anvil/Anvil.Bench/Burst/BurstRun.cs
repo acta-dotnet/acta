@@ -140,13 +140,16 @@ internal sealed class BurstRun(BurstHost host, BurstDb db, BurstOptions options)
         );
     }
 
+    // The projector walks (created_at_utc, id) and, once caught up, moves its cursor's instant up to the safe
+    // horizon, so only events past the cursor are restamped, and never behind its instant: 30 minutes back
+    // before the first pass, just after the cursor's instant from then on. Either way the next read takes them.
     private async Task AgeEventsAsync(CancellationToken ct)
     {
-        var aged = await db.AgeEventsAsync(_namespaceId, BurstBounds.HorizonBackdate, ct);
-        Phase(
-            "HORIZON",
-            $"aged {Num(aged)} events back {BurstBounds.HorizonBackdate.TotalMinutes:F0} min, past the projection read's safe horizon"
-        );
+        var (cursorUtc, cursorId) = await ProjectorCursorAsync(ct);
+        var backdated = DateTime.UtcNow - BurstBounds.HorizonBackdate;
+        var at = cursorUtc.AddMilliseconds(1) > backdated ? cursorUtc.AddMilliseconds(1) : backdated;
+        var aged = await db.AgeEventsAsync(_namespaceId, cursorId, at, ct);
+        Phase("HORIZON", $"aged {Num(aged)} events past cursor {cursorId} to {at:HH:mm:ss}, behind the projection read's safe horizon");
     }
 
     // ---- phase 2: the drain ---------------------------------------------------------------------------
@@ -541,11 +544,13 @@ internal sealed class BurstRun(BurstHost host, BurstDb db, BurstOptions options)
 
     // ---- reads ---------------------------------------------------------------------------------------
 
+    private async Task<long> CursorAsync(CancellationToken ct) => (await ProjectorCursorAsync(ct)).EventId;
+
     /// <summary>
     /// The projector's cursor, read the way the read surface exposes it: the <c>sys.alerts</c> slot's own
-    /// durable variable. Zero before the first checkpoint.
+    /// durable variable, <c>{"ticks": ..., "eventId": ...}</c>. Zero before the first checkpoint.
     /// </summary>
-    private async Task<long> CursorAsync(CancellationToken ct)
+    private async Task<(DateTime Utc, long EventId)> ProjectorCursorAsync(CancellationToken ct)
     {
         var checkpoints = await host.Jobs.GetCheckpointsAsync(
             JobLookup.ByDeduplicationKey(options.Namespace, BurstBounds.AlertsJobName),
@@ -555,12 +560,14 @@ internal sealed class BurstRun(BurstHost host, BurstDb db, BurstOptions options)
         {
             if (string.Equals(slot.Name, BurstBounds.CursorVariableName, StringComparison.Ordinal) && slot.Value is { IsNone: false } value)
             {
-                // The cursor is {"ticks": ..., "eventId": ...}; the event id is the watermark the counts are taken against.
                 using var cursor = JsonDocument.Parse(value.Data);
-                return cursor.RootElement.GetProperty("eventId").GetInt64();
+                return (
+                    new DateTime(cursor.RootElement.GetProperty("ticks").GetInt64(), DateTimeKind.Utc),
+                    cursor.RootElement.GetProperty("eventId").GetInt64()
+                );
             }
         }
-        return 0;
+        return (DateTime.MinValue, 0);
     }
 
     private async Task<JobListItem> SlotAsync(string jobName, CancellationToken ct)

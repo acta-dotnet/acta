@@ -120,16 +120,18 @@ internal sealed class BurstDb(string provider, string schema)
     }
 
     /// <summary>
-    /// Backdates every event in the namespace by <paramref name="age"/> so the projection read's safe
-    /// horizon admits them all. Returns the rows aged.
+    /// Restamps the namespace's events after <paramref name="afterEventId"/> at <paramref name="at"/>, so the
+    /// projection read's safe horizon admits them. Returns the rows aged.
     /// </summary>
-    public async Task<int> AgeEventsAsync(int namespaceId, TimeSpan age, CancellationToken ct)
+    public async Task<int> AgeEventsAsync(int namespaceId, long afterEventId, DateTime at, CancellationToken ct)
     {
         await using var connection = await OpenAsync(ct);
         await using var command = connection.CreateCommand();
-        command.CommandText = $"UPDATE {_prefix}events SET created_at_utc = @p_created_at_utc WHERE namespace_id = @p_namespace_id";
-        AddInstant(command, "@p_created_at_utc", DateTime.UtcNow - age);
+        command.CommandText =
+            $"UPDATE {_prefix}events SET created_at_utc = @p_created_at_utc WHERE namespace_id = @p_namespace_id AND id > @p_after_event_id";
+        AddInstant(command, "@p_created_at_utc", at);
         AddInt64(command, "@p_namespace_id", namespaceId);
+        AddInt64(command, "@p_after_event_id", afterEventId);
         return await command.ExecuteNonQueryAsync(ct);
     }
 
