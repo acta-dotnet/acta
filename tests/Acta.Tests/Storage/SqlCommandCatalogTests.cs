@@ -1,40 +1,41 @@
-using System.Reflection;
+using System.Text.Json;
 using Acta.Postgres;
 using Acta.Runtime;
 using Acta.Sqlite;
 using Acta.SqlServer;
+using Acta.Tests.Conformance.Sql;
 using Xunit;
 
 namespace Acta.Tests.Storage;
 
 public sealed class SqlCommandCatalogTests
 {
-    [Fact]
-    public void Server_ledgers_have_matching_routines_and_sqlite_uses_inline_commands()
+    [Theory]
+    [InlineData("pg", typeof(PostgresProviderOptions))]
+    [InlineData("mssql", typeof(SqlServerProviderOptions))]
+    public void Server_ledgers_install_their_routines_and_sqlite_runs_the_same_commands_inline(string dialect, Type provider)
     {
-        Assembly[] servers = [typeof(PostgresProviderOptions).Assembly, typeof(SqlServerProviderOptions).Assembly];
+        var catalog = new SqlResourceCatalog(provider.Assembly, "acta");
         var sqlite = new SqlResourceCatalog(typeof(SqliteProviderOptions).Assembly, "acta");
-        Assert.Empty(sqlite.Routines());
-        foreach (var assembly in servers)
-        {
-            var catalog = new SqlResourceCatalog(assembly, "acta");
-            var routines = catalog.Routines().ToList();
-            Assert.Equal(58, routines.Count);
-            foreach (var resource in assembly.GetManifestResourceNames().Where(n => n.EndsWith(".routine.sql", StringComparison.Ordinal)))
-            {
-                var name = resource[..^".routine.sql".Length];
-                var command = new StoreCommand(name[(name.LastIndexOf('.') + 1)..]);
-                Assert.Equal(StoreExecutionKind.Routine, catalog.Resolve(command));
-                Assert.Equal(StoreExecutionKind.Inline, sqlite.Resolve(command));
-                Assert.NotEmpty(sqlite.Load(command.Operation));
-            }
-            Assert.Equal(StoreExecutionKind.Inline, catalog.Resolve(new StoreCommand("ClaimOutbox")));
-            Assert.NotEmpty(catalog.Views());
-        }
+        var routines = ProviderSqlResources
+            .Enumerate(dialect)
+            .Where(r => SqlResourceCatalog.DefinesRoutine(r.Sql))
+            .Select(r => ProviderSqlResources.Stem(r.LogicalPath))
+            .ToList();
+
+        Assert.Equal(58, routines.Count);
         Assert.Equal(
-            new SqlResourceCatalog(servers[0], "acta").Routines().Select(r => r.Name),
-            new SqlResourceCatalog(servers[1], "acta").Routines().Select(r => r.Name)
+            routines.Select(JsonNamingPolicy.SnakeCaseLower.ConvertName).Order(StringComparer.Ordinal),
+            catalog.Routines().Select(r => r.Name)
         );
+        foreach (var stem in routines)
+        {
+            Assert.Equal(StoreExecutionKind.Routine, catalog.Resolve(new StoreCommand(stem)));
+            Assert.Equal(StoreExecutionKind.Inline, sqlite.Resolve(new StoreCommand(stem)));
+        }
+        Assert.Equal(StoreExecutionKind.Inline, catalog.Resolve(new StoreCommand("ClaimOutbox")));
+        Assert.NotEmpty(catalog.Views());
+        Assert.Empty(sqlite.Routines());
     }
 
     [Fact]
@@ -44,4 +45,12 @@ public sealed class SqlCommandCatalogTests
         var error = Assert.Throws<InvalidOperationException>(() => catalog.Resolve(new StoreCommand("Missing")));
         Assert.Contains("embeds no SQL for 'Missing'", error.Message);
     }
+
+    [Theory]
+    [InlineData("-- leading note\nCREATE OR REPLACE FUNCTION {{schema}}.f() RETURNS void AS $$ $$ LANGUAGE sql;", true)]
+    [InlineData("/* a block\n   comment */\r\ncreate or alter procedure {{schema}}.p AS SELECT 1;", true)]
+    [InlineData("SELECT 1; -- CREATE OR REPLACE FUNCTION in a trailing comment", false)]
+    [InlineData("-- CREATE OR REPLACE FUNCTION only in a comment\nSELECT 1;", false)]
+    public void A_routine_is_a_file_whose_first_statement_creates_one(string sql, bool routine) =>
+        Assert.Equal(routine, SqlResourceCatalog.DefinesRoutine(sql));
 }

@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Reflection;
+using System.Text.Json;
 
 namespace Acta.Runtime;
 
@@ -20,6 +21,7 @@ internal sealed class SqlResourceCatalog
     private readonly string? _table;
     private readonly Dictionary<string, string> _resources = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, string> _rendered = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, StoreExecutionKind> _kinds = new(StringComparer.Ordinal);
 
     public SqlResourceCatalog(Assembly assembly, string? schema, string? table = null)
     {
@@ -52,45 +54,66 @@ internal sealed class SqlResourceCatalog
     /// <summary>Rendered SQL for a stem such as <c>GetOverview</c>.</summary>
     public string Load(string stem) => Render(Resource(stem));
 
-    /// <summary>Each command has exactly one provider-owned form; no provider-wide fallback.</summary>
+    /// <summary>A command runs as the routine its file defines, or as the file's text when it defines none.</summary>
     public StoreExecutionKind Resolve(StoreCommand command) =>
-        Resource(command.Operation).EndsWith(".routine.sql", StringComparison.Ordinal)
-            ? StoreExecutionKind.Routine
-            : StoreExecutionKind.Inline;
+        _kinds.GetOrAdd(command.Operation, stem => DefinesRoutine(Load(stem)) ? StoreExecutionKind.Routine : StoreExecutionKind.Inline);
 
     /// <summary>
-    /// The provider's feature-local routine bodies (<c>*.routine.sql</c>), each paired with its
-    /// snake_case routine name, for installation after migrations. Empty for inline-only providers.
+    /// The provider's routine bodies, each paired with its snake_case routine name, for installation
+    /// after migrations in name order. Empty for inline-only providers.
     /// </summary>
-    public IEnumerable<(string Name, string Body)> Routines()
-    {
-        var routines = _resources
-            .Where(r => r.Value.EndsWith(".routine.sql", StringComparison.Ordinal))
-            .OrderBy(r => r.Value, StringComparer.Ordinal);
-        foreach (var (stem, resource) in routines)
-        {
-            yield return (System.Text.Json.JsonNamingPolicy.SnakeCaseLower.ConvertName(stem), Render(resource));
-        }
-    }
+    public IEnumerable<(string Name, string Body)> Routines() =>
+        Installed(_resources.Keys.Where(stem => !IsView(stem) && Resolve(new StoreCommand(stem)) == StoreExecutionKind.Routine));
 
     /// <summary>
-    /// The provider's operator-view SELECT bodies (<c>*.view.sql</c>), each paired with the
-    /// snake_case database view name. Schema installation owns the provider-specific CREATE/DROP
-    /// wrapper; the provider resource owns the executable SELECT body.
+    /// The provider's operator-view SELECT bodies, each paired with the snake_case view name, in name
+    /// order. Schema installation owns the provider-specific CREATE/DROP wrapper; the file owns the
+    /// SELECT body.
     /// </summary>
-    public IEnumerable<(string Name, string Body)> Views()
+    public IEnumerable<(string Name, string Body)> Views() => Installed(_resources.Keys.Where(IsView));
+
+    /// <summary>A file whose stem ends in <c>View</c> is an operator view body, installed as <c>x_view</c>.</summary>
+    internal static bool IsView(string stem) => stem.EndsWith("View", StringComparison.Ordinal);
+
+    /// <summary>
+    /// True when the first statement, after comments, creates a routine: <c>CREATE OR REPLACE FUNCTION</c>
+    /// on PostgreSQL, <c>CREATE OR ALTER PROCEDURE</c> on SQL Server. Any other file is inline SQL.
+    /// </summary>
+    internal static bool DefinesRoutine(string sql)
     {
-        var views = _resources
-            .Where(r => r.Value.EndsWith(".view.sql", StringComparison.Ordinal))
-            .OrderBy(r => r.Value, StringComparer.Ordinal);
-        foreach (var (stem, resource) in views)
+        var at = 0;
+        while (at < sql.Length)
         {
-            var name = System.Text.Json.JsonNamingPolicy.SnakeCaseLower.ConvertName(stem);
-            yield return !name.EndsWith("_view", StringComparison.Ordinal)
-                ? throw new InvalidOperationException($"Provider view resource '{resource}' must install as a plural '_view' name.")
-                : ((string Name, string Body))(name, Render(resource));
+            if (char.IsWhiteSpace(sql[at]))
+            {
+                at++;
+            }
+            else if (string.CompareOrdinal(sql, at, "--", 0, 2) == 0)
+            {
+                var end = sql.IndexOf('\n', at);
+                at = end < 0 ? sql.Length : end + 1;
+            }
+            else if (string.CompareOrdinal(sql, at, "/*", 0, 2) == 0)
+            {
+                var end = sql.IndexOf("*/", at + 2, StringComparison.Ordinal);
+                at = end < 0 ? sql.Length : end + 2;
+            }
+            else
+            {
+                var rest = sql.AsSpan(at);
+                return rest.StartsWith("CREATE OR REPLACE FUNCTION", StringComparison.OrdinalIgnoreCase)
+                    || rest.StartsWith("CREATE OR ALTER PROCEDURE", StringComparison.OrdinalIgnoreCase);
+            }
         }
+
+        return false;
     }
+
+    private IEnumerable<(string Name, string Body)> Installed(IEnumerable<string> stems) =>
+        stems
+            .Select(stem => (Name: JsonNamingPolicy.SnakeCaseLower.ConvertName(stem), Stem: stem))
+            .OrderBy(o => o.Name, StringComparer.Ordinal)
+            .Select(o => (o.Name, Load(o.Stem)));
 
     private string Resource(string stem) =>
         _resources.TryGetValue(stem, out var resource)

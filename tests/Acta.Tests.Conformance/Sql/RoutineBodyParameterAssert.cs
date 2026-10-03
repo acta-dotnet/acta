@@ -25,13 +25,13 @@ public static partial class RoutineBodyParameterAssert
     {
         if (dialectToken != "mssql" && dialectToken != "pg")
         {
-            return; // sqlite is inline-only: SqlResolver never resolves a ".routine.sql" body for it
+            return; // sqlite is inline-only: none of its files defines a routine
         }
 
         var failures = new List<string>();
         foreach (var (logicalPath, rawSql) in ProviderSqlResources.Enumerate(dialectToken))
         {
-            if (!logicalPath.EndsWith(".routine.sql", StringComparison.Ordinal))
+            if (!SqlResourceCatalog.DefinesRoutine(rawSql))
             {
                 continue;
             }

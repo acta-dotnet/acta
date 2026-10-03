@@ -218,18 +218,15 @@ internal static class ProvisionScriptEmitter
             Append($"-- ===== END {name} =====");
         }
 
-        // Views before routines, each set in resource-name order, mirroring SqlObjectInstaller.
+        // Views before routines, each set in name order, mirroring SqlObjectInstaller.
         Append("-- ===== operator views (versionless; always rewritten to this file's definitions) =====");
-        foreach (var (name, body) in SqlObjects(providerDir, ".view.sql"))
+        var views = Views(providerDir).ToArray();
+        foreach (var (name, body) in views)
         {
-            if (!name.EndsWith("_view", StringComparison.Ordinal))
-            {
-                throw new InvalidOperationException($"Provider view '{name}' must install as a plural '_view' name.");
-            }
             var statements = SqlObjectInstaller.WrapView(token, $"{schema}.{name}", Render(body).Trim());
             Append(string.Join("\n", statements.Select(s => s.Body)));
         }
-        var routines = SqlObjects(providerDir, ".routine.sql").ToArray();
+        var routines = Routines(providerDir).ToArray();
         if (routines.Length > 0)
         {
             Append("-- ===== routines (versionless; always rewritten to this file's definitions) =====");
@@ -244,7 +241,7 @@ internal static class ProvisionScriptEmitter
         // startup check exists for. The stamp names every object above and is written only when all of
         // them exist, so a client that ran on past a failed batch leaves no stamp rather than a false one.
         Append("-- ===== installed object package (names the versionless objects above; recorded only when all exist) =====");
-        var installed = SqlObjects(providerDir, ".view.sql").Concat(routines).Select(o => o.Name).ToList();
+        var installed = views.Concat(routines).Select(o => o.Name).ToList();
         Append(string.Join("\n", SqlObjectInstaller.StampStatements(schema, token, installed)));
 
         Append(mssql ? "COMMIT TRANSACTION;" : "COMMIT;");
@@ -350,17 +347,22 @@ internal static class ProvisionScriptEmitter
         string.Join("\n", text.Split('\n').Select(line => new string(' ', spaces) + line));
 
     /// <summary>
-    /// The objects one provider installs, in the order the installer applies them: views first, then
-    /// routines, each set in resource-name order, named the way the installer names them. Shared with
-    /// the object-package hash, which is only meaningful if it covers exactly this set in exactly this
-    /// order.
+    /// The operator views one provider installs, in name order, named the way the installer names them.
+    /// Together with <see cref="Routines"/>, shared with the object-package hash, which is only
+    /// meaningful if it covers exactly the installed set in exactly the installer's order.
     /// </summary>
-    internal static IEnumerable<(string Name, string Body)> SqlObjects(string providerDir, string suffix) =>
+    internal static IEnumerable<(string Name, string Body)> Views(string providerDir) =>
+        Installed(SqlFiles(providerDir).Where(f => SqlResourceCatalog.IsView(f.Stem)));
+
+    /// <summary>The routines one provider installs, in name order: every file whose header creates one.</summary>
+    internal static IEnumerable<(string Name, string Body)> Routines(string providerDir) =>
+        Installed(SqlFiles(providerDir).Where(f => !SqlResourceCatalog.IsView(f.Stem) && SqlResourceCatalog.DefinesRoutine(f.Body)));
+
+    private static IEnumerable<(string Stem, string Body)> SqlFiles(string providerDir) =>
         Directory
-            .EnumerateFiles(Path.Combine(providerDir, "Sql"), "*" + suffix, SearchOption.AllDirectories)
-            .Select(path => (Path: path, Resource: Path.GetRelativePath(providerDir, path).Replace('\\', '.').Replace('/', '.')))
-            .OrderBy(f => f.Resource, StringComparer.Ordinal)
-            .Select(f =>
-                (JsonNamingPolicy.SnakeCaseLower.ConvertName(Path.GetFileName(f.Path)[..^suffix.Length]), File.ReadAllText(f.Path))
-            );
+            .EnumerateFiles(Path.Combine(providerDir, "Sql"), "*.sql", SearchOption.AllDirectories)
+            .Select(path => (Path.GetFileName(path).Split('.')[0], File.ReadAllText(path)));
+
+    private static IEnumerable<(string Name, string Body)> Installed(IEnumerable<(string Stem, string Body)> files) =>
+        files.Select(f => (Name: JsonNamingPolicy.SnakeCaseLower.ConvertName(f.Stem), f.Body)).OrderBy(o => o.Name, StringComparer.Ordinal);
 }

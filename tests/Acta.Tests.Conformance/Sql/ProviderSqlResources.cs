@@ -34,7 +34,8 @@ internal static class ProviderSqlResources
             {
                 continue;
             }
-            if (!includeViews && tail.EndsWith(".view.sql", StringComparison.Ordinal))
+            var path = LogicalPath(tail);
+            if (!includeViews && SqlResourceCatalog.IsView(Stem(path)))
             {
                 continue;
             }
@@ -43,7 +44,7 @@ internal static class ProviderSqlResources
                 assembly.GetManifestResourceStream(resource)
                 ?? throw new InvalidOperationException($"Provider resource '{resource}' disappeared during enumeration.");
             using var reader = new StreamReader(stream);
-            yield return (LogicalPath(tail), reader.ReadToEnd());
+            yield return (path, reader.ReadToEnd());
         }
     }
 

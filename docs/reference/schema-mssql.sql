@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 9)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 10)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -865,6 +865,54 @@ SELECT
 FROM acta.definitions AS d
 JOIN acta.namespaces AS ns ON ns.id = d.namespace_id
 GO
+CREATE OR ALTER VIEW acta.events_view AS
+SELECT
+    e.id AS event_id,
+    e.created_at_utc,
+    ns.name AS namespace,
+    e.job_id,
+    e.job_ref,
+    e.lineage_root_id AS lineage_root_job_id,
+    root.job_ref AS lineage_root_job_ref,
+    e.definition_id,
+    d.name AS job_name,
+    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-started' WHEN 41 THEN 'job.execution-finished' WHEN 50 THEN 'job.recurring-rolled-over' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 103 THEN 'schedule.overrides-updated' WHEN 104 THEN 'schedule.triggered' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 160 THEN 'setting.updated' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
+    e.event_code,
+    CASE e.actor_code WHEN 10 THEN 'sys' WHEN 20 THEN 'operator' WHEN 50 THEN 'job' WHEN 70 THEN 'worker' END AS actor,
+    e.actor_code,
+    e.actor_key,
+    CASE e.from_status_code WHEN 10 THEN 'ready' WHEN 15 THEN 'blocked' WHEN 20 THEN 'suspended' WHEN 30 THEN 'paused' WHEN 40 THEN 'dispatched' WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS from_status,
+    e.from_status_code,
+    CASE e.to_status_code WHEN 10 THEN 'ready' WHEN 15 THEN 'blocked' WHEN 20 THEN 'suspended' WHEN 30 THEN 'paused' WHEN 40 THEN 'dispatched' WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS to_status,
+    e.to_status_code,
+    CASE e.execution_status_code WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 150 THEN 'rescheduled' WHEN 151 THEN 'suspended' WHEN 152 THEN 'paused' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' WHEN 230 THEN 'orphaned' END AS execution_status,
+    e.execution_status_code,
+    CASE e.reason_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'job.unclassified' WHEN 20 THEN 'job.unhandled-exception' WHEN 21 THEN 'job.lease-expired' WHEN 22 THEN 'job.execution-timeout' WHEN 23 THEN 'job.non-retryable-exception' WHEN 24 THEN 'job.deadline-exceeded' WHEN 25 THEN 'job.attempt-aborted' WHEN 30 THEN 'job.schedules-exhausted' WHEN 40 THEN 'job.control-manual' WHEN 41 THEN 'job.parent-cancelled' WHEN 42 THEN 'job.definition-retired' WHEN 50 THEN 'job.handler-rescheduled' WHEN 51 THEN 'job.handler-suspended' WHEN 52 THEN 'job.handler-failed' WHEN 53 THEN 'job.handler-cancelled' WHEN 54 THEN 'job.handler-paused' WHEN 60 THEN 'job.signal-released' WHEN 61 THEN 'job.step-retry-scheduled' WHEN 62 THEN 'job.concurrency-key-held' WHEN 63 THEN 'job.step-interrupted' WHEN 64 THEN 'job.result-oversized' WHEN 65 THEN 'job.wait-timed-out' WHEN 66 THEN 'job.rate-limited' WHEN 67 THEN 'job.lane-repaired' WHEN 100 THEN 'worker.clean-shutdown' WHEN 101 THEN 'worker.heartbeat-stale' END AS reason,
+    e.reason_code,
+    e.reason_message,
+    CASE e.detail_format_id
+        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
+        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
+        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
+        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
+        ELSE CONCAT('custom-', e.detail_format_id)
+    END AS detail_format,
+    CASE
+        WHEN
+            e.detail_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */)
+            THEN CAST(e.detail AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
+    END AS detail_text,
+    e.worker_id,
+    wkr.worker_ref,
+    e.execution_number,
+    e.duration_ms,
+    e.tenant_id
+FROM acta.events AS e
+JOIN acta.namespaces AS ns ON ns.id = e.namespace_id
+LEFT JOIN acta.definitions AS d ON d.id = e.definition_id
+LEFT JOIN acta.jobs AS root ON root.id = e.lineage_root_id
+LEFT JOIN acta.workers AS wkr ON wkr.id = e.worker_id
+GO
 CREATE OR ALTER VIEW acta.jobs_view AS
 SELECT
     j.id AS job_id,
@@ -1006,6 +1054,19 @@ JOIN acta.jobs AS j ON j.id = s.job_id
 JOIN acta.namespaces AS ns ON ns.id = j.namespace_id
 JOIN acta.definitions AS d ON d.id = j.definition_id
 GO
+CREATE OR ALTER VIEW acta.tags_view AS
+SELECT
+    CASE t.scope_code WHEN 20 THEN 'tenant' WHEN 30 THEN 'namespace' WHEN 40 THEN 'definition' WHEN 50 THEN 'job' WHEN 60 THEN 'schedule' WHEN 70 THEN 'worker' WHEN 80 THEN 'alert' WHEN 90 THEN 'event' END AS scope,
+    t.scope_code,
+    t.scope_id,
+    ns.name AS namespace,
+    t.namespace_id,
+    t.name AS tag_name,
+    t.value AS tag_value,
+    t.value_search AS tag_value_search
+FROM acta.tags AS t
+LEFT JOIN acta.namespaces AS ns ON ns.id = t.namespace_id
+GO
 CREATE OR ALTER VIEW acta.workers_view AS
 SELECT
     w.id AS worker_id,
@@ -1025,67 +1086,6 @@ SELECT
     w.version
 FROM acta.workers AS w
 JOIN acta.namespaces AS ns ON ns.id = w.namespace_id
-GO
-CREATE OR ALTER VIEW acta.events_view AS
-SELECT
-    e.id AS event_id,
-    e.created_at_utc,
-    ns.name AS namespace,
-    e.job_id,
-    e.job_ref,
-    e.lineage_root_id AS lineage_root_job_id,
-    root.job_ref AS lineage_root_job_ref,
-    e.definition_id,
-    d.name AS job_name,
-    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-started' WHEN 41 THEN 'job.execution-finished' WHEN 50 THEN 'job.recurring-rolled-over' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 103 THEN 'schedule.overrides-updated' WHEN 104 THEN 'schedule.triggered' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 160 THEN 'setting.updated' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
-    e.event_code,
-    CASE e.actor_code WHEN 10 THEN 'sys' WHEN 20 THEN 'operator' WHEN 50 THEN 'job' WHEN 70 THEN 'worker' END AS actor,
-    e.actor_code,
-    e.actor_key,
-    CASE e.from_status_code WHEN 10 THEN 'ready' WHEN 15 THEN 'blocked' WHEN 20 THEN 'suspended' WHEN 30 THEN 'paused' WHEN 40 THEN 'dispatched' WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS from_status,
-    e.from_status_code,
-    CASE e.to_status_code WHEN 10 THEN 'ready' WHEN 15 THEN 'blocked' WHEN 20 THEN 'suspended' WHEN 30 THEN 'paused' WHEN 40 THEN 'dispatched' WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS to_status,
-    e.to_status_code,
-    CASE e.execution_status_code WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 150 THEN 'rescheduled' WHEN 151 THEN 'suspended' WHEN 152 THEN 'paused' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' WHEN 230 THEN 'orphaned' END AS execution_status,
-    e.execution_status_code,
-    CASE e.reason_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'job.unclassified' WHEN 20 THEN 'job.unhandled-exception' WHEN 21 THEN 'job.lease-expired' WHEN 22 THEN 'job.execution-timeout' WHEN 23 THEN 'job.non-retryable-exception' WHEN 24 THEN 'job.deadline-exceeded' WHEN 25 THEN 'job.attempt-aborted' WHEN 30 THEN 'job.schedules-exhausted' WHEN 40 THEN 'job.control-manual' WHEN 41 THEN 'job.parent-cancelled' WHEN 42 THEN 'job.definition-retired' WHEN 50 THEN 'job.handler-rescheduled' WHEN 51 THEN 'job.handler-suspended' WHEN 52 THEN 'job.handler-failed' WHEN 53 THEN 'job.handler-cancelled' WHEN 54 THEN 'job.handler-paused' WHEN 60 THEN 'job.signal-released' WHEN 61 THEN 'job.step-retry-scheduled' WHEN 62 THEN 'job.concurrency-key-held' WHEN 63 THEN 'job.step-interrupted' WHEN 64 THEN 'job.result-oversized' WHEN 65 THEN 'job.wait-timed-out' WHEN 66 THEN 'job.rate-limited' WHEN 67 THEN 'job.lane-repaired' WHEN 100 THEN 'worker.clean-shutdown' WHEN 101 THEN 'worker.heartbeat-stale' END AS reason,
-    e.reason_code,
-    e.reason_message,
-    CASE e.detail_format_id
-        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
-        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
-        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
-        ELSE CONCAT('custom-', e.detail_format_id)
-    END AS detail_format,
-    CASE
-        WHEN
-            e.detail_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */)
-            THEN CAST(e.detail AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
-    END AS detail_text,
-    e.worker_id,
-    wkr.worker_ref,
-    e.execution_number,
-    e.duration_ms,
-    e.tenant_id
-FROM acta.events AS e
-JOIN acta.namespaces AS ns ON ns.id = e.namespace_id
-LEFT JOIN acta.definitions AS d ON d.id = e.definition_id
-LEFT JOIN acta.jobs AS root ON root.id = e.lineage_root_id
-LEFT JOIN acta.workers AS wkr ON wkr.id = e.worker_id
-GO
-CREATE OR ALTER VIEW acta.tags_view AS
-SELECT
-    CASE t.scope_code WHEN 20 THEN 'tenant' WHEN 30 THEN 'namespace' WHEN 40 THEN 'definition' WHEN 50 THEN 'job' WHEN 60 THEN 'schedule' WHEN 70 THEN 'worker' WHEN 80 THEN 'alert' WHEN 90 THEN 'event' END AS scope,
-    t.scope_code,
-    t.scope_id,
-    ns.name AS namespace,
-    t.namespace_id,
-    t.name AS tag_name,
-    t.value AS tag_value,
-    t.value_search AS tag_value_search
-FROM acta.tags AS t
-LEFT JOIN acta.namespaces AS ns ON ns.id = t.namespace_id
 GO
 -- ===== routines (versionless; always rewritten to this file's definitions) =====
 GO
@@ -1195,19 +1195,11 @@ BEGIN
     END CATCH;
 END;
 GO
-CREATE OR ALTER PROCEDURE acta.raise_job_alert
-    @p_namespace_name VARCHAR(128),
+CREATE OR ALTER PROCEDURE acta.acquire_lock
+    @p_lock_key VARCHAR(256),
     @p_job_id BIGINT,
-    @p_origin_code TINYINT,
-    @p_severity_code TINYINT,
-    @p_kind_code TINYINT,
-    @p_title NVARCHAR(512),
-    @p_message NVARCHAR(512),
-    @p_channel_name VARCHAR(128),
-    @p_delivery_status_code TINYINT,
-    @p_dedupe_key VARCHAR(512),
-    @p_source_event_id BIGINT,
-    @p_alert_ref UNIQUEIDENTIFIER
+    @p_lease_ttl_seconds INT,
+    @p_hold_token UNIQUEIDENTIFIER
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -1219,123 +1211,286 @@ BEGIN
             BEGIN TRANSACTION;
 
         DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @out TABLE (hold_token UNIQUEIDENTIFIER);
 
-        DECLARE @v_ns INT = (
-            SELECT id FROM acta.namespaces
-            WHERE name = @p_namespace_name
-        );
-        IF @v_ns IS NULL
-            THROW 50000, 'raise_job_alert: unknown namespace', 1;
-
-        -- The job row is locked before any of its alert rows, as purge_job and resolve_job_alerts lock it
-        -- (docs/internals/sql-execution-policy.md, "Alert lock order"), so a raise waits out a purge of its
-        -- job rather than deadlocking with it or landing an alert on the deleted job.
-        DECLARE @v_job_ref UNIQUEIDENTIFIER;
-        SELECT @v_job_ref = job_ref
-        FROM acta.jobs WITH (UPDLOCK, ROWLOCK)
-        WHERE id = @p_job_id;
-
-        IF @p_job_id IS NOT NULL AND @v_job_ref IS NULL
-            THROW 50007, 'ACTA:ALERT_UNKNOWN_JOB:raise_job_alert: unknown job id', 1;
-
-        IF @p_dedupe_key IS NULL
-            BEGIN
-                INSERT INTO acta.alerts (
-                    namespace_id, alert_ref, job_id, job_ref,
-                    origin_code, severity_code, kind_code, title, message, channel_name,
-                    dedupe_key, occurrence_count, last_projected_event_id,
-                    delivery_status_code, retry_count,
-                    created_at_utc, modified_at_utc, version
-                )
-                VALUES (
-                    @v_ns, @p_alert_ref, @p_job_id, @v_job_ref,
-                    @p_origin_code, @p_severity_code, @p_kind_code, @p_title, @p_message, @p_channel_name,
-                    NULL, 1, @p_source_event_id,
-                    @p_delivery_status_code, 0,
-                    @now, @now, 0
-                );
-                SELECT 1, @p_source_event_id;
-                GOTO Finish;
-            END
-
-        DECLARE @updated TABLE (occurrence_count INT NOT NULL, last_projected_event_id BIGINT NULL);
-
-        -- The identity's one OPEN row absorbs the repeat and a resolved one is left for the insert arm below.
-        -- UPDLOCK/HOLDLOCK serializes raisers; the seek is pinned to the index every alert deleter locks
-        -- first (docs/internals/sql-execution-policy.md, "Alert lock order").
-        UPDATE ja
+        -- Point update, then insert on a miss. The primary key arbitrates new-key races;
+        -- serializable gap locking would serialize unrelated lock keys in the same index gap.
+        UPDATE acta.locks
         SET
             job_id = @p_job_id,
-            job_ref = @v_job_ref,
-            origin_code = @p_origin_code,
-            severity_code = @p_severity_code,
-            kind_code = @p_kind_code,
-            title = @p_title,
-            message = @p_message,
-            channel_name = @p_channel_name,
-            occurrence_count = ja.occurrence_count + 1,
-            last_projected_event_id = COALESCE(@p_source_event_id, ja.last_projected_event_id),
-            modified_at_utc = @now,
-            version = ja.version + 1
-        OUTPUT INSERTED.occurrence_count, INSERTED.last_projected_event_id INTO @updated
-        FROM acta.alerts AS ja WITH (UPDLOCK, HOLDLOCK, FORCESEEK (ix_alerts_dedupe_identity (namespace_id, dedupe_key)))
+            expires_at_utc = DATEADD(SECOND, @p_lease_ttl_seconds, @now),
+            hold_token = @p_hold_token
+        OUTPUT INSERTED.hold_token INTO @out
         WHERE
-            ja.namespace_id = @v_ns
-            AND ja.dedupe_key = @p_dedupe_key
-            AND ja.resolved_at_utc IS NULL
-            AND (
-                @p_source_event_id IS NULL
-                OR ja.last_projected_event_id IS NULL
-                OR @p_source_event_id > ja.last_projected_event_id
+            lock_key = @p_lock_key
+            AND expires_at_utc <= @now;
+
+        IF @@ROWCOUNT = 0 AND NOT EXISTS (
+            SELECT 1 FROM acta.locks
+            WHERE lock_key = @p_lock_key
+        )
+            BEGIN
+                INSERT INTO acta.locks (lock_key, job_id, expires_at_utc, hold_token)
+                OUTPUT INSERTED.hold_token INTO @out
+                VALUES (@p_lock_key, @p_job_id, DATEADD(SECOND, @p_lease_ttl_seconds, @now), @p_hold_token);
+            END;
+
+        SELECT hold_token FROM @out;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+
+        -- A duplicate-key loser acquired nothing. XACT_ABORT requires rollback before returning
+        -- that ordinary miss; an outer transaction's owner must handle its own aborted transaction.
+        IF @entry_trancount = 0 AND ERROR_NUMBER() IN (2627, 2601)
+            SELECT CAST(NULL AS UNIQUEIDENTIFIER) AS hold_token WHERE 1 = 0;
+        ELSE
+            THROW;
+    END CATCH;
+END;
+GO
+CREATE OR ALTER PROCEDURE acta.acquire_slot
+    @p_lock_key_prefix VARCHAR(256),
+    @p_slot_count INT,
+    @p_job_id BIGINT,
+    @p_lease_ttl_seconds INT,
+    @p_hold_token UNIQUEIDENTIFIER
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @out TABLE (lock_key VARCHAR(256));
+        DECLARE @slot_key VARCHAR(256);
+
+        -- Lowest-numbered free slot: no row, or a row whose hold expired. MAXRECURSION 0 because the
+        -- limit reaches 1024, well past the default recursion ceiling of 100.
+        WITH slots (i) AS (
+            SELECT 0
+            UNION ALL
+            SELECT i + 1 FROM slots WHERE i + 1 < @p_slot_count
+        )
+        SELECT TOP (1) @slot_key = @p_lock_key_prefix + '.' + CAST(slots.i AS VARCHAR(10))
+        FROM slots
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM acta.locks held
+            WHERE
+                held.lock_key = @p_lock_key_prefix + '.' + CAST(slots.i AS VARCHAR(10))
+                AND held.expires_at_utc > @now
+        )
+        ORDER BY slots.i
+        OPTION (MAXRECURSION 0);
+
+        -- Point update, then insert on a miss, exactly as acquire_lock does: the primary key
+        -- arbitrates new-key races, and serializable gap locking would serialize unrelated slots.
+        IF @slot_key IS NOT NULL
+            BEGIN
+                UPDATE acta.locks
+                SET
+                    job_id = @p_job_id,
+                    expires_at_utc = DATEADD(SECOND, @p_lease_ttl_seconds, @now),
+                    hold_token = @p_hold_token
+                OUTPUT INSERTED.lock_key INTO @out
+                WHERE
+                    lock_key = @slot_key
+                    AND expires_at_utc <= @now;
+
+                IF @@ROWCOUNT = 0 AND NOT EXISTS (
+                    SELECT 1 FROM acta.locks
+                    WHERE lock_key = @slot_key
+                )
+                    BEGIN
+                        INSERT INTO acta.locks (lock_key, job_id, expires_at_utc, hold_token)
+                        OUTPUT INSERTED.lock_key INTO @out
+                        VALUES (@slot_key, @p_job_id, DATEADD(SECOND, @p_lease_ttl_seconds, @now), @p_hold_token);
+                    END;
+            END;
+
+        SELECT lock_key FROM @out;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+
+        -- A duplicate-key loser raced another admission onto the same slot and acquired nothing; the
+        -- caller settles that as a plain miss. XACT_ABORT requires rollback before returning it.
+        IF @entry_trancount = 0 AND ERROR_NUMBER() IN (2627, 2601)
+            SELECT CAST(NULL AS VARCHAR(256)) AS lock_key WHERE 1 = 0;
+        ELSE
+            THROW;
+    END CATCH;
+END;
+GO
+CREATE OR ALTER PROCEDURE acta.apply_tags
+    @p_scope_code TINYINT,
+    @p_lookup_id BIGINT,
+    @p_lookup_name VARCHAR(128),
+    @p_mutation TINYINT,
+    @p_items_json NVARCHAR(MAX)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @scope_id BIGINT, @namespace_id INT;
+        DECLARE @items TABLE (
+            name VARCHAR(128) NOT NULL PRIMARY KEY,
+            value NVARCHAR(128) NULL,
+            value_search NVARCHAR(128) NULL
+        );
+
+        INSERT INTO @items (name, value, value_search)
+        SELECT
+            name,
+            value,
+            value_search
+        FROM
+            OPENJSON (@p_items_json)
+            WITH (
+                name VARCHAR(128) '$.name',
+                value NVARCHAR(128) '$.value',
+                value_search NVARCHAR(128) '$.value_search'
             );
 
-        IF NOT EXISTS (SELECT 1 FROM @updated)
+        IF @p_scope_code = 20 /* TagScopeCode.Tenant */
+            SELECT
+                @scope_id = CONVERT(BIGINT, t.id),
+                @namespace_id = NULL
+            FROM acta.tenants t WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
+            WHERE t.tenant_key = @p_lookup_name;
+        ELSE IF @p_scope_code = 30 /* TagScopeCode.Namespace */
+            SELECT
+                @scope_id = CONVERT(BIGINT, n.id),
+                @namespace_id = n.id
+            FROM acta.namespaces n WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
+            WHERE n.name = @p_lookup_name;
+        ELSE IF @p_scope_code = 40 /* TagScopeCode.Definition */
+            SELECT
+                @scope_id = CONVERT(BIGINT, d.id),
+                @namespace_id = d.namespace_id
+            FROM acta.definitions d WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
+            WHERE d.id = @p_lookup_id;
+        ELSE IF @p_scope_code = 50 /* TagScopeCode.Job */
+            SELECT
+                @scope_id = j.id,
+                @namespace_id = j.namespace_id
+            FROM acta.jobs j WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
+            WHERE j.id = @p_lookup_id;
+        ELSE IF @p_scope_code = 60 /* TagScopeCode.Schedule */
+            SELECT
+                @scope_id = s.id,
+                @namespace_id = s.namespace_id
+            FROM acta.schedules s WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
+            WHERE s.job_id = @p_lookup_id AND s.name = @p_lookup_name;
+        ELSE IF @p_scope_code = 70 /* TagScopeCode.Worker */
+            SELECT
+                @scope_id = CONVERT(BIGINT, w.id),
+                @namespace_id = w.namespace_id
+            FROM acta.workers w WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
+            WHERE w.id = @p_lookup_id;
+        ELSE IF @p_scope_code = 80 /* TagScopeCode.Alert */
+            SELECT
+                @scope_id = a.id,
+                @namespace_id = a.namespace_id
+            FROM acta.alerts a WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
+            WHERE a.id = @p_lookup_id;
+        ELSE IF @p_scope_code = 90 /* TagScopeCode.Event */
+            SELECT
+                @scope_id = e.id,
+                @namespace_id = e.namespace_id
+            FROM acta.events e WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
+            WHERE e.id = @p_lookup_id;
+        ELSE
+            THROW 50000, 'Unsupported tag scope code.', 1;
+
+        IF @scope_id IS NULL
             BEGIN
-                -- No open row took it, or one is there and held a replayed event back. The insert opens a
-                -- fresh incident only when neither holds: no open row at all, AND - the ghost guard - no
-                -- row of this identity already marked at or past this event.
-                INSERT INTO acta.alerts (
-                    namespace_id, alert_ref, job_id, job_ref,
-                    origin_code, severity_code, kind_code, title, message, channel_name,
-                    dedupe_key, occurrence_count, last_projected_event_id,
-                    delivery_status_code, retry_count,
-                    created_at_utc, modified_at_utc, version
-                )
-                OUTPUT INSERTED.occurrence_count, INSERTED.last_projected_event_id INTO @updated
+
+                SELECT CAST(2 /* TagMutationAction.NotFound */ AS TINYINT) AS action;
+                GOTO Finish;
+            END;
+
+        IF @p_mutation = 1 /* TagMutationKind.Replace */
+            BEGIN
+                DELETE FROM acta.tags
+                WHERE scope_code = @p_scope_code AND scope_id = @scope_id;
+
+                INSERT INTO acta.tags (scope_code, scope_id, namespace_id, name, value, value_search)
                 SELECT
-                    @v_ns, @p_alert_ref, @p_job_id, @v_job_ref,
-                    @p_origin_code, @p_severity_code, @p_kind_code, @p_title, @p_message, @p_channel_name,
-                    @p_dedupe_key, 1, @p_source_event_id,
-                    @p_delivery_status_code, 0,
-                    @now, @now, 0
-                -- No lock hint: this reads the whole identity, resolved rows included, which the
-                -- unresolved-only index cannot serve - hinting it would hold a scan's worth of locks
-                -- and the UPDATE above already serializes raisers of this identity.
-                WHERE NOT EXISTS (
-                    SELECT 1
-                    FROM acta.alerts AS g
-                    WHERE
-                        g.namespace_id = @v_ns
-                        AND g.dedupe_key = @p_dedupe_key
-                        AND (g.resolved_at_utc IS NULL OR g.last_projected_event_id >= @p_source_event_id)
-                );
-
-                IF NOT EXISTS (SELECT 1 FROM @updated)
-                    BEGIN
-                        -- Nothing written: a replay-held update or a ghost-blocked insert. The newest
-                        -- row has already absorbed this event or a newer one, so its count and mark
-                        -- re-assert only this event's own escalation, never a neighbour's.
-                        INSERT INTO @updated (occurrence_count, last_projected_event_id)
-                        SELECT TOP (1) ja.occurrence_count, ja.last_projected_event_id
-                        FROM acta.alerts AS ja
-                        WHERE
-                            ja.namespace_id = @v_ns
-                            AND ja.dedupe_key = @p_dedupe_key
-                        ORDER BY ja.id DESC;
-                    END
+                    @p_scope_code,
+                    @scope_id,
+                    @namespace_id,
+                    name,
+                    value,
+                    value_search
+                FROM @items;
             END
+        ELSE IF @p_mutation = 2 /* TagMutationKind.Upsert */
+            BEGIN
+                IF
+                    EXISTS (
+                        SELECT 1 FROM @items i
+                        WHERE NOT EXISTS (
+                            SELECT 1 FROM acta.tags t
+                            WHERE t.scope_code = @p_scope_code AND t.scope_id = @scope_id AND t.name = i.name
+                        )
+                    )
+                    AND (
+                        SELECT COUNT(*) FROM acta.tags t
+                        WHERE t.scope_code = @p_scope_code AND t.scope_id = @scope_id
+                    ) >= 32
+                    THROW 50000, 'A target may carry at most 32 tags.', 1;
 
-        SELECT TOP (1) occurrence_count, last_projected_event_id FROM @updated;
+                UPDATE t
+                SET namespace_id = @namespace_id, value = i.value, value_search = i.value_search
+                FROM acta.tags t
+                JOIN @items i ON i.name = t.name
+                WHERE t.scope_code = @p_scope_code AND t.scope_id = @scope_id;
+
+                INSERT INTO acta.tags (scope_code, scope_id, namespace_id, name, value, value_search)
+                SELECT
+                    @p_scope_code,
+                    @scope_id,
+                    @namespace_id,
+                    i.name,
+                    i.value,
+                    i.value_search
+                FROM @items i
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM acta.tags t
+                    WHERE t.scope_code = @p_scope_code AND t.scope_id = @scope_id AND t.name = i.name
+                );
+            END
+        ELSE IF @p_mutation = 3 /* TagMutationKind.Remove */
+            BEGIN
+                DELETE t
+                FROM acta.tags t
+                JOIN @items i ON i.name = t.name
+                WHERE t.scope_code = @p_scope_code AND t.scope_id = @scope_id;
+            END
+        ELSE
+            THROW 50000, 'Unsupported tag mutation code.', 1;
+
+        SELECT CAST(1 /* TagMutationAction.Applied */ AS TINYINT) AS action;
 
     Finish:
 
@@ -1349,11 +1504,11 @@ BEGIN
     END CATCH;
 END;
 GO
-CREATE OR ALTER PROCEDURE acta.resolve_job_alert_manual
-    @p_alert_ref UNIQUEIDENTIFIER,
-    @p_actor_code TINYINT,
-    @p_actor_key NVARCHAR(128),
-    @p_reason_message NVARCHAR(512)
+CREATE OR ALTER PROCEDURE acta.arm_or_consume_sleep_timer
+    @p_job_id BIGINT,
+    @p_name VARCHAR(128),
+    @p_delay_seconds INT = NULL,
+    @p_resume_at_utc DATETIME2(3) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -1365,205 +1520,320 @@ BEGIN
             BEGIN TRANSACTION;
 
         DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
-        DECLARE
-            @namespace_id INT, @job_id BIGINT, @job_ref UNIQUEIDENTIFIER,
-            @ack DATETIME2(7), @resolved DATETIME2(7),
-            @definition_id INT, @lineage_root_id BIGINT, @execution_number INT;
+        DECLARE @due DATETIME2(3) = COALESCE(@p_resume_at_utc, DATEADD(SECOND, @p_delay_seconds, @now));
+        DECLARE @outcome SMALLINT;
+        DECLARE @result_due DATETIME2(3) = NULL;
+        DECLARE @existing_state TINYINT;
+        DECLARE @existing_due DATETIME2(3);
+        DECLARE @lock_id BIGINT;
+
+        SELECT @lock_id = job_id
+        FROM acta.runtimes WITH (UPDLOCK, HOLDLOCK)
+        WHERE job_id = @p_job_id;
 
         SELECT
-            @namespace_id = a.namespace_id,
-            @job_id = a.job_id,
-            @job_ref = a.job_ref,
-            @ack = a.acknowledged_at_utc,
-            @resolved = a.resolved_at_utc
-        FROM acta.alerts a WITH (UPDLOCK, ROWLOCK)
-        WHERE a.alert_ref = @p_alert_ref;
+            @existing_state = status_code,
+            @existing_due = due_at_utc
+        FROM acta.checkpoints
+        WHERE
+            job_id = @p_job_id
+            AND kind_code = 30 /* JobCheckpointKindCode.Timer */
+            AND name = @p_name;
 
-        IF @namespace_id IS NULL
+        IF @existing_state = 10 /* JobCheckpointStatusCode.Pending */ AND @existing_due > @now
+            BEGIN
+
+                SET @outcome = 1 /* SleepOutcome.Suspend */;
+                SET @result_due = @existing_due;
+            END
+        ELSE IF @existing_state = 10 /* JobCheckpointStatusCode.Pending */
+            BEGIN
+
+                UPDATE acta.checkpoints
+                SET
+                    status_code = 100 /* JobCheckpointStatusCode.Consumed */,
+                    modified_at_utc = @now,
+                    version = version + 1
+                WHERE job_id = @p_job_id AND kind_code = 30 /* JobCheckpointKindCode.Timer */ AND name = @p_name;
+
+                /* Only the worker still executing may clear the instant. A reclaimed row is Ready again
+                   on an instant the reclaim owns, and ck_runtimes_ready_due requires Ready to keep one. */
+                UPDATE acta.runtimes
+                SET
+                    next_run_at_utc = NULL,
+                    modified_at_utc = @now,
+                    version = version + 1
+                WHERE job_id = @p_job_id AND status_code = 50 /* JobStatusCode.Executing */;
+
+                SET @outcome = 2 /* SleepOutcome.Continue */;
+            END
+        ELSE IF @existing_state IS NOT NULL
+            BEGIN
+
+                SET @outcome = 2 /* SleepOutcome.Continue */;
+            END
+        ELSE IF @due <= @now
+            BEGIN
+
+                SET @outcome = 2 /* SleepOutcome.Continue */;
+            END
+        ELSE IF
+            EXISTS (
+                SELECT 1 FROM acta.checkpoints
+                WHERE
+                    job_id = @p_job_id AND kind_code = 30 /* JobCheckpointKindCode.Timer */ AND status_code = 10
+            /* JobCheckpointStatusCode.Pending */
+            )
+            BEGIN
+                SET @outcome = 3 /* SleepOutcome.Reject */;
+            END
+        ELSE
+            BEGIN
+                INSERT INTO acta.checkpoints (
+                    job_id, kind_code, name, status_code, due_at_utc,
+                    created_at_utc, modified_at_utc, version
+                )
+                VALUES (
+                    @p_job_id, 30 /* JobCheckpointKindCode.Timer */, @p_name, 10 /* JobCheckpointStatusCode.Pending */, @due,
+                    @now, @now, 0
+                );
+
+                SET @outcome = 1 /* SleepOutcome.Suspend */;
+                SET @result_due = @due;
+            END
+
+        SELECT
+            @outcome AS outcome_code,
+            @result_due AS due_at_utc;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+CREATE OR ALTER PROCEDURE acta.cancel_job
+    @p_id BIGINT,
+    @p_actor_code TINYINT,
+    @p_actor_key NVARCHAR(128),
+    @p_reason_code TINYINT,
+    @p_reason_message NVARCHAR(512),
+    @p_expected_version INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE
+            @from_status TINYINT, @namespace_id INT,
+            @lineage_root_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number INT, @worker_id INT, @audit_level TINYINT,
+            @parent_id BIGINT, @retention_seconds INT, @job_ref UNIQUEIDENTIFIER, @version INT, @lane_id BIGINT;
+
+        /* Lock order: the lane, then the job's rows (docs/internals/sql-execution-policy.md, "Lane lock
+           order"). lane_id never changes, so the unlocked read is safe. */
+        SELECT @lane_id = r.lane_id
+        FROM acta.runtimes r
+        WHERE r.job_id = @p_id;
+
+        IF @lane_id IS NOT NULL
+            SELECT @lane_id = l.id
+            FROM acta.lanes l WITH (UPDLOCK, ROWLOCK)
+            WHERE l.id = @lane_id;
+
+        SELECT
+            @from_status = r.status_code,
+            @namespace_id = j.namespace_id,
+            @lineage_root_id = j.lineage_root_id,
+            @definition_id = j.definition_id,
+            @tenant_id = j.tenant_id,
+            @execution_number = r.execution_number,
+            @audit_level = j.audit_level_code,
+            @parent_id = j.parent_id,
+            @job_ref = j.job_ref,
+            @worker_id = r.leased_by_worker_id,
+            @version = r.version
+        FROM acta.runtimes r WITH (UPDLOCK, ROWLOCK)
+        INNER JOIN acta.jobs j ON j.id = r.job_id
+        WHERE r.job_id = @p_id;
+
+        IF @from_status IS NULL
             BEGIN
 
                 SELECT
                     CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
-                    CAST(NULL AS DATETIME2(7)) AS acknowledged_at_utc,
-                    CAST(NULL AS DATETIME2(7)) AS resolved_at_utc;
+                    CAST(NULL AS TINYINT) AS status_code,
+                    CAST(NULL AS BIGINT) AS parent_id,
+                    CAST(NULL AS INT) AS version,
+                    CAST(0 AS TINYINT) AS lane_promoted;
                 GOTO Finish;
             END;
 
-        IF @resolved IS NOT NULL
+        IF @p_expected_version IS NOT NULL AND @version <> @p_expected_version
             BEGIN
 
                 SELECT
-                    CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
-                    @ack AS acknowledged_at_utc,
-                    @resolved AS resolved_at_utc;
+                    CAST(5 /* ControlAction.VersionConflict */ AS TINYINT) AS action,
+                    @from_status AS status_code,
+                    @parent_id AS parent_id,
+                    @version AS version,
+                    CAST(0 AS TINYINT) AS lane_promoted;
                 GOTO Finish;
             END;
 
-        SELECT
-            @definition_id = j.definition_id,
-            @lineage_root_id = j.lineage_root_id
-        FROM acta.jobs j
-        WHERE j.id = @job_id;
-        SELECT @execution_number = r.execution_number
-        FROM acta.runtimes r
-        WHERE r.job_id = @job_id;
+        IF
+            @from_status NOT IN (
+                30 /* JobStatusCode.Paused */,
+                20 /* JobStatusCode.Suspended */,
+                10 /* JobStatusCode.Ready */,
+                15 /* JobStatusCode.Blocked */,
+                40 /* JobStatusCode.Dispatched */,
+                50 /* JobStatusCode.Executing */
+            )
+            BEGIN
 
-        SET @resolved = @now;
+                SELECT
+                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
+                    @from_status AS status_code,
+                    @parent_id AS parent_id,
+                    @version AS version,
+                    CAST(0 AS TINYINT) AS lane_promoted;
+                GOTO Finish;
+            END;
 
-        UPDATE acta.alerts
+        SELECT @retention_seconds = jd.retention_seconds_effective
+        FROM acta.definitions jd
+        WHERE jd.id = @definition_id;
+
+        UPDATE acta.runtimes
         SET
-            resolved_at_utc = @resolved,
-            /* Same settlement as the automatic resolve: a queued notification for a condition an operator
-               has declared cleared is cancelled, and an already-settled status stands as the record of
-               what the send actually did. */
-            delivery_status_code = CASE
-                WHEN delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */)
-                    THEN 30 /* AlertDeliveryStatusCode.Suppressed */
-                ELSE delivery_status_code
-            END,
-            retry_after_utc = NULL,
+            status_code = 220 /* JobStatusCode.Cancelled */,
+            leased_by_worker_id = NULL,
+            lease_expires_at_utc = NULL,
+            retention_until_utc = DATEADD(SECOND, @retention_seconds, @now),
             modified_at_utc = @now,
             version = version + 1
-        WHERE alert_ref = @p_alert_ref;
+        WHERE job_id = @p_id;
+        SET @version = @version + 1;
 
-        INSERT INTO acta.events (
-            event_code, created_at_utc, namespace_id,
-            actor_code, actor_key,
-            job_id, job_ref, execution_number,
-            lineage_root_id, definition_id,
-            worker_id,
-            from_status_code, to_status_code,
-            execution_status_code, duration_ms,
-            reason_code, reason_message
-        )
-        VALUES (
-            141 /* EventCode.AlertResolved */, @now, @namespace_id,
-            @p_actor_code, @p_actor_key,
-            @job_id, @job_ref, @execution_number,
-            COALESCE(@lineage_root_id, @job_id), @definition_id,
-            NULL,
-            NULL, NULL,
-            NULL, NULL,
-            NULL, @p_reason_message
-        );
+        /* A cancelled head hands its lane to the next member; a cancelled Blocked follower leaves the
+           head where it is, which the promotion reads for itself. Promotion runs under the lane lock and
+           re-reads rather than trusting an update that matched nothing. */
+        DECLARE @head_id BIGINT, @head_status TINYINT, @promoted INT = 0;
+        WHILE @lane_id IS NOT NULL AND @promoted = 0
+            BEGIN
+                SET @head_id = NULL;
+                SET @head_status = NULL;
+
+                SELECT TOP (1)
+                    @head_id = m.job_id,
+                    @head_status = m.status_code
+                FROM acta.runtimes m WITH (INDEX (ix_runtimes_lane), FORCESEEK)
+                WHERE
+                    m.lane_id = @lane_id
+                    AND m.lane_id IS NOT NULL
+                    AND m.status_code IN (
+                        10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                        30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                    )
+                ORDER BY m.job_id;
+
+                IF @head_status IS NULL OR @head_status <> 15 /* JobStatusCode.Blocked */
+                    BREAK;
+
+                -- A restarted member can wait Blocked below a running one, so promote only while no member runs
+                -- (docs/internals/sql-execution-policy.md, "Lane lock order").
+                IF EXISTS (
+                    SELECT 1
+                    FROM acta.runtimes o WITH (INDEX (ix_runtimes_lane), FORCESEEK)
+                    WHERE
+                        o.lane_id = @lane_id
+                        AND o.lane_id IS NOT NULL
+                        AND o.status_code IN (
+                            10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                            40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                        )
+                )
+                    BREAK;
+
+                UPDATE acta.runtimes
+                SET
+                    status_code = 10 /* JobStatusCode.Ready */,
+                    next_run_at_utc = CASE WHEN next_run_at_utc > @now THEN next_run_at_utc ELSE @now END,
+                    modified_at_utc = @now,
+                    version = version + 1
+                WHERE
+                    job_id = @head_id
+                    AND status_code = 15 /* JobStatusCode.Blocked */;
+
+                SET @promoted = @@ROWCOUNT;
+            END;
+
+        IF @audit_level = 20 /* JobAuditLevelCode.Audit */
+            BEGIN
+                IF @from_status = 50 /* JobStatusCode.Executing */
+                    BEGIN
+                        INSERT INTO acta.events (
+                            event_code, created_at_utc, namespace_id,
+                            actor_code, actor_key,
+                            job_id, job_ref, execution_number,
+                            lineage_root_id, definition_id, tenant_id,
+                            worker_id,
+                            from_status_code, to_status_code,
+                            execution_status_code, duration_ms,
+                            reason_code, reason_message
+                        )
+                        VALUES (
+                            41 /* EventCode.JobExecutionFinished */, @now, @namespace_id,
+                            @p_actor_code, @p_actor_key,
+                            @p_id, @job_ref, @execution_number,
+                            COALESCE(@lineage_root_id, @p_id), @definition_id, @tenant_id,
+                            @worker_id,
+                            50 /* JobStatusCode.Executing */, 220 /* JobStatusCode.Cancelled */,
+                            220 /* ExecutionStatusCode.Cancelled */, NULL,
+                            @p_reason_code, @p_reason_message
+                        );
+                    END;
+
+                INSERT INTO acta.events (
+                    event_code, created_at_utc, namespace_id,
+                    actor_code, actor_key,
+                    job_id, job_ref, execution_number,
+                    lineage_root_id, definition_id, tenant_id,
+                    worker_id,
+                    from_status_code, to_status_code,
+                    execution_status_code, duration_ms,
+                    reason_code, reason_message
+                )
+                VALUES (
+                    70 /* EventCode.JobCancelled */, @now, @namespace_id,
+                    @p_actor_code, @p_actor_key,
+                    @p_id, @job_ref, @execution_number,
+                    COALESCE(@lineage_root_id, @p_id), @definition_id, @tenant_id,
+                    NULL,
+                    @from_status, 220 /* JobStatusCode.Cancelled */,
+                    NULL, NULL,
+                    @p_reason_code, @p_reason_message
+                );
+            END
 
         SELECT
             CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
-            @ack AS acknowledged_at_utc,
-            @resolved AS resolved_at_utc;
+            CAST(220 /* JobStatusCode.Cancelled */ AS TINYINT) AS status_code,
+            @parent_id AS parent_id,
+            @version AS version,
+            CAST(CASE WHEN @promoted > 0 THEN 1 ELSE 0 END AS TINYINT) AS lane_promoted;
 
     Finish:
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-CREATE OR ALTER PROCEDURE acta.resolve_job_alerts
-    @p_namespace_id INT,
-    @p_job_id BIGINT,
-    @p_source_event_id BIGINT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        -- The job row first, then its alert rows (docs/internals/sql-execution-policy.md, "Alert lock order").
-        -- The candidates are read through ix_alerts_job without locks and each is then locked by primary key
-        -- and re-checked; the held job row keeps a raise from adding one meanwhile.
-        DECLARE @job_locked BIGINT;
-        SELECT @job_locked = j.id
-        FROM acta.jobs j WITH (UPDLOCK, ROWLOCK)
-        WHERE j.id = @p_job_id;
-
-        DECLARE @candidates TABLE (id BIGINT NOT NULL PRIMARY KEY);
-        INSERT INTO @candidates (id)
-        SELECT a.id
-        FROM acta.alerts a WITH (FORCESEEK (ix_alerts_job (job_id)))
-        WHERE
-            a.namespace_id = @p_namespace_id
-            AND a.job_id = @p_job_id
-            AND a.resolved_at_utc IS NULL;
-
-        UPDATE a
-        SET
-            resolved_at_utc = SYSUTCDATETIME(),
-            last_projected_event_id = @p_source_event_id,
-            /* Closing the incident settles its delivery too: a notification queued for a condition that has
-               cleared is cancelled rather than sent, which is what Suppressed already means. An already-settled
-               row keeps its status: it records what actually happened to the send, and a resolve does not edit it. */
-            delivery_status_code = CASE
-                WHEN a.delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */)
-                    THEN 30 /* AlertDeliveryStatusCode.Suppressed */
-                ELSE a.delivery_status_code
-            END,
-            retry_after_utc = NULL,
-            modified_at_utc = SYSUTCDATETIME(),
-            version = a.version + 1
-        FROM acta.alerts a WITH (FORCESEEK)
-        INNER JOIN @candidates c ON c.id = a.id
-        WHERE
-            a.namespace_id = @p_namespace_id
-            AND a.job_id = @p_job_id
-            AND a.origin_code = 10 /* AlertOriginCode.Automatic */
-            AND a.kind_code IN (
-                10 /* AlertKindCode.FirstFailure */, 20 /* AlertKindCode.ThresholdReached */, 30 /* AlertKindCode.FinalFailure */
-            )
-            AND a.resolved_at_utc IS NULL
-            AND (a.last_projected_event_id IS NULL OR a.last_projected_event_id < @p_source_event_id);
-
-        SELECT @@ROWCOUNT AS resolved_count;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-CREATE OR ALTER PROCEDURE acta.update_alert_delivery
-    @p_id BIGINT,
-    @p_version INT,
-    @p_delivery_status_code TINYINT,
-    @p_retry_count INT,
-    @p_retry_after_utc DATETIME2(7)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        /* Compare-and-swap on the version the delivery read handed out: an attempt whose row moved while the
-           send was in flight - resolved by an operator, or settled by a competing worker - writes nothing and
-           returns no row, and the caller treats the empty result as "the newer state stands". */
-        UPDATE acta.alerts
-        SET
-            delivery_status_code = @p_delivery_status_code,
-            retry_count = @p_retry_count,
-            retry_after_utc = @p_retry_after_utc,
-            modified_at_utc = SYSUTCDATETIME(),
-            version = version + 1
-        OUTPUT INSERTED.id
-        WHERE
-            id = @p_id
-            AND version = @p_version;
 
         IF @entry_trancount = 0
             COMMIT TRANSACTION;
@@ -2913,10 +3183,12 @@ BEGIN
     END CATCH;
 END;
 GO
-CREATE OR ALTER PROCEDURE acta.register_job_definitions
-    @p_namespace_id INT,
-    @p_manifest_generation DATETIME2(7),
-    @p_definitions acta.job_definition_batch READONLY
+-- Version-CAS consume of an applied operator command: a miss means a newer command superseded the row
+-- mid-apply and survives for the next tick. See IOutboxSignalStore.ConsumeAsync.
+CREATE OR ALTER PROCEDURE acta.consume_outbox_signal
+    @p_job_id BIGINT,
+    @p_name VARCHAR(128),
+    @p_expected_version INT
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -2927,468 +3199,14 @@ BEGIN
         IF @entry_trancount = 0
             BEGIN TRANSACTION;
 
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-
-        UPDATE jd SET
-            status_code = 10 /* JobDefinitionStatusCode.Active */,
-            input_type_name = src.input_type_name,
-            output_type_name = src.output_type_name,
-            input_format_id = src.input_format_id,
-            input_format_name = src.input_format_name,
-            output_format_id = src.output_format_id,
-            output_format_name = src.output_format_name,
-            priority_code = src.priority_code,
-            max_attempts = src.max_attempts,
-            concurrency_limit = src.concurrency_limit,
-            rate_limit = src.rate_limit,
-            rate_key = src.rate_key,
-            lane = src.lane,
-            backoff = src.backoff,
-            execution_timeout_seconds = src.execution_timeout_seconds,
-            deadline_seconds = src.deadline_seconds,
-            deadline_behavior_code = src.deadline_behavior_code,
-            retention_seconds = src.retention_seconds,
-            audit_level_code = src.audit_level_code,
-            alert_profile_code = src.alert_profile_code,
-            tenant_requirement_code = src.tenant_requirement_code,
-            alert_channel_name = src.alert_channel_name,
-            runbook_url = src.runbook_url,
-            display_name = src.display_name,
-            description = src.description,
-            definition_hash = src.definition_hash,
-            manifest_generation_at_utc = @p_manifest_generation,
-            modified_at_utc = @now,
-            version = jd.version + 1
-        FROM acta.definitions jd
-        INNER JOIN @p_definitions src
-            ON jd.namespace_id = @p_namespace_id AND jd.name = src.name
+        DELETE FROM acta.checkpoints
         WHERE
-            @p_manifest_generation >= jd.manifest_generation_at_utc
-            AND (
-                jd.status_code <> 10 /* JobDefinitionStatusCode.Active */
-                OR jd.definition_hash <> src.definition_hash
-            );
+            job_id = @p_job_id
+            AND kind_code = 20 /* JobCheckpointKindCode.Signal */
+            AND name = @p_name
+            AND version = @p_expected_version;
 
-        INSERT INTO acta.definitions (
-            namespace_id, name, status_code,
-            input_type_name, output_type_name,
-            input_format_id, input_format_name,
-            output_format_id, output_format_name,
-            priority_code, max_attempts, concurrency_limit,
-            rate_limit, rate_key, lane,
-            backoff,
-            execution_timeout_seconds,
-            deadline_seconds,
-            deadline_behavior_code,
-            retention_seconds,
-            audit_level_code, alert_profile_code,
-            tenant_requirement_code,
-            alert_channel_name, runbook_url,
-            display_name, description,
-            definition_hash, manifest_generation_at_utc,
-            created_at_utc, modified_at_utc, version
-        )
-        SELECT
-            @p_namespace_id,
-            src.name,
-            10 /* JobDefinitionStatusCode.Active */,
-            src.input_type_name,
-            src.output_type_name,
-            src.input_format_id,
-            src.input_format_name,
-            src.output_format_id,
-            src.output_format_name,
-            src.priority_code,
-            src.max_attempts,
-            src.concurrency_limit,
-            src.rate_limit,
-            src.rate_key,
-            src.lane,
-            src.backoff,
-            src.execution_timeout_seconds,
-            src.deadline_seconds,
-            src.deadline_behavior_code,
-            src.retention_seconds,
-            src.audit_level_code,
-            src.alert_profile_code,
-            src.tenant_requirement_code,
-            src.alert_channel_name,
-            src.runbook_url,
-            src.display_name,
-            src.description,
-            src.definition_hash,
-            @p_manifest_generation,
-            @now,
-            @now,
-            0
-        FROM @p_definitions src
-        WHERE NOT EXISTS (
-            SELECT 1 FROM acta.definitions jd
-            WHERE jd.namespace_id = @p_namespace_id AND jd.name = src.name
-        );
-
-        SELECT
-            jd.name,
-            jd.id
-        FROM @p_definitions src
-        INNER JOIN acta.definitions jd
-            ON jd.namespace_id = @p_namespace_id AND jd.name = src.name;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-CREATE OR ALTER PROCEDURE acta.set_job_definition_overrides
-    @p_id INT,
-    @p_version INT,
-    @p_priority_code_override TINYINT,
-    @p_max_attempts_override INT,
-    @p_concurrency_limit_override INT,
-    @p_rate_limit_override VARCHAR(16),
-    @p_backoff_override NVARCHAR(64),
-    @p_execution_timeout_seconds_override INT,
-    @p_deadline_seconds_override INT,
-    @p_deadline_behavior_code_override TINYINT,
-    @p_retention_seconds_override INT,
-    @p_audit_level_code_override TINYINT,
-    @p_alert_profile_code_override TINYINT,
-    @p_alert_channel_name_override VARCHAR(128),
-    @p_runbook_url_override VARCHAR(512),
-    @p_display_name_override NVARCHAR(128),
-    @p_description_override NVARCHAR(512),
-    @p_actor_code TINYINT,
-    @p_actor_key NVARCHAR(128),
-    @p_reason_code TINYINT,
-    @p_reason_message NVARCHAR(512)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @ns INT, @existing_version INT, @rate_key VARCHAR(128), @name VARCHAR(128), @meter VARCHAR(128);
-
-        SELECT
-            @ns = jd.namespace_id,
-            @existing_version = jd.version,
-            @rate_key = jd.rate_key,
-            @name = jd.name
-        FROM acta.definitions jd WITH (UPDLOCK, ROWLOCK)
-        WHERE jd.id = @p_id;
-
-        IF @ns IS NULL
-            BEGIN
-                SELECT CAST(2 /* DefinitionOverrideAction.NotFound */ AS TINYINT) AS action;
-                GOTO Finish;
-            END;
-
-        IF @existing_version <> @p_version
-            BEGIN
-                SELECT CAST(3 /* DefinitionOverrideAction.VersionConflict */ AS TINYINT) AS action;
-                GOTO Finish;
-            END;
-
-        SET @meter = LOWER(COALESCE(@rate_key, @name));
-
-        UPDATE acta.definitions SET
-            priority_code_override = @p_priority_code_override,
-            max_attempts_override = @p_max_attempts_override,
-            concurrency_limit_override = @p_concurrency_limit_override,
-            rate_limit_override = @p_rate_limit_override,
-            backoff_override = @p_backoff_override,
-            execution_timeout_seconds_override = @p_execution_timeout_seconds_override,
-            deadline_seconds_override = @p_deadline_seconds_override,
-            deadline_behavior_code_override = @p_deadline_behavior_code_override,
-            retention_seconds_override = @p_retention_seconds_override,
-            audit_level_code_override = @p_audit_level_code_override,
-            alert_profile_code_override = @p_alert_profile_code_override,
-            alert_channel_name_override = @p_alert_channel_name_override,
-            runbook_url_override = @p_runbook_url_override,
-            display_name_override = @p_display_name_override,
-            description_override = @p_description_override,
-            modified_at_utc = @now,
-            version = jd.version + 1
-        FROM acta.definitions jd
-        WHERE jd.id = @p_id AND jd.version = @p_version;
-
-        -- A definition on a meter carries every sibling that already has a rate (declared or overridden)
-        -- on the same effective key along with it here, so the meter never carries two rates and the
-        -- last write wins for every participant. See JobDefinitionPolicyOverrides.RateLimit.
-        UPDATE acta.definitions
-        SET
-            rate_limit_override = @p_rate_limit_override,
-            modified_at_utc = @now,
-            version = version + 1
-        WHERE
-            namespace_id = @ns
-            AND id <> @p_id
-            AND (rate_limit IS NOT NULL OR rate_limit_override IS NOT NULL)
-            AND LOWER(COALESCE(rate_key, name)) = @meter;
-
-        INSERT INTO acta.events (
-            event_code, created_at_utc, namespace_id,
-            actor_code, actor_key,
-            job_id, job_ref, execution_number,
-            lineage_root_id, definition_id,
-            worker_id,
-            from_status_code, to_status_code,
-            execution_status_code, duration_ms,
-            reason_code, reason_message
-        )
-        VALUES (
-            30 /* EventCode.JobDefinitionOverridesUpdated */, @now, @ns,
-            @p_actor_code, @p_actor_key,
-            NULL, NULL, NULL,
-            NULL, @p_id,
-            NULL,
-            NULL, NULL,
-            NULL, NULL,
-            @p_reason_code, @p_reason_message
-        );
-
-        SELECT CAST(1 /* DefinitionOverrideAction.Applied */ AS TINYINT) AS action;
-
-    Finish:
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-CREATE OR ALTER PROCEDURE acta.cancel_job
-    @p_id BIGINT,
-    @p_actor_code TINYINT,
-    @p_actor_key NVARCHAR(128),
-    @p_reason_code TINYINT,
-    @p_reason_message NVARCHAR(512),
-    @p_expected_version INT = NULL
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE
-            @from_status TINYINT, @namespace_id INT,
-            @lineage_root_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number INT, @worker_id INT, @audit_level TINYINT,
-            @parent_id BIGINT, @retention_seconds INT, @job_ref UNIQUEIDENTIFIER, @version INT, @lane_id BIGINT;
-
-        /* Lock order: the lane, then the job's rows (docs/internals/sql-execution-policy.md, "Lane lock
-           order"). lane_id never changes, so the unlocked read is safe. */
-        SELECT @lane_id = r.lane_id
-        FROM acta.runtimes r
-        WHERE r.job_id = @p_id;
-
-        IF @lane_id IS NOT NULL
-            SELECT @lane_id = l.id
-            FROM acta.lanes l WITH (UPDLOCK, ROWLOCK)
-            WHERE l.id = @lane_id;
-
-        SELECT
-            @from_status = r.status_code,
-            @namespace_id = j.namespace_id,
-            @lineage_root_id = j.lineage_root_id,
-            @definition_id = j.definition_id,
-            @tenant_id = j.tenant_id,
-            @execution_number = r.execution_number,
-            @audit_level = j.audit_level_code,
-            @parent_id = j.parent_id,
-            @job_ref = j.job_ref,
-            @worker_id = r.leased_by_worker_id,
-            @version = r.version
-        FROM acta.runtimes r WITH (UPDLOCK, ROWLOCK)
-        INNER JOIN acta.jobs j ON j.id = r.job_id
-        WHERE r.job_id = @p_id;
-
-        IF @from_status IS NULL
-            BEGIN
-
-                SELECT
-                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
-                    CAST(NULL AS TINYINT) AS status_code,
-                    CAST(NULL AS BIGINT) AS parent_id,
-                    CAST(NULL AS INT) AS version,
-                    CAST(0 AS TINYINT) AS lane_promoted;
-                GOTO Finish;
-            END;
-
-        IF @p_expected_version IS NOT NULL AND @version <> @p_expected_version
-            BEGIN
-
-                SELECT
-                    CAST(5 /* ControlAction.VersionConflict */ AS TINYINT) AS action,
-                    @from_status AS status_code,
-                    @parent_id AS parent_id,
-                    @version AS version,
-                    CAST(0 AS TINYINT) AS lane_promoted;
-                GOTO Finish;
-            END;
-
-        IF
-            @from_status NOT IN (
-                30 /* JobStatusCode.Paused */,
-                20 /* JobStatusCode.Suspended */,
-                10 /* JobStatusCode.Ready */,
-                15 /* JobStatusCode.Blocked */,
-                40 /* JobStatusCode.Dispatched */,
-                50 /* JobStatusCode.Executing */
-            )
-            BEGIN
-
-                SELECT
-                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
-                    @from_status AS status_code,
-                    @parent_id AS parent_id,
-                    @version AS version,
-                    CAST(0 AS TINYINT) AS lane_promoted;
-                GOTO Finish;
-            END;
-
-        SELECT @retention_seconds = jd.retention_seconds_effective
-        FROM acta.definitions jd
-        WHERE jd.id = @definition_id;
-
-        UPDATE acta.runtimes
-        SET
-            status_code = 220 /* JobStatusCode.Cancelled */,
-            leased_by_worker_id = NULL,
-            lease_expires_at_utc = NULL,
-            retention_until_utc = DATEADD(SECOND, @retention_seconds, @now),
-            modified_at_utc = @now,
-            version = version + 1
-        WHERE job_id = @p_id;
-        SET @version = @version + 1;
-
-        /* A cancelled head hands its lane to the next member; a cancelled Blocked follower leaves the
-           head where it is, which the promotion reads for itself. Promotion runs under the lane lock and
-           re-reads rather than trusting an update that matched nothing. */
-        DECLARE @head_id BIGINT, @head_status TINYINT, @promoted INT = 0;
-        WHILE @lane_id IS NOT NULL AND @promoted = 0
-            BEGIN
-                SET @head_id = NULL;
-                SET @head_status = NULL;
-
-                SELECT TOP (1)
-                    @head_id = m.job_id,
-                    @head_status = m.status_code
-                FROM acta.runtimes m WITH (INDEX (ix_runtimes_lane), FORCESEEK)
-                WHERE
-                    m.lane_id = @lane_id
-                    AND m.lane_id IS NOT NULL
-                    AND m.status_code IN (
-                        10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                        30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-                    )
-                ORDER BY m.job_id;
-
-                IF @head_status IS NULL OR @head_status <> 15 /* JobStatusCode.Blocked */
-                    BREAK;
-
-                -- A restarted member can wait Blocked below a running one, so promote only while no member runs
-                -- (docs/internals/sql-execution-policy.md, "Lane lock order").
-                IF EXISTS (
-                    SELECT 1
-                    FROM acta.runtimes o WITH (INDEX (ix_runtimes_lane), FORCESEEK)
-                    WHERE
-                        o.lane_id = @lane_id
-                        AND o.lane_id IS NOT NULL
-                        AND o.status_code IN (
-                            10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
-                            40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-                        )
-                )
-                    BREAK;
-
-                UPDATE acta.runtimes
-                SET
-                    status_code = 10 /* JobStatusCode.Ready */,
-                    next_run_at_utc = CASE WHEN next_run_at_utc > @now THEN next_run_at_utc ELSE @now END,
-                    modified_at_utc = @now,
-                    version = version + 1
-                WHERE
-                    job_id = @head_id
-                    AND status_code = 15 /* JobStatusCode.Blocked */;
-
-                SET @promoted = @@ROWCOUNT;
-            END;
-
-        IF @audit_level = 20 /* JobAuditLevelCode.Audit */
-            BEGIN
-                IF @from_status = 50 /* JobStatusCode.Executing */
-                    BEGIN
-                        INSERT INTO acta.events (
-                            event_code, created_at_utc, namespace_id,
-                            actor_code, actor_key,
-                            job_id, job_ref, execution_number,
-                            lineage_root_id, definition_id, tenant_id,
-                            worker_id,
-                            from_status_code, to_status_code,
-                            execution_status_code, duration_ms,
-                            reason_code, reason_message
-                        )
-                        VALUES (
-                            41 /* EventCode.JobExecutionFinished */, @now, @namespace_id,
-                            @p_actor_code, @p_actor_key,
-                            @p_id, @job_ref, @execution_number,
-                            COALESCE(@lineage_root_id, @p_id), @definition_id, @tenant_id,
-                            @worker_id,
-                            50 /* JobStatusCode.Executing */, 220 /* JobStatusCode.Cancelled */,
-                            220 /* ExecutionStatusCode.Cancelled */, NULL,
-                            @p_reason_code, @p_reason_message
-                        );
-                    END;
-
-                INSERT INTO acta.events (
-                    event_code, created_at_utc, namespace_id,
-                    actor_code, actor_key,
-                    job_id, job_ref, execution_number,
-                    lineage_root_id, definition_id, tenant_id,
-                    worker_id,
-                    from_status_code, to_status_code,
-                    execution_status_code, duration_ms,
-                    reason_code, reason_message
-                )
-                VALUES (
-                    70 /* EventCode.JobCancelled */, @now, @namespace_id,
-                    @p_actor_code, @p_actor_key,
-                    @p_id, @job_ref, @execution_number,
-                    COALESCE(@lineage_root_id, @p_id), @definition_id, @tenant_id,
-                    NULL,
-                    @from_status, 220 /* JobStatusCode.Cancelled */,
-                    NULL, NULL,
-                    @p_reason_code, @p_reason_message
-                );
-            END
-
-        SELECT
-            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
-            CAST(220 /* JobStatusCode.Cancelled */ AS TINYINT) AS status_code,
-            @parent_id AS parent_id,
-            @version AS version,
-            CAST(CASE WHEN @promoted > 0 THEN 1 ELSE 0 END AS TINYINT) AS lane_promoted;
-
-    Finish:
+        SELECT CAST(@@ROWCOUNT AS BIGINT) AS consumed;
 
         IF @entry_trancount = 0
             COMMIT TRANSACTION;
@@ -4285,6 +4103,236 @@ BEGIN
     END CATCH;
 END;
 GO
+CREATE OR ALTER PROCEDURE acta.extend_lock
+    @p_lock_key VARCHAR(256),
+    @p_hold_token UNIQUEIDENTIFIER,
+    @p_lease_ttl_seconds INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        UPDATE acta.locks
+        SET expires_at_utc = DATEADD(SECOND, @p_lease_ttl_seconds, SYSUTCDATETIME())
+        OUTPUT INSERTED.hold_token
+        WHERE lock_key = @p_lock_key AND hold_token = @p_hold_token;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+CREATE OR ALTER PROCEDURE acta.extend_worker_leases
+    @p_leased_by_worker_id INT,
+    @p_lease_ttl_seconds INT,
+    @p_draining BIT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+
+        UPDATE acta.workers
+        SET
+            last_seen_at_utc = @now,
+            -- A worker marked Dead through a database outage longer than its dead-after window is alive again the
+            -- moment it heartbeats; Stopped stays Stopped.
+            status_code = CASE
+                WHEN @p_draining = 1 AND status_code IN (10 /* WorkerStatusCode.Active */, 200 /* WorkerStatusCode.Dead */)
+                    THEN 80 /* WorkerStatusCode.Draining */
+                WHEN status_code = 200 /* WorkerStatusCode.Dead */ THEN 10 /* WorkerStatusCode.Active */
+                ELSE status_code
+            END,
+            modified_at_utc = @now,
+            version = version + 1
+        WHERE id = @p_leased_by_worker_id;
+
+        /* Push every in-flight execution lease forward. Deliberately no version bump: a lease refresh
+           is not a claim-generation change, so a buffered claim still passes the start CAS. */
+        DECLARE @inflight TABLE (job_id BIGINT NOT NULL PRIMARY KEY, execution_number INT NOT NULL);
+
+        -- Read the ids first so the update locks base rows only, never an index key; start_execution
+        -- and complete_execution lock in the other order. See docs/internals/sql-execution-policy.md.
+        -- The read is lock-free under RCSI, so taking it through the heartbeat index is safe.
+        INSERT INTO @inflight (job_id, execution_number)
+        SELECT job_id, execution_number
+        FROM acta.runtimes
+        WHERE
+            leased_by_worker_id = @p_leased_by_worker_id
+            AND status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
+
+        -- A row another transaction holds is skipped and reported unrenewed, so the renewal never waits
+        -- (docs/internals/sql-execution-policy.md, "Explicit exceptions and maintenance").
+        DECLARE @renewed TABLE (job_id BIGINT NOT NULL PRIMARY KEY, execution_number INT NOT NULL);
+
+        UPDATE r
+        SET lease_expires_at_utc = DATEADD(SECOND, @p_lease_ttl_seconds, @now)
+        OUTPUT INSERTED.job_id, INSERTED.execution_number INTO @renewed (job_id, execution_number)
+        FROM acta.runtimes r WITH (INDEX(pk_runtimes), FORCESEEK, ROWLOCK, READPAST)
+        INNER JOIN @inflight i ON i.job_id = r.job_id
+        WHERE
+            r.leased_by_worker_id = @p_leased_by_worker_id
+            AND r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
+
+        -- A renewed row reports the execution it renewed; one another transaction holds, the one it read.
+        SELECT
+            i.job_id,
+            COALESCE(n.execution_number, i.execution_number) AS execution_number,
+            CAST(CASE WHEN n.job_id IS NULL THEN 0 ELSE 1 END AS BIT) AS renewed
+        FROM @inflight i
+        LEFT JOIN @renewed n ON n.job_id = i.job_id;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+CREATE OR ALTER PROCEDURE acta.mark_dead_workers
+    @p_dead_after_seconds INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @marked TABLE (id INT NOT NULL PRIMARY KEY, namespace_id INT NOT NULL, worker_ref UNIQUEIDENTIFIER NOT NULL);
+
+        UPDATE acta.workers WITH (ROWLOCK, READPAST)
+        SET
+            status_code = 200 /* WorkerStatusCode.Dead */,
+            modified_at_utc = SYSUTCDATETIME(),
+            version = version + 1
+        OUTPUT INSERTED.id, INSERTED.namespace_id, INSERTED.worker_ref INTO @marked (id, namespace_id, worker_ref)
+        WHERE
+            -- A worker that stopped heartbeating mid-drain, killed or past its host's shutdown budget, is as
+            -- dead as an active one; nothing else ever moves a Draining row.
+            status_code IN (10 /* WorkerStatusCode.Active */, 80 /* WorkerStatusCode.Draining */)
+            AND last_seen_at_utc < DATEADD(SECOND, -@p_dead_after_seconds, SYSUTCDATETIME());
+
+        INSERT INTO acta.events (
+            event_code, created_at_utc, namespace_id, actor_code, actor_key, job_id, execution_number,
+            lineage_root_id, definition_id, worker_id, from_status_code, to_status_code,
+            execution_status_code, duration_ms, reason_code, reason_message
+        )
+        SELECT
+            122 /* EventCode.WorkerDied */,
+            SYSUTCDATETIME(),
+            m.namespace_id,
+            70 /* ActorCode.Worker */,
+            LOWER(CONVERT(varchar(36), m.worker_ref)),
+            NULL,
+            NULL,
+            NULL,
+            NULL,
+            m.id,
+            NULL,
+            NULL,
+            NULL,
+            NULL,
+            101 /* JobEventReasonCode.WorkerHeartbeatStale */,
+            NULL
+        FROM @marked m;
+
+        SELECT COUNT(*) FROM @marked;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+-- Park admission for the sys.outbox operator inbox: insert when the slot is free, supersede when the
+-- pending command has outlived the worker-dead window, reject otherwise. See IOutboxSignalStore.ParkAsync.
+CREATE OR ALTER PROCEDURE acta.park_outbox_signal
+    @p_job_id BIGINT,
+    @p_name VARCHAR(128),
+    @p_value_format_id TINYINT,
+    @p_value VARBINARY(MAX),
+    @p_stale_before_utc DATETIME2(7)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @modified DATETIME2(7);
+
+        SELECT @modified = modified_at_utc
+        FROM acta.checkpoints WITH (UPDLOCK, HOLDLOCK)
+        WHERE job_id = @p_job_id AND kind_code = 20 /* JobCheckpointKindCode.Signal */ AND name = @p_name;
+
+        IF @modified IS NULL
+            INSERT INTO acta.checkpoints (
+                job_id, kind_code, name, status_code, value_format_id, value,
+                created_at_utc, modified_at_utc, version
+            )
+            VALUES (
+                @p_job_id, 20 /* JobCheckpointKindCode.Signal */, @p_name, 20 /* JobCheckpointStatusCode.Set */,
+                @p_value_format_id, @p_value, @now, @now, 0
+            );
+        ELSE IF @modified <= @p_stale_before_utc
+            UPDATE acta.checkpoints
+            SET
+                status_code = 20 /* JobCheckpointStatusCode.Set */,
+                value_format_id = @p_value_format_id,
+                value = @p_value,
+                modified_at_utc = @now,
+                version = version + 1
+            WHERE job_id = @p_job_id AND kind_code = 20 /* JobCheckpointKindCode.Signal */ AND name = @p_name;
+
+        /* The minted command id inside @p_value makes the payload unique, so value equality is the
+           "my write landed" test; a losing park reads the incumbent's park instant as the rejection age. */
+        SELECT
+            CAST(CASE WHEN c.value = @p_value THEN 1 /* ControlAction.Applied */ ELSE 3 /* ControlAction.Rejected */ END AS SMALLINT)
+                AS action,
+            c.modified_at_utc AS pending_since_utc
+        FROM acta.checkpoints c
+        WHERE c.job_id = @p_job_id AND c.kind_code = 20 /* JobCheckpointKindCode.Signal */ AND c.name = @p_name;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
 CREATE OR ALTER PROCEDURE acta.pause_job
     @p_id BIGINT,
     @p_actor_code TINYINT,
@@ -4476,6 +4524,437 @@ BEGIN
     END CATCH;
 END;
 GO
+CREATE OR ALTER PROCEDURE acta.pause_schedule
+    @p_job_id BIGINT,
+    @p_name VARCHAR(128),
+    @p_paused_until_utc DATETIME2(7),
+    @p_job_next_run_at_utc DATETIME2(7),
+    @p_actor_code TINYINT,
+    @p_actor_key NVARCHAR(128),
+    @p_reason_message NVARCHAR(512)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @schedule_id BIGINT, @status TINYINT, @paused DATETIME2(7), @next DATETIME2(7), @version INT;
+        DECLARE @ns INT, @def INT, @lineage BIGINT, @en INT, @audit TINYINT, @job_ref UNIQUEIDENTIFIER;
+
+        /* Lock the slot's runtimes row before the schedules row: register_scheduled_jobs writes
+           runtimes then schedules, so every writer of both must take runtimes first. */
+        SELECT @en = r.execution_number
+        FROM acta.runtimes r WITH (UPDLOCK, ROWLOCK)
+        WHERE r.job_id = @p_job_id;
+
+        SELECT @schedule_id = js.id
+        FROM acta.schedules js WITH (UPDLOCK, ROWLOCK)
+        WHERE
+            js.job_id = @p_job_id
+            AND js.name = @p_name
+            AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */;
+
+        IF @schedule_id IS NULL
+            BEGIN
+
+                SELECT
+                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
+                    CAST(NULL AS TINYINT) AS status_code,
+                    CAST(NULL AS DATETIME2(7)) AS paused_until_utc,
+                    CAST(NULL AS DATETIME2(7)) AS next_run_at_utc,
+                    CAST(NULL AS INT) AS version;
+                GOTO Finish;
+            END;
+
+        SELECT
+            @ns = j.namespace_id,
+            @def = j.definition_id,
+            @lineage = j.lineage_root_id,
+            @audit = j.audit_level_code,
+            @job_ref = j.job_ref
+        FROM acta.jobs j
+        WHERE j.id = @p_job_id;
+
+        UPDATE acta.schedules
+        SET
+            status_code = 30 /* ScheduleStatusCode.Paused */,
+            paused_until_utc = @p_paused_until_utc,
+            reason_message = @p_reason_message,
+            modified_at_utc = @now,
+            version = version + 1
+        WHERE id = @schedule_id;
+
+        SELECT
+            @status = status_code,
+            @paused = paused_until_utc,
+            @next = next_run_at_utc,
+            @version = version
+        FROM acta.schedules
+        WHERE id = @schedule_id;
+
+        -- Paused with a next run is an operator's or handler's hold and is left alone; Paused with none only
+        -- means no schedule offered a run (ScheduleWalker, "held").
+        UPDATE acta.runtimes
+        SET
+            next_run_at_utc = @p_job_next_run_at_utc,
+            status_code = CASE
+                WHEN @p_job_next_run_at_utc IS NULL
+                    THEN 30 /* JobStatusCode.Paused */
+                ELSE 10 /* JobStatusCode.Ready */
+            END,
+            modified_at_utc = @now,
+            version = version + 1
+        WHERE
+            job_id = @p_job_id
+            AND (status_code = 10 /* JobStatusCode.Ready */ OR (status_code = 30 /* JobStatusCode.Paused */ AND next_run_at_utc IS NULL));
+
+        IF @audit = 20 /* JobAuditLevelCode.Audit */
+            BEGIN
+                INSERT INTO acta.events (
+                    event_code, created_at_utc, namespace_id,
+                    actor_code, actor_key,
+                    job_id, job_ref, execution_number,
+                    lineage_root_id, definition_id,
+                    worker_id,
+                    from_status_code, to_status_code,
+                    execution_status_code, duration_ms,
+                    reason_code, reason_message
+                )
+                VALUES (
+                    100 /* EventCode.SchedulePaused */, @now, @ns,
+                    @p_actor_code, @p_actor_key,
+                    @p_job_id, @job_ref, @en,
+                    COALESCE(@lineage, @p_job_id), @def,
+                    NULL,
+                    NULL, NULL,
+                    NULL, NULL,
+                    NULL, @p_name
+                );
+            END
+
+        SELECT
+            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
+            @status AS status_code,
+            @paused AS paused_until_utc,
+            @next AS next_run_at_utc,
+            @version AS version;
+
+    Finish:
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+-- One section, one bounded atomic batch. Section numbers match RetentionSection.
+CREATE OR ALTER PROCEDURE acta.purge_expired_data
+    @p_namespace_id INT,
+    @p_section INT,
+    @p_cutoff_utc DATETIME2(7),
+    @p_batch_size INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        IF @p_batch_size <= 0 OR @p_section NOT BETWEEN 1 AND 8
+            THROW 50002, 'Invalid retention section or batch size.', 1;
+
+        DECLARE @rows INT = 0;
+        DECLARE @del TABLE (id BIGINT NOT NULL);
+        DECLARE @schedule_del TABLE (id BIGINT NOT NULL);
+        DECLARE @lock_del TABLE (lock_key VARCHAR(256) NOT NULL);
+        DECLARE @alert_del TABLE (id BIGINT NOT NULL PRIMARY KEY, dedupe_key VARCHAR(512) NULL);
+        DECLARE @alert_locked TABLE (id BIGINT NOT NULL PRIMARY KEY);
+
+        IF @p_section = 1
+            BEGIN
+                DELETE @del;
+
+                INSERT INTO @del (id)
+                SELECT TOP (@p_batch_size) j.id
+                FROM acta.runtimes r WITH (UPDLOCK, READPAST)
+                INNER JOIN acta.jobs j WITH (UPDLOCK, READPAST) ON j.id = r.job_id
+                WHERE
+                    r.namespace_id = @p_namespace_id
+                    AND r.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+                    AND r.retention_until_utc IS NOT NULL
+                    AND r.retention_until_utc <= @p_cutoff_utc
+                    -- Lineage guard: parent_id carries no FK, so purging a parent whose children still
+                    -- exist would orphan their lineage (same rule as the manual purge_job). Only leaves
+                    -- delete; a fully-expired subtree drains bottom-up across iterations.
+                    AND NOT EXISTS (
+                        SELECT 1 FROM acta.jobs c
+                        WHERE c.parent_id = j.id
+                    )
+                    -- A completed child of a live parent is kept: the parent's replay dedupes onto its row
+                    -- and reads its result, so purging it would run the child again. The tree drains once
+                    -- the parent is terminal.
+                    AND NOT EXISTS (
+                        SELECT 1 FROM acta.runtimes p
+                        WHERE p.job_id = j.parent_id
+                            AND p.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+                    )
+                    -- A stopped recurring job stays while its definition is live: the next start would register
+                    -- its declaration as a new job and undo the cancel or failure. Retiring the definition lets
+                    -- it drain.
+                    AND NOT EXISTS (
+                        SELECT 1 FROM acta.schedules s
+                        INNER JOIN acta.definitions d ON d.id = j.definition_id
+                        WHERE s.job_id = j.id AND d.status_code <> 240 /* JobDefinitionStatusCode.Retired */
+                    )
+                ORDER BY r.retention_until_utc, r.job_id;
+
+                DELETE @schedule_del;
+                INSERT INTO @schedule_del (id)
+                SELECT s.id FROM acta.schedules s WITH (UPDLOCK, FORCESEEK)
+                WHERE s.job_id IN (SELECT id FROM @del);
+
+                DELETE FROM acta.tags
+                WHERE
+                    (scope_code = 50 /* TagScopeCode.Job */ AND scope_id IN (SELECT id FROM @del))
+                    OR (scope_code = 60 /* TagScopeCode.Schedule */ AND scope_id IN (SELECT id FROM @schedule_del));
+
+                -- Each delete below seeks its rows by job id, the jobs cascade included: an unhinted plan can scan
+                -- the whole child table under update locks
+                -- (docs/internals/sql-execution-policy.md, "Foreign keys in set-based writes").
+                DELETE c FROM acta.checkpoints c WITH (FORCESEEK) INNER JOIN @del d ON d.id = c.job_id;
+                DELETE r FROM acta.runtimes r WITH (FORCESEEK) INNER JOIN @del d ON d.id = r.job_id;
+                DELETE s FROM acta.steps s WITH (FORCESEEK) INNER JOIN @del d ON d.id = s.job_id;
+                DELETE x FROM acta.results x WITH (FORCESEEK) INNER JOIN @del d ON d.id = x.job_id;
+                DELETE j FROM acta.jobs j WITH (FORCESEEK) INNER JOIN @del d ON d.id = j.id
+                OPTION (LOOP JOIN);
+                SET @rows = (SELECT COUNT(*) FROM @del);
+
+            END;
+
+        ELSE IF @p_section = 2
+            BEGIN
+                DELETE @del;
+
+                INSERT INTO @del (id)
+                SELECT TOP (@p_batch_size) id
+                FROM acta.events WITH (UPDLOCK, READPAST)
+                WHERE
+                    namespace_id = @p_namespace_id
+                    AND created_at_utc <= @p_cutoff_utc
+                ORDER BY created_at_utc, id;
+                DELETE FROM acta.tags
+                WHERE scope_code = 90 /* TagScopeCode.Event */ AND scope_id IN (SELECT id FROM @del);
+                DELETE e FROM acta.events e WITH (FORCESEEK) INNER JOIN @del d ON d.id = e.id;
+                SET @rows = (SELECT COUNT(*) FROM @del);
+
+            END;
+
+        ELSE IF @p_section = 3
+            BEGIN
+                DELETE @alert_del;
+                DELETE @alert_locked;
+
+                INSERT INTO @alert_del (id, dedupe_key)
+                SELECT TOP (@p_batch_size) id, dedupe_key
+                FROM acta.alerts WITH (READPAST)
+                WHERE
+                    namespace_id = @p_namespace_id
+                    AND created_at_utc <= @p_cutoff_utc
+                    AND delivery_status_code IN (
+                        30 /* AlertDeliveryStatusCode.Suppressed */,
+                        100 /* AlertDeliveryStatusCode.Delivered */,
+                        200 /* AlertDeliveryStatusCode.Failed */
+                    )
+                ORDER BY created_at_utc, id;
+
+                -- Staged without locks, then each identity row is locked through its ix_alerts_dedupe_identity
+                -- key before the row and the rest by key, skipping a row another transaction holds
+                -- (docs/internals/sql-execution-policy.md, "Alert lock order").
+                INSERT INTO @alert_locked (id)
+                SELECT a.id
+                FROM @alert_del d
+                INNER JOIN acta.alerts a WITH (UPDLOCK, READPAST, FORCESEEK (ix_alerts_dedupe_identity (namespace_id, dedupe_key)))
+                    ON
+                        a.namespace_id = @p_namespace_id
+                        AND a.dedupe_key = d.dedupe_key
+                        AND a.id = d.id
+                WHERE d.dedupe_key IS NOT NULL;
+                INSERT INTO @alert_locked (id)
+                SELECT a.id
+                FROM @alert_del d
+                INNER JOIN acta.alerts a WITH (UPDLOCK, READPAST, FORCESEEK) ON a.id = d.id
+                WHERE d.dedupe_key IS NULL;
+
+                DELETE FROM acta.tags
+                WHERE scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM @alert_locked);
+                DELETE a
+                FROM acta.alerts a WITH (FORCESEEK)
+                INNER JOIN @alert_locked l ON l.id = a.id
+                WHERE
+                    a.created_at_utc <= @p_cutoff_utc
+                    AND a.delivery_status_code IN (
+                        30 /* AlertDeliveryStatusCode.Suppressed */,
+                        100 /* AlertDeliveryStatusCode.Delivered */,
+                        200 /* AlertDeliveryStatusCode.Failed */
+                    );
+                SET @rows = @@ROWCOUNT;
+
+            END;
+
+        ELSE IF @p_section = 4
+            BEGIN
+                DELETE @alert_del;
+                DELETE @alert_locked;
+
+                INSERT INTO @alert_del (id, dedupe_key)
+                SELECT TOP (@p_batch_size) id, dedupe_key
+                FROM acta.alerts WITH (READPAST)
+                WHERE
+                    namespace_id = @p_namespace_id
+                    AND created_at_utc <= @p_cutoff_utc
+                    AND delivery_status_code IN (
+                        10 /* AlertDeliveryStatusCode.Pending */,
+                        20 /* AlertDeliveryStatusCode.RetryAfter */
+                    )
+                ORDER BY created_at_utc, id;
+
+                -- Staged without locks, then each identity row is locked through its ix_alerts_dedupe_identity
+                -- key before the row and the rest by key, skipping a row another transaction holds
+                -- (docs/internals/sql-execution-policy.md, "Alert lock order").
+                INSERT INTO @alert_locked (id)
+                SELECT a.id
+                FROM @alert_del d
+                INNER JOIN acta.alerts a WITH (UPDLOCK, READPAST, FORCESEEK (ix_alerts_dedupe_identity (namespace_id, dedupe_key)))
+                    ON
+                        a.namespace_id = @p_namespace_id
+                        AND a.dedupe_key = d.dedupe_key
+                        AND a.id = d.id
+                WHERE d.dedupe_key IS NOT NULL;
+                INSERT INTO @alert_locked (id)
+                SELECT a.id
+                FROM @alert_del d
+                INNER JOIN acta.alerts a WITH (UPDLOCK, READPAST, FORCESEEK) ON a.id = d.id
+                WHERE d.dedupe_key IS NULL;
+
+                DELETE FROM acta.tags
+                WHERE scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM @alert_locked);
+                DELETE a
+                FROM acta.alerts a WITH (FORCESEEK)
+                INNER JOIN @alert_locked l ON l.id = a.id
+                WHERE
+                    a.created_at_utc <= @p_cutoff_utc
+                    AND a.delivery_status_code IN (
+                        10 /* AlertDeliveryStatusCode.Pending */,
+                        20 /* AlertDeliveryStatusCode.RetryAfter */
+                    );
+                SET @rows = @@ROWCOUNT;
+
+            END;
+
+        ELSE IF @p_section = 5
+            BEGIN
+                DECLARE @alerts_slot_id BIGINT = (
+                    SELECT j.id
+                    FROM acta.jobs j
+                    WHERE
+                        j.namespace_id = @p_namespace_id
+                        AND j.deduplication_key = 'sys.alerts'
+                        AND j.parent_id IS NULL);
+                DELETE TOP (@p_batch_size) FROM acta.checkpoints
+                WHERE
+                    job_id = @alerts_slot_id
+                    AND kind_code = 10 /* JobCheckpointKindCode.Variable */
+                    AND name LIKE 'alerts-skip-%'
+                    AND modified_at_utc <= @p_cutoff_utc;
+                SET @rows = @@ROWCOUNT;
+            END;
+
+        ELSE IF @p_section = 6
+            BEGIN
+                DELETE @del;
+
+                INSERT INTO @del (id)
+                SELECT TOP (@p_batch_size) id
+                FROM acta.workers WITH (UPDLOCK, READPAST)
+                WHERE
+                    namespace_id = @p_namespace_id
+                    AND status_code IN (100 /* WorkerStatusCode.Stopped */, 200 /* WorkerStatusCode.Dead */)
+                    AND last_seen_at_utc <= @p_cutoff_utc
+                ORDER BY last_seen_at_utc, id;
+                DELETE FROM acta.tags
+                WHERE scope_code = 70 /* TagScopeCode.Worker */ AND scope_id IN (SELECT id FROM @del);
+                DELETE w FROM acta.workers w WITH (FORCESEEK) INNER JOIN @del d ON d.id = w.id;
+                SET @rows = (SELECT COUNT(*) FROM @del);
+
+            END;
+
+        ELSE IF @p_section = 7
+            BEGIN
+            -- The batch is staged without holding locks, then the delete seeks each row by clustered key, first
+            -- as every lock writer does, skipping a row a writer holds and re-checking its expiry. Taking the
+            -- expiry index key first deadlocks against reserve_rate moving a bucket's expiry.
+                DELETE @lock_del;
+                INSERT INTO @lock_del (lock_key)
+                SELECT TOP (@p_batch_size) lock_key
+                FROM acta.locks WITH (READPAST)
+                WHERE
+                    expires_at_utc <= @p_cutoff_utc
+                ORDER BY expires_at_utc;
+                DELETE t
+                FROM acta.locks t WITH (READPAST, FORCESEEK (pk_locks (lock_key)))
+                INNER JOIN @lock_del d ON d.lock_key = t.lock_key
+                WHERE t.expires_at_utc <= @p_cutoff_utc;
+                SET @rows = @@ROWCOUNT;
+            END;
+
+        ELSE IF @p_section = 8
+            BEGIN
+            -- Unreferenced lanes, locked by id on the clustered key skipping a lane an enqueue or settle
+            -- holds, then re-checked under the lock (docs/internals/sql-execution-policy.md, "Lane lock order").
+                DELETE @del;
+                INSERT INTO @del (id)
+                SELECT l.id
+                FROM acta.lanes l WITH (UPDLOCK, READPAST, ROWLOCK, INDEX (pk_lanes))
+                WHERE l.id IN (
+                    SELECT TOP (@p_batch_size) c.id
+                    FROM acta.lanes c
+                    WHERE
+                        c.namespace_id = @p_namespace_id
+                        AND NOT EXISTS (SELECT 1 FROM acta.runtimes r WHERE r.lane_id = c.id)
+                    ORDER BY c.id
+                );
+                DELETE l
+                FROM acta.lanes l WITH (FORCESEEK)
+                INNER JOIN @del d ON d.id = l.id
+                WHERE NOT EXISTS (SELECT 1 FROM acta.runtimes r WHERE r.lane_id = l.id)
+                OPTION (LOOP JOIN);
+                SET @rows = @@ROWCOUNT;
+            END;
+
+        SELECT @rows AS deleted_count;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
 CREATE OR ALTER PROCEDURE acta.purge_job
     @p_id BIGINT,
     @p_actor_code TINYINT,
@@ -4625,6 +5104,1368 @@ BEGIN
             CAST(NULL AS TINYINT) AS status_code;
 
     Finish:
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+CREATE OR ALTER PROCEDURE acta.raise_job_alert
+    @p_namespace_name VARCHAR(128),
+    @p_job_id BIGINT,
+    @p_origin_code TINYINT,
+    @p_severity_code TINYINT,
+    @p_kind_code TINYINT,
+    @p_title NVARCHAR(512),
+    @p_message NVARCHAR(512),
+    @p_channel_name VARCHAR(128),
+    @p_delivery_status_code TINYINT,
+    @p_dedupe_key VARCHAR(512),
+    @p_source_event_id BIGINT,
+    @p_alert_ref UNIQUEIDENTIFIER
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+
+        DECLARE @v_ns INT = (
+            SELECT id FROM acta.namespaces
+            WHERE name = @p_namespace_name
+        );
+        IF @v_ns IS NULL
+            THROW 50000, 'raise_job_alert: unknown namespace', 1;
+
+        -- The job row is locked before any of its alert rows, as purge_job and resolve_job_alerts lock it
+        -- (docs/internals/sql-execution-policy.md, "Alert lock order"), so a raise waits out a purge of its
+        -- job rather than deadlocking with it or landing an alert on the deleted job.
+        DECLARE @v_job_ref UNIQUEIDENTIFIER;
+        SELECT @v_job_ref = job_ref
+        FROM acta.jobs WITH (UPDLOCK, ROWLOCK)
+        WHERE id = @p_job_id;
+
+        IF @p_job_id IS NOT NULL AND @v_job_ref IS NULL
+            THROW 50007, 'ACTA:ALERT_UNKNOWN_JOB:raise_job_alert: unknown job id', 1;
+
+        IF @p_dedupe_key IS NULL
+            BEGIN
+                INSERT INTO acta.alerts (
+                    namespace_id, alert_ref, job_id, job_ref,
+                    origin_code, severity_code, kind_code, title, message, channel_name,
+                    dedupe_key, occurrence_count, last_projected_event_id,
+                    delivery_status_code, retry_count,
+                    created_at_utc, modified_at_utc, version
+                )
+                VALUES (
+                    @v_ns, @p_alert_ref, @p_job_id, @v_job_ref,
+                    @p_origin_code, @p_severity_code, @p_kind_code, @p_title, @p_message, @p_channel_name,
+                    NULL, 1, @p_source_event_id,
+                    @p_delivery_status_code, 0,
+                    @now, @now, 0
+                );
+                SELECT 1, @p_source_event_id;
+                GOTO Finish;
+            END
+
+        DECLARE @updated TABLE (occurrence_count INT NOT NULL, last_projected_event_id BIGINT NULL);
+
+        -- The identity's one OPEN row absorbs the repeat and a resolved one is left for the insert arm below.
+        -- UPDLOCK/HOLDLOCK serializes raisers; the seek is pinned to the index every alert deleter locks
+        -- first (docs/internals/sql-execution-policy.md, "Alert lock order").
+        UPDATE ja
+        SET
+            job_id = @p_job_id,
+            job_ref = @v_job_ref,
+            origin_code = @p_origin_code,
+            severity_code = @p_severity_code,
+            kind_code = @p_kind_code,
+            title = @p_title,
+            message = @p_message,
+            channel_name = @p_channel_name,
+            occurrence_count = ja.occurrence_count + 1,
+            last_projected_event_id = COALESCE(@p_source_event_id, ja.last_projected_event_id),
+            modified_at_utc = @now,
+            version = ja.version + 1
+        OUTPUT INSERTED.occurrence_count, INSERTED.last_projected_event_id INTO @updated
+        FROM acta.alerts AS ja WITH (UPDLOCK, HOLDLOCK, FORCESEEK (ix_alerts_dedupe_identity (namespace_id, dedupe_key)))
+        WHERE
+            ja.namespace_id = @v_ns
+            AND ja.dedupe_key = @p_dedupe_key
+            AND ja.resolved_at_utc IS NULL
+            AND (
+                @p_source_event_id IS NULL
+                OR ja.last_projected_event_id IS NULL
+                OR @p_source_event_id > ja.last_projected_event_id
+            );
+
+        IF NOT EXISTS (SELECT 1 FROM @updated)
+            BEGIN
+                -- No open row took it, or one is there and held a replayed event back. The insert opens a
+                -- fresh incident only when neither holds: no open row at all, AND - the ghost guard - no
+                -- row of this identity already marked at or past this event.
+                INSERT INTO acta.alerts (
+                    namespace_id, alert_ref, job_id, job_ref,
+                    origin_code, severity_code, kind_code, title, message, channel_name,
+                    dedupe_key, occurrence_count, last_projected_event_id,
+                    delivery_status_code, retry_count,
+                    created_at_utc, modified_at_utc, version
+                )
+                OUTPUT INSERTED.occurrence_count, INSERTED.last_projected_event_id INTO @updated
+                SELECT
+                    @v_ns, @p_alert_ref, @p_job_id, @v_job_ref,
+                    @p_origin_code, @p_severity_code, @p_kind_code, @p_title, @p_message, @p_channel_name,
+                    @p_dedupe_key, 1, @p_source_event_id,
+                    @p_delivery_status_code, 0,
+                    @now, @now, 0
+                -- No lock hint: this reads the whole identity, resolved rows included, which the
+                -- unresolved-only index cannot serve - hinting it would hold a scan's worth of locks
+                -- and the UPDATE above already serializes raisers of this identity.
+                WHERE NOT EXISTS (
+                    SELECT 1
+                    FROM acta.alerts AS g
+                    WHERE
+                        g.namespace_id = @v_ns
+                        AND g.dedupe_key = @p_dedupe_key
+                        AND (g.resolved_at_utc IS NULL OR g.last_projected_event_id >= @p_source_event_id)
+                );
+
+                IF NOT EXISTS (SELECT 1 FROM @updated)
+                    BEGIN
+                        -- Nothing written: a replay-held update or a ghost-blocked insert. The newest
+                        -- row has already absorbed this event or a newer one, so its count and mark
+                        -- re-assert only this event's own escalation, never a neighbour's.
+                        INSERT INTO @updated (occurrence_count, last_projected_event_id)
+                        SELECT TOP (1) ja.occurrence_count, ja.last_projected_event_id
+                        FROM acta.alerts AS ja
+                        WHERE
+                            ja.namespace_id = @v_ns
+                            AND ja.dedupe_key = @p_dedupe_key
+                        ORDER BY ja.id DESC;
+                    END
+            END
+
+        SELECT TOP (1) occurrence_count, last_projected_event_id FROM @updated;
+
+    Finish:
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+CREATE OR ALTER PROCEDURE acta.raise_signal
+    @p_job_id BIGINT,
+    @p_kind_code TINYINT,
+    @p_name VARCHAR(128),
+    @p_value_format_id TINYINT,
+    @p_value VARBINARY(MAX),
+    @p_actor_code TINYINT,
+    @p_actor_key NVARCHAR(128),
+    @p_reason_code TINYINT,
+    @p_reason_message NVARCHAR(512)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @existing TINYINT;
+        DECLARE @expired BIT = 0;
+        DECLARE @message NVARCHAR(512);
+        DECLARE
+            @from_status TINYINT, @namespace_id INT, @lineage_root_id BIGINT,
+            @definition_id INT, @tenant_id INT, @execution_number INT, @audit_level TINYINT,
+            @job_ref UNIQUEIDENTIFIER;
+
+        SELECT @existing = status_code
+        FROM acta.checkpoints WITH (UPDLOCK, HOLDLOCK)
+        WHERE job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name;
+
+        SELECT
+            @from_status = r.status_code,
+            @namespace_id = j.namespace_id,
+            @lineage_root_id = j.lineage_root_id,
+            @definition_id = j.definition_id,
+            @tenant_id = j.tenant_id,
+            @execution_number = r.execution_number,
+            @audit_level = j.audit_level_code,
+            @job_ref = j.job_ref
+        FROM acta.runtimes r WITH (UPDLOCK, ROWLOCK)
+        INNER JOIN acta.jobs j ON j.id = r.job_id
+        WHERE r.job_id = @p_job_id;
+
+        IF @from_status IS NULL
+            BEGIN
+
+                SELECT
+                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
+                    CAST(NULL AS TINYINT) AS status_code;
+                GOTO Finish;
+            END;
+
+        IF @from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+            BEGIN
+
+                SELECT
+                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
+                    @from_status AS status_code;
+                GOTO Finish;
+            END;
+
+        /* No revival: an Expired slot already resolved the wait TimedOut, so a late raise writes no
+           slot and releases no job. The raise still happened, so it is still recorded: the event below
+           carries a message saying why it changed nothing, and the verb reports the unchanged status. */
+        SET @expired = CASE WHEN @existing = 30 /* JobCheckpointStatusCode.Expired */ THEN 1 ELSE 0 END;
+        SET @message = CASE
+            WHEN @expired = 1
+                THEN LEFT(COALESCE(@p_reason_message + N' ', N'') + N'Signal not applied: the wait had already expired.', 512)
+            ELSE @p_reason_message
+        END;
+
+        IF @expired = 0
+            BEGIN
+                IF @existing IS NULL
+                    INSERT INTO acta.checkpoints (
+                        job_id, kind_code, name, status_code, value_format_id, value,
+                        created_at_utc, modified_at_utc, version
+                    )
+                    VALUES (@p_job_id, @p_kind_code, @p_name, 20 /* JobCheckpointStatusCode.Set */, @p_value_format_id, @p_value, @now, @now, 0);
+                ELSE
+                    UPDATE acta.checkpoints
+                    SET
+                        status_code = 20 /* JobCheckpointStatusCode.Set */,
+                        value_format_id = @p_value_format_id,
+                        value = @p_value,
+                        modified_at_utc = @now,
+                        version = version + 1
+                    WHERE job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name;
+            END
+
+        IF @audit_level = 20 /* JobAuditLevelCode.Audit */
+            INSERT INTO acta.events (
+                event_code, created_at_utc, namespace_id,
+                actor_code, actor_key,
+                job_id, job_ref, execution_number,
+                lineage_root_id, definition_id, tenant_id,
+                worker_id,
+                from_status_code, to_status_code,
+                execution_status_code, duration_ms,
+                reason_code, reason_message
+            )
+            VALUES (
+                80 /* EventCode.JobSignalRaised */, @now, @namespace_id,
+                @p_actor_code, @p_actor_key,
+                @p_job_id, @job_ref, @execution_number,
+                COALESCE(@lineage_root_id, @p_job_id), @definition_id, @tenant_id,
+                NULL,
+                @from_status, @from_status,
+                NULL, NULL,
+                @p_reason_code, @message
+            );
+
+        IF @from_status = 20 /* JobStatusCode.Suspended */ AND @expired = 0
+            BEGIN
+                UPDATE acta.runtimes
+                SET
+                    status_code = 10 /* JobStatusCode.Ready */,
+                    next_run_at_utc = @now,
+                    modified_at_utc = @now,
+                    version = version + 1
+                WHERE job_id = @p_job_id;
+
+                IF @audit_level = 20 /* JobAuditLevelCode.Audit */
+                    INSERT INTO acta.events (
+                        event_code, created_at_utc, namespace_id,
+                        actor_code, actor_key,
+                        job_id, job_ref, execution_number,
+                        lineage_root_id, definition_id, tenant_id,
+                        worker_id,
+                        from_status_code, to_status_code,
+                        execution_status_code, duration_ms,
+                        reason_code, reason_message
+                    )
+                    VALUES (
+                        72 /* EventCode.JobResumed */, @now, @namespace_id,
+                        @p_actor_code, @p_actor_key,
+                        @p_job_id, @job_ref, @execution_number,
+                        COALESCE(@lineage_root_id, @p_job_id), @definition_id, @tenant_id,
+                        NULL,
+                        20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */,
+                        NULL, NULL,
+                        @p_reason_code, @p_reason_message
+                    );
+
+                SELECT
+                    CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
+                    CAST(10 /* JobStatusCode.Ready */ AS TINYINT) AS status_code;
+                GOTO Finish;
+            END
+
+        SELECT
+            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
+            @from_status AS status_code;
+
+    Finish:
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+CREATE OR ALTER PROCEDURE acta.reclaim_stuck_jobs
+    @p_namespace_id INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+
+        DECLARE
+            @reclaimed TABLE
+            (
+                id BIGINT NOT NULL PRIMARY KEY,
+                job_ref UNIQUEIDENTIFIER NOT NULL,
+                namespace_id INT NOT NULL,
+                execution_number INT NOT NULL,
+                lineage_root_id BIGINT NULL,
+                definition_id INT NOT NULL,
+                tenant_id INT NULL,
+                from_status_code TINYINT NOT NULL,
+                to_status_code TINYINT NOT NULL,
+                audit_level_code TINYINT NOT NULL,
+                parent_id BIGINT NULL
+            );
+
+        /* A pass visits at most 1,000 of the namespace's lanes from a random lane id with wrap and repairs at
+           most 100 stranded ones in visiting order (docs/internals/sql-execution-policy.md, "Lane lock order").
+           Each head is sought through ix_runtimes_lane, named because a small runtimes table tempts a scan. */
+        DECLARE @window TABLE (ord INT IDENTITY (1, 1) PRIMARY KEY, id BIGINT NOT NULL);
+        DECLARE @stranded TABLE (id BIGINT NOT NULL PRIMARY KEY);
+        DECLARE @repaired TABLE (id BIGINT NOT NULL PRIMARY KEY);
+        DECLARE @min_lane BIGINT, @max_lane BIGINT, @start_lane BIGINT, @window_count INT;
+        SELECT @min_lane = MIN(l.id), @max_lane = MAX(l.id) FROM acta.lanes l;
+        IF @max_lane IS NOT NULL
+            BEGIN
+                SET @start_lane = @min_lane + CAST(FLOOR(RAND(CHECKSUM(NEWID())) * (@max_lane - @min_lane + 1)) AS BIGINT);
+                INSERT INTO @window (id)
+                SELECT TOP (1000) l.id
+                FROM acta.lanes l
+                WHERE l.namespace_id = @p_namespace_id AND l.id >= @start_lane
+                ORDER BY l.id;
+                SET @window_count = @@ROWCOUNT;
+                INSERT INTO @window (id)
+                SELECT TOP (1000 - @window_count) l.id
+                FROM acta.lanes l
+                WHERE l.namespace_id = @p_namespace_id AND l.id < @start_lane
+                ORDER BY l.id;
+
+                INSERT INTO @stranded (id)
+                SELECT TOP (100) w.id
+                FROM @window w
+                CROSS APPLY (
+                    SELECT TOP (1) m.status_code
+                    FROM acta.runtimes m WITH (INDEX (ix_runtimes_lane), FORCESEEK)
+                    WHERE
+                        m.lane_id = w.id
+                        AND m.lane_id IS NOT NULL
+                        AND m.status_code IN (
+                            10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                            30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                        )
+                    ORDER BY m.job_id
+                ) h
+                WHERE
+                    h.status_code = 15 /* JobStatusCode.Blocked */
+                    AND NOT EXISTS (
+                        SELECT 1
+                        FROM acta.runtimes o WITH (INDEX (ix_runtimes_lane), FORCESEEK)
+                        WHERE
+                            o.lane_id = w.id
+                            AND o.lane_id IS NOT NULL
+                            AND o.status_code IN (
+                                10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                                40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                            )
+                    )
+                ORDER BY w.ord;
+            END;
+
+        /* Stuck candidates are read through the filtered ix_runtimes_worker_inflight without holding locks,
+           and only those rows are locked below, by primary key: the index is shared by every namespace, so
+           holding its keys would make another namespace's sweep skip its own rows under READPAST. */
+        DECLARE @stuck TABLE (id BIGINT NOT NULL PRIMARY KEY, lane_id BIGINT NULL);
+        INSERT INTO @stuck (id, lane_id)
+        SELECT r.job_id, r.lane_id
+        FROM acta.runtimes r WITH (INDEX (ix_runtimes_worker_inflight), READPAST)
+        WHERE
+            r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+            AND r.leased_by_worker_id IS NOT NULL
+            AND r.lease_expires_at_utc < @now
+            AND r.namespace_id = @p_namespace_id;
+
+        /* Lanes are locked one UPDLOCK seek at a time in id order, skipping a lane another transaction holds,
+           whose stuck rows and repair wait for a later pass. */
+        DECLARE @candidates TABLE (id BIGINT NOT NULL PRIMARY KEY);
+        INSERT INTO @candidates (id)
+        SELECT k.lane_id
+        FROM @stuck k
+        WHERE k.lane_id IS NOT NULL
+        UNION
+        SELECT s.id
+        FROM @stranded s;
+
+        DECLARE @lanes TABLE (id BIGINT NOT NULL PRIMARY KEY);
+        DECLARE @lane_cursor BIGINT = 0, @lane_next BIGINT, @lane_locked BIGINT;
+        WHILE 1 = 1
+            BEGIN
+                SET @lane_next = NULL;
+                SELECT TOP (1) @lane_next = c.id
+                FROM @candidates c
+                WHERE c.id > @lane_cursor
+                ORDER BY c.id;
+
+                IF @lane_next IS NULL
+                    BREAK;
+
+                SET @lane_locked = NULL;
+                SELECT @lane_locked = l.id
+                FROM acta.lanes l WITH (UPDLOCK, READPAST, ROWLOCK)
+                WHERE l.id = @lane_next;
+
+                IF @lane_locked IS NOT NULL
+                    INSERT INTO @lanes (id) VALUES (@lane_locked);
+
+                SET @lane_cursor = @lane_next;
+            END;
+
+        /* The walk read without locks, so each stranded lane's head is re-read under its lock and promoted
+           only while it is still Blocked and no member runs. */
+        UPDATE r
+        SET
+            status_code = 10 /* JobStatusCode.Ready */,
+            next_run_at_utc = CASE WHEN r.next_run_at_utc > @now THEN r.next_run_at_utc ELSE @now END,
+            modified_at_utc = @now,
+            version = r.version + 1
+        OUTPUT INSERTED.job_id INTO @repaired (id)
+        FROM @stranded s
+        INNER JOIN @lanes e ON e.id = s.id
+        CROSS APPLY (
+            SELECT TOP (1) m.job_id, m.status_code
+            FROM acta.runtimes m WITH (INDEX (ix_runtimes_lane), FORCESEEK)
+            WHERE
+                m.lane_id = s.id
+                AND m.lane_id IS NOT NULL
+                AND m.status_code IN (
+                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                    30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                )
+            ORDER BY m.job_id
+        ) h
+        INNER JOIN acta.runtimes r WITH (FORCESEEK) ON r.job_id = h.job_id
+        WHERE
+            h.status_code = 15 /* JobStatusCode.Blocked */
+            AND r.status_code = 15 /* JobStatusCode.Blocked */
+            AND NOT EXISTS (
+                SELECT 1
+                FROM acta.runtimes o WITH (INDEX (ix_runtimes_lane), FORCESEEK)
+                WHERE
+                    o.lane_id = s.id
+                    AND o.lane_id IS NOT NULL
+                    AND o.status_code IN (
+                        10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                        40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                    )
+            );
+
+        INSERT INTO acta.events (
+            event_code, created_at_utc, namespace_id,
+            actor_code, actor_key,
+            job_id, job_ref, execution_number,
+            lineage_root_id, definition_id, tenant_id,
+            worker_id,
+            from_status_code, to_status_code,
+            execution_status_code, duration_ms,
+            reason_code, reason_message
+        )
+        SELECT
+            72 /* EventCode.JobResumed */,
+            @now,
+            j.namespace_id,
+            10 /* ActorCode.Sys */,
+            NULL,
+            j.id,
+            j.job_ref,
+            r.execution_number,
+            COALESCE(j.lineage_root_id, j.id),
+            j.definition_id,
+            j.tenant_id,
+            NULL,
+            15 /* JobStatusCode.Blocked */,
+            10 /* JobStatusCode.Ready */,
+            NULL,
+            NULL,
+            67 /* JobEventReasonCode.JobLaneRepaired */,
+            N'Lane had no live head; the sys.recovery system job released its lowest Blocked member.'
+        FROM @repaired x
+        INNER JOIN acta.jobs j ON j.id = x.id
+        INNER JOIN acta.runtimes r ON r.job_id = x.id
+        WHERE j.audit_level_code IN (10 /* JobAuditLevelCode.Failures */, 20 /* JobAuditLevelCode.Audit */);
+
+        WITH stuck AS (
+            SELECT
+                r.job_id AS id,
+                r.status_code AS from_status,
+                r.failure_count + 1 AS new_failure_count,
+                jd.max_attempts_effective AS max_attempts,
+                jd.retention_seconds_effective AS retention_seconds,
+                /* The job was parked on THIS slot: the suspend copied the slot's due into
+                   next_run_at_utc, so the equality names the wait this attempt woke for, and an
+                   unbounded wait (NULL due) matches nothing. Expired means the timeout had resolved. */
+                CASE WHEN EXISTS (
+                    SELECT 1
+                    FROM acta.checkpoints c
+                    WHERE
+                        c.job_id = r.job_id
+                        AND c.kind_code IN (20 /* JobCheckpointKindCode.Signal */, 50 /* JobCheckpointKindCode.ChildLatch */)
+                        AND c.status_code = 30 /* JobCheckpointStatusCode.Expired */
+                        AND c.due_at_utc = r.next_run_at_utc
+                ) THEN 1 ELSE 0 END AS wait_resolved,
+                /* MaxAttempts is the one-off retry budget and a slot's failure_count accumulates
+                   across occurrences, so a recurring reclaim always re-arms Ready instead of
+                   terminally failing the schedule - mirroring ComputeRecurringOutcome on the worker path. */
+                CASE WHEN EXISTS (
+                    SELECT 1
+                    FROM acta.schedules sc
+                    WHERE sc.job_id = r.job_id
+                ) THEN 1 ELSE 0 END AS is_recurring
+            FROM @stuck k
+            INNER JOIN acta.runtimes r WITH (READPAST, UPDLOCK, ROWLOCK, FORCESEEK) ON r.job_id = k.id
+            INNER JOIN acta.jobs j ON j.id = r.job_id
+            INNER JOIN acta.definitions jd ON jd.id = j.definition_id
+            WHERE
+                r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+                AND r.leased_by_worker_id IS NOT NULL
+                AND r.lease_expires_at_utc < @now
+                AND r.namespace_id = @p_namespace_id
+                AND (r.lane_id IS NULL OR r.lane_id IN (SELECT e.id FROM @lanes e))
+        )
+
+        /* Budget-neutral for a resolved wait: the surviving path would have ended this attempt at no
+           cost, so the job goes back to Suspended on the same past deadline, unclaimed and uncharged,
+           and the replay lands whatever outcome the waiting overload chooses. */
+        UPDATE r
+        SET
+            status_code = CASE
+                WHEN s.wait_resolved = 1
+                    THEN 20 /* JobStatusCode.Suspended */
+                WHEN s.is_recurring = 0 AND s.new_failure_count >= s.max_attempts
+                    THEN 200 /* JobStatusCode.Failed */
+                ELSE 10  /* JobStatusCode.Ready */
+            END,
+            failure_count = CASE
+                WHEN s.wait_resolved = 1
+                    THEN r.failure_count
+                ELSE s.new_failure_count
+            END,
+            next_run_at_utc = CASE
+                WHEN s.wait_resolved = 1
+                    THEN r.next_run_at_utc
+                WHEN s.is_recurring = 0 AND s.new_failure_count >= s.max_attempts
+                    THEN r.next_run_at_utc
+                ELSE @now
+            END,
+            leased_by_worker_id = NULL,
+            lease_expires_at_utc = NULL,
+            retention_until_utc = CASE
+                WHEN s.wait_resolved = 0 AND s.is_recurring = 0 AND s.new_failure_count >= s.max_attempts
+                    THEN DATEADD(SECOND, s.retention_seconds, @now)
+                ELSE r.retention_until_utc
+            END,
+            modified_at_utc = @now,
+            version = r.version + 1
+        OUTPUT
+            INSERTED.job_id, j.job_ref, j.namespace_id, INSERTED.execution_number,
+            j.lineage_root_id, j.definition_id, j.tenant_id,
+            DELETED.status_code, INSERTED.status_code, j.audit_level_code,
+            j.parent_id
+        INTO
+            @reclaimed (
+                id, job_ref, namespace_id, execution_number, lineage_root_id,
+                definition_id, tenant_id, from_status_code, to_status_code, audit_level_code, parent_id
+            )
+        -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of runtimes;
+        -- see docs/internals/sql-execution-policy.md.
+        FROM acta.runtimes r WITH (FORCESEEK)
+        INNER JOIN stuck s ON s.id = r.job_id
+        INNER JOIN acta.jobs j ON j.id = r.job_id;
+
+        INSERT INTO acta.events (
+            event_code, created_at_utc, namespace_id,
+            actor_code, actor_key,
+            job_id, job_ref, execution_number,
+            lineage_root_id, definition_id, tenant_id,
+            worker_id,
+            from_status_code, to_status_code,
+            execution_status_code, duration_ms,
+            reason_code, reason_message
+        )
+        SELECT
+            41 /* EventCode.JobExecutionFinished */,
+            @now,
+            namespace_id,
+            10 /* ActorCode.Sys */,
+            NULL,
+            id,
+            job_ref,
+            execution_number,
+            COALESCE(lineage_root_id, id),
+            definition_id,
+            tenant_id,
+            NULL,
+            from_status_code,
+            to_status_code,
+            230 /* ExecutionStatusCode.Orphaned */,
+            NULL,
+            21 /* JobEventReasonCode.JobLeaseExpired */,
+            /* Suspended is reachable only through the resolved-wait arm above, so the landed status is
+               what tells the two messages apart. */
+            CASE WHEN to_status_code = 20 /* JobStatusCode.Suspended */
+                THEN N'Worker lease expired while an expired wait was resolving; re-armed on the same deadline with no attempt charged.'
+                ELSE N'Worker lease expired; reclaimed by the sys.recovery system job.'
+            END
+        FROM @reclaimed
+        WHERE audit_level_code IN (10 /* JobAuditLevelCode.Failures */, 20 /* JobAuditLevelCode.Audit */);
+
+        /* A head reclaimed to Failed hands its lane on; a head re-armed Ready keeps it. Promotion runs
+           under the lane locks and re-reads each head rather than trusting the walk. */
+        UPDATE r
+        SET
+            status_code = 10 /* JobStatusCode.Ready */,
+            next_run_at_utc = CASE WHEN r.next_run_at_utc > @now THEN r.next_run_at_utc ELSE @now END,
+            modified_at_utc = @now,
+            version = r.version + 1
+        FROM @lanes e
+        CROSS APPLY (
+            SELECT TOP (1) m.job_id, m.status_code
+            FROM acta.runtimes m WITH (INDEX (ix_runtimes_lane), FORCESEEK)
+            WHERE
+                m.lane_id = e.id
+                AND m.lane_id IS NOT NULL
+                AND m.status_code IN (
+                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                    30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                )
+            ORDER BY m.job_id
+        ) h
+        INNER JOIN acta.runtimes r WITH (FORCESEEK) ON r.job_id = h.job_id
+        WHERE
+            h.status_code = 15 /* JobStatusCode.Blocked */
+            AND r.status_code = 15 /* JobStatusCode.Blocked */
+            AND NOT EXISTS (
+                SELECT 1
+                FROM acta.runtimes o WITH (INDEX (ix_runtimes_lane), FORCESEEK)
+                WHERE
+                    o.lane_id = e.id
+                    AND o.lane_id IS NOT NULL
+                    AND o.status_code IN (
+                        10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                        40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                    )
+            );
+
+        SELECT
+            id AS job_id,
+            to_status_code AS to_status,
+            parent_id,
+            CAST(0 AS TINYINT) AS lane_repaired
+        FROM @reclaimed
+        UNION ALL
+        SELECT
+            id,
+            CAST(10 /* JobStatusCode.Ready */ AS TINYINT),
+            NULL,
+            CAST(1 AS TINYINT)
+        FROM @repaired;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+-- Appends one application-authored job.note-recorded event; see IExecutionStore.RecordJobNoteAsync.
+CREATE OR ALTER PROCEDURE acta.record_job_note
+    @p_job_id BIGINT,
+    @p_execution_number INT,
+    @p_reason_message NVARCHAR(512),
+    @p_detail_format_id TINYINT,
+    @p_detail VARBINARY(MAX)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        INSERT INTO acta.events (
+            event_code,
+            created_at_utc,
+            namespace_id,
+            actor_code,
+            job_id,
+            job_ref,
+            execution_number,
+            lineage_root_id,
+            definition_id,
+            tenant_id,
+            detail_format_id,
+            detail,
+            reason_message)
+        SELECT
+            90 /* EventCode.JobNoteRecorded */,
+            SYSUTCDATETIME(),
+            j.namespace_id,
+            50 /* ActorCode.Job */,
+            j.id,
+            j.job_ref,
+            @p_execution_number,
+            COALESCE(j.lineage_root_id, j.id),
+            j.definition_id,
+            j.tenant_id,
+            @p_detail_format_id,
+            @p_detail,
+            @p_reason_message
+        FROM acta.jobs j
+        WHERE j.id = @p_job_id;
+
+        SELECT @@ROWCOUNT AS inserted;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+-- Appends the applied-command evidence event against the sys.outbox slot job. Always emitted (no
+-- audit-level gate): this is the trail for actions whose subject rows live in the producer's database.
+CREATE OR ALTER PROCEDURE acta.record_outbox_event
+    @p_job_id BIGINT,
+    @p_event_code SMALLINT,
+    @p_actor_code TINYINT,
+    @p_actor_key NVARCHAR(128),
+    @p_reason_message NVARCHAR(512)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        INSERT INTO acta.events (
+            event_code,
+            created_at_utc,
+            namespace_id,
+            actor_code,
+            actor_key,
+            job_id,
+            job_ref,
+            execution_number,
+            lineage_root_id,
+            definition_id,
+            tenant_id,
+            reason_message)
+        SELECT
+            @p_event_code,
+            SYSUTCDATETIME(),
+            j.namespace_id,
+            @p_actor_code,
+            @p_actor_key,
+            j.id,
+            j.job_ref,
+            r.execution_number,
+            COALESCE(j.lineage_root_id, j.id),
+            j.definition_id,
+            j.tenant_id,
+            @p_reason_message
+        FROM acta.jobs j
+        JOIN acta.runtimes r ON r.job_id = j.id
+        WHERE j.id = @p_job_id;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+CREATE OR ALTER PROCEDURE acta.register_job_definitions
+    @p_namespace_id INT,
+    @p_manifest_generation DATETIME2(7),
+    @p_definitions acta.job_definition_batch READONLY
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+
+        UPDATE jd SET
+            status_code = 10 /* JobDefinitionStatusCode.Active */,
+            input_type_name = src.input_type_name,
+            output_type_name = src.output_type_name,
+            input_format_id = src.input_format_id,
+            input_format_name = src.input_format_name,
+            output_format_id = src.output_format_id,
+            output_format_name = src.output_format_name,
+            priority_code = src.priority_code,
+            max_attempts = src.max_attempts,
+            concurrency_limit = src.concurrency_limit,
+            rate_limit = src.rate_limit,
+            rate_key = src.rate_key,
+            lane = src.lane,
+            backoff = src.backoff,
+            execution_timeout_seconds = src.execution_timeout_seconds,
+            deadline_seconds = src.deadline_seconds,
+            deadline_behavior_code = src.deadline_behavior_code,
+            retention_seconds = src.retention_seconds,
+            audit_level_code = src.audit_level_code,
+            alert_profile_code = src.alert_profile_code,
+            tenant_requirement_code = src.tenant_requirement_code,
+            alert_channel_name = src.alert_channel_name,
+            runbook_url = src.runbook_url,
+            display_name = src.display_name,
+            description = src.description,
+            definition_hash = src.definition_hash,
+            manifest_generation_at_utc = @p_manifest_generation,
+            modified_at_utc = @now,
+            version = jd.version + 1
+        FROM acta.definitions jd
+        INNER JOIN @p_definitions src
+            ON jd.namespace_id = @p_namespace_id AND jd.name = src.name
+        WHERE
+            @p_manifest_generation >= jd.manifest_generation_at_utc
+            AND (
+                jd.status_code <> 10 /* JobDefinitionStatusCode.Active */
+                OR jd.definition_hash <> src.definition_hash
+            );
+
+        INSERT INTO acta.definitions (
+            namespace_id, name, status_code,
+            input_type_name, output_type_name,
+            input_format_id, input_format_name,
+            output_format_id, output_format_name,
+            priority_code, max_attempts, concurrency_limit,
+            rate_limit, rate_key, lane,
+            backoff,
+            execution_timeout_seconds,
+            deadline_seconds,
+            deadline_behavior_code,
+            retention_seconds,
+            audit_level_code, alert_profile_code,
+            tenant_requirement_code,
+            alert_channel_name, runbook_url,
+            display_name, description,
+            definition_hash, manifest_generation_at_utc,
+            created_at_utc, modified_at_utc, version
+        )
+        SELECT
+            @p_namespace_id,
+            src.name,
+            10 /* JobDefinitionStatusCode.Active */,
+            src.input_type_name,
+            src.output_type_name,
+            src.input_format_id,
+            src.input_format_name,
+            src.output_format_id,
+            src.output_format_name,
+            src.priority_code,
+            src.max_attempts,
+            src.concurrency_limit,
+            src.rate_limit,
+            src.rate_key,
+            src.lane,
+            src.backoff,
+            src.execution_timeout_seconds,
+            src.deadline_seconds,
+            src.deadline_behavior_code,
+            src.retention_seconds,
+            src.audit_level_code,
+            src.alert_profile_code,
+            src.tenant_requirement_code,
+            src.alert_channel_name,
+            src.runbook_url,
+            src.display_name,
+            src.description,
+            src.definition_hash,
+            @p_manifest_generation,
+            @now,
+            @now,
+            0
+        FROM @p_definitions src
+        WHERE NOT EXISTS (
+            SELECT 1 FROM acta.definitions jd
+            WHERE jd.namespace_id = @p_namespace_id AND jd.name = src.name
+        );
+
+        SELECT
+            jd.name,
+            jd.id
+        FROM @p_definitions src
+        INNER JOIN acta.definitions jd
+            ON jd.namespace_id = @p_namespace_id AND jd.name = src.name;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+CREATE OR ALTER PROCEDURE acta.register_scheduled_jobs
+    @p_namespace_id INT,
+    @p_definitions acta.job_schedule_slot_batch READONLY,
+    @p_schedules acta.job_schedule_upsert_batch READONLY
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @lock_result INT;
+        DECLARE @lock_resource NVARCHAR(255) = N'acta.register_scheduled_jobs';
+
+        EXEC @lock_result = sys.sp_getapplock @lock_resource, 'Exclusive', 'Transaction';
+
+        IF @lock_result < 0
+            BEGIN
+                THROW 50004, 'register_scheduled_jobs could not acquire the recurring slot lock.', 1;
+            END
+
+        UPDATE j
+        SET
+            input_format_id = d.input_format_id,
+            input = d.input,
+            audit_level_code = d.audit_level_code
+        FROM acta.jobs AS j
+        INNER JOIN @p_definitions AS d ON d.deduplication_key = j.deduplication_key
+        WHERE
+            j.namespace_id = @p_namespace_id
+            AND j.parent_id IS NULL
+            -- A row already holding the key is the slot only when it owns schedules; an ordinary job that
+            -- took the key is left untouched and missing from the result, which fails the worker's startup.
+            AND EXISTS (SELECT 1 FROM acta.schedules AS s WHERE s.job_id = j.id);
+
+        UPDATE r
+        SET
+            status_code = d.slot_status_code,
+            priority_code = jd.priority_code_effective,
+            next_run_at_utc = d.slot_next_run_at_utc,
+            modified_at_utc = @now,
+            version = r.version + 1
+        FROM acta.runtimes AS r
+        INNER JOIN acta.jobs AS j ON j.id = r.job_id
+        INNER JOIN @p_definitions AS d ON d.deduplication_key = j.deduplication_key
+        INNER JOIN acta.definitions AS jd ON jd.id = d.definition_id
+        WHERE
+            j.namespace_id = @p_namespace_id
+            AND j.parent_id IS NULL
+            AND EXISTS (SELECT 1 FROM acta.schedules AS s WHERE s.job_id = j.id)
+            -- An attempt in flight owns the slot, and a finished slot stays finished until an operator restarts it.
+            AND r.status_code NOT IN (
+                40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */,
+                100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+            -- A held job (Paused with a next run; ScheduleWalker, "held") stays as its operator left it.
+            AND NOT (r.status_code = 30 /* JobStatusCode.Paused */ AND r.next_run_at_utc IS NOT NULL)
+            -- A wait is left to the signal, child, or deadline that ends it, and a start never parks a slot: one a
+            -- signal woke after the start read it would otherwise go back to sleep.
+            AND r.status_code <> 20 /* JobStatusCode.Suspended */
+            AND d.slot_status_code <> 20 /* JobStatusCode.Suspended */
+            -- An unchanged declaration writes nothing: a restart of the same build bumps no version.
+            -- EXCEPT compares NULL-safely, which <> does not.
+            AND EXISTS (
+                SELECT r.status_code, r.priority_code, r.next_run_at_utc
+                EXCEPT
+                SELECT d.slot_status_code, jd.priority_code_effective, d.slot_next_run_at_utc);
+
+        INSERT INTO acta.jobs (
+            job_ref, lineage_root_id, parent_id, deduplication_key, correlation_key,
+            namespace_id, definition_id,
+            input_format_id, input,
+            concurrency_key, audit_level_code,
+            created_at_utc
+        )
+        SELECT
+            d.job_ref,
+            NULL,
+            NULL,
+            d.deduplication_key,
+            NULL,
+            @p_namespace_id,
+            d.definition_id,
+            d.input_format_id,
+            d.input,
+            NULL,
+            d.audit_level_code,
+            @now
+        FROM @p_definitions AS d
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM acta.jobs AS j
+            WHERE
+                j.namespace_id = @p_namespace_id
+                AND j.deduplication_key = d.deduplication_key
+                AND j.parent_id IS NULL
+        );
+
+        INSERT INTO acta.runtimes (
+            job_id, namespace_id, status_code, priority_code, next_run_at_utc,
+            execution_number, failure_count, retention_until_utc,
+            modified_at_utc, version
+        )
+        SELECT
+            j.id,
+            @p_namespace_id,
+            d.slot_status_code,
+            jd.priority_code_effective,
+            d.slot_next_run_at_utc,
+            0,
+            0,
+            NULL,
+            @now,
+            0
+        FROM @p_definitions AS d
+        INNER JOIN acta.jobs AS j
+            ON
+                j.namespace_id = @p_namespace_id
+                AND j.deduplication_key = d.deduplication_key
+                AND j.parent_id IS NULL
+        INNER JOIN acta.definitions AS jd ON jd.id = d.definition_id
+        WHERE NOT EXISTS (
+            SELECT 1 FROM acta.runtimes AS r
+            WHERE r.job_id = j.id
+        );
+
+        DECLARE @slots TABLE (definition_id INT NOT NULL PRIMARY KEY, slot_id BIGINT NOT NULL);
+
+        INSERT INTO @slots (definition_id, slot_id)
+        SELECT
+            d.definition_id,
+            j.id
+        FROM @p_definitions AS d
+        INNER JOIN acta.jobs AS j
+            ON
+                j.namespace_id = @p_namespace_id
+                AND j.deduplication_key = d.deduplication_key
+                AND j.parent_id IS NULL
+        -- The slot this call inserted, or one that already owns schedules.
+        WHERE j.job_ref = d.job_ref OR EXISTS (SELECT 1 FROM acta.schedules AS s WHERE s.job_id = j.id);
+
+        UPDATE tgt
+        SET
+            expression = src.expression,
+            time_zone_id = src.time_zone_id,
+            expression_kind_code = src.expression_kind_code,
+            -- An override was validated against the kind it was set for; one left under the other kind cannot parse.
+            expression_override = CASE
+                WHEN tgt.expression_kind_code <> src.expression_kind_code THEN NULL
+                ELSE tgt.expression_override
+            END,
+            misfire_strategy_code = src.misfire_strategy_code,
+            next_run_at_utc = src.next_run_at_utc,
+            definition_id = src.definition_id,
+            status_code = CASE
+                WHEN tgt.status_code = 230 /* ScheduleStatusCode.Orphaned */
+                    THEN 10 /* ScheduleStatusCode.Active */
+                ELSE tgt.status_code
+            END,
+            description = src.description,
+            modified_at_utc = @now,
+            version = tgt.version + 1
+        FROM acta.schedules AS tgt
+        INNER JOIN @slots AS sl ON sl.slot_id = tgt.job_id
+        INNER JOIN @p_schedules AS src
+            ON
+                src.definition_id = sl.definition_id
+                AND src.name = tgt.name
+        WHERE
+            tgt.status_code = 230 /* ScheduleStatusCode.Orphaned */
+            OR EXISTS (
+                SELECT tgt.expression, tgt.time_zone_id, tgt.expression_kind_code, tgt.misfire_strategy_code,
+                    tgt.next_run_at_utc, tgt.definition_id, tgt.description
+                EXCEPT
+                SELECT src.expression, src.time_zone_id, src.expression_kind_code, src.misfire_strategy_code,
+                    src.next_run_at_utc, src.definition_id, src.description);
+
+        INSERT INTO acta.schedules (
+            namespace_id, job_id, definition_id, name, origin_code,
+            expression, time_zone_id, expression_kind_code, misfire_strategy_code,
+            next_run_at_utc, expression_override, time_zone_id_override,
+            status_code, paused_until_utc, description,
+            created_at_utc, modified_at_utc, version
+        )
+        SELECT
+            @p_namespace_id,
+            sl.slot_id,
+            src.definition_id,
+            src.name,
+            40 /* ScheduleOriginCode.Definition */,
+            src.expression,
+            src.time_zone_id,
+            src.expression_kind_code,
+            src.misfire_strategy_code,
+            src.next_run_at_utc,
+            NULL,
+            NULL,
+            10 /* ScheduleStatusCode.Active */,
+            NULL,
+            src.description,
+            @now,
+            @now,
+            0
+        FROM @p_schedules AS src
+        INNER JOIN @slots AS sl ON sl.definition_id = src.definition_id
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM acta.schedules AS tgt
+            WHERE
+                tgt.job_id = sl.slot_id
+                AND tgt.name = src.name
+        );
+
+        DECLARE @candidates TABLE (id BIGINT NOT NULL PRIMARY KEY);
+
+        INSERT INTO @candidates (id)
+        SELECT js.id
+        FROM acta.schedules AS js
+        INNER JOIN @slots AS sl ON sl.slot_id = js.job_id
+        WHERE
+            js.status_code <> 230 /* ScheduleStatusCode.Orphaned */
+            AND js.origin_code = 40 /* ScheduleOriginCode.Definition */
+            AND NOT EXISTS (
+                SELECT 1
+                FROM @p_schedules AS src
+                WHERE
+                    src.definition_id = sl.definition_id
+                    AND src.name = js.name
+            );
+
+        UPDATE js
+        SET
+            status_code = 230 /* ScheduleStatusCode.Orphaned */,
+            paused_until_utc = NULL,
+            modified_at_utc = @now,
+            version = js.version + 1
+        FROM acta.schedules AS js
+        INNER JOIN @candidates AS c ON c.id = js.id;
+
+        SELECT
+            definition_id,
+            slot_id
+        FROM @slots;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+CREATE OR ALTER PROCEDURE acta.register_tenant
+    @p_tenant_key VARCHAR(128),
+    @p_display_name NVARCHAR(128),
+    @p_description NVARCHAR(512)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @tenant_id INT;
+
+        -- Hold the indexed key (or gap) until the operation commits; no unique-error recovery in an aborted transaction.
+        SELECT @tenant_id = id
+        FROM acta.tenants WITH (UPDLOCK, HOLDLOCK)
+        WHERE tenant_key = @p_tenant_key;
+
+        IF @tenant_id IS NULL
+        BEGIN
+            INSERT INTO acta.tenants
+                (tenant_key, display_name, description, status_code, created_at_utc, modified_at_utc, version)
+            VALUES (@p_tenant_key, @p_display_name, @p_description, 10 /* TenantStatusCode.Active */, @now, @now, 0);
+            SET @tenant_id = CAST(SCOPE_IDENTITY() AS INT);
+        END;
+
+        SELECT @tenant_id AS tenant_id;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+CREATE OR ALTER PROCEDURE acta.release_lock
+    @p_lock_key VARCHAR(256),
+    @p_hold_token UNIQUEIDENTIFIER
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DELETE FROM acta.locks
+        OUTPUT DELETED.hold_token
+        WHERE lock_key = @p_lock_key AND hold_token = @p_hold_token;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+-- Re-arms one namespace's sys.recovery slot when it is stranded; see IExecutionStore.RepairRecoverySlotAsync.
+CREATE OR ALTER PROCEDURE acta.repair_recovery_slot
+    @p_namespace_id INT,
+    @p_job_id BIGINT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @repaired TABLE (job_id BIGINT NOT NULL PRIMARY KEY, execution_number INT NOT NULL, from_status TINYINT NOT NULL);
+
+        UPDATE r
+        SET
+            status_code = 10 /* JobStatusCode.Ready */,
+            next_run_at_utc = @now,
+            failure_count = r.failure_count + 1,
+            leased_by_worker_id = NULL,
+            lease_expires_at_utc = NULL,
+            modified_at_utc = @now,
+            version = r.version + 1
+        OUTPUT inserted.job_id, deleted.execution_number, deleted.status_code INTO @repaired (job_id, execution_number, from_status)
+        FROM acta.runtimes r WITH (FORCESEEK)
+        WHERE
+            r.job_id = @p_job_id
+            AND r.namespace_id = @p_namespace_id
+            AND r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+            AND r.lease_expires_at_utc IS NOT NULL
+            AND r.lease_expires_at_utc < @now;
+
+        INSERT INTO acta.events (
+            event_code, created_at_utc, namespace_id,
+            actor_code, actor_key,
+            job_id, job_ref, execution_number,
+            lineage_root_id, definition_id, tenant_id,
+            worker_id,
+            from_status_code, to_status_code,
+            execution_status_code, duration_ms,
+            reason_code, reason_message
+        )
+        SELECT
+            41 /* EventCode.JobExecutionFinished */, @now, j.namespace_id,
+            10 /* ActorCode.Sys */, NULL,
+            j.id, j.job_ref, x.execution_number,
+            COALESCE(j.lineage_root_id, j.id), j.definition_id, j.tenant_id,
+            NULL,
+            x.from_status, 10 /* JobStatusCode.Ready */,
+            230 /* ExecutionStatusCode.Orphaned */, NULL,
+            21 /* JobEventReasonCode.JobLeaseExpired */,
+            N'Worker lease expired on the recovery slot; re-armed by a worker''s recovery monitor.'
+        FROM @repaired x
+        INNER JOIN acta.jobs j ON j.id = x.job_id;
+
+        SELECT CASE
+            WHEN EXISTS (SELECT 1 FROM @repaired) THEN 2 /* RecoverySlotRepair.Repaired */
+            WHEN EXISTS (SELECT 1 FROM acta.runtimes r WHERE r.job_id = @p_job_id AND r.namespace_id = @p_namespace_id) THEN 1 /* RecoverySlotRepair.Healthy */
+            ELSE 0 /* RecoverySlotRepair.Missing */ END AS outcome;
 
         IF @entry_trancount = 0
             COMMIT TRANSACTION;
@@ -4936,6 +6777,130 @@ BEGIN
     END CATCH;
 END;
 GO
+-- GCRA with a reservation; the full contract is on ILockStore.ReserveRateAsync. A turn is honoured
+-- while it is fresh, one second past its instant (one interval when that is longer); a stale one goes
+-- back through the meter, so a queue of overdue jobs cannot all start at once after a long stall.
+
+-- The IF NOT EXISTS probe below takes UPDLOCK, HOLDLOCK before the row exists and holds it to commit;
+-- the sweep's WITH (UPDLOCK, READPAST) then skips rather than races it, so the charge this call books
+-- is always persisted before it admits anything.
+
+-- The clock is read once the bucket row is locked, not when the call began: judged against a stale
+-- instant, every call a convoy on this meter delayed would be admitted together the moment the lock
+-- freed, four times the contract in one second under a flood of metered claims.
+CREATE OR ALTER PROCEDURE acta.reserve_rate
+    @p_lock_key VARCHAR(256),
+    @p_job_id BIGINT,
+    @p_rate_interval_ms INT,
+    @p_rate_burst INT,
+    @p_grace_seconds INT,
+    @p_hold_token UNIQUEIDENTIFIER
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7);
+        DECLARE @reservation VARCHAR(256) = @p_lock_key + '.' + CAST(@p_job_id AS VARCHAR(20));
+        -- How far behind now an idle meter is allowed to be, which is what hands out the burst: one
+        -- interval short of a whole period, so the burst-th request lands on now and the next waits.
+        DECLARE @lookback_ms INT = (@p_rate_burst - 1) * @p_rate_interval_ms;
+        -- How long a booked turn stays valid past its instant: a second covers the claim-path pickup
+        -- at any rate, and a slower meter keeps its whole interval, so the window is the larger.
+        DECLARE @window_ms INT = CASE WHEN @p_rate_interval_ms > 1000 THEN @p_rate_interval_ms ELSE 1000 END;
+        DECLARE @consumed TABLE (expires_at_utc DATETIME2(7));
+        DECLARE @stored DATETIME2(7);
+        DECLARE @due DATETIME2(7);
+        DECLARE @turn DATETIME2(7);
+
+        -- The bucket stores the arrival time plus the lookback, so the row expires exactly when an
+        -- idle meter stops saying anything a missing one would not. A missing meter starts at now.
+        IF NOT EXISTS (SELECT 1 FROM acta.locks WITH (UPDLOCK, HOLDLOCK) WHERE lock_key = @p_lock_key)
+            INSERT INTO acta.locks (lock_key, job_id, expires_at_utc, hold_token)
+            VALUES (@p_lock_key, @p_job_id, SYSUTCDATETIME(), @p_hold_token);
+
+        -- Held for the rest of the call, so consume, hand back and allocate all decide against one
+        -- serialized meter and no instant is ever handed to two jobs.
+        SELECT @stored = b.expires_at_utc
+        FROM acta.locks AS b WITH (UPDLOCK, HOLDLOCK)
+        WHERE b.lock_key = @p_lock_key;
+
+        SET @now = SYSUTCDATETIME();
+
+        -- The OUTPUT decides consumption, never a later absence: the sweep cannot slip between a read
+        -- and the delete and give away a free admission. A stale turn is spent here too, then re-metered.
+        DELETE FROM acta.locks
+        OUTPUT DELETED.expires_at_utc INTO @consumed
+        WHERE
+            lock_key = @reservation
+            AND expires_at_utc <= DATEADD(SECOND, @p_grace_seconds, @now);
+
+        SELECT @due = DATEADD(SECOND, -@p_grace_seconds, c.expires_at_utc) FROM @consumed AS c;
+
+        IF @due IS NOT NULL AND @due >= DATEADD(MILLISECOND, -@window_ms, @now)
+            -- Back on time: the bucket counted this job when it allocated the turn, so charging it
+            -- again would meter one job twice.
+            SELECT @due AS resume_at_utc, CAST(1 AS INT) AS admitted, CAST(0 AS BIGINT) AS wait_ms;
+        ELSE
+            BEGIN
+                IF @due IS NULL
+                    -- A turn still ahead of now: the job is early, not owed a new instant.
+                    SELECT @turn = DATEADD(SECOND, -@p_grace_seconds, r.expires_at_utc)
+                    FROM acta.locks AS r
+                    WHERE r.lock_key = @reservation;
+
+                IF @turn IS NOT NULL
+                    SELECT @turn AS resume_at_utc, CAST(0 AS INT) AS admitted, DATEDIFF_BIG(MILLISECOND, @now, @turn) AS wait_ms;
+                ELSE
+                    BEGIN
+                        IF @stored < @now
+                            SET @stored = @now;
+                        SET @turn = DATEADD(MILLISECOND, -@lookback_ms, @stored);
+
+                        UPDATE acta.locks
+                        SET
+                            job_id = @p_job_id,
+                            expires_at_utc = DATEADD(MILLISECOND, @p_rate_interval_ms, @stored),
+                            hold_token = @p_hold_token
+                        WHERE lock_key = @p_lock_key;
+
+                        IF @turn <= @now
+                            SELECT @turn AS resume_at_utc, CAST(1 AS INT) AS admitted, CAST(0 AS BIGINT) AS wait_ms;
+                        ELSE
+                            BEGIN
+                                UPDATE acta.locks
+                                SET
+                                    job_id = @p_job_id,
+                                    expires_at_utc = DATEADD(SECOND, @p_grace_seconds, @turn),
+                                    hold_token = @p_hold_token
+                                WHERE lock_key = @reservation;
+
+                                IF @@ROWCOUNT = 0
+                                    INSERT INTO acta.locks (lock_key, job_id, expires_at_utc, hold_token)
+                                    VALUES (@reservation, @p_job_id, DATEADD(SECOND, @p_grace_seconds, @turn), @p_hold_token);
+
+                                -- Measured on this clock so the caller never subtracts a host reading from a database one.
+                                SELECT @turn AS resume_at_utc, CAST(0 AS INT) AS admitted, DATEDIFF_BIG(MILLISECOND, @now, @turn) AS wait_ms;
+                            END;
+                    END;
+            END;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+
+        THROW;
+    END CATCH;
+END;
+GO
 CREATE OR ALTER PROCEDURE acta.reset_job_state
     @p_id BIGINT
 AS
@@ -5005,6 +6970,191 @@ BEGIN
             END
 
     Finish:
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+CREATE OR ALTER PROCEDURE acta.resolve_job_alert_manual
+    @p_alert_ref UNIQUEIDENTIFIER,
+    @p_actor_code TINYINT,
+    @p_actor_key NVARCHAR(128),
+    @p_reason_message NVARCHAR(512)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
+        DECLARE
+            @namespace_id INT, @job_id BIGINT, @job_ref UNIQUEIDENTIFIER,
+            @ack DATETIME2(7), @resolved DATETIME2(7),
+            @definition_id INT, @lineage_root_id BIGINT, @execution_number INT;
+
+        SELECT
+            @namespace_id = a.namespace_id,
+            @job_id = a.job_id,
+            @job_ref = a.job_ref,
+            @ack = a.acknowledged_at_utc,
+            @resolved = a.resolved_at_utc
+        FROM acta.alerts a WITH (UPDLOCK, ROWLOCK)
+        WHERE a.alert_ref = @p_alert_ref;
+
+        IF @namespace_id IS NULL
+            BEGIN
+
+                SELECT
+                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
+                    CAST(NULL AS DATETIME2(7)) AS acknowledged_at_utc,
+                    CAST(NULL AS DATETIME2(7)) AS resolved_at_utc;
+                GOTO Finish;
+            END;
+
+        IF @resolved IS NOT NULL
+            BEGIN
+
+                SELECT
+                    CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
+                    @ack AS acknowledged_at_utc,
+                    @resolved AS resolved_at_utc;
+                GOTO Finish;
+            END;
+
+        SELECT
+            @definition_id = j.definition_id,
+            @lineage_root_id = j.lineage_root_id
+        FROM acta.jobs j
+        WHERE j.id = @job_id;
+        SELECT @execution_number = r.execution_number
+        FROM acta.runtimes r
+        WHERE r.job_id = @job_id;
+
+        SET @resolved = @now;
+
+        UPDATE acta.alerts
+        SET
+            resolved_at_utc = @resolved,
+            /* Same settlement as the automatic resolve: a queued notification for a condition an operator
+               has declared cleared is cancelled, and an already-settled status stands as the record of
+               what the send actually did. */
+            delivery_status_code = CASE
+                WHEN delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */)
+                    THEN 30 /* AlertDeliveryStatusCode.Suppressed */
+                ELSE delivery_status_code
+            END,
+            retry_after_utc = NULL,
+            modified_at_utc = @now,
+            version = version + 1
+        WHERE alert_ref = @p_alert_ref;
+
+        INSERT INTO acta.events (
+            event_code, created_at_utc, namespace_id,
+            actor_code, actor_key,
+            job_id, job_ref, execution_number,
+            lineage_root_id, definition_id,
+            worker_id,
+            from_status_code, to_status_code,
+            execution_status_code, duration_ms,
+            reason_code, reason_message
+        )
+        VALUES (
+            141 /* EventCode.AlertResolved */, @now, @namespace_id,
+            @p_actor_code, @p_actor_key,
+            @job_id, @job_ref, @execution_number,
+            COALESCE(@lineage_root_id, @job_id), @definition_id,
+            NULL,
+            NULL, NULL,
+            NULL, NULL,
+            NULL, @p_reason_message
+        );
+
+        SELECT
+            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
+            @ack AS acknowledged_at_utc,
+            @resolved AS resolved_at_utc;
+
+    Finish:
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+CREATE OR ALTER PROCEDURE acta.resolve_job_alerts
+    @p_namespace_id INT,
+    @p_job_id BIGINT,
+    @p_source_event_id BIGINT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        -- The job row first, then its alert rows (docs/internals/sql-execution-policy.md, "Alert lock order").
+        -- The candidates are read through ix_alerts_job without locks and each is then locked by primary key
+        -- and re-checked; the held job row keeps a raise from adding one meanwhile.
+        DECLARE @job_locked BIGINT;
+        SELECT @job_locked = j.id
+        FROM acta.jobs j WITH (UPDLOCK, ROWLOCK)
+        WHERE j.id = @p_job_id;
+
+        DECLARE @candidates TABLE (id BIGINT NOT NULL PRIMARY KEY);
+        INSERT INTO @candidates (id)
+        SELECT a.id
+        FROM acta.alerts a WITH (FORCESEEK (ix_alerts_job (job_id)))
+        WHERE
+            a.namespace_id = @p_namespace_id
+            AND a.job_id = @p_job_id
+            AND a.resolved_at_utc IS NULL;
+
+        UPDATE a
+        SET
+            resolved_at_utc = SYSUTCDATETIME(),
+            last_projected_event_id = @p_source_event_id,
+            /* Closing the incident settles its delivery too: a notification queued for a condition that has
+               cleared is cancelled rather than sent, which is what Suppressed already means. An already-settled
+               row keeps its status: it records what actually happened to the send, and a resolve does not edit it. */
+            delivery_status_code = CASE
+                WHEN a.delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */)
+                    THEN 30 /* AlertDeliveryStatusCode.Suppressed */
+                ELSE a.delivery_status_code
+            END,
+            retry_after_utc = NULL,
+            modified_at_utc = SYSUTCDATETIME(),
+            version = a.version + 1
+        FROM acta.alerts a WITH (FORCESEEK)
+        INNER JOIN @candidates c ON c.id = a.id
+        WHERE
+            a.namespace_id = @p_namespace_id
+            AND a.job_id = @p_job_id
+            AND a.origin_code = 10 /* AlertOriginCode.Automatic */
+            AND a.kind_code IN (
+                10 /* AlertKindCode.FirstFailure */, 20 /* AlertKindCode.ThresholdReached */, 30 /* AlertKindCode.FinalFailure */
+            )
+            AND a.resolved_at_utc IS NULL
+            AND (a.last_projected_event_id IS NULL OR a.last_projected_event_id < @p_source_event_id);
+
+        SELECT @@ROWCOUNT AS resolved_count;
 
         IF @entry_trancount = 0
             COMMIT TRANSACTION;
@@ -5408,135 +7558,6 @@ BEGIN
     END CATCH;
 END;
 GO
-CREATE OR ALTER PROCEDURE acta.update_job_input
-    @p_id BIGINT,
-    @p_input_format_id TINYINT,
-    @p_input VARBINARY(MAX),
-    @p_actor_code TINYINT,
-    @p_actor_key NVARCHAR(128),
-    @p_reason_code TINYINT,
-    @p_reason_message NVARCHAR(512)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE
-            @from_status TINYINT, @namespace_id INT,
-            @lineage_root_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number INT, @audit_level TINYINT,
-            @job_ref UNIQUEIDENTIFIER, @old_format_id TINYINT, @old_input VARBINARY(MAX);
-        DECLARE @detail VARBINARY(MAX);
-        DECLARE @detail_format_id TINYINT = 0 /* JobPayloadFormat.None */;
-
-        SELECT
-            @from_status = r.status_code,
-            @namespace_id = j.namespace_id,
-            @lineage_root_id = j.lineage_root_id,
-            @definition_id = j.definition_id,
-            @tenant_id = j.tenant_id,
-            @execution_number = r.execution_number,
-            @audit_level = j.audit_level_code,
-            @job_ref = j.job_ref,
-            @old_format_id = j.input_format_id,
-            @old_input = j.input
-        FROM acta.runtimes r WITH (UPDLOCK, ROWLOCK)
-        INNER JOIN acta.jobs j ON j.id = r.job_id
-        WHERE r.job_id = @p_id;
-
-        IF @from_status IS NULL
-            BEGIN
-
-                SELECT
-                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
-                    CAST(NULL AS TINYINT) AS status_code;
-                GOTO Finish;
-            END;
-
-        IF
-            @from_status IN (
-                40 /* JobStatusCode.Dispatched */,
-                50 /* JobStatusCode.Executing */
-            )
-            BEGIN
-
-                SELECT
-                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
-                    @from_status AS status_code;
-                GOTO Finish;
-            END;
-
-        UPDATE acta.jobs
-        SET
-            input = @p_input,
-            input_format_id = @p_input_format_id
-        WHERE id = @p_id;
-
-        IF @audit_level = 20 /* JobAuditLevelCode.Audit */
-            BEGIN
-            -- The event carries only bounded JSON metadata about the previous payload (format name
-            -- and byte count), never the payload itself. Pure ASCII, so VARCHAR -> VARBINARY is UTF-8.
-                IF @old_format_id <> 0 /* JobPayloadFormat.None */
-                    BEGIN
-                        SET @detail_format_id = 1 /* JobPayloadFormat.Json */;
-                        SET @detail = CONVERT(
-                            VARBINARY(MAX),
-                            '{"format":"'
-                            + CASE @old_format_id
-                                WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
-                                WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-                                WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
-                                ELSE 'custom-' + CONVERT(VARCHAR(3), @old_format_id)
-                            END
-                            + '","bytes":' + CONVERT(VARCHAR(20), DATALENGTH(@old_input)) + '}'
-                        );
-                    END;
-
-                INSERT INTO acta.events (
-                    event_code, created_at_utc, namespace_id,
-                    actor_code, actor_key,
-                    job_id, job_ref, execution_number,
-                    lineage_root_id, definition_id, tenant_id,
-                    worker_id,
-                    from_status_code, to_status_code,
-                    execution_status_code, duration_ms,
-                    detail_format_id, detail,
-                    reason_code, reason_message
-                )
-                VALUES (
-                    76 /* EventCode.JobInputAmended */, @now, @namespace_id,
-                    @p_actor_code, @p_actor_key,
-                    @p_id, @job_ref, @execution_number,
-                    COALESCE(@lineage_root_id, @p_id), @definition_id, @tenant_id,
-                    NULL,
-                    NULL, NULL,
-                    NULL, NULL,
-                    @detail_format_id, @detail,
-                    @p_reason_code, @p_reason_message
-                );
-            END
-
-        SELECT
-            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
-            @from_status AS status_code;
-
-    Finish:
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
 CREATE OR ALTER PROCEDURE acta.resume_namespace
     @p_namespace_name VARCHAR(128),
     @p_actor_code TINYINT,
@@ -5601,1071 +7622,6 @@ BEGIN
             @version AS version;
 
     Finish:
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-CREATE OR ALTER PROCEDURE acta.suspend_namespace
-    @p_namespace_name VARCHAR(128),
-    @p_actor_code TINYINT,
-    @p_actor_key NVARCHAR(128),
-    @p_reason_message NVARCHAR(512)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @id INT, @status TINYINT, @version INT;
-
-        SELECT
-            @id = n.id,
-            @status = n.status_code,
-            @version = n.version
-        FROM acta.namespaces n WITH (UPDLOCK, ROWLOCK)
-        WHERE n.name = @p_namespace_name;
-
-        IF @id IS NULL
-            BEGIN
-
-                SELECT
-                    CAST(2 /* ControlAction.NotFound */ AS SMALLINT) AS action,
-                    CAST(NULL AS INT) AS version;
-                GOTO Finish;
-            END;
-
-        IF @status = 20 /* NamespaceStatusCode.Suspended */
-            BEGIN
-
-                SELECT
-                    CAST(6 /* ControlAction.AlreadyInState */ AS SMALLINT) AS action,
-                    @version AS version;
-                GOTO Finish;
-            END;
-
-        UPDATE acta.namespaces
-        SET status_code = 20 /* NamespaceStatusCode.Suspended */, modified_at_utc = @now, version = version + 1
-        WHERE id = @id;
-        SET @version = @version + 1;
-
-        INSERT INTO acta.events (
-            event_code, created_at_utc, namespace_id, actor_code, actor_key,
-            job_id, job_ref, execution_number, lineage_root_id, definition_id, tenant_id, worker_id,
-            from_status_code, to_status_code, execution_status_code, duration_ms, reason_code, reason_message
-        )
-        VALUES (
-            20 /* EventCode.NamespaceSuspended */, @now, @id, @p_actor_code, @p_actor_key,
-            NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-            NULL, NULL, NULL, NULL, NULL, @p_reason_message
-        );
-
-        SELECT
-            CAST(1 /* ControlAction.Applied */ AS SMALLINT) AS action,
-            @version AS version;
-
-    Finish:
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-CREATE OR ALTER PROCEDURE acta.update_namespace
-    @p_namespace_name VARCHAR(128),
-    @p_owner_team NVARCHAR(512),
-    @p_description NVARCHAR(512),
-    @p_expected_version INT,
-    @p_actor_code TINYINT,
-    @p_actor_key NVARCHAR(128),
-    @p_reason_message NVARCHAR(512)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @id INT, @version INT;
-
-        SELECT
-            @id = n.id,
-            @version = n.version
-        FROM acta.namespaces n WITH (UPDLOCK, ROWLOCK)
-        WHERE n.name = @p_namespace_name;
-
-        IF @id IS NULL
-            BEGIN
-
-                SELECT
-                    CAST(2 /* ControlAction.NotFound */ AS SMALLINT) AS action,
-                    CAST(NULL AS INT) AS version;
-                GOTO Finish;
-            END;
-
-        IF @version <> @p_expected_version
-            BEGIN
-
-                SELECT
-                    CAST(5 /* ControlAction.VersionConflict */ AS SMALLINT) AS action,
-                    @version AS version;
-                GOTO Finish;
-            END;
-
-        UPDATE acta.namespaces
-        SET owner_team = @p_owner_team, description = @p_description, modified_at_utc = @now, version = version + 1
-        WHERE id = @id;
-        SET @version = @version + 1;
-
-        INSERT INTO acta.events (
-            event_code, created_at_utc, namespace_id, actor_code, actor_key,
-            job_id, job_ref, execution_number, lineage_root_id, definition_id, tenant_id, worker_id,
-            from_status_code, to_status_code, execution_status_code, duration_ms, reason_code, reason_message
-        )
-        VALUES (
-            22 /* EventCode.NamespaceUpdated */, @now, @id, @p_actor_code, @p_actor_key,
-            NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-            NULL, NULL, NULL, NULL, NULL, @p_reason_message
-        );
-
-        SELECT
-            CAST(1 /* ControlAction.Applied */ AS SMALLINT) AS action,
-            @version AS version;
-
-    Finish:
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
--- Appends one application-authored job.note-recorded event; see IExecutionStore.RecordJobNoteAsync.
-CREATE OR ALTER PROCEDURE acta.record_job_note
-    @p_job_id BIGINT,
-    @p_execution_number INT,
-    @p_reason_message NVARCHAR(512),
-    @p_detail_format_id TINYINT,
-    @p_detail VARBINARY(MAX)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        INSERT INTO acta.events (
-            event_code,
-            created_at_utc,
-            namespace_id,
-            actor_code,
-            job_id,
-            job_ref,
-            execution_number,
-            lineage_root_id,
-            definition_id,
-            tenant_id,
-            detail_format_id,
-            detail,
-            reason_message)
-        SELECT
-            90 /* EventCode.JobNoteRecorded */,
-            SYSUTCDATETIME(),
-            j.namespace_id,
-            50 /* ActorCode.Job */,
-            j.id,
-            j.job_ref,
-            @p_execution_number,
-            COALESCE(j.lineage_root_id, j.id),
-            j.definition_id,
-            j.tenant_id,
-            @p_detail_format_id,
-            @p_detail,
-            @p_reason_message
-        FROM acta.jobs j
-        WHERE j.id = @p_job_id;
-
-        SELECT @@ROWCOUNT AS inserted;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-CREATE OR ALTER PROCEDURE acta.reclaim_stuck_jobs
-    @p_namespace_id INT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-
-        DECLARE
-            @reclaimed TABLE
-            (
-                id BIGINT NOT NULL PRIMARY KEY,
-                job_ref UNIQUEIDENTIFIER NOT NULL,
-                namespace_id INT NOT NULL,
-                execution_number INT NOT NULL,
-                lineage_root_id BIGINT NULL,
-                definition_id INT NOT NULL,
-                tenant_id INT NULL,
-                from_status_code TINYINT NOT NULL,
-                to_status_code TINYINT NOT NULL,
-                audit_level_code TINYINT NOT NULL,
-                parent_id BIGINT NULL
-            );
-
-        /* A pass visits at most 1,000 of the namespace's lanes from a random lane id with wrap and repairs at
-           most 100 stranded ones in visiting order (docs/internals/sql-execution-policy.md, "Lane lock order").
-           Each head is sought through ix_runtimes_lane, named because a small runtimes table tempts a scan. */
-        DECLARE @window TABLE (ord INT IDENTITY (1, 1) PRIMARY KEY, id BIGINT NOT NULL);
-        DECLARE @stranded TABLE (id BIGINT NOT NULL PRIMARY KEY);
-        DECLARE @repaired TABLE (id BIGINT NOT NULL PRIMARY KEY);
-        DECLARE @min_lane BIGINT, @max_lane BIGINT, @start_lane BIGINT, @window_count INT;
-        SELECT @min_lane = MIN(l.id), @max_lane = MAX(l.id) FROM acta.lanes l;
-        IF @max_lane IS NOT NULL
-            BEGIN
-                SET @start_lane = @min_lane + CAST(FLOOR(RAND(CHECKSUM(NEWID())) * (@max_lane - @min_lane + 1)) AS BIGINT);
-                INSERT INTO @window (id)
-                SELECT TOP (1000) l.id
-                FROM acta.lanes l
-                WHERE l.namespace_id = @p_namespace_id AND l.id >= @start_lane
-                ORDER BY l.id;
-                SET @window_count = @@ROWCOUNT;
-                INSERT INTO @window (id)
-                SELECT TOP (1000 - @window_count) l.id
-                FROM acta.lanes l
-                WHERE l.namespace_id = @p_namespace_id AND l.id < @start_lane
-                ORDER BY l.id;
-
-                INSERT INTO @stranded (id)
-                SELECT TOP (100) w.id
-                FROM @window w
-                CROSS APPLY (
-                    SELECT TOP (1) m.status_code
-                    FROM acta.runtimes m WITH (INDEX (ix_runtimes_lane), FORCESEEK)
-                    WHERE
-                        m.lane_id = w.id
-                        AND m.lane_id IS NOT NULL
-                        AND m.status_code IN (
-                            10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                            30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-                        )
-                    ORDER BY m.job_id
-                ) h
-                WHERE
-                    h.status_code = 15 /* JobStatusCode.Blocked */
-                    AND NOT EXISTS (
-                        SELECT 1
-                        FROM acta.runtimes o WITH (INDEX (ix_runtimes_lane), FORCESEEK)
-                        WHERE
-                            o.lane_id = w.id
-                            AND o.lane_id IS NOT NULL
-                            AND o.status_code IN (
-                                10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
-                                40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-                            )
-                    )
-                ORDER BY w.ord;
-            END;
-
-        /* Stuck candidates are read through the filtered ix_runtimes_worker_inflight without holding locks,
-           and only those rows are locked below, by primary key: the index is shared by every namespace, so
-           holding its keys would make another namespace's sweep skip its own rows under READPAST. */
-        DECLARE @stuck TABLE (id BIGINT NOT NULL PRIMARY KEY, lane_id BIGINT NULL);
-        INSERT INTO @stuck (id, lane_id)
-        SELECT r.job_id, r.lane_id
-        FROM acta.runtimes r WITH (INDEX (ix_runtimes_worker_inflight), READPAST)
-        WHERE
-            r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
-            AND r.leased_by_worker_id IS NOT NULL
-            AND r.lease_expires_at_utc < @now
-            AND r.namespace_id = @p_namespace_id;
-
-        /* Lanes are locked one UPDLOCK seek at a time in id order, skipping a lane another transaction holds,
-           whose stuck rows and repair wait for a later pass. */
-        DECLARE @candidates TABLE (id BIGINT NOT NULL PRIMARY KEY);
-        INSERT INTO @candidates (id)
-        SELECT k.lane_id
-        FROM @stuck k
-        WHERE k.lane_id IS NOT NULL
-        UNION
-        SELECT s.id
-        FROM @stranded s;
-
-        DECLARE @lanes TABLE (id BIGINT NOT NULL PRIMARY KEY);
-        DECLARE @lane_cursor BIGINT = 0, @lane_next BIGINT, @lane_locked BIGINT;
-        WHILE 1 = 1
-            BEGIN
-                SET @lane_next = NULL;
-                SELECT TOP (1) @lane_next = c.id
-                FROM @candidates c
-                WHERE c.id > @lane_cursor
-                ORDER BY c.id;
-
-                IF @lane_next IS NULL
-                    BREAK;
-
-                SET @lane_locked = NULL;
-                SELECT @lane_locked = l.id
-                FROM acta.lanes l WITH (UPDLOCK, READPAST, ROWLOCK)
-                WHERE l.id = @lane_next;
-
-                IF @lane_locked IS NOT NULL
-                    INSERT INTO @lanes (id) VALUES (@lane_locked);
-
-                SET @lane_cursor = @lane_next;
-            END;
-
-        /* The walk read without locks, so each stranded lane's head is re-read under its lock and promoted
-           only while it is still Blocked and no member runs. */
-        UPDATE r
-        SET
-            status_code = 10 /* JobStatusCode.Ready */,
-            next_run_at_utc = CASE WHEN r.next_run_at_utc > @now THEN r.next_run_at_utc ELSE @now END,
-            modified_at_utc = @now,
-            version = r.version + 1
-        OUTPUT INSERTED.job_id INTO @repaired (id)
-        FROM @stranded s
-        INNER JOIN @lanes e ON e.id = s.id
-        CROSS APPLY (
-            SELECT TOP (1) m.job_id, m.status_code
-            FROM acta.runtimes m WITH (INDEX (ix_runtimes_lane), FORCESEEK)
-            WHERE
-                m.lane_id = s.id
-                AND m.lane_id IS NOT NULL
-                AND m.status_code IN (
-                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                    30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-                )
-            ORDER BY m.job_id
-        ) h
-        INNER JOIN acta.runtimes r WITH (FORCESEEK) ON r.job_id = h.job_id
-        WHERE
-            h.status_code = 15 /* JobStatusCode.Blocked */
-            AND r.status_code = 15 /* JobStatusCode.Blocked */
-            AND NOT EXISTS (
-                SELECT 1
-                FROM acta.runtimes o WITH (INDEX (ix_runtimes_lane), FORCESEEK)
-                WHERE
-                    o.lane_id = s.id
-                    AND o.lane_id IS NOT NULL
-                    AND o.status_code IN (
-                        10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
-                        40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-                    )
-            );
-
-        INSERT INTO acta.events (
-            event_code, created_at_utc, namespace_id,
-            actor_code, actor_key,
-            job_id, job_ref, execution_number,
-            lineage_root_id, definition_id, tenant_id,
-            worker_id,
-            from_status_code, to_status_code,
-            execution_status_code, duration_ms,
-            reason_code, reason_message
-        )
-        SELECT
-            72 /* EventCode.JobResumed */,
-            @now,
-            j.namespace_id,
-            10 /* ActorCode.Sys */,
-            NULL,
-            j.id,
-            j.job_ref,
-            r.execution_number,
-            COALESCE(j.lineage_root_id, j.id),
-            j.definition_id,
-            j.tenant_id,
-            NULL,
-            15 /* JobStatusCode.Blocked */,
-            10 /* JobStatusCode.Ready */,
-            NULL,
-            NULL,
-            67 /* JobEventReasonCode.JobLaneRepaired */,
-            N'Lane had no live head; the sys.recovery system job released its lowest Blocked member.'
-        FROM @repaired x
-        INNER JOIN acta.jobs j ON j.id = x.id
-        INNER JOIN acta.runtimes r ON r.job_id = x.id
-        WHERE j.audit_level_code IN (10 /* JobAuditLevelCode.Failures */, 20 /* JobAuditLevelCode.Audit */);
-
-        WITH stuck AS (
-            SELECT
-                r.job_id AS id,
-                r.status_code AS from_status,
-                r.failure_count + 1 AS new_failure_count,
-                jd.max_attempts_effective AS max_attempts,
-                jd.retention_seconds_effective AS retention_seconds,
-                /* The job was parked on THIS slot: the suspend copied the slot's due into
-                   next_run_at_utc, so the equality names the wait this attempt woke for, and an
-                   unbounded wait (NULL due) matches nothing. Expired means the timeout had resolved. */
-                CASE WHEN EXISTS (
-                    SELECT 1
-                    FROM acta.checkpoints c
-                    WHERE
-                        c.job_id = r.job_id
-                        AND c.kind_code IN (20 /* JobCheckpointKindCode.Signal */, 50 /* JobCheckpointKindCode.ChildLatch */)
-                        AND c.status_code = 30 /* JobCheckpointStatusCode.Expired */
-                        AND c.due_at_utc = r.next_run_at_utc
-                ) THEN 1 ELSE 0 END AS wait_resolved,
-                /* MaxAttempts is the one-off retry budget and a slot's failure_count accumulates
-                   across occurrences, so a recurring reclaim always re-arms Ready instead of
-                   terminally failing the schedule - mirroring ComputeRecurringOutcome on the worker path. */
-                CASE WHEN EXISTS (
-                    SELECT 1
-                    FROM acta.schedules sc
-                    WHERE sc.job_id = r.job_id
-                ) THEN 1 ELSE 0 END AS is_recurring
-            FROM @stuck k
-            INNER JOIN acta.runtimes r WITH (READPAST, UPDLOCK, ROWLOCK, FORCESEEK) ON r.job_id = k.id
-            INNER JOIN acta.jobs j ON j.id = r.job_id
-            INNER JOIN acta.definitions jd ON jd.id = j.definition_id
-            WHERE
-                r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
-                AND r.leased_by_worker_id IS NOT NULL
-                AND r.lease_expires_at_utc < @now
-                AND r.namespace_id = @p_namespace_id
-                AND (r.lane_id IS NULL OR r.lane_id IN (SELECT e.id FROM @lanes e))
-        )
-
-        /* Budget-neutral for a resolved wait: the surviving path would have ended this attempt at no
-           cost, so the job goes back to Suspended on the same past deadline, unclaimed and uncharged,
-           and the replay lands whatever outcome the waiting overload chooses. */
-        UPDATE r
-        SET
-            status_code = CASE
-                WHEN s.wait_resolved = 1
-                    THEN 20 /* JobStatusCode.Suspended */
-                WHEN s.is_recurring = 0 AND s.new_failure_count >= s.max_attempts
-                    THEN 200 /* JobStatusCode.Failed */
-                ELSE 10  /* JobStatusCode.Ready */
-            END,
-            failure_count = CASE
-                WHEN s.wait_resolved = 1
-                    THEN r.failure_count
-                ELSE s.new_failure_count
-            END,
-            next_run_at_utc = CASE
-                WHEN s.wait_resolved = 1
-                    THEN r.next_run_at_utc
-                WHEN s.is_recurring = 0 AND s.new_failure_count >= s.max_attempts
-                    THEN r.next_run_at_utc
-                ELSE @now
-            END,
-            leased_by_worker_id = NULL,
-            lease_expires_at_utc = NULL,
-            retention_until_utc = CASE
-                WHEN s.wait_resolved = 0 AND s.is_recurring = 0 AND s.new_failure_count >= s.max_attempts
-                    THEN DATEADD(SECOND, s.retention_seconds, @now)
-                ELSE r.retention_until_utc
-            END,
-            modified_at_utc = @now,
-            version = r.version + 1
-        OUTPUT
-            INSERTED.job_id, j.job_ref, j.namespace_id, INSERTED.execution_number,
-            j.lineage_root_id, j.definition_id, j.tenant_id,
-            DELETED.status_code, INSERTED.status_code, j.audit_level_code,
-            j.parent_id
-        INTO
-            @reclaimed (
-                id, job_ref, namespace_id, execution_number, lineage_root_id,
-                definition_id, tenant_id, from_status_code, to_status_code, audit_level_code, parent_id
-            )
-        -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of runtimes;
-        -- see docs/internals/sql-execution-policy.md.
-        FROM acta.runtimes r WITH (FORCESEEK)
-        INNER JOIN stuck s ON s.id = r.job_id
-        INNER JOIN acta.jobs j ON j.id = r.job_id;
-
-        INSERT INTO acta.events (
-            event_code, created_at_utc, namespace_id,
-            actor_code, actor_key,
-            job_id, job_ref, execution_number,
-            lineage_root_id, definition_id, tenant_id,
-            worker_id,
-            from_status_code, to_status_code,
-            execution_status_code, duration_ms,
-            reason_code, reason_message
-        )
-        SELECT
-            41 /* EventCode.JobExecutionFinished */,
-            @now,
-            namespace_id,
-            10 /* ActorCode.Sys */,
-            NULL,
-            id,
-            job_ref,
-            execution_number,
-            COALESCE(lineage_root_id, id),
-            definition_id,
-            tenant_id,
-            NULL,
-            from_status_code,
-            to_status_code,
-            230 /* ExecutionStatusCode.Orphaned */,
-            NULL,
-            21 /* JobEventReasonCode.JobLeaseExpired */,
-            /* Suspended is reachable only through the resolved-wait arm above, so the landed status is
-               what tells the two messages apart. */
-            CASE WHEN to_status_code = 20 /* JobStatusCode.Suspended */
-                THEN N'Worker lease expired while an expired wait was resolving; re-armed on the same deadline with no attempt charged.'
-                ELSE N'Worker lease expired; reclaimed by the sys.recovery system job.'
-            END
-        FROM @reclaimed
-        WHERE audit_level_code IN (10 /* JobAuditLevelCode.Failures */, 20 /* JobAuditLevelCode.Audit */);
-
-        /* A head reclaimed to Failed hands its lane on; a head re-armed Ready keeps it. Promotion runs
-           under the lane locks and re-reads each head rather than trusting the walk. */
-        UPDATE r
-        SET
-            status_code = 10 /* JobStatusCode.Ready */,
-            next_run_at_utc = CASE WHEN r.next_run_at_utc > @now THEN r.next_run_at_utc ELSE @now END,
-            modified_at_utc = @now,
-            version = r.version + 1
-        FROM @lanes e
-        CROSS APPLY (
-            SELECT TOP (1) m.job_id, m.status_code
-            FROM acta.runtimes m WITH (INDEX (ix_runtimes_lane), FORCESEEK)
-            WHERE
-                m.lane_id = e.id
-                AND m.lane_id IS NOT NULL
-                AND m.status_code IN (
-                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                    30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-                )
-            ORDER BY m.job_id
-        ) h
-        INNER JOIN acta.runtimes r WITH (FORCESEEK) ON r.job_id = h.job_id
-        WHERE
-            h.status_code = 15 /* JobStatusCode.Blocked */
-            AND r.status_code = 15 /* JobStatusCode.Blocked */
-            AND NOT EXISTS (
-                SELECT 1
-                FROM acta.runtimes o WITH (INDEX (ix_runtimes_lane), FORCESEEK)
-                WHERE
-                    o.lane_id = e.id
-                    AND o.lane_id IS NOT NULL
-                    AND o.status_code IN (
-                        10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
-                        40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-                    )
-            );
-
-        SELECT
-            id AS job_id,
-            to_status_code AS to_status,
-            parent_id,
-            CAST(0 AS TINYINT) AS lane_repaired
-        FROM @reclaimed
-        UNION ALL
-        SELECT
-            id,
-            CAST(10 /* JobStatusCode.Ready */ AS TINYINT),
-            NULL,
-            CAST(1 AS TINYINT)
-        FROM @repaired;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
--- Re-arms one namespace's sys.recovery slot when it is stranded; see IExecutionStore.RepairRecoverySlotAsync.
-CREATE OR ALTER PROCEDURE acta.repair_recovery_slot
-    @p_namespace_id INT,
-    @p_job_id BIGINT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @repaired TABLE (job_id BIGINT NOT NULL PRIMARY KEY, execution_number INT NOT NULL, from_status TINYINT NOT NULL);
-
-        UPDATE r
-        SET
-            status_code = 10 /* JobStatusCode.Ready */,
-            next_run_at_utc = @now,
-            failure_count = r.failure_count + 1,
-            leased_by_worker_id = NULL,
-            lease_expires_at_utc = NULL,
-            modified_at_utc = @now,
-            version = r.version + 1
-        OUTPUT inserted.job_id, deleted.execution_number, deleted.status_code INTO @repaired (job_id, execution_number, from_status)
-        FROM acta.runtimes r WITH (FORCESEEK)
-        WHERE
-            r.job_id = @p_job_id
-            AND r.namespace_id = @p_namespace_id
-            AND r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
-            AND r.lease_expires_at_utc IS NOT NULL
-            AND r.lease_expires_at_utc < @now;
-
-        INSERT INTO acta.events (
-            event_code, created_at_utc, namespace_id,
-            actor_code, actor_key,
-            job_id, job_ref, execution_number,
-            lineage_root_id, definition_id, tenant_id,
-            worker_id,
-            from_status_code, to_status_code,
-            execution_status_code, duration_ms,
-            reason_code, reason_message
-        )
-        SELECT
-            41 /* EventCode.JobExecutionFinished */, @now, j.namespace_id,
-            10 /* ActorCode.Sys */, NULL,
-            j.id, j.job_ref, x.execution_number,
-            COALESCE(j.lineage_root_id, j.id), j.definition_id, j.tenant_id,
-            NULL,
-            x.from_status, 10 /* JobStatusCode.Ready */,
-            230 /* ExecutionStatusCode.Orphaned */, NULL,
-            21 /* JobEventReasonCode.JobLeaseExpired */,
-            N'Worker lease expired on the recovery slot; re-armed by a worker''s recovery monitor.'
-        FROM @repaired x
-        INNER JOIN acta.jobs j ON j.id = x.job_id;
-
-        SELECT CASE
-            WHEN EXISTS (SELECT 1 FROM @repaired) THEN 2 /* RecoverySlotRepair.Repaired */
-            WHEN EXISTS (SELECT 1 FROM acta.runtimes r WHERE r.job_id = @p_job_id AND r.namespace_id = @p_namespace_id) THEN 1 /* RecoverySlotRepair.Healthy */
-            ELSE 0 /* RecoverySlotRepair.Missing */ END AS outcome;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-CREATE OR ALTER PROCEDURE acta.pause_schedule
-    @p_job_id BIGINT,
-    @p_name VARCHAR(128),
-    @p_paused_until_utc DATETIME2(7),
-    @p_job_next_run_at_utc DATETIME2(7),
-    @p_actor_code TINYINT,
-    @p_actor_key NVARCHAR(128),
-    @p_reason_message NVARCHAR(512)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @schedule_id BIGINT, @status TINYINT, @paused DATETIME2(7), @next DATETIME2(7), @version INT;
-        DECLARE @ns INT, @def INT, @lineage BIGINT, @en INT, @audit TINYINT, @job_ref UNIQUEIDENTIFIER;
-
-        /* Lock the slot's runtimes row before the schedules row: register_scheduled_jobs writes
-           runtimes then schedules, so every writer of both must take runtimes first. */
-        SELECT @en = r.execution_number
-        FROM acta.runtimes r WITH (UPDLOCK, ROWLOCK)
-        WHERE r.job_id = @p_job_id;
-
-        SELECT @schedule_id = js.id
-        FROM acta.schedules js WITH (UPDLOCK, ROWLOCK)
-        WHERE
-            js.job_id = @p_job_id
-            AND js.name = @p_name
-            AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */;
-
-        IF @schedule_id IS NULL
-            BEGIN
-
-                SELECT
-                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
-                    CAST(NULL AS TINYINT) AS status_code,
-                    CAST(NULL AS DATETIME2(7)) AS paused_until_utc,
-                    CAST(NULL AS DATETIME2(7)) AS next_run_at_utc,
-                    CAST(NULL AS INT) AS version;
-                GOTO Finish;
-            END;
-
-        SELECT
-            @ns = j.namespace_id,
-            @def = j.definition_id,
-            @lineage = j.lineage_root_id,
-            @audit = j.audit_level_code,
-            @job_ref = j.job_ref
-        FROM acta.jobs j
-        WHERE j.id = @p_job_id;
-
-        UPDATE acta.schedules
-        SET
-            status_code = 30 /* ScheduleStatusCode.Paused */,
-            paused_until_utc = @p_paused_until_utc,
-            reason_message = @p_reason_message,
-            modified_at_utc = @now,
-            version = version + 1
-        WHERE id = @schedule_id;
-
-        SELECT
-            @status = status_code,
-            @paused = paused_until_utc,
-            @next = next_run_at_utc,
-            @version = version
-        FROM acta.schedules
-        WHERE id = @schedule_id;
-
-        -- Paused with a next run is an operator's or handler's hold and is left alone; Paused with none only
-        -- means no schedule offered a run (ScheduleWalker, "held").
-        UPDATE acta.runtimes
-        SET
-            next_run_at_utc = @p_job_next_run_at_utc,
-            status_code = CASE
-                WHEN @p_job_next_run_at_utc IS NULL
-                    THEN 30 /* JobStatusCode.Paused */
-                ELSE 10 /* JobStatusCode.Ready */
-            END,
-            modified_at_utc = @now,
-            version = version + 1
-        WHERE
-            job_id = @p_job_id
-            AND (status_code = 10 /* JobStatusCode.Ready */ OR (status_code = 30 /* JobStatusCode.Paused */ AND next_run_at_utc IS NULL));
-
-        IF @audit = 20 /* JobAuditLevelCode.Audit */
-            BEGIN
-                INSERT INTO acta.events (
-                    event_code, created_at_utc, namespace_id,
-                    actor_code, actor_key,
-                    job_id, job_ref, execution_number,
-                    lineage_root_id, definition_id,
-                    worker_id,
-                    from_status_code, to_status_code,
-                    execution_status_code, duration_ms,
-                    reason_code, reason_message
-                )
-                VALUES (
-                    100 /* EventCode.SchedulePaused */, @now, @ns,
-                    @p_actor_code, @p_actor_key,
-                    @p_job_id, @job_ref, @en,
-                    COALESCE(@lineage, @p_job_id), @def,
-                    NULL,
-                    NULL, NULL,
-                    NULL, NULL,
-                    NULL, @p_name
-                );
-            END
-
-        SELECT
-            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
-            @status AS status_code,
-            @paused AS paused_until_utc,
-            @next AS next_run_at_utc,
-            @version AS version;
-
-    Finish:
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-CREATE OR ALTER PROCEDURE acta.register_scheduled_jobs
-    @p_namespace_id INT,
-    @p_definitions acta.job_schedule_slot_batch READONLY,
-    @p_schedules acta.job_schedule_upsert_batch READONLY
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @lock_result INT;
-        DECLARE @lock_resource NVARCHAR(255) = N'acta.register_scheduled_jobs';
-
-        EXEC @lock_result = sys.sp_getapplock @lock_resource, 'Exclusive', 'Transaction';
-
-        IF @lock_result < 0
-            BEGIN
-                THROW 50004, 'register_scheduled_jobs could not acquire the recurring slot lock.', 1;
-            END
-
-        UPDATE j
-        SET
-            input_format_id = d.input_format_id,
-            input = d.input,
-            audit_level_code = d.audit_level_code
-        FROM acta.jobs AS j
-        INNER JOIN @p_definitions AS d ON d.deduplication_key = j.deduplication_key
-        WHERE
-            j.namespace_id = @p_namespace_id
-            AND j.parent_id IS NULL
-            -- A row already holding the key is the slot only when it owns schedules; an ordinary job that
-            -- took the key is left untouched and missing from the result, which fails the worker's startup.
-            AND EXISTS (SELECT 1 FROM acta.schedules AS s WHERE s.job_id = j.id);
-
-        UPDATE r
-        SET
-            status_code = d.slot_status_code,
-            priority_code = jd.priority_code_effective,
-            next_run_at_utc = d.slot_next_run_at_utc,
-            modified_at_utc = @now,
-            version = r.version + 1
-        FROM acta.runtimes AS r
-        INNER JOIN acta.jobs AS j ON j.id = r.job_id
-        INNER JOIN @p_definitions AS d ON d.deduplication_key = j.deduplication_key
-        INNER JOIN acta.definitions AS jd ON jd.id = d.definition_id
-        WHERE
-            j.namespace_id = @p_namespace_id
-            AND j.parent_id IS NULL
-            AND EXISTS (SELECT 1 FROM acta.schedules AS s WHERE s.job_id = j.id)
-            -- An attempt in flight owns the slot, and a finished slot stays finished until an operator restarts it.
-            AND r.status_code NOT IN (
-                40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */,
-                100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-            -- A held job (Paused with a next run; ScheduleWalker, "held") stays as its operator left it.
-            AND NOT (r.status_code = 30 /* JobStatusCode.Paused */ AND r.next_run_at_utc IS NOT NULL)
-            -- A wait is left to the signal, child, or deadline that ends it, and a start never parks a slot: one a
-            -- signal woke after the start read it would otherwise go back to sleep.
-            AND r.status_code <> 20 /* JobStatusCode.Suspended */
-            AND d.slot_status_code <> 20 /* JobStatusCode.Suspended */
-            -- An unchanged declaration writes nothing: a restart of the same build bumps no version.
-            -- EXCEPT compares NULL-safely, which <> does not.
-            AND EXISTS (
-                SELECT r.status_code, r.priority_code, r.next_run_at_utc
-                EXCEPT
-                SELECT d.slot_status_code, jd.priority_code_effective, d.slot_next_run_at_utc);
-
-        INSERT INTO acta.jobs (
-            job_ref, lineage_root_id, parent_id, deduplication_key, correlation_key,
-            namespace_id, definition_id,
-            input_format_id, input,
-            concurrency_key, audit_level_code,
-            created_at_utc
-        )
-        SELECT
-            d.job_ref,
-            NULL,
-            NULL,
-            d.deduplication_key,
-            NULL,
-            @p_namespace_id,
-            d.definition_id,
-            d.input_format_id,
-            d.input,
-            NULL,
-            d.audit_level_code,
-            @now
-        FROM @p_definitions AS d
-        WHERE NOT EXISTS (
-            SELECT 1
-            FROM acta.jobs AS j
-            WHERE
-                j.namespace_id = @p_namespace_id
-                AND j.deduplication_key = d.deduplication_key
-                AND j.parent_id IS NULL
-        );
-
-        INSERT INTO acta.runtimes (
-            job_id, namespace_id, status_code, priority_code, next_run_at_utc,
-            execution_number, failure_count, retention_until_utc,
-            modified_at_utc, version
-        )
-        SELECT
-            j.id,
-            @p_namespace_id,
-            d.slot_status_code,
-            jd.priority_code_effective,
-            d.slot_next_run_at_utc,
-            0,
-            0,
-            NULL,
-            @now,
-            0
-        FROM @p_definitions AS d
-        INNER JOIN acta.jobs AS j
-            ON
-                j.namespace_id = @p_namespace_id
-                AND j.deduplication_key = d.deduplication_key
-                AND j.parent_id IS NULL
-        INNER JOIN acta.definitions AS jd ON jd.id = d.definition_id
-        WHERE NOT EXISTS (
-            SELECT 1 FROM acta.runtimes AS r
-            WHERE r.job_id = j.id
-        );
-
-        DECLARE @slots TABLE (definition_id INT NOT NULL PRIMARY KEY, slot_id BIGINT NOT NULL);
-
-        INSERT INTO @slots (definition_id, slot_id)
-        SELECT
-            d.definition_id,
-            j.id
-        FROM @p_definitions AS d
-        INNER JOIN acta.jobs AS j
-            ON
-                j.namespace_id = @p_namespace_id
-                AND j.deduplication_key = d.deduplication_key
-                AND j.parent_id IS NULL
-        -- The slot this call inserted, or one that already owns schedules.
-        WHERE j.job_ref = d.job_ref OR EXISTS (SELECT 1 FROM acta.schedules AS s WHERE s.job_id = j.id);
-
-        UPDATE tgt
-        SET
-            expression = src.expression,
-            time_zone_id = src.time_zone_id,
-            expression_kind_code = src.expression_kind_code,
-            -- An override was validated against the kind it was set for; one left under the other kind cannot parse.
-            expression_override = CASE
-                WHEN tgt.expression_kind_code <> src.expression_kind_code THEN NULL
-                ELSE tgt.expression_override
-            END,
-            misfire_strategy_code = src.misfire_strategy_code,
-            next_run_at_utc = src.next_run_at_utc,
-            definition_id = src.definition_id,
-            status_code = CASE
-                WHEN tgt.status_code = 230 /* ScheduleStatusCode.Orphaned */
-                    THEN 10 /* ScheduleStatusCode.Active */
-                ELSE tgt.status_code
-            END,
-            description = src.description,
-            modified_at_utc = @now,
-            version = tgt.version + 1
-        FROM acta.schedules AS tgt
-        INNER JOIN @slots AS sl ON sl.slot_id = tgt.job_id
-        INNER JOIN @p_schedules AS src
-            ON
-                src.definition_id = sl.definition_id
-                AND src.name = tgt.name
-        WHERE
-            tgt.status_code = 230 /* ScheduleStatusCode.Orphaned */
-            OR EXISTS (
-                SELECT tgt.expression, tgt.time_zone_id, tgt.expression_kind_code, tgt.misfire_strategy_code,
-                    tgt.next_run_at_utc, tgt.definition_id, tgt.description
-                EXCEPT
-                SELECT src.expression, src.time_zone_id, src.expression_kind_code, src.misfire_strategy_code,
-                    src.next_run_at_utc, src.definition_id, src.description);
-
-        INSERT INTO acta.schedules (
-            namespace_id, job_id, definition_id, name, origin_code,
-            expression, time_zone_id, expression_kind_code, misfire_strategy_code,
-            next_run_at_utc, expression_override, time_zone_id_override,
-            status_code, paused_until_utc, description,
-            created_at_utc, modified_at_utc, version
-        )
-        SELECT
-            @p_namespace_id,
-            sl.slot_id,
-            src.definition_id,
-            src.name,
-            40 /* ScheduleOriginCode.Definition */,
-            src.expression,
-            src.time_zone_id,
-            src.expression_kind_code,
-            src.misfire_strategy_code,
-            src.next_run_at_utc,
-            NULL,
-            NULL,
-            10 /* ScheduleStatusCode.Active */,
-            NULL,
-            src.description,
-            @now,
-            @now,
-            0
-        FROM @p_schedules AS src
-        INNER JOIN @slots AS sl ON sl.definition_id = src.definition_id
-        WHERE NOT EXISTS (
-            SELECT 1
-            FROM acta.schedules AS tgt
-            WHERE
-                tgt.job_id = sl.slot_id
-                AND tgt.name = src.name
-        );
-
-        DECLARE @candidates TABLE (id BIGINT NOT NULL PRIMARY KEY);
-
-        INSERT INTO @candidates (id)
-        SELECT js.id
-        FROM acta.schedules AS js
-        INNER JOIN @slots AS sl ON sl.slot_id = js.job_id
-        WHERE
-            js.status_code <> 230 /* ScheduleStatusCode.Orphaned */
-            AND js.origin_code = 40 /* ScheduleOriginCode.Definition */
-            AND NOT EXISTS (
-                SELECT 1
-                FROM @p_schedules AS src
-                WHERE
-                    src.definition_id = sl.definition_id
-                    AND src.name = js.name
-            );
-
-        UPDATE js
-        SET
-            status_code = 230 /* ScheduleStatusCode.Orphaned */,
-            paused_until_utc = NULL,
-            modified_at_utc = @now,
-            version = js.version + 1
-        FROM acta.schedules AS js
-        INNER JOIN @candidates AS c ON c.id = js.id;
-
-        SELECT
-            definition_id,
-            slot_id
-        FROM @slots;
 
         IF @entry_trancount = 0
             COMMIT TRANSACTION;
@@ -6797,6 +7753,209 @@ BEGIN
             @paused AS paused_until_utc,
             @next AS next_run_at_utc,
             @version AS version;
+
+    Finish:
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+CREATE OR ALTER PROCEDURE acta.resume_tenant
+    @p_tenant_key VARCHAR(128),
+    @p_actor_code TINYINT,
+    @p_actor_key NVARCHAR(128),
+    @p_reason_message NVARCHAR(512)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @id INT, @status TINYINT, @version INT;
+
+        SELECT
+            @id = t.id,
+            @status = t.status_code,
+            @version = t.version
+        FROM acta.tenants t WITH (UPDLOCK, ROWLOCK)
+        WHERE t.tenant_key = @p_tenant_key;
+
+        IF @id IS NULL
+            BEGIN
+
+                SELECT
+                    CAST(2 /* ControlAction.NotFound */ AS SMALLINT) AS action,
+                    CAST(NULL AS INT) AS version;
+                GOTO Finish;
+            END;
+
+        IF @status = 10 /* TenantStatusCode.Active */
+            BEGIN
+
+                SELECT
+                    CAST(6 /* ControlAction.AlreadyInState */ AS SMALLINT) AS action,
+                    @version AS version;
+                GOTO Finish;
+            END;
+
+        UPDATE acta.tenants
+        SET status_code = 10 /* TenantStatusCode.Active */, modified_at_utc = @now, version = version + 1
+        WHERE id = @id;
+        SET @version = @version + 1;
+
+        -- namespace_id 1 is the seeded sys namespace (M001).
+        INSERT INTO acta.events (
+            event_code, created_at_utc, namespace_id, actor_code, actor_key,
+            job_id, job_ref, execution_number, lineage_root_id, definition_id, tenant_id, worker_id,
+            from_status_code, to_status_code, execution_status_code, duration_ms, reason_code, reason_message
+        )
+        VALUES (
+            11 /* EventCode.TenantResumed */, @now, 1, @p_actor_code, @p_actor_key,
+            NULL, NULL, NULL, NULL, NULL, @id, NULL,
+            NULL, NULL, NULL, NULL, NULL, @p_reason_message
+        );
+
+        SELECT
+            CAST(1 /* ControlAction.Applied */ AS SMALLINT) AS action,
+            @version AS version;
+
+    Finish:
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+CREATE OR ALTER PROCEDURE acta.set_job_definition_overrides
+    @p_id INT,
+    @p_version INT,
+    @p_priority_code_override TINYINT,
+    @p_max_attempts_override INT,
+    @p_concurrency_limit_override INT,
+    @p_rate_limit_override VARCHAR(16),
+    @p_backoff_override NVARCHAR(64),
+    @p_execution_timeout_seconds_override INT,
+    @p_deadline_seconds_override INT,
+    @p_deadline_behavior_code_override TINYINT,
+    @p_retention_seconds_override INT,
+    @p_audit_level_code_override TINYINT,
+    @p_alert_profile_code_override TINYINT,
+    @p_alert_channel_name_override VARCHAR(128),
+    @p_runbook_url_override VARCHAR(512),
+    @p_display_name_override NVARCHAR(128),
+    @p_description_override NVARCHAR(512),
+    @p_actor_code TINYINT,
+    @p_actor_key NVARCHAR(128),
+    @p_reason_code TINYINT,
+    @p_reason_message NVARCHAR(512)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @ns INT, @existing_version INT, @rate_key VARCHAR(128), @name VARCHAR(128), @meter VARCHAR(128);
+
+        SELECT
+            @ns = jd.namespace_id,
+            @existing_version = jd.version,
+            @rate_key = jd.rate_key,
+            @name = jd.name
+        FROM acta.definitions jd WITH (UPDLOCK, ROWLOCK)
+        WHERE jd.id = @p_id;
+
+        IF @ns IS NULL
+            BEGIN
+                SELECT CAST(2 /* DefinitionOverrideAction.NotFound */ AS TINYINT) AS action;
+                GOTO Finish;
+            END;
+
+        IF @existing_version <> @p_version
+            BEGIN
+                SELECT CAST(3 /* DefinitionOverrideAction.VersionConflict */ AS TINYINT) AS action;
+                GOTO Finish;
+            END;
+
+        SET @meter = LOWER(COALESCE(@rate_key, @name));
+
+        UPDATE acta.definitions SET
+            priority_code_override = @p_priority_code_override,
+            max_attempts_override = @p_max_attempts_override,
+            concurrency_limit_override = @p_concurrency_limit_override,
+            rate_limit_override = @p_rate_limit_override,
+            backoff_override = @p_backoff_override,
+            execution_timeout_seconds_override = @p_execution_timeout_seconds_override,
+            deadline_seconds_override = @p_deadline_seconds_override,
+            deadline_behavior_code_override = @p_deadline_behavior_code_override,
+            retention_seconds_override = @p_retention_seconds_override,
+            audit_level_code_override = @p_audit_level_code_override,
+            alert_profile_code_override = @p_alert_profile_code_override,
+            alert_channel_name_override = @p_alert_channel_name_override,
+            runbook_url_override = @p_runbook_url_override,
+            display_name_override = @p_display_name_override,
+            description_override = @p_description_override,
+            modified_at_utc = @now,
+            version = jd.version + 1
+        FROM acta.definitions jd
+        WHERE jd.id = @p_id AND jd.version = @p_version;
+
+        -- A definition on a meter carries every sibling that already has a rate (declared or overridden)
+        -- on the same effective key along with it here, so the meter never carries two rates and the
+        -- last write wins for every participant. See JobDefinitionPolicyOverrides.RateLimit.
+        UPDATE acta.definitions
+        SET
+            rate_limit_override = @p_rate_limit_override,
+            modified_at_utc = @now,
+            version = version + 1
+        WHERE
+            namespace_id = @ns
+            AND id <> @p_id
+            AND (rate_limit IS NOT NULL OR rate_limit_override IS NOT NULL)
+            AND LOWER(COALESCE(rate_key, name)) = @meter;
+
+        INSERT INTO acta.events (
+            event_code, created_at_utc, namespace_id,
+            actor_code, actor_key,
+            job_id, job_ref, execution_number,
+            lineage_root_id, definition_id,
+            worker_id,
+            from_status_code, to_status_code,
+            execution_status_code, duration_ms,
+            reason_code, reason_message
+        )
+        VALUES (
+            30 /* EventCode.JobDefinitionOverridesUpdated */, @now, @ns,
+            @p_actor_code, @p_actor_key,
+            NULL, NULL, NULL,
+            NULL, @p_id,
+            NULL,
+            NULL, NULL,
+            NULL, NULL,
+            @p_reason_code, @p_reason_message
+        );
+
+        SELECT CAST(1 /* DefinitionOverrideAction.Applied */ AS TINYINT) AS action;
 
     Finish:
 
@@ -6964,164 +8123,6 @@ BEGIN
     END CATCH;
 END;
 GO
-CREATE OR ALTER PROCEDURE acta.trigger_schedule_now
-    @p_job_id BIGINT,
-    @p_name VARCHAR(128),
-    @p_actor_code TINYINT,
-    @p_actor_key NVARCHAR(128),
-    @p_reason_message NVARCHAR(512)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @schedule_id BIGINT, @status TINYINT, @paused DATETIME2(7), @next DATETIME2(7), @version INT;
-        DECLARE @slot_status TINYINT, @slot_next DATETIME2(7);
-        DECLARE @ns INT, @def INT, @lineage BIGINT, @en INT, @audit TINYINT, @job_ref UNIQUEIDENTIFIER;
-
-        /* Lock the slot's runtimes row before the schedules row: register_scheduled_jobs writes
-           runtimes then schedules, so every writer of both must take runtimes first. The schedules
-           row is guard-only here (never updated): a manual trigger moves only the slot's cursor. */
-        SELECT
-            @slot_status = r.status_code,
-            @slot_next = r.next_run_at_utc,
-            @en = r.execution_number
-        FROM acta.runtimes r WITH (UPDLOCK, ROWLOCK)
-        WHERE r.job_id = @p_job_id;
-
-        SELECT
-            @schedule_id = js.id,
-            @status = js.status_code,
-            @paused = js.paused_until_utc,
-            @next = js.next_run_at_utc,
-            @version = js.version
-        FROM acta.schedules js WITH (UPDLOCK, ROWLOCK)
-        WHERE
-            js.job_id = @p_job_id
-            AND js.name = @p_name
-            AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */;
-
-        IF @schedule_id IS NULL
-            BEGIN
-
-                SELECT
-                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
-                    CAST(NULL AS TINYINT) AS status_code,
-                    CAST(NULL AS DATETIME2(7)) AS paused_until_utc,
-                    CAST(NULL AS DATETIME2(7)) AS next_run_at_utc,
-                    CAST(NULL AS INT) AS version;
-                GOTO Finish;
-            END;
-
-        IF @status = 30 /* ScheduleStatusCode.Paused */
-            BEGIN
-
-                SELECT
-                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
-                    @status AS status_code,
-                    @paused AS paused_until_utc,
-                    @next AS next_run_at_utc,
-                    @version AS version;
-                GOTO Finish;
-            END;
-
-        -- A held job (Paused with a next run; ScheduleWalker, "held") runs only once it is resumed.
-        IF @slot_status IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
-            OR (@slot_status = 30 /* JobStatusCode.Paused */ AND @slot_next IS NOT NULL)
-            BEGIN
-
-                SELECT
-                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
-                    @status AS status_code,
-                    @paused AS paused_until_utc,
-                    @next AS next_run_at_utc,
-                    @version AS version;
-                GOTO Finish;
-            END;
-
-        IF @slot_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-            BEGIN
-
-                SELECT
-                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
-                    @status AS status_code,
-                    @paused AS paused_until_utc,
-                    @next AS next_run_at_utc,
-                    @version AS version;
-                GOTO Finish;
-            END;
-
-        SELECT
-            @ns = j.namespace_id,
-            @def = j.definition_id,
-            @lineage = j.lineage_root_id,
-            @audit = j.audit_level_code,
-            @job_ref = j.job_ref
-        FROM acta.jobs j
-        WHERE j.id = @p_job_id;
-
-        UPDATE acta.runtimes
-        SET
-            next_run_at_utc = @now,
-            status_code = 10 /* JobStatusCode.Ready */,
-            modified_at_utc = @now,
-            version = version + 1
-        WHERE
-            job_id = @p_job_id
-            AND (
-                status_code IN (20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */)
-                OR (status_code = 30 /* JobStatusCode.Paused */ AND next_run_at_utc IS NULL)
-            );
-
-        IF @audit = 20 /* JobAuditLevelCode.Audit */
-            BEGIN
-                INSERT INTO acta.events (
-                    event_code, created_at_utc, namespace_id,
-                    actor_code, actor_key,
-                    job_id, job_ref, execution_number,
-                    lineage_root_id, definition_id,
-                    worker_id,
-                    from_status_code, to_status_code,
-                    execution_status_code, duration_ms,
-                    reason_code, reason_message
-                )
-                VALUES (
-                    104 /* EventCode.ScheduleTriggered */, @now, @ns,
-                    @p_actor_code, @p_actor_key,
-                    @p_job_id, @job_ref, @en,
-                    COALESCE(@lineage, @p_job_id), @def,
-                    NULL,
-                    NULL, NULL,
-                    NULL, NULL,
-                    NULL, @p_reason_message
-                );
-            END
-
-        SELECT
-            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
-            @status AS status_code,
-            @paused AS paused_until_utc,
-            @next AS next_run_at_utc,
-            @version AS version;
-
-    Finish:
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
 -- Scoped upsert, last write wins: targets resolve the scope (none = Global, namespace alone =
 -- Namespace, namespace + job name = Definition); unregistered targets are NotFound. UPDLOCK+HOLDLOCK
 -- serializes same-key writers, so the guarded INSERT cannot lose a race. Name validated upstream.
@@ -7245,439 +8246,6 @@ BEGIN
             @version AS version;
 
     Finish:
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
--- Version-CAS consume of an applied operator command: a miss means a newer command superseded the row
--- mid-apply and survives for the next tick. See IOutboxSignalStore.ConsumeAsync.
-CREATE OR ALTER PROCEDURE acta.consume_outbox_signal
-    @p_job_id BIGINT,
-    @p_name VARCHAR(128),
-    @p_expected_version INT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DELETE FROM acta.checkpoints
-        WHERE
-            job_id = @p_job_id
-            AND kind_code = 20 /* JobCheckpointKindCode.Signal */
-            AND name = @p_name
-            AND version = @p_expected_version;
-
-        SELECT CAST(@@ROWCOUNT AS BIGINT) AS consumed;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
--- Park admission for the sys.outbox operator inbox: insert when the slot is free, supersede when the
--- pending command has outlived the worker-dead window, reject otherwise. See IOutboxSignalStore.ParkAsync.
-CREATE OR ALTER PROCEDURE acta.park_outbox_signal
-    @p_job_id BIGINT,
-    @p_name VARCHAR(128),
-    @p_value_format_id TINYINT,
-    @p_value VARBINARY(MAX),
-    @p_stale_before_utc DATETIME2(7)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @modified DATETIME2(7);
-
-        SELECT @modified = modified_at_utc
-        FROM acta.checkpoints WITH (UPDLOCK, HOLDLOCK)
-        WHERE job_id = @p_job_id AND kind_code = 20 /* JobCheckpointKindCode.Signal */ AND name = @p_name;
-
-        IF @modified IS NULL
-            INSERT INTO acta.checkpoints (
-                job_id, kind_code, name, status_code, value_format_id, value,
-                created_at_utc, modified_at_utc, version
-            )
-            VALUES (
-                @p_job_id, 20 /* JobCheckpointKindCode.Signal */, @p_name, 20 /* JobCheckpointStatusCode.Set */,
-                @p_value_format_id, @p_value, @now, @now, 0
-            );
-        ELSE IF @modified <= @p_stale_before_utc
-            UPDATE acta.checkpoints
-            SET
-                status_code = 20 /* JobCheckpointStatusCode.Set */,
-                value_format_id = @p_value_format_id,
-                value = @p_value,
-                modified_at_utc = @now,
-                version = version + 1
-            WHERE job_id = @p_job_id AND kind_code = 20 /* JobCheckpointKindCode.Signal */ AND name = @p_name;
-
-        /* The minted command id inside @p_value makes the payload unique, so value equality is the
-           "my write landed" test; a losing park reads the incumbent's park instant as the rejection age. */
-        SELECT
-            CAST(CASE WHEN c.value = @p_value THEN 1 /* ControlAction.Applied */ ELSE 3 /* ControlAction.Rejected */ END AS SMALLINT)
-                AS action,
-            c.modified_at_utc AS pending_since_utc
-        FROM acta.checkpoints c
-        WHERE c.job_id = @p_job_id AND c.kind_code = 20 /* JobCheckpointKindCode.Signal */ AND c.name = @p_name;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-CREATE OR ALTER PROCEDURE acta.raise_signal
-    @p_job_id BIGINT,
-    @p_kind_code TINYINT,
-    @p_name VARCHAR(128),
-    @p_value_format_id TINYINT,
-    @p_value VARBINARY(MAX),
-    @p_actor_code TINYINT,
-    @p_actor_key NVARCHAR(128),
-    @p_reason_code TINYINT,
-    @p_reason_message NVARCHAR(512)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @existing TINYINT;
-        DECLARE @expired BIT = 0;
-        DECLARE @message NVARCHAR(512);
-        DECLARE
-            @from_status TINYINT, @namespace_id INT, @lineage_root_id BIGINT,
-            @definition_id INT, @tenant_id INT, @execution_number INT, @audit_level TINYINT,
-            @job_ref UNIQUEIDENTIFIER;
-
-        SELECT @existing = status_code
-        FROM acta.checkpoints WITH (UPDLOCK, HOLDLOCK)
-        WHERE job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name;
-
-        SELECT
-            @from_status = r.status_code,
-            @namespace_id = j.namespace_id,
-            @lineage_root_id = j.lineage_root_id,
-            @definition_id = j.definition_id,
-            @tenant_id = j.tenant_id,
-            @execution_number = r.execution_number,
-            @audit_level = j.audit_level_code,
-            @job_ref = j.job_ref
-        FROM acta.runtimes r WITH (UPDLOCK, ROWLOCK)
-        INNER JOIN acta.jobs j ON j.id = r.job_id
-        WHERE r.job_id = @p_job_id;
-
-        IF @from_status IS NULL
-            BEGIN
-
-                SELECT
-                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
-                    CAST(NULL AS TINYINT) AS status_code;
-                GOTO Finish;
-            END;
-
-        IF @from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-            BEGIN
-
-                SELECT
-                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
-                    @from_status AS status_code;
-                GOTO Finish;
-            END;
-
-        /* No revival: an Expired slot already resolved the wait TimedOut, so a late raise writes no
-           slot and releases no job. The raise still happened, so it is still recorded: the event below
-           carries a message saying why it changed nothing, and the verb reports the unchanged status. */
-        SET @expired = CASE WHEN @existing = 30 /* JobCheckpointStatusCode.Expired */ THEN 1 ELSE 0 END;
-        SET @message = CASE
-            WHEN @expired = 1
-                THEN LEFT(COALESCE(@p_reason_message + N' ', N'') + N'Signal not applied: the wait had already expired.', 512)
-            ELSE @p_reason_message
-        END;
-
-        IF @expired = 0
-            BEGIN
-                IF @existing IS NULL
-                    INSERT INTO acta.checkpoints (
-                        job_id, kind_code, name, status_code, value_format_id, value,
-                        created_at_utc, modified_at_utc, version
-                    )
-                    VALUES (@p_job_id, @p_kind_code, @p_name, 20 /* JobCheckpointStatusCode.Set */, @p_value_format_id, @p_value, @now, @now, 0);
-                ELSE
-                    UPDATE acta.checkpoints
-                    SET
-                        status_code = 20 /* JobCheckpointStatusCode.Set */,
-                        value_format_id = @p_value_format_id,
-                        value = @p_value,
-                        modified_at_utc = @now,
-                        version = version + 1
-                    WHERE job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name;
-            END
-
-        IF @audit_level = 20 /* JobAuditLevelCode.Audit */
-            INSERT INTO acta.events (
-                event_code, created_at_utc, namespace_id,
-                actor_code, actor_key,
-                job_id, job_ref, execution_number,
-                lineage_root_id, definition_id, tenant_id,
-                worker_id,
-                from_status_code, to_status_code,
-                execution_status_code, duration_ms,
-                reason_code, reason_message
-            )
-            VALUES (
-                80 /* EventCode.JobSignalRaised */, @now, @namespace_id,
-                @p_actor_code, @p_actor_key,
-                @p_job_id, @job_ref, @execution_number,
-                COALESCE(@lineage_root_id, @p_job_id), @definition_id, @tenant_id,
-                NULL,
-                @from_status, @from_status,
-                NULL, NULL,
-                @p_reason_code, @message
-            );
-
-        IF @from_status = 20 /* JobStatusCode.Suspended */ AND @expired = 0
-            BEGIN
-                UPDATE acta.runtimes
-                SET
-                    status_code = 10 /* JobStatusCode.Ready */,
-                    next_run_at_utc = @now,
-                    modified_at_utc = @now,
-                    version = version + 1
-                WHERE job_id = @p_job_id;
-
-                IF @audit_level = 20 /* JobAuditLevelCode.Audit */
-                    INSERT INTO acta.events (
-                        event_code, created_at_utc, namespace_id,
-                        actor_code, actor_key,
-                        job_id, job_ref, execution_number,
-                        lineage_root_id, definition_id, tenant_id,
-                        worker_id,
-                        from_status_code, to_status_code,
-                        execution_status_code, duration_ms,
-                        reason_code, reason_message
-                    )
-                    VALUES (
-                        72 /* EventCode.JobResumed */, @now, @namespace_id,
-                        @p_actor_code, @p_actor_key,
-                        @p_job_id, @job_ref, @execution_number,
-                        COALESCE(@lineage_root_id, @p_job_id), @definition_id, @tenant_id,
-                        NULL,
-                        20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */,
-                        NULL, NULL,
-                        @p_reason_code, @p_reason_message
-                    );
-
-                SELECT
-                    CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
-                    CAST(10 /* JobStatusCode.Ready */ AS TINYINT) AS status_code;
-                GOTO Finish;
-            END
-
-        SELECT
-            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
-            @from_status AS status_code;
-
-    Finish:
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
--- Appends the applied-command evidence event against the sys.outbox slot job. Always emitted (no
--- audit-level gate): this is the trail for actions whose subject rows live in the producer's database.
-CREATE OR ALTER PROCEDURE acta.record_outbox_event
-    @p_job_id BIGINT,
-    @p_event_code SMALLINT,
-    @p_actor_code TINYINT,
-    @p_actor_key NVARCHAR(128),
-    @p_reason_message NVARCHAR(512)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        INSERT INTO acta.events (
-            event_code,
-            created_at_utc,
-            namespace_id,
-            actor_code,
-            actor_key,
-            job_id,
-            job_ref,
-            execution_number,
-            lineage_root_id,
-            definition_id,
-            tenant_id,
-            reason_message)
-        SELECT
-            @p_event_code,
-            SYSUTCDATETIME(),
-            j.namespace_id,
-            @p_actor_code,
-            @p_actor_key,
-            j.id,
-            j.job_ref,
-            r.execution_number,
-            COALESCE(j.lineage_root_id, j.id),
-            j.definition_id,
-            j.tenant_id,
-            @p_reason_message
-        FROM acta.jobs j
-        JOIN acta.runtimes r ON r.job_id = j.id
-        WHERE j.id = @p_job_id;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-/* Slot-locked arbiter for one durable wait: Set wins even past the due, an overdue Pending flips to
-   Expired, Expired replays TimedOut forever. */
-/* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a timeout, so code
-   redeployed with a bound can un-strand a wait suspended without one; a stored due is never
-   overwritten, never extended, and never cleared by a subsequent unbounded call. */
-/* The read below needs no re-read after a lost insert the way pg's does: (UPDLOCK, HOLDLOCK) takes a
-   key-range lock over the absent slot, so a concurrent first arrival waits here and then reads the
-   winner's row, arriving at the same resolution instead of racing the insert. */
-/* A wait this call armed suspends once, even with an already-elapsed deadline: the arm is the last
-   act of its branch, so only a wait armed by an earlier call can expire. Pg states the same rule. */
-CREATE OR ALTER PROCEDURE acta.wait_signal
-    @p_job_id BIGINT,
-    @p_kind_code TINYINT,
-    @p_name VARCHAR(128),
-    @p_timeout_seconds INT = NULL
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
-        DECLARE @state TINYINT, @fmt TINYINT = 0;
-        DECLARE @val VARBINARY(MAX) = NULL;
-        DECLARE @due DATETIME2(3) = NULL;
-        DECLARE @outcome SMALLINT;
-
-        SELECT
-            @state = status_code,
-            @fmt = value_format_id,
-            @val = value,
-            @due = due_at_utc
-        FROM acta.checkpoints WITH (UPDLOCK, HOLDLOCK)
-        WHERE job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name;
-
-        IF @state = 20 /* JobCheckpointStatusCode.Set */
-            BEGIN
-                SET @outcome = 2 /* SignalWaitOutcomeCode.ContinueSet */;
-            END
-        ELSE IF @state = 30 /* JobCheckpointStatusCode.Expired */
-            BEGIN
-                SET @outcome = 3 /* SignalWaitOutcomeCode.TimedOut */;
-                SET @fmt = 0 /* JobPayloadFormat.None */;
-                SET @val = NULL;
-            END
-        ELSE IF @state = 10 /* JobCheckpointStatusCode.Pending */ AND @due IS NOT NULL AND @due <= @now
-            BEGIN
-                UPDATE acta.checkpoints
-                SET
-                    status_code = 30 /* JobCheckpointStatusCode.Expired */,
-                    modified_at_utc = @now,
-                    version = version + 1
-                WHERE job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name;
-
-                SET @outcome = 3 /* SignalWaitOutcomeCode.TimedOut */;
-                SET @fmt = 0 /* JobPayloadFormat.None */;
-                SET @val = NULL;
-            END
-        ELSE
-            BEGIN
-                IF @state IS NULL
-                    BEGIN
-                        INSERT INTO acta.checkpoints (
-                            job_id, kind_code, name, status_code, due_at_utc, value_format_id, value,
-                            created_at_utc, modified_at_utc, version
-                        )
-                        VALUES (
-                            @p_job_id, @p_kind_code, @p_name, 10 /* JobCheckpointStatusCode.Pending */,
-                            CASE WHEN @p_timeout_seconds IS NULL THEN NULL ELSE DATEADD(SECOND, @p_timeout_seconds, @now) END,
-                            0 /* JobPayloadFormat.None */, NULL, @now, @now, 0
-                        );
-                    END
-                ELSE IF @state = 10 /* JobCheckpointStatusCode.Pending */ AND @due IS NULL AND @p_timeout_seconds IS NOT NULL
-                    BEGIN
-                        UPDATE acta.checkpoints
-                        SET
-                            due_at_utc = DATEADD(SECOND, @p_timeout_seconds, @now),
-                            modified_at_utc = @now,
-                            version = version + 1
-                        WHERE
-                            job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name
-                            AND status_code = 10 /* JobCheckpointStatusCode.Pending */
-                            AND due_at_utc IS NULL;
-                    END
-                SET @outcome = 1 /* SignalWaitOutcomeCode.SuspendPending */;
-                SET @fmt = 0 /* JobPayloadFormat.None */;
-                SET @val = NULL;
-            END
-
-        SELECT
-            @outcome AS outcome_code,
-            @fmt AS value_format_id,
-            @val AS value;
 
         IF @entry_trancount = 0
             COMMIT TRANSACTION;
@@ -7978,528 +8546,6 @@ BEGIN
     END CATCH;
 END;
 GO
-CREATE OR ALTER PROCEDURE acta.register_tenant
-    @p_tenant_key VARCHAR(128),
-    @p_display_name NVARCHAR(128),
-    @p_description NVARCHAR(512)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @tenant_id INT;
-
-        -- Hold the indexed key (or gap) until the operation commits; no unique-error recovery in an aborted transaction.
-        SELECT @tenant_id = id
-        FROM acta.tenants WITH (UPDLOCK, HOLDLOCK)
-        WHERE tenant_key = @p_tenant_key;
-
-        IF @tenant_id IS NULL
-        BEGIN
-            INSERT INTO acta.tenants
-                (tenant_key, display_name, description, status_code, created_at_utc, modified_at_utc, version)
-            VALUES (@p_tenant_key, @p_display_name, @p_description, 10 /* TenantStatusCode.Active */, @now, @now, 0);
-            SET @tenant_id = CAST(SCOPE_IDENTITY() AS INT);
-        END;
-
-        SELECT @tenant_id AS tenant_id;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-CREATE OR ALTER PROCEDURE acta.resume_tenant
-    @p_tenant_key VARCHAR(128),
-    @p_actor_code TINYINT,
-    @p_actor_key NVARCHAR(128),
-    @p_reason_message NVARCHAR(512)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @id INT, @status TINYINT, @version INT;
-
-        SELECT
-            @id = t.id,
-            @status = t.status_code,
-            @version = t.version
-        FROM acta.tenants t WITH (UPDLOCK, ROWLOCK)
-        WHERE t.tenant_key = @p_tenant_key;
-
-        IF @id IS NULL
-            BEGIN
-
-                SELECT
-                    CAST(2 /* ControlAction.NotFound */ AS SMALLINT) AS action,
-                    CAST(NULL AS INT) AS version;
-                GOTO Finish;
-            END;
-
-        IF @status = 10 /* TenantStatusCode.Active */
-            BEGIN
-
-                SELECT
-                    CAST(6 /* ControlAction.AlreadyInState */ AS SMALLINT) AS action,
-                    @version AS version;
-                GOTO Finish;
-            END;
-
-        UPDATE acta.tenants
-        SET status_code = 10 /* TenantStatusCode.Active */, modified_at_utc = @now, version = version + 1
-        WHERE id = @id;
-        SET @version = @version + 1;
-
-        -- namespace_id 1 is the seeded sys namespace (M001).
-        INSERT INTO acta.events (
-            event_code, created_at_utc, namespace_id, actor_code, actor_key,
-            job_id, job_ref, execution_number, lineage_root_id, definition_id, tenant_id, worker_id,
-            from_status_code, to_status_code, execution_status_code, duration_ms, reason_code, reason_message
-        )
-        VALUES (
-            11 /* EventCode.TenantResumed */, @now, 1, @p_actor_code, @p_actor_key,
-            NULL, NULL, NULL, NULL, NULL, @id, NULL,
-            NULL, NULL, NULL, NULL, NULL, @p_reason_message
-        );
-
-        SELECT
-            CAST(1 /* ControlAction.Applied */ AS SMALLINT) AS action,
-            @version AS version;
-
-    Finish:
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-CREATE OR ALTER PROCEDURE acta.suspend_tenant
-    @p_tenant_key VARCHAR(128),
-    @p_actor_code TINYINT,
-    @p_actor_key NVARCHAR(128),
-    @p_reason_message NVARCHAR(512)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @id INT, @status TINYINT, @version INT;
-
-        SELECT
-            @id = t.id,
-            @status = t.status_code,
-            @version = t.version
-        FROM acta.tenants t WITH (UPDLOCK, ROWLOCK)
-        WHERE t.tenant_key = @p_tenant_key;
-
-        IF @id IS NULL
-            BEGIN
-
-                SELECT
-                    CAST(2 /* ControlAction.NotFound */ AS SMALLINT) AS action,
-                    CAST(NULL AS INT) AS version;
-                GOTO Finish;
-            END;
-
-        IF @status = 20 /* TenantStatusCode.Suspended */
-            BEGIN
-
-                SELECT
-                    CAST(6 /* ControlAction.AlreadyInState */ AS SMALLINT) AS action,
-                    @version AS version;
-                GOTO Finish;
-            END;
-
-        UPDATE acta.tenants
-        SET status_code = 20 /* TenantStatusCode.Suspended */, modified_at_utc = @now, version = version + 1
-        WHERE id = @id;
-        SET @version = @version + 1;
-
-        -- namespace_id 1 is the seeded sys namespace (M001).
-        INSERT INTO acta.events (
-            event_code, created_at_utc, namespace_id, actor_code, actor_key,
-            job_id, job_ref, execution_number, lineage_root_id, definition_id, tenant_id, worker_id,
-            from_status_code, to_status_code, execution_status_code, duration_ms, reason_code, reason_message
-        )
-        VALUES (
-            10 /* EventCode.TenantSuspended */, @now, 1, @p_actor_code, @p_actor_key,
-            NULL, NULL, NULL, NULL, NULL, @id, NULL,
-            NULL, NULL, NULL, NULL, NULL, @p_reason_message
-        );
-
-        SELECT
-            CAST(1 /* ControlAction.Applied */ AS SMALLINT) AS action,
-            @version AS version;
-
-    Finish:
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-CREATE OR ALTER PROCEDURE acta.update_tenant
-    @p_tenant_key VARCHAR(128),
-    @p_display_name NVARCHAR(128),
-    @p_description NVARCHAR(512),
-    @p_expected_version INT,
-    @p_actor_code TINYINT,
-    @p_actor_key NVARCHAR(128),
-    @p_reason_message NVARCHAR(512)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @id INT, @version INT;
-
-        SELECT
-            @id = t.id,
-            @version = t.version
-        FROM acta.tenants t WITH (UPDLOCK, ROWLOCK)
-        WHERE t.tenant_key = @p_tenant_key;
-
-        IF @id IS NULL
-            BEGIN
-
-                SELECT
-                    CAST(2 /* ControlAction.NotFound */ AS SMALLINT) AS action,
-                    CAST(NULL AS INT) AS version;
-                GOTO Finish;
-            END;
-
-        IF @version <> @p_expected_version
-            BEGIN
-
-                SELECT
-                    CAST(5 /* ControlAction.VersionConflict */ AS SMALLINT) AS action,
-                    @version AS version;
-                GOTO Finish;
-            END;
-
-        UPDATE acta.tenants
-        SET display_name = @p_display_name, description = @p_description, modified_at_utc = @now, version = version + 1
-        WHERE id = @id;
-        SET @version = @version + 1;
-
-        -- namespace_id 1 is the seeded sys namespace (M001).
-        INSERT INTO acta.events (
-            event_code, created_at_utc, namespace_id, actor_code, actor_key,
-            job_id, job_ref, execution_number, lineage_root_id, definition_id, tenant_id, worker_id,
-            from_status_code, to_status_code, execution_status_code, duration_ms, reason_code, reason_message
-        )
-        VALUES (
-            12 /* EventCode.TenantUpdated */, @now, 1, @p_actor_code, @p_actor_key,
-            NULL, NULL, NULL, NULL, NULL, @id, NULL,
-            NULL, NULL, NULL, NULL, NULL, @p_reason_message
-        );
-
-        SELECT
-            CAST(1 /* ControlAction.Applied */ AS SMALLINT) AS action,
-            @version AS version;
-
-    Finish:
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-CREATE OR ALTER PROCEDURE acta.arm_or_consume_sleep_timer
-    @p_job_id BIGINT,
-    @p_name VARCHAR(128),
-    @p_delay_seconds INT = NULL,
-    @p_resume_at_utc DATETIME2(3) = NULL
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
-        DECLARE @due DATETIME2(3) = COALESCE(@p_resume_at_utc, DATEADD(SECOND, @p_delay_seconds, @now));
-        DECLARE @outcome SMALLINT;
-        DECLARE @result_due DATETIME2(3) = NULL;
-        DECLARE @existing_state TINYINT;
-        DECLARE @existing_due DATETIME2(3);
-        DECLARE @lock_id BIGINT;
-
-        SELECT @lock_id = job_id
-        FROM acta.runtimes WITH (UPDLOCK, HOLDLOCK)
-        WHERE job_id = @p_job_id;
-
-        SELECT
-            @existing_state = status_code,
-            @existing_due = due_at_utc
-        FROM acta.checkpoints
-        WHERE
-            job_id = @p_job_id
-            AND kind_code = 30 /* JobCheckpointKindCode.Timer */
-            AND name = @p_name;
-
-        IF @existing_state = 10 /* JobCheckpointStatusCode.Pending */ AND @existing_due > @now
-            BEGIN
-
-                SET @outcome = 1 /* SleepOutcome.Suspend */;
-                SET @result_due = @existing_due;
-            END
-        ELSE IF @existing_state = 10 /* JobCheckpointStatusCode.Pending */
-            BEGIN
-
-                UPDATE acta.checkpoints
-                SET
-                    status_code = 100 /* JobCheckpointStatusCode.Consumed */,
-                    modified_at_utc = @now,
-                    version = version + 1
-                WHERE job_id = @p_job_id AND kind_code = 30 /* JobCheckpointKindCode.Timer */ AND name = @p_name;
-
-                /* Only the worker still executing may clear the instant. A reclaimed row is Ready again
-                   on an instant the reclaim owns, and ck_runtimes_ready_due requires Ready to keep one. */
-                UPDATE acta.runtimes
-                SET
-                    next_run_at_utc = NULL,
-                    modified_at_utc = @now,
-                    version = version + 1
-                WHERE job_id = @p_job_id AND status_code = 50 /* JobStatusCode.Executing */;
-
-                SET @outcome = 2 /* SleepOutcome.Continue */;
-            END
-        ELSE IF @existing_state IS NOT NULL
-            BEGIN
-
-                SET @outcome = 2 /* SleepOutcome.Continue */;
-            END
-        ELSE IF @due <= @now
-            BEGIN
-
-                SET @outcome = 2 /* SleepOutcome.Continue */;
-            END
-        ELSE IF
-            EXISTS (
-                SELECT 1 FROM acta.checkpoints
-                WHERE
-                    job_id = @p_job_id AND kind_code = 30 /* JobCheckpointKindCode.Timer */ AND status_code = 10
-            /* JobCheckpointStatusCode.Pending */
-            )
-            BEGIN
-                SET @outcome = 3 /* SleepOutcome.Reject */;
-            END
-        ELSE
-            BEGIN
-                INSERT INTO acta.checkpoints (
-                    job_id, kind_code, name, status_code, due_at_utc,
-                    created_at_utc, modified_at_utc, version
-                )
-                VALUES (
-                    @p_job_id, 30 /* JobCheckpointKindCode.Timer */, @p_name, 10 /* JobCheckpointStatusCode.Pending */, @due,
-                    @now, @now, 0
-                );
-
-                SET @outcome = 1 /* SleepOutcome.Suspend */;
-                SET @result_due = @due;
-            END
-
-        SELECT
-            @outcome AS outcome_code,
-            @result_due AS due_at_utc;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-CREATE OR ALTER PROCEDURE acta.extend_worker_leases
-    @p_leased_by_worker_id INT,
-    @p_lease_ttl_seconds INT,
-    @p_draining BIT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-
-        UPDATE acta.workers
-        SET
-            last_seen_at_utc = @now,
-            -- A worker marked Dead through a database outage longer than its dead-after window is alive again the
-            -- moment it heartbeats; Stopped stays Stopped.
-            status_code = CASE
-                WHEN @p_draining = 1 AND status_code IN (10 /* WorkerStatusCode.Active */, 200 /* WorkerStatusCode.Dead */)
-                    THEN 80 /* WorkerStatusCode.Draining */
-                WHEN status_code = 200 /* WorkerStatusCode.Dead */ THEN 10 /* WorkerStatusCode.Active */
-                ELSE status_code
-            END,
-            modified_at_utc = @now,
-            version = version + 1
-        WHERE id = @p_leased_by_worker_id;
-
-        /* Push every in-flight execution lease forward. Deliberately no version bump: a lease refresh
-           is not a claim-generation change, so a buffered claim still passes the start CAS. */
-        DECLARE @inflight TABLE (job_id BIGINT NOT NULL PRIMARY KEY, execution_number INT NOT NULL);
-
-        -- Read the ids first so the update locks base rows only, never an index key; start_execution
-        -- and complete_execution lock in the other order. See docs/internals/sql-execution-policy.md.
-        -- The read is lock-free under RCSI, so taking it through the heartbeat index is safe.
-        INSERT INTO @inflight (job_id, execution_number)
-        SELECT job_id, execution_number
-        FROM acta.runtimes
-        WHERE
-            leased_by_worker_id = @p_leased_by_worker_id
-            AND status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
-
-        -- A row another transaction holds is skipped and reported unrenewed, so the renewal never waits
-        -- (docs/internals/sql-execution-policy.md, "Explicit exceptions and maintenance").
-        DECLARE @renewed TABLE (job_id BIGINT NOT NULL PRIMARY KEY, execution_number INT NOT NULL);
-
-        UPDATE r
-        SET lease_expires_at_utc = DATEADD(SECOND, @p_lease_ttl_seconds, @now)
-        OUTPUT INSERTED.job_id, INSERTED.execution_number INTO @renewed (job_id, execution_number)
-        FROM acta.runtimes r WITH (INDEX(pk_runtimes), FORCESEEK, ROWLOCK, READPAST)
-        INNER JOIN @inflight i ON i.job_id = r.job_id
-        WHERE
-            r.leased_by_worker_id = @p_leased_by_worker_id
-            AND r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
-
-        -- A renewed row reports the execution it renewed; one another transaction holds, the one it read.
-        SELECT
-            i.job_id,
-            COALESCE(n.execution_number, i.execution_number) AS execution_number,
-            CAST(CASE WHEN n.job_id IS NULL THEN 0 ELSE 1 END AS BIT) AS renewed
-        FROM @inflight i
-        LEFT JOIN @renewed n ON n.job_id = i.job_id;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-CREATE OR ALTER PROCEDURE acta.mark_dead_workers
-    @p_dead_after_seconds INT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @marked TABLE (id INT NOT NULL PRIMARY KEY, namespace_id INT NOT NULL, worker_ref UNIQUEIDENTIFIER NOT NULL);
-
-        UPDATE acta.workers WITH (ROWLOCK, READPAST)
-        SET
-            status_code = 200 /* WorkerStatusCode.Dead */,
-            modified_at_utc = SYSUTCDATETIME(),
-            version = version + 1
-        OUTPUT INSERTED.id, INSERTED.namespace_id, INSERTED.worker_ref INTO @marked (id, namespace_id, worker_ref)
-        WHERE
-            -- A worker that stopped heartbeating mid-drain, killed or past its host's shutdown budget, is as
-            -- dead as an active one; nothing else ever moves a Draining row.
-            status_code IN (10 /* WorkerStatusCode.Active */, 80 /* WorkerStatusCode.Draining */)
-            AND last_seen_at_utc < DATEADD(SECOND, -@p_dead_after_seconds, SYSUTCDATETIME());
-
-        INSERT INTO acta.events (
-            event_code, created_at_utc, namespace_id, actor_code, actor_key, job_id, execution_number,
-            lineage_root_id, definition_id, worker_id, from_status_code, to_status_code,
-            execution_status_code, duration_ms, reason_code, reason_message
-        )
-        SELECT
-            122 /* EventCode.WorkerDied */,
-            SYSUTCDATETIME(),
-            m.namespace_id,
-            70 /* ActorCode.Worker */,
-            LOWER(CONVERT(varchar(36), m.worker_ref)),
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            m.id,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            101 /* JobEventReasonCode.WorkerHeartbeatStale */,
-            NULL
-        FROM @marked m;
-
-        SELECT COUNT(*) FROM @marked;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
 CREATE OR ALTER PROCEDURE acta.start_worker
     @p_name VARCHAR(128),
     @p_owner_team NVARCHAR(512),
@@ -8675,12 +8721,11 @@ BEGIN
     END CATCH;
 END;
 GO
--- One section, one bounded atomic batch. Section numbers match RetentionSection.
-CREATE OR ALTER PROCEDURE acta.purge_expired_data
-    @p_namespace_id INT,
-    @p_section INT,
-    @p_cutoff_utc DATETIME2(7),
-    @p_batch_size INT
+CREATE OR ALTER PROCEDURE acta.suspend_namespace
+    @p_namespace_name VARCHAR(128),
+    @p_actor_code TINYINT,
+    @p_actor_key NVARCHAR(128),
+    @p_reason_message NVARCHAR(512)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -8691,445 +8736,53 @@ BEGIN
         IF @entry_trancount = 0
             BEGIN TRANSACTION;
 
-        IF @p_batch_size <= 0 OR @p_section NOT BETWEEN 1 AND 8
-            THROW 50002, 'Invalid retention section or batch size.', 1;
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @id INT, @status TINYINT, @version INT;
 
-        DECLARE @rows INT = 0;
-        DECLARE @del TABLE (id BIGINT NOT NULL);
-        DECLARE @schedule_del TABLE (id BIGINT NOT NULL);
-        DECLARE @lock_del TABLE (lock_key VARCHAR(256) NOT NULL);
-        DECLARE @alert_del TABLE (id BIGINT NOT NULL PRIMARY KEY, dedupe_key VARCHAR(512) NULL);
-        DECLARE @alert_locked TABLE (id BIGINT NOT NULL PRIMARY KEY);
-
-        IF @p_section = 1
-            BEGIN
-                DELETE @del;
-
-                INSERT INTO @del (id)
-                SELECT TOP (@p_batch_size) j.id
-                FROM acta.runtimes r WITH (UPDLOCK, READPAST)
-                INNER JOIN acta.jobs j WITH (UPDLOCK, READPAST) ON j.id = r.job_id
-                WHERE
-                    r.namespace_id = @p_namespace_id
-                    AND r.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-                    AND r.retention_until_utc IS NOT NULL
-                    AND r.retention_until_utc <= @p_cutoff_utc
-                    -- Lineage guard: parent_id carries no FK, so purging a parent whose children still
-                    -- exist would orphan their lineage (same rule as the manual purge_job). Only leaves
-                    -- delete; a fully-expired subtree drains bottom-up across iterations.
-                    AND NOT EXISTS (
-                        SELECT 1 FROM acta.jobs c
-                        WHERE c.parent_id = j.id
-                    )
-                    -- A completed child of a live parent is kept: the parent's replay dedupes onto its row
-                    -- and reads its result, so purging it would run the child again. The tree drains once
-                    -- the parent is terminal.
-                    AND NOT EXISTS (
-                        SELECT 1 FROM acta.runtimes p
-                        WHERE p.job_id = j.parent_id
-                            AND p.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-                    )
-                    -- A stopped recurring job stays while its definition is live: the next start would register
-                    -- its declaration as a new job and undo the cancel or failure. Retiring the definition lets
-                    -- it drain.
-                    AND NOT EXISTS (
-                        SELECT 1 FROM acta.schedules s
-                        INNER JOIN acta.definitions d ON d.id = j.definition_id
-                        WHERE s.job_id = j.id AND d.status_code <> 240 /* JobDefinitionStatusCode.Retired */
-                    )
-                ORDER BY r.retention_until_utc, r.job_id;
-
-                DELETE @schedule_del;
-                INSERT INTO @schedule_del (id)
-                SELECT s.id FROM acta.schedules s WITH (UPDLOCK, FORCESEEK)
-                WHERE s.job_id IN (SELECT id FROM @del);
-
-                DELETE FROM acta.tags
-                WHERE
-                    (scope_code = 50 /* TagScopeCode.Job */ AND scope_id IN (SELECT id FROM @del))
-                    OR (scope_code = 60 /* TagScopeCode.Schedule */ AND scope_id IN (SELECT id FROM @schedule_del));
-
-                -- Each delete below seeks its rows by job id, the jobs cascade included: an unhinted plan can scan
-                -- the whole child table under update locks
-                -- (docs/internals/sql-execution-policy.md, "Foreign keys in set-based writes").
-                DELETE c FROM acta.checkpoints c WITH (FORCESEEK) INNER JOIN @del d ON d.id = c.job_id;
-                DELETE r FROM acta.runtimes r WITH (FORCESEEK) INNER JOIN @del d ON d.id = r.job_id;
-                DELETE s FROM acta.steps s WITH (FORCESEEK) INNER JOIN @del d ON d.id = s.job_id;
-                DELETE x FROM acta.results x WITH (FORCESEEK) INNER JOIN @del d ON d.id = x.job_id;
-                DELETE j FROM acta.jobs j WITH (FORCESEEK) INNER JOIN @del d ON d.id = j.id
-                OPTION (LOOP JOIN);
-                SET @rows = (SELECT COUNT(*) FROM @del);
-
-            END;
-
-        ELSE IF @p_section = 2
-            BEGIN
-                DELETE @del;
-
-                INSERT INTO @del (id)
-                SELECT TOP (@p_batch_size) id
-                FROM acta.events WITH (UPDLOCK, READPAST)
-                WHERE
-                    namespace_id = @p_namespace_id
-                    AND created_at_utc <= @p_cutoff_utc
-                ORDER BY created_at_utc, id;
-                DELETE FROM acta.tags
-                WHERE scope_code = 90 /* TagScopeCode.Event */ AND scope_id IN (SELECT id FROM @del);
-                DELETE e FROM acta.events e WITH (FORCESEEK) INNER JOIN @del d ON d.id = e.id;
-                SET @rows = (SELECT COUNT(*) FROM @del);
-
-            END;
-
-        ELSE IF @p_section = 3
-            BEGIN
-                DELETE @alert_del;
-                DELETE @alert_locked;
-
-                INSERT INTO @alert_del (id, dedupe_key)
-                SELECT TOP (@p_batch_size) id, dedupe_key
-                FROM acta.alerts WITH (READPAST)
-                WHERE
-                    namespace_id = @p_namespace_id
-                    AND created_at_utc <= @p_cutoff_utc
-                    AND delivery_status_code IN (
-                        30 /* AlertDeliveryStatusCode.Suppressed */,
-                        100 /* AlertDeliveryStatusCode.Delivered */,
-                        200 /* AlertDeliveryStatusCode.Failed */
-                    )
-                ORDER BY created_at_utc, id;
-
-                -- Staged without locks, then each identity row is locked through its ix_alerts_dedupe_identity
-                -- key before the row and the rest by key, skipping a row another transaction holds
-                -- (docs/internals/sql-execution-policy.md, "Alert lock order").
-                INSERT INTO @alert_locked (id)
-                SELECT a.id
-                FROM @alert_del d
-                INNER JOIN acta.alerts a WITH (UPDLOCK, READPAST, FORCESEEK (ix_alerts_dedupe_identity (namespace_id, dedupe_key)))
-                    ON
-                        a.namespace_id = @p_namespace_id
-                        AND a.dedupe_key = d.dedupe_key
-                        AND a.id = d.id
-                WHERE d.dedupe_key IS NOT NULL;
-                INSERT INTO @alert_locked (id)
-                SELECT a.id
-                FROM @alert_del d
-                INNER JOIN acta.alerts a WITH (UPDLOCK, READPAST, FORCESEEK) ON a.id = d.id
-                WHERE d.dedupe_key IS NULL;
-
-                DELETE FROM acta.tags
-                WHERE scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM @alert_locked);
-                DELETE a
-                FROM acta.alerts a WITH (FORCESEEK)
-                INNER JOIN @alert_locked l ON l.id = a.id
-                WHERE
-                    a.created_at_utc <= @p_cutoff_utc
-                    AND a.delivery_status_code IN (
-                        30 /* AlertDeliveryStatusCode.Suppressed */,
-                        100 /* AlertDeliveryStatusCode.Delivered */,
-                        200 /* AlertDeliveryStatusCode.Failed */
-                    );
-                SET @rows = @@ROWCOUNT;
-
-            END;
-
-        ELSE IF @p_section = 4
-            BEGIN
-                DELETE @alert_del;
-                DELETE @alert_locked;
-
-                INSERT INTO @alert_del (id, dedupe_key)
-                SELECT TOP (@p_batch_size) id, dedupe_key
-                FROM acta.alerts WITH (READPAST)
-                WHERE
-                    namespace_id = @p_namespace_id
-                    AND created_at_utc <= @p_cutoff_utc
-                    AND delivery_status_code IN (
-                        10 /* AlertDeliveryStatusCode.Pending */,
-                        20 /* AlertDeliveryStatusCode.RetryAfter */
-                    )
-                ORDER BY created_at_utc, id;
-
-                -- Staged without locks, then each identity row is locked through its ix_alerts_dedupe_identity
-                -- key before the row and the rest by key, skipping a row another transaction holds
-                -- (docs/internals/sql-execution-policy.md, "Alert lock order").
-                INSERT INTO @alert_locked (id)
-                SELECT a.id
-                FROM @alert_del d
-                INNER JOIN acta.alerts a WITH (UPDLOCK, READPAST, FORCESEEK (ix_alerts_dedupe_identity (namespace_id, dedupe_key)))
-                    ON
-                        a.namespace_id = @p_namespace_id
-                        AND a.dedupe_key = d.dedupe_key
-                        AND a.id = d.id
-                WHERE d.dedupe_key IS NOT NULL;
-                INSERT INTO @alert_locked (id)
-                SELECT a.id
-                FROM @alert_del d
-                INNER JOIN acta.alerts a WITH (UPDLOCK, READPAST, FORCESEEK) ON a.id = d.id
-                WHERE d.dedupe_key IS NULL;
-
-                DELETE FROM acta.tags
-                WHERE scope_code = 80 /* TagScopeCode.Alert */ AND scope_id IN (SELECT id FROM @alert_locked);
-                DELETE a
-                FROM acta.alerts a WITH (FORCESEEK)
-                INNER JOIN @alert_locked l ON l.id = a.id
-                WHERE
-                    a.created_at_utc <= @p_cutoff_utc
-                    AND a.delivery_status_code IN (
-                        10 /* AlertDeliveryStatusCode.Pending */,
-                        20 /* AlertDeliveryStatusCode.RetryAfter */
-                    );
-                SET @rows = @@ROWCOUNT;
-
-            END;
-
-        ELSE IF @p_section = 5
-            BEGIN
-                DECLARE @alerts_slot_id BIGINT = (
-                    SELECT j.id
-                    FROM acta.jobs j
-                    WHERE
-                        j.namespace_id = @p_namespace_id
-                        AND j.deduplication_key = 'sys.alerts'
-                        AND j.parent_id IS NULL);
-                DELETE TOP (@p_batch_size) FROM acta.checkpoints
-                WHERE
-                    job_id = @alerts_slot_id
-                    AND kind_code = 10 /* JobCheckpointKindCode.Variable */
-                    AND name LIKE 'alerts-skip-%'
-                    AND modified_at_utc <= @p_cutoff_utc;
-                SET @rows = @@ROWCOUNT;
-            END;
-
-        ELSE IF @p_section = 6
-            BEGIN
-                DELETE @del;
-
-                INSERT INTO @del (id)
-                SELECT TOP (@p_batch_size) id
-                FROM acta.workers WITH (UPDLOCK, READPAST)
-                WHERE
-                    namespace_id = @p_namespace_id
-                    AND status_code IN (100 /* WorkerStatusCode.Stopped */, 200 /* WorkerStatusCode.Dead */)
-                    AND last_seen_at_utc <= @p_cutoff_utc
-                ORDER BY last_seen_at_utc, id;
-                DELETE FROM acta.tags
-                WHERE scope_code = 70 /* TagScopeCode.Worker */ AND scope_id IN (SELECT id FROM @del);
-                DELETE w FROM acta.workers w WITH (FORCESEEK) INNER JOIN @del d ON d.id = w.id;
-                SET @rows = (SELECT COUNT(*) FROM @del);
-
-            END;
-
-        ELSE IF @p_section = 7
-            BEGIN
-            -- The batch is staged without holding locks, then the delete seeks each row by clustered key, first
-            -- as every lock writer does, skipping a row a writer holds and re-checking its expiry. Taking the
-            -- expiry index key first deadlocks against reserve_rate moving a bucket's expiry.
-                DELETE @lock_del;
-                INSERT INTO @lock_del (lock_key)
-                SELECT TOP (@p_batch_size) lock_key
-                FROM acta.locks WITH (READPAST)
-                WHERE
-                    expires_at_utc <= @p_cutoff_utc
-                ORDER BY expires_at_utc;
-                DELETE t
-                FROM acta.locks t WITH (READPAST, FORCESEEK (pk_locks (lock_key)))
-                INNER JOIN @lock_del d ON d.lock_key = t.lock_key
-                WHERE t.expires_at_utc <= @p_cutoff_utc;
-                SET @rows = @@ROWCOUNT;
-            END;
-
-        ELSE IF @p_section = 8
-            BEGIN
-            -- Unreferenced lanes, locked by id on the clustered key skipping a lane an enqueue or settle
-            -- holds, then re-checked under the lock (docs/internals/sql-execution-policy.md, "Lane lock order").
-                DELETE @del;
-                INSERT INTO @del (id)
-                SELECT l.id
-                FROM acta.lanes l WITH (UPDLOCK, READPAST, ROWLOCK, INDEX (pk_lanes))
-                WHERE l.id IN (
-                    SELECT TOP (@p_batch_size) c.id
-                    FROM acta.lanes c
-                    WHERE
-                        c.namespace_id = @p_namespace_id
-                        AND NOT EXISTS (SELECT 1 FROM acta.runtimes r WHERE r.lane_id = c.id)
-                    ORDER BY c.id
-                );
-                DELETE l
-                FROM acta.lanes l WITH (FORCESEEK)
-                INNER JOIN @del d ON d.id = l.id
-                WHERE NOT EXISTS (SELECT 1 FROM acta.runtimes r WHERE r.lane_id = l.id)
-                OPTION (LOOP JOIN);
-                SET @rows = @@ROWCOUNT;
-            END;
-
-        SELECT @rows AS deleted_count;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-CREATE OR ALTER PROCEDURE acta.apply_tags
-    @p_scope_code TINYINT,
-    @p_lookup_id BIGINT,
-    @p_lookup_name VARCHAR(128),
-    @p_mutation TINYINT,
-    @p_items_json NVARCHAR(MAX)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @scope_id BIGINT, @namespace_id INT;
-        DECLARE @items TABLE (
-            name VARCHAR(128) NOT NULL PRIMARY KEY,
-            value NVARCHAR(128) NULL,
-            value_search NVARCHAR(128) NULL
-        );
-
-        INSERT INTO @items (name, value, value_search)
         SELECT
-            name,
-            value,
-            value_search
-        FROM
-            OPENJSON (@p_items_json)
-            WITH (
-                name VARCHAR(128) '$.name',
-                value NVARCHAR(128) '$.value',
-                value_search NVARCHAR(128) '$.value_search'
-            );
+            @id = n.id,
+            @status = n.status_code,
+            @version = n.version
+        FROM acta.namespaces n WITH (UPDLOCK, ROWLOCK)
+        WHERE n.name = @p_namespace_name;
 
-        IF @p_scope_code = 20 /* TagScopeCode.Tenant */
-            SELECT
-                @scope_id = CONVERT(BIGINT, t.id),
-                @namespace_id = NULL
-            FROM acta.tenants t WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
-            WHERE t.tenant_key = @p_lookup_name;
-        ELSE IF @p_scope_code = 30 /* TagScopeCode.Namespace */
-            SELECT
-                @scope_id = CONVERT(BIGINT, n.id),
-                @namespace_id = n.id
-            FROM acta.namespaces n WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
-            WHERE n.name = @p_lookup_name;
-        ELSE IF @p_scope_code = 40 /* TagScopeCode.Definition */
-            SELECT
-                @scope_id = CONVERT(BIGINT, d.id),
-                @namespace_id = d.namespace_id
-            FROM acta.definitions d WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
-            WHERE d.id = @p_lookup_id;
-        ELSE IF @p_scope_code = 50 /* TagScopeCode.Job */
-            SELECT
-                @scope_id = j.id,
-                @namespace_id = j.namespace_id
-            FROM acta.jobs j WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
-            WHERE j.id = @p_lookup_id;
-        ELSE IF @p_scope_code = 60 /* TagScopeCode.Schedule */
-            SELECT
-                @scope_id = s.id,
-                @namespace_id = s.namespace_id
-            FROM acta.schedules s WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
-            WHERE s.job_id = @p_lookup_id AND s.name = @p_lookup_name;
-        ELSE IF @p_scope_code = 70 /* TagScopeCode.Worker */
-            SELECT
-                @scope_id = CONVERT(BIGINT, w.id),
-                @namespace_id = w.namespace_id
-            FROM acta.workers w WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
-            WHERE w.id = @p_lookup_id;
-        ELSE IF @p_scope_code = 80 /* TagScopeCode.Alert */
-            SELECT
-                @scope_id = a.id,
-                @namespace_id = a.namespace_id
-            FROM acta.alerts a WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
-            WHERE a.id = @p_lookup_id;
-        ELSE IF @p_scope_code = 90 /* TagScopeCode.Event */
-            SELECT
-                @scope_id = e.id,
-                @namespace_id = e.namespace_id
-            FROM acta.events e WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
-            WHERE e.id = @p_lookup_id;
-        ELSE
-            THROW 50000, 'Unsupported tag scope code.', 1;
-
-        IF @scope_id IS NULL
+        IF @id IS NULL
             BEGIN
 
-                SELECT CAST(2 /* TagMutationAction.NotFound */ AS TINYINT) AS action;
+                SELECT
+                    CAST(2 /* ControlAction.NotFound */ AS SMALLINT) AS action,
+                    CAST(NULL AS INT) AS version;
                 GOTO Finish;
             END;
 
-        IF @p_mutation = 1 /* TagMutationKind.Replace */
+        IF @status = 20 /* NamespaceStatusCode.Suspended */
             BEGIN
-                DELETE FROM acta.tags
-                WHERE scope_code = @p_scope_code AND scope_id = @scope_id;
 
-                INSERT INTO acta.tags (scope_code, scope_id, namespace_id, name, value, value_search)
                 SELECT
-                    @p_scope_code,
-                    @scope_id,
-                    @namespace_id,
-                    name,
-                    value,
-                    value_search
-                FROM @items;
-            END
-        ELSE IF @p_mutation = 2 /* TagMutationKind.Upsert */
-            BEGIN
-                IF
-                    EXISTS (
-                        SELECT 1 FROM @items i
-                        WHERE NOT EXISTS (
-                            SELECT 1 FROM acta.tags t
-                            WHERE t.scope_code = @p_scope_code AND t.scope_id = @scope_id AND t.name = i.name
-                        )
-                    )
-                    AND (
-                        SELECT COUNT(*) FROM acta.tags t
-                        WHERE t.scope_code = @p_scope_code AND t.scope_id = @scope_id
-                    ) >= 32
-                    THROW 50000, 'A target may carry at most 32 tags.', 1;
+                    CAST(6 /* ControlAction.AlreadyInState */ AS SMALLINT) AS action,
+                    @version AS version;
+                GOTO Finish;
+            END;
 
-                UPDATE t
-                SET namespace_id = @namespace_id, value = i.value, value_search = i.value_search
-                FROM acta.tags t
-                JOIN @items i ON i.name = t.name
-                WHERE t.scope_code = @p_scope_code AND t.scope_id = @scope_id;
+        UPDATE acta.namespaces
+        SET status_code = 20 /* NamespaceStatusCode.Suspended */, modified_at_utc = @now, version = version + 1
+        WHERE id = @id;
+        SET @version = @version + 1;
 
-                INSERT INTO acta.tags (scope_code, scope_id, namespace_id, name, value, value_search)
-                SELECT
-                    @p_scope_code,
-                    @scope_id,
-                    @namespace_id,
-                    i.name,
-                    i.value,
-                    i.value_search
-                FROM @items i
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM acta.tags t
-                    WHERE t.scope_code = @p_scope_code AND t.scope_id = @scope_id AND t.name = i.name
-                );
-            END
-        ELSE IF @p_mutation = 3 /* TagMutationKind.Remove */
-            BEGIN
-                DELETE t
-                FROM acta.tags t
-                JOIN @items i ON i.name = t.name
-                WHERE t.scope_code = @p_scope_code AND t.scope_id = @scope_id;
-            END
-        ELSE
-            THROW 50000, 'Unsupported tag mutation code.', 1;
+        INSERT INTO acta.events (
+            event_code, created_at_utc, namespace_id, actor_code, actor_key,
+            job_id, job_ref, execution_number, lineage_root_id, definition_id, tenant_id, worker_id,
+            from_status_code, to_status_code, execution_status_code, duration_ms, reason_code, reason_message
+        )
+        VALUES (
+            20 /* EventCode.NamespaceSuspended */, @now, @id, @p_actor_code, @p_actor_key,
+            NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL, NULL, @p_reason_message
+        );
 
-        SELECT CAST(1 /* TagMutationAction.Applied */ AS TINYINT) AS action;
+        SELECT
+            CAST(1 /* ControlAction.Applied */ AS SMALLINT) AS action,
+            @version AS version;
 
     Finish:
 
@@ -9143,11 +8796,11 @@ BEGIN
     END CATCH;
 END;
 GO
-CREATE OR ALTER PROCEDURE acta.acquire_lock
-    @p_lock_key VARCHAR(256),
-    @p_job_id BIGINT,
-    @p_lease_ttl_seconds INT,
-    @p_hold_token UNIQUEIDENTIFIER
+CREATE OR ALTER PROCEDURE acta.suspend_tenant
+    @p_tenant_key VARCHAR(128),
+    @p_actor_code TINYINT,
+    @p_actor_key NVARCHAR(128),
+    @p_reason_message NVARCHAR(512)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -9159,31 +8812,213 @@ BEGIN
             BEGIN TRANSACTION;
 
         DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @out TABLE (hold_token UNIQUEIDENTIFIER);
+        DECLARE @id INT, @status TINYINT, @version INT;
 
-        -- Point update, then insert on a miss. The primary key arbitrates new-key races;
-        -- serializable gap locking would serialize unrelated lock keys in the same index gap.
-        UPDATE acta.locks
+        SELECT
+            @id = t.id,
+            @status = t.status_code,
+            @version = t.version
+        FROM acta.tenants t WITH (UPDLOCK, ROWLOCK)
+        WHERE t.tenant_key = @p_tenant_key;
+
+        IF @id IS NULL
+            BEGIN
+
+                SELECT
+                    CAST(2 /* ControlAction.NotFound */ AS SMALLINT) AS action,
+                    CAST(NULL AS INT) AS version;
+                GOTO Finish;
+            END;
+
+        IF @status = 20 /* TenantStatusCode.Suspended */
+            BEGIN
+
+                SELECT
+                    CAST(6 /* ControlAction.AlreadyInState */ AS SMALLINT) AS action,
+                    @version AS version;
+                GOTO Finish;
+            END;
+
+        UPDATE acta.tenants
+        SET status_code = 20 /* TenantStatusCode.Suspended */, modified_at_utc = @now, version = version + 1
+        WHERE id = @id;
+        SET @version = @version + 1;
+
+        -- namespace_id 1 is the seeded sys namespace (M001).
+        INSERT INTO acta.events (
+            event_code, created_at_utc, namespace_id, actor_code, actor_key,
+            job_id, job_ref, execution_number, lineage_root_id, definition_id, tenant_id, worker_id,
+            from_status_code, to_status_code, execution_status_code, duration_ms, reason_code, reason_message
+        )
+        VALUES (
+            10 /* EventCode.TenantSuspended */, @now, 1, @p_actor_code, @p_actor_key,
+            NULL, NULL, NULL, NULL, NULL, @id, NULL,
+            NULL, NULL, NULL, NULL, NULL, @p_reason_message
+        );
+
+        SELECT
+            CAST(1 /* ControlAction.Applied */ AS SMALLINT) AS action,
+            @version AS version;
+
+    Finish:
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+CREATE OR ALTER PROCEDURE acta.trigger_schedule_now
+    @p_job_id BIGINT,
+    @p_name VARCHAR(128),
+    @p_actor_code TINYINT,
+    @p_actor_key NVARCHAR(128),
+    @p_reason_message NVARCHAR(512)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @schedule_id BIGINT, @status TINYINT, @paused DATETIME2(7), @next DATETIME2(7), @version INT;
+        DECLARE @slot_status TINYINT, @slot_next DATETIME2(7);
+        DECLARE @ns INT, @def INT, @lineage BIGINT, @en INT, @audit TINYINT, @job_ref UNIQUEIDENTIFIER;
+
+        /* Lock the slot's runtimes row before the schedules row: register_scheduled_jobs writes
+           runtimes then schedules, so every writer of both must take runtimes first. The schedules
+           row is guard-only here (never updated): a manual trigger moves only the slot's cursor. */
+        SELECT
+            @slot_status = r.status_code,
+            @slot_next = r.next_run_at_utc,
+            @en = r.execution_number
+        FROM acta.runtimes r WITH (UPDLOCK, ROWLOCK)
+        WHERE r.job_id = @p_job_id;
+
+        SELECT
+            @schedule_id = js.id,
+            @status = js.status_code,
+            @paused = js.paused_until_utc,
+            @next = js.next_run_at_utc,
+            @version = js.version
+        FROM acta.schedules js WITH (UPDLOCK, ROWLOCK)
+        WHERE
+            js.job_id = @p_job_id
+            AND js.name = @p_name
+            AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */;
+
+        IF @schedule_id IS NULL
+            BEGIN
+
+                SELECT
+                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
+                    CAST(NULL AS TINYINT) AS status_code,
+                    CAST(NULL AS DATETIME2(7)) AS paused_until_utc,
+                    CAST(NULL AS DATETIME2(7)) AS next_run_at_utc,
+                    CAST(NULL AS INT) AS version;
+                GOTO Finish;
+            END;
+
+        IF @status = 30 /* ScheduleStatusCode.Paused */
+            BEGIN
+
+                SELECT
+                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
+                    @status AS status_code,
+                    @paused AS paused_until_utc,
+                    @next AS next_run_at_utc,
+                    @version AS version;
+                GOTO Finish;
+            END;
+
+        -- A held job (Paused with a next run; ScheduleWalker, "held") runs only once it is resumed.
+        IF @slot_status IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+            OR (@slot_status = 30 /* JobStatusCode.Paused */ AND @slot_next IS NOT NULL)
+            BEGIN
+
+                SELECT
+                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
+                    @status AS status_code,
+                    @paused AS paused_until_utc,
+                    @next AS next_run_at_utc,
+                    @version AS version;
+                GOTO Finish;
+            END;
+
+        IF @slot_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+            BEGIN
+
+                SELECT
+                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
+                    @status AS status_code,
+                    @paused AS paused_until_utc,
+                    @next AS next_run_at_utc,
+                    @version AS version;
+                GOTO Finish;
+            END;
+
+        SELECT
+            @ns = j.namespace_id,
+            @def = j.definition_id,
+            @lineage = j.lineage_root_id,
+            @audit = j.audit_level_code,
+            @job_ref = j.job_ref
+        FROM acta.jobs j
+        WHERE j.id = @p_job_id;
+
+        UPDATE acta.runtimes
         SET
-            job_id = @p_job_id,
-            expires_at_utc = DATEADD(SECOND, @p_lease_ttl_seconds, @now),
-            hold_token = @p_hold_token
-        OUTPUT INSERTED.hold_token INTO @out
+            next_run_at_utc = @now,
+            status_code = 10 /* JobStatusCode.Ready */,
+            modified_at_utc = @now,
+            version = version + 1
         WHERE
-            lock_key = @p_lock_key
-            AND expires_at_utc <= @now;
+            job_id = @p_job_id
+            AND (
+                status_code IN (20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */)
+                OR (status_code = 30 /* JobStatusCode.Paused */ AND next_run_at_utc IS NULL)
+            );
 
-        IF @@ROWCOUNT = 0 AND NOT EXISTS (
-            SELECT 1 FROM acta.locks
-            WHERE lock_key = @p_lock_key
-        )
+        IF @audit = 20 /* JobAuditLevelCode.Audit */
             BEGIN
-                INSERT INTO acta.locks (lock_key, job_id, expires_at_utc, hold_token)
-                OUTPUT INSERTED.hold_token INTO @out
-                VALUES (@p_lock_key, @p_job_id, DATEADD(SECOND, @p_lease_ttl_seconds, @now), @p_hold_token);
-            END;
+                INSERT INTO acta.events (
+                    event_code, created_at_utc, namespace_id,
+                    actor_code, actor_key,
+                    job_id, job_ref, execution_number,
+                    lineage_root_id, definition_id,
+                    worker_id,
+                    from_status_code, to_status_code,
+                    execution_status_code, duration_ms,
+                    reason_code, reason_message
+                )
+                VALUES (
+                    104 /* EventCode.ScheduleTriggered */, @now, @ns,
+                    @p_actor_code, @p_actor_key,
+                    @p_job_id, @job_ref, @en,
+                    COALESCE(@lineage, @p_job_id), @def,
+                    NULL,
+                    NULL, NULL,
+                    NULL, NULL,
+                    NULL, @p_reason_message
+                );
+            END
 
-        SELECT hold_token FROM @out;
+        SELECT
+            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
+            @status AS status_code,
+            @paused AS paused_until_utc,
+            @next AS next_run_at_utc,
+            @version AS version;
+
+    Finish:
 
         IF @entry_trancount = 0
             COMMIT TRANSACTION;
@@ -9191,22 +9026,59 @@ BEGIN
     BEGIN CATCH
         IF @entry_trancount = 0 AND XACT_STATE() <> 0
             ROLLBACK TRANSACTION;
-
-        -- A duplicate-key loser acquired nothing. XACT_ABORT requires rollback before returning
-        -- that ordinary miss; an outer transaction's owner must handle its own aborted transaction.
-        IF @entry_trancount = 0 AND ERROR_NUMBER() IN (2627, 2601)
-            SELECT CAST(NULL AS UNIQUEIDENTIFIER) AS hold_token WHERE 1 = 0;
-        ELSE
-            THROW;
+        THROW;
     END CATCH;
 END;
 GO
-CREATE OR ALTER PROCEDURE acta.acquire_slot
-    @p_lock_key_prefix VARCHAR(256),
-    @p_slot_count INT,
-    @p_job_id BIGINT,
-    @p_lease_ttl_seconds INT,
-    @p_hold_token UNIQUEIDENTIFIER
+CREATE OR ALTER PROCEDURE acta.update_alert_delivery
+    @p_id BIGINT,
+    @p_version INT,
+    @p_delivery_status_code TINYINT,
+    @p_retry_count INT,
+    @p_retry_after_utc DATETIME2(7)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        /* Compare-and-swap on the version the delivery read handed out: an attempt whose row moved while the
+           send was in flight - resolved by an operator, or settled by a competing worker - writes nothing and
+           returns no row, and the caller treats the empty result as "the newer state stands". */
+        UPDATE acta.alerts
+        SET
+            delivery_status_code = @p_delivery_status_code,
+            retry_count = @p_retry_count,
+            retry_after_utc = @p_retry_after_utc,
+            modified_at_utc = SYSUTCDATETIME(),
+            version = version + 1
+        OUTPUT INSERTED.id
+        WHERE
+            id = @p_id
+            AND version = @p_version;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+CREATE OR ALTER PROCEDURE acta.update_job_input
+    @p_id BIGINT,
+    @p_input_format_id TINYINT,
+    @p_input VARBINARY(MAX),
+    @p_actor_code TINYINT,
+    @p_actor_key NVARCHAR(128),
+    @p_reason_code TINYINT,
+    @p_reason_message NVARCHAR(512)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -9218,116 +9090,182 @@ BEGIN
             BEGIN TRANSACTION;
 
         DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @out TABLE (lock_key VARCHAR(256));
-        DECLARE @slot_key VARCHAR(256);
+        DECLARE
+            @from_status TINYINT, @namespace_id INT,
+            @lineage_root_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number INT, @audit_level TINYINT,
+            @job_ref UNIQUEIDENTIFIER, @old_format_id TINYINT, @old_input VARBINARY(MAX);
+        DECLARE @detail VARBINARY(MAX);
+        DECLARE @detail_format_id TINYINT = 0 /* JobPayloadFormat.None */;
 
-        -- Lowest-numbered free slot: no row, or a row whose hold expired. MAXRECURSION 0 because the
-        -- limit reaches 1024, well past the default recursion ceiling of 100.
-        WITH slots (i) AS (
-            SELECT 0
-            UNION ALL
-            SELECT i + 1 FROM slots WHERE i + 1 < @p_slot_count
-        )
-        SELECT TOP (1) @slot_key = @p_lock_key_prefix + '.' + CAST(slots.i AS VARCHAR(10))
-        FROM slots
-        WHERE NOT EXISTS (
-            SELECT 1
-            FROM acta.locks held
-            WHERE
-                held.lock_key = @p_lock_key_prefix + '.' + CAST(slots.i AS VARCHAR(10))
-                AND held.expires_at_utc > @now
-        )
-        ORDER BY slots.i
-        OPTION (MAXRECURSION 0);
+        SELECT
+            @from_status = r.status_code,
+            @namespace_id = j.namespace_id,
+            @lineage_root_id = j.lineage_root_id,
+            @definition_id = j.definition_id,
+            @tenant_id = j.tenant_id,
+            @execution_number = r.execution_number,
+            @audit_level = j.audit_level_code,
+            @job_ref = j.job_ref,
+            @old_format_id = j.input_format_id,
+            @old_input = j.input
+        FROM acta.runtimes r WITH (UPDLOCK, ROWLOCK)
+        INNER JOIN acta.jobs j ON j.id = r.job_id
+        WHERE r.job_id = @p_id;
 
-        -- Point update, then insert on a miss, exactly as acquire_lock does: the primary key
-        -- arbitrates new-key races, and serializable gap locking would serialize unrelated slots.
-        IF @slot_key IS NOT NULL
+        IF @from_status IS NULL
             BEGIN
-                UPDATE acta.locks
-                SET
-                    job_id = @p_job_id,
-                    expires_at_utc = DATEADD(SECOND, @p_lease_ttl_seconds, @now),
-                    hold_token = @p_hold_token
-                OUTPUT INSERTED.lock_key INTO @out
-                WHERE
-                    lock_key = @slot_key
-                    AND expires_at_utc <= @now;
 
-                IF @@ROWCOUNT = 0 AND NOT EXISTS (
-                    SELECT 1 FROM acta.locks
-                    WHERE lock_key = @slot_key
+                SELECT
+                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
+                    CAST(NULL AS TINYINT) AS status_code;
+                GOTO Finish;
+            END;
+
+        IF
+            @from_status IN (
+                40 /* JobStatusCode.Dispatched */,
+                50 /* JobStatusCode.Executing */
+            )
+            BEGIN
+
+                SELECT
+                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
+                    @from_status AS status_code;
+                GOTO Finish;
+            END;
+
+        UPDATE acta.jobs
+        SET
+            input = @p_input,
+            input_format_id = @p_input_format_id
+        WHERE id = @p_id;
+
+        IF @audit_level = 20 /* JobAuditLevelCode.Audit */
+            BEGIN
+            -- The event carries only bounded JSON metadata about the previous payload (format name
+            -- and byte count), never the payload itself. Pure ASCII, so VARCHAR -> VARBINARY is UTF-8.
+                IF @old_format_id <> 0 /* JobPayloadFormat.None */
+                    BEGIN
+                        SET @detail_format_id = 1 /* JobPayloadFormat.Json */;
+                        SET @detail = CONVERT(
+                            VARBINARY(MAX),
+                            '{"format":"'
+                            + CASE @old_format_id
+                                WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
+                                WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
+                                WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
+                                ELSE 'custom-' + CONVERT(VARCHAR(3), @old_format_id)
+                            END
+                            + '","bytes":' + CONVERT(VARCHAR(20), DATALENGTH(@old_input)) + '}'
+                        );
+                    END;
+
+                INSERT INTO acta.events (
+                    event_code, created_at_utc, namespace_id,
+                    actor_code, actor_key,
+                    job_id, job_ref, execution_number,
+                    lineage_root_id, definition_id, tenant_id,
+                    worker_id,
+                    from_status_code, to_status_code,
+                    execution_status_code, duration_ms,
+                    detail_format_id, detail,
+                    reason_code, reason_message
                 )
-                    BEGIN
-                        INSERT INTO acta.locks (lock_key, job_id, expires_at_utc, hold_token)
-                        OUTPUT INSERTED.lock_key INTO @out
-                        VALUES (@slot_key, @p_job_id, DATEADD(SECOND, @p_lease_ttl_seconds, @now), @p_hold_token);
-                    END;
+                VALUES (
+                    76 /* EventCode.JobInputAmended */, @now, @namespace_id,
+                    @p_actor_code, @p_actor_key,
+                    @p_id, @job_ref, @execution_number,
+                    COALESCE(@lineage_root_id, @p_id), @definition_id, @tenant_id,
+                    NULL,
+                    NULL, NULL,
+                    NULL, NULL,
+                    @detail_format_id, @detail,
+                    @p_reason_code, @p_reason_message
+                );
+            END
+
+        SELECT
+            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
+            @from_status AS status_code;
+
+    Finish:
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+CREATE OR ALTER PROCEDURE acta.update_namespace
+    @p_namespace_name VARCHAR(128),
+    @p_owner_team NVARCHAR(512),
+    @p_description NVARCHAR(512),
+    @p_expected_version INT,
+    @p_actor_code TINYINT,
+    @p_actor_key NVARCHAR(128),
+    @p_reason_message NVARCHAR(512)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @id INT, @version INT;
+
+        SELECT
+            @id = n.id,
+            @version = n.version
+        FROM acta.namespaces n WITH (UPDLOCK, ROWLOCK)
+        WHERE n.name = @p_namespace_name;
+
+        IF @id IS NULL
+            BEGIN
+
+                SELECT
+                    CAST(2 /* ControlAction.NotFound */ AS SMALLINT) AS action,
+                    CAST(NULL AS INT) AS version;
+                GOTO Finish;
             END;
 
-        SELECT lock_key FROM @out;
+        IF @version <> @p_expected_version
+            BEGIN
 
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
+                SELECT
+                    CAST(5 /* ControlAction.VersionConflict */ AS SMALLINT) AS action,
+                    @version AS version;
+                GOTO Finish;
+            END;
 
-        -- A duplicate-key loser raced another admission onto the same slot and acquired nothing; the
-        -- caller settles that as a plain miss. XACT_ABORT requires rollback before returning it.
-        IF @entry_trancount = 0 AND ERROR_NUMBER() IN (2627, 2601)
-            SELECT CAST(NULL AS VARCHAR(256)) AS lock_key WHERE 1 = 0;
-        ELSE
-            THROW;
-    END CATCH;
-END;
-GO
-CREATE OR ALTER PROCEDURE acta.extend_lock
-    @p_lock_key VARCHAR(256),
-    @p_hold_token UNIQUEIDENTIFIER,
-    @p_lease_ttl_seconds INT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
+        UPDATE acta.namespaces
+        SET owner_team = @p_owner_team, description = @p_description, modified_at_utc = @now, version = version + 1
+        WHERE id = @id;
+        SET @version = @version + 1;
 
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
+        INSERT INTO acta.events (
+            event_code, created_at_utc, namespace_id, actor_code, actor_key,
+            job_id, job_ref, execution_number, lineage_root_id, definition_id, tenant_id, worker_id,
+            from_status_code, to_status_code, execution_status_code, duration_ms, reason_code, reason_message
+        )
+        VALUES (
+            22 /* EventCode.NamespaceUpdated */, @now, @id, @p_actor_code, @p_actor_key,
+            NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+            NULL, NULL, NULL, NULL, NULL, @p_reason_message
+        );
 
-        UPDATE acta.locks
-        SET expires_at_utc = DATEADD(SECOND, @p_lease_ttl_seconds, SYSUTCDATETIME())
-        OUTPUT INSERTED.hold_token
-        WHERE lock_key = @p_lock_key AND hold_token = @p_hold_token;
+        SELECT
+            CAST(1 /* ControlAction.Applied */ AS SMALLINT) AS action,
+            @version AS version;
 
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
-CREATE OR ALTER PROCEDURE acta.release_lock
-    @p_lock_key VARCHAR(256),
-    @p_hold_token UNIQUEIDENTIFIER
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DELETE FROM acta.locks
-        OUTPUT DELETED.hold_token
-        WHERE lock_key = @p_lock_key AND hold_token = @p_hold_token;
+    Finish:
 
         IF @entry_trancount = 0
             COMMIT TRANSACTION;
@@ -9339,24 +9277,99 @@ BEGIN
     END CATCH;
 END;
 GO
--- GCRA with a reservation; the full contract is on ILockStore.ReserveRateAsync. A turn is honoured
--- while it is fresh, one second past its instant (one interval when that is longer); a stale one goes
--- back through the meter, so a queue of overdue jobs cannot all start at once after a long stall.
+CREATE OR ALTER PROCEDURE acta.update_tenant
+    @p_tenant_key VARCHAR(128),
+    @p_display_name NVARCHAR(128),
+    @p_description NVARCHAR(512),
+    @p_expected_version INT,
+    @p_actor_code TINYINT,
+    @p_actor_key NVARCHAR(128),
+    @p_reason_message NVARCHAR(512)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
--- The IF NOT EXISTS probe below takes UPDLOCK, HOLDLOCK before the row exists and holds it to commit;
--- the sweep's WITH (UPDLOCK, READPAST) then skips rather than races it, so the charge this call books
--- is always persisted before it admits anything.
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
 
--- The clock is read once the bucket row is locked, not when the call began: judged against a stale
--- instant, every call a convoy on this meter delayed would be admitted together the moment the lock
--- freed, four times the contract in one second under a flood of metered claims.
-CREATE OR ALTER PROCEDURE acta.reserve_rate
-    @p_lock_key VARCHAR(256),
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @id INT, @version INT;
+
+        SELECT
+            @id = t.id,
+            @version = t.version
+        FROM acta.tenants t WITH (UPDLOCK, ROWLOCK)
+        WHERE t.tenant_key = @p_tenant_key;
+
+        IF @id IS NULL
+            BEGIN
+
+                SELECT
+                    CAST(2 /* ControlAction.NotFound */ AS SMALLINT) AS action,
+                    CAST(NULL AS INT) AS version;
+                GOTO Finish;
+            END;
+
+        IF @version <> @p_expected_version
+            BEGIN
+
+                SELECT
+                    CAST(5 /* ControlAction.VersionConflict */ AS SMALLINT) AS action,
+                    @version AS version;
+                GOTO Finish;
+            END;
+
+        UPDATE acta.tenants
+        SET display_name = @p_display_name, description = @p_description, modified_at_utc = @now, version = version + 1
+        WHERE id = @id;
+        SET @version = @version + 1;
+
+        -- namespace_id 1 is the seeded sys namespace (M001).
+        INSERT INTO acta.events (
+            event_code, created_at_utc, namespace_id, actor_code, actor_key,
+            job_id, job_ref, execution_number, lineage_root_id, definition_id, tenant_id, worker_id,
+            from_status_code, to_status_code, execution_status_code, duration_ms, reason_code, reason_message
+        )
+        VALUES (
+            12 /* EventCode.TenantUpdated */, @now, 1, @p_actor_code, @p_actor_key,
+            NULL, NULL, NULL, NULL, NULL, @id, NULL,
+            NULL, NULL, NULL, NULL, NULL, @p_reason_message
+        );
+
+        SELECT
+            CAST(1 /* ControlAction.Applied */ AS SMALLINT) AS action,
+            @version AS version;
+
+    Finish:
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+/* Slot-locked arbiter for one durable wait: Set wins even past the due, an overdue Pending flips to
+   Expired, Expired replays TimedOut forever. */
+/* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a timeout, so code
+   redeployed with a bound can un-strand a wait suspended without one; a stored due is never
+   overwritten, never extended, and never cleared by a subsequent unbounded call. */
+/* The read below needs no re-read after a lost insert the way pg's does: (UPDLOCK, HOLDLOCK) takes a
+   key-range lock over the absent slot, so a concurrent first arrival waits here and then reads the
+   winner's row, arriving at the same resolution instead of racing the insert. */
+/* A wait this call armed suspends once, even with an already-elapsed deadline: the arm is the last
+   act of its branch, so only a wait armed by an earlier call can expire. Pg states the same rule. */
+CREATE OR ALTER PROCEDURE acta.wait_signal
     @p_job_id BIGINT,
-    @p_rate_interval_ms INT,
-    @p_rate_burst INT,
-    @p_grace_seconds INT,
-    @p_hold_token UNIQUEIDENTIFIER
+    @p_kind_code TINYINT,
+    @p_name VARCHAR(128),
+    @p_timeout_seconds INT = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -9367,90 +9380,78 @@ BEGIN
         IF @entry_trancount = 0
             BEGIN TRANSACTION;
 
-        DECLARE @now DATETIME2(7);
-        DECLARE @reservation VARCHAR(256) = @p_lock_key + '.' + CAST(@p_job_id AS VARCHAR(20));
-        -- How far behind now an idle meter is allowed to be, which is what hands out the burst: one
-        -- interval short of a whole period, so the burst-th request lands on now and the next waits.
-        DECLARE @lookback_ms INT = (@p_rate_burst - 1) * @p_rate_interval_ms;
-        -- How long a booked turn stays valid past its instant: a second covers the claim-path pickup
-        -- at any rate, and a slower meter keeps its whole interval, so the window is the larger.
-        DECLARE @window_ms INT = CASE WHEN @p_rate_interval_ms > 1000 THEN @p_rate_interval_ms ELSE 1000 END;
-        DECLARE @consumed TABLE (expires_at_utc DATETIME2(7));
-        DECLARE @stored DATETIME2(7);
-        DECLARE @due DATETIME2(7);
-        DECLARE @turn DATETIME2(7);
+        DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
+        DECLARE @state TINYINT, @fmt TINYINT = 0;
+        DECLARE @val VARBINARY(MAX) = NULL;
+        DECLARE @due DATETIME2(3) = NULL;
+        DECLARE @outcome SMALLINT;
 
-        -- The bucket stores the arrival time plus the lookback, so the row expires exactly when an
-        -- idle meter stops saying anything a missing one would not. A missing meter starts at now.
-        IF NOT EXISTS (SELECT 1 FROM acta.locks WITH (UPDLOCK, HOLDLOCK) WHERE lock_key = @p_lock_key)
-            INSERT INTO acta.locks (lock_key, job_id, expires_at_utc, hold_token)
-            VALUES (@p_lock_key, @p_job_id, SYSUTCDATETIME(), @p_hold_token);
+        SELECT
+            @state = status_code,
+            @fmt = value_format_id,
+            @val = value,
+            @due = due_at_utc
+        FROM acta.checkpoints WITH (UPDLOCK, HOLDLOCK)
+        WHERE job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name;
 
-        -- Held for the rest of the call, so consume, hand back and allocate all decide against one
-        -- serialized meter and no instant is ever handed to two jobs.
-        SELECT @stored = b.expires_at_utc
-        FROM acta.locks AS b WITH (UPDLOCK, HOLDLOCK)
-        WHERE b.lock_key = @p_lock_key;
+        IF @state = 20 /* JobCheckpointStatusCode.Set */
+            BEGIN
+                SET @outcome = 2 /* SignalWaitOutcomeCode.ContinueSet */;
+            END
+        ELSE IF @state = 30 /* JobCheckpointStatusCode.Expired */
+            BEGIN
+                SET @outcome = 3 /* SignalWaitOutcomeCode.TimedOut */;
+                SET @fmt = 0 /* JobPayloadFormat.None */;
+                SET @val = NULL;
+            END
+        ELSE IF @state = 10 /* JobCheckpointStatusCode.Pending */ AND @due IS NOT NULL AND @due <= @now
+            BEGIN
+                UPDATE acta.checkpoints
+                SET
+                    status_code = 30 /* JobCheckpointStatusCode.Expired */,
+                    modified_at_utc = @now,
+                    version = version + 1
+                WHERE job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name;
 
-        SET @now = SYSUTCDATETIME();
-
-        -- The OUTPUT decides consumption, never a later absence: the sweep cannot slip between a read
-        -- and the delete and give away a free admission. A stale turn is spent here too, then re-metered.
-        DELETE FROM acta.locks
-        OUTPUT DELETED.expires_at_utc INTO @consumed
-        WHERE
-            lock_key = @reservation
-            AND expires_at_utc <= DATEADD(SECOND, @p_grace_seconds, @now);
-
-        SELECT @due = DATEADD(SECOND, -@p_grace_seconds, c.expires_at_utc) FROM @consumed AS c;
-
-        IF @due IS NOT NULL AND @due >= DATEADD(MILLISECOND, -@window_ms, @now)
-            -- Back on time: the bucket counted this job when it allocated the turn, so charging it
-            -- again would meter one job twice.
-            SELECT @due AS resume_at_utc, CAST(1 AS INT) AS admitted, CAST(0 AS BIGINT) AS wait_ms;
+                SET @outcome = 3 /* SignalWaitOutcomeCode.TimedOut */;
+                SET @fmt = 0 /* JobPayloadFormat.None */;
+                SET @val = NULL;
+            END
         ELSE
             BEGIN
-                IF @due IS NULL
-                    -- A turn still ahead of now: the job is early, not owed a new instant.
-                    SELECT @turn = DATEADD(SECOND, -@p_grace_seconds, r.expires_at_utc)
-                    FROM acta.locks AS r
-                    WHERE r.lock_key = @reservation;
-
-                IF @turn IS NOT NULL
-                    SELECT @turn AS resume_at_utc, CAST(0 AS INT) AS admitted, DATEDIFF_BIG(MILLISECOND, @now, @turn) AS wait_ms;
-                ELSE
+                IF @state IS NULL
                     BEGIN
-                        IF @stored < @now
-                            SET @stored = @now;
-                        SET @turn = DATEADD(MILLISECOND, -@lookback_ms, @stored);
-
-                        UPDATE acta.locks
+                        INSERT INTO acta.checkpoints (
+                            job_id, kind_code, name, status_code, due_at_utc, value_format_id, value,
+                            created_at_utc, modified_at_utc, version
+                        )
+                        VALUES (
+                            @p_job_id, @p_kind_code, @p_name, 10 /* JobCheckpointStatusCode.Pending */,
+                            CASE WHEN @p_timeout_seconds IS NULL THEN NULL ELSE DATEADD(SECOND, @p_timeout_seconds, @now) END,
+                            0 /* JobPayloadFormat.None */, NULL, @now, @now, 0
+                        );
+                    END
+                ELSE IF @state = 10 /* JobCheckpointStatusCode.Pending */ AND @due IS NULL AND @p_timeout_seconds IS NOT NULL
+                    BEGIN
+                        UPDATE acta.checkpoints
                         SET
-                            job_id = @p_job_id,
-                            expires_at_utc = DATEADD(MILLISECOND, @p_rate_interval_ms, @stored),
-                            hold_token = @p_hold_token
-                        WHERE lock_key = @p_lock_key;
+                            due_at_utc = DATEADD(SECOND, @p_timeout_seconds, @now),
+                            modified_at_utc = @now,
+                            version = version + 1
+                        WHERE
+                            job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name
+                            AND status_code = 10 /* JobCheckpointStatusCode.Pending */
+                            AND due_at_utc IS NULL;
+                    END
+                SET @outcome = 1 /* SignalWaitOutcomeCode.SuspendPending */;
+                SET @fmt = 0 /* JobPayloadFormat.None */;
+                SET @val = NULL;
+            END
 
-                        IF @turn <= @now
-                            SELECT @turn AS resume_at_utc, CAST(1 AS INT) AS admitted, CAST(0 AS BIGINT) AS wait_ms;
-                        ELSE
-                            BEGIN
-                                UPDATE acta.locks
-                                SET
-                                    job_id = @p_job_id,
-                                    expires_at_utc = DATEADD(SECOND, @p_grace_seconds, @turn),
-                                    hold_token = @p_hold_token
-                                WHERE lock_key = @reservation;
-
-                                IF @@ROWCOUNT = 0
-                                    INSERT INTO acta.locks (lock_key, job_id, expires_at_utc, hold_token)
-                                    VALUES (@reservation, @p_job_id, DATEADD(SECOND, @p_grace_seconds, @turn), @p_hold_token);
-
-                                -- Measured on this clock so the caller never subtracts a host reading from a database one.
-                                SELECT @turn AS resume_at_utc, CAST(0 AS INT) AS admitted, DATEDIFF_BIG(MILLISECOND, @now, @turn) AS wait_ms;
-                            END;
-                    END;
-            END;
+        SELECT
+            @outcome AS outcome_code,
+            @fmt AS value_format_id,
+            @val AS value;
 
         IF @entry_trancount = 0
             COMMIT TRANSACTION;
@@ -9458,7 +9459,6 @@ BEGIN
     BEGIN CATCH
         IF @entry_trancount = 0 AND XACT_STATE() <> 0
             ROLLBACK TRANSACTION;
-
         THROW;
     END CATCH;
 END;
@@ -9467,9 +9467,9 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.9-2c6800a163be5feac9c222f7f3943a7d', 'acta'
+SELECT -1, 'objects-1.10-e9c2915836f59ab674f917629e31508b', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
-    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'jobs_view', 'schedules_view', 'steps_view', 'workers_view', 'events_view', 'tags_view', 'acknowledge_job_alert', 'raise_job_alert', 'resolve_job_alert_manual', 'resolve_job_alerts', 'update_alert_delivery', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_step', 'register_job_definitions', 'set_job_definition_overrides', 'cancel_job', 'enqueue_batch', 'enqueue_one', 'pause_job', 'purge_job', 'reprioritize_job', 'reschedule_job', 'reset_job_state', 'restart_job', 'resume_job', 'update_job_input', 'resume_namespace', 'suspend_namespace', 'update_namespace', 'record_job_note', 'reclaim_stuck_jobs', 'repair_recovery_slot', 'pause_schedule', 'register_scheduled_jobs', 'resume_schedule', 'set_schedule_overrides', 'trigger_schedule_now', 'set_setting', 'consume_outbox_signal', 'park_outbox_signal', 'raise_signal', 'record_outbox_event', 'wait_signal', 'start_execution', 'start_step', 'register_tenant', 'resume_tenant', 'suspend_tenant', 'update_tenant', 'arm_or_consume_sleep_timer', 'extend_worker_leases', 'mark_dead_workers', 'start_worker', 'stop_worker', 'purge_expired_data', 'apply_tags', 'acquire_lock', 'acquire_slot', 'extend_lock', 'release_lock', 'reserve_rate')) = 67;
+    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'acknowledge_job_alert', 'acquire_lock', 'acquire_slot', 'apply_tags', 'arm_or_consume_sleep_timer', 'cancel_job', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_step', 'consume_outbox_signal', 'enqueue_batch', 'enqueue_one', 'extend_lock', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'pause_job', 'pause_schedule', 'purge_expired_data', 'purge_job', 'raise_job_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_job_note', 'record_outbox_event', 'register_job_definitions', 'register_scheduled_jobs', 'register_tenant', 'release_lock', 'repair_recovery_slot', 'reprioritize_job', 'reschedule_job', 'reserve_rate', 'reset_job_state', 'resolve_job_alert_manual', 'resolve_job_alerts', 'restart_job', 'resume_job', 'resume_namespace', 'resume_schedule', 'resume_tenant', 'set_job_definition_overrides', 'set_schedule_overrides', 'set_setting', 'start_execution', 'start_step', 'start_worker', 'stop_worker', 'suspend_namespace', 'suspend_tenant', 'trigger_schedule_now', 'update_alert_delivery', 'update_job_input', 'update_namespace', 'update_tenant', 'wait_signal')) = 67;
 GO
 COMMIT TRANSACTION;
 GO

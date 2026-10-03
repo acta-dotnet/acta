@@ -60,7 +60,7 @@ INSERT INTO release_guard
 SELECT EXISTS (
     SELECT 1 FROM main.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND CAST(substr(name, 11) AS INTEGER) > 9)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND CAST(substr(name, 11) AS INTEGER) > 10)
 );
 DROP TABLE release_guard;
 
@@ -635,6 +635,52 @@ SELECT
 FROM main.definitions AS d
 JOIN main.namespaces AS ns ON ns.id = d.namespace_id;
 
+DROP VIEW IF EXISTS main.events_view;
+CREATE VIEW main.events_view AS
+SELECT
+    e.id AS event_id,
+    e.created_at_utc,
+    ns.name AS namespace,
+    e.job_id,
+    e.job_ref,
+    e.lineage_root_id AS lineage_root_job_id,
+    root.job_ref AS lineage_root_job_ref,
+    e.definition_id,
+    d.name AS job_name,
+    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-started' WHEN 41 THEN 'job.execution-finished' WHEN 50 THEN 'job.recurring-rolled-over' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 103 THEN 'schedule.overrides-updated' WHEN 104 THEN 'schedule.triggered' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 160 THEN 'setting.updated' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
+    e.event_code,
+    CASE e.actor_code WHEN 10 THEN 'sys' WHEN 20 THEN 'operator' WHEN 50 THEN 'job' WHEN 70 THEN 'worker' END AS actor,
+    e.actor_code,
+    e.actor_key,
+    CASE e.from_status_code WHEN 10 THEN 'ready' WHEN 15 THEN 'blocked' WHEN 20 THEN 'suspended' WHEN 30 THEN 'paused' WHEN 40 THEN 'dispatched' WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS from_status,
+    e.from_status_code,
+    CASE e.to_status_code WHEN 10 THEN 'ready' WHEN 15 THEN 'blocked' WHEN 20 THEN 'suspended' WHEN 30 THEN 'paused' WHEN 40 THEN 'dispatched' WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS to_status,
+    e.to_status_code,
+    CASE e.execution_status_code WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 150 THEN 'rescheduled' WHEN 151 THEN 'suspended' WHEN 152 THEN 'paused' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' WHEN 230 THEN 'orphaned' END AS execution_status,
+    e.execution_status_code,
+    CASE e.reason_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'job.unclassified' WHEN 20 THEN 'job.unhandled-exception' WHEN 21 THEN 'job.lease-expired' WHEN 22 THEN 'job.execution-timeout' WHEN 23 THEN 'job.non-retryable-exception' WHEN 24 THEN 'job.deadline-exceeded' WHEN 25 THEN 'job.attempt-aborted' WHEN 30 THEN 'job.schedules-exhausted' WHEN 40 THEN 'job.control-manual' WHEN 41 THEN 'job.parent-cancelled' WHEN 42 THEN 'job.definition-retired' WHEN 50 THEN 'job.handler-rescheduled' WHEN 51 THEN 'job.handler-suspended' WHEN 52 THEN 'job.handler-failed' WHEN 53 THEN 'job.handler-cancelled' WHEN 54 THEN 'job.handler-paused' WHEN 60 THEN 'job.signal-released' WHEN 61 THEN 'job.step-retry-scheduled' WHEN 62 THEN 'job.concurrency-key-held' WHEN 63 THEN 'job.step-interrupted' WHEN 64 THEN 'job.result-oversized' WHEN 65 THEN 'job.wait-timed-out' WHEN 66 THEN 'job.rate-limited' WHEN 67 THEN 'job.lane-repaired' WHEN 100 THEN 'worker.clean-shutdown' WHEN 101 THEN 'worker.heartbeat-stale' END AS reason,
+    e.reason_code,
+    e.reason_message,
+    CASE e.detail_format_id
+        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
+        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
+        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
+        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
+        ELSE 'custom-' || CAST(e.detail_format_id AS TEXT)
+    END AS detail_format,
+    CASE WHEN e.detail_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CAST(e.detail AS TEXT) END
+        AS detail_text,
+    e.worker_id,
+    wkr.worker_ref,
+    e.execution_number,
+    e.duration_ms,
+    e.tenant_id
+FROM main.events AS e
+JOIN main.namespaces AS ns ON ns.id = e.namespace_id
+LEFT JOIN main.definitions AS d ON d.id = e.definition_id
+LEFT JOIN main.jobs AS root ON root.id = e.lineage_root_id
+LEFT JOIN main.workers AS wkr ON wkr.id = e.worker_id;
+
 DROP VIEW IF EXISTS main.jobs_view;
 CREATE VIEW main.jobs_view AS
 SELECT
@@ -770,6 +816,20 @@ JOIN main.jobs AS j ON j.id = s.job_id
 JOIN main.namespaces AS ns ON ns.id = j.namespace_id
 JOIN main.definitions AS d ON d.id = j.definition_id;
 
+DROP VIEW IF EXISTS main.tags_view;
+CREATE VIEW main.tags_view AS
+SELECT
+    CASE t.scope_code WHEN 20 THEN 'tenant' WHEN 30 THEN 'namespace' WHEN 40 THEN 'definition' WHEN 50 THEN 'job' WHEN 60 THEN 'schedule' WHEN 70 THEN 'worker' WHEN 80 THEN 'alert' WHEN 90 THEN 'event' END AS scope,
+    t.scope_code,
+    t.scope_id,
+    ns.name AS namespace,
+    t.namespace_id,
+    t.name AS tag_name,
+    t.value AS tag_value,
+    t.value_search AS tag_value_search
+FROM main.tags AS t
+LEFT JOIN main.namespaces AS ns ON ns.id = t.namespace_id;
+
 DROP VIEW IF EXISTS main.workers_view;
 CREATE VIEW main.workers_view AS
 SELECT
@@ -791,72 +851,12 @@ SELECT
 FROM main.workers AS w
 JOIN main.namespaces AS ns ON ns.id = w.namespace_id;
 
-DROP VIEW IF EXISTS main.events_view;
-CREATE VIEW main.events_view AS
-SELECT
-    e.id AS event_id,
-    e.created_at_utc,
-    ns.name AS namespace,
-    e.job_id,
-    e.job_ref,
-    e.lineage_root_id AS lineage_root_job_id,
-    root.job_ref AS lineage_root_job_ref,
-    e.definition_id,
-    d.name AS job_name,
-    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-started' WHEN 41 THEN 'job.execution-finished' WHEN 50 THEN 'job.recurring-rolled-over' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 103 THEN 'schedule.overrides-updated' WHEN 104 THEN 'schedule.triggered' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 160 THEN 'setting.updated' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
-    e.event_code,
-    CASE e.actor_code WHEN 10 THEN 'sys' WHEN 20 THEN 'operator' WHEN 50 THEN 'job' WHEN 70 THEN 'worker' END AS actor,
-    e.actor_code,
-    e.actor_key,
-    CASE e.from_status_code WHEN 10 THEN 'ready' WHEN 15 THEN 'blocked' WHEN 20 THEN 'suspended' WHEN 30 THEN 'paused' WHEN 40 THEN 'dispatched' WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS from_status,
-    e.from_status_code,
-    CASE e.to_status_code WHEN 10 THEN 'ready' WHEN 15 THEN 'blocked' WHEN 20 THEN 'suspended' WHEN 30 THEN 'paused' WHEN 40 THEN 'dispatched' WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS to_status,
-    e.to_status_code,
-    CASE e.execution_status_code WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 150 THEN 'rescheduled' WHEN 151 THEN 'suspended' WHEN 152 THEN 'paused' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' WHEN 230 THEN 'orphaned' END AS execution_status,
-    e.execution_status_code,
-    CASE e.reason_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'job.unclassified' WHEN 20 THEN 'job.unhandled-exception' WHEN 21 THEN 'job.lease-expired' WHEN 22 THEN 'job.execution-timeout' WHEN 23 THEN 'job.non-retryable-exception' WHEN 24 THEN 'job.deadline-exceeded' WHEN 25 THEN 'job.attempt-aborted' WHEN 30 THEN 'job.schedules-exhausted' WHEN 40 THEN 'job.control-manual' WHEN 41 THEN 'job.parent-cancelled' WHEN 42 THEN 'job.definition-retired' WHEN 50 THEN 'job.handler-rescheduled' WHEN 51 THEN 'job.handler-suspended' WHEN 52 THEN 'job.handler-failed' WHEN 53 THEN 'job.handler-cancelled' WHEN 54 THEN 'job.handler-paused' WHEN 60 THEN 'job.signal-released' WHEN 61 THEN 'job.step-retry-scheduled' WHEN 62 THEN 'job.concurrency-key-held' WHEN 63 THEN 'job.step-interrupted' WHEN 64 THEN 'job.result-oversized' WHEN 65 THEN 'job.wait-timed-out' WHEN 66 THEN 'job.rate-limited' WHEN 67 THEN 'job.lane-repaired' WHEN 100 THEN 'worker.clean-shutdown' WHEN 101 THEN 'worker.heartbeat-stale' END AS reason,
-    e.reason_code,
-    e.reason_message,
-    CASE e.detail_format_id
-        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
-        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
-        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
-        ELSE 'custom-' || CAST(e.detail_format_id AS TEXT)
-    END AS detail_format,
-    CASE WHEN e.detail_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CAST(e.detail AS TEXT) END
-        AS detail_text,
-    e.worker_id,
-    wkr.worker_ref,
-    e.execution_number,
-    e.duration_ms,
-    e.tenant_id
-FROM main.events AS e
-JOIN main.namespaces AS ns ON ns.id = e.namespace_id
-LEFT JOIN main.definitions AS d ON d.id = e.definition_id
-LEFT JOIN main.jobs AS root ON root.id = e.lineage_root_id
-LEFT JOIN main.workers AS wkr ON wkr.id = e.worker_id;
-
-DROP VIEW IF EXISTS main.tags_view;
-CREATE VIEW main.tags_view AS
-SELECT
-    CASE t.scope_code WHEN 20 THEN 'tenant' WHEN 30 THEN 'namespace' WHEN 40 THEN 'definition' WHEN 50 THEN 'job' WHEN 60 THEN 'schedule' WHEN 70 THEN 'worker' WHEN 80 THEN 'alert' WHEN 90 THEN 'event' END AS scope,
-    t.scope_code,
-    t.scope_id,
-    ns.name AS namespace,
-    t.namespace_id,
-    t.name AS tag_name,
-    t.value AS tag_value,
-    t.value_search AS tag_value_search
-FROM main.tags AS t
-LEFT JOIN main.namespaces AS ns ON ns.id = t.namespace_id;
-
 -- ===== installed object package (names the versionless objects above; recorded only when all exist) =====
 
 DELETE FROM main.migrations WHERE version = -1;
 INSERT INTO main.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.9-eee0f6cd0cdc17a97048007f2f004bec', 'main'
-WHERE (SELECT COUNT(*) FROM sqlite_master WHERE type = 'view' AND name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'jobs_view', 'schedules_view', 'steps_view', 'workers_view', 'events_view', 'tags_view')) = 9;
+SELECT -1, 'objects-1.10-d533d5201790bcaea77820bfef5512fd', 'main'
+WHERE (SELECT COUNT(*) FROM sqlite_master WHERE type = 'view' AND name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view')) = 9;
 
 COMMIT;
 

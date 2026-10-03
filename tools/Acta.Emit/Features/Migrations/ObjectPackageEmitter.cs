@@ -26,10 +26,7 @@ internal static class ObjectPackageEmitter
     private static string HashFor(string repoRoot, ProviderInfo provider)
     {
         var providerDir = Path.Combine(repoRoot, "src", provider.Project);
-        return ObjectPackageStamp.HashOf([
-            .. ProvisionScriptEmitter.SqlObjects(providerDir, ".view.sql"),
-            .. ProvisionScriptEmitter.SqlObjects(providerDir, ".routine.sql"),
-        ]);
+        return ObjectPackageStamp.HashOf([.. ProvisionScriptEmitter.Views(providerDir), .. ProvisionScriptEmitter.Routines(providerDir)]);
     }
 
     internal static string Emit(IReadOnlyDictionary<string, string> hashes)

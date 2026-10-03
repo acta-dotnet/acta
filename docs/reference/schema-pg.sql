@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 9)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 10)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -639,6 +639,51 @@ SELECT
 FROM acta.definitions AS d
 JOIN acta.namespaces AS ns ON ns.id = d.namespace_id;
 
+CREATE OR REPLACE VIEW acta.events_view AS
+SELECT
+    e.id AS event_id,
+    e.created_at_utc,
+    ns.name AS namespace,
+    e.job_id,
+    e.job_ref,
+    e.lineage_root_id AS lineage_root_job_id,
+    root.job_ref AS lineage_root_job_ref,
+    e.definition_id,
+    d.name AS job_name,
+    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-started' WHEN 41 THEN 'job.execution-finished' WHEN 50 THEN 'job.recurring-rolled-over' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 103 THEN 'schedule.overrides-updated' WHEN 104 THEN 'schedule.triggered' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 160 THEN 'setting.updated' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
+    e.event_code,
+    CASE e.actor_code WHEN 10 THEN 'sys' WHEN 20 THEN 'operator' WHEN 50 THEN 'job' WHEN 70 THEN 'worker' END AS actor,
+    e.actor_code,
+    e.actor_key,
+    CASE e.from_status_code WHEN 10 THEN 'ready' WHEN 15 THEN 'blocked' WHEN 20 THEN 'suspended' WHEN 30 THEN 'paused' WHEN 40 THEN 'dispatched' WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS from_status,
+    e.from_status_code,
+    CASE e.to_status_code WHEN 10 THEN 'ready' WHEN 15 THEN 'blocked' WHEN 20 THEN 'suspended' WHEN 30 THEN 'paused' WHEN 40 THEN 'dispatched' WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS to_status,
+    e.to_status_code,
+    CASE e.execution_status_code WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 150 THEN 'rescheduled' WHEN 151 THEN 'suspended' WHEN 152 THEN 'paused' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' WHEN 230 THEN 'orphaned' END AS execution_status,
+    e.execution_status_code,
+    CASE e.reason_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'job.unclassified' WHEN 20 THEN 'job.unhandled-exception' WHEN 21 THEN 'job.lease-expired' WHEN 22 THEN 'job.execution-timeout' WHEN 23 THEN 'job.non-retryable-exception' WHEN 24 THEN 'job.deadline-exceeded' WHEN 25 THEN 'job.attempt-aborted' WHEN 30 THEN 'job.schedules-exhausted' WHEN 40 THEN 'job.control-manual' WHEN 41 THEN 'job.parent-cancelled' WHEN 42 THEN 'job.definition-retired' WHEN 50 THEN 'job.handler-rescheduled' WHEN 51 THEN 'job.handler-suspended' WHEN 52 THEN 'job.handler-failed' WHEN 53 THEN 'job.handler-cancelled' WHEN 54 THEN 'job.handler-paused' WHEN 60 THEN 'job.signal-released' WHEN 61 THEN 'job.step-retry-scheduled' WHEN 62 THEN 'job.concurrency-key-held' WHEN 63 THEN 'job.step-interrupted' WHEN 64 THEN 'job.result-oversized' WHEN 65 THEN 'job.wait-timed-out' WHEN 66 THEN 'job.rate-limited' WHEN 67 THEN 'job.lane-repaired' WHEN 100 THEN 'worker.clean-shutdown' WHEN 101 THEN 'worker.heartbeat-stale' END AS reason,
+    e.reason_code,
+    e.reason_message,
+    CASE e.detail_format_id
+        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
+        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
+        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
+        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
+        ELSE 'custom-' || e.detail_format_id::TEXT
+    END AS detail_format,
+    CASE WHEN e.detail_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CONVERT_FROM(e.detail, 'UTF8') END
+        AS detail_text,
+    e.worker_id,
+    wkr.worker_ref,
+    e.execution_number,
+    e.duration_ms,
+    e.tenant_id
+FROM acta.events AS e
+JOIN acta.namespaces AS ns ON ns.id = e.namespace_id
+LEFT JOIN acta.definitions AS d ON d.id = e.definition_id
+LEFT JOIN acta.jobs AS root ON root.id = e.lineage_root_id
+LEFT JOIN acta.workers AS wkr ON wkr.id = e.worker_id;
+
 CREATE OR REPLACE VIEW acta.jobs_view AS
 SELECT
     j.id AS job_id,
@@ -772,6 +817,19 @@ JOIN acta.jobs AS j ON j.id = s.job_id
 JOIN acta.namespaces AS ns ON ns.id = j.namespace_id
 JOIN acta.definitions AS d ON d.id = j.definition_id;
 
+CREATE OR REPLACE VIEW acta.tags_view AS
+SELECT
+    CASE t.scope_code WHEN 20 THEN 'tenant' WHEN 30 THEN 'namespace' WHEN 40 THEN 'definition' WHEN 50 THEN 'job' WHEN 60 THEN 'schedule' WHEN 70 THEN 'worker' WHEN 80 THEN 'alert' WHEN 90 THEN 'event' END AS scope,
+    t.scope_code,
+    t.scope_id,
+    ns.name AS namespace,
+    t.namespace_id,
+    t.name AS tag_name,
+    t.value AS tag_value,
+    t.value_search AS tag_value_search
+FROM acta.tags AS t
+LEFT JOIN acta.namespaces AS ns ON ns.id = t.namespace_id;
+
 CREATE OR REPLACE VIEW acta.workers_view AS
 SELECT
     w.id AS worker_id,
@@ -791,64 +849,6 @@ SELECT
     w.version
 FROM acta.workers AS w
 JOIN acta.namespaces AS ns ON ns.id = w.namespace_id;
-
-CREATE OR REPLACE VIEW acta.events_view AS
-SELECT
-    e.id AS event_id,
-    e.created_at_utc,
-    ns.name AS namespace,
-    e.job_id,
-    e.job_ref,
-    e.lineage_root_id AS lineage_root_job_id,
-    root.job_ref AS lineage_root_job_ref,
-    e.definition_id,
-    d.name AS job_name,
-    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-started' WHEN 41 THEN 'job.execution-finished' WHEN 50 THEN 'job.recurring-rolled-over' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 103 THEN 'schedule.overrides-updated' WHEN 104 THEN 'schedule.triggered' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 160 THEN 'setting.updated' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
-    e.event_code,
-    CASE e.actor_code WHEN 10 THEN 'sys' WHEN 20 THEN 'operator' WHEN 50 THEN 'job' WHEN 70 THEN 'worker' END AS actor,
-    e.actor_code,
-    e.actor_key,
-    CASE e.from_status_code WHEN 10 THEN 'ready' WHEN 15 THEN 'blocked' WHEN 20 THEN 'suspended' WHEN 30 THEN 'paused' WHEN 40 THEN 'dispatched' WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS from_status,
-    e.from_status_code,
-    CASE e.to_status_code WHEN 10 THEN 'ready' WHEN 15 THEN 'blocked' WHEN 20 THEN 'suspended' WHEN 30 THEN 'paused' WHEN 40 THEN 'dispatched' WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS to_status,
-    e.to_status_code,
-    CASE e.execution_status_code WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 150 THEN 'rescheduled' WHEN 151 THEN 'suspended' WHEN 152 THEN 'paused' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' WHEN 230 THEN 'orphaned' END AS execution_status,
-    e.execution_status_code,
-    CASE e.reason_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'job.unclassified' WHEN 20 THEN 'job.unhandled-exception' WHEN 21 THEN 'job.lease-expired' WHEN 22 THEN 'job.execution-timeout' WHEN 23 THEN 'job.non-retryable-exception' WHEN 24 THEN 'job.deadline-exceeded' WHEN 25 THEN 'job.attempt-aborted' WHEN 30 THEN 'job.schedules-exhausted' WHEN 40 THEN 'job.control-manual' WHEN 41 THEN 'job.parent-cancelled' WHEN 42 THEN 'job.definition-retired' WHEN 50 THEN 'job.handler-rescheduled' WHEN 51 THEN 'job.handler-suspended' WHEN 52 THEN 'job.handler-failed' WHEN 53 THEN 'job.handler-cancelled' WHEN 54 THEN 'job.handler-paused' WHEN 60 THEN 'job.signal-released' WHEN 61 THEN 'job.step-retry-scheduled' WHEN 62 THEN 'job.concurrency-key-held' WHEN 63 THEN 'job.step-interrupted' WHEN 64 THEN 'job.result-oversized' WHEN 65 THEN 'job.wait-timed-out' WHEN 66 THEN 'job.rate-limited' WHEN 67 THEN 'job.lane-repaired' WHEN 100 THEN 'worker.clean-shutdown' WHEN 101 THEN 'worker.heartbeat-stale' END AS reason,
-    e.reason_code,
-    e.reason_message,
-    CASE e.detail_format_id
-        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
-        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
-        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
-        ELSE 'custom-' || e.detail_format_id::TEXT
-    END AS detail_format,
-    CASE WHEN e.detail_format_id IN (1 /* JobPayloadFormat.Json */, 3 /* JobPayloadFormat.Text */) THEN CONVERT_FROM(e.detail, 'UTF8') END
-        AS detail_text,
-    e.worker_id,
-    wkr.worker_ref,
-    e.execution_number,
-    e.duration_ms,
-    e.tenant_id
-FROM acta.events AS e
-JOIN acta.namespaces AS ns ON ns.id = e.namespace_id
-LEFT JOIN acta.definitions AS d ON d.id = e.definition_id
-LEFT JOIN acta.jobs AS root ON root.id = e.lineage_root_id
-LEFT JOIN acta.workers AS wkr ON wkr.id = e.worker_id;
-
-CREATE OR REPLACE VIEW acta.tags_view AS
-SELECT
-    CASE t.scope_code WHEN 20 THEN 'tenant' WHEN 30 THEN 'namespace' WHEN 40 THEN 'definition' WHEN 50 THEN 'job' WHEN 60 THEN 'schedule' WHEN 70 THEN 'worker' WHEN 80 THEN 'alert' WHEN 90 THEN 'event' END AS scope,
-    t.scope_code,
-    t.scope_id,
-    ns.name AS namespace,
-    t.namespace_id,
-    t.name AS tag_name,
-    t.value AS tag_value,
-    t.value_search AS tag_value_search
-FROM acta.tags AS t
-LEFT JOIN acta.namespaces AS ns ON ns.id = t.namespace_id;
 
 -- ===== routines (versionless; always rewritten to this file's definitions) =====
 
@@ -944,352 +944,507 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION acta.raise_job_alert(
-    p_namespace_name VARCHAR,
+CREATE OR REPLACE FUNCTION acta.acquire_lock(
+    p_lock_key VARCHAR,
     p_job_id BIGINT,
-    p_origin_code SMALLINT,
-    p_severity_code SMALLINT,
-    p_kind_code SMALLINT,
-    p_title VARCHAR,
-    p_message VARCHAR,
-    p_channel_name VARCHAR,
-    p_delivery_status_code SMALLINT,
-    p_dedupe_key VARCHAR,
-    p_source_event_id BIGINT,
-    p_alert_ref UUID
+    p_lease_ttl_seconds INT,
+    p_hold_token UUID
 )
--- out_-prefixed (RegisterScheduledJobs precedent): RETURNS TABLE names become plpgsql variables, and
--- bare column names would make every occurrence_count / last_projected_event_id reference ambiguous.
-RETURNS TABLE (out_occurrence_count INT, out_last_projected_event_id BIGINT)
+RETURNS TABLE (hold_token UUID)
+LANGUAGE sql
+AS $$
+    INSERT INTO acta.locks (lock_key, job_id, expires_at_utc, hold_token)
+    VALUES (p_lock_key, p_job_id, now() + (p_lease_ttl_seconds * INTERVAL '1 second'), p_hold_token)
+    ON CONFLICT (lock_key) DO UPDATE SET
+        job_id = EXCLUDED.job_id,
+        expires_at_utc = EXCLUDED.expires_at_utc,
+        hold_token = EXCLUDED.hold_token
+    WHERE locks.expires_at_utc <= now()
+    RETURNING hold_token;
+$$;
+
+-- A slot is free when it has no row or its hold expired; the insert steals an expired row in place.
+-- The primary key arbitrates two racers on one slot, and the loser's ON CONFLICT guard fails to no row.
+CREATE OR REPLACE FUNCTION acta.acquire_slot(
+    p_lock_key_prefix VARCHAR,
+    p_slot_count INT,
+    p_job_id BIGINT,
+    p_lease_ttl_seconds INT,
+    p_hold_token UUID
+)
+RETURNS TABLE (slot_key VARCHAR)
+LANGUAGE sql
+AS $$
+    WITH free AS (
+        SELECT s.i
+        FROM generate_series(0, p_slot_count - 1) AS s(i)
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM acta.locks held
+            WHERE
+                held.lock_key = p_lock_key_prefix || '.' || s.i
+                AND held.expires_at_utc > now()
+        )
+        ORDER BY s.i
+        LIMIT 1
+    )
+    INSERT INTO acta.locks (lock_key, job_id, expires_at_utc, hold_token)
+    SELECT
+        p_lock_key_prefix || '.' || free.i,
+        p_job_id,
+        now() + (p_lease_ttl_seconds * INTERVAL '1 second'),
+        p_hold_token
+    FROM free
+    ON CONFLICT (lock_key) DO UPDATE SET
+        job_id = EXCLUDED.job_id,
+        expires_at_utc = EXCLUDED.expires_at_utc,
+        hold_token = EXCLUDED.hold_token
+    WHERE locks.expires_at_utc <= now()
+    RETURNING locks.lock_key;
+$$;
+
+CREATE OR REPLACE FUNCTION acta.apply_tags(
+    p_scope_code SMALLINT,
+    p_lookup_id BIGINT,
+    p_lookup_name VARCHAR,
+    p_mutation SMALLINT,
+    p_items_json VARCHAR
+)
+RETURNS TABLE (action SMALLINT)
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_occurrence_count INT;
-    v_last_projected_event_id BIGINT;
-    v_ns INT;
-    v_job_ref UUID;
+    v_scope_id BIGINT;
+    v_namespace_id INT;
+BEGIN
+    CASE p_scope_code
+        WHEN 20 /* TagScopeCode.Tenant */ THEN
+            SELECT t.id::BIGINT, NULL::INT INTO v_scope_id, v_namespace_id
+            FROM acta.tenants t
+            WHERE t.tenant_key = p_lookup_name
+            FOR UPDATE;
+        WHEN 30 /* TagScopeCode.Namespace */ THEN
+            SELECT n.id::BIGINT, n.id INTO v_scope_id, v_namespace_id
+            FROM acta.namespaces n
+            WHERE n.name = p_lookup_name
+            FOR UPDATE;
+        WHEN 40 /* TagScopeCode.Definition */ THEN
+            SELECT d.id::BIGINT, d.namespace_id INTO v_scope_id, v_namespace_id
+            FROM acta.definitions d
+            WHERE d.id = p_lookup_id
+            FOR UPDATE;
+        WHEN 50 /* TagScopeCode.Job */ THEN
+            SELECT j.id, j.namespace_id INTO v_scope_id, v_namespace_id
+            FROM acta.jobs j
+            WHERE j.id = p_lookup_id
+            FOR UPDATE;
+        WHEN 60 /* TagScopeCode.Schedule */ THEN
+            SELECT s.id, s.namespace_id INTO v_scope_id, v_namespace_id
+            FROM acta.schedules s
+            WHERE
+                s.job_id = p_lookup_id
+                AND s.name = p_lookup_name
+            FOR UPDATE;
+        WHEN 70 /* TagScopeCode.Worker */ THEN
+            SELECT w.id::BIGINT, w.namespace_id INTO v_scope_id, v_namespace_id
+            FROM acta.workers w
+            WHERE w.id = p_lookup_id
+            FOR UPDATE;
+        WHEN 80 /* TagScopeCode.Alert */ THEN
+            SELECT a.id, a.namespace_id INTO v_scope_id, v_namespace_id
+            FROM acta.alerts a
+            WHERE a.id = p_lookup_id
+            FOR UPDATE;
+        WHEN 90 /* TagScopeCode.Event */ THEN
+            SELECT e.id, e.namespace_id INTO v_scope_id, v_namespace_id
+            FROM acta.events e
+            WHERE e.id = p_lookup_id
+            FOR UPDATE;
+        ELSE
+            RAISE EXCEPTION 'Unsupported tag scope code %.', p_scope_code;
+    END CASE;
+
+    IF v_scope_id IS NULL THEN
+        RETURN QUERY SELECT 2 /* TagMutationAction.NotFound */::SMALLINT;
+        RETURN;
+    END IF;
+
+    IF p_mutation = 1 /* TagMutationKind.Replace */ THEN
+        DELETE FROM acta.tags
+        WHERE
+            scope_code = p_scope_code
+            AND scope_id = v_scope_id;
+
+        INSERT INTO acta.tags(scope_code, scope_id, namespace_id, name, value, value_search)
+        SELECT
+            p_scope_code,
+            v_scope_id,
+            v_namespace_id,
+            item->>'name',
+            item->>'value',
+            item->>'value_search'
+        FROM jsonb_array_elements(p_items_json::JSONB) item;
+    ELSIF p_mutation = 2 /* TagMutationKind.Upsert */ THEN
+        IF EXISTS (
+            SELECT 1
+            FROM jsonb_array_elements(p_items_json::JSONB) item
+            WHERE NOT EXISTS (
+                SELECT 1 FROM acta.tags t
+                WHERE
+                    t.scope_code = p_scope_code
+                    AND t.scope_id = v_scope_id
+                    AND t.name = item->>'name'))
+            AND (SELECT COUNT(*) FROM acta.tags t
+                WHERE t.scope_code = p_scope_code AND t.scope_id = v_scope_id) >= 32 THEN
+            RAISE EXCEPTION 'A target may carry at most 32 tags.';
+        END IF;
+
+        INSERT INTO acta.tags(scope_code, scope_id, namespace_id, name, value, value_search)
+        SELECT
+            p_scope_code,
+            v_scope_id,
+            v_namespace_id,
+            item->>'name',
+            item->>'value',
+            item->>'value_search'
+        FROM jsonb_array_elements(p_items_json::JSONB) item
+        ON CONFLICT (scope_code, scope_id, name) DO UPDATE SET
+            namespace_id = EXCLUDED.namespace_id,
+            value = EXCLUDED.value,
+            value_search = EXCLUDED.value_search;
+    ELSIF p_mutation = 3 /* TagMutationKind.Remove */ THEN
+        DELETE FROM acta.tags t
+        USING jsonb_array_elements(p_items_json::JSONB) item
+        WHERE
+            t.scope_code = p_scope_code
+            AND t.scope_id = v_scope_id
+            AND t.name = item->>'name';
+    ELSE
+        RAISE EXCEPTION 'Unsupported tag mutation code %.', p_mutation;
+    END IF;
+
+    RETURN QUERY SELECT 1 /* TagMutationAction.Applied */::SMALLINT;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION acta.arm_or_consume_sleep_timer(
+    p_job_id BIGINT,
+    p_name VARCHAR,
+    p_delay_seconds INT DEFAULT NULL,
+    p_resume_at_utc TIMESTAMPTZ DEFAULT NULL
+)
+RETURNS TABLE (
+    outcome_code SMALLINT,
+    due_at_utc TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_now TIMESTAMPTZ := now();
+    v_due TIMESTAMPTZ := COALESCE(p_resume_at_utc, now() + make_interval(secs => p_delay_seconds));
+    v_state SMALLINT;
+    v_existing_due TIMESTAMPTZ;
 BEGIN
 
-    SELECT id INTO v_ns FROM acta.namespaces WHERE name = p_namespace_name;
-    IF v_ns IS NULL THEN
-        RAISE EXCEPTION 'raise_job_alert: unknown namespace ''%''', p_namespace_name;
-    END IF;
+    PERFORM 1 FROM acta.runtimes r0 WHERE r0.job_id = p_job_id FOR UPDATE;
 
-    -- The job row is locked before any of its alert rows, the order purge_job takes with FOR UPDATE
-    -- (docs/internals/sql-execution-policy.md, "Alert lock order"), so a raise waits out a purge of its job
-    -- rather than landing an alert on the deleted job. FOR SHARE, not FOR KEY SHARE: see that section.
-    SELECT job_ref INTO v_job_ref FROM acta.jobs WHERE id = p_job_id FOR SHARE;
+    SELECT jt.status_code, jt.due_at_utc INTO v_state, v_existing_due
+    FROM acta.checkpoints jt
+    WHERE
+        jt.job_id = p_job_id
+        AND jt.kind_code = 30 /* JobCheckpointKindCode.Timer */
+        AND jt.name = p_name;
 
-    IF p_job_id IS NOT NULL AND v_job_ref IS NULL THEN
-        RAISE EXCEPTION 'ACTA:ALERT_UNKNOWN_JOB:raise_job_alert: unknown job id'
-            USING ERRCODE = 'P0001';
-    END IF;
+    IF v_state = 10 /* JobCheckpointStatusCode.Pending */ AND v_existing_due > v_now THEN
 
-    IF p_dedupe_key IS NULL THEN
-        INSERT INTO acta.alerts (
-            namespace_id,
-            alert_ref,
+        RETURN QUERY SELECT 1 /* SleepOutcome.Suspend */::SMALLINT, v_existing_due;
+    ELSIF v_state = 10 /* JobCheckpointStatusCode.Pending */ THEN
+
+        UPDATE acta.checkpoints jt
+        SET
+            status_code = 100 /* JobCheckpointStatusCode.Consumed */,
+            modified_at_utc = now(),
+            version = jt.version + 1
+        WHERE
+            jt.job_id = p_job_id
+            AND jt.kind_code = 30 /* JobCheckpointKindCode.Timer */
+            AND jt.name = p_name;
+        /* Only the worker still executing may clear the instant. A reclaimed row is Ready again on an
+           instant the reclaim owns, and ck_runtimes_ready_due requires a Ready row to keep one. */
+        UPDATE acta.runtimes r2
+        SET
+            next_run_at_utc = NULL,
+            modified_at_utc = now(),
+            version = r2.version + 1
+        WHERE
+            r2.job_id = p_job_id
+            AND r2.status_code = 50 /* JobStatusCode.Executing */;
+        RETURN QUERY SELECT 2 /* SleepOutcome.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
+    ELSIF v_state IS NOT NULL THEN
+
+        RETURN QUERY SELECT 2 /* SleepOutcome.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
+    ELSIF v_due <= v_now THEN
+
+        RETURN QUERY SELECT 2 /* SleepOutcome.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
+    ELSIF EXISTS (SELECT 1 FROM acta.checkpoints jt WHERE jt.job_id = p_job_id AND jt.kind_code = 30 /* JobCheckpointKindCode.Timer */ AND jt.status_code = 10 /* JobCheckpointStatusCode.Pending */) THEN
+        RETURN QUERY SELECT 3 /* SleepOutcome.Reject */::SMALLINT, NULL::TIMESTAMPTZ;
+    ELSE
+        INSERT INTO acta.checkpoints (
             job_id,
-            job_ref,
-            origin_code,
-            severity_code,
             kind_code,
-            title,
-            message,
-            channel_name,
-            dedupe_key,
-            occurrence_count,
-            last_projected_event_id,
-            delivery_status_code,
-            retry_count,
+            name,
+            status_code,
+            due_at_utc,
             created_at_utc,
             modified_at_utc,
             version)
         VALUES (
-            v_ns,
-            p_alert_ref,
             p_job_id,
-            v_job_ref,
-            p_origin_code,
-            p_severity_code,
-            p_kind_code,
-            p_title,
-            p_message,
-            p_channel_name,
-            NULL,
-            1,
-            p_source_event_id,
-            p_delivery_status_code,
-            0,
+            30 /* JobCheckpointKindCode.Timer */,
+            p_name,
+            10 /* JobCheckpointStatusCode.Pending */,
+            v_due,
             now(),
             now(),
             0);
-        RETURN QUERY SELECT 1, p_source_event_id;
-        RETURN;
+        RETURN QUERY SELECT 1 /* SleepOutcome.Suspend */::SMALLINT, v_due;
     END IF;
-
-    -- One OPEN row per (namespace_id, dedupe_key) - the incident. INSERT ... SELECT rather than VALUES
-    -- so the insert arm can carry the ghost guard below.
-    INSERT INTO acta.alerts (
-        namespace_id,
-        alert_ref,
-        job_id,
-        job_ref,
-        origin_code,
-        severity_code,
-        kind_code,
-        title,
-        message,
-        channel_name,
-        dedupe_key,
-        occurrence_count,
-        last_projected_event_id,
-        delivery_status_code,
-        retry_count,
-        created_at_utc,
-        modified_at_utc,
-        version)
-    SELECT
-        v_ns,
-        p_alert_ref,
-        p_job_id,
-        v_job_ref,
-        p_origin_code,
-        p_severity_code,
-        p_kind_code,
-        p_title,
-        p_message,
-        p_channel_name,
-        p_dedupe_key,
-        1,
-        p_source_event_id,
-        p_delivery_status_code,
-        0,
-        now(),
-        now(),
-        0
-    -- Ghost guard: a failure replayed after its incident closed must not open one behind the events
-    -- this identity has already absorbed - which is why it compares against every row of the identity,
-    -- not just an open one. NULL, hence never blocking, for a manual raise, which carries no event.
-    WHERE NOT EXISTS (
-        SELECT 1
-        FROM acta.alerts g
-        WHERE
-            g.namespace_id = v_ns
-            AND g.dedupe_key = p_dedupe_key
-            AND g.last_projected_event_id >= p_source_event_id
-    )
-    -- The conflict target is the filtered unique index, so a resolved row is invisible to it and the
-    -- next failure opens a fresh incident instead of re-opening the closed one.
-    ON CONFLICT (namespace_id, dedupe_key) WHERE dedupe_key IS NOT NULL AND resolved_at_utc IS NULL
-    DO UPDATE SET
-        job_id = EXCLUDED.job_id,
-        job_ref = EXCLUDED.job_ref,
-        origin_code = EXCLUDED.origin_code,
-        severity_code = EXCLUDED.severity_code,
-        kind_code = EXCLUDED.kind_code,
-        title = EXCLUDED.title,
-        message = EXCLUDED.message,
-        channel_name = EXCLUDED.channel_name,
-        occurrence_count = acta.alerts.occurrence_count + 1,
-        last_projected_event_id = COALESCE(EXCLUDED.last_projected_event_id, acta.alerts.last_projected_event_id),
-        modified_at_utc = now(),
-        version = acta.alerts.version + 1
-    WHERE
-        p_source_event_id IS NULL
-        OR acta.alerts.last_projected_event_id IS NULL
-        OR p_source_event_id > acta.alerts.last_projected_event_id
-    RETURNING occurrence_count, last_projected_event_id INTO v_occurrence_count, v_last_projected_event_id;
-
-    -- Nothing written: a replay-held update or a ghost-blocked insert. The identity's newest row has
-    -- already absorbed this event or a newer one, so its count and mark let the caller re-assert only
-    -- the escalation this very event earned - never one for a neighbour the incident never counted.
-    IF v_occurrence_count IS NULL THEN
-        SELECT a.occurrence_count, a.last_projected_event_id
-        INTO v_occurrence_count, v_last_projected_event_id
-        FROM acta.alerts a
-        WHERE
-            a.namespace_id = v_ns
-            AND a.dedupe_key = p_dedupe_key
-        ORDER BY a.id DESC
-        LIMIT 1;
-    END IF;
-
-    RETURN QUERY SELECT v_occurrence_count, v_last_projected_event_id;
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION acta.resolve_job_alert_manual(
-    p_alert_ref UUID,
+CREATE OR REPLACE FUNCTION acta.cancel_job(
+    p_id BIGINT,
     p_actor_code SMALLINT,
     p_actor_key VARCHAR,
-    p_reason_message VARCHAR
+    p_reason_code SMALLINT,
+    p_reason_message VARCHAR,
+    p_expected_version INT DEFAULT NULL
 )
-RETURNS TABLE (out_action SMALLINT, out_acknowledged_at_utc TIMESTAMPTZ, out_resolved_at_utc TIMESTAMPTZ)
+RETURNS TABLE (action SMALLINT, status_code SMALLINT, parent_id BIGINT, version INT, lane_promoted SMALLINT)
 LANGUAGE plpgsql
 AS $$
 DECLARE
+    v_from_status SMALLINT;
+    v_version INT;
     v_namespace_id INT;
-    v_job_id BIGINT;
-    v_job_ref UUID;
-    v_ack TIMESTAMPTZ;
-    v_resolved TIMESTAMPTZ;
-    v_definition_id INT;
     v_lineage_root_id BIGINT;
+    v_definition_id INT;
+    v_tenant_id INT;
     v_execution_number INT;
+    v_worker_id INT;
+    v_audit_level SMALLINT;
+    v_parent_id BIGINT;
+    v_job_ref UUID;
+    v_retention_seconds INT;
+    v_lane_id BIGINT;
+    v_head_id BIGINT;
+    v_head_status SMALLINT;
+    v_lane_promoted SMALLINT := 0;
 BEGIN
-    SELECT a.namespace_id, a.job_id, a.job_ref, a.acknowledged_at_utc, a.resolved_at_utc
-    INTO v_namespace_id, v_job_id, v_job_ref, v_ack, v_resolved
-    FROM acta.alerts a
-    WHERE a.alert_ref = p_alert_ref
+    -- Lock order: the lane, then the job's rows (docs/internals/sql-execution-policy.md, "Lane lock
+    -- order"). lane_id never changes, so the unlocked read is safe.
+    SELECT r.lane_id INTO v_lane_id
+    FROM acta.runtimes r
+    WHERE r.job_id = p_id;
+
+    IF v_lane_id IS NOT NULL THEN
+        PERFORM 1
+        FROM acta.lanes l
+        WHERE l.id = v_lane_id
+        FOR UPDATE;
+    END IF;
+
+    SELECT
+        r.status_code,
+        j.namespace_id,
+        j.lineage_root_id,
+        j.definition_id,
+        j.tenant_id,
+        r.execution_number,
+        r.leased_by_worker_id,
+        j.audit_level_code,
+        j.parent_id,
+        j.job_ref,
+        r.version
+    INTO v_from_status, v_namespace_id, v_lineage_root_id, v_definition_id, v_tenant_id, v_execution_number, v_worker_id, v_audit_level, v_parent_id, v_job_ref, v_version
+    FROM acta.jobs j
+    JOIN acta.runtimes r ON r.job_id = j.id
+    WHERE j.id = p_id
     FOR UPDATE;
 
     IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::TIMESTAMPTZ, NULL::TIMESTAMPTZ;
+        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT, NULL::BIGINT, NULL::INT, 0::SMALLINT;
         RETURN;
     END IF;
 
-    IF v_resolved IS NOT NULL THEN
-        RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_ack, v_resolved;
+    IF p_expected_version IS NOT NULL AND v_version <> p_expected_version THEN
+        RETURN QUERY SELECT 5 /* ControlAction.VersionConflict */::SMALLINT, v_from_status, v_parent_id, v_version, 0::SMALLINT;
         RETURN;
     END IF;
 
-    SELECT j.definition_id, j.lineage_root_id INTO v_definition_id, v_lineage_root_id
-    FROM acta.jobs j
-    WHERE j.id = v_job_id;
-    SELECT r.execution_number INTO v_execution_number
-    FROM acta.runtimes r
-    WHERE r.job_id = v_job_id;
+    IF v_from_status NOT IN (
+        30 /* JobStatusCode.Paused */,
+        20 /* JobStatusCode.Suspended */,
+        10 /* JobStatusCode.Ready */,
+        15 /* JobStatusCode.Blocked */,
+        40 /* JobStatusCode.Dispatched */,
+        50 /* JobStatusCode.Executing */
+    ) THEN
+        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status, v_parent_id, v_version, 0::SMALLINT;
+        RETURN;
+    END IF;
 
-    v_resolved := now();
+    SELECT jd.retention_seconds_effective
+    INTO v_retention_seconds
+    FROM acta.definitions jd
+    WHERE jd.id = v_definition_id;
 
-    UPDATE acta.alerts
+    UPDATE acta.runtimes AS r
     SET
-        resolved_at_utc = v_resolved,
-        /* Same settlement as the automatic resolve: a queued notification for a condition an operator has
-           declared cleared is cancelled, and an already-settled status stands as the record of what the
-           send actually did. */
-        delivery_status_code = CASE
-            WHEN delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */)
-                THEN 30 /* AlertDeliveryStatusCode.Suppressed */
-            ELSE delivery_status_code
-        END,
-        retry_after_utc = NULL,
+        status_code = 220 /* JobStatusCode.Cancelled */,
+        leased_by_worker_id = NULL,
+        lease_expires_at_utc = NULL,
+        retention_until_utc = now() + make_interval(secs => v_retention_seconds),
         modified_at_utc = now(),
-        version = version + 1
-    WHERE alert_ref = p_alert_ref;
+        version = r.version + 1
+    WHERE r.job_id = p_id;
 
-    INSERT INTO acta.events (
-        event_code,
-        created_at_utc,
-        namespace_id,
-        actor_code,
-        actor_key,
-        job_id,
-        job_ref,
-        execution_number,
-        lineage_root_id,
-        definition_id,
-        worker_id,
-        from_status_code,
-        to_status_code,
-        execution_status_code,
-        duration_ms,
-        reason_code,
-        reason_message)
-    VALUES (
-        141 /* EventCode.AlertResolved */,
-        now(),
-        v_namespace_id,
-        p_actor_code,
-        p_actor_key,
-        v_job_id,
-        v_job_ref,
-        v_execution_number,
-        COALESCE(v_lineage_root_id, v_job_id),
-        v_definition_id,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        p_reason_message);
+    -- A cancelled head hands its lane on; a cancelled Blocked follower leaves the head where it is. The
+    -- promotion runs under the lane lock (docs/internals/sql-execution-policy.md, "Lane lock order").
+    IF v_lane_id IS NOT NULL THEN
+        LOOP
+            v_head_id := NULL;
+            v_head_status := NULL;
 
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_ack, v_resolved;
+            SELECT m.job_id, m.status_code INTO v_head_id, v_head_status
+            FROM acta.runtimes m
+            WHERE
+                m.lane_id = v_lane_id
+                AND m.lane_id IS NOT NULL
+                AND m.status_code IN (
+                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                    30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                )
+            ORDER BY m.job_id
+            LIMIT 1;
+
+            EXIT WHEN v_head_status IS DISTINCT FROM 15 /* JobStatusCode.Blocked */;
+
+            -- A restarted member can wait Blocked below a running one, so promote only while no member runs
+            -- (docs/internals/sql-execution-policy.md, "Lane lock order").
+            EXIT WHEN EXISTS (
+                SELECT 1
+                FROM acta.runtimes o
+                WHERE
+                    o.lane_id = v_lane_id
+                    AND o.lane_id IS NOT NULL
+                    AND o.status_code IN (
+                        10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                        40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                    )
+            );
+
+            UPDATE acta.runtimes pr
+            SET
+                status_code = 10 /* JobStatusCode.Ready */,
+                next_run_at_utc = GREATEST(pr.next_run_at_utc, now()),
+                modified_at_utc = now(),
+                version = pr.version + 1
+            WHERE
+                pr.job_id = v_head_id
+                AND pr.status_code = 15 /* JobStatusCode.Blocked */;
+
+            IF FOUND THEN
+                v_lane_promoted := 1;
+                EXIT;
+            END IF;
+        END LOOP;
+    END IF;
+
+    IF v_audit_level = 20 /* JobAuditLevelCode.Audit */ THEN
+        IF v_from_status = 50 /* JobStatusCode.Executing */ THEN
+            INSERT INTO acta.events (
+                event_code,
+                created_at_utc,
+                namespace_id,
+                actor_code,
+                actor_key,
+                job_id,
+                job_ref,
+                execution_number,
+                lineage_root_id,
+                definition_id,
+                tenant_id,
+                worker_id,
+                from_status_code,
+                to_status_code,
+                execution_status_code,
+                duration_ms,
+                reason_code,
+                reason_message)
+            VALUES (
+                41 /* EventCode.JobExecutionFinished */,
+                now(),
+                v_namespace_id,
+                p_actor_code,
+                p_actor_key,
+                p_id,
+                v_job_ref,
+                v_execution_number,
+                COALESCE(v_lineage_root_id, p_id),
+                v_definition_id,
+                v_tenant_id,
+                v_worker_id,
+                50 /* JobStatusCode.Executing */,
+                220 /* JobStatusCode.Cancelled */,
+                220 /* ExecutionStatusCode.Cancelled */,
+                NULL,
+                p_reason_code,
+                p_reason_message);
+        END IF;
+
+        INSERT INTO acta.events (
+            event_code,
+            created_at_utc,
+            namespace_id,
+            actor_code,
+            actor_key,
+            job_id,
+            job_ref,
+            execution_number,
+            lineage_root_id,
+            definition_id,
+            tenant_id,
+            worker_id,
+            from_status_code,
+            to_status_code,
+            execution_status_code,
+            duration_ms,
+            reason_code,
+            reason_message)
+        VALUES (
+            70 /* EventCode.JobCancelled */,
+            now(),
+            v_namespace_id,
+            p_actor_code,
+            p_actor_key,
+            p_id,
+            v_job_ref,
+            v_execution_number,
+            COALESCE(v_lineage_root_id, p_id),
+            v_definition_id,
+            v_tenant_id,
+            NULL,
+            v_from_status,
+            220 /* JobStatusCode.Cancelled */,
+            NULL,
+            NULL,
+            p_reason_code,
+            p_reason_message);
+    END IF;
+
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, 220 /* JobStatusCode.Cancelled */::SMALLINT, v_parent_id, v_version + 1, v_lane_promoted;
 END;
-$$;
-
-CREATE OR REPLACE FUNCTION acta.resolve_job_alerts(
-    p_namespace_id INT,
-    p_job_id BIGINT,
-    p_source_event_id BIGINT
-)
-RETURNS TABLE (resolved_count INT)
-LANGUAGE plpgsql
-AS $$
-BEGIN
-    -- The job row first, then its alert rows (docs/internals/sql-execution-policy.md, "Alert lock order"):
-    -- purge_job holds the row FOR UPDATE while it deletes the job's alerts in id order.
-    -- FOR SHARE, not FOR KEY SHARE: see that section.
-    PERFORM 1 FROM acta.jobs j WHERE j.id = p_job_id FOR SHARE;
-
-    RETURN QUERY
-    WITH resolved AS (
-        UPDATE acta.alerts a
-        SET
-            resolved_at_utc = now(),
-            last_projected_event_id = p_source_event_id,
-            /* Closing the incident settles its delivery too: a notification queued for a condition that has
-               cleared is cancelled rather than sent, which is what Suppressed already means. An already-settled
-               row keeps its status: it records what actually happened to the send, and a resolve does not edit it. */
-            delivery_status_code = CASE
-                WHEN a.delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */)
-                    THEN 30 /* AlertDeliveryStatusCode.Suppressed */
-                ELSE a.delivery_status_code
-            END,
-            retry_after_utc = NULL,
-            modified_at_utc = now(),
-            version = a.version + 1
-        WHERE
-            a.namespace_id = p_namespace_id
-            AND a.job_id = p_job_id
-            AND a.origin_code = 10 /* AlertOriginCode.Automatic */
-            AND a.kind_code IN (
-                10 /* AlertKindCode.FirstFailure */, 20 /* AlertKindCode.ThresholdReached */, 30 /* AlertKindCode.FinalFailure */
-            )
-            AND a.resolved_at_utc IS NULL
-            AND (a.last_projected_event_id IS NULL OR a.last_projected_event_id < p_source_event_id)
-        RETURNING 1
-    )
-    SELECT count(*)::INT FROM resolved;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION acta.update_alert_delivery(
-    p_id BIGINT,
-    p_version INT,
-    p_delivery_status_code SMALLINT,
-    p_retry_count INT,
-    p_retry_after_utc TIMESTAMPTZ
-)
-RETURNS TABLE (id BIGINT)
-LANGUAGE sql
-AS $$
-/* Compare-and-swap on the version the delivery read handed out: an attempt whose row moved while the
-   send was in flight - resolved by an operator, or settled by a competing worker - writes nothing and
-   returns no row, and the caller treats the empty result as "the newer state stands". */
-UPDATE acta.alerts
-SET
-    delivery_status_code = p_delivery_status_code,
-    retry_count = p_retry_count,
-    retry_after_utc = p_retry_after_utc,
-    modified_at_utc = now(),
-    version = version + 1
-WHERE
-    id = p_id
-    AND version = p_version
-RETURNING id;
 $$;
 
 CREATE OR REPLACE FUNCTION acta.checkpoint_slot(
@@ -2501,532 +2656,24 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION acta.register_job_definitions(
-    p_namespace_id INT,
-    p_manifest_generation TIMESTAMPTZ,
-    p_d_name VARCHAR [],
-    p_d_priority_code SMALLINT [],
-    p_d_max_attempts INT [],
-    p_d_concurrency_limit INT [],
-    p_d_rate_limit VARCHAR [],
-    p_d_rate_key VARCHAR [],
-    p_d_backoff VARCHAR [],
-    p_d_execution_timeout INT [],
-    p_d_deadline_seconds INT [],
-    p_d_deadline_behavior SMALLINT [],
-    p_d_job_retention INT [],
-    p_d_input_type_name VARCHAR [],
-    p_d_output_type_name VARCHAR [],
-    p_d_input_format_id SMALLINT [],
-    p_d_input_format_name VARCHAR [],
-    p_d_output_format_id SMALLINT [],
-    p_d_output_format_name VARCHAR [],
-    p_d_audit_level_code SMALLINT [],
-    p_d_alert_profile_code SMALLINT [],
-    p_d_tenant_requirement SMALLINT [],
-    p_d_alert_channel_name VARCHAR [],
-    p_d_runbook_url VARCHAR [],
-    p_d_display_name VARCHAR [],
-    p_d_description VARCHAR [],
-    p_d_definition_hash VARCHAR [],
-    p_d_lane VARCHAR [] DEFAULT NULL
-)
-
-RETURNS TABLE (def_name VARCHAR, def_id INT)
-LANGUAGE plpgsql
-AS $$
-BEGIN
-    RETURN QUERY
-    WITH batch AS (
-        SELECT * FROM unnest(
-            p_d_name, p_d_priority_code, p_d_max_attempts, p_d_concurrency_limit,
-            p_d_rate_limit, p_d_rate_key,
-            p_d_backoff,
-            p_d_execution_timeout, p_d_deadline_seconds, p_d_deadline_behavior, p_d_job_retention,
-            p_d_input_type_name, p_d_output_type_name,
-            p_d_input_format_id, p_d_input_format_name, p_d_output_format_id, p_d_output_format_name,
-            p_d_audit_level_code, p_d_alert_profile_code, p_d_tenant_requirement,
-            p_d_alert_channel_name, p_d_runbook_url, p_d_display_name, p_d_description, p_d_definition_hash,
-            p_d_lane
-        ) AS b(name, priority_code, max_attempts, concurrency_limit,
-            rate_limit, rate_key,
-            backoff,
-            execution_timeout_seconds, deadline_seconds,
-            deadline_behavior_code, retention_seconds,
-            input_type_name, output_type_name,
-            input_format_id, input_format_name, output_format_id, output_format_name,
-            audit_level_code, alert_profile_code, tenant_requirement_code,
-            alert_channel_name, runbook_url, display_name, description, definition_hash, lane)
-    ),
-    upserted AS (
-        INSERT INTO acta.definitions (
-            namespace_id,
-            name,
-            status_code,
-            input_type_name,
-            output_type_name,
-            input_format_id,
-            input_format_name,
-            output_format_id,
-            output_format_name,
-            priority_code,
-            max_attempts,
-            concurrency_limit,
-            rate_limit,
-            rate_key,
-            lane,
-            backoff,
-            execution_timeout_seconds,
-            deadline_seconds,
-            deadline_behavior_code,
-            retention_seconds,
-            audit_level_code,
-            alert_profile_code,
-            tenant_requirement_code,
-            alert_channel_name,
-            runbook_url,
-            display_name,
-            description,
-            definition_hash,
-            manifest_generation_at_utc,
-            created_at_utc,
-            modified_at_utc,
-            version)
-        SELECT
-            p_namespace_id,
-            b.name,
-            10 /* JobDefinitionStatusCode.Active */,
-            b.input_type_name,
-            b.output_type_name,
-            b.input_format_id,
-            b.input_format_name,
-            b.output_format_id,
-            b.output_format_name,
-            b.priority_code,
-            b.max_attempts,
-            b.concurrency_limit,
-            b.rate_limit,
-            b.rate_key,
-            b.lane,
-            b.backoff,
-            b.execution_timeout_seconds,
-            b.deadline_seconds,
-            b.deadline_behavior_code,
-            b.retention_seconds,
-            b.audit_level_code,
-            b.alert_profile_code,
-            b.tenant_requirement_code,
-            b.alert_channel_name,
-            b.runbook_url,
-            b.display_name,
-            b.description,
-            b.definition_hash,
-            p_manifest_generation,
-            now(),
-            now(),
-            0
-        FROM batch b
-        ON CONFLICT (namespace_id, name) DO UPDATE SET
-            status_code = 10 /* JobDefinitionStatusCode.Active */,
-            input_type_name = EXCLUDED.input_type_name,
-            output_type_name = EXCLUDED.output_type_name,
-            input_format_id = EXCLUDED.input_format_id,
-            input_format_name = EXCLUDED.input_format_name,
-            output_format_id = EXCLUDED.output_format_id,
-            output_format_name = EXCLUDED.output_format_name,
-            priority_code = EXCLUDED.priority_code,
-            max_attempts = EXCLUDED.max_attempts,
-            concurrency_limit = EXCLUDED.concurrency_limit,
-            rate_limit = EXCLUDED.rate_limit,
-            rate_key = EXCLUDED.rate_key,
-            lane = EXCLUDED.lane,
-            backoff = EXCLUDED.backoff,
-            execution_timeout_seconds = EXCLUDED.execution_timeout_seconds,
-            deadline_seconds = EXCLUDED.deadline_seconds,
-            deadline_behavior_code = EXCLUDED.deadline_behavior_code,
-            retention_seconds = EXCLUDED.retention_seconds,
-            audit_level_code = EXCLUDED.audit_level_code,
-            alert_profile_code = EXCLUDED.alert_profile_code,
-            tenant_requirement_code = EXCLUDED.tenant_requirement_code,
-            alert_channel_name = EXCLUDED.alert_channel_name,
-            runbook_url = EXCLUDED.runbook_url,
-            display_name = EXCLUDED.display_name,
-            description = EXCLUDED.description,
-            definition_hash = EXCLUDED.definition_hash,
-            manifest_generation_at_utc = EXCLUDED.manifest_generation_at_utc,
-            modified_at_utc = now(),
-            version = acta.definitions.version + 1
-        WHERE
-            EXCLUDED.manifest_generation_at_utc >= acta.definitions.manifest_generation_at_utc
-            AND (
-                acta.definitions.status_code <> 10 /* JobDefinitionStatusCode.Active */
-                OR acta.definitions.definition_hash IS DISTINCT FROM EXCLUDED.definition_hash
-            )
-        RETURNING definitions.name, definitions.id
-    )
-    SELECT u.name, u.id FROM upserted u
-    UNION ALL
-    SELECT b.name, jd.id
-    FROM batch b
-    INNER JOIN acta.definitions jd
-        ON jd.namespace_id = p_namespace_id AND jd.name = b.name
-    WHERE NOT EXISTS (SELECT 1 FROM upserted u WHERE u.name = b.name);
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION acta.set_job_definition_overrides(
-    p_id INT,
-    p_version INT,
-    p_priority_code_override SMALLINT,
-    p_max_attempts_override INT,
-    p_concurrency_limit_override INT,
-    p_rate_limit_override VARCHAR,
-    p_backoff_override VARCHAR,
-    p_execution_timeout_seconds_override INT,
-    p_deadline_seconds_override INT,
-    p_deadline_behavior_code_override SMALLINT,
-    p_retention_seconds_override INT,
-    p_audit_level_code_override SMALLINT,
-    p_alert_profile_code_override SMALLINT,
-    p_alert_channel_name_override VARCHAR,
-    p_runbook_url_override VARCHAR,
-    p_display_name_override VARCHAR,
-    p_description_override VARCHAR,
-    p_actor_code SMALLINT,
-    p_actor_key VARCHAR,
-    p_reason_code SMALLINT,
-    p_reason_message VARCHAR
-)
-RETURNS TABLE (action SMALLINT)
+-- Version-CAS consume of an applied operator command: a miss means a newer command superseded the row
+-- mid-apply and survives for the next tick. See IOutboxSignalStore.ConsumeAsync.
+CREATE OR REPLACE FUNCTION acta.consume_outbox_signal(p_job_id BIGINT, p_name VARCHAR, p_expected_version INT)
+RETURNS TABLE (out_consumed BIGINT)
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_ns INT;
-    v_version INT;
-    v_meter TEXT;
+    v_count BIGINT;
 BEGIN
-    SELECT jd.namespace_id, jd.version INTO v_ns, v_version
-    FROM acta.definitions jd WHERE jd.id = p_id FOR UPDATE;
-
-    IF v_ns IS NULL THEN
-        RETURN QUERY SELECT 2 /* DefinitionOverrideAction.NotFound */::SMALLINT;
-        RETURN;
-    END IF;
-
-    IF v_version <> p_version THEN
-        RETURN QUERY SELECT 3 /* DefinitionOverrideAction.VersionConflict */::SMALLINT;
-        RETURN;
-    END IF;
-
-    UPDATE acta.definitions
-    SET
-        priority_code_override = p_priority_code_override,
-        max_attempts_override = p_max_attempts_override,
-        concurrency_limit_override = p_concurrency_limit_override,
-        rate_limit_override = p_rate_limit_override,
-        backoff_override = p_backoff_override,
-        execution_timeout_seconds_override = p_execution_timeout_seconds_override,
-        deadline_seconds_override = p_deadline_seconds_override,
-        deadline_behavior_code_override = p_deadline_behavior_code_override,
-        retention_seconds_override = p_retention_seconds_override,
-        audit_level_code_override = p_audit_level_code_override,
-        alert_profile_code_override = p_alert_profile_code_override,
-        alert_channel_name_override = p_alert_channel_name_override,
-        runbook_url_override = p_runbook_url_override,
-        display_name_override = p_display_name_override,
-        description_override = p_description_override,
-        modified_at_utc = now(),
-        version = version + 1
-    WHERE id = p_id AND version = p_version
-    RETURNING lower(COALESCE(rate_key, name)) INTO v_meter;
-
-    -- A definition on a meter carries every sibling that already has a rate (declared or overridden) on
-    -- the same effective key along with it here, so the meter never carries two rates and the last
-    -- write wins for every participant. See JobDefinitionPolicyOverrides.RateLimit for the full contract.
-    UPDATE acta.definitions sib
-    SET
-        rate_limit_override = p_rate_limit_override,
-        modified_at_utc = now(),
-        version = sib.version + 1
+    DELETE FROM acta.checkpoints c
     WHERE
-        sib.namespace_id = v_ns
-        AND sib.id <> p_id
-        AND (sib.rate_limit IS NOT NULL OR sib.rate_limit_override IS NOT NULL)
-        AND lower(COALESCE(sib.rate_key, sib.name)) = v_meter;
+        c.job_id = p_job_id
+        AND c.kind_code = 20 /* JobCheckpointKindCode.Signal */
+        AND c.name = p_name
+        AND c.version = p_expected_version;
 
-    INSERT INTO acta.events (
-        event_code,
-        created_at_utc,
-        namespace_id,
-        actor_code,
-        actor_key,
-        job_id,
-        job_ref,
-        execution_number,
-        lineage_root_id,
-        definition_id,
-        worker_id,
-        from_status_code,
-        to_status_code,
-        execution_status_code,
-        duration_ms,
-        reason_code,
-        reason_message)
-    VALUES (
-        30 /* EventCode.JobDefinitionOverridesUpdated */,
-        now(),
-        v_ns,
-        p_actor_code,
-        p_actor_key,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        p_id,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        p_reason_code,
-        p_reason_message);
-
-    RETURN QUERY SELECT 1 /* DefinitionOverrideAction.Applied */::SMALLINT;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION acta.cancel_job(
-    p_id BIGINT,
-    p_actor_code SMALLINT,
-    p_actor_key VARCHAR,
-    p_reason_code SMALLINT,
-    p_reason_message VARCHAR,
-    p_expected_version INT DEFAULT NULL
-)
-RETURNS TABLE (action SMALLINT, status_code SMALLINT, parent_id BIGINT, version INT, lane_promoted SMALLINT)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_from_status SMALLINT;
-    v_version INT;
-    v_namespace_id INT;
-    v_lineage_root_id BIGINT;
-    v_definition_id INT;
-    v_tenant_id INT;
-    v_execution_number INT;
-    v_worker_id INT;
-    v_audit_level SMALLINT;
-    v_parent_id BIGINT;
-    v_job_ref UUID;
-    v_retention_seconds INT;
-    v_lane_id BIGINT;
-    v_head_id BIGINT;
-    v_head_status SMALLINT;
-    v_lane_promoted SMALLINT := 0;
-BEGIN
-    -- Lock order: the lane, then the job's rows (docs/internals/sql-execution-policy.md, "Lane lock
-    -- order"). lane_id never changes, so the unlocked read is safe.
-    SELECT r.lane_id INTO v_lane_id
-    FROM acta.runtimes r
-    WHERE r.job_id = p_id;
-
-    IF v_lane_id IS NOT NULL THEN
-        PERFORM 1
-        FROM acta.lanes l
-        WHERE l.id = v_lane_id
-        FOR UPDATE;
-    END IF;
-
-    SELECT
-        r.status_code,
-        j.namespace_id,
-        j.lineage_root_id,
-        j.definition_id,
-        j.tenant_id,
-        r.execution_number,
-        r.leased_by_worker_id,
-        j.audit_level_code,
-        j.parent_id,
-        j.job_ref,
-        r.version
-    INTO v_from_status, v_namespace_id, v_lineage_root_id, v_definition_id, v_tenant_id, v_execution_number, v_worker_id, v_audit_level, v_parent_id, v_job_ref, v_version
-    FROM acta.jobs j
-    JOIN acta.runtimes r ON r.job_id = j.id
-    WHERE j.id = p_id
-    FOR UPDATE;
-
-    IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT, NULL::BIGINT, NULL::INT, 0::SMALLINT;
-        RETURN;
-    END IF;
-
-    IF p_expected_version IS NOT NULL AND v_version <> p_expected_version THEN
-        RETURN QUERY SELECT 5 /* ControlAction.VersionConflict */::SMALLINT, v_from_status, v_parent_id, v_version, 0::SMALLINT;
-        RETURN;
-    END IF;
-
-    IF v_from_status NOT IN (
-        30 /* JobStatusCode.Paused */,
-        20 /* JobStatusCode.Suspended */,
-        10 /* JobStatusCode.Ready */,
-        15 /* JobStatusCode.Blocked */,
-        40 /* JobStatusCode.Dispatched */,
-        50 /* JobStatusCode.Executing */
-    ) THEN
-        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status, v_parent_id, v_version, 0::SMALLINT;
-        RETURN;
-    END IF;
-
-    SELECT jd.retention_seconds_effective
-    INTO v_retention_seconds
-    FROM acta.definitions jd
-    WHERE jd.id = v_definition_id;
-
-    UPDATE acta.runtimes AS r
-    SET
-        status_code = 220 /* JobStatusCode.Cancelled */,
-        leased_by_worker_id = NULL,
-        lease_expires_at_utc = NULL,
-        retention_until_utc = now() + make_interval(secs => v_retention_seconds),
-        modified_at_utc = now(),
-        version = r.version + 1
-    WHERE r.job_id = p_id;
-
-    -- A cancelled head hands its lane on; a cancelled Blocked follower leaves the head where it is. The
-    -- promotion runs under the lane lock (docs/internals/sql-execution-policy.md, "Lane lock order").
-    IF v_lane_id IS NOT NULL THEN
-        LOOP
-            v_head_id := NULL;
-            v_head_status := NULL;
-
-            SELECT m.job_id, m.status_code INTO v_head_id, v_head_status
-            FROM acta.runtimes m
-            WHERE
-                m.lane_id = v_lane_id
-                AND m.lane_id IS NOT NULL
-                AND m.status_code IN (
-                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                    30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-                )
-            ORDER BY m.job_id
-            LIMIT 1;
-
-            EXIT WHEN v_head_status IS DISTINCT FROM 15 /* JobStatusCode.Blocked */;
-
-            -- A restarted member can wait Blocked below a running one, so promote only while no member runs
-            -- (docs/internals/sql-execution-policy.md, "Lane lock order").
-            EXIT WHEN EXISTS (
-                SELECT 1
-                FROM acta.runtimes o
-                WHERE
-                    o.lane_id = v_lane_id
-                    AND o.lane_id IS NOT NULL
-                    AND o.status_code IN (
-                        10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
-                        40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-                    )
-            );
-
-            UPDATE acta.runtimes pr
-            SET
-                status_code = 10 /* JobStatusCode.Ready */,
-                next_run_at_utc = GREATEST(pr.next_run_at_utc, now()),
-                modified_at_utc = now(),
-                version = pr.version + 1
-            WHERE
-                pr.job_id = v_head_id
-                AND pr.status_code = 15 /* JobStatusCode.Blocked */;
-
-            IF FOUND THEN
-                v_lane_promoted := 1;
-                EXIT;
-            END IF;
-        END LOOP;
-    END IF;
-
-    IF v_audit_level = 20 /* JobAuditLevelCode.Audit */ THEN
-        IF v_from_status = 50 /* JobStatusCode.Executing */ THEN
-            INSERT INTO acta.events (
-                event_code,
-                created_at_utc,
-                namespace_id,
-                actor_code,
-                actor_key,
-                job_id,
-                job_ref,
-                execution_number,
-                lineage_root_id,
-                definition_id,
-                tenant_id,
-                worker_id,
-                from_status_code,
-                to_status_code,
-                execution_status_code,
-                duration_ms,
-                reason_code,
-                reason_message)
-            VALUES (
-                41 /* EventCode.JobExecutionFinished */,
-                now(),
-                v_namespace_id,
-                p_actor_code,
-                p_actor_key,
-                p_id,
-                v_job_ref,
-                v_execution_number,
-                COALESCE(v_lineage_root_id, p_id),
-                v_definition_id,
-                v_tenant_id,
-                v_worker_id,
-                50 /* JobStatusCode.Executing */,
-                220 /* JobStatusCode.Cancelled */,
-                220 /* ExecutionStatusCode.Cancelled */,
-                NULL,
-                p_reason_code,
-                p_reason_message);
-        END IF;
-
-        INSERT INTO acta.events (
-            event_code,
-            created_at_utc,
-            namespace_id,
-            actor_code,
-            actor_key,
-            job_id,
-            job_ref,
-            execution_number,
-            lineage_root_id,
-            definition_id,
-            tenant_id,
-            worker_id,
-            from_status_code,
-            to_status_code,
-            execution_status_code,
-            duration_ms,
-            reason_code,
-            reason_message)
-        VALUES (
-            70 /* EventCode.JobCancelled */,
-            now(),
-            v_namespace_id,
-            p_actor_code,
-            p_actor_key,
-            p_id,
-            v_job_ref,
-            v_execution_number,
-            COALESCE(v_lineage_root_id, p_id),
-            v_definition_id,
-            v_tenant_id,
-            NULL,
-            v_from_status,
-            220 /* JobStatusCode.Cancelled */,
-            NULL,
-            NULL,
-            p_reason_code,
-            p_reason_message);
-    END IF;
-
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, 220 /* JobStatusCode.Cancelled */::SMALLINT, v_parent_id, v_version + 1, v_lane_promoted;
+    GET DIAGNOSTICS v_count = ROW_COUNT;
+    RETURN QUERY SELECT v_count;
 END;
 $$;
 
@@ -3873,6 +3520,199 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION acta.extend_lock(
+    p_lock_key VARCHAR,
+    p_hold_token UUID,
+    p_lease_ttl_seconds INT
+)
+RETURNS TABLE (hold_token UUID)
+LANGUAGE sql
+AS $$
+    UPDATE acta.locks
+    SET expires_at_utc = now() + (p_lease_ttl_seconds * INTERVAL '1 second')
+    WHERE lock_key = p_lock_key AND hold_token = p_hold_token
+    RETURNING hold_token;
+$$;
+
+CREATE OR REPLACE FUNCTION acta.extend_worker_leases(
+    p_leased_by_worker_id INT,
+    p_lease_ttl_seconds INT,
+    p_draining BOOLEAN
+)
+RETURNS TABLE (job_id BIGINT, execution_number INT, renewed BOOLEAN)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_new_expiry TIMESTAMPTZ := now() + (p_lease_ttl_seconds * INTERVAL '1 second');
+BEGIN
+    UPDATE acta.workers
+    SET
+        last_seen_at_utc = now(),
+        -- A worker marked Dead through a database outage longer than its dead-after window is alive again the
+        -- moment it heartbeats; Stopped stays Stopped.
+        status_code = CASE
+            WHEN p_draining AND status_code IN (10 /* WorkerStatusCode.Active */, 200 /* WorkerStatusCode.Dead */)
+                THEN 80 /* WorkerStatusCode.Draining */
+            WHEN status_code = 200 /* WorkerStatusCode.Dead */ THEN 10 /* WorkerStatusCode.Active */
+            ELSE status_code
+        END,
+        modified_at_utc = now(),
+        version = version + 1
+    WHERE id = p_leased_by_worker_id;
+
+    /* Push every in-flight execution lease forward. Deliberately no version bump: a lease refresh
+       is not a claim-generation change, so a buffered claim still passes the start CAS. */
+    -- A row another transaction holds is skipped and reported unrenewed, so the renewal never waits
+    -- (docs/internals/sql-execution-policy.md, "Explicit exceptions and maintenance").
+    RETURN QUERY
+    WITH inflight AS (
+        SELECT r0.job_id, r0.execution_number
+        FROM acta.runtimes r0
+        WHERE
+            r0.leased_by_worker_id = p_leased_by_worker_id
+            AND r0.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+    ),
+    locked AS (
+        SELECT r1.job_id
+        FROM acta.runtimes r1
+        WHERE
+            r1.job_id IN (SELECT i.job_id FROM inflight i)
+            AND r1.leased_by_worker_id = p_leased_by_worker_id
+            AND r1.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+        ORDER BY r1.job_id
+        FOR UPDATE SKIP LOCKED
+    ),
+    extended AS (
+        UPDATE acta.runtimes r
+        SET lease_expires_at_utc = v_new_expiry
+        WHERE r.job_id IN (SELECT l.job_id FROM locked l)
+        RETURNING r.job_id, r.execution_number
+    )
+    -- A renewed row reports the execution it renewed; one another transaction holds, the one it read.
+    SELECT i.job_id, COALESCE(e.execution_number, i.execution_number), e.job_id IS NOT NULL
+    FROM inflight i
+    LEFT JOIN extended e ON e.job_id = i.job_id;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION acta.mark_dead_workers(
+    p_dead_after_seconds INT
+)
+RETURNS INT
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_marked INT;
+BEGIN
+    WITH doomed AS (
+        SELECT id
+        FROM acta.workers
+        WHERE
+            -- A worker that stopped heartbeating mid-drain, killed or past its host's shutdown budget, is as
+            -- dead as an active one; nothing else ever moves a Draining row.
+            status_code IN (10 /* WorkerStatusCode.Active */, 80 /* WorkerStatusCode.Draining */)
+            AND last_seen_at_utc < now() - (p_dead_after_seconds * INTERVAL '1 second')
+        FOR UPDATE SKIP LOCKED
+    ),
+
+    dead AS (
+        UPDATE acta.workers w
+        SET
+            status_code = 200 /* WorkerStatusCode.Dead */,
+            modified_at_utc = now(),
+            version = version + 1
+        FROM doomed d
+        WHERE w.id = d.id
+        RETURNING w.id, w.namespace_id, w.worker_ref
+    ),
+
+    evt AS (
+        INSERT INTO acta.events (
+            event_code,
+            created_at_utc,
+            namespace_id,
+            actor_code,
+            actor_key,
+            job_id,
+            execution_number,
+            lineage_root_id,
+            definition_id,
+            worker_id,
+            from_status_code,
+            to_status_code,
+            execution_status_code,
+            duration_ms,
+            reason_code,
+            reason_message)
+        SELECT
+            122 /* EventCode.WorkerDied */,
+            now(),
+            d.namespace_id,
+            70 /* ActorCode.Worker */,
+            d.worker_ref::TEXT,
+            NULL,
+            NULL,
+            NULL,
+            NULL,
+            d.id,
+            NULL,
+            NULL,
+            NULL,
+            NULL,
+            101 /* JobEventReasonCode.WorkerHeartbeatStale */,
+            NULL
+        FROM dead d
+        RETURNING 1
+    )
+
+    SELECT count(*) INTO v_marked FROM dead;
+    RETURN v_marked;
+END;
+$$;
+
+-- Park admission for the sys.outbox operator inbox: insert when the slot is free, supersede when the
+-- pending command has outlived the worker-dead window, reject otherwise. See IOutboxSignalStore.ParkAsync.
+CREATE OR REPLACE FUNCTION acta.park_outbox_signal(
+    p_job_id BIGINT,
+    p_name VARCHAR,
+    p_value_format_id SMALLINT,
+    p_value BYTEA,
+    p_stale_before_utc TIMESTAMPTZ
+)
+RETURNS TABLE (out_action SMALLINT, out_pending_since_utc TIMESTAMPTZ)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    INSERT INTO acta.checkpoints (job_id, kind_code, name, status_code, value_format_id, value, modified_at_utc, version)
+    VALUES (
+        p_job_id,
+        20 /* JobCheckpointKindCode.Signal */,
+        p_name,
+        20 /* JobCheckpointStatusCode.Set */,
+        p_value_format_id,
+        p_value,
+        now(),
+        0
+    )
+    ON CONFLICT (job_id, kind_code, name) DO UPDATE SET
+        value_format_id = EXCLUDED.value_format_id,
+        value = EXCLUDED.value,
+        status_code = 20 /* JobCheckpointStatusCode.Set */,
+        modified_at_utc = now(),
+        version = checkpoints.version + 1
+    WHERE checkpoints.modified_at_utc <= p_stale_before_utc;
+
+    /* The minted command id inside p_value makes the payload unique, so value equality is the
+       "my write landed" test; a losing park reads the incumbent's park instant as the rejection age. */
+    RETURN QUERY
+    SELECT
+        (CASE WHEN c.value = p_value THEN 1 /* ControlAction.Applied */ ELSE 3 /* ControlAction.Rejected */ END)::SMALLINT,
+        c.modified_at_utc
+    FROM acta.checkpoints c
+    WHERE c.job_id = p_job_id AND c.kind_code = 20 /* JobCheckpointKindCode.Signal */ AND c.name = p_name;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION acta.pause_job(
     p_id BIGINT,
     p_actor_code SMALLINT,
@@ -4045,6 +3885,319 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION acta.pause_schedule(
+    p_job_id BIGINT,
+    p_name VARCHAR,
+    p_paused_until_utc TIMESTAMPTZ,
+    p_job_next_run_at_utc TIMESTAMPTZ,
+    p_actor_code SMALLINT,
+    p_actor_key VARCHAR,
+    p_reason_message VARCHAR
+)
+RETURNS TABLE (
+    out_action SMALLINT, out_status_code SMALLINT, out_paused_until_utc TIMESTAMPTZ, out_next_run_at_utc TIMESTAMPTZ, out_version INT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_schedule_id BIGINT;
+    v_status SMALLINT;
+    v_paused TIMESTAMPTZ;
+    v_next TIMESTAMPTZ;
+    v_version INT;
+    v_ns INT;
+    v_def INT;
+    v_lineage BIGINT;
+    v_en INT;
+    v_audit SMALLINT;
+    v_job_ref UUID;
+BEGIN
+    /* Lock the slot's runtimes row before the schedules row: register_scheduled_jobs writes
+       runtimes then schedules, so every writer of both must take runtimes first. */
+    SELECT r.execution_number
+    INTO v_en
+    FROM acta.runtimes r
+    WHERE r.job_id = p_job_id
+    FOR UPDATE;
+
+    SELECT js.id
+    INTO v_schedule_id
+    FROM acta.schedules js
+    WHERE
+        js.job_id = p_job_id
+        AND js.name = p_name
+        AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT, NULL::TIMESTAMPTZ, NULL::TIMESTAMPTZ, NULL::INT;
+        RETURN;
+    END IF;
+
+    SELECT j.namespace_id, j.definition_id, j.lineage_root_id, j.audit_level_code, j.job_ref
+    INTO v_ns, v_def, v_lineage, v_audit, v_job_ref
+    FROM acta.jobs j
+    WHERE j.id = p_job_id;
+
+    UPDATE acta.schedules
+    SET
+        status_code = 30 /* ScheduleStatusCode.Paused */,
+        paused_until_utc = p_paused_until_utc,
+        reason_message = p_reason_message,
+        modified_at_utc = now(),
+        version = version + 1
+    WHERE id = v_schedule_id
+    RETURNING status_code, paused_until_utc, next_run_at_utc, version
+    INTO v_status, v_paused, v_next, v_version;
+
+    -- Paused with a next run is an operator's or handler's hold and is left alone; Paused with none only
+    -- means no schedule offered a run (ScheduleWalker, "held").
+    UPDATE acta.runtimes
+    SET
+        next_run_at_utc = p_job_next_run_at_utc,
+        status_code = CASE WHEN p_job_next_run_at_utc IS NULL
+            THEN 30 /* JobStatusCode.Paused */
+            ELSE 10 /* JobStatusCode.Ready */ END,
+        modified_at_utc = now(),
+        version = version + 1
+    WHERE
+        job_id = p_job_id
+        AND (status_code = 10 /* JobStatusCode.Ready */ OR (status_code = 30 /* JobStatusCode.Paused */ AND next_run_at_utc IS NULL));
+
+    IF v_audit = 20 /* JobAuditLevelCode.Audit */ THEN
+        INSERT INTO acta.events (
+            event_code,
+            created_at_utc,
+            namespace_id,
+            actor_code,
+            actor_key,
+            job_id,
+            job_ref,
+            execution_number,
+            lineage_root_id,
+            definition_id,
+            worker_id,
+            from_status_code,
+            to_status_code,
+            execution_status_code,
+            duration_ms,
+            reason_code,
+            reason_message)
+        VALUES (
+            100 /* EventCode.SchedulePaused */,
+            now(),
+            v_ns,
+            p_actor_code,
+            p_actor_key,
+            p_job_id,
+            v_job_ref,
+            v_en,
+            COALESCE(v_lineage, p_job_id),
+            v_def,
+            NULL,
+            NULL,
+            NULL,
+            NULL,
+            NULL,
+            NULL,
+            p_name);
+    END IF;
+
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_status, v_paused, v_next, v_version;
+END;
+$$;
+
+-- One section, one bounded atomic batch. Section numbers match RetentionSection.
+CREATE OR REPLACE FUNCTION acta.purge_expired_data(
+    p_namespace_id INT,
+    p_section INT,
+    p_cutoff_utc TIMESTAMPTZ,
+    p_batch_size INT
+)
+RETURNS TABLE (deleted_count INT)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_rows INT := 0;
+    v_ids BIGINT[];
+    v_lock_keys TEXT[];
+    v_alerts_slot_id BIGINT;
+BEGIN
+    IF p_batch_size <= 0 OR p_section NOT BETWEEN 1 AND 8 THEN
+        RAISE EXCEPTION 'Invalid retention section or batch size.';
+    END IF;
+
+    CASE p_section
+    WHEN 1 THEN
+        SELECT array_agg(q.id) INTO v_ids FROM (
+            SELECT j.id FROM acta.jobs j
+            JOIN acta.runtimes r ON r.job_id = j.id
+            WHERE
+                r.namespace_id = p_namespace_id
+                AND r.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+                AND r.retention_until_utc IS NOT NULL
+                AND r.retention_until_utc <= p_cutoff_utc
+                -- Lineage guard: parent_id carries no FK, so purging a parent whose children still
+                -- exist would orphan their lineage (same rule as the manual purge_job). Only leaves
+                -- delete; a fully-expired subtree drains bottom-up across iterations.
+                AND NOT EXISTS (SELECT 1 FROM acta.jobs c WHERE c.parent_id = j.id)
+                -- A completed child of a live parent is kept: the parent's replay dedupes onto its row and
+                -- reads its result, so purging it would run the child again. The tree drains once the
+                -- parent is terminal.
+                AND NOT EXISTS (
+                    SELECT 1 FROM acta.runtimes p
+                    WHERE p.job_id = j.parent_id
+                      AND p.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
+                -- A stopped recurring job stays while its definition is live: the next start would register
+                -- its declaration as a new job and undo the cancel or failure. Retiring the definition lets
+                -- it drain.
+                AND NOT EXISTS (
+                    SELECT 1 FROM acta.schedules s
+                    JOIN acta.definitions d ON d.id = j.definition_id
+                    WHERE s.job_id = j.id AND d.status_code <> 240 /* JobDefinitionStatusCode.Retired */)
+            ORDER BY r.retention_until_utc, r.job_id
+            LIMIT p_batch_size
+            FOR UPDATE OF j, r SKIP LOCKED) q;
+        v_rows := COALESCE(cardinality(v_ids), 0);
+        IF v_rows > 0 THEN
+            PERFORM 1 FROM acta.schedules s WHERE s.job_id = ANY(v_ids) ORDER BY s.id FOR UPDATE;
+            DELETE FROM acta.tags t
+            WHERE
+                (t.scope_code = 50 /* TagScopeCode.Job */ AND t.scope_id = ANY(v_ids))
+                OR (t.scope_code = 60 /* TagScopeCode.Schedule */ AND t.scope_id IN (
+                    SELECT s.id FROM acta.schedules s WHERE s.job_id = ANY(v_ids)));
+            DELETE FROM acta.jobs j WHERE j.id = ANY(v_ids);
+        END IF;
+
+    WHEN 2 THEN
+        SELECT array_agg(q.id) INTO v_ids FROM (
+            SELECT id FROM acta.events
+            WHERE
+                namespace_id = p_namespace_id
+                AND created_at_utc <= p_cutoff_utc
+            ORDER BY created_at_utc, id
+            LIMIT p_batch_size
+            FOR UPDATE SKIP LOCKED) q;
+        v_rows := COALESCE(cardinality(v_ids), 0);
+        IF v_rows > 0 THEN
+            DELETE FROM acta.tags
+            WHERE
+                scope_code = 90 /* TagScopeCode.Event */
+                AND scope_id = ANY(v_ids);
+            DELETE FROM acta.events WHERE id = ANY(v_ids);
+        END IF;
+
+    WHEN 3 THEN
+        SELECT array_agg(q.id) INTO v_ids FROM (
+            SELECT id FROM acta.alerts
+            WHERE
+                namespace_id = p_namespace_id
+                AND created_at_utc <= p_cutoff_utc
+                AND delivery_status_code IN (30 /* AlertDeliveryStatusCode.Suppressed */, 100 /* AlertDeliveryStatusCode.Delivered */, 200 /* AlertDeliveryStatusCode.Failed */)
+            ORDER BY created_at_utc, id
+            LIMIT p_batch_size
+            FOR UPDATE SKIP LOCKED) q;
+        v_rows := COALESCE(cardinality(v_ids), 0);
+        IF v_rows > 0 THEN
+            DELETE FROM acta.tags
+            WHERE
+                scope_code = 80 /* TagScopeCode.Alert */
+                AND scope_id = ANY(v_ids);
+            DELETE FROM acta.alerts WHERE id = ANY(v_ids);
+        END IF;
+
+    WHEN 4 THEN
+        SELECT array_agg(q.id) INTO v_ids FROM (
+            SELECT id FROM acta.alerts
+            WHERE
+                namespace_id = p_namespace_id
+                AND created_at_utc <= p_cutoff_utc
+                AND delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */)
+            ORDER BY created_at_utc, id
+            LIMIT p_batch_size
+            FOR UPDATE SKIP LOCKED) q;
+        v_rows := COALESCE(cardinality(v_ids), 0);
+        IF v_rows > 0 THEN
+            DELETE FROM acta.tags
+            WHERE
+                scope_code = 80 /* TagScopeCode.Alert */
+                AND scope_id = ANY(v_ids);
+            DELETE FROM acta.alerts WHERE id = ANY(v_ids);
+        END IF;
+
+    WHEN 5 THEN
+        SELECT j.id INTO v_alerts_slot_id
+        FROM acta.jobs j
+        WHERE
+            j.namespace_id = p_namespace_id
+            AND j.deduplication_key = 'sys.alerts'
+            AND j.parent_id IS NULL;
+        DELETE FROM acta.checkpoints c
+        WHERE (c.job_id, c.kind_code, c.name) IN (
+            SELECT k.job_id, k.kind_code, k.name FROM acta.checkpoints k
+            WHERE
+                k.job_id = v_alerts_slot_id
+                AND k.kind_code = 10 /* JobCheckpointKindCode.Variable */
+                AND k.name LIKE 'alerts-skip-%'
+                AND k.modified_at_utc <= p_cutoff_utc
+            LIMIT p_batch_size);
+        GET DIAGNOSTICS v_rows = ROW_COUNT;
+
+    WHEN 6 THEN
+        SELECT array_agg(q.id) INTO v_ids FROM (
+            SELECT id FROM acta.workers
+            WHERE
+                namespace_id = p_namespace_id
+                AND status_code IN (100 /* WorkerStatusCode.Stopped */, 200 /* WorkerStatusCode.Dead */)
+                AND last_seen_at_utc <= p_cutoff_utc
+            ORDER BY last_seen_at_utc, id
+            LIMIT p_batch_size
+            FOR UPDATE SKIP LOCKED) q;
+        v_rows := COALESCE(cardinality(v_ids), 0);
+        IF v_rows > 0 THEN
+            DELETE FROM acta.tags
+            WHERE
+                scope_code = 70 /* TagScopeCode.Worker */
+                AND scope_id = ANY(v_ids);
+            DELETE FROM acta.workers WHERE id = ANY(v_ids);
+        END IF;
+
+    WHEN 7 THEN
+        -- Stage the batch into a variable first (same shape as the sections above): a SKIP LOCKED
+        -- subquery inlined into the DELETE may be re-evaluated per outer row, locking a different
+        -- row each probe and deleting past the batch size.
+        SELECT array_agg(q.lock_key) INTO v_lock_keys FROM (
+            SELECT lock_key FROM acta.locks
+            WHERE
+                expires_at_utc <= p_cutoff_utc
+            ORDER BY expires_at_utc
+            LIMIT p_batch_size
+            FOR UPDATE SKIP LOCKED) q;
+        DELETE FROM acta.locks WHERE lock_key = ANY(v_lock_keys);
+        GET DIAGNOSTICS v_rows = ROW_COUNT;
+
+    WHEN 8 THEN
+        -- Unreferenced lanes, locked in id order skipping a lane an enqueue or settle holds, then
+        -- re-checked under the lock (docs/internals/sql-execution-policy.md, "Lane lock order").
+        SELECT array_agg(q.id) INTO v_ids FROM (
+            SELECT l.id FROM acta.lanes l
+            WHERE
+                l.namespace_id = p_namespace_id
+                AND NOT EXISTS (SELECT 1 FROM acta.runtimes r WHERE r.lane_id = l.id)
+            ORDER BY l.id
+            LIMIT p_batch_size
+            FOR UPDATE SKIP LOCKED) q;
+        DELETE FROM acta.lanes l
+        WHERE
+            l.id = ANY(v_ids)
+            AND NOT EXISTS (SELECT 1 FROM acta.runtimes r WHERE r.lane_id = l.id);
+        GET DIAGNOSTICS v_rows = ROW_COUNT;
+    END CASE;
+
+    RETURN QUERY SELECT v_rows;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION acta.purge_job(
     p_id BIGINT,
     p_actor_code SMALLINT,
@@ -4155,679 +4308,187 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION acta.reprioritize_job(
-    p_id BIGINT,
-    p_priority_code SMALLINT,
-    p_actor_code SMALLINT,
-    p_actor_key VARCHAR,
-    p_reason_code SMALLINT,
-    p_reason_message VARCHAR,
-    p_expected_version INT DEFAULT NULL
+CREATE OR REPLACE FUNCTION acta.raise_job_alert(
+    p_namespace_name VARCHAR,
+    p_job_id BIGINT,
+    p_origin_code SMALLINT,
+    p_severity_code SMALLINT,
+    p_kind_code SMALLINT,
+    p_title VARCHAR,
+    p_message VARCHAR,
+    p_channel_name VARCHAR,
+    p_delivery_status_code SMALLINT,
+    p_dedupe_key VARCHAR,
+    p_source_event_id BIGINT,
+    p_alert_ref UUID
 )
-RETURNS TABLE (action SMALLINT, status_code SMALLINT, version INT)
+-- out_-prefixed (RegisterScheduledJobs precedent): RETURNS TABLE names become plpgsql variables, and
+-- bare column names would make every occurrence_count / last_projected_event_id reference ambiguous.
+RETURNS TABLE (out_occurrence_count INT, out_last_projected_event_id BIGINT)
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_from_status SMALLINT;
-    v_version INT;
-    v_namespace_id INT;
-    v_lineage BIGINT;
-    v_definition INT;
-    v_tenant INT;
-    v_en INT;
-    v_audit SMALLINT;
+    v_occurrence_count INT;
+    v_last_projected_event_id BIGINT;
+    v_ns INT;
     v_job_ref UUID;
-    v_lane_id BIGINT;
 BEGIN
-    -- Lock order: the lane, then the job's rows (docs/internals/sql-execution-policy.md, "Lane lock
-    -- order"). lane_id never changes, so the unlocked read is safe.
-    SELECT r.lane_id INTO v_lane_id
-    FROM acta.runtimes r
-    WHERE r.job_id = p_id;
 
-    IF v_lane_id IS NOT NULL THEN
-        PERFORM 1
-        FROM acta.lanes l
-        WHERE l.id = v_lane_id
-        FOR UPDATE;
+    SELECT id INTO v_ns FROM acta.namespaces WHERE name = p_namespace_name;
+    IF v_ns IS NULL THEN
+        RAISE EXCEPTION 'raise_job_alert: unknown namespace ''%''', p_namespace_name;
     END IF;
 
-    SELECT r.status_code, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id, r.execution_number, j.audit_level_code, j.job_ref, r.version
-    INTO v_from_status, v_namespace_id, v_lineage, v_definition, v_tenant, v_en, v_audit, v_job_ref, v_version
-    FROM acta.jobs j
-    JOIN acta.runtimes r ON r.job_id = j.id
-    WHERE j.id = p_id
-    FOR UPDATE;
+    -- The job row is locked before any of its alert rows, the order purge_job takes with FOR UPDATE
+    -- (docs/internals/sql-execution-policy.md, "Alert lock order"), so a raise waits out a purge of its job
+    -- rather than landing an alert on the deleted job. FOR SHARE, not FOR KEY SHARE: see that section.
+    SELECT job_ref INTO v_job_ref FROM acta.jobs WHERE id = p_job_id FOR SHARE;
 
-    IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT, NULL::INT;
-        RETURN;
+    IF p_job_id IS NOT NULL AND v_job_ref IS NULL THEN
+        RAISE EXCEPTION 'ACTA:ALERT_UNKNOWN_JOB:raise_job_alert: unknown job id'
+            USING ERRCODE = 'P0001';
     END IF;
 
-    IF p_expected_version IS NOT NULL AND v_version <> p_expected_version THEN
-        RETURN QUERY SELECT 5 /* ControlAction.VersionConflict */::SMALLINT, v_from_status, v_version;
-        RETURN;
-    END IF;
-
-    IF v_from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN
-        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status, v_version;
-        RETURN;
-    END IF;
-
-    UPDATE acta.runtimes AS r
-    SET
-        priority_code = p_priority_code,
-        modified_at_utc = now(),
-        version = r.version + 1
-    WHERE r.job_id = p_id;
-
-    IF v_audit = 20 /* JobAuditLevelCode.Audit */ THEN
-        INSERT INTO acta.events (
-            event_code,
-            created_at_utc,
+    IF p_dedupe_key IS NULL THEN
+        INSERT INTO acta.alerts (
             namespace_id,
-            actor_code,
-            actor_key,
+            alert_ref,
             job_id,
             job_ref,
-            execution_number,
-            lineage_root_id,
-            definition_id,
-            tenant_id,
-            worker_id,
-            from_status_code,
-            to_status_code,
-            execution_status_code,
-            duration_ms,
-            reason_code,
-            reason_message)
-        VALUES (
-            74 /* EventCode.JobReprioritized */,
-            now(),
-            v_namespace_id,
-            p_actor_code,
-            p_actor_key,
-            p_id,
-            v_job_ref,
-            v_en,
-            COALESCE(v_lineage, p_id),
-            v_definition,
-            v_tenant,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            p_reason_code,
-            p_reason_message);
-    END IF;
-
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_from_status, v_version + 1;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION acta.reschedule_job(
-    p_id BIGINT,
-    p_next_run_at_utc TIMESTAMPTZ,
-    p_actor_code SMALLINT,
-    p_actor_key VARCHAR,
-    p_reason_code SMALLINT,
-    p_reason_message VARCHAR,
-    p_expected_version INT DEFAULT NULL
-)
-RETURNS TABLE (action SMALLINT, status_code SMALLINT, version INT)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_from_status SMALLINT;
-    v_version INT;
-    v_namespace_id INT;
-    v_lineage BIGINT;
-    v_definition INT;
-    v_tenant INT;
-    v_en INT;
-    v_audit SMALLINT;
-    v_job_ref UUID;
-    v_lane_id BIGINT;
-    v_to_status SMALLINT := 10 /* JobStatusCode.Ready */;
-BEGIN
-    -- Lock order: the lane, then the job's rows (docs/internals/sql-execution-policy.md, "Lane lock
-    -- order"). lane_id never changes, so the unlocked read is safe.
-    SELECT r.lane_id INTO v_lane_id
-    FROM acta.runtimes r
-    WHERE r.job_id = p_id;
-
-    IF v_lane_id IS NOT NULL THEN
-        PERFORM 1
-        FROM acta.lanes l
-        WHERE l.id = v_lane_id
-        FOR UPDATE;
-    END IF;
-
-    SELECT r.status_code, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id, r.execution_number, j.audit_level_code, j.job_ref, r.version
-    INTO v_from_status, v_namespace_id, v_lineage, v_definition, v_tenant, v_en, v_audit, v_job_ref, v_version
-    FROM acta.jobs j
-    JOIN acta.runtimes r ON r.job_id = j.id
-    WHERE j.id = p_id
-    FOR UPDATE;
-
-    IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT, NULL::INT;
-        RETURN;
-    END IF;
-
-    IF p_expected_version IS NOT NULL AND v_version <> p_expected_version THEN
-        RETURN QUERY SELECT 5 /* ControlAction.VersionConflict */::SMALLINT, v_from_status, v_version;
-        RETURN;
-    END IF;
-
-    IF v_from_status NOT IN (
-        30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */
-    ) THEN
-        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status, v_version;
-        RETURN;
-    END IF;
-
-    -- A laned job is rescheduled Ready unless another member runs, or it was not running and an older member
-    -- is unfinished (docs/internals/sql-execution-policy.md, "Lane lock order").
-    IF v_lane_id IS NOT NULL AND EXISTS (
-        SELECT 1
-        FROM acta.runtimes o
-        WHERE
-            o.lane_id = v_lane_id
-            AND o.lane_id IS NOT NULL
-            AND o.status_code IN (
-                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-            )
-            AND o.job_id <> p_id
-            AND (
-                o.status_code IN (
-                    10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
-                    40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-                )
-                OR (
-                    v_from_status NOT IN (
-                        10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */, 40 /* JobStatusCode.Dispatched */
-                    )
-                    AND o.job_id < p_id
-                )
-            )
-    ) THEN
-        v_to_status := 15 /* JobStatusCode.Blocked */;
-    END IF;
-
-    UPDATE acta.runtimes AS r
-    SET
-        next_run_at_utc = p_next_run_at_utc,
-        status_code = v_to_status,
-        modified_at_utc = now(),
-        version = r.version + 1
-    WHERE r.job_id = p_id;
-
-    IF v_audit = 20 /* JobAuditLevelCode.Audit */ THEN
-        INSERT INTO acta.events (
-            event_code,
+            origin_code,
+            severity_code,
+            kind_code,
+            title,
+            message,
+            channel_name,
+            dedupe_key,
+            occurrence_count,
+            last_projected_event_id,
+            delivery_status_code,
+            retry_count,
             created_at_utc,
-            namespace_id,
-            actor_code,
-            actor_key,
-            job_id,
-            job_ref,
-            execution_number,
-            lineage_root_id,
-            definition_id,
-            tenant_id,
-            worker_id,
-            from_status_code,
-            to_status_code,
-            execution_status_code,
-            duration_ms,
-            reason_code,
-            reason_message)
+            modified_at_utc,
+            version)
         VALUES (
-            61 /* EventCode.JobRescheduled */,
-            now(),
-            v_namespace_id,
-            p_actor_code,
-            p_actor_key,
-            p_id,
+            v_ns,
+            p_alert_ref,
+            p_job_id,
             v_job_ref,
-            v_en,
-            COALESCE(v_lineage, p_id),
-            v_definition,
-            v_tenant,
+            p_origin_code,
+            p_severity_code,
+            p_kind_code,
+            p_title,
+            p_message,
+            p_channel_name,
             NULL,
-            v_from_status,
-            v_to_status,
-            NULL,
-            NULL,
-            p_reason_code,
-            p_reason_message);
-    END IF;
-
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_to_status, v_version + 1;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION acta.reset_job_state(
-    p_id BIGINT
-)
-RETURNS INT
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_status SMALLINT;
-    v_namespace_id INT;
-    v_lineage_root_id BIGINT;
-    v_definition_id INT;
-    v_tenant_id INT;
-    v_execution_number INT;
-    v_audit_level SMALLINT;
-    v_job_ref UUID;
-BEGIN
-    SELECT r.status_code, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id, r.execution_number, j.audit_level_code, j.job_ref
-    INTO v_status, v_namespace_id, v_lineage_root_id, v_definition_id, v_tenant_id, v_execution_number, v_audit_level, v_job_ref
-    FROM acta.runtimes r
-    JOIN acta.jobs j ON j.id = r.job_id
-    WHERE r.job_id = p_id
-    FOR UPDATE OF r;
-
-    IF NOT FOUND THEN
-        RETURN 1;
-    END IF;
-
-    DELETE FROM acta.checkpoints WHERE job_id = p_id;
-    DELETE FROM acta.steps WHERE job_id = p_id;
-    DELETE FROM acta.results WHERE job_id = p_id;
-
-    IF v_audit_level = 20 /* JobAuditLevelCode.Audit */ THEN
-        INSERT INTO acta.events (
-            event_code,
-            created_at_utc,
-            namespace_id,
-            actor_code,
-            actor_key,
-            job_id,
-            job_ref,
-            execution_number,
-            lineage_root_id,
-            definition_id,
-            tenant_id,
-            worker_id,
-            from_status_code,
-            to_status_code,
-            execution_status_code,
-            duration_ms,
-            reason_code,
-            reason_message)
-        VALUES (
-            81 /* EventCode.JobStateReset */,
+            1,
+            p_source_event_id,
+            p_delivery_status_code,
+            0,
             now(),
-            v_namespace_id,
-            50 /* ActorCode.Job */,
-            p_id::varchar,
-            p_id,
-            v_job_ref,
-            v_execution_number,
-            COALESCE(v_lineage_root_id, p_id),
-            v_definition_id,
-            v_tenant_id,
-            NULL,
-            v_status,
-            v_status,
-            NULL,
-            NULL,
-            NULL,
-            NULL);
+            now(),
+            0);
+        RETURN QUERY SELECT 1, p_source_event_id;
+        RETURN;
     END IF;
 
-    RETURN 1;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION acta.restart_job(
-    p_id BIGINT,
-    p_actor_code SMALLINT,
-    p_actor_key VARCHAR,
-    p_reason_code SMALLINT,
-    p_reason_message VARCHAR,
-    p_next_run_at_utc TIMESTAMPTZ DEFAULT NULL,
-    p_expected_version INT DEFAULT NULL
-)
-RETURNS TABLE (action SMALLINT, status_code SMALLINT, version INT)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_from_status SMALLINT;
-    v_version INT;
-    v_namespace_id INT;
-    v_lineage_root_id BIGINT;
-    v_definition_id INT;
-    v_tenant_id INT;
-    v_execution_number INT;
-    v_audit_level SMALLINT;
-    v_job_ref UUID;
-    v_parent_id BIGINT;
-    v_lane_id BIGINT;
-    v_to_status SMALLINT := 10 /* JobStatusCode.Ready */;
-BEGIN
-    -- Lock order: the lane, then the job's rows (docs/internals/sql-execution-policy.md, "Lane lock
-    -- order"). lane_id never changes, so the unlocked read is safe.
-    SELECT r.lane_id INTO v_lane_id
-    FROM acta.runtimes r
-    WHERE r.job_id = p_id;
-
-    IF v_lane_id IS NOT NULL THEN
-        PERFORM 1
-        FROM acta.lanes l
-        WHERE l.id = v_lane_id
-        FOR UPDATE;
-    END IF;
-
+    -- One OPEN row per (namespace_id, dedupe_key) - the incident. INSERT ... SELECT rather than VALUES
+    -- so the insert arm can carry the ghost guard below.
+    INSERT INTO acta.alerts (
+        namespace_id,
+        alert_ref,
+        job_id,
+        job_ref,
+        origin_code,
+        severity_code,
+        kind_code,
+        title,
+        message,
+        channel_name,
+        dedupe_key,
+        occurrence_count,
+        last_projected_event_id,
+        delivery_status_code,
+        retry_count,
+        created_at_utc,
+        modified_at_utc,
+        version)
     SELECT
-        r.status_code, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id, r.execution_number,
-        j.audit_level_code, j.job_ref, r.version, j.parent_id
-    INTO
-        v_from_status, v_namespace_id, v_lineage_root_id, v_definition_id, v_tenant_id, v_execution_number,
-        v_audit_level, v_job_ref, v_version, v_parent_id
-    FROM acta.runtimes r
-    JOIN acta.jobs j ON j.id = r.job_id
-    WHERE r.job_id = p_id
-    FOR UPDATE OF r;
-
-    IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT, NULL::INT;
-        RETURN;
-    END IF;
-
-    IF p_expected_version IS NOT NULL AND v_version <> p_expected_version THEN
-        RETURN QUERY SELECT 5 /* ControlAction.VersionConflict */::SMALLINT, v_from_status, v_version;
-        RETURN;
-    END IF;
-
-    IF v_from_status = 50 /* JobStatusCode.Executing */ THEN
-        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status, v_version;
-        RETURN;
-    END IF;
-
-    -- A finished laned job is not reactivated while an unfinished ancestor or descendant sits in its lane,
-    -- the state the enqueue ancestor guard refuses (docs/internals/sql-execution-policy.md, "Lane lock order").
-    IF v_lane_id IS NOT NULL
-        AND v_from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-        AND EXISTS (
-            WITH RECURSIVE
-                ancestors AS (
-                    SELECT a.id, a.parent_id
-                    FROM acta.jobs a
-                    WHERE a.id = v_parent_id
-                    UNION ALL
-                    SELECT a.id, a.parent_id
-                    FROM acta.jobs a
-                    INNER JOIN ancestors c ON a.id = c.parent_id
-                ),
-                descendants AS (
-                    SELECT d.id
-                    FROM acta.jobs d
-                    WHERE d.parent_id = p_id
-                    UNION ALL
-                    SELECT d.id
-                    FROM acta.jobs d
-                    INNER JOIN descendants c ON d.parent_id = c.id
-                ),
-                lineage AS (
-                    SELECT a.id FROM ancestors a
-                    UNION ALL
-                    SELECT d.id FROM descendants d
-                )
-            SELECT 1
-            FROM lineage c
-            INNER JOIN acta.runtimes lr ON lr.job_id = c.id
-            WHERE
-                lr.lane_id = v_lane_id
-                AND lr.status_code IN (
-                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                    30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-                )
-        ) THEN
-        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status, v_version;
-        RETURN;
-    END IF;
-
-    -- A laned job restarts Ready unless another member runs, or it was not running and an older member
-    -- is unfinished (docs/internals/sql-execution-policy.md, "Lane lock order").
-    IF v_lane_id IS NOT NULL AND EXISTS (
+        v_ns,
+        p_alert_ref,
+        p_job_id,
+        v_job_ref,
+        p_origin_code,
+        p_severity_code,
+        p_kind_code,
+        p_title,
+        p_message,
+        p_channel_name,
+        p_dedupe_key,
+        1,
+        p_source_event_id,
+        p_delivery_status_code,
+        0,
+        now(),
+        now(),
+        0
+    -- Ghost guard: a failure replayed after its incident closed must not open one behind the events
+    -- this identity has already absorbed - which is why it compares against every row of the identity,
+    -- not just an open one. NULL, hence never blocking, for a manual raise, which carries no event.
+    WHERE NOT EXISTS (
         SELECT 1
-        FROM acta.runtimes o
+        FROM acta.alerts g
         WHERE
-            o.lane_id = v_lane_id
-            AND o.lane_id IS NOT NULL
-            AND o.status_code IN (
-                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-            )
-            AND o.job_id <> p_id
-            AND (
-                o.status_code IN (
-                    10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
-                    40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-                )
-                OR (
-                    v_from_status NOT IN (
-                        10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */, 40 /* JobStatusCode.Dispatched */
-                    )
-                    AND o.job_id < p_id
-                )
-            )
-    ) THEN
-        v_to_status := 15 /* JobStatusCode.Blocked */;
-    END IF;
-
-    UPDATE acta.runtimes AS r
-    SET
-        status_code = v_to_status,
-        failure_count = 0,
-        next_run_at_utc = COALESCE(p_next_run_at_utc, now()),
-        leased_by_worker_id = NULL,
-        lease_expires_at_utc = NULL,
-        retention_until_utc = NULL,
+            g.namespace_id = v_ns
+            AND g.dedupe_key = p_dedupe_key
+            AND g.last_projected_event_id >= p_source_event_id
+    )
+    -- The conflict target is the filtered unique index, so a resolved row is invisible to it and the
+    -- next failure opens a fresh incident instead of re-opening the closed one.
+    ON CONFLICT (namespace_id, dedupe_key) WHERE dedupe_key IS NOT NULL AND resolved_at_utc IS NULL
+    DO UPDATE SET
+        job_id = EXCLUDED.job_id,
+        job_ref = EXCLUDED.job_ref,
+        origin_code = EXCLUDED.origin_code,
+        severity_code = EXCLUDED.severity_code,
+        kind_code = EXCLUDED.kind_code,
+        title = EXCLUDED.title,
+        message = EXCLUDED.message,
+        channel_name = EXCLUDED.channel_name,
+        occurrence_count = acta.alerts.occurrence_count + 1,
+        last_projected_event_id = COALESCE(EXCLUDED.last_projected_event_id, acta.alerts.last_projected_event_id),
         modified_at_utc = now(),
-        version = r.version + 1
-    WHERE r.job_id = p_id;
-
-    -- An exhausted step runs again from a fresh budget and retry window; an interrupted at-most-once
-    -- step stays, since only someone who reconciled its outcome can say it may run again.
-    DELETE FROM acta.steps s
+        version = acta.alerts.version + 1
     WHERE
-        s.job_id = p_id
-        AND s.status_code = 200 /* JobStepStatusCode.Exhausted */;
+        p_source_event_id IS NULL
+        OR acta.alerts.last_projected_event_id IS NULL
+        OR p_source_event_id > acta.alerts.last_projected_event_id
+    RETURNING occurrence_count, last_projected_event_id INTO v_occurrence_count, v_last_projected_event_id;
 
-    IF v_audit_level = 20 /* JobAuditLevelCode.Audit */ THEN
-        INSERT INTO acta.events (
-            event_code,
-            created_at_utc,
-            namespace_id,
-            actor_code,
-            actor_key,
-            job_id,
-            job_ref,
-            execution_number,
-            lineage_root_id,
-            definition_id,
-            tenant_id,
-            worker_id,
-            from_status_code,
-            to_status_code,
-            execution_status_code,
-            duration_ms,
-            reason_code,
-            reason_message)
-        VALUES (
-            73 /* EventCode.JobRestarted */,
-            now(),
-            v_namespace_id,
-            p_actor_code,
-            p_actor_key,
-            p_id,
-            v_job_ref,
-            v_execution_number,
-            COALESCE(v_lineage_root_id, p_id),
-            v_definition_id,
-            v_tenant_id,
-            NULL,
-            v_from_status,
-            v_to_status,
-            NULL,
-            NULL,
-            p_reason_code,
-            p_reason_message);
-    END IF;
-
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_to_status, v_version + 1;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION acta.resume_job(
-    p_id BIGINT,
-    p_actor_code SMALLINT,
-    p_actor_key VARCHAR,
-    p_reason_code SMALLINT,
-    p_reason_message VARCHAR,
-    p_next_run_at_utc TIMESTAMPTZ DEFAULT NULL,
-    p_expected_version INT DEFAULT NULL
-)
-RETURNS TABLE (action SMALLINT, status_code SMALLINT, version INT)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_from_status SMALLINT;
-    v_version INT;
-    v_namespace_id INT;
-    v_lineage_root_id BIGINT;
-    v_definition_id INT;
-    v_tenant_id INT;
-    v_execution_number INT;
-    v_audit_level SMALLINT;
-    v_job_ref UUID;
-    v_lane_id BIGINT;
-    v_to_status SMALLINT := 10 /* JobStatusCode.Ready */;
-BEGIN
-    -- Lock order: the lane, then the job's rows (docs/internals/sql-execution-policy.md, "Lane lock
-    -- order"). lane_id never changes, so the unlocked read is safe.
-    SELECT r.lane_id INTO v_lane_id
-    FROM acta.runtimes r
-    WHERE r.job_id = p_id;
-
-    IF v_lane_id IS NOT NULL THEN
-        PERFORM 1
-        FROM acta.lanes l
-        WHERE l.id = v_lane_id
-        FOR UPDATE;
-    END IF;
-
-    SELECT r.status_code, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id, r.execution_number, j.audit_level_code, j.job_ref, r.version
-    INTO v_from_status, v_namespace_id, v_lineage_root_id, v_definition_id, v_tenant_id, v_execution_number, v_audit_level, v_job_ref, v_version
-    FROM acta.runtimes r
-    JOIN acta.jobs j ON j.id = r.job_id
-    WHERE r.job_id = p_id
-    FOR UPDATE OF r;
-
-    IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT, NULL::INT;
-        RETURN;
-    END IF;
-
-    IF p_expected_version IS NOT NULL AND v_version <> p_expected_version THEN
-        RETURN QUERY SELECT 5 /* ControlAction.VersionConflict */::SMALLINT, v_from_status, v_version;
-        RETURN;
-    END IF;
-
-    IF v_from_status <> 30 /* JobStatusCode.Paused */ THEN
-        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status, v_version;
-        RETURN;
-    END IF;
-
-    -- A laned job resumes Ready unless another member runs or an older member is unfinished
-    -- (docs/internals/sql-execution-policy.md, "Lane lock order").
-    IF v_lane_id IS NOT NULL AND EXISTS (
-        SELECT 1
-        FROM acta.runtimes o
+    -- Nothing written: a replay-held update or a ghost-blocked insert. The identity's newest row has
+    -- already absorbed this event or a newer one, so its count and mark let the caller re-assert only
+    -- the escalation this very event earned - never one for a neighbour the incident never counted.
+    IF v_occurrence_count IS NULL THEN
+        SELECT a.occurrence_count, a.last_projected_event_id
+        INTO v_occurrence_count, v_last_projected_event_id
+        FROM acta.alerts a
         WHERE
-            o.lane_id = v_lane_id
-            AND o.lane_id IS NOT NULL
-            AND o.status_code IN (
-                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
-                30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-            )
-            AND o.job_id <> p_id
-            AND (
-                o.status_code IN (
-                    10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
-                    40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
-                )
-                OR o.job_id < p_id
-            )
-    ) THEN
-        v_to_status := 15 /* JobStatusCode.Blocked */;
+            a.namespace_id = v_ns
+            AND a.dedupe_key = p_dedupe_key
+        ORDER BY a.id DESC
+        LIMIT 1;
     END IF;
 
-    UPDATE acta.runtimes AS r
-    SET
-        status_code = v_to_status,
-        next_run_at_utc = COALESCE(p_next_run_at_utc, now()),
-        modified_at_utc = now(),
-        version = r.version + 1
-    WHERE r.job_id = p_id;
-
-    IF v_audit_level = 20 /* JobAuditLevelCode.Audit */ THEN
-        INSERT INTO acta.events (
-            event_code,
-            created_at_utc,
-            namespace_id,
-            actor_code,
-            actor_key,
-            job_id,
-            job_ref,
-            execution_number,
-            lineage_root_id,
-            definition_id,
-            tenant_id,
-            worker_id,
-            from_status_code,
-            to_status_code,
-            execution_status_code,
-            duration_ms,
-            reason_code,
-            reason_message)
-        VALUES (
-            72 /* EventCode.JobResumed */,
-            now(),
-            v_namespace_id,
-            p_actor_code,
-            p_actor_key,
-            p_id,
-            v_job_ref,
-            v_execution_number,
-            COALESCE(v_lineage_root_id, p_id),
-            v_definition_id,
-            v_tenant_id,
-            NULL,
-            30 /* JobStatusCode.Paused */,
-            v_to_status,
-            NULL,
-            NULL,
-            p_reason_code,
-            p_reason_message);
-    END IF;
-
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_to_status, v_version + 1;
+    RETURN QUERY SELECT v_occurrence_count, v_last_projected_event_id;
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION acta.update_job_input(
-    p_id BIGINT,
-    p_input_format_id SMALLINT,
-    p_input BYTEA,
+CREATE OR REPLACE FUNCTION acta.raise_signal(
+    p_job_id BIGINT,
+    p_kind_code SMALLINT,
+    p_name VARCHAR,
+    p_value_format_id SMALLINT,
+    p_value BYTEA,
     p_actor_code SMALLINT,
     p_actor_key VARCHAR,
     p_reason_code SMALLINT,
@@ -4837,19 +4498,28 @@ RETURNS TABLE (action SMALLINT, status_code SMALLINT)
 LANGUAGE plpgsql
 AS $$
 DECLARE
+    v_now TIMESTAMPTZ := now();
+    v_existing SMALLINT;
+    v_expired BOOLEAN := FALSE;
+    v_message VARCHAR;
     v_from_status SMALLINT;
     v_namespace_id INT;
-    v_lineage BIGINT;
-    v_definition INT;
-    v_tenant INT;
-    v_en INT;
-    v_audit SMALLINT;
+    v_lineage_root_id BIGINT;
+    v_definition_id INT;
+    v_tenant_id INT;
+    v_execution_number INT;
+    v_audit_level SMALLINT;
     v_job_ref UUID;
-    v_old_format_id SMALLINT;
-    v_old_input BYTEA;
-    v_detail_format_id SMALLINT := 0 /* JobPayloadFormat.None */;
-    v_detail BYTEA;
 BEGIN
+
+    SELECT js.status_code INTO v_existing
+    FROM acta.checkpoints js
+    WHERE
+        js.job_id = p_job_id
+        AND js.kind_code = p_kind_code
+        AND js.name = p_name
+    FOR UPDATE;
+
     SELECT
         r.status_code,
         j.namespace_id,
@@ -4858,48 +4528,64 @@ BEGIN
         j.tenant_id,
         r.execution_number,
         j.audit_level_code,
-        j.job_ref,
-        j.input_format_id,
-        j.input
-    INTO v_from_status, v_namespace_id, v_lineage, v_definition, v_tenant, v_en, v_audit, v_job_ref, v_old_format_id, v_old_input
-    FROM acta.jobs j
-    JOIN acta.runtimes r ON r.job_id = j.id
-    WHERE j.id = p_id
-    FOR UPDATE;
+        j.job_ref
+    INTO v_from_status, v_namespace_id, v_lineage_root_id, v_definition_id, v_tenant_id, v_execution_number, v_audit_level, v_job_ref
+    FROM acta.runtimes r
+    JOIN acta.jobs j ON j.id = r.job_id
+    WHERE r.job_id = p_job_id
+    FOR UPDATE OF r;
 
-    IF NOT FOUND THEN
+    IF v_from_status IS NULL THEN
         RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT;
         RETURN;
     END IF;
 
-    IF v_from_status IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */) THEN
+    IF v_from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN
         RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status;
         RETURN;
     END IF;
 
-    UPDATE acta.jobs
-    SET
-        input = p_input,
-        input_format_id = p_input_format_id
-    WHERE id = p_id;
+    /* No revival: an Expired slot already resolved the wait TimedOut, so a late raise writes no slot
+       and releases no job. The raise still happened, so it is still recorded: the event below carries
+       a message saying why it changed nothing, and the verb reports the job's unchanged status. */
+    -- COALESCE, not a bare comparison: a first raise has no slot at all, and NULL = 30 is unknown, which
+    -- would skip the upsert below rather than take it.
+    v_expired := COALESCE(v_existing = 30 /* JobCheckpointStatusCode.Expired */, FALSE);
+    v_message := CASE
+        WHEN v_expired
+            THEN LEFT(COALESCE(p_reason_message || ' ', '') || 'Signal not applied: the wait had already expired.', 512)
+        ELSE p_reason_message END;
 
-    IF v_audit = 20 /* JobAuditLevelCode.Audit */ THEN
-        -- The event carries only bounded JSON metadata about the previous payload (format name and
-        -- byte count), never the payload itself, so nothing outlives the job's payload retention.
-        IF v_old_format_id <> 0 /* JobPayloadFormat.None */ THEN
-            v_detail_format_id := 1 /* JobPayloadFormat.Json */;
-            v_detail := convert_to(
-                '{"format":"'
-                    || CASE v_old_format_id
-                        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
-                        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-                        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
-                        ELSE 'custom-' || v_old_format_id::text
-                    END
-                    || '","bytes":' || octet_length(v_old_input)::text || '}',
-                'UTF8');
-        END IF;
+    IF NOT v_expired THEN
+        INSERT INTO acta.checkpoints (
+            job_id,
+            kind_code,
+            name,
+            status_code,
+            value_format_id,
+            value,
+            created_at_utc,
+            modified_at_utc,
+            version)
+        VALUES (
+            p_job_id,
+            p_kind_code,
+            p_name,
+            20 /* JobCheckpointStatusCode.Set */,
+            p_value_format_id,
+            p_value,
+            v_now,
+            v_now,
+            0)
+        ON CONFLICT (job_id, kind_code, name) DO UPDATE SET
+            status_code = 20 /* JobCheckpointStatusCode.Set */,
+            value_format_id = EXCLUDED.value_format_id,
+            value = EXCLUDED.value,
+            modified_at_utc = v_now,
+            version = acta.checkpoints.version + 1;
+    END IF;
 
+    IF v_audit_level = 20 /* JobAuditLevelCode.Audit */ THEN
         INSERT INTO acta.events (
             event_code,
             created_at_utc,
@@ -4917,321 +4603,85 @@ BEGIN
             to_status_code,
             execution_status_code,
             duration_ms,
-            detail_format_id,
-            detail,
             reason_code,
             reason_message)
         VALUES (
-            76 /* EventCode.JobInputAmended */,
-            now(),
+            80 /* EventCode.JobSignalRaised */,
+            v_now,
             v_namespace_id,
             p_actor_code,
             p_actor_key,
-            p_id,
+            p_job_id,
             v_job_ref,
-            v_en,
-            COALESCE(v_lineage, p_id),
-            v_definition,
-            v_tenant,
+            v_execution_number,
+            COALESCE(v_lineage_root_id, p_job_id),
+            v_definition_id,
+            v_tenant_id,
+            NULL,
+            v_from_status,
+            v_from_status,
             NULL,
             NULL,
-            NULL,
-            NULL,
-            NULL,
-            v_detail_format_id,
-            v_detail,
             p_reason_code,
-            p_reason_message);
+            v_message);
+    END IF;
+
+    IF v_from_status = 20 /* JobStatusCode.Suspended */ AND NOT v_expired THEN
+        UPDATE acta.runtimes
+        SET
+            status_code = 10 /* JobStatusCode.Ready */,
+            next_run_at_utc = v_now,
+            modified_at_utc = v_now,
+            version = version + 1
+        WHERE job_id = p_job_id;
+
+        IF v_audit_level = 20 /* JobAuditLevelCode.Audit */ THEN
+            INSERT INTO acta.events (
+                event_code,
+                created_at_utc,
+                namespace_id,
+                actor_code,
+                actor_key,
+                job_id,
+                job_ref,
+                execution_number,
+                lineage_root_id,
+                definition_id,
+                tenant_id,
+                worker_id,
+                from_status_code,
+                to_status_code,
+                execution_status_code,
+                duration_ms,
+                reason_code,
+                reason_message)
+            VALUES (
+                72 /* EventCode.JobResumed */,
+                v_now,
+                v_namespace_id,
+                p_actor_code,
+                p_actor_key,
+                p_job_id,
+                v_job_ref,
+                v_execution_number,
+                COALESCE(v_lineage_root_id, p_job_id),
+                v_definition_id,
+                v_tenant_id,
+                NULL,
+                20 /* JobStatusCode.Suspended */,
+                10 /* JobStatusCode.Ready */,
+                NULL,
+                NULL,
+                p_reason_code,
+                p_reason_message);
+        END IF;
+
+        RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, 10 /* JobStatusCode.Ready */::SMALLINT;
+        RETURN;
     END IF;
 
     RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_from_status;
 END;
-$$;
-
-CREATE OR REPLACE FUNCTION acta.resume_namespace(
-    p_namespace_name VARCHAR,
-    p_actor_code SMALLINT,
-    p_actor_key VARCHAR,
-    p_reason_message VARCHAR
-)
-RETURNS TABLE (action SMALLINT, version INT)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_id INT;
-    v_status SMALLINT;
-    v_version INT;
-BEGIN
-    SELECT n.id, n.status_code, n.version INTO v_id, v_status, v_version
-    FROM acta.namespaces n
-    WHERE n.name = p_namespace_name
-    FOR UPDATE;
-    IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::INT;
-        RETURN;
-    END IF;
-    IF v_status = 10 /* NamespaceStatusCode.Active */ THEN
-        RETURN QUERY SELECT 6 /* ControlAction.AlreadyInState */::SMALLINT, v_version;
-        RETURN;
-    END IF;
-    UPDATE acta.namespaces AS n
-    SET
-        status_code = 10 /* NamespaceStatusCode.Active */,
-        modified_at_utc = now(),
-        version = n.version + 1
-    WHERE n.id = v_id
-    RETURNING n.version INTO v_version;
-    INSERT INTO acta.events (
-        event_code,
-        created_at_utc,
-        namespace_id,
-        actor_code,
-        actor_key,
-        job_id,
-        job_ref,
-        execution_number,
-        lineage_root_id,
-        definition_id,
-        tenant_id,
-        worker_id,
-        from_status_code,
-        to_status_code,
-        execution_status_code,
-        duration_ms,
-        reason_code,
-        reason_message)
-    VALUES (
-        21 /* EventCode.NamespaceResumed */,
-        now(),
-        v_id,
-        p_actor_code,
-        p_actor_key,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        p_reason_message);
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_version;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION acta.suspend_namespace(
-    p_namespace_name VARCHAR,
-    p_actor_code SMALLINT,
-    p_actor_key VARCHAR,
-    p_reason_message VARCHAR
-)
-RETURNS TABLE (action SMALLINT, version INT)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_id INT;
-    v_status SMALLINT;
-    v_version INT;
-BEGIN
-    SELECT n.id, n.status_code, n.version INTO v_id, v_status, v_version
-    FROM acta.namespaces n
-    WHERE n.name = p_namespace_name
-    FOR UPDATE;
-
-    IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::INT;
-        RETURN;
-    END IF;
-
-    IF v_status = 20 /* NamespaceStatusCode.Suspended */ THEN
-        RETURN QUERY SELECT 6 /* ControlAction.AlreadyInState */::SMALLINT, v_version;
-        RETURN;
-    END IF;
-
-    UPDATE acta.namespaces AS n
-    SET
-        status_code = 20 /* NamespaceStatusCode.Suspended */,
-        modified_at_utc = now(),
-        version = n.version + 1
-    WHERE n.id = v_id
-    RETURNING n.version INTO v_version;
-
-    INSERT INTO acta.events (
-        event_code,
-        created_at_utc,
-        namespace_id,
-        actor_code,
-        actor_key,
-        job_id,
-        job_ref,
-        execution_number,
-        lineage_root_id,
-        definition_id,
-        tenant_id,
-        worker_id,
-        from_status_code,
-        to_status_code,
-        execution_status_code,
-        duration_ms,
-        reason_code,
-        reason_message)
-    VALUES (
-        20 /* EventCode.NamespaceSuspended */,
-        now(),
-        v_id,
-        p_actor_code,
-        p_actor_key,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        p_reason_message);
-
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_version;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION acta.update_namespace(
-    p_namespace_name VARCHAR,
-    p_owner_team VARCHAR,
-    p_description VARCHAR,
-    p_expected_version INT,
-    p_actor_code SMALLINT,
-    p_actor_key VARCHAR,
-    p_reason_message VARCHAR
-)
-RETURNS TABLE (action SMALLINT, version INT)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_id INT;
-    v_version INT;
-BEGIN
-    SELECT n.id, n.version INTO v_id, v_version
-    FROM acta.namespaces n
-    WHERE n.name = p_namespace_name
-    FOR UPDATE;
-
-    IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::INT;
-        RETURN;
-    END IF;
-
-    IF v_version <> p_expected_version THEN
-        RETURN QUERY SELECT 5 /* ControlAction.VersionConflict */::SMALLINT, v_version;
-        RETURN;
-    END IF;
-
-    UPDATE acta.namespaces AS n
-    SET
-        owner_team = p_owner_team,
-        description = p_description,
-        modified_at_utc = now(),
-        version = n.version + 1
-    WHERE n.id = v_id
-    RETURNING n.version INTO v_version;
-
-    INSERT INTO acta.events (
-        event_code,
-        created_at_utc,
-        namespace_id,
-        actor_code,
-        actor_key,
-        job_id,
-        job_ref,
-        execution_number,
-        lineage_root_id,
-        definition_id,
-        tenant_id,
-        worker_id,
-        from_status_code,
-        to_status_code,
-        execution_status_code,
-        duration_ms,
-        reason_code,
-        reason_message)
-    VALUES (
-        22 /* EventCode.NamespaceUpdated */,
-        now(),
-        v_id,
-        p_actor_code,
-        p_actor_key,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        p_reason_message);
-
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_version;
-END;
-$$;
-
--- Appends one application-authored job.note-recorded event; see IExecutionStore.RecordJobNoteAsync.
-
-CREATE OR REPLACE FUNCTION acta.record_job_note(
-    p_job_id BIGINT,
-    p_execution_number INT,
-    p_reason_message VARCHAR,
-    p_detail_format_id SMALLINT,
-    p_detail BYTEA
-)
-RETURNS TABLE (inserted INT)
-LANGUAGE sql
-AS $$
-WITH inserted AS (
-    INSERT INTO acta.events (
-        event_code,
-        created_at_utc,
-        namespace_id,
-        actor_code,
-        job_id,
-        job_ref,
-        execution_number,
-        lineage_root_id,
-        definition_id,
-        tenant_id,
-        detail_format_id,
-        detail,
-        reason_message)
-    SELECT
-        90 /* EventCode.JobNoteRecorded */,
-        now(),
-        j.namespace_id,
-        50 /* ActorCode.Job */,
-        j.id,
-        j.job_ref,
-        p_execution_number,
-        COALESCE(j.lineage_root_id, j.id),
-        j.definition_id,
-        j.tenant_id,
-        p_detail_format_id,
-        p_detail,
-        p_reason_message
-    FROM acta.jobs j
-    WHERE j.id = p_job_id
-    RETURNING 1
-)
-SELECT count(*)::INT AS inserted FROM inserted;
 $$;
 
 CREATE OR REPLACE FUNCTION acta.reclaim_stuck_jobs(
@@ -5601,41 +5051,67 @@ BEGIN
 END;
 $$;
 
--- Re-arms one namespace's sys.recovery slot when it is stranded; see IExecutionStore.RepairRecoverySlotAsync.
-CREATE OR REPLACE FUNCTION acta.repair_recovery_slot(
-    p_namespace_id INT,
-    p_job_id BIGINT
+-- Appends one application-authored job.note-recorded event; see IExecutionStore.RecordJobNoteAsync.
+
+CREATE OR REPLACE FUNCTION acta.record_job_note(
+    p_job_id BIGINT,
+    p_execution_number INT,
+    p_reason_message VARCHAR,
+    p_detail_format_id SMALLINT,
+    p_detail BYTEA
 )
-RETURNS TABLE (outcome INT)
+RETURNS TABLE (inserted INT)
 LANGUAGE sql
 AS $$
-WITH target AS (
-    -- Locked and read before the update so the event can say which in-flight state the slot was in.
-    SELECT r.job_id, r.execution_number, r.status_code AS from_status
-    FROM acta.runtimes r
-    WHERE
-        r.job_id = p_job_id
-        AND r.namespace_id = p_namespace_id
-        AND r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
-        AND r.lease_expires_at_utc IS NOT NULL
-        AND r.lease_expires_at_utc < now()
-    FOR UPDATE
-),
-repaired AS (
-    UPDATE acta.runtimes r
-    SET
-        status_code = 10 /* JobStatusCode.Ready */,
-        next_run_at_utc = now(),
-        failure_count = r.failure_count + 1,
-        leased_by_worker_id = NULL,
-        lease_expires_at_utc = NULL,
-        modified_at_utc = now(),
-        version = r.version + 1
-    FROM target t
-    WHERE r.job_id = t.job_id
-    RETURNING r.job_id, t.execution_number, t.from_status
-),
-event_insert AS (
+WITH inserted AS (
+    INSERT INTO acta.events (
+        event_code,
+        created_at_utc,
+        namespace_id,
+        actor_code,
+        job_id,
+        job_ref,
+        execution_number,
+        lineage_root_id,
+        definition_id,
+        tenant_id,
+        detail_format_id,
+        detail,
+        reason_message)
+    SELECT
+        90 /* EventCode.JobNoteRecorded */,
+        now(),
+        j.namespace_id,
+        50 /* ActorCode.Job */,
+        j.id,
+        j.job_ref,
+        p_execution_number,
+        COALESCE(j.lineage_root_id, j.id),
+        j.definition_id,
+        j.tenant_id,
+        p_detail_format_id,
+        p_detail,
+        p_reason_message
+    FROM acta.jobs j
+    WHERE j.id = p_job_id
+    RETURNING 1
+)
+SELECT count(*)::INT AS inserted FROM inserted;
+$$;
+
+-- Appends the applied-command evidence event against the sys.outbox slot job. Always emitted (no
+-- audit-level gate): this is the trail for actions whose subject rows live in the producer's database.
+CREATE OR REPLACE FUNCTION acta.record_outbox_event(
+    p_job_id BIGINT,
+    p_event_code SMALLINT,
+    p_actor_code SMALLINT,
+    p_actor_key VARCHAR,
+    p_reason_message VARCHAR
+)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+BEGIN
     INSERT INTO acta.events (
         event_code,
         created_at_utc,
@@ -5648,161 +5124,196 @@ event_insert AS (
         lineage_root_id,
         definition_id,
         tenant_id,
-        worker_id,
-        from_status_code,
-        to_status_code,
-        execution_status_code,
-        duration_ms,
-        reason_code,
         reason_message)
     SELECT
-        41 /* EventCode.JobExecutionFinished */,
+        p_event_code,
         now(),
         j.namespace_id,
-        10 /* ActorCode.Sys */,
-        NULL,
+        p_actor_code,
+        p_actor_key,
         j.id,
         j.job_ref,
-        x.execution_number,
+        r.execution_number,
         COALESCE(j.lineage_root_id, j.id),
         j.definition_id,
         j.tenant_id,
-        NULL,
-        x.from_status,
-        10 /* JobStatusCode.Ready */,
-        230 /* ExecutionStatusCode.Orphaned */,
-        NULL,
-        21 /* JobEventReasonCode.JobLeaseExpired */,
-        'Worker lease expired on the recovery slot; re-armed by a worker''s recovery monitor.'
-    FROM repaired x
-    JOIN acta.jobs j ON j.id = x.job_id
-    RETURNING 1
-)
-SELECT CASE
-    WHEN EXISTS (SELECT 1 FROM repaired) THEN 2 /* RecoverySlotRepair.Repaired */
-    WHEN EXISTS (SELECT 1 FROM acta.runtimes r WHERE r.job_id = p_job_id AND r.namespace_id = p_namespace_id) THEN 1 /* RecoverySlotRepair.Healthy */
-    ELSE 0 /* RecoverySlotRepair.Missing */ END AS outcome;
+        p_reason_message
+    FROM acta.jobs j
+    JOIN acta.runtimes r ON r.job_id = j.id
+    WHERE j.id = p_job_id;
+END;
 $$;
 
-CREATE OR REPLACE FUNCTION acta.pause_schedule(
-    p_job_id BIGINT,
-    p_name VARCHAR,
-    p_paused_until_utc TIMESTAMPTZ,
-    p_job_next_run_at_utc TIMESTAMPTZ,
-    p_actor_code SMALLINT,
-    p_actor_key VARCHAR,
-    p_reason_message VARCHAR
+CREATE OR REPLACE FUNCTION acta.register_job_definitions(
+    p_namespace_id INT,
+    p_manifest_generation TIMESTAMPTZ,
+    p_d_name VARCHAR [],
+    p_d_priority_code SMALLINT [],
+    p_d_max_attempts INT [],
+    p_d_concurrency_limit INT [],
+    p_d_rate_limit VARCHAR [],
+    p_d_rate_key VARCHAR [],
+    p_d_backoff VARCHAR [],
+    p_d_execution_timeout INT [],
+    p_d_deadline_seconds INT [],
+    p_d_deadline_behavior SMALLINT [],
+    p_d_job_retention INT [],
+    p_d_input_type_name VARCHAR [],
+    p_d_output_type_name VARCHAR [],
+    p_d_input_format_id SMALLINT [],
+    p_d_input_format_name VARCHAR [],
+    p_d_output_format_id SMALLINT [],
+    p_d_output_format_name VARCHAR [],
+    p_d_audit_level_code SMALLINT [],
+    p_d_alert_profile_code SMALLINT [],
+    p_d_tenant_requirement SMALLINT [],
+    p_d_alert_channel_name VARCHAR [],
+    p_d_runbook_url VARCHAR [],
+    p_d_display_name VARCHAR [],
+    p_d_description VARCHAR [],
+    p_d_definition_hash VARCHAR [],
+    p_d_lane VARCHAR [] DEFAULT NULL
 )
-RETURNS TABLE (
-    out_action SMALLINT, out_status_code SMALLINT, out_paused_until_utc TIMESTAMPTZ, out_next_run_at_utc TIMESTAMPTZ, out_version INT
-)
+
+RETURNS TABLE (def_name VARCHAR, def_id INT)
 LANGUAGE plpgsql
 AS $$
-DECLARE
-    v_schedule_id BIGINT;
-    v_status SMALLINT;
-    v_paused TIMESTAMPTZ;
-    v_next TIMESTAMPTZ;
-    v_version INT;
-    v_ns INT;
-    v_def INT;
-    v_lineage BIGINT;
-    v_en INT;
-    v_audit SMALLINT;
-    v_job_ref UUID;
 BEGIN
-    /* Lock the slot's runtimes row before the schedules row: register_scheduled_jobs writes
-       runtimes then schedules, so every writer of both must take runtimes first. */
-    SELECT r.execution_number
-    INTO v_en
-    FROM acta.runtimes r
-    WHERE r.job_id = p_job_id
-    FOR UPDATE;
-
-    SELECT js.id
-    INTO v_schedule_id
-    FROM acta.schedules js
-    WHERE
-        js.job_id = p_job_id
-        AND js.name = p_name
-        AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */
-    FOR UPDATE;
-
-    IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT, NULL::TIMESTAMPTZ, NULL::TIMESTAMPTZ, NULL::INT;
-        RETURN;
-    END IF;
-
-    SELECT j.namespace_id, j.definition_id, j.lineage_root_id, j.audit_level_code, j.job_ref
-    INTO v_ns, v_def, v_lineage, v_audit, v_job_ref
-    FROM acta.jobs j
-    WHERE j.id = p_job_id;
-
-    UPDATE acta.schedules
-    SET
-        status_code = 30 /* ScheduleStatusCode.Paused */,
-        paused_until_utc = p_paused_until_utc,
-        reason_message = p_reason_message,
-        modified_at_utc = now(),
-        version = version + 1
-    WHERE id = v_schedule_id
-    RETURNING status_code, paused_until_utc, next_run_at_utc, version
-    INTO v_status, v_paused, v_next, v_version;
-
-    -- Paused with a next run is an operator's or handler's hold and is left alone; Paused with none only
-    -- means no schedule offered a run (ScheduleWalker, "held").
-    UPDATE acta.runtimes
-    SET
-        next_run_at_utc = p_job_next_run_at_utc,
-        status_code = CASE WHEN p_job_next_run_at_utc IS NULL
-            THEN 30 /* JobStatusCode.Paused */
-            ELSE 10 /* JobStatusCode.Ready */ END,
-        modified_at_utc = now(),
-        version = version + 1
-    WHERE
-        job_id = p_job_id
-        AND (status_code = 10 /* JobStatusCode.Ready */ OR (status_code = 30 /* JobStatusCode.Paused */ AND next_run_at_utc IS NULL));
-
-    IF v_audit = 20 /* JobAuditLevelCode.Audit */ THEN
-        INSERT INTO acta.events (
-            event_code,
-            created_at_utc,
+    RETURN QUERY
+    WITH batch AS (
+        SELECT * FROM unnest(
+            p_d_name, p_d_priority_code, p_d_max_attempts, p_d_concurrency_limit,
+            p_d_rate_limit, p_d_rate_key,
+            p_d_backoff,
+            p_d_execution_timeout, p_d_deadline_seconds, p_d_deadline_behavior, p_d_job_retention,
+            p_d_input_type_name, p_d_output_type_name,
+            p_d_input_format_id, p_d_input_format_name, p_d_output_format_id, p_d_output_format_name,
+            p_d_audit_level_code, p_d_alert_profile_code, p_d_tenant_requirement,
+            p_d_alert_channel_name, p_d_runbook_url, p_d_display_name, p_d_description, p_d_definition_hash,
+            p_d_lane
+        ) AS b(name, priority_code, max_attempts, concurrency_limit,
+            rate_limit, rate_key,
+            backoff,
+            execution_timeout_seconds, deadline_seconds,
+            deadline_behavior_code, retention_seconds,
+            input_type_name, output_type_name,
+            input_format_id, input_format_name, output_format_id, output_format_name,
+            audit_level_code, alert_profile_code, tenant_requirement_code,
+            alert_channel_name, runbook_url, display_name, description, definition_hash, lane)
+    ),
+    upserted AS (
+        INSERT INTO acta.definitions (
             namespace_id,
-            actor_code,
-            actor_key,
-            job_id,
-            job_ref,
-            execution_number,
-            lineage_root_id,
-            definition_id,
-            worker_id,
-            from_status_code,
-            to_status_code,
-            execution_status_code,
-            duration_ms,
-            reason_code,
-            reason_message)
-        VALUES (
-            100 /* EventCode.SchedulePaused */,
+            name,
+            status_code,
+            input_type_name,
+            output_type_name,
+            input_format_id,
+            input_format_name,
+            output_format_id,
+            output_format_name,
+            priority_code,
+            max_attempts,
+            concurrency_limit,
+            rate_limit,
+            rate_key,
+            lane,
+            backoff,
+            execution_timeout_seconds,
+            deadline_seconds,
+            deadline_behavior_code,
+            retention_seconds,
+            audit_level_code,
+            alert_profile_code,
+            tenant_requirement_code,
+            alert_channel_name,
+            runbook_url,
+            display_name,
+            description,
+            definition_hash,
+            manifest_generation_at_utc,
+            created_at_utc,
+            modified_at_utc,
+            version)
+        SELECT
+            p_namespace_id,
+            b.name,
+            10 /* JobDefinitionStatusCode.Active */,
+            b.input_type_name,
+            b.output_type_name,
+            b.input_format_id,
+            b.input_format_name,
+            b.output_format_id,
+            b.output_format_name,
+            b.priority_code,
+            b.max_attempts,
+            b.concurrency_limit,
+            b.rate_limit,
+            b.rate_key,
+            b.lane,
+            b.backoff,
+            b.execution_timeout_seconds,
+            b.deadline_seconds,
+            b.deadline_behavior_code,
+            b.retention_seconds,
+            b.audit_level_code,
+            b.alert_profile_code,
+            b.tenant_requirement_code,
+            b.alert_channel_name,
+            b.runbook_url,
+            b.display_name,
+            b.description,
+            b.definition_hash,
+            p_manifest_generation,
             now(),
-            v_ns,
-            p_actor_code,
-            p_actor_key,
-            p_job_id,
-            v_job_ref,
-            v_en,
-            COALESCE(v_lineage, p_job_id),
-            v_def,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            p_name);
-    END IF;
-
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_status, v_paused, v_next, v_version;
+            now(),
+            0
+        FROM batch b
+        ON CONFLICT (namespace_id, name) DO UPDATE SET
+            status_code = 10 /* JobDefinitionStatusCode.Active */,
+            input_type_name = EXCLUDED.input_type_name,
+            output_type_name = EXCLUDED.output_type_name,
+            input_format_id = EXCLUDED.input_format_id,
+            input_format_name = EXCLUDED.input_format_name,
+            output_format_id = EXCLUDED.output_format_id,
+            output_format_name = EXCLUDED.output_format_name,
+            priority_code = EXCLUDED.priority_code,
+            max_attempts = EXCLUDED.max_attempts,
+            concurrency_limit = EXCLUDED.concurrency_limit,
+            rate_limit = EXCLUDED.rate_limit,
+            rate_key = EXCLUDED.rate_key,
+            lane = EXCLUDED.lane,
+            backoff = EXCLUDED.backoff,
+            execution_timeout_seconds = EXCLUDED.execution_timeout_seconds,
+            deadline_seconds = EXCLUDED.deadline_seconds,
+            deadline_behavior_code = EXCLUDED.deadline_behavior_code,
+            retention_seconds = EXCLUDED.retention_seconds,
+            audit_level_code = EXCLUDED.audit_level_code,
+            alert_profile_code = EXCLUDED.alert_profile_code,
+            tenant_requirement_code = EXCLUDED.tenant_requirement_code,
+            alert_channel_name = EXCLUDED.alert_channel_name,
+            runbook_url = EXCLUDED.runbook_url,
+            display_name = EXCLUDED.display_name,
+            description = EXCLUDED.description,
+            definition_hash = EXCLUDED.definition_hash,
+            manifest_generation_at_utc = EXCLUDED.manifest_generation_at_utc,
+            modified_at_utc = now(),
+            version = acta.definitions.version + 1
+        WHERE
+            EXCLUDED.manifest_generation_at_utc >= acta.definitions.manifest_generation_at_utc
+            AND (
+                acta.definitions.status_code <> 10 /* JobDefinitionStatusCode.Active */
+                OR acta.definitions.definition_hash IS DISTINCT FROM EXCLUDED.definition_hash
+            )
+        RETURNING definitions.name, definitions.id
+    )
+    SELECT u.name, u.id FROM upserted u
+    UNION ALL
+    SELECT b.name, jd.id
+    FROM batch b
+    INNER JOIN acta.definitions jd
+        ON jd.namespace_id = p_namespace_id AND jd.name = b.name
+    WHERE NOT EXISTS (SELECT 1 FROM upserted u WHERE u.name = b.name);
 END;
 $$;
 
@@ -6022,6 +5533,1125 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION acta.register_tenant(
+    p_tenant_key VARCHAR,
+    p_display_name VARCHAR,
+    p_description VARCHAR
+)
+RETURNS TABLE (tenant_id INT)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    -- Two statements on purpose: each statement in a VOLATILE plpgsql body takes a fresh snapshot,
+    -- so the SELECT sees the concurrently committed same-key winner that made ON CONFLICT skip (a
+    -- single-statement sql body shares one snapshot across both arms and returns no row then).
+    INSERT INTO acta.tenants
+        (tenant_key, display_name, description, status_code, created_at_utc, modified_at_utc, version)
+    VALUES (p_tenant_key, p_display_name, p_description, 10 /* TenantStatusCode.Active */, now(), now(), 0)
+    ON CONFLICT (tenant_key) DO NOTHING;
+
+    RETURN QUERY SELECT t.id FROM acta.tenants t WHERE t.tenant_key = p_tenant_key;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION acta.release_lock(
+    p_lock_key VARCHAR,
+    p_hold_token UUID
+)
+RETURNS TABLE (hold_token UUID)
+LANGUAGE sql
+AS $$
+    DELETE FROM acta.locks
+    WHERE lock_key = p_lock_key AND hold_token = p_hold_token
+    RETURNING hold_token;
+$$;
+
+-- Re-arms one namespace's sys.recovery slot when it is stranded; see IExecutionStore.RepairRecoverySlotAsync.
+CREATE OR REPLACE FUNCTION acta.repair_recovery_slot(
+    p_namespace_id INT,
+    p_job_id BIGINT
+)
+RETURNS TABLE (outcome INT)
+LANGUAGE sql
+AS $$
+WITH target AS (
+    -- Locked and read before the update so the event can say which in-flight state the slot was in.
+    SELECT r.job_id, r.execution_number, r.status_code AS from_status
+    FROM acta.runtimes r
+    WHERE
+        r.job_id = p_job_id
+        AND r.namespace_id = p_namespace_id
+        AND r.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+        AND r.lease_expires_at_utc IS NOT NULL
+        AND r.lease_expires_at_utc < now()
+    FOR UPDATE
+),
+repaired AS (
+    UPDATE acta.runtimes r
+    SET
+        status_code = 10 /* JobStatusCode.Ready */,
+        next_run_at_utc = now(),
+        failure_count = r.failure_count + 1,
+        leased_by_worker_id = NULL,
+        lease_expires_at_utc = NULL,
+        modified_at_utc = now(),
+        version = r.version + 1
+    FROM target t
+    WHERE r.job_id = t.job_id
+    RETURNING r.job_id, t.execution_number, t.from_status
+),
+event_insert AS (
+    INSERT INTO acta.events (
+        event_code,
+        created_at_utc,
+        namespace_id,
+        actor_code,
+        actor_key,
+        job_id,
+        job_ref,
+        execution_number,
+        lineage_root_id,
+        definition_id,
+        tenant_id,
+        worker_id,
+        from_status_code,
+        to_status_code,
+        execution_status_code,
+        duration_ms,
+        reason_code,
+        reason_message)
+    SELECT
+        41 /* EventCode.JobExecutionFinished */,
+        now(),
+        j.namespace_id,
+        10 /* ActorCode.Sys */,
+        NULL,
+        j.id,
+        j.job_ref,
+        x.execution_number,
+        COALESCE(j.lineage_root_id, j.id),
+        j.definition_id,
+        j.tenant_id,
+        NULL,
+        x.from_status,
+        10 /* JobStatusCode.Ready */,
+        230 /* ExecutionStatusCode.Orphaned */,
+        NULL,
+        21 /* JobEventReasonCode.JobLeaseExpired */,
+        'Worker lease expired on the recovery slot; re-armed by a worker''s recovery monitor.'
+    FROM repaired x
+    JOIN acta.jobs j ON j.id = x.job_id
+    RETURNING 1
+)
+SELECT CASE
+    WHEN EXISTS (SELECT 1 FROM repaired) THEN 2 /* RecoverySlotRepair.Repaired */
+    WHEN EXISTS (SELECT 1 FROM acta.runtimes r WHERE r.job_id = p_job_id AND r.namespace_id = p_namespace_id) THEN 1 /* RecoverySlotRepair.Healthy */
+    ELSE 0 /* RecoverySlotRepair.Missing */ END AS outcome;
+$$;
+
+CREATE OR REPLACE FUNCTION acta.reprioritize_job(
+    p_id BIGINT,
+    p_priority_code SMALLINT,
+    p_actor_code SMALLINT,
+    p_actor_key VARCHAR,
+    p_reason_code SMALLINT,
+    p_reason_message VARCHAR,
+    p_expected_version INT DEFAULT NULL
+)
+RETURNS TABLE (action SMALLINT, status_code SMALLINT, version INT)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_from_status SMALLINT;
+    v_version INT;
+    v_namespace_id INT;
+    v_lineage BIGINT;
+    v_definition INT;
+    v_tenant INT;
+    v_en INT;
+    v_audit SMALLINT;
+    v_job_ref UUID;
+    v_lane_id BIGINT;
+BEGIN
+    -- Lock order: the lane, then the job's rows (docs/internals/sql-execution-policy.md, "Lane lock
+    -- order"). lane_id never changes, so the unlocked read is safe.
+    SELECT r.lane_id INTO v_lane_id
+    FROM acta.runtimes r
+    WHERE r.job_id = p_id;
+
+    IF v_lane_id IS NOT NULL THEN
+        PERFORM 1
+        FROM acta.lanes l
+        WHERE l.id = v_lane_id
+        FOR UPDATE;
+    END IF;
+
+    SELECT r.status_code, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id, r.execution_number, j.audit_level_code, j.job_ref, r.version
+    INTO v_from_status, v_namespace_id, v_lineage, v_definition, v_tenant, v_en, v_audit, v_job_ref, v_version
+    FROM acta.jobs j
+    JOIN acta.runtimes r ON r.job_id = j.id
+    WHERE j.id = p_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT, NULL::INT;
+        RETURN;
+    END IF;
+
+    IF p_expected_version IS NOT NULL AND v_version <> p_expected_version THEN
+        RETURN QUERY SELECT 5 /* ControlAction.VersionConflict */::SMALLINT, v_from_status, v_version;
+        RETURN;
+    END IF;
+
+    IF v_from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN
+        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status, v_version;
+        RETURN;
+    END IF;
+
+    UPDATE acta.runtimes AS r
+    SET
+        priority_code = p_priority_code,
+        modified_at_utc = now(),
+        version = r.version + 1
+    WHERE r.job_id = p_id;
+
+    IF v_audit = 20 /* JobAuditLevelCode.Audit */ THEN
+        INSERT INTO acta.events (
+            event_code,
+            created_at_utc,
+            namespace_id,
+            actor_code,
+            actor_key,
+            job_id,
+            job_ref,
+            execution_number,
+            lineage_root_id,
+            definition_id,
+            tenant_id,
+            worker_id,
+            from_status_code,
+            to_status_code,
+            execution_status_code,
+            duration_ms,
+            reason_code,
+            reason_message)
+        VALUES (
+            74 /* EventCode.JobReprioritized */,
+            now(),
+            v_namespace_id,
+            p_actor_code,
+            p_actor_key,
+            p_id,
+            v_job_ref,
+            v_en,
+            COALESCE(v_lineage, p_id),
+            v_definition,
+            v_tenant,
+            NULL,
+            NULL,
+            NULL,
+            NULL,
+            NULL,
+            p_reason_code,
+            p_reason_message);
+    END IF;
+
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_from_status, v_version + 1;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION acta.reschedule_job(
+    p_id BIGINT,
+    p_next_run_at_utc TIMESTAMPTZ,
+    p_actor_code SMALLINT,
+    p_actor_key VARCHAR,
+    p_reason_code SMALLINT,
+    p_reason_message VARCHAR,
+    p_expected_version INT DEFAULT NULL
+)
+RETURNS TABLE (action SMALLINT, status_code SMALLINT, version INT)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_from_status SMALLINT;
+    v_version INT;
+    v_namespace_id INT;
+    v_lineage BIGINT;
+    v_definition INT;
+    v_tenant INT;
+    v_en INT;
+    v_audit SMALLINT;
+    v_job_ref UUID;
+    v_lane_id BIGINT;
+    v_to_status SMALLINT := 10 /* JobStatusCode.Ready */;
+BEGIN
+    -- Lock order: the lane, then the job's rows (docs/internals/sql-execution-policy.md, "Lane lock
+    -- order"). lane_id never changes, so the unlocked read is safe.
+    SELECT r.lane_id INTO v_lane_id
+    FROM acta.runtimes r
+    WHERE r.job_id = p_id;
+
+    IF v_lane_id IS NOT NULL THEN
+        PERFORM 1
+        FROM acta.lanes l
+        WHERE l.id = v_lane_id
+        FOR UPDATE;
+    END IF;
+
+    SELECT r.status_code, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id, r.execution_number, j.audit_level_code, j.job_ref, r.version
+    INTO v_from_status, v_namespace_id, v_lineage, v_definition, v_tenant, v_en, v_audit, v_job_ref, v_version
+    FROM acta.jobs j
+    JOIN acta.runtimes r ON r.job_id = j.id
+    WHERE j.id = p_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT, NULL::INT;
+        RETURN;
+    END IF;
+
+    IF p_expected_version IS NOT NULL AND v_version <> p_expected_version THEN
+        RETURN QUERY SELECT 5 /* ControlAction.VersionConflict */::SMALLINT, v_from_status, v_version;
+        RETURN;
+    END IF;
+
+    IF v_from_status NOT IN (
+        30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */
+    ) THEN
+        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status, v_version;
+        RETURN;
+    END IF;
+
+    -- A laned job is rescheduled Ready unless another member runs, or it was not running and an older member
+    -- is unfinished (docs/internals/sql-execution-policy.md, "Lane lock order").
+    IF v_lane_id IS NOT NULL AND EXISTS (
+        SELECT 1
+        FROM acta.runtimes o
+        WHERE
+            o.lane_id = v_lane_id
+            AND o.lane_id IS NOT NULL
+            AND o.status_code IN (
+                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+            )
+            AND o.job_id <> p_id
+            AND (
+                o.status_code IN (
+                    10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                    40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                )
+                OR (
+                    v_from_status NOT IN (
+                        10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */, 40 /* JobStatusCode.Dispatched */
+                    )
+                    AND o.job_id < p_id
+                )
+            )
+    ) THEN
+        v_to_status := 15 /* JobStatusCode.Blocked */;
+    END IF;
+
+    UPDATE acta.runtimes AS r
+    SET
+        next_run_at_utc = p_next_run_at_utc,
+        status_code = v_to_status,
+        modified_at_utc = now(),
+        version = r.version + 1
+    WHERE r.job_id = p_id;
+
+    IF v_audit = 20 /* JobAuditLevelCode.Audit */ THEN
+        INSERT INTO acta.events (
+            event_code,
+            created_at_utc,
+            namespace_id,
+            actor_code,
+            actor_key,
+            job_id,
+            job_ref,
+            execution_number,
+            lineage_root_id,
+            definition_id,
+            tenant_id,
+            worker_id,
+            from_status_code,
+            to_status_code,
+            execution_status_code,
+            duration_ms,
+            reason_code,
+            reason_message)
+        VALUES (
+            61 /* EventCode.JobRescheduled */,
+            now(),
+            v_namespace_id,
+            p_actor_code,
+            p_actor_key,
+            p_id,
+            v_job_ref,
+            v_en,
+            COALESCE(v_lineage, p_id),
+            v_definition,
+            v_tenant,
+            NULL,
+            v_from_status,
+            v_to_status,
+            NULL,
+            NULL,
+            p_reason_code,
+            p_reason_message);
+    END IF;
+
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_to_status, v_version + 1;
+END;
+$$;
+
+-- GCRA with a reservation; the full contract is on ILockStore.ReserveRateAsync. A turn is honoured
+-- while it is fresh, one second past its instant (one interval when that is longer); a stale one goes
+-- back through the meter, so a queue of overdue jobs cannot all start at once after a long stall.
+
+-- The bucket row is created-or-locked by one statement below, so the expiry sweep can never delete
+-- it between a create and a lock: the charge this call books is always persisted before it admits.
+
+-- That no-op DO UPDATE writes a new row version per request, so a hot meter leaves autovacuum one
+-- dead tuple per admission; the price of the single-statement lock, not a thing to optimize away.
+
+CREATE OR REPLACE FUNCTION acta.reserve_rate(
+    p_lock_key VARCHAR,
+    p_job_id BIGINT,
+    p_rate_interval_ms INT,
+    p_rate_burst INT,
+    p_grace_seconds INT,
+    p_hold_token UUID
+)
+RETURNS TABLE (resume_at_utc TIMESTAMPTZ, admitted BOOLEAN, wait_ms BIGINT)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_now TIMESTAMPTZ;
+    v_interval INTERVAL := p_rate_interval_ms * INTERVAL '1 millisecond';
+    -- How long a booked turn stays valid past its instant: a second covers the claim-path pickup at
+    -- any rate, and a slower meter keeps its whole interval, so the window is the larger of the two.
+    v_window INTERVAL := GREATEST(v_interval, INTERVAL '1 second');
+    -- How far behind now an idle meter is allowed to be, which is what hands out the burst: one
+    -- interval short of a whole period, so the burst-th request lands on now and the next one waits.
+    v_lookback INTERVAL := (p_rate_burst - 1) * (p_rate_interval_ms * INTERVAL '1 millisecond');
+    -- A reservation row expires a grace after its turn rather than on it, so the sweep never takes a
+    -- turn a live job is still coming back for.
+    v_grace INTERVAL := make_interval(secs => p_grace_seconds);
+    v_reservation VARCHAR := p_lock_key || '.' || p_job_id;
+    v_stored TIMESTAMPTZ;
+    v_due TIMESTAMPTZ;
+    v_turn TIMESTAMPTZ;
+BEGIN
+    -- The bucket stores the arrival time plus the lookback, so the row expires exactly when an idle
+    -- meter stops saying anything a missing one would not. A missing meter starts at now.
+
+    -- Create-or-lock in one statement: the DO UPDATE (a no-op assignment) takes the row lock, and
+    -- RETURNING hands back whichever value is now locked in - freshly inserted, or already there.
+    INSERT INTO acta.locks (lock_key, job_id, expires_at_utc, hold_token)
+    VALUES (p_lock_key, p_job_id, clock_timestamp(), p_hold_token)
+    ON CONFLICT (lock_key) DO UPDATE SET lock_key = EXCLUDED.lock_key
+    RETURNING expires_at_utc INTO v_stored;
+
+    -- The wall clock, read once the row is locked, never the transaction's start: judged against a
+    -- stale instant, every call a convoy on this meter delayed would be admitted together the moment
+    -- the lock freed, several times the contract in one second under a flood of metered claims.
+    v_now := clock_timestamp();
+
+    -- The row count decides consumption, never a later absence: the sweep cannot slip between a read
+    -- and the delete and give away a free admission. A stale turn is spent here too, then re-metered.
+    DELETE FROM acta.locks
+    WHERE
+        lock_key = v_reservation
+        AND expires_at_utc <= v_now + v_grace
+    RETURNING expires_at_utc - v_grace INTO v_due;
+
+    IF v_due IS NOT NULL AND v_due >= v_now - v_window THEN
+        -- Back on time: the bucket counted this job when it allocated the turn, so charging it again
+        -- would meter one job twice.
+        RETURN QUERY SELECT v_due, TRUE, 0::BIGINT;
+        RETURN;
+    END IF;
+
+    IF v_due IS NULL THEN
+        -- A turn still ahead of now, handed back unchanged: the job is early, not owed a new instant.
+        SELECT r.expires_at_utc - v_grace INTO v_turn
+        FROM acta.locks r
+        WHERE r.lock_key = v_reservation;
+
+        IF v_turn IS NOT NULL THEN
+            RETURN QUERY SELECT v_turn, FALSE, CEIL(EXTRACT(EPOCH FROM (v_turn - v_now)) * 1000)::BIGINT;
+            RETURN;
+        END IF;
+    END IF;
+
+    v_stored := GREATEST(v_stored, v_now);
+    v_turn := v_stored - v_lookback;
+
+    UPDATE acta.locks
+    SET
+        job_id = p_job_id,
+        expires_at_utc = v_stored + v_interval,
+        hold_token = p_hold_token
+    WHERE lock_key = p_lock_key;
+
+    -- The row lock has been held since the create-or-lock statement above, so this can never miss;
+    -- if it ever did, admitting without a persisted charge would be worse than failing the call.
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'reserve_rate: bucket % vanished while its row lock was held', p_lock_key;
+    END IF;
+
+    IF v_turn <= v_now THEN
+        RETURN QUERY SELECT v_turn, TRUE, 0::BIGINT;
+        RETURN;
+    END IF;
+
+    INSERT INTO acta.locks (lock_key, job_id, expires_at_utc, hold_token)
+    VALUES (v_reservation, p_job_id, v_turn + v_grace, p_hold_token)
+    ON CONFLICT (lock_key) DO UPDATE SET
+        job_id = EXCLUDED.job_id,
+        expires_at_utc = EXCLUDED.expires_at_utc,
+        hold_token = EXCLUDED.hold_token;
+
+    RETURN QUERY SELECT v_turn, FALSE, CEIL(EXTRACT(EPOCH FROM (v_turn - v_now)) * 1000)::BIGINT;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION acta.reset_job_state(
+    p_id BIGINT
+)
+RETURNS INT
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_status SMALLINT;
+    v_namespace_id INT;
+    v_lineage_root_id BIGINT;
+    v_definition_id INT;
+    v_tenant_id INT;
+    v_execution_number INT;
+    v_audit_level SMALLINT;
+    v_job_ref UUID;
+BEGIN
+    SELECT r.status_code, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id, r.execution_number, j.audit_level_code, j.job_ref
+    INTO v_status, v_namespace_id, v_lineage_root_id, v_definition_id, v_tenant_id, v_execution_number, v_audit_level, v_job_ref
+    FROM acta.runtimes r
+    JOIN acta.jobs j ON j.id = r.job_id
+    WHERE r.job_id = p_id
+    FOR UPDATE OF r;
+
+    IF NOT FOUND THEN
+        RETURN 1;
+    END IF;
+
+    DELETE FROM acta.checkpoints WHERE job_id = p_id;
+    DELETE FROM acta.steps WHERE job_id = p_id;
+    DELETE FROM acta.results WHERE job_id = p_id;
+
+    IF v_audit_level = 20 /* JobAuditLevelCode.Audit */ THEN
+        INSERT INTO acta.events (
+            event_code,
+            created_at_utc,
+            namespace_id,
+            actor_code,
+            actor_key,
+            job_id,
+            job_ref,
+            execution_number,
+            lineage_root_id,
+            definition_id,
+            tenant_id,
+            worker_id,
+            from_status_code,
+            to_status_code,
+            execution_status_code,
+            duration_ms,
+            reason_code,
+            reason_message)
+        VALUES (
+            81 /* EventCode.JobStateReset */,
+            now(),
+            v_namespace_id,
+            50 /* ActorCode.Job */,
+            p_id::varchar,
+            p_id,
+            v_job_ref,
+            v_execution_number,
+            COALESCE(v_lineage_root_id, p_id),
+            v_definition_id,
+            v_tenant_id,
+            NULL,
+            v_status,
+            v_status,
+            NULL,
+            NULL,
+            NULL,
+            NULL);
+    END IF;
+
+    RETURN 1;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION acta.resolve_job_alert_manual(
+    p_alert_ref UUID,
+    p_actor_code SMALLINT,
+    p_actor_key VARCHAR,
+    p_reason_message VARCHAR
+)
+RETURNS TABLE (out_action SMALLINT, out_acknowledged_at_utc TIMESTAMPTZ, out_resolved_at_utc TIMESTAMPTZ)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_namespace_id INT;
+    v_job_id BIGINT;
+    v_job_ref UUID;
+    v_ack TIMESTAMPTZ;
+    v_resolved TIMESTAMPTZ;
+    v_definition_id INT;
+    v_lineage_root_id BIGINT;
+    v_execution_number INT;
+BEGIN
+    SELECT a.namespace_id, a.job_id, a.job_ref, a.acknowledged_at_utc, a.resolved_at_utc
+    INTO v_namespace_id, v_job_id, v_job_ref, v_ack, v_resolved
+    FROM acta.alerts a
+    WHERE a.alert_ref = p_alert_ref
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::TIMESTAMPTZ, NULL::TIMESTAMPTZ;
+        RETURN;
+    END IF;
+
+    IF v_resolved IS NOT NULL THEN
+        RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_ack, v_resolved;
+        RETURN;
+    END IF;
+
+    SELECT j.definition_id, j.lineage_root_id INTO v_definition_id, v_lineage_root_id
+    FROM acta.jobs j
+    WHERE j.id = v_job_id;
+    SELECT r.execution_number INTO v_execution_number
+    FROM acta.runtimes r
+    WHERE r.job_id = v_job_id;
+
+    v_resolved := now();
+
+    UPDATE acta.alerts
+    SET
+        resolved_at_utc = v_resolved,
+        /* Same settlement as the automatic resolve: a queued notification for a condition an operator has
+           declared cleared is cancelled, and an already-settled status stands as the record of what the
+           send actually did. */
+        delivery_status_code = CASE
+            WHEN delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */)
+                THEN 30 /* AlertDeliveryStatusCode.Suppressed */
+            ELSE delivery_status_code
+        END,
+        retry_after_utc = NULL,
+        modified_at_utc = now(),
+        version = version + 1
+    WHERE alert_ref = p_alert_ref;
+
+    INSERT INTO acta.events (
+        event_code,
+        created_at_utc,
+        namespace_id,
+        actor_code,
+        actor_key,
+        job_id,
+        job_ref,
+        execution_number,
+        lineage_root_id,
+        definition_id,
+        worker_id,
+        from_status_code,
+        to_status_code,
+        execution_status_code,
+        duration_ms,
+        reason_code,
+        reason_message)
+    VALUES (
+        141 /* EventCode.AlertResolved */,
+        now(),
+        v_namespace_id,
+        p_actor_code,
+        p_actor_key,
+        v_job_id,
+        v_job_ref,
+        v_execution_number,
+        COALESCE(v_lineage_root_id, v_job_id),
+        v_definition_id,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        p_reason_message);
+
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_ack, v_resolved;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION acta.resolve_job_alerts(
+    p_namespace_id INT,
+    p_job_id BIGINT,
+    p_source_event_id BIGINT
+)
+RETURNS TABLE (resolved_count INT)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    -- The job row first, then its alert rows (docs/internals/sql-execution-policy.md, "Alert lock order"):
+    -- purge_job holds the row FOR UPDATE while it deletes the job's alerts in id order.
+    -- FOR SHARE, not FOR KEY SHARE: see that section.
+    PERFORM 1 FROM acta.jobs j WHERE j.id = p_job_id FOR SHARE;
+
+    RETURN QUERY
+    WITH resolved AS (
+        UPDATE acta.alerts a
+        SET
+            resolved_at_utc = now(),
+            last_projected_event_id = p_source_event_id,
+            /* Closing the incident settles its delivery too: a notification queued for a condition that has
+               cleared is cancelled rather than sent, which is what Suppressed already means. An already-settled
+               row keeps its status: it records what actually happened to the send, and a resolve does not edit it. */
+            delivery_status_code = CASE
+                WHEN a.delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */)
+                    THEN 30 /* AlertDeliveryStatusCode.Suppressed */
+                ELSE a.delivery_status_code
+            END,
+            retry_after_utc = NULL,
+            modified_at_utc = now(),
+            version = a.version + 1
+        WHERE
+            a.namespace_id = p_namespace_id
+            AND a.job_id = p_job_id
+            AND a.origin_code = 10 /* AlertOriginCode.Automatic */
+            AND a.kind_code IN (
+                10 /* AlertKindCode.FirstFailure */, 20 /* AlertKindCode.ThresholdReached */, 30 /* AlertKindCode.FinalFailure */
+            )
+            AND a.resolved_at_utc IS NULL
+            AND (a.last_projected_event_id IS NULL OR a.last_projected_event_id < p_source_event_id)
+        RETURNING 1
+    )
+    SELECT count(*)::INT FROM resolved;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION acta.restart_job(
+    p_id BIGINT,
+    p_actor_code SMALLINT,
+    p_actor_key VARCHAR,
+    p_reason_code SMALLINT,
+    p_reason_message VARCHAR,
+    p_next_run_at_utc TIMESTAMPTZ DEFAULT NULL,
+    p_expected_version INT DEFAULT NULL
+)
+RETURNS TABLE (action SMALLINT, status_code SMALLINT, version INT)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_from_status SMALLINT;
+    v_version INT;
+    v_namespace_id INT;
+    v_lineage_root_id BIGINT;
+    v_definition_id INT;
+    v_tenant_id INT;
+    v_execution_number INT;
+    v_audit_level SMALLINT;
+    v_job_ref UUID;
+    v_parent_id BIGINT;
+    v_lane_id BIGINT;
+    v_to_status SMALLINT := 10 /* JobStatusCode.Ready */;
+BEGIN
+    -- Lock order: the lane, then the job's rows (docs/internals/sql-execution-policy.md, "Lane lock
+    -- order"). lane_id never changes, so the unlocked read is safe.
+    SELECT r.lane_id INTO v_lane_id
+    FROM acta.runtimes r
+    WHERE r.job_id = p_id;
+
+    IF v_lane_id IS NOT NULL THEN
+        PERFORM 1
+        FROM acta.lanes l
+        WHERE l.id = v_lane_id
+        FOR UPDATE;
+    END IF;
+
+    SELECT
+        r.status_code, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id, r.execution_number,
+        j.audit_level_code, j.job_ref, r.version, j.parent_id
+    INTO
+        v_from_status, v_namespace_id, v_lineage_root_id, v_definition_id, v_tenant_id, v_execution_number,
+        v_audit_level, v_job_ref, v_version, v_parent_id
+    FROM acta.runtimes r
+    JOIN acta.jobs j ON j.id = r.job_id
+    WHERE r.job_id = p_id
+    FOR UPDATE OF r;
+
+    IF NOT FOUND THEN
+        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT, NULL::INT;
+        RETURN;
+    END IF;
+
+    IF p_expected_version IS NOT NULL AND v_version <> p_expected_version THEN
+        RETURN QUERY SELECT 5 /* ControlAction.VersionConflict */::SMALLINT, v_from_status, v_version;
+        RETURN;
+    END IF;
+
+    IF v_from_status = 50 /* JobStatusCode.Executing */ THEN
+        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status, v_version;
+        RETURN;
+    END IF;
+
+    -- A finished laned job is not reactivated while an unfinished ancestor or descendant sits in its lane,
+    -- the state the enqueue ancestor guard refuses (docs/internals/sql-execution-policy.md, "Lane lock order").
+    IF v_lane_id IS NOT NULL
+        AND v_from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+        AND EXISTS (
+            WITH RECURSIVE
+                ancestors AS (
+                    SELECT a.id, a.parent_id
+                    FROM acta.jobs a
+                    WHERE a.id = v_parent_id
+                    UNION ALL
+                    SELECT a.id, a.parent_id
+                    FROM acta.jobs a
+                    INNER JOIN ancestors c ON a.id = c.parent_id
+                ),
+                descendants AS (
+                    SELECT d.id
+                    FROM acta.jobs d
+                    WHERE d.parent_id = p_id
+                    UNION ALL
+                    SELECT d.id
+                    FROM acta.jobs d
+                    INNER JOIN descendants c ON d.parent_id = c.id
+                ),
+                lineage AS (
+                    SELECT a.id FROM ancestors a
+                    UNION ALL
+                    SELECT d.id FROM descendants d
+                )
+            SELECT 1
+            FROM lineage c
+            INNER JOIN acta.runtimes lr ON lr.job_id = c.id
+            WHERE
+                lr.lane_id = v_lane_id
+                AND lr.status_code IN (
+                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                    30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                )
+        ) THEN
+        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status, v_version;
+        RETURN;
+    END IF;
+
+    -- A laned job restarts Ready unless another member runs, or it was not running and an older member
+    -- is unfinished (docs/internals/sql-execution-policy.md, "Lane lock order").
+    IF v_lane_id IS NOT NULL AND EXISTS (
+        SELECT 1
+        FROM acta.runtimes o
+        WHERE
+            o.lane_id = v_lane_id
+            AND o.lane_id IS NOT NULL
+            AND o.status_code IN (
+                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+            )
+            AND o.job_id <> p_id
+            AND (
+                o.status_code IN (
+                    10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                    40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                )
+                OR (
+                    v_from_status NOT IN (
+                        10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */, 40 /* JobStatusCode.Dispatched */
+                    )
+                    AND o.job_id < p_id
+                )
+            )
+    ) THEN
+        v_to_status := 15 /* JobStatusCode.Blocked */;
+    END IF;
+
+    UPDATE acta.runtimes AS r
+    SET
+        status_code = v_to_status,
+        failure_count = 0,
+        next_run_at_utc = COALESCE(p_next_run_at_utc, now()),
+        leased_by_worker_id = NULL,
+        lease_expires_at_utc = NULL,
+        retention_until_utc = NULL,
+        modified_at_utc = now(),
+        version = r.version + 1
+    WHERE r.job_id = p_id;
+
+    -- An exhausted step runs again from a fresh budget and retry window; an interrupted at-most-once
+    -- step stays, since only someone who reconciled its outcome can say it may run again.
+    DELETE FROM acta.steps s
+    WHERE
+        s.job_id = p_id
+        AND s.status_code = 200 /* JobStepStatusCode.Exhausted */;
+
+    IF v_audit_level = 20 /* JobAuditLevelCode.Audit */ THEN
+        INSERT INTO acta.events (
+            event_code,
+            created_at_utc,
+            namespace_id,
+            actor_code,
+            actor_key,
+            job_id,
+            job_ref,
+            execution_number,
+            lineage_root_id,
+            definition_id,
+            tenant_id,
+            worker_id,
+            from_status_code,
+            to_status_code,
+            execution_status_code,
+            duration_ms,
+            reason_code,
+            reason_message)
+        VALUES (
+            73 /* EventCode.JobRestarted */,
+            now(),
+            v_namespace_id,
+            p_actor_code,
+            p_actor_key,
+            p_id,
+            v_job_ref,
+            v_execution_number,
+            COALESCE(v_lineage_root_id, p_id),
+            v_definition_id,
+            v_tenant_id,
+            NULL,
+            v_from_status,
+            v_to_status,
+            NULL,
+            NULL,
+            p_reason_code,
+            p_reason_message);
+    END IF;
+
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_to_status, v_version + 1;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION acta.resume_job(
+    p_id BIGINT,
+    p_actor_code SMALLINT,
+    p_actor_key VARCHAR,
+    p_reason_code SMALLINT,
+    p_reason_message VARCHAR,
+    p_next_run_at_utc TIMESTAMPTZ DEFAULT NULL,
+    p_expected_version INT DEFAULT NULL
+)
+RETURNS TABLE (action SMALLINT, status_code SMALLINT, version INT)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_from_status SMALLINT;
+    v_version INT;
+    v_namespace_id INT;
+    v_lineage_root_id BIGINT;
+    v_definition_id INT;
+    v_tenant_id INT;
+    v_execution_number INT;
+    v_audit_level SMALLINT;
+    v_job_ref UUID;
+    v_lane_id BIGINT;
+    v_to_status SMALLINT := 10 /* JobStatusCode.Ready */;
+BEGIN
+    -- Lock order: the lane, then the job's rows (docs/internals/sql-execution-policy.md, "Lane lock
+    -- order"). lane_id never changes, so the unlocked read is safe.
+    SELECT r.lane_id INTO v_lane_id
+    FROM acta.runtimes r
+    WHERE r.job_id = p_id;
+
+    IF v_lane_id IS NOT NULL THEN
+        PERFORM 1
+        FROM acta.lanes l
+        WHERE l.id = v_lane_id
+        FOR UPDATE;
+    END IF;
+
+    SELECT r.status_code, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id, r.execution_number, j.audit_level_code, j.job_ref, r.version
+    INTO v_from_status, v_namespace_id, v_lineage_root_id, v_definition_id, v_tenant_id, v_execution_number, v_audit_level, v_job_ref, v_version
+    FROM acta.runtimes r
+    JOIN acta.jobs j ON j.id = r.job_id
+    WHERE r.job_id = p_id
+    FOR UPDATE OF r;
+
+    IF NOT FOUND THEN
+        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT, NULL::INT;
+        RETURN;
+    END IF;
+
+    IF p_expected_version IS NOT NULL AND v_version <> p_expected_version THEN
+        RETURN QUERY SELECT 5 /* ControlAction.VersionConflict */::SMALLINT, v_from_status, v_version;
+        RETURN;
+    END IF;
+
+    IF v_from_status <> 30 /* JobStatusCode.Paused */ THEN
+        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status, v_version;
+        RETURN;
+    END IF;
+
+    -- A laned job resumes Ready unless another member runs or an older member is unfinished
+    -- (docs/internals/sql-execution-policy.md, "Lane lock order").
+    IF v_lane_id IS NOT NULL AND EXISTS (
+        SELECT 1
+        FROM acta.runtimes o
+        WHERE
+            o.lane_id = v_lane_id
+            AND o.lane_id IS NOT NULL
+            AND o.status_code IN (
+                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+            )
+            AND o.job_id <> p_id
+            AND (
+                o.status_code IN (
+                    10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                    40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */
+                )
+                OR o.job_id < p_id
+            )
+    ) THEN
+        v_to_status := 15 /* JobStatusCode.Blocked */;
+    END IF;
+
+    UPDATE acta.runtimes AS r
+    SET
+        status_code = v_to_status,
+        next_run_at_utc = COALESCE(p_next_run_at_utc, now()),
+        modified_at_utc = now(),
+        version = r.version + 1
+    WHERE r.job_id = p_id;
+
+    IF v_audit_level = 20 /* JobAuditLevelCode.Audit */ THEN
+        INSERT INTO acta.events (
+            event_code,
+            created_at_utc,
+            namespace_id,
+            actor_code,
+            actor_key,
+            job_id,
+            job_ref,
+            execution_number,
+            lineage_root_id,
+            definition_id,
+            tenant_id,
+            worker_id,
+            from_status_code,
+            to_status_code,
+            execution_status_code,
+            duration_ms,
+            reason_code,
+            reason_message)
+        VALUES (
+            72 /* EventCode.JobResumed */,
+            now(),
+            v_namespace_id,
+            p_actor_code,
+            p_actor_key,
+            p_id,
+            v_job_ref,
+            v_execution_number,
+            COALESCE(v_lineage_root_id, p_id),
+            v_definition_id,
+            v_tenant_id,
+            NULL,
+            30 /* JobStatusCode.Paused */,
+            v_to_status,
+            NULL,
+            NULL,
+            p_reason_code,
+            p_reason_message);
+    END IF;
+
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_to_status, v_version + 1;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION acta.resume_namespace(
+    p_namespace_name VARCHAR,
+    p_actor_code SMALLINT,
+    p_actor_key VARCHAR,
+    p_reason_message VARCHAR
+)
+RETURNS TABLE (action SMALLINT, version INT)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_id INT;
+    v_status SMALLINT;
+    v_version INT;
+BEGIN
+    SELECT n.id, n.status_code, n.version INTO v_id, v_status, v_version
+    FROM acta.namespaces n
+    WHERE n.name = p_namespace_name
+    FOR UPDATE;
+    IF NOT FOUND THEN
+        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::INT;
+        RETURN;
+    END IF;
+    IF v_status = 10 /* NamespaceStatusCode.Active */ THEN
+        RETURN QUERY SELECT 6 /* ControlAction.AlreadyInState */::SMALLINT, v_version;
+        RETURN;
+    END IF;
+    UPDATE acta.namespaces AS n
+    SET
+        status_code = 10 /* NamespaceStatusCode.Active */,
+        modified_at_utc = now(),
+        version = n.version + 1
+    WHERE n.id = v_id
+    RETURNING n.version INTO v_version;
+    INSERT INTO acta.events (
+        event_code,
+        created_at_utc,
+        namespace_id,
+        actor_code,
+        actor_key,
+        job_id,
+        job_ref,
+        execution_number,
+        lineage_root_id,
+        definition_id,
+        tenant_id,
+        worker_id,
+        from_status_code,
+        to_status_code,
+        execution_status_code,
+        duration_ms,
+        reason_code,
+        reason_message)
+    VALUES (
+        21 /* EventCode.NamespaceResumed */,
+        now(),
+        v_id,
+        p_actor_code,
+        p_actor_key,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        p_reason_message);
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_version;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION acta.resume_schedule(
     p_job_id BIGINT,
     p_name VARCHAR,
@@ -6142,6 +6772,209 @@ BEGIN
     END IF;
 
     RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_status, v_paused, v_next, v_version;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION acta.resume_tenant(
+    p_tenant_key VARCHAR,
+    p_actor_code SMALLINT,
+    p_actor_key VARCHAR,
+    p_reason_message VARCHAR
+)
+RETURNS TABLE (action SMALLINT, version INT)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_id INT;
+    v_status SMALLINT;
+    v_version INT;
+BEGIN
+    SELECT t.id, t.status_code, t.version
+    INTO v_id, v_status, v_version
+    FROM acta.tenants t
+    WHERE t.tenant_key = p_tenant_key
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::INT;
+        RETURN;
+    END IF;
+
+    IF v_status = 10 /* TenantStatusCode.Active */ THEN
+        RETURN QUERY SELECT 6 /* ControlAction.AlreadyInState */::SMALLINT, v_version;
+        RETURN;
+    END IF;
+
+    UPDATE acta.tenants AS t
+    SET
+        status_code = 10 /* TenantStatusCode.Active */,
+        modified_at_utc = now(),
+        version = t.version + 1
+    WHERE t.id = v_id
+    RETURNING t.version INTO v_version;
+
+    -- namespace_id 1 is the seeded sys namespace (M001).
+    INSERT INTO acta.events (
+        event_code,
+        created_at_utc,
+        namespace_id,
+        actor_code,
+        actor_key,
+        job_id,
+        job_ref,
+        execution_number,
+        lineage_root_id,
+        definition_id,
+        tenant_id,
+        worker_id,
+        from_status_code,
+        to_status_code,
+        execution_status_code,
+        duration_ms,
+        reason_code,
+        reason_message)
+    VALUES (
+        11 /* EventCode.TenantResumed */,
+        now(),
+        1,
+        p_actor_code,
+        p_actor_key,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        v_id,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        p_reason_message);
+
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_version;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION acta.set_job_definition_overrides(
+    p_id INT,
+    p_version INT,
+    p_priority_code_override SMALLINT,
+    p_max_attempts_override INT,
+    p_concurrency_limit_override INT,
+    p_rate_limit_override VARCHAR,
+    p_backoff_override VARCHAR,
+    p_execution_timeout_seconds_override INT,
+    p_deadline_seconds_override INT,
+    p_deadline_behavior_code_override SMALLINT,
+    p_retention_seconds_override INT,
+    p_audit_level_code_override SMALLINT,
+    p_alert_profile_code_override SMALLINT,
+    p_alert_channel_name_override VARCHAR,
+    p_runbook_url_override VARCHAR,
+    p_display_name_override VARCHAR,
+    p_description_override VARCHAR,
+    p_actor_code SMALLINT,
+    p_actor_key VARCHAR,
+    p_reason_code SMALLINT,
+    p_reason_message VARCHAR
+)
+RETURNS TABLE (action SMALLINT)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_ns INT;
+    v_version INT;
+    v_meter TEXT;
+BEGIN
+    SELECT jd.namespace_id, jd.version INTO v_ns, v_version
+    FROM acta.definitions jd WHERE jd.id = p_id FOR UPDATE;
+
+    IF v_ns IS NULL THEN
+        RETURN QUERY SELECT 2 /* DefinitionOverrideAction.NotFound */::SMALLINT;
+        RETURN;
+    END IF;
+
+    IF v_version <> p_version THEN
+        RETURN QUERY SELECT 3 /* DefinitionOverrideAction.VersionConflict */::SMALLINT;
+        RETURN;
+    END IF;
+
+    UPDATE acta.definitions
+    SET
+        priority_code_override = p_priority_code_override,
+        max_attempts_override = p_max_attempts_override,
+        concurrency_limit_override = p_concurrency_limit_override,
+        rate_limit_override = p_rate_limit_override,
+        backoff_override = p_backoff_override,
+        execution_timeout_seconds_override = p_execution_timeout_seconds_override,
+        deadline_seconds_override = p_deadline_seconds_override,
+        deadline_behavior_code_override = p_deadline_behavior_code_override,
+        retention_seconds_override = p_retention_seconds_override,
+        audit_level_code_override = p_audit_level_code_override,
+        alert_profile_code_override = p_alert_profile_code_override,
+        alert_channel_name_override = p_alert_channel_name_override,
+        runbook_url_override = p_runbook_url_override,
+        display_name_override = p_display_name_override,
+        description_override = p_description_override,
+        modified_at_utc = now(),
+        version = version + 1
+    WHERE id = p_id AND version = p_version
+    RETURNING lower(COALESCE(rate_key, name)) INTO v_meter;
+
+    -- A definition on a meter carries every sibling that already has a rate (declared or overridden) on
+    -- the same effective key along with it here, so the meter never carries two rates and the last
+    -- write wins for every participant. See JobDefinitionPolicyOverrides.RateLimit for the full contract.
+    UPDATE acta.definitions sib
+    SET
+        rate_limit_override = p_rate_limit_override,
+        modified_at_utc = now(),
+        version = sib.version + 1
+    WHERE
+        sib.namespace_id = v_ns
+        AND sib.id <> p_id
+        AND (sib.rate_limit IS NOT NULL OR sib.rate_limit_override IS NOT NULL)
+        AND lower(COALESCE(sib.rate_key, sib.name)) = v_meter;
+
+    INSERT INTO acta.events (
+        event_code,
+        created_at_utc,
+        namespace_id,
+        actor_code,
+        actor_key,
+        job_id,
+        job_ref,
+        execution_number,
+        lineage_root_id,
+        definition_id,
+        worker_id,
+        from_status_code,
+        to_status_code,
+        execution_status_code,
+        duration_ms,
+        reason_code,
+        reason_message)
+    VALUES (
+        30 /* EventCode.JobDefinitionOverridesUpdated */,
+        now(),
+        v_ns,
+        p_actor_code,
+        p_actor_key,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        p_id,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        p_reason_code,
+        p_reason_message);
+
+    RETURN QUERY SELECT 1 /* DefinitionOverrideAction.Applied */::SMALLINT;
 END;
 $$;
 
@@ -6270,134 +7103,6 @@ BEGIN
             NULL,
             NULL,
             p_change_summary);
-    END IF;
-
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_status, v_paused, v_next, v_version;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION acta.trigger_schedule_now(
-    p_job_id BIGINT,
-    p_name VARCHAR,
-    p_actor_code SMALLINT,
-    p_actor_key VARCHAR,
-    p_reason_message VARCHAR
-)
-RETURNS TABLE (
-    out_action SMALLINT, out_status_code SMALLINT, out_paused_until_utc TIMESTAMPTZ, out_next_run_at_utc TIMESTAMPTZ, out_version INT
-)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_schedule_id BIGINT;
-    v_status SMALLINT;
-    v_paused TIMESTAMPTZ;
-    v_next TIMESTAMPTZ;
-    v_version INT;
-    v_slot_status SMALLINT;
-    v_slot_next TIMESTAMPTZ;
-    v_ns INT;
-    v_def INT;
-    v_lineage BIGINT;
-    v_en INT;
-    v_audit SMALLINT;
-    v_job_ref UUID;
-BEGIN
-    /* Lock the slot's runtimes row before the schedules row: register_scheduled_jobs writes
-       runtimes then schedules, so every writer of both must take runtimes first. The schedules row
-       is guard-only here (never updated): a manual trigger moves only the slot's cursor. */
-    SELECT r.status_code, r.next_run_at_utc, r.execution_number
-    INTO v_slot_status, v_slot_next, v_en
-    FROM acta.runtimes r
-    WHERE r.job_id = p_job_id
-    FOR UPDATE;
-
-    SELECT js.id, js.status_code, js.paused_until_utc, js.next_run_at_utc, js.version
-    INTO v_schedule_id, v_status, v_paused, v_next, v_version
-    FROM acta.schedules js
-    WHERE
-        js.job_id = p_job_id
-        AND js.name = p_name
-        AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */
-    FOR UPDATE;
-
-    IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT, NULL::TIMESTAMPTZ, NULL::TIMESTAMPTZ, NULL::INT;
-        RETURN;
-    END IF;
-
-    IF v_status = 30 /* ScheduleStatusCode.Paused */ THEN
-        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_status, v_paused, v_next, v_version;
-        RETURN;
-    END IF;
-
-    -- A held job (Paused with a next run; ScheduleWalker, "held") runs only once it is resumed.
-    IF v_slot_status IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
-        OR (v_slot_status = 30 /* JobStatusCode.Paused */ AND v_slot_next IS NOT NULL) THEN
-        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_status, v_paused, v_next, v_version;
-        RETURN;
-    END IF;
-
-    IF v_slot_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN
-        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_status, v_paused, v_next, v_version;
-        RETURN;
-    END IF;
-
-    SELECT j.namespace_id, j.definition_id, j.lineage_root_id, j.audit_level_code, j.job_ref
-    INTO v_ns, v_def, v_lineage, v_audit, v_job_ref
-    FROM acta.jobs j
-    WHERE j.id = p_job_id;
-
-    UPDATE acta.runtimes
-    SET
-        next_run_at_utc = now(),
-        status_code = 10 /* JobStatusCode.Ready */,
-        modified_at_utc = now(),
-        version = version + 1
-    WHERE
-        job_id = p_job_id
-        AND (
-            status_code IN (20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */)
-            OR (status_code = 30 /* JobStatusCode.Paused */ AND next_run_at_utc IS NULL)
-        );
-
-    IF v_audit = 20 /* JobAuditLevelCode.Audit */ THEN
-        INSERT INTO acta.events (
-            event_code,
-            created_at_utc,
-            namespace_id,
-            actor_code,
-            actor_key,
-            job_id,
-            job_ref,
-            execution_number,
-            lineage_root_id,
-            definition_id,
-            worker_id,
-            from_status_code,
-            to_status_code,
-            execution_status_code,
-            duration_ms,
-            reason_code,
-            reason_message)
-        VALUES (
-            104 /* EventCode.ScheduleTriggered */,
-            now(),
-            v_ns,
-            p_actor_code,
-            p_actor_key,
-            p_job_id,
-            v_job_ref,
-            v_en,
-            COALESCE(v_lineage, p_job_id),
-            v_def,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            p_reason_message);
     END IF;
 
     RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_status, v_paused, v_next, v_version;
@@ -6587,445 +7292,6 @@ BEGIN
         convert_to('{"name":"' || p_name || '"}', 'UTF8'));
 
     RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_version;
-END;
-$$;
-
--- Version-CAS consume of an applied operator command: a miss means a newer command superseded the row
--- mid-apply and survives for the next tick. See IOutboxSignalStore.ConsumeAsync.
-CREATE OR REPLACE FUNCTION acta.consume_outbox_signal(p_job_id BIGINT, p_name VARCHAR, p_expected_version INT)
-RETURNS TABLE (out_consumed BIGINT)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_count BIGINT;
-BEGIN
-    DELETE FROM acta.checkpoints c
-    WHERE
-        c.job_id = p_job_id
-        AND c.kind_code = 20 /* JobCheckpointKindCode.Signal */
-        AND c.name = p_name
-        AND c.version = p_expected_version;
-
-    GET DIAGNOSTICS v_count = ROW_COUNT;
-    RETURN QUERY SELECT v_count;
-END;
-$$;
-
--- Park admission for the sys.outbox operator inbox: insert when the slot is free, supersede when the
--- pending command has outlived the worker-dead window, reject otherwise. See IOutboxSignalStore.ParkAsync.
-CREATE OR REPLACE FUNCTION acta.park_outbox_signal(
-    p_job_id BIGINT,
-    p_name VARCHAR,
-    p_value_format_id SMALLINT,
-    p_value BYTEA,
-    p_stale_before_utc TIMESTAMPTZ
-)
-RETURNS TABLE (out_action SMALLINT, out_pending_since_utc TIMESTAMPTZ)
-LANGUAGE plpgsql
-AS $$
-BEGIN
-    INSERT INTO acta.checkpoints (job_id, kind_code, name, status_code, value_format_id, value, modified_at_utc, version)
-    VALUES (
-        p_job_id,
-        20 /* JobCheckpointKindCode.Signal */,
-        p_name,
-        20 /* JobCheckpointStatusCode.Set */,
-        p_value_format_id,
-        p_value,
-        now(),
-        0
-    )
-    ON CONFLICT (job_id, kind_code, name) DO UPDATE SET
-        value_format_id = EXCLUDED.value_format_id,
-        value = EXCLUDED.value,
-        status_code = 20 /* JobCheckpointStatusCode.Set */,
-        modified_at_utc = now(),
-        version = checkpoints.version + 1
-    WHERE checkpoints.modified_at_utc <= p_stale_before_utc;
-
-    /* The minted command id inside p_value makes the payload unique, so value equality is the
-       "my write landed" test; a losing park reads the incumbent's park instant as the rejection age. */
-    RETURN QUERY
-    SELECT
-        (CASE WHEN c.value = p_value THEN 1 /* ControlAction.Applied */ ELSE 3 /* ControlAction.Rejected */ END)::SMALLINT,
-        c.modified_at_utc
-    FROM acta.checkpoints c
-    WHERE c.job_id = p_job_id AND c.kind_code = 20 /* JobCheckpointKindCode.Signal */ AND c.name = p_name;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION acta.raise_signal(
-    p_job_id BIGINT,
-    p_kind_code SMALLINT,
-    p_name VARCHAR,
-    p_value_format_id SMALLINT,
-    p_value BYTEA,
-    p_actor_code SMALLINT,
-    p_actor_key VARCHAR,
-    p_reason_code SMALLINT,
-    p_reason_message VARCHAR
-)
-RETURNS TABLE (action SMALLINT, status_code SMALLINT)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_now TIMESTAMPTZ := now();
-    v_existing SMALLINT;
-    v_expired BOOLEAN := FALSE;
-    v_message VARCHAR;
-    v_from_status SMALLINT;
-    v_namespace_id INT;
-    v_lineage_root_id BIGINT;
-    v_definition_id INT;
-    v_tenant_id INT;
-    v_execution_number INT;
-    v_audit_level SMALLINT;
-    v_job_ref UUID;
-BEGIN
-
-    SELECT js.status_code INTO v_existing
-    FROM acta.checkpoints js
-    WHERE
-        js.job_id = p_job_id
-        AND js.kind_code = p_kind_code
-        AND js.name = p_name
-    FOR UPDATE;
-
-    SELECT
-        r.status_code,
-        j.namespace_id,
-        j.lineage_root_id,
-        j.definition_id,
-        j.tenant_id,
-        r.execution_number,
-        j.audit_level_code,
-        j.job_ref
-    INTO v_from_status, v_namespace_id, v_lineage_root_id, v_definition_id, v_tenant_id, v_execution_number, v_audit_level, v_job_ref
-    FROM acta.runtimes r
-    JOIN acta.jobs j ON j.id = r.job_id
-    WHERE r.job_id = p_job_id
-    FOR UPDATE OF r;
-
-    IF v_from_status IS NULL THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT;
-        RETURN;
-    END IF;
-
-    IF v_from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN
-        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status;
-        RETURN;
-    END IF;
-
-    /* No revival: an Expired slot already resolved the wait TimedOut, so a late raise writes no slot
-       and releases no job. The raise still happened, so it is still recorded: the event below carries
-       a message saying why it changed nothing, and the verb reports the job's unchanged status. */
-    -- COALESCE, not a bare comparison: a first raise has no slot at all, and NULL = 30 is unknown, which
-    -- would skip the upsert below rather than take it.
-    v_expired := COALESCE(v_existing = 30 /* JobCheckpointStatusCode.Expired */, FALSE);
-    v_message := CASE
-        WHEN v_expired
-            THEN LEFT(COALESCE(p_reason_message || ' ', '') || 'Signal not applied: the wait had already expired.', 512)
-        ELSE p_reason_message END;
-
-    IF NOT v_expired THEN
-        INSERT INTO acta.checkpoints (
-            job_id,
-            kind_code,
-            name,
-            status_code,
-            value_format_id,
-            value,
-            created_at_utc,
-            modified_at_utc,
-            version)
-        VALUES (
-            p_job_id,
-            p_kind_code,
-            p_name,
-            20 /* JobCheckpointStatusCode.Set */,
-            p_value_format_id,
-            p_value,
-            v_now,
-            v_now,
-            0)
-        ON CONFLICT (job_id, kind_code, name) DO UPDATE SET
-            status_code = 20 /* JobCheckpointStatusCode.Set */,
-            value_format_id = EXCLUDED.value_format_id,
-            value = EXCLUDED.value,
-            modified_at_utc = v_now,
-            version = acta.checkpoints.version + 1;
-    END IF;
-
-    IF v_audit_level = 20 /* JobAuditLevelCode.Audit */ THEN
-        INSERT INTO acta.events (
-            event_code,
-            created_at_utc,
-            namespace_id,
-            actor_code,
-            actor_key,
-            job_id,
-            job_ref,
-            execution_number,
-            lineage_root_id,
-            definition_id,
-            tenant_id,
-            worker_id,
-            from_status_code,
-            to_status_code,
-            execution_status_code,
-            duration_ms,
-            reason_code,
-            reason_message)
-        VALUES (
-            80 /* EventCode.JobSignalRaised */,
-            v_now,
-            v_namespace_id,
-            p_actor_code,
-            p_actor_key,
-            p_job_id,
-            v_job_ref,
-            v_execution_number,
-            COALESCE(v_lineage_root_id, p_job_id),
-            v_definition_id,
-            v_tenant_id,
-            NULL,
-            v_from_status,
-            v_from_status,
-            NULL,
-            NULL,
-            p_reason_code,
-            v_message);
-    END IF;
-
-    IF v_from_status = 20 /* JobStatusCode.Suspended */ AND NOT v_expired THEN
-        UPDATE acta.runtimes
-        SET
-            status_code = 10 /* JobStatusCode.Ready */,
-            next_run_at_utc = v_now,
-            modified_at_utc = v_now,
-            version = version + 1
-        WHERE job_id = p_job_id;
-
-        IF v_audit_level = 20 /* JobAuditLevelCode.Audit */ THEN
-            INSERT INTO acta.events (
-                event_code,
-                created_at_utc,
-                namespace_id,
-                actor_code,
-                actor_key,
-                job_id,
-                job_ref,
-                execution_number,
-                lineage_root_id,
-                definition_id,
-                tenant_id,
-                worker_id,
-                from_status_code,
-                to_status_code,
-                execution_status_code,
-                duration_ms,
-                reason_code,
-                reason_message)
-            VALUES (
-                72 /* EventCode.JobResumed */,
-                v_now,
-                v_namespace_id,
-                p_actor_code,
-                p_actor_key,
-                p_job_id,
-                v_job_ref,
-                v_execution_number,
-                COALESCE(v_lineage_root_id, p_job_id),
-                v_definition_id,
-                v_tenant_id,
-                NULL,
-                20 /* JobStatusCode.Suspended */,
-                10 /* JobStatusCode.Ready */,
-                NULL,
-                NULL,
-                p_reason_code,
-                p_reason_message);
-        END IF;
-
-        RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, 10 /* JobStatusCode.Ready */::SMALLINT;
-        RETURN;
-    END IF;
-
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_from_status;
-END;
-$$;
-
--- Appends the applied-command evidence event against the sys.outbox slot job. Always emitted (no
--- audit-level gate): this is the trail for actions whose subject rows live in the producer's database.
-CREATE OR REPLACE FUNCTION acta.record_outbox_event(
-    p_job_id BIGINT,
-    p_event_code SMALLINT,
-    p_actor_code SMALLINT,
-    p_actor_key VARCHAR,
-    p_reason_message VARCHAR
-)
-RETURNS VOID
-LANGUAGE plpgsql
-AS $$
-BEGIN
-    INSERT INTO acta.events (
-        event_code,
-        created_at_utc,
-        namespace_id,
-        actor_code,
-        actor_key,
-        job_id,
-        job_ref,
-        execution_number,
-        lineage_root_id,
-        definition_id,
-        tenant_id,
-        reason_message)
-    SELECT
-        p_event_code,
-        now(),
-        j.namespace_id,
-        p_actor_code,
-        p_actor_key,
-        j.id,
-        j.job_ref,
-        r.execution_number,
-        COALESCE(j.lineage_root_id, j.id),
-        j.definition_id,
-        j.tenant_id,
-        p_reason_message
-    FROM acta.jobs j
-    JOIN acta.runtimes r ON r.job_id = j.id
-    WHERE j.id = p_job_id;
-END;
-$$;
-
-/* Slot-locked arbiter for one durable wait: Set wins even past the due, an overdue Pending flips to
-   Expired, Expired replays TimedOut forever. */
-/* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a timeout, so code
-   redeployed with a bound can un-strand a wait suspended without one; a stored due is never
-   overwritten, never extended, and never cleared by a subsequent unbounded call. */
-/* One resolution block, reached holding the row lock. An absent slot is armed first, because FOR
-   UPDATE locks no key that does not exist yet and the arming insert can lose to a concurrent first
-   arrival; the loser re-reads the winner's row and resolves against that. */
-CREATE OR REPLACE FUNCTION acta.wait_signal(
-    p_job_id BIGINT,
-    p_kind_code SMALLINT,
-    p_name VARCHAR,
-    p_timeout_seconds INT DEFAULT NULL
-)
-RETURNS TABLE (
-    outcome_code SMALLINT,
-    value_format_id SMALLINT,
-    value BYTEA
-)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_now TIMESTAMPTZ := now();
-    v_state SMALLINT;
-    v_fmt SMALLINT;
-    v_val BYTEA;
-    v_due TIMESTAMPTZ;
-    v_armed INT;
-BEGIN
-    SELECT js.status_code, js.value_format_id, js.value, js.due_at_utc
-    INTO v_state, v_fmt, v_val, v_due
-    FROM acta.checkpoints js
-    WHERE js.job_id = p_job_id AND js.kind_code = p_kind_code AND js.name = p_name
-    FOR UPDATE;
-
-    IF v_state IS NULL THEN
-        INSERT INTO acta.checkpoints (
-            job_id,
-            kind_code,
-            name,
-            status_code,
-            due_at_utc,
-            value_format_id,
-            value,
-            created_at_utc,
-            modified_at_utc,
-            version)
-        VALUES (
-            p_job_id,
-            p_kind_code,
-            p_name,
-            10 /* JobCheckpointStatusCode.Pending */,
-            CASE WHEN p_timeout_seconds IS NULL THEN NULL ELSE v_now + make_interval(secs => p_timeout_seconds) END,
-            0 /* JobPayloadFormat.None */,
-            NULL,
-            v_now,
-            v_now,
-            0)
-        ON CONFLICT (job_id, kind_code, name) DO NOTHING;
-        GET DIAGNOSTICS v_armed = ROW_COUNT;
-
-        /* A wait this call armed suspends once, even with an already-elapsed deadline: only a wait
-           armed by an earlier call can expire. Mssql and sqlite reach that rule by construction, and
-           returning here rather than resolving is what keeps a zero-second bound identical on all three. */
-        IF v_armed = 1 THEN
-            RETURN QUERY SELECT
-                1 /* SignalWaitOutcomeCode.SuspendPending */::SMALLINT,
-                0 /* JobPayloadFormat.None */::SMALLINT,
-                NULL::BYTEA;
-            RETURN;
-        END IF;
-
-        /* Lost the race, so DO NOTHING waited the winner out and its row is committed. The re-read
-           sees it because this runs at READ COMMITTED - the repo sets no isolation level - where each
-           statement takes a fresh snapshot; under Serializable it would abort, which is also correct. */
-        SELECT js.status_code, js.value_format_id, js.value, js.due_at_utc
-        INTO v_state, v_fmt, v_val, v_due
-        FROM acta.checkpoints js
-        WHERE js.job_id = p_job_id AND js.kind_code = p_kind_code AND js.name = p_name
-        FOR UPDATE;
-    END IF;
-
-    IF v_state = 20 /* JobCheckpointStatusCode.Set */ THEN
-        RETURN QUERY SELECT
-            2 /* SignalWaitOutcomeCode.ContinueSet */::SMALLINT,
-            v_fmt,
-            v_val;
-    ELSIF v_state = 30 /* JobCheckpointStatusCode.Expired */ THEN
-        RETURN QUERY SELECT
-            3 /* SignalWaitOutcomeCode.TimedOut */::SMALLINT,
-            0 /* JobPayloadFormat.None */::SMALLINT,
-            NULL::BYTEA;
-    ELSIF v_state = 10 /* JobCheckpointStatusCode.Pending */ AND v_due IS NOT NULL AND v_due <= v_now THEN
-
-        UPDATE acta.checkpoints js
-        SET
-            status_code = 30 /* JobCheckpointStatusCode.Expired */,
-            modified_at_utc = v_now,
-            version = js.version + 1
-        WHERE js.job_id = p_job_id AND js.kind_code = p_kind_code AND js.name = p_name;
-
-        RETURN QUERY SELECT
-            3 /* SignalWaitOutcomeCode.TimedOut */::SMALLINT,
-            0 /* JobPayloadFormat.None */::SMALLINT,
-            NULL::BYTEA;
-    ELSE
-        IF v_state = 10 /* JobCheckpointStatusCode.Pending */ AND v_due IS NULL AND p_timeout_seconds IS NOT NULL THEN
-
-            UPDATE acta.checkpoints js
-            SET
-                due_at_utc = v_now + make_interval(secs => p_timeout_seconds),
-                modified_at_utc = v_now,
-                version = js.version + 1
-            WHERE
-                js.job_id = p_job_id
-                AND js.kind_code = p_kind_code
-                AND js.name = p_name
-                AND js.status_code = 10 /* JobCheckpointStatusCode.Pending */
-                AND js.due_at_utc IS NULL;
-        END IF;
-
-        RETURN QUERY SELECT
-            1 /* SignalWaitOutcomeCode.SuspendPending */::SMALLINT,
-            0 /* JobPayloadFormat.None */::SMALLINT,
-            NULL::BYTEA;
-    END IF;
 END;
 $$;
 
@@ -7246,496 +7512,6 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION acta.register_tenant(
-    p_tenant_key VARCHAR,
-    p_display_name VARCHAR,
-    p_description VARCHAR
-)
-RETURNS TABLE (tenant_id INT)
-LANGUAGE plpgsql
-AS $$
-BEGIN
-    -- Two statements on purpose: each statement in a VOLATILE plpgsql body takes a fresh snapshot,
-    -- so the SELECT sees the concurrently committed same-key winner that made ON CONFLICT skip (a
-    -- single-statement sql body shares one snapshot across both arms and returns no row then).
-    INSERT INTO acta.tenants
-        (tenant_key, display_name, description, status_code, created_at_utc, modified_at_utc, version)
-    VALUES (p_tenant_key, p_display_name, p_description, 10 /* TenantStatusCode.Active */, now(), now(), 0)
-    ON CONFLICT (tenant_key) DO NOTHING;
-
-    RETURN QUERY SELECT t.id FROM acta.tenants t WHERE t.tenant_key = p_tenant_key;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION acta.resume_tenant(
-    p_tenant_key VARCHAR,
-    p_actor_code SMALLINT,
-    p_actor_key VARCHAR,
-    p_reason_message VARCHAR
-)
-RETURNS TABLE (action SMALLINT, version INT)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_id INT;
-    v_status SMALLINT;
-    v_version INT;
-BEGIN
-    SELECT t.id, t.status_code, t.version
-    INTO v_id, v_status, v_version
-    FROM acta.tenants t
-    WHERE t.tenant_key = p_tenant_key
-    FOR UPDATE;
-
-    IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::INT;
-        RETURN;
-    END IF;
-
-    IF v_status = 10 /* TenantStatusCode.Active */ THEN
-        RETURN QUERY SELECT 6 /* ControlAction.AlreadyInState */::SMALLINT, v_version;
-        RETURN;
-    END IF;
-
-    UPDATE acta.tenants AS t
-    SET
-        status_code = 10 /* TenantStatusCode.Active */,
-        modified_at_utc = now(),
-        version = t.version + 1
-    WHERE t.id = v_id
-    RETURNING t.version INTO v_version;
-
-    -- namespace_id 1 is the seeded sys namespace (M001).
-    INSERT INTO acta.events (
-        event_code,
-        created_at_utc,
-        namespace_id,
-        actor_code,
-        actor_key,
-        job_id,
-        job_ref,
-        execution_number,
-        lineage_root_id,
-        definition_id,
-        tenant_id,
-        worker_id,
-        from_status_code,
-        to_status_code,
-        execution_status_code,
-        duration_ms,
-        reason_code,
-        reason_message)
-    VALUES (
-        11 /* EventCode.TenantResumed */,
-        now(),
-        1,
-        p_actor_code,
-        p_actor_key,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        v_id,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        p_reason_message);
-
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_version;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION acta.suspend_tenant(
-    p_tenant_key VARCHAR,
-    p_actor_code SMALLINT,
-    p_actor_key VARCHAR,
-    p_reason_message VARCHAR
-)
-RETURNS TABLE (action SMALLINT, version INT)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_id INT;
-    v_status SMALLINT;
-    v_version INT;
-BEGIN
-    SELECT t.id, t.status_code, t.version
-    INTO v_id, v_status, v_version
-    FROM acta.tenants t
-    WHERE t.tenant_key = p_tenant_key
-    FOR UPDATE;
-
-    IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::INT;
-        RETURN;
-    END IF;
-
-    IF v_status = 20 /* TenantStatusCode.Suspended */ THEN
-        RETURN QUERY SELECT 6 /* ControlAction.AlreadyInState */::SMALLINT, v_version;
-        RETURN;
-    END IF;
-
-    UPDATE acta.tenants AS t
-    SET
-        status_code = 20 /* TenantStatusCode.Suspended */,
-        modified_at_utc = now(),
-        version = t.version + 1
-    WHERE t.id = v_id
-    RETURNING t.version INTO v_version;
-
-    -- namespace_id 1 is the seeded sys namespace (M001).
-    INSERT INTO acta.events (
-        event_code,
-        created_at_utc,
-        namespace_id,
-        actor_code,
-        actor_key,
-        job_id,
-        job_ref,
-        execution_number,
-        lineage_root_id,
-        definition_id,
-        tenant_id,
-        worker_id,
-        from_status_code,
-        to_status_code,
-        execution_status_code,
-        duration_ms,
-        reason_code,
-        reason_message)
-    VALUES (
-        10 /* EventCode.TenantSuspended */,
-        now(),
-        1,
-        p_actor_code,
-        p_actor_key,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        v_id,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        p_reason_message);
-
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_version;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION acta.update_tenant(
-    p_tenant_key VARCHAR,
-    p_display_name VARCHAR,
-    p_description VARCHAR,
-    p_expected_version INT,
-    p_actor_code SMALLINT,
-    p_actor_key VARCHAR,
-    p_reason_message VARCHAR
-)
-RETURNS TABLE (action SMALLINT, version INT)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_id INT;
-    v_version INT;
-BEGIN
-    SELECT t.id, t.version INTO v_id, v_version
-    FROM acta.tenants t
-    WHERE t.tenant_key = p_tenant_key
-    FOR UPDATE;
-
-    IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::INT;
-        RETURN;
-    END IF;
-
-    IF v_version <> p_expected_version THEN
-        RETURN QUERY SELECT 5 /* ControlAction.VersionConflict */::SMALLINT, v_version;
-        RETURN;
-    END IF;
-
-    UPDATE acta.tenants AS t
-    SET
-        display_name = p_display_name,
-        description = p_description,
-        modified_at_utc = now(),
-        version = t.version + 1
-    WHERE t.id = v_id
-    RETURNING t.version INTO v_version;
-
-    -- namespace_id 1 is the seeded sys namespace (M001).
-    INSERT INTO acta.events (
-        event_code,
-        created_at_utc,
-        namespace_id,
-        actor_code,
-        actor_key,
-        job_id,
-        job_ref,
-        execution_number,
-        lineage_root_id,
-        definition_id,
-        tenant_id,
-        worker_id,
-        from_status_code,
-        to_status_code,
-        execution_status_code,
-        duration_ms,
-        reason_code,
-        reason_message)
-    VALUES (
-        12 /* EventCode.TenantUpdated */,
-        now(),
-        1,
-        p_actor_code,
-        p_actor_key,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        v_id,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        p_reason_message);
-
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_version;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION acta.arm_or_consume_sleep_timer(
-    p_job_id BIGINT,
-    p_name VARCHAR,
-    p_delay_seconds INT DEFAULT NULL,
-    p_resume_at_utc TIMESTAMPTZ DEFAULT NULL
-)
-RETURNS TABLE (
-    outcome_code SMALLINT,
-    due_at_utc TIMESTAMPTZ
-)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_now TIMESTAMPTZ := now();
-    v_due TIMESTAMPTZ := COALESCE(p_resume_at_utc, now() + make_interval(secs => p_delay_seconds));
-    v_state SMALLINT;
-    v_existing_due TIMESTAMPTZ;
-BEGIN
-
-    PERFORM 1 FROM acta.runtimes r0 WHERE r0.job_id = p_job_id FOR UPDATE;
-
-    SELECT jt.status_code, jt.due_at_utc INTO v_state, v_existing_due
-    FROM acta.checkpoints jt
-    WHERE
-        jt.job_id = p_job_id
-        AND jt.kind_code = 30 /* JobCheckpointKindCode.Timer */
-        AND jt.name = p_name;
-
-    IF v_state = 10 /* JobCheckpointStatusCode.Pending */ AND v_existing_due > v_now THEN
-
-        RETURN QUERY SELECT 1 /* SleepOutcome.Suspend */::SMALLINT, v_existing_due;
-    ELSIF v_state = 10 /* JobCheckpointStatusCode.Pending */ THEN
-
-        UPDATE acta.checkpoints jt
-        SET
-            status_code = 100 /* JobCheckpointStatusCode.Consumed */,
-            modified_at_utc = now(),
-            version = jt.version + 1
-        WHERE
-            jt.job_id = p_job_id
-            AND jt.kind_code = 30 /* JobCheckpointKindCode.Timer */
-            AND jt.name = p_name;
-        /* Only the worker still executing may clear the instant. A reclaimed row is Ready again on an
-           instant the reclaim owns, and ck_runtimes_ready_due requires a Ready row to keep one. */
-        UPDATE acta.runtimes r2
-        SET
-            next_run_at_utc = NULL,
-            modified_at_utc = now(),
-            version = r2.version + 1
-        WHERE
-            r2.job_id = p_job_id
-            AND r2.status_code = 50 /* JobStatusCode.Executing */;
-        RETURN QUERY SELECT 2 /* SleepOutcome.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
-    ELSIF v_state IS NOT NULL THEN
-
-        RETURN QUERY SELECT 2 /* SleepOutcome.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
-    ELSIF v_due <= v_now THEN
-
-        RETURN QUERY SELECT 2 /* SleepOutcome.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
-    ELSIF EXISTS (SELECT 1 FROM acta.checkpoints jt WHERE jt.job_id = p_job_id AND jt.kind_code = 30 /* JobCheckpointKindCode.Timer */ AND jt.status_code = 10 /* JobCheckpointStatusCode.Pending */) THEN
-        RETURN QUERY SELECT 3 /* SleepOutcome.Reject */::SMALLINT, NULL::TIMESTAMPTZ;
-    ELSE
-        INSERT INTO acta.checkpoints (
-            job_id,
-            kind_code,
-            name,
-            status_code,
-            due_at_utc,
-            created_at_utc,
-            modified_at_utc,
-            version)
-        VALUES (
-            p_job_id,
-            30 /* JobCheckpointKindCode.Timer */,
-            p_name,
-            10 /* JobCheckpointStatusCode.Pending */,
-            v_due,
-            now(),
-            now(),
-            0);
-        RETURN QUERY SELECT 1 /* SleepOutcome.Suspend */::SMALLINT, v_due;
-    END IF;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION acta.extend_worker_leases(
-    p_leased_by_worker_id INT,
-    p_lease_ttl_seconds INT,
-    p_draining BOOLEAN
-)
-RETURNS TABLE (job_id BIGINT, execution_number INT, renewed BOOLEAN)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_new_expiry TIMESTAMPTZ := now() + (p_lease_ttl_seconds * INTERVAL '1 second');
-BEGIN
-    UPDATE acta.workers
-    SET
-        last_seen_at_utc = now(),
-        -- A worker marked Dead through a database outage longer than its dead-after window is alive again the
-        -- moment it heartbeats; Stopped stays Stopped.
-        status_code = CASE
-            WHEN p_draining AND status_code IN (10 /* WorkerStatusCode.Active */, 200 /* WorkerStatusCode.Dead */)
-                THEN 80 /* WorkerStatusCode.Draining */
-            WHEN status_code = 200 /* WorkerStatusCode.Dead */ THEN 10 /* WorkerStatusCode.Active */
-            ELSE status_code
-        END,
-        modified_at_utc = now(),
-        version = version + 1
-    WHERE id = p_leased_by_worker_id;
-
-    /* Push every in-flight execution lease forward. Deliberately no version bump: a lease refresh
-       is not a claim-generation change, so a buffered claim still passes the start CAS. */
-    -- A row another transaction holds is skipped and reported unrenewed, so the renewal never waits
-    -- (docs/internals/sql-execution-policy.md, "Explicit exceptions and maintenance").
-    RETURN QUERY
-    WITH inflight AS (
-        SELECT r0.job_id, r0.execution_number
-        FROM acta.runtimes r0
-        WHERE
-            r0.leased_by_worker_id = p_leased_by_worker_id
-            AND r0.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
-    ),
-    locked AS (
-        SELECT r1.job_id
-        FROM acta.runtimes r1
-        WHERE
-            r1.job_id IN (SELECT i.job_id FROM inflight i)
-            AND r1.leased_by_worker_id = p_leased_by_worker_id
-            AND r1.status_code IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
-        ORDER BY r1.job_id
-        FOR UPDATE SKIP LOCKED
-    ),
-    extended AS (
-        UPDATE acta.runtimes r
-        SET lease_expires_at_utc = v_new_expiry
-        WHERE r.job_id IN (SELECT l.job_id FROM locked l)
-        RETURNING r.job_id, r.execution_number
-    )
-    -- A renewed row reports the execution it renewed; one another transaction holds, the one it read.
-    SELECT i.job_id, COALESCE(e.execution_number, i.execution_number), e.job_id IS NOT NULL
-    FROM inflight i
-    LEFT JOIN extended e ON e.job_id = i.job_id;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION acta.mark_dead_workers(
-    p_dead_after_seconds INT
-)
-RETURNS INT
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_marked INT;
-BEGIN
-    WITH doomed AS (
-        SELECT id
-        FROM acta.workers
-        WHERE
-            -- A worker that stopped heartbeating mid-drain, killed or past its host's shutdown budget, is as
-            -- dead as an active one; nothing else ever moves a Draining row.
-            status_code IN (10 /* WorkerStatusCode.Active */, 80 /* WorkerStatusCode.Draining */)
-            AND last_seen_at_utc < now() - (p_dead_after_seconds * INTERVAL '1 second')
-        FOR UPDATE SKIP LOCKED
-    ),
-
-    dead AS (
-        UPDATE acta.workers w
-        SET
-            status_code = 200 /* WorkerStatusCode.Dead */,
-            modified_at_utc = now(),
-            version = version + 1
-        FROM doomed d
-        WHERE w.id = d.id
-        RETURNING w.id, w.namespace_id, w.worker_ref
-    ),
-
-    evt AS (
-        INSERT INTO acta.events (
-            event_code,
-            created_at_utc,
-            namespace_id,
-            actor_code,
-            actor_key,
-            job_id,
-            execution_number,
-            lineage_root_id,
-            definition_id,
-            worker_id,
-            from_status_code,
-            to_status_code,
-            execution_status_code,
-            duration_ms,
-            reason_code,
-            reason_message)
-        SELECT
-            122 /* EventCode.WorkerDied */,
-            now(),
-            d.namespace_id,
-            70 /* ActorCode.Worker */,
-            d.worker_ref::TEXT,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            d.id,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            101 /* JobEventReasonCode.WorkerHeartbeatStale */,
-            NULL
-        FROM dead d
-        RETURNING 1
-    )
-
-    SELECT count(*) INTO v_marked FROM dead;
-    RETURN v_marked;
-END;
-$$;
-
 CREATE OR REPLACE FUNCTION acta.start_worker(
     p_name VARCHAR,
     p_owner_team VARCHAR,
@@ -7930,515 +7706,739 @@ AS $$
     FROM stopped s;
 $$;
 
--- One section, one bounded atomic batch. Section numbers match RetentionSection.
-CREATE OR REPLACE FUNCTION acta.purge_expired_data(
-    p_namespace_id INT,
-    p_section INT,
-    p_cutoff_utc TIMESTAMPTZ,
-    p_batch_size INT
+CREATE OR REPLACE FUNCTION acta.suspend_namespace(
+    p_namespace_name VARCHAR,
+    p_actor_code SMALLINT,
+    p_actor_key VARCHAR,
+    p_reason_message VARCHAR
 )
-RETURNS TABLE (deleted_count INT)
+RETURNS TABLE (action SMALLINT, version INT)
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_rows INT := 0;
-    v_ids BIGINT[];
-    v_lock_keys TEXT[];
-    v_alerts_slot_id BIGINT;
+    v_id INT;
+    v_status SMALLINT;
+    v_version INT;
 BEGIN
-    IF p_batch_size <= 0 OR p_section NOT BETWEEN 1 AND 8 THEN
-        RAISE EXCEPTION 'Invalid retention section or batch size.';
-    END IF;
+    SELECT n.id, n.status_code, n.version INTO v_id, v_status, v_version
+    FROM acta.namespaces n
+    WHERE n.name = p_namespace_name
+    FOR UPDATE;
 
-    CASE p_section
-    WHEN 1 THEN
-        SELECT array_agg(q.id) INTO v_ids FROM (
-            SELECT j.id FROM acta.jobs j
-            JOIN acta.runtimes r ON r.job_id = j.id
-            WHERE
-                r.namespace_id = p_namespace_id
-                AND r.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-                AND r.retention_until_utc IS NOT NULL
-                AND r.retention_until_utc <= p_cutoff_utc
-                -- Lineage guard: parent_id carries no FK, so purging a parent whose children still
-                -- exist would orphan their lineage (same rule as the manual purge_job). Only leaves
-                -- delete; a fully-expired subtree drains bottom-up across iterations.
-                AND NOT EXISTS (SELECT 1 FROM acta.jobs c WHERE c.parent_id = j.id)
-                -- A completed child of a live parent is kept: the parent's replay dedupes onto its row and
-                -- reads its result, so purging it would run the child again. The tree drains once the
-                -- parent is terminal.
-                AND NOT EXISTS (
-                    SELECT 1 FROM acta.runtimes p
-                    WHERE p.job_id = j.parent_id
-                      AND p.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
-                -- A stopped recurring job stays while its definition is live: the next start would register
-                -- its declaration as a new job and undo the cancel or failure. Retiring the definition lets
-                -- it drain.
-                AND NOT EXISTS (
-                    SELECT 1 FROM acta.schedules s
-                    JOIN acta.definitions d ON d.id = j.definition_id
-                    WHERE s.job_id = j.id AND d.status_code <> 240 /* JobDefinitionStatusCode.Retired */)
-            ORDER BY r.retention_until_utc, r.job_id
-            LIMIT p_batch_size
-            FOR UPDATE OF j, r SKIP LOCKED) q;
-        v_rows := COALESCE(cardinality(v_ids), 0);
-        IF v_rows > 0 THEN
-            PERFORM 1 FROM acta.schedules s WHERE s.job_id = ANY(v_ids) ORDER BY s.id FOR UPDATE;
-            DELETE FROM acta.tags t
-            WHERE
-                (t.scope_code = 50 /* TagScopeCode.Job */ AND t.scope_id = ANY(v_ids))
-                OR (t.scope_code = 60 /* TagScopeCode.Schedule */ AND t.scope_id IN (
-                    SELECT s.id FROM acta.schedules s WHERE s.job_id = ANY(v_ids)));
-            DELETE FROM acta.jobs j WHERE j.id = ANY(v_ids);
-        END IF;
-
-    WHEN 2 THEN
-        SELECT array_agg(q.id) INTO v_ids FROM (
-            SELECT id FROM acta.events
-            WHERE
-                namespace_id = p_namespace_id
-                AND created_at_utc <= p_cutoff_utc
-            ORDER BY created_at_utc, id
-            LIMIT p_batch_size
-            FOR UPDATE SKIP LOCKED) q;
-        v_rows := COALESCE(cardinality(v_ids), 0);
-        IF v_rows > 0 THEN
-            DELETE FROM acta.tags
-            WHERE
-                scope_code = 90 /* TagScopeCode.Event */
-                AND scope_id = ANY(v_ids);
-            DELETE FROM acta.events WHERE id = ANY(v_ids);
-        END IF;
-
-    WHEN 3 THEN
-        SELECT array_agg(q.id) INTO v_ids FROM (
-            SELECT id FROM acta.alerts
-            WHERE
-                namespace_id = p_namespace_id
-                AND created_at_utc <= p_cutoff_utc
-                AND delivery_status_code IN (30 /* AlertDeliveryStatusCode.Suppressed */, 100 /* AlertDeliveryStatusCode.Delivered */, 200 /* AlertDeliveryStatusCode.Failed */)
-            ORDER BY created_at_utc, id
-            LIMIT p_batch_size
-            FOR UPDATE SKIP LOCKED) q;
-        v_rows := COALESCE(cardinality(v_ids), 0);
-        IF v_rows > 0 THEN
-            DELETE FROM acta.tags
-            WHERE
-                scope_code = 80 /* TagScopeCode.Alert */
-                AND scope_id = ANY(v_ids);
-            DELETE FROM acta.alerts WHERE id = ANY(v_ids);
-        END IF;
-
-    WHEN 4 THEN
-        SELECT array_agg(q.id) INTO v_ids FROM (
-            SELECT id FROM acta.alerts
-            WHERE
-                namespace_id = p_namespace_id
-                AND created_at_utc <= p_cutoff_utc
-                AND delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */)
-            ORDER BY created_at_utc, id
-            LIMIT p_batch_size
-            FOR UPDATE SKIP LOCKED) q;
-        v_rows := COALESCE(cardinality(v_ids), 0);
-        IF v_rows > 0 THEN
-            DELETE FROM acta.tags
-            WHERE
-                scope_code = 80 /* TagScopeCode.Alert */
-                AND scope_id = ANY(v_ids);
-            DELETE FROM acta.alerts WHERE id = ANY(v_ids);
-        END IF;
-
-    WHEN 5 THEN
-        SELECT j.id INTO v_alerts_slot_id
-        FROM acta.jobs j
-        WHERE
-            j.namespace_id = p_namespace_id
-            AND j.deduplication_key = 'sys.alerts'
-            AND j.parent_id IS NULL;
-        DELETE FROM acta.checkpoints c
-        WHERE (c.job_id, c.kind_code, c.name) IN (
-            SELECT k.job_id, k.kind_code, k.name FROM acta.checkpoints k
-            WHERE
-                k.job_id = v_alerts_slot_id
-                AND k.kind_code = 10 /* JobCheckpointKindCode.Variable */
-                AND k.name LIKE 'alerts-skip-%'
-                AND k.modified_at_utc <= p_cutoff_utc
-            LIMIT p_batch_size);
-        GET DIAGNOSTICS v_rows = ROW_COUNT;
-
-    WHEN 6 THEN
-        SELECT array_agg(q.id) INTO v_ids FROM (
-            SELECT id FROM acta.workers
-            WHERE
-                namespace_id = p_namespace_id
-                AND status_code IN (100 /* WorkerStatusCode.Stopped */, 200 /* WorkerStatusCode.Dead */)
-                AND last_seen_at_utc <= p_cutoff_utc
-            ORDER BY last_seen_at_utc, id
-            LIMIT p_batch_size
-            FOR UPDATE SKIP LOCKED) q;
-        v_rows := COALESCE(cardinality(v_ids), 0);
-        IF v_rows > 0 THEN
-            DELETE FROM acta.tags
-            WHERE
-                scope_code = 70 /* TagScopeCode.Worker */
-                AND scope_id = ANY(v_ids);
-            DELETE FROM acta.workers WHERE id = ANY(v_ids);
-        END IF;
-
-    WHEN 7 THEN
-        -- Stage the batch into a variable first (same shape as the sections above): a SKIP LOCKED
-        -- subquery inlined into the DELETE may be re-evaluated per outer row, locking a different
-        -- row each probe and deleting past the batch size.
-        SELECT array_agg(q.lock_key) INTO v_lock_keys FROM (
-            SELECT lock_key FROM acta.locks
-            WHERE
-                expires_at_utc <= p_cutoff_utc
-            ORDER BY expires_at_utc
-            LIMIT p_batch_size
-            FOR UPDATE SKIP LOCKED) q;
-        DELETE FROM acta.locks WHERE lock_key = ANY(v_lock_keys);
-        GET DIAGNOSTICS v_rows = ROW_COUNT;
-
-    WHEN 8 THEN
-        -- Unreferenced lanes, locked in id order skipping a lane an enqueue or settle holds, then
-        -- re-checked under the lock (docs/internals/sql-execution-policy.md, "Lane lock order").
-        SELECT array_agg(q.id) INTO v_ids FROM (
-            SELECT l.id FROM acta.lanes l
-            WHERE
-                l.namespace_id = p_namespace_id
-                AND NOT EXISTS (SELECT 1 FROM acta.runtimes r WHERE r.lane_id = l.id)
-            ORDER BY l.id
-            LIMIT p_batch_size
-            FOR UPDATE SKIP LOCKED) q;
-        DELETE FROM acta.lanes l
-        WHERE
-            l.id = ANY(v_ids)
-            AND NOT EXISTS (SELECT 1 FROM acta.runtimes r WHERE r.lane_id = l.id);
-        GET DIAGNOSTICS v_rows = ROW_COUNT;
-    END CASE;
-
-    RETURN QUERY SELECT v_rows;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION acta.apply_tags(
-    p_scope_code SMALLINT,
-    p_lookup_id BIGINT,
-    p_lookup_name VARCHAR,
-    p_mutation SMALLINT,
-    p_items_json VARCHAR
-)
-RETURNS TABLE (action SMALLINT)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_scope_id BIGINT;
-    v_namespace_id INT;
-BEGIN
-    CASE p_scope_code
-        WHEN 20 /* TagScopeCode.Tenant */ THEN
-            SELECT t.id::BIGINT, NULL::INT INTO v_scope_id, v_namespace_id
-            FROM acta.tenants t
-            WHERE t.tenant_key = p_lookup_name
-            FOR UPDATE;
-        WHEN 30 /* TagScopeCode.Namespace */ THEN
-            SELECT n.id::BIGINT, n.id INTO v_scope_id, v_namespace_id
-            FROM acta.namespaces n
-            WHERE n.name = p_lookup_name
-            FOR UPDATE;
-        WHEN 40 /* TagScopeCode.Definition */ THEN
-            SELECT d.id::BIGINT, d.namespace_id INTO v_scope_id, v_namespace_id
-            FROM acta.definitions d
-            WHERE d.id = p_lookup_id
-            FOR UPDATE;
-        WHEN 50 /* TagScopeCode.Job */ THEN
-            SELECT j.id, j.namespace_id INTO v_scope_id, v_namespace_id
-            FROM acta.jobs j
-            WHERE j.id = p_lookup_id
-            FOR UPDATE;
-        WHEN 60 /* TagScopeCode.Schedule */ THEN
-            SELECT s.id, s.namespace_id INTO v_scope_id, v_namespace_id
-            FROM acta.schedules s
-            WHERE
-                s.job_id = p_lookup_id
-                AND s.name = p_lookup_name
-            FOR UPDATE;
-        WHEN 70 /* TagScopeCode.Worker */ THEN
-            SELECT w.id::BIGINT, w.namespace_id INTO v_scope_id, v_namespace_id
-            FROM acta.workers w
-            WHERE w.id = p_lookup_id
-            FOR UPDATE;
-        WHEN 80 /* TagScopeCode.Alert */ THEN
-            SELECT a.id, a.namespace_id INTO v_scope_id, v_namespace_id
-            FROM acta.alerts a
-            WHERE a.id = p_lookup_id
-            FOR UPDATE;
-        WHEN 90 /* TagScopeCode.Event */ THEN
-            SELECT e.id, e.namespace_id INTO v_scope_id, v_namespace_id
-            FROM acta.events e
-            WHERE e.id = p_lookup_id
-            FOR UPDATE;
-        ELSE
-            RAISE EXCEPTION 'Unsupported tag scope code %.', p_scope_code;
-    END CASE;
-
-    IF v_scope_id IS NULL THEN
-        RETURN QUERY SELECT 2 /* TagMutationAction.NotFound */::SMALLINT;
+    IF NOT FOUND THEN
+        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::INT;
         RETURN;
     END IF;
 
-    IF p_mutation = 1 /* TagMutationKind.Replace */ THEN
-        DELETE FROM acta.tags
-        WHERE
-            scope_code = p_scope_code
-            AND scope_id = v_scope_id;
-
-        INSERT INTO acta.tags(scope_code, scope_id, namespace_id, name, value, value_search)
-        SELECT
-            p_scope_code,
-            v_scope_id,
-            v_namespace_id,
-            item->>'name',
-            item->>'value',
-            item->>'value_search'
-        FROM jsonb_array_elements(p_items_json::JSONB) item;
-    ELSIF p_mutation = 2 /* TagMutationKind.Upsert */ THEN
-        IF EXISTS (
-            SELECT 1
-            FROM jsonb_array_elements(p_items_json::JSONB) item
-            WHERE NOT EXISTS (
-                SELECT 1 FROM acta.tags t
-                WHERE
-                    t.scope_code = p_scope_code
-                    AND t.scope_id = v_scope_id
-                    AND t.name = item->>'name'))
-            AND (SELECT COUNT(*) FROM acta.tags t
-                WHERE t.scope_code = p_scope_code AND t.scope_id = v_scope_id) >= 32 THEN
-            RAISE EXCEPTION 'A target may carry at most 32 tags.';
-        END IF;
-
-        INSERT INTO acta.tags(scope_code, scope_id, namespace_id, name, value, value_search)
-        SELECT
-            p_scope_code,
-            v_scope_id,
-            v_namespace_id,
-            item->>'name',
-            item->>'value',
-            item->>'value_search'
-        FROM jsonb_array_elements(p_items_json::JSONB) item
-        ON CONFLICT (scope_code, scope_id, name) DO UPDATE SET
-            namespace_id = EXCLUDED.namespace_id,
-            value = EXCLUDED.value,
-            value_search = EXCLUDED.value_search;
-    ELSIF p_mutation = 3 /* TagMutationKind.Remove */ THEN
-        DELETE FROM acta.tags t
-        USING jsonb_array_elements(p_items_json::JSONB) item
-        WHERE
-            t.scope_code = p_scope_code
-            AND t.scope_id = v_scope_id
-            AND t.name = item->>'name';
-    ELSE
-        RAISE EXCEPTION 'Unsupported tag mutation code %.', p_mutation;
+    IF v_status = 20 /* NamespaceStatusCode.Suspended */ THEN
+        RETURN QUERY SELECT 6 /* ControlAction.AlreadyInState */::SMALLINT, v_version;
+        RETURN;
     END IF;
 
-    RETURN QUERY SELECT 1 /* TagMutationAction.Applied */::SMALLINT;
+    UPDATE acta.namespaces AS n
+    SET
+        status_code = 20 /* NamespaceStatusCode.Suspended */,
+        modified_at_utc = now(),
+        version = n.version + 1
+    WHERE n.id = v_id
+    RETURNING n.version INTO v_version;
+
+    INSERT INTO acta.events (
+        event_code,
+        created_at_utc,
+        namespace_id,
+        actor_code,
+        actor_key,
+        job_id,
+        job_ref,
+        execution_number,
+        lineage_root_id,
+        definition_id,
+        tenant_id,
+        worker_id,
+        from_status_code,
+        to_status_code,
+        execution_status_code,
+        duration_ms,
+        reason_code,
+        reason_message)
+    VALUES (
+        20 /* EventCode.NamespaceSuspended */,
+        now(),
+        v_id,
+        p_actor_code,
+        p_actor_key,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        p_reason_message);
+
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_version;
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION acta.acquire_lock(
-    p_lock_key VARCHAR,
-    p_job_id BIGINT,
-    p_lease_ttl_seconds INT,
-    p_hold_token UUID
+CREATE OR REPLACE FUNCTION acta.suspend_tenant(
+    p_tenant_key VARCHAR,
+    p_actor_code SMALLINT,
+    p_actor_key VARCHAR,
+    p_reason_message VARCHAR
 )
-RETURNS TABLE (hold_token UUID)
-LANGUAGE sql
-AS $$
-    INSERT INTO acta.locks (lock_key, job_id, expires_at_utc, hold_token)
-    VALUES (p_lock_key, p_job_id, now() + (p_lease_ttl_seconds * INTERVAL '1 second'), p_hold_token)
-    ON CONFLICT (lock_key) DO UPDATE SET
-        job_id = EXCLUDED.job_id,
-        expires_at_utc = EXCLUDED.expires_at_utc,
-        hold_token = EXCLUDED.hold_token
-    WHERE locks.expires_at_utc <= now()
-    RETURNING hold_token;
-$$;
-
--- A slot is free when it has no row or its hold expired; the insert steals an expired row in place.
--- The primary key arbitrates two racers on one slot, and the loser's ON CONFLICT guard fails to no row.
-CREATE OR REPLACE FUNCTION acta.acquire_slot(
-    p_lock_key_prefix VARCHAR,
-    p_slot_count INT,
-    p_job_id BIGINT,
-    p_lease_ttl_seconds INT,
-    p_hold_token UUID
-)
-RETURNS TABLE (slot_key VARCHAR)
-LANGUAGE sql
-AS $$
-    WITH free AS (
-        SELECT s.i
-        FROM generate_series(0, p_slot_count - 1) AS s(i)
-        WHERE NOT EXISTS (
-            SELECT 1
-            FROM acta.locks held
-            WHERE
-                held.lock_key = p_lock_key_prefix || '.' || s.i
-                AND held.expires_at_utc > now()
-        )
-        ORDER BY s.i
-        LIMIT 1
-    )
-    INSERT INTO acta.locks (lock_key, job_id, expires_at_utc, hold_token)
-    SELECT
-        p_lock_key_prefix || '.' || free.i,
-        p_job_id,
-        now() + (p_lease_ttl_seconds * INTERVAL '1 second'),
-        p_hold_token
-    FROM free
-    ON CONFLICT (lock_key) DO UPDATE SET
-        job_id = EXCLUDED.job_id,
-        expires_at_utc = EXCLUDED.expires_at_utc,
-        hold_token = EXCLUDED.hold_token
-    WHERE locks.expires_at_utc <= now()
-    RETURNING locks.lock_key;
-$$;
-
-CREATE OR REPLACE FUNCTION acta.extend_lock(
-    p_lock_key VARCHAR,
-    p_hold_token UUID,
-    p_lease_ttl_seconds INT
-)
-RETURNS TABLE (hold_token UUID)
-LANGUAGE sql
-AS $$
-    UPDATE acta.locks
-    SET expires_at_utc = now() + (p_lease_ttl_seconds * INTERVAL '1 second')
-    WHERE lock_key = p_lock_key AND hold_token = p_hold_token
-    RETURNING hold_token;
-$$;
-
-CREATE OR REPLACE FUNCTION acta.release_lock(
-    p_lock_key VARCHAR,
-    p_hold_token UUID
-)
-RETURNS TABLE (hold_token UUID)
-LANGUAGE sql
-AS $$
-    DELETE FROM acta.locks
-    WHERE lock_key = p_lock_key AND hold_token = p_hold_token
-    RETURNING hold_token;
-$$;
-
--- GCRA with a reservation; the full contract is on ILockStore.ReserveRateAsync. A turn is honoured
--- while it is fresh, one second past its instant (one interval when that is longer); a stale one goes
--- back through the meter, so a queue of overdue jobs cannot all start at once after a long stall.
-
--- The bucket row is created-or-locked by one statement below, so the expiry sweep can never delete
--- it between a create and a lock: the charge this call books is always persisted before it admits.
-
--- That no-op DO UPDATE writes a new row version per request, so a hot meter leaves autovacuum one
--- dead tuple per admission; the price of the single-statement lock, not a thing to optimize away.
-
-CREATE OR REPLACE FUNCTION acta.reserve_rate(
-    p_lock_key VARCHAR,
-    p_job_id BIGINT,
-    p_rate_interval_ms INT,
-    p_rate_burst INT,
-    p_grace_seconds INT,
-    p_hold_token UUID
-)
-RETURNS TABLE (resume_at_utc TIMESTAMPTZ, admitted BOOLEAN, wait_ms BIGINT)
+RETURNS TABLE (action SMALLINT, version INT)
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_now TIMESTAMPTZ;
-    v_interval INTERVAL := p_rate_interval_ms * INTERVAL '1 millisecond';
-    -- How long a booked turn stays valid past its instant: a second covers the claim-path pickup at
-    -- any rate, and a slower meter keeps its whole interval, so the window is the larger of the two.
-    v_window INTERVAL := GREATEST(v_interval, INTERVAL '1 second');
-    -- How far behind now an idle meter is allowed to be, which is what hands out the burst: one
-    -- interval short of a whole period, so the burst-th request lands on now and the next one waits.
-    v_lookback INTERVAL := (p_rate_burst - 1) * (p_rate_interval_ms * INTERVAL '1 millisecond');
-    -- A reservation row expires a grace after its turn rather than on it, so the sweep never takes a
-    -- turn a live job is still coming back for.
-    v_grace INTERVAL := make_interval(secs => p_grace_seconds);
-    v_reservation VARCHAR := p_lock_key || '.' || p_job_id;
-    v_stored TIMESTAMPTZ;
-    v_due TIMESTAMPTZ;
-    v_turn TIMESTAMPTZ;
+    v_id INT;
+    v_status SMALLINT;
+    v_version INT;
 BEGIN
-    -- The bucket stores the arrival time plus the lookback, so the row expires exactly when an idle
-    -- meter stops saying anything a missing one would not. A missing meter starts at now.
+    SELECT t.id, t.status_code, t.version
+    INTO v_id, v_status, v_version
+    FROM acta.tenants t
+    WHERE t.tenant_key = p_tenant_key
+    FOR UPDATE;
 
-    -- Create-or-lock in one statement: the DO UPDATE (a no-op assignment) takes the row lock, and
-    -- RETURNING hands back whichever value is now locked in - freshly inserted, or already there.
-    INSERT INTO acta.locks (lock_key, job_id, expires_at_utc, hold_token)
-    VALUES (p_lock_key, p_job_id, clock_timestamp(), p_hold_token)
-    ON CONFLICT (lock_key) DO UPDATE SET lock_key = EXCLUDED.lock_key
-    RETURNING expires_at_utc INTO v_stored;
+    IF NOT FOUND THEN
+        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::INT;
+        RETURN;
+    END IF;
 
-    -- The wall clock, read once the row is locked, never the transaction's start: judged against a
-    -- stale instant, every call a convoy on this meter delayed would be admitted together the moment
-    -- the lock freed, several times the contract in one second under a flood of metered claims.
-    v_now := clock_timestamp();
+    IF v_status = 20 /* TenantStatusCode.Suspended */ THEN
+        RETURN QUERY SELECT 6 /* ControlAction.AlreadyInState */::SMALLINT, v_version;
+        RETURN;
+    END IF;
 
-    -- The row count decides consumption, never a later absence: the sweep cannot slip between a read
-    -- and the delete and give away a free admission. A stale turn is spent here too, then re-metered.
-    DELETE FROM acta.locks
+    UPDATE acta.tenants AS t
+    SET
+        status_code = 20 /* TenantStatusCode.Suspended */,
+        modified_at_utc = now(),
+        version = t.version + 1
+    WHERE t.id = v_id
+    RETURNING t.version INTO v_version;
+
+    -- namespace_id 1 is the seeded sys namespace (M001).
+    INSERT INTO acta.events (
+        event_code,
+        created_at_utc,
+        namespace_id,
+        actor_code,
+        actor_key,
+        job_id,
+        job_ref,
+        execution_number,
+        lineage_root_id,
+        definition_id,
+        tenant_id,
+        worker_id,
+        from_status_code,
+        to_status_code,
+        execution_status_code,
+        duration_ms,
+        reason_code,
+        reason_message)
+    VALUES (
+        10 /* EventCode.TenantSuspended */,
+        now(),
+        1,
+        p_actor_code,
+        p_actor_key,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        v_id,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        p_reason_message);
+
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_version;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION acta.trigger_schedule_now(
+    p_job_id BIGINT,
+    p_name VARCHAR,
+    p_actor_code SMALLINT,
+    p_actor_key VARCHAR,
+    p_reason_message VARCHAR
+)
+RETURNS TABLE (
+    out_action SMALLINT, out_status_code SMALLINT, out_paused_until_utc TIMESTAMPTZ, out_next_run_at_utc TIMESTAMPTZ, out_version INT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_schedule_id BIGINT;
+    v_status SMALLINT;
+    v_paused TIMESTAMPTZ;
+    v_next TIMESTAMPTZ;
+    v_version INT;
+    v_slot_status SMALLINT;
+    v_slot_next TIMESTAMPTZ;
+    v_ns INT;
+    v_def INT;
+    v_lineage BIGINT;
+    v_en INT;
+    v_audit SMALLINT;
+    v_job_ref UUID;
+BEGIN
+    /* Lock the slot's runtimes row before the schedules row: register_scheduled_jobs writes
+       runtimes then schedules, so every writer of both must take runtimes first. The schedules row
+       is guard-only here (never updated): a manual trigger moves only the slot's cursor. */
+    SELECT r.status_code, r.next_run_at_utc, r.execution_number
+    INTO v_slot_status, v_slot_next, v_en
+    FROM acta.runtimes r
+    WHERE r.job_id = p_job_id
+    FOR UPDATE;
+
+    SELECT js.id, js.status_code, js.paused_until_utc, js.next_run_at_utc, js.version
+    INTO v_schedule_id, v_status, v_paused, v_next, v_version
+    FROM acta.schedules js
     WHERE
-        lock_key = v_reservation
-        AND expires_at_utc <= v_now + v_grace
-    RETURNING expires_at_utc - v_grace INTO v_due;
+        js.job_id = p_job_id
+        AND js.name = p_name
+        AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */
+    FOR UPDATE;
 
-    IF v_due IS NOT NULL AND v_due >= v_now - v_window THEN
-        -- Back on time: the bucket counted this job when it allocated the turn, so charging it again
-        -- would meter one job twice.
-        RETURN QUERY SELECT v_due, TRUE, 0::BIGINT;
+    IF NOT FOUND THEN
+        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT, NULL::TIMESTAMPTZ, NULL::TIMESTAMPTZ, NULL::INT;
         RETURN;
     END IF;
 
-    IF v_due IS NULL THEN
-        -- A turn still ahead of now, handed back unchanged: the job is early, not owed a new instant.
-        SELECT r.expires_at_utc - v_grace INTO v_turn
-        FROM acta.locks r
-        WHERE r.lock_key = v_reservation;
+    IF v_status = 30 /* ScheduleStatusCode.Paused */ THEN
+        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_status, v_paused, v_next, v_version;
+        RETURN;
+    END IF;
 
-        IF v_turn IS NOT NULL THEN
-            RETURN QUERY SELECT v_turn, FALSE, CEIL(EXTRACT(EPOCH FROM (v_turn - v_now)) * 1000)::BIGINT;
+    -- A held job (Paused with a next run; ScheduleWalker, "held") runs only once it is resumed.
+    IF v_slot_status IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+        OR (v_slot_status = 30 /* JobStatusCode.Paused */ AND v_slot_next IS NOT NULL) THEN
+        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_status, v_paused, v_next, v_version;
+        RETURN;
+    END IF;
+
+    IF v_slot_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN
+        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_status, v_paused, v_next, v_version;
+        RETURN;
+    END IF;
+
+    SELECT j.namespace_id, j.definition_id, j.lineage_root_id, j.audit_level_code, j.job_ref
+    INTO v_ns, v_def, v_lineage, v_audit, v_job_ref
+    FROM acta.jobs j
+    WHERE j.id = p_job_id;
+
+    UPDATE acta.runtimes
+    SET
+        next_run_at_utc = now(),
+        status_code = 10 /* JobStatusCode.Ready */,
+        modified_at_utc = now(),
+        version = version + 1
+    WHERE
+        job_id = p_job_id
+        AND (
+            status_code IN (20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */)
+            OR (status_code = 30 /* JobStatusCode.Paused */ AND next_run_at_utc IS NULL)
+        );
+
+    IF v_audit = 20 /* JobAuditLevelCode.Audit */ THEN
+        INSERT INTO acta.events (
+            event_code,
+            created_at_utc,
+            namespace_id,
+            actor_code,
+            actor_key,
+            job_id,
+            job_ref,
+            execution_number,
+            lineage_root_id,
+            definition_id,
+            worker_id,
+            from_status_code,
+            to_status_code,
+            execution_status_code,
+            duration_ms,
+            reason_code,
+            reason_message)
+        VALUES (
+            104 /* EventCode.ScheduleTriggered */,
+            now(),
+            v_ns,
+            p_actor_code,
+            p_actor_key,
+            p_job_id,
+            v_job_ref,
+            v_en,
+            COALESCE(v_lineage, p_job_id),
+            v_def,
+            NULL,
+            NULL,
+            NULL,
+            NULL,
+            NULL,
+            NULL,
+            p_reason_message);
+    END IF;
+
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_status, v_paused, v_next, v_version;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION acta.update_alert_delivery(
+    p_id BIGINT,
+    p_version INT,
+    p_delivery_status_code SMALLINT,
+    p_retry_count INT,
+    p_retry_after_utc TIMESTAMPTZ
+)
+RETURNS TABLE (id BIGINT)
+LANGUAGE sql
+AS $$
+/* Compare-and-swap on the version the delivery read handed out: an attempt whose row moved while the
+   send was in flight - resolved by an operator, or settled by a competing worker - writes nothing and
+   returns no row, and the caller treats the empty result as "the newer state stands". */
+UPDATE acta.alerts
+SET
+    delivery_status_code = p_delivery_status_code,
+    retry_count = p_retry_count,
+    retry_after_utc = p_retry_after_utc,
+    modified_at_utc = now(),
+    version = version + 1
+WHERE
+    id = p_id
+    AND version = p_version
+RETURNING id;
+$$;
+
+CREATE OR REPLACE FUNCTION acta.update_job_input(
+    p_id BIGINT,
+    p_input_format_id SMALLINT,
+    p_input BYTEA,
+    p_actor_code SMALLINT,
+    p_actor_key VARCHAR,
+    p_reason_code SMALLINT,
+    p_reason_message VARCHAR
+)
+RETURNS TABLE (action SMALLINT, status_code SMALLINT)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_from_status SMALLINT;
+    v_namespace_id INT;
+    v_lineage BIGINT;
+    v_definition INT;
+    v_tenant INT;
+    v_en INT;
+    v_audit SMALLINT;
+    v_job_ref UUID;
+    v_old_format_id SMALLINT;
+    v_old_input BYTEA;
+    v_detail_format_id SMALLINT := 0 /* JobPayloadFormat.None */;
+    v_detail BYTEA;
+BEGIN
+    SELECT
+        r.status_code,
+        j.namespace_id,
+        j.lineage_root_id,
+        j.definition_id,
+        j.tenant_id,
+        r.execution_number,
+        j.audit_level_code,
+        j.job_ref,
+        j.input_format_id,
+        j.input
+    INTO v_from_status, v_namespace_id, v_lineage, v_definition, v_tenant, v_en, v_audit, v_job_ref, v_old_format_id, v_old_input
+    FROM acta.jobs j
+    JOIN acta.runtimes r ON r.job_id = j.id
+    WHERE j.id = p_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT;
+        RETURN;
+    END IF;
+
+    IF v_from_status IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */) THEN
+        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status;
+        RETURN;
+    END IF;
+
+    UPDATE acta.jobs
+    SET
+        input = p_input,
+        input_format_id = p_input_format_id
+    WHERE id = p_id;
+
+    IF v_audit = 20 /* JobAuditLevelCode.Audit */ THEN
+        -- The event carries only bounded JSON metadata about the previous payload (format name and
+        -- byte count), never the payload itself, so nothing outlives the job's payload retention.
+        IF v_old_format_id <> 0 /* JobPayloadFormat.None */ THEN
+            v_detail_format_id := 1 /* JobPayloadFormat.Json */;
+            v_detail := convert_to(
+                '{"format":"'
+                    || CASE v_old_format_id
+                        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
+                        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
+                        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
+                        ELSE 'custom-' || v_old_format_id::text
+                    END
+                    || '","bytes":' || octet_length(v_old_input)::text || '}',
+                'UTF8');
+        END IF;
+
+        INSERT INTO acta.events (
+            event_code,
+            created_at_utc,
+            namespace_id,
+            actor_code,
+            actor_key,
+            job_id,
+            job_ref,
+            execution_number,
+            lineage_root_id,
+            definition_id,
+            tenant_id,
+            worker_id,
+            from_status_code,
+            to_status_code,
+            execution_status_code,
+            duration_ms,
+            detail_format_id,
+            detail,
+            reason_code,
+            reason_message)
+        VALUES (
+            76 /* EventCode.JobInputAmended */,
+            now(),
+            v_namespace_id,
+            p_actor_code,
+            p_actor_key,
+            p_id,
+            v_job_ref,
+            v_en,
+            COALESCE(v_lineage, p_id),
+            v_definition,
+            v_tenant,
+            NULL,
+            NULL,
+            NULL,
+            NULL,
+            NULL,
+            v_detail_format_id,
+            v_detail,
+            p_reason_code,
+            p_reason_message);
+    END IF;
+
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_from_status;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION acta.update_namespace(
+    p_namespace_name VARCHAR,
+    p_owner_team VARCHAR,
+    p_description VARCHAR,
+    p_expected_version INT,
+    p_actor_code SMALLINT,
+    p_actor_key VARCHAR,
+    p_reason_message VARCHAR
+)
+RETURNS TABLE (action SMALLINT, version INT)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_id INT;
+    v_version INT;
+BEGIN
+    SELECT n.id, n.version INTO v_id, v_version
+    FROM acta.namespaces n
+    WHERE n.name = p_namespace_name
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::INT;
+        RETURN;
+    END IF;
+
+    IF v_version <> p_expected_version THEN
+        RETURN QUERY SELECT 5 /* ControlAction.VersionConflict */::SMALLINT, v_version;
+        RETURN;
+    END IF;
+
+    UPDATE acta.namespaces AS n
+    SET
+        owner_team = p_owner_team,
+        description = p_description,
+        modified_at_utc = now(),
+        version = n.version + 1
+    WHERE n.id = v_id
+    RETURNING n.version INTO v_version;
+
+    INSERT INTO acta.events (
+        event_code,
+        created_at_utc,
+        namespace_id,
+        actor_code,
+        actor_key,
+        job_id,
+        job_ref,
+        execution_number,
+        lineage_root_id,
+        definition_id,
+        tenant_id,
+        worker_id,
+        from_status_code,
+        to_status_code,
+        execution_status_code,
+        duration_ms,
+        reason_code,
+        reason_message)
+    VALUES (
+        22 /* EventCode.NamespaceUpdated */,
+        now(),
+        v_id,
+        p_actor_code,
+        p_actor_key,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        p_reason_message);
+
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_version;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION acta.update_tenant(
+    p_tenant_key VARCHAR,
+    p_display_name VARCHAR,
+    p_description VARCHAR,
+    p_expected_version INT,
+    p_actor_code SMALLINT,
+    p_actor_key VARCHAR,
+    p_reason_message VARCHAR
+)
+RETURNS TABLE (action SMALLINT, version INT)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_id INT;
+    v_version INT;
+BEGIN
+    SELECT t.id, t.version INTO v_id, v_version
+    FROM acta.tenants t
+    WHERE t.tenant_key = p_tenant_key
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::INT;
+        RETURN;
+    END IF;
+
+    IF v_version <> p_expected_version THEN
+        RETURN QUERY SELECT 5 /* ControlAction.VersionConflict */::SMALLINT, v_version;
+        RETURN;
+    END IF;
+
+    UPDATE acta.tenants AS t
+    SET
+        display_name = p_display_name,
+        description = p_description,
+        modified_at_utc = now(),
+        version = t.version + 1
+    WHERE t.id = v_id
+    RETURNING t.version INTO v_version;
+
+    -- namespace_id 1 is the seeded sys namespace (M001).
+    INSERT INTO acta.events (
+        event_code,
+        created_at_utc,
+        namespace_id,
+        actor_code,
+        actor_key,
+        job_id,
+        job_ref,
+        execution_number,
+        lineage_root_id,
+        definition_id,
+        tenant_id,
+        worker_id,
+        from_status_code,
+        to_status_code,
+        execution_status_code,
+        duration_ms,
+        reason_code,
+        reason_message)
+    VALUES (
+        12 /* EventCode.TenantUpdated */,
+        now(),
+        1,
+        p_actor_code,
+        p_actor_key,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        v_id,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        p_reason_message);
+
+    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_version;
+END;
+$$;
+
+/* Slot-locked arbiter for one durable wait: Set wins even past the due, an overdue Pending flips to
+   Expired, Expired replays TimedOut forever. */
+/* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a timeout, so code
+   redeployed with a bound can un-strand a wait suspended without one; a stored due is never
+   overwritten, never extended, and never cleared by a subsequent unbounded call. */
+/* One resolution block, reached holding the row lock. An absent slot is armed first, because FOR
+   UPDATE locks no key that does not exist yet and the arming insert can lose to a concurrent first
+   arrival; the loser re-reads the winner's row and resolves against that. */
+CREATE OR REPLACE FUNCTION acta.wait_signal(
+    p_job_id BIGINT,
+    p_kind_code SMALLINT,
+    p_name VARCHAR,
+    p_timeout_seconds INT DEFAULT NULL
+)
+RETURNS TABLE (
+    outcome_code SMALLINT,
+    value_format_id SMALLINT,
+    value BYTEA
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_now TIMESTAMPTZ := now();
+    v_state SMALLINT;
+    v_fmt SMALLINT;
+    v_val BYTEA;
+    v_due TIMESTAMPTZ;
+    v_armed INT;
+BEGIN
+    SELECT js.status_code, js.value_format_id, js.value, js.due_at_utc
+    INTO v_state, v_fmt, v_val, v_due
+    FROM acta.checkpoints js
+    WHERE js.job_id = p_job_id AND js.kind_code = p_kind_code AND js.name = p_name
+    FOR UPDATE;
+
+    IF v_state IS NULL THEN
+        INSERT INTO acta.checkpoints (
+            job_id,
+            kind_code,
+            name,
+            status_code,
+            due_at_utc,
+            value_format_id,
+            value,
+            created_at_utc,
+            modified_at_utc,
+            version)
+        VALUES (
+            p_job_id,
+            p_kind_code,
+            p_name,
+            10 /* JobCheckpointStatusCode.Pending */,
+            CASE WHEN p_timeout_seconds IS NULL THEN NULL ELSE v_now + make_interval(secs => p_timeout_seconds) END,
+            0 /* JobPayloadFormat.None */,
+            NULL,
+            v_now,
+            v_now,
+            0)
+        ON CONFLICT (job_id, kind_code, name) DO NOTHING;
+        GET DIAGNOSTICS v_armed = ROW_COUNT;
+
+        /* A wait this call armed suspends once, even with an already-elapsed deadline: only a wait
+           armed by an earlier call can expire. Mssql and sqlite reach that rule by construction, and
+           returning here rather than resolving is what keeps a zero-second bound identical on all three. */
+        IF v_armed = 1 THEN
+            RETURN QUERY SELECT
+                1 /* SignalWaitOutcomeCode.SuspendPending */::SMALLINT,
+                0 /* JobPayloadFormat.None */::SMALLINT,
+                NULL::BYTEA;
             RETURN;
         END IF;
+
+        /* Lost the race, so DO NOTHING waited the winner out and its row is committed. The re-read
+           sees it because this runs at READ COMMITTED - the repo sets no isolation level - where each
+           statement takes a fresh snapshot; under Serializable it would abort, which is also correct. */
+        SELECT js.status_code, js.value_format_id, js.value, js.due_at_utc
+        INTO v_state, v_fmt, v_val, v_due
+        FROM acta.checkpoints js
+        WHERE js.job_id = p_job_id AND js.kind_code = p_kind_code AND js.name = p_name
+        FOR UPDATE;
     END IF;
 
-    v_stored := GREATEST(v_stored, v_now);
-    v_turn := v_stored - v_lookback;
+    IF v_state = 20 /* JobCheckpointStatusCode.Set */ THEN
+        RETURN QUERY SELECT
+            2 /* SignalWaitOutcomeCode.ContinueSet */::SMALLINT,
+            v_fmt,
+            v_val;
+    ELSIF v_state = 30 /* JobCheckpointStatusCode.Expired */ THEN
+        RETURN QUERY SELECT
+            3 /* SignalWaitOutcomeCode.TimedOut */::SMALLINT,
+            0 /* JobPayloadFormat.None */::SMALLINT,
+            NULL::BYTEA;
+    ELSIF v_state = 10 /* JobCheckpointStatusCode.Pending */ AND v_due IS NOT NULL AND v_due <= v_now THEN
 
-    UPDATE acta.locks
-    SET
-        job_id = p_job_id,
-        expires_at_utc = v_stored + v_interval,
-        hold_token = p_hold_token
-    WHERE lock_key = p_lock_key;
+        UPDATE acta.checkpoints js
+        SET
+            status_code = 30 /* JobCheckpointStatusCode.Expired */,
+            modified_at_utc = v_now,
+            version = js.version + 1
+        WHERE js.job_id = p_job_id AND js.kind_code = p_kind_code AND js.name = p_name;
 
-    -- The row lock has been held since the create-or-lock statement above, so this can never miss;
-    -- if it ever did, admitting without a persisted charge would be worse than failing the call.
-    IF NOT FOUND THEN
-        RAISE EXCEPTION 'reserve_rate: bucket % vanished while its row lock was held', p_lock_key;
+        RETURN QUERY SELECT
+            3 /* SignalWaitOutcomeCode.TimedOut */::SMALLINT,
+            0 /* JobPayloadFormat.None */::SMALLINT,
+            NULL::BYTEA;
+    ELSE
+        IF v_state = 10 /* JobCheckpointStatusCode.Pending */ AND v_due IS NULL AND p_timeout_seconds IS NOT NULL THEN
+
+            UPDATE acta.checkpoints js
+            SET
+                due_at_utc = v_now + make_interval(secs => p_timeout_seconds),
+                modified_at_utc = v_now,
+                version = js.version + 1
+            WHERE
+                js.job_id = p_job_id
+                AND js.kind_code = p_kind_code
+                AND js.name = p_name
+                AND js.status_code = 10 /* JobCheckpointStatusCode.Pending */
+                AND js.due_at_utc IS NULL;
+        END IF;
+
+        RETURN QUERY SELECT
+            1 /* SignalWaitOutcomeCode.SuspendPending */::SMALLINT,
+            0 /* JobPayloadFormat.None */::SMALLINT,
+            NULL::BYTEA;
     END IF;
-
-    IF v_turn <= v_now THEN
-        RETURN QUERY SELECT v_turn, TRUE, 0::BIGINT;
-        RETURN;
-    END IF;
-
-    INSERT INTO acta.locks (lock_key, job_id, expires_at_utc, hold_token)
-    VALUES (v_reservation, p_job_id, v_turn + v_grace, p_hold_token)
-    ON CONFLICT (lock_key) DO UPDATE SET
-        job_id = EXCLUDED.job_id,
-        expires_at_utc = EXCLUDED.expires_at_utc,
-        hold_token = EXCLUDED.hold_token;
-
-    RETURN QUERY SELECT v_turn, FALSE, CEIL(EXTRACT(EPOCH FROM (v_turn - v_now)) * 1000)::BIGINT;
 END;
 $$;
 
@@ -8446,7 +8446,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.9-c078d5138fef8365a291cbe0d0a467a2', 'acta');
+VALUES (-1, 'objects-1.10-a48fe531a01e97de9f4f42d5079938e2', 'acta');
 
 COMMIT;
 
