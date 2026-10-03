@@ -5,7 +5,7 @@ namespace Acta.Tests.Conformance;
 
 /// <summary>
 /// Provider completeness gate: every internal store port has exactly one implementation in
-/// Acta.Relational and none left in a provider assembly. Ports are discovered by the same reflection
+/// Acta.Runtime and none left in a provider assembly. Ports are discovered by the same reflection
 /// convention the coverage gate uses (<c>I*Store</c> under <c>Acta.Runtime.Modules.*</c> /
 /// <c>Acta.Runtime.Services.*</c>), so a new port is covered the moment it is declared - no registry to
 /// remember to update. A provider that misses a feature slice fails here before any runtime wiring
@@ -21,9 +21,9 @@ public sealed class ProviderStoreCompletenessTests
         var ports = StoreContractCoverageTests.StoreInterfaces();
         Assert.NotEmpty(ports);
 
-        // Every store port has exactly one shared implementation in Acta.Relational and no leftover
+        // Every store port has exactly one shared implementation in Acta.Runtime and no leftover
         // per-provider implementation: the consolidation is complete.
-        var relational = Assembly.Load("Acta.Relational");
+        var relational = Assembly.Load("Acta.Runtime");
         var providerTypes = ProviderAssemblies.SelectMany(name => Assembly.Load(name).GetTypes()).ToList();
         var missing = new List<string>();
         foreach (var port in ports)
@@ -31,7 +31,7 @@ public sealed class ProviderStoreCompletenessTests
             var shared = relational.GetTypes().Count(t => t.IsClass && !t.IsAbstract && port.IsAssignableFrom(t));
             if (shared != 1)
             {
-                missing.Add($"{port.Name}: {shared} shared implementations in Acta.Relational (expected exactly 1)");
+                missing.Add($"{port.Name}: {shared} shared implementations in Acta.Runtime (expected exactly 1)");
             }
 
             var leftover = providerTypes.Count(t => t.IsClass && !t.IsAbstract && port.IsAssignableFrom(t));

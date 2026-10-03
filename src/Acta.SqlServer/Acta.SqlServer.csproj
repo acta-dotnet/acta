@@ -10,7 +10,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Acta.Runtime\Acta.Runtime.csproj" PrivateAssets="none" />
-    <ProjectReference Include="..\Acta.Relational\Acta.Relational.csproj" PrivateAssets="none" />
     <ProjectReference Include="..\Acta.Generators\Acta.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 

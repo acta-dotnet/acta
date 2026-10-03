@@ -19,7 +19,7 @@ namespace Acta.Generators;
 [Generator(LanguageNames.CSharp)]
 public sealed class DbProjectionGenerator : IIncrementalGenerator
 {
-    private const string DbProjectionAttr = "Acta.Relational.DbProjectionAttribute";
+    private const string DbProjectionAttr = "Acta.Runtime.DbProjectionAttribute";
     private const string ResolverMethodName = "__ActaTryResolveDbProjection";
 
     private static readonly DiagnosticDescriptor ProjectionDeclaration = new(
@@ -273,7 +273,7 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
             spc.AddSource($"{HintPart(group.Key)}.DbProjectionBinder.g.cs", EmitNestedBinder(ordered));
         }
 
-        spc.AddSource("Acta.Relational.DbProjectionResolver.g.cs", EmitResolver([.. emittable]));
+        spc.AddSource("Acta.Runtime.DbProjectionResolver.g.cs", EmitResolver([.. emittable]));
     }
 
     private static string EmitNamespaceBinder(string namespaceName, ImmutableArray<ProjectionInfo> projections)
@@ -348,7 +348,7 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
         var targets = namespaceTargets.Concat(nestedTargets).OrderBy(static t => t, StringComparer.Ordinal).ToArray();
 
         var sb = NewSourceBuilder();
-        sb.AppendLine("namespace Acta.Relational;");
+        sb.AppendLine("namespace Acta.Runtime;");
         sb.AppendLine();
         sb.AppendLine("internal static class DbProjectionResolver");
         sb.AppendLine("{");
@@ -379,7 +379,7 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
         sb.AppendLine("using System;");
         sb.AppendLine("using System.Data.Common;");
         sb.AppendLine("using System.Globalization;");
-        sb.AppendLine("using Acta.Relational;");
+        sb.AppendLine("using Acta.Runtime;");
         sb.AppendLine();
         return sb;
     }

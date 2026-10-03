@@ -26,7 +26,7 @@ public sealed partial class CommentStyleTests
     private static readonly string[] ProductionRoots =
     [
         "src/Acta",
-        "src/Acta.Relational",
+        "src/Acta.Runtime",
         "src/Acta.Runtime",
         "src/Acta.SqlServer",
         "src/Acta.Postgres",
@@ -67,10 +67,10 @@ public sealed partial class CommentStyleTests
     // contracts; each entry here is a cleared exception of that kind. Clearing a file after a
     // scrub tightens the policy; never add a file for plain narration.
     private static readonly HashSet<string> InternalRemarksAllowlist = Allow(
-        "src/Acta.Relational/Entities/JobStep.cs",
-        "src/Acta.Relational/Entities/Lock.cs",
-        "src/Acta.Relational/Entities/JobResult.cs",
-        "src/Acta.Relational/Entities/JobCheckpoint.cs",
+        "src/Acta.Runtime/Schema/JobStep.cs",
+        "src/Acta.Runtime/Schema/Lock.cs",
+        "src/Acta.Runtime/Schema/JobResult.cs",
+        "src/Acta.Runtime/Schema/JobCheckpoint.cs",
         "src/Acta.Runtime/Modules/Execution/StepOwnershipLostException.cs",
         "src/Acta.Runtime/Modules/Execution/StepRetrySignal.cs",
         "src/Acta.Runtime/Modules/Execution/Signals/SignalSuspendSignal.cs",
@@ -94,8 +94,8 @@ public sealed partial class CommentStyleTests
         "src/Acta.Runtime/Modules/Execution/Workers/WorkerRuntimeHost.cs",
         "src/Acta.Runtime/Modules/Execution/Workers/WorkerRuntimeInitializer.cs",
         "src/Acta.Runtime/Modules/Execution/Workers/WorkerWakeup.cs",
-        "src/Acta.Relational/Schema/SchemaModel.cs",
-        "src/Acta.Relational/Schema/SchemaColumnTypes.cs"
+        "src/Acta.Runtime/Schema/SchemaModel.cs",
+        "src/Acta.Runtime/Schema/SchemaColumnTypes.cs"
     );
 
     [Fact]

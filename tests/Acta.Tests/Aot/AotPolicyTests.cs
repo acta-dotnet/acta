@@ -26,7 +26,7 @@ public sealed partial class AotPolicyTests
     private static readonly string[] RuntimeRoots =
     [
         "src/Acta",
-        "src/Acta.Relational",
+        "src/Acta.Runtime",
         "src/Acta.Runtime",
         "src/Acta.SqlServer",
         "src/Acta.Postgres",
@@ -92,7 +92,7 @@ public sealed partial class AotPolicyTests
             "C# transaction begin/open",
             new Regex(@"\b(BeginTransaction|OpenTransaction)\b", RegexOptions.Compiled),
             Allow(
-                "src/Acta.Relational/Schema/SchemaMigrationRunner.cs",
+                "src/Acta.Runtime/Schema/SchemaMigrationRunner.cs",
                 "src/Acta.Sqlite/Services/SqliteDialect.cs",
                 "src/Acta.Sqlite/Services/SqliteOutboxDialect.cs"
             )
@@ -101,12 +101,12 @@ public sealed partial class AotPolicyTests
         new(
             "C# transaction commit",
             new Regex(@"\bCommitAsync\b", RegexOptions.Compiled),
-            Allow("src/Acta.Relational/Schema/SchemaMigrationRunner.cs", "src/Acta.Relational/Connections/DbSession.cs")
+            Allow("src/Acta.Runtime/Schema/SchemaMigrationRunner.cs", "src/Acta.Runtime/Db/DbSession.cs")
         ),
         new(
             "C# transaction rollback",
             new Regex(@"\bRollbackAsync\b", RegexOptions.Compiled),
-            Allow("src/Acta.Relational/Schema/SchemaMigrationRunner.cs")
+            Allow("src/Acta.Runtime/Schema/SchemaMigrationRunner.cs")
         ),
         new(
             "direct DbParameterSpec scalar factory",

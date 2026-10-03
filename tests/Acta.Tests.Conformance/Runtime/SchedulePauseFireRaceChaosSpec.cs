@@ -1,4 +1,3 @@
-using Acta.Relational;
 using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Scenarios;

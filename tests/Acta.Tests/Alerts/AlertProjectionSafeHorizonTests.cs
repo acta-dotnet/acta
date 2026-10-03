@@ -1,5 +1,4 @@
 using System.Data.Common;
-using Acta.Relational;
 using Acta.Runtime;
 using Acta.Sqlite;
 using Microsoft.Data.Sqlite;

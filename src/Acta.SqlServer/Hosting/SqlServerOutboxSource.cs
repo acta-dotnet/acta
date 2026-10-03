@@ -1,4 +1,3 @@
-using Acta.Relational;
 using Acta.Runtime;
 
 namespace Acta.SqlServer;

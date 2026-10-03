@@ -1,0 +1,445 @@
+using System.Data.Common;
+using System.Globalization;
+
+namespace Acta.Runtime;
+
+/// <summary>
+/// Shared relational <see cref="IJobStore"/> over <see cref="IDbSession"/>. One implementation for
+/// every SQL provider: reads and control verbs are written once, and provider differences live behind
+/// the session (routine vs inline, result-set selection) and the dialect (parameter creation, bulk binds).
+/// </summary>
+internal sealed class RelationalJobStore(IDbSession session, ISqlDialect dialect) : IJobStore
+{
+    public async ValueTask<JobDetail?> GetJobAsync(long jobId, CancellationToken ct) =>
+        await session.QueryAsync<JobDetail?>(
+            "Sql/Execution/Jobs/GetJob.sql",
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId)),
+            async (reader, token) =>
+                await reader.ReadAsync(token) ? DbProjectionResolver.Resolve<JobSnapshotRow>()(reader).ToSnapshot() : null,
+            ct
+        );
+
+    public async ValueTask<JobStatusCode?> GetJobStatusAsync(long jobId, CancellationToken ct) =>
+        await session.QueryAsync<JobStatusCode?>(
+            "Sql/Execution/Jobs/GetJobStatus.sql",
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId)),
+            async (reader, token) => await reader.ReadAsync(token) ? (JobStatusCode)reader.GetByteFromNumeric(0) : (JobStatusCode?)null,
+            ct
+        );
+
+    public Task<JobInputRecord?> GetJobInputAsync(long jobId, CancellationToken ct) =>
+        session.QueryAsync<JobInputRecord?>(
+            "Sql/Execution/Jobs/GetJobInput.sql",
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId)),
+            async (reader, token) => await reader.ReadAsync(token) ? DbProjectionResolver.Resolve<JobInputRow>()(reader).ToRecord() : null,
+            ct
+        );
+
+    public Task<JobResultRecord?> GetJobResultAsync(long jobId, int? executionNumber, CancellationToken ct) =>
+        session.QueryAsync<JobResultRecord?>(
+            "Sql/Execution/Jobs/GetJobResult.sql",
+            cmd =>
+            {
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobResult.JobId, jobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobResult.ExecutionNumber, executionNumber));
+            },
+            async (reader, token) => await reader.ReadAsync(token) ? DbProjectionResolver.Resolve<JobResultRow>()(reader).ToRecord() : null,
+            ct
+        );
+
+    public async Task<IReadOnlyList<JobCheckpointItem>> GetJobCheckpointsAsync(long jobId, CancellationToken ct) =>
+        await session.QueryAsync<IReadOnlyList<JobCheckpointItem>>(
+            "Sql/Execution/Jobs/GetJobCheckpoints.sql",
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.JobId, jobId)),
+            async (reader, token) =>
+            {
+                var read = DbProjectionResolver.Resolve<JobCheckpointReadRow>();
+                var rows = new List<JobCheckpointItem>();
+                while (await reader.ReadAsync(token))
+                {
+                    rows.Add(read(reader).ToItem());
+                }
+
+                return rows;
+            },
+            ct
+        );
+
+    public async ValueTask<JobExplainData?> GetJobExplanationAsync(long jobId, CancellationToken ct) =>
+        await session.QueryAsync<JobExplainData?>(
+            "Sql/Execution/Jobs/GetJobExplanation.sql",
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId)),
+            async (reader, token) =>
+            {
+                var readHeader = DbProjectionResolver.Resolve<ExplainHeaderRow>();
+                var readStep = DbProjectionResolver.Resolve<ExplainStepRow>();
+                var readCheckpoint = DbProjectionResolver.Resolve<ExplainCheckpointRow>();
+
+                ExplainHeaderRow? header = null;
+                while (await reader.ReadAsync(token))
+                {
+                    header = readHeader(reader);
+                }
+
+                var steps = new List<ExplainStepRow>();
+                if (await reader.NextResultAsync(token))
+                {
+                    while (await reader.ReadAsync(token))
+                    {
+                        steps.Add(readStep(reader));
+                    }
+                }
+
+                var checkpoints = new List<ExplainCheckpointRow>();
+                if (await reader.NextResultAsync(token))
+                {
+                    while (await reader.ReadAsync(token))
+                    {
+                        checkpoints.Add(readCheckpoint(reader));
+                    }
+                }
+
+                return header is null ? null : new JobExplainData(header, steps, checkpoints);
+            },
+            ct
+        );
+
+    public async ValueTask<JobLineageData?> GetJobLineageMapAsync(long jobId, int childFetchLimit, CancellationToken ct) =>
+        await session.QueryAsync<JobLineageData?>(
+            "Sql/Execution/Jobs/GetJobLineageMap.sql",
+            cmd =>
+            {
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ChildFetchLimit, childFetchLimit));
+            },
+            async (reader, token) =>
+            {
+                var readJob = DbProjectionResolver.Resolve<LineageJobRow>();
+                var readStep = DbProjectionResolver.Resolve<LineageStepRow>();
+                var readCheckpoint = DbProjectionResolver.Resolve<ExplainCheckpointRow>();
+                var readChild = DbProjectionResolver.Resolve<LineageChildRow>();
+
+                LineageJobRow? focus = null;
+                while (await reader.ReadAsync(token))
+                {
+                    focus = readJob(reader);
+                }
+
+                var ancestors = new List<LineageJobRow>();
+                if (await reader.NextResultAsync(token))
+                {
+                    while (await reader.ReadAsync(token))
+                    {
+                        ancestors.Add(readJob(reader));
+                    }
+                }
+
+                var steps = new List<LineageStepRow>();
+                if (await reader.NextResultAsync(token))
+                {
+                    while (await reader.ReadAsync(token))
+                    {
+                        steps.Add(readStep(reader));
+                    }
+                }
+
+                var checkpoints = new List<ExplainCheckpointRow>();
+                if (await reader.NextResultAsync(token))
+                {
+                    while (await reader.ReadAsync(token))
+                    {
+                        checkpoints.Add(readCheckpoint(reader));
+                    }
+                }
+
+                var children = new List<LineageChildRow>();
+                if (await reader.NextResultAsync(token))
+                {
+                    while (await reader.ReadAsync(token))
+                    {
+                        children.Add(readChild(reader));
+                    }
+                }
+
+                return focus is null ? null : new JobLineageData(focus, ancestors, steps, checkpoints, children);
+            },
+            ct
+        );
+
+    public Task<JobPage> ListJobsAsync(JobPageRequest request, CancellationToken ct) =>
+        session.QueryAsync(
+            "Sql/Execution/Jobs/ListJobs.sql",
+            cmd =>
+            {
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceFilter, request.JobNamespace));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobRuntime.StatusCode, request.Status));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.JobNameFilter, request.JobName));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ParentIdFilter, request.ParentJobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.TenantId, request.TenantId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TenantKeyFilter, request.TenantKey));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CorrelationKeyFilter, request.CorrelationKey));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagFiltersJson, request.TagFiltersJson));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TerminalOnlyFlag, request.TerminalOnly));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.RecurringOnlyFlag, request.RecurringOnly));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LaneFilter, request.Lane));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorCreatedAtUtc, request.CursorCreatedAtUtc));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorId, request.CursorId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, request.Take));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.IncludeTotalFlag, request.IncludeTotal ? true : (bool?)null));
+            },
+            async (reader, token) =>
+            {
+                var read = DbProjectionResolver.Resolve<JobListProjectionRow>();
+                var rows = new List<JobListItem>(request.Take);
+                while (await reader.ReadAsync(token))
+                {
+                    rows.Add(read(reader).ToListRow().ToItem());
+                }
+
+                long? total = null;
+                if (await reader.NextResultAsync(token) && await reader.ReadAsync(token) && !reader.IsDBNull(0))
+                {
+                    total = Convert.ToInt64(reader.GetValue(0), CultureInfo.InvariantCulture);
+                }
+
+                return new JobPage(rows, total);
+            },
+            ct
+        );
+
+    public async ValueTask<long?> ResolveJobIdByRefAsync(Guid jobRef, CancellationToken ct) =>
+        await session.QueryAsync<long?>(
+            "Sql/Execution/Jobs/ResolveJobIdByRef.sql",
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.JobRef, jobRef)),
+            async (reader, token) => await reader.ReadAsync(token) ? (reader.IsDBNull(0) ? (long?)null : reader.GetInt64(0)) : null,
+            ct
+        );
+
+    public async ValueTask<long?> ResolveJobIdByDeduplicationKeyAsync(string jobNamespace, string deduplicationKey, CancellationToken ct) =>
+        await session.QueryAsync<long?>(
+            "Sql/Execution/Jobs/ResolveJobIdByDeduplicationKey.sql",
+            cmd =>
+            {
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceName, jobNamespace));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.DeduplicationKey, deduplicationKey));
+            },
+            async (reader, token) => await reader.ReadAsync(token) ? reader.GetInt64(0) : (long?)null,
+            ct
+        );
+
+    public Task<IReadOnlyList<EnqueueOutcomeRow>> EnqueueOneAsync(JobEnqueueRow row, Guid jobRef, CancellationToken ct) =>
+        session.ExecuteAsync(
+            new StoreCommand("Execution", "Jobs/EnqueueOne"),
+            cmd => dialect.BindEnqueueOne(cmd, row, jobRef, session.Schema),
+            DbProjectionResolver.Resolve<EnqueueOutcomeRow>(),
+            ct
+        );
+
+    public Task<IReadOnlyList<EnqueueOutcomeRow>> EnqueueBatchAsync(
+        IReadOnlyList<JobEnqueueRow> rows,
+        IReadOnlyList<Guid> jobRefs,
+        CancellationToken ct
+    ) =>
+        session.ExecuteAsync(
+            new StoreCommand("Execution", "Jobs/EnqueueBatch"),
+            cmd => dialect.BindEnqueueBatch(cmd, rows, jobRefs, session.Schema),
+            DbProjectionResolver.Resolve<EnqueueOutcomeRow>(),
+            ct
+        );
+
+    /// <summary>
+    /// Transactional twins reuse the same StoreCommand, dialect binders, and outcome projection as the
+    /// owned path; only the execute seam differs (the caller's transaction, no wake, no retry).
+    /// </summary>
+    public Task<IReadOnlyList<EnqueueOutcomeRow>> EnqueueOneInTransactionAsync(
+        DbTransaction transaction,
+        JobEnqueueRow row,
+        Guid jobRef,
+        CancellationToken ct
+    ) =>
+        session.ExecuteInTransactionAsync(
+            transaction,
+            new StoreCommand("Execution", "Jobs/EnqueueOne"),
+            cmd => dialect.BindEnqueueOne(cmd, row, jobRef, session.Schema),
+            DbProjectionResolver.Resolve<EnqueueOutcomeRow>(),
+            ct
+        );
+
+    public Task<IReadOnlyList<EnqueueOutcomeRow>> EnqueueBatchInTransactionAsync(
+        DbTransaction transaction,
+        IReadOnlyList<JobEnqueueRow> rows,
+        IReadOnlyList<Guid> jobRefs,
+        CancellationToken ct
+    ) =>
+        session.ExecuteInTransactionAsync(
+            transaction,
+            new StoreCommand("Execution", "Jobs/EnqueueBatch"),
+            cmd => dialect.BindEnqueueBatch(cmd, rows, jobRefs, session.Schema),
+            DbProjectionResolver.Resolve<EnqueueOutcomeRow>(),
+            ct
+        );
+
+    public async Task<CancelJobOutcome> CancelJobAsync(long jobId, JobControlInput input, CancellationToken ct)
+    {
+        var rows = await session.ExecuteAsync(
+            new StoreCommand("Execution", "Jobs/CancelJob"),
+            cmd =>
+            {
+                AddControlParameters(cmd, jobId, input, includeReasonMessage: true);
+                AddExpectedVersion(cmd, input);
+            },
+            DbProjectionResolver.Resolve<CancelJobOutcomeRow>(),
+            ct
+        );
+
+        return rows.Count > 0
+            ? rows[^1].ToOutcome()
+            : throw new InvalidOperationException(
+                "Control command 'CancelJob' returned no rows; it must return exactly one (action, status_code, parent_id, version) row."
+            );
+    }
+
+    public async Task<PauseJobOutcome> PauseJobAsync(long jobId, JobControlInput input, CancellationToken ct)
+    {
+        var rows = await session.ExecuteAsync(
+            new StoreCommand("Execution", "Jobs/PauseJob"),
+            cmd =>
+            {
+                AddControlParameters(cmd, jobId, input, includeReasonMessage: true);
+                AddExpectedVersion(cmd, input);
+            },
+            DbProjectionResolver.Resolve<PauseJobOutcomeRow>(),
+            ct
+        );
+
+        return rows.Count > 0
+            ? rows[^1].ToOutcome()
+            : throw new InvalidOperationException(
+                "Control command 'PauseJob' returned no rows; it must return exactly one (action, status_code, version, lane_promoted) row."
+            );
+    }
+
+    public Task<JobControlOutcome> ResumeJobAsync(long jobId, JobControlInput input, DateTime? nextRunAtUtc, CancellationToken ct) =>
+        VersionedControlAsync(
+            "Jobs/ResumeJob",
+            cmd =>
+            {
+                AddControlParameters(cmd, jobId, input, includeReasonMessage: true);
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobRuntime.NextRunAtUtc, nextRunAtUtc));
+                AddExpectedVersion(cmd, input);
+            },
+            ct
+        );
+
+    public Task<JobControlOutcome> RestartJobAsync(long jobId, JobControlInput input, DateTime? nextRunAtUtc, CancellationToken ct) =>
+        VersionedControlAsync(
+            "Jobs/RestartJob",
+            cmd =>
+            {
+                AddControlParameters(cmd, jobId, input, includeReasonMessage: true);
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobRuntime.NextRunAtUtc, nextRunAtUtc));
+                AddExpectedVersion(cmd, input);
+            },
+            ct
+        );
+
+    public Task<JobControlOutcome> RescheduleJobAsync(long jobId, DateTime nextRunAtUtc, JobControlInput input, CancellationToken ct) =>
+        VersionedControlAsync(
+            "Jobs/RescheduleJob",
+            cmd =>
+            {
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobRuntime.NextRunAtUtc, nextRunAtUtc));
+                AddActorParameters(cmd, input, includeReasonMessage: true);
+                AddExpectedVersion(cmd, input);
+            },
+            ct
+        );
+
+    public Task<JobControlOutcome> ReprioritizeJobAsync(
+        long jobId,
+        JobPriorityCode priority,
+        JobControlInput input,
+        CancellationToken ct
+    ) =>
+        VersionedControlAsync(
+            "Jobs/ReprioritizeJob",
+            cmd =>
+            {
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobRuntime.PriorityCode, priority));
+                AddActorParameters(cmd, input, includeReasonMessage: true);
+                AddExpectedVersion(cmd, input);
+            },
+            ct
+        );
+
+    public Task<JobControlOutcome> UpdateJobInputAsync(long jobId, JobPayload input, JobControlInput controlInput, CancellationToken ct) =>
+        ControlAsync(
+            "Jobs/UpdateJobInput",
+            cmd =>
+            {
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.InputFormatId, input.Format.Id));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Input, input.IsNone ? null : input.Data.ToArray()));
+                AddActorParameters(cmd, controlInput, includeReasonMessage: true);
+            },
+            ct
+        );
+
+    public Task<JobControlOutcome> PurgeJobAsync(long jobId, JobControlInput input, CancellationToken ct) =>
+        ControlAsync("Jobs/PurgeJob", cmd => AddControlParameters(cmd, jobId, input, includeReasonMessage: false), ct);
+
+    public Task ResetJobStateAsync(long jobId, CancellationToken ct) =>
+        session.ExecuteAsync(
+            new StoreCommand("Execution", "Jobs/ResetJobState"),
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId)),
+            ct
+        );
+
+    private async Task<JobControlOutcome> ControlAsync(string operation, Action<DbCommand> bind, CancellationToken ct) =>
+        await session.ExecuteSingleAsync(
+            new StoreCommand("Execution", operation),
+            bind,
+            DbProjectionResolver.Resolve<JobControlActionRow>(),
+            ct
+        )
+            is { } row
+            ? row.ToOutcome()
+            : throw new InvalidOperationException(
+                $"Control command '{operation}' returned no rows; it must return exactly one (action, status_code) row."
+            );
+
+    private async Task<JobControlOutcome> VersionedControlAsync(string operation, Action<DbCommand> bind, CancellationToken ct) =>
+        await session.ExecuteSingleAsync(
+            new StoreCommand("Execution", operation),
+            bind,
+            DbProjectionResolver.Resolve<JobControlOutcome>(),
+            ct
+        )
+        ?? throw new InvalidOperationException(
+            $"Control command '{operation}' returned no rows; it must return exactly one (action, status_code, version) row."
+        );
+
+    // The optional CAS guard is bound last on every versioned control routine, matching the routine's
+    // trailing parameter; PostgreSQL function arguments are positional.
+    private void AddExpectedVersion(DbCommand cmd, JobControlInput input) =>
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ExpectedRowVersionOptional, input.ExpectedVersion));
+
+    private void AddControlParameters(DbCommand cmd, long jobId, JobControlInput input, bool includeReasonMessage)
+    {
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId));
+        AddActorParameters(cmd, input, includeReasonMessage);
+    }
+
+    private void AddActorParameters(DbCommand cmd, JobControlInput input, bool includeReasonMessage)
+    {
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorCode, input.Actor.ActorCode));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorKey, input.Actor.ActorKey));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonCode, input.ReasonCode));
+        if (includeReasonMessage)
+        {
+            cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonMessage, input.ReasonMessage));
+        }
+    }
+}

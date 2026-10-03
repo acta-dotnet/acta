@@ -19,15 +19,15 @@ namespace Acta.Generators;
 [Generator(LanguageNames.CSharp)]
 public sealed class ActaSchemaGenerator : IIncrementalGenerator
 {
-    private const string DbTableAttr = "Acta.Relational.DbTableAttribute";
-    private const string DbColumnAttr = "Acta.Relational.DbColumnAttribute";
-    private const string DbIgnoreAttr = "Acta.Relational.DbIgnoreAttribute";
-    private const string DbPrimaryKeyAttr = "Acta.Relational.DbPrimaryKeyAttribute";
-    private const string DbIndexAttr = "Acta.Relational.DbIndexAttribute";
-    private const string DbUniqueIndexAttr = "Acta.Relational.DbUniqueIndexAttribute";
-    private const string DbCheckAttr = "Acta.Relational.DbCheckAttribute";
-    private const string DbForeignKeyAttr = "Acta.Relational.DbForeignKeyAttribute";
-    private const string DbConcurrencyTokenAttr = "Acta.Relational.DbConcurrencyTokenAttribute";
+    private const string DbTableAttr = "Acta.Runtime.DbTableAttribute";
+    private const string DbColumnAttr = "Acta.Runtime.DbColumnAttribute";
+    private const string DbIgnoreAttr = "Acta.Runtime.DbIgnoreAttribute";
+    private const string DbPrimaryKeyAttr = "Acta.Runtime.DbPrimaryKeyAttribute";
+    private const string DbIndexAttr = "Acta.Runtime.DbIndexAttribute";
+    private const string DbUniqueIndexAttr = "Acta.Runtime.DbUniqueIndexAttribute";
+    private const string DbCheckAttr = "Acta.Runtime.DbCheckAttribute";
+    private const string DbForeignKeyAttr = "Acta.Runtime.DbForeignKeyAttribute";
+    private const string DbConcurrencyTokenAttr = "Acta.Runtime.DbConcurrencyTokenAttribute";
     private const string CodeKindAttr = "Acta.CodeKindAttribute";
 
     /// <summary>
@@ -761,7 +761,7 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
         sb.AppendLine("using System;");
         sb.AppendLine("using System.Collections.Generic;");
         sb.AppendLine();
-        sb.AppendLine("namespace Acta.Relational;");
+        sb.AppendLine("namespace Acta.Runtime;");
         sb.AppendLine();
         sb.AppendLine("internal static partial class ActaSchema");
         sb.AppendLine("{");
@@ -1019,7 +1019,7 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
         sb.AppendLine("using System;");
         sb.AppendLine("using System.Data.Common;");
         sb.AppendLine();
-        sb.AppendLine("namespace Acta.Relational;");
+        sb.AppendLine("namespace Acta.Runtime;");
         sb.AppendLine();
         sb.AppendLine("internal static partial class EntityBinder");
         sb.AppendLine("{");

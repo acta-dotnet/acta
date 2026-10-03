@@ -1,7 +1,7 @@
 # Schema migrations
 
-How the database schema is generated, versioned, and evolved. The entity classes under
-`src/Acta.Relational/Entities/*.cs` (via `ActaSchema`) are the **only** schema authority; the `tools/Acta.Emit`
+How the database schema is generated, versioned, and evolved. The table models in
+`src/Acta.Runtime/Schema/` (via `ActaSchema`) are the **only** schema authority; the `tools/Acta.Emit`
 commands generate and maintain the committed migrations from them.
 
 Migrations own **durable DDL only**: tables, columns, indexes, constraints, provider table types, and
@@ -32,7 +32,7 @@ dotnet run --project tools/Acta.Emit -- <command>
 | `schema reset [--force]` | Delete every migration + the snapshot + the schema scripts. Deletes only; `--force` required. |
 | `schema add [--name <n>]` | Emit the next migration `M{N}` for every provider; advance the snapshot. |
 | `schema amend [--name <n>]` | Rewrite the tip migration `M{N}` in place. |
-| `objects record` | Record each provider's installed-object package (its routines and views) in `src/Acta.Relational/Schema/object-packages.json` and regenerate `ObjectPackageHashes.g.cs`. |
+| `objects record` | Record each provider's installed-object package (its routines and views) in `src/Acta.Runtime/Schema/object-packages.json` and regenerate `ObjectPackageHashes.g.cs`. |
 
 Production hosts should keep `ApplyMigrationsOnStartup = false` and apply migration SQL from the
 release process before workers start. See [`production.md`](../guide/production.md#migration-ownership).
@@ -141,7 +141,7 @@ is running.
 
 ## The snapshot
 
-`src/Acta.Relational/Schema/schema-snapshot.json` is a committed `{ current, previous }` pair: `current` is
+`src/Acta.Runtime/Schema/schema-snapshot.json` is a committed `{ current, previous }` pair: `current` is
 the model as of the tip migration, `previous` is the model before it (so `amend` can diff the tip).
 
 - It is a **pure side-effect**: only `schema add`/`amend` write it; never hand-edit it, and there is
@@ -168,7 +168,7 @@ Routine and operator-view changes never appear here: their bodies are installed 
 
 ## Adding a migration: step by step
 
-1. **Change an entity** under `src/Acta.Relational/Entities/*.cs`.
+1. **Change a table model** in `src/Acta.Runtime/Schema/`.
 2. **Generate the migration** (also regenerates the reference docs, the `schema-*.sql` scripts, and
    `BaselineStamps.g.cs` as a side effect):
    ```
@@ -215,7 +215,7 @@ A re-cut baseline carries no translation migration, which is why every pre-freez
 dropping and recreating any database built from the previous one.
 
 **The stamp has one source and two readers.** `schema add` and `schema amend` compute it and write
-it into `M001` and into `src/Acta.Relational/Schema/BaselineStamps.g.cs` in the same pass.
+it into `M001` and into `src/Acta.Runtime/Schema/BaselineStamps.g.cs` in the same pass.
 `SchemaMigrationRunner` requires the generated constant at bootstrap, and `Acta.Emit check` rehashes
 each committed `M001` and fails on any hand edit. The stamp is a literal in the applied script: an
 operator who adapts the script for their environment (partitioning, filegroups, tablespaces) keeps

@@ -13,7 +13,7 @@ public sealed class MigrationDiscoveryTests
     [Fact]
     public void Discover_throws_when_the_assembly_embeds_no_migrations()
     {
-        // Migrations live in provider packages; Acta.Relational itself embeds none.
+        // Migrations live in provider packages; Acta.Runtime itself embeds none.
         var relational = typeof(SchemaMigrationDiscovery).Assembly;
         var ex = Assert.Throws<InvalidOperationException>(() => SchemaMigrationDiscovery.Discover(relational));
         Assert.Contains("No migration scripts found", ex.Message);

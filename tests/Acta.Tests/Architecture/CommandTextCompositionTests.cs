@@ -81,15 +81,15 @@ public sealed class CommandTextCompositionTests
         // migration scripts, provider view and routine bodies) split into batches by the provider
         // hooks; the only substitution is {{schema}}, and the CREATE VIEW wrapper's qualified name is
         // that same schema plus a name derived from the resource file name.
-        ["Acta.Relational/Schema/SchemaMigrationRunner.cs::ApplyAsync"] = (2, "embedded migration/prelude DDL, {{schema}} only"),
-        ["Acta.Relational/Schema/SqlObjectInstaller.cs::Run"] = (1, "embedded view/routine DDL batch"),
-        ["Acta.Relational/Schema/SqlObjectInstaller.cs::CurrentDefinition"] = (1, "provider-owned hook SQL, name bound as @p_name"),
+        ["Acta.Runtime/Schema/SchemaMigrationRunner.cs::ApplyAsync"] = (2, "embedded migration/prelude DDL, {{schema}} only"),
+        ["Acta.Runtime/Schema/SqlObjectInstaller.cs::Run"] = (1, "embedded view/routine DDL batch"),
+        ["Acta.Runtime/Schema/SqlObjectInstaller.cs::CurrentDefinition"] = (1, "provider-owned hook SQL, name bound as @p_name"),
         // The outbox relay's two counters, the only relay commands whose SQL is identical on all
         // three providers and therefore composed inline instead of shipped as resources. The single
         // hole is the qualified table reference, produced by OutboxIdentifier.Qualify, which
         // bare-identifier validates both the schema and the table before joining them.
-        ["Acta.Relational/Stores/RelationalOutboxRelayStore.cs::CountBacklogAsync"] = (1, "table ref, OutboxIdentifier.Qualify"),
-        ["Acta.Relational/Stores/RelationalOutboxRelayStore.cs::CountQuarantinedAsync"] = (1, "table ref, OutboxIdentifier.Qualify"),
+        ["Acta.Runtime/Stores/RelationalOutboxRelayStore.cs::CountBacklogAsync"] = (1, "table ref, OutboxIdentifier.Qualify"),
+        ["Acta.Runtime/Stores/RelationalOutboxRelayStore.cs::CountQuarantinedAsync"] = (1, "table ref, OutboxIdentifier.Qualify"),
         // The three provider staging extensions. The INSERT text is built once by OutboxStaging.Prepare
         // over an OutboxIdentifier.Qualify'd table reference and handed here as a parameter; every
         // column value is added as a provider DbParameter in the lines below the assignment.
@@ -211,7 +211,7 @@ public sealed class CommandTextCompositionTests
         [
             // The Schema every {{schema}} substitution and every routine header uses, rejected at
             // host startup by ValidateOnStart before a single command is built.
-            ("src/Acta.Relational/Connections/SqlProviderOptionsValidator.cs", "IdentifierSyntax.IsBareIdentifier(options.Schema)"),
+            ("src/Acta.Runtime/Hosting/SqlProviderOptionsValidator.cs", "IdentifierSyntax.IsBareIdentifier(options.Schema)"),
             // The external-outbox schema and table, the only physical names an application chooses.
             ("src/Acta.Runtime/Hosting/OutboxIdentifier.cs", "IdentifierSyntax.ValidateBareIdentifier(value, kind)"),
             // The routine name each dialect interpolates into its call header.

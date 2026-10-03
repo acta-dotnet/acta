@@ -176,11 +176,11 @@ public abstract class WorkerCrashRecoveryChaosSpec<TFixture> : ActaRuntimeTestBa
 
         // recurring-ping declares MaxAttempts = 2: one accumulated failed occurrence plus this
         // crashed one lands exactly on the budget - the count the Failed arm used to fire on.
-        var affected = await Db.From<Acta.Relational.JobRuntime>()
+        var affected = await Db.From<Acta.Runtime.JobRuntime>()
             .Where(r => r.Id == slotId)
             .UpdateOnlyAsync(
                 () =>
-                    new Acta.Relational.JobRuntime
+                    new Acta.Runtime.JobRuntime
                     {
                         Status = JobStatusCode.Executing,
                         FailureCount = 1,

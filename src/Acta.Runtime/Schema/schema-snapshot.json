@@ -1,0 +1,1686 @@
+{
+  "Current": {
+    "Entities": [
+      {
+        "Table": "alerts",
+        "PrimaryKey": "pk_alerts(id)|manual=False|seq=False",
+        "Columns": [
+          {
+            "Name": "id",
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "alert_ref",
+            "Signature": "Guid|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "namespace_id",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "job_id",
+            "Signature": "Int64|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "job_ref",
+            "Signature": "Guid|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "origin_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=alert-origin|values=10,20"
+          },
+          {
+            "Name": "severity_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=alert-severity|values=10,20,30,40"
+          },
+          {
+            "Name": "kind_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=alert-kind|values="
+          },
+          {
+            "Name": "title",
+            "Signature": "UnicodeString|512|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "message",
+            "Signature": "UnicodeString|512|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "channel_name",
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "dedupe_key",
+            "Signature": "AsciiString|512|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "occurrence_count",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "last_projected_event_id",
+            "Signature": "Int64|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "resolved_at_utc",
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "acknowledged_at_utc",
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "delivery_status_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=alert-delivery-status|values=10,20,30,100,200"
+          },
+          {
+            "Name": "retry_count",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "retry_after_utc",
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "created_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "modified_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "version",
+            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|values="
+          }
+        ],
+        "Indexes": [
+          {
+            "Name": "ix_alerts_dedupe_identity",
+            "Signature": "I|cols=namespace_id,dedupe_key|inc=|desc=|filter=dedupe_key IS NOT NULL|seq=False"
+          },
+          {
+            "Name": "ix_alerts_delivery_due",
+            "Signature": "I|cols=namespace_id,delivery_status_code,retry_after_utc,id|inc=|desc=|filter=|seq=False"
+          },
+          {
+            "Name": "ix_alerts_job",
+            "Signature": "I|cols=job_id,id|inc=|desc=|filter=job_id IS NOT NULL|seq=False"
+          },
+          {
+            "Name": "ix_alerts_namespace_created",
+            "Signature": "I|cols=namespace_id,created_at_utc,id|inc=|desc=created_at_utc,id|filter=|seq=False"
+          },
+          {
+            "Name": "ix_alerts_namespace_unresolved",
+            "Signature": "I|cols=namespace_id,created_at_utc,id|inc=|desc=created_at_utc,id|filter=resolved_at_utc IS NULL|seq=False"
+          },
+          {
+            "Name": "ux_alerts_dedupe",
+            "Signature": "U|cols=namespace_id,dedupe_key|inc=|desc=|filter=dedupe_key IS NOT NULL AND resolved_at_utc IS NULL|seq=False"
+          },
+          {
+            "Name": "ux_alerts_ref",
+            "Signature": "U|cols=alert_ref|inc=|desc=|filter=|seq=False"
+          }
+        ],
+        "Checks": [
+          {
+            "Name": "ck_alerts_job_ref_pair",
+            "Sql": "(job_id IS NULL AND job_ref IS NULL) OR (job_id IS NOT NULL AND job_ref IS NOT NULL)"
+          },
+          {
+            "Name": "ck_alerts_occurrence_count",
+            "Sql": "occurrence_count \u003E= 1"
+          }
+        ],
+        "ForeignKeys": []
+      },
+      {
+        "Table": "checkpoints",
+        "PrimaryKey": "pk_checkpoints(job_id,kind_code,name)|manual=False|seq=False",
+        "Columns": [
+          {
+            "Name": "job_id",
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "kind_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-checkpoint-kind|values=10,20,30,40,50"
+          },
+          {
+            "Name": "name",
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "status_code",
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-checkpoint-status|values=10,20,30,100"
+          },
+          {
+            "Name": "due_at_utc",
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "value_format_id",
+            "Signature": "Byte|0|0|0|False|Zero||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "value",
+            "Signature": "BinaryPayload|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "created_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "modified_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "version",
+            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|values="
+          }
+        ],
+        "Indexes": [],
+        "Checks": [
+          {
+            "Name": "ck_checkpoints_kind_shape",
+            "Sql": "(kind_code IN (10, 40) AND status_code IS NULL AND due_at_utc IS NULL) OR (kind_code IN (20, 50) AND status_code IS NOT NULL AND status_code IN (10, 20, 30)) OR (kind_code = 30 AND status_code IS NOT NULL AND status_code IN (10, 100) AND due_at_utc IS NOT NULL)"
+          },
+          {
+            "Name": "ck_checkpoints_value_pair",
+            "Sql": "(value_format_id = 0 AND value IS NULL) OR (value_format_id \u003C\u003E 0 AND value IS NOT NULL)"
+          }
+        ],
+        "ForeignKeys": [
+          {
+            "Name": "fk_checkpoints_jobs",
+            "Signature": "job_id-\u003EActa.Runtime.Job.id|Cascade"
+          }
+        ]
+      },
+      {
+        "Table": "definitions",
+        "PrimaryKey": "pk_definitions(id)|manual=False|seq=False",
+        "Columns": [
+          {
+            "Name": "id",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "namespace_id",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "name",
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "status_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-definition-status|values=10,240"
+          },
+          {
+            "Name": "definition_hash",
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "manifest_generation_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "input_type_name",
+            "Signature": "AsciiString|512|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "input_format_id",
+            "Signature": "Byte|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "input_format_name",
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "output_type_name",
+            "Signature": "AsciiString|512|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "output_format_id",
+            "Signature": "Byte|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "output_format_name",
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "tenant_requirement_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-tenant-requirement|values=0,10,20"
+          },
+          {
+            "Name": "priority_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-priority|values=0,50,70,85,100"
+          },
+          {
+            "Name": "priority_code_override",
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-priority|values=0,50,70,85,100"
+          },
+          {
+            "Name": "priority_code_effective",
+            "Signature": "Byte|0|0|0|False|None|COALESCE(priority_code_override, priority_code)|coded=True|codeKind=job-priority|values=0,50,70,85,100"
+          },
+          {
+            "Name": "max_attempts",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "max_attempts_override",
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "max_attempts_effective",
+            "Signature": "Int32|0|0|0|False|None|COALESCE(max_attempts_override, max_attempts)|coded=False|codeKind=|values="
+          },
+          {
+            "Name": "concurrency_limit",
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "concurrency_limit_override",
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "concurrency_limit_effective",
+            "Signature": "Int32|0|0|0|True|None|COALESCE(concurrency_limit_override, concurrency_limit)|coded=False|codeKind=|values="
+          },
+          {
+            "Name": "rate_limit",
+            "Signature": "AsciiString|16|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "rate_limit_override",
+            "Signature": "AsciiString|16|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "rate_limit_effective",
+            "Signature": "AsciiString|16|0|0|True|None|COALESCE(rate_limit_override, rate_limit)|coded=False|codeKind=|values="
+          },
+          {
+            "Name": "rate_key",
+            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "lane",
+            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "backoff",
+            "Signature": "UnicodeString|64|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "backoff_override",
+            "Signature": "UnicodeString|64|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "backoff_effective",
+            "Signature": "UnicodeString|64|0|0|False|None|COALESCE(backoff_override, backoff)|coded=False|codeKind=|values="
+          },
+          {
+            "Name": "execution_timeout_seconds",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "execution_timeout_seconds_override",
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "execution_timeout_seconds_effective",
+            "Signature": "Int32|0|0|0|False|None|COALESCE(execution_timeout_seconds_override, execution_timeout_seconds)|coded=False|codeKind=|values="
+          },
+          {
+            "Name": "deadline_seconds",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "deadline_seconds_override",
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "deadline_seconds_effective",
+            "Signature": "Int32|0|0|0|False|None|COALESCE(deadline_seconds_override, deadline_seconds)|coded=False|codeKind=|values="
+          },
+          {
+            "Name": "deadline_behavior_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=deadline-behavior|values=10,20"
+          },
+          {
+            "Name": "deadline_behavior_code_override",
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=deadline-behavior|values=10,20"
+          },
+          {
+            "Name": "deadline_behavior_code_effective",
+            "Signature": "Byte|0|0|0|False|None|COALESCE(deadline_behavior_code_override, deadline_behavior_code)|coded=True|codeKind=deadline-behavior|values=10,20"
+          },
+          {
+            "Name": "retention_seconds",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "retention_seconds_override",
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "retention_seconds_effective",
+            "Signature": "Int32|0|0|0|False|None|COALESCE(retention_seconds_override, retention_seconds)|coded=False|codeKind=|values="
+          },
+          {
+            "Name": "audit_level_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-audit-level|values=0,10,20"
+          },
+          {
+            "Name": "audit_level_code_override",
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-audit-level|values=0,10,20"
+          },
+          {
+            "Name": "audit_level_code_effective",
+            "Signature": "Byte|0|0|0|False|None|COALESCE(audit_level_code_override, audit_level_code)|coded=True|codeKind=job-audit-level|values=0,10,20"
+          },
+          {
+            "Name": "alert_profile_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=alert-profile|values=0,10,20,30,40"
+          },
+          {
+            "Name": "alert_profile_code_override",
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=alert-profile|values=0,10,20,30,40"
+          },
+          {
+            "Name": "alert_profile_code_effective",
+            "Signature": "Byte|0|0|0|False|None|COALESCE(alert_profile_code_override, alert_profile_code)|coded=True|codeKind=alert-profile|values=0,10,20,30,40"
+          },
+          {
+            "Name": "alert_channel_name",
+            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "alert_channel_name_override",
+            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "alert_channel_name_effective",
+            "Signature": "AsciiString|128|0|0|True|None|COALESCE(alert_channel_name_override, alert_channel_name)|coded=False|codeKind=|values="
+          },
+          {
+            "Name": "runbook_url",
+            "Signature": "AsciiString|512|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "runbook_url_override",
+            "Signature": "AsciiString|512|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "runbook_url_effective",
+            "Signature": "AsciiString|512|0|0|True|None|COALESCE(runbook_url_override, runbook_url)|coded=False|codeKind=|values="
+          },
+          {
+            "Name": "display_name",
+            "Signature": "UnicodeString|128|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "display_name_override",
+            "Signature": "UnicodeString|128|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "display_name_effective",
+            "Signature": "UnicodeString|128|0|0|True|None|COALESCE(display_name_override, display_name)|coded=False|codeKind=|values="
+          },
+          {
+            "Name": "description",
+            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "description_override",
+            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "description_effective",
+            "Signature": "UnicodeString|512|0|0|True|None|COALESCE(description_override, description)|coded=False|codeKind=|values="
+          },
+          {
+            "Name": "created_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "modified_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "version",
+            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|values="
+          }
+        ],
+        "Indexes": [
+          {
+            "Name": "ux_definitions_namespace_name",
+            "Signature": "U|cols=namespace_id,name|inc=|desc=|filter=|seq=False"
+          }
+        ],
+        "Checks": [
+          {
+            "Name": "ck_definitions_deadline",
+            "Sql": "deadline_seconds \u003E= 0"
+          },
+          {
+            "Name": "ck_definitions_deadline_override",
+            "Sql": "deadline_seconds_override IS NULL OR deadline_seconds_override \u003E= 0"
+          },
+          {
+            "Name": "ck_definitions_execution_timeout",
+            "Sql": "execution_timeout_seconds \u003E 0"
+          },
+          {
+            "Name": "ck_definitions_execution_timeout_override",
+            "Sql": "execution_timeout_seconds_override IS NULL OR execution_timeout_seconds_override \u003E 0"
+          },
+          {
+            "Name": "ck_definitions_max_attempts",
+            "Sql": "max_attempts \u003E= 1"
+          },
+          {
+            "Name": "ck_definitions_max_attempts_override",
+            "Sql": "max_attempts_override IS NULL OR max_attempts_override \u003E= 1"
+          },
+          {
+            "Name": "ck_definitions_retention",
+            "Sql": "retention_seconds \u003E= 0"
+          },
+          {
+            "Name": "ck_definitions_retention_override",
+            "Sql": "retention_seconds_override IS NULL OR retention_seconds_override \u003E= 0"
+          }
+        ],
+        "ForeignKeys": []
+      },
+      {
+        "Table": "events",
+        "PrimaryKey": "pk_events(id)|manual=False|seq=True",
+        "Columns": [
+          {
+            "Name": "id",
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "event_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=event|values="
+          },
+          {
+            "Name": "created_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "namespace_id",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "actor_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=actor|values=10,20,50,70"
+          },
+          {
+            "Name": "actor_key",
+            "Signature": "UnicodeString|128|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "job_id",
+            "Signature": "Int64|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "job_ref",
+            "Signature": "Guid|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "execution_number",
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "lineage_root_id",
+            "Signature": "Int64|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "definition_id",
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "tenant_id",
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "worker_id",
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "from_status_code",
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-status|values=10,15,20,30,40,50,100,200,220"
+          },
+          {
+            "Name": "to_status_code",
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-status|values=10,15,20,30,40,50,100,200,220"
+          },
+          {
+            "Name": "execution_status_code",
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=execution-status|values=50,100,150,151,152,200,220,230"
+          },
+          {
+            "Name": "duration_ms",
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "reason_code",
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-event-reason|values="
+          },
+          {
+            "Name": "reason_message",
+            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "detail_format_id",
+            "Signature": "Byte|0|0|0|False|Zero||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "detail",
+            "Signature": "BinaryPayload|0|0|0|True|None||coded=False|codeKind=|values="
+          }
+        ],
+        "Indexes": [
+          {
+            "Name": "ix_events_job_timeline",
+            "Signature": "I|cols=job_id,created_at_utc,id|inc=|desc=|filter=job_id IS NOT NULL|seq=False"
+          },
+          {
+            "Name": "ix_events_lineage_timeline",
+            "Signature": "I|cols=lineage_root_id,created_at_utc,id|inc=|desc=|filter=lineage_root_id IS NOT NULL|seq=False"
+          },
+          {
+            "Name": "ix_events_namespace_created",
+            "Signature": "I|cols=namespace_id,created_at_utc,id|inc=|desc=created_at_utc,id|filter=|seq=False"
+          },
+          {
+            "Name": "ix_events_namespace_timeline",
+            "Signature": "I|cols=namespace_id,event_code,created_at_utc,id|inc=|desc=|filter=|seq=False"
+          }
+        ],
+        "Checks": [
+          {
+            "Name": "ck_events_detail_pair",
+            "Sql": "(detail_format_id = 0 AND detail IS NULL) OR (detail_format_id \u003C\u003E 0 AND detail IS NOT NULL)"
+          }
+        ],
+        "ForeignKeys": []
+      },
+      {
+        "Table": "jobs",
+        "PrimaryKey": "pk_jobs(id)|manual=False|seq=True",
+        "Columns": [
+          {
+            "Name": "id",
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "job_ref",
+            "Signature": "Guid|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "namespace_id",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "definition_id",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "lineage_root_id",
+            "Signature": "Int64|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "parent_id",
+            "Signature": "Int64|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "tenant_id",
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "deduplication_key",
+            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "correlation_key",
+            "Signature": "AsciiString|64|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "concurrency_key",
+            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "input_format_id",
+            "Signature": "Byte|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "input",
+            "Signature": "BinaryPayload|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "audit_level_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-audit-level|values=0,10,20"
+          },
+          {
+            "Name": "created_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          }
+        ],
+        "Indexes": [
+          {
+            "Name": "ix_jobs_namespace_created",
+            "Signature": "I|cols=namespace_id,created_at_utc,id|inc=|desc=created_at_utc,id|filter=|seq=False"
+          },
+          {
+            "Name": "ix_jobs_parent",
+            "Signature": "I|cols=parent_id|inc=|desc=|filter=parent_id IS NOT NULL|seq=False"
+          },
+          {
+            "Name": "ux_jobs_deduplication_key_child",
+            "Signature": "U|cols=parent_id,deduplication_key|inc=|desc=|filter=deduplication_key IS NOT NULL AND parent_id IS NOT NULL|seq=False"
+          },
+          {
+            "Name": "ux_jobs_deduplication_key_root",
+            "Signature": "U|cols=namespace_id,deduplication_key|inc=|desc=|filter=deduplication_key IS NOT NULL AND parent_id IS NULL|seq=False"
+          },
+          {
+            "Name": "ux_jobs_ref",
+            "Signature": "U|cols=job_ref|inc=|desc=|filter=|seq=False"
+          }
+        ],
+        "Checks": [
+          {
+            "Name": "ck_jobs_input_pair",
+            "Sql": "(input_format_id = 0 AND input IS NULL) OR (input_format_id \u003C\u003E 0 AND input IS NOT NULL)"
+          }
+        ],
+        "ForeignKeys": []
+      },
+      {
+        "Table": "lanes",
+        "PrimaryKey": "pk_lanes(id)|manual=False|seq=False",
+        "Columns": [
+          {
+            "Name": "id",
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "namespace_id",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "name",
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "created_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          }
+        ],
+        "Indexes": [
+          {
+            "Name": "ux_lanes_namespace_name",
+            "Signature": "U|cols=namespace_id,name|inc=|desc=|filter=|seq=False"
+          }
+        ],
+        "Checks": [],
+        "ForeignKeys": []
+      },
+      {
+        "Table": "locks",
+        "PrimaryKey": "pk_locks(lock_key)|manual=False|seq=False",
+        "Columns": [
+          {
+            "Name": "lock_key",
+            "Signature": "AsciiString|256|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "job_id",
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "expires_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "hold_token",
+            "Signature": "Guid|0|0|0|False|None||coded=False|codeKind=|values="
+          }
+        ],
+        "Indexes": [
+          {
+            "Name": "ix_locks_reclaim_expired",
+            "Signature": "I|cols=expires_at_utc|inc=|desc=|filter=|seq=False"
+          }
+        ],
+        "Checks": [],
+        "ForeignKeys": []
+      },
+      {
+        "Table": "namespaces",
+        "PrimaryKey": "pk_namespaces(id)|manual=False|seq=False",
+        "Columns": [
+          {
+            "Name": "id",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "name",
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "owner_team",
+            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "description",
+            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "status_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=namespace-status|values=10,20"
+          },
+          {
+            "Name": "catalog_hash",
+            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "created_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "modified_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "version",
+            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|values="
+          }
+        ],
+        "Indexes": [
+          {
+            "Name": "ux_namespaces_name",
+            "Signature": "U|cols=name|inc=|desc=|filter=|seq=False"
+          }
+        ],
+        "Checks": [],
+        "ForeignKeys": []
+      },
+      {
+        "Table": "results",
+        "PrimaryKey": "pk_results(job_id,execution_number)|manual=False|seq=True",
+        "Columns": [
+          {
+            "Name": "job_id",
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "execution_number",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "result_format_id",
+            "Signature": "Byte|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "result",
+            "Signature": "BinaryPayload|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "created_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          }
+        ],
+        "Indexes": [],
+        "Checks": [
+          {
+            "Name": "ck_results_format_not_none",
+            "Sql": "result_format_id \u003C\u003E 0"
+          }
+        ],
+        "ForeignKeys": [
+          {
+            "Name": "fk_results_jobs",
+            "Signature": "job_id-\u003EActa.Runtime.Job.id|Cascade"
+          }
+        ]
+      },
+      {
+        "Table": "runtimes",
+        "PrimaryKey": "pk_runtimes(job_id)|manual=True|seq=True",
+        "Columns": [
+          {
+            "Name": "job_id",
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "namespace_id",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "lane_id",
+            "Signature": "Int64|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "status_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-status|values=10,15,20,30,40,50,100,200,220"
+          },
+          {
+            "Name": "priority_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-priority|values=0,50,70,85,100"
+          },
+          {
+            "Name": "next_run_at_utc",
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "execution_number",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "failure_count",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "leased_by_worker_id",
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "lease_expires_at_utc",
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "retention_until_utc",
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "modified_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "version",
+            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|values="
+          }
+        ],
+        "Indexes": [
+          {
+            "Name": "ix_runtimes_claim_ready",
+            "Signature": "I|cols=namespace_id,priority_code,next_run_at_utc,job_id,status_code|inc=|desc=priority_code|filter=status_code IN (10, 20) AND next_run_at_utc IS NOT NULL|seq=False"
+          },
+          {
+            "Name": "ix_runtimes_lane",
+            "Signature": "I|cols=lane_id,job_id|inc=|desc=|filter=lane_id IS NOT NULL AND status_code IN (10, 15, 20, 30, 40, 50)|seq=False"
+          },
+          {
+            "Name": "ix_runtimes_lane_member",
+            "Signature": "I|cols=lane_id|inc=|desc=|filter=lane_id IS NOT NULL|seq=False"
+          },
+          {
+            "Name": "ix_runtimes_retention",
+            "Signature": "I|cols=namespace_id,retention_until_utc,job_id|inc=|desc=|filter=retention_until_utc IS NOT NULL AND status_code IN (100, 200, 220)|seq=True"
+          },
+          {
+            "Name": "ix_runtimes_worker_inflight",
+            "Signature": "I|cols=leased_by_worker_id,job_id|inc=|desc=|filter=leased_by_worker_id IS NOT NULL AND status_code IN (40, 50)|seq=False"
+          }
+        ],
+        "Checks": [
+          {
+            "Name": "ck_runtimes_blocked_lane",
+            "Sql": "status_code \u003C\u003E 15 OR lane_id IS NOT NULL"
+          },
+          {
+            "Name": "ck_runtimes_counters",
+            "Sql": "execution_number \u003E= 0 AND failure_count \u003E= 0"
+          },
+          {
+            "Name": "ck_runtimes_inflight_leased",
+            "Sql": "status_code NOT IN (40, 50) OR leased_by_worker_id IS NOT NULL"
+          },
+          {
+            "Name": "ck_runtimes_lease_consistency",
+            "Sql": "(leased_by_worker_id IS NULL AND lease_expires_at_utc IS NULL) OR (leased_by_worker_id IS NOT NULL AND lease_expires_at_utc IS NOT NULL)"
+          },
+          {
+            "Name": "ck_runtimes_ready_due",
+            "Sql": "status_code \u003C\u003E 10 OR next_run_at_utc IS NOT NULL"
+          },
+          {
+            "Name": "ck_runtimes_status_lease",
+            "Sql": "status_code IN (40, 50) OR leased_by_worker_id IS NULL"
+          }
+        ],
+        "ForeignKeys": [
+          {
+            "Name": "fk_runtimes_jobs",
+            "Signature": "job_id-\u003EActa.Runtime.Job.id|Cascade"
+          },
+          {
+            "Name": "fk_runtimes_lanes",
+            "Signature": "lane_id-\u003EActa.Runtime.JobLane.id|NoAction"
+          }
+        ]
+      },
+      {
+        "Table": "schedules",
+        "PrimaryKey": "pk_schedules(id)|manual=False|seq=False",
+        "Columns": [
+          {
+            "Name": "id",
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "namespace_id",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "job_id",
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "definition_id",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "name",
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "origin_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=schedule-origin|values=20,40"
+          },
+          {
+            "Name": "expression",
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "expression_override",
+            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "expression_effective",
+            "Signature": "AsciiString|128|0|0|False|None|COALESCE(expression_override, expression)|coded=False|codeKind=|values="
+          },
+          {
+            "Name": "time_zone_id",
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "time_zone_id_override",
+            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "time_zone_id_effective",
+            "Signature": "AsciiString|128|0|0|False|None|COALESCE(time_zone_id_override, time_zone_id)|coded=False|codeKind=|values="
+          },
+          {
+            "Name": "expression_kind_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=schedule-expression-kind|values=10,20"
+          },
+          {
+            "Name": "misfire_strategy_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=misfire-strategy|values=10,20"
+          },
+          {
+            "Name": "next_run_at_utc",
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "last_occurrence_at_utc",
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "status_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=schedule-status|values=10,30,230"
+          },
+          {
+            "Name": "paused_until_utc",
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "description",
+            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "reason_message",
+            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "created_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "modified_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "version",
+            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|values="
+          }
+        ],
+        "Indexes": [
+          {
+            "Name": "ix_schedules_namespace_next",
+            "Signature": "I|cols=namespace_id,next_run_at_utc,id|inc=|desc=|filter=status_code \u003C\u003E 230|seq=False"
+          },
+          {
+            "Name": "ux_schedules_job_name",
+            "Signature": "U|cols=job_id,name|inc=|desc=|filter=|seq=False"
+          }
+        ],
+        "Checks": [
+          {
+            "Name": "ck_schedules_orphan_origin",
+            "Sql": "origin_code = 40 OR status_code \u003C\u003E 230"
+          },
+          {
+            "Name": "ck_schedules_paused_pair",
+            "Sql": "status_code = 30 OR paused_until_utc IS NULL"
+          }
+        ],
+        "ForeignKeys": [
+          {
+            "Name": "fk_schedules_definitions",
+            "Signature": "definition_id-\u003EActa.Runtime.JobDefinition.id|NoAction"
+          },
+          {
+            "Name": "fk_schedules_jobs",
+            "Signature": "job_id-\u003EActa.Runtime.Job.id|Cascade"
+          }
+        ]
+      },
+      {
+        "Table": "settings",
+        "PrimaryKey": "pk_settings(id)|manual=False|seq=False",
+        "Columns": [
+          {
+            "Name": "id",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "scope_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=setting-scope|values=10,30,40"
+          },
+          {
+            "Name": "scope_id",
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "name",
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "value_format_id",
+            "Signature": "Byte|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "value",
+            "Signature": "BinaryPayload|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "description",
+            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "created_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "modified_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "version",
+            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|values="
+          }
+        ],
+        "Indexes": [
+          {
+            "Name": "ux_settings_global_name",
+            "Signature": "U|cols=scope_code,name|inc=|desc=|filter=scope_id IS NULL|seq=False"
+          },
+          {
+            "Name": "ux_settings_scope_name",
+            "Signature": "U|cols=scope_code,scope_id,name|inc=|desc=|filter=scope_id IS NOT NULL|seq=False"
+          }
+        ],
+        "Checks": [
+          {
+            "Name": "ck_settings_scope_pair",
+            "Sql": "(scope_code = 10 AND scope_id IS NULL) OR (scope_code IN (30, 40) AND scope_id IS NOT NULL)"
+          },
+          {
+            "Name": "ck_settings_value_pair",
+            "Sql": "(value_format_id = 0 AND value IS NULL) OR (value_format_id \u003C\u003E 0 AND value IS NOT NULL)"
+          }
+        ],
+        "ForeignKeys": []
+      },
+      {
+        "Table": "steps",
+        "PrimaryKey": "pk_steps(id)|manual=False|seq=False",
+        "Columns": [
+          {
+            "Name": "id",
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "job_id",
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "name",
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "status_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-step-status|values=10,100,200,230"
+          },
+          {
+            "Name": "attempt_number",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "next_retry_at_utc",
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "reason_code",
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-event-reason|values="
+          },
+          {
+            "Name": "reason_message",
+            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "result_format_id",
+            "Signature": "Byte|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "result",
+            "Signature": "BinaryPayload|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "created_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "modified_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "version",
+            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|values="
+          }
+        ],
+        "Indexes": [
+          {
+            "Name": "ux_steps_job_name",
+            "Signature": "U|cols=job_id,name|inc=|desc=|filter=|seq=False"
+          }
+        ],
+        "Checks": [
+          {
+            "Name": "ck_steps_attempt_number",
+            "Sql": "attempt_number \u003E= 1"
+          },
+          {
+            "Name": "ck_steps_reason_pair",
+            "Sql": "reason_message IS NULL OR reason_code IS NOT NULL"
+          },
+          {
+            "Name": "ck_steps_result_pair",
+            "Sql": "(result_format_id = 0 AND result IS NULL) OR (result_format_id \u003C\u003E 0 AND result IS NOT NULL)"
+          },
+          {
+            "Name": "ck_steps_result_succeeded",
+            "Sql": "result_format_id = 0 OR status_code = 100"
+          },
+          {
+            "Name": "ck_steps_terminal_no_retry",
+            "Sql": "status_code NOT IN (100, 200, 230) OR next_retry_at_utc IS NULL"
+          }
+        ],
+        "ForeignKeys": [
+          {
+            "Name": "fk_steps_jobs",
+            "Signature": "job_id-\u003EActa.Runtime.Job.id|Cascade"
+          }
+        ]
+      },
+      {
+        "Table": "tags",
+        "PrimaryKey": "pk_tags(scope_code,scope_id,name)|manual=False|seq=False",
+        "Columns": [
+          {
+            "Name": "scope_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=tag-scope|values=20,30,40,50,60,70,80,90"
+          },
+          {
+            "Name": "scope_id",
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "namespace_id",
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "name",
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "value",
+            "Signature": "UnicodeString|128|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "value_search",
+            "Signature": "UnicodeString|128|0|0|True|None||coded=False|codeKind=|values="
+          }
+        ],
+        "Indexes": [
+          {
+            "Name": "ix_tags_namespace_name_value_search",
+            "Signature": "I|cols=namespace_id,name,value_search,scope_code,scope_id|inc=|desc=|filter=|seq=False"
+          }
+        ],
+        "Checks": [
+          {
+            "Name": "ck_tags_namespace_id",
+            "Sql": "namespace_id IS NULL OR namespace_id \u003E 0"
+          },
+          {
+            "Name": "ck_tags_scope_id",
+            "Sql": "scope_id \u003E 0"
+          },
+          {
+            "Name": "ck_tags_scope_namespace",
+            "Sql": "(scope_code = 20 AND namespace_id IS NULL) OR (scope_code = 30 AND namespace_id IS NOT NULL AND scope_id = namespace_id) OR (scope_code IN (40, 50, 60, 70, 80, 90) AND namespace_id IS NOT NULL)"
+          },
+          {
+            "Name": "ck_tags_value_search",
+            "Sql": "(value IS NULL AND value_search IS NULL) OR (value IS NOT NULL AND value_search IS NOT NULL)"
+          }
+        ],
+        "ForeignKeys": []
+      },
+      {
+        "Table": "tenants",
+        "PrimaryKey": "pk_tenants(id)|manual=False|seq=False",
+        "Columns": [
+          {
+            "Name": "id",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "tenant_key",
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "status_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=tenant-status|values=10,20"
+          },
+          {
+            "Name": "display_name",
+            "Signature": "UnicodeString|128|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "description",
+            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "created_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "modified_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "version",
+            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|values="
+          }
+        ],
+        "Indexes": [
+          {
+            "Name": "ux_tenants_key",
+            "Signature": "U|cols=tenant_key|inc=|desc=|filter=|seq=False"
+          }
+        ],
+        "Checks": [],
+        "ForeignKeys": []
+      },
+      {
+        "Table": "workers",
+        "PrimaryKey": "pk_workers(id)|manual=False|seq=False",
+        "Columns": [
+          {
+            "Name": "id",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "worker_ref",
+            "Signature": "Guid|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "namespace_id",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "status_code",
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=worker-status|values=10,80,100,200"
+          },
+          {
+            "Name": "deployment_version",
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "host",
+            "Signature": "AsciiString|256|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "engine_version",
+            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "dotnet_version",
+            "Signature": "AsciiString|64|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "process_id",
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "max_concurrency",
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "last_seen_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|None||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "created_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "modified_at_utc",
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+          },
+          {
+            "Name": "version",
+            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|values="
+          }
+        ],
+        "Indexes": [
+          {
+            "Name": "ix_workers_namespace_last_seen",
+            "Signature": "I|cols=namespace_id,last_seen_at_utc,id|inc=|desc=last_seen_at_utc,id|filter=|seq=False"
+          },
+          {
+            "Name": "ix_workers_namespace_status_last_seen",
+            "Signature": "I|cols=namespace_id,status_code,last_seen_at_utc|inc=|desc=|filter=|seq=False"
+          },
+          {
+            "Name": "ix_workers_status_last_seen",
+            "Signature": "I|cols=status_code,last_seen_at_utc|inc=|desc=|filter=|seq=False"
+          },
+          {
+            "Name": "ux_workers_ref",
+            "Signature": "U|cols=worker_ref|inc=|desc=|filter=|seq=False"
+          }
+        ],
+        "Checks": [
+          {
+            "Name": "ck_workers_max_concurrency",
+            "Sql": "max_concurrency \u003E 0"
+          }
+        ],
+        "ForeignKeys": [
+          {
+            "Name": "fk_workers_namespaces",
+            "Signature": "namespace_id-\u003EActa.Runtime.JobNamespace.id|NoAction"
+          }
+        ]
+      }
+    ],
+    "CodeFamilies": [
+      {
+        "CodeKind": "actor",
+        "ValueIds": [
+          10,
+          20,
+          50,
+          70
+        ]
+      },
+      {
+        "CodeKind": "alert-channel-status",
+        "ValueIds": [
+          10,
+          30,
+          240
+        ]
+      },
+      {
+        "CodeKind": "alert-delivery-status",
+        "ValueIds": [
+          10,
+          20,
+          30,
+          100,
+          200
+        ]
+      },
+      {
+        "CodeKind": "alert-origin",
+        "ValueIds": [
+          10,
+          20
+        ]
+      },
+      {
+        "CodeKind": "alert-profile",
+        "ValueIds": [
+          0,
+          10,
+          20,
+          30,
+          40
+        ]
+      },
+      {
+        "CodeKind": "alert-severity",
+        "ValueIds": [
+          10,
+          20,
+          30,
+          40
+        ]
+      },
+      {
+        "CodeKind": "deadline-behavior",
+        "ValueIds": [
+          10,
+          20
+        ]
+      },
+      {
+        "CodeKind": "execution-status",
+        "ValueIds": [
+          50,
+          100,
+          150,
+          151,
+          152,
+          200,
+          220,
+          230
+        ]
+      },
+      {
+        "CodeKind": "job-audit-level",
+        "ValueIds": [
+          0,
+          10,
+          20
+        ]
+      },
+      {
+        "CodeKind": "job-checkpoint-kind",
+        "ValueIds": [
+          10,
+          20,
+          30,
+          40,
+          50
+        ]
+      },
+      {
+        "CodeKind": "job-checkpoint-status",
+        "ValueIds": [
+          10,
+          20,
+          30,
+          100
+        ]
+      },
+      {
+        "CodeKind": "job-definition-status",
+        "ValueIds": [
+          10,
+          240
+        ]
+      },
+      {
+        "CodeKind": "job-priority",
+        "ValueIds": [
+          0,
+          50,
+          70,
+          85,
+          100
+        ]
+      },
+      {
+        "CodeKind": "job-status",
+        "ValueIds": [
+          10,
+          15,
+          20,
+          30,
+          40,
+          50,
+          100,
+          200,
+          220
+        ]
+      },
+      {
+        "CodeKind": "job-step-status",
+        "ValueIds": [
+          10,
+          100,
+          200,
+          230
+        ]
+      },
+      {
+        "CodeKind": "job-tenant-requirement",
+        "ValueIds": [
+          0,
+          10,
+          20
+        ]
+      },
+      {
+        "CodeKind": "misfire-strategy",
+        "ValueIds": [
+          10,
+          20
+        ]
+      },
+      {
+        "CodeKind": "namespace-status",
+        "ValueIds": [
+          10,
+          20
+        ]
+      },
+      {
+        "CodeKind": "outbox-status",
+        "ValueIds": [
+          10,
+          20,
+          90
+        ]
+      },
+      {
+        "CodeKind": "schedule-expression-kind",
+        "ValueIds": [
+          10,
+          20
+        ]
+      },
+      {
+        "CodeKind": "schedule-origin",
+        "ValueIds": [
+          20,
+          40
+        ]
+      },
+      {
+        "CodeKind": "schedule-status",
+        "ValueIds": [
+          10,
+          30,
+          230
+        ]
+      },
+      {
+        "CodeKind": "setting-scope",
+        "ValueIds": [
+          10,
+          30,
+          40
+        ]
+      },
+      {
+        "CodeKind": "tag-scope",
+        "ValueIds": [
+          20,
+          30,
+          40,
+          50,
+          60,
+          70,
+          80,
+          90
+        ]
+      },
+      {
+        "CodeKind": "tenant-status",
+        "ValueIds": [
+          10,
+          20
+        ]
+      },
+      {
+        "CodeKind": "worker-status",
+        "ValueIds": [
+          10,
+          80,
+          100,
+          200
+        ]
+      }
+    ]
+  },
+  "Previous": null
+}

@@ -21,6 +21,8 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   `Acta.Postgres.Hosting`, and the SQL Server and SQLite equivalents), `RedisWakeupOptions`, the
   dashboard options and control authorization types in `Acta.AspNetCore.Configuration`, and the test
   host in `Acta.Testing.Hosting`. Replace those usings with the package root, such as `using Acta.Postgres;`.
+- **The `Acta.Relational` package is gone.** Its code ships in `Acta.Runtime`, which every provider
+  package already brings. A project that referenced `Acta.Relational` directly drops the reference.
 
 ### Fixes
 

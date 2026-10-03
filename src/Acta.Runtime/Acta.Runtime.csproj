@@ -5,11 +5,13 @@
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>Acta.Runtime</RootNamespace>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)Generated</CompilerGeneratedFilesOutputPath>
     <!-- Emit XML doc file so Acta.Emit can read entity/property summaries for docs/reference/data-model.md. -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!-- Suppress "missing XML comment" warnings: not every public member needs one. -->
     <NoWarn>$(NoWarn);1591</NoWarn>
-    <Description>Acta runtime implementation: provider-independent runtime behavior, feature services, rules, and persistence ports.</Description>
+    <Description>The Acta engine: operations, workers, database access, the schema and its migrations, and hosting. The provider packages bring the SQL dialect.</Description>
   </PropertyGroup>
 
   <ItemGroup>
@@ -40,8 +42,6 @@
     <InternalsVisibleTo Include="Acta.Sqlite" />
     <!-- The Redis wake transport composes the internal InProcessWakeup for its local delivery layer. -->
     <InternalsVisibleTo Include="Acta.Redis" />
-    <!-- Shared relational stores implement the internal store ports over IDbSession from Acta.Relational. -->
-    <InternalsVisibleTo Include="Acta.Relational" />
     <!-- Code-emission tool reads the [DbTable]/[DbColumn] attribute graph and the ActaSchema metadata
          to render DDL and docs. -->
     <InternalsVisibleTo Include="Acta.Emit" />
@@ -50,8 +50,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Generates the core system-job manifest; provider-local projection mappings are generated in
-         each relational provider assembly. -->
+    <!-- Generates the system-job manifest, the table binders, and the row projections. -->
     <ProjectReference Include="..\Acta.Generators\Acta.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>

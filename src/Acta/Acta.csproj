@@ -31,8 +31,6 @@
     <InternalsVisibleTo Include="Acta.Runtime" />
     <!-- Tests need access to internal validators and canonicalizers. -->
     <InternalsVisibleTo Include="Acta.Tests" />
-    <!-- The outbox staging core reuses the shared enqueue normalization/validation. -->
-    <InternalsVisibleTo Include="Acta.Relational" />
     <!-- The test host stages a bounded group wait's expiry, which means finding the framework-owned
          deadline slot by the one reserved name JobContext writes it under. A copy of that name in the
          testing package could drift silently and make a staged expiry a no-op. -->

@@ -17,7 +17,7 @@ public sealed class ProviderStoreBindingCheckTests
     public void Every_shared_store_method_reaches_command_preparation()
     {
         var failures = ProviderStoreBindingCheck
-            .FindUnpreparedStoreMethods(Assembly.Load("Acta.Relational"))
+            .FindUnpreparedStoreMethods(Assembly.Load("Acta.Runtime"))
             .OrderBy(static failure => failure, StringComparer.Ordinal)
             .ToList();
 
@@ -57,7 +57,7 @@ internal static partial class ProviderStoreBindingCheck
 
     // Walks each shared store's IL to prove every port method routes through the command-preparation
     // surface (the IDbSession execute seam, DbParams.For, or a dialect bind), rather than reaching a
-    // connection ad hoc. The shared stores live in Acta.Relational; the provider assemblies own only
+    // connection ad hoc. The shared stores live in Acta.Runtime; the provider assemblies own only
     // dialects, bootstrap, and SQL.
     public static IEnumerable<string> FindUnpreparedStoreMethods(Assembly storeAssembly)
     {
@@ -94,7 +94,7 @@ internal static partial class ProviderStoreBindingCheck
                 && IsExecutable(name[prefix.Length..])
             )
             .ToHashSet(StringComparer.Ordinal);
-        var relationalAssembly = Assembly.Load("Acta.Relational");
+        var relationalAssembly = Assembly.Load("Acta.Runtime");
         var providerLiterals = providerAssembly
             .GetTypes()
             .SelectMany(AllMethods)
@@ -194,14 +194,14 @@ internal static partial class ProviderStoreBindingCheck
     private static bool IsCommandPreparation(MethodBase method)
     {
         var declaring = method.DeclaringType?.FullName;
-        return (declaring == "Acta.Relational.DbParams" && method.Name == "For")
-            || (declaring == "Acta.Relational.SqlResourceCatalog" && method.Name == "Load")
+        return (declaring == "Acta.Runtime.DbParams" && method.Name == "For")
+            || (declaring == "Acta.Runtime.SqlResourceCatalog" && method.Name == "Load")
             || (
-                declaring == "Acta.Relational.IDbSession"
+                declaring == "Acta.Runtime.IDbSession"
                 && method.Name is "QueryAsync" or "ExecuteAsync" or "ExecuteSingleAsync" or "ExecuteInTransactionAsync"
             )
             || (
-                declaring == "Acta.Relational.ISqlDialect"
+                declaring == "Acta.Runtime.ISqlDialect"
                 && (
                     method.Name is "CreateParameter" or "ConfigureRoutineCommand"
                     || method.Name.StartsWith("Bind", StringComparison.Ordinal)

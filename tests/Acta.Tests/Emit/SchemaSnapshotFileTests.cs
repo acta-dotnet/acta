@@ -9,7 +9,7 @@ namespace Acta.Tests.Emit;
 public sealed class SchemaSnapshotFileTests
 {
     private static string SnapshotPath =>
-        Path.Combine(IntegrationConfig.FindRepoRoot(), "src", "Acta.Relational", "Schema", "schema-snapshot.json");
+        Path.Combine(IntegrationConfig.FindRepoRoot(), "src", "Acta.Runtime", "Schema", "schema-snapshot.json");
 
     private static string Canon(SchemaSnapshot s) =>
         JsonSerializer.Serialize(s, SchemaSnapshotJsonContext.Default.SchemaSnapshot).ReplaceLineEndings("\n");

@@ -9,68 +9,12 @@ public sealed partial class ArchitectureBoundaryTests
 {
     private static readonly string[] ProviderProjects = ["Acta.Postgres", "Acta.SqlServer", "Acta.Sqlite"];
 
-    [Fact]
-    public void Core_store_ports_are_internal_and_provider_neutral()
-    {
-        var core = typeof(ActaServiceCollectionExtensions).Assembly;
-        var relationalAssemblyName = typeof(IEntity).Assembly.GetName().Name;
-        var references = core.GetReferencedAssemblies().Select(reference => reference.Name).ToArray();
-        Assert.DoesNotContain(relationalAssemblyName, references);
-        Assert.DoesNotContain(core.GetManifestResourceNames(), name => name.EndsWith(".sql", StringComparison.OrdinalIgnoreCase));
-
-        var storePorts = Acta.Tests.Conformance.StoreContractCoverageTests.StoreInterfaces().ToArray();
-        Assert.NotEmpty(storePorts);
-        Assert.All(storePorts, store => Assert.False(store.IsPublic, $"{store.FullName} must remain internal."));
-
-        var relationalLeaks = storePorts
-            .SelectMany(store => store.GetMethods())
-            .SelectMany(method => method.GetParameters().Select(parameter => parameter.ParameterType).Append(method.ReturnType))
-            .SelectMany(TypeClosure)
-            .Where(type => type.Assembly.GetName().Name == relationalAssemblyName)
-            .Select(type => type.FullName)
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(name => name, StringComparer.Ordinal)
-            .ToArray();
-        Assert.True(
-            relationalLeaks.Length == 0,
-            "Store contracts expose relational types, preventing a non-relational provider:\n" + string.Join("\n", relationalLeaks)
-        );
-
-        var coreStoreImplementations = core.GetTypes()
-            .Where(type => type.IsClass && !type.IsAbstract && storePorts.Any(store => store.IsAssignableFrom(type)))
-            .Select(type => type.FullName)
-            .OrderBy(name => name, StringComparer.Ordinal)
-            .ToArray();
-        Assert.True(
-            coreStoreImplementations.Length == 0,
-            "Provider-independent core contains store implementations:\n" + string.Join("\n", coreStoreImplementations)
-        );
-    }
-
-    [Fact]
-    public void Relational_implementation_surface_is_internal()
-    {
-        var relational = typeof(IEntity).Assembly;
-        var references = relational.GetReferencedAssemblies().Select(reference => reference.Name).ToArray();
-        Assert.Contains("Acta", references);
-        Assert.Contains("Acta.Runtime", references);
-
-        Assert.False(typeof(IDbSession).IsPublic);
-        Assert.False(typeof(IEntity).IsPublic);
-        Assert.False(typeof(IEntity<>).IsPublic);
-        Assert.False(typeof(DbKind).IsPublic);
-
-        var exposed = relational.GetExportedTypes().Select(type => type.FullName).OrderBy(name => name, StringComparer.Ordinal).ToArray();
-        Assert.True(exposed.Length == 0, "Relational implementation types are public:\n" + string.Join("\n", exposed));
-    }
-
     /// <summary>The public SDK knows nothing about its implementation.</summary>
     [Fact]
     public void Public_sdk_references_no_implementation_assembly()
     {
         var references = typeof(IJobs).Assembly.GetReferencedAssemblies().Select(reference => reference.Name).ToArray();
         Assert.DoesNotContain("Acta.Runtime", references);
-        Assert.DoesNotContain("Acta.Relational", references);
     }
 
     /// <summary>
@@ -106,7 +50,6 @@ public sealed partial class ArchitectureBoundaryTests
             .Select(reference => reference.Name)
             .ToArray();
         Assert.Contains("Acta", references);
-        Assert.DoesNotContain("Acta.Relational", references);
         Assert.DoesNotContain("Acta.Runtime", references);
     }
 
@@ -197,9 +140,9 @@ public sealed partial class ArchitectureBoundaryTests
                 .EnumerateFiles(coreRoot, "*.sql", SearchOption.AllDirectories)
                 .Select(path => $"core executable SQL remains: {Relative(repoRoot, path)}")
         );
-        if (Directory.Exists(Path.Combine(sourceRoot, "Acta.Relational", "Features")))
+        if (Directory.Exists(Path.Combine(sourceRoot, "Acta.Runtime", "Features")))
         {
-            failures.Add("Acta.Relational contains a product Features folder.");
+            failures.Add("Acta.Runtime contains a product Features folder.");
         }
 
         string[] horizontalNames = ["Api", "Services", "Rules", "Stores", "Delivery"];
@@ -239,7 +182,7 @@ public sealed partial class ArchitectureBoundaryTests
         foreach (var provider in ProviderProjects)
         {
             var providerRoot = Path.Combine(sourceRoot, provider);
-            // Stores are consolidated into shared Acta.Relational implementations; a provider owns no
+            // Stores are consolidated into shared Acta.Runtime implementations; a provider owns no
             // store classes anywhere, only its dialect, options, bootstrap, migrations, and SQL.
             var stores = Directory.EnumerateFiles(providerRoot, "*Store.cs", SearchOption.AllDirectories).ToArray();
             failures.AddRange(stores.Select(path => $"provider retains a feature store after consolidation: {Relative(repoRoot, path)}"));
@@ -266,25 +209,6 @@ public sealed partial class ArchitectureBoundaryTests
         }
 
         Assert.True(failures.Count == 0, "Architecture source-layout violations:\n" + string.Join("\n", failures));
-    }
-
-    private static IEnumerable<Type> TypeClosure(Type type)
-    {
-        yield return type;
-        if (type.HasElementType)
-        {
-            foreach (var element in TypeClosure(type.GetElementType()!))
-            {
-                yield return element;
-            }
-        }
-        foreach (var argument in type.IsGenericType ? type.GetGenericArguments() : [])
-        {
-            foreach (var nested in TypeClosure(argument))
-            {
-                yield return nested;
-            }
-        }
     }
 
     private static string ProjectRootNamespace(string projectRoot)

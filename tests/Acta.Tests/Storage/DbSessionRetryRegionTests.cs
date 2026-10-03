@@ -2,7 +2,6 @@ using System.Collections;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
-using Acta.Relational;
 using Acta.Runtime;
 using Acta.Sqlite;
 using Xunit;

@@ -12,7 +12,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Acta.Runtime\Acta.Runtime.csproj" />
-    <ProjectReference Include="..\..\src\Acta.Relational\Acta.Relational.csproj" />
   </ItemGroup>
 
   <ItemGroup>

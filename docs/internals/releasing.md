@@ -67,8 +67,8 @@ intended.** A regenerated baseline is indistinguishable from a deliberate one on
 | HTTP surface | `docs/reference/openapi.json` | `ACTA_EMIT_OPENAPI=1 dotnet test tests/Acta.Tests --filter OpenApiContractTests` |
 | Persisted codes | hash in `PersistedCodeContractTests` | re-pin the hash by hand |
 | Conformance docs | `docs/reference/conformance-contracts.md` | `ACTA_EMIT_DOCS=1 dotnet test tests/Acta.Tests --filter DocsContractTests` |
-| Baseline stamps | `src/Acta.Relational/Schema/BaselineStamps.g.cs`, one hash per provider `M001` | `dotnet run --project tools/Acta.Emit -- schema amend` (never after 1.0.0: a moved stamp means `M001` was edited, and that blocks the release) |
-| Object package | `src/Acta.Relational/Schema/ObjectPackageHashes.g.cs` and `object-packages.json`, one content hash per provider's installed views and routines | `dotnet run --project tools/Acta.Emit -- objects record` after any view or routine edit; `check` refuses a recorded identity whose content moved. An identity is frozen the moment it is recorded, deliberately: before the first release that costs a revision bump per edit rather than tracking what shipped |
+| Baseline stamps | `src/Acta.Runtime/Schema/BaselineStamps.g.cs`, one hash per provider `M001` | `dotnet run --project tools/Acta.Emit -- schema amend` (never after 1.0.0: a moved stamp means `M001` was edited, and that blocks the release) |
+| Object package | `src/Acta.Runtime/Schema/ObjectPackageHashes.g.cs` and `object-packages.json`, one content hash per provider's installed views and routines | `dotnet run --project tools/Acta.Emit -- objects record` after any view or routine edit; `check` refuses a recorded identity whose content moved. An identity is frozen the moment it is recorded, deliberately: before the first release that costs a revision bump per edit rather than tracking what shipped |
 
 Before 1.0 a moved surface is allowed and belongs in the release notes. From 1.0 the .NET and HTTP
 surfaces are additive-only, so a diff that removes or renames a member is a 2.0 change and blocks the

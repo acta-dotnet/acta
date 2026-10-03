@@ -20,8 +20,7 @@ namespace Acta.Tests.Contracts;
 /// </remarks>
 public sealed class PublicApiContractTests
 {
-    // The packable assemblies a consumer compiles against. Acta.Relational is absent on purpose:
-    // ArchitectureBoundaryTests already asserts it exports no public types.
+    // The packable assemblies a consumer compiles against.
     private static readonly string[] ShippedAssemblies =
     [
         "Acta.dll",

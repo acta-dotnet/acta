@@ -105,6 +105,6 @@ public abstract class RecurringSlotFromAnotherGenerationSpec<TFixture> : ActaRun
         Assert.Contains(UnscheduledPingManifest.JobName, refused.Message, StringComparison.Ordinal);
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(head.JobId, ct)).Status);
         Assert.Equal(JobStatusCode.Blocked, (await ReadJobAsync(behind.JobId, ct)).Status);
-        Assert.Empty(await Db.From<Acta.Relational.JobSchedule>().Where(s => s.JobId == behind.JobId).ToListAsync(ct));
+        Assert.Empty(await Db.From<Acta.Runtime.JobSchedule>().Where(s => s.JobId == behind.JobId).ToListAsync(ct));
     }
 }

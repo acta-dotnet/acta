@@ -19,7 +19,7 @@ namespace Acta.Runtime;
 internal sealed class AsyncWakeSignal
 {
     private readonly Queue<TaskCompletionSource> _waiters = new();
-    private readonly Lock _gate = new();
+    private readonly System.Threading.Lock _gate = new();
     private bool _latched;
 
     public void Set()

@@ -5,13 +5,13 @@ using Acta.Emit.Shared;
 namespace Acta.Emit.Features.Migrations;
 
 /// <summary>
-/// Emits <c>src/Acta.Relational/Schema/BaselineStamps.g.cs</c>: the stamp each provider's committed
+/// Emits <c>src/Acta.Runtime/Schema/BaselineStamps.g.cs</c>: the stamp each provider's committed
 /// baseline migration carries, as constants the runtime requires at bootstrap. The SQL is the source
 /// of truth; this file is how the runtime reads it without parsing migrations at startup.
 /// </summary>
 internal static class BaselineStampsEmitter
 {
-    internal static string PathFor(string repoRoot) => Path.Combine(repoRoot, "src", "Acta.Relational", "Schema", "BaselineStamps.g.cs");
+    internal static string PathFor(string repoRoot) => Path.Combine(repoRoot, "src", "Acta.Runtime", "Schema", "BaselineStamps.g.cs");
 
     internal static string Emit(string repoRoot)
     {
@@ -21,7 +21,7 @@ internal static class BaselineStampsEmitter
         sb.AppendLine("// Each value is a content hash of that provider's committed baseline migration; edit the SQL,");
         sb.AppendLine("// not this file.");
         sb.AppendLine();
-        sb.AppendLine("namespace Acta.Relational;");
+        sb.AppendLine("namespace Acta.Runtime;");
         sb.AppendLine();
         sb.AppendLine("/// <summary>");
         sb.AppendLine("/// The baseline generation each provider package ships, as recorded in the version-0 row of its");

@@ -2,19 +2,18 @@ using System.Globalization;
 using System.Text;
 using Acta.Emit.Features.Docs;
 using Acta.Emit.Shared;
-using Acta.Relational;
+using Acta.Runtime;
 
 namespace Acta.Emit.Features.Migrations;
 
 /// <summary>
-/// Emits <c>src/Acta.Relational/Schema/ObjectPackageHashes.g.cs</c>: the content hash of each provider's
+/// Emits <c>src/Acta.Runtime/Schema/ObjectPackageHashes.g.cs</c>: the content hash of each provider's
 /// installed object set, computed here and frozen into the assembly so the runtime never hashes anything
 /// at startup. The SQL is the source of truth; this file is how the installer names what it wrote.
 /// </summary>
 internal static class ObjectPackageEmitter
 {
-    internal static string PathFor(string repoRoot) =>
-        Path.Combine(repoRoot, "src", "Acta.Relational", "Schema", "ObjectPackageHashes.g.cs");
+    internal static string PathFor(string repoRoot) => Path.Combine(repoRoot, "src", "Acta.Runtime", "Schema", "ObjectPackageHashes.g.cs");
 
     /// <summary>
     /// One hash per provider token, computed once per command. SQLite has no routines, because its
@@ -41,7 +40,7 @@ internal static class ObjectPackageEmitter
         sb.AppendLine("// Each value is a content hash of that provider's installed views and routines; edit the SQL,");
         sb.AppendLine("// not this file.");
         sb.AppendLine();
-        sb.AppendLine("namespace Acta.Relational;");
+        sb.AppendLine("namespace Acta.Runtime;");
         sb.AppendLine();
         sb.AppendLine("/// <summary>");
         sb.AppendLine("/// The object package each provider package ships, as recorded in the sentinel row its install");

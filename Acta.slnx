@@ -12,7 +12,6 @@
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/Acta/Acta.csproj" />
-    <Project Path="src/Acta.Relational/Acta.Relational.csproj" />
     <Project Path="src/Acta.AspNetCore/Acta.AspNetCore.csproj" />
     <Project Path="src/Acta.Generators/Acta.Generators.csproj" />
     <Project Path="src/Acta.Postgres/Acta.Postgres.csproj" />

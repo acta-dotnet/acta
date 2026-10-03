@@ -1,4 +1,3 @@
-using Acta.Relational;
 using Acta.Runtime;
 using Acta.Tests.Conformance.Testing;
 using Xunit;
@@ -48,7 +47,7 @@ public sealed class AlertNoSecretPersistenceTests
     {
         var root = IntegrationConfig.FindRepoRoot();
         var docs = File.ReadAllText(Path.Combine(root, "docs", "reference", "data-model.md"));
-        var snapshot = File.ReadAllText(Path.Combine(root, "src", "Acta.Relational", "Schema", "schema-snapshot.json"));
+        var snapshot = File.ReadAllText(Path.Combine(root, "src", "Acta.Runtime", "Schema", "schema-snapshot.json"));
         var sqlite = File.ReadAllText(Path.Combine(root, "src", "Acta.Sqlite", "Schema", "Migrations", "M001_init.sql"));
         var postgres = File.ReadAllText(Path.Combine(root, "src", "Acta.Postgres", "Schema", "Migrations", "M001_init.sql"));
         var sqlServer = File.ReadAllText(Path.Combine(root, "src", "Acta.SqlServer", "Schema", "Migrations", "M001_init.sql"));
