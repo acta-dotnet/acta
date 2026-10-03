@@ -414,14 +414,21 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
 
             private static int[] Ordinals(DbDataReader r, string projection, string[] columns)
             {
+                // Each name read once: on some providers GetName is a native call.
+                var actual = new string[r.FieldCount];
+                for (var i = 0; i < actual.Length; i++)
+                {
+                    actual[i] = r.GetName(i);
+                }
+
                 var ordinals = new int[columns.Length];
                 var missing = new System.Collections.Generic.List<string>();
                 for (var c = 0; c < columns.Length; c++)
                 {
                     ordinals[c] = -1;
-                    for (var i = 0; i < r.FieldCount; i++)
+                    for (var i = 0; i < actual.Length; i++)
                     {
-                        if (!string.Equals(r.GetName(i), columns[c], StringComparison.OrdinalIgnoreCase))
+                        if (!string.Equals(actual[i], columns[c], StringComparison.OrdinalIgnoreCase))
                         {
                             continue;
                         }
@@ -442,12 +449,6 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
 
                 if (missing.Count > 0)
                 {
-                    var actual = new string[r.FieldCount];
-                    for (var i = 0; i < actual.Length; i++)
-                    {
-                        actual[i] = r.GetName(i);
-                    }
-
                     throw new InvalidOperationException(
                         $"{projection} reads {string.Join(", ", missing)}, which the result ({string.Join(", ", actual)}) does not have."
                     );
