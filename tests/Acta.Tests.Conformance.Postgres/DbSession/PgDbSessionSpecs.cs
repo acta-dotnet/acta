@@ -13,7 +13,4 @@ public sealed class PgFluentReadSpec : FluentReadSpec<PgConformanceFixture>;
 
 public sealed class PgSettingsUniqueKeySpec : SettingsUniqueKeySpec<PgConformanceFixture>;
 
-public sealed class PgSessionProviderDiscriminatorSpec : SessionProviderDiscriminatorSpec<PgConformanceFixture>
-{
-    protected override DbProvider ExpectedProvider => DbProvider.Postgres;
-}
+public sealed class PgSessionProviderDiscriminatorSpec : SessionProviderDiscriminatorSpec<PgConformanceFixture>;

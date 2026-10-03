@@ -18,7 +18,14 @@ namespace Acta.Tests.Conformance.DbSession;
 public abstract class SessionProviderDiscriminatorSpec<TFixture> : IntegrationSpec<TFixture>
     where TFixture : IConformanceFixture, new()
 {
-    protected abstract DbProvider ExpectedProvider { get; }
+    private DbProvider ExpectedProvider =>
+        Fixture.DialectToken switch
+        {
+            "pg" => DbProvider.Postgres,
+            "mssql" => DbProvider.SqlServer,
+            "sqlite" => DbProvider.Sqlite,
+            var token => throw new InvalidOperationException($"Unknown dialect token '{token}'."),
+        };
 
     [Fact(DisplayName = "Resolved IDbSession surfaces provider metadata and opens a raw test connection")]
     public async Task ActaDb_SurfacesProviderAndSchemaAndOpensTestConnection()

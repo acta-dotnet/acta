@@ -13,7 +13,4 @@ public sealed class SqlServerFluentReadSpec : FluentReadSpec<SqlServerConformanc
 
 public sealed class SqlServerSettingsUniqueKeySpec : SettingsUniqueKeySpec<SqlServerConformanceFixture>;
 
-public sealed class SqlServerSessionProviderDiscriminatorSpec : SessionProviderDiscriminatorSpec<SqlServerConformanceFixture>
-{
-    protected override DbProvider ExpectedProvider => DbProvider.SqlServer;
-}
+public sealed class SqlServerSessionProviderDiscriminatorSpec : SessionProviderDiscriminatorSpec<SqlServerConformanceFixture>;

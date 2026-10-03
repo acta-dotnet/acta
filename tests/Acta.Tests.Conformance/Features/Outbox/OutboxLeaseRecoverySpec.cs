@@ -19,10 +19,15 @@ namespace Acta.Tests.Conformance.Features.Outbox;
 public abstract class OutboxLeaseRecoverySpec<TFixture> : OutboxSpecBase<TFixture>
     where TFixture : IConformanceFixture, new()
 {
-    // PostgreSQL and SQL Server reject a negative LIMIT/TOP at execution. Their provider heads
-    // exercise this probe to prove statement two's failure cannot commit statement one's recovery.
-    protected async Task AssertFailedServerClaimRollsBackRecoveryAsync()
+    // PostgreSQL and SQL Server reject a negative LIMIT/TOP at execution, so the claim fails after its
+    // recovery statement ran; that failure must not commit the recovery.
+    [Fact(DisplayName = "A claim that fails after recovering a lease rolls the recovery back")]
+    public async Task Failed_claim_rolls_back_its_recovery()
     {
+        Assert.SkipWhen(
+            Fixture.DialectToken == "sqlite",
+            "SQLite reads a negative LIMIT as no limit, so the claim cannot be made to fail."
+        );
         var ct = TestContext.Current.CancellationToken;
         var oldToken = Guid.NewGuid();
         var expired = ClaimedExpiredRow(TestKey("failed-claim"), oldToken);

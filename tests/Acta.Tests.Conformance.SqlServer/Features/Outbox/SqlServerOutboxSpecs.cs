@@ -5,11 +5,7 @@ namespace Acta.Tests.Conformance.SqlServer.Features.Outbox;
 
 public sealed class SqlServerOutboxClaimSpec : OutboxClaimSpec<SqlServerConformanceFixture>;
 
-public sealed class SqlServerOutboxLeaseRecoverySpec : OutboxLeaseRecoverySpec<SqlServerConformanceFixture>
-{
-    [Xunit.Fact]
-    public Task Claim_failure_rolls_back_the_preceding_recovery_statement() => AssertFailedServerClaimRollsBackRecoveryAsync();
-}
+public sealed class SqlServerOutboxLeaseRecoverySpec : OutboxLeaseRecoverySpec<SqlServerConformanceFixture>;
 
 public sealed class SqlServerOutboxDeleteSpec : OutboxDeleteSpec<SqlServerConformanceFixture>;
 

@@ -5,11 +5,7 @@ namespace Acta.Tests.Conformance.Postgres.Features.Outbox;
 
 public sealed class PgOutboxClaimSpec : OutboxClaimSpec<PgConformanceFixture>;
 
-public sealed class PgOutboxLeaseRecoverySpec : OutboxLeaseRecoverySpec<PgConformanceFixture>
-{
-    [Xunit.Fact]
-    public Task Claim_failure_rolls_back_the_preceding_recovery_statement() => AssertFailedServerClaimRollsBackRecoveryAsync();
-}
+public sealed class PgOutboxLeaseRecoverySpec : OutboxLeaseRecoverySpec<PgConformanceFixture>;
 
 public sealed class PgOutboxDeleteSpec : OutboxDeleteSpec<PgConformanceFixture>;
 
@@ -41,12 +37,7 @@ public sealed class PgOutboxStagingSpec : OutboxStagingSpec<PgConformanceFixture
 
 public sealed class PgOutboxLaneOrderSpec : OutboxLaneOrderSpec<PgConformanceFixture>;
 
-public sealed class PgOutboxDdlSpec : OutboxDdlSpec<PgConformanceFixture>
-{
-    // The single table-override case (any one provider proves the override path renders correctly).
-    [Xunit.Fact(DisplayName = "The DDL API honors a table override and the store round-trips against it")]
-    public Task Table_override_round_trips() => RoundTripAsync("acta_outbox_ddl");
-}
+public sealed class PgOutboxDdlSpec : OutboxDdlSpec<PgConformanceFixture>;
 
 public sealed class PgOutboxRelayHandoffSpec : OutboxRelayHandoffSpec<PgConformanceFixture>;
 

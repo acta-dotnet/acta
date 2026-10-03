@@ -11,7 +11,4 @@ public sealed class SqliteFluentReadSpec : FluentReadSpec<SqliteConformanceFixtu
 
 public sealed class SqliteSettingsUniqueKeySpec : SettingsUniqueKeySpec<SqliteConformanceFixture>;
 
-public sealed class SqliteSessionProviderDiscriminatorSpec : SessionProviderDiscriminatorSpec<SqliteConformanceFixture>
-{
-    protected override DbProvider ExpectedProvider => DbProvider.Sqlite;
-}
+public sealed class SqliteSessionProviderDiscriminatorSpec : SessionProviderDiscriminatorSpec<SqliteConformanceFixture>;

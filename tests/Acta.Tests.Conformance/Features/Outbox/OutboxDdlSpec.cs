@@ -25,7 +25,10 @@ public abstract class OutboxDdlSpec<TFixture> : ActaTestBase<TFixture>
     [Fact(DisplayName = "The generated canonical table supports claim, delete, reschedule, and quarantine")]
     public Task Canonical_table_round_trips() => RoundTripAsync("acta_outbox");
 
-    protected async Task RoundTripAsync(string table)
+    [Fact(DisplayName = "The DDL API honors a table override and the store round-trips against it")]
+    public Task Table_override_round_trips() => RoundTripAsync("acta_outbox_ddl");
+
+    private async Task RoundTripAsync(string table)
     {
         var ct = TestContext.Current.CancellationToken;
         await Fixture.ApplyOutboxDdlAsync(table);

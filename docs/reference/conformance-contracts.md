@@ -1000,6 +1000,7 @@
 ### A claim recovers an expired lease and reclaims it, leaving a live lease alone
 - **Contract:** ClaimDue recovers a Claimed row whose lease expired back to Pending and reclaims it under a new token, but never steals a live lease.
 - **Guarantees:**
+  - A claim that fails after recovering a lease rolls the recovery back
   - An expired lease is recovered and reclaimed under the new token
   - A live lease is not stolen by a competing claim
 
@@ -1016,6 +1017,7 @@
 - **Contract:** The DDL API emits a canonical outbox table the real relay store can claim, reschedule, quarantine, and delete against, proving the shape by behavior.
 - **Guarantees:**
   - The generated canonical table supports claim, delete, reschedule, and quarantine
+  - The DDL API honors a table override and the store round-trips against it
 
 ### Delete removes a claimed row only under its token, a stale token no-ops
 - **Contract:** DeleteClaimed removes a claimed row only when the command token matches the row's claim token, and a stale token deletes nothing.
