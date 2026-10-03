@@ -1,13 +1,14 @@
 using System.Text.RegularExpressions;
+using Acta.Tests.Architecture;
 using Xunit;
 
 namespace Acta.Tests.Aot;
 
 /// <summary>
 /// Mechanical enforcement of the production comment-style policy over the runtime core and the three
-/// durable SQL providers. Four checks: no stale-marker tokens, ASCII-only comment text (bans emoji,
-/// arrows, em dashes and other decorative symbols), no oversized XML doc blocks, and no
-/// <c>&lt;remarks&gt;</c> on internal types outside the allowlist.
+/// durable SQL providers. Five checks: no stale-marker tokens, ASCII-only comment text (bans emoji,
+/// arrows, em dashes and other decorative symbols), XML doc blocks within eight lines, no comment that
+/// narrates history, and no <c>&lt;remarks&gt;</c> on internal types outside the allowlist.
 /// </summary>
 /// <remarks>
 /// Each check carries an allowlist of cleared exceptions so the policy can tighten over time:
@@ -32,7 +33,7 @@ public sealed partial class CommentStyleTests
         "src/Acta.Sqlite",
     ];
 
-    private const int MaxXmlDocBlockLines = 16;
+    private const int MaxXmlDocBlockLines = 8;
 
     private sealed record StaleMarker(string Name, Regex Match, HashSet<string> Allowlist)
     {
@@ -61,8 +62,6 @@ public sealed partial class CommentStyleTests
     // quotes and any other decorative symbol in one rule, without false positives on string
     // literals (only full-line comments are scanned).
     private static readonly HashSet<string> NonAsciiAllowlist = Allow();
-
-    private static readonly HashSet<string> OversizedDocAllowlist = Allow();
 
     // <remarks> on an internal type is reserved for concurrency / CAS / provider-difference
     // contracts; each entry here is a cleared exception of that kind. Clearing a file after a
@@ -151,46 +150,55 @@ public sealed partial class CommentStyleTests
         );
     }
 
+    // Files with a longer block are listed in the doc-length ratchet.
     [Fact]
     public void Production_xml_doc_blocks_stay_short()
     {
         var repoRoot = ResolveRepoRoot();
-        var failures = new List<string>();
+        var oversized = new List<(string, string?)>();
 
         foreach (var path in EnumerateProductionFiles(repoRoot))
         {
-            var relative = RelativeTo(repoRoot, path);
-            if (OversizedDocAllowlist.Contains(relative))
-            {
-                continue;
-            }
-            var lines = File.ReadAllLines(path);
-            var blockStart = -1;
             var blockLength = 0;
-            for (var i = 0; i <= lines.Length; i++)
+            foreach (var line in File.ReadLines(path).Append(""))
             {
-                var isDocLine = i < lines.Length && lines[i].TrimStart().StartsWith("///", StringComparison.Ordinal);
-                if (isDocLine)
+                if (line.TrimStart().StartsWith("///", StringComparison.Ordinal))
                 {
-                    if (blockLength == 0)
-                    {
-                        blockStart = i + 1;
-                    }
                     blockLength++;
                     continue;
                 }
                 if (blockLength > MaxXmlDocBlockLines)
                 {
-                    failures.Add($"{relative}({blockStart}): XML doc block is {blockLength} lines (max {MaxXmlDocBlockLines})");
+                    oversized.Add((Path.GetFileName(path), RelativeTo(repoRoot, path)));
                 }
                 blockLength = 0;
             }
         }
 
+        Ratchet.Check(
+            "doc-length",
+            oversized,
+            $"Keep each XML doc block within {MaxXmlDocBlockLines} lines: compress it to the invariants; a public summary is one plain sentence by default."
+        );
+    }
+
+    // History belongs in commit messages: a comment states what the code cannot show, never which review, run, or
+    // date produced it.
+    [Fact]
+    public void Production_comments_do_not_narrate_history()
+    {
+        var repoRoot = ResolveRepoRoot();
+        var narrating = EnumerateProductionFiles(repoRoot)
+            .SelectMany(path =>
+                CommentLines(path)
+                    .Select(line => Narration().Match(line.Text))
+                    .Where(match => match.Success)
+                    .Select(match => $"{RelativeTo(repoRoot, path)} ({match.Value})")
+            );
+
         AssertClean(
-            failures,
-            $"XML doc blocks must stay at or under {MaxXmlDocBlockLines} lines. "
-                + "Compress to the invariants; a public summary is one plain sentence by default."
+            [.. narrating],
+            "comments narrate history. Move the history into the commit message and keep the constraint it explains."
         );
     }
 
@@ -247,7 +255,6 @@ public sealed partial class CommentStyleTests
         var allowlisted = StaleMarkers
             .SelectMany(m => m.Allowlist.Select(e => ($"stale-marker:{m.Name}", e)))
             .Concat(NonAsciiAllowlist.Select(e => ("non-ASCII", e)))
-            .Concat(OversizedDocAllowlist.Select(e => ("oversized-doc", e)))
             .Concat(InternalRemarksAllowlist.Select(e => ("internal-remarks", e)));
 
         var stale = allowlisted
@@ -358,4 +365,11 @@ public sealed partial class CommentStyleTests
 
     [GeneratedRegex(@"\bstub\b", RegexOptions.IgnoreCase | RegexOptions.Compiled, "sl-SI")]
     private static partial Regex MyRegex();
+
+    // A date, a release candidate, Codex, a reviewer or review finding, or a CI run.
+    [GeneratedRegex(
+        @"\b20\d\d-\d\d-\d\d\b|\brc\.\d+\b|\bCodex\b|\breviewers?\b|\breview findings?\b|\bCI runs?\b",
+        RegexOptions.IgnoreCase
+    )]
+    private static partial Regex Narration();
 }

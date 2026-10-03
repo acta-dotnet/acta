@@ -284,8 +284,9 @@ compressed aphorisms are not.
 comments that restate the test name or the arrange block.
 
 `Acta.Tests.Aot.CommentStyleTests` mechanically enforces the floor over `src/Acta*`: plain-ASCII
-comment text (no em dashes, arrows, emoji), XML doc blocks of 16 lines or less, `<remarks>` on
-internal types only via its allowlist (reserved for concurrency/CAS/provider-difference contracts;
+comment text (no em dashes, arrows, emoji), XML doc blocks of 8 lines or less (older files are listed in
+`tests/ratchets/doc-length.txt`), no comment that names a date, a release candidate, a review, or a CI run,
+`<remarks>` on internal types only via its allowlist (reserved for concurrency/CAS/provider-difference contracts;
 clearing an entry after a scrub tightens the ratchet), and no stale markers (TODO, "later",
 "placeholder"). Run that test class after any comment pass.
 
