@@ -205,9 +205,9 @@ internal sealed class JobExecutor(
                         ct,
                         _metrics
                     );
-                    var scheduleStore = _rootServices.GetRequiredService<IScheduleStore>();
+                    var liveSchedules = _rootServices.GetRequiredService<GetLiveSchedulesHandler>();
                     var (live, _) = await CompletionWrite.RetryAsync(
-                        async token => await scheduleStore.GetLiveSchedulesAsync(job.JobId, token),
+                        async token => await liveSchedules.HandleAsync(new GetLiveSchedulesQuery(job.JobId), token),
                         _log,
                         job.JobId,
                         ct,

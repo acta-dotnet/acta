@@ -788,13 +788,17 @@ interface Acta.IOutboxSourceBuilder
     System.String Schema { get;set; }
     System.String SourceName { get; }
     System.String Table { get;set; }
+interface Acta.IScheduleControlResponse
+    System.Nullable<Acta.ScheduleStatusCode> Status { get; }
+    System.Nullable<System.DateTime> NextRunAtUtc { get; }
+    System.Nullable<System.DateTime> PausedUntilUtc { get; }
 interface Acta.ISchedules
     System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.ScheduleListItem>> ListAsync(Acta.ListSchedulesQuery query, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.ScheduleControlResult> PauseAsync(Acta.ScheduleLookup schedule, System.Nullable<System.DateTime> untilUtc = default, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.ScheduleControlResult> ResumeAsync(Acta.ScheduleLookup schedule, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.ScheduleControlResult> TriggerNowAsync(Acta.ScheduleLookup schedule, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.ScheduleControlResult> UpdateOverridesAsync(Acta.ScheduleLookup schedule, System.Int32 expectedVersion, System.String expression, System.String timeZoneId, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.PauseScheduleResponse> PauseAsync(Acta.ScheduleLookup schedule, System.Nullable<System.DateTime> untilUtc = default, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.ResumeScheduleResponse> ResumeAsync(Acta.ScheduleLookup schedule, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.SchedulePreview> PreviewAsync(Acta.ScheduleLookup schedule, System.Int32 count = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.SetScheduleOverridesResponse> UpdateOverridesAsync(Acta.ScheduleLookup schedule, System.Int32 expectedVersion, System.String expression, System.String timeZoneId, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.TriggerScheduleNowResponse> TriggerNowAsync(Acta.ScheduleLookup schedule, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
 interface Acta.ISettings
     System.Threading.Tasks.ValueTask<Acta.SetSettingResponse> SetAsync(System.String name, System.String value, System.Nullable<System.Int32> expectedVersion = default, System.String description = default, System.String namespaceName = default, System.String jobName = default, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.SettingDetail> GetAsync(System.String name, System.String namespaceName = default, System.String jobName = default, System.Threading.CancellationToken ct = default)
@@ -1911,6 +1915,13 @@ sealed class Acta.ParallelOutcome
     System.Collections.Generic.IReadOnlyDictionary<System.String, Acta.ChildJobOutcome> Failed { get; }
     System.String GroupName { get;init; }
     System.Void ThrowIfAnyFailed()
+sealed class Acta.PauseScheduleResponse
+    .ctor(Acta.ControlAction Action, System.Nullable<Acta.ScheduleStatusCode> Status, System.Nullable<System.DateTime> PausedUntilUtc, System.Nullable<System.DateTime> NextRunAtUtc, System.Nullable<System.Int32> Version)
+    Acta.ControlAction Action { get;init; }
+    System.Nullable<Acta.ScheduleStatusCode> Status { get;init; }
+    System.Nullable<System.DateTime> NextRunAtUtc { get;init; }
+    System.Nullable<System.DateTime> PausedUntilUtc { get;init; }
+    System.Nullable<System.Int32> Version { get;init; }
 sealed class Acta.PayloadContractDriftException
     .ctor(System.String message)
 enum Acta.PayloadContractDriftMode
@@ -1955,6 +1966,13 @@ sealed class Acta.ResumeNamespaceResponse
     .ctor(Acta.ControlAction Action, System.Nullable<System.Int32> Version)
     Acta.ControlAction Action { get;init; }
     System.Nullable<System.Int32> Version { get;init; }
+sealed class Acta.ResumeScheduleResponse
+    .ctor(Acta.ControlAction Action, System.Nullable<Acta.ScheduleStatusCode> Status, System.Nullable<System.DateTime> PausedUntilUtc, System.Nullable<System.DateTime> NextRunAtUtc, System.Nullable<System.Int32> Version)
+    Acta.ControlAction Action { get;init; }
+    System.Nullable<Acta.ScheduleStatusCode> Status { get;init; }
+    System.Nullable<System.DateTime> NextRunAtUtc { get;init; }
+    System.Nullable<System.DateTime> PausedUntilUtc { get;init; }
+    System.Nullable<System.Int32> Version { get;init; }
 sealed class Acta.ResumeTenantResponse
     .ctor(Acta.ControlAction Action, System.Nullable<System.Int32> Version)
     Acta.ControlAction Action { get;init; }
@@ -1962,13 +1980,6 @@ sealed class Acta.ResumeTenantResponse
 sealed class Acta.RetireJobDefinitionResponse
     .ctor(Acta.ControlAction Action)
     Acta.ControlAction Action { get;init; }
-sealed class Acta.ScheduleControlResult
-    .ctor(Acta.ControlAction Action, System.Nullable<Acta.ScheduleStatusCode> Status, System.Nullable<System.DateTime> PausedUntilUtc, System.Nullable<System.DateTime> NextRunAtUtc, System.Nullable<System.Int32> Version)
-    Acta.ControlAction Action { get;init; }
-    System.Nullable<Acta.ScheduleStatusCode> Status { get;init; }
-    System.Nullable<System.DateTime> NextRunAtUtc { get;init; }
-    System.Nullable<System.DateTime> PausedUntilUtc { get;init; }
-    System.Nullable<System.Int32> Version { get;init; }
 sealed class Acta.ScheduleDescriptor
     .ctor(System.String JobName, System.String ScheduleName, System.String Expression, System.String TimeZoneId, Acta.MisfireStrategyCode MisfireStrategy, Acta.ScheduleExpressionKindCode ExpressionKind, System.String Description, System.Collections.Immutable.ImmutableArray<System.String> Environments)
     Acta.MisfireStrategyCode MisfireStrategy { get;init; }
@@ -2064,6 +2075,13 @@ sealed class Acta.ScheduleStatusCodeJsonConverter
 sealed class Acta.SetJobDefinitionOverridesResponse
     .ctor(Acta.ControlAction Action)
     Acta.ControlAction Action { get;init; }
+sealed class Acta.SetScheduleOverridesResponse
+    .ctor(Acta.ControlAction Action, System.Nullable<Acta.ScheduleStatusCode> Status, System.Nullable<System.DateTime> PausedUntilUtc, System.Nullable<System.DateTime> NextRunAtUtc, System.Nullable<System.Int32> Version)
+    Acta.ControlAction Action { get;init; }
+    System.Nullable<Acta.ScheduleStatusCode> Status { get;init; }
+    System.Nullable<System.DateTime> NextRunAtUtc { get;init; }
+    System.Nullable<System.DateTime> PausedUntilUtc { get;init; }
+    System.Nullable<System.Int32> Version { get;init; }
 sealed class Acta.SetSettingResponse
     .ctor(Acta.ControlAction Action, System.Nullable<System.Int32> Version)
     Acta.ControlAction Action { get;init; }
@@ -2251,6 +2269,13 @@ sealed class Acta.TextJobPayloadSerializer
     Acta.JobPayloadFormat Format { get; }
     Acta.TextJobPayloadSerializer Default { get; }
     T Deserialize<T>(Acta.JobPayload payload)
+sealed class Acta.TriggerScheduleNowResponse
+    .ctor(Acta.ControlAction Action, System.Nullable<Acta.ScheduleStatusCode> Status, System.Nullable<System.DateTime> PausedUntilUtc, System.Nullable<System.DateTime> NextRunAtUtc, System.Nullable<System.Int32> Version)
+    Acta.ControlAction Action { get;init; }
+    System.Nullable<Acta.ScheduleStatusCode> Status { get;init; }
+    System.Nullable<System.DateTime> NextRunAtUtc { get;init; }
+    System.Nullable<System.DateTime> PausedUntilUtc { get;init; }
+    System.Nullable<System.Int32> Version { get;init; }
 sealed class Acta.UpdateNamespaceResponse
     .ctor(Acta.ControlAction Action, System.Nullable<System.Int32> Version)
     Acta.ControlAction Action { get;init; }

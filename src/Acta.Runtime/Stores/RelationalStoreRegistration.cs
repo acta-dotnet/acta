@@ -16,7 +16,6 @@ internal static class RelationalStoreRegistration
         services.AddSingleton<IJobStore, RelationalJobStore>();
         services.AddSingleton<ISignalStore, RelationalSignalStore>();
         services.AddSingleton<IOutboxSignalStore, RelationalOutboxSignalStore>();
-        services.AddSingleton<IScheduleStore, RelationalScheduleStore>();
         services.AddSingleton<IExecutionStore, RelationalExecutionStore>();
     }
 }

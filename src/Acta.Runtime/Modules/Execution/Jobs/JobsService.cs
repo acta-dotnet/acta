@@ -14,7 +14,7 @@ internal sealed class JobsService(
     IActaClock clock,
     IJobPayloadSerializerRegistry serializers,
     Acta.Runtime.ISignalStore signalStore,
-    IScheduleStore scheduleStore,
+    GetLiveSchedulesHandler liveSchedules,
     IExecutionStore executionStore,
     WorkerWakeupPublisher wakeupPublisher,
     IOptions<JobsOptions> options
@@ -693,7 +693,7 @@ internal sealed class JobsService(
 
     private async Task<(bool Reject, DateTime? NextRun)> ResolveRecurringNextRunAsync(long id, CancellationToken ct)
     {
-        var live = await scheduleStore.GetLiveSchedulesAsync(id, ct);
+        var live = await liveSchedules.HandleAsync(new GetLiveSchedulesQuery(id), ct);
         if (live.Count == 0)
         {
             return (false, null);

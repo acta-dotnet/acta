@@ -16,13 +16,7 @@ internal static class ScheduleControlEndpoints
 {
     public static void Map(RouteGroupBuilder outer, ActaEndpointOptions options)
     {
-        // The four schedule verbs share one response shape across all three outcomes, so they declare
-        // it once here rather than four times below. Applied, rejected, and not-found carry the same
-        // body, so a client reads `action` without special-casing the status code.
         var group = outer.MapGroup("");
-        group.ProducesJson<ScheduleControlResult>();
-        group.ProducesJson<ScheduleControlResult>(StatusCodes.Status409Conflict);
-        group.ProducesJson<ScheduleControlResult>(StatusCodes.Status404NotFound);
         // All four read a body, so all four can refuse a content type that is not JSON.
         group.ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
 
@@ -75,7 +69,8 @@ internal static class ScheduleControlEndpoints
             // The body is read manually rather than bound, so the document only learns its shape from
             // this declaration; optional because a bare POST pauses indefinitely with no reason.
             .AcceptsJson<SchedulePauseRequest>(optional: true)
-            .WithSummary("Pause a recurring schedule, indefinitely or until an instant.");
+            .WithSummary("Pause a recurring schedule, indefinitely or until an instant.")
+            .Outcomes<PauseScheduleResponse>();
 
         group
             .MapPost(
@@ -106,7 +101,8 @@ internal static class ScheduleControlEndpoints
                 }
             )
             .AcceptsJson<JobControlRequest>(optional: true)
-            .WithSummary("Resume a paused schedule, reconciled by its misfire policy.");
+            .WithSummary("Resume a paused schedule, reconciled by its misfire policy.")
+            .Outcomes<ResumeScheduleResponse>();
 
         group
             .MapPost(
@@ -137,7 +133,8 @@ internal static class ScheduleControlEndpoints
                 }
             )
             .AcceptsJson<JobControlRequest>(optional: true)
-            .WithSummary("Fire the schedule now, without moving its cadence.");
+            .WithSummary("Fire the schedule now, without moving its cadence.")
+            .Outcomes<TriggerScheduleNowResponse>();
 
         group
             .MapPost(
@@ -195,7 +192,8 @@ internal static class ScheduleControlEndpoints
                 }
             )
             .AcceptsJson<SetScheduleOverridesRequest>()
-            .WithSummary("Set or clear the schedule's expression and time-zone overrides.");
+            .WithSummary("Set or clear the schedule's expression and time-zone overrides.")
+            .Outcomes<SetScheduleOverridesResponse>();
     }
 
     private static ScheduleLookup Lookup(string jobNamespace, string jobName, string scheduleName) =>
@@ -205,7 +203,8 @@ internal static class ScheduleControlEndpoints
     /// A malformed identifier or an invalid override value surfaces from the facade as
     /// ArgumentException: caller input, so 400 rather than the sanitized 500 backstop.
     /// </summary>
-    private static async Task<IResult> Invoke(string verb, Func<ValueTask<ScheduleControlResult>> action)
+    private static async Task<IResult> Invoke<TResponse>(string verb, Func<ValueTask<TResponse>> action)
+        where TResponse : IScheduleControlResponse
     {
         try
         {
@@ -217,10 +216,24 @@ internal static class ScheduleControlEndpoints
         }
     }
 
-    private static IResult ToResult(ScheduleControlResult result) =>
+    /// <summary>
+    /// Applied, rejected, and not-found carry the same body, so a client reads <c>action</c> without
+    /// special-casing the status code.
+    /// </summary>
+    private static RouteHandlerBuilder Outcomes<TResponse>(this RouteHandlerBuilder route)
+        where TResponse : IScheduleControlResponse
+    {
+        route.ProducesJson<TResponse>();
+        route.ProducesJson<TResponse>(StatusCodes.Status409Conflict);
+        route.ProducesJson<TResponse>(StatusCodes.Status404NotFound);
+        return route;
+    }
+
+    private static IResult ToResult(IScheduleControlResponse result) =>
         Results.Json(
             result,
-            DashboardJsonContext.Default.ScheduleControlResult,
+            result.GetType(),
+            DashboardJsonContext.Default,
             statusCode: result.Action switch
             {
                 ControlAction.Applied => StatusCodes.Status200OK,

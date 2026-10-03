@@ -362,7 +362,9 @@ public sealed class SchedulePauseResumeSpec : ActaStorageTestBase<ConformanceFix
         string? description = null
     )
     {
-        var stored = await Services.GetRequiredService<IScheduleStore>().GetScheduleStateAsync(TestNamespaceId, ct);
+        var stored = await Services
+            .GetRequiredService<GetScheduleStateHandler>()
+            .HandleAsync(new GetScheduleStateQuery(TestNamespaceId), ct);
         var storedForDef = stored.Where(s => s.DefinitionId == defId).ToDictionary(s => s.ScheduleName, s => s, StringComparer.Ordinal);
         var declared = new[]
         {

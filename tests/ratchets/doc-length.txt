@@ -32,7 +32,6 @@ IJobContextAccessor.cs
 IJobPayloadSerializerRegistry.cs
 IJobs.cs
 IOutboxRelayStore.cs
-IScheduleStore.cs
 ISchedules.cs
 ISettings.cs
 ITenants.cs
@@ -111,7 +110,6 @@ RecoveryPass.cs
 RecoverySlotMonitor.cs
 RelationalOutboxRelayStore.cs
 RuntimeJobContext.cs
-ScheduleControlResult.cs
 ScheduleListItem.cs
 ScheduleRows.cs
 ScheduleWalker.cs

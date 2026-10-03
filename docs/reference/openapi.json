@@ -2121,12 +2121,22 @@
               }
             }
           },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "200": {
             "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ScheduleControlResult"
+                  "$ref": "#/components/schemas/PauseScheduleResponse"
                 }
               }
             }
@@ -2136,7 +2146,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ScheduleControlResult"
+                  "$ref": "#/components/schemas/PauseScheduleResponse"
                 }
               }
             }
@@ -2146,17 +2156,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ScheduleControlResult"
-                }
-              }
-            }
-          },
-          "415": {
-            "description": "Unsupported Media Type",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/PauseScheduleResponse"
                 }
               }
             }
@@ -2256,12 +2256,22 @@
               }
             }
           },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "200": {
             "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ScheduleControlResult"
+                  "$ref": "#/components/schemas/ResumeScheduleResponse"
                 }
               }
             }
@@ -2271,7 +2281,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ScheduleControlResult"
+                  "$ref": "#/components/schemas/ResumeScheduleResponse"
                 }
               }
             }
@@ -2281,17 +2291,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ScheduleControlResult"
-                }
-              }
-            }
-          },
-          "415": {
-            "description": "Unsupported Media Type",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/ResumeScheduleResponse"
                 }
               }
             }
@@ -2391,12 +2391,22 @@
               }
             }
           },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "200": {
             "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ScheduleControlResult"
+                  "$ref": "#/components/schemas/TriggerScheduleNowResponse"
                 }
               }
             }
@@ -2406,7 +2416,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ScheduleControlResult"
+                  "$ref": "#/components/schemas/TriggerScheduleNowResponse"
                 }
               }
             }
@@ -2416,17 +2426,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ScheduleControlResult"
-                }
-              }
-            }
-          },
-          "415": {
-            "description": "Unsupported Media Type",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/TriggerScheduleNowResponse"
                 }
               }
             }
@@ -2527,12 +2527,22 @@
               }
             }
           },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "200": {
             "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ScheduleControlResult"
+                  "$ref": "#/components/schemas/SetScheduleOverridesResponse"
                 }
               }
             }
@@ -2542,7 +2552,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ScheduleControlResult"
+                  "$ref": "#/components/schemas/SetScheduleOverridesResponse"
                 }
               }
             }
@@ -2552,17 +2562,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ScheduleControlResult"
-                }
-              }
-            }
-          },
-          "415": {
-            "description": "Unsupported Media Type",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/SetScheduleOverridesResponse"
                 }
               }
             }
@@ -11230,6 +11230,55 @@
         },
         "description": "One page of a keyset-paginated list read."
       },
+      "PauseScheduleResponse": {
+        "required": [
+          "action",
+          "status",
+          "pausedUntilUtc",
+          "nextRunAtUtc",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ControlAction"
+          },
+          "status": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ScheduleStatusCode"
+              }
+            ]
+          },
+          "pausedUntilUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "nextRunAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "What pausing a schedule did, and the schedule's state after the attempt."
+      },
       "ProblemDetails": {
         "type": "object",
         "properties": {
@@ -11322,6 +11371,55 @@
         },
         "description": "What resuming a namespace did, and the namespace's version after the attempt."
       },
+      "ResumeScheduleResponse": {
+        "required": [
+          "action",
+          "status",
+          "pausedUntilUtc",
+          "nextRunAtUtc",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ControlAction"
+          },
+          "status": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ScheduleStatusCode"
+              }
+            ]
+          },
+          "pausedUntilUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "nextRunAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "What resuming a schedule did, and the schedule's state after the attempt."
+      },
       "ResumeTenantResponse": {
         "required": [
           "action",
@@ -11374,60 +11472,6 @@
           }
         },
         "description": "What retiring a definition did."
-      },
-      "ScheduleControlResult": {
-        "required": [
-          "action",
-          "status",
-          "pausedUntilUtc",
-          "nextRunAtUtc",
-          "version"
-        ],
-        "type": "object",
-        "properties": {
-          "action": {
-            "description": "Whether the control verb was applied, rejected, or the schedule was absent.",
-            "$ref": "#/components/schemas/ControlAction"
-          },
-          "status": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "description": "The schedule's status after the attempt.",
-                "$ref": "#/components/schemas/ScheduleStatusCode"
-              }
-            ]
-          },
-          "pausedUntilUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "When a timed pause expires; null for an indefinite pause or after resume.",
-            "format": "date-time"
-          },
-          "nextRunAtUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "The schedule's cursor after the attempt.",
-            "format": "date-time"
-          },
-          "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "description": "The schedule row's optimistic-concurrency version after the attempt.",
-            "format": "int32"
-          }
-        },
-        "description": "Outcome of an ISchedules control verb (Pause / Resume). Carries the coarse\nControlAction and, on a successful attempt, the schedule's resulting state:\nits ScheduleStatusCode? ScheduleControlResult.Status, the timed-pause expiry (DateTime? ScheduleControlResult.PausedUntilUtc), the per-schedule\ncursor (DateTime? ScheduleControlResult.NextRunAtUtc), and the row int? ScheduleControlResult.Version for optimistic concurrency."
       },
       "ScheduleExpressionKindCode": { },
       "ScheduleListItem": {
@@ -11660,6 +11704,55 @@
             ]
           }
         }
+      },
+      "SetScheduleOverridesResponse": {
+        "required": [
+          "action",
+          "status",
+          "pausedUntilUtc",
+          "nextRunAtUtc",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ControlAction"
+          },
+          "status": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ScheduleStatusCode"
+              }
+            ]
+          },
+          "pausedUntilUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "nextRunAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "What setting a schedule's overrides did, and the schedule's state after the attempt."
       },
       "SuspendNamespaceResponse": {
         "required": [
@@ -11924,6 +12017,55 @@
       },
       "TenantStatusCode": {
         "description": "Tenant state machine. 10-spaced ids; live states 10..80."
+      },
+      "TriggerScheduleNowResponse": {
+        "required": [
+          "action",
+          "status",
+          "pausedUntilUtc",
+          "nextRunAtUtc",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ControlAction"
+          },
+          "status": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ScheduleStatusCode"
+              }
+            ]
+          },
+          "pausedUntilUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "nextRunAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "What firing a schedule now did, and the schedule's state after the attempt."
       },
       "UpdateNamespaceResponse": {
         "required": [

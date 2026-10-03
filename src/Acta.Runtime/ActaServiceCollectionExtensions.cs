@@ -71,7 +71,6 @@ public static class ActaServiceCollectionExtensions
         // The operator facade and its module-owned domain facades. Application code injects IJobs
         // alone; dashboards, CLIs, and operator hosts inject IActaOperations. Each domain facade is
         // registered here (the composition root may see every module) but owned by its module.
-        services.TryAddSingleton<ISchedules, SchedulesApi>();
         services.TryAddSingleton<IOutbox, OutboxApi>();
         services.TryAddSingleton<IActaOperations, OperationsApi>();
 
@@ -140,6 +139,17 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<GetJobAlertHandler>();
         services.TryAddSingleton<ListJobAlertsHandler>();
         services.TryAddSingleton<IAlerts, Alerts>();
+        services.TryAddSingleton<GetLiveSchedulesHandler>();
+        services.TryAddSingleton<GetScheduleStateHandler>();
+        services.TryAddSingleton<RegisterScheduledJobsHandler>();
+        services.TryAddSingleton<ScheduleTargetResolution>();
+        services.TryAddSingleton<PauseScheduleHandler>();
+        services.TryAddSingleton<ResumeScheduleHandler>();
+        services.TryAddSingleton<SetScheduleOverridesHandler>();
+        services.TryAddSingleton<TriggerScheduleNowHandler>();
+        services.TryAddSingleton<ListJobSchedulesHandler>();
+        services.TryAddSingleton<PreviewScheduleHandler>();
+        services.TryAddSingleton<ISchedules, Schedules>();
 
         // Consumers light up the meter with WithMetrics(m => m.AddMeter(JobMetrics.MeterName)).
         services.TryAddSingleton<JobMetrics>();

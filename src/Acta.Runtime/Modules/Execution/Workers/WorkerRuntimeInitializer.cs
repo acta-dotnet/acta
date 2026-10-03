@@ -23,7 +23,8 @@ namespace Acta.Runtime;
 internal sealed class WorkerRuntimeInitializer(
     RegisterJobDefinitionsHandler registerDefinitions,
     GetDefinitionContractsHandler getDefinitionContracts,
-    IScheduleStore schedules,
+    GetScheduleStateHandler getScheduleState,
+    RegisterScheduledJobsHandler registerScheduledJobs,
     IWorkerLifecycle workers,
     IExecutionStore execution,
     IActaClock clock,
@@ -36,9 +37,6 @@ internal sealed class WorkerRuntimeInitializer(
     ILogger? log = null
 )
 {
-    private readonly RegisterJobDefinitionsHandler _registerDefinitions = registerDefinitions;
-    private readonly GetDefinitionContractsHandler _getDefinitionContracts = getDefinitionContracts;
-    private readonly IScheduleStore _schedules = schedules;
     private readonly IWorkerLifecycle _workers = workers;
     private readonly IExecutionStore _execution = execution;
     private readonly IActaClock _clock = clock;
@@ -207,11 +205,11 @@ internal sealed class WorkerRuntimeInitializer(
         // throws here (before register), Warn logs and continues. The SQL routine remains the
         // authoritative generation gate for the policy write itself.
         var manifestGenerationUtc = ManifestGenerationResolver.Resolve(_options.Value, Assembly.GetEntryAssembly(), _log);
-        var storedContracts = await _getDefinitionContracts.HandleAsync(new GetDefinitionContractsQuery(namespaceId), ct);
+        var storedContracts = await getDefinitionContracts.HandleAsync(new GetDefinitionContractsQuery(namespaceId), ct);
         var contractDrifts = ContractDriftDetector.Detect(manifestGenerationUtc, allDescriptors, storedContracts);
         ContractDriftPolicy.Apply(_options.Value.PayloadContractDriftMode, contractDrifts, ns, _log);
 
-        var defIds = await _registerDefinitions.HandleAsync(new(namespaceId, manifestGenerationUtc, allDescriptors, storedContracts), ct);
+        var defIds = await registerDefinitions.HandleAsync(new(namespaceId, manifestGenerationUtc, allDescriptors, storedContracts), ct);
         foreach (var (jobName, defId) in defIds)
         {
             perNamespaceDefIds[jobName] = defId;
@@ -221,7 +219,7 @@ internal sealed class WorkerRuntimeInitializer(
         // descriptor is overlaid with the definition's effective (override-or-default) policy read from
         // the DB *_effective columns, so the execution hot path honors operator overrides. This is the
         // worker's live policy view; the reload tick re-overlays changed definitions without a restart.
-        var catalog = await _getDefinitionContracts.HandleAsync(new GetDefinitionContractsQuery(namespaceId), ct);
+        var catalog = await getDefinitionContracts.HandleAsync(new GetDefinitionContractsQuery(namespaceId), ct);
         var effectiveById = new Dictionary<int, EffectiveJobPolicy>(catalog.Count);
         foreach (var c in catalog)
         {
@@ -431,7 +429,7 @@ internal sealed class WorkerRuntimeInitializer(
     /// </summary>
     private async Task ReconcileSchedulesAsync(int namespaceId, CancellationToken ct)
     {
-        var stored = await _schedules.GetScheduleStateAsync(namespaceId, ct);
+        var stored = await getScheduleState.HandleAsync(new GetScheduleStateQuery(namespaceId), ct);
 
         // definition id -> (schedule name -> stored cursor + operator lifecycle)
         var storedByDefinition = new Dictionary<int, Dictionary<string, StoredScheduleState>>();
@@ -538,7 +536,7 @@ internal sealed class WorkerRuntimeInitializer(
             slotRefs[i] = JobRef.New().Value;
         }
 
-        var slots = await _schedules.RegisterScheduledJobsAsync(new RegisterScheduledJobsCommand(definitions, slotRefs), ct);
+        var slots = await registerScheduledJobs.HandleAsync(new RegisterScheduledJobsCommand(definitions, slotRefs), ct);
         if (slots.Count != definitions.Count)
         {
             // A recurring slot's deduplication key is its job name, so an ordinary job that took that key

@@ -7,7 +7,6 @@ JobCheckpointResponse
 JobDetail
 JobLineageChild
 JobLineageJob
-JobScheduleListRow
 JobSnapshotRow
 LineageChildRow
 LineageJobRow
@@ -15,9 +14,6 @@ OutboxQuarantinedItem
 OutboxQuarantinedRow
 OutboxSignalRow
 RegisterTenantCommand
-ScheduleControlOutcome
-ScheduleControlResult
-ScheduleListItem
 TenantDetail
 TenantListItem
 TenantRegistrationRequest

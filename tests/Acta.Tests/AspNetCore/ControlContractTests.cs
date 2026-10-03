@@ -94,9 +94,9 @@ public sealed class ControlContractTests
         .. JobSignal(),
         .. JobInput(),
         .. Enqueue(),
-        .. ScheduleVerb("pause"),
-        .. ScheduleVerb("resume"),
-        .. ScheduleVerb("trigger"),
+        .. ScheduleVerb("pause", typeof(PauseScheduleResponse)),
+        .. ScheduleVerb("resume", typeof(ResumeScheduleResponse)),
+        .. ScheduleVerb("trigger", typeof(TriggerScheduleNowResponse)),
         .. ScheduleOverrides(),
         .. DefinitionOverrides(),
         .. DefinitionRetire(),
@@ -295,15 +295,15 @@ public sealed class ControlContractTests
 
     // A schedule name of "missing" reads as absent and "rejected" as a forbidden transition, so all
     // four schedule verbs stage their three outcomes by name.
-    private static IEnumerable<Case> ScheduleVerb(string verb)
+    private static IEnumerable<Case> ScheduleVerb(string verb, Type declared)
     {
         var route = $"/schedules/{{jobNamespace}}/{{jobName}}/{{scheduleName}}/{verb}";
         string Path(string scheduleName) => $"/schedules/billing/send-invoice/{scheduleName}/{verb}";
         return
         [
-            Schedule(route, "applied", Path("nightly"), StatusCodes.Status200OK, "applied", Reason),
-            Schedule(route, "rejected", Path("rejected"), StatusCodes.Status409Conflict, "rejected", Reason),
-            Schedule(route, "notFound", Path("missing"), StatusCodes.Status404NotFound, "notFound", Reason),
+            Schedule(route, "applied", Path("nightly"), StatusCodes.Status200OK, declared, "applied", Reason),
+            Schedule(route, "rejected", Path("rejected"), StatusCodes.Status409Conflict, declared, "rejected", Reason),
+            Schedule(route, "notFound", Path("missing"), StatusCodes.Status404NotFound, declared, "notFound", Reason),
         ];
     }
 
@@ -316,14 +316,48 @@ public sealed class ControlContractTests
         static string Path(string scheduleName) => $"/schedules/billing/send-invoice/{scheduleName}/overrides";
         return
         [
-            Schedule(route, "applied", Path("nightly"), StatusCodes.Status200OK, "applied", body, version: 2),
-            Schedule(route, "rejected", Path("rejected"), StatusCodes.Status409Conflict, "rejected", body, version: 7),
-            Schedule(route, "notFound", Path("missing"), StatusCodes.Status404NotFound, "notFound", body),
+            Schedule(
+                route,
+                "applied",
+                Path("nightly"),
+                StatusCodes.Status200OK,
+                typeof(SetScheduleOverridesResponse),
+                "applied",
+                body,
+                version: 2
+            ),
+            Schedule(
+                route,
+                "rejected",
+                Path("rejected"),
+                StatusCodes.Status409Conflict,
+                typeof(SetScheduleOverridesResponse),
+                "rejected",
+                body,
+                version: 7
+            ),
+            Schedule(
+                route,
+                "notFound",
+                Path("missing"),
+                StatusCodes.Status404NotFound,
+                typeof(SetScheduleOverridesResponse),
+                "notFound",
+                body
+            ),
         ];
     }
 
-    private static Case Schedule(string route, string outcome, string path, int status, string action, object body, int? version = null) =>
-        new("schedules", route, "POST", outcome, path, status, typeof(ScheduleControlResult), action, body, version);
+    private static Case Schedule(
+        string route,
+        string outcome,
+        string path,
+        int status,
+        Type declared,
+        string action,
+        object body,
+        int? version = null
+    ) => new("schedules", route, "POST", outcome, path, status, declared, action, body, version);
 
     private static IEnumerable<Case> DefinitionOverrides()
     {

@@ -2,7 +2,6 @@ using System.Data;
 using System.Data.Common;
 using Acta.Runtime;
 using Acta.Tests.Runtime;
-using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Acta.Tests.Api;
@@ -10,8 +9,7 @@ namespace Acta.Tests.Api;
 /// <summary>
 /// Validation behavior of the facade read methods with no database: filter dependencies, identifier
 /// shape, page-size bounds, the events total guard, and cursor envelope rejection. Each read is
-/// exercised on its owner: the job, event, and alert lists on their handlers, schedules on
-/// <see cref="SchedulesApi"/>. The stubs return empty pages so cursor
+/// exercised on its owner, the list's handler. The stub session returns empty pages so cursor
 /// checks run before any data access matters; unused collaborators are null because the read path only
 /// touches the store or the session.
 /// </summary>
@@ -20,92 +18,6 @@ public sealed class FacadeReadValidationTests
     private static ListJobsHandler ListJobs() => new(new EmptyPageSession(), null!);
 
     private static ListEventsHandler ListEvents() => new(new EmptyPageSession(), null!);
-
-    private static JobsService JobsReadService() =>
-        new(new EmptyJobStore(), null!, null!, null!, new EmptyScheduleStore(), null!, null!, Options.Create(new JobsOptions()));
-
-    private sealed class EmptyJobStore : IJobStore
-    {
-        public ValueTask<JobDetail?> GetJobAsync(long jobId, CancellationToken ct) => ValueTask.FromResult<JobDetail?>(null);
-
-        public ValueTask<JobStatusCode?> GetJobStatusAsync(long jobId, CancellationToken ct) => ValueTask.FromResult<JobStatusCode?>(null);
-
-        public Task<JobInputRecord?> GetJobInputAsync(long jobId, CancellationToken ct) => Task.FromResult<JobInputRecord?>(null);
-
-        public Task<JobResultRecord?> GetJobResultAsync(long jobId, int? executionNumber, CancellationToken ct) =>
-            Task.FromResult<JobResultRecord?>(null);
-
-        public Task<IReadOnlyList<JobCheckpointItem>> GetJobCheckpointsAsync(long jobId, CancellationToken ct) =>
-            Task.FromResult<IReadOnlyList<JobCheckpointItem>>([]);
-
-        public ValueTask<JobExplainData?> GetJobExplanationAsync(long jobId, CancellationToken ct) =>
-            ValueTask.FromResult<JobExplainData?>(null);
-
-        public ValueTask<JobLineageData?> GetJobLineageMapAsync(long jobId, int childFetchLimit, CancellationToken ct) =>
-            ValueTask.FromResult<JobLineageData?>(null);
-
-        public ValueTask<long?> ResolveJobIdByRefAsync(Guid jobRef, CancellationToken ct) => ValueTask.FromResult<long?>(null);
-
-        public ValueTask<long?> ResolveJobIdByDeduplicationKeyAsync(string jobNamespace, string deduplicationKey, CancellationToken ct) =>
-            ValueTask.FromResult<long?>(null);
-
-        public Task<IReadOnlyList<EnqueueOutcomeRow>> EnqueueOneAsync(JobEnqueueRow row, Guid jobRef, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<IReadOnlyList<EnqueueOutcomeRow>> EnqueueBatchAsync(
-            IReadOnlyList<JobEnqueueRow> rows,
-            IReadOnlyList<Guid> jobRefs,
-            CancellationToken ct
-        ) => throw new NotSupportedException();
-
-        public Task<IReadOnlyList<EnqueueOutcomeRow>> EnqueueOneInTransactionAsync(
-            System.Data.Common.DbTransaction transaction,
-            JobEnqueueRow row,
-            Guid jobRef,
-            CancellationToken ct
-        ) => throw new NotSupportedException();
-
-        public Task<IReadOnlyList<EnqueueOutcomeRow>> EnqueueBatchInTransactionAsync(
-            System.Data.Common.DbTransaction transaction,
-            IReadOnlyList<JobEnqueueRow> rows,
-            IReadOnlyList<Guid> jobRefs,
-            CancellationToken ct
-        ) => throw new NotSupportedException();
-
-        public Task<CancelJobOutcome> CancelJobAsync(long jobId, JobControlInput input, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<PauseJobOutcome> PauseJobAsync(long jobId, JobControlInput input, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<JobControlOutcome> ResumeJobAsync(long jobId, JobControlInput input, DateTime? nextRunAtUtc, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<JobControlOutcome> RestartJobAsync(long jobId, JobControlInput input, DateTime? nextRunAtUtc, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<JobControlOutcome> RescheduleJobAsync(long jobId, DateTime nextRunAtUtc, JobControlInput input, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<JobControlOutcome> ReprioritizeJobAsync(
-            long jobId,
-            JobPriorityCode priority,
-            JobControlInput input,
-            CancellationToken ct
-        ) => throw new NotSupportedException();
-
-        public Task<JobControlOutcome> UpdateJobInputAsync(
-            long jobId,
-            JobPayload input,
-            JobControlInput controlInput,
-            CancellationToken ct
-        ) => throw new NotSupportedException();
-
-        public Task<JobControlOutcome> PurgeJobAsync(long jobId, JobControlInput input, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task ResetJobStateAsync(long jobId, CancellationToken ct) => throw new NotSupportedException();
-    }
 
     // Runs the handler's own row reader over an empty result: no rows, and no total.
     private sealed class EmptyPageSession : DbSessionStub
@@ -118,38 +30,9 @@ public sealed class FacadeReadValidationTests
         ) => read(new DataTable().CreateDataReader(), ct);
     }
 
-    private sealed class EmptyScheduleStore : IScheduleStore
-    {
-        public Task<IReadOnlyList<LiveSchedule>> GetLiveSchedulesAsync(long jobId, CancellationToken ct) =>
-            Task.FromResult<IReadOnlyList<LiveSchedule>>([]);
-
-        public Task<IReadOnlyList<StoredScheduleState>> GetScheduleStateAsync(int namespaceId, CancellationToken ct) =>
-            Task.FromResult<IReadOnlyList<StoredScheduleState>>([]);
-
-        public Task<SchedulePage> ListJobSchedulesAsync(SchedulePageRequest request, CancellationToken ct) =>
-            Task.FromResult(new SchedulePage([], request.IncludeTotal ? 0L : null));
-
-        public Task<IReadOnlyList<RegisteredScheduleSlot>> RegisterScheduledJobsAsync(
-            RegisterScheduledJobsCommand command,
-            CancellationToken ct
-        ) => throw new NotSupportedException();
-
-        public Task<ScheduleControlOutcome> PauseScheduleAsync(PauseScheduleCommand command, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<ScheduleControlOutcome> ResumeScheduleAsync(ResumeScheduleCommand command, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<ScheduleControlOutcome> SetScheduleOverridesAsync(SetScheduleOverridesCommand command, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<ScheduleControlOutcome> TriggerScheduleNowAsync(TriggerScheduleNowCommand command, CancellationToken ct) =>
-            throw new NotSupportedException();
-    }
-
     private static ListJobAlertsHandler ListAlerts() => new(new EmptyPageSession(), null!);
 
-    private static SchedulesApi Schedules() => new(new EmptyScheduleStore(), null!, null!, JobsReadService());
+    private static ListJobSchedulesHandler ListSchedules() => new(new EmptyPageSession(), null!);
 
     private static readonly CancellationToken Ct = TestContext.Current.CancellationToken;
 
@@ -161,7 +44,7 @@ public sealed class FacadeReadValidationTests
         );
 
         await Assert.ThrowsAsync<InvalidQueryException>(async () =>
-            await Schedules().ListAsync(new ListSchedulesQuery(JobName: "send-invoice"), Ct)
+            await ListSchedules().HandleAsync(new ListSchedulesQuery(JobName: "send-invoice"), Ct)
         );
     }
 

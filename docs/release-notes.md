@@ -46,7 +46,11 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   of `DefinitionControlResult`; each carries the same `Action` and implements the new
   `IDefinitionControlResponse`. `IAlerts` answers `AcknowledgeAsync` and `ResolveAsync` with
   `AcknowledgeJobAlertResponse` and `ResolveJobAlertManualResponse` instead of `AlertControlResult`;
-  each carries the same four members and implements the new `IAlertControlResponse`.
+  each carries the same four members and implements the new `IAlertControlResponse`. `ISchedules`
+  answers `PauseAsync`, `ResumeAsync`, `UpdateOverridesAsync`, and `TriggerNowAsync` with
+  `PauseScheduleResponse`, `ResumeScheduleResponse`, `SetScheduleOverridesResponse`, and
+  `TriggerScheduleNowResponse` instead of `ScheduleControlResult`; each carries the same five members
+  and implements the new `IScheduleControlResponse`, which extends `IControlResponse`.
   `ITenants.RegisterAsync` returns
   `RegisterTenantResponse`, whose `TenantId` is the id it returned before. The HTTP bodies do not
   change; the OpenAPI document names each response type.

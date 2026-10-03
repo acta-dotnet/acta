@@ -743,30 +743,39 @@ internal static class TestDashboardHost
             /// <summary>The two staged outcomes every schedule verb shares: a name of "missing" reads
             /// as absent, "rejected" as a transition the schedule's state forbids. Null means the verb
             /// applies, so each verb keeps its own applied shape.</summary>
-            private static ScheduleControlResult? Staged(ScheduleLookup schedule) =>
+            private static T? Staged<T>(ScheduleLookup schedule, Func<ControlAction, ScheduleStatusCode?, T> response)
+                where T : class =>
                 schedule.ScheduleName switch
                 {
-                    "missing" => new ScheduleControlResult(ControlAction.NotFound, null, null, null, null),
-                    "rejected" => new ScheduleControlResult(ControlAction.Rejected, ScheduleStatusCode.Paused, null, null, null),
+                    "missing" => response(ControlAction.NotFound, null),
+                    "rejected" => response(ControlAction.Rejected, ScheduleStatusCode.Paused),
                     _ => null,
                 };
 
-            public ValueTask<ScheduleControlResult> PauseAsync(
+            public ValueTask<PauseScheduleResponse> PauseAsync(
                 ScheduleLookup schedule,
                 DateTime? untilUtc = null,
                 string? reasonMessage = null,
                 string? actorKey = null,
                 CancellationToken ct = default
-            ) => ValueTask.FromResult(Staged(schedule) ?? new ScheduleControlResult(ControlAction.Applied, null, untilUtc, null, null));
+            ) =>
+                ValueTask.FromResult(
+                    Staged(schedule, static (action, status) => new PauseScheduleResponse(action, status, null, null, null))
+                        ?? new PauseScheduleResponse(ControlAction.Applied, null, untilUtc, null, null)
+                );
 
-            public ValueTask<ScheduleControlResult> ResumeAsync(
+            public ValueTask<ResumeScheduleResponse> ResumeAsync(
                 ScheduleLookup schedule,
                 string? reasonMessage = null,
                 string? actorKey = null,
                 CancellationToken ct = default
-            ) => ValueTask.FromResult(Staged(schedule) ?? new ScheduleControlResult(ControlAction.Applied, null, null, null, null));
+            ) =>
+                ValueTask.FromResult(
+                    Staged(schedule, static (action, status) => new ResumeScheduleResponse(action, status, null, null, null))
+                        ?? new ResumeScheduleResponse(ControlAction.Applied, null, null, null, null)
+                );
 
-            public ValueTask<ScheduleControlResult> UpdateOverridesAsync(
+            public ValueTask<SetScheduleOverridesResponse> UpdateOverridesAsync(
                 ScheduleLookup schedule,
                 int expectedVersion,
                 string? expression,
@@ -784,19 +793,19 @@ internal static class TestDashboardHost
 
                 if (schedule.ScheduleName == "missing")
                 {
-                    return ValueTask.FromResult(new ScheduleControlResult(ControlAction.NotFound, null, null, null, null));
+                    return ValueTask.FromResult(new SetScheduleOverridesResponse(ControlAction.NotFound, null, null, null, null));
                 }
 
                 if (schedule.ScheduleName == "rejected")
                 {
                     return ValueTask.FromResult(
-                        new ScheduleControlResult(ControlAction.Rejected, ScheduleStatusCode.Active, null, DateTime.UnixEpoch, 7)
+                        new SetScheduleOverridesResponse(ControlAction.Rejected, ScheduleStatusCode.Active, null, DateTime.UnixEpoch, 7)
                     );
                 }
 
                 setOverridesCalls.Add((schedule.ScheduleName, expectedVersion, expression, timeZoneId, reasonMessage, actorKey));
                 return ValueTask.FromResult(
-                    new ScheduleControlResult(
+                    new SetScheduleOverridesResponse(
                         ControlAction.Applied,
                         ScheduleStatusCode.Active,
                         null,
@@ -806,21 +815,24 @@ internal static class TestDashboardHost
                 );
             }
 
-            public ValueTask<ScheduleControlResult> TriggerNowAsync(
+            public ValueTask<TriggerScheduleNowResponse> TriggerNowAsync(
                 ScheduleLookup schedule,
                 string? reasonMessage = null,
                 string? actorKey = null,
                 CancellationToken ct = default
             )
             {
-                if (Staged(schedule) is { } staged)
+                if (
+                    Staged(schedule, static (action, status) => new TriggerScheduleNowResponse(action, status, null, null, null)) is
+                    { } staged
+                )
                 {
                     return ValueTask.FromResult(staged);
                 }
 
                 triggerCalls.Add((schedule.ScheduleName, reasonMessage, actorKey));
                 return ValueTask.FromResult(
-                    new ScheduleControlResult(ControlAction.Applied, ScheduleStatusCode.Active, null, DateTime.UnixEpoch, 1)
+                    new TriggerScheduleNowResponse(ControlAction.Applied, ScheduleStatusCode.Active, null, DateTime.UnixEpoch, 1)
                 );
             }
 

@@ -66,27 +66,4 @@ public sealed class ListJobSchedulesSpec : ActaRuntimeTestBase<ConformanceFixtur
         );
         Assert.Equal(seen.Count, withTotal.TotalCount);
     }
-
-    [Fact(DisplayName = "ListJobSchedules returns the keyset page and the filter-wide total from one command")]
-    public async Task Combined_read_returns_page_and_filter_wide_total()
-    {
-        var ct = TestContext.Current.CancellationToken;
-
-        var store = Services.GetRequiredService<IScheduleStore>();
-        var fullPage = await store.ListJobSchedulesAsync(
-            new SchedulePageRequest(TestNamespace, null, null, null, null, null, Take: 1000, IncludeTotal: true),
-            ct
-        );
-
-        Assert.NotEmpty(fullPage.Rows);
-        Assert.Equal(fullPage.Rows.Count, fullPage.Total);
-
-        var page = await store.ListJobSchedulesAsync(
-            new SchedulePageRequest(TestNamespace, null, null, null, null, null, Take: 1, IncludeTotal: true),
-            ct
-        );
-
-        Assert.Single(page.Rows);
-        Assert.Equal(fullPage.Total, page.Total);
-    }
 }

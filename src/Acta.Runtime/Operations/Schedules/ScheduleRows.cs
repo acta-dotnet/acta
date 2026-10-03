@@ -8,7 +8,7 @@ namespace Acta.Runtime;
 /// effective value without a second read. <c>Version</c> is the row version the read observed, which a
 /// fire plan hands back so its advance is refused if the row moved in the meantime.
 /// </summary>
-[DbProjection]
+[DbProjection(ByName = true)]
 internal sealed record LiveSchedule(
     long Id,
     string Name,
@@ -34,7 +34,7 @@ internal sealed record LiveSchedule(
 /// <see cref="MisfireStrategy"/>, and <see cref="Description"/> are the stored declaration; an operator's
 /// <see cref="ExpressionOverride"/> was validated against its kind.
 /// </summary>
-[DbProjection]
+[DbProjection(ByName = true)]
 internal sealed record StoredScheduleState(
     int DefinitionId,
     string ScheduleName,
@@ -53,63 +53,12 @@ internal sealed record StoredScheduleState(
 );
 
 /// <summary>
-/// One <c>schedules</c> row projected for the schedules list read; expression and time zone are
-/// the effective values (override when present, else original).
-/// </summary>
-[DbProjection]
-internal sealed record JobScheduleListRow(
-    long JobScheduleId,
-    long JobId,
-    int DefinitionId,
-    string JobNamespace,
-    string JobName,
-    string ScheduleName,
-    ScheduleOriginCode Origin,
-    ScheduleExpressionKindCode ExpressionKind,
-    string Expression,
-    string TimeZoneId,
-    MisfireStrategyCode MisfireStrategy,
-    DateTime? NextRunAtUtc,
-    DateTime? LastRunAtUtc,
-    ScheduleStatusCode Status,
-    DateTime? PausedUntilUtc,
-    DateTime CreatedAtUtc,
-    DateTime ModifiedAtUtc,
-    int Version,
-    Guid? JobRef
-)
-{
-    public ScheduleListItem ToItem() =>
-        new(
-            JobScheduleId,
-            JobId,
-            DefinitionId,
-            JobNamespace,
-            JobName,
-            ScheduleName,
-            Origin,
-            ExpressionKind,
-            Expression,
-            TimeZoneId,
-            MisfireStrategy,
-            NextRunAtUtc,
-            LastRunAtUtc,
-            Status,
-            PausedUntilUtc,
-            CreatedAtUtc,
-            ModifiedAtUtc,
-            Version,
-            JobRef is { } jobRef ? new JobRef(jobRef) : null
-        );
-}
-
-/// <summary>
-/// Result of a schedule control transition: the action plus the schedule row's state after the
+/// The row a schedule control verb answers: the action plus the schedule row's state after the
 /// attempt. Every control statement returns exactly one
-/// <c>(action, status_code, paused_until_utc, next_run_at_utc, version)</c> row.
+/// <c>(action, status_code, paused_until_utc, next_run_at_utc, version)</c> row, bound by position.
 /// </summary>
 [DbProjection]
-internal sealed record ScheduleControlOutcome(
+internal sealed record ScheduleControlRow(
     ControlAction Action,
     ScheduleStatusCode? Status,
     DateTime? PausedUntilUtc,

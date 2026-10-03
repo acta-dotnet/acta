@@ -1271,7 +1271,6 @@
 - **Contract:** ListJobSchedules pages live schedules next-run first by cursor without duplicates and reads the page plus an opt-in filter-wide count in one command.
 - **Guarantees:**
   - Walking NextCursor visits every live schedule once in ascending next-run order, excluding rows without a next run, with a matching total
-  - ListJobSchedules returns the keyset page and the filter-wide total from one command
 
 ### ListJobs filter-matrix selects exactly matching rows per dimension
 - **Contract:** ListJobs filters partition the result to exactly the matching rows and exclude all non-matching rows for each filter dimension.
