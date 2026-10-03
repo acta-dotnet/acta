@@ -5,6 +5,7 @@ Where code lives in `src/`, and the tests that hold it there. rc.5 moves the tre
 ## Projects
 
 - `src/Acta` is the public SDK, in one namespace, `Acta`. It reads as the whole public contract: the facade interfaces, the models they return, configuration, and the handler API. It references no implementation project.
+- In `src/Acta`, `Operations/<Group>/` holds a group's facade, what it takes and returns, and the codes those models carry. The rest sits by capability: the handler API in `Execution/`, builders and plug-in seams in `Hosting/`, and `Configuration/`, `Payloads/`, `Primitives/`, `Querying/`.
 - `src/Acta.Runtime` is the implementation, in one namespace, `Acta.Runtime`: operations, the engine, database access, the schema, hosting, and the operator CLI.
 - `src/Acta.Postgres`, `src/Acta.SqlServer`, and `src/Acta.Sqlite` each hold a dialect class, the `Use{Provider}` registration, options, bootstrap, migrator, and outbox staging at the project root, plus `Schema/Migrations/M001_init.sql`.
 - `src/Acta.AspNetCore` holds `MapActa`, the `Http/` helpers (route tables, binding, validation, the JSON context, headers), the capabilities endpoint, and the dashboard. It references only `Acta` and compiles the endpoint files from the Runtime operations tree.

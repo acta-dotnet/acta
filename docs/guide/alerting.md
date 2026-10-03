@@ -504,18 +504,18 @@ from a `None` job naming an unconfigured channel is not caught until it fails de
 | `AlertRoutingCheck.cs` | `src/Acta.Runtime/Modules/Alerting/AlertRoutingCheck.cs` |
 | `AlertStoreSink.cs` | `src/Acta.Runtime/Modules/Alerting/AlertStoreSink.cs` |
 | `JobAlert.cs` | `src/Acta.Relational/Entities/JobAlert.cs` |
-| `AlertProfileCode.cs` | `src/Acta/Alerts/AlertProfileCode.cs` |
-| `AlertChannelOptions.cs` | `src/Acta/Alerts/AlertChannelOptions.cs` |
-| `AlertTransportKinds.cs` | `src/Acta/Alerts/AlertTransportKinds.cs` |
-| `IAlerts.cs` | `src/Acta/Alerts/IAlerts.cs` |
-| `ListAlertsQuery.cs` | `src/Acta/Alerts/ListAlertsQuery.cs` |
+| `AlertProfileCode.cs` | `src/Acta/Operations/Alerts/AlertProfileCode.cs` |
+| `AlertChannelOptions.cs` | `src/Acta/Hosting/AlertChannelOptions.cs` |
+| `AlertTransportKinds.cs` | `src/Acta/Hosting/AlertTransportKinds.cs` |
+| `IAlerts.cs` | `src/Acta/Operations/Alerts/IAlerts.cs` |
+| `ListAlertsQuery.cs` | `src/Acta/Operations/Alerts/ListAlertsQuery.cs` |
 | `AlertControlEndpoints.cs` | `src/Acta.AspNetCore/Features/Alerts/AlertControlEndpoints.cs` |
-| `JobAttribute.cs` | `src/Acta/Jobs/JobAttribute.cs` |
+| `JobAttribute.cs` | `src/Acta/Execution/JobAttribute.cs` |
 | `JobsOptions.cs` | `src/Acta/Configuration/JobsOptions.cs` |
 | `JobContext.cs` | `src/Acta/Execution/JobContext.cs` |
 | `JobExecution.cs` | `src/Acta.Runtime/Modules/Execution/JobExecution.cs` |
-| `JobEventReasonCode.cs` | `src/Acta/Events/JobEventReasonCode.cs` |
-| `EventCode.cs` | `src/Acta/Events/EventCode.cs` |
+| `JobEventReasonCode.cs` | `src/Acta/Operations/Ledger/JobEventReasonCode.cs` |
+| `EventCode.cs` | `src/Acta/Operations/Ledger/EventCode.cs` |
 | `BackoffSchedule.cs` | `src/Acta.Runtime/Kernel/BackoffSchedule.cs` |
 | `WorkerBuilder.cs` | `src/Acta.Runtime/Hosting/WorkerBuilder.cs` |
 | `*.sql`, `*.routine.sql` | `src/Acta.Postgres/Sql/{Alerting,Execution,Maintenance}/` (SQL Server and SQLite carry dialect twins; SQLite has plain `.sql` where the servers install routines) |
