@@ -138,6 +138,12 @@ jobs:
         run: dotnet build Acta.slnx -c Release --no-restore /p:ActaDashboardSkipNpm=true
       - name: Test
         run: dotnet test Acta.slnx -c Release --no-build --settings tests/Acta.runsettings --logger trx
+      # The concept samples have their own solution so a solution build covers only the product; they still
+      # compile and run here, against the src projects built above.
+      - name: Build concepts
+        run: dotnet build concepts/Concepts.slnx -c Release /p:ActaDashboardSkipNpm=true
+      - name: Test concepts
+        run: dotnet test concepts/Concepts.slnx -c Release --no-build --settings tests/Acta.runsettings --logger trx
       # Coverage is published, never gated. There is no threshold here and no percentage to go red,
       # deliberately: a target invites gaming - tests written to colour lines rather than to falsify
       # behaviour - and the number would then certify the gaming. The deliverable of this leg is the

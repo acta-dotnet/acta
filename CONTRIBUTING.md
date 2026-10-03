@@ -138,6 +138,7 @@ Full suite, CI-equivalent (needs the containers healthy; `tests/Acta.runsettings
 ```bash
 docker compose up -d --wait --wait-timeout 300
 dotnet test Acta.slnx -c Release --settings tests/Acta.runsettings
+dotnet test concepts/Concepts.slnx -c Release --settings tests/Acta.runsettings
 ```
 
 See [`docs/guide/testing.md`](./docs/guide/testing.md) for the test taxonomy and
@@ -193,6 +194,7 @@ cd src/Acta.AspNetCore/DashboardApp && npm ci && npm test && npm run build && np
 dotnet build Acta.slnx -c Release -p:ActaDashboardSkipNpm=true
 docker compose up -d --wait --wait-timeout 300
 dotnet test Acta.slnx -c Release --settings tests/Acta.runsettings
+dotnet test concepts/Concepts.slnx -c Release --settings tests/Acta.runsettings
 dotnet csharpier check .
 dotnet run --project tools/Acta.Emit -- check
 ```
@@ -305,7 +307,7 @@ Anvil defaults to SQLite for a quick dashboard look. Anvil.Bench asks for the ta
 docs/       hand-written guides + generated references (index: docs/README.md)
 src/        production packages and source generators
 tests/      unit, dashboard, conformance, and provider-specific tests
-concepts/   runnable single-concept tutorial rungs (one idea each)
+concepts/   runnable single-concept tutorial rungs (one idea each), built by their own concepts/Concepts.slnx
 demos/      larger multi-project apps (production shapes); consume the published Acta packages,
             so they are not in Acta.slnx and build independently of src/
 anvil/      Acta Anvil (interactive proof/dashboard harness), Anvil.Bench (benchmark/load rig), Anvil.Burst

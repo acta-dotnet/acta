@@ -5,7 +5,7 @@ namespace Acta.Tests.Concepts;
 
 /// <summary>
 /// Keeps the concept ladder, the solution, and the tutorial index in sync. Every concept project on
-/// disk must be listed in <c>Acta.slnx</c> (or solution builds silently skip it) and every
+/// disk must be listed in <c>concepts/Concepts.slnx</c> (or solution builds silently skip it) and every
 /// numbered rung must have a row in <c>docs/guide/tutorials.md</c> (or it is undiscoverable). The reverse
 /// direction is checked too: a solution path with no project on disk is a stale entry.
 /// </summary>
@@ -28,11 +28,13 @@ public sealed partial class ConceptIndexTests
     // Concept folders are named NNN-kebab and live under the category for their numeric band.
     private static readonly Regex RungFolder = MyRegex();
 
+    private const string SolutionPath = "concepts/Concepts.slnx";
+
     [Fact]
     public void EveryConceptProjectIsListedInTheSolution()
     {
         var repoRoot = ResolveRepoRoot();
-        var solution = File.ReadAllText(Path.Combine(repoRoot, "Acta.slnx"));
+        var solution = ReadSolution(repoRoot);
 
         var missing = ConceptProjects(repoRoot)
             .Where(p => !solution.Contains($"\"{p.RelPath}\"", StringComparison.Ordinal))
@@ -42,7 +44,7 @@ public sealed partial class ConceptIndexTests
 
         Assert.True(
             missing.Count == 0,
-            "Concept projects missing from Acta.slnx (solution builds will skip them):\n  " + string.Join("\n  ", missing)
+            $"Concept projects missing from {SolutionPath} (solution builds will skip them):\n  " + string.Join("\n  ", missing)
         );
     }
 
@@ -69,16 +71,16 @@ public sealed partial class ConceptIndexTests
     public void EverySolutionConceptPathExistsOnDisk()
     {
         var repoRoot = ResolveRepoRoot();
-        var solution = File.ReadAllText(Path.Combine(repoRoot, "Acta.slnx"));
+        var solution = ReadSolution(repoRoot);
 
         var stale = Regex
-            .Matches(solution, @"Path=""(concepts/[^""]+\.csproj)""")
+            .Matches(solution, @"Path=""([^.""][^""]*\.csproj)""")
             .Select(m => m.Groups[1].Value)
-            .Where(rel => !File.Exists(Path.Combine(repoRoot, rel.Replace('/', Path.DirectorySeparatorChar))))
+            .Where(rel => !File.Exists(Path.Combine(repoRoot, "concepts", rel.Replace('/', Path.DirectorySeparatorChar))))
             .OrderBy(p => p, StringComparer.Ordinal)
             .ToList();
 
-        Assert.True(stale.Count == 0, "Acta.slnx lists concept projects that do not exist on disk:\n  " + string.Join("\n  ", stale));
+        Assert.True(stale.Count == 0, $"{SolutionPath} lists concept projects that do not exist on disk:\n  " + string.Join("\n  ", stale));
     }
 
     [Fact]
@@ -103,15 +105,15 @@ public sealed partial class ConceptIndexTests
     public void EveryCategoryHasMatchingSolutionVirtualFolder()
     {
         var repoRoot = ResolveRepoRoot();
-        var solution = File.ReadAllText(Path.Combine(repoRoot, "Acta.slnx"));
+        var solution = ReadSolution(repoRoot);
         var missing = CategoryFolders
-            .Where(category => !solution.Contains($"<Folder Name=\"/concepts/{category}/\">", StringComparison.Ordinal))
+            .Where(category => !solution.Contains($"<Folder Name=\"/{category}/\">", StringComparison.Ordinal))
             .OrderBy(category => category, StringComparer.Ordinal)
             .ToList();
 
         Assert.True(
             missing.Count == 0,
-            "Concept categories missing matching Acta.slnx virtual folders:\n  " + string.Join("\n  ", missing)
+            $"Concept categories missing matching {SolutionPath} virtual folders:\n  " + string.Join("\n  ", missing)
         );
     }
 
@@ -119,11 +121,11 @@ public sealed partial class ConceptIndexTests
     public void EveryConceptIsInItsMatchingSolutionVirtualFolder()
     {
         var repoRoot = ResolveRepoRoot();
-        var solution = File.ReadAllText(Path.Combine(repoRoot, "Acta.slnx"));
+        var solution = ReadSolution(repoRoot);
         var misplaced = ConceptProjects(repoRoot)
             .Where(project =>
             {
-                var folderStart = solution.IndexOf($"<Folder Name=\"/concepts/{project.Category}/\">", StringComparison.Ordinal);
+                var folderStart = solution.IndexOf($"<Folder Name=\"/{project.Category}/\">", StringComparison.Ordinal);
                 var folderEnd = folderStart < 0 ? -1 : solution.IndexOf("</Folder>", folderStart, StringComparison.Ordinal);
                 var projectEntry = $"<Project Path=\"{project.RelPath}\" />";
                 var projectIndex = solution.IndexOf(projectEntry, StringComparison.Ordinal);
@@ -135,9 +137,11 @@ public sealed partial class ConceptIndexTests
 
         Assert.True(
             misplaced.Count == 0,
-            "Concept projects outside their matching Acta.slnx virtual folders:\n  " + string.Join("\n  ", misplaced)
+            $"Concept projects outside their matching {SolutionPath} virtual folders:\n  " + string.Join("\n  ", misplaced)
         );
     }
+
+    private static string ReadSolution(string repoRoot) => File.ReadAllText(Path.Combine(repoRoot, SolutionPath));
 
     private static IEnumerable<(string Category, string Folder, string RelPath)> ConceptProjects(string repoRoot)
     {
@@ -153,7 +157,7 @@ public sealed partial class ConceptIndexTests
             var rungDir = Directory.GetParent(proj)!;
             var category = rungDir.Parent!.Name;
             var folder = rungDir.Name;
-            var relPath = Path.GetRelativePath(repoRoot, proj).Replace('\\', '/');
+            var relPath = Path.GetRelativePath(conceptsDir, proj).Replace('\\', '/');
             yield return (category, folder, relPath);
         }
     }

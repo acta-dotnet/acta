@@ -1,0 +1,113 @@
+<Solution>
+  <Folder Name="/000-fundamentals/">
+    <Project Path="000-fundamentals/001-hello-acta/001-hello-acta.csproj" />
+    <Project Path="000-fundamentals/002-job-input/002-job-input.csproj" />
+    <Project Path="000-fundamentals/003-job-result/003-job-result.csproj" />
+    <Project Path="000-fundamentals/004-no-input-job/004-no-input-job.csproj" />
+    <Project Path="000-fundamentals/005-scalar-input/005-scalar-input.csproj" />
+    <Project Path="000-fundamentals/006-many-jobs-one-class/006-many-jobs-one-class.csproj" />
+    <Project Path="000-fundamentals/007-dependency-injection/007-dependency-injection.csproj" />
+    <Project Path="000-fundamentals/008-cancellation-token/008-cancellation-token.csproj" />
+    <Project Path="000-fundamentals/009-typed-enqueue/009-typed-enqueue.csproj" />
+    <Project Path="000-fundamentals/010-deduplication-key/010-deduplication-key.csproj" />
+    <Project Path="000-fundamentals/011-delayed-job/011-delayed-job.csproj" />
+    <Project Path="000-fundamentals/012-read-status/012-read-status.csproj" />
+    <Project Path="000-fundamentals/013-read-result/013-read-result.csproj" />
+    <Project Path="000-fundamentals/014-read-by-deduplication-key/014-read-by-deduplication-key.csproj" />
+    <Project Path="000-fundamentals/015-execute-vs-enqueue/015-execute-vs-enqueue.csproj" />
+    <Project Path="000-fundamentals/016-max-attempts/016-max-attempts.csproj" />
+    <Project Path="000-fundamentals/017-priority/017-priority.csproj" />
+    <Project Path="000-fundamentals/018-tags/018-tags.csproj" />
+    <Project Path="000-fundamentals/019-batch-enqueue/019-batch-enqueue.csproj" />
+    <Project Path="000-fundamentals/020-raw-enqueue/020-raw-enqueue.csproj" />
+    <Project Path="000-fundamentals/021-jobs-cli/021-jobs-cli.csproj" />
+    <Project Path="000-fundamentals/022-dashboard/022-dashboard.csproj" />
+    <Project Path="000-fundamentals/023-job-contract/023-job-contract.csproj" />
+    <Project Path="000-fundamentals/024-aspnet-enqueue-api/024-aspnet-enqueue-api.csproj" />
+    <Project Path="000-fundamentals/025-large-payload-reference/025-large-payload-reference.csproj" />
+    <Project Path="000-fundamentals/028-deduplication-time-buckets/028-deduplication-time-buckets.csproj" />
+  </Folder>
+  <Folder Name="/100-scheduling/">
+    <Project Path="100-scheduling/101-recurring-job/101-recurring-job.csproj" />
+    <Project Path="100-scheduling/102-interval-schedule/102-interval-schedule.csproj" />
+    <Project Path="100-scheduling/103-multiple-schedules/103-multiple-schedules.csproj" />
+    <Project Path="100-scheduling/104-timezone-schedule/104-timezone-schedule.csproj" />
+    <Project Path="100-scheduling/105-schedule-control/105-schedule-control.csproj" />
+    <Project Path="100-scheduling/106-schedule-misfire/106-schedule-misfire.csproj" />
+  </Folder>
+  <Folder Name="/200-durable-execution/">
+    <Project Path="200-durable-execution/201-durable-checkout/201-durable-checkout.csproj" />
+    <Project Path="200-durable-execution/202-durable-step/202-durable-step.csproj" />
+    <Project Path="200-durable-execution/203-durable-variable/203-durable-variable.csproj" />
+    <Project Path="200-durable-execution/204-wait-signal/204-wait-signal.csproj" />
+    <Project Path="200-durable-execution/205-durable-sleep/205-durable-sleep.csproj" />
+    <Project Path="200-durable-execution/206-step-chain/206-step-chain.csproj" />
+    <Project Path="200-durable-execution/207-run-with-lock/207-run-with-lock.csproj" />
+    <Project Path="200-durable-execution/208-progress/208-progress.csproj" />
+    <Project Path="200-durable-execution/209-concurrency-key/209-concurrency-key.csproj" />
+    <Project Path="200-durable-execution/210-step-retry/210-step-retry.csproj" />
+    <Project Path="200-durable-execution/211-child-jobs/211-child-jobs.csproj" />
+    <Project Path="200-durable-execution/212-fan-out-join/212-fan-out-join.csproj" />
+    <Project Path="200-durable-execution/213-execute-child/213-execute-child.csproj" />
+    <Project Path="200-durable-execution/214-reset-state/214-reset-state.csproj" />
+    <Project Path="200-durable-execution/215-map-parallel-join/215-map-parallel-join.csproj" />
+    <Project Path="200-durable-execution/216-variable-lifecycle/216-variable-lifecycle.csproj" />
+    <Project Path="200-durable-execution/217-absolute-time-controls/217-absolute-time-controls.csproj" />
+    <Project Path="200-durable-execution/218-global-lock/218-global-lock.csproj" />
+    <Project Path="200-durable-execution/219-child-failure-outcomes/219-child-failure-outcomes.csproj" />
+    <Project Path="200-durable-execution/220-at-most-once-step/220-at-most-once-step.csproj" />
+  </Folder>
+  <Folder Name="/300-failure-and-recovery/">
+    <Project Path="300-failure-and-recovery/301-fail-job/301-fail-job.csproj" />
+    <Project Path="300-failure-and-recovery/302-cancel-job/302-cancel-job.csproj" />
+    <Project Path="300-failure-and-recovery/303-pause-job/303-pause-job.csproj" />
+    <Project Path="300-failure-and-recovery/304-execution-timeout/304-execution-timeout.csproj" />
+    <Project Path="300-failure-and-recovery/305-operator-cancel/305-operator-cancel.csproj" />
+    <Project Path="300-failure-and-recovery/306-reschedule/306-reschedule.csproj" />
+    <Project Path="300-failure-and-recovery/307-deadline-strict/307-deadline-strict.csproj" />
+    <Project Path="300-failure-and-recovery/308-deadline-advisory/308-deadline-advisory.csproj" />
+    <Project Path="300-failure-and-recovery/309-operator-resume/309-operator-resume.csproj" />
+    <Project Path="300-failure-and-recovery/310-operator-restart/310-operator-restart.csproj" />
+    <Project Path="300-failure-and-recovery/311-execute-outcome-timeout/311-execute-outcome-timeout.csproj" />
+    <Project Path="300-failure-and-recovery/312-backoff-curve/312-backoff-curve.csproj" />
+  </Folder>
+  <Folder Name="/400-observability-and-alerts/">
+    <Project Path="400-observability-and-alerts/401-pipeline-behavior/401-pipeline-behavior.csproj" />
+    <Project Path="400-observability-and-alerts/402-alerts/402-alerts.csproj" />
+    <Project Path="400-observability-and-alerts/403-alert-channel/403-alert-channel.csproj" />
+    <Project Path="400-observability-and-alerts/404-read-event-timeline/404-read-event-timeline.csproj" />
+    <Project Path="400-observability-and-alerts/405-real-alert-routing/405-real-alert-routing.csproj" />
+    <Project Path="400-observability-and-alerts/406-automatic-failure-alerts/406-automatic-failure-alerts.csproj" />
+    <Project Path="400-observability-and-alerts/407-audit-level/407-audit-level.csproj" />
+    <Project Path="400-observability-and-alerts/408-correlation-id/408-correlation-id.csproj" />
+    <Project Path="400-observability-and-alerts/409-operator-queries/409-operator-queries.csproj" />
+    <Project Path="400-observability-and-alerts/410-http-api-controls/410-http-api-controls.csproj" />
+    <Project Path="400-observability-and-alerts/411-alert-escalation/411-alert-escalation.csproj" />
+    <Project Path="400-observability-and-alerts/412-tenant-scope/412-tenant-scope.csproj" />
+  </Folder>
+  <Folder Name="/500-payloads/">
+    <Project Path="500-payloads/501-payload-formats/501-payload-formats.csproj" />
+  </Folder>
+  <Folder Name="/600-job-composition/">
+    <Project Path="600-job-composition/601-fan-out/601-fan-out.csproj" />
+    <Project Path="600-job-composition/602-chained-jobs/602-chained-jobs.csproj" />
+  </Folder>
+  <Folder Name="/700-topology-and-deployment/">
+    <Project Path="700-topology-and-deployment/701-enqueue-only-reference/701-enqueue-only-reference.csproj" />
+    <Project Path="700-topology-and-deployment/703-multi-worker-process/703-multi-worker-process.csproj" />
+    <Project Path="700-topology-and-deployment/704-cross-namespace-child/704-cross-namespace-child.csproj" />
+    <Project Path="700-topology-and-deployment/705-worker-crash-recovery/705-worker-crash-recovery.csproj" />
+  </Folder>
+  <Folder Name="/800-testing/">
+    <Project Path="800-testing/801-testing-jobs/801-testing-jobs.csproj" />
+    <Project Path="800-testing/802-testing-durable-jobs/802-testing-durable-jobs.csproj" />
+  </Folder>
+  <Folder Name="/900-runtime-and-tuning/">
+    <Project Path="900-runtime-and-tuning/901-native-aot-json/901-native-aot-json.csproj" />
+    <Project Path="900-runtime-and-tuning/903-redis-wakeup/903-redis-wakeup.csproj" />
+    <Project Path="900-runtime-and-tuning/904-worker-tuning/904-worker-tuning.csproj" />
+  </Folder>
+  <Folder Name="/support/">
+    <Project Path="../support/Acta.LocalHost/Acta.LocalHost.csproj" />
+  </Folder>
+</Solution>
