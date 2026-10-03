@@ -1,21 +1,21 @@
-using System.Reflection;
 using Acta.Tests.Conformance.Sql;
 using Xunit;
 
 namespace Acta.Tests.Conformance;
 
 /// <summary>
-/// Provider-resource gate for the architecture migration: every capability SQL resource a provider
-/// embeds under <c>Sql/</c> normalizes to a logical resource id (independent of dialect and
-/// of routine/view/inline physical form), and the normalized inventories must stay paired across
-/// PostgreSQL, SQL Server, and SQLite. Vacuously green until feature-local provider SQL starts landing;
-/// tightens automatically as each feature slice moves its SQL into the providers.
+/// Every SQL stem exists in PostgreSQL, SQL Server, and SQLite alike, whether the file is a routine, a
+/// view, or inline SQL, unless it is a reviewed provider-specific exception.
 /// </summary>
 public sealed class ProviderResourceParityTests
 {
     // Reviewed provider-specific supplemental resources, exempt from cross-provider parity. Every entry
     // needs a reason; an entry that becomes shared (or disappears) is stale and fails the gate.
-    private static readonly HashSet<string> ProviderSpecific = new(StringComparer.Ordinal);
+    private static readonly HashSet<string> ProviderSpecific = new(StringComparer.Ordinal)
+    {
+        // SQLite has no DROP SCHEMA; the SQLite bootstrap clears sqlite_master objects in code instead.
+        "DropSchema",
+    };
 
     internal static readonly string[] Dialects = ["pg", "mssql", "sqlite"];
 
@@ -66,44 +66,9 @@ public sealed class ProviderResourceParityTests
         );
     }
 
-    // Normalizes "{Assembly}.Sql.Jobs.Enqueue.routine.sql" to "Jobs/Enqueue": the physical execution
-    // form (.routine/.view infix) and the Sql/ root marker drop out, matching the logical ids used by
-    // tools/sql-compare.ps1 and the changed-sibling report. Schema commands keep their Schema/ segment.
-    internal static List<string> LogicalResources(string dialect)
-    {
-        var assembly = Assembly.Load(ProviderSqlResources.ProviderAssemblyName(dialect));
-        var prefix = assembly.GetName().Name + ".";
-
-        var ids = new List<string>();
-        foreach (var resource in assembly.GetManifestResourceNames())
-        {
-            if (!resource.StartsWith(prefix, StringComparison.Ordinal) || !resource.EndsWith(".sql", StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            var tail = resource[prefix.Length..];
-            // Schema commands are deliberately not provider-paired (SQLite has no DROP SCHEMA), so
-            // they stay out of the parity inventory; ordered migrations are not Sql/ resources at all.
-            if (!tail.StartsWith("Sql.", StringComparison.Ordinal) || tail.StartsWith("Sql.Schema.", StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            var path = SqlLogicalPath.FromResourceTail(tail)[..^".sql".Length];
-            foreach (var infix in (string[])[".routine", ".view"])
-            {
-                if (path.EndsWith(infix, StringComparison.Ordinal))
-                {
-                    path = path[..^infix.Length];
-                }
-            }
-
-            ids.Add(path["Sql/".Length..]);
-        }
-
-        return ids;
-    }
+    // The stems of one dialect's SQL files, views and schema commands included.
+    internal static List<string> LogicalResources(string dialect) =>
+        [.. ProviderSqlResources.EnumerateIncludingViews(dialect).Select(r => ProviderSqlResources.Stem(r.LogicalPath))];
 }
 
 public sealed class TagRetentionLockPolicyTests

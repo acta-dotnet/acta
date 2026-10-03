@@ -36,17 +36,9 @@ public sealed class SchemaCommandsTests : IDisposable
         }
 
         // Provision-script emission (part of docs emission, so of add/amend/check too) composes the
-        // published scripts from each provider's Sql tree, reading real content - mirror it verbatim.
-        foreach (var provider in new[] { "Acta.Postgres", "Acta.SqlServer", "Acta.Sqlite" })
-        {
-            var sqlRoot = Path.Combine(IntegrationConfig.FindRepoRoot(), "src", provider, "Sql");
-            foreach (var file in Directory.EnumerateFiles(sqlRoot, "*.sql", SearchOption.AllDirectories))
-            {
-                var target = Path.Combine(_root, "src", provider, "Sql", Path.GetRelativePath(sqlRoot, file));
-                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-                File.Copy(file, target);
-            }
-        }
+        // published scripts from the SQL files, reading real content - mirror them verbatim. The
+        // migrations are the commands' own to write.
+        CopySql(_root, path => !path.Contains("/Schema/Migrations/", StringComparison.Ordinal));
 
         // The object-package ledger is read from the tree, not from the assembly, so `check` in the
         // throwaway root needs the released identities the real one recorded.
@@ -63,6 +55,28 @@ public sealed class SchemaCommandsTests : IDisposable
     }
 
     public void Dispose() => Directory.Delete(_root, recursive: true);
+
+    /// <summary>Copies every <c>.sql</c> file under <c>src/</c> that passes the filter to the same relative path under a throwaway root.</summary>
+    internal static void CopySql(string root, Func<string, bool> include)
+    {
+        var source = IntegrationConfig.FindRepoRoot();
+        foreach (var file in Directory.EnumerateFiles(Path.Combine(source, "src"), "*.sql", SearchOption.AllDirectories))
+        {
+            var relative = Path.GetRelativePath(source, file).Replace('\\', '/');
+            if (
+                relative.Contains("/bin/", StringComparison.Ordinal)
+                || relative.Contains("/obj/", StringComparison.Ordinal)
+                || !include(relative)
+            )
+            {
+                continue;
+            }
+
+            var target = Path.Combine(root, relative);
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            File.Copy(file, target);
+        }
+    }
 
     private static string Project(string suffix) =>
         suffix switch

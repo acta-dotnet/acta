@@ -195,8 +195,7 @@ internal static class ProvisionScriptEmitter
         );
         Append("-- ===== the installer lock, held to commit =====\n" + InstallerLock(token, schema));
         Append(
-            "-- ===== migration history table =====\n"
-                + Render(File.ReadAllText(Path.Combine(providerDir, "Sql", "Schema", "EnsureMigrations.sql")))
+            "-- ===== migration history table =====\n" + Render(SqlFiles(repoRoot, token).Single(f => f.Stem == "EnsureMigrations").Body)
         );
         Append(
             "-- ===== refuse a database a newer release already upgraded =====\n"
@@ -220,13 +219,13 @@ internal static class ProvisionScriptEmitter
 
         // Views before routines, each set in name order, mirroring SqlObjectInstaller.
         Append("-- ===== operator views (versionless; always rewritten to this file's definitions) =====");
-        var views = Views(providerDir).ToArray();
+        var views = Views(repoRoot, token).ToArray();
         foreach (var (name, body) in views)
         {
             var statements = SqlObjectInstaller.WrapView(token, $"{schema}.{name}", Render(body).Trim());
             Append(string.Join("\n", statements.Select(s => s.Body)));
         }
-        var routines = Routines(providerDir).ToArray();
+        var routines = Routines(repoRoot, token).ToArray();
         if (routines.Length > 0)
         {
             Append("-- ===== routines (versionless; always rewritten to this file's definitions) =====");
@@ -351,17 +350,31 @@ internal static class ProvisionScriptEmitter
     /// Together with <see cref="Routines"/>, shared with the object-package hash, which is only
     /// meaningful if it covers exactly the installed set in exactly the installer's order.
     /// </summary>
-    internal static IEnumerable<(string Name, string Body)> Views(string providerDir) =>
-        Installed(SqlFiles(providerDir).Where(f => SqlResourceCatalog.IsView(f.Stem)));
+    internal static IEnumerable<(string Name, string Body)> Views(string repoRoot, string token) =>
+        Installed(SqlFiles(repoRoot, token).Where(f => SqlResourceCatalog.IsView(f.Stem)));
 
     /// <summary>The routines one provider installs, in name order: every file whose header creates one.</summary>
-    internal static IEnumerable<(string Name, string Body)> Routines(string providerDir) =>
-        Installed(SqlFiles(providerDir).Where(f => !SqlResourceCatalog.IsView(f.Stem) && SqlResourceCatalog.DefinesRoutine(f.Body)));
+    internal static IEnumerable<(string Name, string Body)> Routines(string repoRoot, string token) =>
+        Installed(SqlFiles(repoRoot, token).Where(f => !SqlResourceCatalog.IsView(f.Stem) && SqlResourceCatalog.DefinesRoutine(f.Body)));
 
-    private static IEnumerable<(string Stem, string Body)> SqlFiles(string providerDir) =>
-        Directory
-            .EnumerateFiles(Path.Combine(providerDir, "Sql"), "*.sql", SearchOption.AllDirectories)
+    // One dialect's files as Acta.Runtime embeds them, X.<token>.sql under Operations/ and Schema/, and,
+    // until the move beside the slices lands, the provider's own Sql/ tree.
+    private static IEnumerable<(string Stem, string Body)> SqlFiles(string repoRoot, string token)
+    {
+        var runtime = Path.Combine(repoRoot, "src", "Acta.Runtime");
+        var project = ProviderCatalog.All.Single(p => string.Equals(p.Token, token, StringComparison.Ordinal)).Project;
+        string[] roots =
+        [
+            Path.Combine(runtime, "Operations"),
+            Path.Combine(runtime, "Schema"),
+            Path.Combine(repoRoot, "src", project, "Sql"),
+        ];
+        return roots
+            .Where(Directory.Exists)
+            .SelectMany(root => Directory.EnumerateFiles(root, "*.sql", SearchOption.AllDirectories))
+            .Where(path => path.StartsWith(roots[2], StringComparison.Ordinal) || path.EndsWith($".{token}.sql", StringComparison.Ordinal))
             .Select(path => (Path.GetFileName(path).Split('.')[0], File.ReadAllText(path)));
+    }
 
     private static IEnumerable<(string Name, string Body)> Installed(IEnumerable<(string Stem, string Body)> files) =>
         files.Select(f => (Name: JsonNamingPolicy.SnakeCaseLower.ConvertName(f.Stem), f.Body)).OrderBy(o => o.Name, StringComparer.Ordinal);

@@ -40,17 +40,13 @@ public sealed class ProvisionScriptChainTests : IDisposable
     public async Task Two_migration_script_carries_ordered_banners_and_double_runs()
     {
         var ct = TestContext.Current.CancellationToken;
-        var providerSource = Path.Combine(IntegrationConfig.FindRepoRoot(), "src", "Acta.Sqlite");
         var providerTarget = Path.Combine(_tempRoot, "src", "Acta.Sqlite");
-        foreach (var dir in new[] { "Sql", Path.Combine("Schema", "Migrations") })
-        {
-            foreach (var file in Directory.EnumerateFiles(Path.Combine(providerSource, dir), "*.sql", SearchOption.AllDirectories))
-            {
-                var target = Path.Combine(providerTarget, Path.GetRelativePath(providerSource, file));
-                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-                File.Copy(file, target);
-            }
-        }
+        SchemaCommandsTests.CopySql(
+            _tempRoot,
+            path =>
+                path.StartsWith("src/Acta.Runtime/", StringComparison.Ordinal)
+                || path.StartsWith("src/Acta.Sqlite/", StringComparison.Ordinal)
+        );
         await File.WriteAllTextAsync(Path.Combine(providerTarget, "Schema", "Migrations", "M002_add_widgets.sql"), FabricatedM002, ct);
 
         var script = ProvisionScriptEmitter.Emit(_tempRoot, "sqlite");

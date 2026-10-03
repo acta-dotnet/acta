@@ -16,7 +16,7 @@ internal static class SqlServerOutboxSource
         // catalog schema drives the actual table qualification and stays null when no override is supplied,
         // so the claim/introspection SQL resolves the table through the login's default schema.
         var options = new SqlServerProviderOptions { ConnectionString = connectionString, Schema = schema ?? "dbo" };
-        var catalog = new SqlResourceCatalog(typeof(SqlServerOutboxDialect).Assembly, schema, table);
+        var catalog = new SqlResourceCatalog(dialect.DialectToken, schema, table);
         return new RelationalOutboxRelayStore(new DbSession(options, dialect, catalog), dialect, schema, table);
     }
 }

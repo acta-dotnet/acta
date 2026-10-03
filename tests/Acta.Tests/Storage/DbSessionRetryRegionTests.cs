@@ -31,7 +31,7 @@ public class DbSessionRetryRegionTests
                 DeadlockRetryAttempts = retryAttempts,
             },
             dialect,
-            new SqlResourceCatalog(typeof(Acta.Postgres.PostgresProviderOptions).Assembly, "acta")
+            new SqlResourceCatalog("pg", "acta")
         );
 
     [Fact]

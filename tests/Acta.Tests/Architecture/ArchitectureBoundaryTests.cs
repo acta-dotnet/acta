@@ -5,7 +5,7 @@ using Xunit;
 namespace Acta.Tests.Architecture;
 
 /// <summary>Locks the dependency and source-layout boundaries established by ARCHITECTURE.md.</summary>
-public sealed partial class ArchitectureBoundaryTests
+public sealed class ArchitectureBoundaryTests
 {
     private static readonly string[] ProviderProjects = ["Acta.Postgres", "Acta.SqlServer", "Acta.Sqlite"];
 
@@ -132,14 +132,8 @@ public sealed partial class ArchitectureBoundaryTests
     {
         var repoRoot = ResolveRepoRoot();
         var sourceRoot = Path.Combine(repoRoot, "src");
-        var coreRoot = Path.Combine(sourceRoot, "Acta.Runtime");
         var failures = new List<string>();
 
-        failures.AddRange(
-            Directory
-                .EnumerateFiles(coreRoot, "*.sql", SearchOption.AllDirectories)
-                .Select(path => $"core executable SQL remains: {Relative(repoRoot, path)}")
-        );
         if (Directory.Exists(Path.Combine(sourceRoot, "Acta.Runtime", "Features")))
         {
             failures.Add("Acta.Runtime contains a product Features folder.");
@@ -191,21 +185,6 @@ public sealed partial class ArchitectureBoundaryTests
                     .EnumerateFiles(providerRoot, "*Rule.cs", SearchOption.AllDirectories)
                     .Select(path => $"provider-independent rule lives in a provider: {Relative(repoRoot, path)}")
             );
-
-            var sqlFiles = Directory.EnumerateFiles(providerRoot, "*.sql", SearchOption.AllDirectories).ToArray();
-            Assert.NotEmpty(sqlFiles);
-            foreach (var sqlFile in sqlFiles)
-            {
-                var path = Relative(providerRoot, sqlFile);
-                // One executable-SQL root per provider: Sql/{Capability}/{Operation}.sql (operations may
-                // nest one level, e.g. Sql/Execution/Checkpoints/). Ordered DDL stays under Schema/Migrations.
-                var capabilitySql = MyRegex().IsMatch(path);
-                var migrationSql = Regex.IsMatch(path, @"^Schema/Migrations/.+\.sql$", RegexOptions.CultureInvariant);
-                if (!capabilitySql && !migrationSql)
-                {
-                    failures.Add($"provider SQL is outside an owned resource folder: {Relative(repoRoot, sqlFile)}");
-                }
-            }
         }
 
         Assert.True(failures.Count == 0, "Architecture source-layout violations:\n" + string.Join("\n", failures));
@@ -235,7 +214,4 @@ public sealed partial class ArchitectureBoundaryTests
         }
         throw new InvalidOperationException("Could not locate Acta.slnx from " + AppContext.BaseDirectory);
     }
-
-    [GeneratedRegex(@"^Sql/[^/]+/.+\.sql$", RegexOptions.CultureInvariant)]
-    private static partial Regex MyRegex();
 }

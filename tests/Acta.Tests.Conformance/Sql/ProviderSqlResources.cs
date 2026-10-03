@@ -2,7 +2,11 @@ using System.Reflection;
 
 namespace Acta.Tests.Conformance.Sql;
 
-/// <summary>Enumerates executable SQL directly from the selected provider assembly.</summary>
+/// <summary>
+/// Enumerates one dialect's executable SQL as the catalog sees it: the <c>X.{dialect}.sql</c> files
+/// <c>Acta.Runtime</c> embeds, the provider's own <c>Sql/</c> tree until the move beside the slices
+/// lands, and on request the provider's ordered migrations.
+/// </summary>
 internal static class ProviderSqlResources
 {
     public static string DialectFromPrefix(string providerResourcePrefix) =>
@@ -17,6 +21,23 @@ internal static class ProviderSqlResources
         bool includeViews = false
     )
     {
+        var runtime = typeof(SqlResourceCatalog).Assembly;
+        var runtimePrefix = runtime.GetName().Name + ".";
+        var suffix = "." + dialectToken + ".sql";
+        foreach (
+            var resource in runtime
+                .GetManifestResourceNames()
+                .Where(n => n.EndsWith(suffix, StringComparison.Ordinal))
+                .Order(StringComparer.Ordinal)
+        )
+        {
+            var path = resource[runtimePrefix.Length..^suffix.Length].Replace('.', '/') + suffix;
+            if (includeViews || !SqlResourceCatalog.IsView(Stem(path)))
+            {
+                yield return (path, ReadResource(runtime, resource));
+            }
+        }
+
         var assembly = Assembly.Load(ProviderAssemblyName(dialectToken));
         var prefix = assembly.GetName().Name + ".";
 
@@ -40,11 +61,7 @@ internal static class ProviderSqlResources
                 continue;
             }
 
-            using var stream =
-                assembly.GetManifestResourceStream(resource)
-                ?? throw new InvalidOperationException($"Provider resource '{resource}' disappeared during enumeration.");
-            using var reader = new StreamReader(stream);
-            yield return (path, reader.ReadToEnd());
+            yield return (path, ReadResource(assembly, resource));
         }
     }
 
@@ -66,6 +83,15 @@ internal static class ProviderSqlResources
             "mssql" => "Acta.SqlServer",
             _ => throw new InvalidOperationException($"No provider package known for dialect token '{dialectToken}'."),
         };
+
+    private static string ReadResource(Assembly assembly, string resource)
+    {
+        using var stream =
+            assembly.GetManifestResourceStream(resource)
+            ?? throw new InvalidOperationException($"Resource '{resource}' disappeared during enumeration.");
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    }
 
     private static string LogicalPath(string resourceTail)
     {

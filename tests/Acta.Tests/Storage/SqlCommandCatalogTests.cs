@@ -11,12 +11,12 @@ namespace Acta.Tests.Storage;
 public sealed class SqlCommandCatalogTests
 {
     [Theory]
-    [InlineData("pg", typeof(PostgresProviderOptions))]
-    [InlineData("mssql", typeof(SqlServerProviderOptions))]
-    public void Server_ledgers_install_their_routines_and_sqlite_runs_the_same_commands_inline(string dialect, Type provider)
+    [InlineData("pg")]
+    [InlineData("mssql")]
+    public void Server_ledgers_install_their_routines_and_sqlite_runs_the_same_commands_inline(string dialect)
     {
-        var catalog = new SqlResourceCatalog(provider.Assembly, "acta");
-        var sqlite = new SqlResourceCatalog(typeof(SqliteProviderOptions).Assembly, "acta");
+        var catalog = new SqlResourceCatalog(dialect, "acta");
+        var sqlite = new SqlResourceCatalog("sqlite", "acta");
         var routines = ProviderSqlResources
             .Enumerate(dialect)
             .Where(r => SqlResourceCatalog.DefinesRoutine(r.Sql))
@@ -41,9 +41,18 @@ public sealed class SqlCommandCatalogTests
     [Fact]
     public void A_missing_command_fails_without_a_fallback()
     {
-        var catalog = new SqlResourceCatalog(typeof(SqliteProviderOptions).Assembly, "acta");
+        var catalog = new SqlResourceCatalog("sqlite", "acta");
         var error = Assert.Throws<InvalidOperationException>(() => catalog.Resolve(new StoreCommand("Missing")));
-        Assert.Contains("embeds no SQL for 'Missing'", error.Message);
+        Assert.Contains("has no file for 'Missing'", error.Message);
+    }
+
+    [Fact]
+    public void Two_files_with_one_stem_fail_when_the_catalog_is_built()
+    {
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            new SqlResourceCatalog(typeof(SqlCommandCatalogTests).Assembly, "twice", "acta")
+        );
+        Assert.Contains("two files with the stem 'Twice'", error.Message);
     }
 
     [Theory]

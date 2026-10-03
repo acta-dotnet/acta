@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Acta.Tests.Conformance.Postgres.Testing;
+using Acta.Tests.Conformance.Sql;
 using Acta.Tests.Conformance.Testing;
 using Npgsql;
 using Xunit;
@@ -48,17 +49,8 @@ public sealed partial class PgProvisionScriptSpec
             // A body-only replacement must be repaired by bootstrap even with no pending MNNN.
             await using (var alter = conn.CreateCommand())
             {
-                alter.CommandText = File.ReadAllText(
-                        Path.Combine(
-                            IntegrationConfig.FindRepoRoot(),
-                            "src",
-                            "Acta.Postgres",
-                            "Sql",
-                            "Services",
-                            "Locks",
-                            "ExtendLock.routine.sql"
-                        )
-                    )
+                alter.CommandText = ProviderSqlResources
+                    .Read("pg", "ExtendLock")
                     .Replace("{{schema}}", schema)
                     .Replace("AS $$", "AS $$\n-- versionless_body_probe");
                 await alter.ExecuteNonQueryAsync(ct);

@@ -1,4 +1,3 @@
-using System.Reflection;
 using System.Text.RegularExpressions;
 using Acta.Runtime;
 using Acta.Tests.Conformance.Testing;
@@ -21,7 +20,7 @@ public sealed partial class ProviderOperatorViewCatalogTests
         "workers_view",
     ];
 
-    private static readonly string[] ProviderAssemblies = ["Acta.Postgres", "Acta.SqlServer", "Acta.Sqlite"];
+    private static readonly string[] Dialects = ["pg", "mssql", "sqlite"];
 
     private static readonly string[] DecodeKinds =
     [
@@ -53,27 +52,22 @@ public sealed partial class ProviderOperatorViewCatalogTests
     [Fact(DisplayName = "Every provider owns the curated plural _view set")]
     public void Every_provider_owns_the_curated_plural_view_set()
     {
-        foreach (var assemblyName in ProviderAssemblies)
+        foreach (var dialect in Dialects)
         {
-            var views = Catalog(assemblyName).Views().Select(static v => v.Name).OrderBy(static n => n, StringComparer.Ordinal);
+            var views = new SqlResourceCatalog(dialect, "acta")
+                .Views()
+                .Select(static v => v.Name)
+                .OrderBy(static n => n, StringComparer.Ordinal);
             Assert.Equal(ExpectedViews, views);
         }
-    }
-
-    [Fact(DisplayName = "Core embeds no operator view SQL")]
-    public void Core_embeds_no_operator_view_sql()
-    {
-        var resources = typeof(ActaServiceCollectionExtensions).Assembly.GetManifestResourceNames();
-
-        Assert.DoesNotContain(resources, static r => r.EndsWith(".view.sql", StringComparison.Ordinal));
     }
 
     [Fact(DisplayName = "Provider operator view bodies render without unresolved tokens")]
     public void Provider_view_bodies_render_without_unresolved_tokens()
     {
-        foreach (var assemblyName in ProviderAssemblies)
+        foreach (var dialect in Dialects)
         {
-            var views = Catalog(assemblyName).Views().ToList();
+            var views = new SqlResourceCatalog(dialect, "acta").Views().ToList();
 
             Assert.Equal(ExpectedViews.Length, views.Count);
             Assert.All(views, static v => Assert.DoesNotContain("{{", v.Body, StringComparison.Ordinal));
@@ -115,8 +109,6 @@ public sealed partial class ProviderOperatorViewCatalogTests
         Assert.Empty(documented.Except(ExpectedViews, StringComparer.Ordinal));
         Assert.Empty(ExpectedViews.Except(documented, StringComparer.Ordinal));
     }
-
-    private static SqlResourceCatalog Catalog(string assemblyName) => new(Assembly.Load(assemblyName), "acta");
 
     [GeneratedRegex(@"\bacta\.([a-z_]+_view)\b", RegexOptions.CultureInvariant)]
     private static partial Regex MyRegex();

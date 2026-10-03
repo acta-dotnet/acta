@@ -1,1 +1,0 @@
-SELECT @p_key;

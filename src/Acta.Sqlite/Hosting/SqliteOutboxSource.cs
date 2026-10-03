@@ -13,7 +13,7 @@ internal static class SqliteOutboxSource
     {
         var dialect = new SqliteOutboxDialect();
         var options = new SqliteProviderOptions { ConnectionString = connectionString, Schema = schema };
-        var catalog = new SqlResourceCatalog(typeof(SqliteOutboxDialect).Assembly, schema, table);
+        var catalog = new SqlResourceCatalog(dialect.DialectToken, schema, table);
         return new RelationalOutboxRelayStore(new DbSession(options, dialect, catalog), dialect, schema, table);
     }
 }

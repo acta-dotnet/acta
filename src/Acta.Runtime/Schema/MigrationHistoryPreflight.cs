@@ -36,7 +36,7 @@ internal static class MigrationHistoryPreflight
             await conn.OpenAsync(ct);
         }
 
-        var sql = new SqlResourceCatalog(hooks.ProviderAssembly, schemaName);
+        var sql = new SqlResourceCatalog(hooks.DialectToken, schemaName);
         if (!await SchemaCommands.MigrationsTableExists(conn, hooks, sql, ct))
         {
             throw NotProvisioned(schemaName, hooks.DialectToken);

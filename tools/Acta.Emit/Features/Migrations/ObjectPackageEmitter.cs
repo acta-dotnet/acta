@@ -23,11 +23,11 @@ internal static class ObjectPackageEmitter
     internal static IReadOnlyDictionary<string, string> HashAll(string repoRoot) =>
         ProviderCatalog.All.ToDictionary(p => p.Token, p => HashFor(repoRoot, p), StringComparer.Ordinal);
 
-    private static string HashFor(string repoRoot, ProviderInfo provider)
-    {
-        var providerDir = Path.Combine(repoRoot, "src", provider.Project);
-        return ObjectPackageStamp.HashOf([.. ProvisionScriptEmitter.Views(providerDir), .. ProvisionScriptEmitter.Routines(providerDir)]);
-    }
+    private static string HashFor(string repoRoot, ProviderInfo provider) =>
+        ObjectPackageStamp.HashOf([
+            .. ProvisionScriptEmitter.Views(repoRoot, provider.Token),
+            .. ProvisionScriptEmitter.Routines(repoRoot, provider.Token),
+        ]);
 
     internal static string Emit(IReadOnlyDictionary<string, string> hashes)
     {

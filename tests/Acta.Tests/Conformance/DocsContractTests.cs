@@ -59,7 +59,7 @@ public sealed class DocsContractTests
     {
         sb.AppendLine("## Provider SQL resources");
         sb.AppendLine();
-        sb.AppendLine("| Logical resource | PostgreSQL | SQL Server | SQLite |");
+        sb.AppendLine("| SQL stem | PostgreSQL | SQL Server | SQLite |");
         sb.AppendLine("| --- | --- | --- | --- |");
 
         var inventories = ProviderResourceParityTests.Dialects.ToDictionary(

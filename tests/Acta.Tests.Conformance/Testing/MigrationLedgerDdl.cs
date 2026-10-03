@@ -16,5 +16,5 @@ internal static class MigrationLedgerDdl
     /// for <paramref name="schemaName"/> under the provider selected by <paramref name="dialectToken"/>.
     /// </summary>
     public static string For(string dialectToken, string schemaName) =>
-        new SqlResourceCatalog(Assembly.Load(ProviderSqlResources.ProviderAssemblyName(dialectToken)), schemaName).Load("EnsureMigrations");
+        new SqlResourceCatalog(dialectToken, schemaName).Load("EnsureMigrations");
 }

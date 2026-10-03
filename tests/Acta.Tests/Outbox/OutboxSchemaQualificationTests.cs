@@ -15,9 +15,9 @@ namespace Acta.Tests.Outbox;
 /// </summary>
 public sealed class OutboxSchemaQualificationTests
 {
-    private static SqlResourceCatalog Pg(string? schema) => new(typeof(PostgresProviderOptions).Assembly, schema, "acta_outbox");
+    private static SqlResourceCatalog Pg(string? schema) => new("pg", schema, "acta_outbox");
 
-    private static SqlResourceCatalog Mssql(string? schema) => new(typeof(SqlServerProviderOptions).Assembly, schema, "acta_outbox");
+    private static SqlResourceCatalog Mssql(string? schema) => new("mssql", schema, "acta_outbox");
 
     private static string Claim(SqlResourceCatalog catalog) => catalog.Load("ClaimOutbox");
 

@@ -14,7 +14,7 @@ public sealed class SqliteEnqueueChildOnlyTests
     [Fact]
     public void An_unparented_enqueue_loses_exactly_the_ancestor_check()
     {
-        var sql = new SqlResourceCatalog(typeof(SqliteDialect).Assembly, "main").Load("EnqueueOne");
+        var sql = new SqlResourceCatalog("sqlite", "main").Load("EnqueueOne");
         Assert.Equal(2, sql.Split(SqliteDialect.ChildOnlyBegin).Length);
         Assert.Contains("ACTA:ENQ_ANCESTOR_LANE", sql, StringComparison.Ordinal);
 

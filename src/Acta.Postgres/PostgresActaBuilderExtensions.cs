@@ -47,7 +47,7 @@ public static class PostgresActaBuilderExtensions
         // Provider-owned feature stores: each implements a core store port over this package's own
         // embedded SQL, bound and mapped directly in the store.
         builder.Services.AddSingleton(static sp => new SqlResourceCatalog(
-            typeof(PostgresDialect).Assembly,
+            sp.GetRequiredService<ISqlDialect>().DialectToken,
             sp.GetRequiredService<SqlProviderOptions>().Schema
         ));
         builder.Services.AddActaRelationalStores();

@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Acta.Tests.Conformance.Sql;
 using Acta.Tests.Conformance.SqlServer.Testing;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Data.SqlClient;
@@ -52,9 +53,8 @@ public sealed partial class MsSqlProvisionScriptSpec
             }
 
             // A body-only replacement must be repaired by bootstrap even with no pending MNNN.
-            var changedBody = File.ReadAllText(
-                    Path.Combine(repoRoot, "src", "Acta.SqlServer", "Sql", "Services", "Locks", "ExtendLock.routine.sql")
-                )
+            var changedBody = ProviderSqlResources
+                .Read("mssql", "ExtendLock")
                 .ReplaceLineEndings("\n")
                 .Replace("{{schema}}", schema)
                 .Replace("AS\nBEGIN", "AS\nBEGIN\n    -- versionless_body_probe");
@@ -91,7 +91,7 @@ public sealed partial class MsSqlProvisionScriptSpec
         }
         finally
         {
-            await DropSchemaAsync(connString, repoRoot, schema);
+            await DropSchemaAsync(connString, schema);
         }
     }
 
@@ -119,7 +119,7 @@ public sealed partial class MsSqlProvisionScriptSpec
         }
         finally
         {
-            await DropSchemaAsync(connString, repoRoot, schema);
+            await DropSchemaAsync(connString, schema);
         }
     }
 
@@ -148,9 +148,8 @@ public sealed partial class MsSqlProvisionScriptSpec
                 newer.CommandText = $"UPDATE {schema}.migrations SET name = 'objects-1.99-newer' WHERE version = -1";
                 await newer.ExecuteNonQueryAsync(ct);
             }
-            var marked = File.ReadAllText(
-                    Path.Combine(repoRoot, "src", "Acta.SqlServer", "Sql", "Services", "Locks", "ExtendLock.routine.sql")
-                )
+            var marked = ProviderSqlResources
+                .Read("mssql", "ExtendLock")
                 .ReplaceLineEndings("\n")
                 .Replace("{{schema}}", schema)
                 .Replace("AS\nBEGIN", "AS\nBEGIN\n    -- newer_release_body");
@@ -188,7 +187,7 @@ public sealed partial class MsSqlProvisionScriptSpec
         }
         finally
         {
-            await DropSchemaAsync(connString, repoRoot, schema);
+            await DropSchemaAsync(connString, schema);
         }
     }
 
@@ -210,10 +209,9 @@ public sealed partial class MsSqlProvisionScriptSpec
     /// provisioning failure can kill the test connection, and a teardown throw on the dead connection
     /// would mask the real error.
     /// </summary>
-    private static async Task DropSchemaAsync(string connString, string repoRoot, string schema)
+    private static async Task DropSchemaAsync(string connString, string schema)
     {
-        var teardown = File.ReadAllText(Path.Combine(repoRoot, "src", "Acta.SqlServer", "Sql", "Schema", "DropSchema.sql"))
-            .Replace("{{schema}}", schema);
+        var teardown = ProviderSqlResources.Read("mssql", "DropSchema").Replace("{{schema}}", schema);
         await RunScriptAsync(connString, teardown, CancellationToken.None);
     }
 

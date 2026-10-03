@@ -31,10 +31,10 @@ namespace Acta.Tests.Architecture;
 public sealed class CommandTextCompositionTests
 {
     /// <summary>
-    /// Methods that return embedded SQL. <c>SqlResourceCatalog.Load</c> reads an
-    /// <c>Sql/{Module}/.../{Operation}.sql</c> resource compiled into the provider assembly, so its
-    /// result is authored text with no runtime component beyond the substitution tokens the catalog
-    /// renders - and those are the validated identifiers pinned by the second test below.
+    /// Methods that return embedded SQL. <c>SqlResourceCatalog.Load</c> reads a <c>.sql</c> file compiled
+    /// into <c>Acta.Runtime</c>, so its result is authored text with no runtime component beyond the
+    /// substitution tokens the catalog renders - and those are the validated identifiers pinned by the
+    /// second test below.
     /// </summary>
     private static readonly string[] EmbeddedSqlMethods = ["Load"];
 
@@ -170,7 +170,7 @@ public sealed class CommandTextCompositionTests
                 {
                     failures.Add(
                         $"{site.Where}: CommandText is composed, not loaded or literal: `{site.Expression}`. "
-                            + "Load the SQL from an embedded Sql/ resource, or declare this member in DeclaredCompositions "
+                            + "Load the SQL from an embedded .sql file, or declare this member in DeclaredCompositions "
                             + "with the identifier validation that keeps it injection-safe."
                     );
                 }
@@ -256,7 +256,7 @@ public sealed class CommandTextCompositionTests
     /// True when <paramref name="expression"/> is an embedded-resource load or text the compiler
     /// already knows in full. Everything else is a composition. <paramref name="resolve"/> allows one
     /// hop through a local or constant declared in the same member or type, so
-    /// <c>var sql = _sql.Load(path); cmd.CommandText = sql;</c> reads as the load it is; the hop is
+    /// <c>var sql = _sql.Load(stem); cmd.CommandText = sql;</c> reads as the load it is; the hop is
     /// not taken twice, and never across a method boundary, because a syntax tree cannot see what a
     /// caller passed in - which is exactly why those sites are declared instead.
     /// </summary>

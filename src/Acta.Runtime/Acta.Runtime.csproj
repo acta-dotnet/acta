@@ -50,6 +50,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Every dialect's SQL beside its operation, and the schema commands and operator views; the catalog
+         selects one dialect by the X.<token>.sql suffix. -->
+    <EmbeddedResource Include="Operations/**/*.sql;Schema/**/*.sql" Exclude="$(DefaultItemExcludes)">
+      <LogicalName>$(AssemblyName).$([MSBuild]::ValueOrDefault('%(RelativeDir)', '').Replace('\', '.').Replace('/', '.'))%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
     <!-- Generates the system-job manifest, the table binders, and the row projections. -->
     <ProjectReference Include="..\Acta.Generators\Acta.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>

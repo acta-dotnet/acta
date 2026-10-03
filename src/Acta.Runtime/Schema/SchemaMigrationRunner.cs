@@ -27,7 +27,7 @@ internal static class SchemaMigrationRunner
         }
 
         var migrations = SchemaMigrationDiscovery.Discover(hooks.ProviderAssembly);
-        var sql = new SqlResourceCatalog(hooks.ProviderAssembly, schemaName);
+        var sql = new SqlResourceCatalog(hooks.DialectToken, schemaName);
 
         await using var tx = await conn.BeginTransactionAsync(ct);
         try
@@ -141,12 +141,12 @@ internal static class SchemaMigrationRunner
     /// fresh, such as a benchmark cell that has recorded its measurement.
     /// </summary>
     public static Task DropSchemaAsync(DbConnection conn, string schemaName, SchemaMigrationProviderHooks hooks, CancellationToken ct) =>
-        SchemaCommands.DropSchema(conn, hooks, new SqlResourceCatalog(hooks.ProviderAssembly, schemaName), ct);
+        SchemaCommands.DropSchema(conn, hooks, new SqlResourceCatalog(hooks.DialectToken, schemaName), ct);
 }
 
 /// <summary>
-/// Provider-specific hooks used by the shared migration runner. The provider assembly is the single
-/// owner of migrations, schema commands, routines, and views for that provider.
+/// Provider-specific hooks used by the shared migration runner. The provider assembly owns the ordered
+/// migrations; the dialect token selects the schema commands, routines, and views in Acta.Runtime.
 /// </summary>
 internal sealed record SchemaMigrationProviderHooks(
     Assembly ProviderAssembly,

@@ -1,5 +1,5 @@
 using System.Data;
-using Acta.SqlServer;
+using Acta.Tests.Conformance.Sql;
 using Acta.Tests.Conformance.SqlServer.Testing;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Data.SqlClient;
@@ -38,12 +38,7 @@ public sealed class SqlServerLockContentionTests
                 ct
             );
 
-            using var stream = typeof(SqlServerProviderOptions).Assembly.GetManifestResourceStream(
-                "Acta.SqlServer.Sql.Services.Locks.AcquireLock.routine.sql"
-            );
-            Assert.NotNull(stream);
-            using var text = new StreamReader(stream);
-            var body = await text.ReadToEndAsync(ct);
+            var body = ProviderSqlResources.Read("mssql", "AcquireLock");
             const string insert = "INSERT INTO {{schema}}.locks";
             Assert.Contains(insert, body, StringComparison.Ordinal);
             // Pause the actual routine after its miss decision. All contenders must reach this point
