@@ -147,10 +147,9 @@ public abstract class ClockSkewInitializationChaosSpec<TFixture> : ActaTestBase<
         }
 
         // --- 2. AllowClockSkew admits the same skew and records a running worker.
-        // TestNamespace is already truncated to the 64-char namespaces.name limit, so a naive
-        // suffix overflows. Append within a trimmed head to stay inside the bound.
-        var allowedHead = TestNamespace.Length > 55 ? TestNamespace[..55] : TestNamespace;
-        var allowedNamespace = allowedHead.TrimEnd('-') + "-allowed";
+        // Named from TestId, which makes it unique: TestNamespace already fills the 64-char limit with the id at
+        // its end, so a cut-and-suffix form drops the id and reuses one namespace, and its workers, across runs.
+        var allowedNamespace = ActaTestNames.CreateNamespace(GetType(), "allowed", TestId);
         await using var allowed = BuildClockSkewProvider(allowedNamespace, allowClockSkew: true);
         await allowed.GetServices<WorkerRuntime>().Single().InitializeAsync(ct);
 

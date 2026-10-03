@@ -57,23 +57,24 @@ public abstract class ClaimSkewTestBase<TFixture> : ActaRuntimeTestBase<TFixture
     /// </summary>
     protected async Task ParkManyAsync(int count, DateTime dbNow, CancellationToken ct)
     {
-        // Enqueued far out, so the parking update can pick them apart from the namespace's schedule slots.
-        var parkAt = dbNow.AddDays(3);
-        await EnqueueManyAsync(count, priority: null, parkAt, ct);
-        await Db.ExecuteRawAsync(
-            "UPDATE {schema}.runtimes SET status_code = @p_suspended, next_run_at_utc = NULL "
-                + "WHERE namespace_id = @p_ns AND status_code = @p_ready AND next_run_at_utc >= @p_park_at",
+        // Enqueued far out, so nothing claims them before they are parked.
+        var parked = await EnqueueManyAsync(count, priority: null, dbNow.AddDays(3), ct);
+        await RuntimeStateStaging.UpdateAsync(
+            Db,
+            parked.Select(job => job.JobId),
+            "status_code = @p_suspended, next_run_at_utc = NULL",
             ct,
-            ("@p_suspended", (byte)JobStatusCode.Suspended),
-            ("@p_ns", Runtime.RegisteredNamespaceIds[TestNamespace]),
-            ("@p_ready", (byte)JobStatusCode.Ready),
-            ("@p_park_at", parkAt)
+            ("@p_suspended", (byte)JobStatusCode.Suspended)
         );
     }
 
     /// <summary>Enqueues <paramref name="count"/> rows in one batch, due at <paramref name="nextRunAtUtc"/> or now.</summary>
-    protected async Task EnqueueManyAsync(int count, JobPriorityCode? priority, DateTime? nextRunAtUtc, CancellationToken ct) =>
-        await Jobs.EnqueueBatchAsync([.. Enumerable.Range(0, count).Select(_ => Request(priority, nextRunAtUtc))], ct);
+    protected async Task<IReadOnlyList<JobEnqueueOutcome>> EnqueueManyAsync(
+        int count,
+        JobPriorityCode? priority,
+        DateTime? nextRunAtUtc,
+        CancellationToken ct
+    ) => await Jobs.EnqueueBatchAsync([.. Enumerable.Range(0, count).Select(_ => Request(priority, nextRunAtUtc))], ct);
 
     /// <summary>Enqueues one row, due at <paramref name="nextRunAtUtc"/> or now.</summary>
     protected async Task<JobEnqueueOutcome> EnqueueAsync(JobPriorityCode priority, DateTime? nextRunAtUtc, CancellationToken ct) =>

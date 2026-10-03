@@ -112,21 +112,27 @@ public abstract class LaneRepairSpec<TFixture> : ActaRuntimeTestBase<TFixture, T
         // More stranded lanes than the pass visits, so its whole window is stranded and only the cap binds.
         const int Lanes = 1100;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        await Jobs.EnqueueBatchAsync(
+        var enqueued = await Jobs.EnqueueBatchAsync(
             [.. Enumerable.Range(0, Lanes).SelectMany(i => new[] { Step($"cap-{i}", "head"), Step($"cap-{i}", "follower") })],
             ct
         );
-        // Every head hand-set to Succeeded at once, so every lane is stranded behind a Blocked follower.
-        await Db.ExecuteRawAsync(
-            $"UPDATE {{schema}}.runtimes SET status_code = {(int)JobStatusCode.Succeeded} WHERE namespace_id = @p_ns AND status_code = {(int)JobStatusCode.Ready}",
-            ct,
-            ("@p_ns", ns)
+        // Every head hand-set to Succeeded, so every lane is stranded behind a Blocked follower.
+        await RuntimeStateStaging.UpdateAsync(
+            Db,
+            enqueued.Where((_, i) => i % 2 == 0).Select(head => head.JobId),
+            $"status_code = {(int)JobStatusCode.Succeeded}",
+            ct
         );
 
         var outcome = await Services.GetRequiredService<RecoveryPass>().RunAsync(ns, TestNamespace, ct);
 
         Assert.Equal(100, outcome.RepairedLanes);
-        Assert.Equal(100, await Db.From<JobRuntime>().Where(r => r.NamespaceId == ns && r.Status == JobStatusCode.Ready).CountAsync(ct));
+        Assert.Equal(
+            100,
+            await Db.From<JobRuntime>()
+                .Where(r => r.NamespaceId == ns && r.LaneId != null && r.Status == JobStatusCode.Ready)
+                .CountAsync(ct)
+        );
     }
 
     private Task PassAsync(CancellationToken ct) =>

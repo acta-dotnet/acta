@@ -33,4 +33,28 @@ internal static class RuntimeStateStaging
 
     public static Task SetStatusAsync(IDbSession db, long jobId, JobStatusCode status, CancellationToken ct) =>
         SetStatusAsync(db, jobId, (byte)status, ct);
+
+    /// <summary>
+    /// Applies <paramref name="set"/> to the runtime rows of <paramref name="jobIds"/>, a hundred per statement and
+    /// by key. A predicate on anything else scans the shared table under update locks on SQL Server, waits behind
+    /// rows the specs running beside this one hold, and exhausts the connection pool while it waits.
+    /// </summary>
+    public static async Task UpdateAsync(
+        IDbSession db,
+        IEnumerable<long> jobIds,
+        string set,
+        CancellationToken ct,
+        params (string Name, object? Value)[] parameters
+    )
+    {
+        foreach (var chunk in jobIds.Chunk(100))
+        {
+            var ids = chunk.Select((id, i) => ($"@p_id{i}", (object?)id)).ToArray();
+            await db.ExecuteRawAsync(
+                $"UPDATE {{schema}}.runtimes SET {set} WHERE job_id IN ({string.Join(", ", ids.Select(p => p.Item1))})",
+                ct,
+                [.. parameters, .. ids]
+            );
+        }
+    }
 }
