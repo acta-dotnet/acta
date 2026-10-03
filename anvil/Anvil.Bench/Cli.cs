@@ -54,20 +54,37 @@ public static class CellSummary
 /// </summary>
 public sealed record BenchRunOptions(IReadOnlyList<string> Providers, IReadOnlyList<string>? Scenarios, int SeedHistory)
 {
+    /// <summary>Drain worker counts from <c>--drain-workers</c>; null keeps the preset's.</summary>
+    public IReadOnlyList<int>? DrainWorkers { get; init; }
+
+    /// <summary>The backlog from <c>--jobs</c>; null keeps the preset's.</summary>
+    public int? Jobs { get; init; }
+
+    /// <summary>The preset with these overrides applied.</summary>
+    public BenchPreset Apply(BenchPreset preset) =>
+        preset with
+        {
+            Jobs = Jobs ?? preset.Jobs,
+            DrainWorkers = DrainWorkers ?? preset.DrainWorkers,
+        };
+
     /// <summary>
     /// Parses the arguments after the preset name. <c>--db</c> is required; <c>--scenario</c> repeats
     /// to select cells; <c>--seed-history</c> takes a non-negative count and defaults to 0, which is
-    /// the empty-ledger run. Throws <see cref="ArgumentException"/> on an unknown or malformed option.
+    /// the empty-ledger run; <c>--drain-workers 16,24,32</c> and <c>--jobs N</c> override the preset's.
+    /// Throws <see cref="ArgumentException"/> on an unknown or malformed option.
     /// </summary>
     public static BenchRunOptions Parse(string[] args)
     {
         string? db = null;
         List<string>? scenarios = null;
         var seedHistory = 0;
+        IReadOnlyList<int>? drainWorkers = null;
+        int? jobs = null;
 
         for (var i = 0; i < args.Length; i++)
         {
-            if (args[i] is not ("--db" or "--scenario" or "--seed-history"))
+            if (args[i] is not ("--db" or "--scenario" or "--seed-history" or "--drain-workers" or "--jobs"))
             {
                 throw new ArgumentException($"Unknown option '{args[i]}'.");
             }
@@ -84,6 +101,14 @@ public sealed record BenchRunOptions(IReadOnlyList<string> Providers, IReadOnlyL
             {
                 seedHistory = SeedHistoryFromArg(args[++i]);
             }
+            else if (args[i] == "--drain-workers")
+            {
+                drainWorkers = [.. args[++i].Split(',').Select(w => PositiveFromArg("--drain-workers", w))];
+            }
+            else if (args[i] == "--jobs")
+            {
+                jobs = PositiveFromArg("--jobs", args[++i]);
+            }
             else
             {
                 (scenarios ??= []).Add(args[++i]);
@@ -92,7 +117,7 @@ public sealed record BenchRunOptions(IReadOnlyList<string> Providers, IReadOnlyL
 
         return db is null
             ? throw new ArgumentException("Missing --db sqlite|pg|mssql|all.")
-            : new BenchRunOptions(ProvidersFromDb(db), scenarios, seedHistory);
+            : new BenchRunOptions(ProvidersFromDb(db), scenarios, seedHistory) { DrainWorkers = drainWorkers, Jobs = jobs };
     }
 
     /// <summary>Expands a <c>--db</c> value to the providers it names; <c>all</c> is the full matrix.</summary>
@@ -106,6 +131,11 @@ public sealed record BenchRunOptions(IReadOnlyList<string> Providers, IReadOnlyL
         var providers = BaselineSuite.NormalizeProviders([db]);
         return providers.Count != 1 ? throw new ArgumentException("Choose one database or all.") : providers;
     }
+
+    private static int PositiveFromArg(string option, string raw) =>
+        int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) && value > 0
+            ? value
+            : throw new ArgumentException($"{option} takes positive whole numbers, not '{raw}'.");
 
     private static int SeedHistoryFromArg(string raw) =>
         int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) && value >= 0
@@ -152,8 +182,8 @@ public static class BenchCli
 
     private static async Task<int> ScriptedRunAsync(string presetName, string[] args, CancellationToken ct)
     {
-        var preset = BaselineSuite.Preset(presetName);
         var options = BenchRunOptions.Parse(args);
+        var preset = options.Apply(BaselineSuite.Preset(presetName));
         return await RunPresetAsync(preset, options.Providers, ct, options.Scenarios, options.SeedHistory);
     }
 
@@ -352,7 +382,7 @@ public static class BenchCli
             Usage:
               acta-bench
               acta-bench quick --db sqlite|pg|mssql|all [--scenario <name>] [--seed-history <N>]
-              acta-bench full --db sqlite|pg|mssql|all [--scenario <name>] [--seed-history <N>]
+              acta-bench full --db sqlite|pg|mssql|all [--scenario <name>] [--seed-history <N>] [--drain-workers <n,...>] [--jobs <N>]
               acta-bench burst [options]   The sys.alerts burst certification; burst --help lists its options.
 
             Presets:
@@ -361,6 +391,8 @@ public static class BenchCli
 
             Options:
               --scenario <name>     Measure only this scenario; repeat to select several.
+              --drain-workers <n,...>  The worker counts the drain cells sweep on PostgreSQL and SQL Server.
+              --jobs <N>            The backlog each cell drains, in place of the preset's.
               --seed-history <N>    Seed N terminal jobs (runtime, event, and result rows each) into every cell after
                                     its schema reset and before its timed window, dated across the last 30 days, so the
                                     cell measures against a populated ledger. Seeding is never timed and the workload is

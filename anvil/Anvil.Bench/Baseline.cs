@@ -21,8 +21,11 @@ public sealed record BaselinePolicy(int WarmupIterations, int MeasuredRepeats, s
 /// </summary>
 public sealed record BenchPreset(string Name, BaselinePolicy Policy, int Jobs, int EnqueueBatchJobs, int QueryRows, bool FullMatrix)
 {
-    /// <summary>The execution profiles the matrix covers; null means all three on the full matrix and Direct otherwise.</summary>
+    /// <summary>The execution profiles the matrix covers; null means both on the full matrix and Direct otherwise.</summary>
     public IReadOnlyList<ExecutionProfile>? Profiles { get; init; }
+
+    /// <summary>The worker counts the drain cells sweep on a server provider; null means 1, 4, and 16 on the full matrix and 1 and 16 otherwise.</summary>
+    public IReadOnlyList<int>? DrainWorkers { get; init; }
 }
 
 public sealed record BaselineEnvironmentInfo(
@@ -262,10 +265,8 @@ public static class BaselineSuite
             }
 
             // SQLite is single-writer, so multi-worker drain just re-measures that it does not scale.
-            var drainWorkers =
-                provider == "sqlite" ? new[] { 1 }
-                : preset.FullMatrix ? [1, 4, 16]
-                : [1, 16];
+            IReadOnlyList<int> drainWorkers =
+                provider == "sqlite" ? [1] : preset.DrainWorkers ?? (preset.FullMatrix ? [1, 4, 16] : [1, 16]);
             foreach (var profile in profiles)
             foreach (var workers in drainWorkers)
             {
