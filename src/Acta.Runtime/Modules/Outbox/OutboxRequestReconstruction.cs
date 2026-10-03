@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Modules.Outbox;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Rebuilds the canonical <see cref="JobEnqueueRequest"/> from a claimed <see cref="OutboxRow"/> using

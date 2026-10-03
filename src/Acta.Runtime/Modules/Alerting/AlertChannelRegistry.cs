@@ -1,7 +1,4 @@
-using Acta.Runtime.Hosting;
-using Acta.Runtime.Modules.Alerting.Api;
-
-namespace Acta.Runtime.Modules.Alerting;
+namespace Acta.Runtime;
 
 internal sealed class AlertChannelRegistry : IAlertChannelRegistry
 {

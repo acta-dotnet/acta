@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Modules.Execution;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Outcome of a single <c>JobExecutor.RunOnceAsync</c> tick.

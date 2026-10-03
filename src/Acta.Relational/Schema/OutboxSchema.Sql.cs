@@ -1,4 +1,4 @@
-namespace Acta.Relational.Schema;
+namespace Acta.Relational;
 
 /// <summary>
 /// Hand-authored parameter metadata for the external-outbox relay commands. Kept separate from the

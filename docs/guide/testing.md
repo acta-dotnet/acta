@@ -7,7 +7,7 @@ Runnable version: [`concepts/800-testing/801-testing-jobs`](../../concepts/800-t
 (`dotnet test concepts/800-testing/801-testing-jobs`).
 
 The package is test-framework-agnostic (xUnit, NUnit, MSTest, TUnit). Its types live in
-`Acta.Testing.Hosting`:
+`Acta.Testing`:
 
 | Type | Role |
 |------|------|
@@ -55,7 +55,7 @@ Its `EmailService` dependency is replaced with a fake through `ActaTestHostOptio
 
 ```csharp
 using Acta;
-using Acta.Testing.Hosting;
+using Acta.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Users;
 using Users.Jobs;

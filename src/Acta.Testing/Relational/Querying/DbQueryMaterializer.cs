@@ -1,10 +1,9 @@
 using System.Data.Common;
 using System.Globalization;
 using System.Reflection;
-using Acta.Relational.Commands;
-using Acta.Relational.Schema;
+using Acta.Relational;
 
-namespace Acta.Testing.Relational.Querying;
+namespace Acta.Testing;
 
 /// <summary>
 /// Materializes one row into an entity (via generator-emitted <c>EntityBinder</c>) or a

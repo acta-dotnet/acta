@@ -1,4 +1,4 @@
-namespace Acta.AspNetCore.Features.Definitions;
+namespace Acta.AspNetCore;
 
 /// <summary>
 /// Body of a <c>PATCH /definitions/{jobNamespace}/{jobName}</c> request: the optimistic-concurrency <c>Version</c> the

@@ -1,6 +1,6 @@
 using System;
 
-namespace Acta.Generators.Features.Jobs;
+namespace Acta.Generators;
 
 /// <summary>
 /// The shared kebab grammar for persisted names: job names, schedule names, and payload format

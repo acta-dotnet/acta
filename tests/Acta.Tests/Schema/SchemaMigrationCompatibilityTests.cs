@@ -1,6 +1,6 @@
 using Acta.Emit.Features.Docs;
-using Acta.Relational.Schema;
-using Acta.Sqlite.Schema;
+using Acta.Relational;
+using Acta.Sqlite;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Data.Sqlite;
 using Xunit;

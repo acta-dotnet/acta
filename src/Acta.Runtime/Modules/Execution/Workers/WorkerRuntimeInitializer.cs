@@ -2,16 +2,11 @@ using System.Collections.Immutable;
 using System.Data.Common;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using Acta.Runtime.Hosting;
-using Acta.Runtime.Modules.Execution.Api;
-using Acta.Runtime.Modules.Execution.Definitions;
-using Acta.Runtime.Modules.Execution.Schedules;
-using Acta.Runtime.Services.Time;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
-namespace Acta.Runtime.Modules.Execution.Workers;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Owns the worker-runtime catalog upsert: namespace + definitions + <c>workers</c>, then the

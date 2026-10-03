@@ -3,8 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Acta.Emit.Features.Migrations;
 using Acta.Emit.Shared;
-using Acta.Relational.Resources;
-using Acta.Relational.Schema;
+using Acta.Relational;
 
 namespace Acta.Emit.Features.Docs;
 

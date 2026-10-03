@@ -1,6 +1,4 @@
-using Acta.Runtime.Modules.Execution.Api;
-
-namespace Acta.Runtime.Modules.Alerting;
+namespace Acta.Runtime;
 
 /// <summary>
 /// One alert-relevant <c>events</c> row projected for the <c>sys.alerts</c> generate phase, joined to

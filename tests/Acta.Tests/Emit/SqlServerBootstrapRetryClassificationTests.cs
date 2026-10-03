@@ -1,4 +1,4 @@
-using Acta.SqlServer.Schema;
+using Acta.SqlServer;
 using Xunit;
 
 namespace Acta.Tests.Emit;

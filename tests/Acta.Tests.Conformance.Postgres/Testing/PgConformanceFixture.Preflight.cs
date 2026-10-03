@@ -1,5 +1,4 @@
-using Acta.Postgres.Configuration;
-using Acta.Postgres.Hosting;
+using Acta.Postgres;
 using Acta.Tests.Conformance.Testing;
 using Npgsql;
 

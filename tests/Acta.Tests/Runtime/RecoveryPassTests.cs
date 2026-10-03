@@ -1,9 +1,4 @@
-using Acta.Runtime.Modules.Execution;
-using Acta.Runtime.Modules.Execution.Api;
-using Acta.Runtime.Modules.Execution.Checkpoints;
-using Acta.Runtime.Modules.Execution.ChildLatches;
-using Acta.Runtime.Modules.Execution.Signals;
-using Acta.Runtime.Modules.Execution.Workers;
+using Acta.Runtime;
 using Microsoft.Extensions.Options;
 using Xunit;
 
@@ -198,9 +193,7 @@ public sealed class RecoveryPassTests
 
         public Task<IReadOnlyList<long>> GetChildJobIdsAsync(long parentJobId, CancellationToken ct) => throw new NotSupportedException();
 
-        public Task<Acta.Runtime.Modules.Execution.Timers.SleepDecision> ArmOrConsumeSleepTimerAsync(
-            ArmOrConsumeSleepTimerCommand command,
-            CancellationToken ct
-        ) => throw new NotSupportedException();
+        public Task<Acta.Runtime.SleepDecision> ArmOrConsumeSleepTimerAsync(ArmOrConsumeSleepTimerCommand command, CancellationToken ct) =>
+            throw new NotSupportedException();
     }
 }

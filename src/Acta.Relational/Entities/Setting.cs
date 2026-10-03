@@ -1,6 +1,4 @@
-using Acta.Relational.Schema;
-
-namespace Acta.Relational.Entities;
+namespace Acta.Relational;
 
 /// <summary>
 /// One durable configuration value in the central <c>settings</c> table, addressed by

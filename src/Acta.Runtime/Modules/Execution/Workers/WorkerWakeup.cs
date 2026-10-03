@@ -1,9 +1,8 @@
 using System.Collections.Concurrent;
-using Acta.Runtime.Kernel;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Acta.Runtime.Modules.Execution.Workers;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Auto-reset, coalescing async wake event. <see cref="Set"/> completes one pending waiter; with no

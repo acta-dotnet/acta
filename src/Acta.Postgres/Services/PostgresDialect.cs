@@ -1,17 +1,12 @@
 using System.Data;
 using System.Data.Common;
 using System.Text;
-using Acta.Relational.Commands;
-using Acta.Relational.Schema;
-using Acta.Runtime.Kernel;
-using Acta.Runtime.Modules.Execution;
-using Acta.Runtime.Modules.Execution.Definitions;
-using Acta.Runtime.Modules.Execution.Jobs;
-using Acta.Runtime.Modules.Execution.Schedules;
+using Acta.Relational;
+using Acta.Runtime;
 using Npgsql;
 using NpgsqlTypes;
 
-namespace Acta.Postgres.Services;
+namespace Acta.Postgres;
 
 /// <summary>
 /// PostgreSQL <see cref="ISqlDialect"/>: connection creation, generic parameter coercion, and

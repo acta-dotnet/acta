@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Modules.Execution.Workers;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Partitions the generated <c>RuntimeJobs</c> framework manifest into the automatic maintenance set and

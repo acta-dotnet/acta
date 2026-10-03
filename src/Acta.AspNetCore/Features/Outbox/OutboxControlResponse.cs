@@ -1,4 +1,4 @@
-namespace Acta.AspNetCore.Features.Outbox;
+namespace Acta.AspNetCore;
 
 /// <summary>
 /// HTTP projection of an <see cref="OutboxControlResult"/> with an operator-readable message.

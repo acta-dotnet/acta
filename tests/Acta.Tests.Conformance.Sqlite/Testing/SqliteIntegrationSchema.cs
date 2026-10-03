@@ -1,4 +1,4 @@
-using Acta.Sqlite.Schema;
+using Acta.Sqlite;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Data.Sqlite;
 

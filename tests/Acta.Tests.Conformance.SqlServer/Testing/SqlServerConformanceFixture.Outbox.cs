@@ -22,7 +22,7 @@ public sealed partial class SqlServerConformanceFixture
     public async ValueTask ApplyOutboxDdlAsync(string table)
     {
         await ExecOutboxAsync($"DROP TABLE IF EXISTS {Schema}.{table};");
-        await ExecOutboxAsync(Acta.SqlServer.Hosting.SqlServerOutboxDdl.CreateScript(table, Schema));
+        await ExecOutboxAsync(Acta.SqlServer.SqlServerOutboxDdl.CreateScript(table, Schema));
     }
 
     public async ValueTask StageInOneTransactionAsync(string outboxTable, IReadOnlyList<Acta.JobEnqueueRequest> requests)
@@ -78,7 +78,7 @@ public sealed partial class SqlServerConformanceFixture
         return Convert.ToInt32(await cmd.ExecuteScalarAsync(), CultureInfo.InvariantCulture);
     }
 
-    public object CreateOutboxStore(string table) => Acta.SqlServer.Hosting.SqlServerOutboxSource.CreateStore(Conn, Schema, table);
+    public object CreateOutboxStore(string table) => Acta.SqlServer.SqlServerOutboxSource.CreateStore(Conn, Schema, table);
 
     public void ApplyOutboxSource(Acta.IOutboxSourceBuilder source)
     {

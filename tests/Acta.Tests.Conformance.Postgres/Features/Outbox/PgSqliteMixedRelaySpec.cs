@@ -1,5 +1,4 @@
-using Acta.Runtime.Modules.Execution.Api;
-using Acta.Runtime.Modules.Outbox;
+using Acta.Runtime;
 using Acta.Tests.Conformance.Postgres.Testing;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Data.Sqlite;
@@ -49,7 +48,7 @@ public sealed class PgSqliteMixedRelaySpec : ActaRuntimeTestBase<PgConformanceFi
         await SeedSqliteRowAsync(Guid.NewGuid(), dedup);
 
         // Source store on SQLite, target on the Postgres ledger: two independent provider registrations.
-        var store = Acta.Sqlite.Hosting.SqliteOutboxSource.CreateStore(_sqliteConn, "main", "acta_outbox");
+        var store = Acta.Sqlite.SqliteOutboxSource.CreateStore(_sqliteConn, "main", "acta_outbox");
         var target = new JobsSubmission(Jobs);
         var relay = new OutboxRelayService(store, target);
         var maxInline = Services.GetRequiredService<IOptions<JobsOptions>>().Value.MaxInlinePayloadBytes;
@@ -67,7 +66,7 @@ public sealed class PgSqliteMixedRelaySpec : ActaRuntimeTestBase<PgConformanceFi
         await using var c = new SqliteConnection(_sqliteConn);
         await c.OpenAsync();
         await using var cmd = c.CreateCommand();
-        cmd.CommandText = Acta.Sqlite.Hosting.SqliteOutboxDdl.CreateScript("acta_outbox");
+        cmd.CommandText = Acta.Sqlite.SqliteOutboxDdl.CreateScript("acta_outbox");
         await cmd.ExecuteNonQueryAsync();
     }
 

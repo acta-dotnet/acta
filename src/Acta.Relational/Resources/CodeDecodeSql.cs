@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace Acta.Relational.Resources;
+namespace Acta.Relational;
 
 internal static partial class CodeDecodeSql
 {

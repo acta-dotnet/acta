@@ -1,5 +1,4 @@
-using Acta.Runtime.Modules.Execution;
-using Acta.Runtime.Modules.Execution.Jobs;
+using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Xunit;
@@ -78,7 +77,7 @@ public abstract class ExplainScenarioSpec<TFixture> : ActaRuntimeTestBase<TFixtu
             ct
         );
         Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(parent, ct));
-        var child = Assert.Single(await Db.From<Acta.Relational.Entities.Job>().Where(j => j.ParentId == parent.JobId).ToListAsync(ct));
+        var child = Assert.Single(await Db.From<Acta.Relational.Job>().Where(j => j.ParentId == parent.JobId).ToListAsync(ct));
 
         var x = await Jobs.ExplainAsync(JobLookup.ById(parent.JobId), ct);
 

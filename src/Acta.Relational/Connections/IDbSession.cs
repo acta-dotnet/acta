@@ -1,7 +1,6 @@
 using System.Data.Common;
-using Acta.Relational.Commands;
 
-namespace Acta.Relational.Connections;
+namespace Acta.Relational;
 
 /// <summary>
 /// Internal relational execute surface consumed by the shared stores. Owns connection open, deadlock

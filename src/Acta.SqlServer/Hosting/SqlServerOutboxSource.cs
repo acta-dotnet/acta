@@ -1,11 +1,7 @@
-using Acta.Relational.Connections;
-using Acta.Relational.Resources;
-using Acta.Relational.Stores;
-using Acta.Runtime.Modules.Outbox;
-using Acta.SqlServer.Configuration;
-using Acta.SqlServer.Services;
+using Acta.Relational;
+using Acta.Runtime;
 
-namespace Acta.SqlServer.Hosting;
+namespace Acta.SqlServer;
 
 /// <summary>
 /// Builds the SQL Server external-outbox source store: a per-operation source connection, the inline

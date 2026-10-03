@@ -1,6 +1,4 @@
-using Acta.Relational.Schema;
-
-namespace Acta.Relational.Entities;
+namespace Acta.Relational;
 
 /// <summary>
 /// Exact searchable metadata attached to one target. A tag scope identifies the exact target to which

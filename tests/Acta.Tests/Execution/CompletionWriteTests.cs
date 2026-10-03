@@ -1,5 +1,5 @@
 using System.Data.Common;
-using Acta.Runtime.Modules.Execution;
+using Acta.Runtime;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;

@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace Acta.Relational.Commands;
+namespace Acta.Relational;
 
 /// <summary>
 /// Addresses one store command whose provider resource selects an installed routine or an inline

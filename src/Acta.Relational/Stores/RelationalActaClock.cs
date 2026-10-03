@@ -1,8 +1,6 @@
-using Acta.Relational.Commands;
-using Acta.Relational.Connections;
-using Acta.Runtime.Services.Time;
+using Acta.Runtime;
 
-namespace Acta.Relational.Stores;
+namespace Acta.Relational;
 
 /// <summary>
 /// Shared relational <see cref="IServerClock"/> over <see cref="IDbSession"/>: one scalar round trip

@@ -1,5 +1,4 @@
-using Acta.Runtime.Modules.Alerting;
-using Acta.Runtime.Modules.Alerting.Api;
+using Acta.Runtime;
 using Xunit;
 
 namespace Acta.Tests.Alerts;

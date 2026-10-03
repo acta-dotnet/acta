@@ -1,9 +1,8 @@
 using System.Buffers;
 using System.Text;
 using System.Text.Json;
-using Acta.Runtime.Kernel;
 
-namespace Acta.Runtime.Modules.Operations.Tags;
+namespace Acta.Runtime;
 
 internal static class TagJson
 {

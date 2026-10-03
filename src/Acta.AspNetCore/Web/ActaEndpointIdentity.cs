@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Routing.Patterns;
 
-namespace Acta.AspNetCore.Web;
+namespace Acta.AspNetCore;
 
 /// <summary>
 /// Tags every mapped operator endpoint by its resource, derived from the endpoint's own route and

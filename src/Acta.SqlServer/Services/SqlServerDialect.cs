@@ -1,16 +1,11 @@
 using System.Data;
 using System.Data.Common;
-using Acta.Relational.Commands;
-using Acta.Relational.Schema;
-using Acta.Runtime.Kernel;
-using Acta.Runtime.Modules.Execution;
-using Acta.Runtime.Modules.Execution.Definitions;
-using Acta.Runtime.Modules.Execution.Jobs;
-using Acta.Runtime.Modules.Execution.Schedules;
+using Acta.Relational;
+using Acta.Runtime;
 using Microsoft.Data.SqlClient;
 using Microsoft.Data.SqlClient.Server;
 
-namespace Acta.SqlServer.Services;
+namespace Acta.SqlServer;
 
 /// <summary>
 /// SQL Server <see cref="ISqlDialect"/>: connection creation, generic parameter coercion, and

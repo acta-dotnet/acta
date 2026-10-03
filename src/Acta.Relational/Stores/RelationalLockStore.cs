@@ -1,10 +1,7 @@
 using System.Globalization;
-using Acta.Relational.Commands;
-using Acta.Relational.Connections;
-using Acta.Relational.Schema;
-using Acta.Runtime.Services.Locks;
+using Acta.Runtime;
 
-namespace Acta.Relational.Stores;
+namespace Acta.Relational;
 
 /// <summary>
 /// Shared relational <c>locks</c>-backed <see cref="ILockStore"/> over <see cref="IDbSession"/>:

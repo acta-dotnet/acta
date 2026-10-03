@@ -317,13 +317,10 @@ The core API uses `Acta`; selecting PostgreSQL adds the package-root `Acta.Postg
 
 ### Advanced configuration
 
-Core option types such as `JobsOptions` stay in the flat `Acta` namespace because the `Acta` project
-is the deliberate namespace-layout exception. Provider option types follow their physical folders,
-for example `Acta.Postgres.Configuration`, and provider registration extensions use the package root,
-for example `Acta.Postgres`.
-
-Outside the `Acta` project, namespaces follow the project root and physical folder structure. This
-keeps assembly ownership visible and makes namespace conventions mechanically enforceable.
+Every assembly has one namespace, its root. Core option types such as `JobsOptions` are in `Acta`;
+provider option types sit beside their registration extensions, for example
+`Acta.Postgres.PostgresProviderOptions`. Folders group files and never change a namespace, so a move
+never touches a using.
 
 ### Public facade split
 
@@ -403,9 +400,6 @@ Folders under a module use vertical use-case organization, not mandatory `Applic
 
 The gates are custom tests under `tests/Acta.Tests/Architecture` (no ArchUnitNET dependency):
 
-- `ModuleBoundaryTests` — the declared module graph is acyclic (DFS gate); cross-module references
-  target `.Api` only; no module type takes another module's store ports by constructor or service
-  location; the reference graph holds to zero undeclared edges.
 - `SqlOwnershipTests` — two-tier SQL write ownership (capability + module), per-table
   process-manager declarations, and folder-placement checks over `Sql/{Module}/{Capability}/`.
 - `ArchitectureBoundaryTests` — provider schema migrators stay internal; `Acta.AspNetCore`

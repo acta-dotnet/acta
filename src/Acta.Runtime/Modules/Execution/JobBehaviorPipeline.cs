@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Modules.Execution;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Ordered pipeline-behavior resolvers for a worker. <see cref="Build"/> folds them around the

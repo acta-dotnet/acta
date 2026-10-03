@@ -1,6 +1,4 @@
-using Acta.Runtime.Modules.Execution.Api;
-
-namespace Acta.Runtime.Modules.Execution.Jobs;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Result of a cancel attempt: the control outcome plus the row's parent id, so the caller can raise

@@ -2,7 +2,7 @@ using System.Data;
 using System.Data.Common;
 using System.Globalization;
 
-namespace Acta.Relational.Commands;
+namespace Acta.Relational;
 
 /// <summary>
 /// Provider-neutral <see cref="DbDataReader"/> readers and scalar-result coercers used by

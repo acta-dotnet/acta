@@ -1,7 +1,4 @@
-using Acta.Runtime.Kernel;
-using Acta.Runtime.Modules.Execution.Api;
-
-namespace Acta.Runtime.Modules.Execution.Settings;
+namespace Acta.Runtime;
 
 /// <summary>Persistence port for the settings feature: one exact-scope point read, one upsert write.</summary>
 internal interface ISettingStore

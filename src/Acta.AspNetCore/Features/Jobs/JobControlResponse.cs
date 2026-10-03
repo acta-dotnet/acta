@@ -1,4 +1,4 @@
-namespace Acta.AspNetCore.Features.Jobs;
+namespace Acta.AspNetCore;
 
 /// <summary>
 /// HTTP projection of a <see cref="JobControlResult"/> with an operator-readable message. Returned

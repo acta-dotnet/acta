@@ -16,6 +16,11 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   diagnostics types are removed. Drive a job through `IActaTestHost` itself: enqueue through
   `host.Jobs`, tick with `RunOnceAsync`, and make a timer, step retry, or wait due with the `Force*`
   helpers.
+- **Each package has one namespace, its own name.** The types under a sub-namespace move to the
+  package root: the provider options and outbox DDL types (`Acta.Postgres.Configuration`,
+  `Acta.Postgres.Hosting`, and the SQL Server and SQLite equivalents), `RedisWakeupOptions`, the
+  dashboard options and control authorization types in `Acta.AspNetCore.Configuration`, and the test
+  host in `Acta.Testing.Hosting`. Replace those usings with the package root, such as `using Acta.Postgres;`.
 
 ### Fixes
 

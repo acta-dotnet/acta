@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Acta.Runtime.Modules.Outbox;
+namespace Acta.Runtime;
 
 /// <summary>
 /// The two fixed signal names of the operator-command inbox on a <c>sys.outbox</c> slot. Fixed names

@@ -1,6 +1,4 @@
-using Acta.Runtime.Kernel;
-
-namespace Acta.Runtime.Modules.Execution.Api;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Who or what caused a control transition, stamped onto the emitted <c>events</c>

@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Modules.Execution;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Default <see cref="IJobContextAccessor"/>: a scoped holder the worker runtime sets at the top of

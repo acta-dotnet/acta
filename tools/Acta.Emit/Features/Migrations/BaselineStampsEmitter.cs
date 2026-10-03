@@ -21,7 +21,7 @@ internal static class BaselineStampsEmitter
         sb.AppendLine("// Each value is a content hash of that provider's committed baseline migration; edit the SQL,");
         sb.AppendLine("// not this file.");
         sb.AppendLine();
-        sb.AppendLine("namespace Acta.Relational.Schema;");
+        sb.AppendLine("namespace Acta.Relational;");
         sb.AppendLine();
         sb.AppendLine("/// <summary>");
         sb.AppendLine("/// The baseline generation each provider package ships, as recorded in the version-0 row of its");

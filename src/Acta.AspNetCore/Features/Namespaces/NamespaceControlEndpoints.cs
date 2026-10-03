@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 
-namespace Acta.AspNetCore.Features.Namespaces;
+namespace Acta.AspNetCore;
 
 /// <summary>
 /// POST/PATCH namespace-admin endpoints over <see cref="INamespaces"/>. Control-gated by the shared

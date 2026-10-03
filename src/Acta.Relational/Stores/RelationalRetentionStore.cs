@@ -1,9 +1,6 @@
-using Acta.Relational.Commands;
-using Acta.Relational.Connections;
-using Acta.Relational.Schema;
-using Acta.Runtime.Maintenance;
+using Acta.Runtime;
 
-namespace Acta.Relational.Stores;
+namespace Acta.Relational;
 
 /// <summary>
 /// Shared relational port for one atomic batch. The runtime coordinator owns the sweep loops.

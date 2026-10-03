@@ -2,7 +2,7 @@ using System.Buffers;
 using System.Text;
 using System.Text.Json;
 
-namespace Acta.Runtime.Kernel;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Canonicalizes tag filters into the <c>[{"name", "value_search"}]</c> JSON projection the

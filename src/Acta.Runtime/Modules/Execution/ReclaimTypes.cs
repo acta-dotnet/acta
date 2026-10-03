@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Modules.Execution;
+namespace Acta.Runtime;
 
 /// <summary>
 /// One reclaim pass's outcome: how many leases were reclaimed, which children landed terminal Failed

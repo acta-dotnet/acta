@@ -1,4 +1,4 @@
-using Acta.Generators.Features.Jobs;
+using Acta.Generators;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Diagnostics;

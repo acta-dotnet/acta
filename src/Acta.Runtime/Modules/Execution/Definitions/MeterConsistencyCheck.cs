@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 
-namespace Acta.Runtime.Modules.Execution.Definitions;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Startup and policy-reload consistency check for shared rate meters: groups a namespace's

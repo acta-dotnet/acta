@@ -1,6 +1,6 @@
-using Acta.Runtime.Hosting;
+using Acta.Runtime;
 
-namespace Acta.Sqlite.Hosting;
+namespace Acta.Sqlite;
 
 /// <summary>
 /// Emits the canonical SQLite <c>acta_outbox</c> CREATE script for producer-owned migration systems. A

@@ -1,4 +1,4 @@
-using Acta.Runtime.Configuration;
+using Acta.Runtime;
 using Microsoft.Extensions.Options;
 using Xunit;
 

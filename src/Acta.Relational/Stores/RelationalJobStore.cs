@@ -1,12 +1,8 @@
 using System.Data.Common;
 using System.Globalization;
-using Acta.Relational.Commands;
-using Acta.Relational.Connections;
-using Acta.Relational.Schema;
-using Acta.Runtime.Modules.Execution.Api;
-using Acta.Runtime.Modules.Execution.Jobs;
+using Acta.Runtime;
 
-namespace Acta.Relational.Stores;
+namespace Acta.Relational;
 
 /// <summary>
 /// Shared relational <see cref="IJobStore"/> over <see cref="IDbSession"/>. One implementation for

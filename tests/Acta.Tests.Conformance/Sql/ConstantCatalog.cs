@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Reflection;
 using System.Text.RegularExpressions;
-using Acta.Runtime.Modules.Execution;
+using Acta.Runtime;
 
 namespace Acta.Tests.Conformance.Sql;
 

@@ -1,12 +1,10 @@
 using System.Data;
 using System.Data.Common;
 using System.Runtime.ExceptionServices;
-using Acta.Relational.Commands;
-using Acta.Relational.Resources;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Acta.Relational.Connections;
+namespace Acta.Relational;
 
 /// <summary>
 /// Provider-backed execute surface. Owns connection open, deadlock retry, routine-vs-inline dispatch,

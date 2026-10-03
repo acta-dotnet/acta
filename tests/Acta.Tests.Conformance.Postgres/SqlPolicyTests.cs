@@ -1,4 +1,4 @@
-using Acta.Postgres.Configuration;
+using Acta.Postgres;
 using Acta.Tests.Conformance.Sql;
 using Xunit;
 

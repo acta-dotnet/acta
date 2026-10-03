@@ -1,5 +1,5 @@
-using Acta.Relational.Resources;
-using Acta.Sqlite.Services;
+using Acta.Relational;
+using Acta.Sqlite;
 using Xunit;
 
 namespace Acta.Tests.Storage;

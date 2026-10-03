@@ -1,4 +1,4 @@
-using Acta.Relational.Schema;
+using Acta.Relational;
 using Microsoft.Data.Sqlite;
 using Xunit;
 

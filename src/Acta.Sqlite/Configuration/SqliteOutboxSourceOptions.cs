@@ -1,4 +1,4 @@
-﻿namespace Acta.Sqlite.Configuration;
+﻿namespace Acta.Sqlite;
 
 /// <summary>
 /// Connection options for a SQLite external-outbox source, captured on

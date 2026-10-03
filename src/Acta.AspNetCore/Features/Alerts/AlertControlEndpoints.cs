@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 
-namespace Acta.AspNetCore.Features.Alerts;
+namespace Acta.AspNetCore;
 
 /// <summary>
 /// POST alert-control endpoints: thin HTTP wrappers over the <see cref="IAlerts"/> acknowledge/resolve

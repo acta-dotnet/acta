@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Modules.Execution.Tenants;
+namespace Acta.Runtime;
 
 /// <summary>
 /// <see cref="ITenants"/> implementation: a thin adapter over the Tenants feature service, which

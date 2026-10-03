@@ -1,4 +1,4 @@
-namespace Acta.Relational.Commands;
+namespace Acta.Relational;
 
 /// <summary>
 /// Bounded retry for a store operation that the database aborted as a deadlock victim. The aborted

@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Modules.Execution.Definitions;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Resolved enqueue route for a job input type: the namespace it was registered under, its job name,

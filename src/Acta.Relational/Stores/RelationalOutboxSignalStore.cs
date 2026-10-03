@@ -1,9 +1,6 @@
-using Acta.Relational.Commands;
-using Acta.Relational.Connections;
-using Acta.Relational.Schema;
-using Acta.Runtime.Modules.Outbox;
+using Acta.Runtime;
 
-namespace Acta.Relational.Stores;
+namespace Acta.Relational;
 
 /// <summary>
 /// Shared relational <see cref="IOutboxSignalStore"/> over the ledger <see cref="IDbSession"/>: the

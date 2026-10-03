@@ -1,4 +1,4 @@
-namespace Acta.Relational.Schema;
+namespace Acta.Relational;
 
 /// <summary>
 /// One discovered migration's parsed version, display name, and <c>{{schema}}</c>-templated body.

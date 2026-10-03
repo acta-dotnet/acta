@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 
-namespace Acta.AspNetCore.Features.Tags;
+namespace Acta.AspNetCore;
 
 /// <summary>Request body for a tag upsert: normalized name plus optional preserved value.</summary>
 internal sealed record TagUpsertRequest(string? Name, string? Value);

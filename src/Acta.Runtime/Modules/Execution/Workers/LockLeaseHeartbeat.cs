@@ -1,10 +1,8 @@
 using System.Diagnostics;
-using Acta.Runtime.Hosting;
-using Acta.Runtime.Services.Locks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Acta.Runtime.Modules.Execution.Workers;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Renews the handler-acquired locks (<c>RunWithLock</c> and the concurrency slot) running attempts

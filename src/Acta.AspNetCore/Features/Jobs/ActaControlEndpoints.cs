@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Options;
 
-namespace Acta.AspNetCore.Features.Jobs;
+namespace Acta.AspNetCore;
 
 /// <summary>
 /// POST job-control endpoints: thin HTTP wrappers over the <see cref="IJobs"/> control verbs. The

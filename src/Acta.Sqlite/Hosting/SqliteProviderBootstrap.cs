@@ -1,10 +1,9 @@
-using Acta.Relational.Connections;
-using Acta.Runtime.Hosting;
-using Acta.Sqlite.Schema;
+using Acta.Relational;
+using Acta.Runtime;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 
-namespace Acta.Sqlite.Hosting;
+namespace Acta.Sqlite;
 
 internal sealed class SqliteProviderBootstrap(SqlProviderOptions options, ILogger<SqliteProviderBootstrap>? log = null) : IProviderBootstrap
 {

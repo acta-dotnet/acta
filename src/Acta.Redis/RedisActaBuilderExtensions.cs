@@ -1,5 +1,3 @@
-using Acta.Redis.Configuration;
-using Acta.Redis.Features.Workers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;

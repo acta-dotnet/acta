@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Acta.Runtime.Modules.Alerting;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Zero-dependency transport that writes the alert to the logger and reports success. Always present; the

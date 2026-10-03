@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace Acta.Runtime.Cli;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Clipboard fallback for the CLI target: when a verb is invoked without a job id or deduplication-key,

@@ -1,7 +1,6 @@
-using Acta.Runtime.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace Acta.Runtime.Modules.Execution.Workers;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Keeps crash recovery from depending on the one job that can be stranded. The reclaim sweep runs

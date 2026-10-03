@@ -1,9 +1,8 @@
-using Acta.Runtime.Hosting;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Acta.Runtime.Modules.Execution.Workers;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Process-level <see cref="BackgroundService"/>. Runs provider bootstrap exactly once (driver and schema

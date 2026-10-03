@@ -1,9 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using Acta.Runtime.Hosting;
-using Acta.Runtime.Services.Locks;
 
-namespace Acta.Runtime.Modules.Execution.Workers;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Shared mutable worker state threaded between the initializer (writer) and the claim/dispatch

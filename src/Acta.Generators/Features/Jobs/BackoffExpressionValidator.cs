@@ -2,7 +2,7 @@ using System;
 using System.Globalization;
 using System.Xml;
 
-namespace Acta.Generators.Features.Jobs;
+namespace Acta.Generators;
 
 internal static class BackoffExpressionValidator
 {

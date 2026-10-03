@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Options;
 
-namespace Acta.Runtime.Modules.Outbox;
+namespace Acta.Runtime;
 
 /// <summary>
 /// <c>sys.outbox</c>, the external-outbox relay. A recurring, competitively-claimed <c>[Job]</c> added

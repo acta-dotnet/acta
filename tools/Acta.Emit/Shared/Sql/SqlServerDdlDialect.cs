@@ -1,6 +1,6 @@
 using System.Text;
 using Acta.Emit.Shared.Model;
-using Acta.Relational.Schema;
+using Acta.Relational;
 
 namespace Acta.Emit.Shared.Sql;
 

@@ -1,10 +1,8 @@
-using Acta.Relational.Entities;
-using Acta.Runtime.Hosting;
-using Acta.Runtime.Modules.Execution;
-using Acta.Runtime.Modules.Execution.Workers;
+using Acta.Relational;
+using Acta.Runtime;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Acta.Testing.Hosting;
+namespace Acta.Testing;
 
 /// <summary>
 /// Coarse outcome of one <see cref="IActaTestHost.RunOnceAsync"/> tick: the public mirror of the

@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Modules.Execution;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Thrown when <c>complete_step</c> returns <c>StaleVersion</c>: the step slot's version CAS

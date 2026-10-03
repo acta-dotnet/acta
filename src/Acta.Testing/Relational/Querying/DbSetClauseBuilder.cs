@@ -2,10 +2,9 @@ using System.Data.Common;
 using System.Globalization;
 using System.Linq.Expressions;
 using System.Text;
-using Acta.Relational.Commands;
-using Acta.Relational.Schema;
+using Acta.Relational;
 
-namespace Acta.Testing.Relational.Querying;
+namespace Acta.Testing;
 
 /// <summary>
 /// Translates the <c>() =&gt; new T { Col = value, ... }</c> body of an update into a

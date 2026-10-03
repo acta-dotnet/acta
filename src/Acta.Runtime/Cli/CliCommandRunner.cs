@@ -1,8 +1,6 @@
 using System.Text;
-using Acta.Runtime.Modules.Execution;
-using Acta.Runtime.Modules.Execution.Workers;
 
-namespace Acta.Runtime.Cli;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Executes one parsed CLI command against the IJobs facade (IActaOperations for the events read)

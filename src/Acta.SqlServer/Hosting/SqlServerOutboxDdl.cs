@@ -1,6 +1,6 @@
-using Acta.Runtime.Hosting;
+using Acta.Runtime;
 
-namespace Acta.SqlServer.Hosting;
+namespace Acta.SqlServer;
 
 /// <summary>
 /// Emits the canonical SQL Server <c>acta_outbox</c> CREATE script for producer-owned migration systems.

@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Acta.AspNetCore.Features.Jobs;
+namespace Acta.AspNetCore;
 
 /// <summary>
 /// Body of a job-control POST. Only the reason travels over HTTP; the framework stamps the actor

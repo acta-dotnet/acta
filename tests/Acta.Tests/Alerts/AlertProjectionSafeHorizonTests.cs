@@ -1,11 +1,7 @@
 using System.Data.Common;
-using Acta.Relational.Commands;
-using Acta.Relational.Connections;
-using Acta.Relational.Schema;
-using Acta.Relational.Stores;
-using Acta.Runtime.Modules.Alerting;
-using Acta.Sqlite.Configuration;
-using Acta.Sqlite.Services;
+using Acta.Relational;
+using Acta.Runtime;
+using Acta.Sqlite;
 using Microsoft.Data.Sqlite;
 using Xunit;
 

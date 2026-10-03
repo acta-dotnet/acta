@@ -1,11 +1,9 @@
 using System.Threading.Channels;
-using Acta.Runtime.Hosting;
-using Acta.Runtime.Kernel;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
-namespace Acta.Runtime.Modules.Execution.Workers;
+namespace Acta.Runtime;
 
 /// <summary>
 /// The claim/dispatch loop. A single producer (<see cref="ClaimLoopAsync"/>) claims Ready jobs
@@ -14,7 +12,7 @@ namespace Acta.Runtime.Modules.Execution.Workers;
 /// so enqueue-only deployments never enter the loop.
 /// </summary>
 internal sealed class WorkerLoop(
-    Acta.Runtime.Modules.Execution.IExecutionStore execution,
+    Acta.Runtime.IExecutionStore execution,
     JobExecutor executor,
     IOptions<JobsOptions> options,
     WorkerRegistration? workerRegistration,
@@ -24,7 +22,7 @@ internal sealed class WorkerLoop(
     JobMetrics? metrics = null
 )
 {
-    private readonly Acta.Runtime.Modules.Execution.IExecutionStore _execution = execution;
+    private readonly Acta.Runtime.IExecutionStore _execution = execution;
     private readonly int _leaseTtlSeconds = options.Value.LeaseTtlSeconds;
     private readonly JobExecutor _executor = executor;
     private readonly IOptions<JobsOptions> _options = options;

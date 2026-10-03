@@ -20,7 +20,7 @@ public sealed partial class PgConformanceFixture
     public async ValueTask ApplyOutboxDdlAsync(string table)
     {
         await ExecOutboxAsync($"DROP TABLE IF EXISTS {Schema}.{table};");
-        await ExecOutboxAsync(Acta.Postgres.Hosting.PostgresOutboxDdl.CreateScript(table, Schema));
+        await ExecOutboxAsync(Acta.Postgres.PostgresOutboxDdl.CreateScript(table, Schema));
     }
 
     public async ValueTask StageInOneTransactionAsync(string outboxTable, IReadOnlyList<Acta.JobEnqueueRequest> requests)
@@ -76,7 +76,7 @@ public sealed partial class PgConformanceFixture
         return Convert.ToInt32(await cmd.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
     }
 
-    public object CreateOutboxStore(string table) => Acta.Postgres.Hosting.PostgresOutboxSource.CreateStore(Conn, Schema, table);
+    public object CreateOutboxStore(string table) => Acta.Postgres.PostgresOutboxSource.CreateStore(Conn, Schema, table);
 
     public void ApplyOutboxSource(Acta.IOutboxSourceBuilder source)
     {

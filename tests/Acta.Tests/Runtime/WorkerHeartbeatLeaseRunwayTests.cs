@@ -1,6 +1,5 @@
 using System.Diagnostics;
-using Acta.Runtime.Modules.Execution.Workers;
-using Acta.Runtime.Services.Locks;
+using Acta.Runtime;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Xunit;

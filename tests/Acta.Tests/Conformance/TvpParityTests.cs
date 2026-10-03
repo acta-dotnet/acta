@@ -1,6 +1,6 @@
 using System.Data;
 using System.Text.RegularExpressions;
-using Acta.SqlServer.Services;
+using Acta.SqlServer;
 using Microsoft.Data.SqlClient.Server;
 using Xunit;
 

@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Modules.Execution;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Internal control-flow signal raised by <c>RuntimeJobContext.SleepCoreAsync</c> after the timer

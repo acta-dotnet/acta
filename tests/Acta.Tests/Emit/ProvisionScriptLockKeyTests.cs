@@ -1,5 +1,5 @@
 using System.Text.RegularExpressions;
-using Acta.Relational.Schema;
+using Acta.Relational;
 using Acta.Tests.Conformance.Testing;
 using Xunit;
 

@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Acta.Generators.Shared;
+namespace Acta.Generators;
 
 /// <summary>
 /// Shared text helpers for the three Acta source generators. Kept intentionally small: only what

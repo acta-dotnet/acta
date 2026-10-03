@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Http;
 
-namespace Acta.AspNetCore.Configuration;
+namespace Acta.AspNetCore;
 
 /// <summary>
 /// Per-request authorization seam for Acta's mutating control endpoints (job pause/resume/cancel,

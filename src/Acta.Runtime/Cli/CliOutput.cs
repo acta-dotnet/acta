@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 
-namespace Acta.Runtime.Cli;
+namespace Acta.Runtime;
 
 /// <summary>
 /// CLI result writers: plain key-value lines for humans, hand-written JSON for scripting. JSON is

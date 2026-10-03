@@ -1,6 +1,6 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
-using Acta.Relational.Resources;
+using Acta.Relational;
 using Acta.Tests.Conformance.Testing;
 using Xunit;
 

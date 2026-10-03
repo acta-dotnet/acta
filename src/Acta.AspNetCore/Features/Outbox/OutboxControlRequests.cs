@@ -1,4 +1,4 @@
-namespace Acta.AspNetCore.Features.Outbox;
+namespace Acta.AspNetCore;
 
 /// <summary>
 /// Optional body of an outbox requeue/discard POST (the source is addressed by the route's

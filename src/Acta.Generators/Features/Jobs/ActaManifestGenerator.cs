@@ -4,11 +4,10 @@ using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
 using System.Text;
-using Acta.Generators.Shared;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace Acta.Generators.Features.Jobs;
+namespace Acta.Generators;
 
 /// <summary>
 /// Emits a per-assembly <c>{Area}JobsManifest : IJobManifest</c> (area = RootNamespace's last segment) with one

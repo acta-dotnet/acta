@@ -1,6 +1,6 @@
 // xUnit class fixture: one ActaTestHost (and its schema migration) per test class, not per [Fact].
 
-using Acta.Testing.Hosting;
+using Acta.Testing;
 using Microsoft.Extensions.Configuration;
 using Xunit;
 

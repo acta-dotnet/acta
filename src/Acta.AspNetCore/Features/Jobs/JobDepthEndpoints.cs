@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 
-namespace Acta.AspNetCore.Features.Jobs;
+namespace Acta.AspNetCore;
 
 /// <summary>
 /// Dashboard-depth endpoints: the input-template shape hint (<see cref="MapReads"/>) and the POST /jobs

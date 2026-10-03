@@ -1,15 +1,8 @@
 using System.Data.Common;
 using System.Globalization;
-using Acta.Runtime.Kernel;
-using Acta.Runtime.Modules.Execution.Api;
-using Acta.Runtime.Modules.Execution.ChildLatches;
-using Acta.Runtime.Modules.Execution.Schedules;
-using Acta.Runtime.Modules.Execution.Workers;
-using Acta.Runtime.Querying;
-using Acta.Runtime.Services.Time;
 using Microsoft.Extensions.Options;
 
-namespace Acta.Runtime.Modules.Execution.Jobs;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Jobs feature read behavior: job dispatch (id passthrough, ref and deduplication-key resolves
@@ -20,7 +13,7 @@ internal sealed class JobsService(
     IJobStore store,
     IActaClock clock,
     IJobPayloadSerializerRegistry serializers,
-    Acta.Runtime.Modules.Execution.Signals.ISignalStore signalStore,
+    Acta.Runtime.ISignalStore signalStore,
     IScheduleStore scheduleStore,
     IExecutionStore executionStore,
     WorkerWakeupPublisher wakeupPublisher,

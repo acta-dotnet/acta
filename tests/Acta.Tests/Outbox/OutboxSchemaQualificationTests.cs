@@ -1,6 +1,6 @@
-using Acta.Postgres.Configuration;
-using Acta.Relational.Resources;
-using Acta.SqlServer.Configuration;
+using Acta.Postgres;
+using Acta.Relational;
+using Acta.SqlServer;
 using Xunit;
 
 namespace Acta.Tests.Outbox;

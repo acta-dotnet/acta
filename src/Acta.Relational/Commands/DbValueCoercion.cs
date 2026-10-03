@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Acta.Relational.Commands;
+namespace Acta.Relational;
 
 /// <summary>
 /// Shared CLR-to-parameter value coercion for Acta's fluent table query surface and test-only

@@ -1,6 +1,4 @@
-using Acta.Runtime.Querying;
-
-namespace Acta.Runtime.Modules.Operations.Overview;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Overview feature behavior: validates the public query and delegates to the store port. Exists so

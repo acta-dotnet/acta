@@ -1,10 +1,7 @@
 using System.Globalization;
-using Acta.Relational.Commands;
-using Acta.Relational.Connections;
-using Acta.Relational.Schema;
-using Acta.Runtime.Modules.Operations.Events;
+using Acta.Runtime;
 
-namespace Acta.Relational.Stores;
+namespace Acta.Relational;
 
 /// <summary>
 /// Shared relational <see cref="IEventStore"/> over <see cref="IDbSession"/>: the keyset page and the

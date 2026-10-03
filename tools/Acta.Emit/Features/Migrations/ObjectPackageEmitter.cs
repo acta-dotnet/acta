@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Text;
 using Acta.Emit.Features.Docs;
 using Acta.Emit.Shared;
-using Acta.Relational.Schema;
+using Acta.Relational;
 
 namespace Acta.Emit.Features.Migrations;
 
@@ -41,7 +41,7 @@ internal static class ObjectPackageEmitter
         sb.AppendLine("// Each value is a content hash of that provider's installed views and routines; edit the SQL,");
         sb.AppendLine("// not this file.");
         sb.AppendLine();
-        sb.AppendLine("namespace Acta.Relational.Schema;");
+        sb.AppendLine("namespace Acta.Relational;");
         sb.AppendLine();
         sb.AppendLine("/// <summary>");
         sb.AppendLine("/// The object package each provider package ships, as recorded in the sentinel row its install");

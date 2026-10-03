@@ -1,4 +1,4 @@
-namespace Acta.Relational.Schema;
+namespace Acta.Relational;
 
 internal static partial class ActaSchema
 {

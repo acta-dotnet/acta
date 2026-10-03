@@ -1,14 +1,8 @@
 using System.Data.Common;
 using System.Globalization;
-using Acta.Relational.Commands;
-using Acta.Relational.Connections;
-using Acta.Relational.Schema;
-using Acta.Runtime.Modules.Execution;
-using Acta.Runtime.Modules.Execution.Checkpoints;
-using Acta.Runtime.Modules.Execution.ChildLatches;
-using Acta.Runtime.Modules.Execution.Timers;
+using Acta.Runtime;
 
-namespace Acta.Relational.Stores;
+namespace Acta.Relational;
 
 /// <summary>
 /// Shared relational <see cref="IExecutionStore"/> over <see cref="IDbSession"/>: claim/start/complete,

@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Modules.Execution.Jobs;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Caller-supplied per-row enqueue request, shared by the scalar <c>EnqueueOne</c> and the

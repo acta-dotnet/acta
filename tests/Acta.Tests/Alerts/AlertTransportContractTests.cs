@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Reflection;
 using System.Text.Json;
-using Acta.Runtime.Modules.Alerting;
+using Acta.Runtime;
 using Microsoft.Extensions.Logging;
 using Xunit;
 

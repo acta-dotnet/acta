@@ -1,6 +1,4 @@
-using Acta.Relational.Schema;
-
-namespace Acta.Relational.Entities;
+namespace Acta.Relational;
 
 /// <summary>
 /// One row per named lock in the <c>locks</c> table: the rows behind the handler-facing

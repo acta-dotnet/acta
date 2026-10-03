@@ -1,7 +1,6 @@
 using System.Diagnostics;
-using Acta.Runtime.Modules.Execution.Workers;
 
-namespace Acta.Runtime.Modules.Execution.Jobs;
+namespace Acta.Runtime;
 
 /// <summary>
 /// The enqueue-and-wait loop: re-read the job until it is terminal or the wait budget runs out, sleeping

@@ -1,5 +1,4 @@
-using Acta.Runtime.Modules.Execution;
-using Acta.Runtime.Services.Locks;
+using Acta.Runtime;
 using Microsoft.Extensions.Logging;
 using Xunit;
 

@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Modules.Execution.Definitions;
+namespace Acta.Runtime;
 
 /// <summary>
 /// <see cref="IDefinitions"/> implementation: a thin adapter over the Definitions feature service,

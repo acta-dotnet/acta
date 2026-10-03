@@ -1,5 +1,5 @@
 using System.Reflection;
-using Acta.SqlServer.Services;
+using Acta.SqlServer;
 using Microsoft.Data.SqlClient;
 using Xunit;
 

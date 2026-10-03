@@ -1,4 +1,4 @@
-﻿namespace Acta.SqlServer.Configuration;
+﻿namespace Acta.SqlServer;
 
 /// <summary>
 /// Connection options for a SQL Server external-outbox source, captured on

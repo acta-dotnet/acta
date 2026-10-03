@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Services.Time;
+namespace Acta.Runtime;
 
 /// <summary>
 /// UTC clock seam for recurring-schedule math, alert settlement instants, and durable wait

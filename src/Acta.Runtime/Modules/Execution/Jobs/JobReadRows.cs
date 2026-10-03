@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Modules.Execution.Jobs;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Flat job snapshot row in SELECT order; maps public refs after binding.

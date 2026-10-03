@@ -1,10 +1,7 @@
 using System.Data.Common;
-using Acta.Runtime.Modules.Execution;
-using Acta.Runtime.Modules.Execution.Definitions;
-using Acta.Runtime.Modules.Execution.Jobs;
-using Acta.Runtime.Modules.Execution.Schedules;
+using Acta.Runtime;
 
-namespace Acta.Relational.Commands;
+namespace Acta.Relational;
 
 /// <summary>
 /// Single provider seam: connection creation, parameter binding, routine invocation, and

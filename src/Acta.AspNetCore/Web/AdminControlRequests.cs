@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Http;
 
-namespace Acta.AspNetCore.Web;
+namespace Acta.AspNetCore;
 
 /// <summary>PATCH body for a tenant update. Null field clears it. ExpectedVersion drives the CAS.</summary>
 internal sealed record TenantPatchRequest(

@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 
-namespace Acta.Runtime.Modules.Execution.Workers;
+namespace Acta.Runtime;
 
 /// <summary>
 /// The outcome of a worker-init clock-skew check.

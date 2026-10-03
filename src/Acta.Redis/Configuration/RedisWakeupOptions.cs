@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
-namespace Acta.Redis.Configuration;
+namespace Acta.Redis;
 
 /// <summary>
 /// Settings for the Redis wake transport.

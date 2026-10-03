@@ -1,9 +1,6 @@
 using System.Globalization;
-using Acta.Runtime.Kernel;
-using Acta.Runtime.Modules.Execution.Api;
-using Acta.Runtime.Querying;
 
-namespace Acta.Runtime.Modules.Execution.Namespaces;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Namespaces feature behavior: the name-list validation and cursor math plus operator

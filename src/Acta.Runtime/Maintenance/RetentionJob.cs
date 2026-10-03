@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
-namespace Acta.Runtime.Maintenance;
+namespace Acta.Runtime;
 
 /// <summary>
 /// <c>sys.retention</c>, the system retention sweep. A recurring, competitively-claimed

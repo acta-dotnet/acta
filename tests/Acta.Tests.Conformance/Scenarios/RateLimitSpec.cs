@@ -1,15 +1,13 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
-using Acta.Relational.Entities;
-using Acta.Runtime.Modules.Execution;
-using Acta.Runtime.Modules.Execution.Definitions;
-using Acta.Runtime.Services.Locks;
+using Acta.Relational;
+using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using TestJobs;
 using Xunit;
-using LockRow = Acta.Relational.Entities.Lock;
+using LockRow = Acta.Relational.Lock;
 using RateSpec = Acta.RateLimitSpec;
 
 namespace Acta.Tests.Conformance.Scenarios;

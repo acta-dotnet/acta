@@ -1,6 +1,4 @@
-using Acta.Relational.Schema;
-
-namespace Acta.Relational.Entities;
+namespace Acta.Relational;
 
 /// <summary>
 /// One lane in one namespace: the Jobs that reference it run one at a time, in job-id order. Enqueue

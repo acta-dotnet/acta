@@ -1,9 +1,8 @@
 using System.Data.Common;
 using System.Globalization;
 using System.Text;
-using Acta.Relational.Schema;
 
-namespace Acta.Relational.Commands;
+namespace Acta.Relational;
 
 /// <summary>
 /// One bound parameter for a provider command. Production code binds through

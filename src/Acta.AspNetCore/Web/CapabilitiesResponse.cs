@@ -1,4 +1,4 @@
-namespace Acta.AspNetCore.Web;
+namespace Acta.AspNetCore;
 
 /// <summary>
 /// Minimal read-side capabilities contract the dashboard consumes to show/hide edit UI. Additive.

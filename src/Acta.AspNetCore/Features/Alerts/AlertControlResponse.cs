@@ -1,4 +1,4 @@
-namespace Acta.AspNetCore.Features.Alerts;
+namespace Acta.AspNetCore;
 
 /// <summary>
 /// HTTP projection of an <see cref="AlertControlResult"/>. Returned for both applied (200) and

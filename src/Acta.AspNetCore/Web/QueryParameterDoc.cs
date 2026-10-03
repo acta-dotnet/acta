@@ -1,7 +1,7 @@
 using System.Collections.Immutable;
 using Microsoft.AspNetCore.Builder;
 
-namespace Acta.AspNetCore.Web;
+namespace Acta.AspNetCore;
 
 /// <summary>
 /// Endpoint metadata describing one query-string parameter an endpoint reads through

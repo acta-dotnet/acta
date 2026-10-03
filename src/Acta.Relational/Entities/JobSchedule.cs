@@ -1,6 +1,4 @@
-using Acta.Relational.Schema;
-
-namespace Acta.Relational.Entities;
+namespace Acta.Relational;
 
 /// <summary>
 /// One named recurring schedule attached to a definition's slot Job. The <see cref="Origin"/> records

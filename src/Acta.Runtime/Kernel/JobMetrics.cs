@@ -1,12 +1,12 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 
-namespace Acta.Runtime.Kernel;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Owns the <c>Acta</c> meter and its instruments. A process-wide singleton: the runtime emits
-/// one execution measurement per durable completion in <see cref="Acta.Runtime.Modules.Execution.JobExecution"/>, one claim
-/// measurement per claim attempt in <see cref="Acta.Runtime.Modules.Execution.JobExecutor"/>, and observes the live in-flight count.
+/// one execution measurement per durable completion in <see cref="Acta.Runtime.JobExecution"/>, one claim
+/// measurement per claim attempt in <see cref="Acta.Runtime.JobExecutor"/>, and observes the live in-flight count.
 /// Counters are additive: the backend aggregates and slices by tag, so no running totals are kept
 /// in process.
 /// </summary>

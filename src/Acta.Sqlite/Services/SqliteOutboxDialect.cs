@@ -1,11 +1,9 @@
 using System.Data.Common;
 using System.Globalization;
-using Acta.Relational.Commands;
-using Acta.Relational.Connections;
-using Acta.Relational.Schema;
+using Acta.Relational;
 using Microsoft.Data.Sqlite;
 
-namespace Acta.Sqlite.Services;
+namespace Acta.Sqlite;
 
 /// <summary>
 /// SQLite external-outbox source dialect. The canonical outbox SQLite shape stores instants as ISO text

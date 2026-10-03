@@ -1,6 +1,4 @@
-using Acta.Runtime.Hosting;
-
-namespace Acta.Runtime.Modules.Execution.Workers;
+namespace Acta.Runtime;
 
 /// <summary>
 /// The process's startup sequence, in the one order every host runs it: every provider bootstrap

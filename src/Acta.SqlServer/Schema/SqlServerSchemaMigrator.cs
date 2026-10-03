@@ -1,9 +1,9 @@
 using System.Data;
 using System.Text.RegularExpressions;
-using Acta.Relational.Schema;
+using Acta.Relational;
 using Microsoft.Data.SqlClient;
 
-namespace Acta.SqlServer.Schema;
+namespace Acta.SqlServer;
 
 /// <summary>
 /// Applies <c>Mnnn_*.sql</c> migrations on SQL Server. The prelude turns

@@ -1,6 +1,6 @@
 using System.Data.Common;
 
-namespace Acta.Relational.Commands;
+namespace Acta.Relational;
 
 /// <summary>
 /// Marks a result-row type, or lists referenced result-row types at assembly level, whose ordinal

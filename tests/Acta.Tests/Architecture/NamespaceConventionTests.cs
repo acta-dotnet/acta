@@ -5,20 +5,16 @@ using Xunit;
 namespace Acta.Tests.Architecture;
 
 /// <summary>
-/// Pins the architecture rule that source namespaces follow project roots and physical folders,
-/// with deliberate exceptions. The Acta SDK project's whole public surface lives in the flat
-/// <c>Acta</c> namespace so consumers need a single using; folders there group by capability only.
-/// Core registration remains in <c>Acta</c>; provider and adapter registration use their package
-/// root namespaces. All implementation namespaces append their physical folder path.
+/// Pins one namespace per assembly: every source file declares its project's root namespace, whatever
+/// folder it sits in, so a move between folders never touches a using. The one exception is the core
+/// registration entry point, which lives in <c>Acta</c> beside the public surface it registers.
 /// </summary>
 public sealed partial class NamespaceConventionTests
 {
     private static readonly Regex NamespaceRx = MyRegex();
 
-    private const string FlatNamespaceProject = "Acta";
-
     [Fact]
-    public void Source_namespaces_follow_project_roots_and_physical_folders()
+    public void Source_namespaces_are_the_assembly_root()
     {
         var repoRoot = ResolveRepoRoot();
         var sourceRoot = Path.Combine(repoRoot, "src");
@@ -57,15 +53,9 @@ public sealed partial class NamespaceConventionTests
                 }
 
                 inspected++;
-                var relativeDirectory = Path.GetDirectoryName(relative);
-                var projectName = Path.GetFileName(projectDirectory);
-                var isActaConsumerEntry = projectName == "Acta.Runtime" && relative == "ActaServiceCollectionExtensions.cs";
-                var expected =
-                    projectName == FlatNamespaceProject || string.IsNullOrEmpty(relativeDirectory) && !isActaConsumerEntry ? rootNamespace
-                    : isActaConsumerEntry ? "Acta"
-                    : rootNamespace
-                        + "."
-                        + relativeDirectory!.Replace(Path.DirectorySeparatorChar, '.').Replace(Path.AltDirectorySeparatorChar, '.');
+                var isActaConsumerEntry =
+                    Path.GetFileName(projectDirectory) == "Acta.Runtime" && relative == "ActaServiceCollectionExtensions.cs";
+                var expected = isActaConsumerEntry ? "Acta" : rootNamespace;
                 if (match.Groups[1].Value != expected)
                 {
                     failures.Add($"{Path.GetRelativePath(repoRoot, file)}: namespace is '{match.Groups[1].Value}', expected '{expected}'");

@@ -1,6 +1,6 @@
-using Acta.Runtime.Hosting;
+using Acta.Runtime;
 
-namespace Acta.Postgres.Hosting;
+namespace Acta.Postgres;
 
 /// <summary>
 /// Emits the canonical PostgreSQL <c>acta_outbox</c> CREATE script for producer-owned migration systems.

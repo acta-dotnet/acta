@@ -1,9 +1,8 @@
 using System.Diagnostics;
-using Acta.Runtime.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Acta.Runtime.Modules.Execution.Workers;
+namespace Acta.Runtime;
 
 /// <summary>
 /// The runtime-owned worker heartbeat loop. Every <see cref="JobsOptions.HeartbeatInterval"/> it renews
@@ -12,7 +11,7 @@ namespace Acta.Runtime.Modules.Execution.Workers;
 /// on a confirmed renewal of its own execution, cancelling one only when an authoritative refresh drops its
 /// execution (operator cancel, a reclaimed lease, or the job claimed again into a newer execution). It does not enforce deadlines on an outage - the <see cref="AttemptWatchdog"/>
 /// does - nor renew handler locks - <see cref="LockLeaseHeartbeat"/> does, so the swappable
-/// <see cref="Acta.Runtime.Services.Locks.ILockStore"/> (relational today, Redis tomorrow) stays a distinct failure
+/// <see cref="Acta.Runtime.ILockStore"/> (relational today, Redis tomorrow) stays a distinct failure
 /// domain. Runs on its own <see cref="PeriodicTimer"/>; a no-op in enqueue-only mode.
 /// </summary>
 internal sealed class WorkerHeartbeat(

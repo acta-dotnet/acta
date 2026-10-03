@@ -1,4 +1,4 @@
-namespace Acta.AspNetCore.Features.Schedules;
+namespace Acta.AspNetCore;
 
 /// <summary>
 /// HTTP projection of a <see cref="ScheduleControlResult"/> with an operator-readable message.

@@ -1,9 +1,4 @@
-using Acta.Runtime.Hosting;
-using Acta.Runtime.Modules.Execution.Api;
-using Acta.Runtime.Modules.Operations.Events;
-using Acta.Runtime.Modules.Operations.Overview;
-
-namespace Acta.Runtime.Modules.Operations;
+namespace Acta.Runtime;
 
 /// <summary>
 /// <see cref="IActaOperations"/> implementation: composes the module-owned domain facades and the

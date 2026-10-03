@@ -1,4 +1,4 @@
-using Acta.Runtime.Modules.Execution;
+using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -108,7 +108,7 @@ public abstract class LaneOrderingSpec<TFixture> : ActaRuntimeTestBase<TFixture,
         // The Blocked member is due now by its own run time, so a horizon that counted it would sit at
         // or before db_now and spin the claim loop at the anti-spin floor.
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var worker = await Db.From<Acta.Relational.Entities.JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
+        var worker = await Db.From<Acta.Relational.JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);
         var workerId = worker!.Id;
         var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;

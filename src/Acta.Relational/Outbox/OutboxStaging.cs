@@ -1,11 +1,8 @@
 using System.Data.Common;
 using System.Text.Json;
-using Acta.Relational.Commands;
-using Acta.Relational.Connections;
-using Acta.Runtime.Hosting;
-using Acta.Runtime.Modules.Outbox;
+using Acta.Runtime;
 
-namespace Acta.Relational.Outbox;
+namespace Acta.Relational;
 
 /// <summary>
 /// The EF-free staging core the provider packages consume. Normalizes and validates a raw

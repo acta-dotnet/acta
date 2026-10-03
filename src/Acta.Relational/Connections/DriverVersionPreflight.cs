@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Reflection;
 using Microsoft.Extensions.Logging;
 
-namespace Acta.Relational.Connections;
+namespace Acta.Relational;
 
 /// <summary>
 /// Compares the ADO driver assembly actually loaded into the process against the major version the

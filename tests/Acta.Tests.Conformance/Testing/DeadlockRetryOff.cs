@@ -1,4 +1,4 @@
-using Acta.Relational.Commands;
+using Acta.Relational;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 

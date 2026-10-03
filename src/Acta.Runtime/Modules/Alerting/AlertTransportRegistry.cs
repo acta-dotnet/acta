@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Modules.Alerting;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Resolves an <see cref="IAlertTransport"/> by its <c>transport_kind</c>. Built from the registered

@@ -1,4 +1,4 @@
-using Acta.Relational.Entities;
+using Acta.Relational;
 
 namespace Acta.Tests.Conformance.Testing;
 

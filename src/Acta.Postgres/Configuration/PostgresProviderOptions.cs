@@ -1,4 +1,4 @@
-namespace Acta.Postgres.Configuration;
+namespace Acta.Postgres;
 
 /// <summary>
 /// Provider-specific options for the PostgreSQL durable backend.

@@ -1,4 +1,4 @@
-namespace Acta.AspNetCore.Features.Alerts;
+namespace Acta.AspNetCore;
 
 /// <summary>
 /// Body of an alert acknowledge/resolve POST. Entirely optional: an absent body (or an absent/blank

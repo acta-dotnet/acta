@@ -1,6 +1,6 @@
-using Acta.Relational.Schema;
+using Acta.Relational;
 
-namespace Acta.Testing.Relational.Querying;
+namespace Acta.Testing;
 
 /// <summary>Test-only fluent access to the relational entity model.</summary>
 internal static class DbSessionQueryExtensions

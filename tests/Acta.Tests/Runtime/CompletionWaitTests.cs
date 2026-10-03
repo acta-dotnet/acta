@@ -1,6 +1,5 @@
 using System.Diagnostics;
-using Acta.Runtime.Modules.Execution.Jobs;
-using Acta.Runtime.Modules.Execution.Workers;
+using Acta.Runtime;
 using Xunit;
 
 namespace Acta.Tests.Runtime;

@@ -1,18 +1,10 @@
 using System.Diagnostics;
-using Acta.Runtime.Kernel;
-using Acta.Runtime.Modules.Execution.Api;
-using Acta.Runtime.Modules.Execution.Definitions;
-using Acta.Runtime.Modules.Execution.Jobs;
-using Acta.Runtime.Modules.Execution.Schedules;
-using Acta.Runtime.Modules.Execution.Workers;
-using Acta.Runtime.Services.Locks;
-using Acta.Runtime.Services.Time;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
-namespace Acta.Runtime.Modules.Execution;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Executes one already-claimed job: resolves the descriptor, opens the per-attempt DI scope, plans
@@ -43,8 +35,7 @@ internal sealed class JobExecutor(
     private readonly IOptions<JobsOptions> _options = options;
     private readonly WorkerContext _context = context;
     private readonly JobExecution _jobExecution = jobExecution;
-    private readonly Acta.Runtime.Modules.Execution.IExecutionStore _execution =
-        rootServices.GetRequiredService<Acta.Runtime.Modules.Execution.IExecutionStore>();
+    private readonly Acta.Runtime.IExecutionStore _execution = rootServices.GetRequiredService<Acta.Runtime.IExecutionStore>();
     private readonly ILogger _log = log ?? NullLogger.Instance;
     private readonly JobMetrics? _metrics = metrics;
 
@@ -248,7 +239,7 @@ internal sealed class JobExecutor(
                 // distinct tenant); the claim projection itself stays join-free.
                 if (job.TenantId is { } jobTenantId)
                 {
-                    var tenants = _rootServices.GetRequiredService<Acta.Runtime.Modules.Execution.Tenants.TenantKeyCache>();
+                    var tenants = _rootServices.GetRequiredService<Acta.Runtime.TenantKeyCache>();
                     (tenantKey, _) = await CompletionWrite.RetryAsync(
                         async token => await tenants.ResolveAsync(jobTenantId, token),
                         _log,
@@ -286,9 +277,9 @@ internal sealed class JobExecutor(
                 namespaceId,
                 _options.Value.LeaseTtlSeconds,
                 _rootServices.GetRequiredService<IJobStore>(),
-                _rootServices.GetRequiredService<Acta.Runtime.Modules.Execution.Signals.ISignalStore>(),
+                _rootServices.GetRequiredService<Acta.Runtime.ISignalStore>(),
                 _rootServices.GetRequiredService<IAlertSink>(),
-                _rootServices.GetRequiredService<Acta.Runtime.Modules.Execution.IExecutionStore>(),
+                _rootServices.GetRequiredService<Acta.Runtime.IExecutionStore>(),
                 _serializers,
                 _lockStore,
                 fireOutcome?.TriggeringScheduleNames ?? [],

@@ -1,5 +1,5 @@
 using System.Reflection;
-using Acta.Relational.Schema;
+using Acta.Relational;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Sql;
 using Acta.Tests.Conformance.Testing;

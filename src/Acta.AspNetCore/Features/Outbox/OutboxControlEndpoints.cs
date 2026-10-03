@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 
-namespace Acta.AspNetCore.Features.Outbox;
+namespace Acta.AspNetCore;
 
 /// <summary>
 /// POST outbox-control endpoints: thin HTTP wrappers over the <see cref="IOutbox"/> requeue/discard

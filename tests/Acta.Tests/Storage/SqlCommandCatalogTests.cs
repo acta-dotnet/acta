@@ -1,8 +1,8 @@
 using System.Reflection;
-using Acta.Postgres.Configuration;
-using Acta.Relational.Resources;
-using Acta.Sqlite.Configuration;
-using Acta.SqlServer.Configuration;
+using Acta.Postgres;
+using Acta.Relational;
+using Acta.Sqlite;
+using Acta.SqlServer;
 using Xunit;
 
 namespace Acta.Tests.Storage;

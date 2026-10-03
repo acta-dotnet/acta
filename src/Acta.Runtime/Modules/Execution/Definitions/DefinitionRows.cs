@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Modules.Execution.Definitions;
+namespace Acta.Runtime;
 
 /// <summary>
 /// A definition's effective (override-or-default) policy, read straight off the DB-computed

@@ -1,4 +1,4 @@
-using Acta.Generators.Codes;
+using Acta.Generators;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Xunit;

@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Maintenance;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Persistence port for one atomic, bounded batch of a retention section.

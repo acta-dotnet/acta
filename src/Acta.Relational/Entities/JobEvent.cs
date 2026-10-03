@@ -1,6 +1,4 @@
-using Acta.Relational.Schema;
-
-namespace Acta.Relational.Entities;
+namespace Acta.Relational;
 
 /// <summary>
 /// Append-only lifecycle timeline and execution ledger. Carries the audit trail of <c>JobRuntime.Status</c>

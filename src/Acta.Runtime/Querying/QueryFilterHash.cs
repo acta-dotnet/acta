@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Acta.Runtime.Querying;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Canonical hash of a list query's filter values, embedded in cursors so a cursor kept across a

@@ -1,9 +1,7 @@
 using System.Text;
-using Acta.Runtime.Kernel;
-using Acta.Runtime.Modules.Execution.Api;
 using Microsoft.Extensions.Options;
 
-namespace Acta.Runtime.Modules.Execution.Settings;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Settings feature behavior: name and scope-target validation, the inline-payload cap on the value

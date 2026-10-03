@@ -6,7 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Acta.AspNetCore.Web;
+namespace Acta.AspNetCore;
 
 /// <summary>
 /// Minimal-API endpoints over <see cref="IJobs"/> and <see cref="IActaOperations"/>: GET list and
@@ -87,7 +87,7 @@ internal static class ActaApiEndpoints
                 catch (Exception ex)
                 {
                     var loggerFactory = context.HttpContext.RequestServices.GetService(typeof(ILoggerFactory)) as ILoggerFactory;
-                    loggerFactory?.CreateLogger("Acta.AspNetCore.Web").LogError(ex, "Unhandled Acta API exception.");
+                    loggerFactory?.CreateLogger("Acta.AspNetCore").LogError(ex, "Unhandled Acta API exception.");
 
                     // Classify without echoing exception text: driver messages can carry connection
                     // strings. A fixed reason keyed off the exception family stays safe and still tells
@@ -173,21 +173,21 @@ internal static class ActaApiEndpoints
             // denies the request. The per-family 404 and 409 are declared where their bodies are.
             controls.ProducesProblem(StatusCodes.Status403Forbidden);
             ActaControlEndpoints.Map(controls, options);
-            Features.Jobs.JobDepthEndpoints.MapControls(controls, options);
+            JobDepthEndpoints.MapControls(controls, options);
             ScheduleControlEndpoints.Map(controls, options);
             DefinitionControlEndpoints.Map(controls, options);
             TenantControlEndpoints.Map(controls, options);
             NamespaceControlEndpoints.Map(controls, options);
             AlertControlEndpoints.Map(controls, options);
             OutboxControlEndpoints.Map(controls, options);
-            Features.Tags.TagEndpoints.MapControls(controls, options);
+            TagEndpoints.MapControls(controls, options);
         }
 
         // The depth payload reads (input/result/checkpoints/input-template) are part of the always-on
         // read surface: Acta operators see everything, so they map unconditionally alongside the other
         // reads. A size cap inside the endpoints is the only payload-read guard; mutations gate above.
-        Features.Jobs.JobDepthEndpoints.MapReads(group, options);
-        Features.Tags.TagEndpoints.MapReads(group, options);
+        JobDepthEndpoints.MapReads(group, options);
+        TagEndpoints.MapReads(group, options);
 
         group
             .MapGet(
@@ -314,7 +314,7 @@ internal static class ActaApiEndpoints
                 }
             )
             .WithSummary("Read the job's stored input payload.")
-            .Produces<Features.Jobs.JobPayloadResponse>(StatusCodes.Status200OK)
+            .Produces<JobPayloadResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         // One aggregate that renders the whole job screen: the job row plus every depth read a
@@ -354,7 +354,7 @@ internal static class ActaApiEndpoints
                 }
             )
             .WithSummary("Read the job's full detail aggregate in one request.")
-            .Produces<Features.Jobs.JobDetailResponse>(StatusCodes.Status200OK)
+            .Produces<JobDetailResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         // A lookup, not a filter, and deliberately its own route. Both parameters are required and

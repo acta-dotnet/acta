@@ -2,19 +2,10 @@
 
 using System.Diagnostics;
 using System.Globalization;
-using Acta.Runtime.Kernel;
-using Acta.Runtime.Modules.Execution.Api;
-using Acta.Runtime.Modules.Execution.Checkpoints;
-using Acta.Runtime.Modules.Execution.ChildLatches;
-using Acta.Runtime.Modules.Execution.Jobs;
-using Acta.Runtime.Modules.Execution.Signals;
-using Acta.Runtime.Modules.Execution.Timers;
-using Acta.Runtime.Modules.Execution.Workers;
-using Acta.Runtime.Services.Locks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Acta.Runtime.Modules.Execution;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Per-attempt <see cref="JobContext"/> supplied to handlers. Inspection fields come from the
@@ -27,9 +18,9 @@ internal sealed class RuntimeJobContext(
     int namespaceId,
     int leaseTtlSeconds,
     IJobStore jobStore,
-    Acta.Runtime.Modules.Execution.Signals.ISignalStore signalStore,
+    Acta.Runtime.ISignalStore signalStore,
     IAlertSink alerts,
-    Acta.Runtime.Modules.Execution.IExecutionStore executionStore,
+    Acta.Runtime.IExecutionStore executionStore,
     IJobPayloadSerializerRegistry serializers,
     ILockStore lockStore,
     IReadOnlyList<string> triggeringScheduleNames,
@@ -44,15 +35,15 @@ internal sealed class RuntimeJobContext(
     string? tenantKey = null,
     int workerId = 0,
     WorkerWakeupPublisher? wakeupPublisher = null,
-    Acta.Runtime.Services.Time.IActaClock? clock = null
+    Acta.Runtime.IActaClock? clock = null
 ) : JobContext
 {
     private const string ProgressVariableName = "sys.progress";
 
     private readonly IJobStore _jobStore = jobStore;
-    private readonly Acta.Runtime.Modules.Execution.Signals.ISignalStore _signalStore = signalStore;
+    private readonly Acta.Runtime.ISignalStore _signalStore = signalStore;
     private readonly IAlertSink _alerts = alerts;
-    private readonly Acta.Runtime.Modules.Execution.IExecutionStore _executionStore = executionStore;
+    private readonly Acta.Runtime.IExecutionStore _executionStore = executionStore;
     private readonly IJobPayloadSerializerRegistry _serializers = serializers;
     private readonly ILockStore _lockStore = lockStore;
     private readonly int _namespaceId = namespaceId;
@@ -64,7 +55,7 @@ internal sealed class RuntimeJobContext(
     private readonly JobMetrics? _metrics = metrics;
     private readonly IJobs? _jobs = jobs;
     private readonly WorkerWakeupPublisher? _wakeupPublisher = wakeupPublisher;
-    private readonly Acta.Runtime.Services.Time.IActaClock? _clock = clock;
+    private readonly Acta.Runtime.IActaClock? _clock = clock;
 
     /// <summary>
     /// Whether this attempt's cancellation was the execution-timeout firing rather than an external
@@ -165,7 +156,7 @@ internal sealed class RuntimeJobContext(
         return new WaitDeadline(new DateTime(Deserialize<long>(stored), DateTimeKind.Utc), nowUtc, anchor);
     }
 
-    private Acta.Runtime.Services.Time.IActaClock Clock() =>
+    private Acta.Runtime.IActaClock Clock() =>
         _clock ?? throw new InvalidOperationException("Bounded group waits need the Acta clock; this context was built without one.");
 
     private protected override Task<bool> ExistsVariableCoreAsync(string name, CancellationToken ct) =>
@@ -186,7 +177,7 @@ internal sealed class RuntimeJobContext(
     {
         var delaySeconds = delay is { } d ? (int)d.TotalSeconds : (int?)null;
         var decision = await _executionStore.ArmOrConsumeSleepTimerAsync(
-            new Acta.Runtime.Modules.Execution.ArmOrConsumeSleepTimerCommand(JobId, name, delaySeconds, resumeAtUtc),
+            new Acta.Runtime.ArmOrConsumeSleepTimerCommand(JobId, name, delaySeconds, resumeAtUtc),
             ct
         );
         switch (decision.Outcome)

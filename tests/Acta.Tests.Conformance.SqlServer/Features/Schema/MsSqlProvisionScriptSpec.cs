@@ -68,7 +68,7 @@ public sealed partial class MsSqlProvisionScriptSpec
             {
                 definition.CommandText = $"SELECT OBJECT_DEFINITION(OBJECT_ID('{schema}.extend_lock'))";
                 Assert.Contains("versionless_body_probe", Assert.IsType<string>(await definition.ExecuteScalarAsync(ct)));
-                await Acta.SqlServer.Schema.SqlServerSchemaMigrator.ApplyAsync(conn, schema, ct);
+                await Acta.SqlServer.SqlServerSchemaMigrator.ApplyAsync(conn, schema, ct);
                 Assert.DoesNotContain("versionless_body_probe", Assert.IsType<string>(await definition.ExecuteScalarAsync(ct)));
             }
 

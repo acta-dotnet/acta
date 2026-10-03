@@ -2,10 +2,9 @@ using System.Data.Common;
 using System.Globalization;
 using System.Linq.Expressions;
 using System.Text;
-using Acta.Relational.Commands;
-using Acta.Relational.Schema;
+using Acta.Relational;
 
-namespace Acta.Testing.Relational.Querying;
+namespace Acta.Testing;
 
 /// <summary>Looks up a column spec by CLR property name.</summary>
 internal static class EntitySpecLookups

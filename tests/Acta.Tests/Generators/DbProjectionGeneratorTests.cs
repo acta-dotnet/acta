@@ -1,4 +1,4 @@
-using Acta.Generators.Relational;
+using Acta.Generators;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Xunit;
@@ -10,7 +10,7 @@ public sealed class DbProjectionGeneratorTests
     private const string Stubs = """
         #nullable enable
 
-        namespace Acta.Relational.Commands
+        namespace Acta.Relational
         {
             using System;
             using System.Data;
@@ -36,7 +36,7 @@ public sealed class DbProjectionGeneratorTests
             """
             namespace GenTests;
             using System;
-            using Acta.Relational.Commands;
+            using Acta.Relational;
 
             internal enum ProjectionAction : byte
             {
@@ -61,7 +61,7 @@ public sealed class DbProjectionGeneratorTests
         Assert.Contains("read = static r => (T)(object)BindEnqueueOutcomeRow(r);", source);
 
         var resolver = SingleGeneratedSource(result, "TryResolveGenerated");
-        Assert.Contains("namespace Acta.Relational.Commands;", resolver);
+        Assert.Contains("namespace Acta.Relational;", resolver);
         Assert.Contains("public static Func<DbDataReader, T> Resolve<T>()", resolver);
         Assert.Contains("global::GenTests.DbProjectionBinder.__ActaTryResolveDbProjection(ref read);", resolver);
     }
@@ -73,7 +73,7 @@ public sealed class DbProjectionGeneratorTests
             """
             namespace GenTests;
             using System;
-            using Acta.Relational.Commands;
+            using Acta.Relational;
 
             [AttributeUsage(AttributeTargets.Enum)]
             internal sealed class CodeKindAttribute(string kind) : Attribute
@@ -123,7 +123,7 @@ public sealed class DbProjectionGeneratorTests
     {
         var (result, compilation) = RunGenerator(
             """
-            using Acta.Relational.Commands;
+            using Acta.Relational;
             [assembly: DbProjection(typeof(GenTests.ExternalOutcome))]
 
             namespace GenTests;
@@ -144,7 +144,7 @@ public sealed class DbProjectionGeneratorTests
             """
             namespace GenTests;
             using System;
-            using Acta.Relational.Commands;
+            using Acta.Relational;
 
             [DbProjection]
             internal sealed class PayloadRow(
@@ -171,7 +171,7 @@ public sealed class DbProjectionGeneratorTests
         var (result, compilation) = RunGenerator(
             """
             namespace GenTests;
-            using Acta.Relational.Commands;
+            using Acta.Relational;
 
             internal static partial class Operation
             {
@@ -203,7 +203,7 @@ public sealed class DbProjectionGeneratorTests
             """
             namespace GenTests;
             using System;
-            using Acta.Relational.Commands;
+            using Acta.Relational;
 
             [DbProjection]
             internal sealed record BadProjection(Uri Value);

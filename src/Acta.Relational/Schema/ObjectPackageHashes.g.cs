@@ -3,7 +3,7 @@
 // Each value is a content hash of that provider's installed views and routines; edit the SQL,
 // not this file.
 
-namespace Acta.Relational.Schema;
+namespace Acta.Relational;
 
 /// <summary>
 /// The object package each provider package ships, as recorded in the sentinel row its install

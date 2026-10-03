@@ -1,8 +1,7 @@
 using System.Data.Common;
 using System.Reflection;
-using Acta.Relational.Resources;
 
-namespace Acta.Relational.Schema;
+namespace Acta.Relational;
 
 /// <summary>
 /// Provider-neutral apply/reset orchestration for provider-owned <c>Mnnn_*.sql</c> migrations.

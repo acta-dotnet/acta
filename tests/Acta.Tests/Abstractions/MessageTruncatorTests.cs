@@ -1,5 +1,4 @@
-using Acta.Runtime.Kernel;
-using Acta.Runtime.Modules.Alerting;
+using Acta.Runtime;
 using Xunit;
 
 namespace Acta.Tests.Abstractions;

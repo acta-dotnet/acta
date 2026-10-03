@@ -1,6 +1,6 @@
 using System.Reflection;
 
-namespace Acta.AspNetCore.Web;
+namespace Acta.AspNetCore;
 
 /// <summary>
 /// Resolves dashboard files embedded under the <c>Acta.AspNetCore.Web.Assets.</c> resource prefix.

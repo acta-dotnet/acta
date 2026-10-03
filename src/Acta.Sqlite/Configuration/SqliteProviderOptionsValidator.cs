@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Options;
 
-namespace Acta.Sqlite.Configuration;
+namespace Acta.Sqlite;
 
 /// <summary>Enforces SQLite's single writable database schema at host startup.</summary>
 internal sealed class SqliteProviderOptionsValidator : IValidateOptions<SqliteProviderOptions>

@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Modules.Outbox;
+namespace Acta.Runtime;
 
 /// <summary>
 /// One claimed external-outbox row: the positional projection of a source row and the fields the relay

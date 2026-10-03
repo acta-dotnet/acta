@@ -1,6 +1,5 @@
-using Acta.Relational.Entities;
-using Acta.Runtime.Modules.Execution.Schedules;
-using Acta.Runtime.Services.Time;
+using Acta.Relational;
+using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -149,7 +148,7 @@ public abstract class ScheduleTriggerNowSpec<TFixture> : ActaStorageTestBase<TFi
         var slot = await SlotAsync(jobName, ct);
         Assert.Equal(JobStatusCode.Succeeded, slot.Status); // untouched
         Assert.Equal(farFuture, slot.NextRunAtUtc); // no phantom cursor move
-        var events = await Db.From<Acta.Relational.Entities.JobEvent>()
+        var events = await Db.From<Acta.Relational.JobEvent>()
             .Where(e => e.JobId == slotId && e.EventCode == EventCode.ScheduleTriggered)
             .ToListAsync(ct);
         Assert.Empty(events); // no schedule.triggered

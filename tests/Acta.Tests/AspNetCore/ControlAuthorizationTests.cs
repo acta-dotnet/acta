@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
-using Acta.AspNetCore.Web;
+using Acta.AspNetCore;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;

@@ -1,6 +1,4 @@
-using Acta.Relational.Schema;
-
-namespace Acta.Relational.Entities;
+namespace Acta.Relational;
 
 /// <summary>
 /// One materialized alert. A row carrying a non-null <see cref="DedupeKey"/> is an <em>incident</em>: the

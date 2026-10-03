@@ -1,7 +1,6 @@
 using System.Globalization;
-using Acta.Runtime.Modules.Execution.ChildLatches;
 
-namespace Acta.Runtime.Modules.Execution.Jobs;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Turns the durable rows read by <c>GetJobExplanationAsync</c> into a plain-English

@@ -1,10 +1,9 @@
-using Acta.Postgres.Schema;
-using Acta.Relational.Connections;
-using Acta.Runtime.Hosting;
+using Acta.Relational;
+using Acta.Runtime;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 
-namespace Acta.Postgres.Hosting;
+namespace Acta.Postgres;
 
 internal sealed class PostgresProviderBootstrap(SqlProviderOptions options, ILogger<PostgresProviderBootstrap>? log = null)
     : IProviderBootstrap

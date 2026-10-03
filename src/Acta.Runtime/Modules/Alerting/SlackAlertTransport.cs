@@ -3,7 +3,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Acta.Runtime.Modules.Alerting;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Delivers an alert to a Slack incoming webhook (<c>transport_kind = "slack-webhook"</c>): POSTs the

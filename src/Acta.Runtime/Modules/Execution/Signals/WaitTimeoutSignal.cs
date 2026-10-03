@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Modules.Execution.Signals;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Internal control-flow signal raised by <c>RuntimeJobContext.WaitSignalCoreAsync</c> when a bounded

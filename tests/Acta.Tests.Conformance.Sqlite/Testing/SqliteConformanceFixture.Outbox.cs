@@ -19,7 +19,7 @@ public sealed partial class SqliteConformanceFixture
     public async ValueTask ApplyOutboxDdlAsync(string table)
     {
         await ExecOutboxAsync($"DROP TABLE IF EXISTS main.{table};");
-        await ExecOutboxAsync(Acta.Sqlite.Hosting.SqliteOutboxDdl.CreateScript(table));
+        await ExecOutboxAsync(Acta.Sqlite.SqliteOutboxDdl.CreateScript(table));
     }
 
     public async ValueTask StageInOneTransactionAsync(string outboxTable, IReadOnlyList<Acta.JobEnqueueRequest> requests)
@@ -76,7 +76,7 @@ public sealed partial class SqliteConformanceFixture
     }
 
     public object CreateOutboxStore(string table) =>
-        Acta.Sqlite.Hosting.SqliteOutboxSource.CreateStore(SqliteIntegrationSchema.BootstrappedConnectionString, "main", table);
+        Acta.Sqlite.SqliteOutboxSource.CreateStore(SqliteIntegrationSchema.BootstrappedConnectionString, "main", table);
 
     public void ApplyOutboxSource(Acta.IOutboxSourceBuilder source)
     {

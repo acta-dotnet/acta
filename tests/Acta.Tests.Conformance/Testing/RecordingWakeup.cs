@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using Acta.Runtime.Modules.Execution.Workers;
+using Acta.Runtime;
 
 namespace Acta.Tests.Conformance.Testing;
 

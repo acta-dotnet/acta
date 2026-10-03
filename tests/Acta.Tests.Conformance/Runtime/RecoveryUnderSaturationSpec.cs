@@ -1,5 +1,5 @@
-using Acta.Relational.Entities;
-using Acta.Runtime.Hosting;
+using Acta.Relational;
+using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,10 +24,7 @@ namespace Acta.Tests.Conformance.Runtime;
     Act = "The claim loop takes the due slot while the executor is still held.",
     Assert = "The stranded job returns to Ready before the executor is released."
 )]
-[CoversStoreMethod(
-    typeof(Acta.Runtime.Modules.Execution.IExecutionStore),
-    nameof(Acta.Runtime.Modules.Execution.IExecutionStore.ClaimBatchAsync)
-)]
+[CoversStoreMethod(typeof(Acta.Runtime.IExecutionStore), nameof(Acta.Runtime.IExecutionStore.ClaimBatchAsync))]
 public abstract class RecoveryUnderSaturationSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJobs.TestJobsManifest>
     where TFixture : IConformanceFixture, new()
 {

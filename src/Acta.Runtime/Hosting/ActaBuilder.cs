@@ -1,8 +1,7 @@
 using System.Text.Json.Serialization.Metadata;
-using Acta.Runtime.Modules.Execution.Definitions;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Acta.Runtime.Hosting;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Default <see cref="IActaBuilder"/> implementation. Constructed by

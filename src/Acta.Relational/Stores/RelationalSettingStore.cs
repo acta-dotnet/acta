@@ -1,10 +1,6 @@
-using Acta.Relational.Commands;
-using Acta.Relational.Connections;
-using Acta.Relational.Schema;
-using Acta.Runtime.Kernel;
-using Acta.Runtime.Modules.Execution.Settings;
+using Acta.Runtime;
 
-namespace Acta.Relational.Stores;
+namespace Acta.Relational;
 
 /// <summary>
 /// Shared relational <see cref="ISettingStore"/> over <see cref="IDbSession"/>: the inline global

@@ -12,4 +12,3 @@ JobExecution.cs
 JobsService.cs
 RuntimeJobContext.cs
 SqlServerDialect.cs
-WorkerRuntimeInitializer.cs

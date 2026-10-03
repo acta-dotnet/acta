@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Modules.Execution.Definitions;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Framework policy defaults applied when a <see cref="JobDescriptor"/> leaves a per-definition

@@ -13,7 +13,7 @@ namespace Acta.Tests.Conformance.Testing;
 /// </remarks>
 internal sealed class ManualTimeProvider : TimeProvider
 {
-    private readonly Lock _gate = new();
+    private readonly System.Threading.Lock _gate = new();
     private readonly List<FakeTimer> _timers = [];
     private readonly TaskCompletionSource _armed = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private DateTimeOffset _now = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);

@@ -1,6 +1,4 @@
-using Acta.Relational.Schema;
-
-namespace Acta.Relational.Entities;
+namespace Acta.Relational;
 
 /// <summary>
 /// One row in <c>acta.jobs</c>, Acta's only work unit: the append-mostly identity/input record.

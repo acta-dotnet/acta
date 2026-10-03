@@ -1,4 +1,4 @@
-using Acta.SqlServer.Schema;
+using Acta.SqlServer;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Data.SqlClient;
 using Xunit;

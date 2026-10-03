@@ -1,4 +1,4 @@
-namespace Acta.Testing.Relational.Querying;
+namespace Acta.Testing;
 
 /// <summary>
 /// SQL function markers usable only inside an <c>UpdateOnlyAsync</c> set selector. The set-clause

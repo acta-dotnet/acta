@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Kernel;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Computes the retry backoff delay for a failed attempt: <c>initial * multiplier^(attempt-1)</c>,

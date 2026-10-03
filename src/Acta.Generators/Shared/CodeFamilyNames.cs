@@ -1,7 +1,7 @@
 using System.Linq;
 using Microsoft.CodeAnalysis;
 
-namespace Acta.Generators.Shared;
+namespace Acta.Generators;
 
 /// <summary>
 /// Names the relational generators share with CodeGenerator's output, so a row binder can call into a

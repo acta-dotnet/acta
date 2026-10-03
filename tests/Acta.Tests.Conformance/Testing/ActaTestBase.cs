@@ -1,5 +1,5 @@
 using System.Globalization;
-using Acta.Relational.Entities;
+using Acta.Relational;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 

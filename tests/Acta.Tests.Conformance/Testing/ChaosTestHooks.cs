@@ -1,8 +1,4 @@
-using Acta.Runtime.Kernel;
-using Acta.Runtime.Modules.Execution;
-using Acta.Runtime.Modules.Execution.Checkpoints;
-using Acta.Runtime.Modules.Execution.Workers;
-using Acta.Runtime.Services.Time;
+using Acta.Runtime;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -176,15 +172,11 @@ internal sealed class FaultInjectingExecutionStore(IExecutionStore inner, StoreF
     public Task<IReadOnlyList<long>> GetChildJobIdsAsync(long parentJobId, CancellationToken ct) =>
         inner.GetChildJobIdsAsync(parentJobId, ct);
 
-    public Task<IReadOnlyList<Acta.Runtime.Modules.Execution.ChildLatches.StaleChildLatch>> GetStaleChildLatchesAsync(
-        int namespaceId,
-        CancellationToken ct
-    ) => inner.GetStaleChildLatchesAsync(namespaceId, ct);
+    public Task<IReadOnlyList<Acta.Runtime.StaleChildLatch>> GetStaleChildLatchesAsync(int namespaceId, CancellationToken ct) =>
+        inner.GetStaleChildLatchesAsync(namespaceId, ct);
 
-    public Task<Acta.Runtime.Modules.Execution.Timers.SleepDecision> ArmOrConsumeSleepTimerAsync(
-        ArmOrConsumeSleepTimerCommand command,
-        CancellationToken ct
-    ) => inner.ArmOrConsumeSleepTimerAsync(command, ct);
+    public Task<Acta.Runtime.SleepDecision> ArmOrConsumeSleepTimerAsync(ArmOrConsumeSleepTimerCommand command, CancellationToken ct) =>
+        inner.ArmOrConsumeSleepTimerAsync(command, ct);
 
     public async Task<ClaimResult> ClaimBatchAsync(ClaimRequest request, int leaseTtlSeconds, CancellationToken ct)
     {
@@ -290,7 +282,7 @@ internal static class ChaosServiceCollectionExtensions
 
 internal sealed class ControlledWakeup : IWorkerWakeup
 {
-    private readonly Lock _gate = new();
+    private readonly System.Threading.Lock _gate = new();
     private readonly List<(WorkerWakeupChannelKind Kind, int Threshold, TaskCompletionSource Tcs)> _wakeWaiters = [];
     private readonly Dictionary<WorkerWakeupChannelKind, int> _wakesByKind = [];
     private TaskCompletionSource? _waiting;

@@ -1,13 +1,7 @@
 using System.Globalization;
-using Acta.Runtime.Kernel;
-using Acta.Runtime.Modules.Execution.Api;
-using Acta.Runtime.Modules.Execution.Jobs;
-using Acta.Runtime.Modules.Execution.Workers;
-using Acta.Runtime.Querying;
-using Acta.Runtime.Services.Time;
 using Cronos;
 
-namespace Acta.Runtime.Modules.Execution.Schedules;
+namespace Acta.Runtime;
 
 /// <summary>
 /// <see cref="ISchedules"/> implementation: the operator pause/resume surface for recurring schedules

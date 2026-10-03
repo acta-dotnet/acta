@@ -1,4 +1,4 @@
-namespace Acta.AspNetCore.Features.Tenants;
+namespace Acta.AspNetCore;
 
 /// <summary>
 /// Body of a tenant register POST. <see cref="TenantKey"/> is the caller-supplied opaque external

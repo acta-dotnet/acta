@@ -5,16 +5,11 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
-using Acta.Relational.Commands;
-using Acta.Relational.Schema;
-using Acta.Runtime.Kernel;
-using Acta.Runtime.Modules.Execution;
-using Acta.Runtime.Modules.Execution.Definitions;
-using Acta.Runtime.Modules.Execution.Jobs;
-using Acta.Runtime.Modules.Execution.Schedules;
+using Acta.Relational;
+using Acta.Runtime;
 using Microsoft.Data.Sqlite;
 
-namespace Acta.Sqlite.Services;
+namespace Acta.Sqlite;
 
 /// <summary>
 /// SQLite <see cref="ISqlDialect"/>: connection creation, generic parameter coercion, and inline-SQL

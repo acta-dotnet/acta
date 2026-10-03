@@ -1,12 +1,4 @@
-using Acta.Runtime.Modules.Execution;
-using Acta.Runtime.Modules.Execution.Api;
-using Acta.Runtime.Modules.Execution.Checkpoints;
-using Acta.Runtime.Modules.Execution.ChildLatches;
-using Acta.Runtime.Modules.Execution.Jobs;
-using Acta.Runtime.Modules.Execution.Timers;
-using Acta.Runtime.Modules.Execution.Workers;
-using Acta.Runtime.Services.Locks;
-using Acta.Runtime.Services.Time;
+using Acta.Runtime;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -640,7 +632,7 @@ internal sealed class JobExecutionHarness(
             : serviceType == typeof(IServiceScopeFactory) ? this
             : serviceType == typeof(WorkerWakeupPublisher) ? _wakeup
             : serviceType == typeof(IJobContextAccessor) ? _accessor
-            : serviceType == typeof(Acta.Runtime.Modules.Execution.Signals.ISignalStore) ? NoSignals.Instance
+            : serviceType == typeof(Acta.Runtime.ISignalStore) ? NoSignals.Instance
             : serviceType == typeof(IAlertSink) ? NoAlerts.Instance
             : null;
 
@@ -650,16 +642,14 @@ internal sealed class JobExecutionHarness(
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
-        private sealed class NoSignals : Acta.Runtime.Modules.Execution.Signals.ISignalStore
+        private sealed class NoSignals : Acta.Runtime.ISignalStore
         {
             public static readonly NoSignals Instance = new();
 
-            public Task<JobControlOutcome> RaiseSignalAsync(
-                Acta.Runtime.Modules.Execution.Signals.RaiseSignalCommand command,
-                CancellationToken ct
-            ) => throw new NotSupportedException();
+            public Task<JobControlOutcome> RaiseSignalAsync(Acta.Runtime.RaiseSignalCommand command, CancellationToken ct) =>
+                throw new NotSupportedException();
 
-            public Task<Acta.Runtime.Modules.Execution.Signals.SignalWaitDecision> WaitSignalAsync(
+            public Task<Acta.Runtime.SignalWaitDecision> WaitSignalAsync(
                 long jobId,
                 JobCheckpointKindCode kind,
                 string name,

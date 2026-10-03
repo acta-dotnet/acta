@@ -1,6 +1,4 @@
-using Acta.Relational.Schema;
-
-namespace Acta.Relational.Entities;
+namespace Acta.Relational;
 
 /// <summary>
 /// Acta-owned catalog of tenants: the customer / business entity a Job is <em>about</em>. A tenant is an

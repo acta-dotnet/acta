@@ -1,5 +1,5 @@
 using System.Data.Common;
-using Acta.Relational.Outbox;
+using Acta.Relational;
 using Npgsql;
 using NpgsqlTypes;
 

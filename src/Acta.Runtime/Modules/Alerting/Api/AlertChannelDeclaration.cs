@@ -1,6 +1,4 @@
-using Acta.Runtime.Hosting;
-
-namespace Acta.Runtime.Modules.Alerting.Api;
+namespace Acta.Runtime;
 
 /// <summary>
 /// One <c>IWorkerBuilder.AddAlertChannel</c> declaration, carried on <see cref="WorkerRegistration"/> and

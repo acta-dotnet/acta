@@ -1,4 +1,4 @@
-namespace Acta.Relational.Schema;
+namespace Acta.Relational;
 
 /// <summary>
 /// Physical storage-kind vocabulary used by <see cref="DbColumnAttribute"/>; provider DDL is derived

@@ -1,11 +1,9 @@
 using System.Collections.Immutable;
-using Acta.Runtime.Modules.Alerting.Api;
-using Acta.Runtime.Modules.Execution.Api;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
-namespace Acta.Runtime.Modules.Alerting;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Alerting's implementation of Execution's startup routing seam: every alerting definition must

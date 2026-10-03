@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Modules.Execution.Api;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Execution's declared read API for the Operations module: job-job resolution (tags resolve

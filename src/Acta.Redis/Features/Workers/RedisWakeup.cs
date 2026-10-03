@@ -1,12 +1,11 @@
 using System.Collections.Concurrent;
-using Acta.Redis.Configuration;
-using Acta.Runtime.Modules.Execution.Workers;
+using Acta.Runtime;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
-namespace Acta.Redis.Features.Workers;
+namespace Acta.Redis;
 
 /// <summary>
 /// Redis-backed <see cref="IWorkerWakeup"/>: composes the in-process transport for local delivery and

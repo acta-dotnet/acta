@@ -4,11 +4,10 @@ using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
 using System.Text;
-using Acta.Generators.Shared;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace Acta.Generators.Codes;
+namespace Acta.Generators;
 
 /// <summary>
 /// Emits a <c>{Enum}Extensions</c> companion for every <c>[CodeKind]</c>-bearing enum,

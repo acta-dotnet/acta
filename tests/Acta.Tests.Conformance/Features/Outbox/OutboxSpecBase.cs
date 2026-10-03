@@ -1,4 +1,4 @@
-using Acta.Runtime.Modules.Outbox;
+using Acta.Runtime;
 using Acta.Tests.Conformance.Testing;
 using Xunit;
 

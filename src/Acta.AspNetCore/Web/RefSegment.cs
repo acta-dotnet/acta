@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Http;
 
-namespace Acta.AspNetCore.Web;
+namespace Acta.AspNetCore;
 
 /// <summary>
 /// The one answer every ref-addressed route gives a route segment that does not parse.

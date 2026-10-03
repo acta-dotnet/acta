@@ -1,11 +1,7 @@
-using Acta.Relational.Connections;
-using Acta.Relational.Resources;
-using Acta.Relational.Stores;
-using Acta.Runtime.Modules.Outbox;
-using Acta.Sqlite.Configuration;
-using Acta.Sqlite.Services;
+using Acta.Relational;
+using Acta.Runtime;
 
-namespace Acta.Sqlite.Hosting;
+namespace Acta.Sqlite;
 
 /// <summary>
 /// Builds the SQLite external-outbox source store: a per-operation source connection, the inline outbox

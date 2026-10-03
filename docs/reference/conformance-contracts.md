@@ -13,7 +13,7 @@
 - **Guarantees:**
   - The tenant.suspended event carries the operator name exactly as supplied
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Tenants.ITenantStore.SuspendTenantAsync`
+  - `Acta.Runtime.ITenantStore.SuspendTenantAsync`
 
 ### A setting is set and read back by name at its inferred scope
 - **Contract:** Set upserts one setting at the scope inferred from its targets with a version bump and emits setting.updated naming the setting.
@@ -27,8 +27,8 @@
   - Every set emits setting.updated whose detail carries the setting name
   - A non-null expectedVersion is a CAS: applied on match, VersionConflict with the current version on mismatch, NotFound when no row exists
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Settings.ISettingStore.GetSettingAsync`
-  - `Acta.Runtime.Modules.Execution.Settings.ISettingStore.SetSettingAsync`
+  - `Acta.Runtime.ISettingStore.GetSettingAsync`
+  - `Acta.Runtime.ISettingStore.SetSettingAsync`
 
 ### Namespace suspend/resume flip status, emit one 15xx event, and reject sys
 - **Contract:** Suspend and resume flip namespace status with a version bump, emit namespace.suspended/resumed to the namespace, and reject sys at the facade.
@@ -42,8 +42,8 @@
   - An unknown namespace name is NotFound
   - Rejected sys suspend/resume leave the seeded row untouched and still listed
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Namespaces.INamespaceStore.ResumeNamespaceAsync`
-  - `Acta.Runtime.Modules.Execution.Namespaces.INamespaceStore.SuspendNamespaceAsync`
+  - `Acta.Runtime.INamespaceStore.ResumeNamespaceAsync`
+  - `Acta.Runtime.INamespaceStore.SuspendNamespaceAsync`
 
 ### Tenant suspend and resume flip status and emit one 15xx event to sys namespace
 - **Contract:** Suspend and resume flip tenant status with a version bump, emit tenant.suspended/tenant.resumed to sys namespace 1, and report NotFound for unknown keys.
@@ -57,8 +57,8 @@
   - Re-resuming an active tenant is AlreadyInState with no event
   - Suspending an unknown key is NotFound
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Tenants.ITenantStore.ResumeTenantAsync`
-  - `Acta.Runtime.Modules.Execution.Tenants.ITenantStore.SuspendTenantAsync`
+  - `Acta.Runtime.ITenantStore.ResumeTenantAsync`
+  - `Acta.Runtime.ITenantStore.SuspendTenantAsync`
 
 ### Namespace update writes owner_team/description under a version CAS
 - **Contract:** Update writes owner_team/description under a version CAS, clears fields on null, emits namespace.updated, and guards sys.
@@ -72,7 +72,7 @@
   - Rejected sys updates leave the seeded row untouched and still listed
   - Overlong namespace fields is rejected before the store write
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Namespaces.INamespaceStore.UpdateNamespaceAsync`
+  - `Acta.Runtime.INamespaceStore.UpdateNamespaceAsync`
 
 ### Tenant update is a version-CAS write that clears fields on null
 - **Contract:** Update writes display_name/description under a version CAS, clears null fields, and emits tenant.updated to sys namespace 1.
@@ -86,7 +86,7 @@
   - An unknown key is NotFound
   - Overlong tenant fields is rejected before the store write
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Tenants.ITenantStore.UpdateTenantAsync`
+  - `Acta.Runtime.ITenantStore.UpdateTenantAsync`
 
 ## Alerts
 
@@ -129,9 +129,9 @@
   - A resolved Delivered row is never reminded: the resolve took its schedule away
   - The fresh incident opened after a resolution delivers on its own
 - **Store methods:**
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.GetDeliverableAlertsAsync`
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.ResolveJobAlertsAsync`
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.UpdateAlertDeliveryAsync`
+  - `Acta.Runtime.IAlertStore.GetDeliverableAlertsAsync`
+  - `Acta.Runtime.IAlertStore.ResolveJobAlertsAsync`
+  - `Acta.Runtime.IAlertStore.UpdateAlertDeliveryAsync`
 
 ### An open incident keeps the ref its first firing minted
 - **Contract:** A repeat firing absorbed by an open incident bumps occurrence_count on the existing row and leaves its public alert ref exactly as the first firing minted it.
@@ -141,7 +141,7 @@
 - **Guarantees:**
   - Repeat firings absorbed by an open incident bump occurrence_count and keep the ref the first firing minted
 - **Store methods:**
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.RaiseJobAlertAsync`
+  - `Acta.Runtime.IAlertStore.RaiseJobAlertAsync`
 
 ### Alert delivery retries with backoff, goes terminal, and reminds open incidents
 - **Contract:** A throwing transport retries to terminal Failed, a missing transport fails at once, and settling schedules the reminder that re-sends an open automatic alert.
@@ -164,8 +164,8 @@
   - A delivered send hands the next reminder a whole retry budget, not the one it spent
   - A resolve that lands while the transport is sending leaves the settlement without effect
 - **Store methods:**
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.GetDeliverableAlertsAsync`
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.UpdateAlertDeliveryAsync`
+  - `Acta.Runtime.IAlertStore.GetDeliverableAlertsAsync`
+  - `Acta.Runtime.IAlertStore.UpdateAlertDeliveryAsync`
 
 ### Alert profiles gate emission and severity per profile
 - **Contract:** Each alert profile gates non-terminal emission and severity, and a re-fire on a resolved alert's key opens a fresh incident rather than re-opening it.
@@ -178,9 +178,9 @@
   - SysCritical emits Critical FirstFailure on non-terminal and Critical FinalFailure on terminal
   - A resolved OnTerminal FinalFailure stays resolved and the same key's next firing opens a second incident
 - **Store methods:**
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.GetAlertableEventsAsync`
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.RaiseJobAlertAsync`
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.ResolveJobAlertsAsync`
+  - `Acta.Runtime.IAlertStore.GetAlertableEventsAsync`
+  - `Acta.Runtime.IAlertStore.RaiseJobAlertAsync`
+  - `Acta.Runtime.IAlertStore.ResolveJobAlertsAsync`
 
 ### ThresholdReached fires once per incident at the exact occurrence
 - **Contract:** AlertsJob emits one ThresholdReached alert when occurrence_count hits the threshold, and the count restarts at 1 in the incident that opens after a resolution.
@@ -194,9 +194,9 @@
   - A fresh incident escalates again: the projector emits a second ThresholdReached after a resolution
   - The count climbs only inside one incident: after a resolution the same key starts a new row at 1
 - **Store methods:**
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.GetAlertableEventsAsync`
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.RaiseJobAlertAsync`
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.ResolveJobAlertsAsync`
+  - `Acta.Runtime.IAlertStore.GetAlertableEventsAsync`
+  - `Acta.Runtime.IAlertStore.RaiseJobAlertAsync`
+  - `Acta.Runtime.IAlertStore.ResolveJobAlertsAsync`
 
 ### The alerts projector classifies failures off events and resolves on success
 - **Contract:** The sys.alerts projector classifies finished events into first-failure and final-failure alerts, resolves them on success, and advances its cursor.
@@ -211,9 +211,9 @@
   - Success resolves the open failure and writes no new alert
   - A None alert-profile job projects no alerts
 - **Store methods:**
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.GetAlertableEventsAsync`
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.RaiseJobAlertAsync`
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.ResolveJobAlertsAsync`
+  - `Acta.Runtime.IAlertStore.GetAlertableEventsAsync`
+  - `Acta.Runtime.IAlertStore.RaiseJobAlertAsync`
+  - `Acta.Runtime.IAlertStore.ResolveJobAlertsAsync`
 
 ### The alerts projector drains a backlog in bounded batches within one invocation
 - **Contract:** One sys.alerts generate pass drains repeated batches until the backlog empties or a bound is reached, checkpointing its cursor after every batch.
@@ -227,8 +227,8 @@
   - A spent time budget ends the pass after the batch in flight, not inside it
   - An idle pass leaves no rows behind and moves only the cursor instant, up to the horizon
 - **Store methods:**
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.GetAlertableEventsAsync`
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.RaiseJobAlertAsync`
+  - `Acta.Runtime.IAlertStore.GetAlertableEventsAsync`
+  - `Acta.Runtime.IAlertStore.RaiseJobAlertAsync`
 
 ### The failures-only audit level records a failure and the success that answers it
 - **Contract:** At AuditLevel.Failures a failure carrying no reschedule writes its finished event, and a success writes one only when the newest finished event is a failure.
@@ -241,9 +241,9 @@
   - A one-shot that throws twice and succeeds inside its budget writes nothing at all
   - A recurring slot that fails one fire raises, its next fire resolves, and the fires after that write nothing
 - **Store methods:**
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.GetAlertableEventsAsync`
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.ResolveJobAlertsAsync`
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
+  - `Acta.Runtime.IAlertStore.GetAlertableEventsAsync`
+  - `Acta.Runtime.IAlertStore.ResolveJobAlertsAsync`
+  - `Acta.Runtime.IExecutionStore.CompleteExecutionAsync`
 
 ### A recurring job whose handler throws raises an alert
 - **Contract:** A recurring slot re-arming Ready after a failed fire records why that attempt failed, so the projector can alert on a job that would otherwise fail unwatched.
@@ -253,9 +253,9 @@
 - **Guarantees:**
   - A recurring fire whose handler throws attributes the reason on its Ready rollover and raises one alert
 - **Store methods:**
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.GetAlertableEventsAsync`
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.RaiseJobAlertAsync`
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
+  - `Acta.Runtime.IAlertStore.GetAlertableEventsAsync`
+  - `Acta.Runtime.IAlertStore.RaiseJobAlertAsync`
+  - `Acta.Runtime.IExecutionStore.CompleteExecutionAsync`
 
 ### A replayed alert batch neither inflates an incident nor opens a ghost one
 - **Contract:** Re-projecting events the sys.alerts cursor never advanced past leaves the incidents they moved untouched and opens none behind a resolution.
@@ -268,9 +268,9 @@
   - A failure replayed after its incident resolved opens no ghost incident and escalates nothing
   - A crash between the crossing event's FirstFailure and ThresholdReached emits recovers one correctly-sourced escalation
 - **Store methods:**
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.GetAlertableEventsAsync`
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.RaiseJobAlertAsync`
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.ResolveJobAlertsAsync`
+  - `Acta.Runtime.IAlertStore.GetAlertableEventsAsync`
+  - `Acta.Runtime.IAlertStore.RaiseJobAlertAsync`
+  - `Acta.Runtime.IAlertStore.ResolveJobAlertsAsync`
 
 ### The alerts projector reads behind a safe horizon rather than up to the present
 - **Contract:** The sys.alerts read offers an event only once its stamp is behind the safe horizon, cursored by (created_at_utc, id) so no uncommitted event is stepped over.
@@ -283,8 +283,8 @@
   - An event aged past the horizon projects on the next pass
   - A pass projects the aged event and stops its cursor below the one still inside the horizon
 - **Store methods:**
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.GetAlertableEventsAsync`
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.RaiseJobAlertAsync`
+  - `Acta.Runtime.IAlertStore.GetAlertableEventsAsync`
+  - `Acta.Runtime.IAlertStore.RaiseJobAlertAsync`
 
 ### Alert writers race job purges without a deadlock or an orphaned alert
 - **Contract:** Raising, resolving, and sweeping alerts while their jobs are purged never deadlocks and never leaves an alert on a purged job.
@@ -294,9 +294,9 @@
 - **Guarantees:**
   - Raising, resolving, and sweeping alerts while their jobs are purged never deadlocks or orphans an alert
 - **Store methods:**
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.RaiseJobAlertAsync`
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.ResolveJobAlertsAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.PurgeJobAsync`
+  - `Acta.Runtime.IAlertStore.RaiseJobAlertAsync`
+  - `Acta.Runtime.IAlertStore.ResolveJobAlertsAsync`
+  - `Acta.Runtime.IJobStore.PurgeJobAsync`
 
 ### Manual alert write collapses onto the open incident and truncates bounded prose
 - **Contract:** A null deduplication key always inserts, a non-null key collapses repeats onto its one open row, and a raise after resolution opens a fresh row.
@@ -313,7 +313,7 @@
   - Raising with a non-null unknown jobId throws ArgumentException, not a provider constraint error
   - Raising with a null jobId still inserts a job-less alert
 - **Store methods:**
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.RaiseJobAlertAsync`
+  - `Acta.Runtime.IAlertStore.RaiseJobAlertAsync`
 
 ## Catalog
 
@@ -326,7 +326,7 @@
   - All 13 overrides bind to their own column, detectable by distinct values
   - Clearing all overrides reverts each effective to its base value
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Definitions.IDefinitionStore.SetDefinitionOverridesAsync`
+  - `Acta.Runtime.IDefinitionStore.SetDefinitionOverridesAsync`
 
 ### Retire flips a definition and cancels its parked jobs
 - **Contract:** Retiring a definition cancels its Ready, Suspended and Paused jobs with reason JobDefinitionRetired, leaves a running attempt alone, and refuses enqueue.
@@ -343,7 +343,7 @@
   - Retiring an already retired definition is applied and writes no further events
   - An equal manifest generation reactivates a retired definition and an older one cannot
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Definitions.IDefinitionStore.RetireDefinitionAsync`
+  - `Acta.Runtime.IDefinitionStore.RetireDefinitionAsync`
 
 ### GetTenant returns the tenant for a known key or id and null for an unknown one
 - **Contract:** GetTenant returns the TenantListItem projection for a matching key or internal id regardless of status and null when no row matches.
@@ -355,7 +355,7 @@
   - A suspended tenant still resolves with status Suspended
   - An unknown key returns null
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Tenants.ITenantStore.GetTenantAsync`
+  - `Acta.Runtime.ITenantStore.GetTenantAsync`
 
 ### Newer-or-equal generation promotes policy; older cannot downgrade
 - **Contract:** Writes a definition only when the incoming manifest generation is at or above the stored one, and never touches a definition the manifest omits.
@@ -371,8 +371,8 @@
   - Older generation cannot reactivate or rewrite a newer retired definition
   - Fail-mode contract drift blocks before any registration write
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Definitions.IDefinitionStore.GetDefinitionContractsAsync`
-  - `Acta.Runtime.Modules.Execution.Definitions.IDefinitionStore.RegisterDefinitionsAsync`
+  - `Acta.Runtime.IDefinitionStore.GetDefinitionContractsAsync`
+  - `Acta.Runtime.IDefinitionStore.RegisterDefinitionsAsync`
 
 ### Tenant registration inserts a new Active tenant or returns the existing row
 - **Contract:** Registering a new tenant inserts it Active and returns a new id, and re-registering returns the same id without changing status, metadata, or version.
@@ -388,7 +388,7 @@
   - Registering with a display name reads it back
   - The bare reserved tenant key 'sys' is rejected
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Tenants.ITenantStore.RegisterTenantAsync`
+  - `Acta.Runtime.ITenantStore.RegisterTenantAsync`
 
 ### Worker init writes a readable namespace row with a positive id
 - **Contract:** A seeded namespace is persisted with a positive db-assigned id and is readable back by that id.
@@ -415,7 +415,7 @@
   - An unknown definition name is NotFound
   - A definition-scoped policy-changed event is emitted
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Definitions.IDefinitionStore.SetDefinitionOverridesAsync`
+  - `Acta.Runtime.IDefinitionStore.SetDefinitionOverridesAsync`
 
 ### Init auto-registers system definitions, slots and schedules
 - **Contract:** InitializeAsync registers system definitions with a Ready recurring slot keyed on the job name and a default schedule.
@@ -426,8 +426,8 @@
   - Init makes the sys.recovery definition Active with a Ready name-keyed slot, a NextRunAtUtc, and a default schedule
   - Init makes the sys.retention definition Active with a Ready name-keyed slot and an hourly default schedule
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Definitions.IDefinitionStore.RegisterDefinitionsAsync`
-  - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.RegisterScheduledJobsAsync`
+  - `Acta.Runtime.IDefinitionStore.RegisterDefinitionsAsync`
+  - `Acta.Runtime.IScheduleStore.RegisterScheduledJobsAsync`
 
 ### An invalid descriptor fails startup before the catalog is written
 - **Contract:** InitializeAsync validates every descriptor's shape before writing the worker row, so an invalid descriptor leaves no workers row and no WorkerStarted event.
@@ -450,8 +450,8 @@
   - Framework defaults apply when the attribute omits policy
   - Second init on the same instance does not double-insert the worker
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Definitions.IDefinitionStore.RegisterDefinitionsAsync`
-  - `Acta.Runtime.Modules.Execution.Workers.IWorkerStore.StartWorkerAsync`
+  - `Acta.Runtime.IDefinitionStore.RegisterDefinitionsAsync`
+  - `Acta.Runtime.IWorkerStore.StartWorkerAsync`
 
 ## Chaos
 
@@ -554,10 +554,10 @@
   - A bounded Map reports the timeout while keeping its item keying
   - A lineage map shows the child wait a parent is parked on, with its deadline when bounded
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.CheckpointSlotAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.CancelJobAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.GetJobLineageMapAsync`
-  - `Acta.Runtime.Modules.Execution.Signals.ISignalStore.WaitSignalAsync`
+  - `Acta.Runtime.IExecutionStore.CheckpointSlotAsync`
+  - `Acta.Runtime.IJobStore.CancelJobAsync`
+  - `Acta.Runtime.IJobStore.GetJobLineageMapAsync`
+  - `Acta.Runtime.ISignalStore.WaitSignalAsync`
 
 ### A completed child outlives its retention deadline while its parent is live
 - **Contract:** Retention and manual purge keep a completed child whose parent is not terminal, and release it, leaves first, once the parent is.
@@ -568,8 +568,8 @@
   - A completed child past its deadline survives the sweep and the purge under a live parent, and the replay reads it
   - Manual purge refuses a child under a live parent and a parent with children, and takes the tree leaves first once it is terminal
 - **Store methods:**
-  - `Acta.Runtime.Maintenance.IRetentionStore.PurgeBatchAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.PurgeJobAsync`
+  - `Acta.Runtime.IJobStore.PurgeJobAsync`
+  - `Acta.Runtime.IRetentionStore.PurgeBatchAsync`
 
 ### Child jobs start deduped, join on completion latches, and cancel cascades
 - **Contract:** StartChildAsync dedupes by name per parent and a terminal child raises a durable latch that releases a waiting parent while cancel cascades to the live subtree.
@@ -590,14 +590,14 @@
   - The maintenance sweep re-raises a stale latch lost to a crash and releases the parent
   - Concurrent cancel and child completions converge with the whole tree terminal and no error
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.GetChildJobIdsAsync`
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.GetStaleChildLatchesAsync`
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.ReclaimStuckJobsAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.CancelJobAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueBatchAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueOneAsync`
-  - `Acta.Runtime.Modules.Execution.Signals.ISignalStore.WaitSignalAsync`
+  - `Acta.Runtime.IExecutionStore.CompleteExecutionAsync`
+  - `Acta.Runtime.IExecutionStore.GetChildJobIdsAsync`
+  - `Acta.Runtime.IExecutionStore.GetStaleChildLatchesAsync`
+  - `Acta.Runtime.IExecutionStore.ReclaimStuckJobsAsync`
+  - `Acta.Runtime.IJobStore.CancelJobAsync`
+  - `Acta.Runtime.IJobStore.EnqueueBatchAsync`
+  - `Acta.Runtime.IJobStore.EnqueueOneAsync`
+  - `Acta.Runtime.ISignalStore.WaitSignalAsync`
 
 ### A bounded child wait expires, cancels its subtree, and leaves the parent running
 - **Contract:** A bounded child wait resolves TimedOut once, cancels the awaited child and its descendants, and leaves the parent free to continue.
@@ -616,10 +616,10 @@
   - A bounded wait on a job that is not this job's child times out without cancelling it
   - An unbounded child wait still suspends with no due instant and stays unclaimable
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.GetChildJobIdsAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.CancelJobAsync`
-  - `Acta.Runtime.Modules.Execution.Signals.ISignalStore.WaitSignalAsync`
+  - `Acta.Runtime.IExecutionStore.CompleteExecutionAsync`
+  - `Acta.Runtime.IExecutionStore.GetChildJobIdsAsync`
+  - `Acta.Runtime.IJobStore.CancelJobAsync`
+  - `Acta.Runtime.ISignalStore.WaitSignalAsync`
 
 ## Claim
 
@@ -635,7 +635,7 @@
   - An empty claim's horizon skips excluded rows: a supported row bounds it, and an all-excluded namespace reports none
   - The loop drains the whole backlog to Succeeded
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.ClaimBatchAsync`
+  - `Acta.Runtime.IExecutionStore.ClaimBatchAsync`
 
 ### Claim returns only due rows, in claim order, past parked and delayed rows
 - **Contract:** Parked waits and future rows in a higher band never enter a claim, due rows arrive in claim order across bands, and the horizon is the earliest waiting instant.
@@ -645,7 +645,7 @@
 - **Guarantees:**
   - Due rows claim in priority order past parked waits and a band of delayed High rows, then the horizon names the High band
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.ClaimBatchAsync`
+  - `Acta.Runtime.IExecutionStore.ClaimBatchAsync`
 
 ## Clock
 
@@ -670,7 +670,7 @@
   - Parallel executors never run two same-key handlers concurrently
   - A claimed job whose key lock is held bounces to Ready with the configured delay
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.ClaimBatchAsync`
+  - `Acta.Runtime.IExecutionStore.ClaimBatchAsync`
 
 ### A definition's concurrency limit is how many of its key's slots exist
 - **Contract:** A concurrency key admits at most its definition's limit at once, one lock row per slot, taken lowest free slot first.
@@ -685,7 +685,7 @@
   - A slot whose lease expired is stolen by the next admission
   - Real same-key handlers run at the limit minus the slots held elsewhere
 - **Store methods:**
-  - `Acta.Runtime.Services.Locks.ILockStore.TryAcquireSlotAsync`
+  - `Acta.Runtime.ILockStore.TryAcquireSlotAsync`
 
 ### A meter freed after a lock convoy admits its burst, not every queued call
 - **Contract:** Reservations delayed behind a held bucket row are judged at the clock when the row frees, so the release admits the burst and books the rest.
@@ -695,7 +695,7 @@
 - **Guarantees:**
   - Reservations queued behind a held bucket row are admitted at the burst when it frees, not all at once
 - **Store methods:**
-  - `Acta.Runtime.Services.Locks.ILockStore.ReserveRateAsync`
+  - `Acta.Runtime.ILockStore.ReserveRateAsync`
 
 ### A definition's rate limit admits at the rate and books every early job a turn
 - **Contract:** A rate key admits its burst at once and then one per interval, booking each early job a turn it waits for or returns to.
@@ -720,7 +720,7 @@
   - A definition metered on its own name is unaffected by a shared meter's override
   - A rate denial hands the concurrency slot back and takes one again on the turn
 - **Store methods:**
-  - `Acta.Runtime.Services.Locks.ILockStore.ReserveRateAsync`
+  - `Acta.Runtime.ILockStore.ReserveRateAsync`
 
 ## Control
 
@@ -738,8 +738,8 @@
   - AcknowledgeAsync does not defer a reminder that is already due
   - AcknowledgeAsync and ResolveAsync return NotFound for an unknown alert ref
 - **Store methods:**
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.AcknowledgeJobAlertAsync`
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.ResolveJobAlertManualAsync`
+  - `Acta.Runtime.IAlertStore.AcknowledgeJobAlertAsync`
+  - `Acta.Runtime.IAlertStore.ResolveJobAlertManualAsync`
 
 ### An external cancel reaches the running handler's token via heartbeat
 - **Contract:** An external cancel reaches the handler's CancellationToken through the next heartbeat tick so the handler stops cooperatively and the row settles Cancelled.
@@ -766,12 +766,12 @@
   - Debug on a finished laned job restarted behind a live member reports it Blocked and stops
   - Events verb prints the job timeline after a run
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.ClaimOneAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.CancelJobAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.PauseJobAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.RestartJobAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.ResumeJobAsync`
-  - `Acta.Runtime.Modules.Execution.Signals.ISignalStore.RaiseSignalAsync`
+  - `Acta.Runtime.IExecutionStore.ClaimOneAsync`
+  - `Acta.Runtime.IJobStore.CancelJobAsync`
+  - `Acta.Runtime.IJobStore.PauseJobAsync`
+  - `Acta.Runtime.IJobStore.RestartJobAsync`
+  - `Acta.Runtime.IJobStore.ResumeJobAsync`
+  - `Acta.Runtime.ISignalStore.RaiseSignalAsync`
 
 ### Cancel Pause Resume Restart apply legal transitions and audit
 - **Contract:** IJobs control verbs apply legal transitions stamping Operator/ControlManual, persist reason on reason-bearing states, reject illegal moves and report not-found.
@@ -785,10 +785,10 @@
   - Illegal control is Rejected with the current status
   - Control on a missing job is NotFound
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.CancelJobAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.PauseJobAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.RestartJobAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.ResumeJobAsync`
+  - `Acta.Runtime.IJobStore.CancelJobAsync`
+  - `Acta.Runtime.IJobStore.PauseJobAsync`
+  - `Acta.Runtime.IJobStore.RestartJobAsync`
+  - `Acta.Runtime.IJobStore.ResumeJobAsync`
 
 ### Control verbs transition unconditionally but emit events only at full audit
 - **Contract:** Control verbs apply their status transition unconditionally and only write a job event when the job's audit level is full (code 20).
@@ -802,11 +802,11 @@
   - Restart applies transition regardless of audit level and emits event only at full audit
   - RaiseSignal upserts the signal unconditionally and emits event only at full audit
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.CancelJobAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.PauseJobAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.RestartJobAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.ResumeJobAsync`
-  - `Acta.Runtime.Modules.Execution.Signals.ISignalStore.RaiseSignalAsync`
+  - `Acta.Runtime.IJobStore.CancelJobAsync`
+  - `Acta.Runtime.IJobStore.PauseJobAsync`
+  - `Acta.Runtime.IJobStore.RestartJobAsync`
+  - `Acta.Runtime.IJobStore.ResumeJobAsync`
+  - `Acta.Runtime.ISignalStore.RaiseSignalAsync`
 
 ### Control verbs apply per-status guards and correct side effects
 - **Contract:** Restart revives Failed or Cancelled resetting failure_count, Cancel stamps retention and rejects re-cancel, Pause allows re-pause, Resume coalesces next run.
@@ -821,10 +821,10 @@
   - Pause from Suspended is Applied and re-pause from Paused is also Applied
   - Resume with explicit next_run_at_utc pins the instant; null coalesces to DB-now
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.CancelJobAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.PauseJobAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.RestartJobAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.ResumeJobAsync`
+  - `Acta.Runtime.IJobStore.CancelJobAsync`
+  - `Acta.Runtime.IJobStore.PauseJobAsync`
+  - `Acta.Runtime.IJobStore.RestartJobAsync`
+  - `Acta.Runtime.IJobStore.ResumeJobAsync`
 
 ### Handler Fail Cancel Pause finalize the attempt without returning to user code
 - **Contract:** Handler control verbs and non-retryable exceptions finalize the attempt without returning to user code, budget untouched and no result written.
@@ -838,7 +838,7 @@
   - Handler pause holds Paused with a next run, the matching reason, no result, and a JobPaused lifecycle event
   - A handler-paused job resumes to Ready via external control
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
+  - `Acta.Runtime.IExecutionStore.CompleteExecutionAsync`
 
 ### A job control verb takes an optional expected version and refuses a stale one.
 - **Contract:** A null expectedVersion applies unconditionally, a matching one applies and returns version + 1, and a stale one is VersionConflict that writes nothing.
@@ -855,8 +855,8 @@
   - An unknown lookup is NotFound with a null version whether or not a token is supplied
   - GetAsync exposes the runtime version a control verb takes back as its expected version
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.PauseJobAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.RescheduleJobAsync`
+  - `Acta.Runtime.IJobStore.PauseJobAsync`
+  - `Acta.Runtime.IJobStore.RescheduleJobAsync`
 
 ### Operator purge hard-deletes a terminal job.
 - **Contract:** PurgeAsync deletes a terminal job's events, alerts, and row (cascade sweeps the rest), always emits job.purged, and rejects non-terminal or live-child jobs.
@@ -869,7 +869,7 @@
   - PurgeAsync rejects a terminal parent that still has a live child
   - PurgeAsync returns NotFound for an unknown lookup
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.PurgeJobAsync`
+  - `Acta.Runtime.IJobStore.PurgeJobAsync`
 
 ### Operator reprioritize changes claim priority, rejecting only terminal jobs.
 - **Contract:** ReprioritizeAsync sets priority_code on any non-terminal row (including in-flight), leaving status and cursor unchanged, and rejects terminal rows.
@@ -882,7 +882,7 @@
   - ReprioritizeAsync rejects a terminal job without mutating it
   - ReprioritizeAsync returns NotFound for an unknown lookup
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.ReprioritizeJobAsync`
+  - `Acta.Runtime.IJobStore.ReprioritizeJobAsync`
 
 ### Operator reschedule moves a job's cursor, rejecting in-flight or terminal jobs.
 - **Contract:** RescheduleAsync moves Paused, Suspended, or Ready rows to the requested instant, re-arms Paused or Suspended Ready, and rejects in-flight or terminal rows.
@@ -894,7 +894,7 @@
   - RescheduleAsync rejects executing and terminal jobs without mutating them
   - RescheduleAsync returns NotFound for an unknown lookup
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.RescheduleJobAsync`
+  - `Acta.Runtime.IJobStore.RescheduleJobAsync`
 
 ### Operator update-input amends stored input and audits bounded payload metadata.
 - **Contract:** UpdateJobInput replaces a job's input in any status except Dispatched/Executing and audits job.input-amended with prior-payload metadata, never the payload.
@@ -909,7 +909,7 @@
   - UpdateJobInput stores the new payload's format id, so a text job amends as text
   - UpdateJobInput returns NotFound for an unknown lookup
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.UpdateJobInputAsync`
+  - `Acta.Runtime.IJobStore.UpdateJobInputAsync`
 
 ## Enqueue
 
@@ -923,8 +923,8 @@
   - A 1000-row batch lands 1000 Ready jobs with positionally-aligned outcomes and unique JobIds
   - A shorter payload after a longer payload is persisted without retaining trailing bytes
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueBatchAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueOneAsync`
+  - `Acta.Runtime.IJobStore.EnqueueBatchAsync`
+  - `Acta.Runtime.IJobStore.EnqueueOneAsync`
 
 ### Same-batch duplicate deduplication keys or malformed rows reject the batch
 - **Contract:** A batch with a same-batch duplicate DeduplicationKey, duplicate tag names, or an unknown namespace or job is rejected atomically and no job rows are inserted.
@@ -941,8 +941,8 @@
   - An unknown namespace or job throws and persists nothing
   - A batch row whose job ref is already taken raises and persists nothing
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueBatchAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueOneAsync`
+  - `Acta.Runtime.IJobStore.EnqueueBatchAsync`
+  - `Acta.Runtime.IJobStore.EnqueueOneAsync`
 
 ### Concurrent batch producers in one namespace never deadlock each other
 - **Contract:** Batch enqueues racing into one namespace all land without a deadlock, unlaned ones as Ready and laned ones in batch order behind their lane head.
@@ -954,7 +954,7 @@
   - Four producers racing 1000-row unlaned batches into one namespace all land as Ready
   - Four producers racing 1000-row batches over shared lanes land in batch order behind one head per lane
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueBatchAsync`
+  - `Acta.Runtime.IJobStore.EnqueueBatchAsync`
 
 ### Enqueue rejects a suspended namespace and resumes once reactivated
 - **Contract:** EnqueueOne/EnqueueBatch reject enqueue into a suspended namespace and accept it again once the namespace is reactivated.
@@ -966,8 +966,8 @@
   - A suspended namespace rejects EnqueueOne and persists nothing
   - Enqueue succeeds again once the namespace is reactivated
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueBatchAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueOneAsync`
+  - `Acta.Runtime.IJobStore.EnqueueBatchAsync`
+  - `Acta.Runtime.IJobStore.EnqueueOneAsync`
 
 ### Tenant suspension is admission control, not work closure
 - **Contract:** Suspension rejects new enqueues naming the tenant key while admitted workflows may expand through inherited children after the suspend commits.
@@ -979,8 +979,8 @@
   - A child naming the suspended tenant key explicitly is rejected even under a live parent
   - Enqueues overlapping a suspend land or reject atomically, and post-suspend enqueues reject
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueBatchAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueOneAsync`
+  - `Acta.Runtime.IJobStore.EnqueueBatchAsync`
+  - `Acta.Runtime.IJobStore.EnqueueOneAsync`
 
 ### The definition's tenant requirement is enforced at the enqueue boundary
 - **Contract:** A Required definition rejects tenant-less rows and accepts explicit or inherited tenants while a Forbidden one rejects explicit keys and stores NULL.
@@ -995,8 +995,8 @@
   - A Forbidden definition rejects a root naming a tenant
   - A Forbidden child of a tenant-scoped parent lands with its inherited tenant suppressed to NULL
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueBatchAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueOneAsync`
+  - `Acta.Runtime.IJobStore.EnqueueBatchAsync`
+  - `Acta.Runtime.IJobStore.EnqueueOneAsync`
 
 ### Enqueue resolves, inherits, rejects, and filters by tenant
 - **Contract:** Enqueue resolves TenantKey to tenant_id, inherits it to children, rejects bad keys atomically, and gates cross-tenant children on an explicit override.
@@ -1015,8 +1015,8 @@
   - A child naming its tenant-less parent's namespace tenant explicitly lands without the override
   - ListJobs filters by tenant id
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueBatchAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueOneAsync`
+  - `Acta.Runtime.IJobStore.EnqueueBatchAsync`
+  - `Acta.Runtime.IJobStore.EnqueueOneAsync`
 
 ### Transactional enqueue commits or rolls back with the business write
 - **Contract:** A caller-transaction enqueue joins the supplied DbTransaction, so a business write and the enqueue persist together on commit and vanish together on rollback.
@@ -1028,8 +1028,8 @@
   - Rollback discards both the business row and the provisional transactional enqueue
   - A batch transactional enqueue commits and rolls back atomically with the business insert
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueBatchInTransactionAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueOneInTransactionAsync`
+  - `Acta.Runtime.IJobStore.EnqueueBatchInTransactionAsync`
+  - `Acta.Runtime.IJobStore.EnqueueOneInTransactionAsync`
 
 ### Transactional enqueue is provisional, validated, wake-free, and caller-owned
 - **Contract:** Every transactional enqueue overload joins the caller transaction, rejects invalid transactions, publishes no wakeup, and leaves completion to the caller.
@@ -1046,8 +1046,8 @@
   - An enqueue rejection inside the caller transaction requires full caller rollback and persists nothing
   - A transactional enqueue publishes no wakeup while the owned path publishes one
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueBatchInTransactionAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueOneInTransactionAsync`
+  - `Acta.Runtime.IJobStore.EnqueueBatchInTransactionAsync`
+  - `Acta.Runtime.IJobStore.EnqueueOneInTransactionAsync`
 
 ### Typed enqueue rejection reasons for namespace, tenant, route, and definition
 - **Contract:** Maps suspended namespace/tenant, unknown tenant, unknown route, and retired definition to EnqueueRejectedException reasons, preserving the provider exception.
@@ -1062,8 +1062,8 @@
   - An unknown job rejection throws RouteUnknown
   - Enqueue against a retired definition throws DefinitionRetired
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueBatchAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueOneAsync`
+  - `Acta.Runtime.IJobStore.EnqueueBatchAsync`
+  - `Acta.Runtime.IJobStore.EnqueueOneAsync`
 
 ### Acta keys normalize to lowercase while Acta names reject mixed case
 - **Contract:** Acta-owned keys are normalized to lowercase for provider-stable equality, while Acta-owned names must already be lowercase kebab/dotted-kebab.
@@ -1078,9 +1078,9 @@
   - Deduplication-key resolve is case-insensitive (C1 guard)
   - Signal names reject mixed case
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueBatchAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueOneAsync`
-  - `Acta.Runtime.Modules.Execution.Tenants.ITenantStore.RegisterTenantAsync`
+  - `Acta.Runtime.IJobStore.EnqueueBatchAsync`
+  - `Acta.Runtime.IJobStore.EnqueueOneAsync`
+  - `Acta.Runtime.ITenantStore.RegisterTenantAsync`
 
 ### Contract enqueue names the job explicitly and resolves its route
 - **Contract:** The contract IJobs façade resolves namespace and format from a JobContract, and supports no-input, fire-and-forget, and RunAndWaitAsync result paths.
@@ -1095,9 +1095,9 @@
   - A wrong input type on a hand-built contract throws before enqueue
   - A wrong result type on a hand-built contract throws
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueBatchAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueOneAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.GetJobResultAsync`
+  - `Acta.Runtime.IJobStore.EnqueueBatchAsync`
+  - `Acta.Runtime.IJobStore.EnqueueOneAsync`
+  - `Acta.Runtime.IJobStore.GetJobResultAsync`
 
 ### Relative delay resolves on the DB clock; absolute run-at is preserved
 - **Contract:** Relative Delayed enqueue sends only an integer delay the server resolves as db_now plus delay, and NextRunAt persists the absolute caller instant.
@@ -1111,8 +1111,8 @@
   - Setting both delay channels is rejected before any SQL
   - Builders map relative delay to an integer, round sub-second up, and clear the other channel last-write-wins
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueBatchAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueOneAsync`
+  - `Acta.Runtime.IJobStore.EnqueueBatchAsync`
+  - `Acta.Runtime.IJobStore.EnqueueOneAsync`
 
 ### ResolveJobIdByDeduplicationKey returns the id for a known key, null otherwise
 - **Contract:** ResolveJobIdByDeduplicationKey resolves a root job's id from its namespace and deduplication key, and returns null when no row matches.
@@ -1122,7 +1122,7 @@
 - **Guarantees:**
   - Known deduplication key resolves to the enqueued job id and an unknown key returns null
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.ResolveJobIdByDeduplicationKeyAsync`
+  - `Acta.Runtime.IJobStore.ResolveJobIdByDeduplicationKeyAsync`
 
 ### Enqueue assigns a job ref that resolves to the job; unknown refs return null
 - **Contract:** Every enqueued job carries a server-generated job_ref that resolves to its internal id, and an unknown ref resolves to null.
@@ -1132,9 +1132,9 @@
 - **Guarantees:**
   - Enqueue returns a non-empty ref that resolves and reads back the same job, dedup echoes the existing ref, and an unknown ref returns null
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueBatchAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueOneAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.ResolveJobIdByRefAsync`
+  - `Acta.Runtime.IJobStore.EnqueueBatchAsync`
+  - `Acta.Runtime.IJobStore.EnqueueOneAsync`
+  - `Acta.Runtime.IJobStore.ResolveJobIdByRefAsync`
 
 ### Typed enqueue resolves the route and delayed jobs gate on next_run
 - **Contract:** The typed IJobs façade resolves the route from the input type, applies deduplication-key dedupe and delayed-run options, and RunAndWaitAsync waits.
@@ -1152,9 +1152,9 @@
   - RunAndWaitAsync honors WaitTimeout when PollInterval exceeds it
   - RunAndWaitAsync rejects non-positive wait options before enqueue
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueBatchAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueOneAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.GetJobResultAsync`
+  - `Acta.Runtime.IJobStore.EnqueueBatchAsync`
+  - `Acta.Runtime.IJobStore.EnqueueOneAsync`
+  - `Acta.Runtime.IJobStore.GetJobResultAsync`
 
 ### A Reference-only host typed-enqueues without running a worker
 - **Contract:** j.Reference<TManifest> feeds the typed route index without declaring a worker, so the host typed-enqueues and the namespace's Run worker completes it.
@@ -1164,8 +1164,8 @@
 - **Guarantees:**
   - Reference resolves typed routes and hosts no worker while the Run worker executes its enqueued rows
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueBatchAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueOneAsync`
+  - `Acta.Runtime.IJobStore.EnqueueBatchAsync`
+  - `Acta.Runtime.IJobStore.EnqueueOneAsync`
 
 ## Execution
 
@@ -1195,7 +1195,7 @@
 - **Guarantees:**
   - A lease renewal racing a held child completion finishes without a deadlock
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Workers.IWorkerStore.ExtendWorkerLeasesAsync`
+  - `Acta.Runtime.IWorkerStore.ExtendWorkerLeasesAsync`
 
 ### StartExecution and CompleteExecution no-op outcomes return exact action enums
 - **Contract:** No-op StartExecution and CompleteExecution outcomes (wrong owner, already-terminal) never emit events and return the exact discriminated action.
@@ -1209,8 +1209,8 @@
   - Second CompleteExecution on a terminal job returns AlreadyTerminal with no additional finished event
   - Stale CompleteExecution by a displaced worker returns NotOwner and leaves job owned by the new claimant
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.StartExecutionAsync`
+  - `Acta.Runtime.IExecutionStore.CompleteExecutionAsync`
+  - `Acta.Runtime.IExecutionStore.StartExecutionAsync`
 
 ### A stranded recovery slot is repaired under a guard by any worker
 - **Contract:** A recovery slot in flight under a lapsed lease is re-armed once by a repair whose guard reads the lease against database time inside the statement.
@@ -1229,7 +1229,7 @@
   - The monitor's own periodic loop repairs a stranded slot once its first delay elapses
   - A graceful drain lets a recovery pass the monitor started finish, and then ends the loop
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.RepairRecoverySlotAsync`
+  - `Acta.Runtime.IExecutionStore.RepairRecoverySlotAsync`
 
 ### Completing an in-flight attempt respects schedule changes made while it ran
 - **Contract:** A recurring completion never advances an orphaned or edited schedule, and derives the slot's status and next run from the schedules current at completion.
@@ -1242,7 +1242,7 @@
   - Adding a schedule during execution: its cursor takes part in the slot's next run
   - Editing a schedule during execution: completion keeps the edit and refuses its stale advance
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
+  - `Acta.Runtime.IExecutionStore.CompleteExecutionAsync`
 
 ### A claim with no handler is handed back, and its definition is not claimed again
 - **Contract:** A claimed job this worker has no descriptor for returns to Ready budget-neutral, and the worker stops claiming that definition.
@@ -1257,7 +1257,7 @@
   - After one bounce the worker's namespace claims skip that definition and still take the rest of the namespace's work
   - Every unsupported definition in a namespace is bounced once and then excluded, whatever order the claims arrive in
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
+  - `Acta.Runtime.IExecutionStore.CompleteExecutionAsync`
 
 ### Heartbeat extends a live lease and stamps last_seen
 - **Contract:** The heartbeat pushes a live lease further out and advances the worker's last_seen without bumping the runtime version, and a reclaim sweep leaves it claimed.
@@ -1268,8 +1268,8 @@
   - The heartbeat pushes a live lease further out, advances worker last_seen, and the lease survives a reclaim sweep
   - The heartbeat does not bump the runtime version, so a buffered claim still passes the start CAS and runs
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.StartExecutionAsync`
-  - `Acta.Runtime.Modules.Execution.Workers.IWorkerStore.ExtendWorkerLeasesAsync`
+  - `Acta.Runtime.IExecutionStore.StartExecutionAsync`
+  - `Acta.Runtime.IWorkerStore.ExtendWorkerLeasesAsync`
 
 ### A job registers, enqueues, claims, executes, persists and reads back
 - **Contract:** A registered job enqueued through IJobs is claimed, executed and lands Succeeded with the canonical claim/start/finish timeline and a deserializable result.
@@ -1279,13 +1279,13 @@
 - **Guarantees:**
   - Job completes Succeeded with a Started then Finished(Succeeded, Executing to Succeeded) timeline and a result that deserializes to the handler output
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.ClaimBatchAsync`
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.StartExecutionAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueBatchAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueOneAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.GetJobResultAsync`
-  - `Acta.Runtime.Modules.Operations.Events.IEventStore.ListEventsAsync`
+  - `Acta.Runtime.IEventStore.ListEventsAsync`
+  - `Acta.Runtime.IExecutionStore.ClaimBatchAsync`
+  - `Acta.Runtime.IExecutionStore.CompleteExecutionAsync`
+  - `Acta.Runtime.IExecutionStore.StartExecutionAsync`
+  - `Acta.Runtime.IJobStore.EnqueueBatchAsync`
+  - `Acta.Runtime.IJobStore.EnqueueOneAsync`
+  - `Acta.Runtime.IJobStore.GetJobResultAsync`
 
 ### Input deserialization failures settle the attempt and stay on the timeline
 - **Contract:** A payload deserialization exception follows normal failure and retry semantics and records an operator-readable reason on JobExecutionFinished.
@@ -1330,7 +1330,7 @@
   - NoteAsync appends job.note-recorded events carrying the message and the optional detail payload
   - A note is filed under the attempt that wrote it, not the attempt its runtime row has reached
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.RecordJobNoteAsync`
+  - `Acta.Runtime.IExecutionStore.RecordJobNoteAsync`
 
 ### A failed one-shot retries to Ready until MaxAttempts then Fails
 - **Contract:** A failed one-shot re-arms to Ready incrementing failure_count while attempts remain and lands terminal Failed once MaxAttempts is reached.
@@ -1350,7 +1350,7 @@
   - One JobStateReset event is emitted with the Job actor and no status transition
   - Reset below the audit level clears the rows but emits no event
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.ResetJobStateAsync`
+  - `Acta.Runtime.IJobStore.ResetJobStateAsync`
 
 ### The combined claim-execute loop drains a backlog exactly once
 - **Contract:** Under ExecutionProfile.Direct the combined claim-execute loop drains a backlog exactly once, claiming Ready to Executing in one round-trip.
@@ -1370,7 +1370,7 @@
   - A stale-version claim is refused as LostClaim and the job stays Dispatched
   - An expired-lease claim is refused as LeaseExpired with no JobExecutionStarted event
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.StartExecutionAsync`
+  - `Acta.Runtime.IExecutionStore.StartExecutionAsync`
 
 ### A timeout within budget re-arms to Ready; exhausted budget lands Failed
 - **Contract:** A per-attempt timeout re-arms the job to Ready incrementing failure_count while budget remains and lands terminal Failed once MaxAttempts is exhausted.
@@ -1407,8 +1407,8 @@
   - A finished ancestor's lane is open to its descendants
   - The guard walks a lineage deeper than one hundred generations, single and batched
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueBatchAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.EnqueueOneAsync`
+  - `Acta.Runtime.IJobStore.EnqueueBatchAsync`
+  - `Acta.Runtime.IJobStore.EnqueueOneAsync`
 
 ### Operator verbs keep a lane's order
 - **Contract:** Pause, resume, reschedule, restart, and reprioritize on a laned job never let it run ahead of an older unfinished member of its lane.
@@ -1420,8 +1420,8 @@
   - Resume, reschedule, and restart leave a follower Blocked while an older member is unfinished
   - A rescheduled follower keeps its later instant when it is promoted
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.PauseJobAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.ResumeJobAsync`
+  - `Acta.Runtime.IJobStore.PauseJobAsync`
+  - `Acta.Runtime.IJobStore.ResumeJobAsync`
 
 ### Operations racing on one lane serialize on the lane lock without deadlocking
 - **Contract:** Concurrent enqueues, completions, and cancels on a lane take the lane lock first, so a younger enqueue waits for an older open one and none of them deadlocks.
@@ -1435,7 +1435,7 @@
   - Two enqueue batches naming shared lanes in opposite orders never deadlock with a completing head
   - A batch keeps the lanes it locked when a definition's lane changes before its rows land
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
+  - `Acta.Runtime.IExecutionStore.CompleteExecutionAsync`
 
 ### A lane runs its jobs one at a time in enqueue order
 - **Contract:** Jobs of one lane run one at a time in job-id order, each settle promoting the next unfinished member, and no retry, delay, or priority reorders them.
@@ -1455,7 +1455,7 @@
   - A lane outside the key alphabet is refused at enqueue
   - A definition lane orders its jobs, and an enqueue lane overrides it
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.ClaimBatchAsync`
+  - `Acta.Runtime.IExecutionStore.ClaimBatchAsync`
 
 ### Job reads name the lane and the member a Blocked job waits behind
 - **Contract:** A job read carries its lane and, while Blocked, the lane's lowest-id unfinished member, and the jobs list filters by lane.
@@ -1483,7 +1483,7 @@
   - A running member its handler pauses hands the lane to an older restarted job
   - Pausing a head with only younger members behind it keeps them Blocked
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.RestartJobAsync`
+  - `Acta.Runtime.IJobStore.RestartJobAsync`
 
 ### Retention deletes a lane that no runtime references
 - **Contract:** A retention sweep deletes a lane that no runtime row references, keeps a lane with any runtime row, and never strands an enqueue racing the delete.
@@ -1515,8 +1515,8 @@
   - Cancelling a Blocked follower wakes no claim loop, and cancelling a head that promotes one does
   - A cancel whose descendant cascade promotes a lane member wakes the claim loops
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.ReclaimStuckJobsAsync`
+  - `Acta.Runtime.IExecutionStore.CompleteExecutionAsync`
+  - `Acta.Runtime.IExecutionStore.ReclaimStuckJobsAsync`
 
 ### The recovery pass releases the Blocked head of a stranded lane
 - **Contract:** A recovery pass promotes the lowest Blocked member of a lane with no live head, records why, and wakes the namespace, leaving lanes with a live head alone.
@@ -1530,7 +1530,7 @@
   - A pass in another namespace leaves this namespace's stranded lane alone
   - One pass repairs at most a hundred stranded lanes of the thousand it visits
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.ReclaimStuckJobsAsync`
+  - `Acta.Runtime.IExecutionStore.ReclaimStuckJobsAsync`
 
 ### Under the Buffered profile each lane runs one member at a time in enqueue order
 - **Contract:** Under the Buffered profile with several executors each lane runs one member at a time in enqueue order while different lanes run in parallel.
@@ -1560,7 +1560,7 @@
   - First acquire returns a token and lands a lease row, and a competing acquire on a live key returns null
   - A competing acquire steals an expired lease and bumps the version
 - **Store methods:**
-  - `Acta.Runtime.Services.Locks.ILockStore.TryAcquireAsync`
+  - `Acta.Runtime.ILockStore.TryAcquireAsync`
 
 ### A held lock renews while owned and misses after release
 - **Contract:** Extending a held lock renews it so a competing acquirer stays blocked, and extending after release is a version-CAS miss that frees the key.
@@ -1570,7 +1570,7 @@
 - **Guarantees:**
   - A held lock extends and blocks rivals, and after release the extend is a CAS miss leaving the key re-acquirable
 - **Store methods:**
-  - `Acta.Runtime.Services.Locks.ILockStore.ExtendAsync`
+  - `Acta.Runtime.ILockStore.ExtendAsync`
 
 ### Heartbeat extends a handler-held lock and a lost lock cancels the attempt
 - **Contract:** The heartbeat extends every lock an attempt holds so a long critical section stays exclusive, and a lost held lock aborts the attempt into a retryable failure.
@@ -1589,7 +1589,7 @@
 - **Guarantees:**
   - Live token release returns true and deletes the lease row, a stale token returns false, and the freed key is re-acquirable
 - **Store methods:**
-  - `Acta.Runtime.Services.Locks.ILockStore.ReleaseAsync`
+  - `Acta.Runtime.ILockStore.ReleaseAsync`
 
 ## Outbox
 
@@ -1601,7 +1601,7 @@
 - **Guarantees:**
   - Pending rows count as backlog while Claimed and Quarantined rows do not
 - **Store methods:**
-  - `Acta.Runtime.Modules.Outbox.IOutboxRelayStore.CountBacklogAsync`
+  - `Acta.Runtime.IOutboxRelayStore.CountBacklogAsync`
 
 ### A claim recovers an expired lease and reclaims it, leaving a live lease alone
 - **Contract:** ClaimDue recovers a Claimed row whose lease expired back to Pending and reclaims it under a new token, but never steals a live lease.
@@ -1612,7 +1612,7 @@
   - An expired lease is recovered and reclaimed under the new token
   - A live lease is not stolen by a competing claim
 - **Store methods:**
-  - `Acta.Runtime.Modules.Outbox.IOutboxRelayStore.ClaimDueAsync`
+  - `Acta.Runtime.IOutboxRelayStore.ClaimDueAsync`
 
 ### Claim takes a bounded batch in staging order under one token, no double claim
 - **Contract:** ClaimDue claims a bounded batch of due Pending rows in due-then-staging order, stamps one token and a database-clock lease, and claims no row twice.
@@ -1626,7 +1626,7 @@
   - Two simultaneous claimers split the backlog with no overlap
   - A row whose next attempt is in the future is not claimed
 - **Store methods:**
-  - `Acta.Runtime.Modules.Outbox.IOutboxRelayStore.ClaimDueAsync`
+  - `Acta.Runtime.IOutboxRelayStore.ClaimDueAsync`
 
 ### Generated outbox DDL yields a working relay source table
 - **Contract:** The DDL API emits a canonical outbox table the real relay store can claim, reschedule, quarantine, and delete against, proving the shape by behavior.
@@ -1644,7 +1644,7 @@
 - **Guarantees:**
   - A stale token deletes nothing and the owning token deletes the row
 - **Store methods:**
-  - `Acta.Runtime.Modules.Outbox.IOutboxRelayStore.DeleteClaimedAsync`
+  - `Acta.Runtime.IOutboxRelayStore.DeleteClaimedAsync`
 
 ### Discard deletes quarantined rows and returns the ids as the evidence handle
 - **Contract:** DiscardQuarantined deletes targeted (or all, when ids are null) Quarantined rows, returns the deleted ids, and never touches a row in any other status.
@@ -1654,7 +1654,7 @@
 - **Guarantees:**
   - Discard deletes only quarantined rows, returns their ids, and cannot touch a claimed row
 - **Store methods:**
-  - `Acta.Runtime.Modules.Outbox.IOutboxRelayStore.DiscardQuarantinedAsync`
+  - `Acta.Runtime.IOutboxRelayStore.DiscardQuarantinedAsync`
 
 ### IOutbox parks accepted-then-applied commands against the namespace's relay slot
 - **Contract:** IOutbox resolves the sys.outbox slot by fixed key and name, parks commands the tick applies, and reports accepted, rejected, or not-found admission.
@@ -1674,8 +1674,8 @@
 - **Guarantees:**
   - Two keyset pages cover every quarantined row exactly once, evidence intact
 - **Store methods:**
-  - `Acta.Runtime.Modules.Outbox.IOutboxRelayStore.CountQuarantinedAsync`
-  - `Acta.Runtime.Modules.Outbox.IOutboxRelayStore.ListQuarantinedAsync`
+  - `Acta.Runtime.IOutboxRelayStore.CountQuarantinedAsync`
+  - `Acta.Runtime.IOutboxRelayStore.ListQuarantinedAsync`
 
 ### Quarantine retains a claimed row at status 90 and excludes it from claims
 - **Contract:** Quarantine retains a claimed row at status 90 with its error and clears the claim pair, only under its token, excluding it from claims.
@@ -1685,7 +1685,7 @@
 - **Guarantees:**
   - A stale token no-ops and the owning token quarantines and retains the row
 - **Store methods:**
-  - `Acta.Runtime.Modules.Outbox.IOutboxRelayStore.QuarantineAsync`
+  - `Acta.Runtime.IOutboxRelayStore.QuarantineAsync`
 
 ### Release returns a claimed row to Pending, attempt unchanged, reclaimable
 - **Contract:** Release returns a claimed row to Pending with its next attempt unchanged so it is immediately reclaimable, only under its token.
@@ -1695,7 +1695,7 @@
 - **Guarantees:**
   - A stale token no-ops and the owning token releases the row for immediate reclaim
 - **Store methods:**
-  - `Acta.Runtime.Modules.Outbox.IOutboxRelayStore.ReleaseClaimedAsync`
+  - `Acta.Runtime.IOutboxRelayStore.ReleaseClaimedAsync`
 
 ### Requeue returns quarantined rows to Pending, budget reset, evidence kept
 - **Contract:** RequeueQuarantined moves targeted (or all, when ids are null) Quarantined rows to Pending, due now, failure_count reset, last_error kept, returning the ids.
@@ -1705,7 +1705,7 @@
 - **Guarantees:**
   - Id-scoped requeue frees one row, the null form sweeps the rest, and freed rows claim again
 - **Store methods:**
-  - `Acta.Runtime.Modules.Outbox.IOutboxRelayStore.RequeueQuarantinedAsync`
+  - `Acta.Runtime.IOutboxRelayStore.RequeueQuarantinedAsync`
 
 ### Reschedule returns a claimed row to Pending with backoff, only under its token
 - **Contract:** Reschedule returns a claimed row to Pending with a bumped failure count, a future attempt, and the error, only under its token.
@@ -1716,7 +1716,7 @@
   - A stale token no-ops and the owning token reschedules with backoff
   - An error longer than 512 characters is truncated to 512 on the reschedule write
 - **Store methods:**
-  - `Acta.Runtime.Modules.Outbox.IOutboxRelayStore.RescheduleAsync`
+  - `Acta.Runtime.IOutboxRelayStore.RescheduleAsync`
 
 ### A parked requeue is applied, evidenced, consumed, and the freed row relays
 - **Contract:** The relay pass applies a parked requeue before draining: the row returns to Pending, the evidence event lands, the signal is consumed, and the freed row relays.
@@ -1734,7 +1734,7 @@
 - **Guarantees:**
   - The evidence event lands on the slot job with the operator actor and reason intact
 - **Store methods:**
-  - `Acta.Runtime.Modules.Outbox.IOutboxSignalStore.RecordAppliedAsync`
+  - `Acta.Runtime.IOutboxSignalStore.RecordAppliedAsync`
 
 ### Park admission and version-CAS consume bound the operator inbox
 - **Contract:** Park inserts when free, rejects with the pending instant while a younger command pends, supersedes a stale one bumping the version consume must match to delete.
@@ -1744,9 +1744,9 @@
 - **Guarantees:**
   - Free and stale slots admit, a pending slot rejects with its age, and consume is version-CAS
 - **Store methods:**
-  - `Acta.Runtime.Modules.Outbox.IOutboxSignalStore.ConsumeAsync`
-  - `Acta.Runtime.Modules.Outbox.IOutboxSignalStore.GetAsync`
-  - `Acta.Runtime.Modules.Outbox.IOutboxSignalStore.ParkAsync`
+  - `Acta.Runtime.IOutboxSignalStore.ConsumeAsync`
+  - `Acta.Runtime.IOutboxSignalStore.GetAsync`
+  - `Acta.Runtime.IOutboxSignalStore.ParkAsync`
 
 ### The source store round-trips with no Acta ledger configured
 - **Contract:** The external-outbox source store claims and deletes purely against its source database, needing no Acta ledger IJobs or session.
@@ -1756,8 +1756,8 @@
 - **Guarantees:**
   - The source store round-trips with no ledger IJobs configured
 - **Store methods:**
-  - `Acta.Runtime.Modules.Outbox.IOutboxRelayStore.ClaimDueAsync`
-  - `Acta.Runtime.Modules.Outbox.IOutboxRelayStore.DeleteClaimedAsync`
+  - `Acta.Runtime.IOutboxRelayStore.ClaimDueAsync`
+  - `Acta.Runtime.IOutboxRelayStore.DeleteClaimedAsync`
 
 ### Provider outbox staging commits or rolls back with the business write
 - **Contract:** The staging extension writes one canonical outbox row on the caller transaction, so it commits or rolls back with the business write and is then claimable.
@@ -1807,9 +1807,9 @@
   - A retry after the source row is deleted never recreates it
   - Duplicate source rows for one key coalesce to a single target job and all delete
 - **Store methods:**
-  - `Acta.Runtime.Modules.Outbox.IOutboxRelayStore.ClaimDueAsync`
-  - `Acta.Runtime.Modules.Outbox.IOutboxRelayStore.DeleteClaimedAsync`
-  - `Acta.Runtime.Modules.Outbox.IOutboxRelayStore.ReleaseClaimedAsync`
+  - `Acta.Runtime.IOutboxRelayStore.ClaimDueAsync`
+  - `Acta.Runtime.IOutboxRelayStore.DeleteClaimedAsync`
+  - `Acta.Runtime.IOutboxRelayStore.ReleaseClaimedAsync`
 
 ### Threshold and contract failures quarantine with one bounded summary
 - **Contract:** The fifth persistent recoverable rejection quarantines a row, and malformed or oversized rows quarantine immediately.
@@ -1820,7 +1820,7 @@
   - The fifth routing rejection quarantines the row and raises one summarized failure, earlier ticks staying quiet
   - Malformed meta, an oversized payload, and an unsupported format id quarantine immediately without touching the target
 - **Store methods:**
-  - `Acta.Runtime.Modules.Outbox.IOutboxRelayStore.QuarantineAsync`
+  - `Acta.Runtime.IOutboxRelayStore.QuarantineAsync`
 
 ### An unknown route reschedules quietly and delivers after the route is registered
 - **Contract:** A row toward an unregistered route reschedules quietly with a bumped failure count and delivers once the route is later registered.
@@ -1867,7 +1867,7 @@
   - Explain reports a child-suspended parent as awaiting that child, with its deadline
   - Explain reports a completed durable step as non-rerunning
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.GetJobExplanationAsync`
+  - `Acta.Runtime.IJobStore.GetJobExplanationAsync`
 
 ### GetJobDefinition returns one definition by id and null for an unknown id
 - **Contract:** GetJobDefinition returns the fully-projected definitions row matching the supplied id and null when no row matches.
@@ -1879,7 +1879,7 @@
   - An unknown id returns null
   - Display name and description overrides round-trip through the detail projection
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Definitions.IDefinitionStore.GetDefinitionAsync`
+  - `Acta.Runtime.IDefinitionStore.GetDefinitionAsync`
 
 ### GetJobExplanation returns explain sets for a known id and null otherwise
 - **Contract:** GetJobExplanation returns the header, step, and checkpoint result sets for a matching job id and null when no row matches.
@@ -1890,7 +1890,7 @@
   - A known job id returns a populated header (Ready) with no steps or checkpoints
   - An unknown job id returns null
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.GetJobExplanationAsync`
+  - `Acta.Runtime.IJobStore.GetJobExplanationAsync`
 
 ### GetJobLineageMap returns the focus job with ancestors and children or null
 - **Contract:** GetJobLineageMap returns the focus job, its ancestors root-first, its steps and checkpoints, and its capped direct children, or null when no row matches.
@@ -1903,7 +1903,7 @@
   - The direct-children set is capped at the fetch limit
   - An unknown job id returns null
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.GetJobLineageMapAsync`
+  - `Acta.Runtime.IJobStore.GetJobLineageMapAsync`
 
 ### GetJobStatus returns the status for a known id and null for an unknown id
 - **Contract:** GetJobStatus returns the current JobStatusCode for a matching job row and null when no row matches the supplied id.
@@ -1914,7 +1914,7 @@
   - A known job id returns its current JobStatusCode and a freshly enqueued job reads as Ready
   - An unknown job id returns null
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.GetJobStatusAsync`
+  - `Acta.Runtime.IJobStore.GetJobStatusAsync`
 
 ### GetJob returns the snapshot for a known id and null for an unknown id
 - **Contract:** GetJob returns the JobDetail projection for a matching job row and null when no row matches the supplied id.
@@ -1926,7 +1926,7 @@
   - A tenant-scoped job's snapshot carries the tenant id and its external key
   - An unknown job id returns null
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.GetJobAsync`
+  - `Acta.Runtime.IJobStore.GetJobAsync`
 
 ### GetOverview returns accurate health counters scoped to a namespace and globally
 - **Contract:** GetOverview returns non-negative health counters for the requested namespace and a globally-scoped result that is a superset of any namespace-scoped result.
@@ -1939,7 +1939,7 @@
   - Backlog counts a Suspended wait only once it has actually expired
   - Driven state pins all overview counters to exact values in an isolated namespace
 - **Store methods:**
-  - `Acta.Runtime.Modules.Operations.Overview.IOverviewStore.GetOverviewAsync`
+  - `Acta.Runtime.IOverviewStore.GetOverviewAsync`
 
 ### GetWorker returns one worker by id and null for an unknown id
 - **Contract:** GetWorker returns the durable worker projection matching the supplied id and null when no row matches.
@@ -1950,7 +1950,7 @@
   - A known worker id returns its durable detail projection
   - An unknown worker id returns null
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Workers.IWorkerStore.GetWorkerAsync`
+  - `Acta.Runtime.IWorkerStore.GetWorkerAsync`
 
 ### GetJobInput reads stored input and GetJobCheckpoints lists a job's slots
 - **Contract:** GetJobInput returns a job's stored input payload and format or null when no row matches, and GetJobCheckpoints lists slots ordered by kind then name.
@@ -1963,8 +1963,8 @@
   - GetJobCheckpoints lists variable and signal slots with kind, state, and value round-tripped
   - GetJobCheckpoints returns an empty list for a job with no slots and a missing id
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.GetJobCheckpointsAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.GetJobInputAsync`
+  - `Acta.Runtime.IJobStore.GetJobCheckpointsAsync`
+  - `Acta.Runtime.IJobStore.GetJobInputAsync`
 
 ### ListJobAlerts filter-matrix selects exactly matching rows per dimension
 - **Contract:** ListJobAlerts filters partition the alert rows to exactly the matching ids and exclude all non-matching ids for each filter dimension.
@@ -1978,7 +1978,7 @@
   - UnresolvedOnly filter excludes resolved alerts and includes them when filter is null
   - JobNamespace filter scopes alerts to exactly one namespace and excludes all other namespaces
 - **Store methods:**
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.ListJobAlertsAsync`
+  - `Acta.Runtime.IAlertStore.ListJobAlertsAsync`
 
 ### ListJobAlerts pages alerts newest first with severity floor and full stored text
 - **Contract:** ListJobAlerts returns alert rows ordered created_at_utc then id descending with severity floor and an opt-in filter-wide count in one command.
@@ -1992,8 +1992,8 @@
   - An acknowledged alert row carries acknowledged_at_utc, an open one carries null
   - GetAsync point-reads one alert in the list projection shape and answers null for a missing id
 - **Store methods:**
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.GetJobAlertAsync`
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.ListJobAlertsAsync`
+  - `Acta.Runtime.IAlertStore.GetJobAlertAsync`
+  - `Acta.Runtime.IAlertStore.ListJobAlertsAsync`
 
 ### ListJobDefinitions filter-matrix selects exactly matching rows per dimension
 - **Contract:** ListJobDefinitions filters partition the definition rows to exactly the matching ids and exclude all non-matching ids for each filter dimension.
@@ -2005,7 +2005,7 @@
   - NameContains filter selects definitions whose name carries the term anywhere, not only as a prefix
   - JobNamespace filter scopes definitions to exactly one namespace and excludes all other namespaces
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Definitions.IDefinitionStore.ListDefinitionsAsync`
+  - `Acta.Runtime.IDefinitionStore.ListDefinitionsAsync`
 
 ### ListJobDefinitions pages the catalog by name order without duplicates
 - **Contract:** ListJobDefinitions pages the catalog ordered namespace then name then id and reads the page plus an opt-in filter-wide count in one command.
@@ -2016,7 +2016,7 @@
   - Walking NextCursor visits every definition exactly once in ascending order and TotalCount matches the walk
   - ListJobDefinitions returns the keyset page and the filter-wide total from one command
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Definitions.IDefinitionStore.ListDefinitionsAsync`
+  - `Acta.Runtime.IDefinitionStore.ListDefinitionsAsync`
 
 ### ListJobEvents filter-matrix selects exactly matching rows per dimension
 - **Contract:** ListJobEvents filters partition the event rows to exactly the matching ids and exclude all non-matching ids for each filter dimension.
@@ -2034,7 +2034,7 @@
   - ReasonCode filter returns only events carrying that reason and excludes reasonless ones
   - CreatedFromUtc and CreatedToUtc split the timeline at a boundary instant
 - **Store methods:**
-  - `Acta.Runtime.Modules.Operations.Events.IEventStore.ListEventsAsync`
+  - `Acta.Runtime.IEventStore.ListEventsAsync`
 
 ### ListJobEvents pages a job timeline newest first and scopes totals to a job
 - **Contract:** ListJobEvents pages a job timeline newest first by cursor and reads the page plus an opt-in job-scoped count in one command.
@@ -2045,7 +2045,7 @@
   - A job timeline pages newest first with only that job's events and a job-scoped TotalCount matching the walk
   - ListJobEvents returns the keyset page and the job-scoped total from one command
 - **Store methods:**
-  - `Acta.Runtime.Modules.Operations.Events.IEventStore.ListEventsAsync`
+  - `Acta.Runtime.IEventStore.ListEventsAsync`
 
 ### ListJobSchedules filter-matrix selects exactly matching rows per dimension
 - **Contract:** ListJobSchedules filters partition the schedule rows to exactly the matching ids and exclude all non-matching ids for each filter dimension.
@@ -2058,7 +2058,7 @@
   - LiveOnly excludes orphaned schedules and liveOnly=false includes them
   - JobNamespace filter scopes schedules to exactly one namespace and excludes all other namespaces
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.ListJobSchedulesAsync`
+  - `Acta.Runtime.IScheduleStore.ListJobSchedulesAsync`
 
 ### ListJobSchedules pages live schedules next-run first without duplicates
 - **Contract:** ListJobSchedules pages live schedules next-run first by cursor without duplicates and reads the page plus an opt-in filter-wide count in one command.
@@ -2069,7 +2069,7 @@
   - Walking NextCursor visits every live schedule once in ascending next-run order, excluding rows without a next run, with a matching total
   - ListJobSchedules returns the keyset page and the filter-wide total from one command
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.ListJobSchedulesAsync`
+  - `Acta.Runtime.IScheduleStore.ListJobSchedulesAsync`
 
 ### ListJobs filter-matrix selects exactly matching rows per dimension
 - **Contract:** ListJobs filters partition the result to exactly the matching rows and exclude all non-matching rows for each filter dimension.
@@ -2086,7 +2086,7 @@
   - JobName filter returns exactly the jobs for that definition name and excludes other names
   - Tag filters match by name and case-insensitive exact value
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.ListJobsAsync`
+  - `Acta.Runtime.IJobStore.ListJobsAsync`
 
 ### ListJobs pages newest first by keyset cursor without duplicates
 - **Contract:** ListJobs pages newest first by cursor without duplicates and reads the page plus an opt-in filter-wide count in one command.
@@ -2099,7 +2099,7 @@
   - ListJobs returns the keyset page and the filter-wide total from one command
   - The list projection exposes no payload column
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.ListJobsAsync`
+  - `Acta.Runtime.IJobStore.ListJobsAsync`
 
 ### ListNamespaceItems pages namespaces with status, fields, and version
 - **Contract:** ListNamespaceItems pages namespaces name-ascending carrying id, status, owner_team, description, and version, and includes the seeded sys row.
@@ -2110,7 +2110,7 @@
   - The admin row carries the namespace id, status, owner team, description, and version
   - The seeded sys namespace is present as id 1, name sys, status active
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Namespaces.INamespaceStore.ListNamespaceItemsAsync`
+  - `Acta.Runtime.INamespaceStore.ListNamespaceItemsAsync`
 
 ### ListNamespaces pages namespaces name-ascending with an opt-in total
 - **Contract:** ListNamespaces pages namespace names ascending without duplicates and reads the page plus an opt-in filter-wide count in one command.
@@ -2121,7 +2121,7 @@
   - Walking the cursor visits the registered TestNamespace once with no duplicates
   - A name filter narrows to the matching namespace and IncludeTotal returns its prefix-wide count
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Namespaces.INamespaceStore.ListNamespacesAsync`
+  - `Acta.Runtime.INamespaceStore.ListNamespacesAsync`
 
 ### ListTenants pages tenants key-ascending with an opt-in total
 - **Contract:** ListTenants pages tenants by key ascending without duplicates and reads the page plus an opt-in filter-wide count in one command.
@@ -2135,7 +2135,7 @@
   - Search treats provider pattern characters as literal text
   - IncludeTotal returns the filter-wide count and is opt-in
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Tenants.ITenantStore.ListTenantsAsync`
+  - `Acta.Runtime.ITenantStore.ListTenantsAsync`
 
 ### ListWorkers filter-matrix selects exactly matching rows per dimension
 - **Contract:** ListWorkers filters partition the worker rows to exactly the matching ids and exclude all non-matching ids for each filter dimension.
@@ -2146,7 +2146,7 @@
   - Status filter partitions workers by status and each partition excludes all workers with different statuses
   - JobNamespace filter scopes workers to exactly one namespace and excludes all other namespaces
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Workers.IWorkerStore.ListWorkersAsync`
+  - `Acta.Runtime.IWorkerStore.ListWorkersAsync`
 
 ### ListWorkers pages workers most recently seen first without duplicates
 - **Contract:** ListWorkers pages worker rows newest seen first by cursor and reads the page plus an opt-in filter-wide count in one command.
@@ -2157,7 +2157,7 @@
   - Walking NextCursor visits every worker once in descending last-seen order with a TotalCount matching the walk
   - ListWorkers returns the keyset page and the filter-wide total from one command
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Workers.IWorkerStore.ListWorkersAsync`
+  - `Acta.Runtime.IWorkerStore.ListWorkersAsync`
 
 ### An event or alert code from a newer Acta reads back as unspecified
 - **Contract:** An unassigned id in events.event_code, events.reason_code, or alerts.kind_code reads back as Unspecified on every read path and serializes as "unspecified".
@@ -2168,9 +2168,9 @@
   - An unassigned event and reason code read back as Unspecified and serialize as unspecified
   - An unassigned alert kind reads back as Unspecified from list and get and serializes as unspecified
 - **Store methods:**
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.GetJobAlertAsync`
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.ListJobAlertsAsync`
-  - `Acta.Runtime.Modules.Operations.Events.IEventStore.ListEventsAsync`
+  - `Acta.Runtime.IAlertStore.GetJobAlertAsync`
+  - `Acta.Runtime.IAlertStore.ListJobAlertsAsync`
+  - `Acta.Runtime.IEventStore.ListEventsAsync`
 
 ## Recovery
 
@@ -2182,9 +2182,9 @@
 - **Guarantees:**
   - A due sys.recovery tick reclaims the stranded job, raises the latch its crashed child never set, and wakes both channels
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.GetStaleChildLatchesAsync`
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.ReclaimStuckJobsAsync`
-  - `Acta.Runtime.Modules.Execution.Workers.IWorkerStore.MarkDeadWorkersAsync`
+  - `Acta.Runtime.IExecutionStore.GetStaleChildLatchesAsync`
+  - `Acta.Runtime.IExecutionStore.ReclaimStuckJobsAsync`
+  - `Acta.Runtime.IWorkerStore.MarkDeadWorkersAsync`
 
 ### Reclaim returns an expired-lease job to Ready or fails it at MaxAttempts
 - **Contract:** An expired-lease job returns to Ready with failure_count incremented, or lands terminal Failed once MaxAttempts is reached.
@@ -2198,7 +2198,7 @@
   - Live EXECUTING lease is not reclaimed: the job stays Executing with no LeaseExpired event
   - A stale worker's sleep-timer consume leaves the reclaimed row's next run instant alone
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.ReclaimStuckJobsAsync`
+  - `Acta.Runtime.IExecutionStore.ReclaimStuckJobsAsync`
 
 ### Reclaiming a crashed timeout resolution costs the job no retry budget
 - **Contract:** An expired-lease attempt whose awaited wait had already expired returns to Suspended uncharged, and still raises the job's automatic incident.
@@ -2212,10 +2212,10 @@
   - The uncharged reclaim still opens an incident under the job's own alert profile
   - A success after an uncharged reclaim resolves the incident it opened
 - **Store methods:**
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.GetAlertableEventsAsync`
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.RaiseJobAlertAsync`
-  - `Acta.Runtime.Modules.Alerting.IAlertStore.ResolveJobAlertsAsync`
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.ReclaimStuckJobsAsync`
+  - `Acta.Runtime.IAlertStore.GetAlertableEventsAsync`
+  - `Acta.Runtime.IAlertStore.RaiseJobAlertAsync`
+  - `Acta.Runtime.IAlertStore.ResolveJobAlertsAsync`
+  - `Acta.Runtime.IExecutionStore.ReclaimStuckJobsAsync`
 
 ### A Buffered worker with every executor held still runs the recovery sweep
 - **Contract:** A recovery slot claimed by the Buffered loop runs outside the channel, so a stranded job is reclaimed while every executor is held.
@@ -2225,7 +2225,7 @@
 - **Guarantees:**
   - A stranded job is reclaimed while the Buffered worker's only executor is held by another job
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.ClaimBatchAsync`
+  - `Acta.Runtime.IExecutionStore.ClaimBatchAsync`
 
 ### Direct drain finishes the in-flight job, then Active to Draining to Stopped
 - **Contract:** Under the Direct profile a graceful stop flips the worker Active to Draining, runs the in-flight handler to completion, then stamps Stopped.
@@ -2272,7 +2272,7 @@
   - Returns null before a result exists without blocking
   - The typed result deserializes and the raw payload is returned after completion
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.GetJobResultAsync`
+  - `Acta.Runtime.IJobStore.GetJobResultAsync`
 
 ## Retention
 
@@ -2285,7 +2285,7 @@
   - Skip variables past the alert window are deleted while the projector cursor survives
   - A skip-named variable on another job is left alone whatever its age
 - **Store methods:**
-  - `Acta.Runtime.Maintenance.IRetentionStore.PurgeBatchAsync`
+  - `Acta.Runtime.IRetentionStore.PurgeBatchAsync`
 
 ### A purged job's public ref still resolves to its surviving event timeline
 - **Contract:** After the job row is purged, the denormalized job_ref on surviving events rows still resolves the public ref to its historical id and timeline.
@@ -2295,9 +2295,9 @@
 - **Guarantees:**
   - After purge the job row is gone and GetAsync by ref is null, but ResolveJobIdByRef falls back to the surviving events that carry the denormalized job_ref
 - **Store methods:**
-  - `Acta.Runtime.Maintenance.IRetentionStore.PurgeBatchAsync`
-  - `Acta.Runtime.Modules.Execution.Jobs.IJobStore.ResolveJobIdByRefAsync`
-  - `Acta.Runtime.Modules.Operations.Events.IEventStore.ListEventsAsync`
+  - `Acta.Runtime.IEventStore.ListEventsAsync`
+  - `Acta.Runtime.IJobStore.ResolveJobIdByRefAsync`
+  - `Acta.Runtime.IRetentionStore.PurgeBatchAsync`
 
 ### Concurrent retention sweeps reap a shared lock backlog without a deadlock
 - **Contract:** Retention sweeps racing over the same expired lock rows each reap rows no other sweep holds, and together they reap all of them without a deadlock.
@@ -2307,7 +2307,7 @@
 - **Guarantees:**
   - Eight retention sweeps racing over a thousand expired lock rows reap them all without a deadlock
 - **Store methods:**
-  - `Acta.Runtime.Maintenance.IRetentionStore.PurgeBatchAsync`
+  - `Acta.Runtime.IRetentionStore.PurgeBatchAsync`
 
 ### Purge reaps expired jobs events alerts and terminal workers within batches
 - **Contract:** Purge deletes terminal jobs with cascade, expired events, aged alerts settled or not under separate counts, terminal workers and expired locks.
@@ -2330,7 +2330,7 @@
   - Batching caps a single call at max iterations and a full run clears the rest
   - A stopped recurring job outlives its retention while its definition is live, and drains once retired
 - **Store methods:**
-  - `Acta.Runtime.Maintenance.IRetentionStore.PurgeBatchAsync`
+  - `Acta.Runtime.IRetentionStore.PurgeBatchAsync`
 
 ### Events outlive a purged worker with a canonical actor key
 - **Contract:** Purging the workers row leaves its events with a null joined worker ref, a canonical wrk_ actor key, and the historical worker id still selecting them.
@@ -2340,9 +2340,9 @@
 - **Guarantees:**
   - After purge the worker row is gone while its events keep a canonical wrk_ actor key, a null workerRef, and the historical worker id
 - **Store methods:**
-  - `Acta.Runtime.Maintenance.IRetentionStore.PurgeBatchAsync`
-  - `Acta.Runtime.Modules.Execution.Workers.IWorkerStore.StopWorkerAsync`
-  - `Acta.Runtime.Modules.Operations.Events.IEventStore.ListEventsAsync`
+  - `Acta.Runtime.IEventStore.ListEventsAsync`
+  - `Acta.Runtime.IRetentionStore.PurgeBatchAsync`
+  - `Acta.Runtime.IWorkerStore.StopWorkerAsync`
 
 ## Runtime
 
@@ -2355,7 +2355,7 @@
   - Two heartbeats against a claim loop blocked on a full channel reschedule none of the rows it holds
   - A drain that lands on a blocked channel write hands the rows it never wrote back to Ready
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.ClaimBatchAsync`
+  - `Acta.Runtime.IExecutionStore.ClaimBatchAsync`
 
 ### A claim whose answer was lost is returned to Ready by the heartbeat
 - **Contract:** A row leased by this worker with no attempt behind it for two heartbeats is re-armed Ready, and a row an attempt or the buffer holds is left alone.
@@ -2366,7 +2366,7 @@
   - A Dispatched row whose claim answer was lost is returned to Ready after two heartbeats and then runs once
   - An Executing row whose combined claim answer was lost is returned to Ready after two heartbeats
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.ClaimOneAsync`
+  - `Acta.Runtime.IExecutionStore.ClaimOneAsync`
 
 ### Two generations share a namespace and the rollback still runs
 - **Contract:** A worker hands back a claim it has no handler for, stops claiming that definition, and leaves the catalog entry Active.
@@ -2389,7 +2389,7 @@
   - A lease that lapsed before the start and was reclaimed by recovery in the retry window is a clean skip
   - A clock read that fails once after the claim is repeated, and the recurring fire completes
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.StartExecutionAsync`
+  - `Acta.Runtime.IExecutionStore.StartExecutionAsync`
 
 ## Scheduling
 
@@ -2402,7 +2402,7 @@
   - A namespace id with no live schedule rows returns an empty list
   - After InitializeAsync seeds a recurring definition, at least one cursor returns with a non-empty ScheduleName
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.GetScheduleStateAsync`
+  - `Acta.Runtime.IScheduleStore.GetScheduleStateAsync`
 
 ### Schedule registration is gated by the worker's environment
 - **Contract:** Schedule registration honors each schedule's declared environments, registering only those active in the worker's environment and withholding the rest.
@@ -2413,7 +2413,7 @@
   - A staging worker registers the staging-scoped schedule and withholds the production-scoped one
   - A staging worker creates no recurring slot for a job whose only schedule is production-scoped
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.RegisterScheduledJobsAsync`
+  - `Acta.Runtime.IScheduleStore.RegisterScheduledJobsAsync`
 
 ### Schedule insert reconciles the cursor per misfire policy and upserts one row
 - **Contract:** The startup schedule insert persists the misfire-reconciled next-run cursor and upserts the single schedule row.
@@ -2427,8 +2427,8 @@
   - A missed cursor reconciles under the operator's expression override, not the declared expression
   - A deploy that switches a schedule between interval and cron drops an override set for the old kind
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.GetScheduleStateAsync`
-  - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.RegisterScheduledJobsAsync`
+  - `Acta.Runtime.IScheduleStore.GetScheduleStateAsync`
+  - `Acta.Runtime.IScheduleStore.RegisterScheduledJobsAsync`
 
 ### Reschedule re-arms Ready and durable sleep arms an idempotent timer
 - **Contract:** Reschedule re-arms to Ready without charging the budget and durable sleep arms one idempotent timer checkpoint consumed by the replayed handler once due.
@@ -2447,8 +2447,8 @@
   - A second distinct pending sleep is rejected and re-arms without touching the existing timer
   - Unknown control exception fails the attempt like a handler exception, not a reschedule or suspend
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.ArmOrConsumeSleepTimerAsync`
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
+  - `Acta.Runtime.IExecutionStore.ArmOrConsumeSleepTimerAsync`
+  - `Acta.Runtime.IExecutionStore.CompleteExecutionAsync`
 
 ### A recurring slot fires repeatedly on one stable id advancing cursors
 - **Contract:** A recurring slot fires on one stable id, advancing cursors, trimming the result ring buffer, applying the failure budget and emitting rollover events.
@@ -2465,10 +2465,10 @@
   - Consecutive failures past MaxAttempts never terminalize a recurring slot
   - Handler cancel terminates the whole slot to Cancelled and stops the schedule
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.ClaimBatchAsync`
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
-  - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.GetLiveSchedulesAsync`
-  - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.RegisterScheduledJobsAsync`
+  - `Acta.Runtime.IExecutionStore.ClaimBatchAsync`
+  - `Acta.Runtime.IExecutionStore.CompleteExecutionAsync`
+  - `Acta.Runtime.IScheduleStore.GetLiveSchedulesAsync`
+  - `Acta.Runtime.IScheduleStore.RegisterScheduledJobsAsync`
 
 ### Interval slot fires end-to-end advancing cursors and coalescing misses
 - **Contract:** An interval slot fires, advances its cursor by exactly one period, coalesces misses with Skip, and claims exclusively under contention.
@@ -2480,10 +2480,10 @@
   - Missed periods are coalesced into a single fire with Skip misfire
   - A due slot is claimed exactly once under sequential worker contention
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.ClaimBatchAsync`
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
-  - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.GetLiveSchedulesAsync`
-  - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.RegisterScheduledJobsAsync`
+  - `Acta.Runtime.IExecutionStore.ClaimBatchAsync`
+  - `Acta.Runtime.IExecutionStore.CompleteExecutionAsync`
+  - `Acta.Runtime.IScheduleStore.GetLiveSchedulesAsync`
+  - `Acta.Runtime.IScheduleStore.RegisterScheduledJobsAsync`
 
 ### A paused or cancelled recurring job stays so until an operator lifts it
 - **Contract:** A recurring job an operator paused or cancelled keeps that status through worker restarts, schedule edits, and trigger-now.
@@ -2507,10 +2507,10 @@
   - Firing the earlier schedule advances only its cursor and recomputes slot MIN
   - Firing when both schedules are due advances both cursors and re-arms to new MIN
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.ClaimBatchAsync`
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
-  - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.GetLiveSchedulesAsync`
-  - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.RegisterScheduledJobsAsync`
+  - `Acta.Runtime.IExecutionStore.ClaimBatchAsync`
+  - `Acta.Runtime.IExecutionStore.CompleteExecutionAsync`
+  - `Acta.Runtime.IScheduleStore.GetLiveSchedulesAsync`
+  - `Acta.Runtime.IScheduleStore.RegisterScheduledJobsAsync`
 
 ### An operator pause landing inside a planned fire keeps the schedule paused
 - **Contract:** A pause applied while a fire is in flight survives the completion, and only a timed pause that has elapsed is auto-resumed by an advance.
@@ -2521,8 +2521,8 @@
   - A pause applied while the fire is in flight is still in force after the completion
   - A timed pause that has elapsed is still auto-resumed by the advance
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
-  - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.PauseScheduleAsync`
+  - `Acta.Runtime.IExecutionStore.CompleteExecutionAsync`
+  - `Acta.Runtime.IScheduleStore.PauseScheduleAsync`
 
 ### A paused slot does not fire, and a timed pause resumes by the misfire policy
 - **Contract:** A paused schedule's slot is not claimable, and a timed pause resumes at its expiry by the misfire policy, firing only an occurrence due by then.
@@ -2535,10 +2535,10 @@
   - A timed pause whose window holds no occurrence clears at its expiry without running the handler
   - Under Skip an occurrence inside a timed pause is skipped at its expiry, not run late
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.ClaimBatchAsync`
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
-  - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.GetLiveSchedulesAsync`
-  - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.PauseScheduleAsync`
+  - `Acta.Runtime.IExecutionStore.ClaimBatchAsync`
+  - `Acta.Runtime.IExecutionStore.CompleteExecutionAsync`
+  - `Acta.Runtime.IScheduleStore.GetLiveSchedulesAsync`
+  - `Acta.Runtime.IScheduleStore.PauseScheduleAsync`
 
 ### Operator pause and resume control a schedule and recompute the owning slot
 - **Contract:** Pausing a schedule excludes it from the slot MIN without moving its cursor, resume reconciles by misfire and operator pause survives redeploy.
@@ -2557,10 +2557,10 @@
   - Initial sync stores the attribute description with Note left NULL, and catalog re-sync does not overwrite an operator note
   - Pause and resume emit audit events against the slot job
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.GetLiveSchedulesAsync`
-  - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.PauseScheduleAsync`
-  - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.RegisterScheduledJobsAsync`
-  - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.ResumeScheduleAsync`
+  - `Acta.Runtime.IScheduleStore.GetLiveSchedulesAsync`
+  - `Acta.Runtime.IScheduleStore.PauseScheduleAsync`
+  - `Acta.Runtime.IScheduleStore.RegisterScheduledJobsAsync`
+  - `Acta.Runtime.IScheduleStore.ResumeScheduleAsync`
 
 ### Operator sets a CAS-guarded full-set schedule expression/time-zone override
 - **Contract:** A matching version applies the override and moves the cursor to the new expression, while a stale version is rejected with current state.
@@ -2576,8 +2576,8 @@
   - An unknown or orphaned schedule reports not found
   - Overriding a paused schedule updates its cursor without waking the slot, and resume honors the new expression
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.GetLiveSchedulesAsync`
-  - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.SetScheduleOverridesAsync`
+  - `Acta.Runtime.IScheduleStore.GetLiveSchedulesAsync`
+  - `Acta.Runtime.IScheduleStore.SetScheduleOverridesAsync`
 
 ### An older generation fires a slot a newer one registered as recurring
 - **Contract:** An older worker fires a slot a newer generation registered as recurring, and no registration adopts an ordinary job holding the key.
@@ -2597,7 +2597,7 @@
   - Registration stamps the slot runtime priority from the definition's declared Critical priority
   - Re-registration after the definition priority changes updates the existing slot runtime row
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.RegisterScheduledJobsAsync`
+  - `Acta.Runtime.IScheduleStore.RegisterScheduledJobsAsync`
 
 ### A second host starting does not disturb a slot the first host is executing
 - **Contract:** Registration writes an idle slot only on a changed declaration, leaves one in flight, finished, or parked mid-occurrence, and never adopts an ordinary job.
@@ -2615,7 +2615,7 @@
   - A start never puts back to sleep a waiting slot that a signal woke after the start read it
   - A start that edits a catch-up schedule whose occurrence is in flight moves its cursor past that occurrence
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.RegisterScheduledJobsAsync`
+  - `Acta.Runtime.IScheduleStore.RegisterScheduledJobsAsync`
 
 ### Preview resolves a sys. schedule through the lookup-permissive canonicalizer
 - **Contract:** Schedule preview resolves a sys.-prefixed system schedule name through the lookup-permissive canonicalizer rather than the write-validating one.
@@ -2637,8 +2637,8 @@
   - Triggering a schedule whose slot is terminal is rejected with no phantom applied and no schedule.triggered event
   - An unknown or orphaned schedule reports not found
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.GetLiveSchedulesAsync`
-  - `Acta.Runtime.Modules.Execution.Schedules.IScheduleStore.TriggerScheduleNowAsync`
+  - `Acta.Runtime.IScheduleStore.GetLiveSchedulesAsync`
+  - `Acta.Runtime.IScheduleStore.TriggerScheduleNowAsync`
 
 ## Schema
 
@@ -2728,8 +2728,8 @@
   - A raise landing between the wait and its completion lands the job Ready with the payload intact
   - The same completion with nothing raised in the window still parks the job Suspended
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteExecutionAsync`
-  - `Acta.Runtime.Modules.Execution.Signals.ISignalStore.RaiseSignalAsync`
+  - `Acta.Runtime.IExecutionStore.CompleteExecutionAsync`
+  - `Acta.Runtime.ISignalStore.RaiseSignalAsync`
 
 ### Wait suspends a job and a raise releases it last-writer-wins
 - **Contract:** WaitSignalAsync suspends a job on a Pending slot and RaiseSignalAsync sets the slot last-writer-wins releasing only a Suspended job to Ready.
@@ -2749,8 +2749,8 @@
   - Raise is rejected against a terminal job and writes no slot
   - Raise returns NotFound for an unknown job
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Signals.ISignalStore.RaiseSignalAsync`
-  - `Acta.Runtime.Modules.Execution.Signals.ISignalStore.WaitSignalAsync`
+  - `Acta.Runtime.ISignalStore.RaiseSignalAsync`
+  - `Acta.Runtime.ISignalStore.WaitSignalAsync`
 
 ### A bounded wait expires on its slot's stored instant, once and for good
 - **Contract:** A bounded wait stores an absolute expiration on its slot, wakes the Suspended job at that instant, resolves TimedOut once, and revives on no later raise.
@@ -2774,8 +2774,8 @@
   - A bounded wait arriving at a slot an unbounded one already armed still arms the deadline
   - An unbounded wait still suspends with no due instant and stays unclaimable
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Signals.ISignalStore.RaiseSignalAsync`
-  - `Acta.Runtime.Modules.Execution.Signals.ISignalStore.WaitSignalAsync`
+  - `Acta.Runtime.ISignalStore.RaiseSignalAsync`
+  - `Acta.Runtime.ISignalStore.WaitSignalAsync`
 
 ## Steps
 
@@ -2791,8 +2791,8 @@
   - Uncaught StepInterruptedException fails the parent terminally without re-invoking the body
   - Caught StepInterruptedException lets the parent proceed to Succeeded
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteStepAsync`
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.StartStepAsync`
+  - `Acta.Runtime.IExecutionStore.CompleteStepAsync`
+  - `Acta.Runtime.IExecutionStore.StartStepAsync`
 
 ### Nonzero backoff defers the parent to the retry instant and re-invokes the body
 - **Contract:** A step failure with nonzero backoff re-arms the parent Ready at the retry instant budget-neutrally and gates re-invocation until that instant.
@@ -2803,8 +2803,8 @@
   - After a step failure with nonzero backoff the parent is Ready at the retry instant and NothingClaimed before it
   - At the retry instant the step body is re-invoked on attempt 2 and the parent completes Succeeded
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteStepAsync`
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.StartStepAsync`
+  - `Acta.Runtime.IExecutionStore.CompleteStepAsync`
+  - `Acta.Runtime.IExecutionStore.StartStepAsync`
 
 ### Step exhausts by retry-window and re-entry replays without body invocation
 - **Contract:** A step exhausts when a retry would exceed its window, re-entering the exhausted slot throws without running the body, and a restart runs it afresh.
@@ -2816,8 +2816,8 @@
   - Restarting a job whose step exhausted runs the step body again with a fresh budget
   - Re-entering an exhausted step slot throws StepExhaustedException without invoking the body
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteStepAsync`
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.StartStepAsync`
+  - `Acta.Runtime.IExecutionStore.CompleteStepAsync`
+  - `Acta.Runtime.IExecutionStore.StartStepAsync`
 
 ### RunStepAsync runs once, replays results, and retries until exhausted
 - **Contract:** A step runs its body once, replay-skips a succeeded slot, retries an in-budget failure budget-neutrally, and exhausts to StepExhaustedException.
@@ -2833,8 +2833,8 @@
   - CompleteStep loses the CAS and reports StaleVersion when the slot advanced under another execution
   - CompleteStep reports StaleVersion rather than throwing when the slot row is absent
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.CompleteStepAsync`
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.StartStepAsync`
+  - `Acta.Runtime.IExecutionStore.CompleteStepAsync`
+  - `Acta.Runtime.IExecutionStore.StartStepAsync`
 
 ## Storage
 
@@ -2866,8 +2866,8 @@
   - Manual purge removes job, schedule, alert, and event tags before deleting their targets
   - Concurrent tag mutation and target deletion converge without orphan tags
 - **Store methods:**
-  - `Acta.Runtime.Modules.Operations.Tags.ITagStore.ApplyAsync`
-  - `Acta.Runtime.Modules.Operations.Tags.ITagStore.GetAsync`
+  - `Acta.Runtime.ITagStore.ApplyAsync`
+  - `Acta.Runtime.ITagStore.GetAsync`
 
 ## Test ORM
 
@@ -2928,7 +2928,7 @@
   - Variables round-trip common JSON value shapes including large values
   - A corrupted JSON variable read fails instead of falling back
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.IExecutionStore.CheckpointSlotAsync`
+  - `Acta.Runtime.IExecutionStore.CheckpointSlotAsync`
 
 ## Workers
 
@@ -2940,7 +2940,7 @@
 - **Guarantees:**
   - A heartbeat returns a Dead worker to Active, or to Draining mid-drain, and leaves a Stopped worker Stopped
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Workers.IWorkerStore.ExtendWorkerLeasesAsync`
+  - `Acta.Runtime.IWorkerStore.ExtendWorkerLeasesAsync`
 
 ### Stale workers in any namespace are marked Dead by a global sweep
 - **Contract:** MarkDeadWorkers marks every stale Active or Draining worker Dead in all namespaces, writes each worker.died event to its own namespace, and skips Stopped ones.
@@ -2950,7 +2950,7 @@
 - **Guarantees:**
   - A global sweep marks aged workers Dead in every namespace, keeps fresh and cleanly-stopped workers, and attributes each event to the worker's namespace
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Workers.IWorkerStore.MarkDeadWorkersAsync`
+  - `Acta.Runtime.IWorkerStore.MarkDeadWorkersAsync`
 
 ### Three Run calls register three workers isolated per namespace
 - **Contract:** Three Run calls in one process register three workers each owning its own namespace and manifest catalog and each claims and runs jobs only in its namespace.
@@ -2969,7 +2969,7 @@
   - Active worker flips to Stopped with exactly one WorkerStopped event from the Worker actor and clean-shutdown reason
   - A second stop on a terminal worker is a no-op and writes no further event
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Workers.IWorkerStore.StopWorkerAsync`
+  - `Acta.Runtime.IWorkerStore.StopWorkerAsync`
 
 ### Replicas registering a new namespace at the same moment all start
 - **Contract:** Replicas that register the same new namespace, definitions, and recurring slots at once all start and agree on one catalog.
@@ -2991,7 +2991,7 @@
   - Same host and process_id on two calls yields two distinct worker ids and two rows (no dedup)
   - Registering a worker/namespace named 'sys' is rejected while the seeded sys namespace remains intact
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Workers.IWorkerStore.StartWorkerAsync`
+  - `Acta.Runtime.IWorkerStore.StartWorkerAsync`
 
 ### StartWorker allocates a namespace id only when it creates the namespace
 - **Contract:** A worker start against an existing namespace allocates no namespace id, so the id space tracks namespaces created, not workers started.
@@ -3001,7 +3001,7 @@
 - **Guarantees:**
   - Restarting workers against an existing namespace allocates no namespace ids
 - **Store methods:**
-  - `Acta.Runtime.Modules.Execution.Workers.IWorkerStore.StartWorkerAsync`
+  - `Acta.Runtime.IWorkerStore.StartWorkerAsync`
 
 ## Persistence inventory
 
@@ -3011,7 +3011,6 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 
 | Store method | Covering conformance specs |
 | --- | --- |
-| `IRetentionStore.PurgeBatchAsync` | A completed child outlives its retention deadline while its parent is live<br>A purged job's public ref still resolves to its surviving event timeline<br>Aged projector skip variables are pruned on the alert window<br>Concurrent retention sweeps reap a shared lock backlog without a deadlock<br>Events outlive a purged worker with a canonical actor key<br>Purge reaps expired jobs events alerts and terminal workers within batches |
 | `IAlertStore.AcknowledgeJobAlertAsync` | Operator acknowledge/resolve verbs on IAlerts. |
 | `IAlertStore.GetAlertableEventsAsync` | A recurring job whose handler throws raises an alert<br>A replayed alert batch neither inflates an incident nor opens a ghost one<br>Alert profiles gate emission and severity per profile<br>Reclaiming a crashed timeout resolution costs the job no retry budget<br>The alerts projector classifies failures off events and resolves on success<br>The alerts projector drains a backlog in bounded batches within one invocation<br>The alerts projector reads behind a safe horizon rather than up to the present<br>The failures-only audit level records a failure and the success that answers it<br>ThresholdReached fires once per incident at the exact occurrence |
 | `IAlertStore.GetDeliverableAlertsAsync` | Alert delivery retries with backoff, goes terminal, and reminds open incidents<br>Deliverable alerts read due rows, remind open incidents, and settle by version |
@@ -3027,6 +3026,7 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IDefinitionStore.RegisterDefinitionsAsync` | Init auto-registers system definitions, slots and schedules<br>Init writes namespace worker and full definition policy idempotently<br>Newer-or-equal generation promotes policy; older cannot downgrade |
 | `IDefinitionStore.RetireDefinitionAsync` | Retire flips a definition and cancels its parked jobs |
 | `IDefinitionStore.SetDefinitionOverridesAsync` | Definition override bind matrix: all 13 slots<br>Override writes are version-guarded, recompute effective, and audited |
+| `IEventStore.ListEventsAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>A purged job's public ref still resolves to its surviving event timeline<br>An event or alert code from a newer Acta reads back as unspecified<br>Events outlive a purged worker with a canonical actor key<br>ListJobEvents filter-matrix selects exactly matching rows per dimension<br>ListJobEvents pages a job timeline newest first and scopes totals to a job |
 | `IExecutionStore.ArmOrConsumeSleepTimerAsync` | Reschedule re-arms Ready and durable sleep arms an idempotent timer |
 | `IExecutionStore.CheckpointSlotAsync` | A bounded group wait spends one stored deadline across every child and replay<br>Job variables round-trip through the context API with versioning and validation |
 | `IExecutionStore.ClaimBatchAsync` | A Buffered worker with every executor held still runs the recovery sweep<br>A job registers, enqueues, claims, executes, persists and reads back<br>A lane runs its jobs one at a time in enqueue order<br>A paused slot does not fire, and a timed pause resumes by the misfire policy<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>At most one same-key handler executes, admitted at execution time<br>Claim caps at the batch size, reports the horizon, and skips excluded rows<br>Claim returns only due rows, in claim order, past parked and delayed rows<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Rows waiting behind a full Buffered channel are not released as orphans |
@@ -3063,39 +3063,16 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IJobStore.RestartJobAsync` | CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Cancel Pause Resume Restart apply legal transitions and audit<br>Control verbs apply per-status guards and correct side effects<br>Control verbs transition unconditionally but emit events only at full audit<br>Restarting a finished laned job reactivates it in place |
 | `IJobStore.ResumeJobAsync` | CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Cancel Pause Resume Restart apply legal transitions and audit<br>Control verbs apply per-status guards and correct side effects<br>Control verbs transition unconditionally but emit events only at full audit<br>Operator verbs keep a lane's order |
 | `IJobStore.UpdateJobInputAsync` | Operator update-input amends stored input and audits bounded payload metadata. |
+| `ILockStore.ExtendAsync` | A held lock renews while owned and misses after release |
+| `ILockStore.ReleaseAsync` | Release removes the lease row and a stale token misses on version CAS |
+| `ILockStore.ReserveRateAsync` | A definition's rate limit admits at the rate and books every early job a turn<br>A meter freed after a lock convoy admits its burst, not every queued call |
+| `ILockStore.TryAcquireAsync` | Acquire lands a lease row and blocks a competing acquire on a live key |
+| `ILockStore.TryAcquireSlotAsync` | A definition's concurrency limit is how many of its key's slots exist |
 | `INamespaceStore.ListNamespaceItemsAsync` | ListNamespaceItems pages namespaces with status, fields, and version |
 | `INamespaceStore.ListNamespacesAsync` | ListNamespaces pages namespaces name-ascending with an opt-in total |
 | `INamespaceStore.ResumeNamespaceAsync` | Namespace suspend/resume flip status, emit one 15xx event, and reject sys |
 | `INamespaceStore.SuspendNamespaceAsync` | Namespace suspend/resume flip status, emit one 15xx event, and reject sys |
 | `INamespaceStore.UpdateNamespaceAsync` | Namespace update writes owner_team/description under a version CAS |
-| `IScheduleStore.GetLiveSchedulesAsync` | A paused slot does not fire, and a timed pause resumes by the misfire policy<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Operator manually fires a schedule now without disturbing its cadence<br>Operator pause and resume control a schedule and recompute the owning slot<br>Operator sets a CAS-guarded full-set schedule expression/time-zone override |
-| `IScheduleStore.GetScheduleStateAsync` | GetScheduleState returns live cursors for the namespace, empty when none exist<br>Schedule insert reconciles the cursor per misfire policy and upserts one row |
-| `IScheduleStore.ListJobSchedulesAsync` | ListJobSchedules filter-matrix selects exactly matching rows per dimension<br>ListJobSchedules pages live schedules next-run first without duplicates |
-| `IScheduleStore.PauseScheduleAsync` | A paused slot does not fire, and a timed pause resumes by the misfire policy<br>An operator pause landing inside a planned fire keeps the schedule paused<br>Operator pause and resume control a schedule and recompute the owning slot |
-| `IScheduleStore.RegisterScheduledJobsAsync` | A recurring slot fires repeatedly on one stable id advancing cursors<br>A second host starting does not disturb a slot the first host is executing<br>Init auto-registers system definitions, slots and schedules<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Operator pause and resume control a schedule and recompute the owning slot<br>Recurring slot claims at its definition's priority<br>Schedule insert reconciles the cursor per misfire policy and upserts one row<br>Schedule registration is gated by the worker's environment |
-| `IScheduleStore.ResumeScheduleAsync` | Operator pause and resume control a schedule and recompute the owning slot |
-| `IScheduleStore.SetScheduleOverridesAsync` | Operator sets a CAS-guarded full-set schedule expression/time-zone override |
-| `IScheduleStore.TriggerScheduleNowAsync` | Operator manually fires a schedule now without disturbing its cadence |
-| `ISettingStore.GetSettingAsync` | A setting is set and read back by name at its inferred scope |
-| `ISettingStore.SetSettingAsync` | A setting is set and read back by name at its inferred scope |
-| `ISignalStore.RaiseSignalAsync` | A bounded wait expires on its slot's stored instant, once and for good<br>A raise inside the suspend handoff lands the job Ready, not Suspended<br>CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Control verbs transition unconditionally but emit events only at full audit<br>Wait suspends a job and a raise releases it last-writer-wins |
-| `ISignalStore.WaitSignalAsync` | A bounded child wait expires, cancels its subtree, and leaves the parent running<br>A bounded group wait spends one stored deadline across every child and replay<br>A bounded wait expires on its slot's stored instant, once and for good<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Wait suspends a job and a raise releases it last-writer-wins |
-| `ITenantStore.GetTenantAsync` | GetTenant returns the tenant for a known key or id and null for an unknown one |
-| `ITenantStore.ListTenantsAsync` | ListTenants pages tenants key-ascending with an opt-in total |
-| `ITenantStore.RegisterTenantAsync` | Acta keys normalize to lowercase while Acta names reject mixed case<br>Tenant registration inserts a new Active tenant or returns the existing row |
-| `ITenantStore.ResumeTenantAsync` | Tenant suspend and resume flip status and emit one 15xx event to sys namespace |
-| `ITenantStore.SuspendTenantAsync` | A non-ASCII operator name survives the audit event intact<br>Tenant suspend and resume flip status and emit one 15xx event to sys namespace |
-| `ITenantStore.UpdateTenantAsync` | Tenant update is a version-CAS write that clears fields on null |
-| `IWorkerStore.ExtendWorkerLeasesAsync` | A heartbeat makes a worker marked Dead live again<br>A lease renewal never deadlocks with a child's completion<br>Heartbeat extends a live lease and stamps last_seen |
-| `IWorkerStore.GetWorkerAsync` | GetWorker returns one worker by id and null for an unknown id |
-| `IWorkerStore.ListWorkersAsync` | ListWorkers filter-matrix selects exactly matching rows per dimension<br>ListWorkers pages workers most recently seen first without duplicates |
-| `IWorkerStore.MarkDeadWorkersAsync` | One sys.recovery tick reclaims, releases, and wakes<br>Stale workers in any namespace are marked Dead by a global sweep |
-| `IWorkerStore.StartWorkerAsync` | Init writes namespace worker and full definition policy idempotently<br>StartWorker allocates a namespace id only when it creates the namespace<br>StartWorker hash-gates the namespace write and appends a fresh worker row |
-| `IWorkerStore.StopWorkerAsync` | Events outlive a purged worker with a canonical actor key<br>Stop flips an active worker to Stopped once and is idempotent |
-| `IEventStore.ListEventsAsync` | A job registers, enqueues, claims, executes, persists and reads back<br>A purged job's public ref still resolves to its surviving event timeline<br>An event or alert code from a newer Acta reads back as unspecified<br>Events outlive a purged worker with a canonical actor key<br>ListJobEvents filter-matrix selects exactly matching rows per dimension<br>ListJobEvents pages a job timeline newest first and scopes totals to a job |
-| `IOverviewStore.GetOverviewAsync` | GetOverview returns accurate health counters scoped to a namespace and globally |
-| `ITagStore.ApplyAsync` | Tags read and mutate all first-class targets and filter typed queries |
-| `ITagStore.GetAsync` | Tags read and mutate all first-class targets and filter typed queries |
 | `IOutboxRelayStore.ClaimDueAsync` | A claim recovers an expired lease and reclaims it, leaving a live lease alone<br>Claim takes a bounded batch in staging order under one token, no double claim<br>Relay crash windows never lose a row or duplicate a target job<br>The source store round-trips with no Acta ledger configured |
 | `IOutboxRelayStore.CountBacklogAsync` | Backlog counts Pending rows only |
 | `IOutboxRelayStore.CountQuarantinedAsync` | Quarantined rows list in keyset pages with their failure evidence |
@@ -3110,11 +3087,34 @@ The durable inventory is keyed by semantic store-contract methods and provider-o
 | `IOutboxSignalStore.GetAsync` | Park admission and version-CAS consume bound the operator inbox |
 | `IOutboxSignalStore.ParkAsync` | Park admission and version-CAS consume bound the operator inbox |
 | `IOutboxSignalStore.RecordAppliedAsync` | An applied operator command leaves an always-emitted evidence event |
-| `ILockStore.ExtendAsync` | A held lock renews while owned and misses after release |
-| `ILockStore.ReleaseAsync` | Release removes the lease row and a stale token misses on version CAS |
-| `ILockStore.ReserveRateAsync` | A definition's rate limit admits at the rate and books every early job a turn<br>A meter freed after a lock convoy admits its burst, not every queued call |
-| `ILockStore.TryAcquireAsync` | Acquire lands a lease row and blocks a competing acquire on a live key |
-| `ILockStore.TryAcquireSlotAsync` | A definition's concurrency limit is how many of its key's slots exist |
+| `IOverviewStore.GetOverviewAsync` | GetOverview returns accurate health counters scoped to a namespace and globally |
+| `IRetentionStore.PurgeBatchAsync` | A completed child outlives its retention deadline while its parent is live<br>A purged job's public ref still resolves to its surviving event timeline<br>Aged projector skip variables are pruned on the alert window<br>Concurrent retention sweeps reap a shared lock backlog without a deadlock<br>Events outlive a purged worker with a canonical actor key<br>Purge reaps expired jobs events alerts and terminal workers within batches |
+| `IScheduleStore.GetLiveSchedulesAsync` | A paused slot does not fire, and a timed pause resumes by the misfire policy<br>A recurring slot fires repeatedly on one stable id advancing cursors<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Operator manually fires a schedule now without disturbing its cadence<br>Operator pause and resume control a schedule and recompute the owning slot<br>Operator sets a CAS-guarded full-set schedule expression/time-zone override |
+| `IScheduleStore.GetScheduleStateAsync` | GetScheduleState returns live cursors for the namespace, empty when none exist<br>Schedule insert reconciles the cursor per misfire policy and upserts one row |
+| `IScheduleStore.ListJobSchedulesAsync` | ListJobSchedules filter-matrix selects exactly matching rows per dimension<br>ListJobSchedules pages live schedules next-run first without duplicates |
+| `IScheduleStore.PauseScheduleAsync` | A paused slot does not fire, and a timed pause resumes by the misfire policy<br>An operator pause landing inside a planned fire keeps the schedule paused<br>Operator pause and resume control a schedule and recompute the owning slot |
+| `IScheduleStore.RegisterScheduledJobsAsync` | A recurring slot fires repeatedly on one stable id advancing cursors<br>A second host starting does not disturb a slot the first host is executing<br>Init auto-registers system definitions, slots and schedules<br>Interval slot fires end-to-end advancing cursors and coalescing misses<br>Multi-schedule slot picks MIN next_run and recomputes on fire<br>Operator pause and resume control a schedule and recompute the owning slot<br>Recurring slot claims at its definition's priority<br>Schedule insert reconciles the cursor per misfire policy and upserts one row<br>Schedule registration is gated by the worker's environment |
+| `IScheduleStore.ResumeScheduleAsync` | Operator pause and resume control a schedule and recompute the owning slot |
+| `IScheduleStore.SetScheduleOverridesAsync` | Operator sets a CAS-guarded full-set schedule expression/time-zone override |
+| `IScheduleStore.TriggerScheduleNowAsync` | Operator manually fires a schedule now without disturbing its cadence |
+| `ISettingStore.GetSettingAsync` | A setting is set and read back by name at its inferred scope |
+| `ISettingStore.SetSettingAsync` | A setting is set and read back by name at its inferred scope |
+| `ISignalStore.RaiseSignalAsync` | A bounded wait expires on its slot's stored instant, once and for good<br>A raise inside the suspend handoff lands the job Ready, not Suspended<br>CLI verbs map onto IJobs and debug runs the targeted job in-process<br>Control verbs transition unconditionally but emit events only at full audit<br>Wait suspends a job and a raise releases it last-writer-wins |
+| `ISignalStore.WaitSignalAsync` | A bounded child wait expires, cancels its subtree, and leaves the parent running<br>A bounded group wait spends one stored deadline across every child and replay<br>A bounded wait expires on its slot's stored instant, once and for good<br>Child jobs start deduped, join on completion latches, and cancel cascades<br>Wait suspends a job and a raise releases it last-writer-wins |
+| `ITagStore.ApplyAsync` | Tags read and mutate all first-class targets and filter typed queries |
+| `ITagStore.GetAsync` | Tags read and mutate all first-class targets and filter typed queries |
+| `ITenantStore.GetTenantAsync` | GetTenant returns the tenant for a known key or id and null for an unknown one |
+| `ITenantStore.ListTenantsAsync` | ListTenants pages tenants key-ascending with an opt-in total |
+| `ITenantStore.RegisterTenantAsync` | Acta keys normalize to lowercase while Acta names reject mixed case<br>Tenant registration inserts a new Active tenant or returns the existing row |
+| `ITenantStore.ResumeTenantAsync` | Tenant suspend and resume flip status and emit one 15xx event to sys namespace |
+| `ITenantStore.SuspendTenantAsync` | A non-ASCII operator name survives the audit event intact<br>Tenant suspend and resume flip status and emit one 15xx event to sys namespace |
+| `ITenantStore.UpdateTenantAsync` | Tenant update is a version-CAS write that clears fields on null |
+| `IWorkerStore.ExtendWorkerLeasesAsync` | A heartbeat makes a worker marked Dead live again<br>A lease renewal never deadlocks with a child's completion<br>Heartbeat extends a live lease and stamps last_seen |
+| `IWorkerStore.GetWorkerAsync` | GetWorker returns one worker by id and null for an unknown id |
+| `IWorkerStore.ListWorkersAsync` | ListWorkers filter-matrix selects exactly matching rows per dimension<br>ListWorkers pages workers most recently seen first without duplicates |
+| `IWorkerStore.MarkDeadWorkersAsync` | One sys.recovery tick reclaims, releases, and wakes<br>Stale workers in any namespace are marked Dead by a global sweep |
+| `IWorkerStore.StartWorkerAsync` | Init writes namespace worker and full definition policy idempotently<br>StartWorker allocates a namespace id only when it creates the namespace<br>StartWorker hash-gates the namespace write and appends a fresh worker row |
+| `IWorkerStore.StopWorkerAsync` | Events outlive a purged worker with a canonical actor key<br>Stop flips an active worker to Stopped once and is idempotent |
 
 ### Provider SQL resources
 

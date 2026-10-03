@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 
-namespace Acta.AspNetCore.Features.Definitions;
+namespace Acta.AspNetCore;
 
 /// <summary>
 /// The definition-control endpoints (PATCH the overrides, POST the retire): thin HTTP wrappers over

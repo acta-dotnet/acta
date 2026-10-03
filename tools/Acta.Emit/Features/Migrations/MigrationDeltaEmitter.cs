@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Text;
 using Acta.Emit.Shared.Model;
 using Acta.Emit.Shared.Sql;
-using Acta.Relational.Schema;
+using Acta.Relational;
 
 namespace Acta.Emit.Features.Migrations;
 

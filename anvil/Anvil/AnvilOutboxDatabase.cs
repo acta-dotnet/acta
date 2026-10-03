@@ -1,6 +1,5 @@
 using Acta;
 using Acta.Sqlite;
-using Acta.Sqlite.Hosting;
 using Microsoft.Data.Sqlite;
 
 namespace Anvil;

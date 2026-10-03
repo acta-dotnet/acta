@@ -2,12 +2,9 @@ using System.Collections;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
-using Acta.Relational.Resources;
-using Acta.Runtime.Modules.Execution;
-using Acta.Runtime.Modules.Execution.Definitions;
-using Acta.Runtime.Modules.Execution.Jobs;
-using Acta.Runtime.Modules.Execution.Schedules;
-using Acta.Sqlite.Configuration;
+using Acta.Relational;
+using Acta.Runtime;
+using Acta.Sqlite;
 using Xunit;
 
 namespace Acta.Tests.Storage;
@@ -35,7 +32,7 @@ public class DbSessionRetryRegionTests
                 DeadlockRetryAttempts = retryAttempts,
             },
             dialect,
-            new SqlResourceCatalog(typeof(Acta.Postgres.Configuration.PostgresProviderOptions).Assembly, "acta")
+            new SqlResourceCatalog(typeof(Acta.Postgres.PostgresProviderOptions).Assembly, "acta")
         );
 
     [Fact]

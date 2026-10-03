@@ -1,7 +1,7 @@
 using Acta.Emit.Features.Migrations;
 using Acta.Emit.Shared;
 using Acta.Emit.Shared.Sql;
-using Acta.Relational.Schema;
+using Acta.Relational;
 using Acta.Tests.Conformance.Testing;
 using Xunit;
 

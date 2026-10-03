@@ -1,12 +1,8 @@
 using System.Text;
 using System.Text.Json;
-using Acta.Runtime.Kernel;
-using Acta.Runtime.Modules.Execution.Api;
-using Acta.Runtime.Querying;
-using Acta.Runtime.Services.Time;
 using Microsoft.Extensions.Options;
 
-namespace Acta.Runtime.Modules.Outbox;
+namespace Acta.Runtime;
 
 /// <summary>
 /// <see cref="IOutbox"/> implementation. Reads never open the source database except the quarantine

@@ -1,4 +1,4 @@
-namespace Acta.Relational.Schema;
+namespace Acta.Relational;
 
 /// <summary>
 /// Marker for a persisted entity. It declares no members; the generator discovers implementations and

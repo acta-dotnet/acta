@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 
-namespace Acta.AspNetCore.Web;
+namespace Acta.AspNetCore;
 
 /// <summary>
 /// Endpoint metadata naming the JSON body an endpoint reads through

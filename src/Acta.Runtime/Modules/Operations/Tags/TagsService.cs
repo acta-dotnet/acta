@@ -1,6 +1,4 @@
-using Acta.Runtime.Modules.Execution.Api;
-
-namespace Acta.Runtime.Modules.Operations.Tags;
+namespace Acta.Runtime;
 
 /// <summary>
 /// <see cref="ITags"/> over the tag store. A target names its entity the way operators do - a ref or a

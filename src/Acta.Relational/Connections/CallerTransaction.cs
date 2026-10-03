@@ -1,7 +1,7 @@
 using System.Data;
 using System.Data.Common;
 
-namespace Acta.Relational.Connections;
+namespace Acta.Relational;
 
 /// <summary>
 /// Structural transaction guard shared by the ledger caller-transaction execute path

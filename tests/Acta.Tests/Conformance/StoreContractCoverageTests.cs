@@ -64,25 +64,15 @@ public sealed partial class StoreContractCoverageTests
         Assert.True(overloaded.Count == 0, "Overloaded store methods (rename to unique names):\n" + string.Join("\n", overloaded));
     }
 
-    // The internal store ports: I*Store interfaces under Acta.Runtime.Modules/Acta.Runtime.Services (plus
-    // Acta.Runtime.Maintenance) in the runtime assembly. This is the single discovery convention for store
-    // ports - the coverage gate, the provider binding/completeness gates, and the architecture
-    // boundary check all read it, so a newly declared port is picked up by all with no registry to
-    // update.
+    // The internal store ports: the I*Store interfaces in the runtime assembly. This is the single
+    // discovery convention for store ports - the coverage gate, the provider binding/completeness gates,
+    // and the architecture boundary check all read it, so a newly declared port is picked up by all with
+    // no registry to update.
     internal static List<Type> StoreInterfaces() =>
         [
             .. typeof(ActaServiceCollectionExtensions)
                 .Assembly.GetTypes()
-                .Where(t =>
-                    t.IsInterface
-                    && StoreInterfaceName.IsMatch(t.Name)
-                    && t.Namespace is { } ns
-                    && (
-                        ns.StartsWith("Acta.Runtime.Modules.", StringComparison.Ordinal)
-                        || ns.StartsWith("Acta.Runtime.Services.", StringComparison.Ordinal)
-                        || ns == "Acta.Runtime.Maintenance"
-                    )
-                ),
+                .Where(t => t.IsInterface && t.Namespace == "Acta.Runtime" && StoreInterfaceName.IsMatch(t.Name)),
         ];
 
     internal static IEnumerable<MethodInfo> DeclaredMethods(Type store) => store.GetMethods().Where(m => !m.IsSpecialName);

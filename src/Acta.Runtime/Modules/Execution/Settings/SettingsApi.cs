@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Modules.Execution.Settings;
+namespace Acta.Runtime;
 
 /// <summary><see cref="ISettings"/> implementation: thin delegation to the settings feature service.</summary>
 internal sealed class SettingsApi(SettingsService service) : ISettings

@@ -3,7 +3,7 @@
 //
 //   dotnet test concepts/800-testing/802-testing-durable-jobs
 
-using Acta.Testing.Hosting;
+using Acta.Testing;
 using Xunit;
 
 namespace Acta.Concepts.TestingDurable;

@@ -1,12 +1,9 @@
 using System.Diagnostics;
-using Acta.Runtime.Kernel;
-using Acta.Runtime.Modules.Alerting.Api;
-using Acta.Runtime.Services.Time;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
-namespace Acta.Runtime.Modules.Alerting;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Recurring <c>sys.alerts</c> projector and delivery job, competitively claimed once per namespace.

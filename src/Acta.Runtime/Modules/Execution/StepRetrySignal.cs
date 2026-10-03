@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Modules.Execution;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Internal control-flow signal raised by <c>RuntimeJobContext.RunStepCoreAsync</c> when an inline

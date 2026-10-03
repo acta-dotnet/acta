@@ -1,10 +1,9 @@
-using Acta.Relational.Connections;
-using Acta.Runtime.Hosting;
-using Acta.SqlServer.Schema;
+using Acta.Relational;
+using Acta.Runtime;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 
-namespace Acta.SqlServer.Hosting;
+namespace Acta.SqlServer;
 
 internal sealed class SqlServerProviderBootstrap(SqlProviderOptions options, ILogger<SqlServerProviderBootstrap>? log = null)
     : IProviderBootstrap

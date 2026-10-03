@@ -1,8 +1,7 @@
 using System.Data.Common;
 using System.Text.RegularExpressions;
-using Acta.Relational.Resources;
 
-namespace Acta.Relational.Schema;
+namespace Acta.Relational;
 
 /// <summary>
 /// Installs current provider-owned operator views and routines after pending migrations, inside the

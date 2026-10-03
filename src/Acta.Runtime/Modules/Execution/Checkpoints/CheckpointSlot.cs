@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Modules.Execution.Checkpoints;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Which CRUD shape a <c>checkpoint_slot</c> call takes. The values are the routine's dispatch

@@ -1,8 +1,7 @@
 using System.Runtime.ExceptionServices;
-using Acta.Runtime.Kernel;
 using Microsoft.Extensions.Logging;
 
-namespace Acta.Runtime.Modules.Execution;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Repeats the one write an attempt cannot afford to lose until it settles or the worker stops. The

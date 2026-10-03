@@ -1,6 +1,4 @@
-using Acta.Runtime.Services.Time;
-
-namespace Acta.Runtime.Maintenance;
+namespace Acta.Runtime;
 
 /// <summary>Runs bounded atomic batches against cutoffs captured once from the database clock.</summary>
 internal sealed class RetentionCoordinator(IRetentionStore store, IServerClock clock)

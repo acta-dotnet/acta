@@ -1,5 +1,5 @@
 using System.Text.RegularExpressions;
-using Acta.Sqlite.Configuration;
+using Acta.Sqlite;
 using Acta.Tests.Conformance.Runtime;
 using Acta.Tests.Conformance.Sqlite.Testing;
 using Microsoft.Data.Sqlite;

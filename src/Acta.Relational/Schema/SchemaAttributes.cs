@@ -1,4 +1,4 @@
-namespace Acta.Relational.Schema;
+namespace Acta.Relational;
 
 // Schema attribute family. All names declared on these attributes are explicit
 // lower_snake_case and schema-relative (the schema component is the install-time provider option).

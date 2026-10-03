@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 
-namespace Acta.AspNetCore.Features.Tenants;
+namespace Acta.AspNetCore;
 
 /// <summary>
 /// Tenant-control endpoints: registration (insert-or-return-existing), suspend/resume, and the

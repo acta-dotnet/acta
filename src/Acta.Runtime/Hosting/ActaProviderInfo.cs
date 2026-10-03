@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Acta.Runtime.Hosting;
+namespace Acta.Runtime;
 
 /// <summary>Provider-neutral runtime facts supplied by the selected durable provider package.</summary>
 internal sealed record ActaProviderInfo(DbProvider Provider);

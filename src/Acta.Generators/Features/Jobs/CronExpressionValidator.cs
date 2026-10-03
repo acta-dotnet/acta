@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 
-namespace Acta.Generators.Features.Jobs;
+namespace Acta.Generators;
 
 /// <summary>
 /// Structural compile-time validation of cron expressions in the Cronos dialect (5 fields, or 6

@@ -1,4 +1,4 @@
-namespace Acta.Sqlite.Configuration;
+namespace Acta.Sqlite;
 
 /// <summary>
 /// Provider-specific options for the SQLite durable backend. The schema defaults to <c>main</c>;

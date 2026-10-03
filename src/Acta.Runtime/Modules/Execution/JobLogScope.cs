@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Modules.Execution;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Builds the per-attempt logging-scope state. <see cref="JobExecutor"/> opens it once around an

@@ -1,7 +1,4 @@
-using Acta.Runtime.Kernel;
-using Acta.Runtime.Modules.Execution.Api;
-
-namespace Acta.Runtime.Modules.Alerting;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Persistence port for job alerts: the incident-identity upsert raise, the <c>sys.alerts</c> generate

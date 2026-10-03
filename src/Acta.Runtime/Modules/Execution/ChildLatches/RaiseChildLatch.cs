@@ -1,8 +1,6 @@
 using System.Globalization;
-using Acta.Runtime.Modules.Execution.Api;
-using Acta.Runtime.Modules.Execution.Signals;
 
-namespace Acta.Runtime.Modules.Execution.ChildLatches;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Raises a child's terminal-outcome latch (<c>sys.child.{childId}</c>) on its parent: a composite

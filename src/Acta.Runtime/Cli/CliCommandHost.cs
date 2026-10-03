@@ -1,8 +1,7 @@
 using System.Text;
-using Acta.Runtime.Modules.Execution.Workers;
 using Microsoft.Extensions.Hosting;
 
-namespace Acta.Runtime.Cli;
+namespace Acta.Runtime;
 
 /// <summary>
 /// CLI-mode hosted service, registered in place of WorkerRuntimeHost when the process starts with

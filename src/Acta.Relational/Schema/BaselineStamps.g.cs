@@ -3,7 +3,7 @@
 // Each value is a content hash of that provider's committed baseline migration; edit the SQL,
 // not this file.
 
-namespace Acta.Relational.Schema;
+namespace Acta.Relational;
 
 /// <summary>
 /// The baseline generation each provider package ships, as recorded in the version-0 row of its

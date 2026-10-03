@@ -1,4 +1,4 @@
-using Acta.Runtime.Modules.Execution.Jobs;
+using Acta.Runtime;
 using Xunit;
 
 namespace Acta.Tests.Wire;

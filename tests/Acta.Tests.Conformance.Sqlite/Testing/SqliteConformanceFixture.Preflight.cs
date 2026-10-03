@@ -1,5 +1,4 @@
-using Acta.Sqlite.Configuration;
-using Acta.Sqlite.Hosting;
+using Acta.Sqlite;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Data.Sqlite;
 

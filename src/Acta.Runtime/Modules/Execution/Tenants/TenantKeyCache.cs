@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 
-namespace Acta.Runtime.Modules.Execution.Tenants;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Process-lifetime <c>tenant_id -> tenant_key</c> cache for the execution path. Positive entries are

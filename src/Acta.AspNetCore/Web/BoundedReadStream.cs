@@ -1,4 +1,4 @@
-namespace Acta.AspNetCore.Web;
+namespace Acta.AspNetCore;
 
 /// <summary>
 /// Read-only pass-through over a request body that throws <see cref="PayloadTooLargeException"/> once

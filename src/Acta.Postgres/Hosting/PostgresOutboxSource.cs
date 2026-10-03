@@ -1,11 +1,7 @@
-using Acta.Postgres.Configuration;
-using Acta.Postgres.Services;
-using Acta.Relational.Connections;
-using Acta.Relational.Resources;
-using Acta.Relational.Stores;
-using Acta.Runtime.Modules.Outbox;
+using Acta.Relational;
+using Acta.Runtime;
 
-namespace Acta.Postgres.Hosting;
+namespace Acta.Postgres;
 
 /// <summary>
 /// Builds the PostgreSQL external-outbox source store: a per-operation source connection, the inline

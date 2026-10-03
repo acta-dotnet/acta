@@ -1,10 +1,7 @@
 global using Acta.AspNetCore;
-global using Acta.AspNetCore.Configuration;
 global using Acta.Postgres;
 global using Acta.Redis;
-global using Acta.Relational.Commands;
-global using Acta.Relational.Connections;
-global using Acta.Relational.Schema;
-global using Acta.Runtime.Hosting;
+global using Acta.Relational;
+global using Acta.Runtime;
 global using Acta.Sqlite;
 global using Acta.SqlServer;

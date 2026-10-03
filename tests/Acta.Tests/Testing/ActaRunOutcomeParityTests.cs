@@ -1,5 +1,5 @@
-using Acta.Runtime.Modules.Execution;
-using Acta.Testing.Hosting;
+using Acta.Runtime;
+using Acta.Testing;
 using Xunit;
 
 namespace Acta.Tests.Testing;

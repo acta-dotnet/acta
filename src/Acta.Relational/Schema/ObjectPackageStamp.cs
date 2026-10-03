@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Acta.Relational.Schema;
+namespace Acta.Relational;
 
 /// <summary>
 /// What this build requires of the object package a database has installed. The major must match

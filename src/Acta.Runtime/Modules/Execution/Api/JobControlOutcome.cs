@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Modules.Execution.Api;
+namespace Acta.Runtime;
 
 /// <summary>
 /// The actor, reason, and optional expected version an operator stamps on a control transition. The job

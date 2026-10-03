@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using Acta.Runtime.Modules.Execution;
+using Acta.Runtime;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Acta.Tests.Conformance.Testing;

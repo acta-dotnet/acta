@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Payloads;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Default <see cref="IJobPayloadSerializerRegistry"/>. Built from <c>IEnumerable&lt;IJobPayloadSerializer&gt;</c>

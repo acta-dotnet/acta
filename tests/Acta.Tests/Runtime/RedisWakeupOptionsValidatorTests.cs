@@ -1,4 +1,4 @@
-using Acta.Redis.Configuration;
+using Acta.Redis;
 using Xunit;
 
 namespace Acta.Tests.Runtime;

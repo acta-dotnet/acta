@@ -1,9 +1,7 @@
 using System.Collections.Concurrent;
-using Acta.Runtime.Hosting;
-using Acta.Runtime.Modules.Execution.Api;
 using Microsoft.Extensions.Logging;
 
-namespace Acta.Runtime.Modules.Outbox;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Resolves the outbox relay composition for a given worker namespace. Built from the declared

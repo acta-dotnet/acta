@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Modules.Execution.Jobs;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Turns the raw rows read by <c>GetJobLineageMapAsync</c> into a <see cref="JobLineageMap"/>: the

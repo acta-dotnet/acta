@@ -1,7 +1,4 @@
-using Acta.Runtime.Kernel;
-using Acta.Runtime.Modules.Execution.Api;
-
-namespace Acta.Runtime.Modules.Execution.Tenants;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Persistence port for the tenants control plane: the insert-or-return-existing registration, the

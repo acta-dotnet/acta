@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Reflection;
 using System.Text.RegularExpressions;
 
-namespace Acta.Relational.Schema;
+namespace Acta.Relational;
 
 /// <summary>
 /// Discovers a provider assembly's flat <c>Mnnn_*.sql</c> migration resources in ascending version

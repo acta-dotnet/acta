@@ -1,9 +1,6 @@
 using System.Globalization;
-using Acta.Runtime.Kernel;
-using Acta.Runtime.Modules.Execution.Api;
-using Acta.Runtime.Querying;
 
-namespace Acta.Runtime.Modules.Alerting;
+namespace Acta.Runtime;
 
 /// <summary><see cref="IAlerts"/> implementation: the acknowledge/resolve control verbs plus the paged alert list over the store port.</summary>
 internal sealed class AlertsApi(IAlertStore store) : IAlerts

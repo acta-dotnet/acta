@@ -1,5 +1,4 @@
-using Acta.Runtime.Modules.Execution;
-using Acta.Runtime.Modules.Execution.Workers;
+using Acta.Runtime;
 using Xunit;
 using static Acta.Tests.Runtime.WorkerLoopClaimFailureTests;
 

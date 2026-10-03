@@ -1,8 +1,7 @@
 using System.Data.Common;
-using Acta.Relational.Commands;
-using Acta.Relational.Connections;
+using Acta.Relational;
 
-namespace Acta.Postgres.Services;
+namespace Acta.Postgres;
 
 /// <summary>
 /// PostgreSQL external-outbox source dialect. Inline claim/finalize SQL only; connection creation,

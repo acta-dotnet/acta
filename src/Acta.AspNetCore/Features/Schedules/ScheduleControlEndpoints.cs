@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 
-namespace Acta.AspNetCore.Features.Schedules;
+namespace Acta.AspNetCore;
 
 /// <summary>
 /// POST schedule-control endpoints: thin HTTP wrappers over the <see cref="ISchedules"/> verbs. A

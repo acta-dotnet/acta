@@ -1,4 +1,4 @@
-namespace Acta.AspNetCore.Features.Schedules;
+namespace Acta.AspNetCore;
 
 /// <summary>
 /// Optional body of a schedule pause POST (the schedule is addressed by the route's natural key).

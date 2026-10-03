@@ -1,6 +1,4 @@
-using Acta.Relational.Schema;
-
-namespace Acta.Relational.Entities;
+namespace Acta.Relational;
 
 /// <summary>
 /// The hot mutable runtime state of one Job: one row in <c>runtimes</c> per <c>jobs</c> row, split

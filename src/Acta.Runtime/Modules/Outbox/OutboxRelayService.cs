@@ -1,10 +1,8 @@
 using System.Text.Json;
-using Acta.Runtime.Kernel;
-using Acta.Runtime.Modules.Execution.Api;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Acta.Runtime.Modules.Outbox;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Provider-neutral relay policy for one <c>sys.outbox</c> tick: claim due source rows in bounded

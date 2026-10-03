@@ -1,5 +1,5 @@
-using Acta.Relational.Schema;
-using Acta.Sqlite.Schema;
+using Acta.Relational;
+using Acta.Sqlite;
 using Xunit;
 
 namespace Acta.Tests.Schema;

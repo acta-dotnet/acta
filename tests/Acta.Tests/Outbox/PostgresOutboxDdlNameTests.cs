@@ -1,5 +1,5 @@
 using System.Text.RegularExpressions;
-using Acta.Postgres.Hosting;
+using Acta.Postgres;
 using Xunit;
 
 namespace Acta.Tests.Outbox;

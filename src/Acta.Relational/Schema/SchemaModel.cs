@@ -1,4 +1,4 @@
-namespace Acta.Relational.Schema;
+namespace Acta.Relational;
 
 /// <summary>
 /// One entity's complete persistence shape: the runtime mirror of everything the attribute layer

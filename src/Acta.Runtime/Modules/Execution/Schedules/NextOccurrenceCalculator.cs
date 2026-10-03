@@ -1,7 +1,7 @@
 using System.Xml;
 using Cronos;
 
-namespace Acta.Runtime.Modules.Execution.Schedules;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Pure next-occurrence math for recurring schedules. No ambient clock; every entry point takes an

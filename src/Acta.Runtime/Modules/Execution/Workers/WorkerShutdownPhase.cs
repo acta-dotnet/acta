@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Modules.Execution.Workers;
+namespace Acta.Runtime;
 
 /// <summary>Runs a best-effort worker lifecycle phase concurrently under a linked deadline.</summary>
 internal static class WorkerShutdownPhase

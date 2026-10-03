@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Modules.Execution.Definitions;
+namespace Acta.Runtime;
 
 /// <summary>
 /// One catalog contribution to typed-enqueue routing: a namespace and the manifests whose descriptors

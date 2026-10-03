@@ -60,23 +60,7 @@ public sealed partial class ArchitectureBoundaryTests
         Assert.False(typeof(IEntity<>).IsPublic);
         Assert.False(typeof(DbKind).IsPublic);
 
-        string[] implementationNamespaces =
-        [
-            "Acta.Relational.Commands",
-            "Acta.Relational.Entities",
-            "Acta.Relational.Resources",
-            "Acta.Relational.Schema",
-            "Acta.Relational.Stores",
-        ];
-        var exposed = relational
-            .GetExportedTypes()
-            .Where(type =>
-                type.Namespace is { } ns
-                && implementationNamespaces.Any(prefix => ns == prefix || ns.StartsWith(prefix + ".", StringComparison.Ordinal))
-            )
-            .Select(type => type.FullName)
-            .OrderBy(name => name, StringComparer.Ordinal)
-            .ToArray();
+        var exposed = relational.GetExportedTypes().Select(type => type.FullName).OrderBy(name => name, StringComparer.Ordinal).ToArray();
         Assert.True(exposed.Length == 0, "Relational implementation types are public:\n" + string.Join("\n", exposed));
     }
 
@@ -99,9 +83,9 @@ public sealed partial class ArchitectureBoundaryTests
     {
         string[] migrators =
         [
-            "Acta.Postgres.Schema.PostgresSchemaMigrator, Acta.Postgres",
-            "Acta.SqlServer.Schema.SqlServerSchemaMigrator, Acta.SqlServer",
-            "Acta.Sqlite.Schema.SqliteSchemaMigrator, Acta.Sqlite",
+            "Acta.Postgres.PostgresSchemaMigrator, Acta.Postgres",
+            "Acta.SqlServer.SqlServerSchemaMigrator, Acta.SqlServer",
+            "Acta.Sqlite.SqliteSchemaMigrator, Acta.Sqlite",
         ];
         foreach (var name in migrators)
         {

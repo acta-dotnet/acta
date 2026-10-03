@@ -32,7 +32,9 @@ internal static class BurstCommand
             // Exit 2, not 1: a run that could not be set up or driven is not a failed certification, and must
             // not read as one. The verdict block is the only thing allowed to return 1.
             Console.Error.WriteLine();
-            Console.Error.WriteLine($"  The burst certification could not complete on '{options.Provider}': {ex.GetBaseException().Message}");
+            Console.Error.WriteLine(
+                $"  The burst certification could not complete on '{options.Provider}': {ex.GetBaseException().Message}"
+            );
             Console.Error.WriteLine("  Check the database is up and reachable: docker compose ps (start with: docker compose up -d)");
             Console.Error.WriteLine("  Environment checks: dotnet run --project tools/Acta.Doctor");
             return 2;

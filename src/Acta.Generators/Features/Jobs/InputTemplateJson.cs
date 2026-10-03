@@ -3,7 +3,7 @@ using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
 
-namespace Acta.Generators.Features.Jobs;
+namespace Acta.Generators;
 
 /// <summary>
 /// Builds the compile-time JSON skeleton emitted on <c>JobDescriptor.InputTemplateJson</c>: the shape

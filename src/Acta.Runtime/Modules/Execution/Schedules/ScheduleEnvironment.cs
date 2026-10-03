@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 
-namespace Acta.Runtime.Modules.Execution.Schedules;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Environment gating for declared schedules. A <c>[JobSchedule]</c> whose <c>Environments</c> is empty

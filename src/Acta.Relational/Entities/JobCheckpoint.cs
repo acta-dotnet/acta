@@ -1,6 +1,4 @@
-using Acta.Relational.Schema;
-
-namespace Acta.Relational.Entities;
+namespace Acta.Relational;
 
 /// <summary>
 /// One durable substrate slot per <c>(JobId, Kind, Name)</c> in the merged <c>checkpoints</c> table:

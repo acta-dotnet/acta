@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Routing;
 
-namespace Acta.AspNetCore.Configuration;
+namespace Acta.AspNetCore;
 
 /// <summary>
 /// Host-facing options for the HTTP API endpoints (queries and job controls). The package maps

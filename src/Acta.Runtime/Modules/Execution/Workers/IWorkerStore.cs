@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Modules.Execution.Workers;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Persistence port for worker lifecycle: the atomic bootstrap (namespace upsert + worker row +
@@ -84,7 +84,7 @@ internal sealed record StartWorkerCommand(
             IdentifierSyntax.CanonicalizeUserKebab(namespaceName, nameof(namespaceName)),
             ownerTeam,
             description,
-            Definitions.CatalogHash.Of(ownerTeam, description),
+            Acta.Runtime.CatalogHash.Of(ownerTeam, description),
             hostName,
             deploymentVersion,
             engineVersion,

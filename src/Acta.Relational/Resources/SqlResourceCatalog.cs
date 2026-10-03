@@ -1,9 +1,8 @@
 using System.Collections.Concurrent;
 using System.Reflection;
-using Acta.Relational.Commands;
-using Acta.Runtime.Hosting;
+using Acta.Runtime;
 
-namespace Acta.Relational.Resources;
+namespace Acta.Relational;
 
 /// <summary>
 /// Convention-based catalog of one provider assembly's executable SQL resources, all under a single

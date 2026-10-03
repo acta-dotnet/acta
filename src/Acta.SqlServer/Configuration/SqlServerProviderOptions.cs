@@ -1,4 +1,4 @@
-namespace Acta.SqlServer.Configuration;
+namespace Acta.SqlServer;
 
 /// <summary>
 /// Provider-specific options for the SqlServer durable backend.

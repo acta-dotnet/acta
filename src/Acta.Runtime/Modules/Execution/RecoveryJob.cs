@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Modules.Execution;
+namespace Acta.Runtime;
 
 /// <summary>
 /// <c>sys.recovery</c>, the system recovery job. A recurring, competitively-claimed <c>[Job]</c>

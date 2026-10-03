@@ -1,16 +1,9 @@
 using System.Diagnostics;
-using Acta.Runtime.Kernel;
-using Acta.Runtime.Modules.Execution.Definitions;
-using Acta.Runtime.Modules.Execution.Jobs;
-using Acta.Runtime.Modules.Execution.Schedules;
-using Acta.Runtime.Modules.Execution.Signals;
-using Acta.Runtime.Modules.Execution.Workers;
-using Acta.Runtime.Services.Locks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
-namespace Acta.Runtime.Modules.Execution;
+namespace Acta.Runtime;
 
 /// <summary>
 /// The start-invoke-complete lifecycle of a single attempt: the <c>start_execution</c> CAS, the

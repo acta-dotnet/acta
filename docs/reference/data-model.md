@@ -31,7 +31,7 @@ Structural reference for the Acta persistence model: **16 entities**, **239 colu
 
 One materialized alert. A row carrying a non-null `DedupeKey` is an incident: the unique `(namespace_id, dedupe_key)` index, filtered to unresolved rows, admits exactly one OPEN row per key, so repeats of the same condition collapse onto it (incrementing `OccurrenceCount`) while it stays open. A null `DedupeKey` always inserts a fresh row. `ResolvedAtUtc` is the single source of truth for resolution and is terminal for the row: once stamped it is never cleared back to NULL, and the next firing of the same condition opens a new incident row on the same key.
 
-**CLR type** `Acta.Relational.Entities.JobAlert` · **Primary key** `pk_alerts` (`id`)
+**CLR type** `Acta.Relational.JobAlert` · **Primary key** `pk_alerts` (`id`)
 
 **Columns**
 
@@ -85,7 +85,7 @@ One materialized alert. A row carrying a non-null `DedupeKey` is an incident: th
 
 One durable substrate slot per `(JobId, Kind, Name)` in the merged `checkpoints` table: user variables, signals, sleep timers, the progress slot, and child terminal-outcome latches all share this one physical shape, discriminated by `Kind`. Steps are richer (attempt counters, retry budget) and stay in the separate `steps` table.
 
-**CLR type** `Acta.Relational.Entities.JobCheckpoint` · **Primary key** `pk_checkpoints` (`job_id`, `kind_code`, `name`)
+**CLR type** `Acta.Relational.JobCheckpoint` · **Primary key** `pk_checkpoints` (`job_id`, `kind_code`, `name`)
 
 **Columns**
 
@@ -121,7 +121,7 @@ One durable substrate slot per `(JobId, Kind, Name)` in the merged `checkpoints`
 
 The live job policy: one row per definition, the single source of truth for every per-job policy. Each policy field is a default (code-owned, synced from `[Job]`) paired with a nullable override (operator-edited, NULL = none); the effective value is `COALESCE(<field>_override, <field>)`, database-generated and never independently writable; the providers that support generated columns persist them. Identity, the type contract, and formats are code-fixed (no override). One entity, never split.
 
-**CLR type** `Acta.Relational.Entities.JobDefinition` · **Primary key** `pk_definitions` (`id`)
+**CLR type** `Acta.Relational.JobDefinition` · **Primary key** `pk_definitions` (`id`)
 
 **Columns**
 
@@ -216,7 +216,7 @@ The live job policy: one row per definition, the single source of truth for ever
 
 Append-only lifecycle timeline and execution ledger. Carries the audit trail of `JobRuntime.Status` transitions, suspend/resume hops, signal arrivals, and definition/worker lifecycle events, plus the canonical per-attempt record via paired `job.execution-started` / `job.execution-finished` events. Carries lifecycle facts and outcomes, plus an optional `Detail` payload for free-form (text) or structured (json) context beyond `ReasonCode` / `ReasonMessage`; richer event-specific data still belongs in OTel spans and structured logs at the emission site, and the canonical durable state is the entity row the event references.
 
-**CLR type** `Acta.Relational.Entities.JobEvent` · **Primary key** `pk_events` (`id`)
+**CLR type** `Acta.Relational.JobEvent` · **Primary key** `pk_events` (`id`)
 
 **Columns**
 
@@ -265,7 +265,7 @@ Append-only lifecycle timeline and execution ledger. Carries the audit trail of 
 
 One row in `acta.jobs`, Acta's only work unit: the append-mostly identity/input record. Hot mutable state (status, next run, counters, retention) lives on the 1:1 `runtimes` row, which also carries execution ownership/TTL (`locks` holds named locks only); result history lives in `results`, keyed by the composite `(job_id, execution_number)` clustered PK. Recurring Jobs are a single reusable row whose runtime `next_run_at_utc` rolls forward on terminal completion (no per-firing row inflation).
 
-**CLR type** `Acta.Relational.Entities.Job` · **Primary key** `pk_jobs` (`id`)
+**CLR type** `Acta.Relational.Job` · **Primary key** `pk_jobs` (`id`)
 
 **Columns**
 
@@ -308,7 +308,7 @@ One row in `acta.jobs`, Acta's only work unit: the append-mostly identity/input 
 
 One lane in one namespace: the Jobs that reference it run one at a time, in job-id order. Enqueue upserts the row by `(namespace_id, name)` and holds its row lock until the enqueuing transaction commits, so laned job ids are allocated in commit order. Every settle of a laned Job takes the same lock before it promotes the next Blocked member, and retention takes it before it deletes a lane no runtime references.
 
-**CLR type** `Acta.Relational.Entities.JobLane` · **Primary key** `pk_lanes` (`id`)
+**CLR type** `Acta.Relational.JobLane` · **Primary key** `pk_lanes` (`id`)
 
 **Columns**
 
@@ -331,7 +331,7 @@ One lane in one namespace: the Jobs that reference it run one at a time, in job-
 
 One row per named lock in the `locks` table: the rows behind the handler-facing `JobContext.RunWithLockAsync`, the concurrency slots the runner takes after claim, and the rate meter's bucket and reservation rows, which live here but are never held. Execution ownership/TTL is not a row here - it lives on the `runtimes` row. Lifecycle is `ExpiresAtUtc` alone (no status column): held while ahead of now. Acquire is a steal-on-expiry upsert; release DELETEs the row - concurrency keys are unbounded per-job user strings, so the table stays O(currently held) by construction (`ReleaseLockSpec` pins that); abandoned rows are swept by the `sys.retention` reap. `HoldToken` is minted fresh per hold and CAS-guards extend and release: unlike a counter, no other hold can ever re-mint it, so a stale holder that slept through a full steal-release-reacquire cycle still cannot free or extend its successor's lock. `LockKey` is an opaque discriminator-segmented composite so the lock spaces never collide on identical user text; keying on namespace id keeps the key compact and stable across renames. A concurrency key with limit N owns slots 0..N-1, one row each.
 
-**CLR type** `Acta.Relational.Entities.Lock` · **Primary key** `pk_locks` (`lock_key`)
+**CLR type** `Acta.Relational.Lock` · **Primary key** `pk_locks` (`lock_key`)
 
 **Columns**
 
@@ -354,7 +354,7 @@ One row per named lock in the `locks` table: the rows behind the handler-facing 
 
 Service-owned execution boundary. One deployable service owns one `JobNamespace`; replicas of that service share it (on a catalog-hash match the upsert is a no-op). Cross-service collisions fail at startup with `JobNamespaceConflictException`.
 
-**CLR type** `Acta.Relational.Entities.JobNamespace` · **Primary key** `pk_namespaces` (`id`)
+**CLR type** `Acta.Relational.JobNamespace` · **Primary key** `pk_namespaces` (`id`)
 
 **Columns**
 
@@ -382,7 +382,7 @@ Service-owned execution boundary. One deployable service owns one `JobNamespace`
 
 Cold payload table: one row per Job attempt that produced a durable result, keyed by the composite `(JobId, ExecutionNumber)`. Result bytes never live on the hot `Job` row, and recurring Jobs write one cold row per terminal firing instead of overwriting a single hot LOB slot. That history is bounded by the definition's `RecurringResultCap`, which defaults to 1: `complete_execution` trims the Job's result rows to the newest N inline on every recurring completion, so a slot that fires forever does not accumulate forever. The latest retained result for a Job is a single-row seek against the clustered PK (`WHERE JobId = @id ORDER BY ExecutionNumber DESC`).
 
-**CLR type** `Acta.Relational.Entities.JobResult` · **Primary key** `pk_results` (`job_id`, `execution_number`)
+**CLR type** `Acta.Relational.JobResult` · **Primary key** `pk_results` (`job_id`, `execution_number`)
 
 **Columns**
 
@@ -412,7 +412,7 @@ Cold payload table: one row per Job attempt that produced a durable result, keye
 
 The hot mutable runtime state of one Job: one row in `runtimes` per `jobs` row, split out so claim/complete churn never rewrites the append-mostly identity/input row. Every job state transition (claim, start, complete, control verb, schedule firing) updates this row and bumps `Version`, the CAS token for job state transitions. Execution ownership/TTL lives here too (`LeasedByWorkerId` / `LeaseExpiresAtUtc`): a claim is one UPDATE of this row, and the heartbeat pushes `LeaseExpiresAtUtc` without bumping `Version`. The `locks` table carries named locks only.
 
-**CLR type** `Acta.Relational.Entities.JobRuntime` · **Primary key** `pk_runtimes` (`job_id`)
+**CLR type** `Acta.Relational.JobRuntime` · **Primary key** `pk_runtimes` (`job_id`)
 
 **Columns**
 
@@ -466,7 +466,7 @@ The hot mutable runtime state of one Job: one row in `runtimes` per `jobs` row, 
 
 One named recurring schedule attached to a definition's slot Job. The `Origin` records how the row came to exist. Sparse override model (mirrors JobDefinition): the bare field carries the origin-of-truth default and its `*_override` carries the operator edit (NULL = inherit); effective = `COALESCE(_override, default)`. Only `expression` and `time_zone_id` are operator-overridable. The canonical per-schedule cursor is `NextRunAtUtc`; the slot Job's cursor is the MIN over its live schedules.
 
-**CLR type** `Acta.Relational.Entities.JobSchedule` · **Primary key** `pk_schedules` (`id`)
+**CLR type** `Acta.Relational.JobSchedule` · **Primary key** `pk_schedules` (`id`)
 
 **Columns**
 
@@ -523,7 +523,7 @@ One named recurring schedule attached to a definition's slot Job. The `Origin` r
 
 One durable configuration value in the central `settings` table, addressed by `(scope_code, scope_id, name)`. Holds slow-changing operator/deployment configuration only, never fast-changing runtime state (that lives on substrate tables). Not read on any hot path yet; consumers resolve a setting by scope and fall back (definition, then namespace, then global) at point of use. Boundary rules: a value an operator filters by is a tag; a value the engine reads per-claim or per-execution, or that must appear on the definition views, is a policy column (settings are forbidden on the hot path); a behavior knob read cold by name at a scope is a setting.
 
-**CLR type** `Acta.Relational.Entities.Setting` · **Primary key** `pk_settings` (`id`)
+**CLR type** `Acta.Relational.Setting` · **Primary key** `pk_settings` (`id`)
 
 **Columns**
 
@@ -560,7 +560,7 @@ One durable configuration value in the central `settings` table, addressed by `(
 
 Substrate row carrying durable retry / result state for one step slot inside a Job. Written by the `start_step` / `complete_step` operations that back `ctx.RunStepAsync`. One row per `(JobId, Name)`; INSERT on first invocation (`Status = Pending`), UPDATE-in-place across retries, terminal transition to `Succeeded`, `Exhausted`, or `Interrupted`. A job restart deletes an `Exhausted` row, so the step starts over.
 
-**CLR type** `Acta.Relational.Entities.JobStep` · **Primary key** `pk_steps` (`id`)
+**CLR type** `Acta.Relational.JobStep` · **Primary key** `pk_steps` (`id`)
 
 **Columns**
 
@@ -608,7 +608,7 @@ Substrate row carrying durable retry / result state for one step slot inside a J
 
 Exact searchable metadata attached to one target. A tag scope identifies the exact target to which searchable metadata is attached. Tag scopes do not inherit, fall back, propagate, or participate in precedence resolution.
 
-**CLR type** `Acta.Relational.Entities.Tag` · **Primary key** `pk_tags` (`scope_code`, `scope_id`, `name`)
+**CLR type** `Acta.Relational.Tag` · **Primary key** `pk_tags` (`scope_code`, `scope_id`, `name`)
 
 **Columns**
 
@@ -642,7 +642,7 @@ Exact searchable metadata attached to one target. A tag scope identifies the exa
 
 Acta-owned catalog of tenants: the customer / business entity a Job is about. A tenant is an optional, validated scope on individual Jobs, orthogonal to `JobNamespace`, which remains the microservice / work-ownership boundary. Tenants do not own workers, namespaces, job definitions, schedules, or system Jobs; tenant is currently audit / query / runtime scope only, never a scheduling or claim scope. Rows are append-only (no hard delete); `Status` gates whether a key resolves at enqueue. The runtime upserts a row by `TenantKey` via the `RegisterTenant` handler and reads the assigned id back.
 
-**CLR type** `Acta.Relational.Entities.Tenant` · **Primary key** `pk_tenants` (`id`)
+**CLR type** `Acta.Relational.Tenant` · **Primary key** `pk_tenants` (`id`)
 
 **Columns**
 
@@ -669,7 +669,7 @@ Acta-owned catalog of tenants: the customer / business entity a Job is about. A 
 
 Worker registration and liveness row. One row per worker process; every `WorkerRuntime.InitializeAsync` call INSERTs a fresh row representing that runtime's lifetime, identified by the DB-assigned `Id`. A single host can produce many rows (multiple containers, multi-runtime processes, restarts), and rows are never reused. The retention sweep deletes terminal workers - `Stopped` and `Dead` alike - older than `JobsOptions.WorkerRetention` (default `P90D`).
 
-**CLR type** `Acta.Relational.Entities.JobWorker` · **Primary key** `pk_workers` (`id`)
+**CLR type** `Acta.Relational.JobWorker` · **Primary key** `pk_workers` (`id`)
 
 **Columns**
 

@@ -68,7 +68,7 @@ public sealed partial class PgProvisionScriptSpec
                 definition.CommandText =
                     $"SELECT pg_get_functiondef(p.oid) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = '{schema}' AND p.proname = 'extend_lock'";
                 Assert.Contains("versionless_body_probe", Assert.IsType<string>(await definition.ExecuteScalarAsync(ct)));
-                await Acta.Postgres.Schema.PostgresSchemaMigrator.ApplyAsync(conn, schema, ct);
+                await Acta.Postgres.PostgresSchemaMigrator.ApplyAsync(conn, schema, ct);
                 Assert.DoesNotContain("versionless_body_probe", Assert.IsType<string>(await definition.ExecuteScalarAsync(ct)));
             }
 
@@ -132,7 +132,7 @@ public sealed partial class PgProvisionScriptSpec
             // The script re-applied by hand, then the bootstrap's own installer: both rewrite the views.
             await ExecuteAsync(conn, script, ct);
             await AssertDbaObjectsSurviveAsync(job);
-            await Acta.Postgres.Schema.PostgresSchemaMigrator.ApplyAsync(conn, schema, ct);
+            await Acta.Postgres.PostgresSchemaMigrator.ApplyAsync(conn, schema, ct);
             await AssertDbaObjectsSurviveAsync(job);
 
             await ScriptProvisionedRuntime.AssertSucceededAsync(fixture.ApplyProvider, schema, job, 5, ct);

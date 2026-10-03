@@ -1,4 +1,4 @@
-﻿namespace Acta.Postgres.Configuration;
+﻿namespace Acta.Postgres;
 
 /// <summary>
 /// Connection options for a PostgreSQL external-outbox source, captured on

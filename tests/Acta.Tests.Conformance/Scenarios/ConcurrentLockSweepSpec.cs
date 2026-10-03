@@ -1,12 +1,11 @@
-using Acta.Relational.Entities;
-using Acta.Runtime.Maintenance;
-using Acta.Runtime.Services.Locks;
+using Acta.Relational;
+using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using TestJobs;
 using Xunit;
-using Lock = Acta.Relational.Entities.Lock;
+using Lock = Acta.Relational.Lock;
 
 namespace Acta.Tests.Conformance.Scenarios;
 

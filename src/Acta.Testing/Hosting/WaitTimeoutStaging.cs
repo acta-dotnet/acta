@@ -1,8 +1,8 @@
 using System.Globalization;
 using System.Text;
-using Acta.Relational.Entities;
+using Acta.Relational;
 
-namespace Acta.Testing.Hosting;
+namespace Acta.Testing;
 
 /// <summary>
 /// The one implementation of "move a bounded group wait past its deadline", shared by

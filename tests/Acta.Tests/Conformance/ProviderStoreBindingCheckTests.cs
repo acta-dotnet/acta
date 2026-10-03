@@ -2,9 +2,9 @@ using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
-using Acta.Postgres.Configuration;
-using Acta.Sqlite.Configuration;
-using Acta.SqlServer.Configuration;
+using Acta.Postgres;
+using Acta.Sqlite;
+using Acta.SqlServer;
 using Acta.Tests.Conformance.Sql;
 using Xunit;
 
@@ -194,14 +194,14 @@ internal static partial class ProviderStoreBindingCheck
     private static bool IsCommandPreparation(MethodBase method)
     {
         var declaring = method.DeclaringType?.FullName;
-        return (declaring == "Acta.Relational.Commands.DbParams" && method.Name == "For")
-            || (declaring == "Acta.Relational.Resources.SqlResourceCatalog" && method.Name == "Load")
+        return (declaring == "Acta.Relational.DbParams" && method.Name == "For")
+            || (declaring == "Acta.Relational.SqlResourceCatalog" && method.Name == "Load")
             || (
-                declaring == "Acta.Relational.Connections.IDbSession"
+                declaring == "Acta.Relational.IDbSession"
                 && method.Name is "QueryAsync" or "ExecuteAsync" or "ExecuteSingleAsync" or "ExecuteInTransactionAsync"
             )
             || (
-                declaring == "Acta.Relational.Commands.ISqlDialect"
+                declaring == "Acta.Relational.ISqlDialect"
                 && (
                     method.Name is "CreateParameter" or "ConfigureRoutineCommand"
                     || method.Name.StartsWith("Bind", StringComparison.Ordinal)

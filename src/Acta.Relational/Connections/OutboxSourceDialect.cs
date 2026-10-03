@@ -1,11 +1,7 @@
 using System.Data.Common;
-using Acta.Relational.Commands;
-using Acta.Runtime.Modules.Execution;
-using Acta.Runtime.Modules.Execution.Definitions;
-using Acta.Runtime.Modules.Execution.Jobs;
-using Acta.Runtime.Modules.Execution.Schedules;
+using Acta.Runtime;
 
-namespace Acta.Relational.Connections;
+namespace Acta.Relational;
 
 /// <summary>
 /// Base <see cref="ISqlDialect"/> for the external-outbox source session. Unlike the ledger dialects,

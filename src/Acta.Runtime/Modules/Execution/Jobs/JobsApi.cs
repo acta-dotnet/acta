@@ -1,8 +1,6 @@
 using System.Data.Common;
-using Acta.Runtime.Modules.Execution.Definitions;
-using Acta.Runtime.Modules.Execution.Signals;
 
-namespace Acta.Runtime.Modules.Execution.Jobs;
+namespace Acta.Runtime;
 
 /// <summary>
 /// <see cref="IJobs"/> implementation. Routing resolves namespace and definition by SQL JOIN in the

@@ -2,14 +2,9 @@ using System.Buffers;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
-using Acta.Relational.Commands;
-using Acta.Relational.Connections;
-using Acta.Relational.Schema;
-using Acta.Runtime.Hosting;
-using Acta.Runtime.Kernel;
-using Acta.Runtime.Modules.Outbox;
+using Acta.Runtime;
 
-namespace Acta.Relational.Stores;
+namespace Acta.Relational;
 
 /// <summary>
 /// Shared relational <see cref="IOutboxRelayStore"/> over a source-bound <see cref="IDbSession"/> and its

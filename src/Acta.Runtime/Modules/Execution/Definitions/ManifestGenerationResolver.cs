@@ -3,7 +3,7 @@ using System.Globalization;
 using System.Reflection;
 using Microsoft.Extensions.Logging;
 
-namespace Acta.Runtime.Modules.Execution.Definitions;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Resolves the worker's manifest generation, the monotonic governor for definition promotion:

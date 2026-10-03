@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using Acta.Emit.Shared;
-using Acta.Relational.Schema;
+using Acta.Relational;
 
 namespace Acta.Emit.Features.Migrations;
 

@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Options;
 
-namespace Acta.Relational.Connections;
+namespace Acta.Relational;
 
 /// <summary>
 /// Validates any <see cref="SqlProviderOptions"/> subclass at host startup (paired with

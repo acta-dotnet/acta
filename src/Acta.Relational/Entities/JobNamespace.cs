@@ -1,6 +1,4 @@
-using Acta.Relational.Schema;
-
-namespace Acta.Relational.Entities;
+namespace Acta.Relational;
 
 /// <summary>
 /// Service-owned execution boundary. One deployable service owns one <see cref="JobNamespace"/>; replicas

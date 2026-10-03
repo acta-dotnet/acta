@@ -1,4 +1,4 @@
-using Acta.Relational.Entities;
+using Acta.Relational;
 using Xunit;
 
 namespace Acta.Tests.Schema;

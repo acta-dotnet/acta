@@ -1,4 +1,4 @@
-using Acta.Runtime.Kernel;
+using Acta.Runtime;
 using Xunit;
 
 namespace Acta.Tests.Architecture;

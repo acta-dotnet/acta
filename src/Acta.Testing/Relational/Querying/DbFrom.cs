@@ -3,10 +3,9 @@ using System.Globalization;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
-using Acta.Relational.Commands;
-using Acta.Relational.Schema;
+using Acta.Relational;
 
-namespace Acta.Testing.Relational.Querying;
+namespace Acta.Testing;
 
 /// <summary>
 /// Fluent reader/writer accessor over Acta's generated table metadata: composes reads

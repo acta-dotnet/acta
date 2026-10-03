@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Reflection;
 using System.Text.RegularExpressions;
-using Acta.Relational.Connections;
+using Acta.Relational;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.Logging;
 using Xunit;
@@ -134,9 +134,9 @@ public sealed class DriverVersionPreflightTests
 public sealed partial class DriverMajorParityTests
 {
     [Theory]
-    [InlineData("Acta.Sqlite", "Acta.Sqlite.Hosting.SqliteProviderBootstrap", "Microsoft.Data.Sqlite")]
-    [InlineData("Acta.Postgres", "Acta.Postgres.Hosting.PostgresProviderBootstrap", "Npgsql")]
-    [InlineData("Acta.SqlServer", "Acta.SqlServer.Hosting.SqlServerProviderBootstrap", "Microsoft.Data.SqlClient")]
+    [InlineData("Acta.Sqlite", "Acta.Sqlite.SqliteProviderBootstrap", "Microsoft.Data.Sqlite")]
+    [InlineData("Acta.Postgres", "Acta.Postgres.PostgresProviderBootstrap", "Npgsql")]
+    [InlineData("Acta.SqlServer", "Acta.SqlServer.SqlServerProviderBootstrap", "Microsoft.Data.SqlClient")]
     public void Certified_major_matches_the_centrally_pinned_package(string assemblyName, string bootstrapType, string package)
     {
         var certified =
@@ -157,9 +157,9 @@ public sealed partial class DriverMajorParityTests
     }
 
     [Theory]
-    [InlineData("Acta.Sqlite", "Acta.Sqlite.Hosting.SqliteProviderBootstrap", "Microsoft.Data.Sqlite")]
-    [InlineData("Acta.Postgres", "Acta.Postgres.Hosting.PostgresProviderBootstrap", "Npgsql")]
-    [InlineData("Acta.SqlServer", "Acta.SqlServer.Hosting.SqlServerProviderBootstrap", "Microsoft.Data.SqlClient")]
+    [InlineData("Acta.Sqlite", "Acta.Sqlite.SqliteProviderBootstrap", "Microsoft.Data.Sqlite")]
+    [InlineData("Acta.Postgres", "Acta.Postgres.PostgresProviderBootstrap", "Npgsql")]
+    [InlineData("Acta.SqlServer", "Acta.SqlServer.SqlServerProviderBootstrap", "Microsoft.Data.SqlClient")]
     public void Certified_major_matches_the_driver_the_tests_actually_load(string assemblyName, string bootstrapType, string package)
     {
         // The suite runs against the restored driver, so the constant is only meaningful if what runs

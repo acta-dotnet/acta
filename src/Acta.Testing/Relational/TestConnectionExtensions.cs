@@ -1,7 +1,7 @@
 using System.Data.Common;
-using Acta.Relational.Commands;
+using Acta.Relational;
 
-namespace Acta.Testing.Relational;
+namespace Acta.Testing;
 
 /// <summary>
 /// Advanced testing and diagnostics helpers for the Acta database session.

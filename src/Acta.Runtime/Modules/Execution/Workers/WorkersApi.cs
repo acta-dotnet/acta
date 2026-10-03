@@ -1,8 +1,6 @@
 using System.Globalization;
-using Acta.Runtime.Kernel;
-using Acta.Runtime.Querying;
 
-namespace Acta.Runtime.Modules.Execution.Workers;
+namespace Acta.Runtime;
 
 /// <summary><see cref="IWorkers"/> implementation over the worker store's paged list.</summary>
 internal sealed class WorkersApi(IWorkerStore store) : IWorkers

@@ -1,8 +1,7 @@
 using System.Data.Common;
 using System.Globalization;
-using Acta.Relational.Resources;
 
-namespace Acta.Relational.Schema;
+namespace Acta.Relational;
 
 /// <summary>Mechanical execution of the provider-owned schema-management command set.</summary>
 internal static class SchemaCommands

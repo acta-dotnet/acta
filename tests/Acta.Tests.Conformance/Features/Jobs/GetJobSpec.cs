@@ -1,4 +1,4 @@
-using Acta.Runtime.Modules.Execution.Jobs;
+using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -51,7 +51,7 @@ public abstract class GetJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
         Assert.Equal("add-numbers", snapshot.JobName);
         // The job's namespace+name pair addresses the catalog row its definition id points at.
         var definition = await Services
-            .GetRequiredService<Acta.Runtime.Modules.Execution.Definitions.DefinitionsService>()
+            .GetRequiredService<Acta.Runtime.DefinitionsService>()
             .GetAsync(snapshot.JobNamespace, snapshot.JobName, ct);
         Assert.NotNull(definition);
         Assert.Equal("add-numbers", definition!.JobName);
@@ -72,9 +72,7 @@ public abstract class GetJobSpec<TFixture> : ActaRuntimeTestBase<TFixture, TestJ
         var ct = TestContext.Current.CancellationToken;
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var tenantKey = TestKey("get-job-ten");
-        var tenantId = await Services
-            .GetRequiredService<Acta.Runtime.Modules.Execution.Tenants.TenantsService>()
-            .RegisterAsync(tenantKey, null, null, ct);
+        var tenantId = await Services.GetRequiredService<Acta.Runtime.TenantsService>().RegisterAsync(tenantKey, null, null, ct);
 
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
         var results = await EnqueueTestOps.EnqueueBatchAsync(

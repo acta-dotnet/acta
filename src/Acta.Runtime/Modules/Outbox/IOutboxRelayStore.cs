@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Modules.Outbox;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Persistence port for the external-outbox source database, owned by the relay (<c>sys.outbox</c>).

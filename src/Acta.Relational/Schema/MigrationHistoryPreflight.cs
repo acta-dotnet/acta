@@ -1,8 +1,7 @@
 using System.Data;
 using System.Data.Common;
-using Acta.Relational.Resources;
 
-namespace Acta.Relational.Schema;
+namespace Acta.Relational;
 
 /// <summary>
 /// The read-only check every provider bootstrap runs, whether or not it applies migrations: the

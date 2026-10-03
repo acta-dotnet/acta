@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Querying;
+namespace Acta.Runtime;
 
 /// <summary>
 /// Filter validation shared by the <see cref="IJobs"/> implementation. Caller-input failures throw

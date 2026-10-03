@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace Acta.Relational.Commands;
+namespace Acta.Relational;
 
 internal static class DbScalarCoercion
 {

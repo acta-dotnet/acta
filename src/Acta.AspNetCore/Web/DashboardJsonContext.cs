@@ -1,8 +1,7 @@
 using System.Text.Json.Serialization;
-using Acta.AspNetCore.Features.Tags;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Acta.AspNetCore.Web;
+namespace Acta.AspNetCore;
 
 /// <summary>
 /// Source-generated JSON metadata for every dashboard API response type. Code-family enums carry
@@ -66,12 +65,12 @@ namespace Acta.AspNetCore.Web;
 [JsonSerializable(typeof(IReadOnlyList<TagItem>))]
 [JsonSerializable(typeof(TagUpsertRequest))]
 [JsonSerializable(typeof(CapabilitiesResponse))]
-[JsonSerializable(typeof(Features.Jobs.JobDetailResponse))]
-[JsonSerializable(typeof(Features.Jobs.JobPayloadResponse))]
-[JsonSerializable(typeof(IReadOnlyList<Features.Jobs.JobCheckpointResponse>))]
-[JsonSerializable(typeof(Features.Jobs.JobEnqueueApiRequest))]
-[JsonSerializable(typeof(Features.Jobs.JobEnqueueResponse))]
-[JsonSerializable(typeof(Features.Jobs.JobInputTemplateResponse))]
+[JsonSerializable(typeof(JobDetailResponse))]
+[JsonSerializable(typeof(JobPayloadResponse))]
+[JsonSerializable(typeof(IReadOnlyList<JobCheckpointResponse>))]
+[JsonSerializable(typeof(JobEnqueueApiRequest))]
+[JsonSerializable(typeof(JobEnqueueResponse))]
+[JsonSerializable(typeof(JobInputTemplateResponse))]
 [JsonSerializable(typeof(ProblemDetails))]
 internal sealed partial class DashboardJsonContext : JsonSerializerContext;
 

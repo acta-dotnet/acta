@@ -494,7 +494,7 @@ public sealed class DashboardApiEndpointTests
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => requestTask);
 
-        Assert.DoesNotContain(provider.Entries, e => e.Category == "Acta.AspNetCore.Web" && e.Level >= LogLevel.Warning);
+        Assert.DoesNotContain(provider.Entries, e => e.Category == "Acta.AspNetCore" && e.Level >= LogLevel.Warning);
     }
 
     [Fact]
@@ -537,7 +537,7 @@ public sealed class DashboardApiEndpointTests
         var response = await client.GetAsync("/acta/api/v1/jobs", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
-        Assert.Contains(provider.Entries, e => e.Category == "Acta.AspNetCore.Web" && e.Level == LogLevel.Error);
+        Assert.Contains(provider.Entries, e => e.Category == "Acta.AspNetCore" && e.Level == LogLevel.Error);
     }
 
     private sealed class RecordingLoggerProvider : ILoggerProvider

@@ -1,11 +1,8 @@
 using System.Data.Common;
 using System.Globalization;
-using Acta.Relational.Commands;
-using Acta.Relational.Connections;
-using Acta.Relational.Schema;
-using Acta.Runtime.Modules.Execution.Definitions;
+using Acta.Runtime;
 
-namespace Acta.Relational.Stores;
+namespace Acta.Relational;
 
 /// <summary>
 /// Shared relational <see cref="IDefinitionStore"/> over <see cref="IDbSession"/>: inline reads, the

@@ -2,7 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Acta.AspNetCore.Features.Jobs;
+namespace Acta.AspNetCore;
 
 /// <summary>
 /// Format-dispatched HTTP projection of a <see cref="JobPayload"/>: the frontend dispatches on

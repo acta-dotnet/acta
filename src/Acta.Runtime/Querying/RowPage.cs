@@ -1,4 +1,4 @@
-namespace Acta.Runtime.Querying;
+namespace Acta.Runtime;
 
 /// <summary>
 /// One page of a keyset list operation. <see cref="Total"/> is the opt-in filter-wide count, null
