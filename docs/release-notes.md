@@ -33,6 +33,9 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   client that showed `message` builds its text from `action` and `status`.
 - **The `Acta.Relational` package is gone.** Its code ships in `Acta.Runtime`, which every provider
   package already brings. A project that referenced `Acta.Relational` directly drops the reference.
+- **A command returns its own response.** `ISettings.SetAsync` returns `SetSettingResponse` instead of
+  the shared `AdminControlResult`; it carries the same `Action` and `Version`, so only the declared type
+  changes.
 
 ### Additions
 

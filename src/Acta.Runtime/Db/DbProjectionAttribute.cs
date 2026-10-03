@@ -8,7 +8,7 @@ namespace Acta.Runtime;
 /// <c>WorkerRef</c>) builds from a Guid column, and a <c>JobPayload</c> from a format id column and a bytes
 /// column.
 /// </summary>
-[AttributeUsage(AttributeTargets.Assembly | AttributeTargets.Class | AttributeTargets.Struct, Inherited = false)]
+[AttributeUsage(AttributeTargets.Assembly | AttributeTargets.Class | AttributeTargets.Struct, Inherited = false, AllowMultiple = true)]
 internal sealed class DbProjectionAttribute(params Type[] projectionTypes) : Attribute
 {
     public IReadOnlyList<Type> ProjectionTypes { get; } = projectionTypes;

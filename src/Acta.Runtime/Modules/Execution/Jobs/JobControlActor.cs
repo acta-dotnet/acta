@@ -30,6 +30,9 @@ internal readonly record struct JobControlActor
         ActorKey = string.IsNullOrWhiteSpace(actorKey) ? null : actorKey;
     }
 
+    /// <summary>The operator behind a public control verb, which stamps its own actor and takes only the key.</summary>
+    public static JobControlActor Operator(string? actorKey) => new(ActorCode.Operator, actorKey.Truncate(ActaTextLimits.ActorKey));
+
     /// <summary>Actor classification stamped on the event.</summary>
     public ActorCode ActorCode { get; }
 

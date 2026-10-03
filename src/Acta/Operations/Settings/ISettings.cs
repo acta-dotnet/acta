@@ -27,7 +27,7 @@ public interface ISettings
     /// Throws <see cref="PayloadTooLargeException"/> when the value exceeds
     /// <see cref="JobsOptions.MaxInlinePayloadBytes"/>.
     /// </summary>
-    ValueTask<AdminControlResult> SetAsync(
+    ValueTask<SetSettingResponse> SetAsync(
         string name,
         string value,
         int? expectedVersion = null,

@@ -85,10 +85,15 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ITenants, TenantsApi>();
         services.TryAddSingleton<INamespaces, NamespacesApi>();
         services.TryAddSingleton<ITags>(static sp => sp.GetRequiredService<TagsService>());
-        services.TryAddSingleton<SettingsService>();
-        services.TryAddSingleton<ISettings, SettingsApi>();
         services.TryAddSingleton<IOutbox, OutboxApi>();
         services.TryAddSingleton<IActaOperations, OperationsApi>();
+
+        // Operation groups that have moved to handlers: each group's handlers, then its facade.
+        services.AddSingleton<IServerClock, GetUtcNowHandler>();
+        services.TryAddSingleton<IActaClock>(sp => sp.GetRequiredService<IServerClock>());
+        services.TryAddSingleton<GetSettingHandler>();
+        services.TryAddSingleton<SetSettingHandler>();
+        services.TryAddSingleton<ISettings, Settings>();
 
         // Consumers light up the meter with WithMetrics(m => m.AddMeter(JobMetrics.MeterName)).
         services.TryAddSingleton<JobMetrics>();

@@ -18,7 +18,6 @@ internal static class RelationalStoreRegistration
         services.AddSingleton<IDefinitionStore, RelationalDefinitionStore>();
         services.AddSingleton<INamespaceStore, RelationalNamespaceStore>();
         services.AddSingleton<ITenantStore, RelationalTenantStore>();
-        services.AddSingleton<ISettingStore, RelationalSettingStore>();
         services.AddSingleton<IJobStore, RelationalJobStore>();
         services.AddSingleton<ITagStore, RelationalTagStore>();
         services.AddSingleton<ISignalStore, RelationalSignalStore>();
@@ -29,7 +28,5 @@ internal static class RelationalStoreRegistration
         services.AddSingleton<IRetentionStore, RelationalRetentionStore>();
         services.AddSingleton<IExecutionStore, RelationalExecutionStore>();
         services.TryAddSingleton<ILockStore, RelationalLockStore>();
-        services.AddSingleton<IServerClock, GetUtcNowHandler>();
-        services.TryAddSingleton<IActaClock>(sp => sp.GetRequiredService<IServerClock>());
     }
 }

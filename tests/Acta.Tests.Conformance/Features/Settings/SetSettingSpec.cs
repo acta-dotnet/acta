@@ -18,7 +18,7 @@ public sealed class SetSettingSpec : ActaStorageTestBase<ConformanceFixture>
 {
     private static readonly DateTime Gen = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-    private SettingsService Service => Services.GetRequiredService<SettingsService>();
+    private ISettings Settings => Services.GetRequiredService<ISettings>();
 
     [Fact(DisplayName = "Set creates then overwrites with a version bump; get returns the latest value")]
     public async Task Set_roundtrips_and_bumps_version()
@@ -26,23 +26,23 @@ public sealed class SetSettingSpec : ActaStorageTestBase<ConformanceFixture>
         var ct = TestContext.Current.CancellationToken;
         var name = TestKey("cfg");
 
-        Assert.Null(await Service.GetAsync(name, namespaceName: null, jobName: null, ct));
+        Assert.Null(await Settings.GetAsync(name, namespaceName: null, jobName: null, ct));
 
-        var created = await Service.SetAsync(name, "42", null, "the answer", namespaceName: null, jobName: null, null, "op-1", ct);
+        var created = await Settings.SetAsync(name, "42", null, "the answer", namespaceName: null, jobName: null, null, "op-1", ct);
         Assert.Equal(ControlAction.Applied, created.Action);
         Assert.Equal(0, created.Version);
 
-        var first = await Service.GetAsync(name, namespaceName: null, jobName: null, ct);
+        var first = await Settings.GetAsync(name, namespaceName: null, jobName: null, ct);
         Assert.NotNull(first);
         Assert.Equal("42", first.Value);
         Assert.Equal("the answer", first.Description);
         Assert.Equal(0, first.Version);
 
-        var overwritten = await Service.SetAsync(name, "43", null, "the answer", namespaceName: null, jobName: null, null, "op-1", ct);
+        var overwritten = await Settings.SetAsync(name, "43", null, "the answer", namespaceName: null, jobName: null, null, "op-1", ct);
         Assert.Equal(ControlAction.Applied, overwritten.Action);
         Assert.Equal(1, overwritten.Version);
 
-        var second = await Service.GetAsync(name, namespaceName: null, jobName: null, ct);
+        var second = await Settings.GetAsync(name, namespaceName: null, jobName: null, ct);
         Assert.Equal("43", second!.Value);
         Assert.Equal(1, second.Version);
     }
@@ -55,13 +55,13 @@ public sealed class SetSettingSpec : ActaStorageTestBase<ConformanceFixture>
         var jobName = TestKey("cfg-job");
         await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen, [Def(jobName)], ct);
 
-        await Service.SetAsync(name, "global", null, null, namespaceName: null, jobName: null, null, "op-1", ct);
-        await Service.SetAsync(name, "ns", null, null, TestNamespace, jobName: null, null, "op-1", ct);
-        await Service.SetAsync(name, "def", null, null, TestNamespace, jobName, null, "op-1", ct);
+        await Settings.SetAsync(name, "global", null, null, namespaceName: null, jobName: null, null, "op-1", ct);
+        await Settings.SetAsync(name, "ns", null, null, TestNamespace, jobName: null, null, "op-1", ct);
+        await Settings.SetAsync(name, "def", null, null, TestNamespace, jobName, null, "op-1", ct);
 
-        Assert.Equal("global", (await Service.GetAsync(name, null, null, ct))!.Value);
-        Assert.Equal("ns", (await Service.GetAsync(name, TestNamespace, null, ct))!.Value);
-        Assert.Equal("def", (await Service.GetAsync(name, TestNamespace, jobName, ct))!.Value);
+        Assert.Equal("global", (await Settings.GetAsync(name, null, null, ct))!.Value);
+        Assert.Equal("ns", (await Settings.GetAsync(name, TestNamespace, null, ct))!.Value);
+        Assert.Equal("def", (await Settings.GetAsync(name, TestNamespace, jobName, ct))!.Value);
     }
 
     [Fact(DisplayName = "An unregistered namespace or definition target is NotFound and writes nothing")]
@@ -70,13 +70,13 @@ public sealed class SetSettingSpec : ActaStorageTestBase<ConformanceFixture>
         var ct = TestContext.Current.CancellationToken;
         var name = TestKey("cfg-miss");
 
-        var unknownNamespace = await Service.SetAsync(name, "x", null, null, TestKey("no-such-ns"), jobName: null, null, "op-1", ct);
+        var unknownNamespace = await Settings.SetAsync(name, "x", null, null, TestKey("no-such-ns"), jobName: null, null, "op-1", ct);
         Assert.Equal(ControlAction.NotFound, unknownNamespace.Action);
 
-        var unknownDefinition = await Service.SetAsync(name, "x", null, null, TestNamespace, TestKey("no-such-job"), null, "op-1", ct);
+        var unknownDefinition = await Settings.SetAsync(name, "x", null, null, TestNamespace, TestKey("no-such-job"), null, "op-1", ct);
         Assert.Equal(ControlAction.NotFound, unknownDefinition.Action);
 
-        Assert.Null(await Service.GetAsync(name, TestNamespace, null, ct));
+        Assert.Null(await Settings.GetAsync(name, TestNamespace, null, ct));
         Assert.Empty(await Db.From<Setting>().Where(s => s.Name == name).ToListAsync(ct));
     }
 
@@ -87,7 +87,7 @@ public sealed class SetSettingSpec : ActaStorageTestBase<ConformanceFixture>
         var name = TestKey("cfg-ev");
         var reason = TestKey("because");
 
-        await Service.SetAsync(name, "on", null, null, TestNamespace, jobName: null, reason, "op-1", ct);
+        await Settings.SetAsync(name, "on", null, null, TestNamespace, jobName: null, reason, "op-1", ct);
 
         var events = await Db.From<JobEvent>()
             .Where(e => e.EventCode == EventCode.SettingUpdated && e.ReasonMessage == reason)
@@ -108,14 +108,14 @@ public sealed class SetSettingSpec : ActaStorageTestBase<ConformanceFixture>
         var reason = TestKey("cas-ev");
 
         // Expecting a version of a row that does not exist is NotFound, and nothing is created.
-        var absent = await Service.SetAsync(name, "v", 0, null, namespaceName: null, jobName: null, null, "op-1", ct);
+        var absent = await Settings.SetAsync(name, "v", 0, null, namespaceName: null, jobName: null, null, "op-1", ct);
         Assert.Equal(ControlAction.NotFound, absent.Action);
-        Assert.Null(await Service.GetAsync(name, namespaceName: null, jobName: null, ct));
+        Assert.Null(await Settings.GetAsync(name, namespaceName: null, jobName: null, ct));
 
-        await Service.SetAsync(name, "one", null, null, namespaceName: null, jobName: null, reason, "op-1", ct);
+        await Settings.SetAsync(name, "one", null, null, namespaceName: null, jobName: null, reason, "op-1", ct);
 
         // Matching CAS applies and bumps: 0 -> 1.
-        var applied = await Service.SetAsync(name, "two", 0, null, namespaceName: null, jobName: null, reason, "op-1", ct);
+        var applied = await Settings.SetAsync(name, "two", 0, null, namespaceName: null, jobName: null, reason, "op-1", ct);
         Assert.Equal(ControlAction.Applied, applied.Action);
         Assert.Equal(1, applied.Version);
 
@@ -125,11 +125,11 @@ public sealed class SetSettingSpec : ActaStorageTestBase<ConformanceFixture>
         // appends to, so the equality below would be asserting that nothing else in the suite set a
         // setting during these two reads - which is not this fact, and not true.
         var eventsBefore = await SettingEventCountAsync(reason, ct);
-        var stale = await Service.SetAsync(name, "three", 0, null, namespaceName: null, jobName: null, reason, "op-1", ct);
+        var stale = await Settings.SetAsync(name, "three", 0, null, namespaceName: null, jobName: null, reason, "op-1", ct);
         Assert.Equal(ControlAction.VersionConflict, stale.Action);
         Assert.Equal(1, stale.Version);
 
-        var current = await Service.GetAsync(name, namespaceName: null, jobName: null, ct);
+        var current = await Settings.GetAsync(name, namespaceName: null, jobName: null, ct);
         Assert.Equal("two", current!.Value);
         Assert.Equal(1, current.Version);
         Assert.Equal(eventsBefore, await SettingEventCountAsync(reason, ct));

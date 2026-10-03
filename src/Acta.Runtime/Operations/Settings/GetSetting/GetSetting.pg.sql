@@ -1,6 +1,5 @@
--- Exact-scope point read; the scope is inferred from the targets (none = Global, namespace alone =
--- Namespace, namespace + job name = Definition). An unregistered target simply matches no row.
-SELECT s.name, s.value_format_id, s.value, s.description, s.created_at_utc, s.modified_at_utc, s.version
+-- One setting at the exact scope its targets name, the value decoded as text.
+SELECT s.name, CONVERT_FROM(s.value, 'UTF8') AS value, s.description, s.created_at_utc, s.modified_at_utc, s.version
 FROM {{schema}}.settings s
 WHERE
     s.name = @p_name

@@ -789,7 +789,7 @@ interface Acta.ISchedules
     System.Threading.Tasks.ValueTask<Acta.ScheduleControlResult> UpdateOverridesAsync(Acta.ScheduleLookup schedule, System.Int32 expectedVersion, System.String expression, System.String timeZoneId, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.SchedulePreview> PreviewAsync(Acta.ScheduleLookup schedule, System.Int32 count = default, System.Threading.CancellationToken ct = default)
 interface Acta.ISettings
-    System.Threading.Tasks.ValueTask<Acta.AdminControlResult> SetAsync(System.String name, System.String value, System.Nullable<System.Int32> expectedVersion = default, System.String description = default, System.String namespaceName = default, System.String jobName = default, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.SetSettingResponse> SetAsync(System.String name, System.String value, System.Nullable<System.Int32> expectedVersion = default, System.String description = default, System.String namespaceName = default, System.String jobName = default, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.SettingDetail> GetAsync(System.String name, System.String namespaceName = default, System.String jobName = default, System.Threading.CancellationToken ct = default)
 interface Acta.ITags
     System.Threading.Tasks.ValueTask<Acta.TagMutationResult> RemoveAsync(Acta.TagTarget target, System.String name, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
@@ -2026,6 +2026,10 @@ sealed class Acta.ScheduleStatusCodeJsonConverter
     .ctor()
     Acta.ScheduleStatusCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.ScheduleStatusCode value, System.Text.Json.JsonSerializerOptions options)
+sealed class Acta.SetSettingResponse
+    .ctor(Acta.ControlAction Action, System.Nullable<System.Int32> Version)
+    Acta.ControlAction Action { get;init; }
+    System.Nullable<System.Int32> Version { get;init; }
 sealed class Acta.SettingDetail
     .ctor(System.String Name, System.String Value, System.String Description, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 Version)
     System.DateTime CreatedAtUtc { get;init; }
