@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
-using System.Text;
+using System.Text.Json;
 using Acta;
 
 namespace Anvil.Bench;
@@ -555,7 +555,9 @@ internal sealed class BurstRun(BurstHost host, BurstDb db, BurstOptions options)
         {
             if (string.Equals(slot.Name, BurstBounds.CursorVariableName, StringComparison.Ordinal) && slot.Value is { IsNone: false } value)
             {
-                return long.Parse(Encoding.UTF8.GetString(value.Data.Span), CultureInfo.InvariantCulture);
+                // The cursor is {"ticks": ..., "eventId": ...}; the event id is the watermark the counts are taken against.
+                using var cursor = JsonDocument.Parse(value.Data);
+                return cursor.RootElement.GetProperty("eventId").GetInt64();
             }
         }
         return 0;
