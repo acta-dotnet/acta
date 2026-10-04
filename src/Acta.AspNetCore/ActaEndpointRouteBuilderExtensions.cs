@@ -52,7 +52,7 @@ public static class ActaEndpointRouteBuilderExtensions
 
         var group = endpoints.MapGroup(pattern);
         GuardLocalOnly(group, options);
-        ActaApiEndpoints.Map(group.MapGroup(ApiVersionSegment), options);
+        MapApi(group.MapGroup(ApiVersionSegment), options);
         options.ConfigureEndpoints?.Invoke(group);
         return group;
     }
@@ -80,7 +80,7 @@ public static class ActaEndpointRouteBuilderExtensions
 
         var group = endpoints.MapGroup(pattern);
         GuardLocalOnly(group, options);
-        ActaApiEndpoints.Map(group.MapGroup("/api" + ApiVersionSegment), options);
+        MapApi(group.MapGroup("/api" + ApiVersionSegment), options);
 
         if (options.Enabled)
         {
@@ -102,6 +102,47 @@ public static class ActaEndpointRouteBuilderExtensions
 
         options.ConfigureEndpoints?.Invoke(group);
         return group;
+    }
+
+    // The versioned API under either mount: the conventions and filters every route shares, then each group's routes.
+    private static void MapApi(RouteGroupBuilder api, ActaEndpointOptions options)
+    {
+        // Names and tags for every endpoint below, derived from its own route. Applied at the group so
+        // it reaches the nested controls group too.
+        ActaEndpointIdentity.Apply(api);
+
+        // The error model, declared once: 400 from the routes' input guards, 413 from the body ceiling, 500 and 503
+        // from the error backstop. 415 is not here: only a route that reads a body can answer it, so each such route
+        // declares it where its body is read, rather than promising it on every read.
+        api.ProducesProblem(StatusCodes.Status400BadRequest);
+        api.ProducesProblem(StatusCodes.Status413PayloadTooLarge);
+        api.ProducesProblem(StatusCodes.Status500InternalServerError);
+        api.ProducesProblem(StatusCodes.Status503ServiceUnavailable);
+        api.AddEndpointFilter(ApiFilters.ErrorBackstop);
+        api.AddEndpointFilter(ApiFilters.NoStore);
+        api.AddEndpointFilter(ApiFilters.BodyCeiling);
+
+        // Null when controls are off; a group's route table maps its writes only when it is there. The empty-prefix
+        // group gives the authorization filter every control route and no read, and adds the one code reads cannot
+        // answer: 403, when the host's own authorizer denies the request.
+        RouteGroupBuilder? controls = null;
+        if (options.EnableControls)
+        {
+            controls = api.MapGroup("");
+            ControlAuthorizationFilter.Attach(controls);
+            controls.ProducesProblem(StatusCodes.Status403Forbidden);
+        }
+
+        JobsEndpoints.Map(api, controls, options);
+        WorkersEndpoints.Map(api, controls, options);
+        NamespacesEndpoints.Map(api, controls, options);
+        TenantsEndpoints.Map(api, controls, options);
+        AlertsEndpoints.Map(api, controls, options);
+        OutboxEndpoints.Map(api, controls, options);
+        DefinitionsEndpoints.Map(api, controls, options);
+        SchedulesEndpoints.Map(api, controls, options);
+        LedgerEndpoints.Map(api, options);
+        CapabilitiesEndpoint.Map(api, options);
     }
 
     private static void EnsureDashboardJsonContext(IEndpointRouteBuilder endpoints)

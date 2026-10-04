@@ -7,9 +7,9 @@ namespace Acta.AspNetCore;
 
 /// <summary>
 /// POST /jobs/{jobRef}/signals/{signalName}: raise a named signal, behind EnableControls and the confirmation header
-/// like the other verbs. The name must be user kebab, which rejects the reserved child-latch "__" names and the
-/// <c>sys.</c> prefix. An empty body raises a presence-only signal; a JSON body is stored verbatim for the handler's
-/// WaitSignalAsync&lt;T&gt; to deserialize.
+/// like the other verbs. The name must be user kebab, which keeps out the reserved <c>sys</c> names, the child latches
+/// (<c>sys.child.{id}</c>) among them. An empty body raises a presence-only signal; a JSON body is stored verbatim for
+/// the handler's WaitSignalAsync&lt;T&gt; to deserialize.
 /// </summary>
 internal static class RaiseSignalEndpoint
 {

@@ -393,9 +393,9 @@ by namespace, job, resolution, acknowledgement, severity, delivery status, and t
 `AcknowledgeAsync`, and `ResolveAsync` (`IAlerts`, `ListAlertsQuery`). The dashboard and HTTP API
 expose the two verbs at `POST /alerts/{alertRef}/acknowledge|resolve`, 200 or 404 and never 409 —
 both carrying `AlertControlResponse` — behind
-`EnableControls` and the `X-Acta-Control` header (the gate lives in `ActaApiEndpoints`, the header
+`EnableControls` and the `X-Acta-Control` header (the gate lives in `MapActa`, the header
 name in `ActaEndpointOptions.ControlConfirmationHeaderName`; the verbs themselves in
-`AlertControlEndpoints`). In SQL, `acta.alerts_view` renders the coded columns and aliases
+`AlertsEndpoints`). In SQL, `acta.alerts_view` renders the coded columns and aliases
 `dedupe_key` to `deduplication_key` (`AlertsView.*.sql`); see [SQL recipes](./sql-recipes.md) for
 ready queries.
 
@@ -509,7 +509,7 @@ from a `None` job naming an unconfigured channel is not caught until it fails de
 | `AlertTransportKinds.cs` | `src/Acta/Hosting/AlertTransportKinds.cs` |
 | `IAlerts.cs` | `src/Acta/Operations/Alerts/IAlerts.cs` |
 | `ListAlertsQuery.cs` | `src/Acta/Operations/Alerts/ListAlertsQuery.cs` |
-| `AlertControlEndpoints.cs` | `src/Acta.AspNetCore/Features/Alerts/AlertControlEndpoints.cs` |
+| `AlertsEndpoints.cs` | `src/Acta.Runtime/Operations/Alerts/AlertsEndpoints.cs` |
 | `JobAttribute.cs` | `src/Acta/Execution/JobAttribute.cs` |
 | `JobsOptions.cs` | `src/Acta/Configuration/JobsOptions.cs` |
 | `JobContext.cs` | `src/Acta/Execution/JobContext.cs` |

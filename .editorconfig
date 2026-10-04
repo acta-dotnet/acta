@@ -570,12 +570,12 @@ dotnet_diagnostic.CA1716.severity = none
 [src/Acta/Payloads/JobPayload.cs]
 dotnet_diagnostic.CA1815.severity = none
 
-# CA1031: the group's endpoint filter is this API's last backstop and answers every unhandled failure as
+# CA1031: the API's error-backstop filter answers every unhandled failure as
 # ProblemDetails - the transient database/network family as 503, everything else as 500, logged
 # host-side and never echoed, because driver messages carry connection strings. Escaping would hand the
 # client a raw framework 500 and leave the dashboard with no problem document to render. The typed
 # rejections it must not swallow are caught in the arms above it.
-[src/Acta.AspNetCore/Http/ActaApiEndpoints.cs]
+[src/Acta.AspNetCore/Http/ApiFilters.cs]
 dotnet_diagnostic.CA1031.severity = none
 
 # CA1508: false positive on the enqueue binder's DelaySeconds (int?) and ParentId (long?). Boxing a

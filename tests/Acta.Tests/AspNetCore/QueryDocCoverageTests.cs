@@ -12,7 +12,7 @@ namespace Acta.Tests.AspNetCore;
 /// lists describing one contract, and the OpenAPI gate cannot see when they diverge: a doc with no
 /// binding freezes a phantom filter (a client sends it and is silently unfiltered), and a binding
 /// with no doc never reaches the document at all. This scan holds the two lists equal per endpoint
-/// in <c>ActaApiEndpoints.cs</c> and every group's route table, expanding shared blocks through
+/// in every group's route table and endpoint file, expanding shared blocks through
 /// reflection so the pins can never lag the blocks themselves.
 /// </summary>
 public sealed partial class QueryDocCoverageTests
@@ -39,7 +39,6 @@ public sealed partial class QueryDocCoverageTests
         var source = string.Concat(
             Directory
                 .EnumerateFiles(Path.Combine(root, "src", "Acta.Runtime", "Operations"), "*Endpoint*.cs", SearchOption.AllDirectories)
-                .Append(Path.Combine(root, "src", "Acta.AspNetCore", "Http", "ActaApiEndpoints.cs"))
                 .Select(File.ReadAllText)
         );
         var blocks = typeof(QueryParameterDocExtensions)

@@ -1,5 +1,4 @@
 # Known method-length violations; entries may only be removed.
-ActaApiEndpoints.Map
 ActaManifestGenerator.BuildManifestSource
 ActaManifestGenerator.ReadAttributePolicy
 ActaSchemaGenerator.Transform
