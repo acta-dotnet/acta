@@ -9,8 +9,3 @@ operation: Execution/RepairRecoverySlot
 operation: Execution/StartStep
 operation: Locks/AcquireSlot
 operation: Locks/ReserveRate
-operation: Outbox/ConsumeOutboxSignal
-operation: Outbox/CountOutboxQuarantined
-operation: Outbox/GetOutboxSignal
-operation: Outbox/ListQuarantinedOutbox
-operation: Outbox/ParkOutboxSignal

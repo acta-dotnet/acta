@@ -1075,6 +1075,36 @@
 
 ## Outbox
 
+### Consume deletes an applied command only at the version the tick read
+- **Contract:** ConsumeOutboxSignal deletes one job's signal row under a name only at the expected version and answers whether it did, so a repeat changes nothing.
+- **Guarantees:**
+  - A consume at the version read deletes the row and answers true, and a repeat answers false
+  - A consume at a superseded version answers false and the newer command survives
+  - A consume of an empty slot answers false
+  - A consume deletes only the named command of that job
+
+### The quarantine count totals the source's Quarantined rows as they come and go
+- **Contract:** CountOutboxQuarantined returns the number of Quarantined rows in the source, zero when there are none, excluding Pending and Claimed rows.
+- **Guarantees:**
+  - An empty source counts zero
+  - Only Quarantined rows count, not due or backed-off Pending rows or Claimed ones
+  - The count rises as rows quarantine and falls as an operator requeues or discards them
+
+### The applying tick reads the pending command under one name, or nothing
+- **Contract:** GetOutboxSignal returns the Set signal row under one job and name with its format, bytes, and version, and null when that slot holds no pending command.
+- **Guarantees:**
+  - An empty slot reads null under either command name
+  - A pending command reads back with its format, its bytes, and the version a consume must match
+  - Only a Set signal row of that job and name answers: an expired signal and a same-named variable read as empty
+
+### The source pages its Quarantined rows by outbox id with their failure evidence
+- **Contract:** ListQuarantinedOutbox returns up to a page of Quarantined rows after the cursor id in the source's outbox_id order, with identity and failure evidence.
+- **Guarantees:**
+  - A source with no Quarantined rows reads an empty page
+  - Each row carries its identity, routing keys, staging instant, and failure evidence, and other statuses stay out
+  - Keyset pages walk every Quarantined row exactly once, in the order one full read returns them
+  - A row that leaves quarantine between pages drops out without shifting the rest, and the last row's cursor reads empty
+
 ### Backlog counts Pending rows only
 - **Contract:** CountBacklog returns the number of Pending source rows, due or backed off, excluding Claimed and Quarantined rows.
 - **Guarantees:**
@@ -1226,6 +1256,15 @@
 - **Contract:** A row toward an unregistered route reschedules quietly with a bumped failure count and delivers once the route is later registered.
 - **Guarantees:**
   - A row toward an unregistered route reschedules quietly, then delivers exactly once after the route is registered
+
+### Park admits a command into a free or stale inbox slot and rejects a live one
+- **Contract:** ParkOutboxSignal inserts into a free slot, supersedes a command parked at or before the cutoff, and otherwise rejects with the incumbent's park instant.
+- **Guarantees:**
+  - A park into a free slot inserts a Set signal row at version 0 and reads as Applied with its own park instant
+  - A park while a younger command pends is Rejected with the incumbent's park instant and leaves it untouched
+  - The stale cutoff is inclusive: a command parked at it is superseded and one a millisecond younger is not
+  - A retried park of the same command reads as landed and writes nothing again
+  - Each command name on each job is its own slot
 
 ## Payloads
 

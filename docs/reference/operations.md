@@ -119,17 +119,17 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `ClaimOutbox` | · | · | · | inline | inline | inline | · | `ClaimOutboxLeaseRecoverySpec`, `ClaimOutboxSpec` |
-| `ConsumeOutboxSignal` | · | · | · | routine | routine | inline | `checkpoints` | · |
+| `ConsumeOutboxSignal` | · | · | · | routine | routine | inline | `checkpoints` | `ConsumeOutboxSignalSpec` |
 | `CountOutboxBacklog` | · | · | · | inline | inline | inline | · | `CountOutboxBacklogSpec` |
-| `CountOutboxQuarantined` | · | · | · | inline | inline | inline | · | · |
+| `CountOutboxQuarantined` | · | · | · | inline | inline | inline | · | `CountOutboxQuarantinedSpec` |
 | `DeleteClaimedOutbox` | · | · | · | inline | inline | inline | · | `DeleteClaimedOutboxSpec` |
 | `DiscardOutbox` | `IOutbox.DiscardAsync` | `POST /outbox/{jobNamespace}/discard` | · | · | · | · | · | `DiscardOutboxSpec` |
 | `DiscardQuarantinedOutbox` | · | · | · | inline | inline | inline | · | `DiscardQuarantinedOutboxSpec` |
-| `GetOutboxSignal` | · | · | · | inline | inline | inline | · | · |
+| `GetOutboxSignal` | · | · | · | inline | inline | inline | · | `GetOutboxSignalSpec` |
 | `ListOutboxQuarantined` | `IOutbox.ListQuarantinedAsync` | `GET /outbox/{jobNamespace}/quarantined` | · | · | · | · | · | `ListOutboxQuarantinedSpec` |
 | `ListOutboxSources` | `IOutbox.ListSourcesAsync` | `GET /outbox/sources` | · | · | · | · | · | `ListOutboxSourcesSpec` |
-| `ListQuarantinedOutbox` | · | · | · | inline | inline | inline | · | · |
-| `ParkOutboxSignal` | · | · | · | routine | routine | inline | `checkpoints` | · |
+| `ListQuarantinedOutbox` | · | · | · | inline | inline | inline | · | `ListQuarantinedOutboxSpec` |
+| `ParkOutboxSignal` | · | · | · | routine | routine | inline | `checkpoints` | `ParkOutboxSignalSpec` |
 | `QuarantineOutbox` | · | · | · | inline | inline | inline | · | `QuarantineOutboxSpec` |
 | `RecordOutboxEvent` | · | · | · | routine | routine | inline | `events` | `RecordOutboxEventSpec` |
 | `ReleaseClaimedOutbox` | · | · | · | inline | inline | inline | · | `ReleaseClaimedOutboxSpec` |
