@@ -1,4 +1,3 @@
-using System.Data.Common;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -67,8 +66,7 @@ public sealed class UpsertTagsSpec : ActaStorageTestBase<ConformanceFixture>
             ct: ct
         );
 
-        // The cap is enforced by the write itself, so it surfaces as the provider's error.
-        await Assert.ThrowsAnyAsync<DbException>(async () => await Tags.UpsertAsync(target, new TagInput("one-too-many"), ct: ct));
+        await Assert.ThrowsAsync<ArgumentException>(async () => await Tags.UpsertAsync(target, new TagInput("one-too-many"), ct: ct));
         var full = Assert.IsType<TagSet>(await Tags.GetAsync(target, ct));
         Assert.Equal(TagLimits.MaxTagsPerTarget, full.Count);
         Assert.DoesNotContain(full.Items, t => t.Name == "one-too-many");

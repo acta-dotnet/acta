@@ -22,7 +22,10 @@ public interface ITags
         CancellationToken ct = default
     );
 
-    /// <summary>Inserts or replaces one tag on an existing target; repeating the same write is harmless.</summary>
+    /// <summary>
+    /// Inserts or replaces one tag on an existing target; repeating the same write is harmless. A new name past
+    /// <see cref="TagLimits.MaxTagsPerTarget"/> throws <see cref="ArgumentException"/> and writes nothing.
+    /// </summary>
     ValueTask<UpsertTagsResponse> UpsertAsync(
         TagTarget target,
         TagInput tag,
