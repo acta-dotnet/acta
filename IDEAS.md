@@ -568,6 +568,26 @@ removal of the newer worker, then a restarted rollback worker; enqueue racing a 
 nobody serves is a startup warning and an overview column; EXPLAIN for one pool is an index scan
 with a limit, for three pools one sort over at most three times the limit.
 
+## Fewer identifier rules
+
+`IdentifierSyntax` holds about a dozen grammars: kebab, user kebab, dotted kebab, bare identifiers,
+database names, external tokens, display values, names, keys, tenant keys, and key lookups, with three
+length caps (63, 64, 128) and the `sys.` reservation. More than a hundred call sites choose between
+them, and a user has to know which one applies to a namespace, a job name, a lane, or a deduplication
+key before a write succeeds.
+
+Acta could keep two kinds. Names Acta routes on (namespace, job, schedule, signal, tag, lane) would
+share one grammar and one length, safe in a URL path segment and in the `sys.child.{id}` style names
+the engine builds. Keys the caller owns (deduplication, concurrency, correlation, tenant) would be
+opaque text with a length cap and no control characters, compared as written or case-folded. The
+`sys.` prefix would stay reserved in both.
+
+Marko also suggested an alphabet a deployment supplies through settings or fleet-wide configuration.
+That makes an identifier's validity depend on configuration every producer, worker, dashboard, and
+CLI must share, and narrowing the alphabet after data exists would strand stored identifiers. Loosening
+a rule later is compatible and tightening is breaking, so whatever 1.0 accepts stays accepted: the
+simplification belongs before the 1.0 freeze or not at all.
+
 ## Possible order
 
 Declarative flows and the contract checker fit together and feel like the strongest first direction.
