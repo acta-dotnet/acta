@@ -18,6 +18,9 @@ internal sealed class QueryReader(HttpRequest request)
         return reader._error is { } error ? throw new InvalidQueryException(error) : query;
     }
 
+    /// <summary>The request, for a list addressed under a route key it parses itself.</summary>
+    public HttpContext Http => request.HttpContext;
+
     public string? Text(string name) => QueryBinding.Text(request.Query, name);
 
     /// <summary>A value the route itself carries, for a list addressed under its target.</summary>
@@ -39,6 +42,23 @@ internal sealed class QueryReader(HttpRequest request)
         }
 
         _error ??= $"{name} is not a valid job ref.";
+        return null;
+    }
+
+    /// <summary>A worker-ref filter: absent is null, and one that does not parse is the 400.</summary>
+    public WorkerRef? Worker(string name)
+    {
+        if (Text(name) is not { } text)
+        {
+            return null;
+        }
+
+        if (WorkerRef.TryParse(text, out var worker))
+        {
+            return worker;
+        }
+
+        _error ??= $"{name} is not a valid worker ref.";
         return null;
     }
 

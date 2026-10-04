@@ -19,4 +19,10 @@ internal static class RouteKeys
 
     public static AlertRef Alert(HttpContext http) =>
         AlertRef.TryParse(Value(http, "alertRef"), out var parsed) ? parsed : throw new MalformedRouteKeyException("alertRef", "alert");
+
+    /// <summary>A job by its ref, or by <c>id:&lt;n&gt;</c> when the host enabled numeric lookup.</summary>
+    public static JobLookup Job(HttpContext http, ActaEndpointOptions options) =>
+        JobTargetBinding.TryParseTarget(Value(http, "jobRef"), options, out var job)
+            ? job
+            : throw new MalformedRouteKeyException("jobRef", "job");
 }

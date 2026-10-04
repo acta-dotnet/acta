@@ -1,5 +1,4 @@
 # Known length violations; entries may only be removed.
-ActaApiEndpoints.cs
 ActaManifestGenerator.cs
 ActaSchema.Sql.cs
 ActaSchemaGenerator.cs
