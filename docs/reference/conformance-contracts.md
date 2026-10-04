@@ -1119,6 +1119,14 @@
   - First acquire returns a token and lands a lease row, and a competing acquire on a live key returns null
   - A competing acquire steals an expired lease and bumps the version
 
+### A slot acquire takes the lowest free slot of a counted key, or none
+- **Contract:** AcquireSlot takes the lowest slot under the limit that is unheld or expired, under the caller's owner and a fresh token, or returns null when none is.
+- **Guarantees:**
+  - The lowest free slot is taken first, and its row records the owner, the minted token, and a lease the TTL long
+  - With every slot under the limit held the acquire returns null and writes no slot past the limit
+  - An expired slot is stolen in place before any higher free slot, and its old token no longer releases
+  - Simultaneous acquires of a key's one free slot leave exactly one holder
+
 ### A held lock renews while owned and misses after release
 - **Contract:** Extending a held lock renews it so a competing acquirer stays blocked, and extending after release is a version-CAS miss that frees the key.
 - **Guarantees:**
@@ -1134,6 +1142,15 @@
 - **Contract:** ReleaseLock deletes the leases row when the version matches and returns false when the token's version no longer matches.
 - **Guarantees:**
   - Live token release returns true and deletes the lease row, a stale token returns false, and the freed key is re-acquirable
+
+### A rate meter admits its burst and books every later job an exact turn
+- **Contract:** ReserveRate admits an idle meter's burst, books each later job a turn one interval apart, and honours a booked turn once inside its window.
+- **Guarantees:**
+  - An idle meter admits exactly its burst back to back and books the next job one interval out
+  - An early job asking again gets the same turn without a charge, so the next job queues one interval behind it
+  - A booked turn returned up to one interval late is admitted once, spent, and never moves the meter
+  - A booked turn returned later than its window is spent and the job is metered afresh
+  - A meter idle past its arrival time admits a whole burst again
 
 ## Outbox
 

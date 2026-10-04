@@ -1,3 +1,1 @@
 # Known specs violations; entries may only be removed.
-operation: Locks/AcquireSlot
-operation: Locks/ReserveRate

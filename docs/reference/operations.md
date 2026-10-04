@@ -93,10 +93,10 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `AcquireLock` | · | · | · | routine | routine | inline | `locks` | `AcquireLockSpec` |
-| `AcquireSlot` | · | · | · | routine | routine | inline | `locks` | · |
+| `AcquireSlot` | · | · | · | routine | routine | inline | `locks` | `AcquireSlotSpec` |
 | `ExtendLock` | · | · | · | routine | routine | inline | `locks` | `ExtendLockSpec` |
 | `ReleaseLock` | · | · | · | routine | routine | inline | `locks` | `ReleaseLockSpec` |
-| `ReserveRate` | · | · | · | routine | routine | inline | `locks` | · |
+| `ReserveRate` | · | · | · | routine | routine | inline | `locks` | `ReserveRateSpec` |
 
 ## Maintenance
 
