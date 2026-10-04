@@ -40,19 +40,19 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `ArmOrConsumeSleepTimer` | · | · | · | routine | routine | inline | `checkpoints`, `runtimes` | · |
-| `CheckpointSlot` | · | · | · | routine | routine | inline | `checkpoints` | · |
+| `ArmOrConsumeSleepTimer` | · | · | · | routine | routine | inline | `checkpoints`, `runtimes` | `ArmOrConsumeSleepTimerSpec` |
+| `CheckpointSlot` | · | · | · | routine | routine | inline | `checkpoints` | `CheckpointSlotSpec` |
 | `ClaimBatch` | · | · | · | routine | routine | inline | `events`, `runtimes` | `ClaimBatchSkewSpec`, `ClaimBatchSpec` |
-| `ClaimOne` | · | · | · | routine | routine | inline | `events`, `runtimes` | · |
+| `ClaimOne` | · | · | · | routine | routine | inline | `events`, `runtimes` | `ClaimOneSpec` |
 | `CompleteExecution` | · | · | · | routine | routine | inline | `checkpoints`, `events`, `results`, `runtimes`, `schedules` | `CompleteExecutionSchedulesChangedSpec` |
-| `CompleteStep` | · | · | · | routine | routine | inline | `steps` | · |
-| `GetChildJobIds` | · | · | · | inline | inline | inline | · | · |
-| `GetStaleChildLatches` | · | · | · | inline | inline | inline | · | · |
+| `CompleteStep` | · | · | · | routine | routine | inline | `steps` | `CompleteStepSpec` |
+| `GetChildJobIds` | · | · | · | inline | inline | inline | · | `GetChildJobIdsSpec` |
+| `GetStaleChildLatches` | · | · | · | inline | inline | inline | · | `GetStaleChildLatchesSpec` |
 | `ReclaimStuckJobs` | · | · | · | routine | routine | inline | `events`, `runtimes` | `ReclaimStuckJobsSpec`, `ReclaimStuckJobsWaitTimeoutSpec` |
 | `RecordJobNote` | · | · | · | routine | routine | inline | `events` | `RecordJobNoteSpec` |
-| `RepairRecoverySlot` | · | · | · | routine | routine | inline | `events`, `runtimes` | · |
+| `RepairRecoverySlot` | · | · | · | routine | routine | inline | `events`, `runtimes` | `RepairRecoverySlotSpec` |
 | `StartExecution` | · | · | · | routine | routine | inline | `events`, `runtimes` | `StartExecutionStaleVersionSpec` |
-| `StartStep` | · | · | · | routine | routine | inline | `steps` | · |
+| `StartStep` | · | · | · | routine | routine | inline | `steps` | `StartStepSpec` |
 
 ## Jobs
 

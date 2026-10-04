@@ -474,6 +474,16 @@
 - **Guarantees:**
   - Due rows claim in priority order past parked waits and a band of delayed High rows, then the horizon names the High band
 
+### A by-id claim takes exactly the named due job or nothing
+- **Contract:** ClaimOne leases the named job only while it is due in the caller's namespace, and without a name leases at most one job by the scan.
+- **Guarantees:**
+  - The named Ready job goes Dispatched under the worker's lease, one attempt and one version on
+  - A claim that starts executing lands the job Executing, with a started event when the job is audited
+  - A Suspended job whose wait deadline has passed is claimed, and one waiting with no deadline is not
+  - A job not yet due, paused, or named under another namespace is not claimed and keeps its version
+  - A job already claimed is not claimed again and keeps its first lease
+  - Without a job id the claim takes a single job by the scan, whatever batch size it was asked for
+
 ## Clock
 
 ### GetUtcNow returns the DB server UTC instant within a two-minute window
@@ -810,6 +820,35 @@
 
 ## Execution
 
+### A sleep arms one durable timer, suspends until it is due, then consumes it
+- **Contract:** A sleep arms one Pending timer and suspends on its stored instant until that passes, then consumes it once and continues on every later entry.
+- **Guarantees:**
+  - A first sleep arms a Pending timer at its due instant and suspends
+  - Re-entering before the instant suspends on the stored instant, whatever delay the replay passes
+  - Re-entering after the instant consumes the timer, continues, and clears the executing job's run instant
+  - A consumed timer continues on every later entry and is never armed again
+  - A zero-length sleep or one whose resume instant has passed continues at once and arms nothing
+  - A second sleep under another name while one is pending is rejected and arms nothing
+
+### A checkpoint slot is set, read, kept on first write, and deleted by one call
+- **Contract:** A slot keyed by job, kind, and name is overwritten by Set, kept by GetOrSet, removed by Delete, and never written without a payload.
+- **Guarantees:**
+  - Set inserts a slot and a later Set overwrites its value in place, one version on
+  - Get, Exists, and Delete answer not found for a slot that was never written
+  - Delete removes the slot and reports it once, and a second Delete finds nothing
+  - GetOrSet stores the first value and hands it back unchanged to every later caller
+  - The same name under another kind or another job is a different slot
+  - A write without a payload is rejected and stores nothing
+
+### Completing a step stores a success, schedules a retry, or exhausts the slot
+- **Contract:** A step completion stores a success, schedules an in-budget retry, exhausts past the attempt or window budget, and writes nothing on a stale version.
+- **Guarantees:**
+  - A success stores the result, marks the slot Succeeded, and clears an earlier failure's reason and retry instant
+  - An in-budget failure keeps the slot Pending with a retry instant one delay out and the reason recorded
+  - A failure on the last allowed attempt exhausts the slot with its reason and no retry instant
+  - A retry that would land past the retry window exhausts the slot with attempts still left
+  - A success or a failure carrying a stale version reports StaleVersion and writes nothing
+
 ### A Strict deadline terminates an overdue job and blocks a retry past the deadline
 - **Contract:** A Strict deadline lands the job Cancelled with JobDeadlineExceeded at admission or when the next retry would overshoot, without consuming the retry budget.
 - **Guarantees:**
@@ -874,6 +913,19 @@
   - The heartbeat pushes a live lease further out, advances worker last_seen, and the lease survives a reclaim sweep
   - The heartbeat does not bump the runtime version, so a buffered claim still passes the start CAS and runs
 
+### A job's child list holds its direct children, finished ones included
+- **Contract:** The child list of a job holds every job enqueued under it, terminal or not, and nothing from further down the lineage.
+- **Guarantees:**
+  - Every direct child is listed, a cancelled one included
+  - A grandchild is listed under its own parent only, and a job with no children lists none
+
+### Stale child latches are found once their child is terminal or gone
+- **Contract:** A parent's Pending child latch is reported once its child is terminal or gone, and never while the child is live or once the latch is set.
+- **Guarantees:**
+  - A Pending latch is not reported while its child is live, and is reported with the child's status once it lands terminal unraised
+  - A Pending latch whose child row is gone is reported with no child status
+  - A latch the child set when it landed is not reported
+
 ### A job registers, enqueues, claims, executes, persists and reads back
 - **Contract:** A registered job enqueued through IJobs is claimed, executed and lands Succeeded with the canonical claim/start/finish timeline and a deserializable result.
 - **Guarantees:**
@@ -930,6 +982,16 @@
   - A fresh matching claim starts execution and the job goes Executing
   - A stale-version claim is refused as LostClaim and the job stays Dispatched
   - An expired-lease claim is refused as LeaseExpired with no JobExecutionStarted event
+
+### Starting a step invokes, replays, suspends, or refuses from the slot's state
+- **Contract:** A step start invokes a new or due slot as its next attempt, replays a success, suspends on a pending retry, and refuses an exhausted or interrupted slot.
+- **Guarantees:**
+  - A first start opens a Pending slot at attempt 1 and invokes it
+  - A Pending slot re-entered with no retry instant is invoked again as the next attempt
+  - An at-most-once slot re-entered before completion is terminalized Interrupted and never invoked again
+  - A pending retry suspends until its instant, and once the instant passes the next attempt is invoked
+  - A succeeded slot replays its stored result without a new attempt or a write
+  - An exhausted slot is refused with its final reason, on every later entry
 
 ### A timeout within budget re-arms to Ready; exhausted budget lands Failed
 - **Contract:** A per-attempt timeout re-arms the job to Ready incrementing failure_count while budget remains and lands terminal Failed once MaxAttempts is exhausted.
@@ -1516,6 +1578,13 @@
   - An expired slot the handler already passed does not make a later crash free
   - The uncharged reclaim still opens an incident under the job's own alert profile
   - A success after an uncharged reclaim resolves the incident it opened
+
+### A recovery slot is re-armed only when it is stranded in its own namespace
+- **Contract:** The repair re-arms the namespace's recovery slot Ready and due when its lease has lapsed in flight, and otherwise reports it healthy or missing untouched.
+- **Guarantees:**
+  - A slot in flight under a lapsed lease is re-armed Ready and due now, with the lost attempt recorded once
+  - A slot under a live lease, or not in flight at all, is reported healthy and left as it was
+  - A lapsed slot named under a namespace that does not hold it is reported missing and stays stranded
 
 ### A Buffered worker with every executor held still runs the recovery sweep
 - **Contract:** A recovery slot claimed by the Buffered loop runs outside the channel, so a stranded job is reclaimed while every executor is held.

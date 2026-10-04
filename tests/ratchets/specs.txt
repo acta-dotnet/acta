@@ -1,11 +1,3 @@
 # Known specs violations; entries may only be removed.
-operation: Execution/ArmOrConsumeSleepTimer
-operation: Execution/CheckpointSlot
-operation: Execution/ClaimOne
-operation: Execution/CompleteStep
-operation: Execution/GetChildJobIds
-operation: Execution/GetStaleChildLatches
-operation: Execution/RepairRecoverySlot
-operation: Execution/StartStep
 operation: Locks/AcquireSlot
 operation: Locks/ReserveRate
