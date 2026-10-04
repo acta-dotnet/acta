@@ -38,7 +38,7 @@ public sealed partial class QueryDocCoverageTests
         var root = IntegrationConfig.FindRepoRoot();
         var source = string.Concat(
             Directory
-                .EnumerateFiles(Path.Combine(root, "src", "Acta.Runtime", "Operations"), "*Endpoints.cs", SearchOption.AllDirectories)
+                .EnumerateFiles(Path.Combine(root, "src", "Acta.Runtime", "Operations"), "*Endpoint*.cs", SearchOption.AllDirectories)
                 .Append(Path.Combine(root, "src", "Acta.AspNetCore", "Http", "ActaApiEndpoints.cs"))
                 .Select(File.ReadAllText)
         );

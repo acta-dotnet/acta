@@ -251,7 +251,7 @@ internal static class RouteTable
         try
         {
             var response = await apply(request with { Body = body, ReasonMessage = reason }, target);
-            return Results.Json(response, response.GetType(), DashboardJsonContext.Default, statusCode: status.Map(response));
+            return Control(response, status);
         }
         catch (InvalidControlException ex)
         {
@@ -262,6 +262,11 @@ internal static class RouteTable
             return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, invalidTitle, ex.Message);
         }
     }
+
+    /// <summary>A control response, serialized as its own type, at the status its family maps it to.</summary>
+    public static IResult Control<TResponse>(TResponse response, ControlStatus<TResponse> status)
+        where TResponse : notnull =>
+        Results.Json(response, response.GetType(), DashboardJsonContext.Default, statusCode: status.Map(response));
 
     /// <summary>
     /// Only the typed validation exceptions are caller errors; anything else, a plain ArgumentException from a

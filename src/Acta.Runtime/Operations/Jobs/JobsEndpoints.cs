@@ -80,9 +80,15 @@ internal static class JobsEndpoints
                 ),
             ]);
         reads.MapTags(controls, "/jobs/{jobRef}/tags", "job", options, http => TagTarget.ForJob(RouteKeys.Job(http, options)));
+        GetJobInputEndpoint.Map(reads, options);
+        GetJobDetailEndpoint.Map(reads, options);
+        GetInputTemplateEndpoint.Map(reads);
         if (controls is not null)
         {
             MapVerbs(controls, options);
+            UpdateJobInputEndpoint.Map(controls, options);
+            EnqueueOneEndpoint.Map(controls, options);
+            RaiseSignalEndpoint.Map(controls, options);
         }
     }
 

@@ -8,6 +8,12 @@ internal interface IControlRequest
     string? ReasonMessage { get; }
 }
 
+/// <summary>
+/// Body of a job-control POST. Only the reason travels over HTTP; the framework stamps the actor
+/// and reason code itself, so callers cannot forge the audit trail.
+/// </summary>
+internal sealed record JobControlRequest(string? ReasonMessage = null) : IControlRequest;
+
 /// <summary>One control request as a route table's verb sees it: the parsed body, its trimmed and capped reason, and the operator.</summary>
 internal sealed record ControlCall<TBody>(
     HttpContext Http,

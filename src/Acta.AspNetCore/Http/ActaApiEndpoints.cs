@@ -174,14 +174,8 @@ internal static class ActaApiEndpoints
             // Controls add one code the reads cannot answer: 403, when the host's own authorizer
             // denies the request. The per-family 404 and 409 are declared where their bodies are.
             controls.ProducesProblem(StatusCodes.Status403Forbidden);
-            ActaControlEndpoints.Map(controls, options);
-            JobDepthEndpoints.MapControls(controls, options);
         }
 
-        // The depth payload reads (input/result/checkpoints/input-template) are part of the always-on
-        // read surface: Acta operators see everything, so they map unconditionally alongside the other
-        // reads. A size cap inside the endpoints is the only payload-read guard; mutations gate above.
-        JobDepthEndpoints.MapReads(group, options);
         JobsEndpoints.Map(group, controls, options);
         WorkersEndpoints.Map(group, controls, options);
         NamespacesEndpoints.Map(group, controls, options);
@@ -191,75 +185,6 @@ internal static class ActaApiEndpoints
         DefinitionsEndpoints.Map(group, controls, options);
         SchedulesEndpoints.Map(group, controls, options);
         LedgerEndpoints.Map(group, options);
-
-        // The stored input on its own, for callers that want only the payload (the enqueue screen's
-        // clone prefill) and would otherwise pay the whole detail composition for one field.
-        group
-            .MapGet(
-                "/jobs/{jobRef}/input",
-                async Task<IResult> (string jobRef, IJobs jobs, IOptions<JobsOptions> jobsOptions, CancellationToken ct) =>
-                {
-                    if (!JobTargetBinding.TryParseTarget(jobRef, options, out var lookup))
-                    {
-                        return RefSegment.Malformed("jobRef", "job");
-                    }
-
-                    var snapshot = await jobs.GetAsync(lookup, ct);
-                    if (snapshot is null)
-                    {
-                        return NotFound("Job");
-                    }
-
-                    var input = await jobs.GetInputAsync(JobLookup.ById(snapshot.JobId), ct);
-                    return Results.Json(
-                        JobPayloadResponse.From(input ?? JobPayload.None, jobsOptions.Value.MaxInlinePayloadBytes),
-                        DashboardJsonContext.Default.JobPayloadResponse
-                    );
-                }
-            )
-            .WithSummary("Read the job's stored input payload.")
-            .Produces<JobPayloadResponse>(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status404NotFound);
-
-        // One aggregate that renders the whole job screen: the job row plus every depth read a
-        // lightweight job needs (input/result/checkpoints/explain/lineage/schedules/eligible
-        // workers), composed from the IJobs reads off one row GET. The unbounded event history
-        // keeps its own paged endpoint below.
-        group
-            .MapGet(
-                "/jobs/{jobRef}/detail",
-                async Task<IResult> (
-                    string jobRef,
-                    IJobs jobs,
-                    IActaOperations operations,
-                    IOptions<JobsOptions> jobsOptions,
-                    CancellationToken ct
-                ) =>
-                {
-                    if (!JobTargetBinding.TryParseTarget(jobRef, options, out var lookup))
-                    {
-                        return RefSegment.Malformed("jobRef", "job");
-                    }
-
-                    var snapshot = await jobs.GetAsync(lookup, ct);
-                    if (snapshot is null)
-                    {
-                        return NotFound("Job");
-                    }
-
-                    var detail = await JobDetailResponse.ComposeAsync(
-                        jobs,
-                        operations,
-                        snapshot,
-                        jobsOptions.Value.MaxInlinePayloadBytes,
-                        ct
-                    );
-                    return Results.Json(detail, DashboardJsonContext.Default.JobDetailResponse);
-                }
-            )
-            .WithSummary("Read the job's full detail aggregate in one request.")
-            .Produces<JobDetailResponse>(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status404NotFound);
 
         group
             .MapGet(
@@ -294,11 +219,4 @@ internal static class ActaApiEndpoints
             .WithSummary("Read this host's API capabilities.")
             .Produces<CapabilitiesResponse>(StatusCodes.Status200OK);
     }
-
-    /// <summary>
-    /// The entity is named at every call site rather than defaulted, the way RefSegment.Malformed names
-    /// its entity: a shared 404 helper that assumes one noun answers every other route with the wrong one.
-    /// </summary>
-    private static IResult NotFound(string entity) =>
-        Results.Problem(statusCode: StatusCodes.Status404NotFound, title: $"{entity} not found.");
 }

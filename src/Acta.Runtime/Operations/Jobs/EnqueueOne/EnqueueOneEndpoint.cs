@@ -7,81 +7,39 @@ using Microsoft.AspNetCore.Routing;
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// Dashboard-depth endpoints: the input-template shape hint (<see cref="MapReads"/>) and the POST /jobs
-/// enqueue (<see cref="MapControls"/>). The individual input/result/checkpoint payload reads are gone;
-/// the aggregate <c>GET /jobs/{ref}/detail</c> composes them (size-capped) so the whole job screen loads
-/// in one request. The input-template read is part of the always-on read surface; the enqueue mutation
-/// gates under EnableControls and the control authorizer via <see cref="MapControls"/>.
+/// Body of a POST /jobs enqueue. At most one of <c>Input</c> (raw JSON stored as json), <c>Text</c>
+/// (stored as text), or <c>Base64</c> (stored as the binary format named by <c>FormatId</c>, which must
+/// be 2 or 128..255) supplies the input; all absent enqueues a no-input job. <c>Priority</c> accepts the
+/// code string (e.g. "high").
 /// </summary>
-internal static class JobDepthEndpoints
+internal sealed record JobEnqueueApiRequest(
+    string? JobNamespace = null,
+    string? JobName = null,
+    // Nullable rather than a bare JsonElement: the absent case has to be a value the schema generator
+    // can write as this parameter's default, and an uninitialized JsonElement has nothing to write.
+    JsonElement? Input = null,
+    string? Text = null,
+    string? Base64 = null,
+    byte? FormatId = null,
+    string? DeduplicationKey = null,
+    string? CorrelationKey = null,
+    string? TenantKey = null,
+    JobPriorityCode? Priority = null,
+    int? DelaySeconds = null,
+    DateTime? NextRunAtUtc = null
+);
+
+/// <summary>HTTP projection of a <see cref="JobEnqueueOutcome"/>: the public ref and the coarse action.</summary>
+internal sealed record JobEnqueueResponse(JobRef JobRef, JobEnqueueAction Action);
+
+/// <summary>
+/// POST /jobs: enqueue via IJobs.EnqueueAsync. A namespace/tenant guard rejection surfaces as
+/// EnqueueRejectedException, mapped to 409 by the outer group's exception filter.
+/// </summary>
+internal static class EnqueueOneEndpoint
 {
-    public static void MapReads(RouteGroupBuilder group, ActaEndpointOptions options)
-    {
-        MapInputTemplate(group);
-    }
-
-    public static void MapControls(RouteGroupBuilder group, ActaEndpointOptions options)
-    {
-        MapEnqueue(group, options);
-    }
-
-    /// <summary>
-    /// GET /jobs/input-template: the enqueue form's shape hint, served from the in-process manifest.
-    /// A job this host never registered is not an error (a dashboard can point at a shared ledger it
-    /// has no job assembly for), so it answers 200 with a null template and the form seeds `{}`.
-    /// </summary>
-    private static void MapInputTemplate(RouteGroupBuilder group)
-    {
-        group
-            .MapGet(
-                "/jobs/input-template",
-                IResult (string? jobNamespace, string? jobName, IJobs jobs) =>
-                {
-                    // A required query parameter that did not arrive is caller input, not a miss - the
-                    // same answer /jobs/by-key gives its own two required parameters.
-                    if (string.IsNullOrWhiteSpace(jobNamespace) || string.IsNullOrWhiteSpace(jobName))
-                    {
-                        return ControlEndpointValidation.Problem(
-                            StatusCodes.Status400BadRequest,
-                            "Invalid request.",
-                            "jobNamespace and jobName are required."
-                        );
-                    }
-
-                    var template = jobs.GetInputTemplate(jobNamespace, jobName);
-                    JsonElement? shape = null;
-                    if (template?.TemplateJson is { } json)
-                    {
-                        // Cloned out of the document so the element outlives the using scope.
-                        using var document = JsonDocument.Parse(json);
-                        shape = document.RootElement.Clone();
-                    }
-
-                    return Results.Json(
-                        new JobInputTemplateResponse(
-                            jobNamespace,
-                            jobName,
-                            template?.InputTypeName,
-                            template?.InputFormat.Name ?? JobPayloadFormat.None.Name,
-                            shape
-                        ),
-                        DashboardJsonContext.Default.JobInputTemplateResponse
-                    );
-                }
-            )
-            .WithSummary("Read a job's compile-time input template.")
-            // No 404: a name this host has no assembly for is a 200 with a null template, and the only
-            // other answer is the group-wide 400 for a missing required parameter.
-            .Produces<JobInputTemplateResponse>(StatusCodes.Status200OK);
-    }
-
-    /// <summary>
-    /// POST /jobs: enqueue via IJobs.EnqueueAsync. A namespace/tenant guard rejection surfaces as
-    /// EnqueueRejectedException, mapped to 409 by the outer group's exception filter.
-    /// </summary>
-    private static void MapEnqueue(RouteGroupBuilder group, ActaEndpointOptions options)
-    {
-        group
+    public static void Map(RouteGroupBuilder controls, ActaEndpointOptions options) =>
+        controls
             .MapPost(
                 "/jobs",
                 async Task<IResult> (HttpContext http, IJobs jobs, CancellationToken ct) =>
@@ -218,8 +176,5 @@ internal static class JobDepthEndpoints
             .Produces<JobEnqueueResponse>(StatusCodes.Status201Created)
             .Produces<JobEnqueueResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status409Conflict)
-            // The one control-gated route here that reads a body, so the one that can refuse a
-            // content type; its sibling input-template read cannot.
             .ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
-    }
 }
