@@ -4,32 +4,17 @@ using Microsoft.AspNetCore.Routing;
 
 namespace Acta.AspNetCore;
 
-/// <summary>Request body for a tag upsert: normalized name plus optional preserved value.</summary>
-internal sealed record TagUpsertRequest(string? Name, string? Value);
-
 /// <summary>
-/// Per-entity tag subresources over <see cref="ITags"/>: GET reads on every taggable dashboard
-/// entity, and control-gated POST (upsert) / DELETE (remove) verbs. Patterns and route parameters are
-/// spelled out per endpoint so the Request Delegate Generator can bind them; shared logic lives in the
-/// read/mutate helpers.
+/// The tag routes of the targets whose group has not moved to a route table yet, over <see cref="TagRoutes"/>.
+/// Patterns and route parameters are spelled out per endpoint so the Request Delegate Generator can bind them.
 /// </summary>
-/// <remarks>
-/// One rule decides the target's answer, and it is the API-wide one: a target this API cannot
-/// address is malformed input and answers 400, whether it is a catalog identifier
-/// (namespace/tenant/schedule/definition) or an entity ref (job, worker, alert), and whether the
-/// route reads or mutates. That leaves 404 saying the one thing worth saying - the target was
-/// addressable and carries no tag set, or the mutation matched no row - so a caller can tell "you
-/// wrote it wrong" from "it is not there" by the status code alone. Every resolver therefore reports
-/// a target it cannot build as <see cref="ArgumentException"/>, and the two helpers below turn that
-/// into the 400 in one place.
-/// </remarks>
 internal static class TagEndpoints
 {
     public static void MapReads(RouteGroupBuilder outer, ActaEndpointOptions options)
     {
-        // A nested empty-prefix group so the seven reads declare their one shared contract once. They
-        // all funnel through ReadTags, so they all answer the same ways: the tag list, the 404 for an
-        // addressable target that carries none, and the group-wide 400 for a target that is not
+        // A nested empty-prefix group so the reads declare their one shared contract once. They all
+        // funnel through TagRoutes.ReadAsync, so they all answer the same ways: the tag list, the 404
+        // for an addressable target that carries none, and the group-wide 400 for a target that is not
         // addressable at all.
         var group = outer.MapGroup("");
         group.ProducesJson<IReadOnlyList<TagItem>>();
@@ -39,7 +24,7 @@ internal static class TagEndpoints
             .MapGet(
                 "/jobs/{jobRef}/tags",
                 (string jobRef, IActaOperations operations, CancellationToken ct) =>
-                    ReadTags(operations, () => JobTarget(jobRef, options), ct)
+                    TagRoutes.ReadAsync(operations, () => JobTarget(jobRef, options), ct)
             )
             .WithSummary("Read the job's tags.");
         group
@@ -48,48 +33,42 @@ internal static class TagEndpoints
                 (string jobNamespace, string jobName, IActaOperations operations, CancellationToken ct) =>
                     DefinitionKeyError(jobNamespace, jobName) is { } invalid
                         ? Task.FromResult(invalid)
-                        : ReadTags(operations, () => TagTarget.ForDefinition(jobNamespace, jobName), ct)
+                        : TagRoutes.ReadAsync(operations, () => TagTarget.ForDefinition(jobNamespace, jobName), ct)
             )
             .WithSummary("Read the definition's tags.");
         group
             .MapGet(
                 "/schedules/{jobNamespace}/{jobName}/{scheduleName}/tags",
                 (string jobNamespace, string jobName, string scheduleName, IActaOperations operations, CancellationToken ct) =>
-                    ReadTags(operations, () => ScheduleTarget(jobNamespace, jobName, scheduleName), ct)
+                    TagRoutes.ReadAsync(operations, () => ScheduleTarget(jobNamespace, jobName, scheduleName), ct)
             )
             .WithSummary("Read the schedule's tags.");
         group
             .MapGet(
-                "/workers/{workerRef}/tags",
-                (string workerRef, IActaOperations operations, CancellationToken ct) =>
-                    ReadTags(operations, () => WorkerTarget(workerRef), ct)
-            )
-            .WithSummary("Read the worker's tags.");
-        group
-            .MapGet(
                 "/alerts/{alertRef}/tags",
-                (string alertRef, IActaOperations operations, CancellationToken ct) => ReadTags(operations, () => AlertTarget(alertRef), ct)
+                (string alertRef, IActaOperations operations, CancellationToken ct) =>
+                    TagRoutes.ReadAsync(operations, () => AlertTarget(alertRef), ct)
             )
             .WithSummary("Read the alert's tags.");
         group
             .MapGet(
                 "/namespaces/{jobNamespace}/tags",
                 (string jobNamespace, IActaOperations operations, CancellationToken ct) =>
-                    ReadTags(operations, () => TagTarget.ForNamespace(jobNamespace), ct)
+                    TagRoutes.ReadAsync(operations, () => TagTarget.ForNamespace(jobNamespace), ct)
             )
             .WithSummary("Read the namespace's tags.");
         group
             .MapGet(
                 "/tenants/{tenantKey}/tags",
                 (string tenantKey, IActaOperations operations, CancellationToken ct) =>
-                    ReadTags(operations, () => TagTarget.ForTenant(tenantKey), ct)
+                    TagRoutes.ReadAsync(operations, () => TagTarget.ForTenant(tenantKey), ct)
             )
             .WithSummary("Read the tenant's tags.");
     }
 
     public static void MapControls(RouteGroupBuilder outer, ActaEndpointOptions options)
     {
-        // Same shape for all fourteen mutations: every one resolves a target then applies, so an
+        // Same shape for every mutation: each one resolves a target then applies, so an
         // applied change and a target the write matched no row for both answer with the same
         // AdminControlResult and a client reads `action` without special-casing the status code. A
         // target that is not addressable never gets that far; it is the group-wide 400.
@@ -97,8 +76,8 @@ internal static class TagEndpoints
         group.ProducesJson<AdminControlResult>();
         group.ProducesJson<AdminControlResult>(StatusCodes.Status404NotFound);
 
-        // The seven upserts read a JSON body and can refuse a content type that is not JSON; the
-        // seven removes name their tag in the route and read nothing, so they cannot. That is the one
+        // The upserts read a JSON body and can refuse a content type that is not JSON; the
+        // removes name their tag in the route and read nothing, so they cannot. That is the one
         // line the two halves do not share, which is the whole reason for the nested group.
         var withBody = group.MapGroup("");
         withBody.ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
@@ -107,7 +86,7 @@ internal static class TagEndpoints
             .MapPost(
                 "/jobs/{jobRef}/tags",
                 (string jobRef, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    Upsert(http, operations, options, () => JobTarget(jobRef, options), ct)
+                    TagRoutes.UpsertAsync(http, operations, options, () => JobTarget(jobRef, options), ct)
             )
             // The tag body is read manually rather than bound, so the document only learns its shape
             // from these declarations; one per upsert, the same request record every time.
@@ -117,7 +96,7 @@ internal static class TagEndpoints
             .MapDelete(
                 "/jobs/{jobRef}/tags/{tagName}",
                 (string jobRef, string tagName, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    Remove(http, operations, options, () => JobTarget(jobRef, options), tagName, ct)
+                    TagRoutes.RemoveAsync(http, operations, options, () => JobTarget(jobRef, options), tagName, ct)
             )
             .WithSummary("Remove one tag from the job.");
 
@@ -127,7 +106,7 @@ internal static class TagEndpoints
                 (string jobNamespace, string jobName, HttpContext http, IActaOperations operations, CancellationToken ct) =>
                     DefinitionKeyError(jobNamespace, jobName) is { } invalid
                         ? Task.FromResult(invalid)
-                        : Upsert(http, operations, options, () => TagTarget.ForDefinition(jobNamespace, jobName), ct)
+                        : TagRoutes.UpsertAsync(http, operations, options, () => TagTarget.ForDefinition(jobNamespace, jobName), ct)
             )
             .AcceptsJson<TagUpsertRequest>()
             .WithSummary("Add or update one tag on the definition.");
@@ -137,7 +116,14 @@ internal static class TagEndpoints
                 (string jobNamespace, string jobName, string tagName, HttpContext http, IActaOperations operations, CancellationToken ct) =>
                     DefinitionKeyError(jobNamespace, jobName) is { } invalid
                         ? Task.FromResult(invalid)
-                        : Remove(http, operations, options, () => TagTarget.ForDefinition(jobNamespace, jobName), tagName, ct)
+                        : TagRoutes.RemoveAsync(
+                            http,
+                            operations,
+                            options,
+                            () => TagTarget.ForDefinition(jobNamespace, jobName),
+                            tagName,
+                            ct
+                        )
             )
             .WithSummary("Remove one tag from the definition.");
 
@@ -151,7 +137,7 @@ internal static class TagEndpoints
                     HttpContext http,
                     IActaOperations operations,
                     CancellationToken ct
-                ) => Upsert(http, operations, options, () => ScheduleTarget(jobNamespace, jobName, scheduleName), ct)
+                ) => TagRoutes.UpsertAsync(http, operations, options, () => ScheduleTarget(jobNamespace, jobName, scheduleName), ct)
             )
             .AcceptsJson<TagUpsertRequest>()
             .WithSummary("Add or update one tag on the schedule.");
@@ -166,31 +152,16 @@ internal static class TagEndpoints
                     HttpContext http,
                     IActaOperations operations,
                     CancellationToken ct
-                ) => Remove(http, operations, options, () => ScheduleTarget(jobNamespace, jobName, scheduleName), tagName, ct)
+                ) =>
+                    TagRoutes.RemoveAsync(http, operations, options, () => ScheduleTarget(jobNamespace, jobName, scheduleName), tagName, ct)
             )
             .WithSummary("Remove one tag from the schedule.");
 
         withBody
             .MapPost(
-                "/workers/{workerRef}/tags",
-                (string workerRef, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    Upsert(http, operations, options, () => WorkerTarget(workerRef), ct)
-            )
-            .AcceptsJson<TagUpsertRequest>()
-            .WithSummary("Add or update one tag on the worker.");
-        group
-            .MapDelete(
-                "/workers/{workerRef}/tags/{tagName}",
-                (string workerRef, string tagName, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    Remove(http, operations, options, () => WorkerTarget(workerRef), tagName, ct)
-            )
-            .WithSummary("Remove one tag from the worker.");
-
-        withBody
-            .MapPost(
                 "/alerts/{alertRef}/tags",
                 (string alertRef, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    Upsert(http, operations, options, () => AlertTarget(alertRef), ct)
+                    TagRoutes.UpsertAsync(http, operations, options, () => AlertTarget(alertRef), ct)
             )
             .AcceptsJson<TagUpsertRequest>()
             .WithSummary("Add or update one tag on the alert.");
@@ -198,7 +169,7 @@ internal static class TagEndpoints
             .MapDelete(
                 "/alerts/{alertRef}/tags/{tagName}",
                 (string alertRef, string tagName, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    Remove(http, operations, options, () => AlertTarget(alertRef), tagName, ct)
+                    TagRoutes.RemoveAsync(http, operations, options, () => AlertTarget(alertRef), tagName, ct)
             )
             .WithSummary("Remove one tag from the alert.");
 
@@ -206,7 +177,7 @@ internal static class TagEndpoints
             .MapPost(
                 "/namespaces/{jobNamespace}/tags",
                 (string jobNamespace, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    Upsert(http, operations, options, () => TagTarget.ForNamespace(jobNamespace), ct)
+                    TagRoutes.UpsertAsync(http, operations, options, () => TagTarget.ForNamespace(jobNamespace), ct)
             )
             .AcceptsJson<TagUpsertRequest>()
             .WithSummary("Add or update one tag on the namespace.");
@@ -214,7 +185,7 @@ internal static class TagEndpoints
             .MapDelete(
                 "/namespaces/{jobNamespace}/tags/{tagName}",
                 (string jobNamespace, string tagName, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    Remove(http, operations, options, () => TagTarget.ForNamespace(jobNamespace), tagName, ct)
+                    TagRoutes.RemoveAsync(http, operations, options, () => TagTarget.ForNamespace(jobNamespace), tagName, ct)
             )
             .WithSummary("Remove one tag from the namespace.");
 
@@ -222,7 +193,7 @@ internal static class TagEndpoints
             .MapPost(
                 "/tenants/{tenantKey}/tags",
                 (string tenantKey, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    Upsert(http, operations, options, () => TagTarget.ForTenant(tenantKey), ct)
+                    TagRoutes.UpsertAsync(http, operations, options, () => TagTarget.ForTenant(tenantKey), ct)
             )
             .AcceptsJson<TagUpsertRequest>()
             .WithSummary("Add or update one tag on the tenant.");
@@ -230,87 +201,13 @@ internal static class TagEndpoints
             .MapDelete(
                 "/tenants/{tenantKey}/tags/{tagName}",
                 (string tenantKey, string tagName, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    Remove(http, operations, options, () => TagTarget.ForTenant(tenantKey), tagName, ct)
+                    TagRoutes.RemoveAsync(http, operations, options, () => TagTarget.ForTenant(tenantKey), tagName, ct)
             )
             .WithSummary("Remove one tag from the tenant.");
     }
 
-    private static async Task<IResult> ReadTags(IActaOperations operations, Func<TagTarget> resolve, CancellationToken ct)
-    {
-        TagSet? set;
-        try
-        {
-            // Both the resolver and ITags canonicalize identifiers, and either can report one
-            // this API cannot address; that is caller input, so it is the 400 and never a miss.
-            set = await operations.Tags.GetAsync(resolve(), ct);
-        }
-        catch (ArgumentException ex)
-        {
-            return InvalidTarget(ex);
-        }
-
-        return set is null ? NotFound() : Results.Json(set.Items, DashboardJsonContext.Default.IReadOnlyListTagItem);
-    }
-
-    private static async Task<IResult> Upsert(
-        HttpContext http,
-        IActaOperations operations,
-        ActaEndpointOptions options,
-        Func<TagTarget> resolve,
-        CancellationToken ct
-    )
-    {
-        if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
-        {
-            return confirmationError;
-        }
-
-        var (body, bodyError) = await ControlEndpointValidation.ReadJsonBodyAsync(http, DashboardJsonContext.Default.TagUpsertRequest, ct);
-        if (bodyError is not null)
-        {
-            return bodyError;
-        }
-
-        return string.IsNullOrWhiteSpace(body!.Name)
-            ? ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid tag.", "name is required.")
-            : await Mutate(resolve, target => operations.Tags.UpsertAsync(target, new TagInput(body.Name, body.Value), ct: ct));
-    }
-
-    private static async Task<IResult> Remove(
-        HttpContext http,
-        IActaOperations operations,
-        ActaEndpointOptions options,
-        Func<TagTarget> resolve,
-        string tagName,
-        CancellationToken ct
-    )
-    {
-        return ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError
-            ? confirmationError
-            : await Mutate(resolve, target => operations.Tags.RemoveAsync(target, tagName, ct: ct));
-    }
-
-    private static async Task<IResult> Mutate<T>(Func<TagTarget> resolve, Func<TagTarget, ValueTask<T>> apply)
-        where T : ITagMutationResponse
-    {
-        try
-        {
-            var response = await apply(resolve());
-            return response.Action == TagMutationAction.Applied
-                ? Results.Json(new AdminControlResult(ControlAction.Applied, null), DashboardJsonContext.Default.AdminControlResult)
-                : MutationNotFound();
-        }
-        catch (ArgumentException ex)
-        {
-            return InvalidTarget(ex);
-        }
-    }
-
-    private static IResult InvalidTarget(ArgumentException ex) =>
-        ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid tag or tag target.", ex.Message);
-
     /// <summary>
-    /// The three ref-addressed targets. A ref that does not parse names nothing, and it is caller
+    /// The ref-addressed targets. A ref that does not parse names nothing, and it is caller
     /// input, so it reports the same way a malformed catalog identifier already did and the helpers
     /// above answer both with the 400. No parameter name on the throw: the message is the wire's
     /// detail here, and ArgumentException would append "(Parameter '...')" to it, which would put two
@@ -341,11 +238,6 @@ internal static class TagEndpoints
         }
     }
 
-    private static TagTarget WorkerTarget(string workerRef) =>
-        WorkerRef.TryParse(workerRef, out var parsed)
-            ? TagTarget.ForWorker(parsed)
-            : throw new ArgumentException("workerRef is not a valid worker ref.");
-
     private static TagTarget AlertTarget(string alertRef) =>
         AlertRef.TryParse(alertRef, out var parsed)
             ? TagTarget.ForAlert(parsed)
@@ -353,22 +245,4 @@ internal static class TagEndpoints
 
     private static TagTarget ScheduleTarget(string jobNamespace, string jobName, string scheduleName) =>
         TagTarget.ForSchedule(new ScheduleLookup(JobLookup.ByDeduplicationKey(jobNamespace, jobName), scheduleName));
-
-    /// <summary>
-    /// A read has no envelope to answer with - its 200 is the tag list itself - so an unknown target
-    /// there is the plain problem document every other read returns.
-    /// </summary>
-    private static IResult NotFound() => Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Not found.");
-
-    /// <summary>
-    /// The mutation not-found: a tag mutation is a control verb, so it answers with the family
-    /// envelope on 404 exactly as it does on 200. Version is null because a tag write carries no CAS
-    /// token - the tag set is the row's own, not a versioned catalog record.
-    /// </summary>
-    private static IResult MutationNotFound() =>
-        Results.Json(
-            new AdminControlResult(ControlAction.NotFound, null),
-            DashboardJsonContext.Default.AdminControlResult,
-            statusCode: StatusCodes.Status404NotFound
-        );
 }

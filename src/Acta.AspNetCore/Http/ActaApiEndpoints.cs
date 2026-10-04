@@ -161,12 +161,14 @@ internal static class ActaApiEndpoints
             }
         );
 
+        // Null when controls are off; each group's route table maps its writes onto it only when it is there.
+        RouteGroupBuilder? controls = null;
         if (options.EnableControls)
         {
             // A nested group (empty prefix, same routes) rather than mapping straight onto `group`: it
             // gives the authorization filter below a scope that covers every control endpoint and no
             // read endpoint, without touching the endpoint families' own Map methods.
-            var controls = group.MapGroup("");
+            controls = group.MapGroup("");
             ControlAuthorizationFilter.Attach(controls);
 
             // Controls add one code the reads cannot answer: 403, when the host's own authorizer
@@ -188,6 +190,7 @@ internal static class ActaApiEndpoints
         // reads. A size cap inside the endpoints is the only payload-read guard; mutations gate above.
         JobDepthEndpoints.MapReads(group, options);
         TagEndpoints.MapReads(group, options);
+        WorkersEndpoints.Map(group, controls, options);
 
         group
             .MapGet(
@@ -1039,70 +1042,6 @@ internal static class ActaApiEndpoints
             .WithSummary("Preview a schedule's upcoming fire instants.")
             .Produces<SchedulePreview>(StatusCodes.Status200OK)
             .WithQueryParameters([new QueryParameterDoc("limit", QueryParameterKind.Int, "How many upcoming occurrences to forecast.")])
-            .ProducesProblem(StatusCodes.Status404NotFound);
-
-        group
-            .MapGet(
-                "/workers",
-                static (HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                {
-                    string? error = null;
-                    if (
-                        !QueryBinding.TryEnum<WorkerStatusCode>(http.Request.Query, "status", out var status, ref error)
-                        || !QueryBinding.TryInt(http.Request.Query, "pageSize", out var pageSize, ref error)
-                        || !QueryBinding.TryBool(http.Request.Query, "includeTotal", out var includeTotal, ref error)
-                    )
-                    {
-                        return Task.FromResult(BadRequest(error));
-                    }
-
-                    var query = new ListWorkersQuery(
-                        JobNamespace: QueryBinding.Text(http.Request.Query, "jobNamespace"),
-                        Status: status,
-                        PageSize: pageSize,
-                        Cursor: QueryBinding.Text(http.Request.Query, "cursor"),
-                        IncludeTotal: includeTotal ?? false,
-                        Tags: QueryBinding.Tags(http.Request.Query)
-                    );
-                    return Guard(async () =>
-                        Results.Json(await operations.Workers.ListAsync(query, ct), DashboardJsonContext.Default.PagedResultWorkerListItem)
-                    );
-                }
-            )
-            .WithSummary("List workers.")
-            .Produces<PagedResult<WorkerListItem>>(StatusCodes.Status200OK)
-            .WithQueryParameters([
-                new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Only workers registered for this namespace."),
-                new QueryParameterDoc(
-                    "status",
-                    QueryParameterKind.String,
-                    "Exact worker status as a kebab code.",
-                    CodeKind: "worker-status"
-                ),
-                .. QueryParameterDocExtensions.PagingCore,
-                .. QueryParameterDocExtensions.IncludeTotal,
-                .. QueryParameterDocExtensions.TagFilter,
-            ]);
-
-        group
-            .MapGet(
-                "/workers/{workerRef}",
-                static (string workerRef, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    Guard(async () =>
-                    {
-                        if (!WorkerRef.TryParse(workerRef, out var parsed))
-                        {
-                            return RefSegment.Malformed("workerRef", "worker");
-                        }
-
-                        var worker = await operations.Workers.GetAsync(parsed, ct);
-                        return worker is null
-                            ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Worker not found.")
-                            : Results.Json(worker, DashboardJsonContext.Default.WorkerDetail);
-                    })
-            )
-            .WithSummary("Read one worker.")
-            .Produces<WorkerDetail>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         group

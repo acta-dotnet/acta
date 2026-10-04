@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using Acta.AspNetCore;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http.Metadata;
@@ -24,8 +25,11 @@ namespace Acta.Tests.Contracts;
 /// (<c>EnableControls</c>) because the frozen surface is the whole surface, not the read-only subset a
 /// default host happens to expose.
 /// </remarks>
-public sealed class OpenApiContractTests
+public sealed partial class OpenApiContractTests
 {
+    [GeneratedRegex(@"\{(?<name>[A-Za-z]+)[^}]*\}")]
+    private static partial Regex RouteSegments();
+
     private const string DocumentFile = "docs/reference/openapi.json";
 
     [Fact]
@@ -407,6 +411,36 @@ public sealed class OpenApiContractTests
                     if (schema.Enum is { Count: > 0 } && type.IsEnum)
                     {
                         schema.Enum = [.. schema.Enum.Select(value => (JsonNode)WireName(type, value!.GetValue<string>()))];
+                    }
+                    return Task.CompletedTask;
+                }
+            );
+            // A route table's handler reads its keys from the route values rather than binding them, so
+            // the generator does not see them; each segment the template names and no handler parameter
+            // binds is a required string path parameter, in template order.
+            o.AddOperationTransformer(
+                (operation, context, _) =>
+                {
+                    var names = RouteSegments()
+                        .Matches(context.Description.RelativePath ?? "")
+                        .Select(m => m.Groups["name"].Value)
+                        .ToList();
+                    for (var i = 0; i < names.Count; i++)
+                    {
+                        operation.Parameters ??= [];
+                        if (!operation.Parameters.Any(p => p.In == ParameterLocation.Path && p.Name == names[i]))
+                        {
+                            operation.Parameters.Insert(
+                                Math.Min(i, operation.Parameters.Count),
+                                new OpenApiParameter
+                                {
+                                    Name = names[i],
+                                    In = ParameterLocation.Path,
+                                    Required = true,
+                                    Schema = new OpenApiSchema { Type = JsonSchemaType.String },
+                                }
+                            );
+                        }
                     }
                     return Task.CompletedTask;
                 }

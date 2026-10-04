@@ -575,7 +575,7 @@ dotnet_diagnostic.CA1815.severity = none
 # host-side and never echoed, because driver messages carry connection strings. Escaping would hand the
 # client a raw framework 500 and leave the dashboard with no problem document to render. The typed
 # rejections it must not swallow are caught in the arms above it.
-[src/Acta.AspNetCore/Web/ActaApiEndpoints.cs]
+[src/Acta.AspNetCore/Http/ActaApiEndpoints.cs]
 dotnet_diagnostic.CA1031.severity = none
 
 # CA1508: false positive on the enqueue binder's DelaySeconds (int?) and ParentId (long?). Boxing a

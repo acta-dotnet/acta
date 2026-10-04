@@ -12,12 +12,15 @@ namespace Acta.Tests.AspNetCore;
 /// lists describing one contract, and the OpenAPI gate cannot see when they diverge: a doc with no
 /// binding freezes a phantom filter (a client sends it and is silently unfiltered), and a binding
 /// with no doc never reaches the document at all. This scan holds the two lists equal per endpoint
-/// in <c>ActaApiEndpoints.cs</c>, expanding shared blocks through reflection so the pins can never
-/// lag the blocks themselves.
+/// in <c>ActaApiEndpoints.cs</c> and every group's route table, expanding shared blocks through
+/// reflection so the pins can never lag the blocks themselves.
 /// </summary>
 public sealed partial class QueryDocCoverageTests
 {
-    [GeneratedRegex("Query,\\s*\"(?<name>[A-Za-z]+)\"|Query,\\s*\\r?\\n\\s*\"(?<name>[A-Za-z]+)\"", RegexOptions.Singleline)]
+    [GeneratedRegex(
+        "Query,\\s*\"(?<name>[A-Za-z]+)\"|Query,\\s*\\r?\\n\\s*\"(?<name>[A-Za-z]+)\"|\\bquery\\.\\w+(?:<\\w+>)?\\(\\s*\"(?<name>[A-Za-z]+)\"",
+        RegexOptions.Singleline
+    )]
     private static partial Regex QueryReads();
 
     [GeneratedRegex("new QueryParameterDoc\\(\\s*\"(?<name>[A-Za-z]+)\"", RegexOptions.Singleline)]
@@ -32,8 +35,12 @@ public sealed partial class QueryDocCoverageTests
     [Fact]
     public void Every_endpoint_documents_exactly_the_query_keys_its_handler_reads()
     {
-        var source = File.ReadAllText(
-            Path.Combine(IntegrationConfig.FindRepoRoot(), "src", "Acta.AspNetCore", "Web", "ActaApiEndpoints.cs")
+        var root = IntegrationConfig.FindRepoRoot();
+        var source = string.Concat(
+            Directory
+                .EnumerateFiles(Path.Combine(root, "src", "Acta.Runtime", "Operations"), "*Endpoints.cs", SearchOption.AllDirectories)
+                .Append(Path.Combine(root, "src", "Acta.AspNetCore", "Http", "ActaApiEndpoints.cs"))
+                .Select(File.ReadAllText)
         );
         var blocks = typeof(QueryParameterDocExtensions)
             .GetFields(BindingFlags.Public | BindingFlags.Static)
@@ -41,13 +48,13 @@ public sealed partial class QueryDocCoverageTests
             .ToDictionary(f => f.Name, f => ((ImmutableArray<QueryParameterDoc>)f.GetValue(null)!).Select(d => d.Name).ToArray());
 
         var failures = new List<string>();
-        var chunks = Regex.Split(source, @"\.Map(?:Get|Post|Put|Delete|Patch)\(");
+        var chunks = Regex.Split(source, @"\.Map(?:Get|Post|Put|Delete|Patch|List)\(");
         foreach (var chunk in chunks.Skip(1))
         {
             var route = FirstRoute().Match(chunk).Groups["route"].Value;
 
             var reads = QueryReads().Matches(chunk).Select(m => m.Groups["name"].Value).ToHashSet(StringComparer.Ordinal);
-            if (chunk.Contains("QueryBinding.Tags(", StringComparison.Ordinal))
+            if (chunk.Contains("QueryBinding.Tags(", StringComparison.Ordinal) || chunk.Contains("query.Tags()", StringComparison.Ordinal))
             {
                 reads.Add("tag");
             }
