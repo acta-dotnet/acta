@@ -23,7 +23,7 @@ namespace Acta.Runtime;
 internal sealed class AlertsJob(
     AlertLifecycle alerts,
     IActaClock clock,
-    IAlertChannelRegistry channels,
+    AlertChannelRegistry channels,
     IAlertTransportRegistry transports,
     IOptions<JobsOptions> options,
     ILogger<AlertsJob>? log = null,
@@ -70,7 +70,7 @@ internal sealed class AlertsJob(
 
     private readonly AlertLifecycle _alerts = alerts;
     private readonly IActaClock _clock = clock;
-    private readonly IAlertChannelRegistry _channels = channels;
+    private readonly AlertChannelRegistry _channels = channels;
     private readonly IAlertTransportRegistry _transports = transports;
     private readonly int _maxDeliveryRetries = options.Value.AlertDeliveryMaxRetries;
     private readonly int _failureThreshold = options.Value.AlertFailureThreshold;

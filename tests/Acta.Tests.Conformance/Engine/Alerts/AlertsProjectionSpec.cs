@@ -74,7 +74,7 @@ public sealed class AlertsProjectionSpec : ActaRuntimeTestBase<ConformanceFixtur
     [Fact(DisplayName = "Worker config provides the default channel")]
     public void Worker_config_provides_default_channel()
     {
-        var registry = Services.GetRequiredService<IAlertChannelRegistry>();
+        var registry = Services.GetRequiredService<AlertChannelRegistry>();
         var def = registry.Resolve(TestNamespace, "default");
         Assert.NotNull(def);
         Assert.Equal(AlertChannelStatusCode.Active, def!.Status);

@@ -54,7 +54,7 @@ public sealed class AlertChannelRegistrySpec : ActaTestBase<ConformanceFixture>
     [Fact(DisplayName = "Default exists per namespace and declarations override in memory")]
     public void Default_exists_per_namespace_and_declarations_override()
     {
-        var registry = Services.GetRequiredService<IAlertChannelRegistry>();
+        var registry = Services.GetRequiredService<AlertChannelRegistry>();
 
         var overriddenDefault = registry.Resolve(PrimaryNamespace, "default");
         Assert.NotNull(overriddenDefault);
@@ -72,7 +72,7 @@ public sealed class AlertChannelRegistrySpec : ActaTestBase<ConformanceFixture>
     [Fact(DisplayName = "Duplicate channel declarations are last-write-wins and namespace-isolated")]
     public void Duplicate_declarations_are_last_write_wins_and_namespace_isolated()
     {
-        var registry = Services.GetRequiredService<IAlertChannelRegistry>();
+        var registry = Services.GetRequiredService<AlertChannelRegistry>();
 
         var ops = registry.Resolve(PrimaryNamespace, "ops-oncall");
         Assert.NotNull(ops);

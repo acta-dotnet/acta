@@ -1,6 +1,11 @@
 namespace Acta.Runtime;
 
-internal sealed class AlertChannelRegistry : IAlertChannelRegistry
+/// <summary>
+/// Alerting's declared channels by worker namespace: worker startup validates routing against them and
+/// delivery resolves each alert's channel through them, never through alerting internals. Every worker
+/// namespace carries an implicit <c>default</c> log channel unless it declares its own.
+/// </summary>
+internal sealed class AlertChannelRegistry
 {
     private readonly Dictionary<(string Namespace, string Name), AlertChannelDeclaration> _channels = [];
 

@@ -646,7 +646,7 @@ and curated operator views re-apply on bootstrap after migrations under the same
 Alert channels are worker startup configuration. Acta SQL may persist alert channel_name as routing
 metadata. Acta SQL must never persist alert transport endpoint, webhook URL, credential, routing key,
 or opaque transport config. Delivery configuration is process startup configuration resolved through
-IAlertChannelRegistry. Every worker namespace has an implicit `default` log channel unless overridden
+AlertChannelRegistry. Every worker namespace has an implicit `default` log channel unless overridden
 with `w.AddAlertChannel(...)`. Store real endpoints/secrets in appsettings, environment variables, or a
 secret store, then pass them into `AddAlertChannel` at startup. Route a job with
 `[Job(AlertChannelName = "...")]`; `AlertProfile` decides what fires, incident identity collapses

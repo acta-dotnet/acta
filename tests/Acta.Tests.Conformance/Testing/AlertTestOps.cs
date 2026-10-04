@@ -85,7 +85,7 @@ internal static class AlertTestOps
         var alertsJob = new AlertsJob(
             services.GetRequiredService<AlertLifecycle>(),
             services.GetRequiredService<IActaClock>(),
-            services.GetRequiredService<IAlertChannelRegistry>(),
+            services.GetRequiredService<AlertChannelRegistry>(),
             services.GetRequiredService<IAlertTransportRegistry>(),
             options is null ? services.GetRequiredService<IOptions<JobsOptions>>() : Options.Create(options)
         )

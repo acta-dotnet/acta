@@ -51,7 +51,9 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
     private static readonly DateTime FarFuture = new(2999, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private AdvancableClock Clock { get; set; } = null!;
-    private TestAlertChannelRegistry Channels { get; } = new();
+
+    // The channels this spec declares, by name; each delivery pass reads them through a real registry.
+    private Dictionary<string, AlertChannelDeclaration> Channels { get; } = new(StringComparer.Ordinal);
     private ResolvingTransport Resolver { get; } = new();
 
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
@@ -64,7 +66,6 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
         services.AddSingleton<IAlertTransport>(new PausingTransport());
         services.AddSingleton<IAlertTransport>(Resolver);
         base.ConfigureServices(services, testNamespace);
-        services.AddSingleton<IAlertChannelRegistry>(Channels);
     }
 
     [Fact(DisplayName = "Throwing transport bumps retry_count and parks with a backoff instant")]
@@ -448,7 +449,7 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
     }
 
     private void RegisterChannel(string name, string transportKind, AlertChannelStatusCode status, AlertSeverityCode minSeverity) =>
-        Channels.Register(TestNamespace, new AlertChannelDeclaration(name, transportKind, Endpoint: "endpoint", status, minSeverity));
+        Channels[name] = new AlertChannelDeclaration(name, transportKind, Endpoint: "endpoint", status, minSeverity);
 
     private Task RaiseAlertAsync(
         IDbSession db,
@@ -484,7 +485,7 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
         var alerts = new AlertsJob(
             Services.GetRequiredService<AlertLifecycle>(),
             Clock,
-            Channels,
+            new AlertChannelRegistry([new WorkerRegistration(TestNamespace, null, null, [], [.. Channels.Values])]),
             Services.GetRequiredService<IAlertTransportRegistry>(),
             Options.Create(new JobsOptions { AlertDeliveryMaxRetries = maxRetries, AlertReminderInterval = ReminderInterval })
         );
@@ -633,24 +634,5 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
 
             return AlertDeliveryOutcome.Delivered;
         }
-    }
-
-    private sealed class TestAlertChannelRegistry : IAlertChannelRegistry
-    {
-        private readonly Dictionary<(string Namespace, string Name), AlertChannelDeclaration> _channels = [];
-
-        public void Register(string namespaceName, AlertChannelDeclaration channel) => _channels[(namespaceName, channel.Name)] = channel;
-
-        public AlertChannelDeclaration? Resolve(string namespaceName, string channelName) =>
-            _channels.TryGetValue((namespaceName, channelName), out var channel) ? channel : null;
-
-        public bool IsConfigured(string namespaceName, string channelName) => Resolve(namespaceName, channelName) is not null;
-
-        public IReadOnlyCollection<string> NamesForNamespace(string namespaceName) =>
-            _channels
-                .Keys.Where(k => string.Equals(k.Namespace, namespaceName, StringComparison.Ordinal))
-                .Select(k => k.Name)
-                .Order(StringComparer.Ordinal)
-                .ToArray();
     }
 }

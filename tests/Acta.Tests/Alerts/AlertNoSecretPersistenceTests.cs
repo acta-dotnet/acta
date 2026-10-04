@@ -8,7 +8,7 @@ public sealed class AlertNoSecretPersistenceTests
 {
     // Acta SQL may persist alert channel_name as routing metadata.
     // Acta SQL must never persist alert transport endpoint, webhook URL, credential, routing key, or opaque transport config.
-    // Delivery configuration is process startup configuration resolved through IAlertChannelRegistry.
+    // Delivery configuration is process startup configuration resolved through AlertChannelRegistry.
 
     [Fact]
     public void Alert_channel_transport_configuration_is_not_modelled_as_sql_state()

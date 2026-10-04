@@ -239,11 +239,11 @@ public static class ActaServiceCollectionExtensions
             );
         }
 
-        services.TryAddSingleton<IAlertChannelRegistry>(new AlertChannelRegistry(builder.Workers));
+        services.TryAddSingleton(new AlertChannelRegistry(builder.Workers));
 
         // Worker startup checks each namespace's alert routing against the declared channels.
         services.TryAddSingleton(sp => new AlertRoutingCheck(
-            sp.GetRequiredService<IAlertChannelRegistry>(),
+            sp.GetRequiredService<AlertChannelRegistry>(),
             sp.GetRequiredService<IOptions<JobsOptions>>(),
             sp.GetService<ILogger<AlertRoutingCheck>>()
         ));

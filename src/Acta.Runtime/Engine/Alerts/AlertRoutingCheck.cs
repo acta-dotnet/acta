@@ -12,7 +12,7 @@ namespace Acta.Runtime;
 /// policy decides whether a concrete alert is sent.
 /// </summary>
 internal sealed class AlertRoutingCheck(
-    IAlertChannelRegistry channels,
+    AlertChannelRegistry channels,
     IOptions<JobsOptions> options,
     ILogger<AlertRoutingCheck>? log = null
 )
