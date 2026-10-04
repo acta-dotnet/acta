@@ -178,7 +178,6 @@ internal static class ActaApiEndpoints
             JobDepthEndpoints.MapControls(controls, options);
             ScheduleControlEndpoints.Map(controls, options);
             DefinitionControlEndpoints.Map(controls, options);
-            OutboxControlEndpoints.Map(controls, options);
             TagEndpoints.MapControls(controls, options);
         }
 
@@ -191,6 +190,7 @@ internal static class ActaApiEndpoints
         NamespacesEndpoints.Map(group, controls, options);
         TenantsEndpoints.Map(group, controls, options);
         AlertsEndpoints.Map(group, controls, options);
+        OutboxEndpoints.Map(group, controls, options);
 
         group
             .MapGet(
@@ -422,88 +422,6 @@ internal static class ActaApiEndpoints
             .WithQueryParameters([
                 new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Scope the overview to one namespace; omit for all."),
             ]);
-
-        // The outbox operator surface's read half. Sources compose cross-peer from each namespace's
-        // sys.outbox slot result (the relay's persisted tick summary), so any host with ledger access
-        // answers; the quarantine listing opens the producer's source database and therefore answers
-        // only where the namespace's relay is registered (sources report isLocal for discovery).
-        group
-            .MapGet(
-                "/outbox/sources",
-                static (HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                {
-                    string? error = null;
-                    if (!QueryBinding.TryInt(http.Request.Query, "pageSize", out var pageSize, ref error))
-                    {
-                        return Task.FromResult(BadRequest(error));
-                    }
-
-                    var query = new ListOutboxSourcesQuery(
-                        JobNamespace: QueryBinding.Text(http.Request.Query, "jobNamespace"),
-                        PageSize: pageSize,
-                        Cursor: QueryBinding.Text(http.Request.Query, "cursor")
-                    );
-                    return Guard(async () =>
-                        Results.Json(
-                            await operations.Outbox.ListSourcesAsync(query, ct),
-                            DashboardJsonContext.Default.PagedResultOutboxSourceListItem
-                        )
-                    );
-                }
-            )
-            .WithSummary("List outbox relay sources with backlog and quarantine totals.")
-            .Produces<PagedResult<OutboxSourceListItem>>(StatusCodes.Status200OK)
-            .WithQueryParameters([
-                new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Scope to one relay source's namespace; omit for all."),
-                .. QueryParameterDocExtensions.PagingCore,
-            ]);
-
-        group
-            .MapGet(
-                "/outbox/{jobNamespace}/quarantined",
-                static (string jobNamespace, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                {
-                    string? error = null;
-                    if (
-                        !QueryBinding.TryInt(http.Request.Query, "pageSize", out var pageSize, ref error)
-                        || !QueryBinding.TryBool(http.Request.Query, "includeTotal", out var includeTotal, ref error)
-                    )
-                    {
-                        return Task.FromResult(BadRequest(error));
-                    }
-
-                    var query = new ListOutboxQuarantinedQuery(
-                        jobNamespace,
-                        PageSize: pageSize,
-                        Cursor: QueryBinding.Text(http.Request.Query, "cursor"),
-                        IncludeTotal: includeTotal ?? false
-                    );
-                    return Guard(async () =>
-                    {
-                        try
-                        {
-                            return Results.Json(
-                                await operations.Outbox.ListQuarantinedAsync(query, ct),
-                                DashboardJsonContext.Default.PagedResultOutboxQuarantinedListItem
-                            );
-                        }
-                        catch (InvalidOperationException ex)
-                        {
-                            // The source is not registered on this host: a placement constraint, not a
-                            // fault, so it answers 409 with the verbatim explanation.
-                            return Results.Problem(
-                                statusCode: StatusCodes.Status409Conflict,
-                                title: "Quarantine listing unavailable on this host.",
-                                detail: ex.Message
-                            );
-                        }
-                    });
-                }
-            )
-            .WithSummary("List a relay source's quarantined staging rows.")
-            .Produces<PagedResult<OutboxQuarantinedListItem>>(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status409Conflict)
-            .WithQueryParameters([.. QueryParameterDocExtensions.PagingCore, .. QueryParameterDocExtensions.IncludeTotal]);
 
         group
             .MapGet(

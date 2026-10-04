@@ -55,4 +55,21 @@ internal static class ControlStatus
             static response => response.Action == ControlAction.NotFound ? StatusCodes.Status404NotFound : StatusCodes.Status200OK,
             [StatusCodes.Status200OK, StatusCodes.Status404NotFound]
         );
+
+    /// <summary>
+    /// The outbox verbs park a command the next relay pass applies: Accepted 202, Rejected 409 (a command is already
+    /// parked), NotFound 404 (no relay slot for the namespace).
+    /// </summary>
+    public static ControlStatus<T> Outbox<T>()
+        where T : IOutboxControlResponse =>
+        new(
+            static response =>
+                response.Action switch
+                {
+                    ControlAction.Accepted => StatusCodes.Status202Accepted,
+                    ControlAction.Rejected => StatusCodes.Status409Conflict,
+                    _ => StatusCodes.Status404NotFound,
+                },
+            [StatusCodes.Status202Accepted, StatusCodes.Status409Conflict, StatusCodes.Status404NotFound]
+        );
 }

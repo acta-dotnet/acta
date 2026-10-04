@@ -261,6 +261,10 @@ internal static class RouteTable
         {
             return NotFound(ex.Entity);
         }
+        catch (RouteConflictException ex)
+        {
+            return ControlEndpointValidation.Problem(StatusCodes.Status409Conflict, ex.Title, ex.Message);
+        }
     }
 
     /// <summary>The internal id of the job a filter names, or null with no filter; a filter naming no job is the 404.</summary>

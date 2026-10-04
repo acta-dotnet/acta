@@ -20,6 +20,9 @@ internal sealed class QueryReader(HttpRequest request)
 
     public string? Text(string name) => QueryBinding.Text(request.Query, name);
 
+    /// <summary>A value the route itself carries, for a list addressed under its target.</summary>
+    public string Route(string name) => RouteKeys.Value(request.HttpContext, name);
+
     public IReadOnlyList<TagFilter>? Tags() => QueryBinding.Tags(request.Query);
 
     /// <summary>A job-ref filter: absent is null, and one that does not parse is the 400 every ref-valued parameter gives.</summary>

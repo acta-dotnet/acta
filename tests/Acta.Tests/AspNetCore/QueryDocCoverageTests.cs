@@ -18,7 +18,7 @@ namespace Acta.Tests.AspNetCore;
 public sealed partial class QueryDocCoverageTests
 {
     [GeneratedRegex(
-        "Query,\\s*\"(?<name>[A-Za-z]+)\"|Query,\\s*\\r?\\n\\s*\"(?<name>[A-Za-z]+)\"|\\bquery\\.\\w+(?:<\\w+>)?\\(\\s*\"(?<name>[A-Za-z]+)\"",
+        "Query,\\s*\"(?<name>[A-Za-z]+)\"|Query,\\s*\\r?\\n\\s*\"(?<name>[A-Za-z]+)\"|\\bquery\\.(?!Route\\b)\\w+(?:<\\w+>)?\\(\\s*\"(?<name>[A-Za-z]+)\"",
         RegexOptions.Singleline
     )]
     private static partial Regex QueryReads();
