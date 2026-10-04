@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using Acta.Tests.Conformance.Sql;
 using Acta.Tests.Conformance.Testing;
 using Xunit;
 
@@ -62,9 +63,9 @@ public sealed class DocsContractTests
         sb.AppendLine("| SQL stem | PostgreSQL | SQL Server | SQLite |");
         sb.AppendLine("| --- | --- | --- | --- |");
 
-        var inventories = ProviderResourceParityTests.Dialects.ToDictionary(
+        var inventories = ProviderSqlResources.Dialects.ToDictionary(
             dialect => dialect,
-            dialect => ProviderResourceParityTests.LogicalResources(dialect).ToHashSet(StringComparer.Ordinal),
+            dialect => ProviderSqlResources.Stems(dialect).ToHashSet(StringComparer.Ordinal),
             StringComparer.Ordinal
         );
         var resources = inventories
@@ -73,9 +74,7 @@ public sealed class DocsContractTests
             .OrderBy(id => id, StringComparer.Ordinal);
         foreach (var resource in resources)
         {
-            var cells = ProviderResourceParityTests
-                .Dialects.Select(dialect => inventories[dialect].Contains(resource) ? "yes" : "·")
-                .ToArray();
+            var cells = ProviderSqlResources.Dialects.Select(dialect => inventories[dialect].Contains(resource) ? "yes" : "·").ToArray();
             sb.AppendLine(CultureInfo.InvariantCulture, $"| `{resource}` | {cells[0]} | {cells[1]} | {cells[2]} |");
         }
 

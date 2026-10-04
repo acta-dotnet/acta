@@ -8,7 +8,7 @@ namespace Acta.Tests.Architecture;
 /// <summary>
 /// Holds <c>src/</c> to the operation layout in <c>docs/internals/source-layout.md</c>: <c>Operations/Group/Operation/</c>
 /// and no deeper, files named after their operation, all three dialects or none, and SQL only under <c>Operations/</c>
-/// and <c>Schema/</c>. Once a group's Runtime folder holds C#, each of its operations needs a handler and each public
+/// and <c>Schema/</c>, every Schema stem in all three dialects, and no stem twice in one dialect. Once a group's Runtime folder holds C#, each of its operations needs a handler and each public
 /// operation folder a Runtime twin, and no Operations file names a type declared under <c>Engine/</c>. What still differs is
 /// listed in the <c>layout</c> ratchet.
 /// </summary>
@@ -16,13 +16,16 @@ public sealed class OperationLayoutTests
 {
     private static readonly string[] Dialects = ["pg", "mssql", "sqlite"];
 
+    // SQLite has no DROP SCHEMA; its bootstrap clears sqlite_master objects in code instead.
+    private static readonly string[] SingleDialectStems = ["DropSchema"];
+
     [Fact]
     public void Operations_follow_the_source_layout()
     {
         var root = IntegrationConfig.FindRepoRoot();
         var runtime = Path.Combine(root, "src", "Acta.Runtime", "Operations");
         var contract = Path.Combine(root, "src", "Acta", "Operations");
-        var violations = SqlPlacement().ToList();
+        var violations = SqlPlacement().Concat(SqlStems(Path.Combine(root, "src", "Acta.Runtime"))).ToList();
 
         foreach (var operation in OperationFolders(runtime))
         {
@@ -71,6 +74,31 @@ public sealed class OperationLayoutTests
         if (dialects is not 0 && dialects != Dialects.Length)
         {
             yield return $"dialects: {Relative(root, folder)}";
+        }
+    }
+
+    // Schema SQL has no operation folder, so its dialects are held per stem. The catalog loads by stem, so a stem has
+    // one file per dialect across the whole Runtime tree.
+    private static IEnumerable<string> SqlStems(string runtime)
+    {
+        var files = Directory
+            .EnumerateFiles(runtime, "*.sql", SearchOption.AllDirectories)
+            .Select(path => (Relative: Path.GetRelativePath(runtime, path), Parts: Path.GetFileName(path).Split('.')))
+            .Where(file => file.Parts.Length == 3 && Dialects.Contains(file.Parts[1]))
+            .ToList();
+        foreach (var twice in files.GroupBy(file => $"{file.Parts[0]}.{file.Parts[1]}").Where(group => group.Count() > 1))
+        {
+            yield return $"duplicate: {twice.Key}";
+        }
+        foreach (
+            var stem in files.Where(file => file.Relative.StartsWith("Schema", StringComparison.Ordinal)).GroupBy(file => file.Parts[0])
+        )
+        {
+            var partial = stem.Select(file => file.Parts[1]).Distinct().Count() != Dialects.Length;
+            if (partial != SingleDialectStems.Contains(stem.Key))
+            {
+                yield return partial ? $"dialects: Schema/{stem.Key}" : $"single-dialect stem now has all three: {stem.Key}";
+            }
         }
     }
 
