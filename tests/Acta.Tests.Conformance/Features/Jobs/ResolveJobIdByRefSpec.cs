@@ -32,7 +32,9 @@ public sealed class ResolveJobIdByRefSpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.Equal(JobEnqueueAction.Inserted, outcome.Action);
         Assert.NotEqual(Guid.Empty, outcome.JobRef.Value);
 
-        var resolved = await Services.GetRequiredService<IJobStore>().ResolveJobIdByRefAsync(outcome.JobRef.Value, ct);
+        var resolved = await Services
+            .GetRequiredService<ResolveJobIdByRefHandler>()
+            .HandleAsync(new ResolveJobIdByRefQuery(outcome.JobRef.Value), ct);
         Assert.Equal(outcome.JobId, resolved);
 
         var snapshot = await Jobs.GetAsync(JobLookup.ByRef(outcome.JobRef), ct);
@@ -44,7 +46,9 @@ public sealed class ResolveJobIdByRefSpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.Equal(JobEnqueueAction.Deduplicated, deduplicated.Action);
         Assert.Equal(outcome.JobRef, deduplicated.JobRef);
 
-        var missing = await Services.GetRequiredService<IJobStore>().ResolveJobIdByRefAsync(Guid.NewGuid(), ct);
+        var missing = await Services
+            .GetRequiredService<ResolveJobIdByRefHandler>()
+            .HandleAsync(new ResolveJobIdByRefQuery(Guid.NewGuid()), ct);
         Assert.Null(missing);
     }
 }

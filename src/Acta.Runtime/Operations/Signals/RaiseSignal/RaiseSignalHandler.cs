@@ -9,52 +9,62 @@ namespace Acta.Runtime;
 internal sealed class RaiseSignalHandler(
     IDbSession session,
     ISqlDialect dialect,
-    JobsService jobs,
+    JobLookupResolution jobs,
     WorkerWakeupPublisher wakeup,
+    IJobPayloadSerializerRegistry serializers,
     IOptions<JobsOptions> options
 )
 {
     private readonly int _maxInlinePayloadBytes = options.Value.MaxInlinePayloadBytes;
 
-    public async ValueTask<JobControlResult> HandleAsync(RaiseSignalCommand command, CancellationToken ct)
+    public async ValueTask<RaiseSignalResponse> HandleAsync(RaiseSignalCommand command, CancellationToken ct)
     {
         var name = IdentifierSyntax.CanonicalizeUserKebab(command.Name, "name", IdentifierSyntax.ExtendedMaxLength);
-        if (command.Value is { Length: var valueLength } && valueLength > _maxInlinePayloadBytes)
+        var value = command.Value;
+        if (value.Data.Length > _maxInlinePayloadBytes)
         {
-            throw new PayloadTooLargeException($"signal '{name}' value", valueLength, _maxInlinePayloadBytes);
+            throw new PayloadTooLargeException($"signal '{name}' value", value.Data.Length, _maxInlinePayloadBytes);
         }
 
-        var jobId = await jobs.GetJobIdAsync(command.Job, ct);
-        if (jobId is null)
+        if (await jobs.ResolveAsync(command.Job, ct) is not { } jobId)
         {
-            return new JobControlResult(0, ControlAction.NotFound, null, null);
+            return new RaiseSignalResponse(0, ControlAction.NotFound, null, null);
         }
 
         var input = new JobControlInput(JobControlActor.Operator(command.ActorKey), JobEventReasonCode.JobSignalReleased, null);
-        var outcome = await RaiseSlotAsync(
-            session,
-            dialect,
-            new SignalSlotRaise(jobId.Value, JobCheckpointKindCode.Signal, name, command.ValueFormatId, command.Value, input),
+        var row = await RaiseSlotAsync(
+            new SignalSlotRaise(
+                jobId,
+                JobCheckpointKindCode.Signal,
+                name,
+                value.Format.Id,
+                value.IsNone ? null : value.Data.ToArray(),
+                input
+            ),
             ct
         );
-        var result = new JobControlResult(jobId.Value, outcome.Action, outcome.Status, outcome.Version);
-        if (result is { Action: ControlAction.Applied, Status: JobStatusCode.Ready })
-        {
-            await wakeup.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct);
-        }
-
-        return result;
+        await JobControl.WakeIfReadyAsync(wakeup, row.Action, row.Status, ct);
+        return new RaiseSignalResponse(jobId, row.Action, row.Status, null);
     }
 
+    /// <summary>
+    /// The typed raise: <paramref name="value"/> serializes through the registry, which honours UseJsonPayloads,
+    /// rather than the reflection-based static helper.
+    /// </summary>
+    public ValueTask<RaiseSignalResponse> HandleAsync<T>(JobLookup job, string name, T value, string? actorKey, CancellationToken ct) =>
+        HandleAsync(
+            new RaiseSignalCommand(
+                job,
+                name,
+                serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(value ?? throw new ArgumentNullException(nameof(value))),
+                actorKey
+            ),
+            ct
+        );
+
     /// <summary><see cref="ISignals.RaiseSignalAsync"/>: one routine call for any slot kind, the operator's raise among them.</summary>
-    internal static async Task<JobControlOutcome> RaiseSlotAsync(
-        IDbSession session,
-        ISqlDialect dialect,
-        SignalSlotRaise raise,
-        CancellationToken ct
-    )
-    {
-        var row = await session.ExecuteOneAsync(
+    internal Task<JobControlActionRow> RaiseSlotAsync(SignalSlotRaise raise, CancellationToken ct) =>
+        session.ExecuteOneAsync(
             new StoreCommand("RaiseSignal"),
             cmd =>
             {
@@ -63,14 +73,9 @@ internal sealed class RaiseSignalHandler(
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.Name, raise.Name));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.ValueFormatId, raise.ValueFormatId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.Value, raise.Value));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorCode, raise.Input.Actor.ActorCode));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorKey, raise.Input.Actor.ActorKey));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonCode, raise.Input.ReasonCode));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonMessage, raise.Input.ReasonMessage));
+                JobControl.BindActor(cmd, dialect, raise.Input);
             },
             DbProjectionResolver.Resolve<JobControlActionRow>(),
             ct
         );
-        return row.ToOutcome();
-    }
 }

@@ -208,7 +208,7 @@ different operations. Use [Schedule operations](./schedule-operations.md) before
 Read from the provider routines, not from intent. Every verb answers one of three ways: **applied**
 (`200`), **rejected** (`409`, the job exists but its status forbids the transition), or **not found**
 (`404`); a verb given an `expectedVersion` has a fourth, **version conflict** (`409`, the row moved
-since you read it), and nothing is written. All four carry the same `JobControlResponse` body, so a
+since you read it), and nothing is written. All four carry the same body, so a
 client reads `action`, the resulting `status`, and the row's `version` without special-casing the code.
 
 `R` Ready · `B` Blocked · `S` Suspended · `P` Paused · `D` Dispatched · `X` Executing · `✓` Succeeded ·

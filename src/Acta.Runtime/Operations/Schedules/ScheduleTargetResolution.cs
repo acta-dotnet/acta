@@ -5,7 +5,7 @@ namespace Acta.Runtime;
 /// C#, cron math the database cannot do: the owning recurring slot job, the database clock, and the slot's
 /// live (non-orphaned) schedules. Null when the job or the schedule is absent; both surface as NotFound.
 /// </summary>
-internal sealed class ScheduleTargetResolution(JobsService jobs, IActaClock clock, GetLiveSchedulesHandler liveSchedules)
+internal sealed class ScheduleTargetResolution(JobLookupResolution jobs, IActaClock clock, GetLiveSchedulesHandler liveSchedules)
 {
     public async ValueTask<ScheduleTarget?> ResolveAsync(ScheduleLookup schedule, CancellationToken ct)
     {
@@ -16,7 +16,7 @@ internal sealed class ScheduleTargetResolution(JobsService jobs, IActaClock cloc
             IdentifierSyntax.ExtendedMaxLength
         );
 
-        var jobId = await jobs.GetJobIdAsync(schedule.Job, ct);
+        var jobId = await jobs.ResolveAsync(schedule.Job, ct);
         if (jobId is null)
         {
             return null;

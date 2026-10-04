@@ -87,7 +87,10 @@ public sealed class JobRefSurvivesPurgeSpec : ActaRuntimeTestBase<ConformanceFix
 
         // But the public ref still resolves to the historical id via the surviving ledger,
         // and the timeline reads back with the ref intact.
-        Assert.Equal(jobId, await Services.GetRequiredService<IJobStore>().ResolveJobIdByRefAsync(jobRef.Value, ct));
+        Assert.Equal(
+            jobId,
+            await Services.GetRequiredService<ResolveJobIdByRefHandler>().HandleAsync(new ResolveJobIdByRefQuery(jobRef.Value), ct)
+        );
         var timeline = (
             await Services.GetRequiredService<ILedger>().ListEventsAsync(new ListEventsQuery(JobId: jobId, PageSize: 100), ct)
         ).Items;

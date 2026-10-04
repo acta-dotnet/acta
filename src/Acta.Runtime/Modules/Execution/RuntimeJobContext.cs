@@ -17,7 +17,8 @@ internal sealed class RuntimeJobContext(
     string namespaceName,
     int namespaceId,
     int leaseTtlSeconds,
-    IJobStore jobStore,
+    CancelJobHandler cancelJob,
+    ResetJobStateHandler resetJobState,
     ISignals signals,
     IAlertLifecycle alerts,
     Acta.Runtime.IExecutionStore executionStore,
@@ -34,13 +35,13 @@ internal sealed class RuntimeJobContext(
     IJobs? jobs = null,
     string? tenantKey = null,
     int workerId = 0,
-    WorkerWakeupPublisher? wakeupPublisher = null,
     Acta.Runtime.IActaClock? clock = null
 ) : JobContext
 {
     private const string ProgressVariableName = "sys.progress";
 
-    private readonly IJobStore _jobStore = jobStore;
+    private readonly CancelJobHandler _cancelJob = cancelJob;
+    private readonly ResetJobStateHandler _resetJobState = resetJobState;
     private readonly ISignals _signals = signals;
     private readonly IAlertLifecycle _alerts = alerts;
     private readonly Acta.Runtime.IExecutionStore _executionStore = executionStore;
@@ -54,7 +55,6 @@ internal sealed class RuntimeJobContext(
     private readonly ILogger _log = log ?? NullLogger.Instance;
     private readonly JobMetrics? _metrics = metrics;
     private readonly IJobs? _jobs = jobs;
-    private readonly WorkerWakeupPublisher? _wakeupPublisher = wakeupPublisher;
     private readonly Acta.Runtime.IActaClock? _clock = clock;
 
     /// <summary>
@@ -165,7 +165,8 @@ internal sealed class RuntimeJobContext(
     private protected override Task<bool> DeleteVariableCoreAsync(string name, CancellationToken ct) =>
         CheckpointSlot.DeleteAsync(_executionStore, JobId, JobCheckpointKindCode.Variable, name, ct);
 
-    private protected override Task ResetStateCoreAsync(CancellationToken ct) => _jobStore.ResetJobStateAsync(JobId, ct);
+    private protected override Task ResetStateCoreAsync(CancellationToken ct) =>
+        _resetJobState.HandleAsync(new ResetJobStateCommand(JobId), ct);
 
     private protected override async Task SleepCoreAsync(
         string name,
@@ -265,33 +266,9 @@ internal sealed class RuntimeJobContext(
             "Parent's child wait timed out."
         );
 
-        var cancel = await _jobStore.CancelJobAsync(childJobId, input, ct);
-        if (cancel.Outcome.Action == ControlAction.Applied)
-        {
-            await WakeCompletionAsync(childJobId, ct);
-        }
-
         // The child's own latch on this job is Expired, so no raise is needed or possible here; the
         // descendants' latches sit on parents this walk has already made terminal.
-        var descendants = await CancelDescendants.Run(_executionStore, _jobStore, childJobId, input, ct);
-        foreach (var cancelledId in descendants.Cancelled)
-        {
-            await WakeCompletionAsync(cancelledId, ct);
-        }
-
-        // A cancel in the abandoned subtree that promoted a lane member is new work for the claim loops.
-        if ((cancel.LanePromoted || descendants.LanePromoted) && _wakeupPublisher is { } publisher)
-        {
-            await publisher.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct);
-        }
-    }
-
-    private async Task WakeCompletionAsync(long jobId, CancellationToken ct)
-    {
-        if (_wakeupPublisher is { } publisher)
-        {
-            await publisher.WakeAsync(WorkerWakeupChannel.JobCompletion(jobId), WorkerWakeupReason.JobFinished, ct);
-        }
+        await _cancelJob.CancelTreeAsync(childJobId, input, ct);
     }
 
     private protected override T? DeserializeSignalPayload<T>(byte valueFormatId, byte[] value)

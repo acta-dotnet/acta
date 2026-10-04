@@ -21,7 +21,8 @@ namespace Acta.Runtime;
 /// "run" names a scheduled time in this schema (next_run_at_utc), never an attempt.</para>
 /// </summary>
 internal sealed class JobExecution(
-    IJobStore jobStore,
+    GetJobHandler getJob,
+    CancelJobHandler cancelJob,
     IExecutionStore execution,
     IJobPayloadSerializerRegistry serializers,
     IOptions<JobsOptions> options,
@@ -31,7 +32,8 @@ internal sealed class JobExecution(
     JobMetrics? metrics = null
 )
 {
-    private readonly IJobStore _jobStore = jobStore;
+    private readonly GetJobHandler _getJob = getJob;
+    private readonly CancelJobHandler _cancelJob = cancelJob;
     private readonly IExecutionStore _execution = execution;
     private readonly IJobPayloadSerializerRegistry _serializers = serializers;
     private readonly JobBehaviorPipeline _pipeline = pipeline;
@@ -65,7 +67,7 @@ internal sealed class JobExecution(
     /// </summary>
     internal static async Task<StartExecutionAction> StartReconciledAsync(
         IExecutionStore execution,
-        IJobStore jobStore,
+        GetJobHandler getJob,
         ClaimedJob job,
         int workerId,
         int leaseTtlSeconds,
@@ -76,7 +78,7 @@ internal sealed class JobExecution(
     {
         return await StartReconciledAsync(
             execution,
-            jobStore,
+            getJob,
             job.JobId,
             job.ExecutionNumber,
             job.Version,
@@ -94,7 +96,7 @@ internal sealed class JobExecution(
     /// </summary>
     internal static async Task<StartExecutionAction> StartReconciledAsync(
         IExecutionStore execution,
-        IJobStore jobStore,
+        GetJobHandler getJob,
         long jobId,
         int executionNumber,
         int claimedVersion,
@@ -125,13 +127,7 @@ internal sealed class JobExecution(
                 return start;
             }
 
-            var (row, _) = await CompletionWrite.RetryAsync(
-                async token => await jobStore.GetJobAsync(jobId, token),
-                log,
-                jobId,
-                ct,
-                metrics
-            );
+            var (row, _) = await CompletionWrite.RetryAsync(async token => await getJob.ReadAsync(jobId, token), log, jobId, ct, metrics);
             var lost = start == StartExecutionAction.LeaseExpired ? StartExecutionAction.LostClaim : start;
             if (row is null || row.LeasedByWorkerId != workerId || row.ExecutionNumber != executionNumber)
             {
@@ -176,7 +172,7 @@ internal sealed class JobExecution(
     {
         var start = alreadyStarted
             ? StartExecutionAction.Started
-            : await StartReconciledAsync(_execution, _jobStore, job, workerId, _leaseTtlSeconds, _log, _metrics, ct);
+            : await StartReconciledAsync(_execution, _getJob, job, workerId, _leaseTtlSeconds, _log, _metrics, ct);
         if (start != StartExecutionAction.Started)
         {
             // The claim was lost before execution began: reclaimed by recovery, reassigned, or moved
@@ -985,7 +981,7 @@ internal sealed class JobExecution(
 
         // A terminal child's raise flipped its Suspended parent to Ready inside complete_execution.
         // The routine knows only the parent's numeric namespace id, so wake every worker namespace
-        // (same trade as the control verbs' PublishControlWakeAsync).
+        // (same trade as JobControl.WakeIfReadyAsync).
         if (complete.ParentReleased)
         {
             await _wakeupPublisher.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct);
@@ -995,16 +991,7 @@ internal sealed class JobExecution(
         // above already raised this job's own latch in-routine); maintenance is the crash backstop.
         if (handlerStatusCode == (byte)JobStatusCode.Cancelled)
         {
-            var descendants = await CancelDescendants.Run(_execution, _jobStore, job.JobId, CancelDescendants.ParentCancelled, ct);
-            foreach (var cancelledId in descendants.Cancelled)
-            {
-                await _wakeupPublisher.WakeAsync(WorkerWakeupChannel.JobCompletion(cancelledId), WorkerWakeupReason.JobFinished, ct);
-            }
-
-            if (descendants.LanePromoted)
-            {
-                await _wakeupPublisher.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct);
-            }
+            await _cancelJob.CancelDescendantsAsync(job.JobId, CancelJobHandler.ParentCancelled, ct);
         }
 
         // One measurement per completed execution: the single emit point both the poll loop and the

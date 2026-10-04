@@ -27,7 +27,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- JobsApi (in Acta.Runtime) builds JobOutcome via its private-ctor internal static factories. -->
+    <!-- JobRunAndWait (in Acta.Runtime) builds JobOutcome via its private-ctor internal static factories. -->
     <InternalsVisibleTo Include="Acta.Runtime" />
     <!-- Tests need access to internal validators and canonicalizers. -->
     <InternalsVisibleTo Include="Acta.Tests" />

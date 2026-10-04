@@ -1,4 +1,5 @@
 using Acta.Runtime;
+using Acta.Tests.Runtime;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -54,7 +55,7 @@ internal sealed class JobExecutionHarness(
     // external one. Unlinked from _attemptCts here; TimeOutAttempt cancels both.
     private readonly CancellationTokenSource _timeoutCts = new();
     private readonly ScriptedExecutionStore _store = new(stepOutcome, completionAction, startAction, startFailsOnce, startAfterFailure);
-    private readonly ScriptedJobStore _jobs = new(rowAfterLostClaim);
+    private readonly GetJobHandler _getJob = new(null!, new RowSession(rowAfterLostClaim), null!);
     private readonly ScriptedLockStore _locks = new(slotGranted, rateResumeAtUtc, rateWaitMilliseconds, slotThrows, rateThrows);
 
     /// <summary>The row the reconciliation reads after a LostClaim, as a fact stages it; the claim is execution 3 at version 1.</summary>
@@ -165,7 +166,8 @@ internal sealed class JobExecutionHarness(
             namespaceName: "harness",
             namespaceId: 1,
             leaseTtlSeconds: options.Value.LeaseTtlSeconds,
-            jobStore: null!,
+            cancelJob: null!,
+            resetJobState: null!,
             signals: null!,
             alerts: null!,
             executionStore: _store,
@@ -183,7 +185,8 @@ internal sealed class JobExecutionHarness(
         );
 
         var execution = new JobExecution(
-            _jobs,
+            _getJob,
+            CancelJob(),
             _store,
             new HarnessSerializers(),
             options,
@@ -268,11 +271,12 @@ internal sealed class JobExecutionHarness(
             _locks,
             new HarnessClock(),
             serializers,
-            new StoreOnlyServices(_store, _jobs),
+            new StoreOnlyServices(_store, _getJob, CancelJob()),
             options,
             context,
             new JobExecution(
-                _jobs,
+                _getJob,
+                CancelJob(),
                 _store,
                 serializers,
                 options,
@@ -499,89 +503,21 @@ internal sealed class JobExecutionHarness(
     /// <summary>One line the runner wrote: enough to pin an arm whose whole contract is the log.</summary>
     internal sealed record LogEntry(LogLevel Level, string Message);
 
-    // The one read the runner makes of the job store: the row a LostClaim is reconciled against. Every
-    // other member is out of the runner's reach and says so.
-    private sealed class ScriptedJobStore(JobDetail? row) : IJobStore
+    // The by-id job read the reconciliation makes after a LostClaim, answered with the staged row; any
+    // other read reaches the stub and throws.
+    private sealed class RowSession(JobDetail? row) : DbSessionStub
     {
-        public ValueTask<JobDetail?> GetJobAsync(long jobId, CancellationToken ct) => ValueTask.FromResult(row);
-
-        public ValueTask<JobStatusCode?> GetJobStatusAsync(long jobId, CancellationToken ct) => throw new NotSupportedException();
-
-        public Task<JobInputRecord?> GetJobInputAsync(long jobId, CancellationToken ct) => throw new NotSupportedException();
-
-        public Task<JobResultRecord?> GetJobResultAsync(long jobId, int? executionNumber, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<IReadOnlyList<JobCheckpointItem>> GetJobCheckpointsAsync(long jobId, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public ValueTask<JobExplainData?> GetJobExplanationAsync(long jobId, CancellationToken ct) => throw new NotSupportedException();
-
-        public ValueTask<JobLineageData?> GetJobLineageMapAsync(long jobId, int childFetchLimit, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public ValueTask<long?> ResolveJobIdByRefAsync(Guid jobRef, CancellationToken ct) => throw new NotSupportedException();
-
-        public ValueTask<long?> ResolveJobIdByDeduplicationKeyAsync(string jobNamespace, string deduplicationKey, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<IReadOnlyList<EnqueueOutcomeRow>> EnqueueOneAsync(JobEnqueueRow row, Guid jobRef, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<IReadOnlyList<EnqueueOutcomeRow>> EnqueueBatchAsync(
-            IReadOnlyList<JobEnqueueRow> rows,
-            IReadOnlyList<Guid> jobRefs,
+        public override Task<T> QueryAsync<T>(
+            string stem,
+            Action<System.Data.Common.DbCommand> bind,
+            Func<System.Data.Common.DbDataReader, CancellationToken, Task<T>> read,
             CancellationToken ct
-        ) => throw new NotSupportedException();
-
-        public Task<IReadOnlyList<EnqueueOutcomeRow>> EnqueueOneInTransactionAsync(
-            System.Data.Common.DbTransaction transaction,
-            JobEnqueueRow row,
-            Guid jobRef,
-            CancellationToken ct
-        ) => throw new NotSupportedException();
-
-        public Task<IReadOnlyList<EnqueueOutcomeRow>> EnqueueBatchInTransactionAsync(
-            System.Data.Common.DbTransaction transaction,
-            IReadOnlyList<JobEnqueueRow> rows,
-            IReadOnlyList<Guid> jobRefs,
-            CancellationToken ct
-        ) => throw new NotSupportedException();
-
-        public Task<CancelJobOutcome> CancelJobAsync(long jobId, JobControlInput input, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<PauseJobOutcome> PauseJobAsync(long jobId, JobControlInput input, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<JobControlOutcome> ResumeJobAsync(long jobId, JobControlInput input, DateTime? nextRunAtUtc, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<JobControlOutcome> RestartJobAsync(long jobId, JobControlInput input, DateTime? nextRunAtUtc, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<JobControlOutcome> RescheduleJobAsync(long jobId, DateTime nextRunAtUtc, JobControlInput input, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<JobControlOutcome> ReprioritizeJobAsync(
-            long jobId,
-            JobPriorityCode priority,
-            JobControlInput input,
-            CancellationToken ct
-        ) => throw new NotSupportedException();
-
-        public Task<JobControlOutcome> UpdateJobInputAsync(
-            long jobId,
-            JobPayload input,
-            JobControlInput controlInput,
-            CancellationToken ct
-        ) => throw new NotSupportedException();
-
-        public Task<JobControlOutcome> PurgeJobAsync(long jobId, JobControlInput input, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task ResetJobStateAsync(long jobId, CancellationToken ct) => throw new NotSupportedException();
+        ) => stem == "GetJob" ? Task.FromResult((T)(object?)row!) : base.QueryAsync(stem, bind, read, ct);
     }
+
+    // A handler cancel walks the subtree from the scripted store's children, which it never stages.
+    private CancelJobHandler CancelJob() =>
+        new(null!, new DbSessionStub(), null!, _store, null!, new WorkerWakeupPublisher(new InProcessWakeup()));
 
     private sealed class RecordingLogger : ILogger
     {
@@ -608,12 +544,10 @@ internal sealed class JobExecutionHarness(
         public object? GetService(Type serviceType) => null;
     }
 
-    // The root provider JobExecutor resolves its store from. Only the store is answered, so a path
-    // that starts resolving anything else fails loudly instead of silently taking a null.
     // The services the executor resolves for an attempt, and a scope that is the provider itself: the
     // stores are the scripted ones, the signal seam and the alert sink are never reached by a handler
     // that runs one step, and anything else resolves to null.
-    private sealed class StoreOnlyServices(IExecutionStore store, IJobStore jobs)
+    private sealed class StoreOnlyServices(IExecutionStore store, GetJobHandler getJob, CancelJobHandler cancelJob)
         : IServiceProvider,
             IServiceScopeFactory,
             IServiceScope,
@@ -621,12 +555,15 @@ internal sealed class JobExecutionHarness(
     {
         private readonly WorkerWakeupPublisher _wakeup = new(new InProcessWakeup());
         private readonly JobContextAccessor _accessor = new();
+        private readonly ResetJobStateHandler _resetJobState = new(new DbSessionStub(), null!);
 
         public IServiceProvider ServiceProvider => this;
 
         public object? GetService(Type serviceType) =>
             serviceType == typeof(IExecutionStore) ? store
-            : serviceType == typeof(IJobStore) ? jobs
+            : serviceType == typeof(GetJobHandler) ? getJob
+            : serviceType == typeof(CancelJobHandler) ? cancelJob
+            : serviceType == typeof(ResetJobStateHandler) ? _resetJobState
             : serviceType == typeof(IServiceScopeFactory) ? this
             : serviceType == typeof(WorkerWakeupPublisher) ? _wakeup
             : serviceType == typeof(IJobContextAccessor) ? _accessor
@@ -644,7 +581,7 @@ internal sealed class JobExecutionHarness(
         {
             public static readonly NoSignals Instance = new();
 
-            public Task<JobControlOutcome> RaiseSignalAsync(SignalSlotRaise command, CancellationToken ct) =>
+            public Task<JobControlActionRow> RaiseSignalAsync(SignalSlotRaise command, CancellationToken ct) =>
                 throw new NotSupportedException();
 
             public Task<Acta.Runtime.SignalWaitDecision> WaitSignalAsync(

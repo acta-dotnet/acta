@@ -78,19 +78,24 @@ public sealed class ControlContractTests
     // there on purpose. Give a new row its own Stage rather than relying on what ran before it.
     private static IReadOnlyList<Case> Table { get; } =
     [
-        .. JobVerb("pause"),
-        .. JobVerb("resume"),
-        .. JobVerb("restart"),
-        .. JobVerb("cancel"),
-        .. JobVerb("purge"),
-        .. JobVerb("reschedule", new { nextRunAtUtc = "2030-01-01T00:00:00Z", reasonMessage = "because" }),
-        .. JobVerb("reprioritize", new { priority = "high", reasonMessage = "because" }),
-        .. JobVerbVersionConflict("pause", new JsonObject { ["reasonMessage"] = "because" }),
+        .. JobVerb("pause", typeof(PauseJobResponse)),
+        .. JobVerb("resume", typeof(ResumeJobResponse)),
+        .. JobVerb("restart", typeof(RestartJobResponse)),
+        .. JobVerb("cancel", typeof(CancelJobResponse)),
+        .. JobVerb("purge", typeof(PurgeJobResponse)),
+        .. JobVerb("reschedule", typeof(RescheduleJobResponse), new { nextRunAtUtc = "2030-01-01T00:00:00Z", reasonMessage = "because" }),
+        .. JobVerb("reprioritize", typeof(ReprioritizeJobResponse), new { priority = "high", reasonMessage = "because" }),
+        .. JobVerbVersionConflict("pause", typeof(PauseJobResponse), new JsonObject { ["reasonMessage"] = "because" }),
         .. JobVerbVersionConflict(
             "reschedule",
+            typeof(RescheduleJobResponse),
             new JsonObject { ["nextRunAtUtc"] = "2030-01-01T00:00:00Z", ["reasonMessage"] = "because" }
         ),
-        .. JobVerbVersionConflict("reprioritize", new JsonObject { ["priority"] = "high", ["reasonMessage"] = "because" }),
+        .. JobVerbVersionConflict(
+            "reprioritize",
+            typeof(ReprioritizeJobResponse),
+            new JsonObject { ["priority"] = "high", ["reasonMessage"] = "because" }
+        ),
         .. JobSignal(),
         .. JobInput(),
         .. Enqueue(),
@@ -188,20 +193,20 @@ public sealed class ControlContractTests
     // Applied, rejected, and not-found at one job route: the fake answers by ref, so the three
     // outcomes are three refs against the same verb. Purge takes no version token, so the fourth
     // outcome is added only for the verbs that do.
-    private static IEnumerable<Case> JobVerb(string verb, object? body = null)
+    private static IEnumerable<Case> JobVerb(string verb, Type declared, object? body = null)
     {
         var route = $"/jobs/{{jobRef}}/{verb}";
         return
         [
-            Job(route, "applied", $"/jobs/{Found}/{verb}", StatusCodes.Status200OK, "applied", body ?? Reason),
-            Job(route, "rejected", $"/jobs/{Blocked}/{verb}", StatusCodes.Status409Conflict, "rejected", body ?? Reason),
-            Job(route, "notFound", $"/jobs/{Missing}/{verb}", StatusCodes.Status404NotFound, "notFound", body ?? Reason),
+            Job(declared, route, "applied", $"/jobs/{Found}/{verb}", StatusCodes.Status200OK, "applied", body ?? Reason),
+            Job(declared, route, "rejected", $"/jobs/{Blocked}/{verb}", StatusCodes.Status409Conflict, "rejected", body ?? Reason),
+            Job(declared, route, "notFound", $"/jobs/{Missing}/{verb}", StatusCodes.Status404NotFound, "notFound", body ?? Reason),
         ];
     }
 
     // The optional CAS token's own 409: same envelope as a status rejection, a different action, and
     // the row's current version so the caller retries without a re-read.
-    private static IEnumerable<Case> JobVerbVersionConflict(string verb, JsonObject body)
+    private static IEnumerable<Case> JobVerbVersionConflict(string verb, Type declared, JsonObject body)
     {
         body["expectedVersion"] = TestDashboardHost.CurrentJobVersion + 5;
         return
@@ -213,7 +218,7 @@ public sealed class ControlContractTests
                 "versionConflict",
                 $"/jobs/{Found}/{verb}",
                 StatusCodes.Status409Conflict,
-                typeof(JobControlResult),
+                declared,
                 "versionConflict",
                 body,
                 TestDashboardHost.CurrentJobVersion
@@ -228,9 +233,23 @@ public sealed class ControlContractTests
         const string route = "/jobs/{jobRef}/signals/{signalName}";
         return
         [
-            Job(route, "applied", $"/jobs/{Found}/signals/approval", StatusCodes.Status200OK, "applied"),
-            Job(route, "rejected", $"/jobs/{Blocked}/signals/approval", StatusCodes.Status409Conflict, "rejected"),
-            Job(route, "notFound", $"/jobs/{Missing}/signals/approval", StatusCodes.Status404NotFound, "notFound"),
+            Job(typeof(RaiseSignalResponse), route, "applied", $"/jobs/{Found}/signals/approval", StatusCodes.Status200OK, "applied"),
+            Job(
+                typeof(RaiseSignalResponse),
+                route,
+                "rejected",
+                $"/jobs/{Blocked}/signals/approval",
+                StatusCodes.Status409Conflict,
+                "rejected"
+            ),
+            Job(
+                typeof(RaiseSignalResponse),
+                route,
+                "notFound",
+                $"/jobs/{Missing}/signals/approval",
+                StatusCodes.Status404NotFound,
+                "notFound"
+            ),
         ];
     }
 
@@ -243,9 +262,35 @@ public sealed class ControlContractTests
         object body = new { input = new { invoiceId = 1 }, reasonMessage = "because" };
         return
         [
-            Job(route, "applied", $"/jobs/{Found}/input", StatusCodes.Status200OK, "applied", body, WithStoredInput),
-            Job(route, "rejected", $"/jobs/{Found}/input", StatusCodes.Status409Conflict, "rejected", body, WithoutStoredInput),
-            Job(route, "notFound", $"/jobs/{Missing}/input", StatusCodes.Status404NotFound, "notFound", body),
+            Job(
+                typeof(UpdateJobInputResponse),
+                route,
+                "applied",
+                $"/jobs/{Found}/input",
+                StatusCodes.Status200OK,
+                "applied",
+                body,
+                WithStoredInput
+            ),
+            Job(
+                typeof(UpdateJobInputResponse),
+                route,
+                "rejected",
+                $"/jobs/{Found}/input",
+                StatusCodes.Status409Conflict,
+                "rejected",
+                body,
+                WithoutStoredInput
+            ),
+            Job(
+                typeof(UpdateJobInputResponse),
+                route,
+                "notFound",
+                $"/jobs/{Missing}/input",
+                StatusCodes.Status404NotFound,
+                "notFound",
+                body
+            ),
         ];
     }
 
@@ -255,6 +300,7 @@ public sealed class ControlContractTests
     private static void WithoutStoredInput(TestDashboardHost.FakeJobs jobs) => jobs.StoredInput = null;
 
     private static Case Job(
+        Type declared,
         string route,
         string outcome,
         string path,
@@ -262,7 +308,7 @@ public sealed class ControlContractTests
         string action,
         object? body = null,
         Action<TestDashboardHost.FakeJobs>? stage = null
-    ) => new("jobs", route, "POST", outcome, path, status, typeof(JobControlResult), action, body, Stage: stage);
+    ) => new("jobs", route, "POST", outcome, path, status, declared, action, body, Stage: stage);
 
     // Enqueue is control-gated but creates a job rather than transitioning one, so its two outcomes
     // are inserted and deduplicated. Its rejection stays a problem document (the guard reports why the

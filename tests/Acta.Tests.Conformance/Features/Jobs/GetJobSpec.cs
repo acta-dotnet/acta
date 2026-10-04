@@ -36,7 +36,7 @@ public sealed class GetJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
         );
         var jobId = results[0].JobId;
 
-        var snapshot = await Services.GetRequiredService<IJobStore>().GetJobAsync(jobId, ct);
+        var snapshot = await Services.GetRequiredService<GetJobHandler>().ReadAsync(jobId, ct);
 
         Assert.NotNull(snapshot);
         Assert.Equal(jobId, snapshot!.JobId);
@@ -74,7 +74,7 @@ public sealed class GetJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
             ct
         );
 
-        var snapshot = await Services.GetRequiredService<IJobStore>().GetJobAsync(results[0].JobId, ct);
+        var snapshot = await Services.GetRequiredService<GetJobHandler>().ReadAsync(results[0].JobId, ct);
 
         Assert.NotNull(snapshot);
         Assert.Equal(tenantId, snapshot!.TenantId);
@@ -86,7 +86,7 @@ public sealed class GetJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var snapshot = await Services.GetRequiredService<IJobStore>().GetJobAsync(long.MaxValue, ct);
+        var snapshot = await Services.GetRequiredService<GetJobHandler>().ReadAsync(long.MaxValue, ct);
 
         Assert.Null(snapshot);
     }

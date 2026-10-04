@@ -31,8 +31,8 @@ public sealed class ControlVerbAuditGatingSpec : ActaRuntimeTestBase<Conformance
         await SetAuditLevelAsync(Db, jobL, JobAuditLevelCode.Off, ct);
         await SetAuditLevelAsync(Db, jobF, JobAuditLevelCode.Audit, ct);
 
-        var outcomeL = (await Services.GetRequiredService<IJobStore>().PauseJobAsync(jobL, input, ct)).Outcome;
-        var outcomeF = (await Services.GetRequiredService<IJobStore>().PauseJobAsync(jobF, input, ct)).Outcome;
+        var outcomeL = await Services.GetRequiredService<PauseJobHandler>().PauseAsync(jobL, input, ct);
+        var outcomeF = await Services.GetRequiredService<PauseJobHandler>().PauseAsync(jobF, input, ct);
 
         Assert.Equal(ControlAction.Applied, outcomeL.Action);
         Assert.Equal(JobStatusCode.Paused, outcomeL.Status);
@@ -56,8 +56,8 @@ public sealed class ControlVerbAuditGatingSpec : ActaRuntimeTestBase<Conformance
         await SetAuditLevelAsync(Db, jobL, JobAuditLevelCode.Off, ct);
         await SetAuditLevelAsync(Db, jobF, JobAuditLevelCode.Audit, ct);
 
-        var outcomeL = await Services.GetRequiredService<IJobStore>().ResumeJobAsync(jobL, input, null, ct);
-        var outcomeF = await Services.GetRequiredService<IJobStore>().ResumeJobAsync(jobF, input, null, ct);
+        var outcomeL = await Services.GetRequiredService<ResumeJobHandler>().ResumeAsync(jobL, input, null, ct);
+        var outcomeF = await Services.GetRequiredService<ResumeJobHandler>().ResumeAsync(jobF, input, null, ct);
 
         Assert.Equal(ControlAction.Applied, outcomeL.Action);
         Assert.Equal(JobStatusCode.Ready, outcomeL.Status);
@@ -79,15 +79,15 @@ public sealed class ControlVerbAuditGatingSpec : ActaRuntimeTestBase<Conformance
         await SetAuditLevelAsync(Db, jobL, JobAuditLevelCode.Off, ct);
         await SetAuditLevelAsync(Db, jobF, JobAuditLevelCode.Audit, ct);
 
-        var outcomeL = await Services.GetRequiredService<IJobStore>().CancelJobAsync(jobL, input, ct);
-        var outcomeF = await Services.GetRequiredService<IJobStore>().CancelJobAsync(jobF, input, ct);
+        var outcomeL = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(jobL, input, ct);
+        var outcomeF = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(jobF, input, ct);
 
-        Assert.Equal(ControlAction.Applied, outcomeL.Outcome.Action);
-        Assert.Equal(JobStatusCode.Cancelled, outcomeL.Outcome.Status);
+        Assert.Equal(ControlAction.Applied, outcomeL.Action);
+        Assert.Equal(JobStatusCode.Cancelled, outcomeL.Status);
         Assert.Equal(0, await CountEventsAsync(jobL, EventCode.JobCancelled, ct));
 
-        Assert.Equal(ControlAction.Applied, outcomeF.Outcome.Action);
-        Assert.Equal(JobStatusCode.Cancelled, outcomeF.Outcome.Status);
+        Assert.Equal(ControlAction.Applied, outcomeF.Action);
+        Assert.Equal(JobStatusCode.Cancelled, outcomeF.Status);
         Assert.Equal(1, await CountEventsAsync(jobF, EventCode.JobCancelled, ct));
     }
 
@@ -104,8 +104,8 @@ public sealed class ControlVerbAuditGatingSpec : ActaRuntimeTestBase<Conformance
         await SetAuditLevelAsync(Db, jobL, JobAuditLevelCode.Off, ct);
         await SetAuditLevelAsync(Db, jobF, JobAuditLevelCode.Audit, ct);
 
-        var outcomeL = await Services.GetRequiredService<IJobStore>().RestartJobAsync(jobL, input, null, ct);
-        var outcomeF = await Services.GetRequiredService<IJobStore>().RestartJobAsync(jobF, input, null, ct);
+        var outcomeL = await Services.GetRequiredService<RestartJobHandler>().RestartAsync(jobL, input, null, ct);
+        var outcomeF = await Services.GetRequiredService<RestartJobHandler>().RestartAsync(jobF, input, null, ct);
 
         Assert.Equal(ControlAction.Applied, outcomeL.Action);
         Assert.Equal(JobStatusCode.Ready, outcomeL.Status);

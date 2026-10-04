@@ -276,7 +276,8 @@ internal sealed class JobExecutor(
                 namespaceName,
                 namespaceId,
                 _options.Value.LeaseTtlSeconds,
-                _rootServices.GetRequiredService<IJobStore>(),
+                _rootServices.GetRequiredService<CancelJobHandler>(),
+                _rootServices.GetRequiredService<ResetJobStateHandler>(),
                 _rootServices.GetRequiredService<ISignals>(),
                 _rootServices.GetRequiredService<IAlertLifecycle>(),
                 _rootServices.GetRequiredService<Acta.Runtime.IExecutionStore>(),
@@ -302,7 +303,6 @@ internal sealed class JobExecutor(
                 attemptServices.GetService<IJobs>(),
                 tenantKey,
                 workerId,
-                _rootServices.GetRequiredService<WorkerWakeupPublisher>(),
                 _clock
             );
 
@@ -395,17 +395,17 @@ internal sealed class JobExecutor(
     /// </summary>
     public async Task ReleaseOrphanedClaimsAsync(IReadOnlyList<long> jobIds, string reason, CancellationToken ct)
     {
-        var jobStore = _rootServices.GetRequiredService<IJobStore>();
+        var getJob = _rootServices.GetRequiredService<GetJobHandler>();
         var workerIds = _context.WorkerIdByNamespace.Values.ToHashSet();
         foreach (var jobId in jobIds)
         {
-            await ReleaseOrphanedClaimAsync(jobId, jobStore, workerIds, reason, ct);
+            await ReleaseOrphanedClaimAsync(jobId, getJob, workerIds, reason, ct);
         }
     }
 
     private async Task ReleaseOrphanedClaimAsync(
         long jobId,
-        IJobStore jobStore,
+        GetJobHandler getJob,
         HashSet<int> workerIds,
         string reason,
         CancellationToken ct
@@ -416,7 +416,7 @@ internal sealed class JobExecutor(
             return;
         }
 
-        var (row, _) = await CompletionWrite.RetryAsync(async token => await jobStore.GetJobAsync(jobId, token), _log, jobId, ct, _metrics);
+        var (row, _) = await CompletionWrite.RetryAsync(async token => await getJob.ReadAsync(jobId, token), _log, jobId, ct, _metrics);
         // The ownership check repeats after the read: the claim loop registers a row the instant its
         // claim answers, so a row unaccounted for at the first check may be buffered by now. Only an
         // attempt on the row's own execution accounts for it: an older one still unwinding does not.
@@ -442,7 +442,7 @@ internal sealed class JobExecutor(
 
         try
         {
-            await ReleaseOwnedClaimAsync(row, jobId, workerId, jobStore, reason, ct);
+            await ReleaseOwnedClaimAsync(row, jobId, workerId, getJob, reason, ct);
         }
         finally
         {
@@ -454,7 +454,7 @@ internal sealed class JobExecutor(
         JobDetail row,
         long jobId,
         int workerId,
-        IJobStore jobStore,
+        GetJobHandler getJob,
         string reason,
         CancellationToken ct
     )
@@ -463,7 +463,7 @@ internal sealed class JobExecutor(
         {
             var start = await JobExecution.StartReconciledAsync(
                 _execution,
-                jobStore,
+                getJob,
                 jobId,
                 row.ExecutionNumber,
                 row.Version,
@@ -530,7 +530,7 @@ internal sealed class JobExecutor(
         {
             var start = await JobExecution.StartReconciledAsync(
                 _execution,
-                _rootServices.GetRequiredService<IJobStore>(),
+                _rootServices.GetRequiredService<GetJobHandler>(),
                 job,
                 workerId,
                 _leaseTtlSeconds,

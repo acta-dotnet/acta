@@ -33,8 +33,8 @@ public sealed class ControlVerbStateMatrixSpec : ActaRuntimeTestBase<Conformance
         await SetFailureCountAsync(Db, failedJob, 3, ct);
         await SetJobStatusAsync(Db, cancelledJob, (byte)JobStatusCode.Cancelled, ct);
 
-        var outcomeFromFailed = await Services.GetRequiredService<IJobStore>().RestartJobAsync(failedJob, input, null, ct);
-        var outcomeFromCancelled = await Services.GetRequiredService<IJobStore>().RestartJobAsync(cancelledJob, input, null, ct);
+        var outcomeFromFailed = await Services.GetRequiredService<RestartJobHandler>().RestartAsync(failedJob, input, null, ct);
+        var outcomeFromCancelled = await Services.GetRequiredService<RestartJobHandler>().RestartAsync(cancelledJob, input, null, ct);
 
         Assert.Equal(ControlAction.Applied, outcomeFromFailed.Action);
         Assert.Equal(JobStatusCode.Ready, outcomeFromFailed.Status);
@@ -61,7 +61,7 @@ public sealed class ControlVerbStateMatrixSpec : ActaRuntimeTestBase<Conformance
         var jobId = await EnqueueAsync(ct);
         await SetJobStatusAsync(Db, jobId, (byte)JobStatusCode.Executing, ct);
 
-        var outcome = await Services.GetRequiredService<IJobStore>().RestartJobAsync(jobId, input, null, ct);
+        var outcome = await Services.GetRequiredService<RestartJobHandler>().RestartAsync(jobId, input, null, ct);
 
         Assert.Equal(ControlAction.Rejected, outcome.Action);
         Assert.Equal(JobStatusCode.Executing, outcome.Status);
@@ -86,14 +86,14 @@ public sealed class ControlVerbStateMatrixSpec : ActaRuntimeTestBase<Conformance
         // db_now-derived instant against this process's clock would fold container clock skew into a
         // one-second lower bound, and skew is not what this fact is about.
         var tBefore = (await NowAsync(ct)).AddSeconds(-1);
-        var cancelSuspended = await Services.GetRequiredService<IJobStore>().CancelJobAsync(suspendedJob, input, ct);
-        var cancelDispatched = await Services.GetRequiredService<IJobStore>().CancelJobAsync(dispatchedJob, input, ct);
+        var cancelSuspended = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(suspendedJob, input, ct);
+        var cancelDispatched = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(dispatchedJob, input, ct);
         var tAfter = (await NowAsync(ct)).AddDays(91);
 
-        Assert.Equal(ControlAction.Applied, cancelSuspended.Outcome.Action);
-        Assert.Equal(JobStatusCode.Cancelled, cancelSuspended.Outcome.Status);
-        Assert.Equal(ControlAction.Applied, cancelDispatched.Outcome.Action);
-        Assert.Equal(JobStatusCode.Cancelled, cancelDispatched.Outcome.Status);
+        Assert.Equal(ControlAction.Applied, cancelSuspended.Action);
+        Assert.Equal(JobStatusCode.Cancelled, cancelSuspended.Status);
+        Assert.Equal(ControlAction.Applied, cancelDispatched.Action);
+        Assert.Equal(JobStatusCode.Cancelled, cancelDispatched.Status);
 
         var suspendedState = await ReadJobAsync(suspendedJob, ct);
         Assert.Equal(JobStatusCode.Cancelled, suspendedState.Status);
@@ -114,16 +114,16 @@ public sealed class ControlVerbStateMatrixSpec : ActaRuntimeTestBase<Conformance
 
         var jobId = await EnqueueAsync(ct);
 
-        var first = await Services.GetRequiredService<IJobStore>().CancelJobAsync(jobId, input, ct);
-        Assert.Equal(ControlAction.Applied, first.Outcome.Action);
-        Assert.Equal(JobStatusCode.Cancelled, first.Outcome.Status);
+        var first = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(jobId, input, ct);
+        Assert.Equal(ControlAction.Applied, first.Action);
+        Assert.Equal(JobStatusCode.Cancelled, first.Status);
 
         var afterFirst = await ReadJobAsync(jobId, ct);
         var retentionAfterFirst = afterFirst.RetentionUntilUtc;
 
-        var second = await Services.GetRequiredService<IJobStore>().CancelJobAsync(jobId, input, ct);
-        Assert.Equal(ControlAction.Rejected, second.Outcome.Action);
-        Assert.Equal(JobStatusCode.Cancelled, second.Outcome.Status);
+        var second = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(jobId, input, ct);
+        Assert.Equal(ControlAction.Rejected, second.Action);
+        Assert.Equal(JobStatusCode.Cancelled, second.Status);
 
         var afterSecond = await ReadJobAsync(jobId, ct);
         Assert.Equal(JobStatusCode.Cancelled, afterSecond.Status);
@@ -139,14 +139,14 @@ public sealed class ControlVerbStateMatrixSpec : ActaRuntimeTestBase<Conformance
         var jobId = await EnqueueAsync(ct);
         await SetJobStatusAsync(Db, jobId, (byte)JobStatusCode.Suspended, ct);
 
-        var firstPause = (await Services.GetRequiredService<IJobStore>().PauseJobAsync(jobId, input, ct)).Outcome;
+        var firstPause = await Services.GetRequiredService<PauseJobHandler>().PauseAsync(jobId, input, ct);
         Assert.Equal(ControlAction.Applied, firstPause.Action);
         Assert.Equal(JobStatusCode.Paused, firstPause.Status);
 
         var afterFirst = await ReadJobAsync(jobId, ct);
         Assert.Equal(JobStatusCode.Paused, afterFirst.Status);
 
-        var secondPause = (await Services.GetRequiredService<IJobStore>().PauseJobAsync(jobId, input, ct)).Outcome;
+        var secondPause = await Services.GetRequiredService<PauseJobHandler>().PauseAsync(jobId, input, ct);
         Assert.Equal(ControlAction.Applied, secondPause.Action);
         Assert.Equal(JobStatusCode.Paused, secondPause.Status);
 
@@ -167,12 +167,12 @@ public sealed class ControlVerbStateMatrixSpec : ActaRuntimeTestBase<Conformance
 
         // Far-future instant with no sub-second component so the round-trip is lossless.
         var explicitNextRun = new DateTime(2027, 6, 15, 12, 0, 0, DateTimeKind.Utc);
-        var outcomeExplicit = await Services.GetRequiredService<IJobStore>().ResumeJobAsync(explicitJob, input, explicitNextRun, ct);
+        var outcomeExplicit = await Services.GetRequiredService<ResumeJobHandler>().ResumeAsync(explicitJob, input, explicitNextRun, ct);
 
         // A null next run coalesces to db_now, so both ends of the window are read from the same
         // clock that produced it; a process-clock bracket would be measuring container clock skew.
         var tBefore = (await NowAsync(ct)).AddSeconds(-1);
-        var outcomeDefault = await Services.GetRequiredService<IJobStore>().ResumeJobAsync(defaultJob, input, null, ct);
+        var outcomeDefault = await Services.GetRequiredService<ResumeJobHandler>().ResumeAsync(defaultJob, input, null, ct);
         var tAfter = (await NowAsync(ct)).AddSeconds(1);
 
         Assert.Equal(ControlAction.Applied, outcomeExplicit.Action);

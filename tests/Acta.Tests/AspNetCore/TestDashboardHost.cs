@@ -325,23 +325,35 @@ internal static class TestDashboardHost
 
         // --- IJobs verbs ---
 
-        private static JobControlResult ResultFor(JobLookup job, int? expectedVersion = null) =>
-            job.JobRef == MissingJobRef ? new JobControlResult(0, ControlAction.NotFound, null, null)
+        private static (long JobId, ControlAction Action, JobStatusCode? Status, int? Version) ResultFor(
+            JobLookup job,
+            int? expectedVersion = null
+        ) =>
+            job.JobRef == MissingJobRef ? (0, ControlAction.NotFound, null, null)
             : expectedVersion is { } expected && expected != CurrentJobVersion
-                ? new JobControlResult(42, ControlAction.VersionConflict, JobStatusCode.Paused, CurrentJobVersion)
-            : job.JobRef == RejectedJobRef ? new JobControlResult(43, ControlAction.Rejected, JobStatusCode.Succeeded, CurrentJobVersion)
-            : new JobControlResult(42, ControlAction.Applied, JobStatusCode.Paused, CurrentJobVersion + 1);
+                ? (42, ControlAction.VersionConflict, JobStatusCode.Paused, CurrentJobVersion)
+            : job.JobRef == RejectedJobRef ? (43, ControlAction.Rejected, JobStatusCode.Succeeded, CurrentJobVersion)
+            : (42, ControlAction.Applied, JobStatusCode.Paused, CurrentJobVersion + 1);
 
-        private ValueTask<JobControlResult> Control(string verb, JobLookup job, string? reason, string? actorKey, int? expectedVersion)
+        private ValueTask<T> Control<T>(
+            string verb,
+            JobLookup job,
+            string? reason,
+            string? actorKey,
+            int? expectedVersion,
+            Func<long, ControlAction, JobStatusCode?, int?, T> respond
+        )
         {
             ControlCalls.Add((verb, job.JobRef, reason, actorKey, expectedVersion));
-            return ValueTask.FromResult(ResultFor(job, expectedVersion));
+            var (jobId, action, status, version) = ResultFor(job, expectedVersion);
+            return ValueTask.FromResult(respond(jobId, action, status, version));
         }
 
-        private ValueTask<JobControlResult> Signal(JobLookup job, string name, JobPayload value, string? actorKey)
+        private ValueTask<RaiseSignalResponse> Signal(JobLookup job, string name, JobPayload value, string? actorKey)
         {
             SignalCalls.Add((job.JobRef, name, value.Format.Id, value.IsNone ? null : value.Data.ToArray(), actorKey));
-            return ValueTask.FromResult(ResultFor(job));
+            var (jobId, action, status, version) = ResultFor(job);
+            return ValueTask.FromResult(new RaiseSignalResponse(jobId, action, status, version));
         }
 
         public ValueTask<JobDetail?> GetAsync(JobLookup job, CancellationToken ct = default)
@@ -621,39 +633,39 @@ internal static class TestDashboardHost
         public ValueTask<TResult?> GetResultAsync<TResult>(JobLookup job, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
-        public ValueTask<JobControlResult> CancelAsync(
+        public ValueTask<CancelJobResponse> CancelAsync(
             JobLookup job,
             string? reasonMessage = null,
             string? actorKey = null,
             int? expectedVersion = null,
             CancellationToken ct = default
-        ) => Control("cancel", job, reasonMessage, actorKey, expectedVersion);
+        ) => Control("cancel", job, reasonMessage, actorKey, expectedVersion, static (i, a, s, v) => new CancelJobResponse(i, a, s, v));
 
-        public ValueTask<JobControlResult> PauseAsync(
+        public ValueTask<PauseJobResponse> PauseAsync(
             JobLookup job,
             string? reasonMessage = null,
             string? actorKey = null,
             int? expectedVersion = null,
             CancellationToken ct = default
-        ) => Control("pause", job, reasonMessage, actorKey, expectedVersion);
+        ) => Control("pause", job, reasonMessage, actorKey, expectedVersion, static (i, a, s, v) => new PauseJobResponse(i, a, s, v));
 
-        public ValueTask<JobControlResult> ResumeAsync(
+        public ValueTask<ResumeJobResponse> ResumeAsync(
             JobLookup job,
             string? reasonMessage = null,
             string? actorKey = null,
             int? expectedVersion = null,
             CancellationToken ct = default
-        ) => Control("resume", job, reasonMessage, actorKey, expectedVersion);
+        ) => Control("resume", job, reasonMessage, actorKey, expectedVersion, static (i, a, s, v) => new ResumeJobResponse(i, a, s, v));
 
-        public ValueTask<JobControlResult> RestartAsync(
+        public ValueTask<RestartJobResponse> RestartAsync(
             JobLookup job,
             string? reasonMessage = null,
             string? actorKey = null,
             int? expectedVersion = null,
             CancellationToken ct = default
-        ) => Control("restart", job, reasonMessage, actorKey, expectedVersion);
+        ) => Control("restart", job, reasonMessage, actorKey, expectedVersion, static (i, a, s, v) => new RestartJobResponse(i, a, s, v));
 
-        public ValueTask<JobControlResult> RescheduleAsync(
+        public ValueTask<RescheduleJobResponse> RescheduleAsync(
             JobLookup job,
             DateTime nextRunAtUtc,
             string? reasonMessage = null,
@@ -663,10 +675,11 @@ internal static class TestDashboardHost
         )
         {
             RescheduleCalls.Add((job.JobRef, nextRunAtUtc, reasonMessage, actorKey, expectedVersion));
-            return ValueTask.FromResult(ResultFor(job, expectedVersion));
+            var (jobId, action, status, version) = ResultFor(job, expectedVersion);
+            return ValueTask.FromResult(new RescheduleJobResponse(jobId, action, status, version));
         }
 
-        public ValueTask<JobControlResult> ReprioritizeAsync(
+        public ValueTask<ReprioritizeJobResponse> ReprioritizeAsync(
             JobLookup job,
             JobPriorityCode priority,
             string? reasonMessage = null,
@@ -676,10 +689,11 @@ internal static class TestDashboardHost
         )
         {
             ReprioritizeCalls.Add((job.JobRef, priority, reasonMessage, actorKey, expectedVersion));
-            return ValueTask.FromResult(ResultFor(job, expectedVersion));
+            var (jobId, action, status, version) = ResultFor(job, expectedVersion);
+            return ValueTask.FromResult(new ReprioritizeJobResponse(jobId, action, status, version));
         }
 
-        public ValueTask<JobControlResult> UpdateJobInputAsync(
+        public ValueTask<UpdateJobInputResponse> UpdateJobInputAsync(
             JobLookup job,
             JobPayload input,
             string? reasonMessage = null,
@@ -688,29 +702,23 @@ internal static class TestDashboardHost
         )
         {
             InputAmendCalls.Add(input);
-            var result = ResultFor(job);
-            if (result.Action == ControlAction.Applied)
+            var (jobId, action, status, version) = ResultFor(job);
+            if (action == ControlAction.Applied)
             {
                 StoredInput = input;
             }
 
-            return ValueTask.FromResult(result);
+            return ValueTask.FromResult(new UpdateJobInputResponse(jobId, action, status, version));
         }
 
-        public ValueTask<JobControlResult> PurgeAsync(JobLookup job, string? actorKey = null, CancellationToken ct = default)
+        public ValueTask<PurgeJobResponse> PurgeAsync(JobLookup job, string? actorKey = null, CancellationToken ct = default)
         {
             PurgeCalls.Add((job.JobRef, actorKey));
-            return ValueTask.FromResult(ResultFor(job));
+            var (jobId, action, status, version) = ResultFor(job);
+            return ValueTask.FromResult(new PurgeJobResponse(jobId, action, status, version));
         }
 
-        public ValueTask<JobControlResult> RaiseSignalAsync(
-            JobLookup job,
-            string name,
-            string? actorKey = null,
-            CancellationToken ct = default
-        ) => Signal(job, name, JobPayload.None, actorKey);
-
-        public ValueTask<JobControlResult> RaiseSignalAsync<T>(
+        public ValueTask<RaiseSignalResponse> RaiseSignalAsync<T>(
             JobLookup job,
             string name,
             T value,
@@ -718,7 +726,7 @@ internal static class TestDashboardHost
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
-        public ValueTask<JobControlResult> RaiseSignalAsync(
+        public ValueTask<RaiseSignalResponse> RaiseSignalAsync(
             JobLookup job,
             string name,
             JobPayload value,

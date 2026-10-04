@@ -39,7 +39,7 @@ public sealed class GetJobLineageMapSpec : ActaRuntimeTestBase<ConformanceFixtur
         var childA = await EnqueueAsync(mid, ct);
         var childB = await EnqueueAsync(mid, ct);
 
-        var data = await Services.GetRequiredService<IJobStore>().GetJobLineageMapAsync(mid, 100, ct);
+        var data = await Services.GetRequiredService<GetJobLineageMapHandler>().ReadAsync(mid, 100, ct);
 
         Assert.NotNull(data);
         Assert.Equal(mid, data!.Focus.JobId);
@@ -61,7 +61,7 @@ public sealed class GetJobLineageMapSpec : ActaRuntimeTestBase<ConformanceFixtur
         var mid = await EnqueueAsync(root, ct);
         var leaf = await EnqueueAsync(mid, ct);
 
-        var data = await Services.GetRequiredService<IJobStore>().GetJobLineageMapAsync(leaf, 100, ct);
+        var data = await Services.GetRequiredService<GetJobLineageMapHandler>().ReadAsync(leaf, 100, ct);
 
         Assert.NotNull(data);
         Assert.Equal([root, mid], [.. data!.Ancestors.Select(a => a.JobId)]);
@@ -77,7 +77,7 @@ public sealed class GetJobLineageMapSpec : ActaRuntimeTestBase<ConformanceFixtur
         await EnqueueAsync(root, ct);
         await EnqueueAsync(root, ct);
 
-        var data = await Services.GetRequiredService<IJobStore>().GetJobLineageMapAsync(root, 2, ct);
+        var data = await Services.GetRequiredService<GetJobLineageMapHandler>().ReadAsync(root, 2, ct);
 
         Assert.NotNull(data);
         Assert.Equal(2, data!.Children.Count);
@@ -88,7 +88,7 @@ public sealed class GetJobLineageMapSpec : ActaRuntimeTestBase<ConformanceFixtur
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var data = await Services.GetRequiredService<IJobStore>().GetJobLineageMapAsync(long.MaxValue, 100, ct);
+        var data = await Services.GetRequiredService<GetJobLineageMapHandler>().ReadAsync(long.MaxValue, 100, ct);
 
         Assert.Null(data);
     }

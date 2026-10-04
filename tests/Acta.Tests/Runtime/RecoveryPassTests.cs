@@ -103,11 +103,11 @@ public sealed class RecoveryPassTests
     {
         public bool Releases { get; init; }
 
-        public Task<JobControlOutcome> RaiseSignalAsync(SignalSlotRaise command, CancellationToken ct) =>
+        public Task<JobControlActionRow> RaiseSignalAsync(SignalSlotRaise command, CancellationToken ct) =>
             Task.FromResult(
                 Releases
-                    ? new JobControlOutcome(ControlAction.Applied, JobStatusCode.Ready, null)
-                    : new JobControlOutcome(ControlAction.Rejected, null, null)
+                    ? new JobControlActionRow(ControlAction.Applied, JobStatusCode.Ready)
+                    : new JobControlActionRow(ControlAction.Rejected, null)
             );
 
         public Task<SignalWaitDecision> WaitSignalAsync(

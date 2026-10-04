@@ -6,7 +6,6 @@ AlertListItem.cs
 AlertRows.cs
 AlertsJob.cs
 AttemptWatchdog.cs
-CancelDescendants.cs
 CatalogHash.cs
 ChildWaitResult.cs
 ChildrenWaitResult.cs
@@ -44,7 +43,6 @@ JobCheckpoint.cs
 JobCheckpointItem.cs
 JobContext.cs
 JobControlException.cs
-JobControlResult.cs
 JobDefinitionDetail.cs
 JobDefinitionListItem.cs
 JobDefinitionPolicyOverrides.cs
@@ -75,7 +73,6 @@ JobSchedule.cs
 JobScheduleAttribute.cs
 JobStep.cs
 JobTypeIndex.cs
-JobsApi.cs
 JobsOptions.cs
 JobsOptionsValidator.cs
 JsonJobPayloadSerializer.cs

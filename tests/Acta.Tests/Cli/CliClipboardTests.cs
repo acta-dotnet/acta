@@ -405,7 +405,7 @@ public class CliRunnerClipboardTests
         public ValueTask<TResult?> GetResultAsync<TResult>(JobLookup job, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
-        public ValueTask<JobControlResult> CancelAsync(
+        public ValueTask<CancelJobResponse> CancelAsync(
             JobLookup job,
             string? reasonMessage = null,
             string? actorKey = null,
@@ -413,7 +413,7 @@ public class CliRunnerClipboardTests
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
-        public ValueTask<JobControlResult> PauseAsync(
+        public ValueTask<PauseJobResponse> PauseAsync(
             JobLookup job,
             string? reasonMessage = null,
             string? actorKey = null,
@@ -421,7 +421,7 @@ public class CliRunnerClipboardTests
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
-        public ValueTask<JobControlResult> ResumeAsync(
+        public ValueTask<ResumeJobResponse> ResumeAsync(
             JobLookup job,
             string? reasonMessage = null,
             string? actorKey = null,
@@ -429,7 +429,7 @@ public class CliRunnerClipboardTests
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
-        public ValueTask<JobControlResult> RestartAsync(
+        public ValueTask<RestartJobResponse> RestartAsync(
             JobLookup job,
             string? reasonMessage = null,
             string? actorKey = null,
@@ -437,7 +437,7 @@ public class CliRunnerClipboardTests
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
-        public ValueTask<JobControlResult> RescheduleAsync(
+        public ValueTask<RescheduleJobResponse> RescheduleAsync(
             JobLookup job,
             DateTime nextRunAtUtc,
             string? reasonMessage = null,
@@ -446,7 +446,7 @@ public class CliRunnerClipboardTests
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
-        public ValueTask<JobControlResult> ReprioritizeAsync(
+        public ValueTask<ReprioritizeJobResponse> ReprioritizeAsync(
             JobLookup job,
             JobPriorityCode priority,
             string? reasonMessage = null,
@@ -455,7 +455,7 @@ public class CliRunnerClipboardTests
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
-        public ValueTask<JobControlResult> UpdateJobInputAsync(
+        public ValueTask<UpdateJobInputResponse> UpdateJobInputAsync(
             JobLookup job,
             JobPayload input,
             string? reasonMessage = null,
@@ -463,17 +463,10 @@ public class CliRunnerClipboardTests
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
-        public ValueTask<JobControlResult> PurgeAsync(JobLookup job, string? actorKey = null, CancellationToken ct = default) =>
+        public ValueTask<PurgeJobResponse> PurgeAsync(JobLookup job, string? actorKey = null, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
-        public ValueTask<JobControlResult> RaiseSignalAsync(
-            JobLookup job,
-            string name,
-            string? actorKey = null,
-            CancellationToken ct = default
-        ) => throw new NotSupportedException();
-
-        public ValueTask<JobControlResult> RaiseSignalAsync<T>(
+        public ValueTask<RaiseSignalResponse> RaiseSignalAsync<T>(
             JobLookup job,
             string name,
             T value,
@@ -484,7 +477,7 @@ public class CliRunnerClipboardTests
         /// <summary>Recorded signal raises with the delivered payload format and bytes (null when presence-only).</summary>
         public List<(string Name, byte FormatId, byte[]? Value)> Signals { get; } = [];
 
-        public ValueTask<JobControlResult> RaiseSignalAsync(
+        public ValueTask<RaiseSignalResponse> RaiseSignalAsync(
             JobLookup job,
             string name,
             JobPayload value,
@@ -493,7 +486,7 @@ public class CliRunnerClipboardTests
         )
         {
             Signals.Add((name, value.Format.Id, value.IsNone ? null : value.Data.ToArray()));
-            return ValueTask.FromResult(new JobControlResult(1, ControlAction.Applied, JobStatusCode.Ready, 4));
+            return ValueTask.FromResult(new RaiseSignalResponse(1, ControlAction.Applied, JobStatusCode.Ready, 4));
         }
     }
 }

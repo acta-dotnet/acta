@@ -41,7 +41,7 @@ public sealed class HandlerControlSpec : ActaRuntimeTestBase<ConformanceFixture,
         // Did not return to user code, and the failed attempt persisted no result payload.
         Assert.Equal(1, await CountVariableAsync(enqueued.JobId, "ran.before", ct));
         Assert.Equal(0, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
-        Assert.Null(await Services.GetRequiredService<IJobStore>().GetJobResultAsync(enqueued.JobId, null, ct));
+        Assert.Null(await Services.GetRequiredService<GetJobResultHandler>().ReadAsync(enqueued.JobId, null, ct));
 
         // A handler fail is a failure: the finished event carries ExecutionStatusCode.Failed and there is
         // no separate cancel/pause lifecycle event.
@@ -93,7 +93,7 @@ public sealed class HandlerControlSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal(JobEventReasonCode.JobHandlerCancelled, cancelEvent.ReasonCode);
 
         Assert.Equal(0, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
-        Assert.Null(await Services.GetRequiredService<IJobStore>().GetJobResultAsync(enqueued.JobId, null, ct));
+        Assert.Null(await Services.GetRequiredService<GetJobResultHandler>().ReadAsync(enqueued.JobId, null, ct));
 
         Assert.Equal(1, await CountFinishedWithStatusAsync(enqueued.JobId, ExecutionStatusCode.Cancelled, ct));
         Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobCancelled, ct));
@@ -117,7 +117,7 @@ public sealed class HandlerControlSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal(JobEventReasonCode.JobHandlerPaused, pauseEvent.ReasonCode);
 
         Assert.Equal(0, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
-        Assert.Null(await Services.GetRequiredService<IJobStore>().GetJobResultAsync(enqueued.JobId, null, ct));
+        Assert.Null(await Services.GetRequiredService<GetJobResultHandler>().ReadAsync(enqueued.JobId, null, ct));
 
         Assert.Equal(1, await CountFinishedWithStatusAsync(enqueued.JobId, ExecutionStatusCode.Paused, ct));
         Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobPaused, ct));

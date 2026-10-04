@@ -10,13 +10,13 @@ public sealed class BatchDeduplicationScopeTests
     {
         JobEnqueueRow[] rows =
         [
-            JobEnqueueRows.Canonicalize(Root("billing", "invoice-7")),
-            JobEnqueueRows.Canonicalize(Root("billing", "other")),
-            JobEnqueueRows.Canonicalize(Root("billing", "Invoice-7")),
+            JobEnqueue.Canonicalize(Root("billing", "invoice-7")),
+            JobEnqueue.Canonicalize(Root("billing", "other")),
+            JobEnqueue.Canonicalize(Root("billing", "Invoice-7")),
         ];
 
         var exception = Assert.Throws<DuplicateDeduplicationKeyInBatchException>(() =>
-            JobsService.ValidateDeduplicationKeyUniqueness(rows)
+            EnqueueBatchHandler.ValidateDeduplicationKeyUniqueness(rows)
         );
 
         Assert.Equal("invoice-7", exception.DeduplicationKey);
@@ -31,7 +31,7 @@ public sealed class BatchDeduplicationScopeTests
     {
         JobEnqueueRow[] rows = [Root("billing", "invoice-7"), Root("shipping", "invoice-7")];
 
-        JobsService.ValidateDeduplicationKeyUniqueness(rows);
+        EnqueueBatchHandler.ValidateDeduplicationKeyUniqueness(rows);
     }
 
     [Fact]
@@ -40,7 +40,7 @@ public sealed class BatchDeduplicationScopeTests
         JobEnqueueRow[] rows = [Child(42, "line-7"), Child(42, "other"), Child(42, "line-7")];
 
         var exception = Assert.Throws<DuplicateDeduplicationKeyInBatchException>(() =>
-            JobsService.ValidateDeduplicationKeyUniqueness(rows)
+            EnqueueBatchHandler.ValidateDeduplicationKeyUniqueness(rows)
         );
 
         Assert.Equal("line-7", exception.DeduplicationKey);
@@ -55,7 +55,7 @@ public sealed class BatchDeduplicationScopeTests
     {
         JobEnqueueRow[] rows = [Child(42, "line-7"), Child(43, "line-7")];
 
-        JobsService.ValidateDeduplicationKeyUniqueness(rows);
+        EnqueueBatchHandler.ValidateDeduplicationKeyUniqueness(rows);
     }
 
     [Fact]
@@ -63,7 +63,7 @@ public sealed class BatchDeduplicationScopeTests
     {
         JobEnqueueRow[] rows = [Root("billing", "invoice-7"), Child(42, "invoice-7")];
 
-        JobsService.ValidateDeduplicationKeyUniqueness(rows);
+        EnqueueBatchHandler.ValidateDeduplicationKeyUniqueness(rows);
     }
 
     private static JobEnqueueRow Root(string jobNamespace, string deduplicationKey) =>

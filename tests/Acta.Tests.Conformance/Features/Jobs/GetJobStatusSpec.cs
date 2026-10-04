@@ -35,7 +35,7 @@ public sealed class GetJobStatusSpec : ActaRuntimeTestBase<ConformanceFixture, T
         );
         var jobId = results[0].JobId;
 
-        var status = await Services.GetRequiredService<IJobStore>().GetJobStatusAsync(jobId, ct);
+        var status = await Services.GetRequiredService<GetJobStatusHandler>().ReadAsync(jobId, ct);
 
         Assert.Equal(JobStatusCode.Ready, status);
     }
@@ -45,7 +45,7 @@ public sealed class GetJobStatusSpec : ActaRuntimeTestBase<ConformanceFixture, T
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var status = await Services.GetRequiredService<IJobStore>().GetJobStatusAsync(long.MaxValue, ct);
+        var status = await Services.GetRequiredService<GetJobStatusHandler>().ReadAsync(long.MaxValue, ct);
 
         Assert.Null(status);
     }

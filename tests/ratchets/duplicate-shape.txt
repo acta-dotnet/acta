@@ -4,10 +4,8 @@ AlertListItem
 CheckpointValue
 JobCheckpointItem
 JobCheckpointResponse
-JobDetail
 JobLineageChild
 JobLineageJob
-JobSnapshotRow
 LineageChildRow
 LineageJobRow
 OutboxSignalRow

@@ -1,16 +1,16 @@
 SELECT
-    j.id,
+    j.id AS job_id,
     j.job_ref,
     j.lineage_root_id,
     lroot.job_ref AS lineage_root_job_ref,
-    j.parent_id,
+    j.parent_id AS parent_job_id,
     pjob.job_ref AS parent_job_ref,
     j.deduplication_key,
     j.correlation_key,
-    ns.name AS namespace_name,
+    ns.name AS job_namespace,
     jd.name AS job_name,
-    r.status_code,
-    r.priority_code,
+    r.status_code AS status,
+    r.priority_code AS priority,
     r.execution_number,
     r.failure_count,
     j.input_format_id,
@@ -27,7 +27,7 @@ SELECT
     lw.worker_ref AS leased_by_worker_ref,
     r.version,
     lane.name AS lane,
-    hjob.id AS blocked_behind_id,
+    hjob.id AS blocked_behind_job_id,
     hjob.job_ref AS blocked_behind_job_ref
 FROM {{schema}}.jobs j
 INNER JOIN {{schema}}.runtimes r ON r.job_id = j.id

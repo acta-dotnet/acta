@@ -118,7 +118,7 @@ internal sealed class CliCommandRunner(
     private static JobPayload SignalPayload(string? value) =>
         value is null ? JobPayload.None : JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes(value));
 
-    private int Control(string verb, JobRef jobRef, JobControlResult result, bool json)
+    private int Control(string verb, JobRef jobRef, IJobControlResponse result, bool json)
     {
         CliOutput.WriteControl(output, verb, jobRef, result, json);
         return result.Action switch

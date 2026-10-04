@@ -315,7 +315,7 @@ public interface IJobs
     /// unknown. An already-terminal job is <see cref="ControlAction.Rejected"/>; a missing job is
     /// <see cref="ControlAction.NotFound"/>.
     /// </summary>
-    ValueTask<JobControlResult> CancelAsync(
+    ValueTask<CancelJobResponse> CancelAsync(
         JobLookup job,
         string? reasonMessage = null,
         string? actorKey = null,
@@ -332,7 +332,7 @@ public interface IJobs
     /// cref="RescheduleAsync"/> re-arms a <c>Paused</c> job to <c>Ready</c>, a documented path out of
     /// <c>Paused</c>.
     /// </summary>
-    ValueTask<JobControlResult> PauseAsync(
+    ValueTask<PauseJobResponse> PauseAsync(
         JobLookup job,
         string? reasonMessage = null,
         string? actorKey = null,
@@ -347,7 +347,7 @@ public interface IJobs
     /// cleared). <paramref name="actorKey"/> is recorded on the audit event as the operator identity (e.g. the
     /// authenticated principal name); null when unknown. A non-paused job is <see cref="ControlAction.Rejected"/>.
     /// </summary>
-    ValueTask<JobControlResult> ResumeAsync(
+    ValueTask<ResumeJobResponse> ResumeAsync(
         JobLookup job,
         string? reasonMessage = null,
         string? actorKey = null,
@@ -366,7 +366,7 @@ public interface IJobs
     /// another member of the lane runs, or an older one is unfinished. Once the lane moves on it runs before
     /// the members that were already waiting, because promotion takes the lowest-id member.
     /// </summary>
-    ValueTask<JobControlResult> RestartAsync(
+    ValueTask<RestartJobResponse> RestartAsync(
         JobLookup job,
         string? reasonMessage = null,
         string? actorKey = null,
@@ -382,7 +382,7 @@ public interface IJobs
     /// persisted on the audit event and <paramref name="actorKey"/> is recorded on the audit event as
     /// the operator identity (e.g. the authenticated principal name); null when unknown.
     /// </summary>
-    ValueTask<JobControlResult> RescheduleAsync(
+    ValueTask<RescheduleJobResponse> RescheduleAsync(
         JobLookup job,
         DateTime nextRunAtUtc,
         string? reasonMessage = null,
@@ -399,7 +399,7 @@ public interface IJobs
     /// the audit event and <paramref name="actorKey"/> is recorded on the audit event as the operator
     /// identity (e.g. the authenticated principal name); null when unknown.
     /// </summary>
-    ValueTask<JobControlResult> ReprioritizeAsync(
+    ValueTask<ReprioritizeJobResponse> ReprioritizeAsync(
         JobLookup job,
         JobPriorityCode priority,
         string? reasonMessage = null,
@@ -419,7 +419,7 @@ public interface IJobs
     /// audit event and <paramref name="actorKey"/> is recorded on the audit event as the operator
     /// identity (e.g. the authenticated principal name); null when unknown.
     /// </summary>
-    ValueTask<JobControlResult> UpdateJobInputAsync(
+    ValueTask<UpdateJobInputResponse> UpdateJobInputAsync(
         JobLookup job,
         JobPayload input,
         string? reasonMessage = null,
@@ -440,7 +440,7 @@ public interface IJobs
     /// authenticated principal name); null when unknown. Unlike the other control verbs there is no
     /// caller reason message: purge carries no context beyond the audit trail itself.
     /// </summary>
-    ValueTask<JobControlResult> PurgeAsync(JobLookup job, string? actorKey = null, CancellationToken ct = default);
+    ValueTask<PurgeJobResponse> PurgeAsync(JobLookup job, string? actorKey = null, CancellationToken ct = default);
 
     /// <summary>
     /// Typed-payload variant of
@@ -449,7 +449,7 @@ public interface IJobs
     /// <c>ctx.WaitSignalAsync&lt;T&gt;(name)</c>. <paramref name="actorKey"/> is recorded on the audit event
     /// as the operator identity (e.g. the authenticated principal name); null when unknown.
     /// </summary>
-    ValueTask<JobControlResult> RaiseSignalAsync<T>(
+    ValueTask<RaiseSignalResponse> RaiseSignalAsync<T>(
         JobLookup job,
         string name,
         T value,
@@ -466,7 +466,7 @@ public interface IJobs
     /// payload without binding the handler's type. <paramref name="actorKey"/> is recorded on the audit event
     /// as the operator identity (e.g. the authenticated principal name); null when unknown.
     /// </summary>
-    ValueTask<JobControlResult> RaiseSignalAsync(
+    ValueTask<RaiseSignalResponse> RaiseSignalAsync(
         JobLookup job,
         string name,
         JobPayload value,

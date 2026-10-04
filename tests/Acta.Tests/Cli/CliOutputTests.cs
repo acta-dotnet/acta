@@ -17,7 +17,7 @@ public class CliOutputTests
             w,
             "pause",
             SampleJobRef,
-            new JobControlResult(123, ControlAction.Applied, JobStatusCode.Paused, 4),
+            new PauseJobResponse(123, ControlAction.Applied, JobStatusCode.Paused, 4),
             json: false
         );
         var text = w.ToString();
@@ -34,7 +34,7 @@ public class CliOutputTests
             w,
             "pause",
             SampleJobRef,
-            new JobControlResult(123, ControlAction.Applied, JobStatusCode.Paused, 4),
+            new PauseJobResponse(123, ControlAction.Applied, JobStatusCode.Paused, 4),
             json: true
         );
         var text = w.ToString();
@@ -150,11 +150,11 @@ public class CliOutputTests
     public void Control_null_status_prints_none_and_json_null()
     {
         var plain = new StringWriter();
-        CliOutput.WriteControl(plain, "cancel", SampleJobRef, new JobControlResult(0, ControlAction.NotFound, null, null), json: false);
+        CliOutput.WriteControl(plain, "cancel", SampleJobRef, new CancelJobResponse(0, ControlAction.NotFound, null, null), json: false);
         Assert.Contains("status: (none)", plain.ToString());
 
         var json = new StringWriter();
-        CliOutput.WriteControl(json, "cancel", SampleJobRef, new JobControlResult(0, ControlAction.NotFound, null, null), json: true);
+        CliOutput.WriteControl(json, "cancel", SampleJobRef, new CancelJobResponse(0, ControlAction.NotFound, null, null), json: true);
         Assert.Contains("\"status\":null", json.ToString());
     }
 
@@ -549,7 +549,7 @@ public class CliOutputTests
             w,
             "pause",
             SampleJobRef,
-            new JobControlResult(SentinelJobId, ControlAction.Applied, JobStatusCode.Paused, 4),
+            new PauseJobResponse(SentinelJobId, ControlAction.Applied, JobStatusCode.Paused, 4),
             json
         );
         AssertRefsOnly(w.ToString(), SampleJobRef.ToString());

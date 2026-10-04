@@ -24,12 +24,11 @@ public sealed class JobPayloadReadsSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Input_readable_after_enqueue_equals_enqueued()
     {
         var ct = TestContext.Current.CancellationToken;
-        var store = Services.GetRequiredService<IJobStore>();
 
         var input = JobPayload.Json(new AddNumbers(4, 9));
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", input), ct);
 
-        var record = await store.GetJobInputAsync(enqueued.JobId, ct);
+        var record = await Services.GetRequiredService<GetJobInputHandler>().ReadAsync(enqueued.JobId, ct);
         Assert.NotNull(record);
         Assert.Equal(input.Format.Id, record!.FormatId);
         Assert.Equal(input.Data.ToArray(), record.Data.ToArray());
@@ -44,9 +43,8 @@ public sealed class JobPayloadReadsSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Input_null_for_missing_job()
     {
         var ct = TestContext.Current.CancellationToken;
-        var store = Services.GetRequiredService<IJobStore>();
 
-        var record = await store.GetJobInputAsync(-987_654_321L, ct);
+        var record = await Services.GetRequiredService<GetJobInputHandler>().ReadAsync(-987_654_321L, ct);
         Assert.Null(record);
     }
 
@@ -54,7 +52,6 @@ public sealed class JobPayloadReadsSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Checkpoints_round_trip_kind_state_and_value()
     {
         var ct = TestContext.Current.CancellationToken;
-        var store = Services.GetRequiredService<IJobStore>();
         var execution = Services.GetRequiredService<IExecutionStore>();
 
         var enqueued = await Jobs.EnqueueAsync(
@@ -80,7 +77,7 @@ public sealed class JobPayloadReadsSpec : ActaRuntimeTestBase<ConformanceFixture
                 ct
             );
 
-        var items = await store.GetJobCheckpointsAsync(enqueued.JobId, ct);
+        var items = await Services.GetRequiredService<GetJobCheckpointsHandler>().ReadAsync(enqueued.JobId, ct);
         Assert.Equal(2, items.Count);
 
         // Ordered by kind (Variable=10 before Signal=20) then name.
@@ -104,14 +101,13 @@ public sealed class JobPayloadReadsSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Checkpoints_empty_when_none()
     {
         var ct = TestContext.Current.CancellationToken;
-        var store = Services.GetRequiredService<IJobStore>();
 
         var enqueued = await Jobs.EnqueueAsync(
             new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 2))),
             ct
         );
 
-        Assert.Empty(await store.GetJobCheckpointsAsync(enqueued.JobId, ct));
-        Assert.Empty(await store.GetJobCheckpointsAsync(-123_456_789L, ct));
+        Assert.Empty(await Services.GetRequiredService<GetJobCheckpointsHandler>().ReadAsync(enqueued.JobId, ct));
+        Assert.Empty(await Services.GetRequiredService<GetJobCheckpointsHandler>().ReadAsync(-123_456_789L, ct));
     }
 }

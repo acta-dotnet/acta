@@ -79,7 +79,7 @@ public sealed partial class CommentStyleTests
         "src/Acta.Runtime/Modules/Execution/RecoveryPass.cs",
         "src/Acta.Runtime/Maintenance/RetentionJob.cs",
         "src/Acta.Runtime/Modules/Execution/CompletionTypes.cs",
-        "src/Acta.Runtime/Modules/Execution/Jobs/JobEnqueueRow.cs",
+        "src/Acta.Runtime/Operations/Jobs/JobEnqueueRow.cs",
         "src/Acta.Runtime/Modules/Execution/Definitions/CatalogHash.cs",
         "src/Acta.Runtime/Modules/Execution/Workers/ClockSkewValidator.cs",
         "src/Acta.Runtime/Modules/Execution/JobBehaviorPipeline.cs",

@@ -49,7 +49,7 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobRescheduled, ct));
 
         // Acceptance invariant: a re-arm writes no result payload.
-        var result = await Services.GetRequiredService<IJobStore>().GetJobResultAsync(enqueued.JobId, null, ct);
+        var result = await Services.GetRequiredService<GetJobResultHandler>().ReadAsync(enqueued.JobId, null, ct);
         Assert.Null(result);
     }
 

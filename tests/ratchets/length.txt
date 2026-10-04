@@ -8,6 +8,5 @@ CodeGenerator.cs
 DbProjectionGenerator.cs
 JobContext.cs
 JobExecution.cs
-JobsService.cs
 RuntimeJobContext.cs
 SqlServerDialect.cs

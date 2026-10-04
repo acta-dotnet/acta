@@ -35,7 +35,7 @@ public sealed class GetJobExplanationSpec : ActaRuntimeTestBase<ConformanceFixtu
         );
         var jobId = results[0].JobId;
 
-        var data = await Services.GetRequiredService<IJobStore>().GetJobExplanationAsync(jobId, ct);
+        var data = await Services.GetRequiredService<GetJobExplanationHandler>().ReadAsync(jobId, ct);
 
         Assert.NotNull(data);
         Assert.Equal(jobId, data!.Header.JobId);
@@ -53,7 +53,7 @@ public sealed class GetJobExplanationSpec : ActaRuntimeTestBase<ConformanceFixtu
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var data = await Services.GetRequiredService<IJobStore>().GetJobExplanationAsync(long.MaxValue, ct);
+        var data = await Services.GetRequiredService<GetJobExplanationHandler>().ReadAsync(long.MaxValue, ct);
 
         Assert.Null(data);
     }

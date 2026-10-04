@@ -123,13 +123,13 @@ internal static class ActaControlEndpoints
                     var jobId = await jobs.GetJobIdAsync(JobLookup.ByRef(parsed), ct);
                     if (jobId is null)
                     {
-                        return ToResult(new JobControlResult(0, ControlAction.NotFound, null, null));
+                        return ToResult(new UpdateJobInputResponse(0, ControlAction.NotFound, null, null));
                     }
 
                     var current = await jobs.GetInputAsync(JobLookup.ById(jobId.Value), ct);
                     if (current is not { } stored)
                     {
-                        return ToResult(new JobControlResult(jobId.Value, ControlAction.Rejected, null, null));
+                        return ToResult(new UpdateJobInputResponse(jobId.Value, ControlAction.Rejected, null, null));
                     }
 
                     var storedFormat = stored.Format;
@@ -200,9 +200,9 @@ internal static class ActaControlEndpoints
             .WithSummary("Amend a waiting job's stored input.")
             // The body is read manually rather than bound, so the document only learns its shape here.
             .AcceptsJson<JobInputRequest>()
-            .Produces<JobControlResult>(StatusCodes.Status200OK)
-            .Produces<JobControlResult>(StatusCodes.Status409Conflict)
-            .Produces<JobControlResult>(StatusCodes.Status404NotFound);
+            .Produces<UpdateJobInputResponse>(StatusCodes.Status200OK)
+            .Produces<UpdateJobInputResponse>(StatusCodes.Status409Conflict)
+            .Produces<UpdateJobInputResponse>(StatusCodes.Status404NotFound);
     }
 
     /// <summary>
@@ -268,9 +268,9 @@ internal static class ActaControlEndpoints
             )
             .WithSummary("Move the job's next-run instant.")
             .AcceptsJson<JobRescheduleRequest>()
-            .Produces<JobControlResult>(StatusCodes.Status200OK)
-            .Produces<JobControlResult>(StatusCodes.Status409Conflict)
-            .Produces<JobControlResult>(StatusCodes.Status404NotFound);
+            .Produces<RescheduleJobResponse>(StatusCodes.Status200OK)
+            .Produces<RescheduleJobResponse>(StatusCodes.Status409Conflict)
+            .Produces<RescheduleJobResponse>(StatusCodes.Status404NotFound);
     }
 
     /// <summary>
@@ -327,9 +327,9 @@ internal static class ActaControlEndpoints
             )
             .WithSummary("Change the job's priority.")
             .AcceptsJson<JobReprioritizeRequest>()
-            .Produces<JobControlResult>(StatusCodes.Status200OK)
-            .Produces<JobControlResult>(StatusCodes.Status409Conflict)
-            .Produces<JobControlResult>(StatusCodes.Status404NotFound);
+            .Produces<ReprioritizeJobResponse>(StatusCodes.Status200OK)
+            .Produces<ReprioritizeJobResponse>(StatusCodes.Status409Conflict)
+            .Produces<ReprioritizeJobResponse>(StatusCodes.Status404NotFound);
     }
 
     /// <summary>
@@ -410,19 +410,20 @@ internal static class ActaControlEndpoints
             // The signal value is free-form JSON passed through verbatim, so the declared body type is
             // "any JSON" rather than a record; optional because an empty body raises a presence-only signal.
             .AcceptsJson<System.Text.Json.JsonElement>(optional: true)
-            .Produces<JobControlResult>(StatusCodes.Status200OK)
-            .Produces<JobControlResult>(StatusCodes.Status409Conflict)
-            .Produces<JobControlResult>(StatusCodes.Status404NotFound);
+            .Produces<RaiseSignalResponse>(StatusCodes.Status200OK)
+            .Produces<RaiseSignalResponse>(StatusCodes.Status409Conflict)
+            .Produces<RaiseSignalResponse>(StatusCodes.Status404NotFound);
     }
 
-    private static void MapVerb(
+    private static void MapVerb<TResponse>(
         RouteGroupBuilder group,
         ActaEndpointOptions options,
         string verb,
         string summary,
-        Func<IJobs, JobLookup, string?, string?, int?, CancellationToken, ValueTask<JobControlResult>> invoke,
+        Func<IJobs, JobLookup, string?, string?, int?, CancellationToken, ValueTask<TResponse>> invoke,
         bool takesExpectedVersion = true
     )
+        where TResponse : IJobControlResponse
     {
         var builder = group.MapPost(
             "/jobs/{jobRef}/" + verb,
@@ -478,18 +479,19 @@ internal static class ActaControlEndpoints
         }
 
         builder
-            .Produces<JobControlResult>(StatusCodes.Status200OK)
-            .Produces<JobControlResult>(StatusCodes.Status409Conflict)
-            .Produces<JobControlResult>(StatusCodes.Status404NotFound);
+            .Produces<TResponse>(StatusCodes.Status200OK)
+            .Produces<TResponse>(StatusCodes.Status409Conflict)
+            .Produces<TResponse>(StatusCodes.Status404NotFound);
     }
 
     // Applied 200, Rejected and VersionConflict 409, NotFound 404, each with the result as the body. The
     // two outcomes /input settles before the verb runs arrive here too: an unresolvable ref is NotFound,
     // and a job with no stored input is Rejected with a null status, since neither read one.
-    private static IResult ToResult(JobControlResult result) =>
+    private static IResult ToResult(IJobControlResponse result) =>
         Results.Json(
             result,
-            DashboardJsonContext.Default.JobControlResult,
+            result.GetType(),
+            DashboardJsonContext.Default,
             statusCode: result.Action switch
             {
                 ControlAction.Applied => StatusCodes.Status200OK,

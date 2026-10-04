@@ -30,11 +30,13 @@ public sealed class ResolveJobIdByDeduplicationKeySpec : ActaRuntimeTestBase<Con
         Assert.Equal(JobEnqueueAction.Inserted, outcome.Action);
 
         var resolved = await Services
-            .GetRequiredService<IJobStore>()
-            .ResolveJobIdByDeduplicationKeyAsync(TestNamespace, deduplicationKey, ct);
+            .GetRequiredService<ResolveJobIdByDeduplicationKeyHandler>()
+            .HandleAsync(new ResolveJobIdByDeduplicationKeyQuery(TestNamespace, deduplicationKey), ct);
         Assert.Equal(outcome.JobId, resolved);
 
-        var missing = await Services.GetRequiredService<IJobStore>().ResolveJobIdByDeduplicationKeyAsync(TestNamespace, "no-such-key", ct);
+        var missing = await Services
+            .GetRequiredService<ResolveJobIdByDeduplicationKeyHandler>()
+            .HandleAsync(new ResolveJobIdByDeduplicationKeyQuery(TestNamespace, "no-such-key"), ct);
         Assert.Null(missing);
     }
 }

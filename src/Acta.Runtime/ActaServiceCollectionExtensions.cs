@@ -61,11 +61,8 @@ public static class ActaServiceCollectionExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobPayloadSerializer, BytesJobPayloadSerializer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IJobPayloadSerializer, TextJobPayloadSerializer>());
         services.TryAddSingleton<IJobPayloadSerializerRegistry, JobPayloadSerializerRegistry>();
-        services.TryAddSingleton<IJobs, JobsApi>();
 
-        // Feature services over the store ports the providers register (e.g. IJobStore).
         services.TryAddSingleton<TenantKeyCache>();
-        services.TryAddSingleton<JobsService>();
 
         // The operator facade and its module-owned domain facades. Application code injects IJobs
         // alone; dashboards, CLIs, and operator hosts inject IActaOperations. Each domain facade is
@@ -158,6 +155,31 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<RequeueOutboxHandler>();
         services.TryAddSingleton<DiscardOutboxHandler>();
         services.TryAddSingleton<IOutbox, Outbox>();
+        services.TryAddSingleton<ResolveJobIdByRefHandler>();
+        services.TryAddSingleton<ResolveJobIdByDeduplicationKeyHandler>();
+        services.TryAddSingleton<JobLookupResolution>();
+        services.TryAddSingleton<GetJobHandler>();
+        services.TryAddSingleton<GetJobStatusHandler>();
+        services.TryAddSingleton<GetJobInputHandler>();
+        services.TryAddSingleton<GetJobResultHandler>();
+        services.TryAddSingleton<GetJobCheckpointsHandler>();
+        services.TryAddSingleton<GetJobExplanationHandler>();
+        services.TryAddSingleton<GetJobLineageMapHandler>();
+        services.TryAddSingleton<CancelJobHandler>();
+        services.TryAddSingleton<PauseJobHandler>();
+        services.TryAddSingleton<ResumeJobHandler>();
+        services.TryAddSingleton<RestartJobHandler>();
+        services.TryAddSingleton<RescheduleJobHandler>();
+        services.TryAddSingleton<ReprioritizeJobHandler>();
+        services.TryAddSingleton<UpdateJobInputHandler>();
+        services.TryAddSingleton<PurgeJobHandler>();
+        services.TryAddSingleton<ResetJobStateHandler>();
+        services.TryAddSingleton<EnqueueOneHandler>();
+        services.TryAddSingleton<EnqueueBatchHandler>();
+        services.TryAddSingleton<GetInputTemplateHandler>();
+        services.TryAddSingleton<JobRequestRouting>();
+        services.TryAddSingleton<JobRunAndWait>();
+        services.TryAddSingleton<IJobs, Jobs>();
         services.TryAddSingleton<RaiseSignalHandler>();
         services.TryAddSingleton<WaitSignalHandler>();
         services.TryAddSingleton<ISignals, Signals>();

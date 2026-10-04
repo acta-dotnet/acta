@@ -1,10 +1,9 @@
 namespace Acta.Runtime;
 
 /// <summary><see cref="ISignals"/>, one line per operation.</summary>
-internal sealed class Signals(IDbSession session, ISqlDialect dialect, WaitSignalHandler waitSignal) : ISignals
+internal sealed class Signals(RaiseSignalHandler raiseSignal, WaitSignalHandler waitSignal) : ISignals
 {
-    public Task<JobControlOutcome> RaiseSignalAsync(SignalSlotRaise raise, CancellationToken ct) =>
-        RaiseSignalHandler.RaiseSlotAsync(session, dialect, raise, ct);
+    public Task<JobControlActionRow> RaiseSignalAsync(SignalSlotRaise raise, CancellationToken ct) => raiseSignal.RaiseSlotAsync(raise, ct);
 
     public Task<SignalWaitDecision> WaitSignalAsync(
         long jobId,

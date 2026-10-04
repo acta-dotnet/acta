@@ -76,14 +76,14 @@ public sealed class WorkerLoopDispatchSpec : ActaRuntimeTestBase<ConformanceFixt
         using var loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var loop = Runtime.RunLoopAsync(loopCts.Token);
 
-        await WaitUntilAllDoneAsync(Services.GetRequiredService<IJobStore>(), ids, ct);
+        await WaitUntilAllDoneAsync(Services.GetRequiredService<GetJobStatusHandler>(), ids, ct);
 
         await loopCts.CancelAsync();
         await loop; // Clean shutdown: producer breaks, writer completes, executors drain and return.
 
         foreach (var id in ids)
         {
-            var status = await Services.GetRequiredService<IJobStore>().GetJobStatusAsync(id, ct);
+            var status = await Services.GetRequiredService<GetJobStatusHandler>().ReadAsync(id, ct);
             Assert.Equal(JobStatusCode.Succeeded, status);
         }
     }
@@ -101,7 +101,7 @@ public sealed class WorkerLoopDispatchSpec : ActaRuntimeTestBase<ConformanceFixt
             ct
         );
 
-        await WaitUntilAllDoneAsync(Services.GetRequiredService<IJobStore>(), [enqueued.JobId], ct);
+        await WaitUntilAllDoneAsync(Services.GetRequiredService<GetJobStatusHandler>(), [enqueued.JobId], ct);
 
         await loopCts.CancelAsync();
         await loop;
@@ -132,7 +132,7 @@ public sealed class WorkerLoopDispatchSpec : ActaRuntimeTestBase<ConformanceFixt
             ct
         );
 
-        await WaitUntilAllDoneAsync(Services.GetRequiredService<IJobStore>(), [enqueued.JobId], ct);
+        await WaitUntilAllDoneAsync(Services.GetRequiredService<GetJobStatusHandler>(), [enqueued.JobId], ct);
 
         await loopCts.CancelAsync();
         await loop;
@@ -152,7 +152,7 @@ public sealed class WorkerLoopDispatchSpec : ActaRuntimeTestBase<ConformanceFixt
         using var loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var loop = await StartParkedLoopAsync(loopCts.Token, ct);
 
-        // Insert straight through the enqueue operation, bypassing JobsApi - the wakeup publish
+        // Insert straight through the enqueue operation, bypassing the Jobs facade - the wakeup publish
         // never reaches this process's transport, simulating a writer in another process with no
         // shared transport. The safety poll is the only discovery path.
         var rows = await EnqueueTestOps.EnqueueBatchAsync(
@@ -162,7 +162,7 @@ public sealed class WorkerLoopDispatchSpec : ActaRuntimeTestBase<ConformanceFixt
         );
         var jobId = rows[0].JobId;
 
-        await WaitUntilAllDoneAsync(Services.GetRequiredService<IJobStore>(), [jobId], ct);
+        await WaitUntilAllDoneAsync(Services.GetRequiredService<GetJobStatusHandler>(), [jobId], ct);
 
         await loopCts.CancelAsync();
         await loop;
@@ -213,7 +213,7 @@ public sealed class WorkerLoopDispatchSpec : ActaRuntimeTestBase<ConformanceFixt
         FlakyRecoverProbe.Reset(TestNamespace);
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "flaky-recover", JobPayload.None), ct);
 
-        await WaitUntilAllDoneAsync(Services.GetRequiredService<IJobStore>(), [enqueued.JobId], ct);
+        await WaitUntilAllDoneAsync(Services.GetRequiredService<GetJobStatusHandler>(), [enqueued.JobId], ct);
 
         await loopCts.CancelAsync();
         await loop;
@@ -241,7 +241,7 @@ public sealed class WorkerLoopDispatchSpec : ActaRuntimeTestBase<ConformanceFixt
         return sleeps[0];
     }
 
-    private static async Task WaitUntilAllDoneAsync(IJobStore store, IReadOnlyList<long> ids, CancellationToken ct)
+    private static async Task WaitUntilAllDoneAsync(GetJobStatusHandler store, IReadOnlyList<long> ids, CancellationToken ct)
     {
         var deadline = DateTime.UtcNow + SpecWaits.Converge;
         while (DateTime.UtcNow < deadline)
@@ -249,7 +249,7 @@ public sealed class WorkerLoopDispatchSpec : ActaRuntimeTestBase<ConformanceFixt
             var done = 0;
             foreach (var id in ids)
             {
-                var status = await store.GetJobStatusAsync(id, ct);
+                var status = await store.ReadAsync(id, ct);
                 if (status == JobStatusCode.Succeeded)
                 {
                     done++;

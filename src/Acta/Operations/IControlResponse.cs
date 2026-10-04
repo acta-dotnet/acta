@@ -6,6 +6,6 @@ public interface IControlResponse
     /// <summary>The outcome; a verb's own documentation says which actions it can answer.</summary>
     ControlAction Action { get; }
 
-    /// <summary>The target's version after the attempt; null when the verb found nothing to act on.</summary>
+    /// <summary>The target's version after the attempt; null when the verb found nothing to act on or carries no version.</summary>
     int? Version { get; }
 }

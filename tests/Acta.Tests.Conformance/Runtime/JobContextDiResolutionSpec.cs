@@ -36,7 +36,7 @@ public sealed class JobContextDiResolutionSpec : ActaRuntimeTestBase<Conformance
 
         // The handler returned the JobContext it was constructor-injected with: identity must match
         // the running job, proving the per-attempt scope resolved a populated JobContext.
-        var result = await Services.GetRequiredService<IJobStore>().GetJobResultAsync(enqueued.JobId, null, ct);
+        var result = await Services.GetRequiredService<GetJobResultHandler>().ReadAsync(enqueued.JobId, null, ct);
         Assert.NotNull(result);
         var typed = JsonJobPayloadSerializer.Default.Deserialize<ContextProbeResult>(
             JobPayload.FromBytes(result!.Format, result.Data.ToArray())
@@ -61,7 +61,7 @@ public sealed class JobContextDiResolutionSpec : ActaRuntimeTestBase<Conformance
         );
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
-        var result = await Services.GetRequiredService<IJobStore>().GetJobResultAsync(enqueued.JobId, null, ct);
+        var result = await Services.GetRequiredService<GetJobResultHandler>().ReadAsync(enqueued.JobId, null, ct);
         Assert.NotNull(result);
         var typed = JsonJobPayloadSerializer.Default.Deserialize<ContextProbeResult>(
             JobPayload.FromBytes(result!.Format, result.Data.ToArray())

@@ -10,7 +10,7 @@ namespace Acta.Runtime;
 /// </summary>
 internal static class CliOutput
 {
-    public static void WriteControl(TextWriter writer, string verb, JobRef jobRef, JobControlResult result, bool json)
+    public static void WriteControl(TextWriter writer, string verb, JobRef jobRef, IJobControlResponse result, bool json)
     {
         if (json)
         {

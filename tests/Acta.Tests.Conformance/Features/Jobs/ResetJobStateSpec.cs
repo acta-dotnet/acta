@@ -33,7 +33,7 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
         await SeedSubstrateAsync(Db, target, ct);
         await SeedSubstrateAsync(Db, sibling, ct);
 
-        await Services.GetRequiredService<IJobStore>().ResetJobStateAsync(target, ct);
+        await Services.GetRequiredService<ResetJobStateHandler>().HandleAsync(new ResetJobStateCommand(target), ct);
 
         await AssertSubstrateCountsAsync(Db, target, 0, ct);
         await AssertSubstrateCountsAsync(Db, sibling, 1, ct);
@@ -47,7 +47,7 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
         var jobId = await EnqueueAsync(ct);
         await SeedSubstrateAsync(Db, jobId, ct);
 
-        await Services.GetRequiredService<IJobStore>().ResetJobStateAsync(jobId, ct);
+        await Services.GetRequiredService<ResetJobStateHandler>().HandleAsync(new ResetJobStateCommand(jobId), ct);
 
         var events = await Db.From<JobEvent>().Where(e => e.JobId == jobId && e.EventCode == EventCode.JobStateReset).ToListAsync(ct);
 
@@ -69,7 +69,7 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
         await SeedSubstrateAsync(Db, jobId, ct);
         await SetAuditLevelAsync(Db, jobId, auditLevel: 0, ct);
 
-        await Services.GetRequiredService<IJobStore>().ResetJobStateAsync(jobId, ct);
+        await Services.GetRequiredService<ResetJobStateHandler>().HandleAsync(new ResetJobStateCommand(jobId), ct);
 
         await AssertSubstrateCountsAsync(Db, jobId, 0, ct);
 

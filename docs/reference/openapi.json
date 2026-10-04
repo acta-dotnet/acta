@@ -101,7 +101,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResult"
+                  "$ref": "#/components/schemas/PauseJobResponse"
                 }
               }
             }
@@ -111,7 +111,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResult"
+                  "$ref": "#/components/schemas/PauseJobResponse"
                 }
               }
             }
@@ -121,7 +121,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResult"
+                  "$ref": "#/components/schemas/PauseJobResponse"
                 }
               }
             }
@@ -220,7 +220,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResult"
+                  "$ref": "#/components/schemas/ResumeJobResponse"
                 }
               }
             }
@@ -230,7 +230,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResult"
+                  "$ref": "#/components/schemas/ResumeJobResponse"
                 }
               }
             }
@@ -240,7 +240,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResult"
+                  "$ref": "#/components/schemas/ResumeJobResponse"
                 }
               }
             }
@@ -339,7 +339,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResult"
+                  "$ref": "#/components/schemas/RestartJobResponse"
                 }
               }
             }
@@ -349,7 +349,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResult"
+                  "$ref": "#/components/schemas/RestartJobResponse"
                 }
               }
             }
@@ -359,7 +359,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResult"
+                  "$ref": "#/components/schemas/RestartJobResponse"
                 }
               }
             }
@@ -458,7 +458,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResult"
+                  "$ref": "#/components/schemas/CancelJobResponse"
                 }
               }
             }
@@ -468,7 +468,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResult"
+                  "$ref": "#/components/schemas/CancelJobResponse"
                 }
               }
             }
@@ -478,7 +478,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResult"
+                  "$ref": "#/components/schemas/CancelJobResponse"
                 }
               }
             }
@@ -577,7 +577,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResult"
+                  "$ref": "#/components/schemas/PurgeJobResponse"
                 }
               }
             }
@@ -587,7 +587,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResult"
+                  "$ref": "#/components/schemas/PurgeJobResponse"
                 }
               }
             }
@@ -597,7 +597,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResult"
+                  "$ref": "#/components/schemas/PurgeJobResponse"
                 }
               }
             }
@@ -697,7 +697,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResult"
+                  "$ref": "#/components/schemas/RescheduleJobResponse"
                 }
               }
             }
@@ -707,7 +707,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResult"
+                  "$ref": "#/components/schemas/RescheduleJobResponse"
                 }
               }
             }
@@ -717,7 +717,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResult"
+                  "$ref": "#/components/schemas/RescheduleJobResponse"
                 }
               }
             }
@@ -817,7 +817,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResult"
+                  "$ref": "#/components/schemas/ReprioritizeJobResponse"
                 }
               }
             }
@@ -827,7 +827,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResult"
+                  "$ref": "#/components/schemas/ReprioritizeJobResponse"
                 }
               }
             }
@@ -837,7 +837,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResult"
+                  "$ref": "#/components/schemas/ReprioritizeJobResponse"
                 }
               }
             }
@@ -937,7 +937,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResult"
+                  "$ref": "#/components/schemas/UpdateJobInputResponse"
                 }
               }
             }
@@ -947,7 +947,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResult"
+                  "$ref": "#/components/schemas/UpdateJobInputResponse"
                 }
               }
             }
@@ -957,7 +957,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResult"
+                  "$ref": "#/components/schemas/UpdateJobInputResponse"
                 }
               }
             }
@@ -1142,7 +1142,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResult"
+                  "$ref": "#/components/schemas/RaiseSignalResponse"
                 }
               }
             }
@@ -1152,7 +1152,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResult"
+                  "$ref": "#/components/schemas/RaiseSignalResponse"
                 }
               }
             }
@@ -1162,7 +1162,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobControlResult"
+                  "$ref": "#/components/schemas/RaiseSignalResponse"
                 }
               }
             }
@@ -8317,6 +8317,39 @@
         "description": "Public stable reference for one alert row: \"alr_\" plus 26 lowercase Crockford Base32\ncharacters encoding the canonical big-endian UUID bytes. Dashboards, HTTP APIs, and alert\ntransports address alerts by this value; the numeric alert id stays the internal engine\nidentity. Parsing is case-insensitive; emission is always canonical lowercase. Deduplication\nnever re-mints it: a condition that re-fires while its incident is open keeps that incident's ref."
       },
       "AlertSeverityCode": { },
+      "CancelJobResponse": {
+        "required": [
+          "action",
+          "status",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ControlAction"
+          },
+          "status": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobStatusCode"
+              }
+            ]
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "What cancelling a job did, and the job's status and version after the attempt."
+      },
       "CapabilitiesResponse": {
         "required": [
           "controlsEnabled",
@@ -8637,42 +8670,6 @@
             ]
           }
         }
-      },
-      "JobControlResult": {
-        "required": [
-          "action",
-          "status",
-          "version"
-        ],
-        "type": "object",
-        "properties": {
-          "action": {
-            "description": "Whether the control transition was applied, rejected, conflicted, or the job was absent.",
-            "$ref": "#/components/schemas/ControlAction"
-          },
-          "status": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "description": "The job's status after the attempt; see remarks.",
-                "$ref": "#/components/schemas/JobStatusCode"
-              }
-            ]
-          },
-          "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "description": "The job runtime row's version after the attempt; see remarks.",
-            "format": "int32"
-          }
-        },
-        "description": "Outcome of an IJobs control verb: the targeted long JobControlResult.JobId, the coarse\nControlAction, and the job's JobStatusCode? JobControlResult.Status and row int? JobControlResult.Version after the attempt."
       },
       "JobDefinitionDetail": {
         "required": [
@@ -11219,6 +11216,39 @@
         },
         "description": "One page of a keyset-paginated list read."
       },
+      "PauseJobResponse": {
+        "required": [
+          "action",
+          "status",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ControlAction"
+          },
+          "status": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobStatusCode"
+              }
+            ]
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "What pausing a job did, and the job's status and version after the attempt."
+      },
       "PauseScheduleResponse": {
         "required": [
           "action",
@@ -11306,6 +11336,105 @@
           }
         }
       },
+      "PurgeJobResponse": {
+        "required": [
+          "action",
+          "status",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ControlAction"
+          },
+          "status": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobStatusCode"
+              }
+            ]
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "What purging a job did, and the job's status after the attempt; a purge carries no version."
+      },
+      "RaiseSignalResponse": {
+        "required": [
+          "action",
+          "status",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ControlAction"
+          },
+          "status": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobStatusCode"
+              }
+            ]
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "What raising a signal on a job did, and the job's status after the attempt; a raise carries no version."
+      },
+      "ReprioritizeJobResponse": {
+        "required": [
+          "action",
+          "status",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ControlAction"
+          },
+          "status": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobStatusCode"
+              }
+            ]
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "What reprioritizing a job did, and the job's status and version after the attempt."
+      },
       "RequeueOutboxResponse": {
         "required": [
           "action",
@@ -11325,6 +11454,39 @@
           }
         },
         "description": "What parking a requeue of a source's quarantined rows did."
+      },
+      "RescheduleJobResponse": {
+        "required": [
+          "action",
+          "status",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ControlAction"
+          },
+          "status": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobStatusCode"
+              }
+            ]
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "What rescheduling a job did, and the job's status and version after the attempt."
       },
       "ResolveJobAlertManualResponse": {
         "required": [
@@ -11357,6 +11519,72 @@
           }
         },
         "description": "What resolving an alert did, and its timestamps after the attempt."
+      },
+      "RestartJobResponse": {
+        "required": [
+          "action",
+          "status",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ControlAction"
+          },
+          "status": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobStatusCode"
+              }
+            ]
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "What restarting a job did, and the job's status and version after the attempt."
+      },
+      "ResumeJobResponse": {
+        "required": [
+          "action",
+          "status",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ControlAction"
+          },
+          "status": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobStatusCode"
+              }
+            ]
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "What resuming a job did, and the job's status and version after the attempt."
       },
       "ResumeNamespaceResponse": {
         "required": [
@@ -12075,6 +12303,39 @@
           }
         },
         "description": "What firing a schedule now did, and the schedule's state after the attempt."
+      },
+      "UpdateJobInputResponse": {
+        "required": [
+          "action",
+          "status",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ControlAction"
+          },
+          "status": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobStatusCode"
+              }
+            ]
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "What amending a job's input did, and the job's status after the attempt; an amend carries no version."
       },
       "UpdateNamespaceResponse": {
         "required": [

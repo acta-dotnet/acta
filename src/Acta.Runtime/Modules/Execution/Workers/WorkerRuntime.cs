@@ -90,7 +90,8 @@ internal sealed class WorkerRuntime
         );
 
         var jobExecution = new JobExecution(
-            rootServices.GetRequiredService<IJobStore>(),
+            rootServices.GetRequiredService<GetJobHandler>(),
+            rootServices.GetRequiredService<CancelJobHandler>(),
             rootServices.GetRequiredService<IExecutionStore>(),
             serializers,
             options,

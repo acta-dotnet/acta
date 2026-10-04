@@ -309,7 +309,7 @@ public sealed class ClaimBatchSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
             var done = 0;
             foreach (var id in ids)
             {
-                if (await Services.GetRequiredService<IJobStore>().GetJobStatusAsync(id, ct) == JobStatusCode.Succeeded)
+                if (await Services.GetRequiredService<GetJobStatusHandler>().ReadAsync(id, ct) == JobStatusCode.Succeeded)
                 {
                     done++;
                 }
@@ -326,7 +326,7 @@ public sealed class ClaimBatchSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
 
         foreach (var id in ids)
         {
-            Assert.Equal(JobStatusCode.Succeeded, await Services.GetRequiredService<IJobStore>().GetJobStatusAsync(id, ct));
+            Assert.Equal(JobStatusCode.Succeeded, await Services.GetRequiredService<GetJobStatusHandler>().ReadAsync(id, ct));
         }
     }
 
