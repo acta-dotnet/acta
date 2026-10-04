@@ -1074,6 +1074,20 @@
 - **Guarantees:**
   - Discard deletes only quarantined rows, returns their ids, and cannot touch a claimed row
 
+### Discard parks on the relay slot and the next pass deletes the rows
+- **Contract:** Discard parks once per pending command on the slot's own discard inbox, and the next relay pass deletes the targeted quarantined rows and records their ids.
+- **Guarantees:**
+  - A second discard is rejected while the first is pending, and a requeue still parks beside it
+  - The relay pass deletes only the named rows, records the operator and the ids, and frees the inbox
+  - A null scope discards every quarantined row, and an empty id list throws
+
+### The quarantine listing pages the source this host relays
+- **Contract:** ListQuarantined pages a namespace's quarantined rows by cursor with an optional total, and throws on a host that registered no relay for that namespace.
+- **Guarantees:**
+  - Cursor pages cover every quarantined row once with its identity and failure count
+  - IncludeTotal counts every quarantined row whatever the page size
+  - A namespace this host relays no source for throws, and so does a malformed cursor
+
 ### Requeue parks against the relay slot and the tick applies it
 - **Contract:** Requeue resolves the sys.outbox slot by fixed key and name, parks once and rejects while a command is pending, and a namespace without a slot is not found.
 - **Guarantees:**

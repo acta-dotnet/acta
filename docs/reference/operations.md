@@ -123,10 +123,10 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 | `CountOutboxBacklog` | · | · | · | inline | inline | inline | · | `CountOutboxBacklogSpec` |
 | `CountOutboxQuarantined` | · | · | · | inline | inline | inline | · | · |
 | `DeleteClaimedOutbox` | · | · | · | inline | inline | inline | · | `DeleteClaimedOutboxSpec` |
-| `DiscardOutbox` | `IOutbox.DiscardAsync` | `POST /outbox/{jobNamespace}/discard` | · | · | · | · | · | · |
+| `DiscardOutbox` | `IOutbox.DiscardAsync` | `POST /outbox/{jobNamespace}/discard` | · | · | · | · | · | `DiscardOutboxSpec` |
 | `DiscardQuarantinedOutbox` | · | · | · | inline | inline | inline | · | `DiscardQuarantinedOutboxSpec` |
 | `GetOutboxSignal` | · | · | · | inline | inline | inline | · | · |
-| `ListOutboxQuarantined` | `IOutbox.ListQuarantinedAsync` | `GET /outbox/{jobNamespace}/quarantined` | · | · | · | · | · | · |
+| `ListOutboxQuarantined` | `IOutbox.ListQuarantinedAsync` | `GET /outbox/{jobNamespace}/quarantined` | · | · | · | · | · | `ListOutboxQuarantinedSpec` |
 | `ListOutboxSources` | `IOutbox.ListSourcesAsync` | `GET /outbox/sources` | · | · | · | · | · | `ListOutboxSourcesSpec` |
 | `ListQuarantinedOutbox` | · | · | · | inline | inline | inline | · | · |
 | `ParkOutboxSignal` | · | · | · | routine | routine | inline | `checkpoints` | · |

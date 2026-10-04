@@ -20,8 +20,6 @@ operation: Locks/AcquireSlot
 operation: Locks/ReserveRate
 operation: Outbox/ConsumeOutboxSignal
 operation: Outbox/CountOutboxQuarantined
-operation: Outbox/DiscardOutbox
 operation: Outbox/GetOutboxSignal
-operation: Outbox/ListOutboxQuarantined
 operation: Outbox/ListQuarantinedOutbox
 operation: Outbox/ParkOutboxSignal
