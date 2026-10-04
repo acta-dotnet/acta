@@ -169,7 +169,6 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
 
             string? kindName;
             var isCoded = false;
-            var isExtensible = false;
             string? enumTypeName = null;
             string? codeKind = null;
 
@@ -180,7 +179,6 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
                 if (ckAttr is not null && ckAttr.ConstructorArguments.Length > 0)
                 {
                     codeKind = ckAttr.ConstructorArguments[0].Value as string;
-                    isExtensible = ckAttr.NamedArguments.FirstOrDefault(a => a.Key == "Extensible").Value.Value is true;
                 }
 
                 if (hasExplicitKind)
@@ -332,7 +330,6 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
                     IsNullable: isNullable,
                     DefaultName: defaultName,
                     IsCoded: isCoded,
-                    IsExtensible: isExtensible,
                     IsPrimaryKey: isPk,
                     IsSolePrimaryKey: isSolePk,
                     IsManualPrimaryKey: isPk && pkManual,
@@ -959,7 +956,6 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
         sb.Append("                    IsNullable: ").Append(c.IsNullable ? "true" : "false").AppendLine(",");
         sb.Append("                    Default: DbDefault.").Append(c.DefaultName).AppendLine(",");
         sb.Append("                    IsCoded: ").Append(c.IsCoded ? "true" : "false").AppendLine(",");
-        sb.Append("                    IsExtensible: ").Append(c.IsExtensible ? "true" : "false").AppendLine(",");
         sb.Append("                    IsPrimaryKey: ").Append(c.IsPrimaryKey ? "true" : "false").AppendLine(",");
         sb.Append("                    IsSolePrimaryKey: ").Append(c.IsSolePrimaryKey ? "true" : "false").AppendLine(",");
         sb.Append("                    IsManualPrimaryKey: ").Append(c.IsManualPrimaryKey ? "true" : "false").AppendLine(",");
@@ -1181,7 +1177,6 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
         bool IsNullable,
         string DefaultName,
         bool IsCoded,
-        bool IsExtensible,
         bool IsPrimaryKey,
         bool IsSolePrimaryKey,
         bool IsManualPrimaryKey,

@@ -42,7 +42,7 @@ internal static class CodeFamilyEmitter
         );
         sb.AppendLine("> Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.");
         sb.AppendLine(
-            "> Unknown values and `255` are rejected in closed families. `JobPayloadFormat` is the explicit exception permitting consumer-defined value `255`."
+            "> An id this build does not know reads back as the family's id-0 member. `255` is never assigned, except as a consumer-defined `JobPayloadFormat`."
         );
         sb.AppendLine("> Assigned, deprecated, retired, and permanently reserved identities are never reused.");
         sb.AppendLine();

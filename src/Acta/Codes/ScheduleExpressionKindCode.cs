@@ -6,11 +6,7 @@ namespace Acta;
 [CodeKind("schedule-expression-kind")]
 public enum ScheduleExpressionKindCode : byte
 {
-    [Code(
-        "unspecified",
-        "Schedule expression kind not recognized by this build; the row was written by a newer Acta.",
-        Lifecycle = CodeLifecycle.Fallback
-    )]
+    [Code("unspecified", "Schedule expression kind not recognized by this build; the row was written by a newer Acta.")]
     Unspecified = 0,
 
     [Code("cron", "Cron expression (Cronos dialect). Set at compile time by the source generator.")]

@@ -11,8 +11,7 @@ internal sealed record CodeFamilyModel(
     IReadOnlyList<CodeEntryModel> Values,
     IReadOnlyList<ReservedCodeModel> ReservedCodes,
     IReadOnlyList<ReservedCodeRangeModel> ReservedRanges,
-    bool IsMeta = false,
-    bool IsExtensible = false
+    bool IsMeta = false
 );
 
 internal sealed record CodeEntryModel(byte Id, string Member, string Code, string Description, string Lifecycle);
@@ -127,7 +126,6 @@ internal static class CodeFamilyDiscovery
             .OrderBy(range => range.Start)
             .Select(range => new ReservedCodeRangeModel(range.Start, range.End, range.Reason, range.PermanentlyUnavailable))
             .ToList();
-        var isExtensible = enumType.GetCustomAttribute<Acta.CodeKindAttribute>()?.Extensible ?? false;
 
         return new CodeFamilyModel(
             Name: enumType.Name,
@@ -136,8 +134,7 @@ internal static class CodeFamilyDiscovery
             Values: values.OrderBy(value => value.Id).ToList(),
             ReservedCodes: reservedCodes,
             ReservedRanges: reservedRanges,
-            IsMeta: false,
-            IsExtensible: isExtensible
+            IsMeta: false
         );
     }
 

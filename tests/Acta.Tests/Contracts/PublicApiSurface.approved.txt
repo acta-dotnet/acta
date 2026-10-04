@@ -488,12 +488,10 @@ sealed class Acta.CodeAttribute
     System.String Description { get; }
 sealed class Acta.CodeKindAttribute
     .ctor(System.String codeKind)
-    System.Boolean Extensible { get;init; }
     System.String CodeKind { get; }
 enum Acta.CodeLifecycle
     Active = 1
     Deprecated = 2
-    Fallback = 4
     Retired = 3
 sealed class Acta.CodeManifestEntry
     .ctor(System.String CodeKind, System.Byte Id, System.String Code, System.String Description, Acta.CodeLifecycle Lifecycle)
@@ -504,7 +502,7 @@ sealed class Acta.CodeManifestEntry
     System.String Description { get;init; }
 static class Acta.CodeManifests
     System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> All { get; }
-    System.String MarkdownReport = <28696 chars, sha256:5DEE043B>
+    System.String MarkdownReport = <28648 chars, sha256:24EF7695>
 enum Acta.ControlAction
     Accepted = 4
     AlreadyInState = 6

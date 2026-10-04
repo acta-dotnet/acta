@@ -9,7 +9,7 @@ This release: **29 families**, **189 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
-> Unknown values and `255` are rejected in closed families. `JobPayloadFormat` is the explicit exception permitting consumer-defined value `255`.
+> An id this build does not know reads back as the family's id-0 member. `255` is never assigned, except as a consumer-defined `JobPayloadFormat`.
 > Assigned, deprecated, retired, and permanently reserved identities are never reused.
 
 ## Human-readable ordering
@@ -70,7 +70,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
-| `Unspecified` | 0 | `unspecified` | Actor not recognized by this build; the row was written by a newer Acta. | Fallback |
+| `Unspecified` | 0 | `unspecified` | Actor not recognized by this build; the row was written by a newer Acta. | Active |
 | `Sys` | 10 | `sys` | Acta-shipped system [Job] (a reserved name prefixed with sys.) OR Acta runtime path that decided a transition. ActorKey is null. | Active |
 | `Operator` | 20 | `operator` | A human or admin tool acting from outside any job context (endpoint, dashboard, admin script). ActorKey carries the authenticated principal name as-is (e.g. http.User.Identity.Name); null when the host did not authenticate. | Active |
 | `Job` | 50 | `job` | ctx.* throw-to-transition inside a user handler. ActorKey = "{jobId}". | Active |
@@ -80,7 +80,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
-| `Unspecified` | 0 | `unspecified` | Alert channel status not recognized by this build; the row was written by a newer Acta. | Fallback |
+| `Unspecified` | 0 | `unspecified` | Alert channel status not recognized by this build; the row was written by a newer Acta. | Active |
 | `Active` | 10 | `active` | Channel accepts deliveries. | Active |
 | `Disabled` | 30 | `disabled` | Configured but intentionally muted; matching alerts are suppressed. | Active |
 | `Deprecated` | 240 | `deprecated` | Configured but decommissioned; matching alerts are suppressed. | Active |
@@ -89,7 +89,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
-| `Unspecified` | 0 | `unspecified` | Alert delivery status not recognized by this build; the row was written by a newer Acta. | Fallback |
+| `Unspecified` | 0 | `unspecified` | Alert delivery status not recognized by this build; the row was written by a newer Acta. | Active |
 | `Pending` | 10 | `pending` | Materialized; awaiting the first send attempt. | Active |
 | `RetryAfter` | 20 | `retry-after` | Send deferred until JobAlert.RetryAfterUtc instant. | Active |
 | `Suppressed` | 30 | `suppressed` | Intentionally not sent because process-local channel policy rejected delivery. | Active |
@@ -100,7 +100,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
-| `Unspecified` | 0 | `unspecified` | Alert kind not recognized by this build; the row was written by a newer Acta. | Fallback |
+| `Unspecified` | 0 | `unspecified` | Alert kind not recognized by this build; the row was written by a newer Acta. | Active |
 | `FirstFailure` | 10 | `first-failure` | Failure that opened the incident; emitted by Automatic origin on non-terminal failure. | Active |
 | `ThresholdReached` | 20 | `threshold-reached` | Threshold-bound emission (e.g., LostClaimAlertThreshold reached). | Active |
 | `FinalFailure` | 30 | `final-failure` | Terminal failure; emitted by Automatic origin on Status to Failed. | Active |
@@ -110,7 +110,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
-| `Unspecified` | 0 | `unspecified` | Alert origin not recognized by this build; the row was written by a newer Acta. | Fallback |
+| `Unspecified` | 0 | `unspecified` | Alert origin not recognized by this build; the row was written by a newer Acta. | Active |
 | `Automatic` | 10 | `automatic` | System-emitted from a state-mutating SP (failure / timeout / orphan / deadline). | Active |
 | `Manual` | 20 | `manual` | ctx.AlertAsync from inside a user handler. | Active |
 
@@ -128,7 +128,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
-| `Unspecified` | 0 | `unspecified` | Alert severity not recognized by this build; the row was written by a newer Acta. | Fallback |
+| `Unspecified` | 0 | `unspecified` | Alert severity not recognized by this build; the row was written by a newer Acta. | Active |
 | `Info` | 10 | `info` | Informational; not paging. | Active |
 | `Warning` | 20 | `warning` | Non-terminal failure transition; repeats collapse onto the one open incident. | Active |
 | `Error` | 30 | `error` | Terminal failure or operator-attention event. | Active |
@@ -138,7 +138,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
-| `Unspecified` | 0 | `unspecified` | Checkpoint kind not recognized by this build; the row was written by a newer Acta. | Fallback |
+| `Unspecified` | 0 | `unspecified` | Checkpoint kind not recognized by this build; the row was written by a newer Acta. | Active |
 | `Variable` | 10 | `variable` | User variable slot; UPSERT, last-writer-wins, no state machine. | Active |
 | `Signal` | 20 | `signal` | Signal slot; Pending while awaited, Set once raised. | Active |
 | `Timer` | 30 | `timer` | Durable sleep timer; Pending until due, Consumed on replay past the due instant. | Active |
@@ -149,7 +149,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
-| `Unspecified` | 0 | `unspecified` | Checkpoint status not recognized by this build; the row was written by a newer Acta. | Fallback |
+| `Unspecified` | 0 | `unspecified` | Checkpoint status not recognized by this build; the row was written by a newer Acta. | Active |
 | `Pending` | 10 | `pending` | Awaited or armed; the slot has not been satisfied yet. | Active |
 | `Set` | 20 | `set` | Raised; the payload is stored and a waiting job proceeds. | Active |
 | `Expired` | 30 | `expired` | The re-entering wait found the slot overdue and settled it TimedOut; a raise then skips the slot. | Active |
@@ -159,7 +159,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
-| `Unspecified` | 0 | `unspecified` | Deadline behavior not recognized by this build; the row was written by a newer Acta. | Fallback |
+| `Unspecified` | 0 | `unspecified` | Deadline behavior not recognized by this build; the row was written by a newer Acta. | Active |
 | `Strict` | 10 | `strict` | Engine auto-terminates an overdue job at admission and refuses to re-arm a retry past the deadline. | Active |
 | `Advisory` | 20 | `advisory` | Deadline is informational; the engine never auto-terminates, the handler reads ctx.IsOverdue. | Active |
 
@@ -175,7 +175,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
-| `Unspecified` | 0 | `unspecified` | Definition status not recognized by this build; the row was written by a newer Acta. | Fallback |
+| `Unspecified` | 0 | `unspecified` | Definition status not recognized by this build; the row was written by a newer Acta. | Active |
 | `Active` | 10 | `active` | Enqueue allowed; claim allowed. | Active |
 | `Retired` | 240 | `retired` | Enqueue REJECTED; an operator decision, never written by registration (a definition absent from a manifest stays Active). Retiring cancels parked rows (Ready/Paused/Suspended) with ReasonCode = 'job.definition-retired'; in-flight executions finish their attempt. | Active |
 
@@ -191,7 +191,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
-| `Unspecified` | 0 | `unspecified` | Event id not recognized by this build; the row was written by a newer Acta. | Fallback |
+| `Unspecified` | 0 | `unspecified` | Event id not recognized by this build; the row was written by a newer Acta. | Active |
 | `TenantSuspended` | 10 | `tenant.suspended` | An operator suspended a tenant; the key stops resolving at enqueue. ReasonMessage carries the reason. | Active |
 | `TenantResumed` | 11 | `tenant.resumed` | An operator resumed a suspended tenant; its key resolves at enqueue again. ReasonMessage carries the reason. | Active |
 | `TenantUpdated` | 12 | `tenant.updated` | An operator changed a tenant display name / description. ReasonMessage carries the reason. | Active |
@@ -238,7 +238,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
-| `Unspecified` | 0 | `unspecified` | Reason id not recognized by this build; the row was written by a newer Acta. | Fallback |
+| `Unspecified` | 0 | `unspecified` | Reason id not recognized by this build; the row was written by a newer Acta. | Active |
 | `Unclassified` | 10 | `job.unclassified` | None of the system-catalog codes fit; the operator-readable story lives in ReasonMessage. | Active |
 | `JobUnhandledException` | 20 | `job.unhandled-exception` | Handler threw an exception that was not raised via ctx.Fail. | Active |
 | `JobLeaseExpired` | 21 | `job.lease-expired` | Worker lease expired; the sys.recovery system job reclaimed the Job. | Active |
@@ -270,7 +270,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
-| `Unspecified` | 0 | `unspecified` | Execution status not recognized by this build; the row was written by a newer Acta. | Fallback |
+| `Unspecified` | 0 | `unspecified` | Execution status not recognized by this build; the row was written by a newer Acta. | Active |
 | `Executing` | 50 | `executing` | Handler in flight. | Active |
 | `Succeeded` | 100 | `succeeded` | Handler returned successfully. Resets the runtime failure count. | Active |
 | `Rescheduled` | 150 | `rescheduled` | Handler threw RescheduleJobException; does not charge budget. | Active |
@@ -303,7 +303,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
-| `Unspecified` | 0 | `unspecified` | Job status not recognized by this build; the row was written by a newer Acta. | Fallback |
+| `Unspecified` | 0 | `unspecified` | Job status not recognized by this build; the row was written by a newer Acta. | Active |
 | `Ready` | 10 | `ready` | Eligible for claim; the claim path selects rows in this Status. | Active |
 | `Blocked` | 15 | `blocked` | Waiting behind an earlier unfinished job of its lane; the claim never offers it, and the settle of the job ahead promotes it to Ready. | Active |
 | `Suspended` | 20 | `suspended` | Parked and not progressing: awaiting an external signal via ctx.WaitSignalAsync, or awaiting children via ctx.WaitChildAsync / WaitChildrenAsync. | Active |
@@ -318,7 +318,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
-| `Unspecified` | 0 | `unspecified` | Misfire strategy not recognized by this build; the row was written by a newer Acta. | Fallback |
+| `Unspecified` | 0 | `unspecified` | Misfire strategy not recognized by this build; the row was written by a newer Acta. | Active |
 | `CatchUpOnce` | 10 | `catch-up-once` | After downtime, fire once immediately for all missed occurrences, then resume from the next occurrence after now. | Active |
 | `Skip` | 20 | `skip` | After downtime, skip all missed occurrences and resume from the first occurrence strictly after now. | Active |
 
@@ -326,7 +326,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
-| `Unspecified` | 0 | `unspecified` | Namespace status not recognized by this build; the row was written by a newer Acta. | Fallback |
+| `Unspecified` | 0 | `unspecified` | Namespace status not recognized by this build; the row was written by a newer Acta. | Active |
 | `Active` | 10 | `active` | Namespace resolves at enqueue; enqueue allowed. | Active |
 | `Suspended` | 20 | `suspended` | Enqueue into the namespace is rejected. Reversible (operator hold). Existing in-flight jobs are unaffected. | Active |
 
@@ -334,7 +334,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
-| `Unspecified` | 0 | `unspecified` | Outbox status not recognized by this build; the row was written by a newer Acta. | Fallback |
+| `Unspecified` | 0 | `unspecified` | Outbox status not recognized by this build; the row was written by a newer Acta. | Active |
 | `Pending` | 10 | `pending` | Due for relay claim; the claim path selects rows in this status once next_attempt_at_utc is reached. | Active |
 | `Claimed` | 20 | `claimed` | Leased by a relay claim; claim_token and claim_until_utc are set until the lease finalizes or expires. | Active |
 | `Quarantined` | 90 | `quarantined` | Excluded from normal claims after exhausting delivery policy or a non-recoverable contract error; requires an operator requeue or delete. | Active |
@@ -343,7 +343,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
-| `Unspecified` | 0 | `unspecified` | Schedule expression kind not recognized by this build; the row was written by a newer Acta. | Fallback |
+| `Unspecified` | 0 | `unspecified` | Schedule expression kind not recognized by this build; the row was written by a newer Acta. | Active |
 | `Cron` | 10 | `cron` | Cron expression (Cronos dialect). Set at compile time by the source generator. | Active |
 | `Interval` | 20 | `interval` | Interval duration: human (e.g. "5m") or ISO 8601 (e.g. "PT5M", "P1D"). Set at compile time by the source generator. | Active |
 
@@ -351,7 +351,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
-| `Unspecified` | 0 | `unspecified` | Schedule origin not recognized by this build; the row was written by a newer Acta. | Fallback |
+| `Unspecified` | 0 | `unspecified` | Schedule origin not recognized by this build; the row was written by a newer Acta. | Active |
 | `Operator` | 20 | `operator` | Operator-driven schedule add/remove. No code path produces rows with this origin today. | Active |
 | `Definition` | 40 | `definition` | Declared in [JobSchedule] attribute; refreshed by catalog upsert. | Active |
 
@@ -359,7 +359,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
-| `Unspecified` | 0 | `unspecified` | Schedule status not recognized by this build; the row was written by a newer Acta. | Fallback |
+| `Unspecified` | 0 | `unspecified` | Schedule status not recognized by this build; the row was written by a newer Acta. | Active |
 | `Active` | 10 | `active` | Schedule is eligible to fire. | Active |
 | `Paused` | 30 | `paused` | Operator-paused; does not fire until resumed, or until PausedUntilUtc passes when set. | Active |
 | `Orphaned` | 230 | `orphaned` | Origin declaration disappeared from the catalog; set by reconciliation. Cannot fire or be paused/resumed. | Active |
@@ -368,7 +368,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
-| `Unspecified` | 0 | `unspecified` | Step status not recognized by this build; the row was written by a newer Acta. | Fallback |
+| `Unspecified` | 0 | `unspecified` | Step status not recognized by this build; the row was written by a newer Acta. | Active |
 | `Pending` | 10 | `pending` | Step in flight or retrying within MaxAttempts / RetryWindow. | Active |
 | `Succeeded` | 100 | `succeeded` | Step completed successfully; Result populated (or ResultFormatId = 0 for void steps). | Active |
 | `Exhausted` | 200 | `exhausted` | Step exhausted retry budget; parent handler receives StepExhaustedException. | Active |
@@ -378,7 +378,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
-| `Unspecified` | 0 | `unspecified` | Tag scope not recognized by this build; the row was written by a newer Acta. | Fallback |
+| `Unspecified` | 0 | `unspecified` | Tag scope not recognized by this build; the row was written by a newer Acta. | Active |
 | `Tenant` | 20 | `tenant` | Tag attached to one tenant. | Active |
 | `Namespace` | 30 | `namespace` | Tag attached to one namespace. | Active |
 | `Definition` | 40 | `definition` | Tag attached to one job definition. | Active |
@@ -392,7 +392,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
-| `Unspecified` | 0 | `unspecified` | Tenant status not recognized by this build; the row was written by a newer Acta. | Fallback |
+| `Unspecified` | 0 | `unspecified` | Tenant status not recognized by this build; the row was written by a newer Acta. | Active |
 | `Active` | 10 | `active` | Tenant key resolves at enqueue; enqueue allowed. | Active |
 | `Suspended` | 20 | `suspended` | Admission suspended: new enqueues naming the tenant key are rejected, while already admitted jobs keep running and may expand through inherited children. Applies to enqueue transactions beginning after the suspend commits. Reversible (billing/abuse hold, admin pause). | Active |
 
@@ -400,7 +400,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
-| `Unspecified` | 0 | `unspecified` | Worker status not recognized by this build; the row was written by a newer Acta. | Fallback |
+| `Unspecified` | 0 | `unspecified` | Worker status not recognized by this build; the row was written by a newer Acta. | Active |
 | `Active` | 10 | `active` | Polling claim; accepting work. | Active |
 | `Draining` | 80 | `draining` | Worker stopped polling; finishing in-flight. | Active |
 | `Stopped` | 100 | `stopped` | Worker shut down cleanly; terminal success. | Active |

@@ -6,11 +6,7 @@ namespace Acta;
 [CodeKind("job-status")]
 public enum JobStatusCode : byte
 {
-    [Code(
-        "unspecified",
-        "Job status not recognized by this build; the row was written by a newer Acta.",
-        Lifecycle = CodeLifecycle.Fallback
-    )]
+    [Code("unspecified", "Job status not recognized by this build; the row was written by a newer Acta.")]
     Unspecified = 0,
 
     [Code("ready", "Eligible for claim; the claim path selects rows in this Status.")]

@@ -10,11 +10,7 @@ namespace Acta;
 [CodeKind("tag-scope")]
 public enum TagScopeCode : byte
 {
-    [Code(
-        "unspecified",
-        "Tag scope not recognized by this build; the row was written by a newer Acta.",
-        Lifecycle = CodeLifecycle.Fallback
-    )]
+    [Code("unspecified", "Tag scope not recognized by this build; the row was written by a newer Acta.")]
     Unspecified = 0,
 
     [Code("tenant", "Tag attached to one tenant.")]

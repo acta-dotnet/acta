@@ -16,6 +16,10 @@ public sealed class DefinitionOverrideValidationTests
         SetJobDefinitionOverridesHandler.Normalize(overrides);
 
     [Fact]
+    public void An_unspecified_deadline_behavior_overrides_nothing() =>
+        Assert.Null(Normalize(new DefinitionPolicyOverrides(DeadlineBehavior: DeadlineBehaviorCode.Unspecified)).DeadlineBehavior);
+
+    [Fact]
     public void An_execution_timeout_past_the_CancelAfter_ceiling_is_rejected()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() =>

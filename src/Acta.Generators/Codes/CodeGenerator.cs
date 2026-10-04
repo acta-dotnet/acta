@@ -88,7 +88,6 @@ public sealed class CodeGenerator : IIncrementalGenerator
                     {
                         2 => "Deprecated",
                         3 => "Retired",
-                        4 => "Fallback",
                         _ => "Active",
                     };
                     break;
@@ -169,9 +168,6 @@ public sealed class CodeGenerator : IIncrementalGenerator
                 codeKind = declaredKind;
             }
 
-            // Extensible families emit no IN-list CHECK, so new members ship without a migration.
-            var extensible = codeKindAttr?.NamedArguments.FirstOrDefault(a => a.Key == "Extensible").Value.Value is true;
-
             var underlying = enumType.EnumUnderlyingType?.SpecialType ?? SpecialType.None;
             var storage = underlying == SpecialType.System_Byte ? StorageKind.Byte : StorageKind.Invalid;
 
@@ -184,17 +180,7 @@ public sealed class CodeGenerator : IIncrementalGenerator
                         Fatal: true
                     )
                 );
-                yield return new FamilyModel(
-                    ns,
-                    enumType.Name,
-                    codeKind,
-                    extensible,
-                    StorageKind.Byte,
-                    [],
-                    [],
-                    [],
-                    diagnostics.ToImmutable()
-                );
+                yield return new FamilyModel(ns, enumType.Name, codeKind, StorageKind.Byte, [], [], [], diagnostics.ToImmutable());
                 continue;
             }
 
@@ -258,14 +244,14 @@ public sealed class CodeGenerator : IIncrementalGenerator
             ValidateReservations(enumType.Name, codes, reservations, reservedRanges, diagnostics);
 
             // Every family decodes an id it does not know as its id-0 member, so a row a newer Acta wrote
-            // reads back during a rolling deploy: id 0 is a safe default or the Fallback Unspecified.
+            // reads back during a rolling deploy: id 0 is the family's default or Unspecified.
             if (codes.Count > 0 && !codes.Any(c => c.Id == 0))
             {
                 diagnostics.Add(
                     new DiagnosticRecord(
                         "ACTA0201",
-                        $"`{enumType.Name}` requires a member with id 0, a safe default or `Unspecified` with "
-                            + $"`Lifecycle = CodeLifecycle.Fallback`, which unknown persisted ids read back as.",
+                        $"`{enumType.Name}` requires a member with id 0, the family's default or `Unspecified`, "
+                            + $"which unknown persisted ids read back as.",
                         Fatal: true
                     )
                 );
@@ -277,7 +263,6 @@ public sealed class CodeGenerator : IIncrementalGenerator
                 ns,
                 enumType.Name,
                 codeKind,
-                extensible,
                 storage,
                 [.. codes],
                 reservations,
@@ -557,11 +542,7 @@ public sealed class CodeGenerator : IIncrementalGenerator
         sb.AppendLine("        {");
         foreach (var c in family.Codes)
         {
-            sb.Append("            ")
-                .Append(c.Id)
-                .Append(" => ")
-                .Append(c.Lifecycle is "Retired" or "Fallback" ? "false" : "true")
-                .AppendLine(",");
+            sb.Append("            ").Append(c.Id).Append(" => ").Append(c.Lifecycle == "Retired" ? "false" : "true").AppendLine(",");
         }
 
         sb.AppendLine("            _ => false,");
@@ -855,7 +836,6 @@ public sealed class CodeGenerator : IIncrementalGenerator
         string? ContainingNamespace,
         string StructName,
         string CodeKind,
-        bool Extensible,
         StorageKind Storage,
         ImmutableArray<CodeModel> Codes,
         ImmutableArray<ReservationModel> Reservations,

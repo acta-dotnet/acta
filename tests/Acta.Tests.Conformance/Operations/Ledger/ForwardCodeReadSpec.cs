@@ -9,7 +9,7 @@ namespace Acta.Tests.Conformance.Operations.Ledger;
 
 /// <summary>
 /// Conformance for reading forward: a row a newer Acta wrote, carrying a code id this build does not
-/// know, reads back as the extensible family's Unspecified member and serializes, instead of
+/// know, reads back as the family's id-0 member and serializes, instead of
 /// surfacing an undefined enum value that throws when named.
 /// </summary>
 [ConformanceSpec(

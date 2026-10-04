@@ -85,10 +85,9 @@ public sealed class DbProjectionGeneratorTests
             internal sealed class CodeKindAttribute(string kind) : Attribute
             {
                 public string Kind { get; } = kind;
-                public bool Extensible { get; init; }
             }
 
-            [CodeKind("open", Extensible = true)]
+            [CodeKind("open")]
             internal enum OpenCode : byte
             {
                 Unspecified = 0,

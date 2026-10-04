@@ -281,10 +281,6 @@ public sealed class PersistedCodeContractTests
             // an unrecognized code is a bad request, not a version gap.
             Assert.Equal(Enum.ToObject(family, 0), fromId.Invoke(null, [byte.MaxValue]));
 
-            // Unspecified is a Fallback member, read-only; a family whose id 0 is a real default writes it.
-            var isWritableId = extensionType.GetMethod("IsWritableId", BindingFlags.Public | BindingFlags.Static)!;
-            Assert.Equal(Enum.GetName(family, 0) != "Unspecified", isWritableId.Invoke(null, [(byte)0]));
-
             Assert.ThrowsAny<JsonException>(() => JsonSerializer.Deserialize("255", family));
             Assert.ThrowsAny<JsonException>(() => JsonSerializer.Deserialize("\"not-a-code\"", family));
         }
@@ -325,6 +321,17 @@ public sealed class PersistedCodeContractTests
         var custom255 = JobPayloadFormat.Custom(255, "consumer-255");
         Assert.Equal((byte)128, custom128.Id);
         Assert.Equal(byte.MaxValue, custom255.Id);
+    }
+
+    [Fact]
+    public void An_unknown_status_is_inert()
+    {
+        // An old worker reads a newer build's status as Unspecified; it must neither claim nor finish on it.
+        Assert.False(JobStatusCode.Unspecified.IsClaimable);
+        Assert.False(JobStatusCode.Unspecified.IsTerminal);
+        Assert.False(JobStatusCode.Unspecified.IsActiveExecution);
+        Assert.False(StepStatusCode.Unspecified.IsTerminal);
+        Assert.False(ExecutionStatusCode.Unspecified.IsTerminal);
     }
 
     [Fact]

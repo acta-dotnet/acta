@@ -64,6 +64,12 @@ internal sealed class SetJobDefinitionOverridesHandler(DefinitionKeyResolution k
     {
         ArgumentNullException.ThrowIfNull(overrides);
 
+        // Unspecified says nothing, so it overrides nothing: the definition's own value applies.
+        if (overrides.DeadlineBehavior == DeadlineBehaviorCode.Unspecified)
+        {
+            overrides = overrides with { DeadlineBehavior = null };
+        }
+
         if (overrides.MaxAttempts is <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(overrides), "MaxAttempts override must be at least 1.");

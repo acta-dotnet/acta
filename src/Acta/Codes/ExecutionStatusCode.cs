@@ -6,11 +6,7 @@ namespace Acta;
 [CodeKind("execution-status")]
 public enum ExecutionStatusCode : byte
 {
-    [Code(
-        "unspecified",
-        "Execution status not recognized by this build; the row was written by a newer Acta.",
-        Lifecycle = CodeLifecycle.Fallback
-    )]
+    [Code("unspecified", "Execution status not recognized by this build; the row was written by a newer Acta.")]
     Unspecified = 0,
 
     [Code("executing", "Handler in flight.")]

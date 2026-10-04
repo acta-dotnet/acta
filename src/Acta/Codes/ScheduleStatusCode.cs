@@ -6,11 +6,7 @@ namespace Acta;
 [CodeKind("schedule-status")]
 public enum ScheduleStatusCode : byte
 {
-    [Code(
-        "unspecified",
-        "Schedule status not recognized by this build; the row was written by a newer Acta.",
-        Lifecycle = CodeLifecycle.Fallback
-    )]
+    [Code("unspecified", "Schedule status not recognized by this build; the row was written by a newer Acta.")]
     Unspecified = 0,
 
     [Code("active", "Schedule is eligible to fire.")]

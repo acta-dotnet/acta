@@ -44,7 +44,7 @@ public class CodeGeneratorDiagnosticTests
 
             public enum SampleCode : byte
             {
-                [Code("unspecified", "Not known to this build.", Lifecycle = CodeLifecycle.Fallback)]
+                [Code("unspecified", "Not known to this build.")]
                 Unspecified = 0,
                 [Code("one", "First value.")]
                 One = 1,
@@ -88,7 +88,7 @@ public class CodeGeneratorDiagnosticTests
             [CodeKind("Sample Kind")]
             public enum SampleCode : byte
             {
-                [Code("unspecified", "Not known to this build.", Lifecycle = CodeLifecycle.Fallback)]
+                [Code("unspecified", "Not known to this build.")]
                 Unspecified = 0,
                 [Code("one", "First value.")]
                 One = 1,
@@ -218,7 +218,7 @@ public class CodeGeneratorDiagnosticTests
             [CodeKind("sample.kind")]
             public enum SampleCode : byte
             {
-                [Code("unspecified", "Not known to this build.", Lifecycle = CodeLifecycle.Fallback)]
+                [Code("unspecified", "Not known to this build.")]
                 Unspecified = 0,
                 [Code("one", "First value.")]
                 One = 1,
@@ -307,7 +307,7 @@ public class CodeGeneratorDiagnosticTests
             [CodeKind("sample")]
             public enum SampleCode : byte
             {
-                [Code("unspecified", "Not known to this build.", Lifecycle = CodeLifecycle.Fallback)]
+                [Code("unspecified", "Not known to this build.")]
                 Unspecified = 0,
                 [Code("one", "First value.")]
                 One = 1,
@@ -365,7 +365,7 @@ public class CodeGeneratorDiagnosticTests
             [CodeKind("sample")]
             public enum SampleCode : byte
             {
-                [Code("unspecified", "Not known to this build.", Lifecycle = CodeLifecycle.Fallback)]
+                [Code("unspecified", "Not known to this build.")]
                 Unspecified = 0,
                 [Code("one", "First value.")]
                 One = 1,

@@ -9,11 +9,7 @@ namespace Acta;
 [CodeKind("deadline-behavior")]
 public enum DeadlineBehaviorCode : byte
 {
-    [Code(
-        "unspecified",
-        "Deadline behavior not recognized by this build; the row was written by a newer Acta.",
-        Lifecycle = CodeLifecycle.Fallback
-    )]
+    [Code("unspecified", "Deadline behavior not recognized by this build; the row was written by a newer Acta.")]
     Unspecified = 0,
 
     /// <summary>

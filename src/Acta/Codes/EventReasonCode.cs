@@ -7,7 +7,7 @@ namespace Acta;
 /// runtime subject, subgroup, or outcome semantics. Detailed diagnostics remain structured event data.
 /// </summary>
 [JsonConverter(typeof(EventReasonCodeJsonConverter))]
-[CodeKind("job-event-reason", Extensible = true)]
+[CodeKind("job-event-reason")]
 public enum EventReasonCode : byte
 {
     /// <summary>
@@ -15,11 +15,7 @@ public enum EventReasonCode : byte
     /// reason. Distinct from <see cref="Unclassified"/>, which is the writer stating that no catalog code fit.
     /// Never written by Acta; only produced when reading forward.
     /// </summary>
-    [Code(
-        "unspecified",
-        "Reason id not recognized by this build; the row was written by a newer Acta.",
-        Lifecycle = CodeLifecycle.Fallback
-    )]
+    [Code("unspecified", "Reason id not recognized by this build; the row was written by a newer Acta.")]
     Unspecified = 0,
 
     /// <summary>

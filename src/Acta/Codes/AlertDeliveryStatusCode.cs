@@ -10,11 +10,7 @@ namespace Acta;
 [CodeKind("alert-delivery-status")]
 public enum AlertDeliveryStatusCode : byte
 {
-    [Code(
-        "unspecified",
-        "Alert delivery status not recognized by this build; the row was written by a newer Acta.",
-        Lifecycle = CodeLifecycle.Fallback
-    )]
+    [Code("unspecified", "Alert delivery status not recognized by this build; the row was written by a newer Acta.")]
     Unspecified = 0,
 
     [Code("pending", "Materialized; awaiting the first send attempt.")]

@@ -72,9 +72,10 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   (`ck_<table>_priority_code`, `ck_<table>_status_code`), so a new code value needs no migration.
   Rule constraints such as `ck_runtimes_status_lease` stay.
 - **Every code family decodes an unknown id.** A row a newer Acta wrote reads back as the family's
-  id-0 member instead of throwing, so a rolling deploy can read ahead of its build. Families without
-  an id-0 member gain `Unspecified = 0` with the new `CodeLifecycle.Fallback`: never written, absent
-  from every CHECK, and `IsWritableId` is false for it. `JobPriorityCode.Bulk` stays 0. The OpenAPI
+  id-0 member instead of throwing, so a rolling deploy can read ahead of its build. That member is the
+  family's default (`JobPriorityCode.Bulk`, `DefinitionAuditLevelCode.Off`) or, where none fits, a new
+  `Unspecified = 0`; an `Unspecified` deadline-behavior override means no override.
+  `CodeKindAttribute.Extensible` is gone, since every family now behaves the way it did. The OpenAPI
   enums list `unspecified`.
 - **Code families are named by the table they describe.** `JobCheckpointKindCode`,
   `JobCheckpointStatusCode`, `JobDefinitionStatusCode`, `JobStepStatusCode`, and `JobEventReasonCode`

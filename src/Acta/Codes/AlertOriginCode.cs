@@ -6,11 +6,7 @@ namespace Acta;
 [CodeKind("alert-origin")]
 public enum AlertOriginCode : byte
 {
-    [Code(
-        "unspecified",
-        "Alert origin not recognized by this build; the row was written by a newer Acta.",
-        Lifecycle = CodeLifecycle.Fallback
-    )]
+    [Code("unspecified", "Alert origin not recognized by this build; the row was written by a newer Acta.")]
     Unspecified = 0,
 
     [Code("automatic", "System-emitted from a state-mutating SP (failure / timeout / orphan / deadline).")]
