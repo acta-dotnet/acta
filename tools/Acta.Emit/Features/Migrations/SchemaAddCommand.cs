@@ -20,7 +20,7 @@ internal static class SchemaAddCommand
 
         repoRoot ??= RepoRoot.Find();
         var live = SchemaModel.Discover();
-        var to = SchemaSnapshot.Capture(live, CodeFamilyDiscovery.DiscoverAll(live));
+        var to = SchemaSnapshot.Capture(live);
 
         var snapshotPath = SnapshotFile.Path(repoRoot);
         var current = File.Exists(snapshotPath) ? SnapshotPair.Load(snapshotPath).Current : null;

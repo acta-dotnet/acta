@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Reflection;
 using System.Text;
 using Acta.Emit.Shared.Model;
 using Acta.Runtime;
@@ -127,25 +126,6 @@ internal static class SqlSchemaEmitter
             sb.AppendLine(CultureInfo.InvariantCulture, $"    , CONSTRAINT {chk.Name} CHECK ({chk.Sql})");
         }
 
-        // Per-coded-column IN-list CHECK: invalid enum ids fail at the DB layer, not just in C#.
-        // Constraint name dedupes the `_code` suffix if the column already carries a `_code` segment (the
-        // Acta column convention for code-bearing columns, including `{base}_code_override` shapes);
-        // avoids `_code_code` doubling and the `_code_override_code` stutter alike.
-        // Skipped for extensible families (the point of Extensible is that new members need no
-        // migration) and for generated columns whose every source column already carries the CHECK
-        // (COALESCE cannot leave a set both inputs are constrained to).
-        foreach (var c in e.Columns.Where(c => c.IsCoded && !c.IsExtensible && !IsImpliedBySources(c, e)))
-        {
-            var values = EnumValueList(c);
-            if (values is null)
-            {
-                continue;
-            }
-            var predicate = c.IsNullable ? $"{c.Name} IS NULL OR {c.Name} IN ({values})" : $"{c.Name} IN ({values})";
-            var suffix = c.Name.Contains("_code", StringComparison.Ordinal) ? "" : "_code";
-            sb.AppendLine(CultureInfo.InvariantCulture, $"    , CONSTRAINT ck_{e.TableName}_{c.Name}{suffix} CHECK ({predicate})");
-        }
-
         // Provider-specific extras (Postgres byte range / bytea octet_length CHECKs).
         dialect.EmitProviderColumnChecks(sb, e);
 
@@ -253,71 +233,6 @@ internal static class SqlSchemaEmitter
     }
 
     private static bool IsIdentityEligible(DbKind kind) => kind is DbKind.Byte or DbKind.Int16 or DbKind.Int32 or DbKind.Int64;
-
-    // Sorted, comma-separated underlying-int values of the enum backing this coded column.
-    // Returns null for columns whose property type isn't an enum (non-coded columns). Shared with
-    // SchemaSnapshot so the committed snapshot records the CHECK value list as the drift signal.
-    internal static string? EnumValueList(ColumnModel c)
-    {
-        var t = c.Property.PropertyType;
-        var underlying = Nullable.GetUnderlyingType(t) ?? t;
-        if (!underlying.IsEnum)
-        {
-            return null;
-        }
-
-        // A Fallback member is never written, so the column refuses it like any unknown id.
-        var values = underlying
-            .GetFields(BindingFlags.Public | BindingFlags.Static)
-            .Where(f => f.GetCustomAttribute<CodeAttribute>()?.Lifecycle != CodeLifecycle.Fallback)
-            .Select(f => Convert.ToInt64(f.GetRawConstantValue(), CultureInfo.InvariantCulture))
-            .OrderBy(v => v);
-        return string.Join(", ", values);
-    }
-
-    /// <summary>
-    /// <c>true</c> when a generated column's IN-list CHECK would be redundant. Recognizes exactly the
-    /// override triple - <c>x_effective = COALESCE(x_override, x)</c> over two sibling columns of the
-    /// same code family, each already carrying its own CHECK - because COALESCE only ever returns one
-    /// of its arguments. Deliberately narrow: any other expression may compute a value outside the set
-    /// its inputs are constrained to, so it keeps its CHECK.
-    /// </summary>
-    private static bool IsImpliedBySources(ColumnModel c, EntityModel e)
-    {
-        if (!c.IsGenerated || c.Generated is not { } expr || !expr.TrimStart().StartsWith("COALESCE(", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        var sources = e.Columns.Where(s => !ReferenceEquals(s, c) && ReferencesColumn(expr, s.Name)).ToList();
-
-        return sources.Count == 2 && sources.All(s => s.IsCoded && !s.IsExtensible && s.EnumTypeName == c.EnumTypeName);
-    }
-
-    /// <summary>
-    /// Whole-identifier match, so <c>priority_code</c> does not match inside <c>priority_code_override</c>.
-    /// </summary>
-    private static bool ReferencesColumn(string expression, string columnName)
-    {
-        for (
-            var i = expression.IndexOf(columnName, StringComparison.Ordinal);
-            i >= 0;
-            i = expression.IndexOf(columnName, i + 1, StringComparison.Ordinal)
-        )
-        {
-            var endsAt = i + columnName.Length;
-            var boundedLeft = i == 0 || !IsIdentifierChar(expression[i - 1]);
-            var boundedRight = endsAt >= expression.Length || !IsIdentifierChar(expression[endsAt]);
-            if (boundedLeft && boundedRight)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static bool IsIdentifierChar(char ch) => char.IsLetterOrDigit(ch) || ch == '_';
 
     private static string RenderOnDelete(DbForeignKeyAction action) =>
         action switch

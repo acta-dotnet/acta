@@ -17,7 +17,7 @@ public sealed class AtomicCommandTransactionSpec : ActaStorageTestBase<Conforman
 {
     private static readonly StoreCommand Command = new("UpdateNamespace");
 
-    private Action<DbCommand> Bind(int version, ActorCode actor = ActorCode.Operator) =>
+    private Action<DbCommand> Bind(int version, ActorCode? actor = ActorCode.Operator) =>
         cmd =>
         {
             var dialect = Services.GetRequiredService<ISqlDialect>();
@@ -36,14 +36,13 @@ public sealed class AtomicCommandTransactionSpec : ActaStorageTestBase<Conforman
     private Task<IReadOnlyList<EventEntity>> EventsAsync(CancellationToken ct) =>
         Db.From<EventEntity>().Where(e => e.NamespaceId == TestNamespaceId && e.EventCode == EventCode.NamespaceUpdated).ToListAsync(ct);
 
-    [Fact(DisplayName = "An audit constraint failure rolls back the namespace mutation")]
+    [Fact(DisplayName = "An audit insert failure rolls back the namespace mutation")]
     public async Task Sql_failure_rolls_back_mutation()
     {
         var ct = TestContext.Current.CancellationToken;
         var before = await ReadAsync(ct);
-        await Assert.ThrowsAnyAsync<DbException>(() =>
-            Db.ExecuteAsync(Command, Bind(before.Version, (ActorCode)255), static _ => true, ct)
-        );
+        // events.actor_code is NOT NULL, so the audit insert fails after the namespace update.
+        await Assert.ThrowsAnyAsync<DbException>(() => Db.ExecuteAsync(Command, Bind(before.Version, actor: null), static _ => true, ct));
 
         var after = await ReadAsync(ct);
         Assert.Equal(before.Version, after.Version);

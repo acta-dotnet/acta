@@ -62,8 +62,6 @@ public static class PostgresOutboxDdl
                 CONSTRAINT ck_{table}_delay_nonneg CHECK (delay_seconds IS NULL OR delay_seconds >= 0),
                 CONSTRAINT ck_{table}_failure_nonneg CHECK (failure_count >= 0),
                 CONSTRAINT ck_{table}_schedule_exclusive CHECK (next_run_at_utc IS NULL OR delay_seconds IS NULL),
-                CONSTRAINT ck_{table}_priority_code CHECK (priority_code IS NULL OR priority_code IN (0, 50, 70, 85, 100)),
-                CONSTRAINT ck_{table}_status_code CHECK (status_code IN (10, 20, 90)),
                 CONSTRAINT ck_{table}_meta_json CHECK (meta IS NULL OR jsonb_typeof(meta) IS NOT NULL),
                 CONSTRAINT ck_{table}_claim_pair CHECK (
                     (status_code = 20 AND claim_token IS NOT NULL AND claim_until_utc IS NOT NULL)

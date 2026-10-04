@@ -67,6 +67,10 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   `SettingScopeCode`, and the `setting.updated` event (160) are removed, with the `settings` table and
   the `set_setting` routine. Nothing in Acta read a setting; keep such values in your own table or in
   configuration. The object package moves to revision 12.
+- **Code columns no longer carry value-list CHECKs.** The `ck_<table>_<column>` constraints that
+  listed each code column's ids are gone from the baseline and from the outbox DDL
+  (`ck_<table>_priority_code`, `ck_<table>_status_code`), so a new code value needs no migration.
+  Rule constraints such as `ck_runtimes_status_lease` stay.
 - **Every code family decodes an unknown id.** A row a newer Acta wrote reads back as the family's
   id-0 member instead of throwing, so a rolling deploy can read ahead of its build. Families without
   an id-0 member gain `Unspecified = 0` with the new `CodeLifecycle.Fallback`: never written, absent

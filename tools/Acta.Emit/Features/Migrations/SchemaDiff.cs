@@ -71,8 +71,6 @@ internal sealed record SchemaDiff(
             warnings.Add($"{table}: table removed; not drafted, hand-edit required.");
         }
 
-        DiffCodeFamilies(from, to, warnings);
-
         return new SchemaDiff(addedTables, addedColumns, addedIndexes, addedChecks, addedForeignKeys, warnings);
     }
 
@@ -106,38 +104,6 @@ internal sealed record SchemaDiff(
         foreach (var n in fromByName.Keys.Where(n => !toNames.Contains(n)).OrderBy(n => n, StringComparer.Ordinal))
         {
             warnings.Add($"{table}.{n}: {kind} removed; not drafted, hand-edit required.");
-        }
-    }
-
-    private static void DiffCodeFamilies(SchemaSnapshot from, SchemaSnapshot to, List<string> warnings)
-    {
-        // A pre-narrowing schema-snapshot.json (no ValueIds field) deserializes them null; treated as
-        // empty, an old-format snapshot reports every family as drift instead of throwing an NRE.
-        var fromByName = from.CodeFamilies.ToDictionary(f => f.CodeKind, f => f.ValueIds ?? [], StringComparer.Ordinal);
-        foreach (var family in to.CodeFamilies.OrderBy(f => f.CodeKind, StringComparer.Ordinal))
-        {
-            // A brand-new family arrives with its table/columns; their checks render with the column.
-            if (!fromByName.TryGetValue(family.CodeKind, out var oldIds))
-            {
-                continue;
-            }
-            // The snapshot carries ids and nothing else, so this fires only when the id set itself moved
-            // — which is exactly a change to the emitted `IN (<ids>)` list, hence advice that always
-            // applies. Renaming a code or rewording a description is no longer a trigger: it moves no
-            // DDL, and `docs/reference/code-families.md` plus PersistedCodeContractTests track it.
-            if (!oldIds.SequenceEqual(family.ValueIds))
-            {
-                warnings.Add(
-                    $"code family {family.CodeKind} value ids changed ('{string.Join(",", oldIds)}' -> '{string.Join(",", family.ValueIds)}'); "
-                        + "regenerate the synthetic check (ck_*) on columns using it. Not drafted, hand-edit required."
-                );
-            }
-        }
-
-        var toNames = new HashSet<string>(to.CodeFamilies.Select(f => f.CodeKind), StringComparer.Ordinal);
-        foreach (var name in fromByName.Keys.Where(n => !toNames.Contains(n)).OrderBy(n => n, StringComparer.Ordinal))
-        {
-            warnings.Add($"code family {name} removed; not drafted, hand-edit required.");
         }
     }
 }

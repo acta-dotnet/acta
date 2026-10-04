@@ -222,8 +222,8 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         );
     }
 
-    [Fact(DisplayName = "Closed-family constraints reject unassigned values and 255")]
-    public async Task Closed_code_family_rejects_unassigned_and_255()
+    [Fact(DisplayName = "A code column stores an id this build does not know")]
+    public async Task Code_column_stores_an_unknown_id()
     {
         var ct = TestContext.Current.CancellationToken;
         var enq = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
@@ -236,9 +236,9 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
                 ("@p_job_id", enq.JobId)
             );
 
+        // No value-list CHECK: a newer build adds a code value without a migration.
+        Assert.Equal(1, await SetStatusAsync(99));
         Assert.Equal(1, await SetStatusAsync((byte)JobStatusCode.Ready));
-        await Assert.ThrowsAnyAsync<DbException>(() => SetStatusAsync(99));
-        await Assert.ThrowsAnyAsync<DbException>(() => SetStatusAsync(byte.MaxValue));
     }
 
     [Fact(DisplayName = "Consumer payload format 255 remains storable")]

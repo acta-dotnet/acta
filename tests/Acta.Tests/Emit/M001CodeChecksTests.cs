@@ -1,15 +1,10 @@
-﻿using Acta.Tests.Conformance.Testing;
+using System.Text.RegularExpressions;
+using Acta.Tests.Conformance.Testing;
 using Xunit;
 
 namespace Acta.Tests.Emit;
 
-/// <summary>
-/// Static DDL-content checks: every coded (enum-backed) column of a <em>closed</em> family must
-/// produce an <c>IN</c>-list <c>CHECK</c> so invalid enum ids are rejected at the DB layer, not only
-/// by the C# layer, and nullable columns must allow <c>NULL</c> explicitly. Columns of an
-/// <c>Extensible</c> family must produce no such CHECK: that is what lets a new member ship without
-/// a migration.
-/// </summary>
+/// <summary>Static DDL-content checks on the emitted M001 baselines.</summary>
 public class M001CodeChecksTests
 {
     private static string SqlServerM001 =>
@@ -21,35 +16,16 @@ public class M001CodeChecksTests
     private static string SqliteM001 =>
         File.ReadAllText(Path.Combine(IntegrationConfig.FindRepoRoot(), "src", "Acta.Sqlite", "Schema", "Migrations", "M001_init.sql"));
 
-    // JobStatusCode = { Ready=10, Suspended=20, Paused=30, Dispatched=40, Executing=50,
-    //               Succeeded=100, Failed=200, Cancelled=220 }. Anchor enum for the test -
-    // small, stable, and non-nullable on `runtimes.status_code`.
-    private const string JobStatusInList = "(10, 15, 20, 30, 40, 50, 100, 200, 220)";
-
     [Fact]
-    public void SqlServerM001_EmitsJobStatusCheckConstraint()
+    public void No_code_column_is_pinned_to_a_value_list()
     {
-        Assert.Contains($"CONSTRAINT ck_runtimes_status_code CHECK (status_code IN {JobStatusInList})", SqlServerM001);
-    }
-
-    [Fact]
-    public void PgM001_EmitsJobStatusCheckConstraint()
-    {
-        Assert.Contains($"CONSTRAINT ck_runtimes_status_code CHECK (status_code IN {JobStatusInList})", PgM001);
-    }
-
-    [Fact]
-    public void SqlServerM001_NullableCodeColumns_AllowNullExplicitly()
-    {
-        // events.from_status_code is a nullable coded column of a closed family. The CHECK must
-        // include `IS NULL OR ...` so a NULL row is admitted.
-        Assert.Contains("CONSTRAINT ck_events_from_status_code CHECK (from_status_code IS NULL OR from_status_code IN (", SqlServerM001);
-    }
-
-    [Fact]
-    public void PgM001_NullableCodeColumns_AllowNullExplicitly()
-    {
-        Assert.Contains("CONSTRAINT ck_events_from_status_code CHECK (from_status_code IS NULL OR from_status_code IN (", PgM001);
+        // A new code value ships without a migration, so no CHECK lists a column's code ids. Rule
+        // CHECKs that compare a code with another column, like ck_runtimes_status_lease, stay.
+        var valueList = new Regex(@"CHECK \((\w+) (IS NULL OR \1 )?IN \([0-9, ]+\)\)", RegexOptions.CultureInvariant);
+        foreach (var m001 in new[] { SqlServerM001, PgM001, SqliteM001 })
+        {
+            Assert.DoesNotMatch(valueList, m001);
+        }
     }
 
     [Fact]
@@ -66,20 +42,6 @@ public class M001CodeChecksTests
             Assert.DoesNotContain("kind_code", locksTable, StringComparison.Ordinal);
             Assert.Contains("hold_token", locksTable, StringComparison.Ordinal);
         }
-    }
-
-    [Theory]
-    [InlineData("ck_events_reason_code")]
-    [InlineData("ck_events_event_code")]
-    [InlineData("ck_steps_reason_code")]
-    [InlineData("ck_alerts_kind_code")]
-    public void ExtensibleFamilies_EmitNoInListCheck(string constraintName)
-    {
-        // The point of [CodeKind(Extensible = true)] is that a new member ships without a migration,
-        // which only holds while the DB is not pinning the value list.
-        Assert.DoesNotContain(constraintName, SqlServerM001, StringComparison.Ordinal);
-        Assert.DoesNotContain(constraintName, PgM001, StringComparison.Ordinal);
-        Assert.DoesNotContain(constraintName, SqliteM001, StringComparison.Ordinal);
     }
 
     [Fact]

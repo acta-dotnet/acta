@@ -7,91 +7,91 @@
         "Columns": [
           {
             "Name": "id",
-            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "alert_ref",
-            "Signature": "Guid|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Guid|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "namespace_id",
-            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "job_id",
-            "Signature": "Int64|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "Int64|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "job_ref",
-            "Signature": "Guid|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "Guid|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "origin_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=alert-origin|values=10,20"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=alert-origin"
           },
           {
             "Name": "severity_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=alert-severity|values=10,20,30,40"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=alert-severity"
           },
           {
             "Name": "kind_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=alert-kind|values="
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=alert-kind"
           },
           {
             "Name": "title",
-            "Signature": "UnicodeString|512|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "UnicodeString|512|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "message",
-            "Signature": "UnicodeString|512|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "UnicodeString|512|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "channel_name",
-            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "dedupe_key",
-            "Signature": "AsciiString|512|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|512|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "occurrence_count",
-            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "last_projected_event_id",
-            "Signature": "Int64|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "Int64|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "resolved_at_utc",
-            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "acknowledged_at_utc",
-            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "delivery_status_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=alert-delivery-status|values=10,20,30,100,200"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=alert-delivery-status"
           },
           {
             "Name": "retry_count",
-            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "retry_after_utc",
-            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "created_at_utc",
-            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind="
           },
           {
             "Name": "modified_at_utc",
-            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind="
           },
           {
             "Name": "version",
-            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind="
           }
         ],
         "Indexes": [
@@ -142,43 +142,43 @@
         "Columns": [
           {
             "Name": "job_id",
-            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "kind_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-checkpoint-kind|values=10,20,30,40,50"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-checkpoint-kind"
           },
           {
             "Name": "name",
-            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "status_code",
-            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-checkpoint-status|values=10,20,30,100"
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-checkpoint-status"
           },
           {
             "Name": "due_at_utc",
-            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "value_format_id",
-            "Signature": "Byte|0|0|0|False|Zero||coded=False|codeKind=|values="
+            "Signature": "Byte|0|0|0|False|Zero||coded=False|codeKind="
           },
           {
             "Name": "value",
-            "Signature": "BinaryPayload|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "BinaryPayload|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "created_at_utc",
-            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind="
           },
           {
             "Name": "modified_at_utc",
-            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind="
           },
           {
             "Name": "version",
-            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind="
           }
         ],
         "Indexes": [],
@@ -205,255 +205,255 @@
         "Columns": [
           {
             "Name": "id",
-            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "namespace_id",
-            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "name",
-            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "status_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-definition-status|values=10,240"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-definition-status"
           },
           {
             "Name": "definition_hash",
-            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "manifest_generation_at_utc",
-            "Signature": "UtcInstant|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "input_type_name",
-            "Signature": "AsciiString|512|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|512|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "input_format_id",
-            "Signature": "Byte|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Byte|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "input_format_name",
-            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "output_type_name",
-            "Signature": "AsciiString|512|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|512|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "output_format_id",
-            "Signature": "Byte|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Byte|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "output_format_name",
-            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "tenant_requirement_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-tenant-requirement|values=0,10,20"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-tenant-requirement"
           },
           {
             "Name": "priority_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-priority|values=0,50,70,85,100"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-priority"
           },
           {
             "Name": "priority_code_override",
-            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-priority|values=0,50,70,85,100"
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-priority"
           },
           {
             "Name": "priority_code_effective",
-            "Signature": "Byte|0|0|0|False|None|COALESCE(priority_code_override, priority_code)|coded=True|codeKind=job-priority|values=0,50,70,85,100"
+            "Signature": "Byte|0|0|0|False|None|COALESCE(priority_code_override, priority_code)|coded=True|codeKind=job-priority"
           },
           {
             "Name": "max_attempts",
-            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "max_attempts_override",
-            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "max_attempts_effective",
-            "Signature": "Int32|0|0|0|False|None|COALESCE(max_attempts_override, max_attempts)|coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None|COALESCE(max_attempts_override, max_attempts)|coded=False|codeKind="
           },
           {
             "Name": "concurrency_limit",
-            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "concurrency_limit_override",
-            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "concurrency_limit_effective",
-            "Signature": "Int32|0|0|0|True|None|COALESCE(concurrency_limit_override, concurrency_limit)|coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|True|None|COALESCE(concurrency_limit_override, concurrency_limit)|coded=False|codeKind="
           },
           {
             "Name": "rate_limit",
-            "Signature": "AsciiString|16|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|16|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "rate_limit_override",
-            "Signature": "AsciiString|16|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|16|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "rate_limit_effective",
-            "Signature": "AsciiString|16|0|0|True|None|COALESCE(rate_limit_override, rate_limit)|coded=False|codeKind=|values="
+            "Signature": "AsciiString|16|0|0|True|None|COALESCE(rate_limit_override, rate_limit)|coded=False|codeKind="
           },
           {
             "Name": "rate_key",
-            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "lane",
-            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "backoff",
-            "Signature": "UnicodeString|64|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "UnicodeString|64|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "backoff_override",
-            "Signature": "UnicodeString|64|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "UnicodeString|64|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "backoff_effective",
-            "Signature": "UnicodeString|64|0|0|False|None|COALESCE(backoff_override, backoff)|coded=False|codeKind=|values="
+            "Signature": "UnicodeString|64|0|0|False|None|COALESCE(backoff_override, backoff)|coded=False|codeKind="
           },
           {
             "Name": "execution_timeout_seconds",
-            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "execution_timeout_seconds_override",
-            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "execution_timeout_seconds_effective",
-            "Signature": "Int32|0|0|0|False|None|COALESCE(execution_timeout_seconds_override, execution_timeout_seconds)|coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None|COALESCE(execution_timeout_seconds_override, execution_timeout_seconds)|coded=False|codeKind="
           },
           {
             "Name": "deadline_seconds",
-            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "deadline_seconds_override",
-            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "deadline_seconds_effective",
-            "Signature": "Int32|0|0|0|False|None|COALESCE(deadline_seconds_override, deadline_seconds)|coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None|COALESCE(deadline_seconds_override, deadline_seconds)|coded=False|codeKind="
           },
           {
             "Name": "deadline_behavior_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=deadline-behavior|values=10,20"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=deadline-behavior"
           },
           {
             "Name": "deadline_behavior_code_override",
-            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=deadline-behavior|values=10,20"
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=deadline-behavior"
           },
           {
             "Name": "deadline_behavior_code_effective",
-            "Signature": "Byte|0|0|0|False|None|COALESCE(deadline_behavior_code_override, deadline_behavior_code)|coded=True|codeKind=deadline-behavior|values=10,20"
+            "Signature": "Byte|0|0|0|False|None|COALESCE(deadline_behavior_code_override, deadline_behavior_code)|coded=True|codeKind=deadline-behavior"
           },
           {
             "Name": "retention_seconds",
-            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "retention_seconds_override",
-            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "retention_seconds_effective",
-            "Signature": "Int32|0|0|0|False|None|COALESCE(retention_seconds_override, retention_seconds)|coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None|COALESCE(retention_seconds_override, retention_seconds)|coded=False|codeKind="
           },
           {
             "Name": "audit_level_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-audit-level|values=0,10,20"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-audit-level"
           },
           {
             "Name": "audit_level_code_override",
-            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-audit-level|values=0,10,20"
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-audit-level"
           },
           {
             "Name": "audit_level_code_effective",
-            "Signature": "Byte|0|0|0|False|None|COALESCE(audit_level_code_override, audit_level_code)|coded=True|codeKind=job-audit-level|values=0,10,20"
+            "Signature": "Byte|0|0|0|False|None|COALESCE(audit_level_code_override, audit_level_code)|coded=True|codeKind=job-audit-level"
           },
           {
             "Name": "alert_profile_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=alert-profile|values=0,10,20,30,40"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=alert-profile"
           },
           {
             "Name": "alert_profile_code_override",
-            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=alert-profile|values=0,10,20,30,40"
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=alert-profile"
           },
           {
             "Name": "alert_profile_code_effective",
-            "Signature": "Byte|0|0|0|False|None|COALESCE(alert_profile_code_override, alert_profile_code)|coded=True|codeKind=alert-profile|values=0,10,20,30,40"
+            "Signature": "Byte|0|0|0|False|None|COALESCE(alert_profile_code_override, alert_profile_code)|coded=True|codeKind=alert-profile"
           },
           {
             "Name": "alert_channel_name",
-            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "alert_channel_name_override",
-            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "alert_channel_name_effective",
-            "Signature": "AsciiString|128|0|0|True|None|COALESCE(alert_channel_name_override, alert_channel_name)|coded=False|codeKind=|values="
+            "Signature": "AsciiString|128|0|0|True|None|COALESCE(alert_channel_name_override, alert_channel_name)|coded=False|codeKind="
           },
           {
             "Name": "runbook_url",
-            "Signature": "AsciiString|512|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|512|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "runbook_url_override",
-            "Signature": "AsciiString|512|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|512|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "runbook_url_effective",
-            "Signature": "AsciiString|512|0|0|True|None|COALESCE(runbook_url_override, runbook_url)|coded=False|codeKind=|values="
+            "Signature": "AsciiString|512|0|0|True|None|COALESCE(runbook_url_override, runbook_url)|coded=False|codeKind="
           },
           {
             "Name": "display_name",
-            "Signature": "UnicodeString|128|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "UnicodeString|128|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "display_name_override",
-            "Signature": "UnicodeString|128|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "UnicodeString|128|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "display_name_effective",
-            "Signature": "UnicodeString|128|0|0|True|None|COALESCE(display_name_override, display_name)|coded=False|codeKind=|values="
+            "Signature": "UnicodeString|128|0|0|True|None|COALESCE(display_name_override, display_name)|coded=False|codeKind="
           },
           {
             "Name": "description",
-            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "description_override",
-            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "description_effective",
-            "Signature": "UnicodeString|512|0|0|True|None|COALESCE(description_override, description)|coded=False|codeKind=|values="
+            "Signature": "UnicodeString|512|0|0|True|None|COALESCE(description_override, description)|coded=False|codeKind="
           },
           {
             "Name": "created_at_utc",
-            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind="
           },
           {
             "Name": "modified_at_utc",
-            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind="
           },
           {
             "Name": "version",
-            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind="
           }
         ],
         "Indexes": [
@@ -504,87 +504,87 @@
         "Columns": [
           {
             "Name": "id",
-            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "event_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=event|values="
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=event"
           },
           {
             "Name": "created_at_utc",
-            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind="
           },
           {
             "Name": "namespace_id",
-            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "actor_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=actor|values=10,20,50,70"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=actor"
           },
           {
             "Name": "actor_key",
-            "Signature": "UnicodeString|128|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "UnicodeString|128|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "job_id",
-            "Signature": "Int64|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "Int64|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "job_ref",
-            "Signature": "Guid|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "Guid|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "execution_number",
-            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "lineage_root_id",
-            "Signature": "Int64|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "Int64|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "definition_id",
-            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "tenant_id",
-            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "worker_id",
-            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "from_status_code",
-            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-status|values=10,15,20,30,40,50,100,200,220"
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-status"
           },
           {
             "Name": "to_status_code",
-            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-status|values=10,15,20,30,40,50,100,200,220"
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-status"
           },
           {
             "Name": "execution_status_code",
-            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=execution-status|values=50,100,150,151,152,200,220,230"
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=execution-status"
           },
           {
             "Name": "duration_ms",
-            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "reason_code",
-            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-event-reason|values="
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-event-reason"
           },
           {
             "Name": "reason_message",
-            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "detail_format_id",
-            "Signature": "Byte|0|0|0|False|Zero||coded=False|codeKind=|values="
+            "Signature": "Byte|0|0|0|False|Zero||coded=False|codeKind="
           },
           {
             "Name": "detail",
-            "Signature": "BinaryPayload|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "BinaryPayload|0|0|0|True|None||coded=False|codeKind="
           }
         ],
         "Indexes": [
@@ -619,59 +619,59 @@
         "Columns": [
           {
             "Name": "id",
-            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "job_ref",
-            "Signature": "Guid|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Guid|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "namespace_id",
-            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "definition_id",
-            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "lineage_root_id",
-            "Signature": "Int64|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "Int64|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "parent_id",
-            "Signature": "Int64|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "Int64|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "tenant_id",
-            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "deduplication_key",
-            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "correlation_key",
-            "Signature": "AsciiString|64|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|64|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "concurrency_key",
-            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "input_format_id",
-            "Signature": "Byte|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Byte|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "input",
-            "Signature": "BinaryPayload|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "BinaryPayload|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "audit_level_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-audit-level|values=0,10,20"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-audit-level"
           },
           {
             "Name": "created_at_utc",
-            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind="
           }
         ],
         "Indexes": [
@@ -710,19 +710,19 @@
         "Columns": [
           {
             "Name": "id",
-            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "namespace_id",
-            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "name",
-            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "created_at_utc",
-            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind="
           }
         ],
         "Indexes": [
@@ -740,19 +740,19 @@
         "Columns": [
           {
             "Name": "lock_key",
-            "Signature": "AsciiString|256|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|256|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "job_id",
-            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "expires_at_utc",
-            "Signature": "UtcInstant|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "hold_token",
-            "Signature": "Guid|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Guid|0|0|0|False|None||coded=False|codeKind="
           }
         ],
         "Indexes": [
@@ -770,39 +770,39 @@
         "Columns": [
           {
             "Name": "id",
-            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "name",
-            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "owner_team",
-            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "description",
-            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "status_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=namespace-status|values=10,20"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=namespace-status"
           },
           {
             "Name": "catalog_hash",
-            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "created_at_utc",
-            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind="
           },
           {
             "Name": "modified_at_utc",
-            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind="
           },
           {
             "Name": "version",
-            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind="
           }
         ],
         "Indexes": [
@@ -820,23 +820,23 @@
         "Columns": [
           {
             "Name": "job_id",
-            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "execution_number",
-            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "result_format_id",
-            "Signature": "Byte|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Byte|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "result",
-            "Signature": "BinaryPayload|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "BinaryPayload|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "created_at_utc",
-            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind="
           }
         ],
         "Indexes": [],
@@ -859,55 +859,55 @@
         "Columns": [
           {
             "Name": "job_id",
-            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "namespace_id",
-            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "lane_id",
-            "Signature": "Int64|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "Int64|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "status_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-status|values=10,15,20,30,40,50,100,200,220"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-status"
           },
           {
             "Name": "priority_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-priority|values=0,50,70,85,100"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-priority"
           },
           {
             "Name": "next_run_at_utc",
-            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "execution_number",
-            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "failure_count",
-            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "leased_by_worker_id",
-            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "lease_expires_at_utc",
-            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "retention_until_utc",
-            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "modified_at_utc",
-            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind="
           },
           {
             "Name": "version",
-            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind="
           }
         ],
         "Indexes": [
@@ -975,95 +975,95 @@
         "Columns": [
           {
             "Name": "id",
-            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "namespace_id",
-            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "job_id",
-            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "definition_id",
-            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "name",
-            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "origin_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=schedule-origin|values=20,40"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=schedule-origin"
           },
           {
             "Name": "expression",
-            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "expression_override",
-            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "expression_effective",
-            "Signature": "AsciiString|128|0|0|False|None|COALESCE(expression_override, expression)|coded=False|codeKind=|values="
+            "Signature": "AsciiString|128|0|0|False|None|COALESCE(expression_override, expression)|coded=False|codeKind="
           },
           {
             "Name": "time_zone_id",
-            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "time_zone_id_override",
-            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "time_zone_id_effective",
-            "Signature": "AsciiString|128|0|0|False|None|COALESCE(time_zone_id_override, time_zone_id)|coded=False|codeKind=|values="
+            "Signature": "AsciiString|128|0|0|False|None|COALESCE(time_zone_id_override, time_zone_id)|coded=False|codeKind="
           },
           {
             "Name": "expression_kind_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=schedule-expression-kind|values=10,20"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=schedule-expression-kind"
           },
           {
             "Name": "misfire_strategy_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=misfire-strategy|values=10,20"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=misfire-strategy"
           },
           {
             "Name": "next_run_at_utc",
-            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "last_occurrence_at_utc",
-            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "status_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=schedule-status|values=10,30,230"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=schedule-status"
           },
           {
             "Name": "paused_until_utc",
-            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "description",
-            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "reason_message",
-            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "created_at_utc",
-            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind="
           },
           {
             "Name": "modified_at_utc",
-            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind="
           },
           {
             "Name": "version",
-            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind="
           }
         ],
         "Indexes": [
@@ -1103,55 +1103,55 @@
         "Columns": [
           {
             "Name": "id",
-            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "job_id",
-            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "name",
-            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "status_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-step-status|values=10,100,200,230"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-step-status"
           },
           {
             "Name": "attempt_number",
-            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "next_retry_at_utc",
-            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "reason_code",
-            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-event-reason|values="
+            "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=job-event-reason"
           },
           {
             "Name": "reason_message",
-            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "result_format_id",
-            "Signature": "Byte|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Byte|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "result",
-            "Signature": "BinaryPayload|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "BinaryPayload|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "created_at_utc",
-            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind="
           },
           {
             "Name": "modified_at_utc",
-            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind="
           },
           {
             "Name": "version",
-            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind="
           }
         ],
         "Indexes": [
@@ -1195,27 +1195,27 @@
         "Columns": [
           {
             "Name": "scope_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=tag-scope|values=20,30,40,50,60,70,80,90"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=tag-scope"
           },
           {
             "Name": "scope_id",
-            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int64|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "namespace_id",
-            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "name",
-            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "value",
-            "Signature": "UnicodeString|128|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "UnicodeString|128|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "value_search",
-            "Signature": "UnicodeString|128|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "UnicodeString|128|0|0|True|None||coded=False|codeKind="
           }
         ],
         "Indexes": [
@@ -1250,35 +1250,35 @@
         "Columns": [
           {
             "Name": "id",
-            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "tenant_key",
-            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "status_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=tenant-status|values=10,20"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=tenant-status"
           },
           {
             "Name": "display_name",
-            "Signature": "UnicodeString|128|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "UnicodeString|128|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "description",
-            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "created_at_utc",
-            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind="
           },
           {
             "Name": "modified_at_utc",
-            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind="
           },
           {
             "Name": "version",
-            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind="
           }
         ],
         "Indexes": [
@@ -1296,59 +1296,59 @@
         "Columns": [
           {
             "Name": "id",
-            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "worker_ref",
-            "Signature": "Guid|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Guid|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "namespace_id",
-            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "status_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=worker-status|values=10,80,100,200"
+            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=worker-status"
           },
           {
             "Name": "deployment_version",
-            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "host",
-            "Signature": "AsciiString|256|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|256|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "engine_version",
-            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "dotnet_version",
-            "Signature": "AsciiString|64|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "AsciiString|64|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "process_id",
-            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind="
           },
           {
             "Name": "max_concurrency",
-            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "last_seen_at_utc",
-            "Signature": "UtcInstant|0|0|0|False|None||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|False|None||coded=False|codeKind="
           },
           {
             "Name": "created_at_utc",
-            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind="
           },
           {
             "Name": "modified_at_utc",
-            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
+            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind="
           },
           {
             "Name": "version",
-            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|values="
+            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind="
           }
         ],
         "Indexes": [
@@ -1380,229 +1380,6 @@
             "Name": "fk_workers_namespaces",
             "Signature": "namespace_id-\u003Enamespaces.id|NoAction"
           }
-        ]
-      }
-    ],
-    "CodeFamilies": [
-      {
-        "CodeKind": "actor",
-        "ValueIds": [
-          10,
-          20,
-          50,
-          70
-        ]
-      },
-      {
-        "CodeKind": "alert-channel-status",
-        "ValueIds": [
-          10,
-          30,
-          240
-        ]
-      },
-      {
-        "CodeKind": "alert-delivery-status",
-        "ValueIds": [
-          10,
-          20,
-          30,
-          100,
-          200
-        ]
-      },
-      {
-        "CodeKind": "alert-origin",
-        "ValueIds": [
-          10,
-          20
-        ]
-      },
-      {
-        "CodeKind": "alert-profile",
-        "ValueIds": [
-          0,
-          10,
-          20,
-          30,
-          40
-        ]
-      },
-      {
-        "CodeKind": "alert-severity",
-        "ValueIds": [
-          10,
-          20,
-          30,
-          40
-        ]
-      },
-      {
-        "CodeKind": "deadline-behavior",
-        "ValueIds": [
-          10,
-          20
-        ]
-      },
-      {
-        "CodeKind": "execution-status",
-        "ValueIds": [
-          50,
-          100,
-          150,
-          151,
-          152,
-          200,
-          220,
-          230
-        ]
-      },
-      {
-        "CodeKind": "job-audit-level",
-        "ValueIds": [
-          0,
-          10,
-          20
-        ]
-      },
-      {
-        "CodeKind": "job-checkpoint-kind",
-        "ValueIds": [
-          10,
-          20,
-          30,
-          40,
-          50
-        ]
-      },
-      {
-        "CodeKind": "job-checkpoint-status",
-        "ValueIds": [
-          10,
-          20,
-          30,
-          100
-        ]
-      },
-      {
-        "CodeKind": "job-definition-status",
-        "ValueIds": [
-          10,
-          240
-        ]
-      },
-      {
-        "CodeKind": "job-priority",
-        "ValueIds": [
-          0,
-          50,
-          70,
-          85,
-          100
-        ]
-      },
-      {
-        "CodeKind": "job-status",
-        "ValueIds": [
-          10,
-          15,
-          20,
-          30,
-          40,
-          50,
-          100,
-          200,
-          220
-        ]
-      },
-      {
-        "CodeKind": "job-step-status",
-        "ValueIds": [
-          10,
-          100,
-          200,
-          230
-        ]
-      },
-      {
-        "CodeKind": "job-tenant-requirement",
-        "ValueIds": [
-          0,
-          10,
-          20
-        ]
-      },
-      {
-        "CodeKind": "misfire-strategy",
-        "ValueIds": [
-          10,
-          20
-        ]
-      },
-      {
-        "CodeKind": "namespace-status",
-        "ValueIds": [
-          10,
-          20
-        ]
-      },
-      {
-        "CodeKind": "outbox-status",
-        "ValueIds": [
-          10,
-          20,
-          90
-        ]
-      },
-      {
-        "CodeKind": "schedule-expression-kind",
-        "ValueIds": [
-          10,
-          20
-        ]
-      },
-      {
-        "CodeKind": "schedule-origin",
-        "ValueIds": [
-          20,
-          40
-        ]
-      },
-      {
-        "CodeKind": "schedule-status",
-        "ValueIds": [
-          10,
-          30,
-          230
-        ]
-      },
-      {
-        "CodeKind": "tag-scope",
-        "ValueIds": [
-          20,
-          30,
-          40,
-          50,
-          60,
-          70,
-          80,
-          90
-        ]
-      },
-      {
-        "CodeKind": "tenant-status",
-        "ValueIds": [
-          10,
-          20
-        ]
-      },
-      {
-        "CodeKind": "worker-status",
-        "ValueIds": [
-          10,
-          80,
-          100,
-          200
         ]
       }
     ]

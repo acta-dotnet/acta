@@ -33,9 +33,6 @@ CREATE TABLE IF NOT EXISTS {{schema}}.alerts (
     , CONSTRAINT pk_alerts PRIMARY KEY (id)
     , CONSTRAINT ck_alerts_job_ref_pair CHECK ((job_id IS NULL AND job_ref IS NULL) OR (job_id IS NOT NULL AND job_ref IS NOT NULL))
     , CONSTRAINT ck_alerts_occurrence_count CHECK (occurrence_count >= 1)
-    , CONSTRAINT ck_alerts_origin_code CHECK (origin_code IN (10, 20))
-    , CONSTRAINT ck_alerts_severity_code CHECK (severity_code IN (10, 20, 30, 40))
-    , CONSTRAINT ck_alerts_delivery_status_code CHECK (delivery_status_code IN (10, 20, 30, 100, 200))
 );
 CREATE INDEX IF NOT EXISTS ix_alerts_dedupe_identity ON {{schema}}.alerts (namespace_id, dedupe_key) WHERE dedupe_key IS NOT NULL;
 CREATE INDEX IF NOT EXISTS ix_alerts_delivery_due ON {{schema}}.alerts (namespace_id, delivery_status_code, retry_after_utc, id);
@@ -119,16 +116,6 @@ CREATE TABLE IF NOT EXISTS {{schema}}.definitions (
     , CONSTRAINT ck_definitions_deadline_override CHECK (deadline_seconds_override IS NULL OR deadline_seconds_override >= 0)
     , CONSTRAINT ck_definitions_retention CHECK (retention_seconds >= 0)
     , CONSTRAINT ck_definitions_retention_override CHECK (retention_seconds_override IS NULL OR retention_seconds_override >= 0)
-    , CONSTRAINT ck_definitions_status_code CHECK (status_code IN (10, 240))
-    , CONSTRAINT ck_definitions_tenant_requirement_code CHECK (tenant_requirement_code IN (0, 10, 20))
-    , CONSTRAINT ck_definitions_priority_code CHECK (priority_code IN (0, 50, 70, 85, 100))
-    , CONSTRAINT ck_definitions_priority_code_override CHECK (priority_code_override IS NULL OR priority_code_override IN (0, 50, 70, 85, 100))
-    , CONSTRAINT ck_definitions_deadline_behavior_code CHECK (deadline_behavior_code IN (10, 20))
-    , CONSTRAINT ck_definitions_deadline_behavior_code_override CHECK (deadline_behavior_code_override IS NULL OR deadline_behavior_code_override IN (10, 20))
-    , CONSTRAINT ck_definitions_audit_level_code CHECK (audit_level_code IN (0, 10, 20))
-    , CONSTRAINT ck_definitions_audit_level_code_override CHECK (audit_level_code_override IS NULL OR audit_level_code_override IN (0, 10, 20))
-    , CONSTRAINT ck_definitions_alert_profile_code CHECK (alert_profile_code IN (0, 10, 20, 30, 40))
-    , CONSTRAINT ck_definitions_alert_profile_code_override CHECK (alert_profile_code_override IS NULL OR alert_profile_code_override IN (0, 10, 20, 30, 40))
     , CONSTRAINT ck_definitions_input_format_id_byte CHECK (input_format_id BETWEEN 0 AND 255)
     , CONSTRAINT ck_definitions_output_format_id_byte CHECK (output_format_id BETWEEN 0 AND 255)
 );
@@ -159,10 +146,6 @@ CREATE TABLE IF NOT EXISTS {{schema}}.events (
     detail bytea NULL
     , CONSTRAINT pk_events PRIMARY KEY (id)
     , CONSTRAINT ck_events_detail_pair CHECK ((detail_format_id = 0 AND detail IS NULL) OR (detail_format_id <> 0 AND detail IS NOT NULL))
-    , CONSTRAINT ck_events_actor_code CHECK (actor_code IN (10, 20, 50, 70))
-    , CONSTRAINT ck_events_from_status_code CHECK (from_status_code IS NULL OR from_status_code IN (10, 15, 20, 30, 40, 50, 100, 200, 220))
-    , CONSTRAINT ck_events_to_status_code CHECK (to_status_code IS NULL OR to_status_code IN (10, 15, 20, 30, 40, 50, 100, 200, 220))
-    , CONSTRAINT ck_events_execution_status_code CHECK (execution_status_code IS NULL OR execution_status_code IN (50, 100, 150, 151, 152, 200, 220, 230))
     , CONSTRAINT ck_events_detail_format_id_byte CHECK (detail_format_id BETWEEN 0 AND 255)
 );
 CREATE INDEX IF NOT EXISTS ix_events_lineage_timeline ON {{schema}}.events (lineage_root_id, created_at_utc, id) WHERE lineage_root_id IS NOT NULL;
@@ -188,7 +171,6 @@ CREATE TABLE IF NOT EXISTS {{schema}}.jobs (
     created_at_utc timestamptz DEFAULT now() NOT NULL
     , CONSTRAINT pk_jobs PRIMARY KEY (id)
     , CONSTRAINT ck_jobs_input_pair CHECK ((input_format_id = 0 AND input IS NULL) OR (input_format_id <> 0 AND input IS NOT NULL))
-    , CONSTRAINT ck_jobs_audit_level_code CHECK (audit_level_code IN (0, 10, 20))
     , CONSTRAINT ck_jobs_input_format_id_byte CHECK (input_format_id BETWEEN 0 AND 255)
 );
 CREATE INDEX IF NOT EXISTS ix_jobs_parent ON {{schema}}.jobs (parent_id) WHERE parent_id IS NOT NULL;
@@ -229,7 +211,6 @@ CREATE TABLE IF NOT EXISTS {{schema}}.namespaces (
     modified_at_utc timestamptz DEFAULT now() NOT NULL,
     version integer DEFAULT 0 NOT NULL
     , CONSTRAINT pk_namespaces PRIMARY KEY (id)
-    , CONSTRAINT ck_namespaces_status_code CHECK (status_code IN (10, 20))
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ux_namespaces_name ON {{schema}}.namespaces (name);
 
@@ -274,8 +255,6 @@ CREATE TABLE IF NOT EXISTS {{schema}}.runtimes (
     , CONSTRAINT ck_runtimes_status_lease CHECK (status_code IN (40, 50) OR leased_by_worker_id IS NULL)
     , CONSTRAINT ck_runtimes_inflight_leased CHECK (status_code NOT IN (40, 50) OR leased_by_worker_id IS NOT NULL)
     , CONSTRAINT ck_runtimes_ready_due CHECK (status_code <> 10 OR next_run_at_utc IS NOT NULL)
-    , CONSTRAINT ck_runtimes_status_code CHECK (status_code IN (10, 15, 20, 30, 40, 50, 100, 200, 220))
-    , CONSTRAINT ck_runtimes_priority_code CHECK (priority_code IN (0, 50, 70, 85, 100))
     , CONSTRAINT fk_runtimes_jobs FOREIGN KEY (job_id) REFERENCES {{schema}}.jobs (id) ON DELETE CASCADE
     , CONSTRAINT fk_runtimes_lanes FOREIGN KEY (lane_id) REFERENCES {{schema}}.lanes (id)
 );
@@ -313,10 +292,6 @@ CREATE TABLE IF NOT EXISTS {{schema}}.schedules (
     , CONSTRAINT pk_schedules PRIMARY KEY (id)
     , CONSTRAINT ck_schedules_paused_pair CHECK (status_code = 30 OR paused_until_utc IS NULL)
     , CONSTRAINT ck_schedules_orphan_origin CHECK (origin_code = 40 OR status_code <> 230)
-    , CONSTRAINT ck_schedules_origin_code CHECK (origin_code IN (20, 40))
-    , CONSTRAINT ck_schedules_expression_kind_code CHECK (expression_kind_code IN (10, 20))
-    , CONSTRAINT ck_schedules_misfire_strategy_code CHECK (misfire_strategy_code IN (10, 20))
-    , CONSTRAINT ck_schedules_status_code CHECK (status_code IN (10, 30, 230))
     , CONSTRAINT fk_schedules_jobs FOREIGN KEY (job_id) REFERENCES {{schema}}.jobs (id) ON DELETE CASCADE
     , CONSTRAINT fk_schedules_definitions FOREIGN KEY (definition_id) REFERENCES {{schema}}.definitions (id)
 );
@@ -344,7 +319,6 @@ CREATE TABLE IF NOT EXISTS {{schema}}.steps (
     , CONSTRAINT ck_steps_terminal_no_retry CHECK (status_code NOT IN (100, 200, 230) OR next_retry_at_utc IS NULL)
     , CONSTRAINT ck_steps_result_succeeded CHECK (result_format_id = 0 OR status_code = 100)
     , CONSTRAINT ck_steps_reason_pair CHECK (reason_message IS NULL OR reason_code IS NOT NULL)
-    , CONSTRAINT ck_steps_status_code CHECK (status_code IN (10, 100, 200, 230))
     , CONSTRAINT ck_steps_result_format_id_byte CHECK (result_format_id BETWEEN 0 AND 255)
     , CONSTRAINT fk_steps_jobs FOREIGN KEY (job_id) REFERENCES {{schema}}.jobs (id) ON DELETE CASCADE
 );
@@ -363,7 +337,6 @@ CREATE TABLE IF NOT EXISTS {{schema}}.tags (
     , CONSTRAINT ck_tags_namespace_id CHECK (namespace_id IS NULL OR namespace_id > 0)
     , CONSTRAINT ck_tags_scope_namespace CHECK ((scope_code = 20 AND namespace_id IS NULL) OR (scope_code = 30 AND namespace_id IS NOT NULL AND scope_id = namespace_id) OR (scope_code IN (40, 50, 60, 70, 80, 90) AND namespace_id IS NOT NULL))
     , CONSTRAINT ck_tags_value_search CHECK ((value IS NULL AND value_search IS NULL) OR (value IS NOT NULL AND value_search IS NOT NULL))
-    , CONSTRAINT ck_tags_scope_code CHECK (scope_code IN (20, 30, 40, 50, 60, 70, 80, 90))
 );
 CREATE INDEX IF NOT EXISTS ix_tags_namespace_name_value_search ON {{schema}}.tags (namespace_id, name, value_search, scope_code, scope_id);
 
@@ -378,7 +351,6 @@ CREATE TABLE IF NOT EXISTS {{schema}}.tenants (
     modified_at_utc timestamptz DEFAULT now() NOT NULL,
     version integer DEFAULT 0 NOT NULL
     , CONSTRAINT pk_tenants PRIMARY KEY (id)
-    , CONSTRAINT ck_tenants_status_code CHECK (status_code IN (10, 20))
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ux_tenants_key ON {{schema}}.tenants (tenant_key);
 
@@ -400,7 +372,6 @@ CREATE TABLE IF NOT EXISTS {{schema}}.workers (
     version integer DEFAULT 0 NOT NULL
     , CONSTRAINT pk_workers PRIMARY KEY (id)
     , CONSTRAINT ck_workers_max_concurrency CHECK (max_concurrency > 0)
-    , CONSTRAINT ck_workers_status_code CHECK (status_code IN (10, 80, 100, 200))
     , CONSTRAINT fk_workers_namespaces FOREIGN KEY (namespace_id) REFERENCES {{schema}}.namespaces (id)
 );
 CREATE INDEX IF NOT EXISTS ix_workers_namespace_status_last_seen ON {{schema}}.workers (namespace_id, status_code, last_seen_at_utc);
@@ -423,15 +394,13 @@ CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
     , CONSTRAINT pk_checkpoints PRIMARY KEY (job_id, kind_code, name)
     , CONSTRAINT ck_checkpoints_value_pair CHECK ((value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL))
     , CONSTRAINT ck_checkpoints_kind_shape CHECK ((kind_code IN (10, 40) AND status_code IS NULL AND due_at_utc IS NULL) OR (kind_code IN (20, 50) AND status_code IS NOT NULL AND status_code IN (10, 20, 30)) OR (kind_code = 30 AND status_code IS NOT NULL AND status_code IN (10, 100) AND due_at_utc IS NOT NULL))
-    , CONSTRAINT ck_checkpoints_kind_code CHECK (kind_code IN (10, 20, 30, 40, 50))
-    , CONSTRAINT ck_checkpoints_status_code CHECK (status_code IS NULL OR status_code IN (10, 20, 30, 100))
     , CONSTRAINT ck_checkpoints_value_format_id_byte CHECK (value_format_id BETWEEN 0 AND 255)
     , CONSTRAINT fk_checkpoints_jobs FOREIGN KEY (job_id) REFERENCES {{schema}}.jobs (id) ON DELETE CASCADE
 );
 
 
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-61f05c9d0d442b0cc970347e4f8ffcaf', '{{schema}}')
+VALUES (0, 'baseline-c9dc8fbc2218b7f2e44ff33ff29f66a8', '{{schema}}')
 ON CONFLICT (version) DO NOTHING;
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}')

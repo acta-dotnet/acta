@@ -1869,7 +1869,7 @@
   - ux_alerts_dedupe admits one unresolved row per (namespace_id, dedupe_key) and stops filtering once it is resolved
   - ck_runtimes_counters rejects an UPDATE to a negative failure_count
   - ck_runtimes_inflight_leased and ck_runtimes_ready_due bind a status to the column it requires, on INSERT and on UPDATE
-  - Closed-family constraints reject unassigned values and 255
+  - A code column stores an id this build does not know
   - Consumer payload format 255 remains storable
   - ck_checkpoints_kind_shape rejects every mismatched kind/status/due shape on INSERT and on UPDATE
   - ck_steps_attempt_number rejects an INSERT with attempt_number zero
@@ -2012,7 +2012,7 @@
 ### Commands keep mutation and audit in one transaction
 - **Contract:** SQL failure rolls back the operation and successful caller-owned writes leave transaction finalization to the caller.
 - **Guarantees:**
-  - An audit constraint failure rolls back the namespace mutation
+  - An audit insert failure rolls back the namespace mutation
   - A mapper failure cannot replay a server commit; SQLite rolls back its owned transaction
   - A mutation joins the caller's transaction without finalizing it
 

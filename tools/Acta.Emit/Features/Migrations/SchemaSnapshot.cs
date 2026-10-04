@@ -8,12 +8,12 @@ namespace Acta.Emit.Features.Migrations;
 /// <summary>
 /// Committed, tool-owned projection of the live schema model as of the last cut migration.
 /// The diff baseline for the <c>schema add/amend</c> commands; never a competing schema authority.
-/// Captures entities and code families only: routine and view bodies are runtime-installed SQL
+/// Captures entities only: routine and view bodies are runtime-installed SQL
 /// objects, not migration content.
 /// </summary>
-internal sealed record SchemaSnapshot(IReadOnlyList<EntitySnapshot> Entities, IReadOnlyList<CodeFamilySnapshot> CodeFamilies)
+internal sealed record SchemaSnapshot(IReadOnlyList<EntitySnapshot> Entities)
 {
-    internal static SchemaSnapshot Capture(SchemaModel model, IReadOnlyList<CodeFamilyModel> families)
+    internal static SchemaSnapshot Capture(SchemaModel model)
     {
         var entities = model
             .Entities.Select(e => new EntitySnapshot(
@@ -29,31 +29,7 @@ internal sealed record SchemaSnapshot(IReadOnlyList<EntitySnapshot> Entities, IR
             .OrderBy(e => e.Table, StringComparer.Ordinal)
             .ToList();
 
-        // Catalog-backed families only, keyed by the stable CodeKind discriminator, never the CLR enum
-        // type name, so renaming an enum is not read as schema drift. Meta-enums (CodeKind == null) are
-        // omitted; their CHECK-value drift is captured per-column by the column signature's value list.
-        // Extensible families are omitted too: they emit no CHECK-list DDL at all (SqlSchemaEmitter skips
-        // them), so nothing about their membership is physical schema.
-        //
-        // Ids only. The whole DDL footprint of a closed family is the numeric IN-list of the synthetic
-        // check (`SqlSchemaEmitter.cs:133-143` renders `CHECK (col IN (<ids>))`), so a value's Code,
-        // Description and Lifecycle reach no `M*.sql` and no `docs/reference/schema-*.sql` dump. Recording
-        // them made editing a doc comment read as schema drift and mint an empty migration.
-        // They stay tracked, just not here: `docs/reference/code-families.md` tabulates every family's
-        // Member/Id/Code/Description/Lifecycle (`CodeFamilyEmitter.cs:137-147`, over DiscoverAll, so
-        // extensible families included) and is drift-checked by `Acta.Emit check` (`CheckCommand.cs:26`);
-        // `PersistedCodeContractTests` pins every id/code pair literally and hashes id+code+description
-        // across all 162 values (`PersistedCodeContractTests.cs:176,214-226`).
-        var codeFamilies = families
-            .Where(f => f.CodeKind is not null && !f.IsExtensible)
-            .Select(f => new CodeFamilySnapshot(
-                f.CodeKind!,
-                f.Values.Where(v => v.Lifecycle != "Fallback").Select(v => v.Id).Order().ToList()
-            ))
-            .OrderBy(f => f.CodeKind, StringComparer.Ordinal)
-            .ToList();
-
-        return new SchemaSnapshot(entities, codeFamilies);
+        return new SchemaSnapshot(entities);
     }
 
     internal static void Save(SchemaSnapshot snapshot, string path) =>
@@ -63,13 +39,10 @@ internal sealed record SchemaSnapshot(IReadOnlyList<EntitySnapshot> Entities, IR
         JsonSerializer.Deserialize(File.ReadAllText(path), SchemaSnapshotJsonContext.Default.SchemaSnapshot)
         ?? throw new InvalidOperationException($"Empty or invalid schema snapshot at {path}.");
 
-    // Coded identity is carried by the emitted CHECK value list (the real SQL artifact), plus IsCoded and
-    // the stable CodeKind, never EnumTypeName, so a CLR enum rename is not treated as persistence drift.
-    // Extensible columns emit no CHECK list at all (SqlSchemaEmitter's own !IsExtensible guard), so the
-    // value list is omitted here too; keeping it would read adding/removing an extensible member as drift
-    // in a column that carries no physical constraint for it.
+    // Coded identity is IsCoded and the stable CodeKind, never EnumTypeName, so a CLR enum rename is not drift;
+    // member ids are not schema, since no column constrains its code values.
     private static string ColumnSignature(ColumnModel c) =>
-        $"{c.Kind}|{c.Size}|{c.Precision}|{c.Scale}|{c.IsNullable}|{c.Default}|{c.Generated}|coded={c.IsCoded}|codeKind={c.CodeKind}|values={(c.IsExtensible ? null : SqlSchemaEmitter.EnumValueList(c)?.Replace(" ", "", StringComparison.Ordinal))}";
+        $"{c.Kind}|{c.Size}|{c.Precision}|{c.Scale}|{c.IsNullable}|{c.Default}|{c.Generated}|coded={c.IsCoded}|codeKind={c.CodeKind}";
 
     private static string IndexSignature(DbIndexSpec i) =>
         $"{(i.IsUnique ? "U" : "I")}|cols={string.Join(",", i.Columns)}"
@@ -114,8 +87,3 @@ internal sealed record IndexSnapshot(string Name, string Signature);
 internal sealed record CheckSnapshot(string Name, string Sql);
 
 internal sealed record ForeignKeySnapshot(string Name, string Signature);
-
-/// <summary>A closed code family's physical footprint: the ascending id set that renders as the
-/// synthetic check's <c>IN (&lt;ids&gt;)</c> list. Codes, descriptions and lifecycles are deliberately
-/// absent — see the note in <see cref="SchemaSnapshot.Capture"/> for what tracks them instead.</summary>
-internal sealed record CodeFamilySnapshot(string CodeKind, IReadOnlyList<byte> ValueIds);

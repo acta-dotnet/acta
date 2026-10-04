@@ -8,16 +8,13 @@ public sealed class SchemaDiffTests
     private static EntitySnapshot Entity(string table, params string[] columns) =>
         new(table, $"pk_{table}(id)", columns.Select(c => new ColumnSnapshot(c, $"sig:{c}")).ToList(), [], [], []);
 
-    private static SchemaSnapshot Snap(IEnumerable<EntitySnapshot> entities, IEnumerable<CodeFamilySnapshot> families) =>
-        new(entities.ToList(), families.ToList());
-
-    private static CodeFamilySnapshot Family(string kind, params byte[] ids) => new(kind, ids);
+    private static SchemaSnapshot Snap(IEnumerable<EntitySnapshot> entities) => new(entities.ToList());
 
     [Fact]
     public void Added_table_is_reported_and_its_members_are_not_double_counted()
     {
-        var from = Snap([Entity("job", "id")], []);
-        var to = Snap([Entity("job", "id"), Entity("tenants", "id", "name")], []);
+        var from = Snap([Entity("job", "id")]);
+        var to = Snap([Entity("job", "id"), Entity("tenants", "id", "name")]);
 
         var diff = SchemaDiff.Compute(from, to);
 
@@ -28,8 +25,8 @@ public sealed class SchemaDiffTests
     [Fact]
     public void Added_column_on_existing_table_is_reported()
     {
-        var from = Snap([Entity("job", "id")], []);
-        var to = Snap([Entity("job", "id", "tenant_id")], []);
+        var from = Snap([Entity("job", "id")]);
+        var to = Snap([Entity("job", "id", "tenant_id")]);
 
         var diff = SchemaDiff.Compute(from, to);
 
@@ -40,8 +37,8 @@ public sealed class SchemaDiffTests
     [Fact]
     public void Removed_column_produces_a_warning_not_a_drop()
     {
-        var from = Snap([Entity("job", "id", "legacy")], []);
-        var to = Snap([Entity("job", "id")], []);
+        var from = Snap([Entity("job", "id", "legacy")]);
+        var to = Snap([Entity("job", "id")]);
 
         var diff = SchemaDiff.Compute(from, to);
 
@@ -52,8 +49,8 @@ public sealed class SchemaDiffTests
     [Fact]
     public void Changed_column_signature_produces_a_warning()
     {
-        var from = Snap([new EntitySnapshot("job", "pk_jobs(id)", [new ColumnSnapshot("amount", "a")], [], [], [])], []);
-        var to = Snap([new EntitySnapshot("job", "pk_jobs(id)", [new ColumnSnapshot("amount", "b")], [], [], [])], []);
+        var from = Snap([new EntitySnapshot("job", "pk_jobs(id)", [new ColumnSnapshot("amount", "a")], [], [], [])]);
+        var to = Snap([new EntitySnapshot("job", "pk_jobs(id)", [new ColumnSnapshot("amount", "b")], [], [], [])]);
 
         var diff = SchemaDiff.Compute(from, to);
 
@@ -61,33 +58,9 @@ public sealed class SchemaDiffTests
     }
 
     [Fact]
-    public void Code_family_gaining_a_value_produces_a_warning()
-    {
-        var from = Snap([], [Family("job-status", 10, 20)]);
-        var to = Snap([], [Family("job-status", 10, 20, 30)]);
-
-        var diff = SchemaDiff.Compute(from, to);
-
-        Assert.Contains(diff.Warnings, w => w.Contains("job-status") && w.Contains("synthetic check"));
-    }
-
-    // Renumbering a value keeps the family's size but changes the emitted `IN (<ids>)` list, so it is a
-    // real DDL change and must warn — and the warning must name both lists so the hand-edit is obvious.
-    [Fact]
-    public void Renumbered_code_value_produces_a_warning_naming_both_id_sets()
-    {
-        var from = Snap([], [Family("job-status", 10)]);
-        var to = Snap([], [Family("job-status", 20)]);
-
-        var diff = SchemaDiff.Compute(from, to);
-
-        Assert.Contains(diff.Warnings, w => w.Contains("job-status value ids changed ('10' -> '20')"));
-    }
-
-    [Fact]
     public void Identical_snapshots_diff_empty()
     {
-        var snap = Snap([Entity("job", "id")], [Family("job-status", "\n"u8.ToArray())]);
+        var snap = Snap([Entity("job", "id")]);
         Assert.True(SchemaDiff.Compute(snap, snap).IsEmpty);
     }
 }

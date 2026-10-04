@@ -21,7 +21,7 @@ public sealed class SchemaSnapshotFileTests
         Assert.True(File.Exists(SnapshotPath), $"Missing committed snapshot at {SnapshotPath}. Run `Acta.Emit schema add`.");
 
         var model = SchemaModel.Discover();
-        var live = SchemaSnapshot.Capture(model, CodeFamilyDiscovery.DiscoverAll(model));
+        var live = SchemaSnapshot.Capture(model);
         var committed = SnapshotPair.Load(SnapshotPath).Current;
 
         Assert.Equal(Canon(live), Canon(committed));

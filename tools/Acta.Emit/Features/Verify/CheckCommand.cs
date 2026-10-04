@@ -135,7 +135,7 @@ internal static class CheckCommand
         }
         else
         {
-            var live = SchemaSnapshot.Capture(model, CodeFamilyDiscovery.DiscoverAll(model));
+            var live = SchemaSnapshot.Capture(model);
             var committed = SnapshotPair.Load(snapshotPath).Current;
             if (Canon(live) != Canon(committed))
             {

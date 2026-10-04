@@ -116,31 +116,15 @@ separate range checks so consumer formats through `255` remain valid.
 
 ## Adding a value to a code family
 
-Two kinds of code family are persisted, and they evolve differently. Both decode an id they do not know
-as their id-0 member, so a row a newer build wrote reads back instead of failing. That member is a safe
-default (`JobPriorityCode.Bulk`, `DefinitionAuditLevelCode.Off`) or `Unspecified` with
-`Lifecycle = CodeLifecycle.Fallback`, which is never written and which no CHECK lists.
+No column constrains its code values, so adding a value to a family needs no migration. Every
+family decodes an id it does not know as its id-0 member, so a row a newer build wrote reads back
+instead of failing. That member is the family's default (`JobPriorityCode.Bulk`,
+`DefinitionAuditLevelCode.Off`) or `Unspecified`. The SQL compares exact ids, so an older worker's
+claim, retention, and delivery queries pass over a value they do not know.
 
-- **Extensible families** (event, event reason, alert kind) carry no IN-list CHECK. A later release
-  adds a value by using it: no migration, and a 1.0 reader decodes an id it does not know as
-  `Unspecified` instead of failing.
-- **Closed families** (job status, step status, checkpoint kind, tag scope, and the other generated
-  CHECKs) reject any value the baseline does not list. Adding one means replacing
-  that CHECK with a wider one.
-
-Replacing a CHECK with a wider one is an allowed compatibility operation under the additive-only
-rule: it preserves every row, and every value an older build writes stays valid. On PostgreSQL and
-SQL Server it is a `DROP CONSTRAINT` and `ADD CONSTRAINT` in the migration's transaction. SQLite
-cannot alter a CHECK, so its migration rebuilds the table inside one transaction: create the new
-table, copy the rows, drop the old one, rename, and recreate its indexes, with foreign keys off for
-the copy and a `foreign_key_check` before commit.
-
-Widening the constraint does not make the new value safe to write. During a rolling deploy an older
-worker still reads the table, and it reads the new value as the family's id-0 member,
-which its status helpers treat as neither claimable nor terminal, so it cannot act on the value. A release that
-adds a closed value therefore ships in two steps: the first release widens the constraint and
-teaches readers the value, and a later one starts writing it, once no worker older than the first
-is running.
+Reading a new value safely is not the same as acting on it. A value that changes engine behaviour
+ships in two releases: the first teaches readers the value, and a later one starts writing it, once
+no worker older than the first is running.
 
 ## The snapshot
 
