@@ -22,34 +22,30 @@ internal sealed class SetJobDefinitionOverridesHandler(DefinitionKeyResolution k
             cmd =>
             {
                 // The routine takes its arguments by position, so the order here is its signature's.
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.Id, definitionId.Value));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.Version, command.ExpectedVersion));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.PriorityCodeOverride, overrides.Priority));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.MaxAttemptsOverride, overrides.MaxAttempts));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.ConcurrencyLimitOverride, overrides.ConcurrencyLimit));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.RateLimitOverride, overrides.RateLimit));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.BackoffOverride, overrides.Backoff));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.Id, definitionId.Value));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.Version, command.ExpectedVersion));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.PriorityCodeOverride, overrides.Priority));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.MaxAttemptsOverride, overrides.MaxAttempts));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.ConcurrencyLimitOverride, overrides.ConcurrencyLimit));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.RateLimitOverride, overrides.RateLimit));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.BackoffOverride, overrides.Backoff));
                 cmd.Parameters.Add(
-                    dialect.CreateParameter(ActaSchema.JobDefinition.ExecutionTimeoutSecondsOverride, overrides.ExecutionTimeoutSeconds)
+                    dialect.CreateParameter(ActaSchema.Definition.ExecutionTimeoutSecondsOverride, overrides.ExecutionTimeoutSeconds)
                 );
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.DeadlineSecondsOverride, overrides.DeadlineSeconds));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.DeadlineSecondsOverride, overrides.DeadlineSeconds));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.DeadlineBehaviorCodeOverride, overrides.DeadlineBehavior));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.RetentionSecondsOverride, overrides.JobRetentionSeconds));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.AuditLevelCodeOverride, overrides.AuditLevel));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.AlertProfileCodeOverride, overrides.AlertProfile));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.AlertChannelNameOverride, overrides.AlertChannelName));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.RunbookUrlOverride, overrides.RunbookUrl));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.DisplayNameOverride, overrides.DisplayName));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.DescriptionOverride, overrides.Description));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorCode, actor.ActorCode));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorKey, actor.ActorKey));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ReasonCode, JobEventReasonCode.JobControlManual));
                 cmd.Parameters.Add(
-                    dialect.CreateParameter(ActaSchema.JobDefinition.DeadlineBehaviorCodeOverride, overrides.DeadlineBehavior)
-                );
-                cmd.Parameters.Add(
-                    dialect.CreateParameter(ActaSchema.JobDefinition.RetentionSecondsOverride, overrides.JobRetentionSeconds)
-                );
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.AuditLevelCodeOverride, overrides.AuditLevel));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.AlertProfileCodeOverride, overrides.AlertProfile));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.AlertChannelNameOverride, overrides.AlertChannelName));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.RunbookUrlOverride, overrides.RunbookUrl));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.DisplayNameOverride, overrides.DisplayName));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.DescriptionOverride, overrides.Description));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorCode, actor.ActorCode));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorKey, actor.ActorKey));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonCode, JobEventReasonCode.JobControlManual));
-                cmd.Parameters.Add(
-                    dialect.CreateParameter(ActaSchema.JobEvent.ReasonMessage, command.ReasonMessage.Truncate(ActaTextLimits.ReasonMessage))
+                    dialect.CreateParameter(ActaSchema.Event.ReasonMessage, command.ReasonMessage.Truncate(ActaTextLimits.ReasonMessage))
                 );
             },
             DbProjectionResolver.Resolve<SetJobDefinitionOverridesRow>(),

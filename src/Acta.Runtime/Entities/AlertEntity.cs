@@ -1,13 +1,10 @@
 namespace Acta.Runtime;
 
 /// <summary>
-/// One materialized alert. A row carrying a non-null <see cref="DedupeKey"/> is an <em>incident</em>: the
-/// unique <c>(namespace_id, dedupe_key)</c> index, filtered to unresolved rows, admits exactly one OPEN
-/// row per key, so repeats of the same condition collapse onto it (incrementing
-/// <see cref="OccurrenceCount"/>) while it stays open. A null <see cref="DedupeKey"/> always inserts a
-/// fresh row. <see cref="ResolvedAtUtc"/> is the single source of truth for resolution and is terminal
-/// for the row: once stamped it is never cleared back to NULL, and the next firing of the same condition
-/// opens a new incident row on the same key.
+/// One materialized alert. A non-null <see cref="DedupeKey"/> makes it an incident: the unique
+/// <c>(namespace_id, dedupe_key)</c> index over unresolved rows admits one open row per key, so repeats collapse onto
+/// it (<see cref="OccurrenceCount"/>) while it stays open, and a null key always inserts. <see cref="ResolvedAtUtc"/>
+/// is terminal: once stamped it never clears, and the next firing opens a new incident on the same key.
 /// </summary>
 [DbTable("alerts")]
 [DbPrimaryKey(Name = "pk_alerts", Columns = ["id"])]
@@ -59,7 +56,7 @@ namespace Acta.Runtime;
 [DbIndex(Name = "ix_alerts_job", Columns = ["job_id", "id"], Filter = "job_id IS NOT NULL", Usage = "maintenance")]
 [DbCheck(Name = "ck_alerts_job_ref_pair", Sql = "(job_id IS NULL AND job_ref IS NULL) OR (job_id IS NOT NULL AND job_ref IS NOT NULL)")]
 [DbCheck(Name = "ck_alerts_occurrence_count", Sql = "occurrence_count >= 1")]
-internal sealed class JobAlert : IEntity<long>
+internal sealed class AlertEntity : IEntity<long>
 {
     /// <summary>
     /// Alert row identifier.
@@ -159,16 +156,10 @@ internal sealed class JobAlert : IEntity<long>
     public int OccurrenceCount { get; set; }
 
     /// <summary>
-    /// High-water mark of the <c>events</c> row that last moved this alert automatically: the id of the
-    /// failure event that last raised it, or of the success event that last resolved it.
-    /// NULL means no projected event has touched the row yet (a manual alert, or an automatic one whose
-    /// first projection is still in flight), and sorts before every event id. The <c>sys.alerts</c>
-    /// projector commits each event's alert write before it advances its cursor, so a crash mid-batch
-    /// replays events already projected; every automatic transition is conditional on the incoming event
-    /// id being strictly greater than this mark, which makes that replay a no-op instead of an inflated
-    /// <see cref="OccurrenceCount"/>. The mark also survives resolution, so a failure event replayed
-    /// after the incident closed cannot open a ghost incident behind the events that already landed.
-    /// Manual raises and the operator resolve verb carry no event and leave this untouched.
+    /// The id of the <c>events</c> row that last moved this alert automatically (the failure that raised it or the
+    /// success that resolved it); null until a projected event touches it, sorting before every id. Every automatic
+    /// transition requires a newer event id, so a projector crash that replays a batch changes nothing, and the mark
+    /// outlives resolution so a replayed failure cannot reopen a closed incident. Manual raises and resolves leave it.
     /// </summary>
     [DbColumn("last_projected_event_id", DbKind.Int64)]
     public long? LastProjectedEventId { get; set; }
@@ -208,14 +199,10 @@ internal sealed class JobAlert : IEntity<long>
     public int RetryCount { get; set; }
 
     /// <summary>
-    /// Earliest instant this row may be sent again, whether that send is a retry or a reminder. While
-    /// delivery is unsettled it is the backoff instant of the next retry. On a settled unresolved row it
-    /// is the reminder schedule the settling send wrote - one <c>AlertReminderInterval</c> out - which is
-    /// how an incident that stays open keeps re-notifying. Deliberately not derived from
-    /// <see cref="ModifiedAtUtc"/>: every repeat the open incident absorbs re-stamps that column, so a
-    /// job failing faster than the interval would be permanently too young to remind. Null means nothing
-    /// is scheduled: a manual alert that delivered (its caller owns the lifecycle), a suppressed row, or
-    /// any resolved row, since both resolve paths clear it.
+    /// Earliest instant this row may be sent again: the next retry's backoff while delivery is unsettled, and one
+    /// <c>AlertReminderInterval</c> out once a send settles an unresolved row, which is how an open incident keeps
+    /// reminding. Not derived from <see cref="ModifiedAtUtc"/>, which every absorbed repeat re-stamps. Null means
+    /// nothing is scheduled: a delivered manual alert, a suppressed row, or any resolved row.
     /// </summary>
     [DbColumn("retry_after_utc", DbKind.UtcInstant)]
     public DateTime? RetryAfterUtc { get; set; }

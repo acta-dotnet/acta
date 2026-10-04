@@ -107,8 +107,8 @@ public sealed class ExtendWorkerLeasesRaceSpec : ActaRuntimeTestBase<Conformance
         var store = Services.GetRequiredService<Acta.Runtime.Execution>();
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
-        var worker = await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
-        var workerId = Assert.IsType<JobWorker>(worker).Id;
+        var worker = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
+        var workerId = Assert.IsType<WorkerEntity>(worker).Id;
         var claimed = Assert.Single(await store.ClaimOneAsync(ns, workerId, leaseTtl, job.JobId, ct));
         Assert.Equal(
             StartExecutionAction.Started,

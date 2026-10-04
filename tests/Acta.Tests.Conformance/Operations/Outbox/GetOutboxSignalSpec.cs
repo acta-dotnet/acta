@@ -72,9 +72,9 @@ public sealed class GetOutboxSignalSpec : ActaStorageTestBase<ConformanceFixture
         await ParkAsync(expiredJob, OutboxSignalNames.Requeue, valueFormatId: 1, [9], NothingIsStale, ct);
         Assert.Equal(
             1,
-            await Db.From<JobCheckpoint>()
+            await Db.From<CheckpointEntity>()
                 .Where(c => c.JobId == expiredJob && c.Kind == JobCheckpointKindCode.Signal && c.Name == OutboxSignalNames.Requeue)
-                .UpdateOnlyAsync(() => new JobCheckpoint { Status = JobCheckpointStatusCode.Expired }, ct)
+                .UpdateOnlyAsync(() => new CheckpointEntity { Status = JobCheckpointStatusCode.Expired }, ct)
         );
 
         // A variable shares the checkpoints table and the composite key's job and name, differing only by kind.

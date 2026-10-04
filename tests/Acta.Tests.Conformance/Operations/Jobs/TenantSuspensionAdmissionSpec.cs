@@ -98,11 +98,11 @@ public sealed class TenantSuspensionAdmissionSpec : ActaRuntimeTestBase<Conforma
         await Tenants().SuspendAsync(key, "hold", null, ct);
         var landed = (await Task.WhenAll(enqueues)).Count(ok => ok);
 
-        var stored = await Db.From<Job>().Where(j => j.TenantId == tenantId).CountAsync(ct);
+        var stored = await Db.From<JobEntity>().Where(j => j.TenantId == tenantId).CountAsync(ct);
         Assert.Equal(landed, stored);
 
         // The commit boundary: any enqueue transaction beginning after the suspend returned rejects.
         await Assert.ThrowsAnyAsync<Exception>(() => EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: key)], ct));
-        Assert.Equal(landed, await Db.From<Job>().Where(j => j.TenantId == tenantId).CountAsync(ct));
+        Assert.Equal(landed, await Db.From<JobEntity>().Where(j => j.TenantId == tenantId).CountAsync(ct));
     }
 }

@@ -28,7 +28,7 @@ public abstract class ClaimSkewTestBase : ActaRuntimeTestBase<ConformanceFixture
     protected async Task<(int NamespaceId, int WorkerId)> ClaimantAsync(CancellationToken ct)
     {
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var worker = await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
+        var worker = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);
         return (ns, worker.Id);
     }

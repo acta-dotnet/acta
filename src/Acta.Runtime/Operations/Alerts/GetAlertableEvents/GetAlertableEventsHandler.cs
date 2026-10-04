@@ -13,7 +13,7 @@ internal sealed class GetAlertableEventsHandler(IDbSession session, ISqlDialect 
             "GetAlertableEvents",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.NamespaceId, query.NamespaceId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.NamespaceId, query.NamespaceId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AlertCursorUtc, query.CursorUtc));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorEventId, query.CursorEventId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AlertHorizonUtc, query.HorizonUtc));

@@ -73,7 +73,7 @@ public abstract class OutboxRelayHostBase : ActaRuntimeTestBase<ConformanceFixtu
     private protected async Task<long> RunRelayPassAsync(CancellationToken ct)
     {
         var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var slot = await Db.From<Job>()
+        var slot = await Db.From<JobEntity>()
             .Where(j => j.NamespaceId == namespaceId && j.DeduplicationKey == "sys.outbox")
             .SingleOrDefaultAsync(ct);
         Assert.NotNull(slot);

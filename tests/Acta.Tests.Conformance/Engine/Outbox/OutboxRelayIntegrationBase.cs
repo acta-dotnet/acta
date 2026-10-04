@@ -78,10 +78,10 @@ public abstract class OutboxRelayIntegrationBase : ActaRuntimeTestBase<Conforman
     // Ledger jobs in this test's namespace carrying the given deduplication key: the target side of the
     // (namespace, deduplication key) exactly-once invariant.
     private protected async Task<int> CountLedgerJobsAsync(string dedup, CancellationToken ct) =>
-        await Db.From<Job>().Where(j => j.NamespaceId == NamespaceId && j.DeduplicationKey == dedup).CountAsync(ct);
+        await Db.From<JobEntity>().Where(j => j.NamespaceId == NamespaceId && j.DeduplicationKey == dedup).CountAsync(ct);
 
     private protected async Task<int> CountLedgerJobsAsync(int namespaceId, string dedup, CancellationToken ct) =>
-        await Db.From<Job>().Where(j => j.NamespaceId == namespaceId && j.DeduplicationKey == dedup).CountAsync(ct);
+        await Db.From<JobEntity>().Where(j => j.NamespaceId == namespaceId && j.DeduplicationKey == dedup).CountAsync(ct);
 
     // A second Acta runtime against the same ledger that registers TestJobsManifest under another
     // namespace, so a route unknown at first can become resolvable after a later registration.

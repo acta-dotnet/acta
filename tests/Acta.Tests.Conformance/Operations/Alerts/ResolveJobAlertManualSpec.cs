@@ -41,14 +41,14 @@ public sealed class ResolveJobAlertManualSpec : ActaRuntimeTestBase<ConformanceF
             ct
         );
 
-        var alert = await Db.From<JobAlert>().Where(a => a.JobId == enqueued.JobId).SingleOrDefaultAsync(ct);
+        var alert = await Db.From<AlertEntity>().Where(a => a.JobId == enqueued.JobId).SingleOrDefaultAsync(ct);
         Assert.NotNull(alert);
         return (new AlertRef(alert!.AlertRef), enqueued.JobId);
     }
 
-    private async Task<JobAlert> AlertRowAsync(long jobId, CancellationToken ct)
+    private async Task<AlertEntity> AlertRowAsync(long jobId, CancellationToken ct)
     {
-        var alert = await Db.From<JobAlert>().Where(a => a.JobId == jobId).SingleOrDefaultAsync(ct);
+        var alert = await Db.From<AlertEntity>().Where(a => a.JobId == jobId).SingleOrDefaultAsync(ct);
         Assert.NotNull(alert);
         return alert!;
     }
@@ -65,7 +65,9 @@ public sealed class ResolveJobAlertManualSpec : ActaRuntimeTestBase<ConformanceF
         Assert.Null(result.AcknowledgedAtUtc);
         Assert.NotNull(result.ResolvedAtUtc);
 
-        var evt = await Db.From<JobEvent>().Where(e => e.JobId == jobId && e.EventCode == EventCode.AlertResolved).SingleOrDefaultAsync(ct);
+        var evt = await Db.From<EventEntity>()
+            .Where(e => e.JobId == jobId && e.EventCode == EventCode.AlertResolved)
+            .SingleOrDefaultAsync(ct);
         Assert.NotNull(evt);
         Assert.Equal(ActorCode.Operator, evt!.ActorCode);
         Assert.Contains($"alert {alertRef}", evt.ReasonMessage);
@@ -83,7 +85,7 @@ public sealed class ResolveJobAlertManualSpec : ActaRuntimeTestBase<ConformanceF
         Assert.Equal(ControlAction.Applied, second.Action);
         Assert.Equal(first.ResolvedAtUtc, second.ResolvedAtUtc);
 
-        var eventCount = await Db.From<JobEvent>().Where(e => e.JobId == jobId && e.EventCode == EventCode.AlertResolved).CountAsync(ct);
+        var eventCount = await Db.From<EventEntity>().Where(e => e.JobId == jobId && e.EventCode == EventCode.AlertResolved).CountAsync(ct);
         Assert.Equal(1, eventCount);
     }
 

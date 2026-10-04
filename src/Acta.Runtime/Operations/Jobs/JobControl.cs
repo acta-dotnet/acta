@@ -19,12 +19,12 @@ internal static class JobControl
 
     public static void BindActor(DbCommand cmd, ISqlDialect dialect, JobControlInput input, bool includeReasonMessage = true)
     {
-        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorCode, input.Actor.ActorCode));
-        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorKey, input.Actor.ActorKey));
-        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonCode, input.ReasonCode));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorCode, input.Actor.ActorCode));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorKey, input.Actor.ActorKey));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ReasonCode, input.ReasonCode));
         if (includeReasonMessage)
         {
-            cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonMessage, input.ReasonMessage));
+            cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ReasonMessage, input.ReasonMessage));
         }
     }
 

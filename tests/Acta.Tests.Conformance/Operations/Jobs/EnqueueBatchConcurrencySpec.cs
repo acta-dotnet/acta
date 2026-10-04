@@ -168,10 +168,10 @@ public sealed class EnqueueBatchConcurrencySpec : ActaRuntimeTestBase<Conformanc
                 )),
         ];
 
-    private async Task<Dictionary<long, JobRuntime>> StatusesAsync(CancellationToken ct)
+    private async Task<Dictionary<long, RuntimeEntity>> StatusesAsync(CancellationToken ct)
     {
         var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var rows = await Db.From<JobRuntime>().Where(r => r.NamespaceId == namespaceId).ToListAsync(ct);
+        var rows = await Db.From<RuntimeEntity>().Where(r => r.NamespaceId == namespaceId).ToListAsync(ct);
         return rows.ToDictionary(r => r.Id);
     }
 }

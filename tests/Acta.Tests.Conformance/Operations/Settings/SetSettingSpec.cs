@@ -77,7 +77,7 @@ public sealed class SetSettingSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Equal(ControlAction.NotFound, unknownDefinition.Action);
 
         Assert.Null(await Settings.GetAsync(name, TestNamespace, null, ct));
-        Assert.Empty(await Db.From<Setting>().Where(s => s.Name == name).ToListAsync(ct));
+        Assert.Empty(await Db.From<SettingEntity>().Where(s => s.Name == name).ToListAsync(ct));
     }
 
     [Fact(DisplayName = "Every set emits setting.updated whose detail carries the setting name")]
@@ -89,7 +89,7 @@ public sealed class SetSettingSpec : ActaStorageTestBase<ConformanceFixture>
 
         await Settings.SetAsync(name, "on", null, null, TestNamespace, jobName: null, reason, "op-1", ct);
 
-        var events = await Db.From<JobEvent>()
+        var events = await Db.From<EventEntity>()
             .Where(e => e.EventCode == EventCode.SettingUpdated && e.ReasonMessage == reason)
             .ToListAsync(ct);
         var evt = Assert.Single(events);
@@ -136,7 +136,7 @@ public sealed class SetSettingSpec : ActaStorageTestBase<ConformanceFixture>
     }
 
     private async Task<int> SettingEventCountAsync(string reason, CancellationToken ct) =>
-        await Db.From<JobEvent>().Where(e => e.EventCode == EventCode.SettingUpdated && e.ReasonMessage == reason).CountAsync(ct);
+        await Db.From<EventEntity>().Where(e => e.EventCode == EventCode.SettingUpdated && e.ReasonMessage == reason).CountAsync(ct);
 
     // Framework defaults fill the policy columns; only the identity matters to these facts.
     private static JobDescriptor Def(string name) =>

@@ -214,8 +214,8 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
         Assert.Empty(await ReadStepsAsync(enqueued.JobId, ct));
     }
 
-    private async Task<IReadOnlyList<JobStep>> ReadStepsAsync(long jobId, CancellationToken ct)
+    private async Task<IReadOnlyList<StepEntity>> ReadStepsAsync(long jobId, CancellationToken ct)
     {
-        return await Db.From<JobStep>().Where(a => a.JobId == jobId).ToListAsync(ct);
+        return await Db.From<StepEntity>().Where(a => a.JobId == jobId).ToListAsync(ct);
     }
 }

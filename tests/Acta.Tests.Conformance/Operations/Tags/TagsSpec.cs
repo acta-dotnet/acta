@@ -218,14 +218,14 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
         var ct = TestContext.Current.CancellationToken;
         var targets = await CreateTargetsAsync(ct);
         var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var before = await Db.From<JobEvent>().Where(x => x.NamespaceId == namespaceId).CountAsync(ct);
+        var before = await Db.From<EventEntity>().Where(x => x.NamespaceId == namespaceId).CountAsync(ct);
 
         Assert.Equal(
             TagMutationAction.Applied,
             (await Operations.Tags.UpsertAsync(TagTarget.ForEvent(targets.EventId), new TagInput("triage", "reviewed"), ct: ct)).Action
         );
 
-        Assert.Equal(before, await Db.From<JobEvent>().Where(x => x.NamespaceId == namespaceId).CountAsync(ct));
+        Assert.Equal(before, await Db.From<EventEntity>().Where(x => x.NamespaceId == namespaceId).CountAsync(ct));
     }
 
     [Fact(DisplayName = "Manual purge removes job, schedule, alert, and event tags before deleting their targets")]
@@ -236,7 +236,7 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
         var jobId = Assert.IsType<long>(await Jobs.GetJobIdAsync(lookup, ct));
         var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
         var schedule = Assert.Single(
-            await Db.From<JobSchedule>().Where(x => x.JobId == jobId && x.Name == "every-5-minutes").ToListAsync(ct)
+            await Db.From<ScheduleEntity>().Where(x => x.JobId == jobId && x.Name == "every-5-minutes").ToListAsync(ct)
         );
 
         Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(lookup, ct: ct)).Action);
@@ -254,8 +254,8 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
             null,
             ct
         );
-        var alert = Assert.Single(await Db.From<JobAlert>().Where(x => x.JobId == jobId).ToListAsync(ct));
-        var eventRows = await Db.From<JobEvent>().Where(x => x.JobId == jobId).ToListAsync(ct);
+        var alert = Assert.Single(await Db.From<AlertEntity>().Where(x => x.JobId == jobId).ToListAsync(ct));
+        var eventRows = await Db.From<EventEntity>().Where(x => x.JobId == jobId).ToListAsync(ct);
         Assert.NotEmpty(eventRows);
         var eventId = eventRows.Max(x => x.Id);
 
@@ -273,12 +273,12 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
 
         Assert.Equal(ControlAction.Applied, (await Jobs.PurgeAsync(lookup, ct: ct)).Action);
 
-        Assert.Null(await Db.From<Job>().Where(x => x.Id == jobId).SingleOrDefaultAsync(ct));
-        Assert.Null(await Db.From<JobSchedule>().Where(x => x.Id == schedule.Id).SingleOrDefaultAsync(ct));
-        Assert.Null(await Db.From<JobAlert>().Where(x => x.Id == alert.Id).SingleOrDefaultAsync(ct));
-        Assert.Null(await Db.From<JobEvent>().Where(x => x.Id == eventId).SingleOrDefaultAsync(ct));
+        Assert.Null(await Db.From<JobEntity>().Where(x => x.Id == jobId).SingleOrDefaultAsync(ct));
+        Assert.Null(await Db.From<ScheduleEntity>().Where(x => x.Id == schedule.Id).SingleOrDefaultAsync(ct));
+        Assert.Null(await Db.From<AlertEntity>().Where(x => x.Id == alert.Id).SingleOrDefaultAsync(ct));
+        Assert.Null(await Db.From<EventEntity>().Where(x => x.Id == eventId).SingleOrDefaultAsync(ct));
         Assert.Empty(
-            await Db.From<Tag>()
+            await Db.From<TagEntity>()
                 .Where(x =>
                     (x.ScopeCode == TagScopeCode.Job && x.ScopeId == jobId)
                     || (x.ScopeCode == TagScopeCode.Schedule && x.ScopeId == schedule.Id)
@@ -288,7 +288,7 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
                 .ToListAsync(ct)
         );
 
-        var purgeAudit = await Db.From<JobEvent>()
+        var purgeAudit = await Db.From<EventEntity>()
             .Where(x => x.NamespaceId == namespaceId && x.EventCode == EventCode.JobPurged)
             .ToListAsync(ct);
         Assert.NotEmpty(purgeAudit);
@@ -308,8 +308,8 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
 
         Assert.Contains((await mutationTask).Action, new[] { TagMutationAction.Applied, TagMutationAction.NotFound });
         Assert.Equal(ControlAction.Applied, (await purgeTask).Action);
-        Assert.Null(await Db.From<Job>().Where(x => x.Id == jobId).SingleOrDefaultAsync(ct));
-        Assert.Empty(await Db.From<Tag>().Where(x => x.ScopeCode == TagScopeCode.Job && x.ScopeId == jobId).ToListAsync(ct));
+        Assert.Null(await Db.From<JobEntity>().Where(x => x.Id == jobId).SingleOrDefaultAsync(ct));
+        Assert.Empty(await Db.From<TagEntity>().Where(x => x.ScopeCode == TagScopeCode.Job && x.ScopeId == jobId).ToListAsync(ct));
     }
 
     private async Task<TestTargets> CreateTargetsAsync(CancellationToken ct)
@@ -319,14 +319,14 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
 
         var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
         var definition = Assert.Single(
-            await Db.From<JobDefinition>().Where(x => x.NamespaceId == namespaceId && x.Name == "add-numbers").ToListAsync(ct)
+            await Db.From<DefinitionEntity>().Where(x => x.NamespaceId == namespaceId && x.Name == "add-numbers").ToListAsync(ct)
         );
-        var worker = Assert.Single(await Db.From<JobWorker>().Where(x => x.NamespaceId == namespaceId).ToListAsync(ct));
+        var worker = Assert.Single(await Db.From<WorkerEntity>().Where(x => x.NamespaceId == namespaceId).ToListAsync(ct));
 
         var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct);
 
         var schedule = Assert.Single(
-            await Db.From<JobSchedule>().Where(x => x.NamespaceId == namespaceId && x.Name == "every-5-minutes").ToListAsync(ct)
+            await Db.From<ScheduleEntity>().Where(x => x.NamespaceId == namespaceId && x.Name == "every-5-minutes").ToListAsync(ct)
         );
 
         await AlertTestOps.RaiseAsync(
@@ -343,8 +343,8 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
             null,
             ct
         );
-        var alert = Assert.Single(await Db.From<JobAlert>().Where(x => x.JobId == job.JobId).ToListAsync(ct));
-        var events = await Db.From<JobEvent>().Where(x => x.NamespaceId == namespaceId).ToListAsync(ct);
+        var alert = Assert.Single(await Db.From<AlertEntity>().Where(x => x.JobId == job.JobId).ToListAsync(ct));
+        var events = await Db.From<EventEntity>().Where(x => x.NamespaceId == namespaceId).ToListAsync(ct);
         Assert.NotEmpty(events);
         var eventId = events.Max(x => x.Id);
 

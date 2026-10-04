@@ -12,14 +12,14 @@ namespace Acta.Runtime;
 [DbPrimaryKey(Name = "pk_schedules", Columns = ["id"])]
 [DbForeignKey(
     Name = "fk_schedules_jobs",
-    Target = typeof(Job),
+    Target = typeof(JobEntity),
     TargetColumn = "id",
     Column = "job_id",
     OnDelete = DbForeignKeyAction.Cascade
 )]
 [DbForeignKey(
     Name = "fk_schedules_definitions",
-    Target = typeof(JobDefinition),
+    Target = typeof(DefinitionEntity),
     TargetColumn = "id",
     Column = "definition_id",
     OnDelete = DbForeignKeyAction.NoAction
@@ -33,7 +33,7 @@ namespace Acta.Runtime;
 )]
 [DbCheck(Name = "ck_schedules_paused_pair", Sql = "status_code = 30 OR paused_until_utc IS NULL")]
 [DbCheck(Name = "ck_schedules_orphan_origin", Sql = "origin_code = 40 OR status_code <> 230")]
-internal sealed class JobSchedule : IEntity<long>
+internal sealed class ScheduleEntity : IEntity<long>
 {
     /// <summary>
     /// Schedule row identifier.
@@ -148,13 +148,10 @@ internal sealed class JobSchedule : IEntity<long>
     // ---------- Operator lifecycle ----------
 
     /// <summary>
-    /// Lifecycle state and the single source of truth for orphaning. <c>Active</c> schedules fire;
-    /// <c>Paused</c> schedules do not and are excluded from the slot's MIN; <c>Orphaned</c> is set by
-    /// catalog reconciliation when the origin declaration disappears, and the walker ignores those rows
-    /// (<c>ix_schedules_namespace_next</c> filters them out). Only <c>Definition</c>-origin rows can be
-    /// orphaned, since no other origin has a descriptor anchor to be orphaned from. An orphaned row that
-    /// is re-declared resets to <c>Active</c>: the pause does not survive, because a schedule that
-    /// vanished and came back warrants a fresh operator decision.
+    /// Lifecycle state. <c>Active</c> schedules fire; <c>Paused</c> ones do not and leave the slot's MIN;
+    /// <c>Orphaned</c> marks a <c>Definition</c>-origin row whose declaration disappeared, which the walker ignores. A
+    /// re-declared orphan resets to <c>Active</c>, dropping any pause: a schedule that came back warrants a fresh
+    /// operator decision.
     /// </summary>
     [DbColumn("status_code")]
     public ScheduleStatusCode Status { get; set; }

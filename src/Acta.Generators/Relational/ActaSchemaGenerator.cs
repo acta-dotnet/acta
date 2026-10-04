@@ -776,7 +776,7 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
                 .Append(e.TableName)
                 .AppendLine("</c>).");
             sb.AppendLine("    /// </summary>");
-            sb.Append("    public static ").Append(e.EntityName).Append("Table ").Append(e.EntityName).AppendLine(" { get; } = new();");
+            sb.Append("    public static ").Append(Accessor(e)).Append("Table ").Append(Accessor(e)).AppendLine(" { get; } = new();");
             sb.AppendLine();
         }
 
@@ -789,7 +789,7 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
         var byTable = entities.Sort(static (a, b) => string.CompareOrdinal(a.TableName, b.TableName));
         foreach (var e in byTable)
         {
-            sb.Append("        ").Append(e.EntityName).AppendLine(".Entity,");
+            sb.Append("        ").Append(Accessor(e)).AppendLine(".Entity,");
         }
         sb.AppendLine("    };");
         sb.AppendLine();
@@ -811,7 +811,7 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
             sb.Append("        if (entityType == typeof(")
                 .Append(e.EntityFqn)
                 .Append(")) return ")
-                .Append(e.EntityName)
+                .Append(Accessor(e))
                 .AppendLine(".Entity;");
         }
         sb.AppendLine("        throw new InvalidOperationException(");
@@ -829,9 +829,15 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
         return sb.ToString();
     }
 
+    // ActaSchema names a table model by its subject: JobEntity is ActaSchema.Job.
+    private static string Accessor(EntityInfo e) =>
+        e.EntityName.EndsWith("Entity", StringComparison.Ordinal)
+            ? e.EntityName.Substring(0, e.EntityName.Length - "Entity".Length)
+            : e.EntityName;
+
     private static void EmitTableClass(StringBuilder sb, EntityInfo e)
     {
-        sb.Append("    public sealed class ").Append(e.EntityName).AppendLine("Table");
+        sb.Append("    public sealed class ").Append(Accessor(e)).AppendLine("Table");
         sb.AppendLine("    {");
 
         // Column properties (pre-declared so the entity literal below can reference them)
@@ -854,7 +860,7 @@ public sealed class ActaSchemaGenerator : IIncrementalGenerator
         sb.AppendLine("        public string Table => Entity.TableName;");
         sb.AppendLine();
 
-        sb.Append("        public ").Append(e.EntityName).AppendLine("Table()");
+        sb.Append("        public ").Append(Accessor(e)).AppendLine("Table()");
         sb.AppendLine("        {");
 
         // Column literals

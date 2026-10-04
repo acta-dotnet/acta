@@ -11,7 +11,7 @@ internal sealed class GetDefinitionContractsHandler(IDbSession session, ISqlDial
         var read = DbProjectionResolver.Resolve<GetDefinitionContractsRow>();
         return session.QueryListAsync(
             "GetDefinitionContracts",
-            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.NamespaceId, query.NamespaceId)),
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.NamespaceId, query.NamespaceId)),
             reader => read(reader).ToContract(),
             ct
         );

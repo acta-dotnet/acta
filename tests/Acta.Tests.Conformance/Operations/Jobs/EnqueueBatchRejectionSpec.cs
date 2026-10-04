@@ -149,7 +149,7 @@ public sealed class EnqueueBatchRejectionSpec : ActaRuntimeTestBase<ConformanceF
         await Assert.ThrowsAnyAsync<Exception>(() => enqueueBatch.InsertAsync(rows, [taken.JobRef.Value, JobRef.New().Value], null, ct));
 
         Assert.Equal(before, await CountJobsAsync(ct));
-        Assert.Empty(await Db.From<Tag>().Where(t => t.Name == "probe").ToListAsync(ct));
+        Assert.Empty(await Db.From<TagEntity>().Where(t => t.Name == "probe").ToListAsync(ct));
     }
 
     private JobEnqueueRow Row(string? deduplicationKey, AddNumbers input, IReadOnlyList<TagInput>? tags = null)
@@ -174,6 +174,6 @@ public sealed class EnqueueBatchRejectionSpec : ActaRuntimeTestBase<ConformanceF
     private async Task<int> CountJobsAsync(CancellationToken ct)
     {
         var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
-        return await Db.From<Job>().Where(j => j.NamespaceId == namespaceId).CountAsync(ct);
+        return await Db.From<JobEntity>().Where(j => j.NamespaceId == namespaceId).CountAsync(ct);
     }
 }

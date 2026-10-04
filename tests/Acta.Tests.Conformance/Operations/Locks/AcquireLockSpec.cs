@@ -37,7 +37,7 @@ public sealed class AcquireLockSpec : ActaStorageTestBase<ConformanceFixture>
         start.SetResult();
         var tokens = await Task.WhenAll(attempts);
         var winner = Assert.Single(tokens, t => t.HasValue)!.Value;
-        var row = await Db.From<Acta.Runtime.Lock>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct);
+        var row = await Db.From<Acta.Runtime.LockEntity>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct);
         Assert.NotNull(row);
         Assert.Equal(winner.HoldToken, row.HoldToken);
         Assert.True(await store.ReleaseLockAsync(winner, ct));
@@ -53,7 +53,7 @@ public sealed class AcquireLockSpec : ActaStorageTestBase<ConformanceFixture>
         var token = await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -1, ct);
         Assert.NotNull(token);
 
-        var lease = await Db.From<Acta.Runtime.Lock>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct);
+        var lease = await Db.From<Acta.Runtime.LockEntity>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct);
         Assert.NotNull(lease);
         Assert.Equal(key, lease!.LockKey);
         Assert.Equal(-1L, lease.JobId);
@@ -82,9 +82,9 @@ public sealed class AcquireLockSpec : ActaStorageTestBase<ConformanceFixture>
         // Deterministically expire the lease by back-dating expires_at_utc.
         {
             var expired = DateTime.UtcNow.AddHours(-1);
-            await Db.From<Acta.Runtime.Lock>()
+            await Db.From<Acta.Runtime.LockEntity>()
                 .Where(l => l.LockKey == key)
-                .UpdateOnlyAsync(() => new Acta.Runtime.Lock { ExpiresAtUtc = expired }, ct);
+                .UpdateOnlyAsync(() => new Acta.Runtime.LockEntity { ExpiresAtUtc = expired }, ct);
         }
 
         // A competing acquire on the now-expired lease must succeed (steal). Poll briefly: under SQL Server
@@ -104,7 +104,7 @@ public sealed class AcquireLockSpec : ActaStorageTestBase<ConformanceFixture>
         // steal, in which case AcquireLockAsync re-inserts a fresh lease (version resets) rather than
         // updating it in place.
         {
-            var postSteal = await Db.From<Acta.Runtime.Lock>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct);
+            var postSteal = await Db.From<Acta.Runtime.LockEntity>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct);
             Assert.NotNull(postSteal);
             Assert.Equal(-2L, postSteal!.JobId);
         }

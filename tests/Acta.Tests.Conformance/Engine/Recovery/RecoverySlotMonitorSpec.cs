@@ -65,7 +65,7 @@ public sealed class RecoverySlotMonitorSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Equal(before.Version + 1, after.Version);
         Assert.Equal(before.FailureCount + 1, after.FailureCount);
 
-        var finished = await Db.From<JobEvent>()
+        var finished = await Db.From<EventEntity>()
             .Where(e => e.JobId == slotId && e.EventCode == EventCode.JobExecutionFinished && e.ExecutionNumber == before.ExecutionNumber)
             .ToListAsync(ct);
         var lost = Assert.Single(finished);
@@ -89,7 +89,7 @@ public sealed class RecoverySlotMonitorSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Equal(RecoverySlotRepair.Repaired, await CheckAsync(slotId, ct));
 
         Assert.Equal(JobStatusCode.Ready, (await RuntimeAsync(slotId, ct)).Status);
-        var finished = await Db.From<JobEvent>()
+        var finished = await Db.From<EventEntity>()
             .Where(e => e.JobId == slotId && e.EventCode == EventCode.JobExecutionFinished && e.ExecutionNumber == before.ExecutionNumber)
             .ToListAsync(ct);
         var lost = Assert.Single(finished);
@@ -120,7 +120,7 @@ public sealed class RecoverySlotMonitorSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Single(outcomes, o => o == RecoverySlotRepair.Repaired);
         Assert.Single(outcomes, o => o == RecoverySlotRepair.Healthy);
 
-        var finished = await Db.From<JobEvent>()
+        var finished = await Db.From<EventEntity>()
             .Where(e => e.JobId == slotId && e.EventCode == EventCode.JobExecutionFinished && e.ExecutionNumber == before.ExecutionNumber)
             .ToListAsync(ct);
         Assert.Single(finished);
@@ -161,7 +161,7 @@ public sealed class RecoverySlotMonitorSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.NotNull(after.LeasedByWorkerId);
         Assert.True(after.LeaseExpiresAtUtc > DateTime.UtcNow);
         Assert.Empty(
-            await Db.From<JobEvent>()
+            await Db.From<EventEntity>()
                 .Where(e =>
                     e.JobId == slotId && e.EventCode == EventCode.JobExecutionFinished && e.ExecutionNumber == before.ExecutionNumber
                 )
@@ -178,8 +178,8 @@ public sealed class RecoverySlotMonitorSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Equal(RecoverySlotRepair.Missing, await Execution.RepairRecoverySlotAsync(TestNamespaceId, missingId, ct));
         Assert.Equal(RecoverySlotRepair.Missing, await CheckAsync(missingId, ct));
 
-        Assert.Empty(await Db.From<JobRuntime>().Where(r => r.Id == missingId).ToListAsync(ct));
-        Assert.Empty(await Db.From<JobEvent>().Where(e => e.JobId == missingId).ToListAsync(ct));
+        Assert.Empty(await Db.From<RuntimeEntity>().Where(r => r.Id == missingId).ToListAsync(ct));
+        Assert.Empty(await Db.From<EventEntity>().Where(e => e.JobId == missingId).ToListAsync(ct));
     }
 
     [Fact(DisplayName = "A worker starting over a lapsed recovery slot re-arms it before the catalog is read")]
@@ -254,7 +254,7 @@ public sealed class RecoverySlotMonitorSpec : ActaRuntimeTestBase<ConformanceFix
 
         // A tick that was already in flight when the stranded job turned Ready holds the slot's lease
         // until its own sweep completes, so the slot is judged once that pass has settled.
-        JobRuntime slot;
+        RuntimeEntity slot;
         do
         {
             slot = await RuntimeAsync(slotId, ct);
@@ -386,7 +386,7 @@ public sealed class RecoverySlotMonitorSpec : ActaRuntimeTestBase<ConformanceFix
     /// <summary>Leaves the slot as a dead worker would: in flight, owned by a real worker row, lease as given.</summary>
     private async Task StrandAsync(long jobId, JobStatusCode status, DateTime leaseExpiresAtUtc, CancellationToken ct)
     {
-        var worker = await Db.From<JobWorker>().Where(w => w.NamespaceId == TestNamespaceId).FirstOrDefaultAsync(ct);
+        var worker = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == TestNamespaceId).FirstOrDefaultAsync(ct);
         Assert.NotNull(worker);
         await Db.ExecuteRawAsync(
             "UPDATE {schema}.runtimes SET status_code = @p_status, execution_number = execution_number + 1, "
@@ -416,6 +416,6 @@ public sealed class RecoverySlotMonitorSpec : ActaRuntimeTestBase<ConformanceFix
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
-    private async Task<JobRuntime> RuntimeAsync(long jobId, CancellationToken ct) =>
-        Assert.Single(await Db.From<JobRuntime>().Where(r => r.Id == jobId).ToListAsync(ct));
+    private async Task<RuntimeEntity> RuntimeAsync(long jobId, CancellationToken ct) =>
+        Assert.Single(await Db.From<RuntimeEntity>().Where(r => r.Id == jobId).ToListAsync(ct));
 }

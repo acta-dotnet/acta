@@ -33,18 +33,20 @@ public sealed class FrameworkJobRegistrationSpec : ActaRuntimeTestBase<Conforman
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
 
-        var def = await Db.From<JobDefinition>().Where(d => d.NamespaceId == ns && d.Name == "sys.recovery").SingleOrDefaultAsync(ct);
+        var def = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == ns && d.Name == "sys.recovery").SingleOrDefaultAsync(ct);
         Assert.NotNull(def);
         Assert.Equal(JobDefinitionStatusCode.Active, def!.Status);
 
         // The recurring slot job carries the job name as its deduplication_key.
-        var slot = await Db.From<Job>().Where(j => j.NamespaceId == ns && j.DeduplicationKey == "sys.recovery").SingleOrDefaultAsync(ct);
+        var slot = await Db.From<JobEntity>()
+            .Where(j => j.NamespaceId == ns && j.DeduplicationKey == "sys.recovery")
+            .SingleOrDefaultAsync(ct);
         Assert.NotNull(slot);
         var slotRow = await ReadJobAsync(slot!.Id, ct);
         Assert.Equal(JobStatusCode.Ready, slotRow.Status);
         Assert.NotNull(slotRow.NextRunAtUtc);
 
-        var schedules = await Db.From<JobSchedule>().Where(s => s.DefinitionId == def.Id).ToListAsync(ct);
+        var schedules = await Db.From<ScheduleEntity>().Where(s => s.DefinitionId == def.Id).ToListAsync(ct);
         Assert.Equal("default", Assert.Single(schedules).Name);
     }
 
@@ -54,17 +56,19 @@ public sealed class FrameworkJobRegistrationSpec : ActaRuntimeTestBase<Conforman
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
 
-        var def = await Db.From<JobDefinition>().Where(d => d.NamespaceId == ns && d.Name == "sys.retention").SingleOrDefaultAsync(ct);
+        var def = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == ns && d.Name == "sys.retention").SingleOrDefaultAsync(ct);
         Assert.NotNull(def);
         Assert.Equal(JobDefinitionStatusCode.Active, def!.Status);
 
-        var slot = await Db.From<Job>().Where(j => j.NamespaceId == ns && j.DeduplicationKey == "sys.retention").SingleOrDefaultAsync(ct);
+        var slot = await Db.From<JobEntity>()
+            .Where(j => j.NamespaceId == ns && j.DeduplicationKey == "sys.retention")
+            .SingleOrDefaultAsync(ct);
         Assert.NotNull(slot);
         var slotRow = await ReadJobAsync(slot!.Id, ct);
         Assert.Equal(JobStatusCode.Ready, slotRow.Status);
         Assert.NotNull(slotRow.NextRunAtUtc);
 
-        var schedule = Assert.Single(await Db.From<JobSchedule>().Where(s => s.DefinitionId == def.Id).ToListAsync(ct));
+        var schedule = Assert.Single(await Db.From<ScheduleEntity>().Where(s => s.DefinitionId == def.Id).ToListAsync(ct));
         Assert.Equal("default", schedule.Name);
         Assert.Equal(Cron.Hourly, schedule.Expression);
     }

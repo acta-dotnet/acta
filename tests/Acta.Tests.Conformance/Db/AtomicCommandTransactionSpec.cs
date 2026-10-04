@@ -22,19 +22,19 @@ public sealed class AtomicCommandTransactionSpec : ActaStorageTestBase<Conforman
         {
             var dialect = Services.GetRequiredService<ISqlDialect>();
             cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceName, TestNamespace));
-            cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobNamespace.OwnerTeam, "inline-updated"));
-            cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobNamespace.Description, "inline-description"));
+            cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Namespace.OwnerTeam, "inline-updated"));
+            cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Namespace.Description, "inline-description"));
             cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ExpectedRowVersion, version));
-            cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorCode, actor));
-            cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorKey, "inline-test"));
-            cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonMessage, "inline-transaction"));
+            cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorCode, actor));
+            cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorKey, "inline-test"));
+            cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ReasonMessage, "inline-transaction"));
         };
 
-    private async Task<JobNamespace> ReadAsync(CancellationToken ct) =>
-        (await Db.From<JobNamespace>().Where(n => n.Id == TestNamespaceId).SingleOrDefaultAsync(ct))!;
+    private async Task<NamespaceEntity> ReadAsync(CancellationToken ct) =>
+        (await Db.From<NamespaceEntity>().Where(n => n.Id == TestNamespaceId).SingleOrDefaultAsync(ct))!;
 
-    private Task<IReadOnlyList<JobEvent>> EventsAsync(CancellationToken ct) =>
-        Db.From<JobEvent>().Where(e => e.NamespaceId == TestNamespaceId && e.EventCode == EventCode.NamespaceUpdated).ToListAsync(ct);
+    private Task<IReadOnlyList<EventEntity>> EventsAsync(CancellationToken ct) =>
+        Db.From<EventEntity>().Where(e => e.NamespaceId == TestNamespaceId && e.EventCode == EventCode.NamespaceUpdated).ToListAsync(ct);
 
     [Fact(DisplayName = "An audit constraint failure rolls back the namespace mutation")]
     public async Task Sql_failure_rolls_back_mutation()

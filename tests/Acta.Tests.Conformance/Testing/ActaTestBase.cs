@@ -92,55 +92,55 @@ public abstract class ActaTestBase<TFixture> : IAsyncLifetime
 
     private protected async Task<TestJobRow> ReadJobAsync(long jobId, CancellationToken ct)
     {
-        var job = await Db.From<Job>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct);
+        var job = await Db.From<JobEntity>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct);
         Assert.NotNull(job);
-        var runtime = await Db.From<JobRuntime>().Where(r => r.Id == jobId).SingleOrDefaultAsync(ct);
+        var runtime = await Db.From<RuntimeEntity>().Where(r => r.Id == jobId).SingleOrDefaultAsync(ct);
         Assert.NotNull(runtime);
         return new TestJobRow(job!, runtime!);
     }
 
-    private protected async Task<JobEvent> ReadLatestEventAsync(long jobId, EventCode code, CancellationToken ct)
+    private protected async Task<EventEntity> ReadLatestEventAsync(long jobId, EventCode code, CancellationToken ct)
     {
-        var rows = await Db.From<JobEvent>().Where(e => e.JobId == jobId && e.EventCode == code).ToListAsync(ct);
+        var rows = await Db.From<EventEntity>().Where(e => e.JobId == jobId && e.EventCode == code).ToListAsync(ct);
         Assert.NotEmpty(rows);
         return rows.OrderByDescending(e => e.Id).First();
     }
 
-    private protected async Task<JobEvent> ReadSingleEventAsync(long jobId, EventCode code, CancellationToken ct)
+    private protected async Task<EventEntity> ReadSingleEventAsync(long jobId, EventCode code, CancellationToken ct)
     {
-        var rows = await Db.From<JobEvent>().Where(e => e.JobId == jobId && e.EventCode == code).ToListAsync(ct);
+        var rows = await Db.From<EventEntity>().Where(e => e.JobId == jobId && e.EventCode == code).ToListAsync(ct);
         return Assert.Single(rows);
     }
 
     protected async Task<int> CountEventsAsync(long jobId, EventCode code, CancellationToken ct)
     {
-        return await Db.From<JobEvent>().Where(e => e.JobId == jobId && e.EventCode == code).CountAsync(ct);
+        return await Db.From<EventEntity>().Where(e => e.JobId == jobId && e.EventCode == code).CountAsync(ct);
     }
 
     protected async Task<int> CountFinishedWithStatusAsync(long jobId, ExecutionStatusCode status, CancellationToken ct)
     {
-        return await Db.From<JobEvent>()
+        return await Db.From<EventEntity>()
             .Where(e => e.JobId == jobId && e.EventCode == EventCode.JobExecutionFinished && e.ExecutionStatus == status)
             .CountAsync(ct);
     }
 
     protected async Task<int> CountVariableAsync(long jobId, string name, CancellationToken ct)
     {
-        return await Db.From<JobCheckpoint>()
+        return await Db.From<CheckpointEntity>()
             .Where(v => v.JobId == jobId && v.Kind == JobCheckpointKindCode.Variable && v.Name == name)
             .CountAsync(ct);
     }
 
-    private protected async Task<IReadOnlyList<JobCheckpoint>> ReadSignalsAsync(long jobId, CancellationToken ct)
+    private protected async Task<IReadOnlyList<CheckpointEntity>> ReadSignalsAsync(long jobId, CancellationToken ct)
     {
-        return await Db.From<JobCheckpoint>()
+        return await Db.From<CheckpointEntity>()
             .Where(s => s.JobId == jobId && (s.Kind == JobCheckpointKindCode.Signal || s.Kind == JobCheckpointKindCode.ChildLatch))
             .ToListAsync(ct);
     }
 
-    private protected async Task<IReadOnlyList<JobAlert>> ReadAlertsAsync(int namespaceId, CancellationToken ct)
+    private protected async Task<IReadOnlyList<AlertEntity>> ReadAlertsAsync(int namespaceId, CancellationToken ct)
     {
-        return await Db.From<JobAlert>().Where(a => a.NamespaceId == namespaceId).ToListAsync(ct);
+        return await Db.From<AlertEntity>().Where(a => a.NamespaceId == namespaceId).ToListAsync(ct);
     }
 
     /// <summary>
@@ -151,7 +151,7 @@ public abstract class ActaTestBase<TFixture> : IAsyncLifetime
     /// </summary>
     private protected async Task<long> NextEventIdAsync(long jobId, CancellationToken ct)
     {
-        var events = await Db.From<JobEvent>().Where(e => e.JobId == jobId).ToListAsync(ct);
+        var events = await Db.From<EventEntity>().Where(e => e.JobId == jobId).ToListAsync(ct);
         return events.Count == 0 ? 1L : events.Max(e => e.Id) + 1L;
     }
 }
@@ -161,7 +161,7 @@ public abstract class ActaTestBase<TFixture> : IAsyncLifetime
 /// Exposes a flat property surface so specs keep asserting job.Status / job.LeasedByWorkerId
 /// without caring which physical row carries it.
 /// </summary>
-internal sealed record TestJobRow(Job Job, JobRuntime Runtime)
+internal sealed record TestJobRow(JobEntity Job, RuntimeEntity Runtime)
 {
     public long Id => Job.Id;
     public Guid JobRef => Job.JobRef;

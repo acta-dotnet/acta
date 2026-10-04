@@ -8,9 +8,9 @@ internal sealed class WaitSignalHandler(IDbSession session, ISqlDialect dialect)
             new StoreCommand("WaitSignal"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.JobId, command.JobId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.KindCode, command.Kind));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.Name, command.Name));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.JobId, command.JobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.KindCode, command.Kind));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.Name, command.Name));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.WaitTimeoutSeconds, command.TimeoutSeconds));
             },
             DbProjectionResolver.Resolve<SignalWaitDecision>(),

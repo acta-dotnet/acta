@@ -1,23 +1,16 @@
 namespace Acta.Runtime;
 
 /// <summary>
-/// One durable substrate slot per <c>(JobId, Kind, Name)</c> in the merged <c>checkpoints</c> table:
-/// user variables, signals, sleep timers, the progress slot, and child terminal-outcome latches all
-/// share this one physical shape, discriminated by <see cref="Kind"/>. Steps are richer
-/// (attempt counters, retry budget) and stay in the separate <c>steps</c> table.
+/// One durable slot per <c>(JobId, Kind, Name)</c>: variables, signals, sleep timers, the progress slot, and child
+/// latches share this shape, told apart by <see cref="Kind"/> (steps keep their own <c>steps</c> table). Variables
+/// and progress are last-writer-wins upserts with a null <see cref="Status"/>; signals and latches move Pending to
+/// Set, or to Expired past <see cref="DueAtUtc"/>; timers move Pending to Consumed. The composite key is the identity.
 /// </summary>
-/// <remarks>
-/// Variables and progress are stateless UPSERT slots (last-writer-wins, <see cref="Status"/> NULL).
-/// Signals and child latches move <c>Pending</c> to <c>Set</c>, or to <c>Expired</c> when a bounded
-/// wait outlives <see cref="DueAtUtc"/>; timers move <c>Pending</c> to <c>Consumed</c>. The composite
-/// primary key is the natural identity; there is no surrogate id. This is Job-internal substrate,
-/// not an audited entity; the lifecycle audit trail lives in <c>JobEvent</c>.
-/// </remarks>
 [DbTable("checkpoints")]
 [DbPrimaryKey(Name = "pk_checkpoints", Columns = ["job_id", "kind_code", "name"])]
 [DbForeignKey(
     Name = "fk_checkpoints_jobs",
-    Target = typeof(Job),
+    Target = typeof(JobEntity),
     TargetColumn = "id",
     Column = "job_id",
     OnDelete = DbForeignKeyAction.Cascade
@@ -34,7 +27,7 @@ namespace Acta.Runtime;
         + " OR (kind_code IN (20, 50) AND status_code IS NOT NULL AND status_code IN (10, 20, 30))"
         + " OR (kind_code = 30 AND status_code IS NOT NULL AND status_code IN (10, 100) AND due_at_utc IS NOT NULL)"
 )]
-internal sealed class JobCheckpoint : IEntity
+internal sealed class CheckpointEntity : IEntity
 {
     /// <summary>
     /// Owning Job. CASCADE FK: when the Job is purged, every checkpoint row for it cascades away in

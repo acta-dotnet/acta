@@ -139,7 +139,7 @@ public sealed class ArmOrConsumeSleepTimerSpec : ActaRuntimeTestBase<Conformance
     {
         const int leaseTtlSeconds = 30;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var worker = await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
+        var worker = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);
         var claimed = Assert.Single(await Execution.ClaimOneAsync(ns, worker!.Id, leaseTtlSeconds, job, ct));
         Assert.Equal(
@@ -151,12 +151,12 @@ public sealed class ArmOrConsumeSleepTimerSpec : ActaRuntimeTestBase<Conformance
     private async Task MakeDueAsync(long jobId, CancellationToken ct)
     {
         var past = DateTime.UtcNow.AddMinutes(-5);
-        var affected = await Db.From<JobCheckpoint>()
+        var affected = await Db.From<CheckpointEntity>()
             .Where(c => c.JobId == jobId && c.Kind == JobCheckpointKindCode.Timer && c.Name == TimerName)
-            .UpdateOnlyAsync(() => new JobCheckpoint { DueAtUtc = past }, ct);
+            .UpdateOnlyAsync(() => new CheckpointEntity { DueAtUtc = past }, ct);
         Assert.Equal(1, affected);
     }
 
-    private Task<IReadOnlyList<JobCheckpoint>> TimersAsync(long jobId, CancellationToken ct) =>
-        Db.From<JobCheckpoint>().Where(c => c.JobId == jobId && c.Kind == JobCheckpointKindCode.Timer).ToListAsync(ct);
+    private Task<IReadOnlyList<CheckpointEntity>> TimersAsync(long jobId, CancellationToken ct) =>
+        Db.From<CheckpointEntity>().Where(c => c.JobId == jobId && c.Kind == JobCheckpointKindCode.Timer).ToListAsync(ct);
 }

@@ -12,7 +12,7 @@ internal sealed class GetJobCheckpointsHandler(JobLookupResolution lookup, IDbSe
         var read = DbProjectionResolver.Resolve<JobCheckpointReadRow>();
         return session.QueryListAsync(
             "GetJobCheckpoints",
-            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.JobId, jobId)),
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.JobId, jobId)),
             reader => read(reader).ToItem(),
             ct
         );

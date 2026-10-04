@@ -137,9 +137,9 @@ public sealed class ParkOutboxSignalSpec : ActaStorageTestBase<ConformanceFixtur
             .GetRequiredService<ParkOutboxSignalHandler>()
             .HandleAsync(new ParkOutboxSignalCommand(jobId, name, Json, value, staleBeforeUtc), ct);
 
-    private async Task<JobCheckpoint> RowAsync(long jobId, string name, CancellationToken ct) =>
+    private async Task<CheckpointEntity> RowAsync(long jobId, string name, CancellationToken ct) =>
         Assert.Single(
-            await Db.From<JobCheckpoint>()
+            await Db.From<CheckpointEntity>()
                 .Where(c => c.JobId == jobId && c.Kind == JobCheckpointKindCode.Signal && c.Name == name)
                 .ToListAsync(ct)
         );

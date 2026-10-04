@@ -45,8 +45,8 @@ public sealed class PurgeJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
             null,
             ct
         );
-        Assert.NotEmpty(await Db.From<JobEvent>().Where(e => e.JobId == completed.JobId).ToListAsync(ct));
-        Assert.NotEmpty(await Db.From<JobAlert>().Where(a => a.JobId == completed.JobId).ToListAsync(ct));
+        Assert.NotEmpty(await Db.From<EventEntity>().Where(e => e.JobId == completed.JobId).ToListAsync(ct));
+        Assert.NotEmpty(await Db.From<AlertEntity>().Where(a => a.JobId == completed.JobId).ToListAsync(ct));
 
         var result = await Jobs.PurgeAsync(completed, "spec-actor", ct);
 
@@ -54,10 +54,10 @@ public sealed class PurgeJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.Null(result.Status);
 
         Assert.Null(await Jobs.GetAsync(completed, ct));
-        Assert.Empty(await Db.From<JobEvent>().Where(e => e.JobId == completed.JobId).ToListAsync(ct));
-        Assert.Empty(await Db.From<JobAlert>().Where(a => a.JobId == completed.JobId).ToListAsync(ct));
+        Assert.Empty(await Db.From<EventEntity>().Where(e => e.JobId == completed.JobId).ToListAsync(ct));
+        Assert.Empty(await Db.From<AlertEntity>().Where(a => a.JobId == completed.JobId).ToListAsync(ct));
 
-        var evt = await Db.From<JobEvent>()
+        var evt = await Db.From<EventEntity>()
             .Where(e => e.DefinitionId == before.DefinitionId && e.EventCode == EventCode.JobPurged)
             .SingleOrDefaultAsync(ct);
         Assert.NotNull(evt);

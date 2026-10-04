@@ -11,8 +11,8 @@ internal sealed class StartExecutionHandler(IDbSession session, ISqlDialect dial
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, command.JobId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeasedByWorkerId, command.WorkerId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobRuntime.ExecutionNumber, command.ExpectedExecutionNumber));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobRuntime.Version, command.ExpectedVersion));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Runtime.ExecutionNumber, command.ExpectedExecutionNumber));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Runtime.Version, command.ExpectedVersion));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeaseTtlSeconds, command.LeaseTtlSeconds));
             },
             reader => reader.IsDBNull(0) ? (byte?)null : reader.GetByteFromNumeric(0),

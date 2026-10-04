@@ -10,7 +10,7 @@ namespace Acta.Runtime;
 [DbTable("lanes")]
 [DbPrimaryKey(Name = "pk_lanes", Columns = ["id"])]
 [DbUniqueIndex(Name = "ux_lanes_namespace_name", Columns = ["namespace_id", "name"], Usage = "uniqueness")]
-internal sealed class JobLane : IEntity<long>
+internal sealed class LaneEntity : IEntity<long>
 {
     /// <summary>
     /// DB-assigned identity, referenced by <c>runtimes.lane_id</c>.

@@ -75,7 +75,7 @@ public sealed class RecoveryUnderSaturationSpec : ActaRuntimeTestBase<Conformanc
             var reclaimed = false;
             do
             {
-                var events = await Db.From<JobEvent>().Where(e => e.JobId == stranded.JobId).ToListAsync(ct);
+                var events = await Db.From<EventEntity>().Where(e => e.JobId == stranded.JobId).ToListAsync(ct);
                 if (events.Any(e => e.ReasonCode == JobEventReasonCode.JobLeaseExpired))
                 {
                     reclaimed = true;

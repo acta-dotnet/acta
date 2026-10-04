@@ -26,7 +26,7 @@ internal sealed class ListWorkersHandler(IDbSession session, ISqlDialect dialect
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceFilter, jobNamespace));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobWorker.StatusCode, query.Status));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Worker.StatusCode, query.Status));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagFiltersJson, tags));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorLastSeenAtUtc, (DateTime?)paging.After?[0]));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorIntId, (int?)paging.After?[1]));

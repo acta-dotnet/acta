@@ -38,7 +38,7 @@ public sealed class NamespaceEnqueueSpec : ActaRuntimeTestBase<ConformanceFixtur
     private async Task<int> CountJobsAsync(CancellationToken ct)
     {
         var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
-        return await Db.From<Job>().Where(j => j.NamespaceId == namespaceId).CountAsync(ct);
+        return await Db.From<JobEntity>().Where(j => j.NamespaceId == namespaceId).CountAsync(ct);
     }
 
     private Task SetNamespaceStatusAsync(NamespaceStatusCode status, CancellationToken ct)

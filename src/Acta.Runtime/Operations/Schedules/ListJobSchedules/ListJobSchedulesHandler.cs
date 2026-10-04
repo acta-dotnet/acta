@@ -35,7 +35,7 @@ internal sealed class ListJobSchedulesHandler(IDbSession session, ISqlDialect di
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceFilter, jobNamespace));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.JobNameFilter, jobName));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.OriginCode, query.Origin));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.OriginCode, query.Origin));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LiveOnlyFlag, liveOnly));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagFiltersJson, tags));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorNextRunAtUtc, (DateTime?)paging.After?[0]));

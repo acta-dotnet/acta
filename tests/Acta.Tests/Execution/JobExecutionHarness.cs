@@ -386,8 +386,8 @@ internal sealed class JobExecutionHarness(
         private async Task<object?> AnswerAsync(BoundCall call) =>
             call.Stem switch
             {
-                "StartExecution" => await StartAsync(call.Get(ActaSchema.JobRuntime.Version)),
-                "StartStep" => StartStep(call.Get(ActaSchema.JobStep.Name)),
+                "StartExecution" => await StartAsync(call.Get(ActaSchema.Runtime.Version)),
+                "StartStep" => StartStep(call.Get(ActaSchema.Step.Name)),
                 "CompleteStep" => CompleteStep(),
                 "CompleteExecution" => Complete(BoundCompletion.Read(call)),
                 // The deadline path cancels descendants, and a harness job has none.

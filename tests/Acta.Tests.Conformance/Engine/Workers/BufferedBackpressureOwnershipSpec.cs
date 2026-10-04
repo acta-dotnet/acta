@@ -96,7 +96,7 @@ public sealed class BufferedBackpressureOwnershipSpec : ActaRuntimeTestBase<Conf
             {
                 var row = await Jobs.GetAsync(JobLookup.ById(jobId), ct);
                 Assert.NotNull(row);
-                var events = await Db.From<JobEvent>().Where(e => e.JobId == jobId).ToListAsync(ct);
+                var events = await Db.From<EventEntity>().Where(e => e.JobId == jobId).ToListAsync(ct);
                 var wasHandedBack = events.Any(e => e.ExecutionStatus == ExecutionStatusCode.Rescheduled);
                 switch (row!.Status)
                 {
@@ -185,7 +185,7 @@ public sealed class BufferedBackpressureOwnershipSpec : ActaRuntimeTestBase<Conf
     {
         foreach (var jobId in jobIds)
         {
-            var events = await Db.From<JobEvent>().Where(e => e.JobId == jobId).ToListAsync(ct);
+            var events = await Db.From<EventEntity>().Where(e => e.JobId == jobId).ToListAsync(ct);
             if (events.Any(e => e.ExecutionStatus == ExecutionStatusCode.Rescheduled))
             {
                 return true;

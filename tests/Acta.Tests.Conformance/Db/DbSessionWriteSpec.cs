@@ -27,9 +27,9 @@ public sealed class DbSessionWriteSpec : ActaStorageTestBase<ConformanceFixture>
         var ct = TestContext.Current.CancellationToken;
         var now = DateTime.UtcNow;
 
-        var id = await Db.From<JobNamespace>()
+        var id = await Db.From<NamespaceEntity>()
             .InsertAsync<int>(
-                new JobNamespace
+                new NamespaceEntity
                 {
                     Name = $"{TestNamespace}-insert",
                     OwnerTeam = "team-a",
@@ -43,7 +43,7 @@ public sealed class DbSessionWriteSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.NotEqual(0, id);
         Assert.NotEqual(TestNamespaceId, id);
 
-        var row = await Db.From<JobNamespace>().Where(n => n.Id == id).SingleOrDefaultAsync(ct);
+        var row = await Db.From<NamespaceEntity>().Where(n => n.Id == id).SingleOrDefaultAsync(ct);
         Assert.NotNull(row);
         Assert.Equal($"{TestNamespace}-insert", row!.Name);
         Assert.Equal("team-a", row.OwnerTeam);
@@ -54,13 +54,13 @@ public sealed class DbSessionWriteSpec : ActaStorageTestBase<ConformanceFixture>
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var affected = await Db.From<JobNamespace>()
+        var affected = await Db.From<NamespaceEntity>()
             .Where(n => n.Id == TestNamespaceId)
-            .UpdateOnlyAsync(() => new JobNamespace { OwnerTeam = "changed", Description = "updated" }, ct);
+            .UpdateOnlyAsync(() => new NamespaceEntity { OwnerTeam = "changed", Description = "updated" }, ct);
 
         Assert.Equal(1, affected);
 
-        var row = await Db.From<JobNamespace>().Where(n => n.Id == TestNamespaceId).SingleOrDefaultAsync(ct);
+        var row = await Db.From<NamespaceEntity>().Where(n => n.Id == TestNamespaceId).SingleOrDefaultAsync(ct);
         Assert.NotNull(row);
         Assert.Equal("changed", row!.OwnerTeam);
         Assert.Equal("updated", row.Description);
@@ -77,12 +77,12 @@ public sealed class DbSessionWriteSpec : ActaStorageTestBase<ConformanceFixture>
         // must normalize it to UTC, and the read path must return Kind=Utc.
         var ts = new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Unspecified);
 
-        var affected = await Db.From<JobNamespace>()
+        var affected = await Db.From<NamespaceEntity>()
             .Where(n => n.Id == TestNamespaceId)
-            .UpdateOnlyAsync(() => new JobNamespace { ModifiedAtUtc = ts }, ct);
+            .UpdateOnlyAsync(() => new NamespaceEntity { ModifiedAtUtc = ts }, ct);
         Assert.Equal(1, affected);
 
-        var row = await Db.From<JobNamespace>().Where(n => n.Id == TestNamespaceId).SingleOrDefaultAsync(ct);
+        var row = await Db.From<NamespaceEntity>().Where(n => n.Id == TestNamespaceId).SingleOrDefaultAsync(ct);
         Assert.NotNull(row);
         Assert.Equal(DateTimeKind.Utc, row!.ModifiedAtUtc.Kind);
         Assert.Equal(DateTime.SpecifyKind(ts, DateTimeKind.Utc), row.ModifiedAtUtc);
@@ -99,13 +99,13 @@ public sealed class DbSessionWriteSpec : ActaStorageTestBase<ConformanceFixture>
         // from the container's.
         var clock = Services.GetRequiredService<IActaClock>();
         var before = await clock.GetUtcNowAsync(ct);
-        var affected = await Db.From<JobNamespace>()
+        var affected = await Db.From<NamespaceEntity>()
             .Where(n => n.Id == TestNamespaceId)
-            .UpdateOnlyAsync(() => new JobNamespace { ModifiedAtUtc = DbFn.UtcNow }, ct);
+            .UpdateOnlyAsync(() => new NamespaceEntity { ModifiedAtUtc = DbFn.UtcNow }, ct);
         Assert.Equal(1, affected);
         var after = await clock.GetUtcNowAsync(ct);
 
-        var row = await Db.From<JobNamespace>().Where(n => n.Id == TestNamespaceId).SingleOrDefaultAsync(ct);
+        var row = await Db.From<NamespaceEntity>().Where(n => n.Id == TestNamespaceId).SingleOrDefaultAsync(ct);
         Assert.NotNull(row);
         Assert.Equal(DateTimeKind.Utc, row!.ModifiedAtUtc.Kind);
         // A one-second slack absorbs modified_at_utc's coarser column precision against the clock
@@ -118,9 +118,9 @@ public sealed class DbSessionWriteSpec : ActaStorageTestBase<ConformanceFixture>
     {
         var ct = TestContext.Current.CancellationToken;
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => Db.From<JobNamespace>().DeleteAsync(ct));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Db.From<NamespaceEntity>().DeleteAsync(ct));
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            Db.From<JobNamespace>().UpdateOnlyAsync(() => new JobNamespace { OwnerTeam = "x" }, ct)
+            Db.From<NamespaceEntity>().UpdateOnlyAsync(() => new NamespaceEntity { OwnerTeam = "x" }, ct)
         );
     }
 
@@ -130,9 +130,9 @@ public sealed class DbSessionWriteSpec : ActaStorageTestBase<ConformanceFixture>
         var ct = TestContext.Current.CancellationToken;
         var now = DateTime.UtcNow;
 
-        var id = await Db.From<JobNamespace>()
+        var id = await Db.From<NamespaceEntity>()
             .InsertAsync<int>(
-                new JobNamespace
+                new NamespaceEntity
                 {
                     Name = $"{TestNamespace}-delete",
                     OwnerTeam = "team-b",
@@ -143,13 +143,13 @@ public sealed class DbSessionWriteSpec : ActaStorageTestBase<ConformanceFixture>
                 ct
             );
 
-        var affected = await Db.From<JobNamespace>().Where(n => n.Id == id).DeleteAsync(ct);
+        var affected = await Db.From<NamespaceEntity>().Where(n => n.Id == id).DeleteAsync(ct);
         Assert.Equal(1, affected);
 
-        var row = await Db.From<JobNamespace>().Where(n => n.Id == id).SingleOrDefaultAsync(ct);
+        var row = await Db.From<NamespaceEntity>().Where(n => n.Id == id).SingleOrDefaultAsync(ct);
         Assert.Null(row);
         // The seeded namespace is untouched by the predicate.
-        var seeded = await Db.From<JobNamespace>().Where(n => n.Id == TestNamespaceId).SingleOrDefaultAsync(ct);
+        var seeded = await Db.From<NamespaceEntity>().Where(n => n.Id == TestNamespaceId).SingleOrDefaultAsync(ct);
         Assert.NotNull(seeded);
     }
 }

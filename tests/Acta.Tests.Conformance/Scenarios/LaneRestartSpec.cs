@@ -255,7 +255,7 @@ public sealed class LaneRestartSpec : ActaRuntimeTestBase<ConformanceFixture, Te
     private async Task<int> LaneRepairedEventsAsync(CancellationToken ct)
     {
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var events = await Db.From<JobEvent>()
+        var events = await Db.From<EventEntity>()
             .Where(e => e.NamespaceId == ns && e.ReasonCode == JobEventReasonCode.JobLaneRepaired)
             .ToListAsync(ct);
         return events.Count;
@@ -267,8 +267,8 @@ public sealed class LaneRestartSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         var store = Services.GetRequiredService<Execution>();
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
-        var worker = await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
-        var workerId = Assert.IsType<JobWorker>(worker).Id;
+        var worker = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
+        var workerId = Assert.IsType<WorkerEntity>(worker).Id;
         var claimed = Assert.Single(await store.ClaimOneAsync(ns, workerId, leaseTtl, job.JobId, ct));
         Assert.Equal(
             StartExecutionAction.Started,

@@ -7,7 +7,7 @@ internal sealed class GetWorkerHandler(IDbSession session, ISqlDialect dialect)
         new(
             session.QuerySingleAsync(
                 "GetWorker",
-                cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobWorker.WorkerRef, query.WorkerRef.Value)),
+                cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Worker.WorkerRef, query.WorkerRef.Value)),
                 DbProjectionResolver.Resolve<WorkerDetail>(),
                 ct
             )

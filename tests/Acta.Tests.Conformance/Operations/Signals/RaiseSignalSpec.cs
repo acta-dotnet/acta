@@ -15,9 +15,9 @@ namespace Acta.Tests.Conformance.Operations.Signals;
 )]
 public sealed class RaiseSignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
 {
-    private async Task<JobCheckpoint> ReadSlotAsync(long jobId, string name, CancellationToken ct) =>
+    private async Task<CheckpointEntity> ReadSlotAsync(long jobId, string name, CancellationToken ct) =>
         Assert.Single(
-            await Db.From<JobCheckpoint>()
+            await Db.From<CheckpointEntity>()
                 .Where(c => c.JobId == jobId && c.Kind == JobCheckpointKindCode.Signal && c.Name == name)
                 .ToListAsync(ct)
         );

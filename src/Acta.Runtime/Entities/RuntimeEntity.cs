@@ -1,30 +1,23 @@
 namespace Acta.Runtime;
 
 /// <summary>
-/// The hot mutable runtime state of one Job: one row in <c>runtimes</c> per <c>jobs</c> row, split
-/// out so claim/complete churn never rewrites the append-mostly identity/input row. Every job state
-/// transition (claim, start, complete, control verb, schedule firing) updates this row and bumps
-/// <see cref="Version"/>, the CAS token for job state transitions. Execution ownership/TTL lives
-/// here too (<see cref="LeasedByWorkerId"/> / <see cref="LeaseExpiresAtUtc"/>): a claim is one
-/// UPDATE of this row, and the heartbeat pushes <see cref="LeaseExpiresAtUtc"/> without bumping
-/// <see cref="Version"/>. The <c>locks</c> table carries named locks only.
+/// The hot, mutable state of one job, one row per <c>jobs</c> row, split out so claim and complete churn never
+/// rewrites the identity and input row. Every state transition updates it and bumps <see cref="Version"/>, the CAS
+/// token; the lease (<see cref="LeasedByWorkerId"/>, <see cref="LeaseExpiresAtUtc"/>) lives here too, so a claim is
+/// one update and a heartbeat extends the lease without bumping the version. The creation instant is on the jobs row.
 /// </summary>
-/// <remarks>
-/// Carries <see cref="ModifiedAtUtc"/> but no <c>created_at_utc</c>, unlike every other timestamped
-/// entity: the creation instant lives on the 1:1 <c>jobs</c> row instead (intentional omission).
-/// </remarks>
 [DbTable("runtimes")]
 [DbPrimaryKey(Name = "pk_runtimes", Columns = ["job_id"], Manual = true, OptimizeForSequentialKey = true)]
 [DbForeignKey(
     Name = "fk_runtimes_jobs",
-    Target = typeof(Job),
+    Target = typeof(JobEntity),
     TargetColumn = "id",
     Column = "job_id",
     OnDelete = DbForeignKeyAction.Cascade
 )]
 [DbForeignKey(
     Name = "fk_runtimes_lanes",
-    Target = typeof(JobLane),
+    Target = typeof(LaneEntity),
     TargetColumn = "id",
     Column = "lane_id",
     OnDelete = DbForeignKeyAction.NoAction
@@ -97,7 +90,7 @@ namespace Acta.Runtime;
 // RescheduleJob, TriggerScheduleNow, RaiseSignal, CompleteExecution (re-arm and signal release),
 // ReclaimStuckJobs, RepairRecoverySlot. NULL is reserved for a Suspended row's unbounded wait.
 [DbCheck(Name = "ck_runtimes_ready_due", Sql = "status_code <> 10 OR next_run_at_utc IS NOT NULL")]
-internal sealed class JobRuntime : IEntity<long>
+internal sealed class RuntimeEntity : IEntity<long>
 {
     /// <summary>
     /// Owning Job; primary key (1:1 with <c>jobs</c>) and CASCADE FK, so a purged job sweeps its
@@ -190,15 +183,10 @@ internal sealed class JobRuntime : IEntity<long>
     public DateTime ModifiedAtUtc { get; set; }
 
     /// <summary>
-    /// Optimistic-concurrency token for job state transitions; operations manually increment via
-    /// <c>SET version = version + 1</c> on every UPDATE. Heartbeats never bump it: a lease TTL
-    /// refresh is not a claim-generation change, so a buffered claim still passes the start CAS.
-    /// Int32 is a deliberate width, and the same token type is the public <c>expectedVersion</c>. A
-    /// continuously successful recurring slot firing once a second, at the normal three increments
-    /// per occurrence (claim, start, complete), would take about twenty-two years to exhaust it;
-    /// retries, recovery, and operator controls consume versions faster, and exhaustion lies outside
-    /// the supported lifetime of one durable slot. The providers raise on overflow rather than wrap,
-    /// so a token can never come back negative.
+    /// Optimistic-concurrency token for state transitions, bumped by every update except the heartbeat, so a
+    /// buffered claim still passes the start CAS. Int32 on purpose, the width of the public <c>expectedVersion</c>: a
+    /// recurring slot firing every second (three bumps each) lasts about twenty-two years, and the providers raise on
+    /// overflow rather than wrap, so a token never comes back negative.
     /// </summary>
     [DbColumn("version", DbKind.Int32, Default = DbDefault.Zero)]
     [DbConcurrencyToken]

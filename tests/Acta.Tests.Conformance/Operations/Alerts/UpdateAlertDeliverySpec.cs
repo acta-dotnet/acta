@@ -93,10 +93,10 @@ public sealed class UpdateAlertDeliverySpec : ActaStorageTestBase<ConformanceFix
             .GetRequiredService<AlertLifecycle>()
             .UpdateAlertDeliveryAsync(alertId, expectedVersion, status, retryCount, retryAfterUtc, ct);
 
-    private async Task<JobAlert> RowAsync(long alertId, CancellationToken ct) =>
-        Assert.Single(await Db.From<JobAlert>().Where(a => a.Id == alertId).ToListAsync(ct));
+    private async Task<AlertEntity> RowAsync(long alertId, CancellationToken ct) =>
+        Assert.Single(await Db.From<AlertEntity>().Where(a => a.Id == alertId).ToListAsync(ct));
 
-    private async Task<JobAlert> RaiseAsync(CancellationToken ct)
+    private async Task<AlertEntity> RaiseAsync(CancellationToken ct)
     {
         await AlertTestOps.RaiseAsync(
             Services,

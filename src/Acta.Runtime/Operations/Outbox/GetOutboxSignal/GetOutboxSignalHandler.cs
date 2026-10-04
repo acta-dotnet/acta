@@ -8,8 +8,8 @@ internal sealed class GetOutboxSignalHandler(IDbSession session, ISqlDialect dia
             "GetOutboxSignal",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.JobId, query.JobId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.Name, query.Name));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.JobId, query.JobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.Name, query.Name));
             },
             DbProjectionResolver.Resolve<OutboxSignalRow>(),
             ct

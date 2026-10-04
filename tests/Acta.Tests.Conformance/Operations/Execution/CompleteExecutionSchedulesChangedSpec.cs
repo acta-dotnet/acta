@@ -75,7 +75,7 @@ public sealed class CompleteExecutionSchedulesChangedSpec : ActaRuntimeTestBase<
         Assert.Null(runtime.NextRunAtUtc);
 
         // The audit row says what the runtime row says: paused, not rolled over.
-        var events = await Db.From<JobEvent>().Where(e => e.JobId == slotId && e.ExecutionNumber == Attempt).ToListAsync(ct);
+        var events = await Db.From<EventEntity>().Where(e => e.JobId == slotId && e.ExecutionNumber == Attempt).ToListAsync(ct);
         Assert.Contains(events, e => e.EventCode == EventCode.JobPaused);
         var finished = Assert.Single(events, e => e.EventCode == EventCode.JobExecutionFinished);
         Assert.Equal(JobStatusCode.Paused, finished.ToStatus);
@@ -219,7 +219,7 @@ public sealed class CompleteExecutionSchedulesChangedSpec : ActaRuntimeTestBase<
     /// <summary>The audit trail of a re-armed slot: one finished and one rolled-over event, both saying Ready.</summary>
     private async Task AssertRolledOverAsync(long slotId, CancellationToken ct)
     {
-        var events = await Db.From<JobEvent>().Where(e => e.JobId == slotId && e.ExecutionNumber == Attempt).ToListAsync(ct);
+        var events = await Db.From<EventEntity>().Where(e => e.JobId == slotId && e.ExecutionNumber == Attempt).ToListAsync(ct);
         Assert.Equal(JobStatusCode.Ready, Assert.Single(events, e => e.EventCode == EventCode.JobExecutionFinished).ToStatus);
         Assert.Equal(JobStatusCode.Ready, Assert.Single(events, e => e.EventCode == EventCode.JobRecurringRolledOver).ToStatus);
         Assert.DoesNotContain(events, e => e.EventCode == EventCode.JobPaused);
@@ -228,7 +228,7 @@ public sealed class CompleteExecutionSchedulesChangedSpec : ActaRuntimeTestBase<
     private async Task<int> LeaseInFlightAsync(long jobId, CancellationToken ct)
     {
         // A real worker row, so the lease names an owner that exists and completion's owner check holds.
-        var worker = await Db.From<JobWorker>().Where(w => w.NamespaceId == TestNamespaceId).FirstOrDefaultAsync(ct);
+        var worker = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == TestNamespaceId).FirstOrDefaultAsync(ct);
         Assert.NotNull(worker);
         await Db.ExecuteRawAsync(
             "UPDATE {schema}.runtimes SET status_code = @p_status, execution_number = @p_attempt, leased_by_worker_id = @p_worker, "
@@ -271,11 +271,11 @@ public sealed class CompleteExecutionSchedulesChangedSpec : ActaRuntimeTestBase<
                 ct
             );
 
-    private Task<IReadOnlyList<JobSchedule>> SchedulesAsync(long jobId, CancellationToken ct) =>
-        Db.From<JobSchedule>().Where(s => s.JobId == jobId).ToListAsync(ct);
+    private Task<IReadOnlyList<ScheduleEntity>> SchedulesAsync(long jobId, CancellationToken ct) =>
+        Db.From<ScheduleEntity>().Where(s => s.JobId == jobId).ToListAsync(ct);
 
-    private async Task<JobRuntime> RuntimeAsync(long jobId, CancellationToken ct) =>
-        Assert.Single(await Db.From<JobRuntime>().Where(r => r.Id == jobId).ToListAsync(ct));
+    private async Task<RuntimeEntity> RuntimeAsync(long jobId, CancellationToken ct) =>
+        Assert.Single(await Db.From<RuntimeEntity>().Where(r => r.Id == jobId).ToListAsync(ct));
 
     private async Task<int> CreateDefinitionAsync(string jobName, CancellationToken ct)
     {

@@ -47,11 +47,13 @@ public sealed class MarkDeadWorkersSpec : ActaRuntimeTestBase<ConformanceFixture
         var nsA = Runtime.RegisteredNamespaceIds[TestNamespace];
 
         // The registered worker in namespace A: age its last_seen far past the window.
-        var workerA = await Db.From<JobWorker>().Where(w => w.NamespaceId == nsA).SingleOrDefaultAsync(ct);
+        var workerA = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == nsA).SingleOrDefaultAsync(ct);
         Assert.NotNull(workerA);
         Assert.Equal(WorkerStatusCode.Active, workerA!.Status);
         var agedAtA = workerA.LastHeartbeatAtUtc.AddHours(-1);
-        await Db.From<JobWorker>().Where(w => w.Id == workerA.Id).UpdateOnlyAsync(() => new JobWorker { LastHeartbeatAtUtc = agedAtA }, ct);
+        await Db.From<WorkerEntity>()
+            .Where(w => w.Id == workerA.Id)
+            .UpdateOnlyAsync(() => new WorkerEntity { LastHeartbeatAtUtc = agedAtA }, ct);
 
         // A worker in a SECOND namespace: StartWorker upserts the namespace and registers the worker.
         var nsBName = TestKey("mark-dead-ns-b");
@@ -69,7 +71,9 @@ public sealed class MarkDeadWorkersSpec : ActaRuntimeTestBase<ConformanceFixture
             ct
         );
         var agedAtB = DateTime.UtcNow.AddHours(-1);
-        await Db.From<JobWorker>().Where(w => w.Id == workerBId).UpdateOnlyAsync(() => new JobWorker { LastHeartbeatAtUtc = agedAtB }, ct);
+        await Db.From<WorkerEntity>()
+            .Where(w => w.Id == workerBId)
+            .UpdateOnlyAsync(() => new WorkerEntity { LastHeartbeatAtUtc = agedAtB }, ct);
 
         // A cleanly-stopped worker that must ALSO survive, aged past the same window. The sweep matches on
         // a live status AND a stale heartbeat, so aging this row leaves its status as the only thing
@@ -89,9 +93,9 @@ public sealed class MarkDeadWorkersSpec : ActaRuntimeTestBase<ConformanceFixture
             ct
         );
         await Services.GetRequiredService<WorkerLifecycle>().StopWorkerAsync(nsA, stoppedWorkerId, ct);
-        await Db.From<JobWorker>()
+        await Db.From<WorkerEntity>()
             .Where(w => w.Id == stoppedWorkerId)
-            .UpdateOnlyAsync(() => new JobWorker { LastHeartbeatAtUtc = DateTime.UtcNow.AddHours(-1) }, ct);
+            .UpdateOnlyAsync(() => new WorkerEntity { LastHeartbeatAtUtc = DateTime.UtcNow.AddHours(-1) }, ct);
 
         // A worker that went silent mid-drain, killed or past its host's shutdown budget: nothing but this
         // sweep ever moves a Draining row, so it must be reaped like an Active one.
@@ -108,10 +112,10 @@ public sealed class MarkDeadWorkersSpec : ActaRuntimeTestBase<ConformanceFixture
             maxConcurrency: 1,
             ct
         );
-        await Db.From<JobWorker>()
+        await Db.From<WorkerEntity>()
             .Where(w => w.Id == drainingWorkerId)
             .UpdateOnlyAsync(
-                () => new JobWorker { Status = WorkerStatusCode.Draining, LastHeartbeatAtUtc = DateTime.UtcNow.AddHours(-1) },
+                () => new WorkerEntity { Status = WorkerStatusCode.Draining, LastHeartbeatAtUtc = DateTime.UtcNow.AddHours(-1) },
                 ct
             );
 
@@ -144,15 +148,15 @@ public sealed class MarkDeadWorkersSpec : ActaRuntimeTestBase<ConformanceFixture
         // however many sweeps run here, and the Assert.Single(...) checks below hold unchanged regardless
         // of how many iterations it took.
         var deadline = DateTime.UtcNow + SpecWaits.Converge;
-        JobWorker? afterA;
-        JobWorker? afterB;
-        JobWorker? afterDraining;
+        WorkerEntity? afterA;
+        WorkerEntity? afterB;
+        WorkerEntity? afterDraining;
         while (true)
         {
             await Services.GetRequiredService<WorkerLifecycle>().MarkDeadWorkersAsync(DeadAfterSeconds, ct);
-            afterA = await Db.From<JobWorker>().Where(w => w.Id == workerA.Id).SingleOrDefaultAsync(ct);
-            afterB = await Db.From<JobWorker>().Where(w => w.Id == workerBId).SingleOrDefaultAsync(ct);
-            afterDraining = await Db.From<JobWorker>().Where(w => w.Id == drainingWorkerId).SingleOrDefaultAsync(ct);
+            afterA = await Db.From<WorkerEntity>().Where(w => w.Id == workerA.Id).SingleOrDefaultAsync(ct);
+            afterB = await Db.From<WorkerEntity>().Where(w => w.Id == workerBId).SingleOrDefaultAsync(ct);
+            afterDraining = await Db.From<WorkerEntity>().Where(w => w.Id == drainingWorkerId).SingleOrDefaultAsync(ct);
             if (
                 afterA?.Status == WorkerStatusCode.Dead
                 && afterB?.Status == WorkerStatusCode.Dead
@@ -174,8 +178,8 @@ public sealed class MarkDeadWorkersSpec : ActaRuntimeTestBase<ConformanceFixture
             await Task.Delay(50, ct);
         }
 
-        var afterFresh = await Db.From<JobWorker>().Where(w => w.Id == freshWorkerId).SingleOrDefaultAsync(ct);
-        var afterStopped = await Db.From<JobWorker>().Where(w => w.Id == stoppedWorkerId).SingleOrDefaultAsync(ct);
+        var afterFresh = await Db.From<WorkerEntity>().Where(w => w.Id == freshWorkerId).SingleOrDefaultAsync(ct);
+        var afterStopped = await Db.From<WorkerEntity>().Where(w => w.Id == stoppedWorkerId).SingleOrDefaultAsync(ct);
         Assert.Equal(WorkerStatusCode.Dead, afterA!.Status);
         Assert.Equal(WorkerStatusCode.Dead, afterB!.Status);
         Assert.Equal(WorkerStatusCode.Active, afterFresh!.Status);
@@ -184,18 +188,18 @@ public sealed class MarkDeadWorkersSpec : ActaRuntimeTestBase<ConformanceFixture
         // and no worker.died event is written for it.
         Assert.Equal(WorkerStatusCode.Stopped, afterStopped!.Status);
         Assert.Empty(
-            await Db.From<JobEvent>().Where(e => e.WorkerId == stoppedWorkerId && e.EventCode == EventCode.WorkerDied).ToListAsync(ct)
+            await Db.From<EventEntity>().Where(e => e.WorkerId == stoppedWorkerId && e.EventCode == EventCode.WorkerDied).ToListAsync(ct)
         );
 
         // Each worker.died event lands in the dead worker's OWN namespace.
         var eventA = Assert.Single(
-            await Db.From<JobEvent>().Where(e => e.WorkerId == workerA.Id && e.EventCode == EventCode.WorkerDied).ToListAsync(ct)
+            await Db.From<EventEntity>().Where(e => e.WorkerId == workerA.Id && e.EventCode == EventCode.WorkerDied).ToListAsync(ct)
         );
         Assert.Single(
-            await Db.From<JobEvent>().Where(e => e.WorkerId == drainingWorkerId && e.EventCode == EventCode.WorkerDied).ToListAsync(ct)
+            await Db.From<EventEntity>().Where(e => e.WorkerId == drainingWorkerId && e.EventCode == EventCode.WorkerDied).ToListAsync(ct)
         );
         var eventB = Assert.Single(
-            await Db.From<JobEvent>().Where(e => e.WorkerId == workerBId && e.EventCode == EventCode.WorkerDied).ToListAsync(ct)
+            await Db.From<EventEntity>().Where(e => e.WorkerId == workerBId && e.EventCode == EventCode.WorkerDied).ToListAsync(ct)
         );
         Assert.Equal(nsA, eventA.NamespaceId);
         Assert.Equal(nsB, eventB.NamespaceId);

@@ -43,19 +43,19 @@ internal static class WaitTimeoutStaging
         var value = Encoding.UTF8.GetBytes(dueAtUtc.Ticks.ToString(CultureInfo.InvariantCulture));
         foreach (var name in deadlines)
         {
-            await db.From<JobCheckpoint>()
+            await db.From<CheckpointEntity>()
                 .Where(c => c.JobId == jobId && c.Kind == JobCheckpointKindCode.Variable && c.Name == name)
-                .UpdateOnlyAsync(() => new JobCheckpoint { Value = value, ModifiedAtUtc = DbFn.UtcNow }, ct);
+                .UpdateOnlyAsync(() => new CheckpointEntity { Value = value, ModifiedAtUtc = DbFn.UtcNow }, ct);
         }
 
-        await db.From<JobCheckpoint>()
+        await db.From<CheckpointEntity>()
             .Where(c =>
                 c.JobId == jobId
                 && c.Kind == JobCheckpointKindCode.ChildLatch
                 && c.Status == JobCheckpointStatusCode.Pending
                 && c.DueAtUtc != null
             )
-            .UpdateOnlyAsync(() => new JobCheckpoint { DueAtUtc = dueAtUtc, ModifiedAtUtc = DbFn.UtcNow }, ct);
+            .UpdateOnlyAsync(() => new CheckpointEntity { DueAtUtc = dueAtUtc, ModifiedAtUtc = DbFn.UtcNow }, ct);
 
         return deadlines.Count;
     }
@@ -71,7 +71,7 @@ internal static class WaitTimeoutStaging
         CancellationToken ct
     )
     {
-        var variables = await db.From<JobCheckpoint>()
+        var variables = await db.From<CheckpointEntity>()
             .Where(c => c.JobId == jobId && c.Kind == JobCheckpointKindCode.Variable)
             .ToListAsync(ct);
         var deadlines = variables

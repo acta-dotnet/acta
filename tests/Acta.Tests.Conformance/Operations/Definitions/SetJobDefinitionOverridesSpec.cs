@@ -54,7 +54,7 @@ public sealed class SetJobDefinitionOverridesSpec : ActaStorageTestBase<Conforma
         Assert.Single(outcomes, o => o.Action == ControlAction.Applied);
         Assert.Equal(7, outcomes.Count(o => o.Action == ControlAction.Rejected));
         Assert.Equal(before.Version + 1, (await ReadAsync(name, ct)).Version);
-        var events = await Db.From<JobEvent>()
+        var events = await Db.From<EventEntity>()
             .Where(e => e.DefinitionId == id && e.EventCode == EventCode.JobDefinitionOverridesUpdated)
             .ToListAsync(ct);
         Assert.Single(events);
@@ -83,9 +83,9 @@ public sealed class SetJobDefinitionOverridesSpec : ActaStorageTestBase<Conforma
 
     private (IDbSession Db, ISqlDialect Dialect) Store() => (Db, Services.GetRequiredService<ISqlDialect>());
 
-    private async Task<JobDefinition> ReadAsync(string name, CancellationToken ct)
+    private async Task<DefinitionEntity> ReadAsync(string name, CancellationToken ct)
     {
-        var def = await Db.From<JobDefinition>().Where(d => d.NamespaceId == TestNamespaceId && d.Name == name).SingleOrDefaultAsync(ct);
+        var def = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == TestNamespaceId && d.Name == name).SingleOrDefaultAsync(ct);
         Assert.NotNull(def);
         return def!;
     }
@@ -324,7 +324,7 @@ public sealed class SetJobDefinitionOverridesSpec : ActaStorageTestBase<Conforma
             ct
         );
 
-        var evt = await Db.From<JobEvent>()
+        var evt = await Db.From<EventEntity>()
             .Where(e => e.DefinitionId == id && e.EventCode == EventCode.JobDefinitionOverridesUpdated)
             .SingleOrDefaultAsync(ct);
 

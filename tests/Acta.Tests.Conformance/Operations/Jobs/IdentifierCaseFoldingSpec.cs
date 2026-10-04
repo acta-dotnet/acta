@@ -35,7 +35,7 @@ public sealed class IdentifierCaseFoldingSpec : ActaRuntimeTestBase<ConformanceF
 
         Assert.Equal(id1, id2);
 
-        var rows = await Db.From<Tenant>().Where(t => t.TenantKey == key).ToListAsync(ct);
+        var rows = await Db.From<TenantEntity>().Where(t => t.TenantKey == key).ToListAsync(ct);
         Assert.Single(rows);
         Assert.Equal(key, rows[0].TenantKey);
     }
@@ -53,7 +53,7 @@ public sealed class IdentifierCaseFoldingSpec : ActaRuntimeTestBase<ConformanceF
         Assert.Equal(first[0].JobId, second[0].JobId);
         Assert.Equal(JobEnqueueAction.Deduplicated, second[0].Action);
 
-        var stored = await Db.From<Job>().Where(j => j.Id == first[0].JobId).SingleOrDefaultAsync(ct);
+        var stored = await Db.From<JobEntity>().Where(j => j.Id == first[0].JobId).SingleOrDefaultAsync(ct);
         Assert.NotNull(stored);
         Assert.Equal(key, stored!.DeduplicationKey);
     }
@@ -70,7 +70,7 @@ public sealed class IdentifierCaseFoldingSpec : ActaRuntimeTestBase<ConformanceF
         await EnqueueAsync([Row(concurrencyKey: key)], ct);
 
         // Filter by namespace (unique per test run) + canonical key so reruns don't accumulate.
-        var rows = await Db.From<Job>().Where(j => j.NamespaceId == namespaceId && j.ConcurrencyKey == key).ToListAsync(ct);
+        var rows = await Db.From<JobEntity>().Where(j => j.NamespaceId == namespaceId && j.ConcurrencyKey == key).ToListAsync(ct);
         Assert.Equal(2, rows.Count);
     }
 

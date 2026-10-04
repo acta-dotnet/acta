@@ -12,10 +12,8 @@ internal static class OperatorAudit
     public static void AddOperatorAudit(this DbCommand cmd, ISqlDialect dialect, string? actorKey, string? reasonMessage)
     {
         var actor = JobControlActor.Operator(actorKey);
-        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorCode, actor.ActorCode));
-        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorKey, actor.ActorKey));
-        cmd.Parameters.Add(
-            dialect.CreateParameter(ActaSchema.JobEvent.ReasonMessage, reasonMessage.Truncate(ActaTextLimits.ReasonMessage))
-        );
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorCode, actor.ActorCode));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorKey, actor.ActorKey));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ReasonMessage, reasonMessage.Truncate(ActaTextLimits.ReasonMessage)));
     }
 }

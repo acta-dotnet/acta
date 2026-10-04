@@ -82,7 +82,7 @@ public sealed class WorkerRefSurvivesPurgeSpec : ActaStorageTestBase<Conformance
             purged += result.Workers;
         }
         Assert.Equal(1, purged);
-        Assert.Null(await Db.From<JobWorker>().Where(w => w.Id == workerId).SingleOrDefaultAsync(ct));
+        Assert.Null(await Db.From<WorkerEntity>().Where(w => w.Id == workerId).SingleOrDefaultAsync(ct));
 
         var after = await ledger.ListEventsAsync(new ListEventsQuery(WorkerId: workerId, JobNamespace: TestNamespace), ct);
 

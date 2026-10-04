@@ -20,7 +20,7 @@ namespace Acta.Tests.Conformance.Schema;
 )]
 public sealed class SettingsUniqueKeySpec : ActaStorageTestBase<ConformanceFixture>
 {
-    private static Setting NewSetting(SettingScopeCode scope, int? scopeId, string name) =>
+    private static SettingEntity NewSetting(SettingScopeCode scope, int? scopeId, string name) =>
         new()
         {
             ScopeCode = scope,
@@ -37,17 +37,19 @@ public sealed class SettingsUniqueKeySpec : ActaStorageTestBase<ConformanceFixtu
         var ct = TestContext.Current.CancellationToken;
         var name = $"sys.test.{TestId}.scoped";
 
-        var id = await Db.From<Setting>().InsertAsync<int>(NewSetting(SettingScopeCode.Namespace, TestNamespaceId, name), ct);
+        var id = await Db.From<SettingEntity>().InsertAsync<int>(NewSetting(SettingScopeCode.Namespace, TestNamespaceId, name), ct);
         Assert.NotEqual(0, id);
 
         await Assert.ThrowsAnyAsync<DbException>(() =>
-            Db.From<Setting>().InsertAsync<int>(NewSetting(SettingScopeCode.Namespace, TestNamespaceId, name), ct)
+            Db.From<SettingEntity>().InsertAsync<int>(NewSetting(SettingScopeCode.Namespace, TestNamespaceId, name), ct)
         );
 
         // A different name under the same scope, and the same name under a different scope id, both insert.
-        var other = await Db.From<Setting>().InsertAsync<int>(NewSetting(SettingScopeCode.Namespace, TestNamespaceId, $"{name}-b"), ct);
+        var other = await Db.From<SettingEntity>()
+            .InsertAsync<int>(NewSetting(SettingScopeCode.Namespace, TestNamespaceId, $"{name}-b"), ct);
         Assert.NotEqual(0, other);
-        var otherScope = await Db.From<Setting>().InsertAsync<int>(NewSetting(SettingScopeCode.Namespace, TestNamespaceId + 1, name), ct);
+        var otherScope = await Db.From<SettingEntity>()
+            .InsertAsync<int>(NewSetting(SettingScopeCode.Namespace, TestNamespaceId + 1, name), ct);
         Assert.NotEqual(0, otherScope);
     }
 
@@ -57,13 +59,13 @@ public sealed class SettingsUniqueKeySpec : ActaStorageTestBase<ConformanceFixtu
         var ct = TestContext.Current.CancellationToken;
         var name = $"sys.test.{TestId}.global";
 
-        var id = await Db.From<Setting>().InsertAsync<int>(NewSetting(SettingScopeCode.Global, null, name), ct);
+        var id = await Db.From<SettingEntity>().InsertAsync<int>(NewSetting(SettingScopeCode.Global, null, name), ct);
         Assert.NotEqual(0, id);
 
         // Providers disagree on NULL equality in plain unique indexes; the filtered global index
         // must reject the duplicate on all three.
         await Assert.ThrowsAnyAsync<DbException>(() =>
-            Db.From<Setting>().InsertAsync<int>(NewSetting(SettingScopeCode.Global, null, name), ct)
+            Db.From<SettingEntity>().InsertAsync<int>(NewSetting(SettingScopeCode.Global, null, name), ct)
         );
     }
 }

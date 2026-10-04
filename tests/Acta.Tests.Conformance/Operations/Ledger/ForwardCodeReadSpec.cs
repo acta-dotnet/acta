@@ -38,9 +38,12 @@ public sealed class ForwardCodeReadSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         var jobRef = enqueued.JobRef.Value;
 
-        var rewritten = await Db.From<JobEvent>()
+        var rewritten = await Db.From<EventEntity>()
             .Where(e => e.JobRef == jobRef)
-            .UpdateOnlyAsync(() => new JobEvent { EventCode = (EventCode)UnassignedId, ReasonCode = (JobEventReasonCode)UnassignedId }, ct);
+            .UpdateOnlyAsync(
+                () => new EventEntity { EventCode = (EventCode)UnassignedId, ReasonCode = (JobEventReasonCode)UnassignedId },
+                ct
+            );
         Assert.True(rewritten > 0);
 
         var page = await Operations.Ledger.ListEventsAsync(new ListEventsQuery(JobId: enqueued.JobId, PageSize: 100), ct);
@@ -58,7 +61,7 @@ public sealed class ForwardCodeReadSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Contains("\"eventCode\":\"unspecified\"", json);
         Assert.Contains("\"reasonCode\":\"unspecified\"", json);
 
-        var rows = await Db.From<JobEvent>().Where(e => e.JobRef == jobRef).ToListAsync(ct);
+        var rows = await Db.From<EventEntity>().Where(e => e.JobRef == jobRef).ToListAsync(ct);
         Assert.All(
             rows,
             e =>
@@ -93,9 +96,9 @@ public sealed class ForwardCodeReadSpec : ActaRuntimeTestBase<ConformanceFixture
         );
 
         var jobRef = enqueued.JobRef.Value;
-        var rewritten = await Db.From<JobAlert>()
+        var rewritten = await Db.From<AlertEntity>()
             .Where(a => a.JobRef == jobRef)
-            .UpdateOnlyAsync(() => new JobAlert { Kind = (AlertKindCode)UnassignedId }, ct);
+            .UpdateOnlyAsync(() => new AlertEntity { Kind = (AlertKindCode)UnassignedId }, ct);
         Assert.Equal(1, rewritten);
 
         var list = await Operations.Alerts.ListAsync(new ListAlertsQuery(JobNamespace: TestNamespace), ct);
@@ -108,7 +111,7 @@ public sealed class ForwardCodeReadSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(AlertKindCode.Unspecified, detail!.Kind);
         Assert.Contains("\"kind\":\"unspecified\"", JsonSerializer.Serialize(detail, WebJson));
 
-        var row = await Db.From<JobAlert>().Where(a => a.JobRef == jobRef).SingleOrDefaultAsync(ct);
+        var row = await Db.From<AlertEntity>().Where(a => a.JobRef == jobRef).SingleOrDefaultAsync(ct);
         Assert.Equal(AlertKindCode.Unspecified, row!.Kind);
     }
 }

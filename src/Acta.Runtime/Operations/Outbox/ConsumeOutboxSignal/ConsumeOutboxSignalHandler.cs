@@ -12,8 +12,8 @@ internal sealed class ConsumeOutboxSignalHandler(IDbSession session, ISqlDialect
             new StoreCommand("ConsumeOutboxSignal"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.JobId, command.JobId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.Name, command.Name));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.JobId, command.JobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.Name, command.Name));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ExpectedRowVersion, command.Version));
             },
             DbProjectionResolver.Resolve<OutboxSignalConsumeRow>(),

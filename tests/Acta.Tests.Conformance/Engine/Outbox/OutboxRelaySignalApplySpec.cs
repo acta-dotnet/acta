@@ -36,9 +36,9 @@ public sealed class OutboxRelaySignalApplySpec : OutboxRelayIntegrationBase
         // directly, like the crash-window specs); the runtimes row backs the evidence event join.
         var seeder = new ActaTestSeeder(Db);
         var (slotJobId, _) = await seeder.SeedJobAsync(NamespaceId, ct: ct);
-        await Db.From<JobRuntime>()
+        await Db.From<RuntimeEntity>()
             .InsertAsync<long>(
-                new JobRuntime
+                new RuntimeEntity
                 {
                     Id = slotJobId,
                     NamespaceId = NamespaceId,
@@ -77,7 +77,7 @@ public sealed class OutboxRelaySignalApplySpec : OutboxRelayIntegrationBase
         Assert.Equal((byte)OutboxStatusCode.Pending, state.StatusCode);
         Assert.Equal(0, state.FailureCount);
 
-        var evidence = Assert.Single(await Db.From<JobEvent>().Where(e => e.JobId == slotJobId).ToListAsync(ct));
+        var evidence = Assert.Single(await Db.From<EventEntity>().Where(e => e.JobId == slotJobId).ToListAsync(ct));
         Assert.Equal(EventCode.OutboxRequeued, evidence.EventCode);
         Assert.Equal(ActorCode.Operator, evidence.ActorCode);
         Assert.Equal("marko", evidence.ActorKey);

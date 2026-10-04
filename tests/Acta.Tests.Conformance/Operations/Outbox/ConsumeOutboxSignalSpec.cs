@@ -95,8 +95,8 @@ public sealed class ConsumeOutboxSignalSpec : ActaStorageTestBase<ConformanceFix
             .GetRequiredService<ParkOutboxSignalHandler>()
             .HandleAsync(new ParkOutboxSignalCommand(jobId, name, ValueFormatId: 1, value, staleBeforeUtc), ct);
 
-    private async Task<IReadOnlyList<JobCheckpoint>> RowsAsync(long jobId, string name, CancellationToken ct) =>
-        await Db.From<JobCheckpoint>()
+    private async Task<IReadOnlyList<CheckpointEntity>> RowsAsync(long jobId, string name, CancellationToken ct) =>
+        await Db.From<CheckpointEntity>()
             .Where(c => c.JobId == jobId && c.Kind == JobCheckpointKindCode.Signal && c.Name == name)
             .ToListAsync(ct);
 

@@ -34,11 +34,8 @@ ISettings.cs
 ITenants.cs
 IWorkerBuilder.cs
 IWorkerWakeup.cs
-Job.cs
-JobAlert.cs
 JobAttribute.cs
 JobBehaviorPipeline.cs
-JobCheckpoint.cs
 JobCheckpointItem.cs
 JobContext.cs
 JobControlException.cs
@@ -49,7 +46,6 @@ JobDetail.cs
 JobEnqueueOptions.cs
 JobEnqueueRequest.cs
 JobEnqueueRow.cs
-JobEvent.cs
 JobExecution.cs
 JobExecutionOptions.cs
 JobExecutor.cs
@@ -66,11 +62,7 @@ JobPayloadFormat.cs
 JobPayloadFormatDeclarationAttribute.cs
 JobPipelineBehavior.cs
 JobRequestBuilder.cs
-JobResult.cs
-JobRuntime.cs
-JobSchedule.cs
 JobScheduleAttribute.cs
-JobStep.cs
 JobTypeIndex.cs
 JobsOptions.cs
 JobsOptionsValidator.cs
@@ -83,7 +75,6 @@ ListNamespacesQuery.cs
 ListSchedulesQuery.cs
 ListTenantsQuery.cs
 ListWorkersQuery.cs
-Lock.cs
 LockLeaseHeartbeat.cs
 MessageTruncator.cs
 NamespaceListItem.cs
@@ -108,7 +99,6 @@ ScheduleWalker.cs
 SchemaColumnTypes.cs
 SchemaMigrationRunner.cs
 SchemaModel.cs
-Setting.cs
 SettingDetail.cs
 SignalSuspendSignal.cs
 SignalWaitResult.cs
@@ -124,7 +114,6 @@ StepOwnershipLostException.cs
 StepResultContractMismatchException.cs
 StepRetrySignal.cs
 SuspendSignal.cs
-Tenant.cs
 TenantDetail.cs
 TenantListItem.cs
 TextJobPayloadSerializer.cs

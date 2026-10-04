@@ -46,9 +46,9 @@ public sealed class RegisterJobDefinitionsSpec : ActaStorageTestBase<Conformance
 
     private (IDbSession Db, ISqlDialect Dialect) Store() => (Db, Services.GetRequiredService<ISqlDialect>());
 
-    private async Task<JobDefinition> ReadAsync(string name, CancellationToken ct)
+    private async Task<DefinitionEntity> ReadAsync(string name, CancellationToken ct)
     {
-        var def = await Db.From<JobDefinition>().Where(d => d.NamespaceId == TestNamespaceId && d.Name == name).SingleOrDefaultAsync(ct);
+        var def = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == TestNamespaceId && d.Name == name).SingleOrDefaultAsync(ct);
         Assert.NotNull(def);
         return def!;
     }

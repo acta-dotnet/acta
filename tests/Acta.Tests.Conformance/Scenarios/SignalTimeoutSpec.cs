@@ -117,7 +117,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         // The combined claim is the poll loop's shape and the only one that writes the started event
         // itself; RunOnceAsync claims to Dispatched, so start_execution owns the event there instead.
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var worker = await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
+        var worker = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);
         var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
 
@@ -412,7 +412,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
     }
 
     private async Task<int> CountReasonAsync(long jobId, JobEventReasonCode reason, CancellationToken ct) =>
-        await Db.From<JobEvent>().Where(e => e.JobId == jobId && e.ReasonCode == reason).CountAsync(ct);
+        await Db.From<EventEntity>().Where(e => e.JobId == jobId && e.ReasonCode == reason).CountAsync(ct);
 
     // Moves the wait past its deadline the way real time would: the slot's stored expiration and the
     // job's cached claim instant both go into the past, and nothing else is touched.

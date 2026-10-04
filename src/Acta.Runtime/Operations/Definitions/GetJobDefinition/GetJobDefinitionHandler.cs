@@ -10,7 +10,7 @@ internal sealed class GetJobDefinitionHandler(DefinitionKeyResolution keys, IDbS
             ? null
             : await session.QuerySingleAsync(
                 "GetJobDefinition",
-                cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobDefinition.Id, definitionId.Value)),
+                cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.Id, definitionId.Value)),
                 DbProjectionResolver.Resolve<JobDefinitionDetail>(),
                 ct
             );

@@ -10,7 +10,7 @@ internal sealed class GetLiveSchedulesHandler(IDbSession session, ISqlDialect di
     public Task<IReadOnlyList<LiveSchedule>> HandleAsync(GetLiveSchedulesQuery query, CancellationToken ct) =>
         session.QueryListAsync(
             "GetLiveSchedules",
-            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.JobId, query.JobId)),
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.JobId, query.JobId)),
             DbProjectionResolver.Resolve<LiveSchedule>(),
             ct
         );

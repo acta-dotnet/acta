@@ -27,7 +27,7 @@ public sealed class ListWorkersFilterMatrixSpec : ActaRuntimeTestBase<Conformanc
         var queries = Services.GetRequiredService<IActaOperations>();
 
         // Capture the single Active worker seeded by Runtime.InitializeAsync (only worker at this point)
-        var wRuntime = await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
+        var wRuntime = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(wRuntime);
         var wRuntimeId = wRuntime!.Id;
 
@@ -52,7 +52,9 @@ public sealed class ListWorkersFilterMatrixSpec : ActaRuntimeTestBase<Conformanc
         // runs, leaving our sweep with nothing (the `swept >= 1` assertion then flaked). Direct-stamping
         // the exact status is deterministic; this is a filter test, so how it became Dead is irrelevant.
         var (_, wDeadId) = await WorkerTestOps.StartAsync(Services, TestNamespace, "test", null, "host-d", "v1", null, null, 1002, 1, ct);
-        await Db.From<JobWorker>().Where(w => w.Id == wDeadId).UpdateOnlyAsync(() => new JobWorker { Status = WorkerStatusCode.Dead }, ct);
+        await Db.From<WorkerEntity>()
+            .Where(w => w.Id == wDeadId)
+            .UpdateOnlyAsync(() => new WorkerEntity { Status = WorkerStatusCode.Dead }, ct);
 
         // Expected sets: ids captured at seed time, independent of the filter under test
         var activeIds = new HashSet<int> { wRuntimeId };
@@ -64,9 +66,9 @@ public sealed class ListWorkersFilterMatrixSpec : ActaRuntimeTestBase<Conformanc
         // sweep can flip this worker Active->Dead between InitializeAsync and our assertion. Resetting BOTH
         // the status (undo any sweep that already fired) and last_seen (block any sweep in the next window)
         // makes the Active partition deterministic.
-        await Db.From<JobWorker>()
+        await Db.From<WorkerEntity>()
             .Where(w => w.Id == wRuntimeId)
-            .UpdateOnlyAsync(() => new JobWorker { Status = WorkerStatusCode.Active, LastHeartbeatAtUtc = DateTime.UtcNow }, ct);
+            .UpdateOnlyAsync(() => new WorkerEntity { Status = WorkerStatusCode.Active, LastHeartbeatAtUtc = DateTime.UtcNow }, ct);
 
         // Active filter: exact set + total, Stopped and Dead excluded
         var activePage = await queries.Workers.ListAsync(
@@ -105,7 +107,7 @@ public sealed class ListWorkersFilterMatrixSpec : ActaRuntimeTestBase<Conformanc
         var queries = Services.GetRequiredService<IActaOperations>();
 
         // Capture pre-existing workers in TestNamespace before seeding a second one
-        var priorNs1Ids = (await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).ToListAsync(ct)).Select(w => w.Id).ToHashSet();
+        var priorNs1Ids = (await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).ToListAsync(ct)).Select(w => w.Id).ToHashSet();
 
         // Add a second worker to TestNamespace so ns1 has 2 workers total
         var (_, w2Id) = await WorkerTestOps.StartAsync(Services, TestNamespace, "test", null, "host-ns1-b", "v1", null, null, 2001, 1, ct);

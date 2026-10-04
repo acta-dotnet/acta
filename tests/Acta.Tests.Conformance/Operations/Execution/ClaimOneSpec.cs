@@ -195,9 +195,9 @@ public sealed class ClaimOneSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
 
     private async Task SuspendAsync(long jobId, DateTime? nextRunAtUtc, CancellationToken ct)
     {
-        var affected = await Db.From<JobRuntime>()
+        var affected = await Db.From<RuntimeEntity>()
             .Where(r => r.Id == jobId)
-            .UpdateOnlyAsync(() => new JobRuntime { Status = JobStatusCode.Suspended, NextRunAtUtc = nextRunAtUtc }, ct);
+            .UpdateOnlyAsync(() => new RuntimeEntity { Status = JobStatusCode.Suspended, NextRunAtUtc = nextRunAtUtc }, ct);
         Assert.Equal(1, affected);
     }
 
@@ -210,12 +210,12 @@ public sealed class ClaimOneSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.Equal(before.LeasedByWorkerId, after.LeasedByWorkerId);
     }
 
-    private Task<IReadOnlyList<JobEvent>> StartedEventsAsync(long jobId, CancellationToken ct) =>
-        Db.From<JobEvent>().Where(e => e.JobId == jobId && e.EventCode == EventCode.JobExecutionStarted).ToListAsync(ct);
+    private Task<IReadOnlyList<EventEntity>> StartedEventsAsync(long jobId, CancellationToken ct) =>
+        Db.From<EventEntity>().Where(e => e.JobId == jobId && e.EventCode == EventCode.JobExecutionStarted).ToListAsync(ct);
 
     private async Task<int> WorkerIdAsync(CancellationToken ct)
     {
-        var worker = await Db.From<JobWorker>().Where(w => w.NamespaceId == NamespaceId).SingleOrDefaultAsync(ct);
+        var worker = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == NamespaceId).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);
         return worker!.Id;
     }

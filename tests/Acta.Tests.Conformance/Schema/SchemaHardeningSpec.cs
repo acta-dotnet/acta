@@ -28,7 +28,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var sys = await Db.From<JobNamespace>().Where(n => n.Id == 1).SingleOrDefaultAsync(ct);
+        var sys = await Db.From<NamespaceEntity>().Where(n => n.Id == 1).SingleOrDefaultAsync(ct);
 
         Assert.NotNull(sys);
         Assert.Equal("sys", sys!.Name);
@@ -44,11 +44,11 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
 
         Assert.Equal(
             1,
-            await Db.From<JobDefinition>().Where(d => d.Id == defId).UpdateOnlyAsync(() => new JobDefinition { MaxAttempts = 5 }, ct)
+            await Db.From<DefinitionEntity>().Where(d => d.Id == defId).UpdateOnlyAsync(() => new DefinitionEntity { MaxAttempts = 5 }, ct)
         );
 
         await Assert.ThrowsAnyAsync<DbException>(() =>
-            Db.From<JobDefinition>().Where(d => d.Id == defId).UpdateOnlyAsync(() => new JobDefinition { MaxAttempts = 0 }, ct)
+            Db.From<DefinitionEntity>().Where(d => d.Id == defId).UpdateOnlyAsync(() => new DefinitionEntity { MaxAttempts = 0 }, ct)
         );
     }
 
@@ -58,14 +58,14 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         var ct = TestContext.Current.CancellationToken;
 
         // Positive control: the same shape with no violation inserts cleanly.
-        Assert.True(await Db.From<JobAlert>().InsertAsync<long>(NewAlertRow(), ct) > 0);
+        Assert.True(await Db.From<AlertEntity>().InsertAsync<long>(NewAlertRow(), ct) > 0);
 
         // ck_alerts_job_ref_pair: job_id set without job_ref (the shape raise_job_alert produces for an
         // unknown job_id, load-bearing on the alert write path since the data-model-hardening re-cut).
-        await Assert.ThrowsAnyAsync<DbException>(() => Db.From<JobAlert>().InsertAsync<long>(NewAlertRow(jobId: 999_999_999), ct));
+        await Assert.ThrowsAnyAsync<DbException>(() => Db.From<AlertEntity>().InsertAsync<long>(NewAlertRow(jobId: 999_999_999), ct));
 
         // ck_alerts_occurrence_count: occurrence_count below 1.
-        await Assert.ThrowsAnyAsync<DbException>(() => Db.From<JobAlert>().InsertAsync<long>(NewAlertRow(occurrenceCount: 0), ct));
+        await Assert.ThrowsAnyAsync<DbException>(() => Db.From<AlertEntity>().InsertAsync<long>(NewAlertRow(occurrenceCount: 0), ct));
     }
 
     [Fact(
@@ -77,32 +77,34 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         var key = $"schema-hardening:{TestId}";
 
         // The incident: one unresolved row on the key.
-        var openId = await Db.From<JobAlert>().InsertAsync<long>(NewAlertRow(deduplicationKey: key), ct);
+        var openId = await Db.From<AlertEntity>().InsertAsync<long>(NewAlertRow(deduplicationKey: key), ct);
         Assert.True(openId > 0);
 
         // A second unresolved row on the same key is what the index exists to refuse - this is the
         // constraint the raise leans on to keep an incident single.
-        await Assert.ThrowsAnyAsync<DbException>(() => Db.From<JobAlert>().InsertAsync<long>(NewAlertRow(deduplicationKey: key), ct));
+        await Assert.ThrowsAnyAsync<DbException>(() => Db.From<AlertEntity>().InsertAsync<long>(NewAlertRow(deduplicationKey: key), ct));
 
         // Resolving the row takes it out of the filtered index, which is what frees the key for the next
         // incident. Without the filter this insert would fail exactly like the one above.
         Assert.Equal(
             1,
-            await Db.From<JobAlert>().Where(a => a.Id == openId).UpdateOnlyAsync(() => new JobAlert { ResolvedAtUtc = DateTime.UtcNow }, ct)
+            await Db.From<AlertEntity>()
+                .Where(a => a.Id == openId)
+                .UpdateOnlyAsync(() => new AlertEntity { ResolvedAtUtc = DateTime.UtcNow }, ct)
         );
-        Assert.True(await Db.From<JobAlert>().InsertAsync<long>(NewAlertRow(deduplicationKey: key), ct) > 0);
+        Assert.True(await Db.From<AlertEntity>().InsertAsync<long>(NewAlertRow(deduplicationKey: key), ct) > 0);
 
         // And resolved rows do not collide with each other either: the filter excludes every one of them.
         Assert.Equal(
             1,
-            await Db.From<JobAlert>()
+            await Db.From<AlertEntity>()
                 .Where(a => a.DedupeKey == key && a.Id != openId)
-                .UpdateOnlyAsync(() => new JobAlert { ResolvedAtUtc = DateTime.UtcNow }, ct)
+                .UpdateOnlyAsync(() => new AlertEntity { ResolvedAtUtc = DateTime.UtcNow }, ct)
         );
-        Assert.True(await Db.From<JobAlert>().InsertAsync<long>(NewAlertRow(deduplicationKey: key), ct) > 0);
+        Assert.True(await Db.From<AlertEntity>().InsertAsync<long>(NewAlertRow(deduplicationKey: key), ct) > 0);
     }
 
-    private JobAlert NewAlertRow(long? jobId = null, Guid? jobRef = null, string? deduplicationKey = null, int occurrenceCount = 1) =>
+    private AlertEntity NewAlertRow(long? jobId = null, Guid? jobRef = null, string? deduplicationKey = null, int occurrenceCount = 1) =>
         new()
         {
             NamespaceId = Runtime.RegisteredNamespaceIds[TestNamespace],
@@ -132,11 +134,11 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
 
         Assert.Equal(
             1,
-            await Db.From<JobRuntime>().Where(r => r.Id == enq.JobId).UpdateOnlyAsync(() => new JobRuntime { FailureCount = 2 }, ct)
+            await Db.From<RuntimeEntity>().Where(r => r.Id == enq.JobId).UpdateOnlyAsync(() => new RuntimeEntity { FailureCount = 2 }, ct)
         );
 
         await Assert.ThrowsAnyAsync<DbException>(() =>
-            Db.From<JobRuntime>().Where(r => r.Id == enq.JobId).UpdateOnlyAsync(() => new JobRuntime { FailureCount = -1 }, ct)
+            Db.From<RuntimeEntity>().Where(r => r.Id == enq.JobId).UpdateOnlyAsync(() => new RuntimeEntity { FailureCount = -1 }, ct)
         );
     }
 
@@ -187,9 +189,9 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         async Task<long> InsertRuntimeAsync(JobStatusCode status, DateTime? nextRunAtUtc)
         {
             var (jobId, _) = await seeder.SeedJobAsync(nsId, defId, ct: ct);
-            return await Db.From<JobRuntime>()
+            return await Db.From<RuntimeEntity>()
                 .InsertAsync<long>(
-                    new JobRuntime
+                    new RuntimeEntity
                     {
                         Id = jobId,
                         NamespaceId = nsId,
@@ -211,10 +213,12 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         // A live row reaches the bad shape by UPDATE, which is how the sleep timer could null the
         // instant under a worker whose lease had already been reclaimed.
         await Assert.ThrowsAnyAsync<DbException>(() =>
-            Db.From<JobRuntime>().Where(r => r.Id == readyId).UpdateOnlyAsync(() => new JobRuntime { NextRunAtUtc = null }, ct)
+            Db.From<RuntimeEntity>().Where(r => r.Id == readyId).UpdateOnlyAsync(() => new RuntimeEntity { NextRunAtUtc = null }, ct)
         );
         await Assert.ThrowsAnyAsync<DbException>(() =>
-            Db.From<JobRuntime>().Where(r => r.Id == suspendedId).UpdateOnlyAsync(() => new JobRuntime { Status = JobStatusCode.Ready }, ct)
+            Db.From<RuntimeEntity>()
+                .Where(r => r.Id == suspendedId)
+                .UpdateOnlyAsync(() => new RuntimeEntity { Status = JobStatusCode.Ready }, ct)
         );
     }
 
@@ -258,7 +262,9 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
             )
         );
 
-        var stored = await Db.From<JobCheckpoint>().Where(c => c.JobId == enq.JobId && c.Name == "custom-format").SingleOrDefaultAsync(ct);
+        var stored = await Db.From<CheckpointEntity>()
+            .Where(c => c.JobId == enq.JobId && c.Name == "custom-format")
+            .SingleOrDefaultAsync(ct);
         Assert.NotNull(stored);
         Assert.Equal(byte.MaxValue, stored!.ValueFormatId);
     }
@@ -539,7 +545,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         var ct = TestContext.Current.CancellationToken;
         var nsId = Runtime.RegisteredNamespaceIds[TestNamespace];
 
-        JobWorker NewWorker(int maxConcurrency) =>
+        WorkerEntity NewWorker(int maxConcurrency) =>
             new()
             {
                 NamespaceId = nsId,
@@ -553,8 +559,8 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
                 LastHeartbeatAtUtc = DateTime.UtcNow,
             };
 
-        Assert.True(await Db.From<JobWorker>().InsertAsync<int>(NewWorker(4), ct) > 0);
-        await Assert.ThrowsAnyAsync<DbException>(() => Db.From<JobWorker>().InsertAsync<int>(NewWorker(0), ct));
+        Assert.True(await Db.From<WorkerEntity>().InsertAsync<int>(NewWorker(4), ct) > 0);
+        await Assert.ThrowsAnyAsync<DbException>(() => Db.From<WorkerEntity>().InsertAsync<int>(NewWorker(0), ct));
     }
 
     [Fact(DisplayName = "runtimes and tags agree with jobs on namespace_id after EnqueueOne, EnqueueBatch, a child enqueue, and Restart")]
@@ -604,23 +610,23 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         var slotId = await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, "recurring-ping"), ct);
         Assert.NotNull(slotId);
 
-        var job = await Db.From<Job>().Where(j => j.Id == slotId).SingleOrDefaultAsync(ct);
+        var job = await Db.From<JobEntity>().Where(j => j.Id == slotId).SingleOrDefaultAsync(ct);
         Assert.NotNull(job);
 
-        var schedule = Assert.Single(await Db.From<JobSchedule>().Where(s => s.JobId == slotId).ToListAsync(ct));
+        var schedule = Assert.Single(await Db.From<ScheduleEntity>().Where(s => s.JobId == slotId).ToListAsync(ct));
         Assert.Equal(job!.NamespaceId, schedule.NamespaceId);
         Assert.Equal(job.DefinitionId, schedule.DefinitionId);
     }
 
     private async Task AssertNamespaceAgreementAsync(long jobId, CancellationToken ct)
     {
-        var job = await Db.From<Job>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct);
+        var job = await Db.From<JobEntity>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct);
         Assert.NotNull(job);
-        var runtime = await Db.From<JobRuntime>().Where(r => r.Id == jobId).SingleOrDefaultAsync(ct);
+        var runtime = await Db.From<RuntimeEntity>().Where(r => r.Id == jobId).SingleOrDefaultAsync(ct);
         Assert.NotNull(runtime);
         Assert.Equal(job!.NamespaceId, runtime!.NamespaceId);
 
-        var tags = await Db.From<Tag>().Where(t => t.ScopeCode == TagScopeCode.Job && t.ScopeId == jobId).ToListAsync(ct);
+        var tags = await Db.From<TagEntity>().Where(t => t.ScopeCode == TagScopeCode.Job && t.ScopeId == jobId).ToListAsync(ct);
         Assert.NotEmpty(tags);
         Assert.All(tags, t => Assert.Equal(job.NamespaceId, t.NamespaceId));
     }

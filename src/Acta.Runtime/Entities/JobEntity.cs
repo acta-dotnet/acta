@@ -31,7 +31,7 @@ namespace Acta.Runtime;
     Usage = "dashboard_grid"
 )]
 [DbCheck(Name = "ck_jobs_input_pair", Sql = "(input_format_id = 0 AND input IS NULL) OR (input_format_id <> 0 AND input IS NOT NULL)")]
-internal sealed class Job : IEntity<long>
+internal sealed class JobEntity : IEntity<long>
 {
     // ---------- Identity ----------
 
@@ -45,13 +45,9 @@ internal sealed class Job : IEntity<long>
     public long Id { get; init; }
 
     /// <summary>
-    /// Public stable reference exposed to dashboards, HTTP APIs, and clients in place of the
-    /// numeric id; rendered externally as "job_" plus 26 lowercase Crockford Base32 characters.
-    /// Allocated in C# (a UUIDv7 via <see cref="Acta.JobRef.New"/>) and passed into the
-    /// inserting routine, never defaulted by the database. Source of truth here and denormalized onto
-    /// the audit tables (events, alerts) so the public ref survives Job purge; CASCADE
-    /// child/substrate tables keep numeric ids only. Never used for internal joins, claim ordering, or
-    /// keyset pagination.
+    /// The public reference clients see in place of the numeric id ("job_" plus 26 Crockford Base32 characters),
+    /// minted in C# as a UUIDv7 (<see cref="Acta.JobRef.New"/>) and never defaulted by the database. It is copied onto
+    /// events and alerts so it survives a purge, and never used for joins, claim order, or keyset paging.
     /// </summary>
     [DbColumn("job_ref", DbKind.Guid)]
     public Guid JobRef { get; init; }
@@ -97,13 +93,10 @@ internal sealed class Job : IEntity<long>
     // ---------- Caller keys ----------
 
     /// <summary>
-    /// Deduplication key on enqueue and operator-facing stable address for <c>IJobs.GetJobIdAsync</c>.
-    /// User keys cannot start with <c>"sys."</c> (system-reserved prefix). Uniqueness scope differs by
-    /// row kind: root jobs are unique per <c>JobNamespace</c> (<c>ux_jobs_deduplication_key_root</c>, filtered to
-    /// <c>parent_id IS NULL</c>); child jobs are unique per direct parent (<c>ux_jobs_deduplication_key_child</c>,
-    /// filtered to <c>parent_id IS NOT NULL</c>), so siblings need distinct keys but a key may recur in a
-    /// different subtree. A recurring job's slot takes the job's name as its key, so a root enqueue keyed
-    /// by that name deduplicates onto the slot.
+    /// Deduplication key on enqueue and a stable address for <c>IJobs.GetJobIdAsync</c>; user keys cannot start with
+    /// <c>"sys."</c>. Root jobs are unique per namespace (<c>ux_jobs_deduplication_key_root</c>) and children per direct
+    /// parent (<c>ux_jobs_deduplication_key_child</c>). A recurring slot takes the job's name as its key, so a root
+    /// enqueue keyed by that name deduplicates onto the slot.
     /// </summary>
     [DbColumn("deduplication_key", DbKind.AsciiString, Size = 128)]
     public string? DeduplicationKey { get; init; }

@@ -15,11 +15,11 @@ namespace Acta.Tests.Conformance.Operations.Tenants;
 )]
 public sealed class SuspendTenantSpec : ActaStorageTestBase<ConformanceFixture>
 {
-    private async Task<Tenant?> ReadTenantAsync(string key, CancellationToken ct) =>
-        await Db.From<Tenant>().Where(t => t.TenantKey == key).SingleOrDefaultAsync(ct);
+    private async Task<TenantEntity?> ReadTenantAsync(string key, CancellationToken ct) =>
+        await Db.From<TenantEntity>().Where(t => t.TenantKey == key).SingleOrDefaultAsync(ct);
 
     private async Task<int> EventCountAsync(int tenantId, EventCode code, CancellationToken ct) =>
-        await Db.From<JobEvent>().Where(e => e.TenantId == tenantId && e.EventCode == code).CountAsync(ct);
+        await Db.From<EventEntity>().Where(e => e.TenantId == tenantId && e.EventCode == code).CountAsync(ct);
 
     [Fact(DisplayName = "Suspending an active tenant applies, bumps version, and emits one tenant.suspended to sys")]
     public async Task Suspend_applies_and_emits()
@@ -37,7 +37,7 @@ public sealed class SuspendTenantSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.True(after.Version > before!.Version);
         Assert.Equal(after.Version, outcome.Version);
         Assert.Equal(1, await EventCountAsync(id, EventCode.TenantSuspended, ct));
-        var ev = await Db.From<JobEvent>()
+        var ev = await Db.From<EventEntity>()
             .Where(e => e.TenantId == id && e.EventCode == EventCode.TenantSuspended)
             .SingleOrDefaultAsync(ct);
         Assert.Equal(1, ev!.NamespaceId);

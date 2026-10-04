@@ -26,9 +26,9 @@ public sealed class RequeueOutboxSpec : OutboxRelayIntegrationBase
         var seeder = new ActaTestSeeder(Db);
         var definitionId = await seeder.SeedJobDefinitionAsync(NamespaceId, name: jobName, ct: ct);
         var jobRef = Guid.NewGuid();
-        var jobId = await Db.From<Job>()
+        var jobId = await Db.From<JobEntity>()
             .InsertAsync<long>(
-                new Job
+                new JobEntity
                 {
                     JobRef = jobRef,
                     NamespaceId = NamespaceId,
@@ -41,9 +41,9 @@ public sealed class RequeueOutboxSpec : OutboxRelayIntegrationBase
                 },
                 ct
             );
-        await Db.From<JobRuntime>()
+        await Db.From<RuntimeEntity>()
             .InsertAsync<long>(
-                new JobRuntime
+                new RuntimeEntity
                 {
                     Id = jobId,
                     NamespaceId = NamespaceId,
@@ -86,7 +86,7 @@ public sealed class RequeueOutboxSpec : OutboxRelayIntegrationBase
         Assert.Equal(0, discarded);
         Assert.Equal((byte)OutboxStatusCode.Pending, (await Fixture.ReadOutboxRowAsync(SourceTable, row.OutboxId)).StatusCode);
 
-        var evidence = Assert.Single(await Db.From<JobEvent>().Where(e => e.JobId == slotJobId).ToListAsync(ct));
+        var evidence = Assert.Single(await Db.From<EventEntity>().Where(e => e.JobId == slotJobId).ToListAsync(ct));
         Assert.Equal("marko", evidence.ActorKey);
         Assert.Contains("fixed the target route", evidence.ReasonMessage);
 

@@ -82,7 +82,7 @@ public sealed class RecordJobNoteSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal("late note", note.ReasonMessage);
         Assert.Equal(7, note.ExecutionNumber);
 
-        var runtime = Assert.Single(await Db.From<JobRuntime>().Where(r => r.Id == enqueued.JobId).ToListAsync(ct));
+        var runtime = Assert.Single(await Db.From<RuntimeEntity>().Where(r => r.Id == enqueued.JobId).ToListAsync(ct));
         Assert.Equal(8, runtime.ExecutionNumber);
     }
 }

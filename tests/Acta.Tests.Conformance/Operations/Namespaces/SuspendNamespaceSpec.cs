@@ -16,11 +16,11 @@ public sealed class SuspendNamespaceSpec : ActaRuntimeTestBase<ConformanceFixtur
 {
     protected override bool RunAsWorker => true;
 
-    private async Task<JobNamespace?> ReadNsAsync(CancellationToken ct) =>
-        await Db.From<JobNamespace>().Where(n => n.Name == TestNamespace).SingleOrDefaultAsync(ct);
+    private async Task<NamespaceEntity?> ReadNsAsync(CancellationToken ct) =>
+        await Db.From<NamespaceEntity>().Where(n => n.Name == TestNamespace).SingleOrDefaultAsync(ct);
 
     private async Task<int> EventCountAsync(int nsId, EventCode code, CancellationToken ct) =>
-        await Db.From<JobEvent>().Where(e => e.NamespaceId == nsId && e.EventCode == code).CountAsync(ct);
+        await Db.From<EventEntity>().Where(e => e.NamespaceId == nsId && e.EventCode == code).CountAsync(ct);
 
     [Fact(DisplayName = "Suspending an active namespace applies, bumps version, and emits one namespace.suspended to itself")]
     public async Task Suspend_applies_and_emits()
@@ -36,7 +36,7 @@ public sealed class SuspendNamespaceSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(NamespaceStatusCode.Suspended, after!.Status);
         Assert.True(after.Version > before!.Version);
         Assert.Equal(1, await EventCountAsync(nsId, EventCode.NamespaceSuspended, ct));
-        var ev = await Db.From<JobEvent>()
+        var ev = await Db.From<EventEntity>()
             .Where(e => e.NamespaceId == nsId && e.EventCode == EventCode.NamespaceSuspended)
             .SingleOrDefaultAsync(ct);
         Assert.Equal(nsId, ev!.NamespaceId);
@@ -67,11 +67,11 @@ public sealed class SuspendNamespaceSpec : ActaRuntimeTestBase<ConformanceFixtur
     public async Task Sys_is_rejected()
     {
         var ct = TestContext.Current.CancellationToken;
-        var before = await Db.From<JobNamespace>().Where(n => n.Id == 1).SingleOrDefaultAsync(ct);
+        var before = await Db.From<NamespaceEntity>().Where(n => n.Id == 1).SingleOrDefaultAsync(ct);
 
         await Assert.ThrowsAsync<ArgumentException>(async () => await Operations.Namespaces.SuspendAsync("sys", null, null, ct));
 
-        var after = await Db.From<JobNamespace>().Where(n => n.Id == 1).SingleOrDefaultAsync(ct);
+        var after = await Db.From<NamespaceEntity>().Where(n => n.Id == 1).SingleOrDefaultAsync(ct);
         Assert.Equal(NamespaceStatusCode.Active, after!.Status);
         Assert.Equal(before!.Version, after.Version);
 

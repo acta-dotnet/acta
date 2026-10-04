@@ -49,7 +49,7 @@ internal sealed class ListJobsHandler(IDbSession session, ISqlDialect dialect)
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceFilter, jobNamespace));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobRuntime.StatusCode, query.Status));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Runtime.StatusCode, query.Status));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.JobNameFilter, jobName));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ParentIdFilter, query.ParentJobId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.TenantId, query.TenantId));

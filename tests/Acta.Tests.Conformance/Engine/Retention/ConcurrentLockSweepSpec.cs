@@ -72,14 +72,14 @@ public sealed class ConcurrentLockSweepSpec : ActaRuntimeTestBase<ConformanceFix
         await RetentionTestOps.PurgeUntilAsync(Services, ns, 100_000, 100_000, 100_000_000, 10, 50, RemainingEmptyAsync, ct);
         foreach (var chunk in keys.Chunk(200).Select(c => c.ToList()))
         {
-            Assert.Empty(await Db.From<Acta.Runtime.Lock>().Where(l => chunk.Contains(l.LockKey)).ToListAsync(ct));
+            Assert.Empty(await Db.From<Acta.Runtime.LockEntity>().Where(l => chunk.Contains(l.LockKey)).ToListAsync(ct));
         }
 
         async Task<bool> RemainingEmptyAsync()
         {
             foreach (var chunk in keys.Chunk(200).Select(c => c.ToList()))
             {
-                if (await Db.From<Acta.Runtime.Lock>().Where(l => chunk.Contains(l.LockKey)).ToListAsync(ct) is { Count: > 0 })
+                if (await Db.From<Acta.Runtime.LockEntity>().Where(l => chunk.Contains(l.LockKey)).ToListAsync(ct) is { Count: > 0 })
                 {
                     return false;
                 }

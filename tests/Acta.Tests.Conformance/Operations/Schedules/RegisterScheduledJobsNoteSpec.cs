@@ -109,10 +109,10 @@ public sealed class RegisterScheduledJobsNoteSpec : ActaStorageTestBase<Conforma
 
     private IJobs Jobs() => Services.GetRequiredService<IJobs>();
 
-    private async Task<JobSchedule> ScheduleAsync(IDbSession session, string jobName, string scheduleName, CancellationToken ct)
+    private async Task<ScheduleEntity> ScheduleAsync(IDbSession session, string jobName, string scheduleName, CancellationToken ct)
     {
         var slotId = await SlotIdAsync(jobName, ct);
-        var rows = await session.From<JobSchedule>().Where(s => s.JobId == slotId && s.Name == scheduleName).ToListAsync(ct);
+        var rows = await session.From<ScheduleEntity>().Where(s => s.JobId == slotId && s.Name == scheduleName).ToListAsync(ct);
         return Assert.Single(rows);
     }
 

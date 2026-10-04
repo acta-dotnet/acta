@@ -11,7 +11,7 @@ public class DbParamsTests
     [Fact]
     public void For_column_uses_generated_parameter_name()
     {
-        var p = DbParams.For(ActaSchema.JobRuntime.StatusCode, JobStatusCode.Ready);
+        var p = DbParams.For(ActaSchema.Runtime.StatusCode, JobStatusCode.Ready);
 
         Assert.Equal("p_status_code", p.Name);
     }
@@ -19,7 +19,7 @@ public class DbParamsTests
     [Fact]
     public void For_column_inherits_size_from_generated_metadata()
     {
-        var p = DbParams.For(ActaSchema.JobEvent.ReasonMessage, "boom");
+        var p = DbParams.For(ActaSchema.Event.ReasonMessage, "boom");
 
         Assert.Equal(DbKind.UnicodeString, p.Kind);
         Assert.Equal(512, p.Size);
@@ -28,8 +28,8 @@ public class DbParamsTests
     [Fact]
     public void For_coded_column_uses_the_enums_physical_width()
     {
-        var byteBacked = DbParams.For(ActaSchema.JobRuntime.StatusCode, JobStatusCode.Executing);
-        var priority = DbParams.For(ActaSchema.JobRuntime.PriorityCode, JobPriorityCode.Normal);
+        var byteBacked = DbParams.For(ActaSchema.Runtime.StatusCode, JobStatusCode.Executing);
+        var priority = DbParams.For(ActaSchema.Runtime.PriorityCode, JobPriorityCode.Normal);
 
         Assert.Equal(DbKind.Byte, byteBacked.Kind);
         Assert.Equal(DbKind.Byte, priority.Kind);

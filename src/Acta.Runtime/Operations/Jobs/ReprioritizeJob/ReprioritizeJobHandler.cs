@@ -22,7 +22,7 @@ internal sealed class ReprioritizeJobHandler(
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobRuntime.PriorityCode, command.Priority));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Runtime.PriorityCode, command.Priority));
                 JobControl.BindActor(cmd, dialect, input);
                 JobControl.BindExpectedVersion(cmd, dialect, input);
             },

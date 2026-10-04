@@ -191,7 +191,7 @@ public sealed class MultiScheduleSlotSpec : ActaRuntimeTestBase<ConformanceFixtu
 
     private async Task<DateTime> ScheduleCursorAsync(long slotId, string scheduleName, CancellationToken ct)
     {
-        var rows = await Db.From<JobSchedule>().Where(s => s.JobId == slotId).ToListAsync(ct);
+        var rows = await Db.From<ScheduleEntity>().Where(s => s.JobId == slotId).ToListAsync(ct);
         var row = rows.Single(s => s.Name == scheduleName);
         Assert.NotNull(row.NextRunAtUtc);
         return row.NextRunAtUtc!.Value;

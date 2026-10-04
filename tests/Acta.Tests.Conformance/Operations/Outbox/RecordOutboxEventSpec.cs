@@ -26,9 +26,9 @@ public sealed class RecordOutboxEventSpec : ActaStorageTestBase<ConformanceFixtu
         var store = Services.GetRequiredService<OutboxInbox>();
         // SeedJobAsync writes AuditLevel Off - exactly the case that proves the event has no audit gate.
         var (jobId, _) = await Seeder.SeedJobAsync(TestNamespaceId, ct: ct);
-        await Db.From<JobRuntime>()
+        await Db.From<RuntimeEntity>()
             .InsertAsync<long>(
-                new JobRuntime
+                new RuntimeEntity
                 {
                     Id = jobId,
                     NamespaceId = TestNamespaceId,
@@ -47,7 +47,7 @@ public sealed class RecordOutboxEventSpec : ActaStorageTestBase<ConformanceFixtu
             ct
         );
 
-        var events = await Db.From<JobEvent>().Where(e => e.JobId == jobId).ToListAsync(ct);
+        var events = await Db.From<EventEntity>().Where(e => e.JobId == jobId).ToListAsync(ct);
         var evidence = Assert.Single(events);
         Assert.Equal(EventCode.OutboxDiscarded, evidence.EventCode);
         Assert.Equal(ActorCode.Operator, evidence.ActorCode);

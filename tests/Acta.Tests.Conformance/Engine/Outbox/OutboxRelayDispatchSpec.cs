@@ -52,12 +52,14 @@ public sealed class OutboxRelayDispatchSpec : ActaRuntimeTestBase<ConformanceFix
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
 
-        var outbox = await Db.From<JobDefinition>().Where(d => d.NamespaceId == ns && d.Name == "sys.outbox").SingleOrDefaultAsync(ct);
+        var outbox = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == ns && d.Name == "sys.outbox").SingleOrDefaultAsync(ct);
         Assert.NotNull(outbox);
-        var recovery = await Db.From<JobDefinition>().Where(d => d.NamespaceId == ns && d.Name == "sys.recovery").SingleOrDefaultAsync(ct);
+        var recovery = await Db.From<DefinitionEntity>()
+            .Where(d => d.NamespaceId == ns && d.Name == "sys.recovery")
+            .SingleOrDefaultAsync(ct);
         Assert.NotNull(recovery);
         // sys.retention is automatic-only; a relay must not pull it in.
-        var retention = await Db.From<JobDefinition>()
+        var retention = await Db.From<DefinitionEntity>()
             .Where(d => d.NamespaceId == ns && d.Name == "sys.retention")
             .SingleOrDefaultAsync(ct);
         Assert.Null(retention);
@@ -73,7 +75,9 @@ public sealed class OutboxRelayDispatchSpec : ActaRuntimeTestBase<ConformanceFix
         await EnqueueAndRunAsync("echo", new TestJobs.Echo("before"), ct);
 
         // Dispatch the due sys.outbox slot: the missing source fails only this tick.
-        var slot = await Db.From<Job>().Where(j => j.NamespaceId == ns && j.DeduplicationKey == "sys.outbox").SingleOrDefaultAsync(ct);
+        var slot = await Db.From<JobEntity>()
+            .Where(j => j.NamespaceId == ns && j.DeduplicationKey == "sys.outbox")
+            .SingleOrDefaultAsync(ct);
         Assert.NotNull(slot);
         await ChaosSpecHelpers.SetReadyAsync(Db, slot!.Id, ct);
         Assert.Equal(RunOnceOutcome.Failed, await Runtime.RunOnceAsync(TestNamespace, slot.Id, ct));

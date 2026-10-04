@@ -95,7 +95,8 @@ internal static class SqlSchemaEmitter
     {
         emittedTables.Add(e.TableName);
 
-        sb.AppendLine(CultureInfo.InvariantCulture, $"-- {e.ClrType.Name}");
+        // Headed by the table, as the DDL names it, so renaming a table model leaves the migration unchanged.
+        sb.AppendLine(CultureInfo.InvariantCulture, $"-- {e.TableName}");
         if (dialect.TableGuardBegin(e.TableName) is { } guardBegin)
         {
             sb.AppendLine(guardBegin);

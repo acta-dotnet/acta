@@ -70,7 +70,7 @@ public sealed class SetScheduleOverridesSpec : ActaStorageTestBase<ConformanceFi
         Assert.Equal(DailyCron, item.Expression); // ListAsync/detail shows the overridden effective expression
 
         var slotId = await SlotIdAsync(jobName, ct);
-        var events = await Db.From<JobEvent>()
+        var events = await Db.From<EventEntity>()
             .Where(e => e.JobId == slotId && e.EventCode == EventCode.ScheduleOverridesUpdated)
             .ToListAsync(ct);
         var changed = Assert.Single(events);
@@ -279,10 +279,10 @@ public sealed class SetScheduleOverridesSpec : ActaStorageTestBase<ConformanceFi
 
     private IJobs Jobs() => Services.GetRequiredService<IJobs>();
 
-    private async Task<JobSchedule> ScheduleAsync(IDbSession session, string jobName, string scheduleName, CancellationToken ct)
+    private async Task<ScheduleEntity> ScheduleAsync(IDbSession session, string jobName, string scheduleName, CancellationToken ct)
     {
         var slotId = await SlotIdAsync(jobName, ct);
-        var rows = await session.From<JobSchedule>().Where(s => s.JobId == slotId && s.Name == scheduleName).ToListAsync(ct);
+        var rows = await session.From<ScheduleEntity>().Where(s => s.JobId == slotId && s.Name == scheduleName).ToListAsync(ct);
         return Assert.Single(rows);
     }
 

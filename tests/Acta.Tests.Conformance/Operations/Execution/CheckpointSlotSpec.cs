@@ -163,6 +163,6 @@ public sealed class CheckpointSlotSpec : ActaRuntimeTestBase<ConformanceFixture,
     private Task<CheckpointSlotRow> SlotAsync(CheckpointSlotAction action, long jobId, string name, byte[]? value, CancellationToken ct) =>
         Execution.CheckpointSlotAsync(Command(action, jobId, name, value), ct);
 
-    private Task<IReadOnlyList<JobCheckpoint>> SlotsAsync(long jobId, CancellationToken ct) =>
-        Db.From<JobCheckpoint>().Where(c => c.JobId == jobId).ToListAsync(ct);
+    private Task<IReadOnlyList<CheckpointEntity>> SlotsAsync(long jobId, CancellationToken ct) =>
+        Db.From<CheckpointEntity>().Where(c => c.JobId == jobId).ToListAsync(ct);
 }

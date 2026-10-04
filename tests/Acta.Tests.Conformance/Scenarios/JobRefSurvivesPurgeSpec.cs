@@ -41,7 +41,7 @@ public sealed class JobRefSurvivesPurgeSpec : ActaRuntimeTestBase<ConformanceFix
         var jobRef = enqueued.JobRef;
 
         // Before purge: the job's own events already carry the denormalized public ref.
-        var eventsBefore = await Db.From<JobEvent>().Where(e => e.JobId == jobId).ToListAsync(ct);
+        var eventsBefore = await Db.From<EventEntity>().Where(e => e.JobId == jobId).ToListAsync(ct);
         Assert.NotEmpty(eventsBefore);
         Assert.All(eventsBefore, e => Assert.Equal<Guid?>(jobRef.Value, e.JobRef));
 
@@ -60,7 +60,7 @@ public sealed class JobRefSurvivesPurgeSpec : ActaRuntimeTestBase<ConformanceFix
             NoWorkerPurgeSeconds,
             1000,
             50,
-            async () => await Db.From<Job>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct) is null,
+            async () => await Db.From<JobEntity>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct) is null,
             ct
         );
 
@@ -82,7 +82,7 @@ public sealed class JobRefSurvivesPurgeSpec : ActaRuntimeTestBase<ConformanceFix
         // The heavy row is gone; GetAsync by ref returns null. Both of these are settled-state assertions,
         // which is why the sweep above loops until they hold rather than firing once: a READPAST skip would
         // otherwise leave the row alive here and fail an assertion about retention with a lock-timing flake.
-        Assert.Null(await Db.From<Job>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct));
+        Assert.Null(await Db.From<JobEntity>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct));
         Assert.Null(await Jobs.GetAsync(JobLookup.ByRef(jobRef), ct));
 
         // But the public ref still resolves to the historical id via the surviving ledger,

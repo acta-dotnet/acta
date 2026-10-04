@@ -43,9 +43,9 @@ internal sealed class ResumeScheduleHandler(
             new StoreCommand("ResumeSchedule"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.JobId, target.JobId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.Name, t.Name));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.NextRunAtUtc, reconciled));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.JobId, target.JobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.Name, t.Name));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.NextRunAtUtc, reconciled));
                 ScheduleControl.BindTail(cmd, dialect, jobNextRun, command.ActorKey, command.ReasonMessage);
             },
             DbProjectionResolver.Resolve<ScheduleControlRow>(),

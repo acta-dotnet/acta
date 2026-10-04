@@ -21,8 +21,8 @@ public sealed class WaitSignalSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
     private Task<SignalWaitDecision> WaitAsync(long jobId, string name, int? timeoutSeconds, CancellationToken ct) =>
         Slots.WaitSignalAsync(jobId, JobCheckpointKindCode.Signal, name, timeoutSeconds, ct);
 
-    private async Task<JobCheckpoint> ReadSlotAsync(long jobId, JobCheckpointKindCode kind, string name, CancellationToken ct) =>
-        Assert.Single(await Db.From<JobCheckpoint>().Where(c => c.JobId == jobId && c.Kind == kind && c.Name == name).ToListAsync(ct));
+    private async Task<CheckpointEntity> ReadSlotAsync(long jobId, JobCheckpointKindCode kind, string name, CancellationToken ct) =>
+        Assert.Single(await Db.From<CheckpointEntity>().Where(c => c.JobId == jobId && c.Kind == kind && c.Name == name).ToListAsync(ct));
 
     private async Task<long> EnqueueAsync(CancellationToken ct) =>
         (await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct)).JobId;
@@ -104,9 +104,9 @@ public sealed class WaitSignalSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var jobId = await EnqueueAsync(ct);
         await WaitAsync(jobId, "go", 60, ct);
         var past = DateTime.UtcNow.AddMinutes(-1);
-        await Db.From<JobCheckpoint>()
+        await Db.From<CheckpointEntity>()
             .Where(c => c.JobId == jobId && c.Kind == JobCheckpointKindCode.Signal && c.Name == "go")
-            .UpdateOnlyAsync(() => new JobCheckpoint { DueAtUtc = past }, ct);
+            .UpdateOnlyAsync(() => new CheckpointEntity { DueAtUtc = past }, ct);
 
         Assert.Equal(SignalWaitOutcomeCode.TimedOut, (await WaitAsync(jobId, "go", 60, ct)).Outcome);
         Assert.Equal(JobCheckpointStatusCode.Expired, (await ReadSlotAsync(jobId, JobCheckpointKindCode.Signal, "go", ct)).Status);

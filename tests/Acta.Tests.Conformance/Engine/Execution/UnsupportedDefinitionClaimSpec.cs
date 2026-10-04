@@ -280,7 +280,7 @@ public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<Conform
     private async Task<int> WorkerIdAsync(CancellationToken ct)
     {
         var ns = NamespaceId;
-        var worker = await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
+        var worker = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);
         return worker!.Id;
     }

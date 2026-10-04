@@ -27,7 +27,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
 
-        var workerBefore = await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
+        var workerBefore = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(workerBefore);
         var workerId = workerBefore!.Id;
         var lastSeenBefore = workerBefore.LastHeartbeatAtUtc;
@@ -59,7 +59,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.NotNull(job.LeaseExpiresAtUtc);
         Assert.True(job.LeaseExpiresAtUtc > leaseAfterClaim, "heartbeat should push the lease further out");
 
-        var workerAfter = await Db.From<JobWorker>().Where(w => w.Id == workerId).SingleOrDefaultAsync(ct);
+        var workerAfter = await Db.From<WorkerEntity>().Where(w => w.Id == workerId).SingleOrDefaultAsync(ct);
         Assert.NotNull(workerAfter);
         Assert.True(workerAfter!.LastHeartbeatAtUtc > lastSeenBefore, "heartbeat should advance last_seen_at_utc");
 
@@ -75,7 +75,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var worker = await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
+        var worker = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);
         var workerId = worker!.Id;
 

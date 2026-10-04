@@ -78,7 +78,7 @@ public sealed class ClaimBatchSkewSpec : ClaimSkewTestBase
         Assert.Equal(expected.Chunk(Batch).Select(c => c.Order().ToArray()), batches);
 
         var horizon = Assert.NotNull(claimed.Horizon);
-        var high = await Db.From<JobRuntime>().Where(r => r.NamespaceId == ns && r.Priority == JobPriorityCode.High).ToListAsync(ct);
+        var high = await Db.From<RuntimeEntity>().Where(r => r.NamespaceId == ns && r.Priority == JobPriorityCode.High).ToListAsync(ct);
         Assert.Equal(high.Min(r => r.NextRunAtUtc), horizon.NextReadyAtUtc);
     }
 }

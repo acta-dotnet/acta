@@ -80,7 +80,7 @@ public sealed class OutboxLaneHoldSpec : OutboxRelayIntegrationBase
         }
 
         var keys = labels.Select(Key).ToList();
-        var jobs = await Db.From<Job>().Where(j => j.NamespaceId == NamespaceId).ToListAsync(ct);
+        var jobs = await Db.From<JobEntity>().Where(j => j.NamespaceId == NamespaceId).ToListAsync(ct);
         Assert.Equal(keys, jobs.Where(j => keys.Contains(j.DeduplicationKey!)).OrderBy(j => j.Id).Select(j => j.DeduplicationKey));
     }
 

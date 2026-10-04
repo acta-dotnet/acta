@@ -195,7 +195,7 @@
         "ForeignKeys": [
           {
             "Name": "fk_checkpoints_jobs",
-            "Signature": "job_id-\u003EActa.Runtime.Job.id|Cascade"
+            "Signature": "job_id-\u003Ejobs.id|Cascade"
           }
         ]
       },
@@ -849,7 +849,7 @@
         "ForeignKeys": [
           {
             "Name": "fk_results_jobs",
-            "Signature": "job_id-\u003EActa.Runtime.Job.id|Cascade"
+            "Signature": "job_id-\u003Ejobs.id|Cascade"
           }
         ]
       },
@@ -961,11 +961,11 @@
         "ForeignKeys": [
           {
             "Name": "fk_runtimes_jobs",
-            "Signature": "job_id-\u003EActa.Runtime.Job.id|Cascade"
+            "Signature": "job_id-\u003Ejobs.id|Cascade"
           },
           {
             "Name": "fk_runtimes_lanes",
-            "Signature": "lane_id-\u003EActa.Runtime.JobLane.id|NoAction"
+            "Signature": "lane_id-\u003Elanes.id|NoAction"
           }
         ]
       },
@@ -1089,11 +1089,11 @@
         "ForeignKeys": [
           {
             "Name": "fk_schedules_definitions",
-            "Signature": "definition_id-\u003EActa.Runtime.JobDefinition.id|NoAction"
+            "Signature": "definition_id-\u003Edefinitions.id|NoAction"
           },
           {
             "Name": "fk_schedules_jobs",
-            "Signature": "job_id-\u003EActa.Runtime.Job.id|Cascade"
+            "Signature": "job_id-\u003Ejobs.id|Cascade"
           }
         ]
       },
@@ -1252,7 +1252,7 @@
         "ForeignKeys": [
           {
             "Name": "fk_steps_jobs",
-            "Signature": "job_id-\u003EActa.Runtime.Job.id|Cascade"
+            "Signature": "job_id-\u003Ejobs.id|Cascade"
           }
         ]
       },
@@ -1445,7 +1445,7 @@
         "ForeignKeys": [
           {
             "Name": "fk_workers_namespaces",
-            "Signature": "namespace_id-\u003EActa.Runtime.JobNamespace.id|NoAction"
+            "Signature": "namespace_id-\u003Enamespaces.id|NoAction"
           }
         ]
       }

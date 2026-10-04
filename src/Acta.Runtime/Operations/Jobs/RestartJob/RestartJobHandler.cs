@@ -37,7 +37,7 @@ internal sealed class RestartJobHandler(
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId));
                 JobControl.BindActor(cmd, dialect, input);
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobRuntime.NextRunAtUtc, nextRunAtUtc));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Runtime.NextRunAtUtc, nextRunAtUtc));
                 JobControl.BindExpectedVersion(cmd, dialect, input);
             },
             DbProjectionResolver.Resolve<JobControlRow>(),

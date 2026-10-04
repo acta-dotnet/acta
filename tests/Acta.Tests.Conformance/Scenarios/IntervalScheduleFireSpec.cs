@@ -201,7 +201,7 @@ public sealed class IntervalScheduleFireSpec : ActaRuntimeTestBase<ConformanceFi
 
     private async Task<DateTime> ScheduleCursorAsync(long slotId, CancellationToken ct)
     {
-        var rows = await Db.From<JobSchedule>().Where(s => s.JobId == slotId).ToListAsync(ct);
+        var rows = await Db.From<ScheduleEntity>().Where(s => s.JobId == slotId).ToListAsync(ct);
         var row = Assert.Single(rows);
         Assert.NotNull(row.NextRunAtUtc);
         return row.NextRunAtUtc!.Value;

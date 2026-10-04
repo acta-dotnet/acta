@@ -29,7 +29,7 @@ public sealed class StartWorkerSpec : ActaStorageTestBase<ConformanceFixture>
 
         // Step 1: create namespace with ownerTeam=team-a
         var (nsId, _) = await WorkerTestOps.StartAsync(Services, nsName, "team-a", "desc", "host1", "v1", null, null, 1001, 4, ct);
-        var ns1 = await Db.From<JobNamespace>().Where(n => n.Id == nsId).SingleOrDefaultAsync(ct);
+        var ns1 = await Db.From<NamespaceEntity>().Where(n => n.Id == nsId).SingleOrDefaultAsync(ct);
         Assert.NotNull(ns1);
         Assert.Equal(0, ns1!.Version); // initial version pinned at 0
         var capturedModified = ns1.ModifiedAtUtc;
@@ -38,14 +38,14 @@ public sealed class StartWorkerSpec : ActaStorageTestBase<ConformanceFixture>
 
         // Step 2: same ownerTeam + description → same catalog_hash → no churn
         await WorkerTestOps.StartAsync(Services, nsName, "team-a", "desc", "host2", "v2", null, null, 1002, 4, ct);
-        var ns2 = await Db.From<JobNamespace>().Where(n => n.Id == nsId).SingleOrDefaultAsync(ct);
+        var ns2 = await Db.From<NamespaceEntity>().Where(n => n.Id == nsId).SingleOrDefaultAsync(ct);
         Assert.Equal(0, ns2!.Version); // version unchanged
         Assert.Equal(capturedModified, ns2.ModifiedAtUtc); // no write, timestamp unchanged
         Assert.Equal(capturedHash, ns2.CatalogHash); // hash unchanged
 
         // Step 3: different ownerTeam → different hash → version bumped by 1
         await WorkerTestOps.StartAsync(Services, nsName, "team-b", "desc", "host3", "v3", null, null, 1003, 4, ct);
-        var ns3 = await Db.From<JobNamespace>().Where(n => n.Id == nsId).SingleOrDefaultAsync(ct);
+        var ns3 = await Db.From<NamespaceEntity>().Where(n => n.Id == nsId).SingleOrDefaultAsync(ct);
         Assert.Equal(1, ns3!.Version); // bumped exactly once
         Assert.NotEqual(capturedHash, ns3.CatalogHash); // hash changed
     }
@@ -64,7 +64,7 @@ public sealed class StartWorkerSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.NotEqual(wId2, wId3);
         Assert.NotEqual(wId1, wId3);
 
-        var count = await Db.From<JobWorker>().Where(w => w.NamespaceId == nsId).CountAsync(ct);
+        var count = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == nsId).CountAsync(ct);
         Assert.Equal(3, count);
     }
 
@@ -94,13 +94,13 @@ public sealed class StartWorkerSpec : ActaStorageTestBase<ConformanceFixture>
         );
         var (_, wId2) = await WorkerTestOps.StartAsync(Services, nsName, "test", null, "host2", "v1", null, null, 1002, 4, ct, ref2.Value);
 
-        var events1 = await Db.From<JobEvent>().Where(e => e.WorkerId == wId1 && e.EventCode == EventCode.WorkerStarted).ToListAsync(ct);
+        var events1 = await Db.From<EventEntity>().Where(e => e.WorkerId == wId1 && e.EventCode == EventCode.WorkerStarted).ToListAsync(ct);
         var e1 = Assert.Single(events1);
         Assert.Equal(ActorCode.Worker, e1.ActorCode);
         Assert.Equal(ref1.Value.ToString("D", CultureInfo.InvariantCulture), e1.ActorKey);
         Assert.Equal(nsId, e1.NamespaceId);
 
-        var events2 = await Db.From<JobEvent>().Where(e => e.WorkerId == wId2 && e.EventCode == EventCode.WorkerStarted).ToListAsync(ct);
+        var events2 = await Db.From<EventEntity>().Where(e => e.WorkerId == wId2 && e.EventCode == EventCode.WorkerStarted).ToListAsync(ct);
         var e2 = Assert.Single(events2);
         Assert.Equal(ActorCode.Worker, e2.ActorCode);
         Assert.Equal(ref2.Value.ToString("D", CultureInfo.InvariantCulture), e2.ActorKey);
@@ -118,7 +118,7 @@ public sealed class StartWorkerSpec : ActaStorageTestBase<ConformanceFixture>
 
         Assert.NotEqual(wId1, wId2);
 
-        var workers = await Db.From<JobWorker>().Where(w => w.NamespaceId == nsId).ToListAsync(ct);
+        var workers = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == nsId).ToListAsync(ct);
         Assert.Equal(2, workers.Count);
         Assert.Equal(2, workers.Select(w => w.Id).Distinct().Count());
     }

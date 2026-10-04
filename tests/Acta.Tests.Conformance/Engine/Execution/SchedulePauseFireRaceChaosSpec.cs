@@ -128,9 +128,9 @@ public sealed class SchedulePauseFireRaceChaosSpec : ActaRuntimeTestBase<Conform
     private async Task<DateTime?> ScheduleCursorAsync(long slotId, CancellationToken ct) =>
         (await ScheduleAsync(Db, slotId, ct)).NextRunAtUtc;
 
-    private static async Task<JobSchedule> ScheduleAsync(IDbSession session, long slotId, CancellationToken ct)
+    private static async Task<ScheduleEntity> ScheduleAsync(IDbSession session, long slotId, CancellationToken ct)
     {
-        var rows = await session.From<JobSchedule>().Where(s => s.JobId == slotId && s.Name == ScheduleName).ToListAsync(ct);
+        var rows = await session.From<ScheduleEntity>().Where(s => s.JobId == slotId && s.Name == ScheduleName).ToListAsync(ct);
         return Assert.Single(rows);
     }
 }

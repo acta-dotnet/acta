@@ -68,8 +68,8 @@ public sealed class EnqueueOneTransactionalSpec : ActaRuntimeTestBase<Conformanc
             await tx.CommitAsync(ct);
         }
 
-        Assert.NotNull(await Db.From<Job>().Where(j => j.JobRef == typedCommitted).SingleOrDefaultAsync(ct));
-        Assert.NotNull(await Db.From<Job>().Where(j => j.JobRef == contractCommitted).SingleOrDefaultAsync(ct));
+        Assert.NotNull(await Db.From<JobEntity>().Where(j => j.JobRef == typedCommitted).SingleOrDefaultAsync(ct));
+        Assert.NotNull(await Db.From<JobEntity>().Where(j => j.JobRef == contractCommitted).SingleOrDefaultAsync(ct));
 
         Guid typedRolledBack;
         Guid contractRolledBack;
@@ -80,8 +80,8 @@ public sealed class EnqueueOneTransactionalSpec : ActaRuntimeTestBase<Conformanc
             await tx.RollbackAsync(ct);
         }
 
-        Assert.Null(await Db.From<Job>().Where(j => j.JobRef == typedRolledBack).SingleOrDefaultAsync(ct));
-        Assert.Null(await Db.From<Job>().Where(j => j.JobRef == contractRolledBack).SingleOrDefaultAsync(ct));
+        Assert.Null(await Db.From<JobEntity>().Where(j => j.JobRef == typedRolledBack).SingleOrDefaultAsync(ct));
+        Assert.Null(await Db.From<JobEntity>().Where(j => j.JobRef == contractRolledBack).SingleOrDefaultAsync(ct));
     }
 
     [Fact(DisplayName = "A deduplicated transactional outcome is provisional so rollback leaves no durable row")]
@@ -106,7 +106,7 @@ public sealed class EnqueueOneTransactionalSpec : ActaRuntimeTestBase<Conformanc
         }
 
         // The provisional identity never became durable.
-        Assert.Null(await Db.From<Job>().Where(j => j.DeduplicationKey == key).SingleOrDefaultAsync(ct));
+        Assert.Null(await Db.From<JobEntity>().Where(j => j.DeduplicationKey == key).SingleOrDefaultAsync(ct));
 
         // A re-enqueue after rollback inserts a fresh row - the earlier dedupe left nothing behind.
         await using (var tx = await conn.BeginTransactionAsync(ct))
@@ -116,7 +116,7 @@ public sealed class EnqueueOneTransactionalSpec : ActaRuntimeTestBase<Conformanc
             await tx.CommitAsync(ct);
         }
 
-        Assert.NotNull(await Db.From<Job>().Where(j => j.DeduplicationKey == key).SingleOrDefaultAsync(ct));
+        Assert.NotNull(await Db.From<JobEntity>().Where(j => j.DeduplicationKey == key).SingleOrDefaultAsync(ct));
     }
 
     [Fact(DisplayName = "A null transaction throws ArgumentNullException before any work")]
@@ -205,7 +205,7 @@ public sealed class EnqueueOneTransactionalSpec : ActaRuntimeTestBase<Conformanc
         }
 
         Assert.Equal(0, await CountBusinessRowsAsync(conn, probe, marker, ct));
-        var jobCount = await Db.From<Job>().Where(j => j.DeduplicationKey == dupKey).CountAsync(ct);
+        var jobCount = await Db.From<JobEntity>().Where(j => j.DeduplicationKey == dupKey).CountAsync(ct);
         Assert.Equal(0, jobCount);
     }
 

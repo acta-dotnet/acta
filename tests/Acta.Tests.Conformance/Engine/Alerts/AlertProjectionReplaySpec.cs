@@ -188,7 +188,7 @@ public sealed class AlertProjectionReplaySpec : ActaRuntimeTestBase<ConformanceF
         // The staged crash: the pass emitted the crossing event's FirstFailure but died before its
         // ThresholdReached landed. Both emits above DID land, so deleting the ThresholdReached row and
         // the cursor restores exactly that state, and the replay must recover the escalation.
-        Assert.Equal(1, await Db.From<JobAlert>().Where(a => a.Id == threshold.Id).DeleteAsync(ct));
+        Assert.Equal(1, await Db.From<AlertEntity>().Where(a => a.Id == threshold.Id).DeleteAsync(ct));
         Assert.Equal(1, await ForgetAlertsCursorAsync(slotId, ct));
         await RunAlertsPinnedAsync(slotId, alertFailureThreshold: 3, ct);
 
@@ -230,7 +230,7 @@ public sealed class AlertProjectionReplaySpec : ActaRuntimeTestBase<ConformanceF
     /// </summary>
     private async Task OrphanWithoutTerminalizingAsync(long slotId, CancellationToken ct)
     {
-        await Db.From<JobRuntime>().Where(r => r.Id == slotId).UpdateOnlyAsync(() => new JobRuntime { FailureCount = 0 }, ct);
+        await Db.From<RuntimeEntity>().Where(r => r.Id == slotId).UpdateOnlyAsync(() => new RuntimeEntity { FailureCount = 0 }, ct);
         await OrphanOneAttemptAsync(slotId, ct);
         var slot = await ReadJobAsync(slotId, ct);
         Assert.Equal(JobStatusCode.Ready, slot.Status);
@@ -255,7 +255,7 @@ public sealed class AlertProjectionReplaySpec : ActaRuntimeTestBase<ConformanceF
     // The compiled AlertsJob constant names the cursor variable, so the crash this spec stages keeps
     // targeting the projector's real checkpoint even if the projector renames it.
     private Task<int> ForgetAlertsCursorAsync(long slotId, CancellationToken ct) =>
-        Db.From<JobCheckpoint>()
+        Db.From<CheckpointEntity>()
             .Where(v => v.JobId == slotId && v.Kind == JobCheckpointKindCode.Variable && v.Name == AlertsJob.CursorVariableName)
             .DeleteAsync(ct);
 

@@ -436,20 +436,20 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
     }
 
     private async Task<long> OnlyChildAsync(long parentId, CancellationToken ct) =>
-        Assert.Single(await Db.From<Job>().Where(j => j.ParentId == parentId).ToListAsync(ct)).Id;
+        Assert.Single(await Db.From<JobEntity>().Where(j => j.ParentId == parentId).ToListAsync(ct)).Id;
 
     private async Task<IReadOnlyDictionary<string, long>> ChildIdsAsync(long parentId, CancellationToken ct)
     {
-        var children = await Db.From<Job>().Where(j => j.ParentId == parentId).ToListAsync(ct);
+        var children = await Db.From<JobEntity>().Where(j => j.ParentId == parentId).ToListAsync(ct);
         return children.ToDictionary(j => j.DeduplicationKey!, j => j.Id, StringComparer.Ordinal);
     }
 
     private async Task<int> CountReasonAsync(long jobId, JobEventReasonCode reason, CancellationToken ct) =>
-        await Db.From<JobEvent>().Where(e => e.JobId == jobId && e.ReasonCode == reason).CountAsync(ct);
+        await Db.From<EventEntity>().Where(e => e.JobId == jobId && e.ReasonCode == reason).CountAsync(ct);
 
-    private async Task<IReadOnlyList<JobCheckpoint>> ReadDeadlineSlotsAsync(long jobId, CancellationToken ct)
+    private async Task<IReadOnlyList<CheckpointEntity>> ReadDeadlineSlotsAsync(long jobId, CancellationToken ct)
     {
-        var variables = await Db.From<JobCheckpoint>()
+        var variables = await Db.From<CheckpointEntity>()
             .Where(c => c.JobId == jobId && c.Kind == JobCheckpointKindCode.Variable)
             .ToListAsync(ct);
         // The framework's own constant, not a copy: a spec that recognised the slot by a stale literal
@@ -457,7 +457,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         return [.. variables.Where(c => c.Name.StartsWith(JobContext.GroupDeadlinePrefix, StringComparison.Ordinal))];
     }
 
-    private async Task<IReadOnlyList<JobCheckpoint>> ReadLatchesAsync(long jobId, CancellationToken ct) =>
+    private async Task<IReadOnlyList<CheckpointEntity>> ReadLatchesAsync(long jobId, CancellationToken ct) =>
         [.. (await ReadSignalsAsync(jobId, ct)).Where(c => c.Kind == JobCheckpointKindCode.ChildLatch)];
 
     // Two seconds is the coarsest overshoot an arm can legitimately produce: RemainingWait rounds the
@@ -466,7 +466,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
     // trip adds a sub-second on top - together under two. The walk to reach the arming member is not
     // in that residual: the remaining is recomputed against a monotonic reading at each iteration, so
     // time spent on earlier members comes out of the budget. Both are bounded, neither accumulates.
-    private static void AssertWithinGroupDeadline(JobCheckpoint latch, DateTime deadlineAtUtc)
+    private static void AssertWithinGroupDeadline(CheckpointEntity latch, DateTime deadlineAtUtc)
     {
         Assert.NotNull(latch.DueAtUtc);
         Assert.True(
@@ -476,7 +476,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
     }
 
     // The stored deadline is UTC ticks, so the assertion reads exactly the bytes the handler wrote.
-    private static DateTime DeadlineOf(JobCheckpoint slot) =>
+    private static DateTime DeadlineOf(CheckpointEntity slot) =>
         new(long.Parse(Encoding.UTF8.GetString(slot.Value!), CultureInfo.InvariantCulture), DateTimeKind.Utc);
 
     // The same staging the public ForceGroupWaitTimeoutDueAsync helper performs, called through the one

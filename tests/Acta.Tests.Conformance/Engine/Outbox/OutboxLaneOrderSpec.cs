@@ -49,7 +49,9 @@ public sealed class OutboxLaneOrderSpec : OutboxRelayIntegrationBase
 
     private async Task<(long JobId, string Dedup)> JobAsync(string dedup, CancellationToken ct)
     {
-        var job = (await Db.From<Job>().Where(j => j.NamespaceId == NamespaceId && j.DeduplicationKey == dedup).SingleOrDefaultAsync(ct))!;
+        var job = (
+            await Db.From<JobEntity>().Where(j => j.NamespaceId == NamespaceId && j.DeduplicationKey == dedup).SingleOrDefaultAsync(ct)
+        )!;
         return (job.Id, dedup);
     }
 }

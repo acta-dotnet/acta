@@ -82,11 +82,11 @@ public sealed class GetDeliverableAlertsSpec : ActaStorageTestBase<ConformanceFi
     public async Task Rows_carry_the_runbook_and_the_refs()
     {
         var ct = TestContext.Current.CancellationToken;
-        await Db.From<JobDefinition>()
+        await Db.From<DefinitionEntity>()
             .Where(d => d.Id == DefId)
             .UpdateOnlyAsync(
                 () =>
-                    new JobDefinition
+                    new DefinitionEntity
                     {
                         RunbookUrl = "https://runbooks.example/base",
                         RunbookUrlOverride = "https://runbooks.example/override",
@@ -124,7 +124,7 @@ public sealed class GetDeliverableAlertsSpec : ActaStorageTestBase<ConformanceFi
         Assert.Equal([retrying], (await store.GetDeliverableAlertsAsync(TestNamespaceId, 50, ct)).Select(a => a.AlertId));
     }
 
-    private static void AssertMatchesRow(JobAlert row, DeliverableAlert due)
+    private static void AssertMatchesRow(AlertEntity row, DeliverableAlert due)
     {
         Assert.Equal(row.AlertRef, due.AlertRef);
         Assert.Equal(row.JobRef, due.JobRef);
@@ -149,7 +149,7 @@ public sealed class GetDeliverableAlertsSpec : ActaStorageTestBase<ConformanceFi
         var key = TestKey("unset-" + status.ToString().ToLowerInvariant());
         await RaiseAsync(TestNamespace, jobId: null, ct, key);
         var row = Assert.Single(
-            await Db.From<JobAlert>().Where(a => a.NamespaceId == TestNamespaceId && a.DedupeKey == key).ToListAsync(ct)
+            await Db.From<AlertEntity>().Where(a => a.NamespaceId == TestNamespaceId && a.DedupeKey == key).ToListAsync(ct)
         );
         Assert.True(
             await Services

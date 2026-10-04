@@ -244,9 +244,9 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal(JobStatusCode.Succeeded, status);
     }
 
-    private async Task<JobStep> ReadStepAsync(long jobId, CancellationToken ct)
+    private async Task<StepEntity> ReadStepAsync(long jobId, CancellationToken ct)
     {
-        var steps = await Db.From<JobStep>().Where(s => s.JobId == jobId && s.Name == StepName).ToListAsync(ct);
+        var steps = await Db.From<StepEntity>().Where(s => s.JobId == jobId && s.Name == StepName).ToListAsync(ct);
         return Assert.Single(steps);
     }
 }

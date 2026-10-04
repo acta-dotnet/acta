@@ -229,9 +229,12 @@ public static class ActaTestHost
                 throw new ArgumentOutOfRangeException(nameof(jobId), jobId, "Job id must be positive.");
             }
 
-            var affected = await Db.From<JobRuntime>()
+            var affected = await Db.From<RuntimeEntity>()
                 .Where(r => r.Id == jobId)
-                .UpdateOnlyAsync(() => new JobRuntime { NextRunAtUtc = DateTime.UtcNow.AddMinutes(-1), ModifiedAtUtc = DbFn.UtcNow }, ct);
+                .UpdateOnlyAsync(
+                    () => new RuntimeEntity { NextRunAtUtc = DateTime.UtcNow.AddMinutes(-1), ModifiedAtUtc = DbFn.UtcNow },
+                    ct
+                );
             if (affected != 1)
             {
                 throw new InvalidOperationException($"ForceJobDueAsync expected one runtime row for job {jobId}, found {affected}.");
@@ -242,9 +245,9 @@ public static class ActaTestHost
         {
             var timer = await FindCheckpointAsync(jobId, JobCheckpointKindCode.Timer, JobCheckpointStatusCode.Pending, name, ct);
             var due = DateTime.UtcNow.AddMinutes(-1);
-            var affected = await Db.From<JobCheckpoint>()
+            var affected = await Db.From<CheckpointEntity>()
                 .Where(c => c.JobId == jobId && c.Kind == JobCheckpointKindCode.Timer && c.Name == timer.Name)
-                .UpdateOnlyAsync(() => new JobCheckpoint { DueAtUtc = due, ModifiedAtUtc = DbFn.UtcNow }, ct);
+                .UpdateOnlyAsync(() => new CheckpointEntity { DueAtUtc = due, ModifiedAtUtc = DbFn.UtcNow }, ct);
             if (affected != 1)
             {
                 throw new InvalidOperationException(
@@ -257,7 +260,7 @@ public static class ActaTestHost
 
         public async Task ForceStepRetryDueAsync(long jobId, string? name = null, CancellationToken ct = default)
         {
-            var steps = await Db.From<JobStep>().Where(s => s.JobId == jobId && s.Status == JobStepStatusCode.Pending).ToListAsync(ct);
+            var steps = await Db.From<StepEntity>().Where(s => s.JobId == jobId && s.Status == JobStepStatusCode.Pending).ToListAsync(ct);
             var candidates = steps.Where(s => s.NextRetryAtUtc is not null);
             if (!string.IsNullOrWhiteSpace(name))
             {
@@ -272,9 +275,9 @@ public static class ActaTestHost
             }
 
             var due = DateTime.UtcNow.AddMinutes(-1);
-            var affected = await Db.From<JobStep>()
+            var affected = await Db.From<StepEntity>()
                 .Where(s => s.JobId == jobId && s.Name == step.Name)
-                .UpdateOnlyAsync(() => new JobStep { NextRetryAtUtc = due, ModifiedAtUtc = DbFn.UtcNow }, ct);
+                .UpdateOnlyAsync(() => new StepEntity { NextRetryAtUtc = due, ModifiedAtUtc = DbFn.UtcNow }, ct);
             if (affected != 1)
             {
                 throw new InvalidOperationException(
@@ -289,9 +292,9 @@ public static class ActaTestHost
         {
             var wait = await FindPendingWaitAsync(jobId, name, ct);
             var due = DateTime.UtcNow.AddMinutes(-1);
-            var affected = await Db.From<JobCheckpoint>()
+            var affected = await Db.From<CheckpointEntity>()
                 .Where(c => c.JobId == jobId && c.Kind == wait.Kind && c.Name == wait.Name)
-                .UpdateOnlyAsync(() => new JobCheckpoint { DueAtUtc = due, ModifiedAtUtc = DbFn.UtcNow }, ct);
+                .UpdateOnlyAsync(() => new CheckpointEntity { DueAtUtc = due, ModifiedAtUtc = DbFn.UtcNow }, ct);
             if (affected != 1)
             {
                 throw new InvalidOperationException(
@@ -329,10 +332,10 @@ public static class ActaTestHost
                 throw new ArgumentOutOfRangeException(nameof(jobId), jobId, "Job id must be positive.");
             }
 
-            var affected = await Db.From<JobRuntime>()
+            var affected = await Db.From<RuntimeEntity>()
                 .Where(r => r.Id == jobId && r.LeasedByWorkerId != null)
                 .UpdateOnlyAsync(
-                    () => new JobRuntime { LeaseExpiresAtUtc = DateTime.UtcNow.AddMinutes(-5), ModifiedAtUtc = DbFn.UtcNow },
+                    () => new RuntimeEntity { LeaseExpiresAtUtc = DateTime.UtcNow.AddMinutes(-5), ModifiedAtUtc = DbFn.UtcNow },
                     ct
                 );
             if (affected != 1)
@@ -353,7 +356,7 @@ public static class ActaTestHost
                 : runtimes.Single(r => r.RegisteredNamespaceIds.ContainsKey(jobNamespace));
         }
 
-        private async Task<JobCheckpoint> FindCheckpointAsync(
+        private async Task<CheckpointEntity> FindCheckpointAsync(
             long jobId,
             JobCheckpointKindCode kind,
             JobCheckpointStatusCode state,
@@ -366,7 +369,7 @@ public static class ActaTestHost
                 throw new ArgumentOutOfRangeException(nameof(jobId), jobId, "Job id must be positive.");
             }
 
-            var checkpoints = await Db.From<JobCheckpoint>()
+            var checkpoints = await Db.From<CheckpointEntity>()
                 .Where(c => c.JobId == jobId && c.Kind == kind && c.Status == state)
                 .ToListAsync(ct);
             var candidates = checkpoints.AsEnumerable();
@@ -385,14 +388,14 @@ public static class ActaTestHost
             return checkpoint;
         }
 
-        private async Task<JobCheckpoint> FindPendingWaitAsync(long jobId, string? name, CancellationToken ct)
+        private async Task<CheckpointEntity> FindPendingWaitAsync(long jobId, string? name, CancellationToken ct)
         {
             if (jobId <= 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(jobId), jobId, "Job id must be positive.");
             }
 
-            var waits = await Db.From<JobCheckpoint>()
+            var waits = await Db.From<CheckpointEntity>()
                 .Where(c =>
                     c.JobId == jobId
                     && (c.Kind == JobCheckpointKindCode.Signal || c.Kind == JobCheckpointKindCode.ChildLatch)

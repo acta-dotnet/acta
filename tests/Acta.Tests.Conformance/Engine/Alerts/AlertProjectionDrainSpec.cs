@@ -181,9 +181,9 @@ public sealed class AlertProjectionDrainSpec : ActaRuntimeTestBase<ConformanceFi
         var ids = new List<long>(count);
         for (var i = 0; i < count; i++)
         {
-            var id = await Db.From<JobEvent>()
+            var id = await Db.From<EventEntity>()
                 .InsertAsync<long>(
-                    new JobEvent
+                    new EventEntity
                     {
                         EventCode = EventCode.JobExecutionFinished,
                         NamespaceId = NamespaceId,

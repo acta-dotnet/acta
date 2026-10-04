@@ -29,11 +29,11 @@ public sealed class FluentReadSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var ct = TestContext.Current.CancellationToken;
         var deduplicationKey = await EnqueueOne(ct);
 
-        var jobs = await Db.From<Job>().Where(j => j.DeduplicationKey == deduplicationKey).ToListAsync(ct);
+        var jobs = await Db.From<JobEntity>().Where(j => j.DeduplicationKey == deduplicationKey).ToListAsync(ct);
 
         var job = Assert.Single(jobs);
         Assert.Equal(deduplicationKey, job.DeduplicationKey);
-        var runtime = await Db.From<JobRuntime>().Where(r => r.Id == job.Id).SingleOrDefaultAsync(ct);
+        var runtime = await Db.From<RuntimeEntity>().Where(r => r.Id == job.Id).SingleOrDefaultAsync(ct);
         Assert.Equal(JobStatusCode.Ready, runtime!.Status);
     }
 
@@ -44,12 +44,12 @@ public sealed class FluentReadSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
         var deduplicationKey = await EnqueueOne(ct);
 
-        var jobs = await Db.From<Job>()
+        var jobs = await Db.From<JobEntity>()
             .Where(j => j.NamespaceId == namespaceId && j.ParentId == null && j.DeduplicationKey == deduplicationKey)
             .ToListAsync(ct);
 
         var job = Assert.Single(jobs);
-        var runtimes = await Db.From<JobRuntime>()
+        var runtimes = await Db.From<RuntimeEntity>()
             .Where(r => r.Id == job.Id && r.Status == JobStatusCode.Ready && r.ExecutionNumber == 0)
             .ToListAsync(ct);
         Assert.Single(runtimes);
@@ -61,8 +61,8 @@ public sealed class FluentReadSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var ct = TestContext.Current.CancellationToken;
         var deduplicationKey = await EnqueueOne(ct);
 
-        var job = await Db.From<Job>().Where(j => j.DeduplicationKey == deduplicationKey).SingleOrDefaultAsync(ct);
-        var rows = await Db.From<JobRuntime, JobSummary>().Where(r => r.Id == job!.Id).ToListAsync(ct);
+        var job = await Db.From<JobEntity>().Where(j => j.DeduplicationKey == deduplicationKey).SingleOrDefaultAsync(ct);
+        var rows = await Db.From<RuntimeEntity, JobSummary>().Where(r => r.Id == job!.Id).ToListAsync(ct);
 
         var row = Assert.Single(rows);
         Assert.True(row.Id > 0);
@@ -75,7 +75,7 @@ public sealed class FluentReadSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var ct = TestContext.Current.CancellationToken;
         var deduplicationKey = await EnqueueOne(ct);
 
-        var count = await Db.From<Job>().Where(j => j.DeduplicationKey == deduplicationKey).CountAsync(ct);
+        var count = await Db.From<JobEntity>().Where(j => j.DeduplicationKey == deduplicationKey).CountAsync(ct);
 
         Assert.Equal(1, count);
     }
@@ -86,9 +86,9 @@ public sealed class FluentReadSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var ct = TestContext.Current.CancellationToken;
         var deduplicationKey = await EnqueueOne(ct);
 
-        var job = await Db.From<Job>().Where(j => j.DeduplicationKey == deduplicationKey).SingleOrDefaultAsync(ct);
+        var job = await Db.From<JobEntity>().Where(j => j.DeduplicationKey == deduplicationKey).SingleOrDefaultAsync(ct);
         var inflight = new List<JobStatusCode> { JobStatusCode.Ready, JobStatusCode.Dispatched, JobStatusCode.Executing };
-        var rows = await Db.From<JobRuntime>().Where(r => r.Id == job!.Id && inflight.Contains(r.Status)).ToListAsync(ct);
+        var rows = await Db.From<RuntimeEntity>().Where(r => r.Id == job!.Id && inflight.Contains(r.Status)).ToListAsync(ct);
 
         Assert.Single(rows);
     }

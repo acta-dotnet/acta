@@ -29,8 +29,8 @@ internal sealed class GetJobResultHandler(
             "GetJobResult",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobResult.JobId, jobId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobResult.ExecutionNumber, executionNumber));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Result.JobId, jobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Result.ExecutionNumber, executionNumber));
             },
             static reader => DbProjectionResolver.Resolve<JobResultRow>()(reader).ToRecord(),
             ct

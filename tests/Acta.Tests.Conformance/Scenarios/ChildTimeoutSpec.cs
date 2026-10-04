@@ -351,16 +351,16 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
     }
 
     private async Task<long> OnlyChildAsync(long parentId, CancellationToken ct) =>
-        Assert.Single(await Db.From<Job>().Where(j => j.ParentId == parentId).ToListAsync(ct)).Id;
+        Assert.Single(await Db.From<JobEntity>().Where(j => j.ParentId == parentId).ToListAsync(ct)).Id;
 
     private async Task<IReadOnlyDictionary<string, long>> ChildIdsAsync(long parentId, CancellationToken ct)
     {
-        var children = await Db.From<Job>().Where(j => j.ParentId == parentId).ToListAsync(ct);
+        var children = await Db.From<JobEntity>().Where(j => j.ParentId == parentId).ToListAsync(ct);
         return children.ToDictionary(j => j.DeduplicationKey!, j => j.Id, StringComparer.Ordinal);
     }
 
     private async Task<int> CountReasonAsync(long jobId, JobEventReasonCode reason, CancellationToken ct) =>
-        await Db.From<JobEvent>().Where(e => e.JobId == jobId && e.ReasonCode == reason).CountAsync(ct);
+        await Db.From<EventEntity>().Where(e => e.JobId == jobId && e.ReasonCode == reason).CountAsync(ct);
 
     // Moves the child wait past its deadline the way real time would: the latch's stored expiration and
     // the parent's cached claim instant both go into the past, and nothing else is touched.

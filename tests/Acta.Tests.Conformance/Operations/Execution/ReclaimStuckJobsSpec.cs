@@ -54,7 +54,7 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Null(job.LeaseExpiresAtUtc);
         Assert.Equal(1, job.FailureCount);
 
-        var events = await Db.From<JobEvent>()
+        var events = await Db.From<EventEntity>()
             .Where(e => e.JobId == enqueued.JobId && e.EventCode == EventCode.JobExecutionFinished)
             .ToListAsync(ct);
         var reclaimEvent = Assert.Single(events);
@@ -71,7 +71,7 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var workerId = await WorkerIdAsync(Db, ns, ct);
 
-        var def = await Db.From<JobDefinition>().Where(d => d.NamespaceId == ns && d.Name == "add-numbers").SingleOrDefaultAsync(ct);
+        var def = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == ns && d.Name == "add-numbers").SingleOrDefaultAsync(ct);
         Assert.NotNull(def);
         var maxAttempts = def!.MaxAttempts;
 
@@ -140,7 +140,7 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Null(job.LeaseExpiresAtUtc);
         Assert.Equal(1, job.FailureCount);
 
-        var events = await Db.From<JobEvent>()
+        var events = await Db.From<EventEntity>()
             .Where(e => e.JobId == enqueued.JobId && e.EventCode == EventCode.JobExecutionFinished)
             .ToListAsync(ct);
         var reclaimEvent = Assert.Single(events);
@@ -182,7 +182,7 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.NotNull(job.LeasedByWorkerId);
         Assert.NotNull(job.LeaseExpiresAtUtc);
 
-        var leaseExpiredEvents = await Db.From<JobEvent>()
+        var leaseExpiredEvents = await Db.From<EventEntity>()
             .Where(e =>
                 e.JobId == enqueued.JobId
                 && e.EventCode == EventCode.JobExecutionFinished
@@ -255,7 +255,7 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
 
     private static async Task<int> WorkerIdAsync(IDbSession session, int ns, CancellationToken ct)
     {
-        var worker = await session.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
+        var worker = await session.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);
         return worker!.Id;
     }

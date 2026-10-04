@@ -103,7 +103,9 @@ public sealed class DeadlineSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         // stamp, and the amount of back-dating is not what makes this job overdue - the clock it is
         // measured from is.
         var anchor = (await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct)).AddMinutes(-5);
-        var affected = await Db.From<Job>().Where(j => j.Id == jobId).UpdateOnlyAsync(() => new Job { CreatedAtUtc = anchor }, ct);
+        var affected = await Db.From<JobEntity>()
+            .Where(j => j.Id == jobId)
+            .UpdateOnlyAsync(() => new JobEntity { CreatedAtUtc = anchor }, ct);
         Assert.Equal(1, affected);
     }
 }

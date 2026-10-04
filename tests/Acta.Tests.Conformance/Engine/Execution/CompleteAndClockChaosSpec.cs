@@ -129,10 +129,10 @@ public sealed class ClockSkewInitializationChaosSpec : ActaTestBase<ConformanceF
         var runtime = Services.GetServices<WorkerRuntime>().Single();
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => runtime.InitializeAsync(ct));
         Assert.Contains("clock skew", ex.Message, StringComparison.OrdinalIgnoreCase);
-        var namespaceRow = await Db.From<JobNamespace>().Where(n => n.Name == TestNamespace).SingleOrDefaultAsync(ct);
+        var namespaceRow = await Db.From<NamespaceEntity>().Where(n => n.Name == TestNamespace).SingleOrDefaultAsync(ct);
         if (namespaceRow is not null)
         {
-            Assert.Empty(await Db.From<JobWorker>().Where(w => w.NamespaceId == namespaceRow.Id).ToListAsync(ct));
+            Assert.Empty(await Db.From<WorkerEntity>().Where(w => w.NamespaceId == namespaceRow.Id).ToListAsync(ct));
         }
 
         // --- 2. AllowClockSkew admits the same skew and records a running worker.
@@ -143,7 +143,7 @@ public sealed class ClockSkewInitializationChaosSpec : ActaTestBase<ConformanceF
         await allowed.GetServices<WorkerRuntime>().Single().InitializeAsync(ct);
 
         var allowedNs = await ChaosSpecHelpers.NamespaceIdAsync(Db, allowedNamespace, ct);
-        var worker = Assert.Single(await Db.From<JobWorker>().Where(w => w.NamespaceId == allowedNs).ToListAsync(ct));
+        var worker = Assert.Single(await Db.From<WorkerEntity>().Where(w => w.NamespaceId == allowedNs).ToListAsync(ct));
         Assert.Equal(WorkerStatusCode.Active, worker.Status);
     }
 

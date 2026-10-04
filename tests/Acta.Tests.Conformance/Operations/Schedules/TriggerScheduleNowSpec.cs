@@ -64,7 +64,9 @@ public sealed class TriggerScheduleNowSpec : ActaStorageTestBase<ConformanceFixt
         Assert.Equal(ScheduleStatusCode.Active, after.Status);
 
         var slotId = await SlotIdAsync(jobName, ct);
-        var events = await Db.From<JobEvent>().Where(e => e.JobId == slotId && e.EventCode == EventCode.ScheduleTriggered).ToListAsync(ct);
+        var events = await Db.From<EventEntity>()
+            .Where(e => e.JobId == slotId && e.EventCode == EventCode.ScheduleTriggered)
+            .ToListAsync(ct);
         var triggered = Assert.Single(events);
         Assert.Equal("only: fire now", triggered.ReasonMessage); // the schedule name plus the operator note rides reason_message
     }
@@ -141,7 +143,7 @@ public sealed class TriggerScheduleNowSpec : ActaStorageTestBase<ConformanceFixt
         var slot = await SlotAsync(jobName, ct);
         Assert.Equal(JobStatusCode.Succeeded, slot.Status); // untouched
         Assert.Equal(farFuture, slot.NextRunAtUtc); // no phantom cursor move
-        var events = await Db.From<Acta.Runtime.JobEvent>()
+        var events = await Db.From<Acta.Runtime.EventEntity>()
             .Where(e => e.JobId == slotId && e.EventCode == EventCode.ScheduleTriggered)
             .ToListAsync(ct);
         Assert.Empty(events); // no schedule.triggered
@@ -215,10 +217,10 @@ public sealed class TriggerScheduleNowSpec : ActaStorageTestBase<ConformanceFixt
 
     private IJobs Jobs() => Services.GetRequiredService<IJobs>();
 
-    private async Task<JobSchedule> ScheduleAsync(IDbSession session, string jobName, string scheduleName, CancellationToken ct)
+    private async Task<ScheduleEntity> ScheduleAsync(IDbSession session, string jobName, string scheduleName, CancellationToken ct)
     {
         var slotId = await SlotIdAsync(jobName, ct);
-        var rows = await session.From<JobSchedule>().Where(s => s.JobId == slotId && s.Name == scheduleName).ToListAsync(ct);
+        var rows = await session.From<ScheduleEntity>().Where(s => s.JobId == slotId && s.Name == scheduleName).ToListAsync(ct);
         return Assert.Single(rows);
     }
 

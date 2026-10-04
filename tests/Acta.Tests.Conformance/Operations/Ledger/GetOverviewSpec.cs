@@ -130,9 +130,9 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
 
         // Past the deadline it is backlog, because the claim will now take it and a worker is what it
         // is waiting for.
-        await Db.From<JobRuntime>()
+        await Db.From<RuntimeEntity>()
             .Where(r => r.Id == bounded.JobId)
-            .UpdateOnlyAsync(() => new JobRuntime { NextRunAtUtc = DateTime.UtcNow.AddMinutes(-1) }, ct);
+            .UpdateOnlyAsync(() => new RuntimeEntity { NextRunAtUtc = DateTime.UtcNow.AddMinutes(-1) }, ct);
 
         var expired = await Operations.Ledger.GetOverviewAsync(new OverviewQuery(TestNamespace, 3600, 1), ct);
         Assert.Equal(before.ReadyCount + 1, expired.ReadyCount);
@@ -148,7 +148,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         const int LeaseTtl = 300; // 5 min; no heartbeat in this test
 
         // W1: single worker registered by Runtime.InitializeAsync in this unique namespace.
-        var w1 = await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
+        var w1 = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(w1);
 
         // ── Baseline snapshot ─────────────────────────────────────────────────────────────────────
@@ -234,7 +234,9 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         // Direct-stamp W1 Dead. Using the global MarkDeadWorkers reaper is racy on the shared parallel
         // schema (a concurrent global sweep races our own); stamping the exact status keeps
         // DeadWorkerCount deterministic. DeadWorkerCount is namespace-scoped.
-        await Db.From<JobWorker>().Where(w => w.Id == w1.Id).UpdateOnlyAsync(() => new JobWorker { Status = WorkerStatusCode.Dead }, ct);
+        await Db.From<WorkerEntity>()
+            .Where(w => w.Id == w1.Id)
+            .UpdateOnlyAsync(() => new WorkerEntity { Status = WorkerStatusCode.Dead }, ct);
 
         // ── Stale-worker threshold flip ───────────────────────────────────────────────────────────
         // W2 is started fresh after W1 is dead, then aged to 2 min ago.
@@ -256,10 +258,10 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         // Aged two minutes, well inside every dead-after window the suite's global reapers use (five
         // minutes and up), so a concurrent sweep never flips W2 Dead and inflates DeadWorkerCount (the
         // off-by-one flake), while the one-minute threshold below still counts it stale.
-        await Db.From<JobWorker>()
+        await Db.From<WorkerEntity>()
             .Where(w => w.Id == w2Id)
             .UpdateOnlyAsync(
-                () => new JobWorker { Status = WorkerStatusCode.Draining, LastHeartbeatAtUtc = DateTime.UtcNow.AddMinutes(-2) },
+                () => new WorkerEntity { Status = WorkerStatusCode.Draining, LastHeartbeatAtUtc = DateTime.UtcNow.AddMinutes(-2) },
                 ct
             );
 

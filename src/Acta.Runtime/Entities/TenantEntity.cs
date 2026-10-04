@@ -1,18 +1,14 @@
 namespace Acta.Runtime;
 
 /// <summary>
-/// Acta-owned catalog of tenants: the customer / business entity a Job is <em>about</em>. A tenant is an
-/// optional, validated scope on individual Jobs, orthogonal to <see cref="JobNamespace"/>, which remains
-/// the microservice / work-ownership boundary. Tenants do not own workers, namespaces, job definitions,
-/// schedules, or system Jobs; tenant is currently audit / query / runtime scope only, never a scheduling
-/// or claim scope. Rows are append-only (no hard delete); <see cref="Status"/> gates whether a key
-/// resolves at enqueue. The runtime upserts a row by <see cref="TenantKey"/> via the <c>RegisterTenant</c>
-/// handler and reads the assigned id back.
+/// The tenants a job can be about: an optional, validated scope on individual jobs, orthogonal to the namespace,
+/// which stays the work-ownership boundary. A tenant scopes audit, queries, and admission, never scheduling or claims.
+/// Rows are never deleted; <see cref="Status"/> gates whether a key resolves at enqueue.
 /// </summary>
 [DbTable("tenants")]
 [DbPrimaryKey(Name = "pk_tenants", Columns = ["id"])]
 [DbUniqueIndex(Name = "ux_tenants_key", Columns = ["tenant_key"], Usage = "uniqueness")]
-internal sealed class Tenant : IEntity<int>
+internal sealed class TenantEntity : IEntity<int>
 {
     /// <summary>
     /// DB-assigned identity. Referenced by <c>job.tenant_id</c> and <c>events.tenant_id</c>. Callers

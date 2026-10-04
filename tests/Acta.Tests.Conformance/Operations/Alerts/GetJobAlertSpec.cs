@@ -112,7 +112,7 @@ public sealed class GetJobAlertSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         Assert.Equal(1, fresh.OccurrenceCount);
     }
 
-    private static void AssertMatchesRow(JobAlert row, AlertDetail detail)
+    private static void AssertMatchesRow(AlertEntity row, AlertDetail detail)
     {
         Assert.Equal(row.AlertRef, detail.AlertRef.Value);
         Assert.Equal(row.Id, detail.AlertId);
@@ -137,11 +137,11 @@ public sealed class GetJobAlertSpec : ActaRuntimeTestBase<ConformanceFixture, Te
     private ValueTask<JobEnqueueOutcome> EnqueueAsync(CancellationToken ct) =>
         Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct);
 
-    private async Task<JobAlert> RowAsync(long alertId, CancellationToken ct) =>
-        Assert.Single(await Db.From<JobAlert>().Where(a => a.Id == alertId).ToListAsync(ct));
+    private async Task<AlertEntity> RowAsync(long alertId, CancellationToken ct) =>
+        Assert.Single(await Db.From<AlertEntity>().Where(a => a.Id == alertId).ToListAsync(ct));
 
     /// <summary>Raises one manual alert and returns the row it opened or repeated, the newest of the namespace.</summary>
-    private async Task<JobAlert> RaiseAsync(long? jobId, string? deduplicationKey, CancellationToken ct)
+    private async Task<AlertEntity> RaiseAsync(long? jobId, string? deduplicationKey, CancellationToken ct)
     {
         await AlertTestOps.RaiseAsync(
             Services,

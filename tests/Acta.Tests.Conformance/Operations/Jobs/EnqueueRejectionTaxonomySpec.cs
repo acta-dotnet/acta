@@ -81,9 +81,9 @@ public sealed class EnqueueRejectionTaxonomySpec : ActaRuntimeTestBase<Conforman
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        await Db.From<JobDefinition>()
+        await Db.From<DefinitionEntity>()
             .Where(d => d.NamespaceId == ns && d.Name == "add-numbers")
-            .UpdateOnlyAsync(() => new JobDefinition { Status = JobDefinitionStatusCode.Retired }, ct);
+            .UpdateOnlyAsync(() => new DefinitionEntity { Status = JobDefinitionStatusCode.Retired }, ct);
         var ex = await Assert.ThrowsAsync<EnqueueRejectedException>(async () => await Jobs.EnqueueAsync(Request(), ct));
         Assert.Equal(EnqueueRejectionReason.DefinitionRetired, ex.Reason);
         Assert.IsAssignableFrom<DbException>(ex.InnerException);

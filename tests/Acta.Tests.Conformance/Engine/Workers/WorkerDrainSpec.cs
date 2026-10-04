@@ -98,9 +98,9 @@ public abstract class WorkerDrainSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(0, Runtime.InFlightCount);
     }
 
-    private async Task<JobWorker> ReadWorkerAsync(int namespaceId, CancellationToken ct)
+    private async Task<WorkerEntity> ReadWorkerAsync(int namespaceId, CancellationToken ct)
     {
-        var worker = await Db.From<JobWorker>().Where(w => w.NamespaceId == namespaceId).SingleOrDefaultAsync(ct);
+        var worker = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == namespaceId).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);
         return worker!;
     }

@@ -34,9 +34,9 @@ public sealed class GetStaleChildLatchesSpec : ActaRuntimeTestBase<ConformanceFi
         Assert.DoesNotContain(await Execution.GetStaleChildLatchesAsync(NamespaceId, ct), l => l.ParentJobId == parent);
 
         // The child lands Failed and the raise that should follow is lost, as a crash between the two would leave it.
-        var affected = await Db.From<JobRuntime>()
+        var affected = await Db.From<RuntimeEntity>()
             .Where(r => r.Id == child)
-            .UpdateOnlyAsync(() => new JobRuntime { Status = JobStatusCode.Failed }, ct);
+            .UpdateOnlyAsync(() => new RuntimeEntity { Status = JobStatusCode.Failed }, ct);
         Assert.Equal(1, affected);
 
         var stale = Assert.Single(await Execution.GetStaleChildLatchesAsync(NamespaceId, ct), l => l.ParentJobId == parent);
@@ -73,7 +73,7 @@ public sealed class GetStaleChildLatchesSpec : ActaRuntimeTestBase<ConformanceFi
     {
         var parent = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
         Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(parent, ct));
-        var child = Assert.Single(await Db.From<Job>().Where(j => j.ParentId == parent.JobId).ToListAsync(ct));
+        var child = Assert.Single(await Db.From<JobEntity>().Where(j => j.ParentId == parent.JobId).ToListAsync(ct));
         var latch = Assert.Single(await ReadSignalsAsync(parent.JobId, ct));
         Assert.Equal($"sys.child.{child.Id}", latch.Name);
         Assert.Equal(JobCheckpointStatusCode.Pending, latch.Status);

@@ -1,20 +1,12 @@
 namespace Acta.Runtime;
 
 /// <summary>
-/// Append-only lifecycle timeline and execution ledger. Carries the audit trail of <c>JobRuntime.Status</c>
-/// transitions, suspend/resume hops, signal arrivals, and definition/worker lifecycle events, plus the
-/// canonical per-attempt record via paired <c>job.execution-started</c> / <c>job.execution-finished</c>
-/// events. Carries lifecycle facts and outcomes, plus an optional <see cref="Detail"/> payload for
-/// free-form (text) or structured (json) context beyond <see cref="ReasonCode"/> /
-/// <see cref="ReasonMessage"/>; richer event-specific data still belongs in OTel spans and structured
-/// logs at the emission site, and the canonical durable state is the entity row the event references.
+/// The append-only lifecycle ledger: status transitions, suspend and resume hops, signal arrivals, definition and
+/// worker lifecycle, and each attempt as paired <c>job.execution-started</c> and <c>job.execution-finished</c>
+/// events, with an optional <see cref="Detail"/> beyond <see cref="ReasonCode"/> and <see cref="ReasonMessage"/>.
+/// Rows age out by <c>JobsOptions.JobEventsRetention</c> against <see cref="CreatedAtUtc"/>; there is no job foreign
+/// key, because events outlive the job, so the operations that write them keep them consistent.
 /// </summary>
-/// <remarks>
-/// Every row honors <c>JobsOptions.JobEventsRetention</c> (default 365); the
-/// <c>sys.retention</c> sweep applies one predicate against <see cref="CreatedAtUtc"/>.
-/// There is no enforced <c>Job</c> FK because events outlive Job retention; integrity is maintained at
-/// write time by the operations that emit events.
-/// </remarks>
 [DbTable("events", PageCompression = true)]
 [DbPrimaryKey(Name = "pk_events", Columns = ["id"], OptimizeForSequentialKey = true)]
 [DbIndex(
@@ -35,7 +27,7 @@ namespace Acta.Runtime;
     Name = "ck_events_detail_pair",
     Sql = "(detail_format_id = 0 AND detail IS NULL) OR (detail_format_id <> 0 AND detail IS NOT NULL)"
 )]
-internal sealed class JobEvent : IEntity<long>
+internal sealed class EventEntity : IEntity<long>
 {
     /// <summary>
     /// Event row identifier.

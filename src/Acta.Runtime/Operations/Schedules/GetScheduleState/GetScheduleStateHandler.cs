@@ -9,7 +9,7 @@ internal sealed class GetScheduleStateHandler(IDbSession session, ISqlDialect di
     public Task<IReadOnlyList<StoredScheduleState>> HandleAsync(GetScheduleStateQuery query, CancellationToken ct) =>
         session.QueryListAsync(
             "GetScheduleState",
-            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.NamespaceId, query.NamespaceId)),
+            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.NamespaceId, query.NamespaceId)),
             DbProjectionResolver.Resolve<StoredScheduleState>(),
             ct
         );

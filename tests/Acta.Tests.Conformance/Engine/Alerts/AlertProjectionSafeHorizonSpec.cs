@@ -164,9 +164,9 @@ public sealed class AlertProjectionSafeHorizonSpec : ActaRuntimeTestBase<Conform
     /// column default so the stamp is the database's own clock rather than this process's.
     /// </summary>
     private Task<long> StageFailureEventAsync(AlertingSubject subject, int executionNumber, CancellationToken ct) =>
-        Db.From<JobEvent>()
+        Db.From<EventEntity>()
             .InsertAsync<long>(
-                new JobEvent
+                new EventEntity
                 {
                     EventCode = EventCode.JobExecutionFinished,
                     NamespaceId = NamespaceId,
@@ -204,7 +204,7 @@ public sealed class AlertProjectionSafeHorizonSpec : ActaRuntimeTestBase<Conform
 
     private async Task<DateTime> StampOfAsync(long eventId, CancellationToken ct) =>
         DateTime.SpecifyKind(
-            Assert.Single(await Db.From<JobEvent>().Where(e => e.Id == eventId).ToListAsync(ct)).CreatedAtUtc,
+            Assert.Single(await Db.From<EventEntity>().Where(e => e.Id == eventId).ToListAsync(ct)).CreatedAtUtc,
             DateTimeKind.Utc
         );
 
@@ -215,7 +215,7 @@ public sealed class AlertProjectionSafeHorizonSpec : ActaRuntimeTestBase<Conform
     private async Task BackdateToHorizonAsync(long eventId, CancellationToken ct)
     {
         var aged = await AlertTestOps.HorizonOfThisMomentAsync(Services, ct);
-        await Db.From<JobEvent>().Where(e => e.Id == eventId).UpdateOnlyAsync(() => new JobEvent { CreatedAtUtc = aged }, ct);
+        await Db.From<EventEntity>().Where(e => e.Id == eventId).UpdateOnlyAsync(() => new EventEntity { CreatedAtUtc = aged }, ct);
     }
 
     private sealed record AlertingSubject(int DefinitionId, long JobId);

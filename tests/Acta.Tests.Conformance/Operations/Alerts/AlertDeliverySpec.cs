@@ -314,7 +314,7 @@ public sealed class AlertDeliverySpec : ActaStorageTestBase<ConformanceFixture>
     private async Task ScheduleAsync(long alertId, DateTime whenUtc, CancellationToken ct) =>
         Assert.Equal(
             1,
-            await Db.From<JobAlert>().Where(a => a.Id == alertId).UpdateOnlyAsync(() => new JobAlert { RetryAfterUtc = whenUtc }, ct)
+            await Db.From<AlertEntity>().Where(a => a.Id == alertId).UpdateOnlyAsync(() => new AlertEntity { RetryAfterUtc = whenUtc }, ct)
         );
 
     // One incident on its own job, left in the requested delivery state; returns the job id the resolve
@@ -324,7 +324,7 @@ public sealed class AlertDeliverySpec : ActaStorageTestBase<ConformanceFixture>
         var (jobId, _) = await Seeder.SeedJobAsync(TestNamespaceId, DefId, ct: ct);
         await RaiseAutomaticAsync($"settlement-{status?.ToString() ?? "pending"}", jobId, ct);
 
-        var row = Assert.Single(await Db.From<JobAlert>().Where(a => a.JobId == jobId).ToListAsync(ct));
+        var row = Assert.Single(await Db.From<AlertEntity>().Where(a => a.JobId == jobId).ToListAsync(ct));
         if (status is { } target)
         {
             Assert.True(await SettleAsync(row.Id, row.Version, target, row.RetryCount, retryAfter, ct));

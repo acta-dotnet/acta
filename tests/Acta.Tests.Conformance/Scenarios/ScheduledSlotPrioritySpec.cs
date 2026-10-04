@@ -90,7 +90,7 @@ public sealed class ScheduledSlotPrioritySpec : ActaRuntimeTestBase<ConformanceF
         var ct = TestContext.Current.CancellationToken;
         var slotId = await SlotIdAsync(ct);
 
-        var runtime = await Db.From<JobRuntime>().Where(r => r.Id == slotId).SingleOrDefaultAsync(ct);
+        var runtime = await Db.From<RuntimeEntity>().Where(r => r.Id == slotId).SingleOrDefaultAsync(ct);
         Assert.Equal(JobPriorityCode.Critical, runtime!.Priority);
     }
 
@@ -101,18 +101,18 @@ public sealed class ScheduledSlotPrioritySpec : ActaRuntimeTestBase<ConformanceF
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var slotId = await SlotIdAsync(ct);
 
-        var def = await Db.From<JobDefinition>().Where(d => d.NamespaceId == ns && d.Name == JobName).SingleOrDefaultAsync(ct);
+        var def = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == ns && d.Name == JobName).SingleOrDefaultAsync(ct);
         Assert.NotNull(def);
         Assert.Equal(JobPriorityCode.Critical, def!.PriorityEffective);
 
         // A worker redeploy lowers the declared [Job] priority; the effective column recomputes.
-        await Db.From<JobDefinition>()
+        await Db.From<DefinitionEntity>()
             .Where(d => d.Id == def.Id)
-            .UpdateOnlyAsync(() => new JobDefinition { Priority = JobPriorityCode.High }, ct);
+            .UpdateOnlyAsync(() => new DefinitionEntity { Priority = JobPriorityCode.High }, ct);
 
         await ReRegisterAsync(ns, def.Id, ct);
 
-        var runtime = await Db.From<JobRuntime>().Where(r => r.Id == slotId).SingleOrDefaultAsync(ct);
+        var runtime = await Db.From<RuntimeEntity>().Where(r => r.Id == slotId).SingleOrDefaultAsync(ct);
         Assert.Equal(JobPriorityCode.High, runtime!.Priority);
     }
 
@@ -127,10 +127,10 @@ public sealed class ScheduledSlotPrioritySpec : ActaRuntimeTestBase<ConformanceF
     // the store port, exactly as a worker redeploy does, so the priority propagation goes through the routine.
     private async Task ReRegisterAsync(int ns, int definitionId, CancellationToken ct)
     {
-        var slot = await Db.From<Job>().Where(j => j.NamespaceId == ns && j.DeduplicationKey == JobName).SingleOrDefaultAsync(ct);
+        var slot = await Db.From<JobEntity>().Where(j => j.NamespaceId == ns && j.DeduplicationKey == JobName).SingleOrDefaultAsync(ct);
         Assert.NotNull(slot);
-        var runtime = await Db.From<JobRuntime>().Where(r => r.Id == slot!.Id).SingleOrDefaultAsync(ct);
-        var schedules = await Db.From<JobSchedule>().Where(s => s.DefinitionId == definitionId).ToListAsync(ct);
+        var runtime = await Db.From<RuntimeEntity>().Where(r => r.Id == slot!.Id).SingleOrDefaultAsync(ct);
+        var schedules = await Db.From<ScheduleEntity>().Where(s => s.DefinitionId == definitionId).ToListAsync(ct);
 
         var slotSchedules = schedules
             .Select(s => new SlotSchedule(

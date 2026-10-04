@@ -83,17 +83,17 @@ public abstract class ActaRuntimeTestBase<TFixture, TManifest> : ActaTestBase<TF
             await RetryTransientConflictAsync(
                 dialect,
                 () =>
-                    Db.From<JobSchedule>()
+                    Db.From<ScheduleEntity>()
                         .Where(s => slots.Contains(s.JobId))
-                        .UpdateOnlyAsync(() => new JobSchedule { NextRunAtUtc = parked }, ct),
+                        .UpdateOnlyAsync(() => new ScheduleEntity { NextRunAtUtc = parked }, ct),
                 ct
             );
             await RetryTransientConflictAsync(
                 dialect,
                 () =>
-                    Db.From<JobRuntime>()
+                    Db.From<RuntimeEntity>()
                         .Where(r => slots.Contains(r.Id) && r.Status == JobStatusCode.Ready)
-                        .UpdateOnlyAsync(() => new JobRuntime { NextRunAtUtc = parked }, ct),
+                        .UpdateOnlyAsync(() => new RuntimeEntity { NextRunAtUtc = parked }, ct),
                 ct
             );
         }

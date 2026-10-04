@@ -64,9 +64,9 @@ public sealed class ListJobDefinitionsFilterMatrixSpec : ActaRuntimeTestBase<Con
         var defBId = firstMap[defBName];
 
         // Retire def-a the way the operator verb leaves it; registration never writes Retired.
-        await Db.From<JobDefinition>()
+        await Db.From<DefinitionEntity>()
             .Where(d => d.Id == defAId)
-            .UpdateOnlyAsync(() => new JobDefinition { Status = JobDefinitionStatusCode.Retired }, ct);
+            .UpdateOnlyAsync(() => new DefinitionEntity { Status = JobDefinitionStatusCode.Retired }, ct);
 
         var activeIds = new HashSet<int> { defBId };
         var retiredIds = new HashSet<int> { defAId };

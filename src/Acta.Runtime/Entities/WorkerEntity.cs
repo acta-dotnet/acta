@@ -25,13 +25,13 @@ namespace Acta.Runtime;
 )]
 [DbForeignKey(
     Name = "fk_workers_namespaces",
-    Target = typeof(JobNamespace),
+    Target = typeof(NamespaceEntity),
     TargetColumn = "id",
     Column = "namespace_id",
     OnDelete = DbForeignKeyAction.NoAction
 )]
 [DbCheck(Name = "ck_workers_max_concurrency", Sql = "max_concurrency > 0")]
-internal sealed class JobWorker : IEntity<int>
+internal sealed class WorkerEntity : IEntity<int>
 {
     /// <summary>
     /// Worker process identifier; never reused.

@@ -61,7 +61,7 @@ tests/Acta.Tests.Conformance/Operations/Jobs/RescheduleJobSpec.cs
 | Test | Rule |
 |---|---|
 | `OperationLayoutTests` | operation folders and depth, file names, all three dialects or none, no SQL outside `Operations/` and `Schema/`; once a group's Runtime folder holds C#, a handler per operation and a Runtime twin for each public operation folder; no `Operations/` file names a type declared under `Engine/` |
-| `TypeNamingTests` | the banned suffixes and the `Row` rule |
+| `TypeNamingTests` | the banned suffixes, the `Row` rule, and `Entity` on every table model |
 | `DuplicateShapeTests` | no two types declaring the same property names, except operations' own inputs and responses |
 | `DialectParityTests` | an operation's three SQL files return the same columns |
 | `FileLengthTests` | at most 600 lines per source file and 150 per method body; MA0051 takes over the method cap once its list is empty |

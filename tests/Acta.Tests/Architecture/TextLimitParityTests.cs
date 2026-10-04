@@ -36,20 +36,20 @@ public sealed class TextLimitParityTests
     {
         Assert.Equal(ActaSchema.Tenant.DisplayName.Size, AdminTextLimits.TenantDisplayName);
         Assert.Equal(ActaSchema.Tenant.Description.Size, AdminTextLimits.TenantDescription);
-        Assert.Equal(ActaSchema.JobNamespace.OwnerTeam.Size, AdminTextLimits.NamespaceOwnerTeam);
-        Assert.Equal(ActaSchema.JobNamespace.Description.Size, AdminTextLimits.NamespaceDescription);
-        Assert.Equal(ActaSchema.JobEvent.ActorKey.Size, ActaTextLimits.ActorKey);
-        Assert.Equal(ActaSchema.JobEvent.ReasonMessage.Size, ActaTextLimits.ReasonMessage);
-        Assert.Equal(ActaSchema.JobStep.ReasonMessage.Size, ActaTextLimits.ReasonMessage);
-        Assert.Equal(ActaSchema.JobAlert.ChannelName.Size, ActaTextLimits.AlertChannelName);
-        Assert.Equal(ActaSchema.JobAlert.DedupeKey.Size, ActaTextLimits.AlertDedupeKey);
-        Assert.Equal(ActaSchema.JobAlert.Title.Size, ActaTextLimits.AlertTitle);
-        Assert.Equal(ActaSchema.JobAlert.Message.Size, ActaTextLimits.AlertMessage);
-        Assert.Equal(ActaSchema.JobDefinition.Backoff.Size, ActaTextLimits.DefinitionBackoff);
-        Assert.Equal(ActaSchema.JobDefinition.BackoffOverride.Size, ActaTextLimits.DefinitionBackoff);
-        Assert.Equal(ActaSchema.JobDefinition.DisplayNameOverride.Size, ActaTextLimits.DefinitionDisplayName);
-        Assert.Equal(ActaSchema.JobDefinition.DescriptionOverride.Size, ActaTextLimits.DefinitionDescription);
-        Assert.Equal(ActaSchema.JobDefinition.RunbookUrlOverride.Size, ActaTextLimits.DefinitionRunbookUrl);
-        Assert.Equal(ActaSchema.JobSchedule.ReasonMessage.Size, ActaTextLimits.ScheduleReasonMessage);
+        Assert.Equal(ActaSchema.Namespace.OwnerTeam.Size, AdminTextLimits.NamespaceOwnerTeam);
+        Assert.Equal(ActaSchema.Namespace.Description.Size, AdminTextLimits.NamespaceDescription);
+        Assert.Equal(ActaSchema.Event.ActorKey.Size, ActaTextLimits.ActorKey);
+        Assert.Equal(ActaSchema.Event.ReasonMessage.Size, ActaTextLimits.ReasonMessage);
+        Assert.Equal(ActaSchema.Step.ReasonMessage.Size, ActaTextLimits.ReasonMessage);
+        Assert.Equal(ActaSchema.Alert.ChannelName.Size, ActaTextLimits.AlertChannelName);
+        Assert.Equal(ActaSchema.Alert.DedupeKey.Size, ActaTextLimits.AlertDedupeKey);
+        Assert.Equal(ActaSchema.Alert.Title.Size, ActaTextLimits.AlertTitle);
+        Assert.Equal(ActaSchema.Alert.Message.Size, ActaTextLimits.AlertMessage);
+        Assert.Equal(ActaSchema.Definition.Backoff.Size, ActaTextLimits.DefinitionBackoff);
+        Assert.Equal(ActaSchema.Definition.BackoffOverride.Size, ActaTextLimits.DefinitionBackoff);
+        Assert.Equal(ActaSchema.Definition.DisplayNameOverride.Size, ActaTextLimits.DefinitionDisplayName);
+        Assert.Equal(ActaSchema.Definition.DescriptionOverride.Size, ActaTextLimits.DefinitionDescription);
+        Assert.Equal(ActaSchema.Definition.RunbookUrlOverride.Size, ActaTextLimits.DefinitionRunbookUrl);
+        Assert.Equal(ActaSchema.Schedule.ReasonMessage.Size, ActaTextLimits.ScheduleReasonMessage);
     }
 }

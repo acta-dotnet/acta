@@ -32,12 +32,12 @@ public sealed class ExtendWorkerLeasesReviveSpec : ActaRuntimeTestBase<Conforman
         var (ns, revivedId) = await StartWorkerAsync("revived-host", ct);
         var (_, drainingId) = await StartWorkerAsync("revived-draining-host", ct);
         var (_, stoppedId) = await StartWorkerAsync("stopped-host", ct);
-        await Db.From<JobWorker>()
+        await Db.From<WorkerEntity>()
             .Where(w => w.Id == revivedId)
-            .UpdateOnlyAsync(() => new JobWorker { Status = WorkerStatusCode.Dead }, ct);
-        await Db.From<JobWorker>()
+            .UpdateOnlyAsync(() => new WorkerEntity { Status = WorkerStatusCode.Dead }, ct);
+        await Db.From<WorkerEntity>()
             .Where(w => w.Id == drainingId)
-            .UpdateOnlyAsync(() => new JobWorker { Status = WorkerStatusCode.Dead }, ct);
+            .UpdateOnlyAsync(() => new WorkerEntity { Status = WorkerStatusCode.Dead }, ct);
         await workers.StopWorkerAsync(ns, stoppedId, ct);
 
         await workers.ExtendWorkerLeasesAsync(revivedId, leaseTtl, false, ct);
@@ -52,7 +52,7 @@ public sealed class ExtendWorkerLeasesReviveSpec : ActaRuntimeTestBase<Conforman
         await workers.StopWorkerAsync(ns, drainingId, ct);
         Assert.Equal(WorkerStatusCode.Stopped, await StatusAsync(drainingId, ct));
         Assert.Single(
-            await Db.From<JobEvent>().Where(e => e.WorkerId == drainingId && e.EventCode == EventCode.WorkerStopped).ToListAsync(ct)
+            await Db.From<EventEntity>().Where(e => e.WorkerId == drainingId && e.EventCode == EventCode.WorkerStopped).ToListAsync(ct)
         );
     }
 
@@ -72,5 +72,5 @@ public sealed class ExtendWorkerLeasesReviveSpec : ActaRuntimeTestBase<Conforman
         );
 
     private async Task<WorkerStatusCode?> StatusAsync(int workerId, CancellationToken ct) =>
-        (await Db.From<JobWorker>().Where(w => w.Id == workerId).SingleOrDefaultAsync(ct))?.Status;
+        (await Db.From<WorkerEntity>().Where(w => w.Id == workerId).SingleOrDefaultAsync(ct))?.Status;
 }

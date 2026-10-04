@@ -18,7 +18,7 @@ public sealed class NamespaceRowSpec : ActaStorageTestBase<ConformanceFixture>
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var ns = await Db.From<JobNamespace>().Where(n => n.Id == TestNamespaceId).SingleOrDefaultAsync(ct);
+        var ns = await Db.From<NamespaceEntity>().Where(n => n.Id == TestNamespaceId).SingleOrDefaultAsync(ct);
 
         Assert.NotNull(ns);
         Assert.Equal(TestNamespace, ns!.Name);
@@ -31,7 +31,7 @@ public sealed class NamespaceRowSpec : ActaStorageTestBase<ConformanceFixture>
 
         var ct = TestContext.Current.CancellationToken;
 
-        var ns = await Db.From<JobNamespace>().Where(n => n.Id == TestNamespaceId).SingleOrDefaultAsync(ct);
+        var ns = await Db.From<NamespaceEntity>().Where(n => n.Id == TestNamespaceId).SingleOrDefaultAsync(ct);
 
         Assert.NotNull(ns);
         Assert.Equal(TestNamespaceId, ns!.Id);

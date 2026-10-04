@@ -12,7 +12,7 @@ internal sealed class SchemaModel
 
     public static SchemaModel Discover()
     {
-        var docs = XmlDocSource.ForAssembly(typeof(Job).Assembly);
+        var docs = XmlDocSource.ForAssembly(typeof(JobEntity).Assembly);
 
         var entities = ActaSchema
             .Entities.Select(spec => new EntityModel(spec, docs))

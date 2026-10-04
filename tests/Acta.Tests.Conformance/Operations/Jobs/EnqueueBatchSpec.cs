@@ -72,10 +72,10 @@ public sealed class EnqueueBatchSpec : ActaRuntimeTestBase<ConformanceFixture, T
 
         // Enqueue does not write events - the Job row's own creation columns are the
         // enqueue record. events rows appear only for state transitions (claim/start/finish/...).
-        var enqueueEventCount = await Db.From<JobEvent>().Where(e => e.JobId == outcome.JobId).CountAsync(ct);
+        var enqueueEventCount = await Db.From<EventEntity>().Where(e => e.JobId == outcome.JobId).CountAsync(ct);
         Assert.Equal(0, enqueueEventCount);
 
-        var tagRows = await Db.From<Tag>().Where(t => t.ScopeCode == TagScopeCode.Job && t.ScopeId == outcome.JobId).ToListAsync(ct);
+        var tagRows = await Db.From<TagEntity>().Where(t => t.ScopeCode == TagScopeCode.Job && t.ScopeId == outcome.JobId).ToListAsync(ct);
         Assert.Equal(2, tagRows.Count);
         Assert.Contains(tagRows, t => t.Name == "env" && t.Value == "EU-West" && t.ValueSearch == "EU-WEST");
         Assert.Contains(tagRows, t => t.Name == "feature" && t.Value == "batch-enqueue");
@@ -115,13 +115,13 @@ public sealed class EnqueueBatchSpec : ActaRuntimeTestBase<ConformanceFixture, T
         // Count only the enqueued jobs (null deduplication_key). The shared test manifest declares a
         // recurring definition, so InitializeAsync also created its recurring slot row
         // with a non-null deduplication key in this namespace - exclude it.
-        var jobCount = await Db.From<Job>().Where(j => j.NamespaceId == namespaceId && j.DeduplicationKey == null).CountAsync(ct);
+        var jobCount = await Db.From<JobEntity>().Where(j => j.NamespaceId == namespaceId && j.DeduplicationKey == null).CountAsync(ct);
         Assert.Equal(batchSize, jobCount);
 
         // No events rows on enqueue (see class-level summary). Filter to job-scoped events
         // (job_id IS NOT NULL) so the worker.registered / job.definition.registered events that
         // InitializeAsync emits at namespace scope don't pollute the count.
-        var eventCount = await Db.From<JobEvent>().Where(e => e.NamespaceId == namespaceId && e.JobId != null).CountAsync(ct);
+        var eventCount = await Db.From<EventEntity>().Where(e => e.NamespaceId == namespaceId && e.JobId != null).CountAsync(ct);
         Assert.Equal(0, eventCount);
     }
 
@@ -141,8 +141,8 @@ public sealed class EnqueueBatchSpec : ActaRuntimeTestBase<ConformanceFixture, T
         var outcomes = await EnqueueTestOps.EnqueueBatchAsync(Services, rows, ct);
 
         Assert.Equal(2, outcomes.Count);
-        var first = await Db.From<Job>().Where(j => j.Id == outcomes[0].JobId).SingleOrDefaultAsync(ct);
-        var second = await Db.From<Job>().Where(j => j.Id == outcomes[1].JobId).SingleOrDefaultAsync(ct);
+        var first = await Db.From<JobEntity>().Where(j => j.Id == outcomes[0].JobId).SingleOrDefaultAsync(ct);
+        var second = await Db.From<JobEntity>().Where(j => j.Id == outcomes[1].JobId).SingleOrDefaultAsync(ct);
         Assert.NotNull(first);
         Assert.NotNull(second);
         Assert.Equal(longBytes, first.Input);

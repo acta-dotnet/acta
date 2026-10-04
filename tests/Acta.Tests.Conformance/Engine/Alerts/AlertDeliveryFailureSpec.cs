@@ -373,7 +373,10 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
         var raised = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
 
         // Mid-series: four attempts spent, one left under the cap this pass runs with.
-        Assert.Equal(1, await Db.From<JobAlert>().Where(a => a.Id == raised.Id).UpdateOnlyAsync(() => new JobAlert { RetryCount = 4 }, ct));
+        Assert.Equal(
+            1,
+            await Db.From<AlertEntity>().Where(a => a.Id == raised.Id).UpdateOnlyAsync(() => new AlertEntity { RetryCount = 4 }, ct)
+        );
 
         // The fifth attempt lands. retry_count is the budget for a send series, and that series is over.
         await RunDeliveryAsync(maxRetries: 5, ct);
@@ -410,11 +413,11 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
         Resolver.ResolveDuringSend(async () =>
             Assert.Equal(
                 1,
-                await Db.From<JobAlert>()
+                await Db.From<AlertEntity>()
                     .Where(a => a.Id == raised.Id)
                     .UpdateOnlyAsync(
                         () =>
-                            new JobAlert
+                            new AlertEntity
                             {
                                 ResolvedAtUtc = DateTime.UtcNow,
                                 DeliveryStatusCode = AlertDeliveryStatusCode.Suppressed,
@@ -503,7 +506,7 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
     private async Task ScheduleAsync(long alertId, DateTime whenUtc, CancellationToken ct) =>
         Assert.Equal(
             1,
-            await Db.From<JobAlert>().Where(a => a.Id == alertId).UpdateOnlyAsync(() => new JobAlert { RetryAfterUtc = whenUtc }, ct)
+            await Db.From<AlertEntity>().Where(a => a.Id == alertId).UpdateOnlyAsync(() => new AlertEntity { RetryAfterUtc = whenUtc }, ct)
         );
 
     /// <summary>

@@ -8,12 +8,12 @@ internal sealed class RecordJobNoteHandler(IDbSession session, ISqlDialect diale
             new StoreCommand("RecordJobNote"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.JobId, command.JobId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ExecutionNumber, command.ExecutionNumber));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonMessage, command.Message));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.JobId, command.JobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ExecutionNumber, command.ExecutionNumber));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ReasonMessage, command.Message));
                 // Format id 0 with a NULL body is the "no detail" encoding ck_events_detail_pair expects.
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.DetailFormatId, command.Detail?.Format.Id ?? (byte)0));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.Detail, command.Detail?.Data.ToArray()));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.DetailFormatId, command.Detail?.Format.Id ?? (byte)0));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.Detail, command.Detail?.Data.ToArray()));
             },
             static reader =>
                 reader.GetInt32(0) == 1

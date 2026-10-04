@@ -104,7 +104,7 @@ public sealed class RegisterScheduledJobsMisfireMatrixSpec : ActaStorageTestBase
             ct
         );
 
-        var rows = await Db.From<JobSchedule>().Where(s => s.JobId == slotId).ToListAsync(ct);
+        var rows = await Db.From<ScheduleEntity>().Where(s => s.JobId == slotId).ToListAsync(ct);
         var row = Assert.Single(rows);
         Assert.Equal(At(5), row.NextRunAtUtc);
         Assert.True(row.Version > 0, "Upsert must bump the schedule row version, not insert a fresh row.");
@@ -144,7 +144,7 @@ public sealed class RegisterScheduledJobsMisfireMatrixSpec : ActaStorageTestBase
         var after = await ScheduleRowAsync(slotId, ct);
         Assert.Equal(At(0), after.NextRunAtUtc);
         Assert.Equal(before.Version, after.Version);
-        var slot = Assert.Single(await Db.From<JobRuntime>().Where(r => r.Id == slotId).ToListAsync(ct));
+        var slot = Assert.Single(await Db.From<RuntimeEntity>().Where(r => r.Id == slotId).ToListAsync(ct));
         Assert.Equal(At(0), slot.NextRunAtUtc);
     }
 
@@ -284,9 +284,9 @@ public sealed class RegisterScheduledJobsMisfireMatrixSpec : ActaStorageTestBase
         return ids[defId];
     }
 
-    private async Task<JobSchedule> ScheduleRowAsync(long slotId, CancellationToken ct)
+    private async Task<ScheduleEntity> ScheduleRowAsync(long slotId, CancellationToken ct)
     {
-        var rows = await Db.From<JobSchedule>().Where(s => s.JobId == slotId).ToListAsync(ct);
+        var rows = await Db.From<ScheduleEntity>().Where(s => s.JobId == slotId).ToListAsync(ct);
         return Assert.Single(rows);
     }
 

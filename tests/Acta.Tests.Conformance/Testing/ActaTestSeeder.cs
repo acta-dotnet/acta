@@ -17,9 +17,9 @@ internal sealed class ActaTestSeeder(IDbSession db)
     public async Task<int> SeedJobNamespaceAsync(string name, string? ownerTeam = "test", CancellationToken ct = default)
     {
         var now = DateTime.UtcNow;
-        return await db.From<JobNamespace>()
+        return await db.From<NamespaceEntity>()
             .InsertAsync<int>(
-                new JobNamespace
+                new NamespaceEntity
                 {
                     Name = name,
                     OwnerTeam = ownerTeam,
@@ -46,9 +46,9 @@ internal sealed class ActaTestSeeder(IDbSession db)
     )
     {
         var now = DateTime.UtcNow;
-        return await db.From<JobDefinition>()
+        return await db.From<DefinitionEntity>()
             .InsertAsync<int>(
-                new JobDefinition
+                new DefinitionEntity
                 {
                     NamespaceId = namespaceId,
                     Name = name,
@@ -90,9 +90,9 @@ internal sealed class ActaTestSeeder(IDbSession db)
     {
         var defId = definitionId ?? await SeedJobDefinitionAsync(namespaceId, ct: ct);
         var jobRef = Guid.NewGuid();
-        var jobId = await db.From<Job>()
+        var jobId = await db.From<JobEntity>()
             .InsertAsync<long>(
-                new Job
+                new JobEntity
                 {
                     JobRef = jobRef,
                     NamespaceId = namespaceId,

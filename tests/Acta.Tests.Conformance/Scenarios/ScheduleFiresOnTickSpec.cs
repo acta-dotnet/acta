@@ -132,7 +132,7 @@ public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFix
             await FireOnceAsync(slotId, ct);
         }
 
-        var resultCount = await Db.From<JobResult>().Where(r => r.JobId == slotId).CountAsync(ct);
+        var resultCount = await Db.From<ResultEntity>().Where(r => r.JobId == slotId).CountAsync(ct);
         Assert.Equal(3, resultCount);
 
         var latest = await Services.GetRequiredService<GetJobResultHandler>().ReadAsync(slotId, null, ct);
@@ -227,7 +227,7 @@ public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFix
 
     private async Task<DateTime> ScheduleCursorAsync(long slotId, CancellationToken ct)
     {
-        var rows = await Db.From<JobSchedule>().Where(s => s.JobId == slotId).ToListAsync(ct);
+        var rows = await Db.From<ScheduleEntity>().Where(s => s.JobId == slotId).ToListAsync(ct);
         var row = Assert.Single(rows);
         Assert.NotNull(row.NextRunAtUtc);
         return row.NextRunAtUtc!.Value;

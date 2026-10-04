@@ -64,7 +64,7 @@ public sealed class RecoveryJobSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         // a crash between the two writes, which only the handler's backstop pass can repair.
         var parent = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
         Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(parent, ct));
-        var child = Assert.Single(await Db.From<Job>().Where(j => j.ParentId == parent.JobId).ToListAsync(ct));
+        var child = Assert.Single(await Db.From<JobEntity>().Where(j => j.ParentId == parent.JobId).ToListAsync(ct));
         await SetTerminalWithoutRaiseAsync(child.Id, ct);
 
         var slotId = await RecoverySlotIdAsync(ct);
@@ -109,9 +109,9 @@ public sealed class RecoveryJobSpec : ActaRuntimeTestBase<ConformanceFixture, Te
     }
 
     private Task ForceSlotDueAsync(long slotId, CancellationToken ct) =>
-        Db.From<JobRuntime>()
+        Db.From<RuntimeEntity>()
             .Where(r => r.Id == slotId)
-            .UpdateOnlyAsync(() => new JobRuntime { NextRunAtUtc = DateTime.UtcNow.AddMinutes(-1) }, ct);
+            .UpdateOnlyAsync(() => new RuntimeEntity { NextRunAtUtc = DateTime.UtcNow.AddMinutes(-1) }, ct);
 
     /// <summary>Lands the child terminal the way a crash does: the status moves, the latch is never set.</summary>
     private Task SetTerminalWithoutRaiseAsync(long jobId, CancellationToken ct) =>

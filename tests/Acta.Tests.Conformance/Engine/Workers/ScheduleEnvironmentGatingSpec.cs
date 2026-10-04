@@ -40,7 +40,7 @@ public sealed class ScheduleEnvironmentGatingSpec : ActaRuntimeTestBase<Conforma
         var slotId = await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, "env-gated-ping"), ct);
         Assert.NotNull(slotId);
 
-        var rows = await Db.From<JobSchedule>().Where(s => s.JobId == slotId!.Value).ToListAsync(ct);
+        var rows = await Db.From<ScheduleEntity>().Where(s => s.JobId == slotId!.Value).ToListAsync(ct);
         var row = Assert.Single(rows);
         Assert.Equal("staging-tick", row.Name);
     }

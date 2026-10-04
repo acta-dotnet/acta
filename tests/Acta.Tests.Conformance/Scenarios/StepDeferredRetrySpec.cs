@@ -187,9 +187,9 @@ public sealed class StepDeferredRetrySpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.Equal(0, job3.FailureCount);
     }
 
-    private async Task<IReadOnlyList<JobStep>> ReadStepsAsync(long jobId, CancellationToken ct)
+    private async Task<IReadOnlyList<StepEntity>> ReadStepsAsync(long jobId, CancellationToken ct)
     {
-        return await Db.From<JobStep>().Where(s => s.JobId == jobId).ToListAsync(ct);
+        return await Db.From<StepEntity>().Where(s => s.JobId == jobId).ToListAsync(ct);
     }
 
     private static Task SetJobNextRunAsync(IDbSession db, long jobId, DateTime nextRun, CancellationToken ct) =>

@@ -16,7 +16,6 @@ public sealed class TypeNamingTests
         "Data",
         "Info",
         "Model",
-        "Entity",
         "Record",
         "Item",
         "Store",
@@ -71,6 +70,12 @@ public sealed class TypeNamingTests
         if (suffix == "Row" && !projected.Contains(type))
         {
             yield return "Row without DbProjection";
+        }
+        // Entity is the table model's role: every [DbTable] class takes it, and nothing else does but IEntity.
+        var table = type.GetCustomAttributesData().Any(a => a.AttributeType.Name == "DbTableAttribute");
+        if (table != (suffix == "Entity") && name != "IEntity")
+        {
+            yield return table ? "DbTable without Entity" : "Entity outside a table model";
         }
     }
 

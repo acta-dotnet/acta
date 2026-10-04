@@ -13,9 +13,9 @@ internal static class ScheduleControl
     {
         var actor = JobControlActor.Operator(actorKey);
         cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.JobNextRunAtUtc, jobNextRunAtUtc));
-        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorCode, actor.ActorCode));
-        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorKey, actor.ActorKey));
-        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.ReasonMessage, RowReason(reasonMessage)));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorCode, actor.ActorCode));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorKey, actor.ActorKey));
+        cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.ReasonMessage, RowReason(reasonMessage)));
     }
 
     /// <summary>

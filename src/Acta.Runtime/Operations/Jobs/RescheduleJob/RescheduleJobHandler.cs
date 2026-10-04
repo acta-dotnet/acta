@@ -22,7 +22,7 @@ internal sealed class RescheduleJobHandler(
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobRuntime.NextRunAtUtc, command.NextRunAtUtc));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Runtime.NextRunAtUtc, command.NextRunAtUtc));
                 JobControl.BindActor(cmd, dialect, input);
                 JobControl.BindExpectedVersion(cmd, dialect, input);
             },

@@ -61,7 +61,9 @@ public sealed class RecurringJobPauseSpec : ActaRuntimeTestBase<ConformanceFixtu
         var ct = TestContext.Current.CancellationToken;
         Assert.Equal(ControlAction.Applied, (await Jobs.PauseAsync(Slot, ct: ct)).Action);
         var slotId = (await Jobs.GetJobIdAsync(Slot, ct))!.Value;
-        var schedule = Assert.Single(await Db.From<JobSchedule>().Where(s => s.JobId == slotId && s.Name == ScheduleName).ToListAsync(ct));
+        var schedule = Assert.Single(
+            await Db.From<ScheduleEntity>().Where(s => s.JobId == slotId && s.Name == ScheduleName).ToListAsync(ct)
+        );
         var lookup = new ScheduleLookup(Slot, ScheduleName);
 
         var edited = await Operations.Schedules.UpdateOverridesAsync(lookup, schedule.Version, "*/10 * * * *", null, ct: ct);

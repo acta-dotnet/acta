@@ -8,7 +8,7 @@ internal sealed class GetDeliverableAlertsHandler(IDbSession session, ISqlDialec
             "GetDeliverableAlerts",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.NamespaceId, query.NamespaceId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.NamespaceId, query.NamespaceId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AlertBatchSize, query.BatchSize));
             },
             DbProjectionResolver.Resolve<DeliverableAlert>(),

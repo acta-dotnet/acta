@@ -34,9 +34,9 @@ internal sealed class PauseScheduleHandler(
             new StoreCommand("PauseSchedule"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.JobId, target.JobId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.Name, target.Schedule.Name));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.PausedUntilUtc, command.UntilUtc));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.JobId, target.JobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.Name, target.Schedule.Name));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.PausedUntilUtc, command.UntilUtc));
                 ScheduleControl.BindTail(cmd, dialect, jobNextRun, command.ActorKey, command.ReasonMessage);
             },
             DbProjectionResolver.Resolve<ScheduleControlRow>(),

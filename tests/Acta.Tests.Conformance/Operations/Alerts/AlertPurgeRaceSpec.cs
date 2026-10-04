@@ -72,7 +72,7 @@ public sealed class AlertPurgeRaceSpec : ActaRuntimeTestBase<ConformanceFixture,
 
             foreach (var chunk in ids.Chunk(20).Select(c => c.Select(id => (long?)id).ToList()))
             {
-                Assert.Empty(await Db.From<JobAlert>().Where(a => chunk.Contains(a.JobId)).ToListAsync(ct));
+                Assert.Empty(await Db.From<AlertEntity>().Where(a => chunk.Contains(a.JobId)).ToListAsync(ct));
             }
         }
     }

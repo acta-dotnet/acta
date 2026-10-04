@@ -53,7 +53,7 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         var dialect = Services.GetRequiredService<ISqlDialect>();
         const int LeaseTtl = 300;
 
-        var worker = await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
+        var worker = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);
 
         // Enqueue 3 jobs; drive j3 to Failed via claim + start + complete
@@ -111,7 +111,7 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         const int LeaseTtl = 300;
 
-        var worker = await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
+        var worker = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);
 
         // One row stays Ready, one is driven to terminal Failed.

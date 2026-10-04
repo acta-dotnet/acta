@@ -95,14 +95,14 @@ public sealed class HandlerLockHeartbeatSpec : ActaRuntimeTestBase<ConformanceFi
 
     private async Task<DateTime> LeaseExpiryAsync(string lockKey, CancellationToken ct)
     {
-        var row = await Db.From<Acta.Runtime.Lock>().Where(l => l.LockKey == lockKey).SingleOrDefaultAsync(ct);
+        var row = await Db.From<Acta.Runtime.LockEntity>().Where(l => l.LockKey == lockKey).SingleOrDefaultAsync(ct);
         Assert.NotNull(row);
         return row!.ExpiresAtUtc;
     }
 
     private async Task<Guid> HoldTokenAsync(string lockKey, CancellationToken ct)
     {
-        var row = await Db.From<Acta.Runtime.Lock>().Where(l => l.LockKey == lockKey).SingleOrDefaultAsync(ct);
+        var row = await Db.From<Acta.Runtime.LockEntity>().Where(l => l.LockKey == lockKey).SingleOrDefaultAsync(ct);
         Assert.NotNull(row);
         return row!.HoldToken;
     }

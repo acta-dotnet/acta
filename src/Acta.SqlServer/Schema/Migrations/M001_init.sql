@@ -5,7 +5,7 @@
 IF SCHEMA_ID('{{schema}}') IS NULL EXEC('CREATE SCHEMA {{schema}}');
 GO
 
--- JobAlert
+-- alerts
 IF OBJECT_ID(N'{{schema}}.alerts', N'U') IS NULL
 BEGIN
 CREATE TABLE {{schema}}.alerts (
@@ -48,7 +48,7 @@ CREATE UNIQUE INDEX ux_alerts_dedupe ON {{schema}}.alerts (namespace_id, dedupe_
 END
 GO
 
--- JobDefinition
+-- definitions
 IF OBJECT_ID(N'{{schema}}.definitions', N'U') IS NULL
 BEGIN
 CREATE TABLE {{schema}}.definitions (
@@ -139,7 +139,7 @@ CREATE UNIQUE INDEX ux_definitions_namespace_name ON {{schema}}.definitions (nam
 END
 GO
 
--- JobEvent
+-- events
 IF OBJECT_ID(N'{{schema}}.events', N'U') IS NULL
 BEGIN
 CREATE TABLE {{schema}}.events (
@@ -178,7 +178,7 @@ CREATE INDEX ix_events_namespace_created ON {{schema}}.events (namespace_id, cre
 END
 GO
 
--- Job
+-- jobs
 IF OBJECT_ID(N'{{schema}}.jobs', N'U') IS NULL
 BEGIN
 CREATE TABLE {{schema}}.jobs (
@@ -208,7 +208,7 @@ CREATE UNIQUE INDEX ux_jobs_deduplication_key_child ON {{schema}}.jobs (parent_i
 END
 GO
 
--- JobLane
+-- lanes
 IF OBJECT_ID(N'{{schema}}.lanes', N'U') IS NULL
 BEGIN
 CREATE TABLE {{schema}}.lanes (
@@ -222,7 +222,7 @@ CREATE UNIQUE INDEX ux_lanes_namespace_name ON {{schema}}.lanes (namespace_id, n
 END
 GO
 
--- Lock
+-- locks
 IF OBJECT_ID(N'{{schema}}.locks', N'U') IS NULL
 BEGIN
 CREATE TABLE {{schema}}.locks (
@@ -236,7 +236,7 @@ CREATE INDEX ix_locks_reclaim_expired ON {{schema}}.locks (expires_at_utc);
 END
 GO
 
--- JobNamespace
+-- namespaces
 IF OBJECT_ID(N'{{schema}}.namespaces', N'U') IS NULL
 BEGIN
 CREATE TABLE {{schema}}.namespaces (
@@ -266,7 +266,7 @@ BEGIN
 END
 GO
 
--- JobResult
+-- results
 IF OBJECT_ID(N'{{schema}}.results', N'U') IS NULL
 BEGIN
 CREATE TABLE {{schema}}.results (
@@ -282,7 +282,7 @@ CREATE TABLE {{schema}}.results (
 END
 GO
 
--- JobRuntime
+-- runtimes
 IF OBJECT_ID(N'{{schema}}.runtimes', N'U') IS NULL
 BEGIN
 CREATE TABLE {{schema}}.runtimes (
@@ -319,7 +319,7 @@ CREATE INDEX ix_runtimes_lane_member ON {{schema}}.runtimes (lane_id) WHERE lane
 END
 GO
 
--- JobSchedule
+-- schedules
 IF OBJECT_ID(N'{{schema}}.schedules', N'U') IS NULL
 BEGIN
 CREATE TABLE {{schema}}.schedules (
@@ -361,7 +361,7 @@ CREATE UNIQUE INDEX ux_schedules_job_name ON {{schema}}.schedules (job_id, name)
 END
 GO
 
--- Setting
+-- settings
 IF OBJECT_ID(N'{{schema}}.settings', N'U') IS NULL
 BEGIN
 CREATE TABLE {{schema}}.settings (
@@ -385,7 +385,7 @@ CREATE UNIQUE INDEX ux_settings_global_name ON {{schema}}.settings (scope_code, 
 END
 GO
 
--- JobStep
+-- steps
 IF OBJECT_ID(N'{{schema}}.steps', N'U') IS NULL
 BEGIN
 CREATE TABLE {{schema}}.steps (
@@ -415,7 +415,7 @@ CREATE UNIQUE INDEX ux_steps_job_name ON {{schema}}.steps (job_id, name);
 END
 GO
 
--- Tag
+-- tags
 IF OBJECT_ID(N'{{schema}}.tags', N'U') IS NULL
 BEGIN
 CREATE TABLE {{schema}}.tags (
@@ -436,7 +436,7 @@ CREATE INDEX ix_tags_namespace_name_value_search ON {{schema}}.tags (namespace_i
 END
 GO
 
--- Tenant
+-- tenants
 IF OBJECT_ID(N'{{schema}}.tenants', N'U') IS NULL
 BEGIN
 CREATE TABLE {{schema}}.tenants (
@@ -455,7 +455,7 @@ CREATE UNIQUE INDEX ux_tenants_key ON {{schema}}.tenants (tenant_key);
 END
 GO
 
--- JobWorker
+-- workers
 IF OBJECT_ID(N'{{schema}}.workers', N'U') IS NULL
 BEGIN
 CREATE TABLE {{schema}}.workers (
@@ -485,7 +485,7 @@ CREATE UNIQUE INDEX ux_workers_ref ON {{schema}}.workers (worker_ref);
 END
 GO
 
--- JobCheckpoint
+-- checkpoints
 IF OBJECT_ID(N'{{schema}}.checkpoints', N'U') IS NULL
 BEGIN
 CREATE TABLE {{schema}}.checkpoints (
@@ -648,7 +648,7 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 0)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-ae02ee896735982dbfa017de0352f28a', '{{schema}}');
+VALUES (0, 'baseline-6ea7e22b3a4a43146a92d9363d758dc2', '{{schema}}');
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 1)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}');

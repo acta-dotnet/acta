@@ -54,18 +54,18 @@ internal sealed class SetScheduleOverridesHandler(
             new StoreCommand("SetScheduleOverrides"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.JobId, target.JobId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.Name, t.Name));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.JobId, target.JobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.Name, t.Name));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ExpectedScheduleVersion, command.ExpectedVersion));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ScheduleExpressionOverride, command.Expression));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ScheduleTimeZoneIdOverride, command.TimeZoneId));
                 cmd.Parameters.Add(
-                    dialect.CreateParameter(ActaSchema.JobSchedule.ReasonMessage, ScheduleControl.RowReason(command.ReasonMessage))
+                    dialect.CreateParameter(ActaSchema.Schedule.ReasonMessage, ScheduleControl.RowReason(command.ReasonMessage))
                 );
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.JobNextRunAtUtc, jobNextRun));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ScheduleNextRunAtUtc, scheduleNextRun));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorCode, actor.ActorCode));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorKey, actor.ActorKey));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorCode, actor.ActorCode));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorKey, actor.ActorKey));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ChangeSummary, changeSummary));
             },
             DbProjectionResolver.Resolve<ScheduleControlRow>(),

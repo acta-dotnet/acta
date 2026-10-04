@@ -114,9 +114,9 @@ internal static class AlertTestOps
         var aged = await HorizonOfThisMomentAsync(services, ct);
         await services
             .GetRequiredService<IDbSession>()
-            .From<JobEvent>()
+            .From<EventEntity>()
             .Where(e => e.NamespaceId == namespaceId && e.CreatedAtUtc > aged)
-            .UpdateOnlyAsync(() => new JobEvent { CreatedAtUtc = aged }, ct);
+            .UpdateOnlyAsync(() => new EventEntity { CreatedAtUtc = aged }, ct);
     }
 
     /// <summary>
@@ -181,7 +181,7 @@ internal static class AlertTestOps
         CancellationToken ct
     )
     {
-        var row = await services.GetRequiredService<IDbSession>().From<JobEvent>().Where(e => e.Id == cursorEventId).ToListAsync(ct);
+        var row = await services.GetRequiredService<IDbSession>().From<EventEntity>().Where(e => e.Id == cursorEventId).ToListAsync(ct);
         var ticks = row.Count == 1 ? DateTime.SpecifyKind(row[0].CreatedAtUtc, DateTimeKind.Utc).Ticks : 0L;
         await BuildAlertsContext(services, jobNamespace, namespaceId, cursorOwnerJobId)
             .SetVariableAsync(AlertsJob.CursorVariableName, new AlertsCursor(ticks, cursorEventId), ct);
@@ -256,9 +256,9 @@ internal static class AlertTestOps
         var due = DateTime.UtcNow.AddMinutes(-5);
         return services
             .GetRequiredService<IDbSession>()
-            .From<JobRuntime>()
+            .From<RuntimeEntity>()
             .Where(r => r.Id == slotId)
-            .UpdateOnlyAsync(() => new JobRuntime { NextRunAtUtc = due }, ct);
+            .UpdateOnlyAsync(() => new RuntimeEntity { NextRunAtUtc = due }, ct);
     }
 
     // A JobContext standing in for the sys.alerts slot: the projector reads ctx.NamespaceId / JobNamespace

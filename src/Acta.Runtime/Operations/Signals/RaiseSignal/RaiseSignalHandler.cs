@@ -68,11 +68,11 @@ internal sealed class RaiseSignalHandler(
             new StoreCommand("RaiseSignal"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.JobId, raise.JobId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.KindCode, raise.Kind));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.Name, raise.Name));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.ValueFormatId, raise.ValueFormatId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.Value, raise.Value));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.JobId, raise.JobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.KindCode, raise.Kind));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.Name, raise.Name));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.ValueFormatId, raise.ValueFormatId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.Value, raise.Value));
                 JobControl.BindActor(cmd, dialect, raise.Input);
             },
             DbProjectionResolver.Resolve<JobControlActionRow>(),

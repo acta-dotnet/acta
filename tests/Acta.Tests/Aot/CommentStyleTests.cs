@@ -67,10 +67,10 @@ public sealed partial class CommentStyleTests
     // contracts; each entry here is a cleared exception of that kind. Clearing a file after a
     // scrub tightens the policy; never add a file for plain narration.
     private static readonly HashSet<string> InternalRemarksAllowlist = Allow(
-        "src/Acta.Runtime/Entities/JobStep.cs",
-        "src/Acta.Runtime/Entities/Lock.cs",
-        "src/Acta.Runtime/Entities/JobResult.cs",
-        "src/Acta.Runtime/Entities/JobCheckpoint.cs",
+        "src/Acta.Runtime/Entities/StepEntity.cs",
+        "src/Acta.Runtime/Entities/LockEntity.cs",
+        "src/Acta.Runtime/Entities/ResultEntity.cs",
+        "src/Acta.Runtime/Entities/CheckpointEntity.cs",
         "src/Acta.Runtime/Engine/Execution/StepOwnershipLostException.cs",
         "src/Acta.Runtime/Engine/Execution/StepRetrySignal.cs",
         "src/Acta.Runtime/Engine/Execution/SignalSuspendSignal.cs",

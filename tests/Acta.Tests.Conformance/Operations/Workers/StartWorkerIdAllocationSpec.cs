@@ -54,7 +54,7 @@ public sealed class StartWorkerIdAllocationSpec : ActaStorageTestBase<Conformanc
         Assert.True(secondId > firstId, $"the second namespace got id {secondId}, at or below the first namespace's {firstId}");
 
         var span = secondId - firstId + 1;
-        var occupied = await Db.From<JobNamespace>().Where(n => n.Id >= firstId && n.Id <= secondId).CountAsync(ct);
+        var occupied = await Db.From<NamespaceEntity>().Where(n => n.Id >= firstId && n.Id <= secondId).CountAsync(ct);
         var holes = span - occupied;
         Assert.True(
             holes < Restarts,

@@ -1,24 +1,20 @@
 namespace Acta.Runtime;
 
 /// <summary>
-/// Substrate row carrying durable retry / result state for one step slot inside a Job.
-/// Written by the <c>start_step</c> / <c>complete_step</c> operations that back
-/// <c>ctx.RunStepAsync</c>. One row per <c>(JobId, Name)</c>; INSERT on first invocation
-/// (<c>Status = Pending</c>), UPDATE-in-place across retries, terminal transition to <c>Succeeded</c>,
-/// <c>Exhausted</c>, or <c>Interrupted</c>. A job restart deletes an <c>Exhausted</c> row, so the step
-/// starts over.
+/// The durable retry and result state of one step, one row per <c>(JobId, Name)</c>, written by <c>start_step</c>
+/// and <c>complete_step</c> behind <c>ctx.RunStepAsync</c>: inserted Pending on first run, updated across retries,
+/// and ended Succeeded, Exhausted, or Interrupted (a job restart deletes an Exhausted row). <see cref="Status"/> is
+/// the success indicator, since a void step stores no result, and the retry policy is resolved live each attempt.
 /// </summary>
-/// <remarks>
-/// The single row tracks the current retry state and the terminal result; per-attempt history is not
-/// retained here. Void steps (<c>Task</c>, not <c>Task&lt;TOut&gt;</c>) carry
-/// <c>ResultFormatId = 0</c> even on <c>Succeeded</c>, so <see cref="Status"/> is the success indicator,
-/// not a Result-NULL inference. The step's effective retry policy is resolved live each attempt from
-/// the parent <c>[Job]</c> policy plus the per-step <c>configure</c> overrides, so this row carries
-/// no policy snapshot.
-/// </remarks>
 [DbTable("steps")]
 [DbPrimaryKey(Name = "pk_steps", Columns = ["id"])]
-[DbForeignKey(Name = "fk_steps_jobs", Target = typeof(Job), TargetColumn = "id", Column = "job_id", OnDelete = DbForeignKeyAction.Cascade)]
+[DbForeignKey(
+    Name = "fk_steps_jobs",
+    Target = typeof(JobEntity),
+    TargetColumn = "id",
+    Column = "job_id",
+    OnDelete = DbForeignKeyAction.Cascade
+)]
 [DbUniqueIndex(Name = "ux_steps_job_name", Columns = ["job_id", "name"], Usage = "uniqueness")]
 [DbCheck(
     Name = "ck_steps_result_pair",
@@ -28,7 +24,7 @@ namespace Acta.Runtime;
 [DbCheck(Name = "ck_steps_terminal_no_retry", Sql = "status_code NOT IN (100, 200, 230) OR next_retry_at_utc IS NULL")]
 [DbCheck(Name = "ck_steps_result_succeeded", Sql = "result_format_id = 0 OR status_code = 100")]
 [DbCheck(Name = "ck_steps_reason_pair", Sql = "reason_message IS NULL OR reason_code IS NOT NULL")]
-internal sealed class JobStep : IEntity<long>
+internal sealed class StepEntity : IEntity<long>
 {
     /// <summary>
     /// Surrogate row identifier.

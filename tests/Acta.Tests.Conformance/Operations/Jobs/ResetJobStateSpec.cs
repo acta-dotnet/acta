@@ -49,7 +49,7 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
 
         await Services.GetRequiredService<ResetJobStateHandler>().HandleAsync(new ResetJobStateCommand(jobId), ct);
 
-        var events = await Db.From<JobEvent>().Where(e => e.JobId == jobId && e.EventCode == EventCode.JobStateReset).ToListAsync(ct);
+        var events = await Db.From<EventEntity>().Where(e => e.JobId == jobId && e.EventCode == EventCode.JobStateReset).ToListAsync(ct);
 
         var ev = Assert.Single(events);
         Assert.Equal(ActorCode.Job, ev.ActorCode);
@@ -73,7 +73,7 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
 
         await AssertSubstrateCountsAsync(Db, jobId, 0, ct);
 
-        var count = await Db.From<JobEvent>().Where(e => e.JobId == jobId && e.EventCode == EventCode.JobStateReset).CountAsync(ct);
+        var count = await Db.From<EventEntity>().Where(e => e.JobId == jobId && e.EventCode == EventCode.JobStateReset).CountAsync(ct);
         Assert.Equal(0, count);
     }
 
@@ -128,18 +128,18 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
         // One checkpoint per seeded kind (variable, timer, signal); expected scales per kind.
         Assert.Equal(
             expected,
-            await db.From<JobCheckpoint>().Where(c => c.JobId == jobId && c.Kind == JobCheckpointKindCode.Variable).CountAsync(ct)
+            await db.From<CheckpointEntity>().Where(c => c.JobId == jobId && c.Kind == JobCheckpointKindCode.Variable).CountAsync(ct)
         );
         Assert.Equal(
             expected,
-            await db.From<JobCheckpoint>().Where(c => c.JobId == jobId && c.Kind == JobCheckpointKindCode.Timer).CountAsync(ct)
+            await db.From<CheckpointEntity>().Where(c => c.JobId == jobId && c.Kind == JobCheckpointKindCode.Timer).CountAsync(ct)
         );
         Assert.Equal(
             expected,
-            await db.From<JobCheckpoint>().Where(c => c.JobId == jobId && c.Kind == JobCheckpointKindCode.Signal).CountAsync(ct)
+            await db.From<CheckpointEntity>().Where(c => c.JobId == jobId && c.Kind == JobCheckpointKindCode.Signal).CountAsync(ct)
         );
-        Assert.Equal(expected, await db.From<JobStep>().Where(a => a.JobId == jobId).CountAsync(ct));
-        Assert.Equal(expected, await db.From<JobResult>().Where(r => r.JobId == jobId).CountAsync(ct));
+        Assert.Equal(expected, await db.From<StepEntity>().Where(a => a.JobId == jobId).CountAsync(ct));
+        Assert.Equal(expected, await db.From<ResultEntity>().Where(r => r.JobId == jobId).CountAsync(ct));
     }
 
     private static Task SetAuditLevelAsync(IDbSession db, long jobId, byte auditLevel, CancellationToken ct) =>

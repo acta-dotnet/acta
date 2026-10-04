@@ -120,7 +120,7 @@ internal static class DbParams
 
 /// <summary>
 /// Binds generated column / value metadata straight to a provider parameter:
-/// <c>dialect.CreateParameter(ActaSchema.JobSchedule.Name, command.ScheduleName)</c>. Sugar over
+/// <c>dialect.CreateParameter(ActaSchema.Schedule.Name, command.ScheduleName)</c>. Sugar over
 /// <see cref="DbParams.For{T}(DbColumnSpec{T}, object?)"/> plus the provider's single normalized
 /// <see cref="ISqlDialect.CreateParameter(DbParameterSpec)"/> seam, so the ordinary binding path
 /// never names the intermediate spec. Code that needs the spec itself (building a

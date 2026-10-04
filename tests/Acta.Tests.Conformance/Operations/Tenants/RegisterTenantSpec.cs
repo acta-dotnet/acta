@@ -22,9 +22,9 @@ public sealed class RegisterTenantSpec : ActaStorageTestBase<ConformanceFixture>
 {
     private ITenants Tenants() => Services.GetRequiredService<ITenants>();
 
-    private async Task<Tenant?> ReadAsync(string key, CancellationToken ct)
+    private async Task<TenantEntity?> ReadAsync(string key, CancellationToken ct)
     {
-        return await Db.From<Tenant>().Where(t => t.TenantKey == key).SingleOrDefaultAsync(ct);
+        return await Db.From<TenantEntity>().Where(t => t.TenantKey == key).SingleOrDefaultAsync(ct);
     }
 
     [Fact(DisplayName = "A new tenant key inserts and returns a positive id with status Active")]

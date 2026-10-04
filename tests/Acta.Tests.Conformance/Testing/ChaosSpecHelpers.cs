@@ -8,32 +8,32 @@ internal static class ChaosSpecHelpers
 {
     public static async Task<int> NamespaceIdAsync(IDbSession db, string name, CancellationToken ct)
     {
-        var row = await db.From<JobNamespace>().Where(n => n.Name == name).SingleOrDefaultAsync(ct);
+        var row = await db.From<NamespaceEntity>().Where(n => n.Name == name).SingleOrDefaultAsync(ct);
         Assert.NotNull(row);
         return row!.Id;
     }
 
     public static async Task<int> WorkerIdAsync(IDbSession db, int namespaceId, CancellationToken ct)
     {
-        var rows = await db.From<JobWorker>().Where(w => w.NamespaceId == namespaceId).ToListAsync(ct);
+        var rows = await db.From<WorkerEntity>().Where(w => w.NamespaceId == namespaceId).ToListAsync(ct);
         return Assert.Single(rows).Id;
     }
 
     public static async Task ExpireLeaseAsync(IDbSession db, long jobId, CancellationToken ct)
     {
-        var affected = await db.From<JobRuntime>()
+        var affected = await db.From<RuntimeEntity>()
             .Where(r => r.Id == jobId && r.LeasedByWorkerId != null)
-            .UpdateOnlyAsync(() => new JobRuntime { LeaseExpiresAtUtc = DateTime.UtcNow.AddMinutes(-5) }, ct);
+            .UpdateOnlyAsync(() => new RuntimeEntity { LeaseExpiresAtUtc = DateTime.UtcNow.AddMinutes(-5) }, ct);
         Assert.Equal(1, affected);
     }
 
     public static async Task SetReadyAsync(IDbSession db, long jobId, CancellationToken ct)
     {
-        var affected = await db.From<JobRuntime>()
+        var affected = await db.From<RuntimeEntity>()
             .Where(r => r.Id == jobId)
             .UpdateOnlyAsync(
                 () =>
-                    new JobRuntime
+                    new RuntimeEntity
                     {
                         Status = JobStatusCode.Ready,
                         NextRunAtUtc = DateTime.UtcNow.AddMinutes(-1),

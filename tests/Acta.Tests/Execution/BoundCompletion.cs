@@ -36,8 +36,8 @@ internal sealed record BoundCompletion(
     public static BoundCompletion Read(BoundCall call) =>
         new(
             call.Get(ActaSchema.Sql.ExecutionSucceeded),
-            call.Get(ActaSchema.JobEvent.ReasonCode),
-            call.Get(ActaSchema.JobEvent.ReasonMessage),
+            call.Get(ActaSchema.Event.ReasonCode),
+            call.Get(ActaSchema.Event.ReasonMessage),
             call.Get(ActaSchema.Sql.RescheduleStatusCode),
             call.Get(ActaSchema.Sql.RescheduleDelaySeconds),
             call.Get(ActaSchema.Sql.RescheduleResumeAtUtc),

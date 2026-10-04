@@ -75,7 +75,7 @@ public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture,
         for (var attempt = 0; ; attempt++)
         {
             await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
-            if (await Db.From<Job>().Where(j => j.Id == enqueued.JobId).SingleOrDefaultAsync(ct) is null)
+            if (await Db.From<JobEntity>().Where(j => j.Id == enqueued.JobId).SingleOrDefaultAsync(ct) is null)
             {
                 break;
             }
@@ -91,7 +91,7 @@ public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal(oldInput.Data.Length, doc.RootElement.GetProperty("bytes").GetInt32());
 
         // No surviving event row or API projection carries the marker anywhere.
-        var rows = await Db.From<JobEvent>().Where(e => e.JobId == enqueued.JobId).ToListAsync(ct);
+        var rows = await Db.From<EventEntity>().Where(e => e.JobId == enqueued.JobId).ToListAsync(ct);
         Assert.NotEmpty(rows);
         foreach (var row in rows)
         {
@@ -185,9 +185,9 @@ public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal(ControlAction.NotFound, result.Action);
     }
 
-    private async Task<Job> ReadJobRowAsync(long jobId, CancellationToken ct)
+    private async Task<JobEntity> ReadJobRowAsync(long jobId, CancellationToken ct)
     {
-        var job = await Db.From<Job>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct);
+        var job = await Db.From<JobEntity>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct);
         Assert.NotNull(job);
         return job!;
     }

@@ -75,7 +75,9 @@ internal sealed record SchemaSnapshot(IReadOnlyList<EntitySnapshot> Entities, IR
         + $"|filter={i.Filter}"
         + $"|seq={i.OptimizeForSequentialKey}";
 
-    private static string ForeignKeySignature(DbForeignKeySpec f) => $"{f.Column}->{f.Target.FullName}.{f.TargetColumn}|{f.OnDelete}";
+    // Signed by the target table, as the DDL references it, so renaming a table model is not a schema change.
+    private static string ForeignKeySignature(DbForeignKeySpec f) =>
+        $"{f.Column}->{ActaSchema.For(f.Target).TableName}.{f.TargetColumn}|{f.OnDelete}";
 }
 
 /// <summary>The committed snapshot file: <c>Current</c> is the state as of the tip migration;

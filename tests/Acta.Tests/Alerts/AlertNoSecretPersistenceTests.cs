@@ -13,7 +13,7 @@ public sealed class AlertNoSecretPersistenceTests
     [Fact]
     public void Alert_channel_transport_configuration_is_not_modelled_as_sql_state()
     {
-        var entityTypes = typeof(JobAlert).Assembly.GetTypes().Select(t => t.Name).ToHashSet(StringComparer.Ordinal);
+        var entityTypes = typeof(AlertEntity).Assembly.GetTypes().Select(t => t.Name).ToHashSet(StringComparer.Ordinal);
 
         Assert.DoesNotContain("JobAlertChannel", entityTypes);
     }

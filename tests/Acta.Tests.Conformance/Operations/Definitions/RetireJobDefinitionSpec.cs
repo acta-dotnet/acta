@@ -90,7 +90,7 @@ public sealed class RetireJobDefinitionSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Equal(JobDefinitionStatusCode.Retired, after!.Status);
         Assert.True(after.Version > before!.Version);
 
-        var evt = await Db.From<JobEvent>()
+        var evt = await Db.From<EventEntity>()
             .Where(e => e.DefinitionId == before.DefinitionId && e.EventCode == EventCode.JobDefinitionRetired)
             .SingleOrDefaultAsync(ct);
         Assert.NotNull(evt);
@@ -154,7 +154,7 @@ public sealed class RetireJobDefinitionSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         Assert.Equal(JobStatusCode.Suspended, (await ReadJobAsync(parent.JobId, ct)).Status);
 
-        var child = Assert.Single(await Db.From<Job>().Where(j => j.ParentId == parent.JobId).ToListAsync(ct));
+        var child = Assert.Single(await Db.From<JobEntity>().Where(j => j.ParentId == parent.JobId).ToListAsync(ct));
 
         Assert.Equal(ControlAction.Applied, (await RetireAsync("job-child-echo", ct)).Action);
 
@@ -256,13 +256,13 @@ public sealed class RetireJobDefinitionSpec : ActaRuntimeTestBase<ConformanceFix
     }
 
     private async Task<int> CountDefinitionEventsAsync(int definitionId, CancellationToken ct) =>
-        await Db.From<JobEvent>().Where(e => e.DefinitionId == definitionId && e.JobId == null).CountAsync(ct);
+        await Db.From<EventEntity>().Where(e => e.DefinitionId == definitionId && e.JobId == null).CountAsync(ct);
 
     private async Task<(int LeaseTtl, int Ns, int WorkerId)> DepsAsync(CancellationToken ct)
     {
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
-        var worker = await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
+        var worker = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);
         return (leaseTtl, ns, worker!.Id);
     }

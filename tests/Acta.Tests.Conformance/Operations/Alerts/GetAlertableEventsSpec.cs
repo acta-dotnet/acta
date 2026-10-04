@@ -114,11 +114,11 @@ public sealed class GetAlertableEventsSpec : ActaStorageTestBase<ConformanceFixt
     public async Task Rows_carry_the_definition_policy_and_the_event_outcome()
     {
         var ct = TestContext.Current.CancellationToken;
-        await Db.From<JobDefinition>()
+        await Db.From<DefinitionEntity>()
             .Where(d => d.Id == DefId)
             .UpdateOnlyAsync(
                 () =>
-                    new JobDefinition
+                    new DefinitionEntity
                     {
                         AlertChannelName = "ops",
                         AlertChannelNameOverride = "pager",
@@ -177,9 +177,9 @@ public sealed class GetAlertableEventsSpec : ActaStorageTestBase<ConformanceFixt
         int? namespaceId = null
     )
     {
-        var id = await Db.From<JobEvent>()
+        var id = await Db.From<EventEntity>()
             .InsertAsync<long>(
-                new JobEvent
+                new EventEntity
                 {
                     EventCode = code,
                     NamespaceId = namespaceId ?? TestNamespaceId,
@@ -196,7 +196,7 @@ public sealed class GetAlertableEventsSpec : ActaStorageTestBase<ConformanceFixt
             );
         Assert.Equal(
             1,
-            await Db.From<JobEvent>().Where(e => e.Id == id).UpdateOnlyAsync(() => new JobEvent { CreatedAtUtc = stampUtc }, ct)
+            await Db.From<EventEntity>().Where(e => e.Id == id).UpdateOnlyAsync(() => new EventEntity { CreatedAtUtc = stampUtc }, ct)
         );
         return id;
     }

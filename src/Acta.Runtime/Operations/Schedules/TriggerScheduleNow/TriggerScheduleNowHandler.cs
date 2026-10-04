@@ -25,8 +25,8 @@ internal sealed class TriggerScheduleNowHandler(
             new StoreCommand("TriggerScheduleNow"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.JobId, target.JobId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobSchedule.Name, name));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.JobId, target.JobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.Name, name));
                 cmd.AddOperatorAudit(
                     dialect,
                     command.ActorKey,

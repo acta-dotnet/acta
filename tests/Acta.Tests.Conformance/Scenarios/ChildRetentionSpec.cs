@@ -80,12 +80,12 @@ public sealed class ChildRetentionSpec : ActaRuntimeTestBase<ConformanceFixture,
     }
 
     private async Task<List<long>> ChildIdsAsync(long parentId, CancellationToken ct) =>
-        (await Db.From<Job>().Where(j => j.ParentId == parentId).ToListAsync(ct)).Select(j => j.Id).ToList();
+        (await Db.From<JobEntity>().Where(j => j.ParentId == parentId).ToListAsync(ct)).Select(j => j.Id).ToList();
 
     private Task ExpireAsync(long jobId, CancellationToken ct) =>
-        Db.From<JobRuntime>()
+        Db.From<RuntimeEntity>()
             .Where(r => r.Id == jobId)
-            .UpdateOnlyAsync(() => new JobRuntime { RetentionUntilUtc = DateTime.UtcNow.AddMinutes(-1) }, ct);
+            .UpdateOnlyAsync(() => new RuntimeEntity { RetentionUntilUtc = DateTime.UtcNow.AddMinutes(-1) }, ct);
 
     private Task SweepAsync(CancellationToken ct) => RetentionTestOps.PurgeAsync(Services, NamespaceId, 365, 365, 86400, 100, 5, ct);
 }

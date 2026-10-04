@@ -133,7 +133,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
         Assert.Equal(expected, await host.Jobs.GetStatusAsync(JobLookup.ById(job.JobId), ct));
     }
 
-    private static async Task<JobCheckpoint> RunUntilWaitingAsync(
+    private static async Task<CheckpointEntity> RunUntilWaitingAsync(
         IActaTestHost host,
         JobEnqueueOutcome job,
         string signal,
@@ -154,7 +154,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
         }
     }
 
-    private static async Task<IReadOnlyList<JobCheckpoint>> CheckpointsAsync(
+    private static async Task<IReadOnlyList<CheckpointEntity>> CheckpointsAsync(
         IActaTestHost host,
         long jobId,
         JobCheckpointKindCode kind,
@@ -162,15 +162,15 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
     ) =>
         await host
             .Services.GetRequiredService<IDbSession>()
-            .From<JobCheckpoint>()
+            .From<CheckpointEntity>()
             .Where(c => c.JobId == jobId && c.Kind == kind)
             .ToListAsync(ct);
 
-    private static async Task<JobStep> StepAsync(IActaTestHost host, long jobId, string name, CancellationToken ct) =>
-        Assert.IsType<JobStep>(
+    private static async Task<StepEntity> StepAsync(IActaTestHost host, long jobId, string name, CancellationToken ct) =>
+        Assert.IsType<StepEntity>(
             await host
                 .Services.GetRequiredService<IDbSession>()
-                .From<JobStep>()
+                .From<StepEntity>()
                 .Where(s => s.JobId == jobId && s.Name == name)
                 .SingleOrDefaultAsync(ct)
         );

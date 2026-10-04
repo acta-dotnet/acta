@@ -55,16 +55,16 @@ internal sealed class ListEventsHandler(IDbSession session, ISqlDialect dialect)
             "ListEvents",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.JobId, query.JobId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.LineageRootId, query.LineageRootId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.JobId, query.JobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.LineageRootId, query.LineageRootId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceFilter, jobNamespace));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.EventCode, query.EventCode));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.DefinitionId, query.DefinitionId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.TenantId, query.TenantId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.EventCode, query.EventCode));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.DefinitionId, query.DefinitionId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.TenantId, query.TenantId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TenantKeyFilter, tenantKey));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.WorkerId, query.WorkerId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorCode, query.ActorCode));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonCode, query.ReasonCode));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.WorkerId, query.WorkerId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorCode, query.ActorCode));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ReasonCode, query.ReasonCode));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.EventCreatedFromUtc, query.CreatedFromUtc));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.EventCreatedToUtc, query.CreatedToUtc));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagFiltersJson, tags));

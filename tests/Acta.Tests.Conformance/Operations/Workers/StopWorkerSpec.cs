@@ -27,17 +27,17 @@ public sealed class StopWorkerSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
 
-        var worker = await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
+        var worker = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);
         Assert.Equal(WorkerStatusCode.Active, worker!.Status);
 
         await Services.GetRequiredService<WorkerLifecycle>().StopWorkerAsync(ns, worker.Id, ct);
 
-        var after = await Db.From<JobWorker>().Where(w => w.Id == worker.Id).SingleOrDefaultAsync(ct);
+        var after = await Db.From<WorkerEntity>().Where(w => w.Id == worker.Id).SingleOrDefaultAsync(ct);
         Assert.NotNull(after);
         Assert.Equal(WorkerStatusCode.Stopped, after!.Status);
 
-        var events = await Db.From<JobEvent>()
+        var events = await Db.From<EventEntity>()
             .Where(e => e.WorkerId == worker.Id && e.EventCode == EventCode.WorkerStopped)
             .ToListAsync(ct);
         var stoppedEvent = Assert.Single(events);
@@ -53,14 +53,14 @@ public sealed class StopWorkerSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
 
-        var worker = await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
+        var worker = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);
 
         await Services.GetRequiredService<WorkerLifecycle>().StopWorkerAsync(ns, worker!.Id, ct);
         await Services.GetRequiredService<WorkerLifecycle>().StopWorkerAsync(ns, worker.Id, ct);
 
         // The second stop is a no-op on the now-terminal worker: still exactly one worker.stopped event.
-        var events = await Db.From<JobEvent>()
+        var events = await Db.From<EventEntity>()
             .Where(e => e.WorkerId == worker.Id && e.EventCode == EventCode.WorkerStopped)
             .ToListAsync(ct);
         Assert.Single(events);

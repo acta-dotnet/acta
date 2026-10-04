@@ -245,12 +245,12 @@ public sealed class ClaimBatchSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
     /// </summary>
     private async Task<int[]> WaitingDefinitionIdsAsync(int namespaceId, CancellationToken ct)
     {
-        var runtimes = await Db.From<JobRuntime>().Where(r => r.NamespaceId == namespaceId).ToListAsync(ct);
+        var runtimes = await Db.From<RuntimeEntity>().Where(r => r.NamespaceId == namespaceId).ToListAsync(ct);
         var waiting = runtimes
             .Where(r => r.Status == JobStatusCode.Ready || (r.Status == JobStatusCode.Suspended && r.NextRunAtUtc is not null))
             .Select(r => r.Id)
             .ToHashSet();
-        var jobs = await Db.From<Job>().Where(j => j.NamespaceId == namespaceId).ToListAsync(ct);
+        var jobs = await Db.From<JobEntity>().Where(j => j.NamespaceId == namespaceId).ToListAsync(ct);
         return [.. jobs.Where(j => waiting.Contains(j.Id)).Select(j => j.DefinitionId).Distinct()];
     }
 
@@ -332,7 +332,7 @@ public sealed class ClaimBatchSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
 
     private static async Task<int> WorkerIdAsync(IDbSession session, int ns, CancellationToken ct)
     {
-        var worker = await session.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
+        var worker = await session.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);
         return worker!.Id;
     }

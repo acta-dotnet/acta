@@ -8,11 +8,11 @@ internal sealed class RecordOutboxEventHandler(IDbSession session, ISqlDialect d
             new StoreCommand("RecordOutboxEvent"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobCheckpoint.JobId, command.JobId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.EventCode, command.EventCode));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorCode, ActorCode.Operator));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ActorKey, command.ActorKey));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobEvent.ReasonMessage, command.ReasonMessage));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.JobId, command.JobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.EventCode, command.EventCode));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorCode, ActorCode.Operator));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorKey, command.ActorKey));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ReasonMessage, command.ReasonMessage));
             },
             ct
         );

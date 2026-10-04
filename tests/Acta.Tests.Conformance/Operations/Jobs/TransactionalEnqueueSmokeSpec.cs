@@ -133,8 +133,8 @@ public sealed class TransactionalEnqueueSmokeSpec : ActaRuntimeTestBase<Conforma
     /// that same id to the next writer (AUTOINCREMENT's sequence bump rolls back with the row), so a
     /// sibling spec enqueueing in that window would satisfy an id lookup with its own row.
     /// </summary>
-    private async Task<Job?> JobByKeyAsync(string deduplicationKey, CancellationToken ct) =>
-        await Db.From<Job>().Where(j => j.DeduplicationKey == deduplicationKey).SingleOrDefaultAsync(ct);
+    private async Task<JobEntity?> JobByKeyAsync(string deduplicationKey, CancellationToken ct) =>
+        await Db.From<JobEntity>().Where(j => j.DeduplicationKey == deduplicationKey).SingleOrDefaultAsync(ct);
 
     private JobEnqueueRequest Request(string jobName, object input, string deduplicationKey)
     {

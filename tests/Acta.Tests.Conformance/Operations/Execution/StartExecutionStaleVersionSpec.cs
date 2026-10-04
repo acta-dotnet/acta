@@ -105,7 +105,7 @@ public sealed class StartExecutionStaleVersionSpec : ActaRuntimeTestBase<Conform
         var snapshot = await Jobs.GetAsync(enqueued, ct);
         Assert.Equal(JobStatusCode.Dispatched, snapshot!.Status);
 
-        var startedEvents = await Db.From<JobEvent>()
+        var startedEvents = await Db.From<EventEntity>()
             .Where(e => e.JobId == claimed.JobId && e.EventCode == EventCode.JobExecutionStarted)
             .ToListAsync(ct);
         Assert.Empty(startedEvents);
@@ -113,7 +113,7 @@ public sealed class StartExecutionStaleVersionSpec : ActaRuntimeTestBase<Conform
 
     private static async Task<int> WorkerIdAsync(IDbSession session, int ns, CancellationToken ct)
     {
-        var worker = await session.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
+        var worker = await session.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);
         return worker!.Id;
     }

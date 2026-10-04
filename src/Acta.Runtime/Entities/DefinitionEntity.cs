@@ -22,7 +22,7 @@ namespace Acta.Runtime;
 [DbCheck(Name = "ck_definitions_deadline_override", Sql = "deadline_seconds_override IS NULL OR deadline_seconds_override >= 0")]
 [DbCheck(Name = "ck_definitions_retention", Sql = "retention_seconds >= 0")]
 [DbCheck(Name = "ck_definitions_retention_override", Sql = "retention_seconds_override IS NULL OR retention_seconds_override >= 0")]
-internal sealed class JobDefinition : IEntity<int>
+internal sealed class DefinitionEntity : IEntity<int>
 {
     // ---------- FRONT: identity + control (stable, read first) ----------
 

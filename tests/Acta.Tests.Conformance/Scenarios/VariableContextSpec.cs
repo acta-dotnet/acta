@@ -57,7 +57,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(string.Empty, result.EmptyText);
         Assert.Equal(0, result.EmptyBytesLength);
 
-        var rows = await Db.From<JobCheckpoint>()
+        var rows = await Db.From<CheckpointEntity>()
             .Where(v => v.JobId == enqueued.JobId && v.Kind == JobCheckpointKindCode.Variable)
             .ToListAsync(ct);
 
@@ -80,7 +80,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
 
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
-        var progress = await Db.From<JobCheckpoint>()
+        var progress = await Db.From<CheckpointEntity>()
             .Where(v => v.JobId == enqueued.JobId && v.Kind == JobCheckpointKindCode.Progress && v.Name == "sys.progress")
             .SingleOrDefaultAsync(ct);
 
@@ -173,7 +173,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.InRange(result.StoredValue, 0, 15);
         Assert.InRange(result.FactoryCalls, 1, 16);
 
-        var rowCount = await Db.From<JobCheckpoint>()
+        var rowCount = await Db.From<CheckpointEntity>()
             .Where(v => v.JobId == enqueued.JobId && v.Kind == JobCheckpointKindCode.Variable && v.Name == "race.winner")
             .CountAsync(ct);
         Assert.Equal(1, rowCount);
@@ -212,9 +212,9 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.False(result.FactoryRan);
     }
 
-    private async Task<JobCheckpoint?> ReadVariableRowAsync(long jobId, string name, CancellationToken ct)
+    private async Task<CheckpointEntity?> ReadVariableRowAsync(long jobId, string name, CancellationToken ct)
     {
-        return await Db.From<JobCheckpoint>()
+        return await Db.From<CheckpointEntity>()
             .Where(v => v.JobId == jobId && v.Kind == JobCheckpointKindCode.Variable && v.Name == name)
             .SingleOrDefaultAsync(ct);
     }

@@ -24,7 +24,7 @@ namespace Acta.Runtime;
     Name = "ck_tags_value_search",
     Sql = "(value IS NULL AND value_search IS NULL) OR (value IS NOT NULL AND value_search IS NOT NULL)"
 )]
-internal sealed class Tag : IEntity
+internal sealed class TagEntity : IEntity
 {
     /// <summary>Exact target type; independent of <c>SettingScopeCode</c>.</summary>
     [DbColumn("scope_code")]

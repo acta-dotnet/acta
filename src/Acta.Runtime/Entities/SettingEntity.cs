@@ -1,14 +1,8 @@
 namespace Acta.Runtime;
 
 /// <summary>
-/// One durable configuration value in the central <c>settings</c> table, addressed by
-/// <c>(scope_code, scope_id, name)</c>. Holds slow-changing operator/deployment configuration only,
-/// never fast-changing runtime state (that lives on substrate tables).
-/// Not read on any hot path yet; consumers resolve a setting by scope and fall back
-/// (definition, then namespace, then global) at point of use.
-/// Boundary rules: a value an operator filters by is a tag; a value the engine reads per-claim or
-/// per-execution, or that must appear on the definition views, is a policy column (settings are
-/// forbidden on the hot path); a behavior knob read cold by name at a scope is a setting.
+/// One durable configuration value addressed by <c>(scope_code, scope_id, name)</c>: slow-changing operator or
+/// deployment configuration, never read on a hot path.
 /// </summary>
 [DbTable("settings")]
 [DbPrimaryKey(Name = "pk_settings", Columns = ["id"])]
@@ -24,7 +18,7 @@ namespace Acta.Runtime;
     Name = "ck_settings_scope_pair",
     Sql = "(scope_code = 10 AND scope_id IS NULL) OR (scope_code IN (30, 40) AND scope_id IS NOT NULL)"
 )]
-internal sealed class Setting : IEntity<int>
+internal sealed class SettingEntity : IEntity<int>
 {
     /// <summary>Surrogate row identifier; DB-assigned identity.</summary>
     [DbColumn("id", DbKind.Int32)]

@@ -7,7 +7,7 @@ internal sealed class GetJobAlertHandler(IDbSession session, ISqlDialect dialect
         new(
             session.QuerySingleAsync(
                 "GetJobAlert",
-                cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.AlertRef, query.AlertRef.Value)),
+                cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.AlertRef, query.AlertRef.Value)),
                 DbProjectionResolver.Resolve<AlertDetail>(),
                 ct
             )

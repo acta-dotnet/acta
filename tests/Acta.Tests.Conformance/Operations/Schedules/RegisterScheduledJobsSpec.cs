@@ -51,13 +51,13 @@ public sealed class RegisterScheduledJobsSpec : ActaRuntimeTestBase<ConformanceF
 
         // The lease has to survive: the heartbeat treats its returned id set as authoritative and
         // cancels any running attempt missing from it, so clearing the lease here strands the body.
-        var runtime = Assert.Single(await Db.From<JobRuntime>().Where(r => r.Id == slotId).ToListAsync(ct));
+        var runtime = Assert.Single(await Db.From<RuntimeEntity>().Where(r => r.Id == slotId).ToListAsync(ct));
         Assert.NotNull(runtime.LeasedByWorkerId);
         Assert.Equal(JobStatusCode.Executing, runtime.Status);
 
         // The declaration still lands, on the row that carries it: the recurring completion reads its
         // next run back from schedules, so skipping the slot does not lose the new cadence.
-        var schedule = Assert.Single(await Db.From<JobSchedule>().Where(s => s.JobId == slotId && s.Name == "only").ToListAsync(ct));
+        var schedule = Assert.Single(await Db.From<ScheduleEntity>().Where(s => s.JobId == slotId && s.Name == "only").ToListAsync(ct));
         Assert.Equal(secondCursor, schedule.NextRunAtUtc);
     }
 
@@ -90,14 +90,14 @@ public sealed class RegisterScheduledJobsSpec : ActaRuntimeTestBase<ConformanceF
         var defId = await CreateDefinitionAsync(jobName, ct);
         await RegisterAsync(defId, jobName, cursor, [Slot("only", cursor)], JobStatusCode.Ready, ct);
         var slotId = await SlotIdAsync(jobName, ct);
-        var slotBefore = Assert.Single(await Db.From<JobRuntime>().Where(r => r.Id == slotId).ToListAsync(ct));
-        var scheduleBefore = Assert.Single(await Db.From<JobSchedule>().Where(s => s.JobId == slotId).ToListAsync(ct));
+        var slotBefore = Assert.Single(await Db.From<RuntimeEntity>().Where(r => r.Id == slotId).ToListAsync(ct));
+        var scheduleBefore = Assert.Single(await Db.From<ScheduleEntity>().Where(s => s.JobId == slotId).ToListAsync(ct));
 
         // The restart of an unchanged build: same expression, same cursor, same status.
         await RegisterAsync(defId, jobName, cursor, [Slot("only", cursor)], JobStatusCode.Ready, ct);
 
-        var slotAfter = Assert.Single(await Db.From<JobRuntime>().Where(r => r.Id == slotId).ToListAsync(ct));
-        var scheduleAfter = Assert.Single(await Db.From<JobSchedule>().Where(s => s.JobId == slotId).ToListAsync(ct));
+        var slotAfter = Assert.Single(await Db.From<RuntimeEntity>().Where(r => r.Id == slotId).ToListAsync(ct));
+        var scheduleAfter = Assert.Single(await Db.From<ScheduleEntity>().Where(s => s.JobId == slotId).ToListAsync(ct));
         Assert.Equal(slotBefore.Version, slotAfter.Version);
         Assert.Equal(slotBefore.ModifiedAtUtc, slotAfter.ModifiedAtUtc);
         Assert.Equal(scheduleBefore.Version, scheduleAfter.Version);
@@ -153,7 +153,7 @@ public sealed class RegisterScheduledJobsSpec : ActaRuntimeTestBase<ConformanceF
         Assert.Equal(before.Status, after.Status);
         Assert.Equal(before.NextRunAtUtc, after.NextRunAtUtc);
         Assert.Equal(before.Runtime.Version, after.Runtime.Version);
-        Assert.Empty(await Db.From<JobSchedule>().Where(s => s.JobId == ordinary.JobId).ToListAsync(ct));
+        Assert.Empty(await Db.From<ScheduleEntity>().Where(s => s.JobId == ordinary.JobId).ToListAsync(ct));
     }
 
     [Fact(
@@ -189,7 +189,7 @@ public sealed class RegisterScheduledJobsSpec : ActaRuntimeTestBase<ConformanceF
             var slot = await ReadJobAsync(slotId, ct);
             Assert.Equal(suspended ? JobStatusCode.Suspended : JobStatusCode.Ready, slot.Status);
             Assert.Equal(suspended ? null : wake, slot.NextRunAtUtc);
-            var schedule = Assert.Single(await Db.From<JobSchedule>().Where(s => s.JobId == slotId).ToListAsync(ct));
+            var schedule = Assert.Single(await Db.From<ScheduleEntity>().Where(s => s.JobId == slotId).ToListAsync(ct));
             Assert.Equal(due, schedule.NextRunAtUtc);
         }
     }
@@ -208,7 +208,7 @@ public sealed class RegisterScheduledJobsSpec : ActaRuntimeTestBase<ConformanceF
 
         await ReconcileAndRegisterAsync(defId, jobName, MisfireStrategyCode.Skip, description: null, now, ct);
 
-        var schedule = Assert.Single(await Db.From<JobSchedule>().Where(s => s.JobId == slotId).ToListAsync(ct));
+        var schedule = Assert.Single(await Db.From<ScheduleEntity>().Where(s => s.JobId == slotId).ToListAsync(ct));
         Assert.Equal(due, schedule.NextRunAtUtc);
     }
 
@@ -251,7 +251,7 @@ public sealed class RegisterScheduledJobsSpec : ActaRuntimeTestBase<ConformanceF
         // slot re-arms from this cursor: left at the running occurrence, that occurrence would run again.
         await ReconcileAndRegisterAsync(defId, jobName, MisfireStrategyCode.CatchUpOnce, description: "edited", now, ct);
 
-        var schedule = Assert.Single(await Db.From<JobSchedule>().Where(s => s.JobId == slotId).ToListAsync(ct));
+        var schedule = Assert.Single(await Db.From<ScheduleEntity>().Where(s => s.JobId == slotId).ToListAsync(ct));
         Assert.True(schedule.NextRunAtUtc > now, $"cursor {schedule.NextRunAtUtc:O} must move past the running occurrence");
         Assert.Equal("edited", schedule.Description);
     }

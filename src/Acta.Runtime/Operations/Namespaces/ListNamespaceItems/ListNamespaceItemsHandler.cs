@@ -24,7 +24,7 @@ internal sealed class ListNamespaceItemsHandler(IDbSession session, ISqlDialect 
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NameSearchFilter, pattern));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobNamespace.StatusCode, query.Status));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Namespace.StatusCode, query.Status));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagFiltersJson, tags));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorNamespaceName, (string?)paging.After?[0]));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, paging.Fetch));

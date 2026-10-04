@@ -41,14 +41,14 @@ public sealed class AcknowledgeJobAlertSpec : ActaRuntimeTestBase<ConformanceFix
             ct
         );
 
-        var alert = await Db.From<JobAlert>().Where(a => a.JobId == enqueued.JobId).SingleOrDefaultAsync(ct);
+        var alert = await Db.From<AlertEntity>().Where(a => a.JobId == enqueued.JobId).SingleOrDefaultAsync(ct);
         Assert.NotNull(alert);
         return (new AlertRef(alert!.AlertRef), enqueued.JobId);
     }
 
-    private async Task<JobAlert> AlertRowAsync(long jobId, CancellationToken ct)
+    private async Task<AlertEntity> AlertRowAsync(long jobId, CancellationToken ct)
     {
-        var alert = await Db.From<JobAlert>().Where(a => a.JobId == jobId).SingleOrDefaultAsync(ct);
+        var alert = await Db.From<AlertEntity>().Where(a => a.JobId == jobId).SingleOrDefaultAsync(ct);
         Assert.NotNull(alert);
         return alert!;
     }
@@ -65,7 +65,7 @@ public sealed class AcknowledgeJobAlertSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.NotNull(result.AcknowledgedAtUtc);
         Assert.Null(result.ResolvedAtUtc);
 
-        var evt = await Db.From<JobEvent>()
+        var evt = await Db.From<EventEntity>()
             .Where(e => e.JobId == jobId && e.EventCode == EventCode.AlertAcknowledged)
             .SingleOrDefaultAsync(ct);
         Assert.NotNull(evt);
@@ -99,7 +99,7 @@ public sealed class AcknowledgeJobAlertSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Equal(ControlAction.Applied, second.Action);
         Assert.Equal(first.AcknowledgedAtUtc, second.AcknowledgedAtUtc);
 
-        var eventCount = await Db.From<JobEvent>()
+        var eventCount = await Db.From<EventEntity>()
             .Where(e => e.JobId == jobId && e.EventCode == EventCode.AlertAcknowledged)
             .CountAsync(ct);
         Assert.Equal(1, eventCount);

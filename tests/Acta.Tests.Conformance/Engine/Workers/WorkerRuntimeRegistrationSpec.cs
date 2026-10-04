@@ -29,7 +29,7 @@ public sealed class WorkerRuntimeRegistrationSpec : ActaRuntimeTestBase<Conforma
         var assignedId = Runtime.RegisteredNamespaceIds[TestNamespace];
         Assert.True(assignedId > 0, "DB-assigned namespace id must be positive.");
 
-        var row = await Db.From<JobNamespace>().Where(n => n.Id == assignedId).SingleOrDefaultAsync(ct);
+        var row = await Db.From<NamespaceEntity>().Where(n => n.Id == assignedId).SingleOrDefaultAsync(ct);
 
         Assert.NotNull(row);
         Assert.Equal(TestNamespace, row!.Name);
@@ -45,7 +45,7 @@ public sealed class WorkerRuntimeRegistrationSpec : ActaRuntimeTestBase<Conforma
         // freshly-allocated per-test namespace, exactly one row should exist.
         var assignedId = Runtime.RegisteredNamespaceIds[TestNamespace];
 
-        var count = await Db.From<JobWorker>().Where(w => w.NamespaceId == assignedId).CountAsync(ct);
+        var count = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == assignedId).CountAsync(ct);
         Assert.Equal(1, count);
     }
 
@@ -55,10 +55,10 @@ public sealed class WorkerRuntimeRegistrationSpec : ActaRuntimeTestBase<Conforma
         var ct = TestContext.Current.CancellationToken;
         var assignedId = Runtime.RegisteredNamespaceIds[TestNamespace];
 
-        var worker = await Db.From<JobWorker>().Where(w => w.NamespaceId == assignedId).SingleOrDefaultAsync(ct);
+        var worker = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == assignedId).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);
 
-        var events = await Db.From<JobEvent>()
+        var events = await Db.From<EventEntity>()
             .Where(e => e.WorkerId == worker!.Id && e.EventCode == EventCode.WorkerStarted)
             .ToListAsync(ct);
         var startedEvent = Assert.Single(events);
@@ -74,7 +74,7 @@ public sealed class WorkerRuntimeRegistrationSpec : ActaRuntimeTestBase<Conforma
         var ct = TestContext.Current.CancellationToken;
         var assignedId = Runtime.RegisteredNamespaceIds[TestNamespace];
 
-        var def = await Db.From<JobDefinition>()
+        var def = await Db.From<DefinitionEntity>()
             .Where(d => d.NamespaceId == assignedId && d.Name == "policy-probe")
             .SingleOrDefaultAsync(ct);
 
@@ -100,7 +100,7 @@ public sealed class WorkerRuntimeRegistrationSpec : ActaRuntimeTestBase<Conforma
 
         // `echo` declares only its name - every policy column falls back to the framework default,
         // and the nullable operator columns stay null.
-        var def = await Db.From<JobDefinition>().Where(d => d.NamespaceId == assignedId && d.Name == "echo").SingleOrDefaultAsync(ct);
+        var def = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == assignedId && d.Name == "echo").SingleOrDefaultAsync(ct);
 
         Assert.NotNull(def);
         Assert.Equal("1m..1d x2 ~10%", def!.Backoff);
@@ -127,12 +127,12 @@ public sealed class WorkerRuntimeRegistrationSpec : ActaRuntimeTestBase<Conforma
         var assignedId = Runtime.RegisteredNamespaceIds[TestNamespace];
 
         // namespace: still exactly one row (upsert-by-name)
-        var namespaceCount = await Db.From<JobNamespace>().Where(n => n.Id == assignedId).CountAsync(ct);
+        var namespaceCount = await Db.From<NamespaceEntity>().Where(n => n.Id == assignedId).CountAsync(ct);
         Assert.Equal(1, namespaceCount);
 
         // worker: in-process retry guard means second call SKIPS the worker insert (since the
         // first call already added it this lifetime). So still 1 row.
-        var workerCount = await Db.From<JobWorker>().Where(w => w.NamespaceId == assignedId).CountAsync(ct);
+        var workerCount = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == assignedId).CountAsync(ct);
         Assert.Equal(1, workerCount);
     }
 }

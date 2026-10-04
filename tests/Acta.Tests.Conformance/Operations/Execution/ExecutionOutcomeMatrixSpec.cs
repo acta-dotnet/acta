@@ -219,7 +219,7 @@ public sealed class ExecutionOutcomeMatrixSpec : ActaRuntimeTestBase<Conformance
     {
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var dialect = Services.GetRequiredService<ISqlDialect>();
-        var worker = await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
+        var worker = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);
         return (Db, dialect, ns, worker!.Id);
     }

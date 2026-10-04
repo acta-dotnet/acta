@@ -32,13 +32,13 @@ public sealed class RecoveryDuplicationChaosSpec : ActaRuntimeTestBase<Conforman
 
         // --- 2. Registration is idempotent: one definition, one slot job, one schedule.
         var maintenanceDefinition = Assert.Single(
-            await Db.From<JobDefinition>().Where(d => d.NamespaceId == ns && d.Name == "sys.recovery").ToListAsync(ct)
+            await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == ns && d.Name == "sys.recovery").ToListAsync(ct)
         );
         var maintenanceJob = Assert.Single(
-            await Db.From<Job>().Where(j => j.NamespaceId == ns && j.DefinitionId == maintenanceDefinition.Id).ToListAsync(ct)
+            await Db.From<JobEntity>().Where(j => j.NamespaceId == ns && j.DefinitionId == maintenanceDefinition.Id).ToListAsync(ct)
         );
         var schedule = Assert.Single(
-            await Db.From<JobSchedule>()
+            await Db.From<ScheduleEntity>()
                 .Where(s => s.NamespaceId == ns && s.JobId == maintenanceJob.Id && s.Name == "default")
                 .ToListAsync(ct)
         );
@@ -46,7 +46,7 @@ public sealed class RecoveryDuplicationChaosSpec : ActaRuntimeTestBase<Conforman
 
         // --- 3. Two workers race to claim the one due slot; exactly one wins.
         await ChaosSpecHelpers.SetReadyAsync(Db, maintenanceJob.Id, ct);
-        var workers = await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).ToListAsync(ct);
+        var workers = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).ToListAsync(ct);
         Assert.Equal(2, workers.Count);
 
         var dialect = Services.GetRequiredService<ISqlDialect>();

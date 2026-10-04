@@ -31,9 +31,9 @@ public sealed class CompleteStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
         var first = await Execution.StartStepAsync(job, StepName, atMostOnce: false, ct);
         Assert.Equal(CompleteStepOutcomeCode.RetryScheduled, (await FailAsync(job, first.Version, maxAttempts: 3, null, ct)).Outcome);
         var due = DateTime.UtcNow.AddMinutes(-1);
-        await Db.From<JobStep>()
+        await Db.From<StepEntity>()
             .Where(s => s.JobId == job && s.Name == StepName)
-            .UpdateOnlyAsync(() => new JobStep { NextRetryAtUtc = due }, ct);
+            .UpdateOnlyAsync(() => new StepEntity { NextRetryAtUtc = due }, ct);
         var second = await Execution.StartStepAsync(job, StepName, atMostOnce: false, ct);
         Assert.Equal(2, second.AttemptNumber);
 
@@ -158,6 +158,6 @@ public sealed class CompleteStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
             ct
         );
 
-    private async Task<JobStep> ReadStepAsync(long jobId, CancellationToken ct) =>
-        Assert.Single(await Db.From<JobStep>().Where(s => s.JobId == jobId && s.Name == StepName).ToListAsync(ct));
+    private async Task<StepEntity> ReadStepAsync(long jobId, CancellationToken ct) =>
+        Assert.Single(await Db.From<StepEntity>().Where(s => s.JobId == jobId && s.Name == StepName).ToListAsync(ct));
 }

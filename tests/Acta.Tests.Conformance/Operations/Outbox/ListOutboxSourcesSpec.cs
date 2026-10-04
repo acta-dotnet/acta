@@ -26,9 +26,9 @@ public sealed class ListOutboxSourcesSpec : OutboxRelayIntegrationBase
         var seeder = new ActaTestSeeder(Db);
         var definitionId = await seeder.SeedJobDefinitionAsync(NamespaceId, name: jobName, ct: ct);
         var jobRef = Guid.NewGuid();
-        var jobId = await Db.From<Job>()
+        var jobId = await Db.From<JobEntity>()
             .InsertAsync<long>(
-                new Job
+                new JobEntity
                 {
                     JobRef = jobRef,
                     NamespaceId = NamespaceId,
@@ -41,9 +41,9 @@ public sealed class ListOutboxSourcesSpec : OutboxRelayIntegrationBase
                 },
                 ct
             );
-        await Db.From<JobRuntime>()
+        await Db.From<RuntimeEntity>()
             .InsertAsync<long>(
-                new JobRuntime
+                new RuntimeEntity
                 {
                     Id = jobId,
                     NamespaceId = NamespaceId,

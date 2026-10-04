@@ -242,7 +242,9 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         var workerId = await WorkerIdAsync(ns, ct);
         int maxAttempts;
         {
-            var def = await Db.From<JobDefinition>().Where(d => d.NamespaceId == ns && d.Name == "job-child-echo").SingleOrDefaultAsync(ct);
+            var def = await Db.From<DefinitionEntity>()
+                .Where(d => d.NamespaceId == ns && d.Name == "job-child-echo")
+                .SingleOrDefaultAsync(ct);
             maxAttempts = def!.MaxAttempts;
         }
 
@@ -342,7 +344,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
 
     private async Task<IReadOnlyList<TestJobRow>> ReadChildrenAsync(long parentId, CancellationToken ct)
     {
-        var children = await Db.From<Job>().Where(j => j.ParentId == parentId).ToListAsync(ct);
+        var children = await Db.From<JobEntity>().Where(j => j.ParentId == parentId).ToListAsync(ct);
         var rows = new List<TestJobRow>(children.Count);
         foreach (var child in children)
         {
@@ -354,7 +356,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
 
     private async Task<int> WorkerIdAsync(int ns, CancellationToken ct)
     {
-        var worker = await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
+        var worker = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);
         return worker!.Id;
     }

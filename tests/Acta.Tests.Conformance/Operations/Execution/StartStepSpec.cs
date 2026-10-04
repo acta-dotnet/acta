@@ -93,9 +93,9 @@ public sealed class StartStepSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         var due = DateTime.UtcNow.AddMinutes(-1);
         Assert.Equal(
             1,
-            await Db.From<JobStep>()
+            await Db.From<StepEntity>()
                 .Where(s => s.JobId == job && s.Name == StepName)
-                .UpdateOnlyAsync(() => new JobStep { NextRetryAtUtc = due }, ct)
+                .UpdateOnlyAsync(() => new StepEntity { NextRetryAtUtc = due }, ct)
         );
 
         var retried = await Execution.StartStepAsync(job, StepName, atMostOnce: false, ct);
@@ -183,6 +183,6 @@ public sealed class StartStepSpec : ActaRuntimeTestBase<ConformanceFixture, Test
             ct
         );
 
-    private async Task<JobStep> ReadStepAsync(long jobId, CancellationToken ct) =>
-        Assert.Single(await Db.From<JobStep>().Where(s => s.JobId == jobId && s.Name == StepName).ToListAsync(ct));
+    private async Task<StepEntity> ReadStepAsync(long jobId, CancellationToken ct) =>
+        Assert.Single(await Db.From<StepEntity>().Where(s => s.JobId == jobId && s.Name == StepName).ToListAsync(ct));
 }

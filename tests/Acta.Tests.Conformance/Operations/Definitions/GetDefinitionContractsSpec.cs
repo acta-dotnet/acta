@@ -24,7 +24,7 @@ public sealed class GetDefinitionContractsSpec : ActaStorageTestBase<Conformance
         (await DefinitionTestOps.RegisterAsync(Services, namespaceId, Generation, [Def(name, maxAttempts)], ct))[name];
 
     private async Task<int> VersionAsync(int definitionId, CancellationToken ct) =>
-        (await Db.From<JobDefinition>().Where(d => d.Id == definitionId).SingleOrDefaultAsync(ct))!.Version;
+        (await Db.From<DefinitionEntity>().Where(d => d.Id == definitionId).SingleOrDefaultAsync(ct))!.Version;
 
     [Fact(DisplayName = "A namespace without definitions reads an empty catalog")]
     public async Task Empty_namespace_reads_empty()

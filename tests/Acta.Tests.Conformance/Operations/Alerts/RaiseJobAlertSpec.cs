@@ -131,9 +131,9 @@ public sealed class RaiseJobAlertSpec : ActaStorageTestBase<ConformanceFixture>
         // own.
         Assert.Equal(
             1,
-            await Db.From<JobAlert>()
+            await Db.From<AlertEntity>()
                 .Where(a => a.Id == opened.Id)
-                .UpdateOnlyAsync(() => new JobAlert { ResolvedAtUtc = DateTime.UtcNow }, ct)
+                .UpdateOnlyAsync(() => new AlertEntity { ResolvedAtUtc = DateTime.UtcNow }, ct)
         );
 
         await RunAsync(Db, deduplicationKey: "incident-key", title: "second", ct);
@@ -176,8 +176,8 @@ public sealed class RaiseJobAlertSpec : ActaStorageTestBase<ConformanceFixture>
         );
 
         var row = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
-        Assert.Equal(ActaSchema.JobAlert.Title.Size, row.Title.Length);
-        Assert.Equal(ActaSchema.JobAlert.Message.Size, row.Message.Length);
+        Assert.Equal(ActaSchema.Alert.Title.Size, row.Title.Length);
+        Assert.Equal(ActaSchema.Alert.Message.Size, row.Message.Length);
     }
 
     [Fact(DisplayName = "AlertAsync stamps the Manual origin and carries the caller's deduplication key")]

@@ -143,9 +143,9 @@ public sealed class SchedulePauseFiringSpec : ActaRuntimeTestBase<ConformanceFix
         return slot.NextRunAtUtc!.Value;
     }
 
-    private static async Task<JobSchedule> ScheduleAsync(IDbSession session, long slotId, CancellationToken ct)
+    private static async Task<ScheduleEntity> ScheduleAsync(IDbSession session, long slotId, CancellationToken ct)
     {
-        var rows = await session.From<JobSchedule>().Where(s => s.JobId == slotId).ToListAsync(ct);
+        var rows = await session.From<ScheduleEntity>().Where(s => s.JobId == slotId).ToListAsync(ct);
         return Assert.Single(rows);
     }
 }

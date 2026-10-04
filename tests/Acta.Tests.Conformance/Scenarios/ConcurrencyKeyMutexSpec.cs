@@ -195,18 +195,18 @@ public sealed class ConcurrencyKeyMutexSpec : ActaRuntimeTestBase<ConformanceFix
 
     private async Task<int> TotalCountAsync(string key, CancellationToken ct)
     {
-        return await Db.From<Job>().Where(j => j.ConcurrencyKey == key).CountAsync(ct);
+        return await Db.From<JobEntity>().Where(j => j.ConcurrencyKey == key).CountAsync(ct);
     }
 
     // Status lives on the runtimes row since the jobs/runtimes split; the fluent reader has no
     // joins, so resolve the key's job ids first and read each 1:1 runtime row (tiny per-test sets).
     private async Task<int> CountByStatusAsync(string key, Func<JobStatusCode, bool> match, CancellationToken ct)
     {
-        var jobs = await Db.From<Job>().Where(j => j.ConcurrencyKey == key).ToListAsync(ct);
+        var jobs = await Db.From<JobEntity>().Where(j => j.ConcurrencyKey == key).ToListAsync(ct);
         var count = 0;
         foreach (var job in jobs)
         {
-            var runtime = await Db.From<JobRuntime>().Where(r => r.Id == job.Id).SingleOrDefaultAsync(ct);
+            var runtime = await Db.From<RuntimeEntity>().Where(r => r.Id == job.Id).SingleOrDefaultAsync(ct);
             if (runtime is not null && match(runtime.Status))
             {
                 count++;
@@ -220,7 +220,7 @@ public sealed class ConcurrencyKeyMutexSpec : ActaRuntimeTestBase<ConformanceFix
     {
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
-        var worker = await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
+        var worker = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
         Assert.NotNull(worker);
         return (Db, leaseTtl, ns, worker!.Id);
     }

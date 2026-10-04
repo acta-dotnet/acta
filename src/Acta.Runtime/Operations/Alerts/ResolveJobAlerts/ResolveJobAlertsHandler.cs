@@ -12,8 +12,8 @@ internal sealed class ResolveJobAlertsHandler(IDbSession session, ISqlDialect di
                 new StoreCommand("ResolveJobAlerts"),
                 cmd =>
                 {
-                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.NamespaceId, command.NamespaceId));
-                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobAlert.JobId, command.JobId));
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.NamespaceId, command.NamespaceId));
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.JobId, command.JobId));
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.SourceEventId, command.SourceEventId));
                 },
                 static reader => reader.GetInt32(0),

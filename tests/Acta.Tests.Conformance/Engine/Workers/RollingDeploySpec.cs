@@ -239,10 +239,10 @@ public sealed class RollingDeploySpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Fail($"job {jobId} never reached Succeeded: it is {(await ReadJobAsync(jobId, ct)).Status}.");
     }
 
-    private async Task<JobDefinition> ReadDefinitionAsync(string jobName, CancellationToken ct)
+    private async Task<DefinitionEntity> ReadDefinitionAsync(string jobName, CancellationToken ct)
     {
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var definition = await Db.From<JobDefinition>().Where(d => d.NamespaceId == ns && d.Name == jobName).SingleOrDefaultAsync(ct);
+        var definition = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == ns && d.Name == jobName).SingleOrDefaultAsync(ct);
         Assert.NotNull(definition);
         return definition!;
     }
