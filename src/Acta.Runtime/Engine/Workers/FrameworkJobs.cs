@@ -1,27 +1,33 @@
 namespace Acta.Runtime;
 
 /// <summary>
-/// Partitions the generated <c>RuntimeJobs</c> framework manifest into the automatic maintenance set and
-/// the relay set. <c>sys.outbox</c> is opt-in: it registers only when a worker calls
-/// <c>AddOutboxRelay</c>, never through <see cref="JobsOptions.RegisterSystemJobs"/>. Registering a
-/// relay pulls in <c>sys.outbox</c> plus its <c>sys.recovery</c> and <c>sys.alerts</c> dependencies
-/// even when automatic registration is off, and never forces the unrelated <c>sys.retention</c> job.
+/// Which jobs of the generated <c>RuntimeJobs</c> framework manifest a worker namespace registers.
+/// <see cref="JobsOptions.RegisterSystemJobs"/> brings the maintenance set; an outbox relay brings <c>sys.outbox</c>,
+/// which is opt-in and registers only through <c>AddOutboxRelay</c>. Either one needs <c>sys.recovery</c> and
+/// <c>sys.alerts</c>, so a relay registers them even when automatic registration is off, and never forces the
+/// unrelated <c>sys.retention</c>.
 /// </summary>
 internal static class FrameworkJobs
 {
-    /// <summary>Auto-registered per namespace when <see cref="JobsOptions.RegisterSystemJobs"/> is on.</summary>
-    public static readonly IReadOnlySet<string> AutomaticNames = new HashSet<string>(StringComparer.Ordinal)
+    public static IReadOnlySet<string> For(bool registerSystemJobs, bool hasRelay)
     {
-        "sys.alerts",
-        "sys.recovery",
-        "sys.retention",
-    };
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        if (registerSystemJobs || hasRelay)
+        {
+            names.Add("sys.recovery");
+            names.Add("sys.alerts");
+        }
 
-    /// <summary>Added when a relay source is registered on the worker.</summary>
-    public static readonly IReadOnlySet<string> RelayNames = new HashSet<string>(StringComparer.Ordinal)
-    {
-        "sys.outbox",
-        "sys.recovery",
-        "sys.alerts",
-    };
+        if (registerSystemJobs)
+        {
+            names.Add("sys.retention");
+        }
+
+        if (hasRelay)
+        {
+            names.Add("sys.outbox");
+        }
+
+        return names;
+    }
 }

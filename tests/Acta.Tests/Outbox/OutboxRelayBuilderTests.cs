@@ -147,10 +147,14 @@ public sealed class OutboxRelayBuilderTests
     [Fact]
     public void The_relay_framework_set_adds_sys_outbox_and_its_dependencies_without_forcing_retention()
     {
-        Assert.Contains("sys.outbox", Acta.Runtime.FrameworkJobs.RelayNames);
-        Assert.Contains("sys.recovery", Acta.Runtime.FrameworkJobs.RelayNames);
-        Assert.Contains("sys.alerts", Acta.Runtime.FrameworkJobs.RelayNames);
-        Assert.DoesNotContain("sys.retention", Acta.Runtime.FrameworkJobs.RelayNames);
-        Assert.DoesNotContain("sys.outbox", Acta.Runtime.FrameworkJobs.AutomaticNames);
+        Assert.Equal(
+            ["sys.alerts", "sys.outbox", "sys.recovery"],
+            Acta.Runtime.FrameworkJobs.For(registerSystemJobs: false, hasRelay: true).Order(StringComparer.Ordinal)
+        );
+        Assert.Equal(
+            ["sys.alerts", "sys.recovery", "sys.retention"],
+            Acta.Runtime.FrameworkJobs.For(registerSystemJobs: true, hasRelay: false).Order(StringComparer.Ordinal)
+        );
+        Assert.Empty(Acta.Runtime.FrameworkJobs.For(registerSystemJobs: false, hasRelay: false));
     }
 }

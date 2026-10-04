@@ -98,18 +98,7 @@ internal sealed class WorkerRuntimeInitializer(
         // descriptors land under this one worker's namespace.
         var manifests = new List<JobDescriptorManifest>();
 
-        // The automatic framework set registers when RegisterSystemJobs is on; an explicit relay adds
-        // its sys.outbox/sys.recovery/sys.alerts subset even when that flag is off, without forcing
-        // sys.retention. Both are subsets of the one generated RuntimeJobs manifest, filtered by name.
-        var frameworkNames = new HashSet<string>(StringComparer.Ordinal);
-        if (_options.Value.RegisterSystemJobs)
-        {
-            frameworkNames.UnionWith(FrameworkJobs.AutomaticNames);
-        }
-        if (_workerRegistration.Relay is not null)
-        {
-            frameworkNames.UnionWith(FrameworkJobs.RelayNames);
-        }
+        var frameworkNames = FrameworkJobs.For(_options.Value.RegisterSystemJobs, _workerRegistration.Relay is not null);
         // sys.recovery is the only thing that marks dead workers and reclaims their in-flight jobs.
         // Without it a worker that dies takes its jobs with it - they stay Executing behind a lapsed
         // lease and are never re-run - and nothing surfaces that until a worker actually dies. Say it
