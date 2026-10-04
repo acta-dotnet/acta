@@ -1,4 +1,5 @@
 using Acta.Runtime;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Xunit;
@@ -24,7 +25,7 @@ public sealed class WorkerHeartbeatDisplacedExecutionTests
         context.RunningAttempts[7] = stale;
         var handed = new TaskCompletionSource<IReadOnlyList<long>>(TaskCreationOptions.RunContinuationsAsynchronously);
         var heartbeat = new WorkerHeartbeat(
-            new RenewingWorkerStore(new LeaseRenewalRow(7, ExecutionNumber: 2, Renewed: true)),
+            RenewingWorkerStore(new LeaseRenewalRow(7, ExecutionNumber: 2, Renewed: true)),
             Options.Create(new JobsOptions()),
             new WorkerRegistration("orders", null, null, [], []),
             context,
@@ -48,19 +49,7 @@ public sealed class WorkerHeartbeatDisplacedExecutionTests
         Assert.Equal([7L], await handed.Task.WaitAsync(TimeSpan.FromSeconds(30), ct));
     }
 
-    private sealed class RenewingWorkerStore(LeaseRenewalRow row) : IWorkerLifecycle
-    {
-        public Task<IReadOnlyList<LeaseRenewalRow>> ExtendWorkerLeasesAsync(
-            int workerId,
-            int leaseTtlSeconds,
-            bool draining,
-            CancellationToken ct
-        ) => Task.FromResult<IReadOnlyList<LeaseRenewalRow>>([row]);
-
-        public Task<StartWorkerRow> StartWorkerAsync(StartWorkerCommand command, CancellationToken ct) => throw new NotSupportedException();
-
-        public Task StopWorkerAsync(int namespaceId, int workerId, CancellationToken ct) => throw new NotSupportedException();
-
-        public Task<int> MarkDeadWorkersAsync(int deadAfterSeconds, CancellationToken ct) => throw new NotSupportedException();
-    }
+    // Every lease extend renews the one row.
+    private static WorkerLifecycle RenewingWorkerStore(LeaseRenewalRow row) =>
+        new ScriptedSession(_ => row).Services().GetRequiredService<WorkerLifecycle>();
 }

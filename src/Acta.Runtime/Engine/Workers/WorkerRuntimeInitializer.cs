@@ -25,7 +25,7 @@ internal sealed class WorkerRuntimeInitializer(
     GetDefinitionContractsHandler getDefinitionContracts,
     GetScheduleStateHandler getScheduleState,
     RegisterScheduledJobsHandler registerScheduledJobs,
-    IWorkerLifecycle workers,
+    WorkerLifecycle workers,
     IExecution execution,
     IActaClock clock,
     IServerClock serverClock,
@@ -37,7 +37,7 @@ internal sealed class WorkerRuntimeInitializer(
     ILogger? log = null
 )
 {
-    private readonly IWorkerLifecycle _workers = workers;
+    private readonly WorkerLifecycle _workers = workers;
     private readonly IExecution _execution = execution;
     private readonly IActaClock _clock = clock;
     private readonly IServerClock _serverClock = serverClock;

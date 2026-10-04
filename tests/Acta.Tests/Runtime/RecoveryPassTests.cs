@@ -15,20 +15,20 @@ public sealed class RecoveryPassTests
     [Fact]
     public async Task A_fractional_dead_after_window_is_handed_to_the_store_rounded_up()
     {
-        var workers = new FakeWorkerStore();
+        var workers = WorkerSweep();
         // 45.1s of heartbeat derives 315.7s; flooring it would tombstone a live worker early.
         var pass = Pass(workers, new FakeExecutionStore(), SignalStore(releases: false), TimeSpan.FromSeconds(315.7));
 
         await pass.RunAsync(namespaceId: 1, namespaceName: "payments", TestContext.Current.CancellationToken);
 
-        Assert.Equal(316, workers.DeadAfterSeconds);
+        Assert.Equal(316, Assert.Single(workers.Calls).Get(ActaSchema.Sql.DeadAfterSeconds));
     }
 
     [Fact]
     public async Task A_pass_that_changes_nothing_publishes_no_wakeup()
     {
         var wakeups = new RecordingWakeup();
-        var pass = Pass(new FakeWorkerStore(), new FakeExecutionStore(), SignalStore(releases: false), wakeup: wakeups);
+        var pass = Pass(WorkerSweep(), new FakeExecutionStore(), SignalStore(releases: false), wakeup: wakeups);
 
         var outcome = await pass.RunAsync(namespaceId: 1, namespaceName: "payments", TestContext.Current.CancellationToken);
 
@@ -45,7 +45,7 @@ public sealed class RecoveryPassTests
             Reclaim = new ReclaimStuckJobsResult(Reclaimed: 2, FailedChildren: [(ChildId: 7, ParentId: 8)], RepairedLanes: 0),
             StaleLatches = [new StaleChildLatch(ParentJobId: 9, ChildJobId: 10, ChildStatus: JobStatusCode.Cancelled)],
         };
-        var pass = Pass(new FakeWorkerStore { Marked = 3 }, execution, SignalStore(releases: true), wakeup: wakeups);
+        var pass = Pass(WorkerSweep(marked: 3), execution, SignalStore(releases: true), wakeup: wakeups);
 
         var outcome = await pass.RunAsync(namespaceId: 1, namespaceName: "payments", TestContext.Current.CancellationToken);
 
@@ -61,7 +61,7 @@ public sealed class RecoveryPassTests
     {
         var wakeups = new RecordingWakeup();
         var execution = new FakeExecutionStore { Reclaim = new ReclaimStuckJobsResult(Reclaimed: 0, FailedChildren: [], RepairedLanes: 1) };
-        var pass = Pass(new FakeWorkerStore(), execution, SignalStore(releases: false), wakeup: wakeups);
+        var pass = Pass(WorkerSweep(), execution, SignalStore(releases: false), wakeup: wakeups);
 
         var outcome = await pass.RunAsync(namespaceId: 1, namespaceName: "payments", TestContext.Current.CancellationToken);
 
@@ -70,7 +70,7 @@ public sealed class RecoveryPassTests
     }
 
     private static RecoveryPass Pass(
-        FakeWorkerStore workers,
+        ScriptedSession workers,
         FakeExecutionStore execution,
         Signals signals,
         TimeSpan? deadAfter = null,
@@ -83,7 +83,13 @@ public sealed class RecoveryPassTests
             options.WorkerDeadAfter = window;
         }
 
-        return new RecoveryPass(signals, workers, execution, Options.Create(options), new WorkerWakeupPublisher(wakeup ?? new()));
+        return new RecoveryPass(
+            signals,
+            workers.Services().GetRequiredService<WorkerLifecycle>(),
+            execution,
+            Options.Create(options),
+            new WorkerWakeupPublisher(wakeup ?? new())
+        );
     }
 
     private sealed class RecordingWakeup : IWorkerWakeup
@@ -110,29 +116,8 @@ public sealed class RecoveryPassTests
             .Services()
             .GetRequiredService<Signals>();
 
-    private sealed class FakeWorkerStore : IWorkerLifecycle
-    {
-        public int Marked { get; init; }
-
-        public int? DeadAfterSeconds { get; private set; }
-
-        public Task<int> MarkDeadWorkersAsync(int deadAfterSeconds, CancellationToken ct)
-        {
-            DeadAfterSeconds = deadAfterSeconds;
-            return Task.FromResult(Marked);
-        }
-
-        public Task<StartWorkerRow> StartWorkerAsync(StartWorkerCommand command, CancellationToken ct) => throw new NotSupportedException();
-
-        public Task StopWorkerAsync(int namespaceId, int workerId, CancellationToken ct) => throw new NotSupportedException();
-
-        public Task<IReadOnlyList<LeaseRenewalRow>> ExtendWorkerLeasesAsync(
-            int workerId,
-            int leaseTtlSeconds,
-            bool draining,
-            CancellationToken ct
-        ) => throw new NotSupportedException();
-    }
+    // The dead-worker sweep, the pass's only worker call, reports how many workers it marked.
+    private static ScriptedSession WorkerSweep(int marked = 0) => new(_ => marked);
 
     private sealed class FakeExecutionStore : IExecution
     {

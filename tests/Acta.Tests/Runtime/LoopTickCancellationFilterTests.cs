@@ -1,5 +1,6 @@
 using System.Data.Common;
 using Acta.Runtime;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Xunit;
@@ -33,7 +34,7 @@ public sealed class LoopTickCancellationFilterTests
         var registration = new WorkerRegistration("orders", null, null, [], []);
         var options = Options.Create(new JobsOptions { HeartbeatInterval = TimeSpan.FromMilliseconds(20) });
 
-        var heartbeat = new WorkerHeartbeat(new ThrowingWorkerStore(failure), options, registration, context, logger);
+        var heartbeat = new WorkerHeartbeat(Workers(_ => throw failure), options, registration, context, logger);
 
         using var cts = new CancellationTokenSource();
         var runTask = heartbeat.RunAsync(cts.Token);
@@ -88,7 +89,7 @@ public sealed class LoopTickCancellationFilterTests
     public async Task WorkerHeartbeat_completes_cleanly_when_a_non_OCE_tick_failure_lands_after_cancellation()
     {
         using var cts = new CancellationTokenSource();
-        var db = new CancelThenThrowWorkerStore(cts, new InvalidOperationException("synthetic connection torn down"));
+        var db = CancelThenThrowWorkers(cts, new InvalidOperationException("synthetic connection torn down"));
         var logger = new RecordingLogger();
         var context = new WorkerContext(null);
         context.WorkerIdByNamespace["orders"] = 1;
@@ -147,49 +148,19 @@ public sealed class LoopTickCancellationFilterTests
         }
     }
 
-    // Worker-store seams for WorkerHeartbeat: the heartbeat's only store call is the lease extend.
-    private abstract class WorkerStoreStub : IWorkerLifecycle
-    {
-        public abstract Task<IReadOnlyList<LeaseRenewalRow>> ExtendWorkerLeasesAsync(
-            int workerId,
-            int leaseTtlSeconds,
-            bool draining,
-            CancellationToken ct
-        );
+    // The worker lifecycle over a scripted session: the heartbeat's only database call is the lease extend.
+    private static WorkerLifecycle Workers(Func<BoundCall, object?> answer) =>
+        new ScriptedSession(answer).Services().GetRequiredService<WorkerLifecycle>();
 
-        public Task<StartWorkerRow> StartWorkerAsync(StartWorkerCommand command, CancellationToken ct) => throw new NotSupportedException();
-
-        public Task StopWorkerAsync(int namespaceId, int workerId, CancellationToken ct) => throw new NotSupportedException();
-
-        public Task<int> MarkDeadWorkersAsync(int deadAfterSeconds, CancellationToken ct) => throw new NotSupportedException();
-    }
-
-    private sealed class ThrowingWorkerStore(Exception failure) : WorkerStoreStub
-    {
-        public override Task<IReadOnlyList<LeaseRenewalRow>> ExtendWorkerLeasesAsync(
-            int workerId,
-            int leaseTtlSeconds,
-            bool draining,
-            CancellationToken ct
-        ) => throw failure;
-    }
-
-    // Cancels the loop's own token from inside the store call, then throws a non-cancellation
+    // Cancels the loop's own token from inside the lease extend, then throws a non-cancellation
     // exception - reproduces "ct already cancelled" at the exact moment TickAsync's exception
     // surfaces to RunAsync's catches.
-    private sealed class CancelThenThrowWorkerStore(CancellationTokenSource cts, Exception toThrow) : WorkerStoreStub
-    {
-        public override Task<IReadOnlyList<LeaseRenewalRow>> ExtendWorkerLeasesAsync(
-            int workerId,
-            int leaseTtlSeconds,
-            bool draining,
-            CancellationToken ct
-        )
+    private static WorkerLifecycle CancelThenThrowWorkers(CancellationTokenSource cts, Exception toThrow) =>
+        Workers(_ =>
         {
             cts.Cancel();
             throw toThrow;
-        }
-    }
+        });
 
     private sealed class RecordingLogger : ILogger
     {

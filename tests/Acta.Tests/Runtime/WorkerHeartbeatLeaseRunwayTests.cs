@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Acta.Runtime;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Xunit;
@@ -41,7 +42,7 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
     public async Task Worker_heartbeat_feeds_the_job_lease_deadline_on_a_confirmed_renewal()
     {
         var context = Context();
-        var heartbeat = new WorkerHeartbeat(new LiveWorkerStore([1]), Options(), Registration, context, NullLogger.Instance);
+        var heartbeat = new WorkerHeartbeat(LiveWorkerStore([1]), Options(), Registration, context, NullLogger.Instance);
 
         using var cts = new CancellationTokenSource();
         var attempt = new RunningAttempt(cts) { JobLeaseGoodUntil = Stopwatch.GetTimestamp() + TicksFor(TimeSpan.FromSeconds(5)) };
@@ -58,7 +59,7 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
     public async Task Worker_heartbeat_cancels_immediately_when_an_authoritative_refresh_drops_the_job()
     {
         var context = Context();
-        var heartbeat = new WorkerHeartbeat(new LiveWorkerStore([]), Options(), Registration, context, NullLogger.Instance);
+        var heartbeat = new WorkerHeartbeat(LiveWorkerStore([]), Options(), Registration, context, NullLogger.Instance);
 
         using var cts = new CancellationTokenSource();
         var attempt = new RunningAttempt(cts)
@@ -77,7 +78,7 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
     public async Task Worker_heartbeat_keeps_a_skipped_job_running_without_feeding_its_deadline()
     {
         var context = Context();
-        var heartbeat = new WorkerHeartbeat(new SkippingWorkerStore(1), Options(), Registration, context, NullLogger.Instance);
+        var heartbeat = new WorkerHeartbeat(SkippingWorkerStore(1), Options(), Registration, context, NullLogger.Instance);
 
         using var cts = new CancellationTokenSource();
         var deadline = Stopwatch.GetTimestamp() + TicksFor(TimeSpan.FromSeconds(5));
@@ -95,7 +96,7 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
     public async Task Worker_heartbeat_leaves_the_deadline_untouched_when_the_refresh_throws()
     {
         var context = Context();
-        var heartbeat = new WorkerHeartbeat(new ThrowingWorkerStore(), Options(), Registration, context, NullLogger.Instance);
+        var heartbeat = new WorkerHeartbeat(ThrowingWorkerStore(), Options(), Registration, context, NullLogger.Instance);
 
         using var cts = new CancellationTokenSource();
         var deadline = Stopwatch.GetTimestamp() + TicksFor(TimeSpan.FromSeconds(LeaseTtlSeconds));
@@ -306,54 +307,18 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
         return Task.CompletedTask;
     }
 
-    private abstract class WorkerStoreStub : IWorkerLifecycle
-    {
-        public abstract Task<IReadOnlyList<LeaseRenewalRow>> ExtendWorkerLeasesAsync(
-            int workerId,
-            int leaseTtlSeconds,
-            bool draining,
-            CancellationToken ct
-        );
+    // The worker lifecycle over a scripted lease extend, the heartbeat's only database call.
+    private static WorkerLifecycle WorkerStore(Func<BoundCall, object?> answer) =>
+        new ScriptedSession(answer).Services().GetRequiredService<WorkerLifecycle>();
 
-        public Task<StartWorkerRow> StartWorkerAsync(StartWorkerCommand command, CancellationToken ct) => throw new NotSupportedException();
+    private static WorkerLifecycle LiveWorkerStore(IReadOnlyList<long> liveJobIds) =>
+        WorkerStore(_ => liveJobIds.Select(id => new LeaseRenewalRow(id, ExecutionNumber: 0, Renewed: true)).ToArray());
 
-        public Task StopWorkerAsync(int namespaceId, int workerId, CancellationToken ct) => throw new NotSupportedException();
+    private static WorkerLifecycle SkippingWorkerStore(long heldJobId) =>
+        WorkerStore(_ => new LeaseRenewalRow(heldJobId, ExecutionNumber: 0, Renewed: false));
 
-        public Task<int> MarkDeadWorkersAsync(int deadAfterSeconds, CancellationToken ct) => throw new NotSupportedException();
-    }
-
-    private sealed class LiveWorkerStore(IReadOnlyList<long> liveJobIds) : WorkerStoreStub
-    {
-        public override Task<IReadOnlyList<LeaseRenewalRow>> ExtendWorkerLeasesAsync(
-            int workerId,
-            int leaseTtlSeconds,
-            bool draining,
-            CancellationToken ct
-        ) =>
-            Task.FromResult<IReadOnlyList<LeaseRenewalRow>>([
-                .. liveJobIds.Select(id => new LeaseRenewalRow(id, ExecutionNumber: 0, Renewed: true)),
-            ]);
-    }
-
-    private sealed class SkippingWorkerStore(long heldJobId) : WorkerStoreStub
-    {
-        public override Task<IReadOnlyList<LeaseRenewalRow>> ExtendWorkerLeasesAsync(
-            int workerId,
-            int leaseTtlSeconds,
-            bool draining,
-            CancellationToken ct
-        ) => Task.FromResult<IReadOnlyList<LeaseRenewalRow>>([new LeaseRenewalRow(heldJobId, ExecutionNumber: 0, Renewed: false)]);
-    }
-
-    private sealed class ThrowingWorkerStore : WorkerStoreStub
-    {
-        public override Task<IReadOnlyList<LeaseRenewalRow>> ExtendWorkerLeasesAsync(
-            int workerId,
-            int leaseTtlSeconds,
-            bool draining,
-            CancellationToken ct
-        ) => throw new InvalidOperationException("synthetic transient worker-store fault");
-    }
+    private static WorkerLifecycle ThrowingWorkerStore() =>
+        WorkerStore(_ => throw new InvalidOperationException("synthetic transient worker-store fault"));
 
     private sealed class RecordingLockStore(Func<LockToken, bool> result) : ILocks
     {

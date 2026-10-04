@@ -1,4 +1,5 @@
 using Acta.Runtime;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Xunit;
@@ -30,7 +31,7 @@ public sealed class WorkerHeartbeatReconcileSnapshotTests
         var registration = new WorkerRegistration("orders", null, null, [], []);
         var options = Options.Create(new JobsOptions { HeartbeatInterval = TimeSpan.FromMilliseconds(20) });
 
-        var heartbeat = new WorkerHeartbeat(db, options, registration, context, NullLogger.Instance);
+        var heartbeat = new WorkerHeartbeat(db.Lifecycle(), options, registration, context, NullLogger.Instance);
 
         var ct = TestContext.Current.CancellationToken;
         var tickTask = heartbeat.TickAsync(ct);
@@ -49,10 +50,10 @@ public sealed class WorkerHeartbeatReconcileSnapshotTests
         Assert.False(lateAttemptCts.IsCancellationRequested);
     }
 
-    // Blocks the extend call on a gate so the test can register a new RunningAttempt while the
-    // tick is mid-flight, then releases it to return a fixed "live" id set. Every other member
-    // throws NotSupportedException - WorkerHeartbeat.TickAsync only ever extends leases.
-    private sealed class GatedWorkerStore(IReadOnlyList<long> liveJobIds) : IWorkerLifecycle
+    // Blocks the lease extend on a gate so the test can register a new RunningAttempt while the
+    // tick is mid-flight, then releases it to answer a fixed "live" id set. WorkerHeartbeat.TickAsync
+    // only ever extends leases.
+    private sealed class GatedWorkerStore(IReadOnlyList<long> liveJobIds)
     {
         private readonly TaskCompletionSource _entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource _gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -61,22 +62,17 @@ public sealed class WorkerHeartbeatReconcileSnapshotTests
 
         public void Release() => _gate.SetResult();
 
-        public async Task<IReadOnlyList<LeaseRenewalRow>> ExtendWorkerLeasesAsync(
-            int workerId,
-            int leaseTtlSeconds,
-            bool draining,
-            CancellationToken ct
-        )
+        public WorkerLifecycle Lifecycle()
         {
-            _entered.TrySetResult();
-            await _gate.Task.WaitAsync(ct);
-            return [.. liveJobIds.Select(id => new LeaseRenewalRow(id, ExecutionNumber: 0, Renewed: true))];
+            var session = new ScriptedSession(
+                async (_, ct) =>
+                {
+                    _entered.TrySetResult();
+                    await _gate.Task.WaitAsync(ct);
+                    return liveJobIds.Select(id => new LeaseRenewalRow(id, ExecutionNumber: 0, Renewed: true)).ToArray();
+                }
+            );
+            return session.Services().GetRequiredService<WorkerLifecycle>();
         }
-
-        public Task<StartWorkerRow> StartWorkerAsync(StartWorkerCommand command, CancellationToken ct) => throw new NotSupportedException();
-
-        public Task StopWorkerAsync(int namespaceId, int workerId, CancellationToken ct) => throw new NotSupportedException();
-
-        public Task<int> MarkDeadWorkersAsync(int deadAfterSeconds, CancellationToken ct) => throw new NotSupportedException();
     }
 }

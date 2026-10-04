@@ -21,7 +21,7 @@ internal readonly record struct RecoveryPassOutcome(int DeadWorkersMarked, int R
 /// </remarks>
 internal sealed class RecoveryPass(
     Signals signals,
-    IWorkerLifecycle workers,
+    WorkerLifecycle workers,
     IExecution execution,
     IOptions<JobsOptions> options,
     WorkerWakeupPublisher wakeupPublisher

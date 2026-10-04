@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Acta.Runtime;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Xunit;
@@ -136,7 +137,7 @@ public sealed class RenewalLoopFailureArmTests
         using var cts = new CancellationTokenSource();
         var log = new RecordingLogger();
         var heartbeat = new WorkerHeartbeat(
-            new ScriptedWorkerStore(cts, failOn: 3, new InvalidOperationException("synthetic connection torn down")),
+            ScriptedWorkerStore(cts, failOn: 3, new InvalidOperationException("synthetic connection torn down")),
             LoopOptions(),
             Registration,
             context,
@@ -156,7 +157,7 @@ public sealed class RenewalLoopFailureArmTests
         using var cts = new CancellationTokenSource();
         var log = new RecordingLogger();
         var heartbeat = new WorkerHeartbeat(
-            new ScriptedWorkerStore(cts, failOn: 3, cancellation: true),
+            ScriptedWorkerStore(cts, failOn: 3, cancellation: true),
             LoopOptions(),
             Registration,
             context,
@@ -179,7 +180,7 @@ public sealed class RenewalLoopFailureArmTests
         await cts.CancelAsync();
         var log = new RecordingLogger();
         var heartbeat = new WorkerHeartbeat(
-            new ScriptedWorkerStore(cts, failOn: 0, cancellation: true),
+            ScriptedWorkerStore(cts, failOn: 0, cancellation: true),
             LoopOptions(),
             Registration,
             context,
@@ -289,32 +290,25 @@ public sealed class RenewalLoopFailureArmTests
         public Task<bool> ReleaseLockAsync(LockToken token, CancellationToken ct) => throw new NotSupportedException();
     }
 
-    private sealed class ScriptedWorkerStore(CancellationTokenSource cts, int failOn, Exception? failure = null, bool cancellation = false)
-        : IWorkerLifecycle
+    // The worker lifecycle's lease extend, failing the same way on the Nth call; every other call renews no rows.
+    private static WorkerLifecycle ScriptedWorkerStore(
+        CancellationTokenSource cts,
+        int failOn,
+        Exception? failure = null,
+        bool cancellation = false
+    )
     {
-        private int _calls;
-
-        public Task<IReadOnlyList<LeaseRenewalRow>> ExtendWorkerLeasesAsync(
-            int workerId,
-            int leaseTtlSeconds,
-            bool draining,
-            CancellationToken ct
-        )
+        var calls = 0;
+        return new ScriptedSession(_ =>
         {
-            if (Interlocked.Increment(ref _calls) != failOn)
+            if (Interlocked.Increment(ref calls) != failOn)
             {
-                return Task.FromResult<IReadOnlyList<LeaseRenewalRow>>([]);
+                return null;
             }
 
             cts.Cancel();
             throw cancellation ? new OperationCanceledException(cts.Token) : failure!;
-        }
-
-        public Task<StartWorkerRow> StartWorkerAsync(StartWorkerCommand command, CancellationToken ct) => throw new NotSupportedException();
-
-        public Task StopWorkerAsync(int namespaceId, int workerId, CancellationToken ct) => throw new NotSupportedException();
-
-        public Task<int> MarkDeadWorkersAsync(int deadAfterSeconds, CancellationToken ct) => throw new NotSupportedException();
+        }).Services().GetRequiredService<WorkerLifecycle>();
     }
 
     private sealed class RecordingLogger : ILogger

@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace Acta.Runtime;
 
-/// <summary><see cref="IWorkerLifecycle.ExtendWorkerLeasesAsync"/>: one round trip.</summary>
+/// <summary><see cref="WorkerLifecycle.ExtendWorkerLeasesAsync"/>: one round trip.</summary>
 internal sealed class ExtendWorkerLeasesHandler(IDbSession session, ISqlDialect dialect)
 {
     public Task<IReadOnlyList<LeaseRenewalRow>> HandleAsync(ExtendWorkerLeasesCommand command, CancellationToken ct) =>

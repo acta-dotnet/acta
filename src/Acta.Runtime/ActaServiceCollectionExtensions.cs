@@ -106,7 +106,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<StopWorkerHandler>();
         services.TryAddSingleton<ExtendWorkerLeasesHandler>();
         services.TryAddSingleton<MarkDeadWorkersHandler>();
-        services.TryAddSingleton<IWorkerLifecycle, WorkerLifecycle>();
+        services.TryAddSingleton<WorkerLifecycle>();
         services.TryAddSingleton<GetWorkerHandler>();
         services.TryAddSingleton<ListWorkersHandler>();
         services.TryAddSingleton<IWorkers, Workers>();
