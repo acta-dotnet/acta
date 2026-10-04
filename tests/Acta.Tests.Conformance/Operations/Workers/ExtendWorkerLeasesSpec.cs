@@ -48,7 +48,11 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         await Task.Delay(5, ct);
 
         var extended = await Services.GetRequiredService<WorkerLifecycle>().ExtendWorkerLeasesAsync(workerId, leaseTtl, false, ct);
-        Assert.Equal(new LeaseRenewalRow(enqueued.JobId, claimedRow.ExecutionNumber, Renewed: true), Assert.Single(extended));
+        // The live worker may hold its own system job by now, so only this job's renewal is asserted.
+        Assert.Equal(
+            new LeaseRenewalRow(enqueued.JobId, claimedRow.ExecutionNumber, Renewed: true),
+            Assert.Single(extended, row => row.JobId == enqueued.JobId)
+        );
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Dispatched, job!.Status);
@@ -89,7 +93,11 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         // not yet started). It must not advance the runtime version, or the claim-time version below
         // fails the start CAS as LostClaim and the row stalls leased-but-never-run.
         var extended = await Services.GetRequiredService<WorkerLifecycle>().ExtendWorkerLeasesAsync(workerId, leaseTtl, false, ct);
-        Assert.Equal(new LeaseRenewalRow(enqueued.JobId, claimed.ExecutionNumber, Renewed: true), Assert.Single(extended));
+        // The live worker may hold its own system job by now, so only this job's renewal is asserted.
+        Assert.Equal(
+            new LeaseRenewalRow(enqueued.JobId, claimed.ExecutionNumber, Renewed: true),
+            Assert.Single(extended, row => row.JobId == enqueued.JobId)
+        );
 
         var action = await Services
             .GetRequiredService<Acta.Runtime.Execution>()

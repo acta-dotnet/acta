@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using TestJobs;
 using Xunit;
 
-namespace Acta.Tests.Conformance.Operations;
+namespace Acta.Tests.Conformance.Operations.Signals;
 
 /// <summary>Conformance for the engine's wait decision on one slot: arm and suspend, continue on Set, or time out once the stored expiry passes.</summary>
 [ConformanceSpec(

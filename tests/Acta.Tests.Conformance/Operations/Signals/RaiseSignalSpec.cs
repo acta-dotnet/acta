@@ -4,7 +4,7 @@ using Acta.Tests.Conformance.Testing;
 using TestJobs;
 using Xunit;
 
-namespace Acta.Tests.Conformance.Operations;
+namespace Acta.Tests.Conformance.Operations.Signals;
 
 /// <summary>Conformance for the operator raise: one Set slot per name holding the latest payload, an audited raise, and no write on a missing or finished job.</summary>
 [ConformanceSpec(

@@ -94,7 +94,7 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
         await CheckpointSlot.SetAsync(execution, jobId, JobCheckpointKindCode.Variable, "v.test", JobPayload.Text("x"), ct);
         await execution.ArmOrConsumeSleepTimerAsync(new ArmOrConsumeSleepTimerCommand(jobId, "t.test", 60, null), ct);
         await Services
-            .GetRequiredService<Signals>()
+            .GetRequiredService<Acta.Runtime.Signals>()
             .RaiseSignalAsync(
                 new SignalSlotRaise(
                     jobId,

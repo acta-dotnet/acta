@@ -64,7 +64,7 @@ public sealed class JobPayloadReadsSpec : ActaRuntimeTestBase<ConformanceFixture
 
         var signalValue = JobPayload.Json(new AddNumbers(2, 3));
         await Services
-            .GetRequiredService<Signals>()
+            .GetRequiredService<Acta.Runtime.Signals>()
             .RaiseSignalAsync(
                 new SignalSlotRaise(
                     enqueued.JobId,
