@@ -12,8 +12,15 @@ namespace Acta.Tests.Runtime;
 /// answers with what the test scripts. The handler under test runs its own binding and validation; only the database
 /// is gone, so an engine unit test fakes one call rather than a whole group.
 /// </summary>
-internal sealed class ScriptedSession(Func<BoundCall, object?> answer) : DbSessionStub
+internal sealed class ScriptedSession : DbSessionStub
 {
+    private readonly Func<BoundCall, CancellationToken, Task<object?>> _answer;
+
+    public ScriptedSession(Func<BoundCall, object?> answer) => _answer = (call, _) => Task.FromResult(answer(call));
+
+    /// <summary>An answer that awaits, for a test that gates or delays the database call.</summary>
+    public ScriptedSession(Func<BoundCall, CancellationToken, Task<object?>> answer) => _answer = answer;
+
     public static readonly ISqlDialect Dialect = new SqliteDialect(ExecutionProfile.Direct);
 
     /// <summary>The service graph over a session no call may reach, for a collaborator a test never exercises.</summary>
@@ -31,43 +38,35 @@ internal sealed class ScriptedSession(Func<BoundCall, object?> answer) : DbSessi
     }
 
     // A test answers with one row, a list of rows, or null, whichever call the handler makes.
-    public override Task<IReadOnlyList<T>> ExecuteAsync<T>(
+    public override async Task<IReadOnlyList<T>> ExecuteAsync<T>(
         StoreCommand command,
         Action<DbCommand> bind,
         Func<DbDataReader, T> mapRow,
         CancellationToken ct
     ) =>
-        Task.FromResult(
-            Answer(command, bind) switch
-            {
-                null => [],
-                IReadOnlyList<T> rows => rows,
-                var row => (IReadOnlyList<T>)[(T)row],
-            }
-        );
+        await AnswerAsync(command, bind, ct) switch
+        {
+            null => [],
+            IReadOnlyList<T> rows => rows,
+            var row => [(T)row],
+        };
 
-    public override Task<T?> ExecuteSingleAsync<T>(
+    public override async Task<T?> ExecuteSingleAsync<T>(
         StoreCommand command,
         Action<DbCommand> bind,
         Func<DbDataReader, T> mapRow,
         CancellationToken ct
     )
         where T : class =>
-        Task.FromResult(
-            Answer(command, bind) switch
-            {
-                IReadOnlyList<T> rows => rows.SingleOrDefault(),
-                var row => (T?)row,
-            }
-        );
+        await AnswerAsync(command, bind, ct) switch
+        {
+            IReadOnlyList<T> rows => rows.SingleOrDefault(),
+            var row => (T?)row,
+        };
 
-    public override Task ExecuteAsync(StoreCommand command, Action<DbCommand> bind, CancellationToken ct)
-    {
-        Answer(command, bind);
-        return Task.CompletedTask;
-    }
+    public override Task ExecuteAsync(StoreCommand command, Action<DbCommand> bind, CancellationToken ct) => AnswerAsync(command, bind, ct);
 
-    private object? Answer(StoreCommand command, Action<DbCommand> bind)
+    private Task<object?> AnswerAsync(StoreCommand command, Action<DbCommand> bind, CancellationToken ct)
     {
         using var cmd = new SqliteCommand();
         bind(cmd);
@@ -76,7 +75,7 @@ internal sealed class ScriptedSession(Func<BoundCall, object?> answer) : DbSessi
             cmd.Parameters.Cast<DbParameter>().ToDictionary(p => p.ParameterName.TrimStart('@'), p => (object?)p.Value)
         );
         Calls.Add(call);
-        return answer(call);
+        return _answer(call, ct);
     }
 }
 
