@@ -48,7 +48,7 @@ public sealed partial class QueryDocCoverageTests
             .ToDictionary(f => f.Name, f => ((ImmutableArray<QueryParameterDoc>)f.GetValue(null)!).Select(d => d.Name).ToArray());
 
         var failures = new List<string>();
-        var chunks = Regex.Split(source, @"\.Map(?:Get|Post|Put|Delete|Patch|List)\(");
+        var chunks = Regex.Split(source, @"\.Map(?:Get|Post|Put|Delete|Patch|List|Detail)\(");
         foreach (var chunk in chunks.Skip(1))
         {
             var route = FirstRoute().Match(chunk).Groups["route"].Value;

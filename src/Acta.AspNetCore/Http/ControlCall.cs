@@ -86,4 +86,18 @@ internal static class ControlStatus
                 },
             [StatusCodes.Status200OK, StatusCodes.Status409Conflict, StatusCodes.Status404NotFound]
         );
+
+    /// <summary>The schedule verbs: Applied 200, Rejected 409, NotFound 404.</summary>
+    public static ControlStatus<T> Schedule<T>()
+        where T : IScheduleControlResponse =>
+        new(
+            static response =>
+                response.Action switch
+                {
+                    ControlAction.Applied => StatusCodes.Status200OK,
+                    ControlAction.Rejected => StatusCodes.Status409Conflict,
+                    _ => StatusCodes.Status404NotFound,
+                },
+            [StatusCodes.Status200OK, StatusCodes.Status409Conflict, StatusCodes.Status404NotFound]
+        );
 }

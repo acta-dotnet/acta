@@ -176,7 +176,6 @@ internal static class ActaApiEndpoints
             controls.ProducesProblem(StatusCodes.Status403Forbidden);
             ActaControlEndpoints.Map(controls, options);
             JobDepthEndpoints.MapControls(controls, options);
-            ScheduleControlEndpoints.Map(controls, options);
             TagEndpoints.MapControls(controls, options);
         }
 
@@ -191,6 +190,7 @@ internal static class ActaApiEndpoints
         AlertsEndpoints.Map(group, controls, options);
         OutboxEndpoints.Map(group, controls, options);
         DefinitionsEndpoints.Map(group, controls, options);
+        SchedulesEndpoints.Map(group, controls, options);
 
         group
             .MapGet(
@@ -664,61 +664,6 @@ internal static class ActaApiEndpoints
 
         group
             .MapGet(
-                "/schedules",
-                static (HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                {
-                    string? error = null;
-                    if (
-                        !QueryBinding.TryEnum<ScheduleOriginCode>(http.Request.Query, "origin", out var origin, ref error)
-                        || !QueryBinding.TryBool(http.Request.Query, "liveOnly", out var liveOnly, ref error)
-                        || !QueryBinding.TryInt(http.Request.Query, "pageSize", out var pageSize, ref error)
-                        || !QueryBinding.TryBool(http.Request.Query, "includeTotal", out var includeTotal, ref error)
-                    )
-                    {
-                        return Task.FromResult(BadRequest(error));
-                    }
-
-                    var query = new ListSchedulesQuery(
-                        JobNamespace: QueryBinding.Text(http.Request.Query, "jobNamespace"),
-                        JobName: QueryBinding.Text(http.Request.Query, "jobName"),
-                        Origin: origin,
-                        LiveOnly: liveOnly ?? true,
-                        PageSize: pageSize,
-                        Cursor: QueryBinding.Text(http.Request.Query, "cursor"),
-                        IncludeTotal: includeTotal ?? false,
-                        Tags: QueryBinding.Tags(http.Request.Query)
-                    );
-                    return Guard(async () =>
-                        Results.Json(
-                            await operations.Schedules.ListAsync(query, ct),
-                            DashboardJsonContext.Default.PagedResultScheduleListItem
-                        )
-                    );
-                }
-            )
-            .WithSummary("List recurring schedules, next run first.")
-            .Produces<PagedResult<ScheduleListItem>>(StatusCodes.Status200OK)
-            .WithQueryParameters([
-                new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Only schedules in this namespace."),
-                new QueryParameterDoc("jobName", QueryParameterKind.String, "Only schedules on this job name."),
-                new QueryParameterDoc(
-                    "origin",
-                    QueryParameterKind.String,
-                    "Exact schedule origin as a kebab code.",
-                    CodeKind: "schedule-origin"
-                ),
-                new QueryParameterDoc(
-                    "liveOnly",
-                    QueryParameterKind.Bool,
-                    "Null or true returns only schedules with no orphaned instant; false includes orphaned ones."
-                ),
-                .. QueryParameterDocExtensions.PagingCore,
-                .. QueryParameterDocExtensions.IncludeTotal,
-                .. QueryParameterDocExtensions.TagFilter,
-            ]);
-
-        group
-            .MapGet(
                 "/capabilities",
                 (HttpContext http, IActaOperations operations) =>
                 {
@@ -749,39 +694,6 @@ internal static class ActaApiEndpoints
             )
             .WithSummary("Read this host's API capabilities.")
             .Produces<CapabilitiesResponse>(StatusCodes.Status200OK);
-
-        group
-            .MapGet(
-                "/schedules/{jobNamespace}/{jobName}/{scheduleName}/preview",
-                static (
-                    string jobNamespace,
-                    string jobName,
-                    string scheduleName,
-                    HttpContext http,
-                    IActaOperations operations,
-                    CancellationToken ct
-                ) =>
-                {
-                    string? error = null;
-                    if (!QueryBinding.TryInt(http.Request.Query, "limit", out var count, ref error))
-                    {
-                        return Task.FromResult(BadRequest(error));
-                    }
-
-                    var lookup = new ScheduleLookup(JobLookup.ByDeduplicationKey(jobNamespace, jobName), scheduleName);
-                    return Guard(async () =>
-                    {
-                        var preview = await operations.Schedules.PreviewAsync(lookup, count ?? 10, ct);
-                        return preview is null
-                            ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Schedule not found.")
-                            : Results.Json(preview, DashboardJsonContext.Default.SchedulePreview);
-                    });
-                }
-            )
-            .WithSummary("Preview a schedule's upcoming fire instants.")
-            .Produces<SchedulePreview>(StatusCodes.Status200OK)
-            .WithQueryParameters([new QueryParameterDoc("limit", QueryParameterKind.Int, "How many upcoming occurrences to forecast.")])
-            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     /// <summary>

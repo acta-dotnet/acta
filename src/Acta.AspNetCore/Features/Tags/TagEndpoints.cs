@@ -27,13 +27,6 @@ internal static class TagEndpoints
                     TagRoutes.ReadAsync(operations, () => JobTarget(jobRef, options), ct)
             )
             .WithSummary("Read the job's tags.");
-        group
-            .MapGet(
-                "/schedules/{jobNamespace}/{jobName}/{scheduleName}/tags",
-                (string jobNamespace, string jobName, string scheduleName, IActaOperations operations, CancellationToken ct) =>
-                    TagRoutes.ReadAsync(operations, () => ScheduleTarget(jobNamespace, jobName, scheduleName), ct)
-            )
-            .WithSummary("Read the schedule's tags.");
     }
 
     public static void MapControls(RouteGroupBuilder outer, ActaEndpointOptions options)
@@ -69,36 +62,6 @@ internal static class TagEndpoints
                     TagRoutes.RemoveAsync(http, operations, options, () => JobTarget(jobRef, options), tagName, ct)
             )
             .WithSummary("Remove one tag from the job.");
-
-        withBody
-            .MapPost(
-                "/schedules/{jobNamespace}/{jobName}/{scheduleName}/tags",
-                (
-                    string jobNamespace,
-                    string jobName,
-                    string scheduleName,
-                    HttpContext http,
-                    IActaOperations operations,
-                    CancellationToken ct
-                ) => TagRoutes.UpsertAsync(http, operations, options, () => ScheduleTarget(jobNamespace, jobName, scheduleName), ct)
-            )
-            .AcceptsJson<TagUpsertRequest>()
-            .WithSummary("Add or update one tag on the schedule.");
-        group
-            .MapDelete(
-                "/schedules/{jobNamespace}/{jobName}/{scheduleName}/tags/{tagName}",
-                (
-                    string jobNamespace,
-                    string jobName,
-                    string scheduleName,
-                    string tagName,
-                    HttpContext http,
-                    IActaOperations operations,
-                    CancellationToken ct
-                ) =>
-                    TagRoutes.RemoveAsync(http, operations, options, () => ScheduleTarget(jobNamespace, jobName, scheduleName), tagName, ct)
-            )
-            .WithSummary("Remove one tag from the schedule.");
     }
 
     /// <summary>
@@ -112,7 +75,4 @@ internal static class TagEndpoints
         JobTargetBinding.TryParseTarget(jobRef, options, out var lookup)
             ? TagTarget.ForJob(lookup)
             : throw new ArgumentException("jobRef is not a valid job ref.");
-
-    private static TagTarget ScheduleTarget(string jobNamespace, string jobName, string scheduleName) =>
-        TagTarget.ForSchedule(new ScheduleLookup(JobLookup.ByDeduplicationKey(jobNamespace, jobName), scheduleName));
 }

@@ -9,5 +9,4 @@ CodeGenerator.GroupByContainingEnum
 JobExecution.RunAsync
 JobExecutor.ExecuteOwnedClaimAsync
 JobsOptionsValidator.Validate
-ScheduleControlEndpoints.Map
 WorkerRuntimeInitializer.InitializeOnceAsync
