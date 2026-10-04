@@ -10,14 +10,14 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `AcknowledgeJobAlert` | `IAlerts.AcknowledgeAsync` | `POST /alerts/{alertRef}/acknowledge` | · | routine | routine | inline | `alerts`, `events` | `AcknowledgeJobAlertSpec` |
-| `GetAlertableEvents` | · | · | · | inline | inline | inline | · | · |
-| `GetDeliverableAlerts` | · | · | · | inline | inline | inline | · | · |
-| `GetJobAlert` | `IAlerts.GetAsync` | `GET /alerts/{alertRef}` | · | inline | inline | inline | · | · |
+| `GetAlertableEvents` | · | · | · | inline | inline | inline | · | `GetAlertableEventsSpec` |
+| `GetDeliverableAlerts` | · | · | · | inline | inline | inline | · | `GetDeliverableAlertsSpec` |
+| `GetJobAlert` | `IAlerts.GetAsync` | `GET /alerts/{alertRef}` | · | inline | inline | inline | · | `GetJobAlertSpec` |
 | `ListJobAlerts` | `IAlerts.ListAsync` | `GET /alerts` | · | inline | inline | inline | · | `ListJobAlertsFilterMatrixSpec`, `ListJobAlertsSpec` |
 | `RaiseJobAlert` | · | · | · | routine | routine | inline | `alerts` | `RaiseJobAlertRefStabilitySpec`, `RaiseJobAlertSpec` |
 | `ResolveJobAlertManual` | `IAlerts.ResolveAsync` | `POST /alerts/{alertRef}/resolve` | · | routine | routine | inline | `alerts`, `events` | `ResolveJobAlertManualSpec` |
-| `ResolveJobAlerts` | · | · | · | routine | routine | inline | `alerts` | · |
-| `UpdateAlertDelivery` | · | · | · | routine | routine | inline | `alerts` | · |
+| `ResolveJobAlerts` | · | · | · | routine | routine | inline | `alerts` | `ResolveJobAlertsSpec` |
+| `UpdateAlertDelivery` | · | · | · | routine | routine | inline | `alerts` | `UpdateAlertDeliverySpec` |
 
 ## Clock
 

@@ -1,9 +1,4 @@
 # Known specs violations; entries may only be removed.
-operation: Alerts/GetAlertableEvents
-operation: Alerts/GetDeliverableAlerts
-operation: Alerts/GetJobAlert
-operation: Alerts/ResolveJobAlerts
-operation: Alerts/UpdateAlertDelivery
 operation: Execution/ArmOrConsumeSleepTimer
 operation: Execution/CheckpointSlot
 operation: Execution/ClaimOne

@@ -204,6 +204,24 @@
 - **Guarantees:**
   - Raising, resolving, and sweeping alerts while their jobs are purged never deadlocks or orphans an alert
 
+### The alertable-event read walks a (stamp, id) cursor up to an inclusive horizon
+- **Contract:** GetAlertableEvents reads a namespace's alertable finished attempts after the (stamp, id) cursor and at or before the horizon, ordered by stamp then id.
+- **Guarantees:**
+  - Only the namespace's finished attempts that alert are read: failures, charged retries, uncharged reclaims, and successes
+  - The horizon is inclusive: an event stamped at it is read and one stamped a millisecond later is not
+  - The cursor is the (stamp, id) pair: a same-stamp higher id is read, while the cursor's own row and earlier stamps are not
+  - Rows come back ordered by stamp then id, and the batch size caps one read
+  - Each row carries its definition's name, effective alert profile and channel, and the event's outcome and stamp
+
+### The delivery read takes one namespace's due alerts in id order without a lease
+- **Contract:** GetDeliverableAlerts reads one namespace's due alerts in id order up to the batch size, with each job's runbook and refs, and writes nothing.
+- **Guarantees:**
+  - Due alerts come back in id order and the batch size caps one read
+  - The read takes no lease: a repeat hands out the same rows at the same versions and the rows are unchanged
+  - Only the named namespace's alerts are read
+  - A job's alert carries its definition's effective runbook URL and both refs, and a job-less alert carries no job
+  - An unset retry instant is due at once for an unsettled row and never for a settled one
+
 ### Manual alert write collapses onto the open incident and truncates bounded prose
 - **Contract:** A null deduplication key always inserts, a non-null key collapses repeats onto its one open row, and a raise after resolution opens a fresh row.
 - **Guarantees:**
@@ -215,6 +233,22 @@
   - AlertAsync stamps the Manual origin and carries the caller's deduplication key
   - Raising with a non-null unknown jobId throws ArgumentException, not a provider constraint error
   - Raising with a null jobId still inserts a job-less alert
+
+### A success resolves its job's open automatic failure alerts once
+- **Contract:** ResolveJobAlerts closes one job's open automatic failure alerts marked before the success event, stamps that event as the mark, and returns the count.
+- **Guarantees:**
+  - Every open automatic failure kind on the job closes, manual alerts and other jobs stay open, and the count says how many
+  - A success no newer than the alert's projection mark closes nothing, and the next newer one does
+  - A second success closes nothing and leaves the first resolution exactly as it was
+  - A resolve naming another namespace, or a job with no open alerts, closes nothing
+
+### A delivery settle writes its outcome only at the version the read handed out
+- **Contract:** UpdateAlertDelivery writes status, retry count, and retry instant and bumps the version only while the row is still at the expected version.
+- **Guarantees:**
+  - A settle at the current version writes the outcome, bumps the version, and leaves the incident alone
+  - A settle at any version but the current one applies nothing, a replay of the last settle included
+  - A settle naming an alert that does not exist applies nothing
+  - A null retry instant clears the one a previous settle scheduled
 
 ## Catalog
 
@@ -1228,6 +1262,15 @@
   - A job that takes no input reports the NoInput type and no skeleton
   - An unknown job or a namespace this host did not register reads null
   - A definition stored by another host but absent from this manifest reads null
+
+### GetAsync reads one alert by its public ref as it stands now
+- **Contract:** Alerts.GetAsync returns the alert row its ref names, as it stands, with the namespace name and job ref, and null for a ref no alert carries.
+- **Guarantees:**
+  - GetAsync answers the stored row under its ref with the namespace name and the job's public ref
+  - GetAsync answers null for a ref no alert carries
+  - GetAsync reflects the row after a delivery settle, an acknowledge, and a resolve
+  - A job-less alert reads with no job id and no job ref
+  - A resolved incident's ref keeps answering its closed row after its key opens a fresh incident with a ref of its own
 
 ### GetJobDefinition returns one definition by name and null for an unknown name
 - **Contract:** GetJobDefinition returns the fully-projected definitions row for the supplied namespace and name, and null when none matches.
