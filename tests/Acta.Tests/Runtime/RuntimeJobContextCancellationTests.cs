@@ -1,4 +1,5 @@
 using Acta.Runtime;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Acta.Tests.Runtime;
@@ -38,7 +39,7 @@ public sealed class RuntimeJobContextCancellationTests
             alerts: null!,
             executionStore: db,
             new ThrowingSerializerRegistry(),
-            new ThrowingLockStore(),
+            ScriptedSession.Unreachable.GetRequiredService<Locks>(),
             cancellationToken: CancellationToken.None,
             triggeringScheduleNames: [],
             deadlineAtUtc: null
@@ -90,7 +91,7 @@ public sealed class RuntimeJobContextCancellationTests
             alerts: null!,
             executionStore: db,
             new ThrowingSerializerRegistry(),
-            new ThrowingLockStore(),
+            ScriptedSession.Unreachable.GetRequiredService<Locks>(),
             cancellationToken: CancellationToken.None,
             triggeringScheduleNames: [],
             deadlineAtUtc: null
@@ -176,27 +177,5 @@ public sealed class RuntimeJobContextCancellationTests
         public IJobPayloadSerializer Resolve(byte formatId) => throw new NotSupportedException();
 
         public bool IsRegistered(byte formatId) => false;
-    }
-
-    private sealed class ThrowingLockStore : ILocks
-    {
-        public Task<LockToken?> AcquireLockAsync(string key, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<LockToken?> AcquireSlotAsync(string keyPrefix, int limit, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<RateReservation> ReserveRateAsync(
-            string bucketKey,
-            long jobId,
-            int intervalMilliseconds,
-            int burst,
-            int graceSeconds,
-            CancellationToken ct
-        ) => throw new NotSupportedException();
-
-        public Task<bool> ExtendLockAsync(LockToken token, TimeSpan ttl, CancellationToken ct) => throw new NotSupportedException();
-
-        public Task<bool> ReleaseLockAsync(LockToken token, CancellationToken ct) => throw new NotSupportedException();
     }
 }

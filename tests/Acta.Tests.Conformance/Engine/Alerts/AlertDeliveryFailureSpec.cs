@@ -565,7 +565,7 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
             alerts: Services.GetRequiredService<IAlertLifecycle>(),
             executionStore: Services.GetRequiredService<IExecution>(),
             serializers: Services.GetRequiredService<IJobPayloadSerializerRegistry>(),
-            locks: Services.GetRequiredService<ILocks>(),
+            locks: Services.GetRequiredService<Locks>(),
             cancellationToken: CancellationToken.None,
             triggeringScheduleNames: [],
             deadlineAtUtc: null

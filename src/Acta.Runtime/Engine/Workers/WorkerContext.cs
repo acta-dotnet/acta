@@ -110,7 +110,7 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
     /// Jobs this worker is mid-execution on: job_id to the attempt's cancellation source + held
     /// locks. The dispatcher registers an entry around each attempt; the heartbeat cancels the
     /// source when extend_worker_leases reports the job left this worker's lease set (externally
-    /// cancelled / stolen) and extends every lock the attempt holds through <see cref="ILocks"/> while it
+    /// cancelled / stolen) and extends every lock the attempt holds through <see cref="Locks"/> while it
     /// stays.
     /// </summary>
     public ConcurrentDictionary<long, RunningAttempt> RunningAttempts { get; } = new();
@@ -194,7 +194,7 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
 /// (cancelled to stop the handler) plus a conservative monotonic "good until" deadline for every lease it
 /// depends on - its job lease and each lock it holds through <c>RunWithLock</c> or the concurrency-key mutex.
 /// Two renewers feed these deadlines (the worker heartbeat the job lease, the lock heartbeat each lock via
-/// <see cref="ILocks"/>) and the watchdog cancels once <see cref="EarliestLeaseGoodUntil"/>
+/// <see cref="Locks"/>) and the watchdog cancels once <see cref="EarliestLeaseGoodUntil"/>
 /// nears the unwind margin. Deadlines are monotonic Stopwatch timestamps so a clock correction cannot make
 /// a lapsed lease look live; the job-lease field is read/written through Volatile and the locks live in a
 /// ConcurrentDictionary, since a renewer writes while the watchdog and handler read.

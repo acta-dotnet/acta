@@ -93,7 +93,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ReserveRateHandler>();
         services.TryAddSingleton<ExtendLockHandler>();
         services.TryAddSingleton<ReleaseLockHandler>();
-        services.TryAddSingleton<ILocks, Locks>();
+        services.TryAddSingleton<Locks>();
         services.TryAddSingleton<PurgeExpiredDataHandler>();
         services.TryAddSingleton<RetentionCoordinator>();
         services.TryAddSingleton<TagTargetResolution>();

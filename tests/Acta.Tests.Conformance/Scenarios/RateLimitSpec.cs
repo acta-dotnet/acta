@@ -562,7 +562,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
 
     private int NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 
-    private ILocks Locks => Services.GetRequiredService<ILocks>();
+    private Locks Locks => Services.GetRequiredService<Locks>();
 
     private IDefinitions Definitions => Operations.Definitions;
 

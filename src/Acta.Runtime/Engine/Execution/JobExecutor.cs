@@ -16,7 +16,7 @@ namespace Acta.Runtime;
 /// see <see cref="ExecuteClaimedJobAsync"/>.</para>
 /// </summary>
 internal sealed class JobExecutor(
-    ILocks locks,
+    Locks locks,
     IActaClock clock,
     IJobPayloadSerializerRegistry serializers,
     IServiceProvider rootServices,
@@ -28,7 +28,7 @@ internal sealed class JobExecutor(
 )
 {
     private readonly int _leaseTtlSeconds = options.Value.LeaseTtlSeconds;
-    private readonly ILocks _locks = locks;
+    private readonly Locks _locks = locks;
     private readonly IActaClock _clock = clock;
     private readonly IJobPayloadSerializerRegistry _serializers = serializers;
     private readonly IServiceProvider _rootServices = rootServices;

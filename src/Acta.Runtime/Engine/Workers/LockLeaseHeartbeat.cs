@@ -6,22 +6,22 @@ namespace Acta.Runtime;
 
 /// <summary>
 /// Renews the handler-acquired locks (<c>RunWithLock</c> and the concurrency slot) running attempts
-/// hold, through <see cref="ILocks"/>, on its own loop - separate from the worker heartbeat so a lock
+/// hold, through <see cref="Locks"/>, on its own loop - separate from the worker heartbeat so a lock
 /// outage and a worker-lease outage are told apart. Each
 /// tick feeds a still-held lock's deadline on a confirmed extend and cancels the attempt when a still-held
-/// lock is definitively lost (<see cref="ILocks.ExtendLockAsync"/> returns <c>false</c>); an uncertain
+/// lock is definitively lost (<see cref="Locks.ExtendLockAsync"/> returns <c>false</c>); an uncertain
 /// extend (exception/timeout) feeds nothing, left to the <see cref="AttemptWatchdog"/>. A no-op in
 /// enqueue-only mode.
 /// </summary>
 internal sealed class LockLeaseHeartbeat(
-    ILocks locks,
+    Locks locks,
     IOptions<JobsOptions> options,
     WorkerRegistration? workerRegistration,
     WorkerContext context,
     ILogger log
 )
 {
-    private readonly ILocks _locks = locks;
+    private readonly Locks _locks = locks;
     private readonly WorkerRegistration? _workerRegistration = workerRegistration;
     private readonly WorkerContext _context = context;
     private readonly TimeSpan _interval = options.Value.HeartbeatInterval;

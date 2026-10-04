@@ -1,4 +1,5 @@
 using Acta.Runtime;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Xunit;
 
@@ -9,18 +10,21 @@ public sealed class RuntimeJobContextLockReleaseTests
     [Fact]
     public async Task Concurrency_slot_release_failure_is_logged_and_does_not_escape()
     {
-        var locks = new ReleaseFailureLockStore();
+        // The slot acquire takes slot 0; the release fails in the database.
+        var session = new ScriptedSession(call =>
+            call.Stem == "AcquireSlot" ? $"{call.Get(ActaSchema.Sql.LockKeyPrefix)}.0" : throw new TimeoutException("release failed")
+        );
         var logger = new RecordingLogger();
-        var ctx = CreateContext(locks, logger);
+        var ctx = CreateContext(session.Services().GetRequiredService<Locks>(), logger);
         Assert.True(await ctx.TryAcquireConcurrencySlotAsync("customer-1", limit: 1, CancellationToken.None));
 
         await ctx.ReleaseConcurrencySlotAsync(CancellationToken.None);
 
-        Assert.Equal(1, locks.ReleaseCalls);
+        Assert.Equal(1, session.Calls.Count(call => call.Stem == "ReleaseLock"));
         Assert.Equal(LogLevel.Warning, Assert.Single(logger.Levels));
     }
 
-    private static RuntimeJobContext CreateContext(ILocks locks, ILogger logger) =>
+    private static RuntimeJobContext CreateContext(Locks locks, ILogger logger) =>
         new(
             new ClaimedJob(
                 JobId: 42,
@@ -56,34 +60,6 @@ public sealed class RuntimeJobContextLockReleaseTests
             deadlineAtUtc: null,
             log: logger
         );
-
-    private sealed class ReleaseFailureLockStore : ILocks
-    {
-        public int ReleaseCalls { get; private set; }
-
-        public Task<LockToken?> AcquireLockAsync(string key, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
-            Task.FromResult<LockToken?>(new LockToken(key, Guid.NewGuid()));
-
-        public Task<LockToken?> AcquireSlotAsync(string keyPrefix, int limit, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
-            Task.FromResult<LockToken?>(new LockToken($"{keyPrefix}.0", Guid.NewGuid()));
-
-        public Task<RateReservation> ReserveRateAsync(
-            string bucketKey,
-            long jobId,
-            int intervalMilliseconds,
-            int burst,
-            int graceSeconds,
-            CancellationToken ct
-        ) => throw new NotSupportedException();
-
-        public Task<bool> ExtendLockAsync(LockToken token, TimeSpan ttl, CancellationToken ct) => throw new NotSupportedException();
-
-        public Task<bool> ReleaseLockAsync(LockToken token, CancellationToken ct)
-        {
-            ReleaseCalls++;
-            throw new TimeoutException("release failed");
-        }
-    }
 
     private sealed class ThrowingSerializerRegistry : IJobPayloadSerializerRegistry
     {

@@ -44,7 +44,7 @@ public sealed class RenewalLoopFailureArmTests
         using var cts = new CancellationTokenSource();
         var log = new RecordingLogger();
         var heartbeat = new LockLeaseHeartbeat(
-            new ScriptedLockStore(cts, failOn: 1, new InvalidOperationException("synthetic connection torn down")),
+            ScriptedLockStore(cts, failOn: 1, new InvalidOperationException("synthetic connection torn down")),
             LoopOptions(),
             Registration,
             context,
@@ -72,7 +72,7 @@ public sealed class RenewalLoopFailureArmTests
         using var cts = new CancellationTokenSource();
         var log = new RecordingLogger();
         var heartbeat = new LockLeaseHeartbeat(
-            new ScriptedLockStore(cts, failOn: 3, new InvalidOperationException("synthetic connection torn down")),
+            ScriptedLockStore(cts, failOn: 3, new InvalidOperationException("synthetic connection torn down")),
             LoopOptions(),
             Registration,
             context,
@@ -95,7 +95,7 @@ public sealed class RenewalLoopFailureArmTests
         using var cts = new CancellationTokenSource();
         var log = new RecordingLogger();
         var heartbeat = new LockLeaseHeartbeat(
-            new ScriptedLockStore(cts, failOn: 3, cancellation: true),
+            ScriptedLockStore(cts, failOn: 3, cancellation: true),
             LoopOptions(),
             Registration,
             context,
@@ -115,7 +115,7 @@ public sealed class RenewalLoopFailureArmTests
         await cts.CancelAsync();
         var log = new RecordingLogger();
         var heartbeat = new LockLeaseHeartbeat(
-            new ScriptedLockStore(cts, failOn: 0, cancellation: true),
+            ScriptedLockStore(cts, failOn: 0, cancellation: true),
             LoopOptions(),
             Registration,
             context,
@@ -253,49 +253,27 @@ public sealed class RenewalLoopFailureArmTests
 
     private sealed record TrackedAttempt(RunningAttempt Attempt, CancellationTokenSource Cts);
 
-    // Answers the Nth call by cancelling the loop's own token and then failing, which is a connection
-    // torn down under a running query at shutdown: the exact state in which a tick failure reaches
-    // RunAsync's arms rather than being absorbed inside TickAsync. Every other call renews normally.
-    private sealed class ScriptedLockStore(CancellationTokenSource cts, int failOn, Exception? failure = null, bool cancellation = false)
-        : ILocks
-    {
-        private int _calls;
+    // The lock extend renews the lock on every call but the scripted one.
+    private static Locks ScriptedLockStore(CancellationTokenSource cts, int failOn, Exception? failure = null, bool cancellation = false) =>
+        FailingOn(cts, failOn, failure, cancellation, renewed: true).Services().GetRequiredService<Locks>();
 
-        public Task<LockToken?> AcquireLockAsync(string key, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<LockToken?> AcquireSlotAsync(string keyPrefix, int limit, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<RateReservation> ReserveRateAsync(
-            string bucketKey,
-            long jobId,
-            int intervalMilliseconds,
-            int burst,
-            int graceSeconds,
-            CancellationToken ct
-        ) => throw new NotSupportedException();
-
-        public Task<bool> ExtendLockAsync(LockToken token, TimeSpan ttl, CancellationToken ct)
-        {
-            if (Interlocked.Increment(ref _calls) != failOn)
-            {
-                return Task.FromResult(true);
-            }
-
-            cts.Cancel();
-            throw cancellation ? new OperationCanceledException(cts.Token) : failure!;
-        }
-
-        public Task<bool> ReleaseLockAsync(LockToken token, CancellationToken ct) => throw new NotSupportedException();
-    }
-
-    // The worker lifecycle's lease extend, failing the same way on the Nth call; every other call renews no rows.
+    // The lease extend renews no rows on every call but the scripted one.
     private static WorkerLifecycle ScriptedWorkerStore(
         CancellationTokenSource cts,
         int failOn,
         Exception? failure = null,
         bool cancellation = false
+    ) => FailingOn(cts, failOn, failure, cancellation, renewed: null).Services().GetRequiredService<WorkerLifecycle>();
+
+    // Answers the Nth call by cancelling the loop's own token and then failing, which is a connection
+    // torn down under a running query at shutdown: the exact state in which a tick failure reaches
+    // RunAsync's arms rather than being absorbed inside TickAsync. Every other call renews normally.
+    private static ScriptedSession FailingOn(
+        CancellationTokenSource cts,
+        int failOn,
+        Exception? failure,
+        bool cancellation,
+        object? renewed
     )
     {
         var calls = 0;
@@ -303,12 +281,12 @@ public sealed class RenewalLoopFailureArmTests
         {
             if (Interlocked.Increment(ref calls) != failOn)
             {
-                return null;
+                return renewed;
             }
 
             cts.Cancel();
             throw cancellation ? new OperationCanceledException(cts.Token) : failure!;
-        }).Services().GetRequiredService<WorkerLifecycle>();
+        });
     }
 
     private sealed class RecordingLogger : ILogger

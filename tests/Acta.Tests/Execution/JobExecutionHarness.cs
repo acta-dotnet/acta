@@ -172,7 +172,7 @@ internal sealed class JobExecutionHarness(
             alerts: null!,
             executionStore: _store,
             new HarnessSerializers(),
-            _locks,
+            _locks.Locks,
             cancellationToken: _attemptCts.Token,
             triggeringScheduleNames: [],
             deadlineAtUtc: deadlineAtUtc,
@@ -268,7 +268,7 @@ internal sealed class JobExecutionHarness(
         var options = Options.Create(new JobsOptions());
         var serializers = new HarnessSerializers();
         return new JobExecutor(
-            _locks,
+            _locks.Locks,
             new HarnessClock(),
             serializers,
             new StoreOnlyServices(_store, _getJob, CancelJob()),
@@ -628,25 +628,29 @@ internal sealed class JobExecutionHarness(
         public bool IsRegistered(byte formatId) => formatId == JobPayloadFormat.Json.Id;
     }
 
-    /// <summary>
-    /// Scripted admission store. It answers the slot acquire and the rate reservation the way the
-    /// script says, records what the runner asked for, and counts releases; the handler-facing acquire
-    /// stays unsupported, so an attempt that starts using it is visible rather than silent.
-    /// </summary>
     // The one exception class the retry helper repeats and admission bounces on: a provider fault, not
     // a handler fault.
     private sealed class ProviderDown() : System.Data.Common.DbException("connection dropped");
 
+    /// <summary>
+    /// Scripted admission: the real lock group over a session that answers the slot acquire and the rate
+    /// reservation the way the script says, records what the runner asked for, and counts releases; any
+    /// other lock call, the handler-facing acquire among them, throws, so an attempt that starts using it
+    /// is visible rather than silent.
+    /// </summary>
     private sealed class ScriptedLockStore(
         bool slotGranted,
         DateTime? rateResumeAtUtc,
         int? rateWaitMilliseconds,
         bool slotThrows,
         bool rateThrows
-    ) : ILocks
+    )
     {
         private readonly List<SlotRequest> _slotRequests = [];
         private readonly List<RateRequest> _rateRequests = [];
+        private Locks? _locks;
+
+        public Locks Locks => _locks ??= new ScriptedSession(Answer).Services().GetRequiredService<Locks>();
 
         public IReadOnlyList<SlotRequest> SlotRequests => _slotRequests;
 
@@ -657,29 +661,42 @@ internal sealed class JobExecutionHarness(
 
         public int SlotReleases { get; private set; }
 
-        public Task<LockToken?> AcquireLockAsync(string key, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
-            throw new NotSupportedException();
+        private object? Answer(BoundCall call) =>
+            call.Stem switch
+            {
+                "AcquireSlot" => AcquireSlot(call.Get(ActaSchema.Sql.LockKeyPrefix), call.Get(ActaSchema.Sql.SlotCount)),
+                "ReserveRate" => ReserveRate(
+                    new RateRequest(
+                        call.Get(ActaSchema.Lock.LockKey),
+                        call.Get(ActaSchema.Sql.RateIntervalMilliseconds),
+                        call.Get(ActaSchema.Sql.RateBurst),
+                        call.Get(ActaSchema.Sql.RateGraceSeconds)
+                    )
+                ),
+                "ReleaseLock" => Release(),
+                _ => throw new NotSupportedException(call.Stem),
+            };
 
-        public Task<LockToken?> AcquireSlotAsync(string keyPrefix, int limit, TimeSpan ttl, long ownerJobId, CancellationToken ct)
+        // The slot key the SQL took, which the handler pairs with the hold token it minted.
+        private string? AcquireSlot(string keyPrefix, int limit)
         {
             _slotRequests.Add(new SlotRequest(keyPrefix, limit));
             if (slotThrows)
             {
                 throw new ProviderDown();
             }
-            return Task.FromResult(slotGranted ? new LockToken($"{keyPrefix}.0", Guid.NewGuid()) : (LockToken?)null);
+            return slotGranted ? $"{keyPrefix}.0" : null;
         }
 
-        public Task<RateReservation> ReserveRateAsync(
-            string bucketKey,
-            long jobId,
-            int intervalMilliseconds,
-            int burst,
-            int graceSeconds,
-            CancellationToken ct
-        )
+        private bool Release()
         {
-            _rateRequests.Add(new RateRequest(bucketKey, intervalMilliseconds, burst, graceSeconds));
+            SlotReleases++;
+            return true;
+        }
+
+        private RateReservation ReserveRate(RateRequest request)
+        {
+            _rateRequests.Add(request);
             if (_rateRequests.Count == 1)
             {
                 OnRateRequest?.Invoke();
@@ -692,21 +709,11 @@ internal sealed class JobExecutionHarness(
             // is handed back with its wait once, and the call that follows the sleep finds it admitted.
             if (rateWaitMilliseconds is { } wait && _rateRequests.Count == 1)
             {
-                return Task.FromResult(new RateReservation(false, DateTime.UtcNow.AddMilliseconds(wait), wait));
+                return new RateReservation(false, DateTime.UtcNow.AddMilliseconds(wait), wait);
             }
-            return Task.FromResult(
-                rateResumeAtUtc is { } resumeAt
-                    ? new RateReservation(false, resumeAt, JobExecution.RateTurnWaitMilliseconds + 1)
-                    : new RateReservation(true, DateTime.UtcNow, 0)
-            );
-        }
-
-        public Task<bool> ExtendLockAsync(LockToken token, TimeSpan ttl, CancellationToken ct) => throw new NotSupportedException();
-
-        public Task<bool> ReleaseLockAsync(LockToken token, CancellationToken ct)
-        {
-            SlotReleases++;
-            return Task.FromResult(true);
+            return rateResumeAtUtc is { } resumeAt
+                ? new RateReservation(false, resumeAt, JobExecution.RateTurnWaitMilliseconds + 1)
+                : new RateReservation(true, DateTime.UtcNow, 0);
         }
     }
 

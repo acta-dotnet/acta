@@ -7,7 +7,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Locks;
 
 /// <summary>
-/// Conformance for <c>ILocks.ExtendLockAsync</c> - the heartbeat's lock-lease renewal seam. A held lock
+/// Conformance for <c>Locks.ExtendLockAsync</c> - the heartbeat's lock-lease renewal seam. A held lock
 /// renews while owned (a competing acquirer stays blocked), and a renew after release is a version-CAS
 /// miss. Proves the contract the lock heartbeat relies on to keep a long handler's
 /// concurrency lock alive.
@@ -24,7 +24,7 @@ public sealed class ExtendLockSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task ExtendLock_renews_a_held_lock_and_misses_after_release()
     {
         var ct = TestContext.Current.CancellationToken;
-        var locks = Services.GetRequiredService<ILocks>();
+        var locks = Services.GetRequiredService<Acta.Runtime.Locks>();
         var key = TestKey("ck.lease-renewal");
 
         var token = await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -1, ct);

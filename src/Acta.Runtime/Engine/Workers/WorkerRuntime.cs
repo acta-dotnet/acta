@@ -42,7 +42,7 @@ internal sealed class WorkerRuntime
     private readonly CancellationTokenSource _drainCts = new();
 
     public WorkerRuntime(
-        ILocks locks,
+        Locks locks,
         IActaClock clock,
         IJobPayloadSerializerRegistry serializers,
         IServiceProvider rootServices,
@@ -153,7 +153,7 @@ internal sealed class WorkerRuntime
     /// </summary>
     public static WorkerRuntime Create(IServiceProvider sp, WorkerRegistration worker) =>
         new(
-            sp.GetRequiredService<ILocks>(),
+            sp.GetRequiredService<Locks>(),
             sp.GetRequiredService<IActaClock>(),
             sp.GetRequiredService<IJobPayloadSerializerRegistry>(),
             sp,

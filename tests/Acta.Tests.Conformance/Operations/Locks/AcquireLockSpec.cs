@@ -9,7 +9,7 @@ namespace Acta.Tests.Conformance.Operations.Locks;
 
 /// <summary>
 /// Conformance for <c>AcquireLock</c> - the steal-on-expiry acquire that backs
-/// <c>ILocks.AcquireLockAsync</c>. A free key is acquired and the lease row lands; a competing
+/// <c>Locks.AcquireLockAsync</c>. A free key is acquired and the lease row lands; a competing
 /// acquire on the same live key is blocked (returns <c>null</c>).
 /// </summary>
 [ConformanceSpec(
@@ -24,7 +24,7 @@ public sealed class AcquireLockSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Concurrent_acquires_have_one_winner()
     {
         var ct = TestContext.Current.CancellationToken;
-        var store = Services.GetRequiredService<ILocks>();
+        var store = Services.GetRequiredService<Acta.Runtime.Locks>();
         var key = TestKey("lock-race");
         var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var attempts = Enumerable
@@ -48,7 +48,7 @@ public sealed class AcquireLockSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Acquire_lands_a_lease_row_and_blocks_a_competing_acquire()
     {
         var ct = TestContext.Current.CancellationToken;
-        var locks = Services.GetRequiredService<ILocks>();
+        var locks = Services.GetRequiredService<Acta.Runtime.Locks>();
         var key = TestKey("ck.acquire-lock-spec");
 
         var token = await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -1, ct);
@@ -72,7 +72,7 @@ public sealed class AcquireLockSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Competing_acquire_steals_expired_lease_and_bumps_version()
     {
         var ct = TestContext.Current.CancellationToken;
-        var locks = Services.GetRequiredService<ILocks>();
+        var locks = Services.GetRequiredService<Acta.Runtime.Locks>();
         var key = TestKey("ck.steal-on-expiry");
 
         // Initial acquire: lands a lease row. Owners are negative synthetic ids so they can never

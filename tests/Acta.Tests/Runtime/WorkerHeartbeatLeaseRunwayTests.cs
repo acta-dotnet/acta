@@ -118,7 +118,7 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
         var lockB = new LockToken("orders.b", Guid.NewGuid());
         var locks = new RecordingLockStore(_ => true);
         var context = Context();
-        var lockHeartbeat = new LockLeaseHeartbeat(locks, Options(), Registration, context, NullLogger.Instance);
+        var lockHeartbeat = new LockLeaseHeartbeat(locks.Build(), Options(), Registration, context, NullLogger.Instance);
 
         using var cts = new CancellationTokenSource();
         // Job lease healthy (seeded far out); the lock deadlines start nearly lapsed so a successful extend
@@ -146,7 +146,7 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
         var lost = new LockToken("orders.lost", Guid.NewGuid());
         var locks = new RecordingLockStore(_ => false);
         var context = Context();
-        var lockHeartbeat = new LockLeaseHeartbeat(locks, Options(), Registration, context, NullLogger.Instance);
+        var lockHeartbeat = new LockLeaseHeartbeat(locks.Build(), Options(), Registration, context, NullLogger.Instance);
 
         using var cts = new CancellationTokenSource();
         var attempt = new RunningAttempt(cts);
@@ -163,7 +163,7 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
     public async Task Lock_heartbeat_tolerates_a_transient_throw_without_cancelling_or_feeding()
     {
         var flaky = new LockToken("orders.flaky", Guid.NewGuid());
-        var locks = new ThrowingLockStore(flaky);
+        var locks = ThrowingLockStore(flaky);
         var context = Context();
         var lockHeartbeat = new LockLeaseHeartbeat(locks, Options(), Registration, context, NullLogger.Instance);
 
@@ -192,7 +192,7 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
         attempt.TrackLock(released, Stopwatch.GetTimestamp() + TicksFor(TimeSpan.FromSeconds(LeaseTtlSeconds)));
         context.RunningAttempts[1] = attempt;
 
-        var locks = new ThrowingLockStore(released, onExtend: () => attempt.UntrackLock(released));
+        var locks = ThrowingLockStore(released, onExtend: () => attempt.UntrackLock(released));
         var lockHeartbeat = new LockLeaseHeartbeat(locks, Options(), Registration, context, NullLogger.Instance);
 
         await lockHeartbeat.TickAsync(TestContext.Current.CancellationToken);
@@ -320,63 +320,28 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
     private static WorkerLifecycle ThrowingWorkerStore() =>
         WorkerStore(_ => throw new InvalidOperationException("synthetic transient worker-store fault"));
 
-    private sealed class RecordingLockStore(Func<LockToken, bool> result) : ILocks
+    // The lock group over a scripted extend, the lock heartbeat's only database call: every extend is
+    // recorded as the token it bound, and holds when the script says so.
+    private sealed class RecordingLockStore(Func<LockToken, bool> result)
     {
-        private readonly List<LockToken> _extended = [];
+        private readonly ScriptedSession _session = new(call => result(Token(call)) ? true : null);
 
-        public IReadOnlyList<LockToken> Extended => _extended;
+        public IReadOnlyList<LockToken> Extended => [.. _session.Calls.Select(Token)];
 
-        public Task<LockToken?> AcquireLockAsync(string key, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<LockToken?> AcquireSlotAsync(string keyPrefix, int limit, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<RateReservation> ReserveRateAsync(
-            string bucketKey,
-            long jobId,
-            int intervalMilliseconds,
-            int burst,
-            int graceSeconds,
-            CancellationToken ct
-        ) => throw new NotSupportedException();
-
-        public Task<bool> ExtendLockAsync(LockToken token, TimeSpan ttl, CancellationToken ct)
-        {
-            _extended.Add(token);
-            return Task.FromResult(result(token));
-        }
-
-        public Task<bool> ReleaseLockAsync(LockToken token, CancellationToken ct) => throw new NotSupportedException();
+        public Locks Build() => _session.Services().GetRequiredService<Locks>();
     }
 
-    private sealed class ThrowingLockStore(LockToken flaky, Action? onExtend = null) : ILocks
-    {
-        public Task<LockToken?> AcquireLockAsync(string key, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<LockToken?> AcquireSlotAsync(string keyPrefix, int limit, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<RateReservation> ReserveRateAsync(
-            string bucketKey,
-            long jobId,
-            int intervalMilliseconds,
-            int burst,
-            int graceSeconds,
-            CancellationToken ct
-        ) => throw new NotSupportedException();
-
-        public Task<bool> ExtendLockAsync(LockToken token, TimeSpan ttl, CancellationToken ct)
+    // Extends every lock but the flaky one, whose extend runs onExtend and then fails.
+    private static Locks ThrowingLockStore(LockToken flaky, Action? onExtend = null) => new ScriptedSession(call =>
         {
-            if (token == flaky)
+            if (Token(call) != flaky)
             {
-                onExtend?.Invoke();
-                return Task.FromException<bool>(new InvalidOperationException("synthetic transient lock-store fault"));
+                return true;
             }
-            return Task.FromResult(true);
-        }
 
-        public Task<bool> ReleaseLockAsync(LockToken token, CancellationToken ct) => throw new NotSupportedException();
-    }
+            onExtend?.Invoke();
+            throw new InvalidOperationException("synthetic transient lock-store fault");
+        }).Services().GetRequiredService<Locks>();
+
+    private static LockToken Token(BoundCall call) => new(call.Get(ActaSchema.Lock.LockKey), call.Get(ActaSchema.Lock.HoldToken));
 }

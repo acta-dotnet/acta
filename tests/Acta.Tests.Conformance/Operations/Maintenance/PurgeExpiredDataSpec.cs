@@ -410,10 +410,12 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         var liveKey = TestKey("reap-spec.live");
         var deadKey = TestKey("reap-spec.dead");
         var liveToken = await Services
-            .GetRequiredService<ILocks>()
+            .GetRequiredService<Acta.Runtime.Locks>()
             .AcquireLockAsync(liveKey, TimeSpan.FromSeconds(3600), ownerJobId: -1, ct);
         Assert.NotNull(liveToken);
-        Assert.NotNull(await Services.GetRequiredService<ILocks>().AcquireLockAsync(deadKey, TimeSpan.FromSeconds(-1), ownerJobId: -1, ct));
+        Assert.NotNull(
+            await Services.GetRequiredService<Acta.Runtime.Locks>().AcquireLockAsync(deadKey, TimeSpan.FromSeconds(-1), ownerJobId: -1, ct)
+        );
 
         try
         {
@@ -437,7 +439,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         finally
         {
             // Drop the held row so the shared schema carries no hour-long lease out of this test.
-            await Services.GetRequiredService<ILocks>().ReleaseLockAsync(liveToken!.Value, ct);
+            await Services.GetRequiredService<Acta.Runtime.Locks>().ReleaseLockAsync(liveToken!.Value, ct);
         }
     }
 
@@ -533,7 +535,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var locks = Services.GetRequiredService<ILocks>();
+        var locks = Services.GetRequiredService<Acta.Runtime.Locks>();
 
         // Three immediately-reapable rows (negative TTL) plus one live row. The reap is global, so a
         // concurrent spec's full purge may sweep some dead rows first; the call's OWN count is still

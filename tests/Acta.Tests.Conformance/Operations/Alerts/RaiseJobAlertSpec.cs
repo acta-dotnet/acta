@@ -279,7 +279,7 @@ public sealed class RaiseJobAlertSpec : ActaStorageTestBase<ConformanceFixture>
             alerts: Services.GetRequiredService<IAlertLifecycle>(),
             executionStore: Services.GetRequiredService<IExecution>(),
             serializers: Services.GetRequiredService<IJobPayloadSerializerRegistry>(),
-            locks: Services.GetRequiredService<ILocks>(),
+            locks: Services.GetRequiredService<Acta.Runtime.Locks>(),
             cancellationToken: CancellationToken.None,
             triggeringScheduleNames: [],
             deadlineAtUtc: null

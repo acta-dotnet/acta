@@ -23,7 +23,7 @@ internal sealed class RuntimeJobContext(
     IAlertLifecycle alerts,
     Acta.Runtime.IExecution executionStore,
     IJobPayloadSerializerRegistry serializers,
-    ILocks locks,
+    Locks locks,
     IReadOnlyList<string> triggeringScheduleNames,
     DateTime? deadlineAtUtc,
     CancellationToken cancellationToken,
@@ -46,7 +46,7 @@ internal sealed class RuntimeJobContext(
     private readonly IAlertLifecycle _alerts = alerts;
     private readonly Acta.Runtime.IExecution _executionStore = executionStore;
     private readonly IJobPayloadSerializerRegistry _serializers = serializers;
-    private readonly ILocks _locks = locks;
+    private readonly Locks _locks = locks;
     private readonly int _namespaceId = namespaceId;
     private readonly int _leaseTtlSeconds = leaseTtlSeconds;
     private readonly int _maxInlinePayloadBytes = maxInlinePayloadBytes;
