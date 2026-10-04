@@ -108,6 +108,22 @@ public sealed class AcquireSlotSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Equal(winner.HoldToken, (await ReadAsync(winner.Key, ct))?.HoldToken);
     }
 
+    [Theory(DisplayName = "A limit below one throws before any slot is written")]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task Limit_below_one_throws(int limit)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var prefix = TestKey("no-slots");
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            await Services
+                .GetRequiredService<Acta.Runtime.Locks>()
+                .AcquireSlotAsync(prefix, limit, TimeSpan.FromSeconds(60), ownerJobId: -1, ct)
+        );
+        Assert.Null(await ReadAsync($"{prefix}.0", ct));
+    }
+
     private Task<Lock?> ReadAsync(string key, CancellationToken ct) =>
         Db.From<Lock>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct);
 

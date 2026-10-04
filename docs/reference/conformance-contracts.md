@@ -1126,6 +1126,7 @@
   - With every slot under the limit held the acquire returns null and writes no slot past the limit
   - An expired slot is stolen in place before any higher free slot, and its old token no longer releases
   - Simultaneous acquires of a key's one free slot leave exactly one holder
+  - A limit below one throws before any slot is written
 
 ### A held lock renews while owned and misses after release
 - **Contract:** Extending a held lock renews it so a competing acquirer stays blocked, and extending after release is a version-CAS miss that frees the key.

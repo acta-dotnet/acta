@@ -19,12 +19,11 @@ internal sealed class Locks(
         acquireLock.HandleAsync(new AcquireLockCommand(key, ttl, ownerJobId), ct);
 
     /// <summary>
-    /// Takes the lowest-numbered free slot of a counted key in one round trip, whatever the limit:
-    /// the slots are the rows <c>{keyPrefix}.0</c> .. <c>{keyPrefix}.{limit-1}</c>, and a slot is free
-    /// when it has no row or its hold expired (steal on expiry, as AcquireLockAsync does). Null when
-    /// every slot is held, and also when a racer took the chosen slot first: the routine makes one
-    /// attempt and never retries, so the caller settles the loss rather than waiting.
-    /// The returned token carries the slot's own key, so extend and release need no slot arithmetic.
+    /// Takes the lowest-numbered free slot of a counted key (limit at least 1) in one round trip: the slots
+    /// are the rows <c>{keyPrefix}.0</c> .. <c>{keyPrefix}.{limit-1}</c>, and a slot is free when it has no
+    /// row or its hold expired (steal on expiry, as AcquireLockAsync does). Null when every slot is held, and
+    /// also when a racer took the chosen slot first: the routine makes one attempt and never retries, so the
+    /// caller settles the loss rather than waiting. The token carries the slot's own key for extend and release.
     /// </summary>
     public Task<LockToken?> AcquireSlotAsync(string keyPrefix, int limit, TimeSpan ttl, long ownerJobId, CancellationToken ct) =>
         acquireSlot.HandleAsync(new AcquireSlotCommand(keyPrefix, limit, ttl, ownerJobId), ct);

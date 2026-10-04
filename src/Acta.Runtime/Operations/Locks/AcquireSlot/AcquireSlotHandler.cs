@@ -8,6 +8,9 @@ internal sealed class AcquireSlotHandler(IDbSession session, ISqlDialect dialect
 {
     public async Task<LockToken?> HandleAsync(AcquireSlotCommand command, CancellationToken ct)
     {
+        // A limit counts the holders that may run at once, so it is at least one; below that it names no slot,
+        // and the dialects' slot enumerations would answer it differently.
+        ArgumentOutOfRangeException.ThrowIfLessThan(command.Limit, 1, "limit");
         var holdToken = Guid.NewGuid();
         var key = await session.ExecuteSingleAsync(
             new StoreCommand("AcquireSlot"),
