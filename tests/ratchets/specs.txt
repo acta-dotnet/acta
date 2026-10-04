@@ -31,8 +31,4 @@ operation: Schedules/GetLiveSchedules
 operation: Settings/GetSetting
 operation: Signals/RaiseSignal
 operation: Signals/WaitSignal
-operation: Tags/GetTags
-operation: Tags/RemoveTags
-operation: Tags/ReplaceTags
-operation: Tags/UpsertTags
 operation: Tenants/GetTenantKey

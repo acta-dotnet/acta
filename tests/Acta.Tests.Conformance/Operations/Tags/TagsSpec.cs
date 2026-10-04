@@ -102,33 +102,6 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
         }
     }
 
-    [Fact(DisplayName = "Tag limits and duplicate normalized names reject before replacing existing state")]
-    public async Task Validation_rejects_invalid_replacements_without_mutation()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var target = (await CreateTargetsAsync(ct)).Job;
-        await Operations.Tags.ReplaceAsync(target, [new TagInput("kept", "value")], ct: ct);
-
-        await Assert.ThrowsAsync<ArgumentException>(() =>
-            Operations.Tags.ReplaceAsync(target, [new TagInput("duplicate"), new TagInput("duplicate", "two")], ct: ct).AsTask()
-        );
-        await Assert.ThrowsAsync<ArgumentException>(() =>
-            Operations
-                .Tags.ReplaceAsync(
-                    target,
-                    Enumerable.Range(0, TagLimits.MaxTagsPerTarget + 1).Select(i => new TagInput($"tag-{i}")).ToArray(),
-                    ct: ct
-                )
-                .AsTask()
-        );
-        await Assert.ThrowsAsync<ArgumentException>(() =>
-            Operations.Tags.ReplaceAsync(target, [new TagInput("name", new string('v', TagLimits.MaxValueLength + 1))], ct: ct).AsTask()
-        );
-
-        var unchanged = Assert.IsType<TagSet>(await Operations.Tags.GetAsync(target, ct));
-        Assert.Equal([new TagItem("kept", "value")], unchanged.Items);
-    }
-
     [Fact(DisplayName = "Tenant, namespace, definition, job, schedule, worker, alert, and event lists use AND tag semantics")]
     public async Task Typed_lists_filter_all_targets_with_and_semantics()
     {
@@ -417,8 +390,5 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
         long AlertId,
         long EventId,
         IReadOnlyList<TagTarget> All
-    )
-    {
-        public TagTarget Job => All[3];
-    }
+    );
 }

@@ -1794,18 +1794,48 @@
 
 ## Tags
 
+### Get reads one target's tags and null for a missing target
+- **Contract:** Get returns an existing target's tags with their exact values in name order, an empty set when it has none, and null when the target is missing.
+- **Guarantees:**
+  - A target without tags reads an empty set and a missing target reads null
+  - Each tag reads back its exact value, and a presence-only tag reads a null value
+  - A tenant key or job name addressed in another case reads the same target
+  - A read returns only the addressed target's tags
+
+### Remove deletes one tag by name and treats a missing tag as done
+- **Contract:** Remove deletes one tag by name from an existing target, leaves its other tags and every other target alone, and applies harmlessly when the tag is absent.
+- **Guarantees:**
+  - Remove deletes the named tag and keeps the rest
+  - Removing a tag the target does not carry applies and changes nothing
+  - Remove reaches only the addressed target
+  - A malformed or reserved name throws even when the target is missing
+
+### Replace swaps a target's whole tag set in one write
+- **Contract:** Replace leaves an existing target with exactly the given tags, an empty list clears them, and an invalid list throws before any existing tag changes.
+- **Guarantees:**
+  - Replace drops unlisted tags, keeps listed ones with their new values, and a repeat changes nothing
+  - An empty list clears every tag and a full list of 32 is accepted
+  - Tag limits and duplicate normalized names reject before replacing existing state
+
 ### Tags read and mutate all first-class targets and filter typed queries
 - **Contract:** ITags distinguishes missing from empty targets, atomically replaces, idempotently upserts/removes, and typed queries require every exact tag filter.
 - **Guarantees:**
   - All eight existing targets read empty while missing targets read null and mutate NotFound
   - The seeded sys namespace supports tag reads and mutations
   - Replace is atomic and clearable; upsert and remove are idempotent and reads are name ordered
-  - Tag limits and duplicate normalized names reject before replacing existing state
   - Tenant, namespace, definition, job, schedule, worker, alert, and event lists use AND tag semantics
   - A deduplicated enqueue preserves the existing job's tags
   - Mutating event tags writes no audit event
   - Manual purge removes job, schedule, alert, and event tags before deleting their targets
   - Concurrent tag mutation and target deletion converge without orphan tags
+
+### Upsert inserts or overwrites one tag and leaves the others alone
+- **Contract:** Upsert inserts one tag or overwrites its value on an existing target, leaves the other tags untouched, and refuses a new name past the 32-tag cap.
+- **Guarantees:**
+  - Upserting a new name adds it beside the existing tags
+  - Upserting an existing name overwrites its value, and repeating the write changes nothing
+  - At the cap a new name is refused with nothing written, while an existing name still updates
+  - A malformed name, a reserved sys name, or an oversize value throws before any write
 
 ## Test ORM
 
