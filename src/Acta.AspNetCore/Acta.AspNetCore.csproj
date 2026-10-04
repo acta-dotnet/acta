@@ -20,15 +20,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Each operation group's route table and special endpoints live beside the operation in Acta.Runtime; they
-         use only the public Acta API, so they compile here. -->
-    <Compile
-      Include="..\Acta.Runtime\Operations\**\*Endpoint.cs;..\Acta.Runtime\Operations\**\*Endpoints.cs"
-      Link="Operations\%(RecursiveDir)%(Filename)%(Extension)"
-    />
-  </ItemGroup>
-
-  <ItemGroup>
     <!-- The Svelte sources travel with the project but are not compile inputs. -->
     <None Include="DashboardApp\**\*.*" Exclude="DashboardApp\node_modules\**;DashboardApp\dist\**" />
     <!-- The licenses of the components bundled into the embedded dashboard travel with the package;

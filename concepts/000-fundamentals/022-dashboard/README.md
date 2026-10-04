@@ -74,4 +74,4 @@ Build a custom UI when operators need domain-specific workflows rather than gene
 - [The embedded-dashboard Engineering Lab](../../../docs/engineering-labs.md)
 - [`Program.cs`](./Program.cs)
 - [`ActaEndpointOptions.cs`](../../../src/Acta.AspNetCore/Configuration/ActaEndpointOptions.cs)
-- [`JobsEndpoints.cs`](../../../src/Acta.Runtime/Operations/Jobs/JobsEndpoints.cs)
+- [`JobsEndpoints.cs`](../../../src/Acta.AspNetCore/Operations/Jobs/JobsEndpoints.cs)

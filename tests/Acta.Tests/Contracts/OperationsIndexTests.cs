@@ -63,7 +63,7 @@ public sealed partial class OperationsIndexTests
     {
         var operations = Path.Combine(root, "src", "Acta.Runtime", "Operations");
         var facadeMethods = FacadeMethods(operations);
-        var routes = Routes(operations, facadeMethods);
+        var routes = Routes(Path.Combine(root, "src", "Acta.AspNetCore", "Operations"), facadeMethods);
         var verbs = CliVerbs(Path.Combine(root, "src", "Acta.Runtime", "Cli", "CliCommandRunner.cs"), facadeMethods);
 
         var sb = new StringBuilder();

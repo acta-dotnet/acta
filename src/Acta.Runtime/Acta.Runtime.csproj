@@ -52,8 +52,6 @@
   <ItemGroup>
     <!-- Every dialect's SQL beside its operation, and the schema commands and operator views; the catalog
          selects one dialect by the X.<token>.sql suffix. -->
-    <!-- Route tables and special endpoints sit beside their operations but compile into Acta.AspNetCore. -->
-    <Compile Remove="Operations/**/*Endpoint.cs;Operations/**/*Endpoints.cs" />
     <EmbeddedResource Include="Operations/**/*.sql;Schema/**/*.sql" Exclude="$(DefaultItemExcludes)">
       <LogicalName>$(AssemblyName).$([MSBuild]::ValueOrDefault('%(RelativeDir)', '').Replace('\', '.').Replace('/', '.'))%(Filename)%(Extension)</LogicalName>
     </EmbeddedResource>
