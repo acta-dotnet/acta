@@ -177,7 +177,6 @@ internal static class ActaApiEndpoints
             ActaControlEndpoints.Map(controls, options);
             JobDepthEndpoints.MapControls(controls, options);
             ScheduleControlEndpoints.Map(controls, options);
-            DefinitionControlEndpoints.Map(controls, options);
             TagEndpoints.MapControls(controls, options);
         }
 
@@ -191,6 +190,7 @@ internal static class ActaApiEndpoints
         TenantsEndpoints.Map(group, controls, options);
         AlertsEndpoints.Map(group, controls, options);
         OutboxEndpoints.Map(group, controls, options);
+        DefinitionsEndpoints.Map(group, controls, options);
 
         group
             .MapGet(
@@ -609,70 +609,6 @@ internal static class ActaApiEndpoints
                 .. QueryParameterDocExtensions.PagingCore,
                 .. QueryParameterDocExtensions.IncludeTotal,
             ])
-            .ProducesProblem(StatusCodes.Status404NotFound);
-
-        group
-            .MapGet(
-                "/definitions",
-                static (HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                {
-                    string? error = null;
-                    if (
-                        !QueryBinding.TryEnum<JobDefinitionStatusCode>(http.Request.Query, "status", out var status, ref error)
-                        || !QueryBinding.TryInt(http.Request.Query, "pageSize", out var pageSize, ref error)
-                        || !QueryBinding.TryBool(http.Request.Query, "includeTotal", out var includeTotal, ref error)
-                    )
-                    {
-                        return Task.FromResult(BadRequest(error));
-                    }
-
-                    var query = new ListDefinitionsQuery(
-                        JobNamespace: QueryBinding.Text(http.Request.Query, "jobNamespace"),
-                        NameContains: QueryBinding.Text(http.Request.Query, "nameContains"),
-                        Status: status,
-                        PageSize: pageSize,
-                        Cursor: QueryBinding.Text(http.Request.Query, "cursor"),
-                        IncludeTotal: includeTotal ?? false,
-                        Tags: QueryBinding.Tags(http.Request.Query)
-                    );
-                    return Guard(async () =>
-                        Results.Json(
-                            await operations.Definitions.ListAsync(query, ct),
-                            DashboardJsonContext.Default.PagedResultJobDefinitionListItem
-                        )
-                    );
-                }
-            )
-            .WithSummary("List job definitions.")
-            .Produces<PagedResult<JobDefinitionListItem>>(StatusCodes.Status200OK)
-            .WithQueryParameters([
-                new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Only definitions registered in this namespace."),
-                new QueryParameterDoc("nameContains", QueryParameterKind.String, "Case-insensitive substring match on the job name."),
-                new QueryParameterDoc(
-                    "status",
-                    QueryParameterKind.String,
-                    "Exact definition status as a kebab code.",
-                    CodeKind: "job-definition-status"
-                ),
-                .. QueryParameterDocExtensions.PagingCore,
-                .. QueryParameterDocExtensions.IncludeTotal,
-                .. QueryParameterDocExtensions.TagFilter,
-            ]);
-
-        group
-            .MapGet(
-                "/definitions/{jobNamespace}/{jobName}",
-                static (string jobNamespace, string jobName, IActaOperations operations, CancellationToken ct) =>
-                    Guard(async () =>
-                    {
-                        var def = await operations.Definitions.GetAsync(jobNamespace, jobName, ct);
-                        return def is null
-                            ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Definition not found.")
-                            : Results.Json(def, DashboardJsonContext.Default.JobDefinitionDetail);
-                    })
-            )
-            .WithSummary("Read one job definition and its effective policy.")
-            .Produces<JobDefinitionDetail>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         group

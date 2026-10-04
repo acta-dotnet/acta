@@ -29,15 +29,6 @@ internal static class TagEndpoints
             .WithSummary("Read the job's tags.");
         group
             .MapGet(
-                "/definitions/{jobNamespace}/{jobName}/tags",
-                (string jobNamespace, string jobName, IActaOperations operations, CancellationToken ct) =>
-                    DefinitionKeyError(jobNamespace, jobName) is { } invalid
-                        ? Task.FromResult(invalid)
-                        : TagRoutes.ReadAsync(operations, () => TagTarget.ForDefinition(jobNamespace, jobName), ct)
-            )
-            .WithSummary("Read the definition's tags.");
-        group
-            .MapGet(
                 "/schedules/{jobNamespace}/{jobName}/{scheduleName}/tags",
                 (string jobNamespace, string jobName, string scheduleName, IActaOperations operations, CancellationToken ct) =>
                     TagRoutes.ReadAsync(operations, () => ScheduleTarget(jobNamespace, jobName, scheduleName), ct)
@@ -81,33 +72,6 @@ internal static class TagEndpoints
 
         withBody
             .MapPost(
-                "/definitions/{jobNamespace}/{jobName}/tags",
-                (string jobNamespace, string jobName, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    DefinitionKeyError(jobNamespace, jobName) is { } invalid
-                        ? Task.FromResult(invalid)
-                        : TagRoutes.UpsertAsync(http, operations, options, () => TagTarget.ForDefinition(jobNamespace, jobName), ct)
-            )
-            .AcceptsJson<TagUpsertRequest>()
-            .WithSummary("Add or update one tag on the definition.");
-        group
-            .MapDelete(
-                "/definitions/{jobNamespace}/{jobName}/tags/{tagName}",
-                (string jobNamespace, string jobName, string tagName, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    DefinitionKeyError(jobNamespace, jobName) is { } invalid
-                        ? Task.FromResult(invalid)
-                        : TagRoutes.RemoveAsync(
-                            http,
-                            operations,
-                            options,
-                            () => TagTarget.ForDefinition(jobNamespace, jobName),
-                            tagName,
-                            ct
-                        )
-            )
-            .WithSummary("Remove one tag from the definition.");
-
-        withBody
-            .MapPost(
                 "/schedules/{jobNamespace}/{jobName}/{scheduleName}/tags",
                 (
                     string jobNamespace,
@@ -148,26 +112,6 @@ internal static class TagEndpoints
         JobTargetBinding.TryParseTarget(jobRef, options, out var lookup)
             ? TagTarget.ForJob(lookup)
             : throw new ArgumentException("jobRef is not a valid job ref.");
-
-    /// <summary>
-    /// The 400 for a definition key this API cannot address, or null when the key is usable.
-    /// <see cref="TagTarget.ForDefinition"/> normalizes for its .NET callers (it folds case), but the
-    /// definition reads reject anything but the canonical lowercase form - so the edge applies the
-    /// reads' rule first and every definition route, read or write, answers a bad key the same way.
-    /// </summary>
-    private static IResult? DefinitionKeyError(string jobNamespace, string jobName)
-    {
-        try
-        {
-            IdentifierSyntax.ValidateKebab(jobNamespace, nameof(jobNamespace));
-            IdentifierSyntax.ValidateDottedKebab(jobName, nameof(jobName), IdentifierSyntax.ExtendedMaxLength);
-            return null;
-        }
-        catch (ArgumentException ex)
-        {
-            return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid definition key.", ex.Message);
-        }
-    }
 
     private static TagTarget ScheduleTarget(string jobNamespace, string jobName, string scheduleName) =>
         TagTarget.ForSchedule(new ScheduleLookup(JobLookup.ByDeduplicationKey(jobNamespace, jobName), scheduleName));
