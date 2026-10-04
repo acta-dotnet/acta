@@ -579,12 +579,14 @@ key before a write succeeds.
 Acta could keep two kinds. Names Acta routes on (namespace, job, schedule, signal, tag, lane) would
 share one grammar and one length, safe in a URL path segment and in the `sys.child.{id}` style names
 the engine builds. Keys the caller owns (deduplication, concurrency, correlation, tenant) would be
-opaque text with a length cap and no control characters, compared as written or case-folded. The
-`sys.` prefix would stay reserved in both.
+opaque text with a length cap and no control characters. The `sys.` prefix would stay reserved in
+both. Both kinds stay lowercase ASCII, lowered at the edge (Marko): every provider's collation then
+compares them byte for byte, with no case-insensitive collation to reason about.
 
 Marko also suggested an alphabet a deployment supplies through settings or fleet-wide configuration.
 That makes an identifier's validity depend on configuration every producer, worker, dashboard, and
-CLI must share, and narrowing the alphabet after data exists would strand stored identifiers. Loosening
+CLI must share, an alphabet past ASCII brings the collation differences back, and narrowing the
+alphabet after data exists would strand stored identifiers. Loosening
 a rule later is compatible and tightening is breaking, so whatever 1.0 accepts stays accepted: the
 simplification belongs before the 1.0 freeze or not at all.
 
