@@ -560,7 +560,7 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
             leaseTtlSeconds: 180,
             cancelJob: Services.GetRequiredService<CancelJobHandler>(),
             resetJobState: Services.GetRequiredService<ResetJobStateHandler>(),
-            signals: Services.GetRequiredService<ISignals>(),
+            signals: Services.GetRequiredService<Signals>(),
             alerts: Services.GetRequiredService<IAlertLifecycle>(),
             executionStore: Services.GetRequiredService<IExecution>(),
             serializers: Services.GetRequiredService<IJobPayloadSerializerRegistry>(),

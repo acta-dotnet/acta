@@ -133,7 +133,7 @@ public sealed class RetentionCoordinatorTests
                         call.Get(ActaSchema.Sql.PurgeBatchSize)
                     );
                     Calls.Add(command);
-                    return (IReadOnlyList<int>)[execute(command)];
+                    return execute(command);
                 }),
                 ScriptedSession.Dialect
             );

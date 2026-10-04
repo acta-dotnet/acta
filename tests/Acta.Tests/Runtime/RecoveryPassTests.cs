@@ -1,4 +1,5 @@
 using Acta.Runtime;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Xunit;
 
@@ -16,7 +17,7 @@ public sealed class RecoveryPassTests
     {
         var workers = new FakeWorkerStore();
         // 45.1s of heartbeat derives 315.7s; flooring it would tombstone a live worker early.
-        var pass = Pass(workers, new FakeExecutionStore(), new FakeSignalStore(), TimeSpan.FromSeconds(315.7));
+        var pass = Pass(workers, new FakeExecutionStore(), SignalStore(releases: false), TimeSpan.FromSeconds(315.7));
 
         await pass.RunAsync(namespaceId: 1, namespaceName: "payments", TestContext.Current.CancellationToken);
 
@@ -27,7 +28,7 @@ public sealed class RecoveryPassTests
     public async Task A_pass_that_changes_nothing_publishes_no_wakeup()
     {
         var wakeups = new RecordingWakeup();
-        var pass = Pass(new FakeWorkerStore(), new FakeExecutionStore(), new FakeSignalStore(), wakeup: wakeups);
+        var pass = Pass(new FakeWorkerStore(), new FakeExecutionStore(), SignalStore(releases: false), wakeup: wakeups);
 
         var outcome = await pass.RunAsync(namespaceId: 1, namespaceName: "payments", TestContext.Current.CancellationToken);
 
@@ -44,7 +45,7 @@ public sealed class RecoveryPassTests
             Reclaim = new ReclaimStuckJobsResult(Reclaimed: 2, FailedChildren: [(ChildId: 7, ParentId: 8)], RepairedLanes: 0),
             StaleLatches = [new StaleChildLatch(ParentJobId: 9, ChildJobId: 10, ChildStatus: JobStatusCode.Cancelled)],
         };
-        var pass = Pass(new FakeWorkerStore { Marked = 3 }, execution, new FakeSignalStore { Releases = true }, wakeup: wakeups);
+        var pass = Pass(new FakeWorkerStore { Marked = 3 }, execution, SignalStore(releases: true), wakeup: wakeups);
 
         var outcome = await pass.RunAsync(namespaceId: 1, namespaceName: "payments", TestContext.Current.CancellationToken);
 
@@ -60,7 +61,7 @@ public sealed class RecoveryPassTests
     {
         var wakeups = new RecordingWakeup();
         var execution = new FakeExecutionStore { Reclaim = new ReclaimStuckJobsResult(Reclaimed: 0, FailedChildren: [], RepairedLanes: 1) };
-        var pass = Pass(new FakeWorkerStore(), execution, new FakeSignalStore(), wakeup: wakeups);
+        var pass = Pass(new FakeWorkerStore(), execution, SignalStore(releases: false), wakeup: wakeups);
 
         var outcome = await pass.RunAsync(namespaceId: 1, namespaceName: "payments", TestContext.Current.CancellationToken);
 
@@ -71,7 +72,7 @@ public sealed class RecoveryPassTests
     private static RecoveryPass Pass(
         FakeWorkerStore workers,
         FakeExecutionStore execution,
-        FakeSignalStore signals,
+        Signals signals,
         TimeSpan? deadAfter = null,
         RecordingWakeup? wakeup = null
     )
@@ -99,25 +100,15 @@ public sealed class RecoveryPassTests
             throw new NotSupportedException("A recovery pass never waits on a wakeup.");
     }
 
-    private sealed class FakeSignalStore : ISignals
-    {
-        public bool Releases { get; init; }
-
-        public Task<JobControlActionRow> RaiseSignalAsync(SignalSlotRaise command, CancellationToken ct) =>
-            Task.FromResult(
-                Releases
-                    ? new JobControlActionRow(ControlAction.Applied, JobStatusCode.Ready)
-                    : new JobControlActionRow(ControlAction.Rejected, null)
-            );
-
-        public Task<SignalWaitDecision> WaitSignalAsync(
-            long jobId,
-            JobCheckpointKindCode kind,
-            string name,
-            int? timeoutSeconds,
-            CancellationToken ct
-        ) => throw new NotSupportedException();
-    }
+    // A raise that releases its parent applies and leaves it Ready; one that does not is rejected unwritten.
+    private static Signals SignalStore(bool releases) =>
+        new ScriptedSession(_ =>
+            releases
+                ? new JobControlActionRow(ControlAction.Applied, JobStatusCode.Ready)
+                : new JobControlActionRow(ControlAction.Rejected, null)
+        )
+            .Services()
+            .GetRequiredService<Signals>();
 
     private sealed class FakeWorkerStore : IWorkerLifecycle
     {

@@ -19,7 +19,7 @@ internal sealed class RuntimeJobContext(
     int leaseTtlSeconds,
     CancelJobHandler cancelJob,
     ResetJobStateHandler resetJobState,
-    ISignals signals,
+    Signals signals,
     IAlertLifecycle alerts,
     Acta.Runtime.IExecution executionStore,
     IJobPayloadSerializerRegistry serializers,
@@ -42,7 +42,7 @@ internal sealed class RuntimeJobContext(
 
     private readonly CancelJobHandler _cancelJob = cancelJob;
     private readonly ResetJobStateHandler _resetJobState = resetJobState;
-    private readonly ISignals _signals = signals;
+    private readonly Signals _signals = signals;
     private readonly IAlertLifecycle _alerts = alerts;
     private readonly Acta.Runtime.IExecution _executionStore = executionStore;
     private readonly IJobPayloadSerializerRegistry _serializers = serializers;

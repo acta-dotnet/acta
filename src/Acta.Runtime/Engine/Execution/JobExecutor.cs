@@ -278,7 +278,7 @@ internal sealed class JobExecutor(
                 _options.Value.LeaseTtlSeconds,
                 _rootServices.GetRequiredService<CancelJobHandler>(),
                 _rootServices.GetRequiredService<ResetJobStateHandler>(),
-                _rootServices.GetRequiredService<ISignals>(),
+                _rootServices.GetRequiredService<Signals>(),
                 _rootServices.GetRequiredService<IAlertLifecycle>(),
                 _rootServices.GetRequiredService<Acta.Runtime.IExecution>(),
                 _serializers,

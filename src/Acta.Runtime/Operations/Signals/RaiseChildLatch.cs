@@ -14,7 +14,7 @@ internal static class RaiseChildLatch
 {
     public const string NamePrefix = "sys.child.";
 
-    public static async Task<bool> Run(ISignals signals, long childJobId, long parentJobId, JobStatusCode childStatus, CancellationToken ct)
+    public static async Task<bool> Run(Signals signals, long childJobId, long parentJobId, JobStatusCode childStatus, CancellationToken ct)
     {
         // Write side of the child-latch checkpoint key. The name is persisted in the ledger and matched
         // as text by JobContext.WaitChildAsync, in another process and possibly another culture, so the

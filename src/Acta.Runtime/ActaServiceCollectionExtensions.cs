@@ -181,7 +181,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<IJobs, Jobs>();
         services.TryAddSingleton<RaiseSignalHandler>();
         services.TryAddSingleton<WaitSignalHandler>();
-        services.TryAddSingleton<ISignals, Signals>();
+        services.TryAddSingleton<Signals>();
         services.TryAddSingleton<ClaimBatchHandler>();
         services.TryAddSingleton<ClaimOneHandler>();
         services.TryAddSingleton<StartExecutionHandler>();

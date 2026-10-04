@@ -567,7 +567,7 @@ internal sealed class JobExecutionHarness(
             : serviceType == typeof(IServiceScopeFactory) ? this
             : serviceType == typeof(WorkerWakeupPublisher) ? _wakeup
             : serviceType == typeof(IJobContextAccessor) ? _accessor
-            : serviceType == typeof(ISignals) ? NoSignals.Instance
+            : serviceType == typeof(Signals) ? ScriptedSession.Unreachable.GetRequiredService<Signals>()
             : serviceType == typeof(IAlertLifecycle) ? NoAlerts.Instance
             : null;
 
@@ -576,22 +576,6 @@ internal sealed class JobExecutionHarness(
         public void Dispose() { }
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
-
-        private sealed class NoSignals : ISignals
-        {
-            public static readonly NoSignals Instance = new();
-
-            public Task<JobControlActionRow> RaiseSignalAsync(SignalSlotRaise command, CancellationToken ct) =>
-                throw new NotSupportedException();
-
-            public Task<Acta.Runtime.SignalWaitDecision> WaitSignalAsync(
-                long jobId,
-                JobCheckpointKindCode kind,
-                string name,
-                int? timeoutSeconds,
-                CancellationToken ct
-            ) => throw new NotSupportedException();
-        }
 
         private sealed class NoAlerts : IAlertLifecycle
         {

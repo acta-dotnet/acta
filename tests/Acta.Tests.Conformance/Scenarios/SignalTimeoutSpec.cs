@@ -379,7 +379,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Null((await ReadSignalsAsync(enqueued.JobId, ct)).Single().DueAtUtc);
 
         var decision = await Services
-            .GetRequiredService<ISignals>()
+            .GetRequiredService<Signals>()
             .WaitSignalAsync(enqueued.JobId, JobCheckpointKindCode.Signal, "go", timeoutSeconds: 900, ct);
 
         // Still pending - the bound arms a deadline, it does not resolve the wait - and now bounded, so

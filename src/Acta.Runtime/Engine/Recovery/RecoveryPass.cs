@@ -20,7 +20,7 @@ internal readonly record struct RecoveryPassOutcome(int DeadWorkersMarked, int R
 /// <c>last_seen</c> vs per-job lease expiry) are independent so order is not otherwise load-bearing.
 /// </remarks>
 internal sealed class RecoveryPass(
-    ISignals signals,
+    Signals signals,
     IWorkerLifecycle workers,
     IExecution execution,
     IOptions<JobsOptions> options,

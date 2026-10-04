@@ -62,7 +62,7 @@ internal sealed class RaiseSignalHandler(
             ct
         );
 
-    /// <summary><see cref="ISignals.RaiseSignalAsync"/>: one routine call for any slot kind, the operator's raise among them.</summary>
+    /// <summary><see cref="Signals.RaiseSignalAsync"/>: one routine call for any slot kind, the operator's raise among them.</summary>
     internal Task<JobControlActionRow> RaiseSlotAsync(SignalSlotRaise raise, CancellationToken ct) =>
         session.ExecuteOneAsync(
             new StoreCommand("RaiseSignal"),

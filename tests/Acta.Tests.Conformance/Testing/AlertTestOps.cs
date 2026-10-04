@@ -299,7 +299,7 @@ internal static class AlertTestOps
             leaseTtlSeconds: 180,
             cancelJob: services.GetRequiredService<CancelJobHandler>(),
             resetJobState: services.GetRequiredService<ResetJobStateHandler>(),
-            signals: services.GetRequiredService<ISignals>(),
+            signals: services.GetRequiredService<Signals>(),
             alerts: services.GetRequiredService<IAlertLifecycle>(),
             executionStore: services.GetRequiredService<IExecution>(),
             serializers: services.GetRequiredService<IJobPayloadSerializerRegistry>(),

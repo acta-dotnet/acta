@@ -9,7 +9,7 @@ internal sealed class CancelJobHandler(
     IDbSession session,
     ISqlDialect dialect,
     IExecution execution,
-    ISignals signals,
+    Signals signals,
     WorkerWakeupPublisher wakeup
 )
 {
