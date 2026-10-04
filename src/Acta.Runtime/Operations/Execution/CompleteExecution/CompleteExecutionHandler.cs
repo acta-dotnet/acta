@@ -1,7 +1,7 @@
 namespace Acta.Runtime;
 
 /// <summary>
-/// <see cref="IExecution.CompleteExecutionAsync"/>: one routine call per attempt. A non-recurring completion binds
+/// <see cref="Execution.CompleteExecutionAsync"/>: one routine call per attempt. A non-recurring completion binds
 /// the scalar shape every provider shares; a recurring fire binds the provider's schedule-advance shape.
 /// </summary>
 internal sealed class CompleteExecutionHandler(IDbSession session, ISqlDialect dialect)

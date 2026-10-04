@@ -122,7 +122,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
 
         var claimed = await Services
-            .GetRequiredService<IExecution>()
+            .GetRequiredService<Execution>()
             .ClaimBatchAsync(new ClaimRequest(ns, worker!.Id, MaxBatch: 8, StartExecuting: true), leaseTtl, ct);
         Assert.Contains(claimed.Jobs, j => j.JobId == enqueued.JobId);
 

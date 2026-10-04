@@ -8,7 +8,7 @@ internal sealed class CancelJobHandler(
     JobLookupResolution lookup,
     IDbSession session,
     ISqlDialect dialect,
-    IExecution execution,
+    Execution execution,
     Signals signals,
     WorkerWakeupPublisher wakeup
 )

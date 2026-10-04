@@ -1,6 +1,6 @@
 namespace Acta.Runtime;
 
-/// <summary><see cref="IExecution.ClaimBatchAsync"/>: one routine call claims up to the batch; a batch of none claims nothing.</summary>
+/// <summary><see cref="Execution.ClaimBatchAsync"/>: one routine call claims up to the batch; a batch of none claims nothing.</summary>
 internal sealed class ClaimBatchHandler(IDbSession session, ISqlDialect dialect)
 {
     public async Task<ClaimResult> HandleAsync(ClaimBatchCommand command, CancellationToken ct)

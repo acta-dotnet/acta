@@ -1,7 +1,7 @@
 namespace Acta.Runtime;
 
 /// <summary>
-/// <see cref="IExecution.ClaimOneAsync"/>: claims the Ready job the command names, or delegates to the claim scan
+/// <see cref="Execution.ClaimOneAsync"/>: claims the Ready job the command names, or delegates to the claim scan
 /// with a batch of one when it names none.
 /// </summary>
 internal sealed class ClaimOneHandler(ClaimBatchHandler claimBatch, IDbSession session, ISqlDialect dialect)

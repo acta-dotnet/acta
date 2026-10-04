@@ -87,7 +87,7 @@ public sealed class JobExecutionOwnershipTests
         // shapes produce and require a classified reason on each Failed one. A reason-less Failed is
         // what made the ownership incident land a recoverable job in terminal Failed with a blank
         // timeline entry.
-        var submitted = new List<CompleteExecutionCommand>();
+        var submitted = new List<BoundCompletion>();
 
         submitted.AddRange(await Submissions(new JobExecutionHarness(stepOutcome: CompleteStepOutcomeCode.StaleVersion)));
         submitted.AddRange(await Submissions(new JobExecutionHarness(stepOutcome: CompleteStepOutcomeCode.StaleVersion, maxAttempts: 1)));
@@ -141,7 +141,7 @@ public sealed class JobExecutionOwnershipTests
         Assert.Empty(harness.Applied);
     }
 
-    private static async Task<IReadOnlyList<CompleteExecutionCommand>> Submissions(
+    private static async Task<IReadOnlyList<BoundCompletion>> Submissions(
         JobExecutionHarness harness,
         Func<JobContext, CancellationToken, Task>? handler = null
     )

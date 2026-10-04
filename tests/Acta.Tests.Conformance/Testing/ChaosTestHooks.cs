@@ -1,3 +1,5 @@
+using System.Data.Common;
+using System.Globalization;
 using Acta.Runtime;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -150,74 +152,104 @@ internal sealed class StoreFaultPlan
     }
 }
 
-// The completion write moved off IDbSession onto IExecution (its own connection), so the
-// before/after-CompleteExecution chaos injection has to wrap that port. Only CompleteExecutionAsync
-// carries the hooks; every other method delegates straight through.
-internal sealed class FaultInjectingExecutionStore(IExecution inner, StoreFaultPlan plan) : IExecution
+/// <summary>
+/// The real session with the chaos hooks on the execution calls they stage: before and after the completion
+/// write, after a claim, and around the start write. Every other call passes straight through.
+/// </summary>
+internal sealed class FaultInjectingSession(IDbSession inner, ISqlDialect dialect, StoreFaultPlan plan) : IDbSession
 {
-    public async Task<CompleteExecutionResult> CompleteExecutionAsync(CompleteExecutionCommand request, CancellationToken ct)
-    {
-        plan.MaybeThrowBefore("CompleteExecution", request.JobId);
-        var result = await inner.CompleteExecutionAsync(request, ct);
-        plan.MaybeThrowAfter("CompleteExecution");
-        return result;
-    }
+    public DbProvider Provider => inner.Provider;
 
-    public Task<CheckpointSlotRow> CheckpointSlotAsync(CheckpointSlotCommand command, CancellationToken ct) =>
-        inner.CheckpointSlotAsync(command, ct);
+    public string Schema => inner.Schema;
 
-    public Task RecordJobNoteAsync(long jobId, int executionNumber, string message, JobPayload? detail, CancellationToken ct) =>
-        inner.RecordJobNoteAsync(jobId, executionNumber, message, detail, ct);
+    public Task<DbConnection> OpenConnectionAsync(CancellationToken ct) => inner.OpenConnectionAsync(ct);
 
-    public Task<IReadOnlyList<long>> GetChildJobIdsAsync(long parentJobId, CancellationToken ct) =>
-        inner.GetChildJobIdsAsync(parentJobId, ct);
+    public Task<T> QueryAsync<T>(
+        string stem,
+        Action<DbCommand> bind,
+        Func<DbDataReader, CancellationToken, Task<T>> read,
+        CancellationToken ct
+    ) => inner.QueryAsync(stem, bind, read, ct);
 
-    public Task<IReadOnlyList<Acta.Runtime.StaleChildLatch>> GetStaleChildLatchesAsync(int namespaceId, CancellationToken ct) =>
-        inner.GetStaleChildLatchesAsync(namespaceId, ct);
+    public Task<T> QueryAsync<T>(
+        StoreCommand command,
+        Action<DbCommand> bind,
+        Func<DbDataReader, CancellationToken, Task<T>> read,
+        CancellationToken ct
+    ) => inner.QueryAsync(command, bind, read, ct);
 
-    public Task<Acta.Runtime.SleepDecision> ArmOrConsumeSleepTimerAsync(ArmOrConsumeSleepTimerCommand command, CancellationToken ct) =>
-        inner.ArmOrConsumeSleepTimerAsync(command, ct);
-
-    public async Task<ClaimResult> ClaimBatchAsync(ClaimRequest request, int leaseTtlSeconds, CancellationToken ct)
-    {
-        var result = await inner.ClaimBatchAsync(request, leaseTtlSeconds, ct);
-        plan.MaybeThrowAfterClaim();
-        return result;
-    }
-
-    public async Task<ClaimResult> ClaimOneAsync(ClaimRequest request, int leaseTtlSeconds, long? jobId, CancellationToken ct)
-    {
-        var result = await inner.ClaimOneAsync(request, leaseTtlSeconds, jobId, ct);
-        plan.MaybeThrowAfterClaim();
-        return result;
-    }
-
-    public async Task<StartExecutionAction> StartExecutionAsync(
-        long jobId,
-        int workerId,
-        int expectedExecutionNumber,
-        int expectedVersion,
-        int leaseTtlSeconds,
+    public async Task<IReadOnlyList<T>> ExecuteAsync<T>(
+        StoreCommand command,
+        Action<DbCommand> bind,
+        Func<DbDataReader, T> mapRow,
         CancellationToken ct
     )
     {
-        await plan.RunBeforeStartAsync();
-        var action = await inner.StartExecutionAsync(jobId, workerId, expectedExecutionNumber, expectedVersion, leaseTtlSeconds, ct);
-        plan.MaybeThrowAfterStart();
-        return action;
+        if (command.Operation == "StartExecution")
+        {
+            await plan.RunBeforeStartAsync();
+        }
+
+        var rows = await inner.ExecuteAsync(command, bind, mapRow, ct);
+        switch (command.Operation)
+        {
+            case "ClaimBatch" or "ClaimOne":
+                plan.MaybeThrowAfterClaim();
+                break;
+            case "StartExecution":
+                plan.MaybeThrowAfterStart();
+                break;
+        }
+
+        return rows;
     }
 
-    public Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct) =>
-        inner.ReclaimStuckJobsAsync(namespaceId, ct);
+    public Task<IReadOnlyList<T>> ExecuteInTransactionAsync<T>(
+        DbTransaction transaction,
+        StoreCommand command,
+        Action<DbCommand> bind,
+        Func<DbDataReader, T> mapRow,
+        CancellationToken ct
+    ) => inner.ExecuteInTransactionAsync(transaction, command, bind, mapRow, ct);
 
-    public Task<RecoverySlotRepair> RepairRecoverySlotAsync(int namespaceId, long jobId, CancellationToken ct) =>
-        inner.RepairRecoverySlotAsync(namespaceId, jobId, ct);
+    public async Task<T?> ExecuteSingleAsync<T>(
+        StoreCommand command,
+        Action<DbCommand> bind,
+        Func<DbDataReader, T> mapRow,
+        CancellationToken ct
+    )
+        where T : class
+    {
+        if (command.Operation != "CompleteExecution")
+        {
+            return await inner.ExecuteSingleAsync(command, bind, mapRow, ct);
+        }
 
-    public Task<StartStepDecision> StartStepAsync(long jobId, string name, bool atMostOnce, CancellationToken ct) =>
-        inner.StartStepAsync(jobId, name, atMostOnce, ct);
+        plan.MaybeThrowBefore(command.Operation, BoundJobId(bind));
+        var result = await inner.ExecuteSingleAsync(command, bind, mapRow, ct);
+        plan.MaybeThrowAfter(command.Operation);
+        return result;
+    }
 
-    public Task<CompleteStepDecision> CompleteStepAsync(CompleteStepCommand command, CancellationToken ct) =>
-        inner.CompleteStepAsync(command, ct);
+    public Task ExecuteAsync(StoreCommand command, Action<DbCommand> bind, CancellationToken ct) => inner.ExecuteAsync(command, bind, ct);
+
+    public Task<T> RunWithRetryAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct) =>
+        inner.RunWithRetryAsync(action, ct);
+
+    public Task<T> RunInOwnedTransactionAsync<T>(
+        Func<DbTransaction, CancellationToken, Task<(T Result, bool Commit)>> work,
+        CancellationToken ct
+    ) => inner.RunInOwnedTransactionAsync(work, ct);
+
+    // The job a completion names, read by binding it onto a command the provider never opens or runs.
+    private long BoundJobId(Action<DbCommand> bind)
+    {
+        using var connection = dialect.CreateConnection(string.Empty);
+        using var probe = connection.CreateCommand();
+        bind(probe);
+        var jobId = probe.Parameters.Cast<DbParameter>().First(p => p.ParameterName.TrimStart('@', ':') == ActaSchema.Job.Id.ParameterName);
+        return Convert.ToInt64(jobId.Value, CultureInfo.InvariantCulture);
+    }
 }
 
 // The DB clock moved off IDbSession onto IActaClock, so the GetUtcNow skew now wraps that port.
@@ -236,10 +268,11 @@ internal static class ChaosServiceCollectionExtensions
         var plan = new StoreFaultPlan();
         services.AddSingleton(plan);
 
-        var executionDescriptor = services.Last(d => d.ServiceType == typeof(IExecution));
-        services.Remove(executionDescriptor);
-        services.AddSingleton<IExecution>(sp => new FaultInjectingExecutionStore(
-            (IExecution)CreateInner(sp, executionDescriptor),
+        var sessionDescriptor = services.Last(d => d.ServiceType == typeof(IDbSession));
+        services.Remove(sessionDescriptor);
+        services.AddSingleton<IDbSession>(sp => new FaultInjectingSession(
+            (IDbSession)CreateInner(sp, sessionDescriptor),
+            sp.GetRequiredService<ISqlDialect>(),
             sp.GetRequiredService<StoreFaultPlan>()
         ));
 

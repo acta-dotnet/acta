@@ -1,6 +1,6 @@
 namespace Acta.Runtime;
 
-/// <summary><see cref="IExecution.CompleteStepAsync"/>: one routine call records the attempt and answers its decision.</summary>
+/// <summary><see cref="Execution.CompleteStepAsync"/>: one routine call records the attempt and answers its decision.</summary>
 internal sealed class CompleteStepHandler(IDbSession session, ISqlDialect dialect)
 {
     public Task<CompleteStepDecision> HandleAsync(CompleteStepCommand command, CancellationToken ct) =>

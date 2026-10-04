@@ -1,4 +1,5 @@
 using Acta.Runtime;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Xunit;
@@ -137,7 +138,7 @@ public sealed class WorkerLoopClaimFailureTests
         // The executor is null: these arms claim no row, so a null is the strongest statement that they run
         // before any job is dispatched. A row a claim does return faults on it, which both loops log and
         // swallow, so an arm that only watches the claim answer can still use this loop.
-        return new WorkerLoop(store, executor: null!, options, registration, context, new IdleWakeup(), log);
+        return new WorkerLoop(store.Execution(), executor: null!, options, registration, context, new IdleWakeup(), log);
     }
 
     private static async Task WaitUntil(Func<bool> condition, TimeSpan timeout)
@@ -153,58 +154,25 @@ public sealed class WorkerLoopClaimFailureTests
         }
     }
 
-    internal sealed class ClaimStore(Func<CancellationToken, ClaimResult> onClaim) : IExecution
+    /// <summary>The real execution group over a session whose claim answers the rows the script returns.</summary>
+    internal sealed class ClaimStore(Func<CancellationToken, IReadOnlyList<ClaimReadyRow>> onClaim)
     {
         private int _calls;
 
         public int Calls => Volatile.Read(ref _calls);
 
-        public Task<ClaimResult> ClaimBatchAsync(ClaimRequest request, int leaseTtlSeconds, CancellationToken ct)
-        {
-            Interlocked.Increment(ref _calls);
-            return Task.FromResult(onClaim(ct));
-        }
+        public Acta.Runtime.Execution Execution() => new ScriptedSession(
+                (call, ct) =>
+                {
+                    if (call.Stem != "ClaimBatch")
+                    {
+                        throw new NotSupportedException(call.Stem);
+                    }
 
-        public Task<ClaimResult> ClaimOneAsync(ClaimRequest request, int leaseTtlSeconds, long? jobId, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<StartExecutionAction> StartExecutionAsync(
-            long jobId,
-            int workerId,
-            int expectedExecutionNumber,
-            int expectedVersion,
-            int leaseTtlSeconds,
-            CancellationToken ct
-        ) => throw new NotSupportedException();
-
-        public Task<CompleteExecutionResult> CompleteExecutionAsync(CompleteExecutionCommand request, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<RecoverySlotRepair> RepairRecoverySlotAsync(int namespaceId, long jobId, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<StartStepDecision> StartStepAsync(long jobId, string name, bool atMostOnce, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<CompleteStepDecision> CompleteStepAsync(CompleteStepCommand command, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<CheckpointSlotRow> CheckpointSlotAsync(CheckpointSlotCommand command, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task RecordJobNoteAsync(long jobId, int executionNumber, string message, JobPayload? detail, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<IReadOnlyList<long>> GetChildJobIdsAsync(long parentJobId, CancellationToken ct) => throw new NotSupportedException();
-
-        public Task<IReadOnlyList<Acta.Runtime.StaleChildLatch>> GetStaleChildLatchesAsync(int namespaceId, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<Acta.Runtime.SleepDecision> ArmOrConsumeSleepTimerAsync(ArmOrConsumeSleepTimerCommand command, CancellationToken ct) =>
-            throw new NotSupportedException();
+                    Interlocked.Increment(ref _calls);
+                    return Task.FromResult<object?>(onClaim(ct));
+                }
+            ).Services().GetRequiredService<Acta.Runtime.Execution>();
     }
 
     internal sealed class IdleWakeup : IWorkerWakeup

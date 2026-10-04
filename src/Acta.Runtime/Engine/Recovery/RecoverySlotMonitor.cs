@@ -15,7 +15,7 @@ namespace Acta.Runtime;
 /// recreates a slot an operator removed.
 /// </summary>
 internal sealed class RecoverySlotMonitor(
-    IExecution execution,
+    Execution execution,
     WorkerWakeupPublisher publisher,
     WorkerRegistration? workerRegistration,
     WorkerContext context,
@@ -35,7 +35,7 @@ internal sealed class RecoverySlotMonitor(
     /// </summary>
     internal static readonly TimeSpan Interval = TimeSpan.FromMinutes(7);
 
-    private readonly IExecution _execution = execution;
+    private readonly Execution _execution = execution;
     private readonly WorkerWakeupPublisher _publisher = publisher;
     private readonly WorkerRegistration? _workerRegistration = workerRegistration;
     private readonly WorkerContext _context = context;
@@ -131,7 +131,7 @@ internal sealed class RecoverySlotMonitor(
     /// Shared with the initializer, which runs it once at startup ahead of any periodic check.
     /// </summary>
     internal static async Task<RecoverySlotRepair> CheckAndRepairAsync(
-        IExecution execution,
+        Execution execution,
         WorkerWakeupPublisher? publisher,
         int namespaceId,
         string namespaceName,

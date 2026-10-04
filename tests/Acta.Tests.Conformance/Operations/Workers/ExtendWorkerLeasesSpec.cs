@@ -38,7 +38,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         );
         var dialect = Services.GetRequiredService<ISqlDialect>();
         var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
-        var claim = await Services.GetRequiredService<IExecution>().ClaimOneAsync(ns, workerId, leaseTtl, enqueued, ct);
+        var claim = await Services.GetRequiredService<Acta.Runtime.Execution>().ClaimOneAsync(ns, workerId, leaseTtl, enqueued, ct);
         var claimedRow = Assert.Single(claim);
         var leaseAfterClaim = claimedRow.LeaseExpiresAtUtc;
 
@@ -60,7 +60,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.True(workerAfter!.LastHeartbeatAtUtc > lastSeenBefore, "heartbeat should advance last_seen_at_utc");
 
         // A live (heartbeat-fresh) lease is not stuck - reclaim finds nothing and leaves it claimed.
-        Assert.Equal(0, (await Services.GetRequiredService<IExecution>().ReclaimStuckJobsAsync(ns, ct)).Reclaimed);
+        Assert.Equal(0, (await Services.GetRequiredService<Acta.Runtime.Execution>().ReclaimStuckJobsAsync(ns, ct)).Reclaimed);
         var still = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Dispatched, still!.Status);
         Assert.Equal(workerId, still.LeasedByWorkerId);
@@ -81,7 +81,9 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         );
         var dialect = Services.GetRequiredService<ISqlDialect>();
         var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
-        var claimed = Assert.Single(await Services.GetRequiredService<IExecution>().ClaimOneAsync(ns, workerId, leaseTtl, enqueued, ct));
+        var claimed = Assert.Single(
+            await Services.GetRequiredService<Acta.Runtime.Execution>().ClaimOneAsync(ns, workerId, leaseTtl, enqueued, ct)
+        );
 
         // The worker's own heartbeat refreshes the lease while this claim is still buffered (Dispatched,
         // not yet started). It must not advance the runtime version, or the claim-time version below
@@ -90,7 +92,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.Equal(new LeaseRenewalRow(enqueued.JobId, claimed.ExecutionNumber, Renewed: true), Assert.Single(extended));
 
         var action = await Services
-            .GetRequiredService<IExecution>()
+            .GetRequiredService<Acta.Runtime.Execution>()
             .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version, leaseTtl, ct);
 
         Assert.Equal(StartExecutionAction.Started, action);

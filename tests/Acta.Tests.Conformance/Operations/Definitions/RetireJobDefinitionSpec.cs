@@ -111,12 +111,12 @@ public sealed class RetireJobDefinitionSpec : ActaRuntimeTestBase<ConformanceFix
             ct
         );
         var claimed = Assert.Single(
-            await Services.GetRequiredService<IExecution>().ClaimOneAsync(ns, workerId, leaseTtl, running.JobId, ct)
+            await Services.GetRequiredService<Acta.Runtime.Execution>().ClaimOneAsync(ns, workerId, leaseTtl, running.JobId, ct)
         );
         Assert.Equal(
             StartExecutionAction.Started,
             await Services
-                .GetRequiredService<IExecution>()
+                .GetRequiredService<Acta.Runtime.Execution>()
                 .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version, leaseTtl, ct)
         );
 
@@ -128,7 +128,7 @@ public sealed class RetireJobDefinitionSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Equal(0, await CountEventsAsync(running.JobId, EventCode.JobCancelled, ct));
 
         var completion = await Services
-            .GetRequiredService<IExecution>()
+            .GetRequiredService<Acta.Runtime.Execution>()
             .CompleteExecutionAsync(
                 new CompleteExecutionCommand(
                     JobId: claimed.JobId,

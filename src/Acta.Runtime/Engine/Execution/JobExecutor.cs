@@ -35,7 +35,7 @@ internal sealed class JobExecutor(
     private readonly IOptions<JobsOptions> _options = options;
     private readonly WorkerContext _context = context;
     private readonly JobExecution _jobExecution = jobExecution;
-    private readonly Acta.Runtime.IExecution _execution = rootServices.GetRequiredService<Acta.Runtime.IExecution>();
+    private readonly Execution _execution = rootServices.GetRequiredService<Execution>();
     private readonly ILogger _log = log ?? NullLogger.Instance;
     private readonly JobMetrics? _metrics = metrics;
 
@@ -280,7 +280,7 @@ internal sealed class JobExecutor(
                 _rootServices.GetRequiredService<ResetJobStateHandler>(),
                 _rootServices.GetRequiredService<Signals>(),
                 _rootServices.GetRequiredService<AlertLifecycle>(),
-                _rootServices.GetRequiredService<Acta.Runtime.IExecution>(),
+                _rootServices.GetRequiredService<Execution>(),
                 _serializers,
                 _locks,
                 fireOutcome?.TriggeringScheduleNames ?? [],

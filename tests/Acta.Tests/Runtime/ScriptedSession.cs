@@ -94,13 +94,15 @@ internal sealed record BoundCall(string Stem, IReadOnlyDictionary<string, object
 
     public T Get<T>(DbColumnSpec<T> spec) => Decode<T>(spec.ParameterName, spec.Kind);
 
-    // SQLite binds an instant as Unix milliseconds and a Guid as its text; everything else comes back as its driver value.
+    // SQLite binds an instant as Unix milliseconds, a Guid as its text, and a code as its number; everything else
+    // comes back as its driver value.
     private T Decode<T>(string name, DbKind kind) =>
         Parameters[name] switch
         {
             null or DBNull => default!,
             long ms when kind == DbKind.UtcInstant => (T)(object)DateTime.UnixEpoch.AddMilliseconds(ms),
             string text when kind == DbKind.Guid => (T)(object)Guid.Parse(text),
+            var raw when (Nullable.GetUnderlyingType(typeof(T)) ?? typeof(T)) is { IsEnum: true } code => (T)Enum.ToObject(code, raw),
             var raw => (T)Convert.ChangeType(raw, Nullable.GetUnderlyingType(typeof(T)) ?? typeof(T), CultureInfo.InvariantCulture),
         };
 }

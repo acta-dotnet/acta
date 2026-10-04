@@ -2,7 +2,7 @@ using System.Globalization;
 
 namespace Acta.Runtime;
 
-/// <summary><see cref="IExecution.RepairRecoverySlotAsync"/>: one routine call; no row means the slot is missing.</summary>
+/// <summary><see cref="Execution.RepairRecoverySlotAsync"/>: one routine call; no row means the slot is missing.</summary>
 internal sealed class RepairRecoverySlotHandler(IDbSession session, ISqlDialect dialect)
 {
     public async Task<RecoverySlotRepair> HandleAsync(RepairRecoverySlotCommand command, CancellationToken ct)

@@ -104,7 +104,7 @@ public sealed class ExtendWorkerLeasesRaceSpec : ActaRuntimeTestBase<Conformance
         CancellationToken ct
     )
     {
-        var store = Services.GetRequiredService<IExecution>();
+        var store = Services.GetRequiredService<Acta.Runtime.Execution>();
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
         var worker = await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);

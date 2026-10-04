@@ -6,7 +6,7 @@ using Xunit;
 namespace Acta.Tests.Runtime;
 
 /// <summary>
-/// The recovery pass over fakes, for the two facts a database test cannot show cheaply: the
+/// The recovery pass over scripted database calls, for the two facts a database test cannot show cheaply: the
 /// dead-worker window is handed to the store rounded up, and each wakeup is published only when its
 /// own half of the pass changed something.
 /// </summary>
@@ -17,7 +17,7 @@ public sealed class RecoveryPassTests
     {
         var workers = WorkerSweep();
         // 45.1s of heartbeat derives 315.7s; flooring it would tombstone a live worker early.
-        var pass = Pass(workers, new FakeExecutionStore(), SignalStore(releases: false), TimeSpan.FromSeconds(315.7));
+        var pass = Pass(workers, ExecutionStore(), SignalStore(releases: false), TimeSpan.FromSeconds(315.7));
 
         await pass.RunAsync(namespaceId: 1, namespaceName: "payments", TestContext.Current.CancellationToken);
 
@@ -28,7 +28,7 @@ public sealed class RecoveryPassTests
     public async Task A_pass_that_changes_nothing_publishes_no_wakeup()
     {
         var wakeups = new RecordingWakeup();
-        var pass = Pass(WorkerSweep(), new FakeExecutionStore(), SignalStore(releases: false), wakeup: wakeups);
+        var pass = Pass(WorkerSweep(), ExecutionStore(), SignalStore(releases: false), wakeup: wakeups);
 
         var outcome = await pass.RunAsync(namespaceId: 1, namespaceName: "payments", TestContext.Current.CancellationToken);
 
@@ -40,11 +40,15 @@ public sealed class RecoveryPassTests
     public async Task Reclaimed_jobs_wake_the_namespace_and_a_released_parent_wakes_every_namespace()
     {
         var wakeups = new RecordingWakeup();
-        var execution = new FakeExecutionStore
-        {
-            Reclaim = new ReclaimStuckJobsResult(Reclaimed: 2, FailedChildren: [(ChildId: 7, ParentId: 8)], RepairedLanes: 0),
-            StaleLatches = [new StaleChildLatch(ParentJobId: 9, ChildJobId: 10, ChildStatus: JobStatusCode.Cancelled)],
-        };
+        // Two reclaimed leases, one of them a child that landed Failed under parent 8.
+        var execution = ExecutionStore(
+            reclaimed:
+            [
+                new ReclaimedJobRow(JobId: 7, JobStatusCode.Failed, ParentId: 8, LaneRepaired: false),
+                new ReclaimedJobRow(JobId: 11, JobStatusCode.Ready, ParentId: null, LaneRepaired: false),
+            ],
+            staleLatches: [new StaleChildLatch(ParentJobId: 9, ChildJobId: 10, ChildStatus: JobStatusCode.Cancelled)]
+        );
         var pass = Pass(WorkerSweep(marked: 3), execution, SignalStore(releases: true), wakeup: wakeups);
 
         var outcome = await pass.RunAsync(namespaceId: 1, namespaceName: "payments", TestContext.Current.CancellationToken);
@@ -60,7 +64,9 @@ public sealed class RecoveryPassTests
     public async Task A_repaired_lane_alone_wakes_the_namespace()
     {
         var wakeups = new RecordingWakeup();
-        var execution = new FakeExecutionStore { Reclaim = new ReclaimStuckJobsResult(Reclaimed: 0, FailedChildren: [], RepairedLanes: 1) };
+        var execution = ExecutionStore(
+            reclaimed: [new ReclaimedJobRow(JobId: 12, JobStatusCode.Ready, ParentId: null, LaneRepaired: true)]
+        );
         var pass = Pass(WorkerSweep(), execution, SignalStore(releases: false), wakeup: wakeups);
 
         var outcome = await pass.RunAsync(namespaceId: 1, namespaceName: "payments", TestContext.Current.CancellationToken);
@@ -71,7 +77,7 @@ public sealed class RecoveryPassTests
 
     private static RecoveryPass Pass(
         ScriptedSession workers,
-        FakeExecutionStore execution,
+        Acta.Runtime.Execution execution,
         Signals signals,
         TimeSpan? deadAfter = null,
         RecordingWakeup? wakeup = null
@@ -119,53 +125,14 @@ public sealed class RecoveryPassTests
     // The dead-worker sweep, the pass's only worker call, reports how many workers it marked.
     private static ScriptedSession WorkerSweep(int marked = 0) => new(_ => marked);
 
-    private sealed class FakeExecutionStore : IExecution
-    {
-        public ReclaimStuckJobsResult Reclaim { get; init; } = new(Reclaimed: 0, FailedChildren: [], RepairedLanes: 0);
-
-        public IReadOnlyList<StaleChildLatch> StaleLatches { get; init; } = [];
-
-        public Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct) => Task.FromResult(Reclaim);
-
-        public Task<IReadOnlyList<StaleChildLatch>> GetStaleChildLatchesAsync(int namespaceId, CancellationToken ct) =>
-            Task.FromResult(StaleLatches);
-
-        public Task<ClaimResult> ClaimBatchAsync(ClaimRequest request, int leaseTtlSeconds, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<ClaimResult> ClaimOneAsync(ClaimRequest request, int leaseTtlSeconds, long? jobId, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<StartExecutionAction> StartExecutionAsync(
-            long jobId,
-            int workerId,
-            int expectedExecutionNumber,
-            int expectedVersion,
-            int leaseTtlSeconds,
-            CancellationToken ct
-        ) => throw new NotSupportedException();
-
-        public Task<CompleteExecutionResult> CompleteExecutionAsync(CompleteExecutionCommand request, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<RecoverySlotRepair> RepairRecoverySlotAsync(int namespaceId, long jobId, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<StartStepDecision> StartStepAsync(long jobId, string name, bool atMostOnce, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<CompleteStepDecision> CompleteStepAsync(CompleteStepCommand command, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<CheckpointSlotRow> CheckpointSlotAsync(CheckpointSlotCommand command, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task RecordJobNoteAsync(long jobId, int executionNumber, string message, JobPayload? detail, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<IReadOnlyList<long>> GetChildJobIdsAsync(long parentJobId, CancellationToken ct) => throw new NotSupportedException();
-
-        public Task<Acta.Runtime.SleepDecision> ArmOrConsumeSleepTimerAsync(ArmOrConsumeSleepTimerCommand command, CancellationToken ct) =>
-            throw new NotSupportedException();
-    }
+    // The reclaim answers the rows it touched and the latch read its stale latches; nothing else is reached.
+    private static Acta.Runtime.Execution ExecutionStore(ReclaimedJobRow[]? reclaimed = null, StaleChildLatch[]? staleLatches = null) =>
+        new ScriptedSession(call =>
+            call.Stem switch
+            {
+                "ReclaimStuckJobs" => reclaimed ?? [],
+                "GetStaleChildLatches" => staleLatches ?? [],
+                _ => throw new NotSupportedException(call.Stem),
+            }
+        ).Services().GetRequiredService<Acta.Runtime.Execution>();
 }

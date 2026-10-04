@@ -1,6 +1,6 @@
 namespace Acta.Runtime;
 
-/// <summary><see cref="IExecution.StartStepAsync"/>: one routine call answers the step's decision.</summary>
+/// <summary><see cref="Execution.StartStepAsync"/>: one routine call answers the step's decision.</summary>
 internal sealed class StartStepHandler(IDbSession session, ISqlDialect dialect)
 {
     public Task<StartStepDecision> HandleAsync(StartStepCommand command, CancellationToken ct) =>

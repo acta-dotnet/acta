@@ -277,7 +277,7 @@ public sealed class RaiseJobAlertSpec : ActaStorageTestBase<ConformanceFixture>
             resetJobState: Services.GetRequiredService<ResetJobStateHandler>(),
             signals: Services.GetRequiredService<Signals>(),
             alerts: Services.GetRequiredService<AlertLifecycle>(),
-            executionStore: Services.GetRequiredService<IExecution>(),
+            executionStore: Services.GetRequiredService<Acta.Runtime.Execution>(),
             serializers: Services.GetRequiredService<IJobPayloadSerializerRegistry>(),
             locks: Services.GetRequiredService<Acta.Runtime.Locks>(),
             cancellationToken: CancellationToken.None,

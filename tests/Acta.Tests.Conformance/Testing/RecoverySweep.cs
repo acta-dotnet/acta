@@ -33,7 +33,7 @@ internal static class RecoverySweep
         var started = Stopwatch.GetTimestamp();
         while (true)
         {
-            var result = await services.GetRequiredService<IExecution>().ReclaimStuckJobsAsync(namespaceId, ct);
+            var result = await services.GetRequiredService<Execution>().ReclaimStuckJobsAsync(namespaceId, ct);
             if (result.Reclaimed > 0 || Stopwatch.GetElapsedTime(started) >= Window)
             {
                 return result;

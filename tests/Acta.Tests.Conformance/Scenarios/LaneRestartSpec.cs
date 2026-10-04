@@ -264,7 +264,7 @@ public sealed class LaneRestartSpec : ActaRuntimeTestBase<ConformanceFixture, Te
     // Claims and starts the job as this namespace's worker and hands back its completion, unsent.
     private async Task<Func<Task<CompleteExecutionResult>>> StartedAsync(JobEnqueueOutcome job, CancellationToken ct)
     {
-        var store = Services.GetRequiredService<IExecution>();
+        var store = Services.GetRequiredService<Execution>();
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
         var worker = await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);

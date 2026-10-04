@@ -195,7 +195,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<GetChildJobIdsHandler>();
         services.TryAddSingleton<GetStaleChildLatchesHandler>();
         services.TryAddSingleton<ArmOrConsumeSleepTimerHandler>();
-        services.TryAddSingleton<IExecution, Execution>();
+        services.TryAddSingleton<Execution>();
 
         // Consumers light up the meter with WithMetrics(m => m.AddMeter(JobMetrics.MeterName)).
         services.TryAddSingleton<JobMetrics>();

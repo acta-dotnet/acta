@@ -45,7 +45,7 @@ tests/Acta.Tests.Conformance/Operations/Jobs/RescheduleJobSpec.cs
 
 ## Engine
 
-`Acta.Runtime/Engine/` runs jobs: workers, execution, recovery, retention, alert projection and delivery, the outbox relay, and definition registration. It composes operations by calling their handlers, or a group's seam interface where the engine's unit tests fake the whole group (for example `IExecution`).
+`Acta.Runtime/Engine/` runs jobs: workers, execution, recovery, retention, alert projection and delivery, the outbox relay, and definition registration. It composes operations by calling their handlers or a group's class.
 
 ## The other Runtime folders
 

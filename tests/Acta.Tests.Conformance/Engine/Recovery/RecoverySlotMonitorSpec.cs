@@ -30,7 +30,7 @@ public sealed class RecoverySlotMonitorSpec : ActaRuntimeTestBase<ConformanceFix
 
     private int TestNamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 
-    private IExecution Execution => Services.GetRequiredService<IExecution>();
+    private Acta.Runtime.Execution Execution => Services.GetRequiredService<Acta.Runtime.Execution>();
 
     [Fact(DisplayName = "A recovery slot in flight under a live lease is left alone")]
     public async Task Live_lease_is_left_alone()

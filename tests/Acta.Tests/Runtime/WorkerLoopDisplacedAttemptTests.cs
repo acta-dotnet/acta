@@ -30,7 +30,7 @@ public sealed class WorkerLoopDisplacedAttemptTests
         {
             if (++claims == 1)
             {
-                return new ClaimResult([Reclaimed()], null);
+                return [Reclaimed()];
             }
             cts.Cancel();
             throw new OperationCanceledException(cts.Token);
@@ -42,23 +42,26 @@ public sealed class WorkerLoopDisplacedAttemptTests
         Assert.True(staleCts.IsCancellationRequested);
     }
 
-    private static ClaimedJob Reclaimed() =>
+    // The claim row for the job again, in its next execution.
+    private static ClaimReadyRow Reclaimed() =>
         new(
             JobId: JobId,
-            JobRef: Guid.CreateVersion7(),
             NamespaceId: 1,
             DefinitionId: 1,
-            TenantId: null,
             ExecutionNumber: 2,
             DeduplicationKey: null,
             CorrelationKey: null,
             ConcurrencyKey: null,
             InputFormatId: 0,
-            Input: ReadOnlyMemory<byte>.Empty,
+            Input: null,
             NextRunAtUtc: null,
             LeaseExpiresAtUtc: DateTime.UtcNow.AddMinutes(3),
             CreatedAtUtc: DateTime.UtcNow,
             FailureCount: 0,
-            Version: 1
+            Version: 1,
+            JobRef: Guid.CreateVersion7(),
+            TenantId: null,
+            DbNowUtc: null,
+            NextReadyAtUtc: null
         );
 }

@@ -1,6 +1,6 @@
 namespace Acta.Runtime;
 
-/// <summary><see cref="IExecution.ReclaimStuckJobsAsync"/>: one routine call per namespace, its rows folded into the reclaim result.</summary>
+/// <summary><see cref="Execution.ReclaimStuckJobsAsync"/>: one routine call per namespace, its rows folded into the reclaim result.</summary>
 internal sealed class ReclaimStuckJobsHandler(IDbSession session, ISqlDialect dialect)
 {
     public async Task<ReclaimStuckJobsResult> HandleAsync(ReclaimStuckJobsCommand command, CancellationToken ct) =>

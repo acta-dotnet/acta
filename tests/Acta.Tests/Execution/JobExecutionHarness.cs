@@ -8,12 +8,12 @@ using Xunit;
 namespace Acta.Tests.Execution;
 
 /// <summary>
-/// Drives one real <see cref="JobExecution.RunAsync"/> attempt end to end over a scripted
-/// <see cref="IExecution"/>: the start CAS, a handler that runs one durable step, and the
-/// completion CAS. The script says what <c>complete_step</c> and <c>complete_execution</c> answer,
-/// and the harness keeps every <see cref="CompleteExecutionCommand"/> the runner submitted plus the
-/// subset the store's CAS actually applied, so a test can assert on the completion shape rather than
-/// on a database. Reusable seam for executor unit tests; add scripted knobs here, not per test.
+/// Drives one real <see cref="JobExecution.RunAsync"/> attempt end to end over the real execution and lock
+/// groups on scripted sessions: the start CAS, a handler that runs one durable step, and the completion
+/// CAS. The script says what <c>complete_step</c> and <c>complete_execution</c> answer, and the harness
+/// keeps every <see cref="BoundCompletion"/> the runner bound plus the subset the scripted CAS applied, so
+/// a test can assert on the completion shape rather than on a database. Reusable for executor unit tests;
+/// add scripted knobs here, not per test.
 /// </summary>
 internal sealed class JobExecutionHarness(
     CompleteStepOutcomeCode stepOutcome = CompleteStepOutcomeCode.Succeeded,
@@ -106,8 +106,8 @@ internal sealed class JobExecutionHarness(
     /// <summary>Every rate reservation the runner asked the meter for, in order.</summary>
     public IReadOnlyList<RateRequest> RateRequests => _locks.RateRequests;
 
-    /// <summary>Every completion command the runner handed the store, in submission order.</summary>
-    public IReadOnlyList<CompleteExecutionCommand> Submitted => _store.Submitted;
+    /// <summary>Every completion the runner bound, in submission order.</summary>
+    public IReadOnlyList<BoundCompletion> Submitted => _store.Submitted;
 
     /// <summary>How many times the runner issued the start write.</summary>
     public int StartAttempts => _store.StartAttempts;
@@ -119,10 +119,10 @@ internal sealed class JobExecutionHarness(
     public bool HandlerRan => _store.StartedSteps.Count > 0;
 
     /// <summary>The subset whose completion CAS matched a row; a NotOwner answer writes nothing.</summary>
-    public IReadOnlyList<CompleteExecutionCommand> Applied => _store.Applied;
+    public IReadOnlyList<BoundCompletion> Applied => _store.Applied;
 
-    /// <summary>The single completion command, for the pins that expect exactly one.</summary>
-    public CompleteExecutionCommand Completion => Assert.Single(Submitted);
+    /// <summary>The single completion, for the pins that expect exactly one.</summary>
+    public BoundCompletion Completion => Assert.Single(Submitted);
 
     /// <summary>
     /// Puts the attempt into the state a fired execution timeout leaves it in: the timeout source is
@@ -170,7 +170,7 @@ internal sealed class JobExecutionHarness(
             resetJobState: null!,
             signals: null!,
             alerts: null!,
-            executionStore: _store,
+            executionStore: _store.Execution,
             new HarnessSerializers(),
             _locks.Locks,
             cancellationToken: _attemptCts.Token,
@@ -187,7 +187,7 @@ internal sealed class JobExecutionHarness(
         var execution = new JobExecution(
             _getJob,
             CancelJob(),
-            _store,
+            _store.Execution,
             new HarnessSerializers(),
             options,
             new JobBehaviorPipeline([]),
@@ -271,13 +271,13 @@ internal sealed class JobExecutionHarness(
             _locks.Locks,
             new HarnessClock(),
             serializers,
-            new StoreOnlyServices(_store, _getJob, CancelJob()),
+            new StoreOnlyServices(_store.Execution, _getJob, CancelJob()),
             options,
             context,
             new JobExecution(
                 _getJob,
                 CancelJob(),
-                _store,
+                _store.Execution,
                 serializers,
                 options,
                 new JobBehaviorPipeline([]),
@@ -345,29 +345,34 @@ internal sealed class JobExecutionHarness(
             RateKey = rateKey,
         };
 
-    // The scripted store. Only the five calls one attempt makes are implemented; everything else
-    // throws so a future change that starts leaning on another port is visible rather than silent.
+    // The real execution group over a scripted session. Only the five calls one attempt makes are
+    // answered; everything else throws so a future change that starts leaning on another call is
+    // visible rather than silent.
     private sealed class ScriptedExecutionStore(
         CompleteStepOutcomeCode stepOutcome,
         CompleteExecutionAction completionAction,
         StartExecutionAction startAction,
         bool startFailsOnce,
         StartExecutionAction? startAfterFailure
-    ) : IExecution
+    )
     {
-        private readonly List<CompleteExecutionCommand> _submitted = [];
-        private readonly List<CompleteExecutionCommand> _applied = [];
+        private readonly List<BoundCompletion> _submitted = [];
+        private readonly List<BoundCompletion> _applied = [];
         private readonly List<string> _startedSteps = [];
+        private readonly List<int> _startVersions = [];
         private bool _startFailsOnce = startFailsOnce;
+        private Acta.Runtime.Execution? _execution;
+
+        public Acta.Runtime.Execution Execution =>
+            _execution ??= new ScriptedSession((call, _) => AnswerAsync(call)).Services().GetRequiredService<Acta.Runtime.Execution>();
 
         /// <summary>How many times the start write was attempted, so a retry is visible.</summary>
         public int StartAttempts { get; private set; }
 
-        private readonly List<int> _startVersions = [];
         public IReadOnlyList<int> StartVersions => _startVersions;
 
-        public IReadOnlyList<CompleteExecutionCommand> Submitted => _submitted;
-        public IReadOnlyList<CompleteExecutionCommand> Applied => _applied;
+        public IReadOnlyList<BoundCompletion> Submitted => _submitted;
+        public IReadOnlyList<BoundCompletion> Applied => _applied;
         public IReadOnlyList<string> StartedSteps => _startedSteps;
 
         // Fires as complete_step answers, so a test can model the heartbeat cancelling the attempt
@@ -378,14 +383,19 @@ internal sealed class JobExecutionHarness(
         // inside the window a start is in flight.
         public Func<Task>? BeforeFirstStart { get; set; }
 
-        public async Task<StartExecutionAction> StartExecutionAsync(
-            long jobId,
-            int workerId,
-            int expectedExecutionNumber,
-            int expectedVersion,
-            int leaseTtlSeconds,
-            CancellationToken ct
-        )
+        private async Task<object?> AnswerAsync(BoundCall call) =>
+            call.Stem switch
+            {
+                "StartExecution" => await StartAsync(call.Get(ActaSchema.JobRuntime.Version)),
+                "StartStep" => StartStep(call.Get(ActaSchema.JobStep.Name)),
+                "CompleteStep" => CompleteStep(),
+                "CompleteExecution" => Complete(BoundCompletion.Read(call)),
+                // The deadline path cancels descendants, and a harness job has none.
+                "GetChildJobIds" => Array.Empty<long>(),
+                _ => throw new NotSupportedException(call.Stem),
+            };
+
+        private async Task<byte> StartAsync(int expectedVersion)
         {
             if (BeforeFirstStart is { } hook)
             {
@@ -402,67 +412,61 @@ internal sealed class JobExecutionHarness(
             }
             // startAfterFailure models a first try that committed and lost only its response: the retry
             // resubmits a stale version and the CAS answers LostClaim although this worker holds the row.
-            return StartAttempts > 1 && startAfterFailure is { } after ? after : startAction;
+            return (byte)(StartAttempts > 1 && startAfterFailure is { } after ? after : startAction);
         }
 
-        public Task<StartStepDecision> StartStepAsync(long jobId, string name, bool atMostOnce, CancellationToken ct)
+        private StartStepDecision StartStep(string name)
         {
             _startedSteps.Add(name);
-            return Task.FromResult(
-                new StartStepDecision(
-                    StartStepOutcomeCode.Invoke,
-                    AttemptNumber: 1,
-                    Version: 1,
-                    NextRetryAtUtc: null,
-                    ResultFormatId: 0,
-                    Result: null,
-                    ReasonCode: null,
-                    ReasonMessage: null
-                )
+            return new StartStepDecision(
+                StartStepOutcomeCode.Invoke,
+                AttemptNumber: 1,
+                Version: 1,
+                NextRetryAtUtc: null,
+                ResultFormatId: 0,
+                Result: null,
+                ReasonCode: null,
+                ReasonMessage: null
             );
         }
 
-        public Task<CompleteStepDecision> CompleteStepAsync(CompleteStepCommand command, CancellationToken ct)
+        private CompleteStepDecision CompleteStep()
         {
             OnStepCompletion?.Invoke();
-            return Task.FromResult(new CompleteStepDecision(stepOutcome, NextRetryAtUtc: DateTime.UtcNow.AddSeconds(30)));
+            return new CompleteStepDecision(stepOutcome, NextRetryAtUtc: DateTime.UtcNow.AddSeconds(30));
         }
 
-        public Task<CompleteExecutionResult> CompleteExecutionAsync(CompleteExecutionCommand request, CancellationToken ct)
+        private CompleteExecutionResult Complete(BoundCompletion completion)
         {
-            _submitted.Add(request);
+            _submitted.Add(completion);
             if (completionAction != CompleteExecutionAction.Completed)
             {
                 // The CAS matched no row: nothing is written, and the reported status is the row's
                 // current one rather than anything this attempt asked for.
-                return Task.FromResult(
-                    new CompleteExecutionResult(
-                        completionAction,
-                        (byte)JobStatusCode.Executing,
-                        FinalNextRunAtUtc: null,
-                        DateTime.UtcNow,
-                        ParentReleased: false
-                    )
-                );
-            }
-
-            _applied.Add(request);
-            return Task.FromResult(
-                new CompleteExecutionResult(
-                    CompleteExecutionAction.Completed,
-                    FinalStatus(request),
+                return new CompleteExecutionResult(
+                    completionAction,
+                    (byte)JobStatusCode.Executing,
                     FinalNextRunAtUtc: null,
                     DateTime.UtcNow,
                     ParentReleased: false
-                )
+                );
+            }
+
+            _applied.Add(completion);
+            return new CompleteExecutionResult(
+                CompleteExecutionAction.Completed,
+                FinalStatus(completion),
+                FinalNextRunAtUtc: null,
+                DateTime.UtcNow,
+                ParentReleased: false
             );
         }
 
         // Mirrors what complete_execution lands the job in for the shapes this harness produces: a
         // re-arm goes Ready, a handler-control decision takes the requested status, and everything
         // else follows the attempt outcome.
-        private static byte FinalStatus(CompleteExecutionCommand request) =>
-            request switch
+        private static byte FinalStatus(BoundCompletion completion) =>
+            completion switch
             {
                 { RescheduleStatusCode: not null } => (byte)JobStatusCode.Ready,
                 { HandlerStatusCode: { } handler } => handler,
@@ -470,34 +474,6 @@ internal sealed class JobExecutionHarness(
                 { Outcome: ExecutionOutcome.Cancelled } => (byte)JobStatusCode.Cancelled,
                 _ => (byte)JobStatusCode.Failed,
             };
-
-        public Task<ClaimResult> ClaimBatchAsync(ClaimRequest request, int leaseTtlSeconds, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<ClaimResult> ClaimOneAsync(ClaimRequest request, int leaseTtlSeconds, long? jobId, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<RecoverySlotRepair> RepairRecoverySlotAsync(int namespaceId, long jobId, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<CheckpointSlotRow> CheckpointSlotAsync(CheckpointSlotCommand command, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task RecordJobNoteAsync(long jobId, int executionNumber, string message, JobPayload? detail, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        // The deadline path cancels descendants, and a harness job has none.
-        public Task<IReadOnlyList<long>> GetChildJobIdsAsync(long parentJobId, CancellationToken ct) =>
-            Task.FromResult<IReadOnlyList<long>>([]);
-
-        public Task<IReadOnlyList<StaleChildLatch>> GetStaleChildLatchesAsync(int namespaceId, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<SleepDecision> ArmOrConsumeSleepTimerAsync(ArmOrConsumeSleepTimerCommand command, CancellationToken ct) =>
-            throw new NotSupportedException();
     }
 
     /// <summary>One line the runner wrote: enough to pin an arm whose whole contract is the log.</summary>
@@ -517,7 +493,7 @@ internal sealed class JobExecutionHarness(
 
     // A handler cancel walks the subtree from the scripted store's children, which it never stages.
     private CancelJobHandler CancelJob() =>
-        new(null!, new DbSessionStub(), null!, _store, null!, new WorkerWakeupPublisher(new InProcessWakeup()));
+        new(null!, new DbSessionStub(), null!, _store.Execution, null!, new WorkerWakeupPublisher(new InProcessWakeup()));
 
     private sealed class RecordingLogger : ILogger
     {
@@ -547,7 +523,7 @@ internal sealed class JobExecutionHarness(
     // The services the executor resolves for an attempt, and a scope that is the provider itself: the
     // stores are the scripted ones, the signal seam and the alert sink are never reached by a handler
     // that runs one step, and anything else resolves to null.
-    private sealed class StoreOnlyServices(IExecution store, GetJobHandler getJob, CancelJobHandler cancelJob)
+    private sealed class StoreOnlyServices(Acta.Runtime.Execution store, GetJobHandler getJob, CancelJobHandler cancelJob)
         : IServiceProvider,
             IServiceScopeFactory,
             IServiceScope,
@@ -560,7 +536,7 @@ internal sealed class JobExecutionHarness(
         public IServiceProvider ServiceProvider => this;
 
         public object? GetService(Type serviceType) =>
-            serviceType == typeof(IExecution) ? store
+            serviceType == typeof(Acta.Runtime.Execution) ? store
             : serviceType == typeof(GetJobHandler) ? getJob
             : serviceType == typeof(CancelJobHandler) ? cancelJob
             : serviceType == typeof(ResetJobStateHandler) ? _resetJobState

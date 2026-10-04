@@ -12,7 +12,7 @@ namespace Acta.Runtime;
 /// so enqueue-only deployments never enter the loop.
 /// </summary>
 internal sealed class WorkerLoop(
-    Acta.Runtime.IExecution execution,
+    Execution execution,
     JobExecutor executor,
     IOptions<JobsOptions> options,
     WorkerRegistration? workerRegistration,
@@ -22,7 +22,7 @@ internal sealed class WorkerLoop(
     JobMetrics? metrics = null
 )
 {
-    private readonly Acta.Runtime.IExecution _execution = execution;
+    private readonly Execution _execution = execution;
     private readonly int _leaseTtlSeconds = options.Value.LeaseTtlSeconds;
     private readonly JobExecutor _executor = executor;
     private readonly IOptions<JobsOptions> _options = options;

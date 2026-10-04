@@ -38,7 +38,7 @@ public sealed class DeadlineSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.Equal(JobEventReasonCode.JobDeadlineExceeded, finished.JobEventReasonCode);
 
         var ran = await CheckpointSlot.GetAsync(
-            Services.GetRequiredService<IExecution>(),
+            Services.GetRequiredService<Acta.Runtime.Execution>(),
             enqueued.JobId,
             JobCheckpointKindCode.Variable,
             "ran",
@@ -78,7 +78,7 @@ public sealed class DeadlineSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.Equal(0, snapshot.FailureCount);
 
         var overdue = await CheckpointSlot.GetAsync(
-            Services.GetRequiredService<IExecution>(),
+            Services.GetRequiredService<Acta.Runtime.Execution>(),
             enqueued.JobId,
             JobCheckpointKindCode.Variable,
             "overdue",

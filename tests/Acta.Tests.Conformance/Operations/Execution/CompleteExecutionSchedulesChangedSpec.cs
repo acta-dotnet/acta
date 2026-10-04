@@ -252,7 +252,7 @@ public sealed class CompleteExecutionSchedulesChangedSpec : ActaRuntimeTestBase<
         CancellationToken ct
     ) =>
         Services
-            .GetRequiredService<IExecution>()
+            .GetRequiredService<Acta.Runtime.Execution>()
             .CompleteExecutionAsync(
                 new CompleteExecutionCommand(
                     JobId: jobId,

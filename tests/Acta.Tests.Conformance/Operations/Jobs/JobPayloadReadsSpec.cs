@@ -52,7 +52,7 @@ public sealed class JobPayloadReadsSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Checkpoints_round_trip_kind_state_and_value()
     {
         var ct = TestContext.Current.CancellationToken;
-        var execution = Services.GetRequiredService<IExecution>();
+        var execution = Services.GetRequiredService<Acta.Runtime.Execution>();
 
         var enqueued = await Jobs.EnqueueAsync(
             new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))),

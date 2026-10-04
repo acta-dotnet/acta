@@ -23,7 +23,7 @@ namespace Acta.Runtime;
 internal sealed class JobExecution(
     GetJobHandler getJob,
     CancelJobHandler cancelJob,
-    IExecution execution,
+    Execution execution,
     IJobPayloadSerializerRegistry serializers,
     IOptions<JobsOptions> options,
     JobBehaviorPipeline pipeline,
@@ -34,7 +34,7 @@ internal sealed class JobExecution(
 {
     private readonly GetJobHandler _getJob = getJob;
     private readonly CancelJobHandler _cancelJob = cancelJob;
-    private readonly IExecution _execution = execution;
+    private readonly Execution _execution = execution;
     private readonly IJobPayloadSerializerRegistry _serializers = serializers;
     private readonly JobBehaviorPipeline _pipeline = pipeline;
     private readonly WorkerWakeupPublisher _wakeupPublisher = wakeupPublisher;
@@ -66,7 +66,7 @@ internal sealed class JobExecution(
     /// owner or a control verb, and the claim is gone.
     /// </summary>
     internal static async Task<StartExecutionAction> StartReconciledAsync(
-        IExecution execution,
+        Execution execution,
         GetJobHandler getJob,
         ClaimedJob job,
         int workerId,
@@ -95,7 +95,7 @@ internal sealed class JobExecution(
     /// <see cref="ClaimedJob"/> to show for it: a claim whose answer was lost after the store committed it.
     /// </summary>
     internal static async Task<StartExecutionAction> StartReconciledAsync(
-        IExecution execution,
+        Execution execution,
         GetJobHandler getJob,
         long jobId,
         int executionNumber,

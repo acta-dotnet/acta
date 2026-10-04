@@ -9,7 +9,7 @@ public sealed class RuntimeJobContextCancellationTests
     [Fact]
     public async Task RunStepAsync_propagates_linked_token_cancellation_without_completing_step_failure()
     {
-        var db = new StepCancellationExecutionStore();
+        var db = StepCancellationSession();
         var ctx = new RuntimeJobContext(
             new ClaimedJob(
                 JobId: 42,
@@ -37,7 +37,7 @@ public sealed class RuntimeJobContextCancellationTests
             resetJobState: null!,
             signals: null!,
             alerts: null!,
-            executionStore: db,
+            executionStore: db.Services().GetRequiredService<Acta.Runtime.Execution>(),
             new ThrowingSerializerRegistry(),
             ScriptedSession.Unreachable.GetRequiredService<Locks>(),
             cancellationToken: CancellationToken.None,
@@ -52,7 +52,7 @@ public sealed class RuntimeJobContextCancellationTests
             ctx.RunStepAsync("cancelled-step", token => Task.FromCanceled(token), ct: callerCts.Token)
         );
 
-        Assert.False(db.CompleteStepCalled);
+        Assert.DoesNotContain(db.Calls, call => call.Stem == "CompleteStep");
     }
 
     // Same as above, but through the positional-ct convenience overload: proves the forwarder
@@ -61,7 +61,7 @@ public sealed class RuntimeJobContextCancellationTests
     [Fact]
     public async Task RunStepAsync_positional_ct_overload_propagates_linked_token_cancellation_without_completing_step_failure()
     {
-        var db = new StepCancellationExecutionStore();
+        var db = StepCancellationSession();
         var ctx = new RuntimeJobContext(
             new ClaimedJob(
                 JobId: 42,
@@ -89,7 +89,7 @@ public sealed class RuntimeJobContextCancellationTests
             resetJobState: null!,
             signals: null!,
             alerts: null!,
-            executionStore: db,
+            executionStore: db.Services().GetRequiredService<Acta.Runtime.Execution>(),
             new ThrowingSerializerRegistry(),
             ScriptedSession.Unreachable.GetRequiredService<Locks>(),
             cancellationToken: CancellationToken.None,
@@ -104,18 +104,16 @@ public sealed class RuntimeJobContextCancellationTests
             ctx.RunStepAsync("cancelled-step", token => Task.FromCanceled(token), callerCts.Token)
         );
 
-        Assert.False(db.CompleteStepCalled);
+        Assert.DoesNotContain(db.Calls, call => call.Stem == "CompleteStep");
     }
 
     // Only StartStep and CompleteStep are exercised: StartStep yields an Invoke decision so the body
     // runs, and CompleteStep must never be reached once the caller token is already cancelled.
-    private sealed class StepCancellationExecutionStore : IExecution
-    {
-        public bool CompleteStepCalled { get; private set; }
-
-        public Task<StartStepDecision> StartStepAsync(long jobId, string name, bool atMostOnce, CancellationToken ct) =>
-            Task.FromResult(
-                new StartStepDecision(
+    private static ScriptedSession StepCancellationSession() =>
+        new(call =>
+            call.Stem switch
+            {
+                "StartStep" => new StartStepDecision(
                     StartStepOutcomeCode.Invoke,
                     AttemptNumber: 1,
                     Version: 1,
@@ -124,53 +122,11 @@ public sealed class RuntimeJobContextCancellationTests
                     Result: null,
                     ReasonCode: null,
                     ReasonMessage: null
-                )
-            );
-
-        public Task<CompleteStepDecision> CompleteStepAsync(CompleteStepCommand command, CancellationToken ct)
-        {
-            CompleteStepCalled = true;
-            throw new InvalidOperationException("CompleteStep must not run for caller cancellation.");
-        }
-
-        public Task<CheckpointSlotRow> CheckpointSlotAsync(CheckpointSlotCommand command, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task RecordJobNoteAsync(long jobId, int executionNumber, string message, JobPayload? detail, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<IReadOnlyList<long>> GetChildJobIdsAsync(long parentJobId, CancellationToken ct) => throw new NotSupportedException();
-
-        public Task<IReadOnlyList<Acta.Runtime.StaleChildLatch>> GetStaleChildLatchesAsync(int namespaceId, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<Acta.Runtime.SleepDecision> ArmOrConsumeSleepTimerAsync(ArmOrConsumeSleepTimerCommand command, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<ClaimResult> ClaimBatchAsync(ClaimRequest request, int leaseTtlSeconds, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<ClaimResult> ClaimOneAsync(ClaimRequest request, int leaseTtlSeconds, long? jobId, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<StartExecutionAction> StartExecutionAsync(
-            long jobId,
-            int workerId,
-            int expectedExecutionNumber,
-            int expectedVersion,
-            int leaseTtlSeconds,
-            CancellationToken ct
-        ) => throw new NotSupportedException();
-
-        public Task<CompleteExecutionResult> CompleteExecutionAsync(CompleteExecutionCommand request, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct) =>
-            throw new NotSupportedException();
-
-        public Task<RecoverySlotRepair> RepairRecoverySlotAsync(int namespaceId, long jobId, CancellationToken ct) =>
-            throw new NotSupportedException();
-    }
+                ),
+                "CompleteStep" => throw new InvalidOperationException("CompleteStep must not run for caller cancellation."),
+                _ => throw new NotSupportedException(call.Stem),
+            }
+        );
 
     private sealed class ThrowingSerializerRegistry : IJobPayloadSerializerRegistry
     {

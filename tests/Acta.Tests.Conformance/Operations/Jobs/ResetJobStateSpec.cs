@@ -90,7 +90,7 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
     // step/result via direct inserts (no op surface creates those mid-handler).
     private async Task SeedSubstrateAsync(IDbSession db, long jobId, CancellationToken ct)
     {
-        var execution = Services.GetRequiredService<IExecution>();
+        var execution = Services.GetRequiredService<Acta.Runtime.Execution>();
         await CheckpointSlot.SetAsync(execution, jobId, JobCheckpointKindCode.Variable, "v.test", JobPayload.Text("x"), ct);
         await execution.ArmOrConsumeSleepTimerAsync(new ArmOrConsumeSleepTimerCommand(jobId, "t.test", 60, null), ct);
         await Services

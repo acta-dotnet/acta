@@ -78,7 +78,7 @@ internal sealed class WorkerRuntime
             rootServices.GetRequiredService<GetScheduleStateHandler>(),
             rootServices.GetRequiredService<RegisterScheduledJobsHandler>(),
             rootServices.GetRequiredService<WorkerLifecycle>(),
-            rootServices.GetRequiredService<IExecution>(),
+            rootServices.GetRequiredService<Execution>(),
             clock,
             rootServices.GetRequiredService<IServerClock>(),
             serializers,
@@ -92,7 +92,7 @@ internal sealed class WorkerRuntime
         var jobExecution = new JobExecution(
             rootServices.GetRequiredService<GetJobHandler>(),
             rootServices.GetRequiredService<CancelJobHandler>(),
-            rootServices.GetRequiredService<IExecution>(),
+            rootServices.GetRequiredService<Execution>(),
             serializers,
             options,
             pipeline,
@@ -102,7 +102,7 @@ internal sealed class WorkerRuntime
         );
         _executor = new JobExecutor(locks, clock, serializers, rootServices, options, _context, jobExecution, logger, metrics);
         _loop = new WorkerLoop(
-            rootServices.GetRequiredService<IExecution>(),
+            rootServices.GetRequiredService<Execution>(),
             _executor,
             options,
             workerRegistration,
@@ -129,7 +129,7 @@ internal sealed class WorkerRuntime
         _lockHeartbeat = new LockLeaseHeartbeat(locks, options, workerRegistration, _context, logger);
         _watchdog = new AttemptWatchdog(options, workerRegistration, _context, logger);
         _recoveryMonitor = new RecoverySlotMonitor(
-            rootServices.GetRequiredService<IExecution>(),
+            rootServices.GetRequiredService<Execution>(),
             publisher,
             workerRegistration,
             _context,
