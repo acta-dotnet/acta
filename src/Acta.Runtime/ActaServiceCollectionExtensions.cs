@@ -96,6 +96,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ILocks, Locks>();
         services.TryAddSingleton<PurgeExpiredDataHandler>();
         services.TryAddSingleton<IMaintenance, Maintenance>();
+        services.TryAddSingleton<RetentionCoordinator>();
         services.TryAddSingleton<TagTargetResolution>();
         services.TryAddSingleton<GetTagsHandler>();
         services.TryAddSingleton<ReplaceTagsHandler>();

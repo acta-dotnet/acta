@@ -1,57 +1,15 @@
 using Acta.Runtime;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace Acta.Postgres;
 
-/// <summary>
-/// PostgreSQL provider registration. Core owns feature behavior; this package supplies the complete
-/// provider store set, command binding, executable SQL, and relational mechanics.
-/// </summary>
+/// <summary>PostgreSQL provider registration: the dialect, bootstrap, and options; core owns everything else.</summary>
 public static class PostgresActaBuilderExtensions
 {
-    /// <summary>
-    /// Selects PostgreSQL as Acta's durable provider. Registers connection string/schema
-    /// options, relational mechanics, provider bootstrap, and provider-owned feature stores.
-    /// </summary>
-    public static IActaBuilder UsePostgres(this IActaBuilder builder, Action<PostgresProviderOptions> configure)
-    {
-        ArgumentNullException.ThrowIfNull(builder);
-        ArgumentNullException.ThrowIfNull(configure);
-
-        ActaProviderRegistration.Add(builder.Services, new ActaProviderInfo(DbProvider.Postgres));
-        builder.Services.Configure(configure);
-        builder.Services.AddOptions<PostgresProviderOptions>().ValidateOnStart();
-        builder.Services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IValidateOptions<PostgresProviderOptions>, SqlProviderOptionsValidator<PostgresProviderOptions>>()
+    /// <summary>Selects PostgreSQL as Acta's durable provider, configured by its connection string and schema options.</summary>
+    public static IActaBuilder UsePostgres(this IActaBuilder builder, Action<PostgresProviderOptions> configure) =>
+        ActaProviderRegistration.Use<PostgresProviderOptions, PostgresDialect, PostgresProviderBootstrap>(
+            builder,
+            DbProvider.Postgres,
+            configure
         );
-
-        // The dialect owns generic connection, parameter, routine, and transaction traits. Feature
-        // stores below own their commands, executable SQL, binding, and projections directly.
-        builder.Services.AddSingleton<SqlProviderOptions>(static sp => sp.GetRequiredService<IOptions<PostgresProviderOptions>>().Value);
-        builder.Services.AddSingleton<PostgresDialect>();
-        builder.Services.AddSingleton<ISqlDialect>(static sp => sp.GetRequiredService<PostgresDialect>());
-        // GetService, not GetRequiredService: a bare host may register no logging at all, and the
-        // session falls back to the null logger rather than failing to resolve.
-        builder.Services.AddSingleton(static sp => new DbSession(
-            sp.GetRequiredService<SqlProviderOptions>(),
-            sp.GetRequiredService<ISqlDialect>(),
-            sp.GetRequiredService<SqlResourceCatalog>(),
-            sp.GetService<ILogger<DbSession>>()
-        ));
-        builder.Services.AddSingleton<IDbSession>(static sp => sp.GetRequiredService<DbSession>());
-        builder.Services.AddSingleton<IProviderBootstrap, PostgresProviderBootstrap>();
-
-        // Provider-owned feature stores: each implements a core store port over this package's own
-        // embedded SQL, bound and mapped directly in the store.
-        builder.Services.AddSingleton(static sp => new SqlResourceCatalog(
-            sp.GetRequiredService<ISqlDialect>().DialectToken,
-            sp.GetRequiredService<SqlProviderOptions>().Schema
-        ));
-        builder.Services.AddActaRelationalStores();
-
-        return builder;
-    }
 }

@@ -50,7 +50,7 @@ tests/Acta.Tests.Conformance/Operations/Jobs/PauseJobSpec.cs
 - `Db/`: the session, `ISqlDialect`, value coercion, deadlock retry, the SQL resource catalog, and paging.
 - `Entities/`: the table models, one class per table.
 - `Schema/`: the schema model, the migration runner and installer, baseline stamps, the schema commands, and the operator views in `Schema/Views/`.
-- `Hosting/`: `ActaBuilder`, `AddActa`, provider registration, option validators, and what registration builds: the job catalog indexes and the outbox relay registry.
+- `Hosting/`: `ActaBuilder`, `AddActa`, provider registration, option validators, what registration builds (the job catalog indexes and the outbox relay registry), and the outbox staging core the provider packages share.
 - `Kernel/`: what operations and the engine both use: the wakeup publisher, text limits, tag filters, catalog validation and hashing, backoff, and metrics.
 - `Cli/`: the operator CLI, a presenter over the public facades.
 
