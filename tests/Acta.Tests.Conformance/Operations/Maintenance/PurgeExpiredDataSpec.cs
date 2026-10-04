@@ -6,7 +6,7 @@ using TestJobs;
 using Xunit;
 using Lock = Acta.Runtime.Lock;
 
-namespace Acta.Tests.Conformance.Scenarios;
+namespace Acta.Tests.Conformance.Operations.Maintenance;
 
 /// <summary>
 /// Conformance for <c>sys.retention</c>'s sweep sections (<c>purge_expired_data</c>):

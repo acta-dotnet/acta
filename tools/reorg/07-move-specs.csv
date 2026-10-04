@@ -178,7 +178,7 @@ Runtime/WorkerLoopDispatchSpec.cs,Engine/Workers/WorkerLoopDispatchSpec.cs,Worke
 Runtime/WorkerRuntimeDescriptorGateSpec.cs,Engine/Workers/WorkerRuntimeDescriptorGateSpec.cs,WorkerRuntimeDescriptorGateSpec,WorkerRuntimeDescriptorGateSpec,Startup descriptor validation
 Runtime/WorkerRuntimeRegistrationSpec.cs,Engine/Workers/WorkerRuntimeRegistrationSpec.cs,WorkerRuntimeRegistrationSpec,WorkerRuntimeRegistrationSpec,InitializeAsync catalog writes
 Runtime/WorkerShutdownDrainSpec.cs,Engine/Workers/WorkerShutdownDrainSpec.cs,WorkerShutdownDrainSpec,WorkerShutdownDrainSpec,Shutdown drain contract
-Scenarios/AlertSkipVariableRetentionSpec.cs,Scenarios/AlertSkipVariableRetentionSpec.cs,AlertSkipVariableRetentionSpec,AlertSkipVariableRetentionSpec,End-to-end scenario stays in Scenarios
+Scenarios/AlertSkipVariableRetentionSpec.cs,Engine/Retention/AlertSkipVariableRetentionSpec.cs,AlertSkipVariableRetentionSpec,AlertSkipVariableRetentionSpec,The retention sweep checkpoint section
 Scenarios/ChildGroupTimeoutSpec.cs,Scenarios/ChildGroupTimeoutSpec.cs,ChildGroupTimeoutSpec,ChildGroupTimeoutSpec,End-to-end scenario stays in Scenarios
 Scenarios/ChildJobCrossNamespaceSpec.cs,Scenarios/ChildJobCrossNamespaceSpec.cs,ChildJobCrossNamespaceSpec,ChildJobCrossNamespaceSpec,End-to-end scenario stays in Scenarios
 Scenarios/ChildJobSpec.cs,Scenarios/ChildJobSpec.cs,ChildJobSpec,ChildJobSpec,End-to-end scenario stays in Scenarios
@@ -187,7 +187,7 @@ Scenarios/ChildTimeoutSpec.cs,Scenarios/ChildTimeoutSpec.cs,ChildTimeoutSpec,Chi
 Scenarios/CliControlSpec.cs,Scenarios/CliControlSpec.cs,CliControlSpec,CliControlSpec,End-to-end scenario stays in Scenarios
 Scenarios/ConcurrencyKeyMutexSpec.cs,Scenarios/ConcurrencyKeyMutexSpec.cs,ConcurrencyKeyMutexSpec,ConcurrencyKeyMutexSpec,End-to-end scenario stays in Scenarios
 Scenarios/ConcurrencyLimitSpec.cs,Scenarios/ConcurrencyLimitSpec.cs,ConcurrencyLimitSpec,ConcurrencyLimitSpec,End-to-end scenario stays in Scenarios
-Scenarios/ConcurrentLockSweepSpec.cs,Scenarios/ConcurrentLockSweepSpec.cs,ConcurrentLockSweepSpec,ConcurrentLockSweepSpec,End-to-end scenario stays in Scenarios
+Scenarios/ConcurrentLockSweepSpec.cs,Engine/Retention/ConcurrentLockSweepSpec.cs,ConcurrentLockSweepSpec,ConcurrentLockSweepSpec,Concurrent retention passes reap one lock table
 Scenarios/ControlVerbsSpec.cs,Scenarios/ControlVerbsSpec.cs,ControlVerbsSpec,ControlVerbsSpec,End-to-end scenario stays in Scenarios
 Scenarios/ExplainScenarioSpec.cs,Scenarios/ExplainScenarioSpec.cs,ExplainScenarioSpec,ExplainScenarioSpec,End-to-end scenario stays in Scenarios
 Scenarios/GoldenPathSpec.cs,Scenarios/GoldenPathSpec.cs,GoldenPathSpec,GoldenPathSpec,End-to-end scenario stays in Scenarios
@@ -206,7 +206,7 @@ Scenarios/LaneRetentionSpec.cs,Scenarios/LaneRetentionSpec.cs,LaneRetentionSpec,
 Scenarios/LaneRetireSpec.cs,Scenarios/LaneRetireSpec.cs,LaneRetireSpec,LaneRetireSpec,End-to-end scenario stays in Scenarios
 Scenarios/LaneSettlePathsSpec.cs,Scenarios/LaneSettlePathsSpec.cs,LaneSettlePathsSpec,LaneSettlePathsSpec,End-to-end scenario stays in Scenarios
 Scenarios/MultiScheduleSlotSpec.cs,Scenarios/MultiScheduleSlotSpec.cs,MultiScheduleSlotSpec,MultiScheduleSlotSpec,End-to-end scenario stays in Scenarios
-Scenarios/PurgeExpiredDataSpec.cs,Scenarios/PurgeExpiredDataSpec.cs,PurgeExpiredDataSpec,PurgeExpiredDataSpec,End-to-end scenario stays in Scenarios
+Scenarios/PurgeExpiredDataSpec.cs,Operations/Maintenance/PurgeExpiredDataSpec.cs,PurgeExpiredDataSpec,PurgeExpiredDataSpec,The purge operation sections
 Scenarios/RateLimitConvoySpec.cs,Scenarios/RateLimitConvoySpec.cs,RateLimitConvoySpec,RateLimitConvoySpec,End-to-end scenario stays in Scenarios
 Scenarios/RateLimitSpec.cs,Scenarios/RateLimitSpec.cs,RateLimitSpec,RateLimitSpec,End-to-end scenario stays in Scenarios
 Scenarios/ReferenceEnqueueSpec.cs,Scenarios/ReferenceEnqueueSpec.cs,ReferenceEnqueueSpec,ReferenceEnqueueSpec,End-to-end scenario stays in Scenarios

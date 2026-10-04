@@ -3,7 +3,7 @@ using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Xunit;
 
-namespace Acta.Tests.Conformance.Scenarios;
+namespace Acta.Tests.Conformance.Engine.Retention;
 
 /// <summary>
 /// Conformance for the retention sweep's checkpoint section: <c>sys.alerts</c> records one durable

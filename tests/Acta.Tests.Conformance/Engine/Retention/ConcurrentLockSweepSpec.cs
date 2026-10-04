@@ -6,7 +6,7 @@ using TestJobs;
 using Xunit;
 using Lock = Acta.Runtime.Lock;
 
-namespace Acta.Tests.Conformance.Scenarios;
+namespace Acta.Tests.Conformance.Engine.Retention;
 
 /// <summary>
 /// The expired-lock sweep is global, so every namespace's retention pass reaps the same table. Sweeps

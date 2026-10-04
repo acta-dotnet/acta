@@ -17,6 +17,7 @@ foreach ($row in $all | Where-Object { -not $_.new_path }) {
     if (Test-Path "$specs/$($row.old_path)") { git rm -q "$specs/$($row.old_path)" }
 }
 $rows = $all | Where-Object { $_.new_path }
+$tops = $rows | ForEach-Object { $_.new_path.Split('/')[0] } | Sort-Object -Unique
 
 function Read([string]$path) { [IO.File]::ReadAllText($path) }
 function Save([string]$path, [string]$text) { [IO.File]::WriteAllText($path, $text) }
@@ -64,7 +65,9 @@ foreach ($file in $testFiles) {
     $text = Read $file; $orig = $text
     foreach ($ns in $gone) { $text = [regex]::Replace($text, "(?m)^using $([regex]::Escape($ns));\r?\n", '') }
     $own = $nsLine.Match($text).Groups[1].Value
-    $needed = $movedTypes.GetEnumerator() |
+    # Only files compiled beside the specs (the spec folders and the provider shells) can see a spec namespace.
+    $beside = $file -match "^$([regex]::Escape($specs))\.\w+/" -or ($file.StartsWith("$specs/") -and $tops -contains $file.Substring($specs.Length + 1).Split('/')[0])
+    $needed = $movedTypes.GetEnumerator() | Where-Object { $beside } |
         Where-Object { $_.Value -ne $own -and $text -match "\b$($_.Key)\b" -and $text -notmatch "(?m)^using $([regex]::Escape($_.Value));" } |
         ForEach-Object { $_.Value } | Sort-Object -Unique
     if ($needed) {
@@ -76,7 +79,6 @@ foreach ($file in $testFiles) {
 }
 
 # 4. The provider shells compile the new top folders; the library leaves them to the shells.
-$tops = $rows | ForEach-Object { $_.new_path.Split('/')[0] } | Sort-Object -Unique
 foreach ($csproj in (git ls-files 'tests/Acta.Tests.Conformance.*/*.csproj')) {
     $text = Read $csproj
     $lines = ($tops | ForEach-Object { "    <Compile Include=`"..\Acta.Tests.Conformance\$_\**\*.cs`" LinkBase=`"Shared\$_`" />" }) -join "`r`n"
