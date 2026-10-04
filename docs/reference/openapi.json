@@ -8366,6 +8366,61 @@
           }
         }
       },
+      "CheckpointHttpResponse": {
+        "required": [
+          "kind",
+          "name",
+          "status",
+          "dueAtUtc",
+          "value",
+          "createdAtUtc",
+          "modifiedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/CheckpointKindCode"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CheckpointStatusCode"
+              }
+            ]
+          },
+          "dueAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "value": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobPayloadHttpResponse"
+              }
+            ]
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "modifiedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "CheckpointKindCode": {
         "description": "Discriminator for `JobCheckpoint` rows: which durable substrate feature owns the\n`(job_id, kind_code, name)` slot. One physical table carries every simple job-internal\ndurable slot; the kind keeps the name spaces structurally separate (a user variable can never\ncollide with a signal or a child latch of the same name)."
       },
@@ -9426,7 +9481,7 @@
           "checkpoints": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/JobCheckpointHttpResponse"
+              "$ref": "#/components/schemas/CheckpointHttpResponse"
             }
           },
           "explain": {
@@ -9496,61 +9551,6 @@
               "string"
             ],
             "format": "int64"
-          }
-        }
-      },
-      "JobCheckpointHttpResponse": {
-        "required": [
-          "kind",
-          "name",
-          "status",
-          "dueAtUtc",
-          "value",
-          "createdAtUtc",
-          "modifiedAtUtc"
-        ],
-        "type": "object",
-        "properties": {
-          "kind": {
-            "$ref": "#/components/schemas/CheckpointKindCode"
-          },
-          "name": {
-            "type": "string"
-          },
-          "status": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/CheckpointStatusCode"
-              }
-            ]
-          },
-          "dueAtUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          },
-          "value": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JobPayloadHttpResponse"
-              }
-            ]
-          },
-          "createdAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "modifiedAtUtc": {
-            "type": "string",
-            "format": "date-time"
           }
         }
       },

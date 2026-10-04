@@ -111,7 +111,7 @@ internal sealed record JobInputRow(byte FormatId, byte[]? Input)
 /// <see cref="JobPayload"/> after binding (None format id / null value means no payload).
 /// </summary>
 [DbProjection]
-internal sealed record JobCheckpointReadRow(
+internal sealed record CheckpointReadRow(
     CheckpointKindCode Kind,
     string Name,
     CheckpointStatusCode? Status,
@@ -122,7 +122,7 @@ internal sealed record JobCheckpointReadRow(
     DateTime ModifiedAtUtc
 )
 {
-    public JobCheckpointItem ToItem() =>
+    public CheckpointItem ToItem() =>
         new(
             Kind,
             Name,

@@ -82,7 +82,7 @@ namespace Acta.AspNetCore;
 [JsonSerializable(typeof(CapabilitiesResponse))]
 [JsonSerializable(typeof(GetJobDetailHttpResponse))]
 [JsonSerializable(typeof(JobPayloadHttpResponse))]
-[JsonSerializable(typeof(IReadOnlyList<JobCheckpointHttpResponse>))]
+[JsonSerializable(typeof(IReadOnlyList<CheckpointHttpResponse>))]
 [JsonSerializable(typeof(EnqueueOneHttpRequest))]
 [JsonSerializable(typeof(EnqueueOneHttpResponse))]
 [JsonSerializable(typeof(GetInputTemplateHttpResponse))]

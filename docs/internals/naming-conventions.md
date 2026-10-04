@@ -67,12 +67,12 @@ A type is named `{Subject}{Role}`, and each role has exactly one suffix. An oper
 | Persisted enum, options, fluent builder, error, attribute | `Code`, `Options`, `Builder`, `Exception`, `Attribute` | `JobStatusCode` |
 | How a job or an attempt ended, for handler code only | `Outcome` | `JobOutcome`, `ChildJobOutcome`, `MapOutcome` |
 
-- **A `Get` query returns one thing and a `List` query returns a page.** `Get` returns a `Detail`, a `Snapshot`, or a single value, and `null` when nothing is found. `List` always returns `PagedResult<XListItem>`, never an unpaged list. `PagedResult<T>` keeps its name: it is a page, not an operation's response.
+- **A `Get` query returns one thing and a `List` query returns a page.** `Get` returns a `Detail`, a `Snapshot`, a `Set`, or a single value, and `null` when nothing is found. `List` always returns `PagedResult<XListItem>`, never an unpaged list. `PagedResult<T>` keeps its name: it is a page, not an operation's response.
 - **Every operation has its own input and its own response.** Responses that belong together share an interface (`IJobControlResponse`), never a class, so changing one operation's response changes no other operation.
 - **`Row` means the database loaded it.** Every `*Row` carries `[DbProjection]`. A model the public API exposes is never a row; SQL fills it directly.
 - **A type takes the subject of the table it describes.** `StepStatusCode` maps `steps.status_code`, `DefinitionAuditLevelCode` maps `definitions.audit_level_code`, and `EventReasonCode` maps `events.reason_code`. `Job` prefixes only what describes a job itself (`JobStatusCode`, `JobDetail`).
 - **`Outcome` is a domain noun, never a return type.** It names how a job, a child, or a map ended inside handler code; what an operation returns is a `Response`.
-- **Banned suffixes:** `Result`, `Dto`, `Data`, `Info`, `Model`, `Entity` outside table models, `Record`, `Item` outside `ListItem`, `Store`, `Service`, `Api`, `Page`, `PageRequest`, `Decision`.
+- **Banned suffixes:** `Result`, `Dto`, `Data`, `Info`, `Model`, `Entity` outside table models, `Record`, `Item` outside `ListItem` and a `Set`'s element, `Store`, `Service`, `Api`, `Page`, `PageRequest`, `Decision`.
 - **`TypeNamingTests` enforces the banned suffixes, the `Row` rule, and the `Entity` rule** over every shipped assembly. Names that predate the table are listed in `tests/ratchets/naming.txt`, and entries may only be removed.
 
 ## Public identity: refs and the wire boundary

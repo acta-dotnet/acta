@@ -402,6 +402,15 @@ sealed class Acta.CancelJobResponse
     System.Int64 JobId { get;init; }
     System.Nullable<Acta.JobStatusCode> Status { get;init; }
     System.Nullable<System.Int32> Version { get;init; }
+sealed class Acta.CheckpointItem
+    .ctor(Acta.CheckpointKindCode Kind, System.String Name, System.Nullable<Acta.CheckpointStatusCode> Status, System.Nullable<System.DateTime> DueAtUtc, System.Nullable<Acta.JobPayload> Value, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc)
+    Acta.CheckpointKindCode Kind { get;init; }
+    System.DateTime CreatedAtUtc { get;init; }
+    System.DateTime ModifiedAtUtc { get;init; }
+    System.Nullable<Acta.CheckpointStatusCode> Status { get;init; }
+    System.Nullable<Acta.JobPayload> Value { get;init; }
+    System.Nullable<System.DateTime> DueAtUtc { get;init; }
+    System.String Name { get;init; }
 enum Acta.CheckpointKindCode
     ChildLatch = 50
     Progress = 40
@@ -422,6 +431,12 @@ sealed class Acta.CheckpointKindCodeJsonConverter
     .ctor()
     Acta.CheckpointKindCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.CheckpointKindCode value, System.Text.Json.JsonSerializerOptions options)
+sealed class Acta.CheckpointSet
+    .ctor(System.Collections.Generic.IReadOnlyList<Acta.CheckpointItem> items)
+    Acta.CheckpointItem this[System.Int32] { get; }
+    System.Collections.Generic.IEnumerator<Acta.CheckpointItem> GetEnumerator()
+    System.Collections.Generic.IReadOnlyList<Acta.CheckpointItem> Items { get; }
+    System.Int32 Count { get; }
 enum Acta.CheckpointStatusCode
     Consumed = 100
     Expired = 30
@@ -981,6 +996,7 @@ interface Acta.IJobPipelineBehavior
 interface Acta.IJobs
     Acta.JobInputTemplate GetInputTemplate(System.String jobNamespace, System.String jobName)
     System.Threading.Tasks.ValueTask<Acta.CancelJobResponse> CancelAsync(Acta.JobLookup job, System.String reasonMessage = default, System.String actorKey = default, System.Nullable<System.Int32> expectedVersion = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.CheckpointSet> GetCheckpointsAsync(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.JobDetail> GetAsync(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.JobEnqueueOutcome> EnqueueAsync(Acta.JobContract<Acta.NoInput> job, Acta.JobEnqueueOptions options = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.JobEnqueueOutcome> EnqueueAsync(Acta.JobEnqueueRequest request, System.Threading.CancellationToken ct = default)
@@ -1008,7 +1024,6 @@ interface Acta.IJobs
     System.Threading.Tasks.ValueTask<Acta.RestartJobResponse> RestartAsync(Acta.JobLookup job, System.String reasonMessage = default, System.String actorKey = default, System.Nullable<System.Int32> expectedVersion = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ResumeJobResponse> ResumeAsync(Acta.JobLookup job, System.String reasonMessage = default, System.String actorKey = default, System.Nullable<System.Int32> expectedVersion = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.UpdateJobInputResponse> UpdateJobInputAsync(Acta.JobLookup job, Acta.JobPayload input, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Acta.JobCheckpointItem>> GetCheckpointsAsync(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Acta.JobEnqueueOutcome>> EnqueueBatchAsync(System.Collections.Generic.IReadOnlyList<Acta.JobEnqueueRequest> requests, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Acta.JobEnqueueOutcome>> EnqueueBatchAsync(System.Data.Common.DbTransaction transaction, System.Collections.Generic.IReadOnlyList<Acta.JobEnqueueRequest> requests, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<System.Nullable<Acta.JobPayload>> GetInputAsync(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
@@ -1140,15 +1155,6 @@ delegate Acta.JobBehaviorDelegate
     System.IAsyncResult BeginInvoke(System.AsyncCallback callback, System.Object object)
     System.Threading.Tasks.ValueTask<Acta.JobHandlerInvocationResult> EndInvoke(System.IAsyncResult result)
     System.Threading.Tasks.ValueTask<Acta.JobHandlerInvocationResult> Invoke()
-sealed class Acta.JobCheckpointItem
-    .ctor(Acta.CheckpointKindCode Kind, System.String Name, System.Nullable<Acta.CheckpointStatusCode> Status, System.Nullable<System.DateTime> DueAtUtc, System.Nullable<Acta.JobPayload> Value, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc)
-    Acta.CheckpointKindCode Kind { get;init; }
-    System.DateTime CreatedAtUtc { get;init; }
-    System.DateTime ModifiedAtUtc { get;init; }
-    System.Nullable<Acta.CheckpointStatusCode> Status { get;init; }
-    System.Nullable<Acta.JobPayload> Value { get;init; }
-    System.Nullable<System.DateTime> DueAtUtc { get;init; }
-    System.String Name { get;init; }
 abstract class Acta.JobContext
     Acta.JobRef JobRef { get; }
     System.Boolean IsOverdue { get; }

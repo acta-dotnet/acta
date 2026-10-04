@@ -16,7 +16,7 @@ internal sealed record GetJobDetailHttpResponse(
     JobDetail Job,
     JobPayloadHttpResponse Input,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JobPayloadHttpResponse? Result,
-    IReadOnlyList<JobCheckpointHttpResponse> Checkpoints,
+    IReadOnlyList<CheckpointHttpResponse> Checkpoints,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JobExplanation? Explain,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JobLineageMap? Lineage,
     IReadOnlyList<ScheduleListItem> Schedules,
@@ -83,7 +83,7 @@ internal sealed record GetJobDetailHttpResponse(
             job,
             JobPayloadHttpResponse.From(input ?? JobPayload.None, maxInlineBytes),
             result is { } produced ? JobPayloadHttpResponse.From(produced, maxInlineBytes) : null,
-            checkpoints.Select(item => JobCheckpointHttpResponse.From(item, maxInlineBytes)).ToList(),
+            (checkpoints?.Items ?? []).Select(item => CheckpointHttpResponse.From(item, maxInlineBytes)).ToList(),
             explain,
             lineage,
             schedules.Items,
@@ -96,8 +96,8 @@ internal sealed record GetJobDetailHttpResponse(
     }
 }
 
-/// <summary>HTTP projection of one <see cref="JobCheckpointItem"/>; the value carries the format-dispatched shape.</summary>
-internal sealed record JobCheckpointHttpResponse(
+/// <summary>HTTP projection of one <see cref="CheckpointItem"/>; the value carries the format-dispatched shape.</summary>
+internal sealed record CheckpointHttpResponse(
     CheckpointKindCode Kind,
     string Name,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] CheckpointStatusCode? Status,
@@ -107,7 +107,7 @@ internal sealed record JobCheckpointHttpResponse(
     DateTime ModifiedAtUtc
 )
 {
-    public static JobCheckpointHttpResponse From(JobCheckpointItem item, int maxInlineBytes) =>
+    public static CheckpointHttpResponse From(CheckpointItem item, int maxInlineBytes) =>
         new(
             item.Kind,
             item.Name,

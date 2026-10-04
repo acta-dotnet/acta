@@ -36,7 +36,7 @@ internal sealed class FakeJobs : IJobs
         GetJobId = (job, _) => ValueTask.FromResult(Resolve(job));
         GetInput = (job, _) => ValueTask.FromResult(Input(job));
         GetResult = (job, _) => ValueTask.FromResult(Resolve(job) == 42 ? StoredResult : null);
-        GetCheckpoints = (job, _) => ValueTask.FromResult(Resolve(job) == 42 ? StoredCheckpoints : []);
+        GetCheckpoints = (job, _) => ValueTask.FromResult(Resolve(job) == 42 ? new CheckpointSet(StoredCheckpoints) : null);
         Explain = static (job, _) => ValueTask.FromResult<JobExplanation?>(IsFound(job) ? Explanation() : null);
         GetLineageMap = static (job, _, _) => ValueTask.FromResult<JobLineageMap?>(IsFound(job) ? Lineage() : null);
         GetInputTemplate = InputTemplate;
@@ -83,7 +83,7 @@ internal sealed class FakeJobs : IJobs
     /// <summary>Result the found job has produced; null means none.</summary>
     public JobPayload? StoredResult { get; set; }
 
-    public IReadOnlyList<JobCheckpointItem> StoredCheckpoints { get; set; } = [];
+    public IReadOnlyList<CheckpointItem> StoredCheckpoints { get; set; } = [];
 
     /// <summary>Tenant id on the found job's snapshot. Id 1 carries the key "cust-001"; any other id models a purged
     /// tenant row, an id without a key.</summary>
@@ -120,7 +120,7 @@ internal sealed class FakeJobs : IJobs
 
     public Func<JobLookup, CancellationToken, ValueTask<JobPayload?>> GetResult { get; set; }
 
-    public Func<JobLookup, CancellationToken, ValueTask<IReadOnlyList<JobCheckpointItem>>> GetCheckpoints { get; set; }
+    public Func<JobLookup, CancellationToken, ValueTask<CheckpointSet?>> GetCheckpoints { get; set; }
 
     public Func<JobLookup, CancellationToken, ValueTask<JobExplanation?>> Explain { get; set; }
 
@@ -164,7 +164,7 @@ internal sealed class FakeJobs : IJobs
 
     ValueTask<JobPayload?> IJobs.GetResultAsync(JobLookup job, CancellationToken ct) => GetResult(job, ct);
 
-    ValueTask<IReadOnlyList<JobCheckpointItem>> IJobs.GetCheckpointsAsync(JobLookup job, CancellationToken ct) => GetCheckpoints(job, ct);
+    ValueTask<CheckpointSet?> IJobs.GetCheckpointsAsync(JobLookup job, CancellationToken ct) => GetCheckpoints(job, ct);
 
     ValueTask<JobExplanation?> IJobs.ExplainAsync(JobLookup job, CancellationToken ct) => Explain(job, ct);
 

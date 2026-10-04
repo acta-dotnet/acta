@@ -12,7 +12,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     "job-payload-reads.checkpoints",
     "GetJobCheckpoints lists a job's slots by kind then name",
     Area = "Reads",
-    Contract = "GetJobCheckpoints lists a job's slots by kind then name with state and value round-tripped, and nothing for a job without slots or a missing id."
+    Contract = "GetJobCheckpoints lists a job's slots by kind then name with state and value round-tripped, an empty set for a job without slots, and null for a missing id."
 )]
 public sealed class GetJobCheckpointsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -46,6 +46,7 @@ public sealed class GetJobCheckpointsSpec : ActaRuntimeTestBase<ConformanceFixtu
             );
 
         var items = await Services.GetRequiredService<GetJobCheckpointsHandler>().ReadAsync(enqueued.JobId, ct);
+        Assert.NotNull(items);
         Assert.Equal(2, items.Count);
 
         // Ordered by kind (Variable=10 before Signal=20) then name.
@@ -65,8 +66,8 @@ public sealed class GetJobCheckpointsSpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.Equal(signalValue.Data.ToArray(), signal.Value!.Value.Data.ToArray());
     }
 
-    [Fact(DisplayName = "GetJobCheckpoints returns an empty list for a job with no slots and a missing id")]
-    public async Task Checkpoints_empty_when_none()
+    [Fact(DisplayName = "GetJobCheckpoints returns an empty set for a job with no slots and null for a missing id")]
+    public async Task Checkpoints_empty_for_no_slots_and_null_for_a_missing_job()
     {
         var ct = TestContext.Current.CancellationToken;
 
@@ -75,7 +76,10 @@ public sealed class GetJobCheckpointsSpec : ActaRuntimeTestBase<ConformanceFixtu
             ct
         );
 
-        Assert.Empty(await Services.GetRequiredService<GetJobCheckpointsHandler>().ReadAsync(enqueued.JobId, ct));
-        Assert.Empty(await Services.GetRequiredService<GetJobCheckpointsHandler>().ReadAsync(-123_456_789L, ct));
+        var handler = Services.GetRequiredService<GetJobCheckpointsHandler>();
+        var none = await handler.ReadAsync(enqueued.JobId, ct);
+        Assert.NotNull(none);
+        Assert.Empty(none);
+        Assert.Null(await handler.ReadAsync(-123_456_789L, ct));
     }
 }

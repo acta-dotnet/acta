@@ -160,7 +160,7 @@ internal sealed class Jobs(
     public ValueTask<TResult?> GetResultAsync<TResult>(JobLookup job, CancellationToken ct = default) =>
         getJobResult.HandleAsync<TResult>(new GetJobResultQuery(job), ct);
 
-    public ValueTask<IReadOnlyList<JobCheckpointItem>> GetCheckpointsAsync(JobLookup job, CancellationToken ct = default) =>
+    public ValueTask<CheckpointSet?> GetCheckpointsAsync(JobLookup job, CancellationToken ct = default) =>
         getJobCheckpoints.HandleAsync(new GetJobCheckpointsQuery(job), ct);
 
     public ValueTask<CancelJobResponse> CancelAsync(

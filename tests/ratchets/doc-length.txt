@@ -36,7 +36,6 @@ IWorkerBuilder.cs
 IWorkerWakeup.cs
 JobAttribute.cs
 JobBehaviorPipeline.cs
-JobCheckpointItem.cs
 JobContext.cs
 JobControlException.cs
 JobDetail.cs

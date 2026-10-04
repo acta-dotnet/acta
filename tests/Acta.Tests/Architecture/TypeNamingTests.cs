@@ -55,7 +55,7 @@ public sealed class TypeNamingTests
         var banned = suffix switch
         {
             "Result" => name != "PagedResult",
-            "Item" => !name.EndsWith("ListItem", StringComparison.Ordinal),
+            "Item" => !name.EndsWith("ListItem", StringComparison.Ordinal) && !SetElement(type, name),
             "Outcome" => !DomainOutcomes.Contains(name),
             _ => BannedSuffixes.Contains(suffix),
         };
@@ -78,6 +78,11 @@ public sealed class TypeNamingTests
             yield return table ? "DbTable without Entity" : "Entity outside a table model";
         }
     }
+
+    // Item also names the element of a Set: TagSet is a list of TagItem.
+    private static bool SetElement(Type type, string name) =>
+        type.Assembly.GetType($"{type.Namespace}.{name[..^"Item".Length]}Set") is { } set
+        && typeof(IReadOnlyList<>).MakeGenericType(type).IsAssignableFrom(set);
 
     // A row is projected when the generator emitted its binder, Bind<Type>, whether the type declares
     // [DbProjection] or the code only resolves it.

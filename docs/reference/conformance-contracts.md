@@ -1440,10 +1440,10 @@
   - An unknown worker id returns null
 
 ### GetJobCheckpoints lists a job's slots by kind then name
-- **Contract:** GetJobCheckpoints lists a job's slots by kind then name with state and value round-tripped, and nothing for a job without slots or a missing id.
+- **Contract:** GetJobCheckpoints lists a job's slots by kind then name with state and value round-tripped, an empty set for a job without slots, and null for a missing id.
 - **Guarantees:**
   - GetJobCheckpoints lists variable and signal slots with kind, state, and value round-tripped
-  - GetJobCheckpoints returns an empty list for a job with no slots and a missing id
+  - GetJobCheckpoints returns an empty set for a job with no slots and null for a missing id
 
 ### GetJobInput reads the stored input or null
 - **Contract:** GetJobInput returns the payload and format a job was enqueued with, and null when no job row matches.

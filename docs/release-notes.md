@@ -72,6 +72,10 @@ hand again. The public API and the HTTP routes stay as they are except where lis
 - **Definition read models drop the `Job` prefix.** `JobDefinitionDetail`, `JobDefinitionListItem`, and
   `JobDefinitionPolicyOverrides` are now `DefinitionDetail`, `DefinitionListItem`, and
   `DefinitionPolicyOverrides`. Members and JSON are unchanged; the OpenAPI schemas take the new names.
+- **`IJobs.GetCheckpointsAsync` returns a `CheckpointSet`.** It was a list of `JobCheckpointItem`; the
+  set holds `CheckpointItem`, with the same members, ordered by kind and then by name. A job without
+  slots answers an empty set, and a lookup that matches no job now answers `null` instead of an empty
+  list, as `ITags.GetAsync` does.
 
 ### Additions
 

@@ -556,7 +556,7 @@ internal sealed class BurstRun(BurstHost host, BurstDb db, BurstOptions options)
             JobLookup.ByDeduplicationKey(options.Namespace, BurstBounds.AlertsJobName),
             ct
         );
-        foreach (var slot in checkpoints)
+        foreach (var slot in checkpoints?.Items ?? [])
         {
             if (string.Equals(slot.Name, BurstBounds.CursorVariableName, StringComparison.Ordinal) && slot.Value is { IsNone: false } value)
             {

@@ -399,7 +399,7 @@ public class CliRunnerClipboardTests
         public ValueTask<JobPayload?> GetResultAsync(JobLookup job, CancellationToken ct = default) =>
             ValueTask.FromResult<JobPayload?>(null);
 
-        public ValueTask<IReadOnlyList<JobCheckpointItem>> GetCheckpointsAsync(JobLookup job, CancellationToken ct = default) =>
+        public ValueTask<CheckpointSet?> GetCheckpointsAsync(JobLookup job, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
         public ValueTask<TResult?> GetResultAsync<TResult>(JobLookup job, CancellationToken ct = default) =>
