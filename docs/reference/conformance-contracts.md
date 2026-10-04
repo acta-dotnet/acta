@@ -1716,6 +1716,14 @@
 
 ## Signals
 
+### An operator raise sets the named slot and records who raised it
+- **Contract:** Raise upserts the job's named slot to Set with the latest payload and records the operator, while a missing job is NotFound and a finished one Rejected.
+- **Guarantees:**
+  - A raise stores the payload on a Set slot and records the operator on the event
+  - A repeat raise keeps one slot, overwrites its payload, and bumps its version
+  - An unknown job is NotFound and a finished job is Rejected, and neither gains a slot or an event
+  - A malformed or reserved signal name throws before the job is looked up
+
 ### A raise inside the suspend handoff lands the job Ready, not Suspended
 - **Contract:** complete_execution re-reads the awaited slot under lock, so a raise that beat the suspend write lands the job Ready and claimable, payload intact.
 - **Guarantees:**
@@ -1755,6 +1763,16 @@
   - A replay dropping the bound does not clear the deadline the slot carries
   - A bounded wait arriving at a slot an unbounded one already armed still arms the deadline
   - An unbounded wait still suspends with no due instant and stays unclaimable
+
+### A wait arms its slot once and answers suspend, continue, or timed out
+- **Contract:** Wait arms a Pending slot once and answers SuspendPending, continues with the payload of a Set slot, and answers TimedOut once a stored expiry has passed.
+- **Guarantees:**
+  - A first wait arms a Pending slot and answers SuspendPending without touching the job
+  - A repeat wait while Pending answers SuspendPending and leaves the slot untouched
+  - A wait on a Set slot continues with the stored payload
+  - A bounded wait stores its expiry once, and a later wait neither moves nor clears it
+  - Once the stored expiry passes the slot turns Expired and every later wait answers TimedOut
+  - A Set slot of another kind does not satisfy a wait of the same name
 
 ## Steps
 

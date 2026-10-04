@@ -162,8 +162,8 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `RaiseSignal` | `IJobs.RaiseSignalAsync` | `POST /jobs/{jobRef}/signals/{signalName}` | `signal` | routine | routine | inline | `checkpoints`, `events`, `runtimes` | · |
-| `WaitSignal` | · | · | · | routine | routine | inline | `checkpoints` | · |
+| `RaiseSignal` | `IJobs.RaiseSignalAsync` | `POST /jobs/{jobRef}/signals/{signalName}` | `signal` | routine | routine | inline | `checkpoints`, `events`, `runtimes` | `RaiseSignalSpec` |
+| `WaitSignal` | · | · | · | routine | routine | inline | `checkpoints` | `WaitSignalSpec` |
 
 ## Tags
 
