@@ -150,12 +150,12 @@ internal sealed class StoreFaultPlan
     }
 }
 
-// The completion write moved off IDbSession onto IExecutionStore (its own connection), so the
+// The completion write moved off IDbSession onto IExecution (its own connection), so the
 // before/after-CompleteExecution chaos injection has to wrap that port. Only CompleteExecutionAsync
 // carries the hooks; every other method delegates straight through.
-internal sealed class FaultInjectingExecutionStore(IExecutionStore inner, StoreFaultPlan plan) : IExecutionStore
+internal sealed class FaultInjectingExecutionStore(IExecution inner, StoreFaultPlan plan) : IExecution
 {
-    public async Task<CompleteExecutionResult> CompleteExecutionAsync(CompleteExecutionRequest request, CancellationToken ct)
+    public async Task<CompleteExecutionResult> CompleteExecutionAsync(CompleteExecutionCommand request, CancellationToken ct)
     {
         plan.MaybeThrowBefore("CompleteExecution", request.JobId);
         var result = await inner.CompleteExecutionAsync(request, ct);
@@ -236,10 +236,10 @@ internal static class ChaosServiceCollectionExtensions
         var plan = new StoreFaultPlan();
         services.AddSingleton(plan);
 
-        var executionDescriptor = services.Last(d => d.ServiceType == typeof(IExecutionStore));
+        var executionDescriptor = services.Last(d => d.ServiceType == typeof(IExecution));
         services.Remove(executionDescriptor);
-        services.AddSingleton<IExecutionStore>(sp => new FaultInjectingExecutionStore(
-            (IExecutionStore)CreateInner(sp, executionDescriptor),
+        services.AddSingleton<IExecution>(sp => new FaultInjectingExecutionStore(
+            (IExecution)CreateInner(sp, executionDescriptor),
             sp.GetRequiredService<StoreFaultPlan>()
         ));
 

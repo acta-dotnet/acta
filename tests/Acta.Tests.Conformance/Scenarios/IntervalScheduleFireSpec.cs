@@ -173,7 +173,7 @@ public sealed class IntervalScheduleFireSpec : ActaRuntimeTestBase<ConformanceFi
         // Worker 1 claims the slot (Ready → Dispatched, execution_number bumped to 1).
         var claim1 = (
             await Services
-                .GetRequiredService<IExecutionStore>()
+                .GetRequiredService<IExecution>()
                 .ClaimOneAsync(new ClaimRequest(nsId, workerId, MaxBatch: 1), leaseTtlSeconds: 60, slotId, ct)
         ).Jobs;
         Assert.Single(claim1);
@@ -182,7 +182,7 @@ public sealed class IntervalScheduleFireSpec : ActaRuntimeTestBase<ConformanceFi
         // Worker 2 attempts the same slot: finds it Dispatched, not Ready.
         var claim2 = (
             await Services
-                .GetRequiredService<IExecutionStore>()
+                .GetRequiredService<IExecution>()
                 .ClaimOneAsync(new ClaimRequest(nsId, workerId, MaxBatch: 1), leaseTtlSeconds: 60, slotId, ct)
         ).Jobs;
         Assert.Empty(claim2);

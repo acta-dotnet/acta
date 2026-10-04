@@ -242,7 +242,7 @@ internal static class AlertTestOps
         var db = services.GetRequiredService<IDbSession>();
         var workerId = await ChaosSpecHelpers.WorkerIdAsync(db, namespaceId, ct);
         var claim = await services
-            .GetRequiredService<IExecutionStore>()
+            .GetRequiredService<IExecution>()
             .ClaimOneAsync(namespaceId, workerId, ExpiredLeaseTtlSeconds, slotId, ct);
         Assert.Equal(slotId, Assert.Single(claim).JobId);
 
@@ -301,7 +301,7 @@ internal static class AlertTestOps
             resetJobState: services.GetRequiredService<ResetJobStateHandler>(),
             signals: services.GetRequiredService<ISignals>(),
             alerts: services.GetRequiredService<IAlertLifecycle>(),
-            executionStore: services.GetRequiredService<IExecutionStore>(),
+            executionStore: services.GetRequiredService<IExecution>(),
             serializers: services.GetRequiredService<IJobPayloadSerializerRegistry>(),
             locks: services.GetRequiredService<ILocks>(),
             cancellationToken: CancellationToken.None,

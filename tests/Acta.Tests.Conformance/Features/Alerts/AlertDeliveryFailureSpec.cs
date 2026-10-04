@@ -562,7 +562,7 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
             resetJobState: Services.GetRequiredService<ResetJobStateHandler>(),
             signals: Services.GetRequiredService<ISignals>(),
             alerts: Services.GetRequiredService<IAlertLifecycle>(),
-            executionStore: Services.GetRequiredService<IExecutionStore>(),
+            executionStore: Services.GetRequiredService<IExecution>(),
             serializers: Services.GetRequiredService<IJobPayloadSerializerRegistry>(),
             locks: Services.GetRequiredService<ILocks>(),
             cancellationToken: CancellationToken.None,

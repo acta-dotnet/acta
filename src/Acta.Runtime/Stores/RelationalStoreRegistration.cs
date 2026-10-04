@@ -13,6 +13,5 @@ internal static class RelationalStoreRegistration
     internal static void AddActaRelationalStores(this IServiceCollection services)
     {
         services.AddSingleton<RetentionCoordinator>();
-        services.AddSingleton<IExecutionStore, RelationalExecutionStore>();
     }
 }

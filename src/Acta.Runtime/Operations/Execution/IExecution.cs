@@ -1,12 +1,12 @@
 namespace Acta.Runtime;
 
 /// <summary>
-/// Persistence port for the execution runtime: the claim scan and by-id claim, the start CAS, the
-/// per-attempt completion (scalar and recurring), the stuck-job
-/// reclaim, the durable step transitions, and the durable-context subfeatures (checkpoint slot CRUD,
-/// child-latch reads, sleep-timer arm/consume).
+/// The execution runtime's writes and reads: the claim scan and by-id claim, the start CAS, the per-attempt
+/// completion, the stuck-job reclaim, the durable step transitions, and the durable-context subfeatures (checkpoint
+/// slot CRUD, child-latch reads, sleep-timer arm/consume). <see cref="Execution"/> runs each operation; the
+/// interface is the seam engine unit tests fake.
 /// </summary>
-internal interface IExecutionStore
+internal interface IExecution
 {
     /// <summary>
     /// Atomic batched claim: transitions <c>Ready</c> to <c>Dispatched</c> (or straight to
@@ -39,28 +39,21 @@ internal interface IExecutionStore
     );
 
     /// <summary>
-    /// Finalizes the attempt: flips <c>Status</c> to a terminal (or re-arm) value, writes
-    /// <c>results</c> when the outcome carries bytes, inlines <c>job.execution-finished</c>, and raises
-    /// the job's child-done latch on its parent. CAS-guarded on (job id, worker, execution number).
-    /// Every exit path returns one row.
-    /// <para>A recurring rollover applies the cursor advances planned before the handler ran, then reads
-    /// the slot's next state from the schedules as they stand now: a schedule the deployment orphaned
-    /// while the attempt ran is never advanced or reactivated, and the slot lands Ready at the earliest
-    /// surviving cursor or Paused when none survives. An advance is applied only if the schedule still
-    /// carries the version the plan read, so an edit made during the attempt keeps its cursor. The
-    /// rollover event carries that derived status, so the audit row and the runtime row cannot
-    /// disagree.</para>
+    /// Finalizes the attempt, CAS-guarded on (job id, worker, execution number): flips the status to terminal or re-arm,
+    /// writes <c>results</c> when the outcome carries bytes, inlines <c>job.execution-finished</c>, raises the parent's
+    /// child-done latch, and always answers one row. A recurring rollover applies each planned advance only where the
+    /// schedule still carries the planned version (an edit made during the attempt keeps its cursor), then reads the slot
+    /// from the schedules as they stand: one a deployment orphaned meanwhile is never advanced or reactivated, and the slot
+    /// lands Ready at the earliest surviving cursor or Paused when none survives, its event carrying that same status.
     /// </summary>
-    Task<CompleteExecutionResult> CompleteExecutionAsync(CompleteExecutionRequest request, CancellationToken ct);
+    Task<CompleteExecutionResult> CompleteExecutionAsync(CompleteExecutionCommand command, CancellationToken ct);
 
     /// <summary>
-    /// Recovery pass for one namespace: in-flight jobs whose lease expired return to Ready, or go
-    /// terminal Failed once they reach MaxAttempts. Returns the reclaim count and the Failed children
-    /// with their parent ids so the caller can raise each child-done latch.
-    /// <para>One attempt is reclaimed without a charge: the one that woke on a wait deadline and died
-    /// after the slot had already flipped to Expired. Charging it would spend a retry the surviving
-    /// path never spends, so the job returns to Suspended on the same past deadline and the replay
-    /// resolves the timeout as the waiting overload defines it.</para>
+    /// Recovery pass for one namespace: in-flight jobs whose lease expired return to Ready, or go Failed at MaxAttempts;
+    /// returns the count and the Failed children with their parents, for the caller's child-done raises. An attempt that
+    /// woke on a wait deadline and died after its slot flipped to Expired is reclaimed without a charge, since the
+    /// surviving path never spends that retry: it returns to Suspended on the same past deadline, and the replay
+    /// resolves the timeout as the waiting overload defines it.
     /// </summary>
     Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct);
 
@@ -95,21 +88,12 @@ internal interface IExecutionStore
     Task<CheckpointSlotRow> CheckpointSlotAsync(CheckpointSlotCommand command, CancellationToken ct);
 
     /// <summary>
-    /// Appends one application-authored <c>job.note-recorded</c> event for a job.
+    /// Appends one application-authored <c>job.note-recorded</c> event. Every other event rides inside the transition it
+    /// describes, so none claims a transition that did not commit; a note claims nothing but itself. The caller supplies
+    /// the attempt: a lapsed lease can be reclaimed as the next attempt while the handler still runs (cancellation
+    /// reaches it asynchronously, and a handler that ignores its token never sees it), so reading the runtime row would
+    /// file the note under the attempt that replaced its author.
     /// </summary>
-    /// <remarks>
-    /// The only event write that does not ride inside the operation causing a state transition, and
-    /// deliberately so: the invariant exists so an event never claims a transition that did not
-    /// commit, and a note claims nothing but itself. It lives here rather than on the read-only event
-    /// port because it is a handler-originated per-job write, like checkpoints and steps.
-    /// <para>
-    /// The attempt is supplied rather than read from the runtime row. A handler is running whenever it
-    /// writes a note, but its row can have moved on: a lapsed lease is reclaimed as the next attempt
-    /// while the handler runs, because attempt cancellation reaches it asynchronously and a handler
-    /// that ignores its token never sees it. Reading the row would file the note under the attempt
-    /// that replaced its author.
-    /// </para>
-    /// </remarks>
     Task RecordJobNoteAsync(long jobId, int executionNumber, string message, JobPayload? detail, CancellationToken ct);
 
     /// <summary>
@@ -131,19 +115,6 @@ internal interface IExecutionStore
     /// </summary>
     Task<SleepDecision> ArmOrConsumeSleepTimerAsync(ArmOrConsumeSleepTimerCommand command, CancellationToken ct);
 }
-
-/// <summary>One validated checkpoint-slot call; a write action carries the payload columns.</summary>
-internal sealed record CheckpointSlotCommand(
-    CheckpointSlotAction Action,
-    long JobId,
-    JobCheckpointKindCode Kind,
-    string Name,
-    byte ValueFormatId,
-    byte[]? Value
-);
-
-/// <summary>Validated sleep arm/consume; exactly one of the two due-instant inputs is set.</summary>
-internal sealed record ArmOrConsumeSleepTimerCommand(long JobId, string Name, int? DelaySeconds, DateTime? ResumeAtUtc);
 
 /// <summary>What the recovery-slot repair found: the row absent, in no need of repair, or re-armed by this call.</summary>
 internal enum RecoverySlotRepair

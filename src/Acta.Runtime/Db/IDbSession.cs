@@ -3,9 +3,9 @@ using System.Data.Common;
 namespace Acta.Runtime;
 
 /// <summary>
-/// Internal relational execute surface consumed by the shared stores. Owns connection open, deadlock
-/// retry, routine-vs-inline dispatch, provider-owned write transactions, and primary-result-set selection,
-/// so a shared store stays provider-free. Product behavior consumes semantic stores, never this seam.
+/// Internal relational execute surface the operation handlers use. Owns connection open, deadlock retry,
+/// routine-vs-inline dispatch, provider-owned write transactions, and primary-result-set selection, so a
+/// handler stays provider-free. Engine code calls the handlers, never this seam.
 /// </summary>
 internal interface IDbSession
 {

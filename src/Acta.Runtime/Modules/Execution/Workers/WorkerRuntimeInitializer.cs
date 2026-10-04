@@ -26,7 +26,7 @@ internal sealed class WorkerRuntimeInitializer(
     GetScheduleStateHandler getScheduleState,
     RegisterScheduledJobsHandler registerScheduledJobs,
     IWorkerLifecycle workers,
-    IExecutionStore execution,
+    IExecution execution,
     IActaClock clock,
     IServerClock serverClock,
     IJobPayloadSerializerRegistry serializers,
@@ -38,7 +38,7 @@ internal sealed class WorkerRuntimeInitializer(
 )
 {
     private readonly IWorkerLifecycle _workers = workers;
-    private readonly IExecutionStore _execution = execution;
+    private readonly IExecution _execution = execution;
     private readonly IActaClock _clock = clock;
     private readonly IServerClock _serverClock = serverClock;
     private readonly IJobPayloadSerializerRegistry _serializers = serializers;

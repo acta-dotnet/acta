@@ -32,12 +32,12 @@ public sealed class ExecutionOutcomeMatrixSpec : ActaRuntimeTestBase<Conformance
             ct
         );
         var claimed = Assert.Single(
-            await Services.GetRequiredService<IExecutionStore>().ClaimOneAsync(ns, workerId, LiveLeaseTtl, enqueued, ct)
+            await Services.GetRequiredService<IExecution>().ClaimOneAsync(ns, workerId, LiveLeaseTtl, enqueued, ct)
         );
 
         // Wrong worker: correct execution_number+version but different worker id.
         var action = await Services
-            .GetRequiredService<IExecutionStore>()
+            .GetRequiredService<IExecution>()
             .StartExecutionAsync(enqueued.JobId, -workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct);
 
         Assert.Equal(StartExecutionAction.NotOwner, action);
@@ -58,17 +58,17 @@ public sealed class ExecutionOutcomeMatrixSpec : ActaRuntimeTestBase<Conformance
 
         // Drive to Succeeded: claim → start → complete.
         var claimed = Assert.Single(
-            await Services.GetRequiredService<IExecutionStore>().ClaimOneAsync(ns, workerId, LiveLeaseTtl, enqueued, ct)
+            await Services.GetRequiredService<IExecution>().ClaimOneAsync(ns, workerId, LiveLeaseTtl, enqueued, ct)
         );
         Assert.Equal(
             StartExecutionAction.Started,
             await Services
-                .GetRequiredService<IExecutionStore>()
+                .GetRequiredService<IExecution>()
                 .StartExecutionAsync(enqueued.JobId, workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct)
         );
         Assert.Equal(
             CompleteExecutionAction.Completed,
-            (await Services.GetRequiredService<IExecutionStore>().CompleteExecutionAsync(MakeCompleteRequest(claimed, workerId), ct)).Action
+            (await Services.GetRequiredService<IExecution>().CompleteExecutionAsync(MakeCompleteRequest(claimed, workerId), ct)).Action
         );
 
         // Exactly one started event written during the successful execution.
@@ -76,7 +76,7 @@ public sealed class ExecutionOutcomeMatrixSpec : ActaRuntimeTestBase<Conformance
 
         // Retry start with stale claim: SQL checks status IN (100, 200, 220) → AlreadyTerminal before NotOwner.
         var action = await Services
-            .GetRequiredService<IExecutionStore>()
+            .GetRequiredService<IExecution>()
             .StartExecutionAsync(enqueued.JobId, workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct);
 
         Assert.Equal(StartExecutionAction.AlreadyTerminal, action);
@@ -97,19 +97,17 @@ public sealed class ExecutionOutcomeMatrixSpec : ActaRuntimeTestBase<Conformance
         );
 
         var claimed = Assert.Single(
-            await Services.GetRequiredService<IExecutionStore>().ClaimOneAsync(ns, workerId, LiveLeaseTtl, enqueued, ct)
+            await Services.GetRequiredService<IExecution>().ClaimOneAsync(ns, workerId, LiveLeaseTtl, enqueued, ct)
         );
         Assert.Equal(
             StartExecutionAction.Started,
             await Services
-                .GetRequiredService<IExecutionStore>()
+                .GetRequiredService<IExecution>()
                 .StartExecutionAsync(enqueued.JobId, workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct)
         );
 
         // Wrong worker: the runtime row's leased_by_worker_id = workerId, request says a foreign id.
-        var result = await Services
-            .GetRequiredService<IExecutionStore>()
-            .CompleteExecutionAsync(MakeCompleteRequest(claimed, -workerId), ct);
+        var result = await Services.GetRequiredService<IExecution>().CompleteExecutionAsync(MakeCompleteRequest(claimed, -workerId), ct);
 
         Assert.Equal(CompleteExecutionAction.NotOwner, result.Action);
         Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(enqueued.JobId, ct)).Status);
@@ -128,18 +126,18 @@ public sealed class ExecutionOutcomeMatrixSpec : ActaRuntimeTestBase<Conformance
         );
 
         var claimed = Assert.Single(
-            await Services.GetRequiredService<IExecutionStore>().ClaimOneAsync(ns, workerId, LiveLeaseTtl, enqueued, ct)
+            await Services.GetRequiredService<IExecution>().ClaimOneAsync(ns, workerId, LiveLeaseTtl, enqueued, ct)
         );
         Assert.Equal(
             StartExecutionAction.Started,
             await Services
-                .GetRequiredService<IExecutionStore>()
+                .GetRequiredService<IExecution>()
                 .StartExecutionAsync(enqueued.JobId, workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct)
         );
         var req = MakeCompleteRequest(claimed, workerId);
         Assert.Equal(
             CompleteExecutionAction.Completed,
-            (await Services.GetRequiredService<IExecutionStore>().CompleteExecutionAsync(req, ct)).Action
+            (await Services.GetRequiredService<IExecution>().CompleteExecutionAsync(req, ct)).Action
         );
 
         // Baseline: Succeeded with exactly one finished event.
@@ -148,7 +146,7 @@ public sealed class ExecutionOutcomeMatrixSpec : ActaRuntimeTestBase<Conformance
         Assert.Equal(1, finishedBefore);
 
         // Second complete: same worker and execution_number.
-        var result2 = await Services.GetRequiredService<IExecutionStore>().CompleteExecutionAsync(req, ct);
+        var result2 = await Services.GetRequiredService<IExecution>().CompleteExecutionAsync(req, ct);
 
         Assert.Equal(CompleteExecutionAction.AlreadyTerminal, result2.Action);
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
@@ -170,12 +168,12 @@ public sealed class ExecutionOutcomeMatrixSpec : ActaRuntimeTestBase<Conformance
         // Worker1 claims and starts → Executing(50), execution_number=1.
         var worker1Id = workerId;
         var claimed1 = Assert.Single(
-            await Services.GetRequiredService<IExecutionStore>().ClaimOneAsync(ns, worker1Id, LiveLeaseTtl, enqueued, ct)
+            await Services.GetRequiredService<IExecution>().ClaimOneAsync(ns, worker1Id, LiveLeaseTtl, enqueued, ct)
         );
         Assert.Equal(
             StartExecutionAction.Started,
             await Services
-                .GetRequiredService<IExecutionStore>()
+                .GetRequiredService<IExecution>()
                 .StartExecutionAsync(enqueued.JobId, worker1Id, claimed1.ExecutionNumber, claimed1.Version, LiveLeaseTtl, ct)
         );
 
@@ -191,7 +189,7 @@ public sealed class ExecutionOutcomeMatrixSpec : ActaRuntimeTestBase<Conformance
         // eventually matches a later run's worker, whose heartbeat then extends this foreign lease.
         var worker2Id = -workerId;
         var claimed2 = Assert.Single(
-            await Services.GetRequiredService<IExecutionStore>().ClaimOneAsync(ns, worker2Id, LiveLeaseTtl, enqueued, ct)
+            await Services.GetRequiredService<IExecution>().ClaimOneAsync(ns, worker2Id, LiveLeaseTtl, enqueued, ct)
         );
         Assert.Equal(claimed1.ExecutionNumber + 1, claimed2.ExecutionNumber);
 
@@ -201,9 +199,7 @@ public sealed class ExecutionOutcomeMatrixSpec : ActaRuntimeTestBase<Conformance
 
         // Worker1's stale complete: (worker1Id, execution_number=1) vs. current (worker2Id, execution_number=2, status=40).
         // SQL: status=Dispatched(40) is not terminal, leased_by_worker_id=worker2Id ≠ worker1Id → NotOwner.
-        var result = await Services
-            .GetRequiredService<IExecutionStore>()
-            .CompleteExecutionAsync(MakeCompleteRequest(claimed1, worker1Id), ct);
+        var result = await Services.GetRequiredService<IExecution>().CompleteExecutionAsync(MakeCompleteRequest(claimed1, worker1Id), ct);
 
         Assert.Equal(CompleteExecutionAction.NotOwner, result.Action);
         Assert.Equal(JobStatusCode.Dispatched, (await ReadJobAsync(enqueued.JobId, ct)).Status);
@@ -220,7 +216,7 @@ public sealed class ExecutionOutcomeMatrixSpec : ActaRuntimeTestBase<Conformance
         return (Db, dialect, ns, worker!.Id);
     }
 
-    private static CompleteExecutionRequest MakeCompleteRequest(ClaimedJob claimed, int workerId) =>
+    private static CompleteExecutionCommand MakeCompleteRequest(ClaimedJob claimed, int workerId) =>
         new(
             JobId: claimed.JobId,
             WorkerId: workerId,

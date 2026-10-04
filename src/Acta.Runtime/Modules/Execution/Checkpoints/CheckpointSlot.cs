@@ -23,7 +23,7 @@ internal sealed record CheckpointSlotRow(int Found, byte? ValueFormatId, byte[]?
 /// <summary>
 /// The one generic CRUD operation over a <c>checkpoints</c> slot (user variables and the progress
 /// slot): last-writer-wins set, get, atomic get-or-set, exists, and delete, dispatched by
-/// <see cref="CheckpointSlotAction"/> through the store port's single slot call. Checkpoint
+/// <see cref="CheckpointSlotAction"/> through <see cref="IExecution.CheckpointSlotAsync"/>. Checkpoint
 /// kinds with their own concurrency choreography (signals, timers, child latches) keep dedicated
 /// operations; plain slot CRUD shares this one shape. Caller owns name validation, kind selection,
 /// and typed serialization; this op owns the durable row shape.
@@ -31,7 +31,7 @@ internal sealed record CheckpointSlotRow(int Found, byte? ValueFormatId, byte[]?
 internal static class CheckpointSlot
 {
     public static Task SetAsync(
-        IExecutionStore store,
+        IExecution store,
         long jobId,
         JobCheckpointKindCode kind,
         string name,
@@ -44,7 +44,7 @@ internal static class CheckpointSlot
     }
 
     public static async Task<CheckpointValue?> GetAsync(
-        IExecutionStore store,
+        IExecution store,
         long jobId,
         JobCheckpointKindCode kind,
         string name,
@@ -56,7 +56,7 @@ internal static class CheckpointSlot
     }
 
     public static async Task<CheckpointValue> GetOrSetAsync(
-        IExecutionStore store,
+        IExecution store,
         long jobId,
         JobCheckpointKindCode kind,
         string name,
@@ -70,7 +70,7 @@ internal static class CheckpointSlot
     }
 
     public static async Task<bool> ExistsAsync(
-        IExecutionStore store,
+        IExecution store,
         long jobId,
         JobCheckpointKindCode kind,
         string name,
@@ -78,7 +78,7 @@ internal static class CheckpointSlot
     ) => (await Run(store, CheckpointSlotAction.Exists, jobId, kind, name, null, ct)).Found != 0;
 
     public static async Task<bool> DeleteAsync(
-        IExecutionStore store,
+        IExecution store,
         long jobId,
         JobCheckpointKindCode kind,
         string name,
@@ -86,7 +86,7 @@ internal static class CheckpointSlot
     ) => (await Run(store, CheckpointSlotAction.Delete, jobId, kind, name, null, ct)).Found != 0;
 
     private static Task<CheckpointSlotRow> Run(
-        IExecutionStore store,
+        IExecution store,
         CheckpointSlotAction action,
         long jobId,
         JobCheckpointKindCode kind,

@@ -145,15 +145,15 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
 
         // First start hands out the version a handler would carry; a second start advances the slot,
         // modelling a concurrent execution of the same job that re-entered the step.
-        var first = await Services.GetRequiredService<IExecutionStore>().StartStepAsync(enqueued.JobId, "compute", atMostOnce: false, ct);
+        var first = await Services.GetRequiredService<IExecution>().StartStepAsync(enqueued.JobId, "compute", atMostOnce: false, ct);
         Assert.Equal(StartStepOutcomeCode.Invoke, first.Outcome);
-        var second = await Services.GetRequiredService<IExecutionStore>().StartStepAsync(enqueued.JobId, "compute", atMostOnce: false, ct);
+        var second = await Services.GetRequiredService<IExecution>().StartStepAsync(enqueued.JobId, "compute", atMostOnce: false, ct);
         Assert.Equal(StartStepOutcomeCode.Invoke, second.Outcome);
         Assert.NotEqual(first.Version, second.Version);
 
         // Completing on the stale (first) version must lose the CAS and report it - not a phantom success.
         var stale = await Services
-            .GetRequiredService<IExecutionStore>()
+            .GetRequiredService<IExecution>()
             .CompleteStepAsync(
                 new CompleteStepCommand(
                     enqueued.JobId,
@@ -191,7 +191,7 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-step-basic", JobPayload.None), ct);
 
         var outcome = await Services
-            .GetRequiredService<IExecutionStore>()
+            .GetRequiredService<IExecution>()
             .CompleteStepAsync(
                 new CompleteStepCommand(
                     enqueued.JobId,

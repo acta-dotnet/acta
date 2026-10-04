@@ -104,7 +104,7 @@ public sealed class LeaseRenewalRaceSpec : ActaRuntimeTestBase<ConformanceFixtur
         CancellationToken ct
     )
     {
-        var store = Services.GetRequiredService<IExecutionStore>();
+        var store = Services.GetRequiredService<IExecution>();
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
         var worker = await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
@@ -118,7 +118,7 @@ public sealed class LeaseRenewalRaceSpec : ActaRuntimeTestBase<ConformanceFixtur
             workerId,
             () =>
                 store.CompleteExecutionAsync(
-                    new CompleteExecutionRequest(
+                    new CompleteExecutionCommand(
                         JobId: claimed.JobId,
                         WorkerId: workerId,
                         ExpectedExecutionNumber: claimed.ExecutionNumber,

@@ -67,7 +67,7 @@ public sealed class ClaimSkewSpec : ClaimSkewTestBase
             expected.Add((await EnqueueAsync(priority, null, ct)).JobRef.Value);
         }
 
-        var store = Services.GetRequiredService<IExecutionStore>();
+        var store = Services.GetRequiredService<IExecution>();
         var batches = new List<Guid[]>();
         ClaimResult claimed;
         while ((claimed = await store.ClaimBatchAsync(new ClaimRequest(ns, workerId, MaxBatch: Batch), leaseTtl, ct)).Jobs.Count > 0)

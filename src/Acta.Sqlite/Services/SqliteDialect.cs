@@ -39,7 +39,7 @@ internal sealed class SqliteDialect : ISqlDialect
 
     public string DialectToken => "sqlite";
 
-    public void BindNonRecurringCompletionDefaults(DbCommand command, CompleteExecutionRequest request)
+    public void BindNonRecurringCompletionDefaults(DbCommand command, CompleteExecutionCommand request)
     {
         command.Parameters.Add(CreateParameter(new DbParameterSpec("p_recurring_result_cap", request.RecurringResultCap, DbKind.Int32)));
         command.Parameters.Add(CreateParameter(new DbParameterSpec("p_schedule_advances", "[]", DbKind.UnicodeString, Size: 8)));
@@ -371,7 +371,7 @@ internal sealed class SqliteDialect : ISqlDialect
         AddText(command, "@p_schedules", scheduleRows);
     }
 
-    public void BindRecurringCompletion(DbCommand command, CompleteExecutionRequest request, string schema)
+    public void BindRecurringCompletion(DbCommand command, CompleteExecutionCommand request, string schema)
     {
         // results.result is NOT NULL; preserve an empty non-none result as a zero-length blob.
         var resultBytes = request.Result.IsEmpty ? [] : request.Result.ToArray();

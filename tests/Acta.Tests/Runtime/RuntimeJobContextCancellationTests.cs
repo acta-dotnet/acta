@@ -108,7 +108,7 @@ public sealed class RuntimeJobContextCancellationTests
 
     // Only StartStep and CompleteStep are exercised: StartStep yields an Invoke decision so the body
     // runs, and CompleteStep must never be reached once the caller token is already cancelled.
-    private sealed class StepCancellationExecutionStore : IExecutionStore
+    private sealed class StepCancellationExecutionStore : IExecution
     {
         public bool CompleteStepCalled { get; private set; }
 
@@ -161,7 +161,7 @@ public sealed class RuntimeJobContextCancellationTests
             CancellationToken ct
         ) => throw new NotSupportedException();
 
-        public Task<CompleteExecutionResult> CompleteExecutionAsync(CompleteExecutionRequest request, CancellationToken ct) =>
+        public Task<CompleteExecutionResult> CompleteExecutionAsync(CompleteExecutionCommand request, CancellationToken ct) =>
             throw new NotSupportedException();
 
         public Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct) =>

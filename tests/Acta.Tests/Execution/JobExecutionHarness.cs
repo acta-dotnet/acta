@@ -9,9 +9,9 @@ namespace Acta.Tests.Execution;
 
 /// <summary>
 /// Drives one real <see cref="JobExecution.RunAsync"/> attempt end to end over a scripted
-/// <see cref="IExecutionStore"/>: the start CAS, a handler that runs one durable step, and the
+/// <see cref="IExecution"/>: the start CAS, a handler that runs one durable step, and the
 /// completion CAS. The script says what <c>complete_step</c> and <c>complete_execution</c> answer,
-/// and the harness keeps every <see cref="CompleteExecutionRequest"/> the runner submitted plus the
+/// and the harness keeps every <see cref="CompleteExecutionCommand"/> the runner submitted plus the
 /// subset the store's CAS actually applied, so a test can assert on the completion shape rather than
 /// on a database. Reusable seam for executor unit tests; add scripted knobs here, not per test.
 /// </summary>
@@ -107,7 +107,7 @@ internal sealed class JobExecutionHarness(
     public IReadOnlyList<RateRequest> RateRequests => _locks.RateRequests;
 
     /// <summary>Every completion command the runner handed the store, in submission order.</summary>
-    public IReadOnlyList<CompleteExecutionRequest> Submitted => _store.Submitted;
+    public IReadOnlyList<CompleteExecutionCommand> Submitted => _store.Submitted;
 
     /// <summary>How many times the runner issued the start write.</summary>
     public int StartAttempts => _store.StartAttempts;
@@ -119,10 +119,10 @@ internal sealed class JobExecutionHarness(
     public bool HandlerRan => _store.StartedSteps.Count > 0;
 
     /// <summary>The subset whose completion CAS matched a row; a NotOwner answer writes nothing.</summary>
-    public IReadOnlyList<CompleteExecutionRequest> Applied => _store.Applied;
+    public IReadOnlyList<CompleteExecutionCommand> Applied => _store.Applied;
 
     /// <summary>The single completion command, for the pins that expect exactly one.</summary>
-    public CompleteExecutionRequest Completion => Assert.Single(Submitted);
+    public CompleteExecutionCommand Completion => Assert.Single(Submitted);
 
     /// <summary>
     /// Puts the attempt into the state a fired execution timeout leaves it in: the timeout source is
@@ -353,10 +353,10 @@ internal sealed class JobExecutionHarness(
         StartExecutionAction startAction,
         bool startFailsOnce,
         StartExecutionAction? startAfterFailure
-    ) : IExecutionStore
+    ) : IExecution
     {
-        private readonly List<CompleteExecutionRequest> _submitted = [];
-        private readonly List<CompleteExecutionRequest> _applied = [];
+        private readonly List<CompleteExecutionCommand> _submitted = [];
+        private readonly List<CompleteExecutionCommand> _applied = [];
         private readonly List<string> _startedSteps = [];
         private bool _startFailsOnce = startFailsOnce;
 
@@ -366,8 +366,8 @@ internal sealed class JobExecutionHarness(
         private readonly List<int> _startVersions = [];
         public IReadOnlyList<int> StartVersions => _startVersions;
 
-        public IReadOnlyList<CompleteExecutionRequest> Submitted => _submitted;
-        public IReadOnlyList<CompleteExecutionRequest> Applied => _applied;
+        public IReadOnlyList<CompleteExecutionCommand> Submitted => _submitted;
+        public IReadOnlyList<CompleteExecutionCommand> Applied => _applied;
         public IReadOnlyList<string> StartedSteps => _startedSteps;
 
         // Fires as complete_step answers, so a test can model the heartbeat cancelling the attempt
@@ -428,7 +428,7 @@ internal sealed class JobExecutionHarness(
             return Task.FromResult(new CompleteStepDecision(stepOutcome, NextRetryAtUtc: DateTime.UtcNow.AddSeconds(30)));
         }
 
-        public Task<CompleteExecutionResult> CompleteExecutionAsync(CompleteExecutionRequest request, CancellationToken ct)
+        public Task<CompleteExecutionResult> CompleteExecutionAsync(CompleteExecutionCommand request, CancellationToken ct)
         {
             _submitted.Add(request);
             if (completionAction != CompleteExecutionAction.Completed)
@@ -461,7 +461,7 @@ internal sealed class JobExecutionHarness(
         // Mirrors what complete_execution lands the job in for the shapes this harness produces: a
         // re-arm goes Ready, a handler-control decision takes the requested status, and everything
         // else follows the attempt outcome.
-        private static byte FinalStatus(CompleteExecutionRequest request) =>
+        private static byte FinalStatus(CompleteExecutionCommand request) =>
             request switch
             {
                 { RescheduleStatusCode: not null } => (byte)JobStatusCode.Ready,
@@ -547,7 +547,7 @@ internal sealed class JobExecutionHarness(
     // The services the executor resolves for an attempt, and a scope that is the provider itself: the
     // stores are the scripted ones, the signal seam and the alert sink are never reached by a handler
     // that runs one step, and anything else resolves to null.
-    private sealed class StoreOnlyServices(IExecutionStore store, GetJobHandler getJob, CancelJobHandler cancelJob)
+    private sealed class StoreOnlyServices(IExecution store, GetJobHandler getJob, CancelJobHandler cancelJob)
         : IServiceProvider,
             IServiceScopeFactory,
             IServiceScope,
@@ -560,7 +560,7 @@ internal sealed class JobExecutionHarness(
         public IServiceProvider ServiceProvider => this;
 
         public object? GetService(Type serviceType) =>
-            serviceType == typeof(IExecutionStore) ? store
+            serviceType == typeof(IExecution) ? store
             : serviceType == typeof(GetJobHandler) ? getJob
             : serviceType == typeof(CancelJobHandler) ? cancelJob
             : serviceType == typeof(ResetJobStateHandler) ? _resetJobState

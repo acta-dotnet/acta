@@ -183,6 +183,20 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<RaiseSignalHandler>();
         services.TryAddSingleton<WaitSignalHandler>();
         services.TryAddSingleton<ISignals, Signals>();
+        services.TryAddSingleton<ClaimBatchHandler>();
+        services.TryAddSingleton<ClaimOneHandler>();
+        services.TryAddSingleton<StartExecutionHandler>();
+        services.TryAddSingleton<CompleteExecutionHandler>();
+        services.TryAddSingleton<ReclaimStuckJobsHandler>();
+        services.TryAddSingleton<RepairRecoverySlotHandler>();
+        services.TryAddSingleton<StartStepHandler>();
+        services.TryAddSingleton<CompleteStepHandler>();
+        services.TryAddSingleton<CheckpointSlotHandler>();
+        services.TryAddSingleton<RecordJobNoteHandler>();
+        services.TryAddSingleton<GetChildJobIdsHandler>();
+        services.TryAddSingleton<GetStaleChildLatchesHandler>();
+        services.TryAddSingleton<ArmOrConsumeSleepTimerHandler>();
+        services.TryAddSingleton<IExecution, Execution>();
 
         // Consumers light up the meter with WithMetrics(m => m.AddMeter(JobMetrics.MeterName)).
         services.TryAddSingleton<JobMetrics>();

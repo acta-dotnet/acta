@@ -8,7 +8,7 @@ namespace Acta.Runtime;
 
 /// <summary>
 /// Provider-backed execute surface. Owns connection open, deadlock retry, routine-vs-inline dispatch,
-/// provider-owned write transactions, and primary-result-set selection so shared stores stay provider-free.
+/// provider-owned write transactions, and primary-result-set selection so handlers stay provider-free.
 /// </summary>
 internal sealed class DbSession : IDbSession
 {

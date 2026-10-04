@@ -252,7 +252,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         var failed = new List<(long ChildId, long ParentId)>();
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            Assert.Single(await Services.GetRequiredService<IExecutionStore>().ClaimOneAsync(ns, workerId, LeaseTtlSeconds, child.Id, ct));
+            Assert.Single(await Services.GetRequiredService<IExecution>().ClaimOneAsync(ns, workerId, LeaseTtlSeconds, child.Id, ct));
             var reclaim = await RecoverySweep.ReclaimAtLeastOneAsync(Services, ns, ct);
             Assert.Equal(1, reclaim.Reclaimed);
             failed.AddRange(reclaim.FailedChildren);
@@ -281,7 +281,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         await SetJobStatusAsync(Db, child.Id, 220, ct);
 
         var latch = Assert.Single(
-            await Services.GetRequiredService<IExecutionStore>().GetStaleChildLatchesAsync(ns, ct),
+            await Services.GetRequiredService<IExecution>().GetStaleChildLatchesAsync(ns, ct),
             l => l.ParentJobId == parent.JobId
         );
         Assert.Equal(child.Id, latch.ChildJobId);
@@ -298,7 +298,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         );
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(parent.JobId, ct)).Status);
         Assert.DoesNotContain(
-            await Services.GetRequiredService<IExecutionStore>().GetStaleChildLatchesAsync(ns, ct),
+            await Services.GetRequiredService<IExecution>().GetStaleChildLatchesAsync(ns, ct),
             l => l.ParentJobId == parent.JobId
         );
     }

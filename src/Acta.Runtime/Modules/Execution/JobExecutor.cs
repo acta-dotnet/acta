@@ -35,7 +35,7 @@ internal sealed class JobExecutor(
     private readonly IOptions<JobsOptions> _options = options;
     private readonly WorkerContext _context = context;
     private readonly JobExecution _jobExecution = jobExecution;
-    private readonly Acta.Runtime.IExecutionStore _execution = rootServices.GetRequiredService<Acta.Runtime.IExecutionStore>();
+    private readonly Acta.Runtime.IExecution _execution = rootServices.GetRequiredService<Acta.Runtime.IExecution>();
     private readonly ILogger _log = log ?? NullLogger.Instance;
     private readonly JobMetrics? _metrics = metrics;
 
@@ -280,7 +280,7 @@ internal sealed class JobExecutor(
                 _rootServices.GetRequiredService<ResetJobStateHandler>(),
                 _rootServices.GetRequiredService<ISignals>(),
                 _rootServices.GetRequiredService<IAlertLifecycle>(),
-                _rootServices.GetRequiredService<Acta.Runtime.IExecutionStore>(),
+                _rootServices.GetRequiredService<Acta.Runtime.IExecution>(),
                 _serializers,
                 _locks,
                 fireOutcome?.TriggeringScheduleNames ?? [],
@@ -485,7 +485,7 @@ internal sealed class JobExecutor(
             }
         }
 
-        var request = new CompleteExecutionRequest(
+        var request = new CompleteExecutionCommand(
             jobId,
             workerId,
             row.ExecutionNumber,
@@ -558,7 +558,7 @@ internal sealed class JobExecutor(
         // retirement that cancels. Unclassified is the writer saying the story is in the message, and
         // it stays out of both the alertable set and the Failures audit level, which a bounce belongs
         // outside of: nothing failed.
-        var request = new CompleteExecutionRequest(
+        var request = new CompleteExecutionCommand(
             job.JobId,
             workerId,
             job.ExecutionNumber,

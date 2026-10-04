@@ -21,7 +21,7 @@ internal sealed class RuntimeJobContext(
     ResetJobStateHandler resetJobState,
     ISignals signals,
     IAlertLifecycle alerts,
-    Acta.Runtime.IExecutionStore executionStore,
+    Acta.Runtime.IExecution executionStore,
     IJobPayloadSerializerRegistry serializers,
     ILocks locks,
     IReadOnlyList<string> triggeringScheduleNames,
@@ -44,7 +44,7 @@ internal sealed class RuntimeJobContext(
     private readonly ResetJobStateHandler _resetJobState = resetJobState;
     private readonly ISignals _signals = signals;
     private readonly IAlertLifecycle _alerts = alerts;
-    private readonly Acta.Runtime.IExecutionStore _executionStore = executionStore;
+    private readonly Acta.Runtime.IExecution _executionStore = executionStore;
     private readonly IJobPayloadSerializerRegistry _serializers = serializers;
     private readonly ILocks _locks = locks;
     private readonly int _namespaceId = namespaceId;

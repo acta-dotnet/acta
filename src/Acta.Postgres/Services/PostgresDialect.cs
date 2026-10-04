@@ -407,7 +407,7 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_s_description", NpgsqlDbType.Varchar, descriptions);
     }
 
-    public void BindRecurringCompletion(DbCommand command, CompleteExecutionRequest request, string schema)
+    public void BindRecurringCompletion(DbCommand command, CompleteExecutionCommand request, string schema)
     {
         var postgres = (NpgsqlCommand)command;
         var resultBytes = request.Result.IsEmpty ? [] : request.Result.ToArray();

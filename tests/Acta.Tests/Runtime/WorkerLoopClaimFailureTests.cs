@@ -153,7 +153,7 @@ public sealed class WorkerLoopClaimFailureTests
         }
     }
 
-    internal sealed class ClaimStore(Func<CancellationToken, ClaimResult> onClaim) : IExecutionStore
+    internal sealed class ClaimStore(Func<CancellationToken, ClaimResult> onClaim) : IExecution
     {
         private int _calls;
 
@@ -177,7 +177,7 @@ public sealed class WorkerLoopClaimFailureTests
             CancellationToken ct
         ) => throw new NotSupportedException();
 
-        public Task<CompleteExecutionResult> CompleteExecutionAsync(CompleteExecutionRequest request, CancellationToken ct) =>
+        public Task<CompleteExecutionResult> CompleteExecutionAsync(CompleteExecutionCommand request, CancellationToken ct) =>
             throw new NotSupportedException();
 
         public Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct) =>

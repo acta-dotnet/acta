@@ -34,12 +34,10 @@ public sealed class StartExecutionStaleVersionSpec : ActaRuntimeTestBase<Conform
         );
         _ = Services.GetRequiredService<ISqlDialect>();
         var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
-        var claimed = Assert.Single(
-            await Services.GetRequiredService<IExecutionStore>().ClaimOneAsync(ns, workerId, leaseTtl, enqueued, ct)
-        );
+        var claimed = Assert.Single(await Services.GetRequiredService<IExecution>().ClaimOneAsync(ns, workerId, leaseTtl, enqueued, ct));
 
         var action = await Services
-            .GetRequiredService<IExecutionStore>()
+            .GetRequiredService<IExecution>()
             .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version, leaseTtl, ct);
 
         Assert.Equal(StartExecutionAction.Started, action);
@@ -60,14 +58,12 @@ public sealed class StartExecutionStaleVersionSpec : ActaRuntimeTestBase<Conform
         );
         _ = Services.GetRequiredService<ISqlDialect>();
         var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
-        var claimed = Assert.Single(
-            await Services.GetRequiredService<IExecutionStore>().ClaimOneAsync(ns, workerId, leaseTtl, enqueued, ct)
-        );
+        var claimed = Assert.Single(await Services.GetRequiredService<IExecution>().ClaimOneAsync(ns, workerId, leaseTtl, enqueued, ct));
 
         // Same id / worker / execution_number as the live claim, but a version that no longer matches
         // the row - exactly the state a reclaim or steal leaves behind for the stale buffered claim.
         var action = await Services
-            .GetRequiredService<IExecutionStore>()
+            .GetRequiredService<IExecution>()
             .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version + 1, leaseTtl, ct);
 
         Assert.Equal(StartExecutionAction.LostClaim, action);
@@ -94,11 +90,11 @@ public sealed class StartExecutionStaleVersionSpec : ActaRuntimeTestBase<Conform
         // version, still Dispatched). The version CAS alone would let this start; the live-lease guard
         // refuses it.
         var claimed = Assert.Single(
-            await Services.GetRequiredService<IExecutionStore>().ClaimOneAsync(ns, workerId, leaseTtlSeconds: -5, enqueued, ct)
+            await Services.GetRequiredService<IExecution>().ClaimOneAsync(ns, workerId, leaseTtlSeconds: -5, enqueued, ct)
         );
 
         var action = await Services
-            .GetRequiredService<IExecutionStore>()
+            .GetRequiredService<IExecution>()
             .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version, leaseTtlSeconds: 180, ct);
 
         Assert.Equal(StartExecutionAction.LeaseExpired, action);

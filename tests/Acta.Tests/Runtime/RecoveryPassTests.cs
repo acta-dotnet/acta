@@ -143,7 +143,7 @@ public sealed class RecoveryPassTests
         ) => throw new NotSupportedException();
     }
 
-    private sealed class FakeExecutionStore : IExecutionStore
+    private sealed class FakeExecutionStore : IExecution
     {
         public ReclaimStuckJobsResult Reclaim { get; init; } = new(Reclaimed: 0, FailedChildren: [], RepairedLanes: 0);
 
@@ -169,7 +169,7 @@ public sealed class RecoveryPassTests
             CancellationToken ct
         ) => throw new NotSupportedException();
 
-        public Task<CompleteExecutionResult> CompleteExecutionAsync(CompleteExecutionRequest request, CancellationToken ct) =>
+        public Task<CompleteExecutionResult> CompleteExecutionAsync(CompleteExecutionCommand request, CancellationToken ct) =>
             throw new NotSupportedException();
 
         public Task<RecoverySlotRepair> RepairRecoverySlotAsync(int namespaceId, long jobId, CancellationToken ct) =>

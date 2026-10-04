@@ -19,7 +19,7 @@ public sealed class JobNoteSpec : ActaRuntimeTestBase<ConformanceFixture, TestJo
     public async Task Unknown_job_is_rejected()
     {
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            Services.GetRequiredService<IExecutionStore>().RecordJobNoteAsync(-1, 1, "unknown", null, TestContext.Current.CancellationToken)
+            Services.GetRequiredService<IExecution>().RecordJobNoteAsync(-1, 1, "unknown", null, TestContext.Current.CancellationToken)
         );
         Assert.Contains("ACTA:NOTE_UNKNOWN_JOB:", error.Message);
     }
@@ -69,7 +69,7 @@ public sealed class JobNoteSpec : ActaRuntimeTestBase<ConformanceFixture, TestJo
             )
         );
 
-        await Services.GetRequiredService<IExecutionStore>().RecordJobNoteAsync(enqueued.JobId, 7, "late note", null, ct);
+        await Services.GetRequiredService<IExecution>().RecordJobNoteAsync(enqueued.JobId, 7, "late note", null, ct);
 
         var events = await Operations.Ledger.ListEventsAsync(
             new ListEventsQuery(JobId: enqueued.JobId, EventCode: EventCode.JobNoteRecorded, PageSize: 50),

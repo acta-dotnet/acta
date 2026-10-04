@@ -252,9 +252,9 @@ public sealed class SchedulesChangedDuringExecutionSpec : ActaRuntimeTestBase<Co
         CancellationToken ct
     ) =>
         Services
-            .GetRequiredService<IExecutionStore>()
+            .GetRequiredService<IExecution>()
             .CompleteExecutionAsync(
-                new CompleteExecutionRequest(
+                new CompleteExecutionCommand(
                     JobId: jobId,
                     WorkerId: workerId,
                     ExpectedExecutionNumber: Attempt,

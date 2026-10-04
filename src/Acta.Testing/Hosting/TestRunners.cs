@@ -89,7 +89,7 @@ internal static class TestRunners
     /// Convenience overload taking the enqueue result directly.
     /// </summary>
     internal static Task<IReadOnlyList<ClaimedJob>> ClaimOneAsync(
-        this IExecutionStore execution,
+        this IExecution execution,
         int namespaceId,
         int workerId,
         int leaseTtlSeconds,
@@ -102,7 +102,7 @@ internal static class TestRunners
     /// transiently skipped. For setups that need a claimed-but-not-run lease (heartbeat / reclaim).
     /// </summary>
     internal static async Task<IReadOnlyList<ClaimedJob>> ClaimOneAsync(
-        this IExecutionStore execution,
+        this IExecution execution,
         int namespaceId,
         int workerId,
         int leaseTtlSeconds,

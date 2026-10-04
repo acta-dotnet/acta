@@ -23,7 +23,7 @@ namespace Acta.Runtime;
 internal sealed class JobExecution(
     GetJobHandler getJob,
     CancelJobHandler cancelJob,
-    IExecutionStore execution,
+    IExecution execution,
     IJobPayloadSerializerRegistry serializers,
     IOptions<JobsOptions> options,
     JobBehaviorPipeline pipeline,
@@ -34,7 +34,7 @@ internal sealed class JobExecution(
 {
     private readonly GetJobHandler _getJob = getJob;
     private readonly CancelJobHandler _cancelJob = cancelJob;
-    private readonly IExecutionStore _execution = execution;
+    private readonly IExecution _execution = execution;
     private readonly IJobPayloadSerializerRegistry _serializers = serializers;
     private readonly JobBehaviorPipeline _pipeline = pipeline;
     private readonly WorkerWakeupPublisher _wakeupPublisher = wakeupPublisher;
@@ -66,7 +66,7 @@ internal sealed class JobExecution(
     /// owner or a control verb, and the claim is gone.
     /// </summary>
     internal static async Task<StartExecutionAction> StartReconciledAsync(
-        IExecutionStore execution,
+        IExecution execution,
         GetJobHandler getJob,
         ClaimedJob job,
         int workerId,
@@ -95,7 +95,7 @@ internal sealed class JobExecution(
     /// <see cref="ClaimedJob"/> to show for it: a claim whose answer was lost after the store committed it.
     /// </summary>
     internal static async Task<StartExecutionAction> StartReconciledAsync(
-        IExecutionStore execution,
+        IExecution execution,
         GetJobHandler getJob,
         long jobId,
         int executionNumber,
@@ -751,14 +751,14 @@ internal sealed class JobExecution(
             }
         }
 
-        CompleteExecutionRequest completeCommand;
+        CompleteExecutionCommand completeCommand;
         var retryRearmed = false;
         if (nothingDue && fireOutcome is { } resumed)
         {
             // The recurring shape applies the advances, which clear the elapsed pauses, and reads the slot's
             // next run from the schedules; the re-arm status records a re-arm rather than a run, so the
             // failure count, the results, and any open incident stand as they were.
-            completeCommand = new CompleteExecutionRequest(
+            completeCommand = new CompleteExecutionCommand(
                 job.JobId,
                 workerId,
                 job.ExecutionNumber,
@@ -786,7 +786,7 @@ internal sealed class JobExecution(
             var rescheduleStatus = (byte)(
                 outcome == ExecutionOutcome.Suspended ? ExecutionStatusCode.Suspended : ExecutionStatusCode.Rescheduled
             );
-            completeCommand = new CompleteExecutionRequest(
+            completeCommand = new CompleteExecutionCommand(
                 job.JobId,
                 workerId,
                 job.ExecutionNumber,
@@ -810,7 +810,7 @@ internal sealed class JobExecution(
             // Handler fail/cancel/pause: a deliberate terminal/hold decision. Takes the non-recurring
             // shape regardless of isRecurring (like the re-arm branch) so a recurring slot's schedule
             // cursors are never advanced; the whole Job stops. No result payload; budget untouched.
-            completeCommand = new CompleteExecutionRequest(
+            completeCommand = new CompleteExecutionCommand(
                 job.JobId,
                 workerId,
                 job.ExecutionNumber,
@@ -837,7 +837,7 @@ internal sealed class JobExecution(
                 failureMessage
             );
 
-            completeCommand = new CompleteExecutionRequest(
+            completeCommand = new CompleteExecutionCommand(
                 job.JobId,
                 workerId,
                 job.ExecutionNumber,
@@ -866,7 +866,7 @@ internal sealed class JobExecution(
             // routing to the handler-status branch before this one is reached.
             if (failedInBudget)
             {
-                completeCommand = new CompleteExecutionRequest(
+                completeCommand = new CompleteExecutionCommand(
                     job.JobId,
                     workerId,
                     job.ExecutionNumber,
@@ -887,7 +887,7 @@ internal sealed class JobExecution(
             }
             else
             {
-                completeCommand = new CompleteExecutionRequest(
+                completeCommand = new CompleteExecutionCommand(
                     job.JobId,
                     workerId,
                     job.ExecutionNumber,
@@ -906,7 +906,7 @@ internal sealed class JobExecution(
         }
         else
         {
-            completeCommand = new CompleteExecutionRequest(
+            completeCommand = new CompleteExecutionCommand(
                 job.JobId,
                 workerId,
                 job.ExecutionNumber,

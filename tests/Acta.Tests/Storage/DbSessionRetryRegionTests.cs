@@ -400,7 +400,7 @@ public class DbSessionRetryRegionTests
             string schema
         ) => throw new NotSupportedException();
 
-        public void BindRecurringCompletion(DbCommand command, CompleteExecutionRequest request, string schema) =>
+        public void BindRecurringCompletion(DbCommand command, CompleteExecutionCommand request, string schema) =>
             throw new NotSupportedException();
     }
 

@@ -26,7 +26,6 @@ EventListItem.cs
 IActaBuilder.cs
 IAlerts.cs
 IDefinitions.cs
-IExecutionStore.cs
 IJobContextAccessor.cs
 IJobPayloadSerializerRegistry.cs
 IJobs.cs

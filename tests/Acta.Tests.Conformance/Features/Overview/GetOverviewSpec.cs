@@ -172,26 +172,26 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         var j4 = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(4, 5))), ct);
 
         // j3 → Executing: claim + StartExecution, leave running (no CompleteExecution call).
-        var c3 = Assert.Single(await Services.GetRequiredService<IExecutionStore>().ClaimOneAsync(ns, w1!.Id, LeaseTtl, j3, ct));
+        var c3 = Assert.Single(await Services.GetRequiredService<IExecution>().ClaimOneAsync(ns, w1!.Id, LeaseTtl, j3, ct));
         Assert.Equal(
             StartExecutionAction.Started,
             await Services
-                .GetRequiredService<IExecutionStore>()
+                .GetRequiredService<IExecution>()
                 .StartExecutionAsync(c3.JobId, w1.Id, c3.ExecutionNumber, c3.Version, LeaseTtl, ct)
         );
 
         // j4 → Failed: claim + start + ctx.FailAsync-style complete (HandlerStatusCode = 200 bypasses the failure budget).
-        var c4 = Assert.Single(await Services.GetRequiredService<IExecutionStore>().ClaimOneAsync(ns, w1.Id, LeaseTtl, j4, ct));
+        var c4 = Assert.Single(await Services.GetRequiredService<IExecution>().ClaimOneAsync(ns, w1.Id, LeaseTtl, j4, ct));
         Assert.Equal(
             StartExecutionAction.Started,
             await Services
-                .GetRequiredService<IExecutionStore>()
+                .GetRequiredService<IExecution>()
                 .StartExecutionAsync(c4.JobId, w1.Id, c4.ExecutionNumber, c4.Version, LeaseTtl, ct)
         );
         var cr4 = await Services
-            .GetRequiredService<IExecutionStore>()
+            .GetRequiredService<IExecution>()
             .CompleteExecutionAsync(
-                new CompleteExecutionRequest(c4.JobId, w1.Id, c4.ExecutionNumber, ExecutionOutcome.Failed, 0, ReadOnlyMemory<byte>.Empty)
+                new CompleteExecutionCommand(c4.JobId, w1.Id, c4.ExecutionNumber, ExecutionOutcome.Failed, 0, ReadOnlyMemory<byte>.Empty)
                 {
                     HandlerStatusCode = (byte)JobStatusCode.Failed,
                 },

@@ -454,7 +454,7 @@ internal sealed class SqlServerDialect : ISqlDialect
         }
     }
 
-    public void BindRecurringCompletion(DbCommand command, CompleteExecutionRequest request, string schema)
+    public void BindRecurringCompletion(DbCommand command, CompleteExecutionCommand request, string schema)
     {
         var sql = (SqlCommand)command;
         var resultBytes = request.Result.IsEmpty ? [] : request.Result.ToArray();

@@ -65,7 +65,7 @@ internal interface ISqlDialect
     void ConfigureRoutineCommand(DbCommand command, string schema, string routineName);
 
     /// <summary>Binds parameters required by a provider's non-recurring completion implementation.</summary>
-    void BindNonRecurringCompletionDefaults(DbCommand command, CompleteExecutionRequest request) { }
+    void BindNonRecurringCompletionDefaults(DbCommand command, CompleteExecutionCommand request) { }
 
     /// <summary>
     /// Binds the batch claim's excluded-definition set in the provider-native shape (typed array or
@@ -98,5 +98,5 @@ internal interface ISqlDialect
     );
 
     /// <summary>Binds a recurring-completion command (scalars plus the schedule-advance batch) in the provider-native shape.</summary>
-    void BindRecurringCompletion(DbCommand command, CompleteExecutionRequest request, string schema);
+    void BindRecurringCompletion(DbCommand command, CompleteExecutionCommand request, string schema);
 }
