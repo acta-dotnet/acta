@@ -1,6 +1,6 @@
 namespace Acta.Runtime;
 
-/// <summary><see cref="IOutboxSource.ListQuarantinedAsync"/>: one keyset read of the source's Quarantined rows.</summary>
+/// <summary><see cref="OutboxSource.ListQuarantinedAsync"/>: one keyset read of the source's Quarantined rows.</summary>
 internal sealed class ListQuarantinedOutboxHandler(IDbSession session, ISqlDialect dialect)
 {
     public Task<IReadOnlyList<OutboxQuarantinedListItem>> HandleAsync(ListQuarantinedOutboxCommand command, CancellationToken ct) =>

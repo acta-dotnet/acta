@@ -9,7 +9,7 @@ namespace Acta.SqlServer;
 /// </summary>
 internal static class SqlServerOutboxSource
 {
-    public static IOutboxSource CreateSource(string connectionString, string? schema, string table)
+    public static OutboxSource CreateSource(string connectionString, string? schema, string table)
     {
         var dialect = new SqlServerOutboxDialect();
         // options.Schema drives only routine dispatch (never reached on the inline-only outbox path); the
@@ -30,6 +30,6 @@ internal static class SqlServerOutboxSource
 /// </summary>
 internal sealed class SqlServerOutboxSourceFactory(string connectionString) : IOutboxSourceFactory
 {
-    public IOutboxSource Create(string? schema, string? table) =>
+    public OutboxSource Create(string? schema, string? table) =>
         SqlServerOutboxSource.CreateSource(connectionString, schema, table ?? "acta_outbox");
 }

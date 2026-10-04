@@ -38,7 +38,7 @@ internal sealed class OutboxRelayRegistry(
             );
 
     /// <summary>This namespace's outbox source, for the operator reads that run outside the relay.</summary>
-    public IOutboxSource Source(string namespaceName) => Service(namespaceName).Source;
+    public OutboxSource Source(string namespaceName) => Service(namespaceName).Source;
 
     /// <summary>The relay service bound to this namespace's source; lazily created and cached per namespace.</summary>
     public OutboxRelayService Service(string namespaceName) =>
@@ -72,11 +72,11 @@ internal sealed record OutboxRelayRegistration(
 /// Provider seam that builds the relay's source from the captured source-connection options and
 /// the source builder's schema/table overrides (each provider substitutes its own default when null).
 /// The provider's outbox relay extension registers one implementation into the source builder's service
-/// collection; <c>AddOutboxRelay</c> resolves it to construct the single <see cref="IOutboxSource"/>
+/// collection; <c>AddOutboxRelay</c> resolves it to construct the single <see cref="OutboxSource"/>
 /// that <c>sys.outbox</c> drains, so core stays free of any provider reference. Building the store does
 /// not open a connection: the first source contact happens inside the relay tick.
 /// </summary>
 internal interface IOutboxSourceFactory
 {
-    IOutboxSource Create(string? schema, string? table);
+    OutboxSource Create(string? schema, string? table);
 }

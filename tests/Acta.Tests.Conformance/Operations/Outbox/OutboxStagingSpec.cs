@@ -31,7 +31,7 @@ public sealed class OutboxStagingSpec : ActaTestBase<ConformanceFixture>
         Assert.Equal(1, business);
         Assert.Equal(1, outbox);
 
-        var store = (IOutboxSource)Fixture.CreateOutboxStore(table);
+        var store = (OutboxSource)Fixture.CreateOutboxStore(table);
         var claimed = await store.ClaimDueAsync(new ClaimOutboxCommand(Guid.NewGuid(), 10, 180), ct);
         var row = Assert.Single(claimed);
         Assert.Equal(0, row.FailureCount);

@@ -1,6 +1,6 @@
 namespace Acta.Runtime;
 
-/// <summary><see cref="IOutboxSource.DeleteClaimedAsync"/>: one token-CAS delete of the named rows.</summary>
+/// <summary><see cref="OutboxSource.DeleteClaimedAsync"/>: one token-CAS delete of the named rows.</summary>
 internal sealed class DeleteClaimedOutboxHandler(IDbSession session, ISqlDialect dialect)
 {
     public Task HandleAsync(FinalizeOutboxCommand command, CancellationToken ct) =>

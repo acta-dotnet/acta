@@ -5,7 +5,7 @@ UPDATE {{table_ref}}
 SET status_code = 10 /* OutboxStatusCode.Pending */, claim_token = NULL, claim_until_utc = NULL
 WHERE status_code = 20 /* OutboxStatusCode.Claimed */ AND claim_until_utc <= STRFTIME('%Y-%m-%d %H:%M:%f', 'now');
 
-/* A laned row waits while an older row of its lane is Pending or Claimed (IOutboxSource.ClaimDueAsync). */
+/* A laned row waits while an older row of its lane is Pending or Claimed (OutboxSource.ClaimDueAsync). */
 UPDATE {{table_ref}}
 SET
     status_code = 20 /* OutboxStatusCode.Claimed */,

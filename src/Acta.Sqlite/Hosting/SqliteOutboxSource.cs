@@ -9,7 +9,7 @@ namespace Acta.Sqlite;
 /// </summary>
 internal static class SqliteOutboxSource
 {
-    public static IOutboxSource CreateSource(string connectionString, string schema, string table)
+    public static OutboxSource CreateSource(string connectionString, string schema, string table)
     {
         var dialect = new SqliteOutboxDialect();
         var options = new SqliteProviderOptions { ConnectionString = connectionString, Schema = schema };
@@ -26,6 +26,6 @@ internal static class SqliteOutboxSource
 /// </summary>
 internal sealed class SqliteOutboxSourceFactory(string connectionString) : IOutboxSourceFactory
 {
-    public IOutboxSource Create(string? schema, string? table) =>
+    public OutboxSource Create(string? schema, string? table) =>
         SqliteOutboxSource.CreateSource(connectionString, schema ?? "main", table ?? "acta_outbox");
 }

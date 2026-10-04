@@ -17,7 +17,7 @@ public abstract class OutboxRelayIntegrationBase : ActaRuntimeTestBase<Conforman
 {
     private protected string SourceTable { get; private set; } = null!;
 
-    private protected IOutboxSource SourceStore { get; private set; } = null!;
+    private protected OutboxSource SourceStore { get; private set; } = null!;
 
     private protected int NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 
@@ -26,14 +26,16 @@ public abstract class OutboxRelayIntegrationBase : ActaRuntimeTestBase<Conforman
         await base.AfterInitializeAsync();
         SourceTable = "acta_outbox_hb_" + TestId;
         await Fixture.ApplyOutboxDdlAsync(SourceTable);
-        SourceStore = (IOutboxSource)Fixture.CreateOutboxStore(SourceTable);
+        SourceStore = (OutboxSource)Fixture.CreateOutboxStore(SourceTable);
     }
 
     private protected int MaxInlinePayloadBytes => Services.GetRequiredService<IOptions<JobsOptions>>().Value.MaxInlinePayloadBytes;
 
     private protected IJobSubmission OwnedSubmission => new JobsSubmission(Jobs);
 
-    private protected static OutboxRelayService Relay(IOutboxSource store, IJobSubmission target) => new(store, target);
+    private protected static OutboxRelayService Relay(OutboxSource store, IJobSubmission target) => new(store, target);
+
+    private protected static OutboxRelayService Relay(HookedOutboxStore store, IJobSubmission target) => new(store.Source, target);
 
     private protected OutboxRelayTickOptions TickOptions(int quarantineThreshold = 5, int leaseTtlSeconds = 180, int? maxPayload = null) =>
         new(SourceTable, quarantineThreshold, leaseTtlSeconds, maxPayload ?? MaxInlinePayloadBytes);

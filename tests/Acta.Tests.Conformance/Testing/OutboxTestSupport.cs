@@ -1,3 +1,4 @@
+using System.Data.Common;
 using Acta.Runtime;
 
 namespace Acta.Tests.Conformance.Testing;
@@ -35,47 +36,80 @@ public readonly record struct OutboxRowState(
 );
 
 /// <summary>
-/// A delegating <see cref="IOutboxSource"/> decorator with optional hooks, so a handoff spec can
-/// inject a failure at a chosen source seam (the crash windows the brief proves) while every other call
-/// passes straight through to the real provider store.
+/// The real provider source over a session that can inject a failure at a chosen source call (the crash
+/// windows the brief proves) while every call still runs against the real provider database.
 /// </summary>
-internal sealed class HookedOutboxStore(IOutboxSource inner) : IOutboxSource
+internal sealed class HookedOutboxStore
 {
+    public HookedOutboxStore(OutboxSource inner) => Source = new OutboxSource(new HookedSession(inner.Session, this), inner.Dialect);
+
     /// <summary>When set, awaited just before the real delete runs (models a crash after the target commit).</summary>
     public Func<Task>? BeforeDelete { get; set; }
 
-    public Task<IReadOnlyList<OutboxRow>> ClaimDueAsync(ClaimOutboxCommand command, CancellationToken ct) =>
-        inner.ClaimDueAsync(command, ct);
+    public OutboxSource Source { get; }
 
-    public async Task DeleteClaimedAsync(FinalizeOutboxCommand command, CancellationToken ct)
+    private sealed class HookedSession(IDbSession inner, HookedOutboxStore store) : IDbSession
     {
-        if (BeforeDelete is { } hook)
+        public DbProvider Provider => inner.Provider;
+
+        public string Schema => inner.Schema;
+
+        public Task<DbConnection> OpenConnectionAsync(CancellationToken ct) => inner.OpenConnectionAsync(ct);
+
+        public Task<T> QueryAsync<T>(
+            string stem,
+            Action<DbCommand> bind,
+            Func<DbDataReader, CancellationToken, Task<T>> read,
+            CancellationToken ct
+        ) => inner.QueryAsync(stem, bind, read, ct);
+
+        public Task<T> QueryAsync<T>(
+            StoreCommand command,
+            Action<DbCommand> bind,
+            Func<DbDataReader, CancellationToken, Task<T>> read,
+            CancellationToken ct
+        ) => inner.QueryAsync(command, bind, read, ct);
+
+        public Task<IReadOnlyList<T>> ExecuteAsync<T>(
+            StoreCommand command,
+            Action<DbCommand> bind,
+            Func<DbDataReader, T> mapRow,
+            CancellationToken ct
+        ) => inner.ExecuteAsync(command, bind, mapRow, ct);
+
+        public Task<IReadOnlyList<T>> ExecuteInTransactionAsync<T>(
+            DbTransaction transaction,
+            StoreCommand command,
+            Action<DbCommand> bind,
+            Func<DbDataReader, T> mapRow,
+            CancellationToken ct
+        ) => inner.ExecuteInTransactionAsync(transaction, command, bind, mapRow, ct);
+
+        public Task<T?> ExecuteSingleAsync<T>(
+            StoreCommand command,
+            Action<DbCommand> bind,
+            Func<DbDataReader, T> mapRow,
+            CancellationToken ct
+        )
+            where T : class => inner.ExecuteSingleAsync(command, bind, mapRow, ct);
+
+        public async Task ExecuteAsync(StoreCommand command, Action<DbCommand> bind, CancellationToken ct)
         {
-            await hook();
+            if (command.Operation == "DeleteClaimedOutbox" && store.BeforeDelete is { } hook)
+            {
+                await hook();
+            }
+            await inner.ExecuteAsync(command, bind, ct);
         }
-        await inner.DeleteClaimedAsync(command, ct);
+
+        public Task<T> RunWithRetryAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct) =>
+            inner.RunWithRetryAsync(action, ct);
+
+        public Task<T> RunInOwnedTransactionAsync<T>(
+            Func<DbTransaction, CancellationToken, Task<(T Result, bool Commit)>> work,
+            CancellationToken ct
+        ) => inner.RunInOwnedTransactionAsync(work, ct);
     }
-
-    public Task RescheduleAsync(RescheduleOutboxCommand command, CancellationToken ct) => inner.RescheduleAsync(command, ct);
-
-    public Task QuarantineAsync(QuarantineOutboxCommand command, CancellationToken ct) => inner.QuarantineAsync(command, ct);
-
-    public Task ReleaseClaimedAsync(FinalizeOutboxCommand command, CancellationToken ct) => inner.ReleaseClaimedAsync(command, ct);
-
-    public Task<long> CountBacklogAsync(CancellationToken ct) => inner.CountBacklogAsync(ct);
-
-    public Task<long> CountQuarantinedAsync(CancellationToken ct) => inner.CountQuarantinedAsync(ct);
-
-    public Task<IReadOnlyList<OutboxQuarantinedListItem>> ListQuarantinedAsync(
-        ListQuarantinedOutboxCommand command,
-        CancellationToken ct
-    ) => inner.ListQuarantinedAsync(command, ct);
-
-    public Task<IReadOnlyList<Guid>> RequeueQuarantinedAsync(RequeueQuarantinedOutboxCommand command, CancellationToken ct) =>
-        inner.RequeueQuarantinedAsync(command, ct);
-
-    public Task<IReadOnlyList<Guid>> DiscardQuarantinedAsync(DiscardQuarantinedOutboxCommand command, CancellationToken ct) =>
-        inner.DiscardQuarantinedAsync(command, ct);
 }
 
 /// <summary>

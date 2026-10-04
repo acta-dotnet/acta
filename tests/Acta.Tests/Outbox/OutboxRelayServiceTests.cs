@@ -1,10 +1,12 @@
+using System.Text.Json;
 using Acta.Runtime;
+using Acta.Tests.Runtime;
 using Xunit;
 
 namespace Acta.Tests.Outbox;
 
 /// <summary>
-/// Provider-neutral relay policy proven against an in-memory <see cref="IOutboxSource"/> and a spy
+/// Provider-neutral relay policy proven against the real <see cref="OutboxSource"/> over in-memory rows and a spy
 /// target: coalescing, target deduplication, per-group rejection isolation, backoff, quarantine at
 /// threshold, immediate malformed quarantine, the bounded tick summary, the 20x256 tick bound, and
 /// best-effort cancellation release.
@@ -55,7 +57,7 @@ public sealed class OutboxRelayServiceTests
         var late = Row("k1", created: Now.AddSeconds(5), id: Guid.NewGuid());
         var store = new FakeStore(early, late);
         var target = new FakeSubmission();
-        var svc = new OutboxRelayService(store, target);
+        var svc = new OutboxRelayService(store.Source(), target);
 
         var summary = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
 
@@ -78,7 +80,7 @@ public sealed class OutboxRelayServiceTests
         var lower = Row("ord-1", created: Now.AddSeconds(5), id: Guid.NewGuid());
         var store = new FakeStore(upper, lower);
         var target = new FakeSubmission();
-        var svc = new OutboxRelayService(store, target);
+        var svc = new OutboxRelayService(store.Source(), target);
 
         await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
 
@@ -93,7 +95,7 @@ public sealed class OutboxRelayServiceTests
         var row = Row("k1");
         var store = new FakeStore(row);
         var target = new FakeSubmission { Action = JobEnqueueAction.Deduplicated };
-        var svc = new OutboxRelayService(store, target);
+        var svc = new OutboxRelayService(store.Source(), target);
 
         var summary = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
 
@@ -116,7 +118,7 @@ public sealed class OutboxRelayServiceTests
         var store = new FakeStore(good1, good2, bad);
         // Deterministic rejection whenever the batch contains the "bad" job.
         var target = new FakeSubmission { RejectWhen = reqs => reqs.Any(r => r.JobName == "bad") };
-        var svc = new OutboxRelayService(store, target);
+        var svc = new OutboxRelayService(store.Source(), target);
 
         var summary = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
 
@@ -139,7 +141,7 @@ public sealed class OutboxRelayServiceTests
         var bad = Row("bad", job: "bad", failureCount: 4);
         var store = new FakeStore(bad);
         var target = new FakeSubmission { RejectWhen = _ => true };
-        var svc = new OutboxRelayService(store, target);
+        var svc = new OutboxRelayService(store.Source(), target);
 
         var ex = await Assert.ThrowsAsync<OutboxQuarantineTickException>(() =>
             svc.RunTickAsync(Options(threshold: 5), TestContext.Current.CancellationToken)
@@ -157,7 +159,7 @@ public sealed class OutboxRelayServiceTests
         var row = Row("k1", meta: "{ not json");
         var store = new FakeStore(row);
         var target = new FakeSubmission();
-        var svc = new OutboxRelayService(store, target);
+        var svc = new OutboxRelayService(store.Source(), target);
 
         await Assert.ThrowsAsync<OutboxQuarantineTickException>(() => svc.RunTickAsync(Options(), TestContext.Current.CancellationToken));
 
@@ -170,7 +172,7 @@ public sealed class OutboxRelayServiceTests
     {
         var store = new FakeStore([.. Enumerable.Range(0, 20 * 256 + 300).Select(i => Row($"k{i}"))]);
         var target = new FakeSubmission();
-        var svc = new OutboxRelayService(store, target);
+        var svc = new OutboxRelayService(store.Source(), target);
 
         var summary = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
 
@@ -188,7 +190,7 @@ public sealed class OutboxRelayServiceTests
         var aged = Row("k1", failureCount: 4, created: Now.AddSeconds(5), id: Guid.NewGuid());
         var store = new FakeStore(fresh, aged);
         var target = new FakeSubmission { RejectWhen = _ => true };
-        var svc = new OutboxRelayService(store, target);
+        var svc = new OutboxRelayService(store.Source(), target);
 
         // The count-4 row reaches the threshold of five and quarantines; the count-0 row reschedules at 1.
         await Assert.ThrowsAsync<OutboxQuarantineTickException>(() =>
@@ -211,7 +213,7 @@ public sealed class OutboxRelayServiceTests
         var rows = Enumerable.Range(0, 20 * 256).Select(i => Row($"k{i}", job: "bad")).ToArray();
         var store = new FakeStore(rows);
         var target = new FakeSubmission { RejectWhen = _ => true };
-        var svc = new OutboxRelayService(store, target);
+        var svc = new OutboxRelayService(store.Source(), target);
 
         // A high threshold so the rejections reschedule rather than quarantine (no tick failure).
         await svc.RunTickAsync(Options(threshold: 1000), TestContext.Current.CancellationToken);
@@ -237,7 +239,7 @@ public sealed class OutboxRelayServiceTests
                 throw new OperationCanceledException(cts.Token);
             },
         };
-        var svc = new OutboxRelayService(store, target);
+        var svc = new OutboxRelayService(store.Source(), target);
 
         await Assert.ThrowsAsync<OperationCanceledException>(() => svc.RunTickAsync(Options(), cts.Token));
 
@@ -254,7 +256,7 @@ public sealed class OutboxRelayServiceTests
         // classified as infrastructure: the claim is released best-effort and the tick fails without
         // consuming any quarantine budget.
         var target = new FakeSubmission { OnEnqueue = () => throw new InvalidOperationException("target unavailable") };
-        var svc = new OutboxRelayService(store, target);
+        var svc = new OutboxRelayService(store.Source(), target);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => svc.RunTickAsync(Options(), TestContext.Current.CancellationToken));
 
@@ -268,42 +270,14 @@ public sealed class OutboxRelayServiceTests
     {
         // A plain transient exception surfacing through the store (a source-database fault) fails the
         // tick and is retried on the next tick; it never quarantines a row.
-        var store = new ThrowingStore();
+        // The claim fails; nothing else is reached.
+        var store = Source(call => call.Stem == "ClaimOutbox" ? throw new InvalidOperationException("source database unavailable") : null);
         var target = new FakeSubmission();
         var svc = new OutboxRelayService(store, target);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => svc.RunTickAsync(Options(), TestContext.Current.CancellationToken));
 
         Assert.Empty(target.Batches);
-    }
-
-    private sealed class ThrowingStore : IOutboxSource
-    {
-        public Task<IReadOnlyList<OutboxRow>> ClaimDueAsync(ClaimOutboxCommand command, CancellationToken ct) =>
-            throw new InvalidOperationException("source database unavailable");
-
-        public Task DeleteClaimedAsync(FinalizeOutboxCommand command, CancellationToken ct) => Task.CompletedTask;
-
-        public Task RescheduleAsync(RescheduleOutboxCommand command, CancellationToken ct) => Task.CompletedTask;
-
-        public Task QuarantineAsync(QuarantineOutboxCommand command, CancellationToken ct) => Task.CompletedTask;
-
-        public Task ReleaseClaimedAsync(FinalizeOutboxCommand command, CancellationToken ct) => Task.CompletedTask;
-
-        public Task<long> CountBacklogAsync(CancellationToken ct) => Task.FromResult(0L);
-
-        public Task<long> CountQuarantinedAsync(CancellationToken ct) => Task.FromResult(0L);
-
-        public Task<IReadOnlyList<OutboxQuarantinedListItem>> ListQuarantinedAsync(
-            ListQuarantinedOutboxCommand command,
-            CancellationToken ct
-        ) => Task.FromResult<IReadOnlyList<OutboxQuarantinedListItem>>([]);
-
-        public Task<IReadOnlyList<Guid>> RequeueQuarantinedAsync(RequeueQuarantinedOutboxCommand command, CancellationToken ct) =>
-            Task.FromResult<IReadOnlyList<Guid>>([]);
-
-        public Task<IReadOnlyList<Guid>> DiscardQuarantinedAsync(DiscardQuarantinedOutboxCommand command, CancellationToken ct) =>
-            Task.FromResult<IReadOnlyList<Guid>>([]);
     }
 
     private sealed class FakeSubmission : IJobSubmission
@@ -331,7 +305,14 @@ public sealed class OutboxRelayServiceTests
         }
     }
 
-    private sealed class FakeStore(params OutboxRow[] rows) : IOutboxSource
+    // The real outbox source over a scripted session, binding through the SQLite source dialect.
+    private static OutboxSource Source(Func<BoundCall, object?> answer) => new(new ScriptedSession(answer), new SqliteOutboxDialect());
+
+    /// <summary>
+    /// The due rows in memory behind the real source: a claim takes up to the bound batch size in staging
+    /// order, and each finalize records the ids or the per-row records it bound.
+    /// </summary>
+    private sealed class FakeStore(params OutboxRow[] rows)
     {
         private readonly Queue<OutboxRow> _due = new(rows);
 
@@ -341,55 +322,56 @@ public sealed class OutboxRelayServiceTests
         public List<Guid> Quarantined { get; } = [];
         public List<Guid> Released { get; } = [];
 
-        public Task<IReadOnlyList<OutboxRow>> ClaimDueAsync(ClaimOutboxCommand command, CancellationToken ct)
+        public OutboxSource Source() =>
+            OutboxRelayServiceTests.Source(call =>
+                call.Stem switch
+                {
+                    "ClaimOutbox" => Claim(call.Get(OutboxSchema.Sql.ClaimBatchSize)),
+                    "DeleteClaimedOutbox" => Record(Deleted, Ids(call)),
+                    "ReleaseClaimedOutbox" => Record(Released, Ids(call)),
+                    "RescheduleOutbox" => Record(Rescheduled, Records(call, Reschedule)),
+                    "QuarantineOutbox" => Record(Quarantined, Records(call, static r => r.GetProperty("outbox_id").GetGuid())),
+                    // The unclaimed remainder plus everything released back stands in for the Pending backlog.
+                    "CountOutboxBacklog" => (long)(_due.Count + Released.Count),
+                    "CountOutboxQuarantined" => (long)Quarantined.Count,
+                    _ => throw new NotSupportedException(call.Stem),
+                }
+            );
+
+        private OutboxRow[] Claim(int batchSize)
         {
             ClaimCalls++;
             var batch = new List<OutboxRow>();
-            while (batch.Count < command.BatchSize && _due.Count > 0)
+            while (batch.Count < batchSize && _due.Count > 0)
             {
                 batch.Add(_due.Dequeue());
             }
-            return Task.FromResult<IReadOnlyList<OutboxRow>>(batch);
+            return [.. batch];
         }
 
-        public Task DeleteClaimedAsync(FinalizeOutboxCommand command, CancellationToken ct)
+        private static object? Record<T>(List<T> into, IEnumerable<T> items)
         {
-            Deleted.AddRange(command.OutboxIds);
-            return Task.CompletedTask;
+            into.AddRange(items);
+            return null;
         }
 
-        public Task RescheduleAsync(RescheduleOutboxCommand command, CancellationToken ct)
+        // A finalize binds its rows as JSON: an array of ids, or one record per row.
+        private static List<Guid> Ids(BoundCall call) => Json(call.Get(OutboxSchema.Sql.OutboxIds), static e => e.GetGuid());
+
+        private static List<T> Records<T>(BoundCall call, Func<JsonElement, T> read) => Json(call.Get(OutboxSchema.Sql.RowRecords), read);
+
+        private static OutboxReschedule Reschedule(JsonElement row) =>
+            new(
+                row.GetProperty("outbox_id").GetGuid(),
+                row.GetProperty("failure_count").GetInt32(),
+                row.GetProperty("backoff_seconds").GetInt32(),
+                row.GetProperty("last_error").GetString()!
+            );
+
+        private static List<T> Json<T>(string json, Func<JsonElement, T> read)
         {
-            Rescheduled.AddRange(command.Rows);
-            return Task.CompletedTask;
+            using var document = JsonDocument.Parse(json);
+            return [.. document.RootElement.EnumerateArray().Select(read)];
         }
-
-        public Task QuarantineAsync(QuarantineOutboxCommand command, CancellationToken ct)
-        {
-            Quarantined.AddRange(command.Rows.Select(r => r.OutboxId));
-            return Task.CompletedTask;
-        }
-
-        public Task ReleaseClaimedAsync(FinalizeOutboxCommand command, CancellationToken ct)
-        {
-            Released.AddRange(command.OutboxIds);
-            return Task.CompletedTask;
-        }
-
-        // The unclaimed remainder plus everything released back stands in for the Pending backlog.
-        public Task<long> CountBacklogAsync(CancellationToken ct) => Task.FromResult((long)(_due.Count + Released.Count));
-
-        public Task<long> CountQuarantinedAsync(CancellationToken ct) => Task.FromResult((long)Quarantined.Count);
-
-        public Task<IReadOnlyList<OutboxQuarantinedListItem>> ListQuarantinedAsync(
-            ListQuarantinedOutboxCommand command,
-            CancellationToken ct
-        ) => Task.FromResult<IReadOnlyList<OutboxQuarantinedListItem>>([]);
-
-        public Task<IReadOnlyList<Guid>> RequeueQuarantinedAsync(RequeueQuarantinedOutboxCommand command, CancellationToken ct) =>
-            Task.FromResult<IReadOnlyList<Guid>>([]);
-
-        public Task<IReadOnlyList<Guid>> DiscardQuarantinedAsync(DiscardQuarantinedOutboxCommand command, CancellationToken ct) =>
-            Task.FromResult<IReadOnlyList<Guid>>([]);
     }
 }

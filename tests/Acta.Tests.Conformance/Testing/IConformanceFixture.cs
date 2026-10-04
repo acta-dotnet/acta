@@ -125,7 +125,7 @@ public interface IConformanceFixture
     ValueTask StageInOneTransactionAsync(string outboxTable, IReadOnlyList<Acta.JobEnqueueRequest> requests);
 
     /// <summary>
-    /// Build the provider's external-outbox source store (an internal <c>IOutboxSource</c>, returned
+    /// Build the provider's external-outbox source store (an internal <c>OutboxSource</c>, returned
     /// as <see cref="object"/> so the public fixture surface does not leak the internal port) over
     /// <paramref name="table"/>.
     /// </summary>

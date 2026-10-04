@@ -102,7 +102,7 @@ public sealed class ClaimOutboxSpec : OutboxSpecBase
         // Two genuinely simultaneous claimers over two store instances, exercising SKIP LOCKED / READPAST
         // / BEGIN IMMEDIATE. The safety invariant is that no row is handed to both at once; how the batch
         // splits between them is provider timing (mssql page locking on a small table may give one 0).
-        var second = (IOutboxSource)Fixture.CreateOutboxStore(TableName);
+        var second = (OutboxSource)Fixture.CreateOutboxStore(TableName);
         var claimA = Store.ClaimDueAsync(new ClaimOutboxCommand(Guid.NewGuid(), total / 2, LeaseTtlSeconds), ct);
         var claimB = second.ClaimDueAsync(new ClaimOutboxCommand(Guid.NewGuid(), total / 2, LeaseTtlSeconds), ct);
         var results = await Task.WhenAll(claimA, claimB);

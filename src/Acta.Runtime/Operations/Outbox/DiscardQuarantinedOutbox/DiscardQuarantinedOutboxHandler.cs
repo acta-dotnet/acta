@@ -1,6 +1,6 @@
 namespace Acta.Runtime;
 
-/// <summary><see cref="IOutboxSource.DiscardQuarantinedAsync"/>: one statement answering the ids it discarded.</summary>
+/// <summary><see cref="OutboxSource.DiscardQuarantinedAsync"/>: one statement answering the ids it discarded.</summary>
 internal sealed class DiscardQuarantinedOutboxHandler(IDbSession session, ISqlDialect dialect)
 {
     public async Task<IReadOnlyList<Guid>> HandleAsync(DiscardQuarantinedOutboxCommand command, CancellationToken ct)

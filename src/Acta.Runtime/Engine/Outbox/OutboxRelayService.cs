@@ -8,10 +8,10 @@ namespace Acta.Runtime;
 /// Provider-neutral relay policy for one <c>sys.outbox</c> tick: claim due source rows in bounded
 /// batches, coalesce duplicate handoffs, enqueue representatives through the owned batch path, then
 /// finalize under the claim token. Retry, per-group rejection isolation, quarantine, and the single
-/// bounded tick summary all live here; the source is the injected <see cref="IOutboxSource"/>
+/// bounded tick summary all live here; the source is the injected <see cref="OutboxSource"/>
 /// and the target is the normal <see cref="IJobs.EnqueueBatchAsync(IReadOnlyList{JobEnqueueRequest}, CancellationToken)"/>.
 /// </summary>
-internal sealed class OutboxRelayService(IOutboxSource source, IJobSubmission target, ILogger<OutboxRelayService>? log = null)
+internal sealed class OutboxRelayService(OutboxSource source, IJobSubmission target, ILogger<OutboxRelayService>? log = null)
 {
     /// <summary>Per tick: at most MaxBatches source claims of BatchSize rows. The next tick continues any backlog.</summary>
     private const int MaxBatches = 20;
@@ -22,7 +22,7 @@ internal sealed class OutboxRelayService(IOutboxSource source, IJobSubmission ta
     /// source the tick drains - the registry's 1:1 namespace-to-source invariant is what makes this the
     /// right source for the slot's parked commands.
     /// </summary>
-    internal IOutboxSource Source => source;
+    internal OutboxSource Source => source;
 
     /// <summary>
     /// Applies the slot's parked operator commands, requeue first so freed rows are claimable in the

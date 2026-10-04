@@ -1,6 +1,6 @@
 namespace Acta.Runtime;
 
-/// <summary><see cref="IOutboxSource.RequeueQuarantinedAsync"/>: one statement answering the ids it requeued.</summary>
+/// <summary><see cref="OutboxSource.RequeueQuarantinedAsync"/>: one statement answering the ids it requeued.</summary>
 internal sealed class RequeueQuarantinedOutboxHandler(IDbSession session, ISqlDialect dialect)
 {
     public async Task<IReadOnlyList<Guid>> HandleAsync(RequeueQuarantinedOutboxCommand command, CancellationToken ct)

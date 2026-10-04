@@ -5,7 +5,7 @@ UPDATE {{table_ref}}
 SET status_code = 10 /* OutboxStatusCode.Pending */, claim_token = NULL, claim_until_utc = NULL
 WHERE status_code = 20 /* OutboxStatusCode.Claimed */ AND claim_until_utc <= now();
 
-/* A laned row waits while an older row of its lane is Pending or Claimed (IOutboxSource.ClaimDueAsync).
+/* A laned row waits while an older row of its lane is Pending or Claimed (OutboxSource.ClaimDueAsync).
    SKIP LOCKED applies only to the rows FOR UPDATE returns, so an older row another relay holds still counts. */
 WITH due AS (
     SELECT c.id

@@ -1,6 +1,6 @@
 namespace Acta.Runtime;
 
-/// <summary><see cref="IOutboxSource.QuarantineAsync"/>: one token-CAS statement over the per-row records.</summary>
+/// <summary><see cref="OutboxSource.QuarantineAsync"/>: one token-CAS statement over the per-row records.</summary>
 internal sealed class QuarantineOutboxHandler(IDbSession session, ISqlDialect dialect)
 {
     public Task HandleAsync(QuarantineOutboxCommand command, CancellationToken ct) =>

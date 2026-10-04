@@ -10,7 +10,7 @@ namespace Acta.Postgres;
 /// </summary>
 internal static class PostgresOutboxSource
 {
-    public static IOutboxSource CreateSource(string connectionString, string? schema, string table)
+    public static OutboxSource CreateSource(string connectionString, string? schema, string table)
     {
         var dialect = new PostgresOutboxDialect();
         // options.Schema drives only routine dispatch (never reached on the inline-only outbox path); the
@@ -31,6 +31,6 @@ internal static class PostgresOutboxSource
 /// </summary>
 internal sealed class PostgresOutboxSourceFactory(string connectionString) : IOutboxSourceFactory
 {
-    public IOutboxSource Create(string? schema, string? table) =>
+    public OutboxSource Create(string? schema, string? table) =>
         PostgresOutboxSource.CreateSource(connectionString, schema, table ?? "acta_outbox");
 }
