@@ -10,6 +10,18 @@
 - **Guarantees:**
   - The tenant.suspended event carries the operator name exactly as supplied
 
+### Namespace resume flips status back, emits one 15xx event, and rejects sys
+- **Contract:** Resume flips a suspended namespace back to Active and emits namespace.resumed, while sys is rejected at the facade.
+- **Guarantees:**
+  - Resuming a suspended namespace applies and emits namespace.resumed
+  - A rejected sys resume leaves the seeded row untouched
+
+### Tenant resume flips status back and emits one 15xx event to sys namespace
+- **Contract:** Resume flips a suspended tenant back to Active with one tenant.resumed to sys namespace 1, and resuming an active tenant writes nothing.
+- **Guarantees:**
+  - Resuming a suspended tenant applies and emits one tenant.resumed
+  - Re-resuming an active tenant is AlreadyInState with no event
+
 ### A setting is set and read back by name at its inferred scope
 - **Contract:** Set upserts one setting at the scope inferred from its targets with a version bump and emits setting.updated naming the setting.
 - **Guarantees:**
@@ -19,22 +31,19 @@
   - Every set emits setting.updated whose detail carries the setting name
   - A non-null expectedVersion is a CAS: applied on match, VersionConflict with the current version on mismatch, NotFound when no row exists
 
-### Namespace suspend/resume flip status, emit one 15xx event, and reject sys
-- **Contract:** Suspend and resume flip namespace status with a version bump, emit namespace.suspended/resumed to the namespace, and reject sys at the facade.
+### Namespace suspend flips status, emits one 15xx event, and rejects sys
+- **Contract:** Suspend flips a namespace to Suspended once with a version bump and namespace.suspended, reports NotFound for unknown names, and rejects sys.
 - **Guarantees:**
   - Suspending an active namespace applies, bumps version, and emits one namespace.suspended to itself
   - Re-suspending is AlreadyInState with no second event
-  - Resuming a suspended namespace applies and emits namespace.resumed
   - An unknown namespace name is NotFound
-  - Rejected sys suspend/resume leave the seeded row untouched and still listed
+  - A rejected sys suspend leaves the seeded row untouched and still listed
 
-### Tenant suspend and resume flip status and emit one 15xx event to sys namespace
-- **Contract:** Suspend and resume flip tenant status with a version bump, emit tenant.suspended/tenant.resumed to sys namespace 1, and report NotFound for unknown keys.
+### Tenant suspend flips status and emits one 15xx event to sys namespace
+- **Contract:** Suspend flips a tenant to Suspended once with a version bump and one tenant.suspended to sys namespace 1, and an unknown key is NotFound.
 - **Guarantees:**
   - Suspending an active tenant applies, bumps version, and emits one tenant.suspended to sys
   - Re-suspending is AlreadyInState with no second event
-  - Resuming a suspended tenant applies and emits one tenant.resumed
-  - Re-resuming an active tenant is AlreadyInState with no event
   - Suspending an unknown key is NotFound
 
 ### Namespace update writes owner_team/description under a version CAS
@@ -472,6 +481,12 @@
   - AcknowledgeAsync does not defer a reminder that is already due
   - AcknowledgeAsync and ResolveAsync return NotFound for an unknown alert ref
 
+### Cancel stamps retention once and rejects a re-cancel
+- **Contract:** Cancel from Suspended or Dispatched applies and stamps retention_until_utc, and re-cancelling a Cancelled job is Rejected without re-stamping.
+- **Guarantees:**
+  - Cancel from Suspended and Dispatched is Applied and stamps retention_until_utc
+  - Re-cancel of a Cancelled job is Rejected and does not re-stamp retention_until_utc
+
 ### An external cancel reaches the running handler's token via heartbeat
 - **Contract:** An external cancel reaches the handler's CancellationToken through the next heartbeat tick so the handler stops cooperatively and the row settles Cancelled.
 - **Guarantees:**
@@ -508,16 +523,6 @@
   - Cancel applies transition regardless of audit level and emits event only at full audit
   - Restart applies transition regardless of audit level and emits event only at full audit
   - RaiseSignal upserts the signal unconditionally and emits event only at full audit
-
-### Control verbs apply per-status guards and correct side effects
-- **Contract:** Restart revives Failed or Cancelled resetting failure_count, Cancel stamps retention and rejects re-cancel, Pause allows re-pause, Resume coalesces next run.
-- **Guarantees:**
-  - Restart revives Failed and Cancelled jobs resetting failure_count to 0 and clearing retention
-  - Restart from Executing is Rejected and leaves the status unchanged
-  - Cancel from Suspended and Dispatched is Applied and stamps retention_until_utc
-  - Re-cancel of a Cancelled job is Rejected and does not re-stamp retention_until_utc
-  - Pause from Suspended is Applied and re-pause from Paused is also Applied
-  - Resume with explicit next_run_at_utc pins the instant; null coalesces to DB-now
 
 ### Handler Fail Cancel Pause finalize the attempt without returning to user code
 - **Contract:** Handler control verbs and non-retryable exceptions finalize the attempt without returning to user code, budget untouched and no result written.
@@ -572,6 +577,22 @@
   - UpdateJobInput on a Failed job feeds the new input to the handler after RestartAsync
   - UpdateJobInput stores the new payload's format id, so a text job amends as text
   - UpdateJobInput returns NotFound for an unknown lookup
+
+### Pause applies from Suspended and again from Paused
+- **Contract:** Pause applies to a Suspended job, and pausing a Paused job applies again rather than rejecting.
+- **Guarantees:**
+  - Pause from Suspended is Applied and re-pause from Paused is also Applied
+
+### Restart revives Failed or Cancelled jobs and rejects an executing one
+- **Contract:** Restart revives a Failed or Cancelled job with failure_count reset and retention cleared, and is Rejected from Executing.
+- **Guarantees:**
+  - Restart revives Failed and Cancelled jobs resetting failure_count to 0 and clearing retention
+  - Restart from Executing is Rejected and leaves the status unchanged
+
+### Resume pins an explicit next run and otherwise takes the database clock
+- **Contract:** Resume pins an explicit next_run_at_utc and otherwise coalesces the next run to the database clock.
+- **Guarantees:**
+  - Resume with explicit next_run_at_utc pins the instant; null coalesces to DB-now
 
 ## Enqueue
 
@@ -1029,11 +1050,15 @@
 - **Guarantees:**
   - Discard deletes only quarantined rows, returns their ids, and cannot touch a claimed row
 
-### IOutbox parks accepted-then-applied commands against the namespace's relay slot
-- **Contract:** IOutbox resolves the sys.outbox slot by fixed key and name, parks commands the tick applies, and reports accepted, rejected, or not-found admission.
+### Requeue parks against the relay slot and the tick applies it
+- **Contract:** Requeue resolves the sys.outbox slot by fixed key and name, parks once and rejects while a command is pending, and a namespace without a slot is not found.
 - **Guarantees:**
   - Requeue parks once, rejects while pending, and the tick applies and frees the inbox
   - A namespace without a slot, and a user job squatting on the key, both report not found
+
+### Outbox sources compose from the relay slot
+- **Contract:** The source listing composes each namespace's relay slot, and listing quarantined messages requires the local source database.
+- **Guarantees:**
   - Sources compose from the slot job; the quarantine listing requires the local source
 
 ### Quarantined rows list in keyset pages with their failure evidence
@@ -1533,6 +1558,23 @@
   - Firing the earlier schedule advances only its cursor and recomputes slot MIN
   - Firing when both schedules are due advances both cursors and re-arms to new MIN
 
+### Catalog sync stores the description and keeps an operator note
+- **Contract:** Registering scheduled jobs stores the attribute description with the note left NULL, and a later re-sync never overwrites an operator note.
+- **Guarantees:**
+  - Initial sync stores the attribute description with Note left NULL, and catalog re-sync does not overwrite an operator note
+
+### Operator pause excludes a schedule from its slot and survives redeploy
+- **Contract:** Pausing a schedule drops it from the slot MIN without moving its cursor, wakes the slot at a timed expiry, and survives catalog re-sync.
+- **Guarantees:**
+  - Pause keeps the schedule's cursor and sets the slot MIN to the remaining firing schedules
+  - Pausing the only schedule system-pauses the slot job and resume re-arms it
+  - A timed pause sets the slot wake point to the pause expiry
+  - A timed pause with an expiry in the past is rejected
+  - An orphaned schedule cannot be paused or resumed
+  - Catalog re-registration preserves operator pause state
+  - Orphaning a timed-paused schedule clears the pause deadline along with the status
+  - Pause and resume emit audit events against the slot job
+
 ### An operator pause landing inside a planned fire keeps the schedule paused
 - **Contract:** A pause applied while a fire is in flight survives the completion, and only a timed pause that has elapsed is auto-resumed by an advance.
 - **Guarantees:**
@@ -1547,19 +1589,10 @@
   - A timed pause whose window holds no occurrence clears at its expiry without running the handler
   - Under Skip an occurrence inside a timed pause is skipped at its expiry, not run late
 
-### Operator pause and resume control a schedule and recompute the owning slot
-- **Contract:** Pausing a schedule excludes it from the slot MIN without moving its cursor, resume reconciles by misfire and operator pause survives redeploy.
+### Resume reconciles a paused schedule's cursor by its misfire policy
+- **Contract:** Resuming a schedule reconciles its cursor by misfire: Skip advances past now, and CatchUpOnce keeps the missed past instant.
 - **Guarantees:**
-  - Pause keeps the schedule's cursor and sets the slot MIN to the remaining firing schedules
-  - Pausing the only schedule system-pauses the slot job and resume re-arms it
-  - A timed pause sets the slot wake point to the pause expiry
-  - A timed pause with an expiry in the past is rejected
   - Resume reconciles the cursor by misfire: Skip advances past now and CatchUpOnce keeps the past instant
-  - An orphaned schedule cannot be paused or resumed
-  - Catalog re-registration preserves operator pause state
-  - Orphaning a timed-paused schedule clears the pause deadline along with the status
-  - Initial sync stores the attribute description with Note left NULL, and catalog re-sync does not overwrite an operator note
-  - Pause and resume emit audit events against the slot job
 
 ### Operator sets a CAS-guarded full-set schedule expression/time-zone override
 - **Contract:** A matching version applies the override and moves the cursor to the new expression, while a stale version is rejected with current state.

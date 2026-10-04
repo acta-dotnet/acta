@@ -58,9 +58,9 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `CancelJob` | `IJobs.CancelAsync` | `POST /jobs/{jobRef}/cancel` | `cancel` | routine | routine | inline | `events`, `runtimes` | · |
-| `EnqueueBatch` | `IJobs.EnqueueBatchAsync` | · | · | routine | routine | inline | `jobs`, `lanes`, `runtimes`, `tags` | `EnqueueBatchConcurrencySpec`, `EnqueueBatchRejectionSpec` |
-| `EnqueueOne` | `IJobs.EnqueueAsync`<br>`IJobs.RunAndWaitAsync` | `POST /jobs` | · | routine | routine | inline | `jobs`, `lanes`, `runtimes`, `tags` | · |
+| `CancelJob` | `IJobs.CancelAsync` | `POST /jobs/{jobRef}/cancel` | `cancel` | routine | routine | inline | `events`, `runtimes` | `CancelJobSpec` |
+| `EnqueueBatch` | `IJobs.EnqueueBatchAsync` | · | · | routine | routine | inline | `jobs`, `lanes`, `runtimes`, `tags` | `EnqueueBatchConcurrencySpec`, `EnqueueBatchRejectionSpec`, `EnqueueBatchSpec` |
+| `EnqueueOne` | `IJobs.EnqueueAsync`<br>`IJobs.RunAndWaitAsync` | `POST /jobs` | · | routine | routine | inline | `jobs`, `lanes`, `runtimes`, `tags` | `EnqueueOneTransactionalSpec` |
 | `GetInputTemplate` | `IJobs.GetInputTemplate` | `GET /jobs/input-template` | · | · | · | · | · | · |
 | `GetJob` | `IJobs.RunAndWaitAsync`<br>`IJobs.GetAsync` | `GET /jobs/{jobRef}`<br>`GET /jobs/by-key`<br>`GET /jobs/{jobRef}/detail` | · | inline | inline | inline | · | `GetJobExplanationSpec`, `GetJobLineageMapSpec`, `GetJobResultSpec`, `GetJobSpec`, `GetJobStatusSpec` |
 | `GetJobCheckpoints` | `IJobs.GetCheckpointsAsync` | · | · | inline | inline | inline | · | · |
@@ -69,15 +69,15 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 | `GetJobLineageMap` | `IJobs.GetLineageMapAsync` | · | · | inline | inline | inline | · | `GetJobLineageMapSpec` |
 | `GetJobResult` | `IJobs.RunAndWaitAsync`<br>`IJobs.GetResultAsync` | · | `result` | inline | inline | inline | · | `GetJobResultSpec` |
 | `GetJobStatus` | `IJobs.GetStatusAsync` | · | `status` | inline | inline | inline | · | `GetJobStatusSpec` |
-| `PauseJob` | `IJobs.PauseAsync` | `POST /jobs/{jobRef}/pause` | `pause` | routine | routine | inline | `events`, `runtimes` | · |
+| `PauseJob` | `IJobs.PauseAsync` | `POST /jobs/{jobRef}/pause` | `pause` | routine | routine | inline | `events`, `runtimes` | `PauseJobSpec` |
 | `PurgeJob` | `IJobs.PurgeAsync` | `POST /jobs/{jobRef}/purge` | · | routine | routine | inline | `alerts`, `events`, `jobs`, `tags` | `PurgeJobSpec` |
 | `ReprioritizeJob` | `IJobs.ReprioritizeAsync` | `POST /jobs/{jobRef}/reprioritize` | · | routine | routine | inline | `events`, `runtimes` | `ReprioritizeJobSpec` |
 | `RescheduleJob` | `IJobs.RescheduleAsync` | `POST /jobs/{jobRef}/reschedule` | · | routine | routine | inline | `events`, `runtimes` | `RescheduleJobSpec` |
 | `ResetJobState` | · | · | · | routine | routine | inline | `checkpoints`, `events`, `results`, `steps` | `ResetJobStateSpec` |
 | `ResolveJobIdByDeduplicationKey` | `IJobs.GetJobIdAsync` | · | · | inline | inline | inline | · | `ResolveJobIdByDeduplicationKeySpec` |
 | `ResolveJobIdByRef` | `IJobs.GetJobIdAsync` | · | · | inline | inline | inline | · | `ResolveJobIdByRefSpec` |
-| `RestartJob` | `IJobs.RestartAsync` | `POST /jobs/{jobRef}/restart` | `restart` | routine | routine | inline | `events`, `runtimes`, `steps` | · |
-| `ResumeJob` | `IJobs.ResumeAsync` | `POST /jobs/{jobRef}/resume` | `resume` | routine | routine | inline | `events`, `runtimes` | · |
+| `RestartJob` | `IJobs.RestartAsync` | `POST /jobs/{jobRef}/restart` | `restart` | routine | routine | inline | `events`, `runtimes`, `steps` | `RestartJobSpec` |
+| `ResumeJob` | `IJobs.ResumeAsync` | `POST /jobs/{jobRef}/resume` | `resume` | routine | routine | inline | `events`, `runtimes` | `ResumeJobSpec` |
 | `UpdateJobInput` | `IJobs.UpdateJobInputAsync` | `POST /jobs/{jobRef}/input` | · | routine | routine | inline | `events`, `jobs` | `UpdateJobInputSpec` |
 
 ## Ledger
@@ -110,8 +110,8 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `ListNamespaceItems` | `INamespaces.ListAsync` | · | · | inline | inline | inline | · | `ListNamespaceItemsSpec` |
 | `ListNamespaces` | `INamespaces.ListNamesAsync`<br>`INamespaces.ListAsync` | · | · | inline | inline | inline | · | `ListNamespacesSpec` |
-| `ResumeNamespace` | `INamespaces.ResumeAsync` | `POST /namespaces/{jobNamespace}/resume` | · | routine | routine | inline | `events`, `namespaces` | · |
-| `SuspendNamespace` | `INamespaces.SuspendAsync` | `POST /namespaces/{jobNamespace}/suspend` | · | routine | routine | inline | `events`, `namespaces` | · |
+| `ResumeNamespace` | `INamespaces.ResumeAsync` | `POST /namespaces/{jobNamespace}/resume` | · | routine | routine | inline | `events`, `namespaces` | `ResumeNamespaceSpec` |
+| `SuspendNamespace` | `INamespaces.SuspendAsync` | `POST /namespaces/{jobNamespace}/suspend` | · | routine | routine | inline | `events`, `namespaces` | `SuspendNamespaceSpec` |
 | `UpdateNamespace` | `INamespaces.UpdateAsync` | `PATCH /namespaces/{jobNamespace}` | · | routine | routine | inline | `events`, `namespaces` | `UpdateNamespaceSpec` |
 
 ## Outbox
@@ -127,13 +127,13 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 | `DiscardQuarantinedOutbox` | · | · | · | inline | inline | inline | · | `DiscardQuarantinedOutboxSpec` |
 | `GetOutboxSignal` | · | · | · | inline | inline | inline | · | · |
 | `ListOutboxQuarantined` | `IOutbox.ListQuarantinedAsync` | `GET /outbox/{jobNamespace}/quarantined` | · | · | · | · | · | · |
-| `ListOutboxSources` | `IOutbox.ListSourcesAsync` | `GET /outbox/sources` | · | · | · | · | · | · |
+| `ListOutboxSources` | `IOutbox.ListSourcesAsync` | `GET /outbox/sources` | · | · | · | · | · | `ListOutboxSourcesSpec` |
 | `ListQuarantinedOutbox` | · | · | · | inline | inline | inline | · | · |
 | `ParkOutboxSignal` | · | · | · | routine | routine | inline | `checkpoints` | · |
 | `QuarantineOutbox` | · | · | · | inline | inline | inline | · | `QuarantineOutboxSpec` |
 | `RecordOutboxEvent` | · | · | · | routine | routine | inline | `events` | `RecordOutboxEventSpec` |
 | `ReleaseClaimedOutbox` | · | · | · | inline | inline | inline | · | `ReleaseClaimedOutboxSpec` |
-| `RequeueOutbox` | `IOutbox.RequeueAsync` | `POST /outbox/{jobNamespace}/requeue` | · | · | · | · | · | · |
+| `RequeueOutbox` | `IOutbox.RequeueAsync` | `POST /outbox/{jobNamespace}/requeue` | · | · | · | · | · | `RequeueOutboxSpec` |
 | `RequeueQuarantinedOutbox` | · | · | · | inline | inline | inline | · | `RequeueQuarantinedOutboxSpec` |
 | `RescheduleOutbox` | · | · | · | inline | inline | inline | · | `RescheduleOutboxSpec` |
 
@@ -144,10 +144,10 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 | `GetLiveSchedules` | · | · | · | inline | inline | inline | · | · |
 | `GetScheduleState` | · | · | · | inline | inline | inline | · | `GetScheduleStateSpec` |
 | `ListJobSchedules` | `ISchedules.ListAsync` | `GET /schedules` | · | inline | inline | inline | · | `ListJobSchedulesFilterMatrixSpec`, `ListJobSchedulesSpec` |
-| `PauseSchedule` | `ISchedules.PauseAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/pause` | · | routine | routine | inline | `events`, `runtimes`, `schedules` | · |
+| `PauseSchedule` | `ISchedules.PauseAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/pause` | · | routine | routine | inline | `events`, `runtimes`, `schedules` | `PauseScheduleSpec` |
 | `PreviewSchedule` | `ISchedules.PreviewAsync` | `GET /schedules/{jobNamespace}/{jobName}/{scheduleName}/preview` | · | · | · | · | · | `PreviewScheduleSysNameSpec` |
-| `RegisterScheduledJobs` | · | · | · | routine | routine | inline | `jobs`, `runtimes`, `schedules` | `RegisterScheduledJobsMisfireMatrixSpec`, `RegisterScheduledJobsSpec` |
-| `ResumeSchedule` | `ISchedules.ResumeAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/resume` | · | routine | routine | inline | `events`, `runtimes`, `schedules` | · |
+| `RegisterScheduledJobs` | · | · | · | routine | routine | inline | `jobs`, `runtimes`, `schedules` | `RegisterScheduledJobsMisfireMatrixSpec`, `RegisterScheduledJobsNoteSpec`, `RegisterScheduledJobsSpec` |
+| `ResumeSchedule` | `ISchedules.ResumeAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/resume` | · | routine | routine | inline | `events`, `runtimes`, `schedules` | `ResumeScheduleSpec` |
 | `SetScheduleOverrides` | `ISchedules.UpdateOverridesAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/overrides` | · | routine | routine | inline | `events`, `runtimes`, `schedules` | `SetScheduleOverridesSpec` |
 | `TriggerScheduleNow` | `ISchedules.TriggerNowAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/trigger` | · | routine | routine | inline | `events`, `runtimes` | `TriggerScheduleNowSpec` |
 
@@ -182,8 +182,8 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 | `GetTenantKey` | · | · | · | inline | inline | inline | · | · |
 | `ListTenants` | `ITenants.ListAsync` | `GET /tenants` | · | inline | inline | inline | · | `ListTenantsSpec` |
 | `RegisterTenant` | `ITenants.RegisterAsync` | `POST /tenants` | · | routine | routine | inline | `tenants` | `RegisterTenantSpec` |
-| `ResumeTenant` | `ITenants.ResumeAsync` | `POST /tenants/{tenantKey}/resume` | · | routine | routine | inline | `events`, `tenants` | · |
-| `SuspendTenant` | `ITenants.SuspendAsync` | `POST /tenants/{tenantKey}/suspend` | · | routine | routine | inline | `events`, `tenants` | · |
+| `ResumeTenant` | `ITenants.ResumeAsync` | `POST /tenants/{tenantKey}/resume` | · | routine | routine | inline | `events`, `tenants` | `ResumeTenantSpec` |
+| `SuspendTenant` | `ITenants.SuspendAsync` | `POST /tenants/{tenantKey}/suspend` | · | routine | routine | inline | `events`, `tenants` | `SuspendTenantSpec` |
 | `UpdateTenant` | `ITenants.UpdateAsync` | `PATCH /tenants/{tenantKey}` | · | routine | routine | inline | `events`, `tenants` | `UpdateTenantSpec` |
 
 ## Workers

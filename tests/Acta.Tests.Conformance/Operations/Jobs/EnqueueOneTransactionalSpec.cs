@@ -24,14 +24,14 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Enqueue",
     Contract = "Every transactional enqueue overload joins the caller transaction, rejects invalid transactions, publishes no wakeup, and leaves completion to the caller."
 )]
-public sealed class TransactionalEnqueueContractSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
+public sealed class EnqueueOneTransactionalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
 {
     private const string ProbeTable = "acta_txn_contract_probe";
 
     private readonly RecordingWakeup _wakeup = new();
 
     // Enqueue-only: RunAsWorker keeps InitializeAsync so the per-test namespace is registered (enqueue
-    // resolves it), but the claim/execute loop is never started - identical to EnqueueSpec.
+    // resolves it), but the claim/execute loop is never started - identical to EnqueueBatchSpec.
     protected override bool RunAsWorker => true;
 
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)

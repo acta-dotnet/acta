@@ -6,14 +6,14 @@ using Xunit;
 
 namespace Acta.Tests.Conformance.Operations.Tenants;
 
-/// <summary>Conformance for tenant suspend/resume: idempotent status flip, version bump, one 15xx event to the sys namespace, and NotFound for unknown keys.</summary>
+/// <summary>Conformance for tenant suspend: idempotent status flip, version bump, one 15xx event to the sys namespace, and NotFound for unknown keys.</summary>
 [ConformanceSpec(
-    "suspend-resume-tenant.status-flip",
-    "Tenant suspend and resume flip status and emit one 15xx event to sys namespace",
+    "suspend-tenant.status-flip",
+    "Tenant suspend flips status and emits one 15xx event to sys namespace",
     Area = "Admin",
-    Contract = "Suspend and resume flip tenant status with a version bump, emit tenant.suspended/tenant.resumed to sys namespace 1, and report NotFound for unknown keys."
+    Contract = "Suspend flips a tenant to Suspended once with a version bump and one tenant.suspended to sys namespace 1, and an unknown key is NotFound."
 )]
-public sealed class SuspendResumeTenantSpec : ActaStorageTestBase<ConformanceFixture>
+public sealed class SuspendTenantSpec : ActaStorageTestBase<ConformanceFixture>
 {
     private async Task<Tenant?> ReadTenantAsync(string key, CancellationToken ct) =>
         await Db.From<Tenant>().Where(t => t.TenantKey == key).SingleOrDefaultAsync(ct);
@@ -57,34 +57,6 @@ public sealed class SuspendResumeTenantSpec : ActaStorageTestBase<ConformanceFix
 
         Assert.Equal(ControlAction.AlreadyInState, again.Action);
         Assert.Equal(1, await EventCountAsync(id, EventCode.TenantSuspended, ct));
-    }
-
-    [Fact(DisplayName = "Resuming a suspended tenant applies and emits one tenant.resumed")]
-    public async Task Resume_applies_and_emits()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("adm-resume");
-        var id = (await Services.GetRequiredService<ITenants>().RegisterAsync(key, null, null, ct)).TenantId;
-        await Services.GetRequiredService<ITenants>().SuspendAsync(key, null, "op-1", ct);
-
-        var outcome = await Services.GetRequiredService<ITenants>().ResumeAsync(key, "back", "op-1", ct);
-
-        Assert.Equal(ControlAction.Applied, outcome.Action);
-        Assert.Equal(TenantStatusCode.Active, (await ReadTenantAsync(key, ct))!.Status);
-        Assert.Equal(1, await EventCountAsync(id, EventCode.TenantResumed, ct));
-    }
-
-    [Fact(DisplayName = "Re-resuming an active tenant is AlreadyInState with no event")]
-    public async Task Resume_idempotent()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var key = TestKey("adm-resume-idem");
-        var id = (await Services.GetRequiredService<ITenants>().RegisterAsync(key, null, null, ct)).TenantId;
-
-        var outcome = await Services.GetRequiredService<ITenants>().ResumeAsync(key, null, "op-1", ct);
-
-        Assert.Equal(ControlAction.AlreadyInState, outcome.Action);
-        Assert.Equal(0, await EventCountAsync(id, EventCode.TenantResumed, ct));
     }
 
     [Fact(DisplayName = "Suspending an unknown key is NotFound")]

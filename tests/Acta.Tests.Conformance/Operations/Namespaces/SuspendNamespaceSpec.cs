@@ -5,14 +5,14 @@ using Xunit;
 
 namespace Acta.Tests.Conformance.Operations.Namespaces;
 
-/// <summary>Conformance for namespace suspend/resume: idempotent status flip, version bump, one 15xx event to the namespace itself, NotFound, and the facade sys guardrail.</summary>
+/// <summary>Conformance for namespace suspend: idempotent status flip, version bump, one 15xx event to the namespace itself, NotFound, and the facade sys guardrail.</summary>
 [ConformanceSpec(
-    "suspend-resume-namespace.status-flip",
-    "Namespace suspend/resume flip status, emit one 15xx event, and reject sys",
+    "suspend-namespace.status-flip",
+    "Namespace suspend flips status, emits one 15xx event, and rejects sys",
     Area = "Admin",
-    Contract = "Suspend and resume flip namespace status with a version bump, emit namespace.suspended/resumed to the namespace, and reject sys at the facade."
+    Contract = "Suspend flips a namespace to Suspended once with a version bump and namespace.suspended, reports NotFound for unknown names, and rejects sys."
 )]
-public sealed class SuspendResumeNamespaceSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+public sealed class SuspendNamespaceSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     protected override bool RunAsWorker => true;
 
@@ -55,18 +55,6 @@ public sealed class SuspendResumeNamespaceSpec : ActaRuntimeTestBase<Conformance
         Assert.Equal(1, await EventCountAsync(nsId, EventCode.NamespaceSuspended, ct));
     }
 
-    [Fact(DisplayName = "Resuming a suspended namespace applies and emits namespace.resumed")]
-    public async Task Resume_applies()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var nsId = Runtime.RegisteredNamespaceIds[TestNamespace];
-        await Operations.Namespaces.SuspendAsync(TestNamespace, null, "op-1", ct);
-        var outcome = await Operations.Namespaces.ResumeAsync(TestNamespace, "back", "op-1", ct);
-        Assert.Equal(ControlAction.Applied, outcome.Action);
-        Assert.Equal(NamespaceStatusCode.Active, (await ReadNsAsync(ct))!.Status);
-        Assert.Equal(1, await EventCountAsync(nsId, EventCode.NamespaceResumed, ct));
-    }
-
     [Fact(DisplayName = "An unknown namespace name is NotFound")]
     public async Task Unknown_not_found()
     {
@@ -75,14 +63,13 @@ public sealed class SuspendResumeNamespaceSpec : ActaRuntimeTestBase<Conformance
         Assert.Equal(ControlAction.NotFound, outcome.Action);
     }
 
-    [Fact(DisplayName = "Rejected sys suspend/resume leave the seeded row untouched and still listed")]
+    [Fact(DisplayName = "A rejected sys suspend leaves the seeded row untouched and still listed")]
     public async Task Sys_is_rejected()
     {
         var ct = TestContext.Current.CancellationToken;
         var before = await Db.From<JobNamespace>().Where(n => n.Id == 1).SingleOrDefaultAsync(ct);
 
         await Assert.ThrowsAsync<ArgumentException>(async () => await Operations.Namespaces.SuspendAsync("sys", null, null, ct));
-        await Assert.ThrowsAsync<ArgumentException>(async () => await Operations.Namespaces.ResumeAsync("sys", null, null, ct));
 
         var after = await Db.From<JobNamespace>().Where(n => n.Id == 1).SingleOrDefaultAsync(ct);
         Assert.Equal(NamespaceStatusCode.Active, after!.Status);

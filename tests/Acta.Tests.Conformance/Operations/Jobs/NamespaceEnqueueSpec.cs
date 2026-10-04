@@ -13,7 +13,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
 /// suspended, and succeed again once it is reactivated. The status is flipped with a direct SQL
 /// UPDATE rather than through <c>INamespaces.SuspendAsync</c>, so this spec pins the enqueue gate on
 /// the persisted status alone and stays independent of the admin verb (which
-/// <c>SuspendResumeNamespaceSpec</c> covers), mirroring
+/// <c>SuspendNamespaceSpec</c> covers), mirroring
 /// <see cref="TenantEnqueueSpec{ConformanceFixture}"/>'s suspended-tenant coverage.
 /// </summary>
 [ConformanceSpec(
