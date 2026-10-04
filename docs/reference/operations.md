@@ -151,13 +151,6 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 | `SetScheduleOverrides` | `ISchedules.UpdateOverridesAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/overrides` | · | routine | routine | inline | `events`, `runtimes`, `schedules` | `SetScheduleOverridesSpec` |
 | `TriggerScheduleNow` | `ISchedules.TriggerNowAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/trigger` | · | routine | routine | inline | `events`, `runtimes` | `TriggerScheduleNowSpec` |
 
-## Settings
-
-| Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `GetSetting` | `ISettings.GetAsync` | · | · | inline | inline | inline | · | `GetSettingSpec` |
-| `SetSetting` | `ISettings.SetAsync` | · | · | routine | routine | inline | `events`, `settings` | `SetSettingSpec` |
-
 ## Signals
 
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |

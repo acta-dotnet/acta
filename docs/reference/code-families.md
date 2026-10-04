@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **30 families**, **172 values**.
+This release: **29 families**, **168 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -59,7 +59,6 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | [`ScheduleExpressionKindCode`](#code-family-scheduleexpressionkindcode) | `schedule-expression-kind` | `byte` |
 | [`ScheduleOriginCode`](#code-family-scheduleorigincode) | `schedule-origin` | `byte` |
 | [`ScheduleStatusCode`](#code-family-schedulestatuscode) | `schedule-status` | `byte` |
-| [`SettingScopeCode`](#code-family-settingscopecode) | `setting-scope` | `byte` |
 | [`StepStatusCode`](#code-family-stepstatuscode) | `job-step-status` | `byte` |
 | [`TagScopeCode`](#code-family-tagscopecode) | `tag-scope` | `byte` |
 | [`TenantStatusCode`](#code-family-tenantstatuscode) | `tenant-status` | `byte` |
@@ -217,7 +216,6 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `WorkerDied` | 122 | `worker.died` | Worker heartbeat went stale; the sys.recovery system job flipped the worker to Dead. | Active |
 | `AlertAcknowledged` | 140 | `alert.acknowledged` | Operator acknowledged an alert; ReasonMessage carries the alert id and note. | Active |
 | `AlertResolved` | 141 | `alert.resolved` | Operator manually resolved an alert; ReasonMessage carries the alert id and note. | Active |
-| `SettingUpdated` | 160 | `setting.updated` | A durable setting was written (created or overwritten); Detail carries the setting name. | Active |
 | `OutboxRequeued` | 180 | `outbox.requeued` | An operator command returned quarantined outbox rows to Pending; ReasonMessage carries the justification and the row ids. | Active |
 | `OutboxDiscarded` | 181 | `outbox.discarded` | An operator command deleted quarantined outbox rows; ReasonMessage carries the justification and the deleted row ids. | Active |
 
@@ -348,14 +346,6 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Active` | 10 | `active` | Schedule is eligible to fire. | Active |
 | `Paused` | 30 | `paused` | Operator-paused; does not fire until resumed, or until PausedUntilUtc passes when set. | Active |
 | `Orphaned` | 230 | `orphaned` | Origin declaration disappeared from the catalog; set by reconciliation. Cannot fire or be paused/resumed. | Active |
-
-### `SettingScopeCode` · `setting-scope` <a id="code-family-settingscopecode"></a>
-
-| Member | Id | Code | Description | Lifecycle |
-|---|---:|---|---|---|
-| `Global` | 10 | `global` | Deployment-wide setting; scope_id is NULL. | Active |
-| `Namespace` | 30 | `namespace` | Setting scoped to one namespace; scope_id = namespaces.id. | Active |
-| `Definition` | 40 | `definition` | Setting scoped to one job definition; scope_id = definitions.id. | Active |
 
 ### `StepStatusCode` · `job-step-status` <a id="code-family-stepstatuscode"></a>
 

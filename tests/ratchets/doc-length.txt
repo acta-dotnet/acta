@@ -30,7 +30,6 @@ IJobContextAccessor.cs
 IJobPayloadSerializerRegistry.cs
 IJobs.cs
 ISchedules.cs
-ISettings.cs
 ITenants.cs
 IWorkerBuilder.cs
 IWorkerWakeup.cs
@@ -95,7 +94,6 @@ ScheduleWalker.cs
 SchemaColumnTypes.cs
 SchemaMigrationRunner.cs
 SchemaModel.cs
-SettingDetail.cs
 SignalSuspendSignal.cs
 SignalWaitResult.cs
 SqlObjectInstaller.cs

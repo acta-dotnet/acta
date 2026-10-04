@@ -30,7 +30,6 @@ public sealed partial class OperationsIndexTests
         "Tenants",
         "Namespaces",
         "Tags",
-        "Settings",
         "Outbox",
     ];
 

@@ -175,13 +175,6 @@ public enum EventCode : byte
     AlertResolved = 141,
 
     /// <summary>
-    /// No job columns; Detail carries {"name": ...} identifying the setting, since events has no
-    /// setting column. Always emitted: settings writes are low-volume operator/deployment activity.
-    /// </summary>
-    [Code("setting.updated", "A durable setting was written (created or overwritten); Detail carries the setting name.")]
-    SettingUpdated = 160,
-
-    /// <summary>
     /// Both outbox.* events are written against the namespace's sys.outbox slot job by the tick
     /// that applies a parked operator command. Always emitted regardless of audit level: this is
     /// the evidence trail for actions whose subject rows live (or lived) in the producer's

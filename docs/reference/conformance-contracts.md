@@ -10,14 +10,6 @@
 - **Guarantees:**
   - The tenant.suspended event carries the operator name exactly as supplied
 
-### Get reads one setting at exactly the scope its targets name
-- **Contract:** Get returns the setting stored at exactly the inferred scope, with no fallback to a wider one, and null when the setting or its scope target is absent.
-- **Guarantees:**
-  - A read returns the stored value, description, timestamps, and version
-  - A global value does not answer a namespace or definition read
-  - An unwritten name and an unregistered scope target both read null
-  - A read accepts the reserved sys prefix but rejects a malformed name or a job without its namespace
-
 ### A tenant id resolves to its stored key
 - **Contract:** GetTenantKey returns the normalized key of the tenant with the given id whatever its status, and null when no tenant has that id.
 - **Guarantees:**
@@ -36,15 +28,6 @@
 - **Guarantees:**
   - Resuming a suspended tenant applies and emits one tenant.resumed
   - Re-resuming an active tenant is AlreadyInState with no event
-
-### A setting is set and read back by name at its inferred scope
-- **Contract:** Set upserts one setting at the scope inferred from its targets with a version bump and emits setting.updated naming the setting.
-- **Guarantees:**
-  - Set creates then overwrites with a version bump; get returns the latest value
-  - One name addresses distinct rows at global, namespace, and definition scope
-  - An unregistered namespace or definition target is NotFound and writes nothing
-  - Every set emits setting.updated whose detail carries the setting name
-  - A non-null expectedVersion is a CAS: applied on match, VersionConflict with the current version on mismatch, NotFound when no row exists
 
 ### Namespace suspend flips status, emits one 15xx event, and rejects sys
 - **Contract:** Suspend flips a namespace to Suspended once with a version bump and namespace.suspended, reports NotFound for unknown names, and rejects sys.
@@ -1929,14 +1912,6 @@
   - tags_view decodes job scope beside exact target and tag values
   - events_view and checkpoints_view expose displayable payload text
 
-## Settings
-
-### Settings rows are unique per (scope_code, scope_id, name)
-- **Contract:** The settings table admits one row per (scope_code, scope_id, name), including the NULL-scope global form, on every provider.
-- **Guarantees:**
-  - A duplicate scoped setting is rejected while a different name or scope id inserts cleanly
-  - A duplicate global (NULL scope_id) setting is rejected on every provider
-
 ## Signals
 
 ### An operator raise sets the named slot and records who raised it
@@ -2224,7 +2199,6 @@
 | `GetOverview` | yes | yes | yes |
 | `GetResult` | yes | yes | yes |
 | `GetScheduleState` | yes | yes | yes |
-| `GetSetting` | yes | yes | yes |
 | `GetStaleChildLatches` | yes | yes | yes |
 | `GetTags` | yes | yes | yes |
 | `GetTenant` | yes | yes | yes |
@@ -2281,7 +2255,6 @@
 | `SchedulesView` | yes | yes | yes |
 | `SetJobDefinitionOverrides` | yes | yes | yes |
 | `SetScheduleOverrides` | yes | yes | yes |
-| `SetSetting` | yes | yes | yes |
 | `StartExecution` | yes | yes | yes |
 | `StartStep` | yes | yes | yes |
 | `StartWorker` | yes | yes | yes |

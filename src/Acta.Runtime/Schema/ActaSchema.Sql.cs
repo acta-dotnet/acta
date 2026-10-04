@@ -885,7 +885,7 @@ internal static partial class ActaSchema
         );
 
         /// <summary>
-        /// Optional CAS guard for the upsert-style admin write (set_setting) and the job control verbs:
+        /// Optional CAS guard for the job control verbs:
         /// null skips the version check (last write wins); non-null requires an existing row at exactly
         /// that version, else the write is rejected with VersionConflict (or NotFound when no row exists
         /// at the scope).

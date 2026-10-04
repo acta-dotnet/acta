@@ -315,26 +315,6 @@ CREATE TABLE IF NOT EXISTS {{schema}}.schedules (
 CREATE INDEX IF NOT EXISTS {{schema}}.ix_schedules_namespace_next ON schedules (namespace_id, next_run_at_utc, id) WHERE status_code <> 230;
 CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_schedules_job_name ON schedules (job_id, name);
 
--- settings
-CREATE TABLE IF NOT EXISTS {{schema}}.settings (
-    id integer PRIMARY KEY AUTOINCREMENT,
-    scope_code integer NOT NULL,
-    scope_id integer NULL,
-    name text NOT NULL,
-    value_format_id integer NOT NULL,
-    value blob NULL,
-    description text NULL,
-    created_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
-    modified_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
-    version integer DEFAULT 0 NOT NULL
-    , CONSTRAINT ck_settings_value_pair CHECK ((value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL))
-    , CONSTRAINT ck_settings_scope_pair CHECK ((scope_code = 10 AND scope_id IS NULL) OR (scope_code IN (30, 40) AND scope_id IS NOT NULL))
-    , CONSTRAINT ck_settings_scope_code CHECK (scope_code IN (10, 30, 40))
-    , CONSTRAINT ck_settings_value_format_id_byte CHECK (value_format_id BETWEEN 0 AND 255)
-) STRICT;
-CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_settings_scope_name ON settings (scope_code, scope_id, name) WHERE scope_id IS NOT NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_settings_global_name ON settings (scope_code, name) WHERE scope_id IS NULL;
-
 -- steps
 CREATE TABLE IF NOT EXISTS {{schema}}.steps (
     id integer PRIMARY KEY AUTOINCREMENT,
@@ -440,7 +420,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.checkpoints (
 
 
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-71e7f489442c68f384b0039f84e267bd', '{{schema}}')
+VALUES (0, 'baseline-7b814e5708d07131e5cbbf6656335610', '{{schema}}')
 ON CONFLICT (version) DO NOTHING;
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}')

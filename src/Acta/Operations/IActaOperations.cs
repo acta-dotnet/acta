@@ -29,9 +29,6 @@ public interface IActaOperations
     /// <summary>Exact searchable metadata attachments. See <see cref="ITags"/>.</summary>
     ITags Tags { get; }
 
-    /// <summary>Durable settings domain (get/set). See <see cref="ISettings"/>.</summary>
-    ISettings Settings { get; }
-
     /// <summary>External-outbox domain (sources/quarantine/requeue/discard). See <see cref="IOutbox"/>.</summary>
     IOutbox Outbox { get; }
 

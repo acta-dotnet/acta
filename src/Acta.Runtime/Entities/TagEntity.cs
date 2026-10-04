@@ -26,7 +26,7 @@ namespace Acta.Runtime;
 )]
 internal sealed class TagEntity : IEntity
 {
-    /// <summary>Exact target type; independent of <c>SettingScopeCode</c>.</summary>
+    /// <summary>Exact target type.</summary>
     [DbColumn("scope_code")]
     public TagScopeCode ScopeCode { get; init; }
 

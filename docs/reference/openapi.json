@@ -7378,7 +7378,6 @@
                 "worker.died",
                 "alert.acknowledged",
                 "alert.resolved",
-                "setting.updated",
                 "outbox.requeued",
                 "outbox.discarded"
               ],
@@ -7626,7 +7625,6 @@
                 "worker.died",
                 "alert.acknowledged",
                 "alert.resolved",
-                "setting.updated",
                 "outbox.requeued",
                 "outbox.discarded"
               ],
@@ -7786,7 +7784,6 @@
                 "worker.died",
                 "alert.acknowledged",
                 "alert.resolved",
-                "setting.updated",
                 "outbox.requeued",
                 "outbox.discarded"
               ],

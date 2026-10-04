@@ -1098,73 +1098,6 @@
         ]
       },
       {
-        "Table": "settings",
-        "PrimaryKey": "pk_settings(id)|manual=False|seq=False",
-        "Columns": [
-          {
-            "Name": "id",
-            "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|values="
-          },
-          {
-            "Name": "scope_code",
-            "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=setting-scope|values=10,30,40"
-          },
-          {
-            "Name": "scope_id",
-            "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|values="
-          },
-          {
-            "Name": "name",
-            "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|values="
-          },
-          {
-            "Name": "value_format_id",
-            "Signature": "Byte|0|0|0|False|None||coded=False|codeKind=|values="
-          },
-          {
-            "Name": "value",
-            "Signature": "BinaryPayload|0|0|0|True|None||coded=False|codeKind=|values="
-          },
-          {
-            "Name": "description",
-            "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|values="
-          },
-          {
-            "Name": "created_at_utc",
-            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
-          },
-          {
-            "Name": "modified_at_utc",
-            "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|values="
-          },
-          {
-            "Name": "version",
-            "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|values="
-          }
-        ],
-        "Indexes": [
-          {
-            "Name": "ux_settings_global_name",
-            "Signature": "U|cols=scope_code,name|inc=|desc=|filter=scope_id IS NULL|seq=False"
-          },
-          {
-            "Name": "ux_settings_scope_name",
-            "Signature": "U|cols=scope_code,scope_id,name|inc=|desc=|filter=scope_id IS NOT NULL|seq=False"
-          }
-        ],
-        "Checks": [
-          {
-            "Name": "ck_settings_scope_pair",
-            "Sql": "(scope_code = 10 AND scope_id IS NULL) OR (scope_code IN (30, 40) AND scope_id IS NOT NULL)"
-          },
-          {
-            "Name": "ck_settings_value_pair",
-            "Sql": "(value_format_id = 0 AND value IS NULL) OR (value_format_id \u003C\u003E 0 AND value IS NOT NULL)"
-          }
-        ],
-        "ForeignKeys": []
-      },
-      {
         "Table": "steps",
         "PrimaryKey": "pk_steps(id)|manual=False|seq=False",
         "Columns": [
@@ -1641,14 +1574,6 @@
           10,
           30,
           230
-        ]
-      },
-      {
-        "CodeKind": "setting-scope",
-        "ValueIds": [
-          10,
-          30,
-          40
         ]
       },
       {

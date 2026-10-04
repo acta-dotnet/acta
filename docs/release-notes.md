@@ -21,7 +21,7 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   `Acta.Postgres.Hosting`, and the SQL Server and SQLite equivalents), `RedisWakeupOptions`, the
   dashboard options and control authorization types in `Acta.AspNetCore.Configuration`, and the test
   host in `Acta.Testing.Hosting`. Replace those usings with the package root, such as `using Acta.Postgres;`.
-- **One control vocabulary.** `AdminControlAction` is gone: the tenant, namespace, and setting verbs
+- **One control vocabulary.** `AdminControlAction` is gone: the tenant and namespace verbs
   answer with `ControlAction`, which gains `AlreadyInState = 6`, and `VersionConflict` is 5 for every
   verb (the admin enum had 4). The JSON strings do not change. The routines behind those verbs now
   return the new values, so the object package moves to revision 9 and a host refuses a database whose
@@ -33,8 +33,8 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   client that showed `message` builds its text from `action` and `status`.
 - **The `Acta.Relational` package is gone.** Its code ships in `Acta.Runtime`, which every provider
   package already brings. A project that referenced `Acta.Relational` directly drops the reference.
-- **A command returns its own response.** `ISettings.SetAsync` returns `SetSettingResponse`; `ITenants`
-  answers `SuspendAsync`, `ResumeAsync`, and `UpdateAsync` with `SuspendTenantResponse`,
+- **A command returns its own response.** `ITenants` answers
+  `SuspendAsync`, `ResumeAsync`, and `UpdateAsync` with `SuspendTenantResponse`,
   `ResumeTenantResponse`, and `UpdateTenantResponse`; and `INamespaces` answers them with
   `SuspendNamespaceResponse`, `ResumeNamespaceResponse`, and `UpdateNamespaceResponse`, instead of the
   shared `AdminControlResult`. Each carries the same `Action` and `Version` and implements the new
@@ -63,6 +63,10 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   before. The HTTP bodies do not change; the OpenAPI document names each response type.
 - **`OutboxQuarantinedItem` is now `OutboxQuarantinedListItem`**, the name every other list row
   takes. Its members are unchanged.
+- **Durable settings are gone.** `IActaOperations.Settings`, `ISettings`, `SettingDetail`,
+  `SettingScopeCode`, and the `setting.updated` event (160) are removed, with the `settings` table and
+  the `set_setting` routine. Nothing in Acta read a setting; keep such values in your own table or in
+  configuration. The object package moves to revision 12.
 - **Code families are named by the table they describe.** `JobCheckpointKindCode`,
   `JobCheckpointStatusCode`, `JobDefinitionStatusCode`, `JobStepStatusCode`, and `JobEventReasonCode`
   drop the `Job` prefix, and `JobAuditLevelCode` and `JobTenantRequirementCode` become

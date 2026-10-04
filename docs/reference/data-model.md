@@ -2,7 +2,7 @@
 
 # Data model reference
 
-Structural reference for the Acta persistence model: **16 entities**, **239 columns**, **36 indexes**, **35 check constraints**, **8 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [`sql-recipes.md`](../guide/sql-recipes.md#foreign-key-policy).
+Structural reference for the Acta persistence model: **15 entities**, **229 columns**, **34 indexes**, **33 check constraints**, **8 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [`sql-recipes.md`](../guide/sql-recipes.md#foreign-key-policy).
 
 ## Schema inventory
 
@@ -19,7 +19,6 @@ Structural reference for the Acta persistence model: **16 entities**, **239 colu
 | [`acta.results`](#entity-acta-results) | One durable result per job attempt, keyed by `(JobId, ExecutionNumber)`, so result bytes stay off the hot job row and a recurring job keeps a history instead of overwriting one slot. | [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
 | [`acta.runtimes`](#entity-acta-runtimes) | The hot, mutable state of one job, one row per `jobs` row, split out so claim and complete churn never rewrites the identity and input row. | [`JobStatusCode`](./code-families.md#code-family-jobstatuscode), [`JobPriorityCode`](./code-families.md#code-family-jobprioritycode) |
 | [`acta.schedules`](#entity-acta-schedules) | One named recurring schedule attached to a definition's slot Job. | [`ScheduleOriginCode`](./code-families.md#code-family-scheduleorigincode), [`ScheduleExpressionKindCode`](./code-families.md#code-family-scheduleexpressionkindcode), [`MisfireStrategyCode`](./code-families.md#code-family-misfirestrategycode), [`ScheduleStatusCode`](./code-families.md#code-family-schedulestatuscode) |
-| [`acta.settings`](#entity-acta-settings) | One durable configuration value addressed by `(scope_code, scope_id, name)`: slow-changing operator or deployment configuration, never read on a hot path. | [`SettingScopeCode`](./code-families.md#code-family-settingscopecode), [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
 | [`acta.steps`](#entity-acta-steps) | The durable retry and result state of one step, one row per `(JobId, Name)`, written by `start_step` and `complete_step` behind `ctx.RunStepAsync`: inserted Pending on first run, updated across retries, and ended Succeeded, Exhausted, or Interrupted (a job restart deletes an E... | [`StepStatusCode`](./code-families.md#code-family-stepstatuscode), [`EventReasonCode`](./code-families.md#code-family-eventreasoncode), [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
 | [`acta.tags`](#entity-acta-tags) | Exact searchable metadata attached to one target. | [`TagScopeCode`](./code-families.md#code-family-tagscopecode) |
 | [`acta.tenants`](#entity-acta-tenants) | The tenants a job can be about: an optional, validated scope on individual jobs, orthogonal to the namespace, which stays the work-ownership boundary. | [`TenantStatusCode`](./code-families.md#code-family-tenantstatuscode) |
@@ -519,43 +518,6 @@ One named recurring schedule attached to a definition's slot Job. The `Origin` r
 
 ---
 
-### `acta.settings` <a id="entity-acta-settings"></a>
-
-One durable configuration value addressed by `(scope_code, scope_id, name)`: slow-changing operator or deployment configuration, never read on a hot path.
-
-**CLR type** `Acta.Runtime.SettingEntity` · **Primary key** `pk_settings` (`id`)
-
-**Columns**
-
-| Column | Kind | Size | Nullable | Default | Codes | Description |
-|---|---|---|---|---|---|---|
-| `id`<a id="column-acta-settings--id"></a> | `Int32` | · | no | `Identity` | PK | Surrogate row identifier; DB-assigned identity. |
-| `scope_code`<a id="column-acta-settings--scope-code"></a> | `Byte` | · | no | · | [`SettingScopeCode`](./code-families.md#code-family-settingscopecode) (`setting-scope`) | Scope discriminator (Global / Namespace / Definition). Part of the natural identity carried by the filtered unique pair `ux_settings_scope_name` / `ux_settings_global_name`. |
-| `scope_id`<a id="column-acta-settings--scope-id"></a> | `Int32` | · | yes | · | · | Target catalog row for narrowed scopes (`namespaces.id` / `definitions.id`); NULL for `Global`. No FK: the referenced catalog differs per `ScopeCode`. Paired with `ScopeCode` by `ck_settings_scope_pair`. |
-| `name`<a id="column-acta-settings--name"></a> | `AsciiString` | 128 | no | · | · | Lowercase dotted-kebab setting name (for example `sys.claim.batch-size`). ASCII Acta name. |
-| `value_format_id`<a id="column-acta-settings--value-format-id"></a> | `Byte` | · | no | · | [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) | Format-id selector for `Value`; same payload-format convention as job input and variables. `ck_settings_value_pair` enforces `(value_format_id = 0) = (value IS NULL)`. |
-| `value`<a id="column-acta-settings--value"></a> | `BinaryPayload` | max | yes | · | · | Encoded setting value; opaque bytes governed by `ValueFormatId`. |
-| `description`<a id="column-acta-settings--description"></a> | `UnicodeString` | 512 | yes | · | · | Operator-readable description of what the setting controls. |
-| `created_at_utc`<a id="column-acta-settings--created-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | When the setting row was first inserted. Set server-side. |
-| `modified_at_utc`<a id="column-acta-settings--modified-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | Last-write instant. Rendered server-side on INSERT; operations bump it on UPDATE. |
-| `version`<a id="column-acta-settings--version"></a> | `Int32` | · | no | `0` | concurrency token | Optimistic-concurrency token; operations manually increment via `SET version = version + 1` on every UPDATE. |
-
-**Indexes**
-
-| Name | Columns | Uniqueness | Filter | Usage |
-|---|---|---|---|---|
-| `ux_settings_scope_name` | `scope_code`, `scope_id`, `name` | unique | `scope_id IS NOT NULL` | `uniqueness` |
-| `ux_settings_global_name` | `scope_code`, `name` | unique | `scope_id IS NULL` | `uniqueness` |
-
-**Check constraints**
-
-| Name | SQL expression |
-|---|---|
-| `ck_settings_value_pair` | `(value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL)` |
-| `ck_settings_scope_pair` | `(scope_code = 10 AND scope_id IS NULL) OR (scope_code IN (30, 40) AND scope_id IS NOT NULL)` |
-
----
-
 ### `acta.steps` <a id="entity-acta-steps"></a>
 
 The durable retry and result state of one step, one row per `(JobId, Name)`, written by `start_step` and `complete_step` behind `ctx.RunStepAsync`: inserted Pending on first run, updated across retries, and ended Succeeded, Exhausted, or Interrupted (a job restart deletes an Exhausted row). `Status` is the success indicator, since a void step stores no result, and the retry policy is resolved live each attempt.
@@ -614,7 +576,7 @@ Exact searchable metadata attached to one target. A tag scope identifies the exa
 
 | Column | Kind | Size | Nullable | Default | Codes | Description |
 |---|---|---|---|---|---|---|
-| `scope_code`<a id="column-acta-tags--scope-code"></a> | `Byte` | · | no | · | [`TagScopeCode`](./code-families.md#code-family-tagscopecode) (`tag-scope`) | Exact target type; independent of `SettingScopeCode`. |
+| `scope_code`<a id="column-acta-tags--scope-code"></a> | `Byte` | · | no | · | [`TagScopeCode`](./code-families.md#code-family-tagscopecode) (`tag-scope`) | Exact target type. |
 | `scope_id`<a id="column-acta-tags--scope-id"></a> | `Int64` | · | no | · | PK | Target row id, with smaller target identifiers widened to bigint. |
 | `namespace_id`<a id="column-acta-tags--namespace-id"></a> | `Int32` | · | yes | · | · | Owning namespace for reverse search. Tenant tags are null; namespace tags carry their own id; every other target carries its owning namespace. |
 | `name`<a id="column-acta-tags--name"></a> | `AsciiString` | 128 | no | · | PK | Normalized dotted-kebab ASCII name. |

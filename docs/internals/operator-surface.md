@@ -31,7 +31,6 @@ CLI verbs run as `<exe> jobs <verb>`.
 | Alerts | `Alerts.ListAsync` / `GetAsync` | `GET /alerts`, `GET /alerts/{alertRef}` | | |
 | Tenants | `Tenants.ListAsync` / `GetAsync` | `GET /tenants`, `GET /tenants/{tenantKey}` | | |
 | Outbox | `Outbox.ListSourcesAsync` / `ListQuarantinedAsync` | `GET /outbox/sources`, `GET /outbox/{jobNamespace}/quarantined` | | the quarantined listing runs only on a host that registered the relay |
-| Settings | `Settings.GetAsync` | | | Layer-1 only, no HTTP surface |
 | Tags | `Tags.*` reads | `GET .../tags` per scope | | |
 | Input template | `IJobs.GetInputTemplate` | `GET /jobs/input-template` | | enqueue form shape hint |
 | Job input / result / checkpoints | `GetInputAsync` / `GetResultAsync` / `GetCheckpointsAsync` | (in detail) | | payload panels (size-capped); no standalone route |
@@ -64,7 +63,6 @@ CLI verbs run as `<exe> jobs <verb>`.
 | Alerts | `Alerts.Acknowledge/Resolve` | `POST /alerts/{alertRef}/...` |
 | Tags | `Tags.Upsert/Remove/Replace` | `POST/DELETE .../tags` (no HTTP replace) |
 | Outbox | `Outbox.Requeue/Discard` | `POST /outbox/{jobNamespace}/requeue`, `/discard` |
-| Settings | `Settings.SetAsync` | Layer-1 only |
 
 ## Known gaps (deliberate)
 

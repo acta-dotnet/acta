@@ -47,6 +47,4 @@ internal sealed class FakeOperations : IActaOperations
     ITags IActaOperations.Tags => Tags;
 
     IOutbox IActaOperations.Outbox => Outbox;
-
-    ISettings IActaOperations.Settings => throw new NotSupportedException();
 }

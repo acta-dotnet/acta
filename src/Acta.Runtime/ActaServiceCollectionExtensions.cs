@@ -71,9 +71,6 @@ public static class ActaServiceCollectionExtensions
         // Operation groups that have moved to handlers: each group's handlers, then its facade.
         services.AddSingleton<IServerClock, GetUtcNowHandler>();
         services.TryAddSingleton<IActaClock>(sp => sp.GetRequiredService<IServerClock>());
-        services.TryAddSingleton<GetSettingHandler>();
-        services.TryAddSingleton<SetSettingHandler>();
-        services.TryAddSingleton<ISettings, Settings>();
         services.TryAddSingleton<RegisterTenantHandler>();
         services.TryAddSingleton<GetTenantHandler>();
         services.TryAddSingleton<GetTenantKeyHandler>();

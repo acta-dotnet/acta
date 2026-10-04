@@ -355,35 +355,6 @@ public class EntitySchemaTests
     }
 
     [Fact]
-    public void Settings_Schema_Has_ScopedIdentity_And_ValuePair()
-    {
-        var s = ActaSchema.For<SettingEntity>();
-
-        Assert.Equal("settings", s.TableName);
-        Assert.Equal("pk_settings", s.PrimaryKey.Name);
-        Assert.Contains(
-            s.Indexes,
-            i => i.Name == "ux_settings_scope_name" && i.IsUnique && i.Columns.SequenceEqual(["scope_code", "scope_id", "name"])
-        );
-        Assert.Contains(
-            s.Indexes,
-            i => i.Name == "ux_settings_global_name" && i.IsUnique && i.Columns.SequenceEqual(["scope_code", "name"])
-        );
-        Assert.Contains(s.Checks, c => c.Name == "ck_settings_value_pair");
-
-        var scope = s.Column("scope_code");
-        Assert.True(scope.IsCoded);
-        Assert.False(scope.IsNullable);
-        Assert.True(s.Column("scope_id").IsNullable);
-    }
-
-    [Fact]
-    public void Entities_Manifest_Includes_Settings()
-    {
-        Assert.Contains("settings", ActaSchema.Entities.Select(e => e.TableName));
-    }
-
-    [Fact]
     public void Definition_DisplayName_Triplet_Follows_RunbookUrl_Pattern()
     {
         var s = ActaSchema.For<DefinitionEntity>();

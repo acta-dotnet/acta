@@ -361,30 +361,6 @@ CREATE UNIQUE INDEX ux_schedules_job_name ON {{schema}}.schedules (job_id, name)
 END
 GO
 
--- settings
-IF OBJECT_ID(N'{{schema}}.settings', N'U') IS NULL
-BEGIN
-CREATE TABLE {{schema}}.settings (
-    id int IDENTITY(1,1) NOT NULL,
-    scope_code tinyint NOT NULL,
-    scope_id int NULL,
-    name varchar(128) NOT NULL,
-    value_format_id tinyint NOT NULL,
-    value varbinary(max) NULL,
-    description nvarchar(512) NULL,
-    created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
-    modified_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
-    version int DEFAULT 0 NOT NULL
-    , CONSTRAINT pk_settings PRIMARY KEY (id)
-    , CONSTRAINT ck_settings_value_pair CHECK ((value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL))
-    , CONSTRAINT ck_settings_scope_pair CHECK ((scope_code = 10 AND scope_id IS NULL) OR (scope_code IN (30, 40) AND scope_id IS NOT NULL))
-    , CONSTRAINT ck_settings_scope_code CHECK (scope_code IN (10, 30, 40))
-);
-CREATE UNIQUE INDEX ux_settings_scope_name ON {{schema}}.settings (scope_code, scope_id, name) WHERE scope_id IS NOT NULL;
-CREATE UNIQUE INDEX ux_settings_global_name ON {{schema}}.settings (scope_code, name) WHERE scope_id IS NULL;
-END
-GO
-
 -- steps
 IF OBJECT_ID(N'{{schema}}.steps', N'U') IS NULL
 BEGIN
@@ -648,7 +624,7 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 0)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-6ea7e22b3a4a43146a92d9363d758dc2', '{{schema}}');
+VALUES (0, 'baseline-65dbbf6b9a2b407f4e13ffed772ea2ff', '{{schema}}');
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 1)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}');

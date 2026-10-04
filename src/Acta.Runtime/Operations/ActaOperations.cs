@@ -13,7 +13,6 @@ internal sealed class ActaOperations(
     ITenants tenants,
     INamespaces namespaces,
     ITags tags,
-    ISettings settings,
     IOutbox outbox,
     ILedger ledger
 ) : IActaOperations
@@ -25,7 +24,6 @@ internal sealed class ActaOperations(
     public ITenants Tenants => tenants;
     public INamespaces Namespaces => namespaces;
     public ITags Tags => tags;
-    public ISettings Settings => settings;
     public IOutbox Outbox => outbox;
 
     public ILedger Ledger => ledger;
