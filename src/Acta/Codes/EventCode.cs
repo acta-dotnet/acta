@@ -22,7 +22,7 @@ public enum EventCode : byte
     /// The persisted id is not one this build knows: the row was written by a newer Acta that added an
     /// event. Never written by Acta; only produced when reading forward.
     /// </summary>
-    [Code("unspecified", "Event id not recognized by this build; the row was written by a newer Acta.")]
+    [Code("unspecified", "Event id not recognized by this build; the row was written by a newer Acta.", Lifecycle = CodeLifecycle.Fallback)]
     Unspecified = 0,
 
     [Code("tenant.suspended", "An operator suspended a tenant; the key stops resolving at enqueue. ReasonMessage carries the reason.")]

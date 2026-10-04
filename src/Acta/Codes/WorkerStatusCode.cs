@@ -10,6 +10,13 @@ namespace Acta;
 [CodeKind("worker-status")]
 public enum WorkerStatusCode : byte
 {
+    [Code(
+        "unspecified",
+        "Worker status not recognized by this build; the row was written by a newer Acta.",
+        Lifecycle = CodeLifecycle.Fallback
+    )]
+    Unspecified = 0,
+
     [Code("active", "Polling claim; accepting work.")]
     Active = 10,
 

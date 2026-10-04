@@ -600,9 +600,9 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
             _ => throw new InvalidOperationException($"Unsupported projection member kind {member.Kind}."),
         };
 
-        if (member.ExtensibleDecoderFqn is not null)
+        if (member.DecoderFqn is not null)
         {
-            return member.ExtensibleDecoderFqn + ".FromId(" + readExpr + ")";
+            return member.DecoderFqn + ".FromId(" + readExpr + ")";
         }
 
         return member.EnumTypeFqn is null ? readExpr : "(" + member.EnumTypeFqn + ")" + readExpr;
@@ -681,7 +681,7 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
         bool IsNullable,
         ProjectionMemberKind Kind,
         string? EnumTypeFqn,
-        string? ExtensibleDecoderFqn,
+        string? DecoderFqn,
         string? RefTypeFqn
     )
     {
@@ -714,13 +714,13 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
         {
             var (isNullable, nonNullableType) = AnalyzeType(parameter.Type);
             string? enumTypeFqn = null;
-            string? extensibleDecoderFqn = null;
+            string? decoderFqn = null;
             var kind = KindOf(nonNullableType);
 
             if (nonNullableType is INamedTypeSymbol { TypeKind: TypeKind.Enum } enumType)
             {
                 enumTypeFqn = enumType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-                extensibleDecoderFqn = CodeFamilyNames.ExtensibleDecoderFqn(enumType);
+                decoderFqn = CodeFamilyNames.DecoderFqn(enumType);
                 kind = enumType.EnumUnderlyingType?.SpecialType switch
                 {
                     SpecialType.System_Byte => ProjectionMemberKind.Byte,
@@ -749,7 +749,7 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
 
             var refTypeFqn =
                 kind == ProjectionMemberKind.Ref ? nonNullableType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) : null;
-            return new ProjectionMemberInfo(parameter.Name, isNullable, kind, enumTypeFqn, extensibleDecoderFqn, refTypeFqn);
+            return new ProjectionMemberInfo(parameter.Name, isNullable, kind, enumTypeFqn, decoderFqn, refTypeFqn);
         }
 
         private static (bool IsNullable, ITypeSymbol NonNullableType) AnalyzeType(ITypeSymbol type)

@@ -6,6 +6,13 @@ namespace Acta;
 [CodeKind("outbox-status")]
 public enum OutboxStatusCode : byte
 {
+    [Code(
+        "unspecified",
+        "Outbox status not recognized by this build; the row was written by a newer Acta.",
+        Lifecycle = CodeLifecycle.Fallback
+    )]
+    Unspecified = 0,
+
     [Code("pending", "Due for relay claim; the claim path selects rows in this status once next_attempt_at_utc is reached.")]
     Pending = 10,
 

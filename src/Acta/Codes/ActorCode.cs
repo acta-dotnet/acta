@@ -6,6 +6,9 @@ namespace Acta;
 [CodeKind("actor")]
 public enum ActorCode : byte
 {
+    [Code("unspecified", "Actor not recognized by this build; the row was written by a newer Acta.", Lifecycle = CodeLifecycle.Fallback)]
+    Unspecified = 0,
+
     [Code(
         "sys",
         "Acta-shipped system [Job] (a reserved name prefixed with sys.) OR Acta runtime path that decided a transition. ActorKey is null."

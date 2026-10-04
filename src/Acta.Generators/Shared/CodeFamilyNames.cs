@@ -10,15 +10,14 @@ namespace Acta.Generators;
 internal static class CodeFamilyNames
 {
     /// <summary>
-    /// The generated <c>{Enum}Extensions</c> class of an <c>[CodeKind(Extensible = true)]</c> enum, or null
-    /// for any other type. Its <c>FromId</c> maps an id this build does not know to the id-0 member,
-    /// which a bare cast would leave as an undefined value. CodeGenerator emits the class into the enum's
-    /// namespace, never into a containing type.
+    /// The generated <c>{Enum}Extensions</c> class of a <c>[CodeKind]</c> enum, or null for any other type.
+    /// Its <c>FromId</c> maps an id this build does not know to the id-0 member, which a bare cast would
+    /// leave as an undefined value. CodeGenerator emits the class into the enum's namespace, never into a
+    /// containing type.
     /// </summary>
-    public static string? ExtensibleDecoderFqn(INamedTypeSymbol enumType)
+    public static string? DecoderFqn(INamedTypeSymbol enumType)
     {
-        var codeKind = enumType.GetAttributes().FirstOrDefault(a => a.AttributeClass?.Name == "CodeKindAttribute");
-        if (codeKind?.NamedArguments.FirstOrDefault(a => a.Key == "Extensible").Value.Value is not true)
+        if (!enumType.GetAttributes().Any(a => a.AttributeClass?.Name == "CodeKindAttribute"))
         {
             return null;
         }

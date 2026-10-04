@@ -15,7 +15,11 @@ public enum EventReasonCode : byte
     /// reason. Distinct from <see cref="Unclassified"/>, which is the writer stating that no catalog code fit.
     /// Never written by Acta; only produced when reading forward.
     /// </summary>
-    [Code("unspecified", "Reason id not recognized by this build; the row was written by a newer Acta.")]
+    [Code(
+        "unspecified",
+        "Reason id not recognized by this build; the row was written by a newer Acta.",
+        Lifecycle = CodeLifecycle.Fallback
+    )]
     Unspecified = 0,
 
     /// <summary>

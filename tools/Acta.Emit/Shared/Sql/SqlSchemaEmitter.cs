@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Reflection;
 using System.Text;
 using Acta.Emit.Shared.Model;
 using Acta.Runtime;
@@ -265,7 +266,12 @@ internal static class SqlSchemaEmitter
             return null;
         }
 
-        var values = Enum.GetValues(underlying).Cast<object>().Select(Convert.ToInt64).OrderBy(v => v);
+        // A Fallback member is never written, so the column refuses it like any unknown id.
+        var values = underlying
+            .GetFields(BindingFlags.Public | BindingFlags.Static)
+            .Where(f => f.GetCustomAttribute<CodeAttribute>()?.Lifecycle != CodeLifecycle.Fallback)
+            .Select(f => Convert.ToInt64(f.GetRawConstantValue(), CultureInfo.InvariantCulture))
+            .OrderBy(v => v);
         return string.Join(", ", values);
     }
 

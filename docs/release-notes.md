@@ -67,6 +67,11 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   `SettingScopeCode`, and the `setting.updated` event (160) are removed, with the `settings` table and
   the `set_setting` routine. Nothing in Acta read a setting; keep such values in your own table or in
   configuration. The object package moves to revision 12.
+- **Every code family decodes an unknown id.** A row a newer Acta wrote reads back as the family's
+  id-0 member instead of throwing, so a rolling deploy can read ahead of its build. Families without
+  an id-0 member gain `Unspecified = 0` with the new `CodeLifecycle.Fallback`: never written, absent
+  from every CHECK, and `IsWritableId` is false for it. `JobPriorityCode.Bulk` stays 0. The OpenAPI
+  enums list `unspecified`.
 - **Code families are named by the table they describe.** `JobCheckpointKindCode`,
   `JobCheckpointStatusCode`, `JobDefinitionStatusCode`, `JobStepStatusCode`, and `JobEventReasonCode`
   drop the `Job` prefix, and `JobAuditLevelCode` and `JobTenantRequirementCode` become

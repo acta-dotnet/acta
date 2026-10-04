@@ -1,3 +1,4 @@
+using System.Globalization;
 using Acta.Generators;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -43,6 +44,8 @@ public class CodeGeneratorDiagnosticTests
 
             public enum SampleCode : byte
             {
+                [Code("unspecified", "Not known to this build.", Lifecycle = CodeLifecycle.Fallback)]
+                Unspecified = 0,
                 [Code("one", "First value.")]
                 One = 1,
             }
@@ -51,6 +54,27 @@ public class CodeGeneratorDiagnosticTests
 
         var error = Assert.Single(Of(result, "ACTA0201"));
         Assert.Equal(DiagnosticSeverity.Error, error.Severity);
+    }
+
+    [Fact]
+    public void Family_without_an_id_zero_member_errors_ACTA0201()
+    {
+        var result = RunGenerator(
+            """
+            using Acta;
+            namespace GenTests;
+
+            [CodeKind("sample")]
+            public enum SampleCode : byte
+            {
+                [Code("one", "First value.")]
+                One = 1,
+            }
+            """
+        );
+
+        var error = Assert.Single(Of(result, "ACTA0201"));
+        Assert.Contains("requires a member with id 0", error.GetMessage(CultureInfo.InvariantCulture));
     }
 
     [Fact]
@@ -64,6 +88,8 @@ public class CodeGeneratorDiagnosticTests
             [CodeKind("Sample Kind")]
             public enum SampleCode : byte
             {
+                [Code("unspecified", "Not known to this build.", Lifecycle = CodeLifecycle.Fallback)]
+                Unspecified = 0,
                 [Code("one", "First value.")]
                 One = 1,
             }
@@ -192,6 +218,8 @@ public class CodeGeneratorDiagnosticTests
             [CodeKind("sample.kind")]
             public enum SampleCode : byte
             {
+                [Code("unspecified", "Not known to this build.", Lifecycle = CodeLifecycle.Fallback)]
+                Unspecified = 0,
                 [Code("one", "First value.")]
                 One = 1,
 
@@ -279,6 +307,8 @@ public class CodeGeneratorDiagnosticTests
             [CodeKind("sample")]
             public enum SampleCode : byte
             {
+                [Code("unspecified", "Not known to this build.", Lifecycle = CodeLifecycle.Fallback)]
+                Unspecified = 0,
                 [Code("one", "First value.")]
                 One = 1,
             }
@@ -335,6 +365,8 @@ public class CodeGeneratorDiagnosticTests
             [CodeKind("sample")]
             public enum SampleCode : byte
             {
+                [Code("unspecified", "Not known to this build.", Lifecycle = CodeLifecycle.Fallback)]
+                Unspecified = 0,
                 [Code("one", "First value.")]
                 One = 1,
 

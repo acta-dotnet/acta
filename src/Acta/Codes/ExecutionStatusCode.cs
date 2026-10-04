@@ -6,6 +6,13 @@ namespace Acta;
 [CodeKind("execution-status")]
 public enum ExecutionStatusCode : byte
 {
+    [Code(
+        "unspecified",
+        "Execution status not recognized by this build; the row was written by a newer Acta.",
+        Lifecycle = CodeLifecycle.Fallback
+    )]
+    Unspecified = 0,
+
     [Code("executing", "Handler in flight.")]
     Executing = 50,
 
@@ -70,7 +77,7 @@ public static partial class ExecutionStatusExtensions
                     ExecutionBehavior.Controlled,
                 ExecutionStatusCode.Failed => ExecutionBehavior.Failed,
                 ExecutionStatusCode.Cancelled => ExecutionBehavior.Cancelled,
-                ExecutionStatusCode.Orphaned => ExecutionBehavior.Indeterminate,
+                ExecutionStatusCode.Orphaned or ExecutionStatusCode.Unspecified => ExecutionBehavior.Indeterminate,
                 _ => throw new ArgumentOutOfRangeException(nameof(value), value, null),
             };
     }

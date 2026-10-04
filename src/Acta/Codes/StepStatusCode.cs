@@ -13,6 +13,13 @@ namespace Acta;
 [CodeKind("job-step-status")]
 public enum StepStatusCode : byte
 {
+    [Code(
+        "unspecified",
+        "Step status not recognized by this build; the row was written by a newer Acta.",
+        Lifecycle = CodeLifecycle.Fallback
+    )]
+    Unspecified = 0,
+
     /// <summary>First invocation INSERTed or retrying. <c>AttemptNumber</c> is 1 or more; <c>Result</c>
     /// is NULL. On failure within budget the row stays here with <c>AttemptNumber++</c>,
     /// <c>NextRetryAtUtc</c> advanced, and <c>LastReason*</c> updated.</summary>

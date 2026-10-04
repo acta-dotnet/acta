@@ -12,6 +12,13 @@ namespace Acta;
 [CodeKind("job-checkpoint-kind")]
 public enum CheckpointKindCode : byte
 {
+    [Code(
+        "unspecified",
+        "Checkpoint kind not recognized by this build; the row was written by a newer Acta.",
+        Lifecycle = CodeLifecycle.Fallback
+    )]
+    Unspecified = 0,
+
     /// <summary>User variable slot written by <c>SetVariableAsync</c> / <c>GetOrSetVariableAsync</c>.</summary>
     [Code("variable", "User variable slot; UPSERT, last-writer-wins, no state machine.")]
     Variable = 10,

@@ -9,9 +9,11 @@ namespace Acta.Tests.Contracts;
 public sealed class PersistedCodeContractTests
 {
     private const string ExpectedContract = """
+        AlertChannelStatusCode.Unspecified=0|unspecified
         AlertChannelStatusCode.Active=10|active
         AlertChannelStatusCode.Disabled=30|disabled
         AlertChannelStatusCode.Deprecated=240|deprecated
+        AlertDeliveryStatusCode.Unspecified=0|unspecified
         AlertDeliveryStatusCode.Pending=10|pending
         AlertDeliveryStatusCode.RetryAfter=20|retry-after
         AlertDeliveryStatusCode.Suppressed=30|suppressed
@@ -22,8 +24,10 @@ public sealed class PersistedCodeContractTests
         AlertKindCode.ThresholdReached=20|threshold-reached
         AlertKindCode.FinalFailure=30|final-failure
         AlertKindCode.Manual=40|manual
+        AlertOriginCode.Unspecified=0|unspecified
         AlertOriginCode.Automatic=10|automatic
         AlertOriginCode.Manual=20|manual
+        AlertSeverityCode.Unspecified=0|unspecified
         AlertSeverityCode.Info=10|info
         AlertSeverityCode.Warning=20|warning
         AlertSeverityCode.Error=30|error
@@ -33,6 +37,7 @@ public sealed class PersistedCodeContractTests
         AlertProfileCode.Info=20|info
         AlertProfileCode.OnTerminal=30|on-terminal
         AlertProfileCode.SysCritical=40|sys-critical
+        DefinitionStatusCode.Unspecified=0|unspecified
         DefinitionStatusCode.Active=10|active
         DefinitionStatusCode.Retired=240|retired
         EventCode.Unspecified=0|unspecified
@@ -98,6 +103,7 @@ public sealed class PersistedCodeContractTests
         EventReasonCode.JobLaneRepaired=67|job.lane-repaired
         EventReasonCode.WorkerCleanShutdown=100|worker.clean-shutdown
         EventReasonCode.WorkerHeartbeatStale=101|worker.heartbeat-stale
+        ExecutionStatusCode.Unspecified=0|unspecified
         ExecutionStatusCode.Executing=50|executing
         ExecutionStatusCode.Succeeded=100|succeeded
         ExecutionStatusCode.Rescheduled=150|rescheduled
@@ -106,21 +112,26 @@ public sealed class PersistedCodeContractTests
         ExecutionStatusCode.Failed=200|failed
         ExecutionStatusCode.Cancelled=220|cancelled
         ExecutionStatusCode.Orphaned=230|orphaned
+        CheckpointKindCode.Unspecified=0|unspecified
         CheckpointKindCode.Variable=10|variable
         CheckpointKindCode.Signal=20|signal
         CheckpointKindCode.Timer=30|timer
         CheckpointKindCode.Progress=40|progress
         CheckpointKindCode.ChildLatch=50|child-latch
+        CheckpointStatusCode.Unspecified=0|unspecified
         CheckpointStatusCode.Pending=10|pending
         CheckpointStatusCode.Set=20|set
         CheckpointStatusCode.Expired=30|expired
         CheckpointStatusCode.Consumed=100|consumed
+        StepStatusCode.Unspecified=0|unspecified
         StepStatusCode.Pending=10|pending
         StepStatusCode.Succeeded=100|succeeded
         StepStatusCode.Exhausted=200|exhausted
         StepStatusCode.Interrupted=230|interrupted
+        DeadlineBehaviorCode.Unspecified=0|unspecified
         DeadlineBehaviorCode.Strict=10|strict
         DeadlineBehaviorCode.Advisory=20|advisory
+        ActorCode.Unspecified=0|unspecified
         ActorCode.Sys=10|sys
         ActorCode.Operator=20|operator
         ActorCode.Job=50|job
@@ -136,6 +147,7 @@ public sealed class PersistedCodeContractTests
         DefinitionTenantRequirementCode.Optional=0|optional
         DefinitionTenantRequirementCode.Required=10|required
         DefinitionTenantRequirementCode.Forbidden=20|forbidden
+        JobStatusCode.Unspecified=0|unspecified
         JobStatusCode.Ready=10|ready
         JobStatusCode.Blocked=15|blocked
         JobStatusCode.Suspended=20|suspended
@@ -145,20 +157,27 @@ public sealed class PersistedCodeContractTests
         JobStatusCode.Succeeded=100|succeeded
         JobStatusCode.Failed=200|failed
         JobStatusCode.Cancelled=220|cancelled
+        OutboxStatusCode.Unspecified=0|unspecified
         OutboxStatusCode.Pending=10|pending
         OutboxStatusCode.Claimed=20|claimed
         OutboxStatusCode.Quarantined=90|quarantined
+        NamespaceStatusCode.Unspecified=0|unspecified
         NamespaceStatusCode.Active=10|active
         NamespaceStatusCode.Suspended=20|suspended
+        MisfireStrategyCode.Unspecified=0|unspecified
         MisfireStrategyCode.CatchUpOnce=10|catch-up-once
         MisfireStrategyCode.Skip=20|skip
+        ScheduleExpressionKindCode.Unspecified=0|unspecified
         ScheduleExpressionKindCode.Cron=10|cron
         ScheduleExpressionKindCode.Interval=20|interval
+        ScheduleOriginCode.Unspecified=0|unspecified
         ScheduleOriginCode.Operator=20|operator
         ScheduleOriginCode.Definition=40|definition
+        ScheduleStatusCode.Unspecified=0|unspecified
         ScheduleStatusCode.Active=10|active
         ScheduleStatusCode.Paused=30|paused
         ScheduleStatusCode.Orphaned=230|orphaned
+        TagScopeCode.Unspecified=0|unspecified
         TagScopeCode.Tenant=20|tenant
         TagScopeCode.Namespace=30|namespace
         TagScopeCode.Definition=40|definition
@@ -167,18 +186,20 @@ public sealed class PersistedCodeContractTests
         TagScopeCode.Worker=70|worker
         TagScopeCode.Alert=80|alert
         TagScopeCode.Event=90|event
+        TenantStatusCode.Unspecified=0|unspecified
         TenantStatusCode.Active=10|active
         TenantStatusCode.Suspended=20|suspended
+        WorkerStatusCode.Unspecified=0|unspecified
         WorkerStatusCode.Active=10|active
         WorkerStatusCode.Draining=80|draining
         WorkerStatusCode.Stopped=100|stopped
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "EBB838B54D8026DF56578E8EF3184980F27548B148B422A8A8B6F840D5858FCD";
+    private const string ExpectedDescriptionHash = "C4A1D7E93A19F2544A19BFE922D5F23E8F65DCDDC530D06B2164509BACFC8D41";
 
     [Fact]
-    public void Frozen_contract_covers_all_28_families_and_164_values()
+    public void Frozen_contract_covers_all_28_families_and_185_values()
     {
         var expected = ExpectedContract
             .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -188,7 +209,7 @@ public sealed class PersistedCodeContractTests
         var actual = families.SelectMany(ReadFamily).ToDictionary(x => x.Key, StringComparer.Ordinal);
 
         Assert.Equal(28, families.Length);
-        Assert.Equal(164, expected.Count);
+        Assert.Equal(185, expected.Count);
         Assert.Equal(expected.Keys.Order(), actual.Keys.Order());
 
         foreach (var (key, contract) in expected)
@@ -199,7 +220,7 @@ public sealed class PersistedCodeContractTests
             Assert.False(string.IsNullOrWhiteSpace(value.Description));
         }
 
-        Assert.Equal(164, CodeManifests.All.Count);
+        Assert.Equal(185, CodeManifests.All.Count);
         Assert.Equal(36, Enum.GetValues<EventCode>().Length);
         Assert.Equal(27, Enum.GetValues<EventReasonCode>().Length);
 
@@ -210,7 +231,7 @@ public sealed class PersistedCodeContractTests
         Assert.Equal((byte)200, (byte)WorkerStatusCode.Dead);
 
         var payloads = new[] { JobPayloadFormat.None, JobPayloadFormat.Json, JobPayloadFormat.Bytes, JobPayloadFormat.Text };
-        Assert.Equal(168, actual.Count + payloads.Length);
+        Assert.Equal(189, actual.Count + payloads.Length);
         Assert.Equal([0, 1, 2, 3], payloads.Select(p => (int)p.Id));
 
         var canonical = string.Join(
@@ -228,7 +249,7 @@ public sealed class PersistedCodeContractTests
     }
 
     [Fact]
-    public void Every_closed_family_round_trips_and_rejects_unknown_values()
+    public void Every_family_round_trips_and_reads_an_unknown_id_as_its_id_zero_member()
     {
         foreach (var family in CodeFamilies())
         {
@@ -255,19 +276,14 @@ public sealed class PersistedCodeContractTests
                 Assert.ThrowsAny<JsonException>(() => JsonSerializer.Deserialize($"\"{entry.Id}\"", family));
             }
 
-            if (family.GetCustomAttribute<CodeKindAttribute>()!.Extensible)
-            {
-                // Reading forward must not throw: an id this build does not know came from a newer
-                // Acta, so it decodes to Unspecified. FromCode stays strict either way, because it
-                // parses caller input where an unrecognized code is a bad request, not a version gap.
-                var unspecified = Enum.Parse(family, "Unspecified");
-                Assert.Equal(unspecified, fromId.Invoke(null, [byte.MaxValue]));
-            }
-            else
-            {
-                var unknownId = Assert.Throws<TargetInvocationException>(() => fromId.Invoke(null, [byte.MaxValue]));
-                Assert.IsType<ArgumentOutOfRangeException>(unknownId.InnerException);
-            }
+            // Reading forward must not throw: an id this build does not know came from a newer Acta, so
+            // it decodes to the id-0 member. FromCode stays strict, because it parses caller input where
+            // an unrecognized code is a bad request, not a version gap.
+            Assert.Equal(Enum.ToObject(family, 0), fromId.Invoke(null, [byte.MaxValue]));
+
+            // Unspecified is a Fallback member, read-only; a family whose id 0 is a real default writes it.
+            var isWritableId = extensionType.GetMethod("IsWritableId", BindingFlags.Public | BindingFlags.Static)!;
+            Assert.Equal(Enum.GetName(family, 0) != "Unspecified", isWritableId.Invoke(null, [(byte)0]));
 
             Assert.ThrowsAny<JsonException>(() => JsonSerializer.Deserialize("255", family));
             Assert.ThrowsAny<JsonException>(() => JsonSerializer.Deserialize("\"not-a-code\"", family));
@@ -275,26 +291,18 @@ public sealed class PersistedCodeContractTests
     }
 
     [Fact]
-    public void Extensible_families_write_an_undefined_value_as_their_fallback_code()
+    public void Every_family_writes_an_undefined_value_as_its_id_zero_code()
     {
-        // A value with no member can still reach Code or the JSON writer by a cast; an extensible
-        // family names it by its id-0 member instead of throwing, a closed family still throws.
+        // A value with no member can still reach Code or the JSON writer by a cast; the family names it
+        // by its id-0 member instead of throwing.
         Assert.Equal("unspecified", ((EventCode)200).Code);
-        Assert.Equal("unspecified", ((EventReasonCode)200).Code);
-        Assert.Equal("unspecified", ((AlertKindCode)200).Code);
-        Assert.Throws<ArgumentOutOfRangeException>(() => ((JobStatusCode)250).Code);
+        Assert.Equal("unspecified", ((JobStatusCode)250).Code);
+        Assert.Equal("off", ((DefinitionAuditLevelCode)250).Code);
 
         foreach (var family in CodeFamilies())
         {
-            var undefined = Enum.ToObject(family, byte.MaxValue);
-            if (family.GetCustomAttribute<CodeKindAttribute>()!.Extensible)
-            {
-                Assert.Equal("\"unspecified\"", JsonSerializer.Serialize(undefined, family));
-            }
-            else
-            {
-                Assert.Throws<ArgumentOutOfRangeException>(() => JsonSerializer.Serialize(undefined, family));
-            }
+            var zero = JsonSerializer.Serialize(Enum.ToObject(family, 0), family);
+            Assert.Equal(zero, JsonSerializer.Serialize(Enum.ToObject(family, byte.MaxValue), family));
         }
 
         Assert.Throws<ArgumentOutOfRangeException>(() => EventCode.FromCode("event.from-a-newer-acta"));
@@ -338,6 +346,7 @@ public sealed class PersistedCodeContractTests
             [ExecutionStatusCode.Failed] = ExecutionBehavior.Failed,
             [ExecutionStatusCode.Cancelled] = ExecutionBehavior.Cancelled,
             [ExecutionStatusCode.Orphaned] = ExecutionBehavior.Indeterminate,
+            [ExecutionStatusCode.Unspecified] = ExecutionBehavior.Indeterminate,
         };
         Assert.Equal(Enum.GetValues<ExecutionStatusCode>().Length, expected.Count);
         Assert.All(expected, pair => Assert.Equal(pair.Value, pair.Key.GetBehavior()));

@@ -10,6 +10,13 @@ namespace Acta;
 [CodeKind("alert-channel-status")]
 public enum AlertChannelStatusCode : byte
 {
+    [Code(
+        "unspecified",
+        "Alert channel status not recognized by this build; the row was written by a newer Acta.",
+        Lifecycle = CodeLifecycle.Fallback
+    )]
+    Unspecified = 0,
+
     [Code("active", "Channel accepts deliveries.")]
     Active = 10,
 

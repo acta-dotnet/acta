@@ -88,6 +88,7 @@ public sealed class CodeGenerator : IIncrementalGenerator
                     {
                         2 => "Deprecated",
                         3 => "Retired",
+                        4 => "Fallback",
                         _ => "Active",
                     };
                     break;
@@ -168,8 +169,7 @@ public sealed class CodeGenerator : IIncrementalGenerator
                 codeKind = declaredKind;
             }
 
-            // Extensible families emit no IN-list CHECK and read unknown ids back as Unspecified = 0
-            // instead of throwing, so new members ship without a migration.
+            // Extensible families emit no IN-list CHECK, so new members ship without a migration.
             var extensible = codeKindAttr?.NamedArguments.FirstOrDefault(a => a.Key == "Extensible").Value.Value is true;
 
             var underlying = enumType.EnumUnderlyingType?.SpecialType ?? SpecialType.None;
@@ -257,13 +257,15 @@ public sealed class CodeGenerator : IIncrementalGenerator
 
             ValidateReservations(enumType.Name, codes, reservations, reservedRanges, diagnostics);
 
-            if (extensible && !codes.Any(c => c.Id == 0))
+            // Every family decodes an id it does not know as its id-0 member, so a row a newer Acta wrote
+            // reads back during a rolling deploy: id 0 is a safe default or the Fallback Unspecified.
+            if (codes.Count > 0 && !codes.Any(c => c.Id == 0))
             {
                 diagnostics.Add(
                     new DiagnosticRecord(
                         "ACTA0201",
-                        $"`[CodeKind(Extensible = true)]` on `{enumType.Name}` requires a member with id 0 "
-                            + $"(by convention `Unspecified`), which unknown persisted ids read back as.",
+                        $"`{enumType.Name}` requires a member with id 0, a safe default or `Unspecified` with "
+                            + $"`Lifecycle = CodeLifecycle.Fallback`, which unknown persisted ids read back as.",
                         Fatal: true
                     )
                 );
@@ -555,7 +557,11 @@ public sealed class CodeGenerator : IIncrementalGenerator
         sb.AppendLine("        {");
         foreach (var c in family.Codes)
         {
-            sb.Append("            ").Append(c.Id).Append(" => ").Append(c.Lifecycle == "Retired" ? "false" : "true").AppendLine(",");
+            sb.Append("            ")
+                .Append(c.Id)
+                .Append(" => ")
+                .Append(c.Lifecycle is "Retired" or "Fallback" ? "false" : "true")
+                .AppendLine(",");
         }
 
         sb.AppendLine("            _ => false,");
@@ -569,22 +575,11 @@ public sealed class CodeGenerator : IIncrementalGenerator
             sb.Append("            ").Append(c.Id).Append(" => ").Append(typeName).Append('.').Append(c.MemberName).AppendLine(",");
         }
 
-        // Extensible families tolerate ids this build does not know: the row was written by a newer
-        // Acta, and a forward read must not throw. FromCode stays strict either way - it parses caller
-        // input, where an unrecognized code is a bad request, not a version gap.
-        if (family.Extensible)
-        {
-            // Whichever member holds id 0, not a hardcoded name: the ACTA0201 guard requires id 0 to
-            // exist but does not dictate what it is called.
-            var fallback = family.Codes.First(c => c.Id == 0).MemberName;
-            sb.Append("            _ => ").Append(typeName).Append('.').Append(fallback).AppendLine(",");
-        }
-        else
-        {
-            sb.Append("            _ => throw new global::System.ArgumentOutOfRangeException(nameof(id), id, \"Unknown ")
-                .Append(typeName)
-                .AppendLine(" id.\"),");
-        }
+        // An id this build does not know was written by a newer Acta, and a forward read must not throw,
+        // so it reads as whichever member holds id 0 (ACTA0201 requires one once a family has members).
+        // FromCode stays strict: it parses caller input, where an unrecognized code is a bad request.
+        var zero = family.Codes.FirstOrDefault(c => c.Id == 0);
+        AppendDefaultArm(sb, typeName, "id", zero is null ? null : typeName + "." + zero.MemberName);
 
         sb.AppendLine("        };");
         sb.AppendLine();
@@ -595,9 +590,7 @@ public sealed class CodeGenerator : IIncrementalGenerator
         {
             sb.Append("            \"").Append(c.Code).Append("\" => ").Append(typeName).Append('.').Append(c.MemberName).AppendLine(",");
         }
-        sb.Append("            _ => throw new global::System.ArgumentOutOfRangeException(nameof(code), code, \"Unknown ")
-            .Append(typeName)
-            .AppendLine(" code.\"),");
+        AppendDefaultArm(sb, typeName, "code", fallback: null);
         sb.AppendLine("        };");
         sb.AppendLine("    }");
         sb.AppendLine();
@@ -610,9 +603,7 @@ public sealed class CodeGenerator : IIncrementalGenerator
         {
             sb.Append("            ").Append(typeName).Append('.').Append(c.MemberName).Append(" => ").Append(c.Id).AppendLine(",");
         }
-        sb.Append("            _ => throw new global::System.ArgumentOutOfRangeException(nameof(value), value, \"Unknown ")
-            .Append(typeName)
-            .AppendLine(" value.\"),");
+        AppendDefaultArm(sb, typeName, "value", fallback: null);
         sb.AppendLine("        };");
         sb.AppendLine();
         sb.AppendLine("        public string Code => value switch");
@@ -622,18 +613,9 @@ public sealed class CodeGenerator : IIncrementalGenerator
             sb.Append("            ").Append(typeName).Append('.').Append(c.MemberName).Append(" => \"").Append(c.Code).AppendLine("\",");
         }
 
-        // An extensible family names a value it does not know by its id-0 member, so the JSON writer
-        // (which calls Code) can serialize a forward-read row instead of throwing.
-        if (family.Extensible)
-        {
-            sb.Append("            _ => \"").Append(family.Codes.First(c => c.Id == 0).Code).AppendLine("\",");
-        }
-        else
-        {
-            sb.Append("            _ => throw new global::System.ArgumentOutOfRangeException(nameof(value), value, \"Unknown ")
-                .Append(typeName)
-                .AppendLine(" value.\"),");
-        }
+        // A value this build does not know is named by the id-0 member, so the JSON writer (which calls
+        // Code) can serialize a forward-read row instead of throwing.
+        AppendDefaultArm(sb, typeName, "value", zero is null ? null : "\"" + zero.Code + "\"");
         sb.AppendLine("        };");
         sb.AppendLine();
         sb.AppendLine("        public string Description => value switch");
@@ -649,9 +631,7 @@ public sealed class CodeGenerator : IIncrementalGenerator
                 .AppendLine(",");
         }
 
-        sb.Append("            _ => throw new global::System.ArgumentOutOfRangeException(nameof(value), value, \"Unknown ")
-            .Append(typeName)
-            .AppendLine(" value.\"),");
+        AppendDefaultArm(sb, typeName, "value", fallback: null);
         sb.AppendLine("        };");
         sb.AppendLine("    }");
         sb.AppendLine("}");
@@ -666,6 +646,26 @@ public sealed class CodeGenerator : IIncrementalGenerator
     /// numeric id is a storage detail that never crosses JSON. Reading a number or a numeric string
     /// would be compatibility shaping for a producer that does not exist.
     /// </summary>
+    // A switch's last arm: the fallback expression when the family has one, else a throw naming the input.
+    private static void AppendDefaultArm(StringBuilder sb, string typeName, string input, string? fallback)
+    {
+        if (fallback is not null)
+        {
+            sb.Append("            _ => ").Append(fallback).AppendLine(",");
+            return;
+        }
+
+        sb.Append("            _ => throw new global::System.ArgumentOutOfRangeException(nameof(")
+            .Append(input)
+            .Append("), ")
+            .Append(input)
+            .Append(", \"Unknown ")
+            .Append(typeName)
+            .Append(' ')
+            .Append(input)
+            .AppendLine(".\"),");
+    }
+
     private static void AppendJsonConverter(StringBuilder sb, FamilyModel family, string typeName)
     {
         sb.AppendLine();

@@ -9,6 +9,13 @@ namespace Acta;
 [CodeKind("tenant-status")]
 public enum TenantStatusCode : byte
 {
+    [Code(
+        "unspecified",
+        "Tenant status not recognized by this build; the row was written by a newer Acta.",
+        Lifecycle = CodeLifecycle.Fallback
+    )]
+    Unspecified = 0,
+
     [Code("active", "Tenant key resolves at enqueue; enqueue allowed.")]
     Active = 10,
 

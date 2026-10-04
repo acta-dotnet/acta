@@ -3,7 +3,6 @@ ActaManifestGenerator.BuildManifestSource
 ActaManifestGenerator.ReadAttributePolicy
 ActaSchemaGenerator.Transform
 ActaServiceCollectionExtensions.UseActa
-CodeGenerator.EmitExtensions
 CodeGenerator.GroupByContainingEnum
 JobExecution.RunAsync
 JobExecutor.ExecuteOwnedClaimAsync

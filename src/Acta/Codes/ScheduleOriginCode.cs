@@ -6,6 +6,13 @@ namespace Acta;
 [CodeKind("schedule-origin")]
 public enum ScheduleOriginCode : byte
 {
+    [Code(
+        "unspecified",
+        "Schedule origin not recognized by this build; the row was written by a newer Acta.",
+        Lifecycle = CodeLifecycle.Fallback
+    )]
+    Unspecified = 0,
+
     [Code("operator", "Operator-driven schedule add/remove. No code path produces rows with this origin today.")]
     Operator = 20,
 

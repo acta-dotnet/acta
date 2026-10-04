@@ -116,13 +116,16 @@ separate range checks so consumer formats through `255` remain valid.
 
 ## Adding a value to a code family
 
-Two kinds of code family are persisted, and they evolve differently.
+Two kinds of code family are persisted, and they evolve differently. Both decode an id they do not know
+as their id-0 member, so a row a newer build wrote reads back instead of failing. That member is a safe
+default (`JobPriorityCode.Bulk`, `DefinitionAuditLevelCode.Off`) or `Unspecified` with
+`Lifecycle = CodeLifecycle.Fallback`, which is never written and which no CHECK lists.
 
 - **Extensible families** (event, event reason, alert kind) carry no IN-list CHECK. A later release
   adds a value by using it: no migration, and a 1.0 reader decodes an id it does not know as
   `Unspecified` instead of failing.
-- **Closed families** (job status, step status, checkpoint kind, settings scope, tag scope, and the
-  other generated CHECKs) reject any value the baseline does not list. Adding one means replacing
+- **Closed families** (job status, step status, checkpoint kind, tag scope, and the other generated
+  CHECKs) reject any value the baseline does not list. Adding one means replacing
   that CHECK with a wider one.
 
 Replacing a CHECK with a wider one is an allowed compatibility operation under the additive-only
@@ -133,8 +136,8 @@ table, copy the rows, drop the old one, rename, and recreate its indexes, with f
 the copy and a `foreign_key_check` before commit.
 
 Widening the constraint does not make the new value safe to write. During a rolling deploy an older
-worker still reads the table, and its status helpers already treat an unknown status as neither
-claimable nor terminal, but its closed-family serializer rejects the value outright. A release that
+worker still reads the table, and it reads the new value as the family's id-0 member,
+which its status helpers treat as neither claimable nor terminal, so it cannot act on the value. A release that
 adds a closed value therefore ships in two steps: the first release widens the constraint and
 teaches readers the value, and a later one starts writing it, once no worker older than the first
 is running.

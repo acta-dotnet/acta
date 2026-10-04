@@ -14,7 +14,11 @@ public enum AlertKindCode : byte
     /// The persisted id is not one this build knows: the row was written by a newer Acta that added an
     /// alert kind. Never written by Acta; only produced when reading forward.
     /// </summary>
-    [Code("unspecified", "Alert kind not recognized by this build; the row was written by a newer Acta.")]
+    [Code(
+        "unspecified",
+        "Alert kind not recognized by this build; the row was written by a newer Acta.",
+        Lifecycle = CodeLifecycle.Fallback
+    )]
     Unspecified = 0,
 
     [Code("first-failure", "Failure that opened the incident; emitted by Automatic origin on non-terminal failure.")]

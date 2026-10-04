@@ -11,6 +11,13 @@ namespace Acta;
 [CodeKind("job-definition-status")]
 public enum DefinitionStatusCode : byte
 {
+    [Code(
+        "unspecified",
+        "Definition status not recognized by this build; the row was written by a newer Acta.",
+        Lifecycle = CodeLifecycle.Fallback
+    )]
+    Unspecified = 0,
+
     [Code("active", "Enqueue allowed; claim allowed.")]
     Active = 10,
 

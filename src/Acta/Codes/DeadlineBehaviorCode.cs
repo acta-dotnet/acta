@@ -9,6 +9,13 @@ namespace Acta;
 [CodeKind("deadline-behavior")]
 public enum DeadlineBehaviorCode : byte
 {
+    [Code(
+        "unspecified",
+        "Deadline behavior not recognized by this build; the row was written by a newer Acta.",
+        Lifecycle = CodeLifecycle.Fallback
+    )]
+    Unspecified = 0,
+
     /// <summary>
     /// The engine auto-terminates an overdue job: it refuses admission of an already-overdue claimed
     /// job and refuses to re-arm a retry whose next attempt would land past the deadline. The running

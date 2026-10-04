@@ -73,7 +73,7 @@ public sealed class DbProjectionGeneratorTests
     }
 
     [Fact]
-    public void Extensible_code_member_decodes_through_FromId_and_closed_one_casts()
+    public void Code_member_decodes_through_FromId_and_a_plain_enum_casts()
     {
         var (result, compilation) = RunGenerator(
             """
@@ -100,14 +100,13 @@ public sealed class DbProjectionGeneratorTests
                 public static OpenCode FromId(byte id) => id == 10 ? OpenCode.Known : OpenCode.Unspecified;
             }
 
-            [CodeKind("closed")]
-            internal enum ClosedCode : byte
+            internal enum PlainCode : byte
             {
                 Known = 10,
             }
 
             [DbProjection]
-            internal sealed record CodedRow(OpenCode Open, OpenCode? MaybeOpen, ClosedCode Closed);
+            internal sealed record CodedRow(OpenCode Open, OpenCode? MaybeOpen, PlainCode Plain);
             """
         );
 
@@ -121,7 +120,7 @@ public sealed class DbProjectionGeneratorTests
             "MaybeOpen: r.IsDBNull(o[1]) ? null : global::GenTests.OpenCodeExtensions.FromId(Convert.ToByte(r.GetValue(o[1]), CultureInfo.InvariantCulture))",
             source
         );
-        Assert.Contains("Closed: (global::GenTests.ClosedCode)Convert.ToByte(r.GetValue(o[2]), CultureInfo.InvariantCulture)", source);
+        Assert.Contains("Plain: (global::GenTests.PlainCode)Convert.ToByte(r.GetValue(o[2]), CultureInfo.InvariantCulture)", source);
     }
 
     [Fact]

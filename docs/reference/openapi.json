@@ -1469,6 +1469,7 @@
             "description": "Exact job status as a kebab code.",
             "schema": {
               "enum": [
+                "unspecified",
                 "ready",
                 "blocked",
                 "suspended",
@@ -3064,6 +3065,7 @@
             "description": "Exact tenant status as a kebab code.",
             "schema": {
               "enum": [
+                "unspecified",
                 "active",
                 "suspended"
               ],
@@ -6210,6 +6212,7 @@
             "description": "Exact worker status as a kebab code.",
             "schema": {
               "enum": [
+                "unspecified",
                 "active",
                 "draining",
                 "stopped",
@@ -6402,6 +6405,7 @@
             "description": "Exact namespace status as a kebab code.",
             "schema": {
               "enum": [
+                "unspecified",
                 "active",
                 "suspended"
               ],
@@ -6560,6 +6564,7 @@
             "description": "Exact delivery status as a kebab code.",
             "schema": {
               "enum": [
+                "unspecified",
                 "pending",
                 "retry-after",
                 "suppressed",
@@ -6971,6 +6976,7 @@
             "description": "Exact definition status as a kebab code.",
             "schema": {
               "enum": [
+                "unspecified",
                 "active",
                 "retired"
               ],
@@ -7097,6 +7103,7 @@
             "description": "Exact schedule origin as a kebab code.",
             "schema": {
               "enum": [
+                "unspecified",
                 "operator",
                 "definition"
               ],
@@ -7390,6 +7397,7 @@
             "description": "Exact actor as its kebab code.",
             "schema": {
               "enum": [
+                "unspecified",
                 "sys",
                 "operator",
                 "job",

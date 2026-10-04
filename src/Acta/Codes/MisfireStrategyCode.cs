@@ -7,6 +7,13 @@ namespace Acta;
 public enum MisfireStrategyCode : byte
 {
     [Code(
+        "unspecified",
+        "Misfire strategy not recognized by this build; the row was written by a newer Acta.",
+        Lifecycle = CodeLifecycle.Fallback
+    )]
+    Unspecified = 0,
+
+    [Code(
         "catch-up-once",
         "After downtime, fire once immediately for all missed occurrences, then resume from the next occurrence after now."
     )]

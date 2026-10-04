@@ -16,7 +16,7 @@ internal readonly record struct JobControlActor
     /// </summary>
     public JobControlActor(ActorCode actorCode, string? actorKey = null)
     {
-        if (!Enum.IsDefined(actorCode))
+        if (!ActorCode.IsWritableId((byte)actorCode))
         {
             throw new ArgumentOutOfRangeException(nameof(actorCode), actorCode, "Unknown actor code.");
         }

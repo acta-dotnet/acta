@@ -46,7 +46,10 @@ internal sealed record SchemaSnapshot(IReadOnlyList<EntitySnapshot> Entities, IR
         // across all 162 values (`PersistedCodeContractTests.cs:176,214-226`).
         var codeFamilies = families
             .Where(f => f.CodeKind is not null && !f.IsExtensible)
-            .Select(f => new CodeFamilySnapshot(f.CodeKind!, f.Values.Select(v => v.Id).Order().ToList()))
+            .Select(f => new CodeFamilySnapshot(
+                f.CodeKind!,
+                f.Values.Where(v => v.Lifecycle != "Fallback").Select(v => v.Id).Order().ToList()
+            ))
             .OrderBy(f => f.CodeKind, StringComparer.Ordinal)
             .ToList();
 

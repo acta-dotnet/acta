@@ -13,6 +13,13 @@ namespace Acta;
 [CodeKind("job-checkpoint-status")]
 public enum CheckpointStatusCode : byte
 {
+    [Code(
+        "unspecified",
+        "Checkpoint status not recognized by this build; the row was written by a newer Acta.",
+        Lifecycle = CodeLifecycle.Fallback
+    )]
+    Unspecified = 0,
+
     /// <summary>Awaited or armed; the slot has not been satisfied yet.</summary>
     [Code("pending", "Awaited or armed; the slot has not been satisfied yet.")]
     Pending = 10,

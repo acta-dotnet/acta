@@ -149,6 +149,7 @@ enum Acta.ActorCode
     Job = 50
     Operator = 20
     Sys = 10
+    Unspecified = 0
     Worker = 70
 static class Acta.ActorCodeExtensions
     Acta.ActorCode FromCode(System.String code)
@@ -183,6 +184,7 @@ enum Acta.AlertChannelStatusCode
     Active = 10
     Deprecated = 240
     Disabled = 30
+    Unspecified = 0
 static class Acta.AlertChannelStatusCodeExtensions
     Acta.AlertChannelStatusCode FromCode(System.String code)
     Acta.AlertChannelStatusCode FromId(System.Byte id)
@@ -211,6 +213,7 @@ enum Acta.AlertDeliveryStatusCode
     Pending = 10
     RetryAfter = 20
     Suppressed = 30
+    Unspecified = 0
 static class Acta.AlertDeliveryStatusCodeExtensions
     Acta.AlertDeliveryStatusCode FromCode(System.String code)
     Acta.AlertDeliveryStatusCode FromId(System.Byte id)
@@ -302,6 +305,7 @@ sealed class Acta.AlertNotification
 enum Acta.AlertOriginCode
     Automatic = 10
     Manual = 20
+    Unspecified = 0
 static class Acta.AlertOriginCodeExtensions
     Acta.AlertOriginCode FromCode(System.String code)
     Acta.AlertOriginCode FromId(System.Byte id)
@@ -351,6 +355,7 @@ enum Acta.AlertSeverityCode
     Critical = 40
     Error = 30
     Info = 10
+    Unspecified = 0
     Warning = 20
 static class Acta.AlertSeverityCodeExtensions
     Acta.AlertSeverityCode FromCode(System.String code)
@@ -414,6 +419,7 @@ enum Acta.CheckpointKindCode
     Progress = 40
     Signal = 20
     Timer = 30
+    Unspecified = 0
     Variable = 10
 static class Acta.CheckpointKindCodeExtensions
     Acta.CheckpointKindCode FromCode(System.String code)
@@ -440,6 +446,7 @@ enum Acta.CheckpointStatusCode
     Expired = 30
     Pending = 10
     Set = 20
+    Unspecified = 0
 static class Acta.CheckpointStatusCodeExtensions
     Acta.CheckpointStatusCode FromCode(System.String code)
     Acta.CheckpointStatusCode FromId(System.Byte id)
@@ -486,6 +493,7 @@ sealed class Acta.CodeKindAttribute
 enum Acta.CodeLifecycle
     Active = 1
     Deprecated = 2
+    Fallback = 4
     Retired = 3
 sealed class Acta.CodeManifestEntry
     .ctor(System.String CodeKind, System.Byte Id, System.String Code, System.String Description, Acta.CodeLifecycle Lifecycle)
@@ -496,7 +504,7 @@ sealed class Acta.CodeManifestEntry
     System.String Description { get;init; }
 static class Acta.CodeManifests
     System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> All { get; }
-    System.String MarkdownReport = <26197 chars, sha256:7A6B3C05>
+    System.String MarkdownReport = <28696 chars, sha256:5DEE043B>
 enum Acta.ControlAction
     Accepted = 4
     AlreadyInState = 6
@@ -554,6 +562,7 @@ enum Acta.DbProvider
 enum Acta.DeadlineBehaviorCode
     Advisory = 20
     Strict = 10
+    Unspecified = 0
 static class Acta.DeadlineBehaviorCodeExtensions
     Acta.DeadlineBehaviorCode FromCode(System.String code)
     Acta.DeadlineBehaviorCode FromId(System.Byte id)
@@ -701,6 +710,7 @@ sealed class Acta.DefinitionPolicyOverrides
 enum Acta.DefinitionStatusCode
     Active = 10
     Retired = 240
+    Unspecified = 0
 static class Acta.DefinitionStatusCodeExtensions
     Acta.DefinitionStatusCode FromCode(System.String code)
     Acta.DefinitionStatusCode FromId(System.Byte id)
@@ -900,6 +910,7 @@ enum Acta.ExecutionStatusCode
     Rescheduled = 150
     Succeeded = 100
     Suspended = 151
+    Unspecified = 0
 static class Acta.ExecutionStatusCodeExtensions
     Acta.ExecutionStatusCode FromCode(System.String code)
     Acta.ExecutionStatusCode FromId(System.Byte id)
@@ -1604,6 +1615,7 @@ enum Acta.JobStatusCode
     Ready = 10
     Succeeded = 100
     Suspended = 20
+    Unspecified = 0
 static class Acta.JobStatusCodeExtensions
     Acta.JobStatusCode FromCode(System.String code)
     Acta.JobStatusCode FromId(System.Byte id)
@@ -1782,6 +1794,7 @@ sealed class Acta.MapOutcome<TKey>
 enum Acta.MisfireStrategyCode
     CatchUpOnce = 10
     Skip = 20
+    Unspecified = 0
 static class Acta.MisfireStrategyCodeExtensions
     Acta.MisfireStrategyCode FromCode(System.String code)
     Acta.MisfireStrategyCode FromId(System.Byte id)
@@ -1807,6 +1820,7 @@ sealed class Acta.NamespaceListItem
 enum Acta.NamespaceStatusCode
     Active = 10
     Suspended = 20
+    Unspecified = 0
 static class Acta.NamespaceStatusCodeExtensions
     Acta.NamespaceStatusCode FromCode(System.String code)
     Acta.NamespaceStatusCode FromId(System.Byte id)
@@ -1845,6 +1859,7 @@ enum Acta.OutboxStatusCode
     Claimed = 20
     Pending = 10
     Quarantined = 90
+    Unspecified = 0
 static class Acta.OutboxStatusCodeExtensions
     Acta.OutboxStatusCode FromCode(System.String code)
     Acta.OutboxStatusCode FromId(System.Byte id)
@@ -2023,6 +2038,7 @@ sealed class Acta.ScheduleDescriptor
 enum Acta.ScheduleExpressionKindCode
     Cron = 10
     Interval = 20
+    Unspecified = 0
 static class Acta.ScheduleExpressionKindCodeExtensions
     Acta.ScheduleExpressionKindCode FromCode(System.String code)
     Acta.ScheduleExpressionKindCode FromId(System.Byte id)
@@ -2065,6 +2081,7 @@ sealed class Acta.ScheduleLookup
 enum Acta.ScheduleOriginCode
     Definition = 40
     Operator = 20
+    Unspecified = 0
 static class Acta.ScheduleOriginCodeExtensions
     Acta.ScheduleOriginCode FromCode(System.String code)
     Acta.ScheduleOriginCode FromId(System.Byte id)
@@ -2088,6 +2105,7 @@ enum Acta.ScheduleStatusCode
     Active = 10
     Orphaned = 230
     Paused = 30
+    Unspecified = 0
 static class Acta.ScheduleStatusCodeExtensions
     Acta.ScheduleStatusCode FromCode(System.String code)
     Acta.ScheduleStatusCode FromId(System.Byte id)
@@ -2165,6 +2183,7 @@ enum Acta.StepStatusCode
     Interrupted = 230
     Pending = 10
     Succeeded = 100
+    Unspecified = 0
 static class Acta.StepStatusCodeExtensions
     Acta.StepStatusCode FromCode(System.String code)
     Acta.StepStatusCode FromId(System.Byte id)
@@ -2217,6 +2236,7 @@ enum Acta.TagScopeCode
     Namespace = 30
     Schedule = 60
     Tenant = 20
+    Unspecified = 0
     Worker = 70
 static class Acta.TagScopeCodeExtensions
     Acta.TagScopeCode FromCode(System.String code)
@@ -2270,6 +2290,7 @@ sealed class Acta.TenantListItem
 enum Acta.TenantStatusCode
     Active = 10
     Suspended = 20
+    Unspecified = 0
 static class Acta.TenantStatusCodeExtensions
     Acta.TenantStatusCode FromCode(System.String code)
     Acta.TenantStatusCode FromId(System.Byte id)
@@ -2360,6 +2381,7 @@ enum Acta.WorkerStatusCode
     Dead = 200
     Draining = 80
     Stopped = 100
+    Unspecified = 0
 static class Acta.WorkerStatusCodeExtensions
     Acta.WorkerStatusCode FromCode(System.String code)
     Acta.WorkerStatusCode FromId(System.Byte id)
