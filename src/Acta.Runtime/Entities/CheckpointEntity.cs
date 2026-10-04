@@ -41,7 +41,7 @@ internal sealed class CheckpointEntity : IEntity
     /// Part of the composite PK, so identical names under different kinds never collide.
     /// </summary>
     [DbColumn("kind_code")]
-    public JobCheckpointKindCode Kind { get; init; }
+    public CheckpointKindCode Kind { get; init; }
 
     /// <summary>
     /// Slot name. Dotted-kebab ASCII for user variables and signals; <c>sys.progress</c> for the
@@ -58,7 +58,7 @@ internal sealed class CheckpointEntity : IEntity
     /// <see cref="Kind"/> with <see cref="DueAtUtc"/> by <c>ck_checkpoints_kind_shape</c>.
     /// </summary>
     [DbColumn("status_code")]
-    public JobCheckpointStatusCode? Status { get; set; }
+    public CheckpointStatusCode? Status { get; set; }
 
     /// <summary>
     /// The named wait's absolute expiration: a timer's due instant, or a bounded signal / child wait's

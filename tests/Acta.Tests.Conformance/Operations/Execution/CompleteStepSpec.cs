@@ -44,7 +44,7 @@ public sealed class CompleteStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
 
         Assert.Equal(new CompleteStepDecision(CompleteStepOutcomeCode.Succeeded, null), done);
         var step = await ReadStepAsync(job, ct);
-        Assert.Equal(JobStepStatusCode.Succeeded, step.Status);
+        Assert.Equal(StepStatusCode.Succeeded, step.Status);
         Assert.Equal(JobPayloadFormat.Json.Id, step.ResultFormatId);
         Assert.Equal(Result, step.Result);
         Assert.Null(step.ReasonCode);
@@ -67,9 +67,9 @@ public sealed class CompleteStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
         var retryAt = Assert.NotNull(failed.NextRetryAtUtc);
         Assert.InRange(retryAt, dbNow.AddSeconds(599), dbNow.AddSeconds(660));
         var step = await ReadStepAsync(job, ct);
-        Assert.Equal(JobStepStatusCode.Pending, step.Status);
+        Assert.Equal(StepStatusCode.Pending, step.Status);
         Assert.Equal(retryAt, step.NextRetryAtUtc);
-        Assert.Equal(JobEventReasonCode.JobUnhandledException, step.ReasonCode);
+        Assert.Equal(EventReasonCode.JobUnhandledException, step.ReasonCode);
         Assert.Equal(Reason, step.ReasonMessage);
         Assert.Equal(1, step.AttemptNumber);
         Assert.Equal(start.Version + 1, step.Version);
@@ -86,9 +86,9 @@ public sealed class CompleteStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
 
         Assert.Equal(new CompleteStepDecision(CompleteStepOutcomeCode.Exhausted, null), exhausted);
         var step = await ReadStepAsync(job, ct);
-        Assert.Equal(JobStepStatusCode.Exhausted, step.Status);
+        Assert.Equal(StepStatusCode.Exhausted, step.Status);
         Assert.Null(step.NextRetryAtUtc);
-        Assert.Equal(JobEventReasonCode.JobUnhandledException, step.ReasonCode);
+        Assert.Equal(EventReasonCode.JobUnhandledException, step.ReasonCode);
         Assert.Equal(Reason, step.ReasonMessage);
     }
 
@@ -106,9 +106,9 @@ public sealed class CompleteStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
         var withinWindow = await FailAsync(inside, insideStart.Version, maxAttempts: 5, retryWindowSeconds: 3600, ct);
 
         Assert.Equal(CompleteStepOutcomeCode.Exhausted, pastWindow.Outcome);
-        Assert.Equal(JobStepStatusCode.Exhausted, (await ReadStepAsync(outside, ct)).Status);
+        Assert.Equal(StepStatusCode.Exhausted, (await ReadStepAsync(outside, ct)).Status);
         Assert.Equal(CompleteStepOutcomeCode.RetryScheduled, withinWindow.Outcome);
-        Assert.Equal(JobStepStatusCode.Pending, (await ReadStepAsync(inside, ct)).Status);
+        Assert.Equal(StepStatusCode.Pending, (await ReadStepAsync(inside, ct)).Status);
     }
 
     [Fact(DisplayName = "A success or a failure carrying a stale version reports StaleVersion and writes nothing")]
@@ -130,7 +130,7 @@ public sealed class CompleteStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(new CompleteStepDecision(CompleteStepOutcomeCode.StaleVersion, null), success);
         Assert.Equal(new CompleteStepDecision(CompleteStepOutcomeCode.StaleVersion, null), failure);
         var after = await ReadStepAsync(job, ct);
-        Assert.Equal(JobStepStatusCode.Pending, after.Status);
+        Assert.Equal(StepStatusCode.Pending, after.Status);
         Assert.Equal(before.Version, after.Version);
         Assert.Null(after.Result);
         Assert.Null(after.ReasonCode);
@@ -148,7 +148,7 @@ public sealed class CompleteStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
                 Succeeded: false,
                 ResultFormatId: 0,
                 Result: null,
-                JobEventReasonCode.JobUnhandledException,
+                EventReasonCode.JobUnhandledException,
                 Reason,
                 DelaySeconds: 600,
                 maxAttempts,

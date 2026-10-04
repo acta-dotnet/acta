@@ -66,7 +66,7 @@ public sealed class RetireJobDefinitionSpec : ActaRuntimeTestBase<ConformanceFix
 
             Assert.Equal(1, await CountEventsAsync(cancelled.JobId, EventCode.JobCancelled, ct));
             var evt = await ReadSingleEventAsync(cancelled.JobId, EventCode.JobCancelled, ct);
-            Assert.Equal(JobEventReasonCode.JobDefinitionRetired, evt.ReasonCode);
+            Assert.Equal(EventReasonCode.JobDefinitionRetired, evt.ReasonCode);
             Assert.Equal(ActorCode.Operator, evt.ActorCode);
             Assert.Equal(ActorKey, evt.ActorKey);
             Assert.Equal(Reason, evt.ReasonMessage);
@@ -87,7 +87,7 @@ public sealed class RetireJobDefinitionSpec : ActaRuntimeTestBase<ConformanceFix
 
         var after = await Operations.Definitions.GetAsync(TestNamespace, "job-wait-signal", ct);
         Assert.NotNull(after);
-        Assert.Equal(JobDefinitionStatusCode.Retired, after!.Status);
+        Assert.Equal(DefinitionStatusCode.Retired, after!.Status);
         Assert.True(after.Version > before!.Version);
 
         var evt = await Db.From<EventEntity>()
@@ -163,7 +163,7 @@ public sealed class RetireJobDefinitionSpec : ActaRuntimeTestBase<ConformanceFix
 
         var latch = Assert.Single(await ReadSignalsAsync(parent.JobId, ct));
         Assert.Equal($"sys.child.{child.Id}", latch.Name);
-        Assert.Equal(JobCheckpointStatusCode.Set, latch.Status);
+        Assert.Equal(CheckpointStatusCode.Set, latch.Status);
     }
 
     [Fact(DisplayName = "Enqueue against a retired definition is rejected with DefinitionRetired")]
@@ -198,7 +198,7 @@ public sealed class RetireJobDefinitionSpec : ActaRuntimeTestBase<ConformanceFix
         // Neither call wrote: the row keeps its status and version, its parked job is still Ready, and
         // no definition-level event was recorded.
         var after = await Operations.Definitions.GetAsync(TestNamespace, "add-numbers", ct);
-        Assert.Equal(JobDefinitionStatusCode.Active, after!.Status);
+        Assert.Equal(DefinitionStatusCode.Active, after!.Status);
         Assert.Equal(before.Version, after.Version);
         Assert.Equal(JobStatusCode.Ready, await Jobs.GetStatusAsync(parked, ct));
         Assert.Equal(eventsBefore, await CountDefinitionEventsAsync(before.DefinitionId, ct));
@@ -233,13 +233,13 @@ public sealed class RetireJobDefinitionSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Equal(ControlAction.Applied, (await RetireAsync("add-numbers", ct)).Action);
 
         await DefinitionTestOps.RegisterAsync(Services, ns, OlderGeneration, descriptors, ct);
-        Assert.Equal(JobDefinitionStatusCode.Retired, (await Operations.Definitions.GetAsync(TestNamespace, "add-numbers", ct))!.Status);
+        Assert.Equal(DefinitionStatusCode.Retired, (await Operations.Definitions.GetAsync(TestNamespace, "add-numbers", ct))!.Status);
         await Assert.ThrowsAsync<EnqueueRejectedException>(async () =>
             await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct)
         );
 
         await DefinitionTestOps.RegisterAsync(Services, ns, Generation, descriptors, ct);
-        Assert.Equal(JobDefinitionStatusCode.Active, (await Operations.Definitions.GetAsync(TestNamespace, "add-numbers", ct))!.Status);
+        Assert.Equal(DefinitionStatusCode.Active, (await Operations.Definitions.GetAsync(TestNamespace, "add-numbers", ct))!.Status);
 
         var accepted = await Jobs.EnqueueAsync(
             new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))),

@@ -44,7 +44,7 @@ public sealed class RollingGenerationBManifest : IJobManifest
                 RequiresCancellationToken: true,
                 Priority: JobPriorityCode.Normal,
                 MaxAttempts: 2,
-                AuditLevel: JobAuditLevelCode.Audit,
+                AuditLevel: DefinitionAuditLevelCode.Audit,
                 AlertProfile: AlertProfileCode.OnFailure,
                 Invoker: static async (_, _, ctx, ct) =>
                 {
@@ -129,7 +129,7 @@ public sealed class RollingDeploySpec : ActaRuntimeTestBase<ConformanceFixture, 
         // Registering a manifest that omits a definition does not retire it: the old generation is
         // still deployed, and its jobs are still enqueueable and claimable.
         var oldOnlyDefinition = await ReadDefinitionAsync(OldOnlyJob, ct);
-        Assert.Equal(JobDefinitionStatusCode.Active, oldOnlyDefinition.Status);
+        Assert.Equal(DefinitionStatusCode.Active, oldOnlyDefinition.Status);
 
         // --- 3. The generation that carries the handler runs the handed-back job, no retry spent, and
         // hands back the other way: a job of the definition it omitted is not its work either.
@@ -163,7 +163,7 @@ public sealed class RollingDeploySpec : ActaRuntimeTestBase<ConformanceFixture, 
         // process runs its job under exactly the policy it registered in the first place.
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(rolledBackOld.JobId, ct)).Status);
         var afterRollback = await ReadDefinitionAsync(OldOnlyJob, ct);
-        Assert.Equal(JobDefinitionStatusCode.Active, afterRollback.Status);
+        Assert.Equal(DefinitionStatusCode.Active, afterRollback.Status);
         Assert.Equal(oldOnlyDefinition.DefinitionHash, afterRollback.DefinitionHash);
         Assert.Equal(oldOnlyDefinition.ManifestGenerationAtUtc, afterRollback.ManifestGenerationAtUtc);
         Assert.Equal(oldOnlyDefinition.MaxAttemptsEffective, afterRollback.MaxAttemptsEffective);
@@ -191,7 +191,7 @@ public sealed class RollingDeploySpec : ActaRuntimeTestBase<ConformanceFixture, 
 
         Assert.Equal(JobStatusCode.Cancelled, (await ReadJobAsync(strandedNew.JobId, ct)).Status);
         var cancelEvent = await ReadLatestEventAsync(strandedNew.JobId, EventCode.JobCancelled, ct);
-        Assert.Equal(JobEventReasonCode.JobDefinitionRetired, cancelEvent.ReasonCode);
+        Assert.Equal(EventReasonCode.JobDefinitionRetired, cancelEvent.ReasonCode);
 
         var rejected = await Assert.ThrowsAsync<EnqueueRejectedException>(async () =>
             await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, NewJob, JobPayload.None), ct)

@@ -66,14 +66,14 @@ public sealed class ListJobDefinitionsFilterMatrixSpec : ActaRuntimeTestBase<Con
         // Retire def-a the way the operator verb leaves it; registration never writes Retired.
         await Db.From<DefinitionEntity>()
             .Where(d => d.Id == defAId)
-            .UpdateOnlyAsync(() => new DefinitionEntity { Status = JobDefinitionStatusCode.Retired }, ct);
+            .UpdateOnlyAsync(() => new DefinitionEntity { Status = DefinitionStatusCode.Retired }, ct);
 
         var activeIds = new HashSet<int> { defBId };
         var retiredIds = new HashSet<int> { defAId };
 
         // Active filter: only def-b, exact set + total, def-a excluded
         var activePage = await queries.Definitions.ListAsync(
-            new ListDefinitionsQuery(JobNamespace: nsName, Status: JobDefinitionStatusCode.Active, IncludeTotal: true),
+            new ListDefinitionsQuery(JobNamespace: nsName, Status: DefinitionStatusCode.Active, IncludeTotal: true),
             ct
         );
         Assert.Equal(activeIds, [.. activePage.Items.Select(d => d.DefinitionId)]);
@@ -82,7 +82,7 @@ public sealed class ListJobDefinitionsFilterMatrixSpec : ActaRuntimeTestBase<Con
 
         // Retired filter: only def-a, def-b excluded
         var retiredPage = await queries.Definitions.ListAsync(
-            new ListDefinitionsQuery(JobNamespace: nsName, Status: JobDefinitionStatusCode.Retired),
+            new ListDefinitionsQuery(JobNamespace: nsName, Status: DefinitionStatusCode.Retired),
             ct
         );
         Assert.Equal(retiredIds, [.. retiredPage.Items.Select(d => d.DefinitionId)]);

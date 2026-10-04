@@ -8,8 +8,8 @@ LEFT JOIN {{schema}}.jobs c
     ON c.id = TRY_CAST(SUBSTRING(js.name, 11, 20) AS BIGINT)
 LEFT JOIN {{schema}}.runtimes cr ON cr.job_id = c.id
 WHERE
-    js.kind_code = 50 /* JobCheckpointKindCode.ChildLatch */
+    js.kind_code = 50 /* CheckpointKindCode.ChildLatch */
     AND js.name LIKE 'sys.child.%'
     AND TRY_CAST(SUBSTRING(js.name, 11, 20) AS BIGINT) IS NOT NULL
-    AND js.status_code = 10 /* JobCheckpointStatusCode.Pending */
+    AND js.status_code = 10 /* CheckpointStatusCode.Pending */
     AND (c.id IS NULL OR cr.status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */));

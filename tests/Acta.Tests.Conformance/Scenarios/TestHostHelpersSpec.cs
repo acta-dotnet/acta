@@ -25,23 +25,23 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
 
         var sleep = await host.Jobs.EnqueueAsync(TestJobsManifest.JobSleepBasic, ct: ct);
         Assert.Equal(ActaRunOutcome.Rearmed, await host.RunOnceAsync(sleep, ct));
-        var timer = Assert.Single(await CheckpointsAsync(host, sleep.JobId, JobCheckpointKindCode.Timer, ct));
-        Assert.Equal(("nap", JobCheckpointStatusCode.Pending), (timer.Name, timer.Status));
+        var timer = Assert.Single(await CheckpointsAsync(host, sleep.JobId, CheckpointKindCode.Timer, ct));
+        Assert.Equal(("nap", CheckpointStatusCode.Pending), (timer.Name, timer.Status));
 
         await host.ForceTimerDueAsync(sleep.JobId, ct: ct);
         await RunUntilAsync(host, sleep, JobStatusCode.Succeeded, ct);
         Assert.Equal(
-            JobCheckpointStatusCode.Consumed,
-            Assert.Single(await CheckpointsAsync(host, sleep.JobId, JobCheckpointKindCode.Timer, ct)).Status
+            CheckpointStatusCode.Consumed,
+            Assert.Single(await CheckpointsAsync(host, sleep.JobId, CheckpointKindCode.Timer, ct)).Status
         );
 
         var step = await host.Jobs.EnqueueAsync(TestJobsManifest.JobStepRetry, ct: ct);
         Assert.Equal(ActaRunOutcome.Rearmed, await host.RunOnceAsync(step, ct));
-        Assert.Equal(JobStepStatusCode.Pending, (await StepAsync(host, step.JobId, "flaky", ct)).Status);
+        Assert.Equal(StepStatusCode.Pending, (await StepAsync(host, step.JobId, "flaky", ct)).Status);
 
         await host.ForceStepRetryDueAsync(step.JobId, "flaky", ct);
         await RunUntilAsync(host, step, JobStatusCode.Succeeded, ct);
-        Assert.Equal(JobStepStatusCode.Succeeded, (await StepAsync(host, step.JobId, "flaky", ct)).Status);
+        Assert.Equal(StepStatusCode.Succeeded, (await StepAsync(host, step.JobId, "flaky", ct)).Status);
     }
 
     [Fact(DisplayName = "The wait-timeout helper expires a bounded wait and rejects an unbounded one")]
@@ -56,8 +56,8 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
         await host.ForceWaitTimeoutDueAsync(bounded.JobId, "go", ct);
         await RunUntilAsync(host, bounded, JobStatusCode.Succeeded, ct);
         Assert.Equal(
-            JobCheckpointStatusCode.Expired,
-            Assert.Single(await CheckpointsAsync(host, bounded.JobId, JobCheckpointKindCode.Signal, ct)).Status
+            CheckpointStatusCode.Expired,
+            Assert.Single(await CheckpointsAsync(host, bounded.JobId, CheckpointKindCode.Signal, ct)).Status
         );
 
         // An unbounded wait has no expiration to move, so the helper must say so rather than no-op into
@@ -78,7 +78,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
 
         // The helper reads the awaited slot by kind, so a child latch stages exactly like a signal does;
         // its name is the framework-owned sys.child key rather than anything the handler chose.
-        var latch = Assert.Single(await CheckpointsAsync(host, parent.JobId, JobCheckpointKindCode.ChildLatch, ct));
+        var latch = Assert.Single(await CheckpointsAsync(host, parent.JobId, CheckpointKindCode.ChildLatch, ct));
         Assert.NotNull(latch.DueAtUtc);
 
         await host.ForceWaitTimeoutDueAsync(parent.JobId, latch.Name, ct);
@@ -86,8 +86,8 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
 
         Assert.True((await host.Jobs.GetResultAsync<ChildWaitReport>(JobLookup.ById(parent.JobId), ct))!.TimedOut);
         Assert.Equal(
-            JobCheckpointStatusCode.Expired,
-            Assert.Single(await CheckpointsAsync(host, parent.JobId, JobCheckpointKindCode.ChildLatch, ct)).Status
+            CheckpointStatusCode.Expired,
+            Assert.Single(await CheckpointsAsync(host, parent.JobId, CheckpointKindCode.ChildLatch, ct)).Status
         );
     }
 
@@ -142,12 +142,10 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
     {
         for (var tick = 0; ; tick++)
         {
-            var waiting = (await CheckpointsAsync(host, job.JobId, JobCheckpointKindCode.Signal, ct)).SingleOrDefault(c =>
-                c.Name == signal
-            );
-            if (waiting is { Status: JobCheckpointStatusCode.Pending } || tick == MaxTicks)
+            var waiting = (await CheckpointsAsync(host, job.JobId, CheckpointKindCode.Signal, ct)).SingleOrDefault(c => c.Name == signal);
+            if (waiting is { Status: CheckpointStatusCode.Pending } || tick == MaxTicks)
             {
-                Assert.True(waiting is { Status: JobCheckpointStatusCode.Pending }, $"Job {job.JobId} never waited for signal '{signal}'.");
+                Assert.True(waiting is { Status: CheckpointStatusCode.Pending }, $"Job {job.JobId} never waited for signal '{signal}'.");
                 return waiting;
             }
             await host.RunOnceAsync(job, ct);
@@ -157,7 +155,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
     private static async Task<IReadOnlyList<CheckpointEntity>> CheckpointsAsync(
         IActaTestHost host,
         long jobId,
-        JobCheckpointKindCode kind,
+        CheckpointKindCode kind,
         CancellationToken ct
     ) =>
         await host

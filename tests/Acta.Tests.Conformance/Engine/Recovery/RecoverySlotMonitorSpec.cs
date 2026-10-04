@@ -70,7 +70,7 @@ public sealed class RecoverySlotMonitorSpec : ActaRuntimeTestBase<ConformanceFix
             .ToListAsync(ct);
         var lost = Assert.Single(finished);
         Assert.Equal(ExecutionStatusCode.Orphaned, lost.ExecutionStatus);
-        Assert.Equal(JobEventReasonCode.JobLeaseExpired, lost.ReasonCode);
+        Assert.Equal(EventReasonCode.JobLeaseExpired, lost.ReasonCode);
         Assert.Equal(JobStatusCode.Executing, lost.FromStatus);
         Assert.Equal(JobStatusCode.Ready, lost.ToStatus);
 

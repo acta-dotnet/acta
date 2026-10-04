@@ -147,7 +147,7 @@ BEGIN
         END LOOP;
     END IF;
 
-    IF v_audit_level = 20 /* JobAuditLevelCode.Audit */ THEN
+    IF v_audit_level = 20 /* DefinitionAuditLevelCode.Audit */ THEN
         IF v_from_status = 50 /* JobStatusCode.Executing */ THEN
             INSERT INTO {{schema}}.events (
                 event_code,

@@ -97,7 +97,7 @@ public sealed class ConsumeOutboxSignalSpec : ActaStorageTestBase<ConformanceFix
 
     private async Task<IReadOnlyList<CheckpointEntity>> RowsAsync(long jobId, string name, CancellationToken ct) =>
         await Db.From<CheckpointEntity>()
-            .Where(c => c.JobId == jobId && c.Kind == JobCheckpointKindCode.Signal && c.Name == name)
+            .Where(c => c.JobId == jobId && c.Kind == CheckpointKindCode.Signal && c.Name == name)
             .ToListAsync(ct);
 
     private async Task<int> CountAsync(long jobId, string name, CancellationToken ct) => (await RowsAsync(jobId, name, ct)).Count;

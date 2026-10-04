@@ -45,7 +45,7 @@ public sealed class LaneRepairSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         Assert.Equal(JobStatusCode.Blocked, await StatusAsync(last, ct));
         var repaired = Assert.Single(
             await Db.From<EventEntity>()
-                .Where(e => e.JobId == follower.JobId && e.ReasonCode == JobEventReasonCode.JobLaneRepaired)
+                .Where(e => e.JobId == follower.JobId && e.ReasonCode == EventReasonCode.JobLaneRepaired)
                 .ToListAsync(ct)
         );
         Assert.Equal(ActorCode.Sys, repaired.ActorCode);
@@ -139,7 +139,7 @@ public sealed class LaneRepairSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         Assert.Equal(JobStatusCode.Blocked, await StatusAsync(follower, ct));
         Assert.Empty(
             await Db.From<EventEntity>()
-                .Where(e => e.JobId == follower.JobId && e.ReasonCode == JobEventReasonCode.JobLaneRepaired)
+                .Where(e => e.JobId == follower.JobId && e.ReasonCode == EventReasonCode.JobLaneRepaired)
                 .ToListAsync(ct)
         );
     }

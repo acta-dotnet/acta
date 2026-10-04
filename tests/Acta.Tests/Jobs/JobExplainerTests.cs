@@ -20,7 +20,7 @@ public class JobExplainerTests
         string? workerDeploymentVersion = null,
         WorkerStatusCode? workerStatus = null,
         DateTime? workerLastSeenAtUtc = null,
-        JobEventReasonCode? latestReasonCode = null,
+        EventReasonCode? latestReasonCode = null,
         string? latestReasonMessage = null,
         int? lastExecutedByWorkerId = null,
         string? lastExecutedByWorkerName = null,
@@ -64,9 +64,9 @@ public class JobExplainerTests
     ) => new(header, steps ?? [], checkpoints ?? []);
 
     private static ExplainCheckpointRow Checkpoint(
-        JobCheckpointKindCode kind,
+        CheckpointKindCode kind,
         string name,
-        JobCheckpointStatusCode? state,
+        CheckpointStatusCode? state,
         DateTime? dueAtUtc = null
     ) => new(kind, name, state, dueAtUtc);
 
@@ -75,13 +75,13 @@ public class JobExplainerTests
     {
         var data = Data(
             Header(JobStatusCode.Suspended),
-            checkpoints: [Checkpoint(JobCheckpointKindCode.Signal, "fraud-review", JobCheckpointStatusCode.Pending)]
+            checkpoints: [Checkpoint(CheckpointKindCode.Signal, "fraud-review", CheckpointStatusCode.Pending)]
         );
 
         var x = JobExplainer.Explain(data, Now);
 
         Assert.NotNull(x.ActiveWait);
-        Assert.Equal(JobCheckpointKindCode.Signal, x.ActiveWait!.Kind);
+        Assert.Equal(CheckpointKindCode.Signal, x.ActiveWait!.Kind);
         Assert.Equal("fraud-review", x.ActiveWait.Name);
         Assert.Contains("waiting for signal \"fraud-review\"", x.Headline);
         Assert.DoesNotContain("times out", x.Headline, StringComparison.Ordinal);
@@ -95,7 +95,7 @@ public class JobExplainerTests
     {
         var data = Data(
             Header(JobStatusCode.Suspended),
-            checkpoints: [Checkpoint(JobCheckpointKindCode.Signal, "fraud-review", JobCheckpointStatusCode.Pending, Now.AddMinutes(30))]
+            checkpoints: [Checkpoint(CheckpointKindCode.Signal, "fraud-review", CheckpointStatusCode.Pending, Now.AddMinutes(30))]
         );
 
         var x = JobExplainer.Explain(data, Now);
@@ -113,12 +113,12 @@ public class JobExplainerTests
     {
         var data = Data(
             Header(JobStatusCode.Suspended),
-            checkpoints: [Checkpoint(JobCheckpointKindCode.ChildLatch, "sys.child.4242", JobCheckpointStatusCode.Pending)]
+            checkpoints: [Checkpoint(CheckpointKindCode.ChildLatch, "sys.child.4242", CheckpointStatusCode.Pending)]
         );
 
         var x = JobExplainer.Explain(data, Now);
 
-        Assert.Equal(JobCheckpointKindCode.ChildLatch, x.ActiveWait!.Kind);
+        Assert.Equal(CheckpointKindCode.ChildLatch, x.ActiveWait!.Kind);
         Assert.Equal("sys.child.4242", x.ActiveWait.Name);
         // The id is what an operator can look up; the slot's spelling is framework bookkeeping.
         Assert.Contains("waiting for child job 4242", x.Headline, StringComparison.Ordinal);
@@ -136,7 +136,7 @@ public class JobExplainerTests
     {
         var data = Data(
             Header(JobStatusCode.Suspended),
-            checkpoints: [Checkpoint(JobCheckpointKindCode.ChildLatch, "sys.child.7", JobCheckpointStatusCode.Pending, Now.AddMinutes(30))]
+            checkpoints: [Checkpoint(CheckpointKindCode.ChildLatch, "sys.child.7", CheckpointStatusCode.Pending, Now.AddMinutes(30))]
         );
 
         var x = JobExplainer.Explain(data, Now);
@@ -153,12 +153,12 @@ public class JobExplainerTests
     {
         var data = Data(
             Header(JobStatusCode.Suspended),
-            checkpoints: [Checkpoint(JobCheckpointKindCode.Timer, "acta.sleep", JobCheckpointStatusCode.Pending, Now.AddMinutes(30))]
+            checkpoints: [Checkpoint(CheckpointKindCode.Timer, "acta.sleep", CheckpointStatusCode.Pending, Now.AddMinutes(30))]
         );
 
         var x = JobExplainer.Explain(data, Now);
 
-        Assert.Equal(JobCheckpointKindCode.Timer, x.ActiveWait!.Kind);
+        Assert.Equal(CheckpointKindCode.Timer, x.ActiveWait!.Kind);
         Assert.Equal(Now.AddMinutes(30), x.ActiveWait.DueAtUtc);
         Assert.Contains("durable sleep \"acta.sleep\"", x.Headline);
         Assert.Contains("due in 30m", x.Headline);
@@ -309,7 +309,7 @@ public class JobExplainerTests
     {
         var data = Data(
             Header(JobStatusCode.Suspended, lastExecutedByWorkerId: 17, lastExecutedByWorkerName: "payments-v42"),
-            checkpoints: [Checkpoint(JobCheckpointKindCode.Signal, "fraud-review", JobCheckpointStatusCode.Pending)]
+            checkpoints: [Checkpoint(CheckpointKindCode.Signal, "fraud-review", CheckpointStatusCode.Pending)]
         );
 
         var x = JobExplainer.Explain(data, Now);
@@ -340,27 +340,15 @@ public class JobExplainerTests
             Header(JobStatusCode.Suspended),
             steps:
             [
-                new ExplainStepRow(
-                    "reserve-stock",
-                    JobStepStatusCode.Succeeded,
-                    AttemptNumber: 1,
-                    NextRetryAtUtc: null,
-                    ReasonMessage: null
-                ),
+                new ExplainStepRow("reserve-stock", StepStatusCode.Succeeded, AttemptNumber: 1, NextRetryAtUtc: null, ReasonMessage: null),
                 new ExplainStepRow(
                     "charge-card",
-                    JobStepStatusCode.Pending,
+                    StepStatusCode.Pending,
                     AttemptNumber: 2,
                     NextRetryAtUtc: Now.AddMinutes(1),
                     ReasonMessage: "declined"
                 ),
-                new ExplainStepRow(
-                    "ship",
-                    JobStepStatusCode.Exhausted,
-                    AttemptNumber: 5,
-                    NextRetryAtUtc: null,
-                    ReasonMessage: "carrier down"
-                ),
+                new ExplainStepRow("ship", StepStatusCode.Exhausted, AttemptNumber: 5, NextRetryAtUtc: null, ReasonMessage: "carrier down"),
             ]
         );
 
@@ -377,7 +365,7 @@ public class JobExplainerTests
     {
         var data = Data(
             Header(JobStatusCode.Succeeded),
-            steps: [new ExplainStepRow("reserve-stock", JobStepStatusCode.Succeeded, 1, null, null)]
+            steps: [new ExplainStepRow("reserve-stock", StepStatusCode.Succeeded, 1, null, null)]
         );
 
         var x = JobExplainer.Explain(data, Now);

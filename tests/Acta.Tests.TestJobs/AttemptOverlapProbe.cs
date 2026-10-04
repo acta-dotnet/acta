@@ -39,7 +39,7 @@ public static class AttemptOverlapProbe
 
     // Generous ExecutionTimeout so the per-attempt timeout can never fire the Cancelled gate and
     // mask a missing heartbeat cancel; the test releases every attempt it starts.
-    [Job("attempt-overlap", AuditLevel = JobAuditLevelCode.Audit, ExecutionTimeout = "PT2M")]
+    [Job("attempt-overlap", AuditLevel = DefinitionAuditLevelCode.Audit, ExecutionTimeout = "PT2M")]
     public static async Task Run(JobContext ctx, CancellationToken ct)
     {
         var attempt = Attempts.AddOrUpdate(ctx.JobId, 1, static (_, n) => n + 1);

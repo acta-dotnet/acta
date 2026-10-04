@@ -20,7 +20,7 @@ internal sealed class Signals(RaiseSignalHandler raiseSignal, WaitSignalHandler 
     /// </summary>
     public Task<SignalWaitDecision> WaitSignalAsync(
         long jobId,
-        JobCheckpointKindCode kind,
+        CheckpointKindCode kind,
         string name,
         int? timeoutSeconds,
         CancellationToken ct

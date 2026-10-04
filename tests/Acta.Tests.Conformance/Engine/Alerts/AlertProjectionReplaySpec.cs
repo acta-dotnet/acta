@@ -256,7 +256,7 @@ public sealed class AlertProjectionReplaySpec : ActaRuntimeTestBase<ConformanceF
     // targeting the projector's real checkpoint even if the projector renames it.
     private Task<int> ForgetAlertsCursorAsync(long slotId, CancellationToken ct) =>
         Db.From<CheckpointEntity>()
-            .Where(v => v.JobId == slotId && v.Kind == JobCheckpointKindCode.Variable && v.Name == AlertsJob.CursorVariableName)
+            .Where(v => v.JobId == slotId && v.Kind == CheckpointKindCode.Variable && v.Name == AlertsJob.CursorVariableName)
             .DeleteAsync(ct);
 
     private Task RunAlertsAsync(long cursorOwnerJobId, CancellationToken ct) =>

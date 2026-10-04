@@ -31,7 +31,7 @@ INSERT INTO {{schema}}.definitions (
 SELECT
     @p_namespace_id,
     json_extract(d.value, '$.name'),
-    10 /* JobDefinitionStatusCode.Active */,
+    10 /* DefinitionStatusCode.Active */,
     json_extract(d.value, '$.input_type_name'),
     json_extract(d.value, '$.output_type_name'),
     json_extract(d.value, '$.input_format_id'),
@@ -61,7 +61,7 @@ SELECT
 FROM json_each(@p_definitions) d
 WHERE true
 ON CONFLICT (namespace_id, name) DO UPDATE SET
-    status_code = 10 /* JobDefinitionStatusCode.Active */,
+    status_code = 10 /* DefinitionStatusCode.Active */,
     input_type_name = excluded.input_type_name,
     output_type_name = excluded.output_type_name,
     input_format_id = excluded.input_format_id,
@@ -93,7 +93,7 @@ ON CONFLICT (namespace_id, name) DO UPDATE SET
 WHERE
     excluded.manifest_generation_at_utc >= {{schema}}.definitions.manifest_generation_at_utc
     AND (
-        {{schema}}.definitions.status_code <> 10 /* JobDefinitionStatusCode.Active */
+        {{schema}}.definitions.status_code <> 10 /* DefinitionStatusCode.Active */
         OR {{schema}}.definitions.definition_hash IS NOT excluded.definition_hash
     );
 

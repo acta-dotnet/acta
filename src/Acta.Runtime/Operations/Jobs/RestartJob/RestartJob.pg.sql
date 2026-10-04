@@ -152,9 +152,9 @@ BEGIN
     DELETE FROM {{schema}}.steps s
     WHERE
         s.job_id = p_id
-        AND s.status_code = 200 /* JobStepStatusCode.Exhausted */;
+        AND s.status_code = 200 /* StepStatusCode.Exhausted */;
 
-    IF v_audit_level = 20 /* JobAuditLevelCode.Audit */ THEN
+    IF v_audit_level = 20 /* DefinitionAuditLevelCode.Audit */ THEN
         INSERT INTO {{schema}}.events (
             event_code,
             created_at_utc,

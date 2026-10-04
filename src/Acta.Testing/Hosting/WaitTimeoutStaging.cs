@@ -44,15 +44,15 @@ internal static class WaitTimeoutStaging
         foreach (var name in deadlines)
         {
             await db.From<CheckpointEntity>()
-                .Where(c => c.JobId == jobId && c.Kind == JobCheckpointKindCode.Variable && c.Name == name)
+                .Where(c => c.JobId == jobId && c.Kind == CheckpointKindCode.Variable && c.Name == name)
                 .UpdateOnlyAsync(() => new CheckpointEntity { Value = value, ModifiedAtUtc = DbFn.UtcNow }, ct);
         }
 
         await db.From<CheckpointEntity>()
             .Where(c =>
                 c.JobId == jobId
-                && c.Kind == JobCheckpointKindCode.ChildLatch
-                && c.Status == JobCheckpointStatusCode.Pending
+                && c.Kind == CheckpointKindCode.ChildLatch
+                && c.Status == CheckpointStatusCode.Pending
                 && c.DueAtUtc != null
             )
             .UpdateOnlyAsync(() => new CheckpointEntity { DueAtUtc = dueAtUtc, ModifiedAtUtc = DbFn.UtcNow }, ct);
@@ -72,7 +72,7 @@ internal static class WaitTimeoutStaging
     )
     {
         var variables = await db.From<CheckpointEntity>()
-            .Where(c => c.JobId == jobId && c.Kind == JobCheckpointKindCode.Variable)
+            .Where(c => c.JobId == jobId && c.Kind == CheckpointKindCode.Variable)
             .ToListAsync(ct);
         var deadlines = variables
             .Where(c => c.Name.StartsWith(JobContext.GroupDeadlinePrefix, StringComparison.Ordinal))

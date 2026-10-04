@@ -168,7 +168,7 @@ internal sealed class EventEntity : IEntity<long>
     /// the <c>job-event-reason</c> family in docs/98 for the kebab string.
     /// </summary>
     [DbColumn("reason_code")]
-    public JobEventReasonCode? ReasonCode { get; init; }
+    public EventReasonCode? ReasonCode { get; init; }
 
     /// <summary>
     /// Free-form prose paired with <see cref="ReasonCode"/>; truncated by <c>MessageTruncator</c>.

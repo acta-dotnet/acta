@@ -48,7 +48,7 @@ FROM {{schema}}.jobs j
 JOIN {{schema}}.runtimes r ON r.job_id = j.id
 WHERE
     j.id = @p_job_id
-    AND j.audit_level_code = 20 /* JobAuditLevelCode.Audit */
+    AND j.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
     AND EXISTS (SELECT 1 FROM temp._ps_target);
 
 UPDATE {{schema}}.schedules

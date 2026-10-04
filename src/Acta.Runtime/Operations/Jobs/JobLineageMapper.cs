@@ -60,23 +60,23 @@ internal static class JobLineageMapper
     {
         foreach (var c in checkpoints)
         {
-            if (c.Kind == JobCheckpointKindCode.Signal && c.Status == JobCheckpointStatusCode.Pending)
+            if (c.Kind == CheckpointKindCode.Signal && c.Status == CheckpointStatusCode.Pending)
             {
-                return new JobExplainWait(JobCheckpointKindCode.Signal, c.Name, c.DueAtUtc);
+                return new JobExplainWait(CheckpointKindCode.Signal, c.Name, c.DueAtUtc);
             }
         }
         foreach (var c in checkpoints)
         {
-            if (c.Kind == JobCheckpointKindCode.ChildLatch && c.Status == JobCheckpointStatusCode.Pending)
+            if (c.Kind == CheckpointKindCode.ChildLatch && c.Status == CheckpointStatusCode.Pending)
             {
-                return new JobExplainWait(JobCheckpointKindCode.ChildLatch, c.Name, c.DueAtUtc);
+                return new JobExplainWait(CheckpointKindCode.ChildLatch, c.Name, c.DueAtUtc);
             }
         }
         foreach (var c in checkpoints)
         {
-            if (c.Kind == JobCheckpointKindCode.Timer && c.Status == JobCheckpointStatusCode.Pending)
+            if (c.Kind == CheckpointKindCode.Timer && c.Status == CheckpointStatusCode.Pending)
             {
-                return new JobExplainWait(JobCheckpointKindCode.Timer, c.Name, c.DueAtUtc);
+                return new JobExplainWait(CheckpointKindCode.Timer, c.Name, c.DueAtUtc);
             }
         }
         return null;

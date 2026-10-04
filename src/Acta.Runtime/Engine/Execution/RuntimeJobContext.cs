@@ -81,7 +81,7 @@ internal sealed class RuntimeJobContext(
         var payload = JsonSerializer().Serialize(value);
         RejectTopLevelJsonNull(payload);
         EnsureInlineSize("progress", payload);
-        return CheckpointSlot.SetAsync(_executionStore, JobId, JobCheckpointKindCode.Progress, ProgressVariableName, payload, ct);
+        return CheckpointSlot.SetAsync(_executionStore, JobId, CheckpointKindCode.Progress, ProgressVariableName, payload, ct);
     }
 
     private protected override Task SetVariableCoreAsync<T>(string name, T value, CancellationToken ct)
@@ -89,7 +89,7 @@ internal sealed class RuntimeJobContext(
         var payload = JsonSerializer().Serialize(value);
         RejectTopLevelJsonNull(payload);
         EnsureInlineSize($"variable '{name}'", payload);
-        return CheckpointSlot.SetAsync(_executionStore, JobId, JobCheckpointKindCode.Variable, name, payload, ct);
+        return CheckpointSlot.SetAsync(_executionStore, JobId, CheckpointKindCode.Variable, name, payload, ct);
     }
 
     private protected override Task SetVariableCoreAsync(string name, JobPayload payload, CancellationToken ct)
@@ -97,13 +97,13 @@ internal sealed class RuntimeJobContext(
         ValidatePayloadFormat(payload);
         RejectTopLevelJsonNull(payload);
         EnsureInlineSize($"variable '{name}'", payload);
-        return CheckpointSlot.SetAsync(_executionStore, JobId, JobCheckpointKindCode.Variable, name, payload, ct);
+        return CheckpointSlot.SetAsync(_executionStore, JobId, CheckpointKindCode.Variable, name, payload, ct);
     }
 
     private protected override async Task<(bool Found, T? Value)> TryGetVariableCoreAsync<T>(string name, CancellationToken ct)
         where T : default
     {
-        var value = await CheckpointSlot.GetAsync(_executionStore, JobId, JobCheckpointKindCode.Variable, name, ct);
+        var value = await CheckpointSlot.GetAsync(_executionStore, JobId, CheckpointKindCode.Variable, name, ct);
         return value is null ? (false, default) : (true, Deserialize<T>(value));
     }
 
@@ -113,7 +113,7 @@ internal sealed class RuntimeJobContext(
         CancellationToken ct
     )
     {
-        var existing = await CheckpointSlot.GetAsync(_executionStore, JobId, JobCheckpointKindCode.Variable, name, ct);
+        var existing = await CheckpointSlot.GetAsync(_executionStore, JobId, CheckpointKindCode.Variable, name, ct);
         if (existing is not null)
         {
             return Deserialize<T>(existing);
@@ -125,7 +125,7 @@ internal sealed class RuntimeJobContext(
         var payload = JsonSerializer().Serialize(value);
         RejectTopLevelJsonNull(payload);
         EnsureInlineSize($"variable '{name}'", payload);
-        var stored = await CheckpointSlot.GetOrSetAsync(_executionStore, JobId, JobCheckpointKindCode.Variable, name, payload, ct);
+        var stored = await CheckpointSlot.GetOrSetAsync(_executionStore, JobId, CheckpointKindCode.Variable, name, payload, ct);
         return Deserialize<T>(stored);
     }
 
@@ -148,7 +148,7 @@ internal sealed class RuntimeJobContext(
         var stored = await CheckpointSlot.GetOrSetAsync(
             _executionStore,
             JobId,
-            JobCheckpointKindCode.Variable,
+            CheckpointKindCode.Variable,
             name,
             JsonSerializer().Serialize((nowUtc + timeout).Ticks),
             ct
@@ -160,10 +160,10 @@ internal sealed class RuntimeJobContext(
         _clock ?? throw new InvalidOperationException("Bounded group waits need the Acta clock; this context was built without one.");
 
     private protected override Task<bool> ExistsVariableCoreAsync(string name, CancellationToken ct) =>
-        CheckpointSlot.ExistsAsync(_executionStore, JobId, JobCheckpointKindCode.Variable, name, ct);
+        CheckpointSlot.ExistsAsync(_executionStore, JobId, CheckpointKindCode.Variable, name, ct);
 
     private protected override Task<bool> DeleteVariableCoreAsync(string name, CancellationToken ct) =>
-        CheckpointSlot.DeleteAsync(_executionStore, JobId, JobCheckpointKindCode.Variable, name, ct);
+        CheckpointSlot.DeleteAsync(_executionStore, JobId, CheckpointKindCode.Variable, name, ct);
 
     private protected override Task ResetStateCoreAsync(CancellationToken ct) =>
         _resetJobState.HandleAsync(new ResetJobStateCommand(JobId), ct);
@@ -211,8 +211,8 @@ internal sealed class RuntimeJobContext(
     )
     {
         var kind = name.StartsWith(RaiseChildLatch.NamePrefix, StringComparison.Ordinal)
-            ? JobCheckpointKindCode.ChildLatch
-            : JobCheckpointKindCode.Signal;
+            ? CheckpointKindCode.ChildLatch
+            : CheckpointKindCode.Signal;
         var decision = await _signals.WaitSignalAsync(JobId, kind, name, timeoutSeconds, ct);
         return decision.Outcome switch
         {
@@ -262,7 +262,7 @@ internal sealed class RuntimeJobContext(
 
         var input = new JobControlInput(
             new JobControlActor(ActorCode.Sys),
-            JobEventReasonCode.JobWaitTimedOut,
+            EventReasonCode.JobWaitTimedOut,
             "Parent's child wait timed out."
         );
 
@@ -386,7 +386,7 @@ internal sealed class RuntimeJobContext(
                     Succeeded: false,
                     ResultFormatId: 0,
                     Result: null,
-                    JobEventReasonCode.JobUnhandledException,
+                    EventReasonCode.JobUnhandledException,
                     message,
                     delaySeconds,
                     maxAttempts,
@@ -411,7 +411,7 @@ internal sealed class RuntimeJobContext(
                     start.AttemptNumber,
                     message
                 );
-                throw new StepExhaustedException(name, start.AttemptNumber, JobEventReasonCode.JobUnhandledException, message);
+                throw new StepExhaustedException(name, start.AttemptNumber, EventReasonCode.JobUnhandledException, message);
             }
 
             RecordStep(name, "failed");

@@ -6,7 +6,7 @@ namespace Acta.Runtime;
 /// </summary>
 internal sealed record JobControlInput(
     JobControlActor Actor,
-    JobEventReasonCode ReasonCode,
+    EventReasonCode ReasonCode,
     string? ReasonMessage,
     int? ExpectedVersion = null
 );

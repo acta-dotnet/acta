@@ -23,22 +23,22 @@ BEGIN
     FROM {{schema}}.checkpoints jt
     WHERE
         jt.job_id = p_job_id
-        AND jt.kind_code = 30 /* JobCheckpointKindCode.Timer */
+        AND jt.kind_code = 30 /* CheckpointKindCode.Timer */
         AND jt.name = p_name;
 
-    IF v_state = 10 /* JobCheckpointStatusCode.Pending */ AND v_existing_due > v_now THEN
+    IF v_state = 10 /* CheckpointStatusCode.Pending */ AND v_existing_due > v_now THEN
 
         RETURN QUERY SELECT 1 /* SleepOutcome.Suspend */::SMALLINT, v_existing_due;
-    ELSIF v_state = 10 /* JobCheckpointStatusCode.Pending */ THEN
+    ELSIF v_state = 10 /* CheckpointStatusCode.Pending */ THEN
 
         UPDATE {{schema}}.checkpoints jt
         SET
-            status_code = 100 /* JobCheckpointStatusCode.Consumed */,
+            status_code = 100 /* CheckpointStatusCode.Consumed */,
             modified_at_utc = now(),
             version = jt.version + 1
         WHERE
             jt.job_id = p_job_id
-            AND jt.kind_code = 30 /* JobCheckpointKindCode.Timer */
+            AND jt.kind_code = 30 /* CheckpointKindCode.Timer */
             AND jt.name = p_name;
         /* Only the worker still executing may clear the instant. A reclaimed row is Ready again on an
            instant the reclaim owns, and ck_runtimes_ready_due requires a Ready row to keep one. */
@@ -57,7 +57,7 @@ BEGIN
     ELSIF v_due <= v_now THEN
 
         RETURN QUERY SELECT 2 /* SleepOutcome.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
-    ELSIF EXISTS (SELECT 1 FROM {{schema}}.checkpoints jt WHERE jt.job_id = p_job_id AND jt.kind_code = 30 /* JobCheckpointKindCode.Timer */ AND jt.status_code = 10 /* JobCheckpointStatusCode.Pending */) THEN
+    ELSIF EXISTS (SELECT 1 FROM {{schema}}.checkpoints jt WHERE jt.job_id = p_job_id AND jt.kind_code = 30 /* CheckpointKindCode.Timer */ AND jt.status_code = 10 /* CheckpointStatusCode.Pending */) THEN
         RETURN QUERY SELECT 3 /* SleepOutcome.Reject */::SMALLINT, NULL::TIMESTAMPTZ;
     ELSE
         INSERT INTO {{schema}}.checkpoints (
@@ -71,9 +71,9 @@ BEGIN
             version)
         VALUES (
             p_job_id,
-            30 /* JobCheckpointKindCode.Timer */,
+            30 /* CheckpointKindCode.Timer */,
             p_name,
-            10 /* JobCheckpointStatusCode.Pending */,
+            10 /* CheckpointStatusCode.Pending */,
             v_due,
             now(),
             now(),

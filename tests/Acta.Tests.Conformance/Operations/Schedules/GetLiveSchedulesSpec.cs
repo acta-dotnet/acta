@@ -127,7 +127,7 @@ public sealed class GetLiveSchedulesSpec : ActaStorageTestBase<ConformanceFixtur
             JobName: jobName,
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
-            AuditLevel: JobAuditLevelCode.Audit,
+            AuditLevel: DefinitionAuditLevelCode.Audit,
             SlotStatus: JobStatusCode.Ready,
             SlotMinNextRunAtUtc: schedules.Min(s => s.NextRunAtUtc),
             Schedules: schedules

@@ -29,7 +29,7 @@ BEGIN
     DELETE FROM {{schema}}.steps WHERE job_id = p_id;
     DELETE FROM {{schema}}.results WHERE job_id = p_id;
 
-    IF v_audit_level = 20 /* JobAuditLevelCode.Audit */ THEN
+    IF v_audit_level = 20 /* DefinitionAuditLevelCode.Audit */ THEN
         INSERT INTO {{schema}}.events (
             event_code,
             created_at_utc,

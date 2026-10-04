@@ -13,7 +13,7 @@ namespace Acta;
 public sealed record ListDefinitionsQuery(
     string? JobNamespace = null,
     string? NameContains = null,
-    JobDefinitionStatusCode? Status = null,
+    DefinitionStatusCode? Status = null,
     int? PageSize = null,
     string? Cursor = null,
     bool IncludeTotal = false,

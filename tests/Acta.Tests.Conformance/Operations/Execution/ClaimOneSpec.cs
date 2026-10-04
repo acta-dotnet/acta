@@ -66,7 +66,7 @@ public sealed class ClaimOneSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.Equal(workerId, after.LeasedByWorkerId);
 
         var started = await StartedEventsAsync(enqueued.JobId, ct);
-        if (after.AuditLevel == JobAuditLevelCode.Audit)
+        if (after.AuditLevel == DefinitionAuditLevelCode.Audit)
         {
             var startedEvent = Assert.Single(started);
             Assert.Equal(claimed.ExecutionNumber, startedEvent.ExecutionNumber);

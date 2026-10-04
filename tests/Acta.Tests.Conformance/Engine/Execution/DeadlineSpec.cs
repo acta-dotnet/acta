@@ -35,12 +35,12 @@ public sealed class DeadlineSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         var finished = events.Where(e => e.EventCode == EventCode.JobExecutionFinished).OrderByDescending(e => e.Id).First();
-        Assert.Equal(JobEventReasonCode.JobDeadlineExceeded, finished.JobEventReasonCode);
+        Assert.Equal(EventReasonCode.JobDeadlineExceeded, finished.EventReasonCode);
 
         var ran = await CheckpointSlot.GetAsync(
             Services.GetRequiredService<Acta.Runtime.Execution>(),
             enqueued.JobId,
-            JobCheckpointKindCode.Variable,
+            CheckpointKindCode.Variable,
             "ran",
             ct
         );
@@ -61,7 +61,7 @@ public sealed class DeadlineSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         var finished = events.Where(e => e.EventCode == EventCode.JobExecutionFinished).OrderByDescending(e => e.Id).First();
-        Assert.Equal(JobEventReasonCode.JobDeadlineExceeded, finished.JobEventReasonCode);
+        Assert.Equal(EventReasonCode.JobDeadlineExceeded, finished.EventReasonCode);
     }
 
     [Fact(DisplayName = "Advisory never auto-terminates")]
@@ -80,14 +80,14 @@ public sealed class DeadlineSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         var overdue = await CheckpointSlot.GetAsync(
             Services.GetRequiredService<Acta.Runtime.Execution>(),
             enqueued.JobId,
-            JobCheckpointKindCode.Variable,
+            CheckpointKindCode.Variable,
             "overdue",
             ct
         );
         Assert.NotNull(overdue);
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
-        Assert.DoesNotContain(events, e => e.JobEventReasonCode == JobEventReasonCode.JobDeadlineExceeded);
+        Assert.DoesNotContain(events, e => e.EventReasonCode == EventReasonCode.JobDeadlineExceeded);
     }
 
     /// <summary>

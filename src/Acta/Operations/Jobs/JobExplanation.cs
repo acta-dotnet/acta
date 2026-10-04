@@ -31,7 +31,7 @@ public sealed record JobExplanation(
 );
 
 /// <summary>The durable wait a Suspended Job is blocked on: a signal name, or a timer slot and its due instant.</summary>
-public sealed record JobExplainWait(JobCheckpointKindCode Kind, string Name, DateTime? DueAtUtc);
+public sealed record JobExplainWait(CheckpointKindCode Kind, string Name, DateTime? DueAtUtc);
 
 /// <summary>
 /// The execution lease on a Dispatched / Executing Job and the liveness of the worker that holds it.
@@ -54,7 +54,7 @@ public sealed record JobExplainLease(
 );
 
 /// <summary>One step slot's state, with <see cref="Explanation"/> rendering it as a plain-English clause.</summary>
-public sealed record JobExplainStep(string Name, JobStepStatusCode Status, string Explanation);
+public sealed record JobExplainStep(string Name, StepStatusCode Status, string Explanation);
 
 /// <summary>
 /// A suggested operator move. <see cref="Kind"/> is a stable slug

@@ -115,7 +115,7 @@ public sealed class AlertsJobPoisonEventTests
                 AlertChannelName: null,
                 ExecutionStatus: ExecutionStatusCode.Failed,
                 ToStatus: JobStatusCode.Failed,
-                ReasonCode: JobEventReasonCode.JobUnhandledException,
+                ReasonCode: EventReasonCode.JobUnhandledException,
                 ReasonMessage: "boom"
             );
     }

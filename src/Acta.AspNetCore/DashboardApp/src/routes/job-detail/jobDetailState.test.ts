@@ -57,7 +57,7 @@ test('child rollup is deterministic by count then status', () => {
 });
 
 test('a child latch wait reads as a child job, not as a timer', () => {
-  // The wire value is the kebab code the JobCheckpointKindCode converter writes, and the slot name is
+  // The wire value is the kebab code the CheckpointKindCode converter writes, and the slot name is
   // the framework key the parent's latch is stored under.
   assert.deepEqual(activeWaitLabel('child-latch', 'sys.child.42'), { kind: 'child job', name: '42' });
   assert.deepEqual(activeWaitLabel('signal', 'approval'), { kind: 'signal', name: 'approval' });

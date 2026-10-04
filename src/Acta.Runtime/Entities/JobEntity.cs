@@ -145,7 +145,7 @@ internal sealed class JobEntity : IEntity<long>
     /// Always-on system / catalog events ignore this column.
     /// </summary>
     [DbColumn("audit_level_code")]
-    public JobAuditLevelCode AuditLevel { get; init; }
+    public DefinitionAuditLevelCode AuditLevel { get; init; }
 
     // ---------- Audit ----------
 

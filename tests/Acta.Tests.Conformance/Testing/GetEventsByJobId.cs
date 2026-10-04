@@ -15,7 +15,7 @@ internal sealed record JobEventRecord(
     JobStatusCode? ToStatus,
     ExecutionStatusCode? ExecutionStatus,
     int? DurationMs,
-    JobEventReasonCode? JobEventReasonCode,
+    EventReasonCode? EventReasonCode,
     string? ReasonMessage
 );
 

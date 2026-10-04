@@ -112,7 +112,7 @@ BEGIN
                     NULL,
                     NULL
                 FROM @claimed c
-                WHERE c.audit_level_code = 20 /* JobAuditLevelCode.Audit */;
+                WHERE c.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */;
             END
 
         SELECT

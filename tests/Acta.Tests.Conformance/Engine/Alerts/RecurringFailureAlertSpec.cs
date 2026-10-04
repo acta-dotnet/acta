@@ -51,7 +51,7 @@ public sealed class RecurringFailureAlertSpec : ActaRuntimeTestBase<ConformanceF
         var firstEvent = await ReadLatestEventAsync(slotId, EventCode.JobExecutionFinished, ct);
         Assert.Equal(ExecutionStatusCode.Failed, firstEvent.ExecutionStatus);
         Assert.Equal(JobStatusCode.Ready, firstEvent.ToStatus);
-        Assert.Equal(JobEventReasonCode.JobUnhandledException, firstEvent.ReasonCode);
+        Assert.Equal(EventReasonCode.JobUnhandledException, firstEvent.ReasonCode);
         Assert.NotNull(firstEvent.ReasonMessage);
 
         // The projector raises on it: a non-terminal failure under the default OnFailure profile is a
@@ -73,7 +73,7 @@ public sealed class RecurringFailureAlertSpec : ActaRuntimeTestBase<ConformanceF
 
         var secondEvent = await ReadLatestEventAsync(slotId, EventCode.JobExecutionFinished, ct);
         Assert.Equal(JobStatusCode.Ready, secondEvent.ToStatus);
-        Assert.Equal(JobEventReasonCode.JobUnhandledException, secondEvent.ReasonCode);
+        Assert.Equal(EventReasonCode.JobUnhandledException, secondEvent.ReasonCode);
 
         await RunAlertsAsync(slotId, ct);
 

@@ -24,7 +24,7 @@ SELECT
                 FROM {{schema}}.checkpoints s
                 WHERE
                     s.job_id = j.id
-                    AND s.kind_code IN (20 /* JobCheckpointKindCode.Signal */, 50 /* JobCheckpointKindCode.ChildLatch */)
+                    AND s.kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
                     AND s.name = @p_wait_signal_name
             )
         ELSE NULL
@@ -38,7 +38,7 @@ SELECT
                 FROM {{schema}}.checkpoints s
                 WHERE
                     s.job_id = j.id
-                    AND s.kind_code IN (20 /* JobCheckpointKindCode.Signal */, 50 /* JobCheckpointKindCode.ChildLatch */)
+                    AND s.kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
                     AND s.name = @p_wait_signal_name
             )
         ELSE NULL
@@ -50,7 +50,7 @@ WHERE j.id = @p_id;
 CREATE TEMP TABLE _ce_done AS
 SELECT
     CASE
-        WHEN @p_wait_signal_name IS NOT NULL AND @p_reschedule_status_code IS NOT NULL AND p.sig_state = 20 /* JobCheckpointStatusCode.Set */ THEN 10 /* JobStatusCode.Ready */
+        WHEN @p_wait_signal_name IS NOT NULL AND @p_reschedule_status_code IS NOT NULL AND p.sig_state = 20 /* CheckpointStatusCode.Set */ THEN 10 /* JobStatusCode.Ready */
         WHEN @p_wait_signal_name IS NOT NULL AND @p_reschedule_status_code IS NOT NULL THEN 20 /* JobStatusCode.Suspended */
         WHEN @p_reschedule_status_code IS NOT NULL THEN 10 /* JobStatusCode.Ready */
         WHEN @p_handler_status_code IS NOT NULL THEN @p_handler_status_code
@@ -152,7 +152,7 @@ JOIN {{schema}}.schedules js
           AND (json_extract(a.value, '$.expected_version') IS NULL OR json_extract(a.value, '$.expected_version') = js.version))
 WHERE
     @p_final_status IS NOT NULL
-    AND d.audit_level_code = 20 /* JobAuditLevelCode.Audit */
+    AND d.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
     AND js.status_code = 30 /* ScheduleStatusCode.Paused */
     AND js.paused_until_utc IS NOT NULL
     AND js.paused_until_utc <= {{now}};
@@ -261,11 +261,11 @@ SELECT
     @p_reason_message
 FROM _ce_done d
 WHERE
-    d.audit_level_code = 20 /* JobAuditLevelCode.Audit */
+    d.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
     -- At Failures a failure carrying no reschedule is written, and a success only when it answers a
     -- recorded failure, which is what closes the incident: the job's newest finished event is not a
     -- success. Never failed, or already answered, writes nothing. One seek on the timeline index.
-    OR (d.audit_level_code = 10 /* JobAuditLevelCode.Failures */
+    OR (d.audit_level_code = 10 /* DefinitionAuditLevelCode.Failures */
         AND @p_reschedule_status_code IS NULL
         -- The handler status is NULL for every completion the handler did not declare, which is every
         -- ordinary failure. Testing it against the two declared statuses directly yields NULL there,
@@ -320,7 +320,7 @@ SELECT
 FROM _ce_done d
 WHERE
     @p_final_status IS NOT NULL
-    AND d.audit_level_code = 20 /* JobAuditLevelCode.Audit */
+    AND d.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
     AND @p_final_status IN (10 /* JobStatusCode.Ready */, 30 /* JobStatusCode.Paused */);
 
 INSERT INTO {{schema}}.events (
@@ -364,7 +364,7 @@ SELECT
 FROM _ce_done d
 WHERE
     @p_reschedule_status_code IS NOT NULL
-    AND d.audit_level_code = 20 /* JobAuditLevelCode.Audit */
+    AND d.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
     AND NOT (@p_wait_signal_name IS NOT NULL AND d.to_status = 10 /* JobStatusCode.Ready */);
 
 INSERT INTO {{schema}}.events (
@@ -408,7 +408,7 @@ SELECT
 FROM _ce_done d
 WHERE
     @p_handler_status_code IS NOT NULL
-    AND d.audit_level_code = 20 /* JobAuditLevelCode.Audit */
+    AND d.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
     AND @p_handler_status_code IN (220 /* JobStatusCode.Cancelled */, 30 /* JobStatusCode.Paused */);
 
 CREATE TEMP TABLE _ce_parent AS
@@ -426,13 +426,13 @@ SELECT
     /* No revival: an Expired latch already resolved the parent's wait TimedOut, so a child landing
        terminal afterwards writes no slot and releases no parent. Carried as a flag, not a filter: the
        raise still happened and the audit event below still records it, saying why it changed nothing. */
-    CASE WHEN pl.status_code = 30 /* JobCheckpointStatusCode.Expired */ THEN 1 ELSE 0 END AS latch_expired
+    CASE WHEN pl.status_code = 30 /* CheckpointStatusCode.Expired */ THEN 1 ELSE 0 END AS latch_expired
 FROM _ce_done d
 JOIN {{schema}}.jobs pj ON pj.id = d.parent_id
 JOIN {{schema}}.runtimes pr ON pr.job_id = pj.id
 LEFT JOIN {{schema}}.checkpoints pl
     ON pl.job_id = d.parent_id
-    AND pl.kind_code = 50 /* JobCheckpointKindCode.ChildLatch */
+    AND pl.kind_code = 50 /* CheckpointKindCode.ChildLatch */
     AND pl.name = 'sys.child.' || @p_id
 WHERE
     d.to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
@@ -443,9 +443,9 @@ WHERE
 INSERT INTO {{schema}}.checkpoints (job_id, kind_code, name, status_code, value_format_id, value, modified_at_utc, version)
 SELECT
     p.parent_id,
-    50 /* JobCheckpointKindCode.ChildLatch */,
+    50 /* CheckpointKindCode.ChildLatch */,
     'sys.child.' || @p_id,
-    20 /* JobCheckpointStatusCode.Set */,
+    20 /* CheckpointStatusCode.Set */,
     1 /* JobPayloadFormat.Json */,
     CAST(json_object('childJobId', @p_id, 'status', p.to_status) AS BLOB),
     {{now}},
@@ -453,7 +453,7 @@ SELECT
 FROM _ce_parent p
 WHERE p.latch_expired = 0
 ON CONFLICT (job_id, kind_code, name) DO UPDATE SET
-    status_code = 20 /* JobCheckpointStatusCode.Set */,
+    status_code = 20 /* CheckpointStatusCode.Set */,
     value_format_id = excluded.value_format_id,
     value = excluded.value,
     modified_at_utc = {{now}},
@@ -504,7 +504,7 @@ SELECT
         ELSE @p_reason_message
     END
 FROM _ce_parent p
-WHERE p.parent_audit = 20 /* JobAuditLevelCode.Audit */;
+WHERE p.parent_audit = 20 /* DefinitionAuditLevelCode.Audit */;
 
 UPDATE {{schema}}.runtimes
 SET
@@ -555,13 +555,13 @@ SELECT
     10 /* JobStatusCode.Ready */,
     NULL,
     NULL,
-    60 /* JobEventReasonCode.JobSignalReleased */,
+    60 /* EventReasonCode.JobSignalReleased */,
     NULL
 FROM _ce_parent p
 WHERE
     p.parent_status = 20 /* JobStatusCode.Suspended */
     AND p.latch_expired = 0
-    AND p.parent_audit = 20 /* JobAuditLevelCode.Audit */;
+    AND p.parent_audit = 20 /* DefinitionAuditLevelCode.Audit */;
 
 -- A laned job that settled hands its lane to the lowest-id unfinished member when that member is
 -- Blocked; any other head keeps the lane. The immediate transaction is the lane's mutex on SQLite.

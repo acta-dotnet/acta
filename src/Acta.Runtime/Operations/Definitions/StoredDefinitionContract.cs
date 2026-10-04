@@ -12,7 +12,7 @@ internal sealed record StoredDefinitionContract(
     DefinitionContract Contract,
     int Id,
     string DefinitionHash,
-    JobDefinitionStatusCode Status,
+    DefinitionStatusCode Status,
     DateTime ModifiedAtUtc,
     EffectiveJobPolicy Effective
 );

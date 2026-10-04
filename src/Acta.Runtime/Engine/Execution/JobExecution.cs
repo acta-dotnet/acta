@@ -207,7 +207,7 @@ internal sealed class JobExecution(
         var nothingDue = isRecurring && fireOutcome is { NothingDue: true };
 
         ExecutionOutcome outcome;
-        JobEventReasonCode? failureReason = null;
+        EventReasonCode? failureReason = null;
         string? failureMessage = null;
         var resultFormatId = (byte)0;
         ReadOnlyMemory<byte> resultBytes = ReadOnlyMemory<byte>.Empty;
@@ -444,7 +444,7 @@ internal sealed class JobExecution(
                         );
                         resultFormatId = 0;
                         resultBytes = ReadOnlyMemory<byte>.Empty;
-                        failureReason = JobEventReasonCode.JobResultOversized;
+                        failureReason = EventReasonCode.JobResultOversized;
                     }
                 }
             }
@@ -457,7 +457,7 @@ internal sealed class JobExecution(
                 {
                     case RescheduleJobException reschedule:
                         outcome = ExecutionOutcome.Rescheduled;
-                        failureReason = JobEventReasonCode.JobHandlerRescheduled;
+                        failureReason = EventReasonCode.JobHandlerRescheduled;
                         failureMessage = reschedule.Message.Truncate(ActaTextLimits.ReasonMessage);
                         if (reschedule.Delay is { } delay)
                         {
@@ -470,7 +470,7 @@ internal sealed class JobExecution(
                         break;
                     case SuspendSignal suspend:
                         outcome = ExecutionOutcome.Suspended;
-                        failureReason = JobEventReasonCode.JobHandlerSuspended;
+                        failureReason = EventReasonCode.JobHandlerSuspended;
                         failureMessage = suspend.ReasonMessage.Truncate(ActaTextLimits.ReasonMessage);
                         rescheduleResumeAtUtc = suspend.ResumeAtUtc;
                         break;
@@ -479,7 +479,7 @@ internal sealed class JobExecution(
                         // retry. Re-arm budget-neutral via the existing Rescheduled path (failure_count
                         // untouched) at the step's next_retry_at_utc; only the reason differs.
                         outcome = ExecutionOutcome.Rescheduled;
-                        failureReason = JobEventReasonCode.JobStepRetryScheduled;
+                        failureReason = EventReasonCode.JobStepRetryScheduled;
                         failureMessage = (stepRetry.ReasonMessage ?? $"Step '{stepRetry.StepName}' retry scheduled.").Truncate(
                             ActaTextLimits.ReasonMessage
                         );
@@ -489,7 +489,7 @@ internal sealed class JobExecution(
                         // Signal wait with no Set slot: re-arm as Suspended (no due time). complete_execution
                         // locks the named slot and lands Ready instead if a raise won the race.
                         outcome = ExecutionOutcome.Suspended;
-                        failureReason = JobEventReasonCode.JobHandlerSuspended;
+                        failureReason = EventReasonCode.JobHandlerSuspended;
                         failureMessage = (signalSuspend.ReasonMessage ?? $"Signal '{signalSuspend.SignalName}' pending.").Truncate(
                             ActaTextLimits.ReasonMessage
                         );
@@ -502,7 +502,7 @@ internal sealed class JobExecution(
                         // untouched, and the terminal landing stamps retention so the job stops being
                         // an immortal Suspended row.
                         outcome = ExecutionOutcome.Cancelled;
-                        failureReason = JobEventReasonCode.JobWaitTimedOut;
+                        failureReason = EventReasonCode.JobWaitTimedOut;
                         failureMessage = $"Durable wait '{waitTimeout.WaitName}' timed out.".Truncate(ActaTextLimits.ReasonMessage);
                         handlerStatusCode = (byte)JobStatusCode.Cancelled;
                         break;
@@ -510,19 +510,19 @@ internal sealed class JobExecution(
                         // Deliberate terminal Failed: no retry, budget untouched. Distinct from an unhandled
                         // exception (UnhandledException reason); both land Failed but the reason tells them apart.
                         outcome = ExecutionOutcome.Failed;
-                        failureReason = JobEventReasonCode.JobHandlerFailed;
+                        failureReason = EventReasonCode.JobHandlerFailed;
                         failureMessage = fail.ReasonMessage.Truncate(ActaTextLimits.ReasonMessage);
                         handlerStatusCode = (byte)JobStatusCode.Failed;
                         break;
                     case HandlerCancelException cancel:
                         outcome = ExecutionOutcome.Cancelled;
-                        failureReason = JobEventReasonCode.JobHandlerCancelled;
+                        failureReason = EventReasonCode.JobHandlerCancelled;
                         failureMessage = cancel.ReasonMessage.Truncate(ActaTextLimits.ReasonMessage);
                         handlerStatusCode = (byte)JobStatusCode.Cancelled;
                         break;
                     case HandlerPauseException pause:
                         outcome = ExecutionOutcome.Paused;
-                        failureReason = JobEventReasonCode.JobHandlerPaused;
+                        failureReason = EventReasonCode.JobHandlerPaused;
                         failureMessage = pause.ReasonMessage.Truncate(ActaTextLimits.ReasonMessage);
                         handlerStatusCode = (byte)JobStatusCode.Paused;
                         break;
@@ -532,7 +532,7 @@ internal sealed class JobExecution(
                         // heartbeat renews from database state, so it lands as a handler exception instead:
                         // a retried Failed, charged to the budget, with the type in the reason.
                         outcome = ExecutionOutcome.Failed;
-                        failureReason = JobEventReasonCode.JobUnhandledException;
+                        failureReason = EventReasonCode.JobUnhandledException;
                         failureMessage = $"Unrecognized control signal {control.GetType().Name}: {control.Message}".Truncate(
                             ActaTextLimits.ReasonMessage
                         );
@@ -567,7 +567,7 @@ internal sealed class JobExecution(
                 {
                     // The per-attempt execution timeout fired. Record it distinctly and let the retry budget
                     // below decide re-arm vs terminal; a timeout is a retryable failure like an exception.
-                    failureReason = JobEventReasonCode.JobExecutionTimeout;
+                    failureReason = EventReasonCode.JobExecutionTimeout;
                     failureMessage = "Execution exceeded the configured timeout.";
                     _log.LogWarning(
                         "Handler for job ({JobName}) id {JobId} exceeded its execution timeout.",
@@ -586,7 +586,7 @@ internal sealed class JobExecution(
                     // rows still no-op. Writing (not skipping) matters because a live worker's heartbeat
                     // renews every row it leases, so a skipped write could leave a zombie Executing row
                     // renewed forever.
-                    failureReason = JobEventReasonCode.JobAttemptAborted;
+                    failureReason = EventReasonCode.JobAttemptAborted;
                     failureMessage = "Attempt aborted: the lease or a held lock could no longer be guaranteed.";
                     _log.LogWarning("WorkerRuntime: job {JobId} attempt aborted mid-flight; handler stopped cooperatively.", job.JobId);
                 }
@@ -601,7 +601,7 @@ internal sealed class JobExecution(
                 // stolen lease does, while a row this worker still owns re-arms under the failure budget
                 // and retries instead of landing Failed with no recorded reason.
                 outcome = ExecutionOutcome.Failed;
-                failureReason = JobEventReasonCode.JobAttemptAborted;
+                failureReason = EventReasonCode.JobAttemptAborted;
                 failureMessage = $"Step '{ownershipLost.StepName}' ownership could not be confirmed; attempt aborted.".Truncate(
                     ActaTextLimits.ReasonMessage
                 );
@@ -619,7 +619,7 @@ internal sealed class JobExecution(
                 // parent is never replayed back into the interrupted step. The distinct reason preserves
                 // the "outcome unknown" story for jobs explain / the timeline.
                 outcome = ExecutionOutcome.Failed;
-                failureReason = JobEventReasonCode.JobStepInterrupted;
+                failureReason = EventReasonCode.JobStepInterrupted;
                 failureMessage = interrupted.Message.Truncate(ActaTextLimits.ReasonMessage);
                 handlerStatusCode = (byte)JobStatusCode.Failed;
                 _log.LogWarning(
@@ -636,12 +636,12 @@ internal sealed class JobExecution(
                 {
                     // A programming error retrying cannot fix: land terminal Failed through the same
                     // completion branch as ctx.FailAsync, leaving the retry budget untouched.
-                    failureReason = JobEventReasonCode.JobNonRetryableException;
+                    failureReason = EventReasonCode.JobNonRetryableException;
                     handlerStatusCode = (byte)JobStatusCode.Failed;
                 }
                 else
                 {
-                    failureReason = JobEventReasonCode.JobUnhandledException;
+                    failureReason = EventReasonCode.JobUnhandledException;
                 }
                 failureMessage = (
                     inputDeserialized ? ex.Message : $"Input deserialization failed ({ex.GetType().Name}): {ex.Message}"
@@ -681,7 +681,7 @@ internal sealed class JobExecution(
         {
             // Deadline already passed at admission: terminate without invoking the handler.
             outcome = ExecutionOutcome.Cancelled;
-            failureReason = JobEventReasonCode.JobDeadlineExceeded;
+            failureReason = EventReasonCode.JobDeadlineExceeded;
             failureMessage = "Job passed its deadline before execution started.";
             handlerStatusCode = (byte)JobStatusCode.Cancelled;
             _log.LogInformation("WorkerRuntime: job {JobId} overdue at admission; cancelling without running the handler.", job.JobId);
@@ -697,7 +697,7 @@ internal sealed class JobExecution(
             // the admission above already put in rescheduleResumeAtUtc. An absolute instant rather than
             // a delay, because the turn is a place in the meter's queue, not a cooldown.
             outcome = ExecutionOutcome.Rescheduled;
-            failureReason = JobEventReasonCode.JobRateLimited;
+            failureReason = EventReasonCode.JobRateLimited;
             failureMessage = "The rate limit for this key reserved this job its next turn.";
         }
         else
@@ -705,7 +705,7 @@ internal sealed class JobExecution(
             // Concurrency bounce: settle the attempt as a budget-neutral re-arm with the fixed delay. A provider
             // error says nothing about the key, which a rate-only definition does not even have.
             outcome = ExecutionOutcome.Rescheduled;
-            failureReason = admissionFailed ? JobEventReasonCode.Unclassified : JobEventReasonCode.JobConcurrencyKeyHeld;
+            failureReason = admissionFailed ? EventReasonCode.Unclassified : EventReasonCode.JobConcurrencyKeyHeld;
             failureMessage = admissionFailed
                 ? "Admission failed on a provider error; the attempt re-armed instead of running."
                 : "Every concurrency slot for this key is held by another execution.";
@@ -744,7 +744,7 @@ internal sealed class JobExecution(
                 )
                 {
                     outcome = ExecutionOutcome.Cancelled;
-                    failureReason = JobEventReasonCode.JobDeadlineExceeded;
+                    failureReason = EventReasonCode.JobDeadlineExceeded;
                     failureMessage = "Next retry would exceed the job deadline.";
                     handlerStatusCode = (byte)JobStatusCode.Cancelled;
                 }
@@ -1034,11 +1034,8 @@ internal sealed class JobExecution(
     /// (HandlerFailed) takes the handler-status path and never retries; a null reason falls through
     /// to a terminal completion.
     /// </summary>
-    private static bool IsRetryable(JobEventReasonCode? reason) =>
-        reason
-            is JobEventReasonCode.JobUnhandledException
-                or JobEventReasonCode.JobExecutionTimeout
-                or JobEventReasonCode.JobAttemptAborted;
+    private static bool IsRetryable(EventReasonCode? reason) =>
+        reason is EventReasonCode.JobUnhandledException or EventReasonCode.JobExecutionTimeout or EventReasonCode.JobAttemptAborted;
 
     /// <summary>
     /// Recurring completion outcome, computed in C# from the attempt result and the planned slot
@@ -1059,14 +1056,14 @@ internal sealed class JobExecution(
     internal static (
         JobStatusCode FinalStatus,
         int FailureCount,
-        JobEventReasonCode? ReasonCode,
+        EventReasonCode? ReasonCode,
         string? ReasonMessage
     ) ComputeRecurringOutcome(
         ExecutionOutcome outcome,
         ClaimedJob job,
         JobDescriptor descriptor,
         RecurringFireOutcome fire,
-        JobEventReasonCode? failureReason,
+        EventReasonCode? failureReason,
         string? failureMessage
     )
     {
@@ -1074,7 +1071,7 @@ internal sealed class JobExecution(
 
         if (fire.SlotMinNextRunAtUtc is null)
         {
-            return (JobStatusCode.Paused, failureCount, JobEventReasonCode.JobSchedulesExhausted, null);
+            return (JobStatusCode.Paused, failureCount, EventReasonCode.JobSchedulesExhausted, null);
         }
 
         return (JobStatusCode.Ready, failureCount, failureReason, failureMessage);

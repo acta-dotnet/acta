@@ -256,7 +256,7 @@ public sealed class LaneRestartSpec : ActaRuntimeTestBase<ConformanceFixture, Te
     {
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var events = await Db.From<EventEntity>()
-            .Where(e => e.NamespaceId == ns && e.ReasonCode == JobEventReasonCode.JobLaneRepaired)
+            .Where(e => e.NamespaceId == ns && e.ReasonCode == EventReasonCode.JobLaneRepaired)
             .ToListAsync(ct);
         return events.Count;
     }

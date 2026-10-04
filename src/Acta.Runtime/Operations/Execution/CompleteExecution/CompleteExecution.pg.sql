@@ -96,13 +96,13 @@ BEGIN
         FROM {{schema}}.checkpoints
         WHERE
             job_id = p_id
-            AND kind_code IN (20 /* JobCheckpointKindCode.Signal */, 50 /* JobCheckpointKindCode.ChildLatch */)
+            AND kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
             AND name = p_wait_signal_name
         FOR UPDATE;
     END IF;
 
     v_to_status := CASE
-        WHEN v_signal_suspend AND v_sig_state = 20 /* JobCheckpointStatusCode.Set */ THEN 10 /* JobStatusCode.Ready */
+        WHEN v_signal_suspend AND v_sig_state = 20 /* CheckpointStatusCode.Set */ THEN 10 /* JobStatusCode.Ready */
         WHEN v_signal_suspend THEN 20 /* JobStatusCode.Suspended */
         WHEN p_reschedule_status_code IS NOT NULL THEN 10 /* JobStatusCode.Ready */
         WHEN v_handler THEN p_handler_status_code
@@ -115,7 +115,7 @@ BEGIN
     SET
         status_code = v_to_status,
         next_run_at_utc = CASE
-            WHEN v_signal_suspend AND v_sig_state = 20 /* JobCheckpointStatusCode.Set */ THEN now()
+            WHEN v_signal_suspend AND v_sig_state = 20 /* CheckpointStatusCode.Set */ THEN now()
             WHEN v_signal_suspend THEN v_sig_due
             WHEN v_rearm THEN COALESCE(p_reschedule_resume_at_utc, now() + make_interval(secs => p_reschedule_delay_seconds))
             -- A handler's pause keeps a next run, which marks it held (ScheduleWalker, "held").
@@ -165,7 +165,7 @@ BEGIN
     IF v_recurring THEN
 
         IF p_advance_schedule_ids IS NOT NULL AND cardinality(p_advance_schedule_ids) > 0 THEN
-            IF v_audit = 20 /* JobAuditLevelCode.Audit */ THEN
+            IF v_audit = 20 /* DefinitionAuditLevelCode.Audit */ THEN
                 INSERT INTO {{schema}}.events (
                     event_code,
                     created_at_utc,
@@ -269,8 +269,8 @@ BEGIN
     -- At Failures a failure carrying no reschedule is written, and a success only when it answers a
     -- recorded failure, which is what closes the incident: the job's newest finished event is not a
     -- success. Never failed, or already answered, writes nothing. One seek on the timeline index.
-    IF v_audit = 20 /* JobAuditLevelCode.Audit */
-        OR (v_audit = 10 /* JobAuditLevelCode.Failures */ AND NOT v_rearm
+    IF v_audit = 20 /* DefinitionAuditLevelCode.Audit */
+        OR (v_audit = 10 /* DefinitionAuditLevelCode.Failures */ AND NOT v_rearm
             AND NOT (v_handler AND p_handler_status_code IN (220 /* JobStatusCode.Cancelled */, 30 /* JobStatusCode.Paused */))
             AND (NOT p_execution_succeeded
                 OR COALESCE((
@@ -324,7 +324,7 @@ BEGIN
             p_reason_message);
     END IF;
 
-    IF v_recurring AND v_audit = 20 /* JobAuditLevelCode.Audit */ AND p_final_status IN (10 /* JobStatusCode.Ready */, 30 /* JobStatusCode.Paused */) THEN
+    IF v_recurring AND v_audit = 20 /* DefinitionAuditLevelCode.Audit */ AND p_final_status IN (10 /* JobStatusCode.Ready */, 30 /* JobStatusCode.Paused */) THEN
         INSERT INTO {{schema}}.events (
             event_code,
             created_at_utc,
@@ -368,7 +368,7 @@ BEGIN
             p_reason_message);
     END IF;
 
-    IF v_rearm AND v_audit = 20 /* JobAuditLevelCode.Audit */ AND NOT (v_signal_suspend AND v_to_status = 10 /* JobStatusCode.Ready */) THEN
+    IF v_rearm AND v_audit = 20 /* DefinitionAuditLevelCode.Audit */ AND NOT (v_signal_suspend AND v_to_status = 10 /* JobStatusCode.Ready */) THEN
         INSERT INTO {{schema}}.events (
             event_code,
             created_at_utc,
@@ -409,7 +409,7 @@ BEGIN
             p_reason_message);
     END IF;
 
-    IF v_handler AND v_audit = 20 /* JobAuditLevelCode.Audit */ AND p_handler_status_code IN (220 /* JobStatusCode.Cancelled */, 30 /* JobStatusCode.Paused */) THEN
+    IF v_handler AND v_audit = 20 /* DefinitionAuditLevelCode.Audit */ AND p_handler_status_code IN (220 /* JobStatusCode.Cancelled */, 30 /* JobStatusCode.Paused */) THEN
         INSERT INTO {{schema}}.events (
             event_code,
             created_at_utc,
@@ -455,7 +455,7 @@ BEGIN
 
         SELECT js.status_code INTO v_psig
         FROM {{schema}}.checkpoints js
-        WHERE js.job_id = v_parent_id AND js.kind_code = 50 /* JobCheckpointKindCode.ChildLatch */ AND js.name = v_sig
+        WHERE js.job_id = v_parent_id AND js.kind_code = 50 /* CheckpointKindCode.ChildLatch */ AND js.name = v_sig
         FOR UPDATE;
 
         SELECT pr.status_code, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id, pr.execution_number, j.audit_level_code, j.job_ref
@@ -470,7 +470,7 @@ BEGIN
            still happened, so the audit event below still records it and says why it changed nothing. */
         -- COALESCE, not a bare comparison: a first completion has no latch row at all, and NULL = 30 is
         -- unknown, which would skip the upsert below rather than take it.
-        v_latch_expired := COALESCE(v_psig = 30 /* JobCheckpointStatusCode.Expired */, FALSE);
+        v_latch_expired := COALESCE(v_psig = 30 /* CheckpointStatusCode.Expired */, FALSE);
         -- Capped because the caller's message can already sit at the column width, and an overflow here
         -- would fail a completion over an audit line.
         v_pmessage := CASE
@@ -485,9 +485,9 @@ BEGIN
                 INSERT INTO {{schema}}.checkpoints (job_id, kind_code, name, status_code, value_format_id, value, created_at_utc, modified_at_utc, version)
                 VALUES (
                     v_parent_id,
-                    50 /* JobCheckpointKindCode.ChildLatch */,
+                    50 /* CheckpointKindCode.ChildLatch */,
                     v_sig,
-                    20 /* JobCheckpointStatusCode.Set */,
+                    20 /* CheckpointStatusCode.Set */,
                     1 /* JobPayloadFormat.Json */,
                     convert_to(json_build_object(
                         'childJobId', p_id,
@@ -496,14 +496,14 @@ BEGIN
                     now(),
                     0)
                 ON CONFLICT (job_id, kind_code, name) DO UPDATE SET
-                    status_code = 20 /* JobCheckpointStatusCode.Set */,
+                    status_code = 20 /* CheckpointStatusCode.Set */,
                     value_format_id = EXCLUDED.value_format_id,
                     value = EXCLUDED.value,
                     modified_at_utc = now(),
                     version = {{schema}}.checkpoints.version + 1;
             END IF;
 
-            IF v_paudit = 20 /* JobAuditLevelCode.Audit */ THEN
+            IF v_paudit = 20 /* DefinitionAuditLevelCode.Audit */ THEN
                 INSERT INTO {{schema}}.events (
                     event_code,
                     created_at_utc,
@@ -553,7 +553,7 @@ BEGIN
                     version = version + 1
                 WHERE job_id = v_parent_id;
 
-                IF v_paudit = 20 /* JobAuditLevelCode.Audit */ THEN
+                IF v_paudit = 20 /* DefinitionAuditLevelCode.Audit */ THEN
                     INSERT INTO {{schema}}.events (
                         event_code,
                         created_at_utc,
@@ -590,7 +590,7 @@ BEGIN
                         10 /* JobStatusCode.Ready */,
                         NULL,
                         NULL,
-                        60 /* JobEventReasonCode.JobSignalReleased */,
+                        60 /* EventReasonCode.JobSignalReleased */,
                         NULL);
                 END IF;
 

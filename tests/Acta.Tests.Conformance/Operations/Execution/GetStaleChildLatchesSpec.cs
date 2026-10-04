@@ -64,7 +64,7 @@ public sealed class GetStaleChildLatchesSpec : ActaRuntimeTestBase<ConformanceFi
 
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(child, ct));
 
-        Assert.Equal(JobCheckpointStatusCode.Set, Assert.Single(await ReadSignalsAsync(parent, ct)).Status);
+        Assert.Equal(CheckpointStatusCode.Set, Assert.Single(await ReadSignalsAsync(parent, ct)).Status);
         Assert.DoesNotContain(await Execution.GetStaleChildLatchesAsync(NamespaceId, ct), l => l.ParentJobId == parent);
     }
 
@@ -76,7 +76,7 @@ public sealed class GetStaleChildLatchesSpec : ActaRuntimeTestBase<ConformanceFi
         var child = Assert.Single(await Db.From<JobEntity>().Where(j => j.ParentId == parent.JobId).ToListAsync(ct));
         var latch = Assert.Single(await ReadSignalsAsync(parent.JobId, ct));
         Assert.Equal($"sys.child.{child.Id}", latch.Name);
-        Assert.Equal(JobCheckpointStatusCode.Pending, latch.Status);
+        Assert.Equal(CheckpointStatusCode.Pending, latch.Status);
         return (parent.JobId, child.Id);
     }
 }

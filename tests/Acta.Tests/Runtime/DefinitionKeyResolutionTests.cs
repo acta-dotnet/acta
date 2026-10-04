@@ -19,7 +19,7 @@ public sealed class DefinitionKeyResolutionTests
             DefinitionId: id,
             JobNamespace: Namespace,
             JobName: name,
-            Status: JobDefinitionStatusCode.Active,
+            Status: DefinitionStatusCode.Active,
             InputTypeName: "Input",
             OutputTypeName: null,
             PriorityOverride: null,

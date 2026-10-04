@@ -35,7 +35,7 @@ public sealed class InputDeserializationFailureSpec : ActaRuntimeTestBase<Confor
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         var finished = Assert.Single(events, e => e.EventCode == EventCode.JobExecutionFinished);
-        Assert.Equal(JobEventReasonCode.JobUnhandledException, finished.JobEventReasonCode);
+        Assert.Equal(EventReasonCode.JobUnhandledException, finished.EventReasonCode);
         Assert.StartsWith("Input deserialization failed (JsonException):", finished.ReasonMessage);
     }
 }

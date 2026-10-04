@@ -214,7 +214,7 @@ public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFix
 
         var events = await GetEventsByJobId.Run(Services, slotId, ct);
         var cancelEvent = Assert.Single(events, e => e.EventCode == EventCode.JobCancelled);
-        Assert.Equal(JobEventReasonCode.JobHandlerCancelled, cancelEvent.JobEventReasonCode);
+        Assert.Equal(EventReasonCode.JobHandlerCancelled, cancelEvent.EventReasonCode);
     }
 
     private async Task<long> SlotIdAsync(CancellationToken ct)

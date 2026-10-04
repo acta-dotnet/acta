@@ -100,7 +100,7 @@ internal sealed class AlertsJob(
     [Job(
         "sys.alerts",
         Priority = JobPriorityCode.Critical,
-        AuditLevel = JobAuditLevelCode.Failures,
+        AuditLevel = DefinitionAuditLevelCode.Failures,
         AlertProfile = AlertProfileCode.SysCritical
     )]
     [JobSchedule("default", Cron.EveryMinute)]

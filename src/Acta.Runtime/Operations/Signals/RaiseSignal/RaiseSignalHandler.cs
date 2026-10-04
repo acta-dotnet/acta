@@ -31,16 +31,9 @@ internal sealed class RaiseSignalHandler(
             return new RaiseSignalResponse(0, ControlAction.NotFound, null, null);
         }
 
-        var input = new JobControlInput(JobControlActor.Operator(command.ActorKey), JobEventReasonCode.JobSignalReleased, null);
+        var input = new JobControlInput(JobControlActor.Operator(command.ActorKey), EventReasonCode.JobSignalReleased, null);
         var row = await RaiseSlotAsync(
-            new SignalSlotRaise(
-                jobId,
-                JobCheckpointKindCode.Signal,
-                name,
-                value.Format.Id,
-                value.IsNone ? null : value.Data.ToArray(),
-                input
-            ),
+            new SignalSlotRaise(jobId, CheckpointKindCode.Signal, name, value.Format.Id, value.IsNone ? null : value.Data.ToArray(), input),
             ct
         );
         await JobControl.WakeIfReadyAsync(wakeup, row.Action, row.Status, ct);

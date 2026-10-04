@@ -19,7 +19,7 @@ internal sealed class CancelJobHandler(
     /// </summary>
     public static readonly JobControlInput ParentCancelled = new(
         new JobControlActor(ActorCode.Sys),
-        JobEventReasonCode.JobParentCancelled,
+        EventReasonCode.JobParentCancelled,
         "Ancestor job cancelled."
     );
 

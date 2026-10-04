@@ -15,7 +15,7 @@ public sealed record JobDefinitionListItem(
     [property: JsonIgnore] int DefinitionId,
     string JobNamespace,
     string JobName,
-    JobDefinitionStatusCode Status,
+    DefinitionStatusCode Status,
     string InputTypeName,
     string? OutputTypeName,
     JobPriorityCode? PriorityOverride,

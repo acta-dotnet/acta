@@ -59,7 +59,7 @@ public sealed class DeferredRetryStepManifest : IJobManifest
                 RequiresCancellationToken: true,
                 Priority: JobPriorityCode.Normal,
                 MaxAttempts: 5,
-                AuditLevel: JobAuditLevelCode.Audit,
+                AuditLevel: DefinitionAuditLevelCode.Audit,
                 AlertProfile: AlertProfileCode.OnFailure,
                 Invoker: static async (_, _, ctx, ct) =>
                 {
@@ -117,7 +117,7 @@ public sealed class StepDeferredRetrySpec : ActaRuntimeTestBase<ConformanceFixtu
         // Step row: Pending at attempt 1, next_retry_at_utc set to a future instant.
         var step1 = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
         Assert.Equal(StepName, step1.Name);
-        Assert.Equal(JobStepStatusCode.Pending, step1.Status);
+        Assert.Equal(StepStatusCode.Pending, step1.Status);
         Assert.Equal(1, step1.AttemptNumber);
         Assert.NotNull(step1.NextRetryAtUtc);
         var retryInstant = step1.NextRetryAtUtc!.Value;
@@ -152,7 +152,7 @@ public sealed class StepDeferredRetrySpec : ActaRuntimeTestBase<ConformanceFixtu
         var retryInstant = step1.NextRetryAtUtc!.Value;
 
         // The failed attempt stamps its reason on the slot; the success below has to take it back off.
-        Assert.Equal(JobEventReasonCode.JobUnhandledException, step1.ReasonCode);
+        Assert.Equal(EventReasonCode.JobUnhandledException, step1.ReasonCode);
         Assert.NotNull(step1.ReasonMessage);
 
         // Parent is ready at retryInstant; confirm it matches before DB manipulation.
@@ -172,7 +172,7 @@ public sealed class StepDeferredRetrySpec : ActaRuntimeTestBase<ConformanceFixtu
 
         // Step: Succeeded at attempt 2, no pending retry.
         var step3 = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
-        Assert.Equal(JobStepStatusCode.Succeeded, step3.Status);
+        Assert.Equal(StepStatusCode.Succeeded, step3.Status);
         Assert.Equal(2, step3.AttemptNumber);
         Assert.Null(step3.NextRetryAtUtc);
 

@@ -28,7 +28,7 @@ public sealed class GetJobCheckpointsSpec : ActaRuntimeTestBase<ConformanceFixtu
         );
 
         var variableValue = JobPayload.Text("stage-two");
-        await CheckpointSlot.SetAsync(execution, enqueued.JobId, JobCheckpointKindCode.Variable, "fetch.status", variableValue, ct);
+        await CheckpointSlot.SetAsync(execution, enqueued.JobId, CheckpointKindCode.Variable, "fetch.status", variableValue, ct);
 
         var signalValue = JobPayload.Json(new AddNumbers(2, 3));
         await Services
@@ -36,11 +36,11 @@ public sealed class GetJobCheckpointsSpec : ActaRuntimeTestBase<ConformanceFixtu
             .RaiseSignalAsync(
                 new SignalSlotRaise(
                     enqueued.JobId,
-                    JobCheckpointKindCode.Signal,
+                    CheckpointKindCode.Signal,
                     "s.ready",
                     signalValue.Format.Id,
                     signalValue.Data.ToArray(),
-                    new JobControlInput(new JobControlActor(ActorCode.Operator, "op"), JobEventReasonCode.JobControlManual, "seed")
+                    new JobControlInput(new JobControlActor(ActorCode.Operator, "op"), EventReasonCode.JobControlManual, "seed")
                 ),
                 ct
             );
@@ -50,7 +50,7 @@ public sealed class GetJobCheckpointsSpec : ActaRuntimeTestBase<ConformanceFixtu
 
         // Ordered by kind (Variable=10 before Signal=20) then name.
         var variable = items[0];
-        Assert.Equal(JobCheckpointKindCode.Variable, variable.Kind);
+        Assert.Equal(CheckpointKindCode.Variable, variable.Kind);
         Assert.Equal("fetch.status", variable.Name);
         Assert.Null(variable.Status);
         Assert.NotNull(variable.Value);
@@ -58,9 +58,9 @@ public sealed class GetJobCheckpointsSpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.Equal(variableValue.Data.ToArray(), variable.Value.Value.Data.ToArray());
 
         var signal = items[1];
-        Assert.Equal(JobCheckpointKindCode.Signal, signal.Kind);
+        Assert.Equal(CheckpointKindCode.Signal, signal.Kind);
         Assert.Equal("s.ready", signal.Name);
-        Assert.Equal(JobCheckpointStatusCode.Set, signal.Status);
+        Assert.Equal(CheckpointStatusCode.Set, signal.Status);
         Assert.NotNull(signal.Value);
         Assert.Equal(signalValue.Data.ToArray(), signal.Value!.Value.Data.ToArray());
     }

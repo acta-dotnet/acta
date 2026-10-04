@@ -44,7 +44,7 @@ BEGIN
             NULL,
             NULL,
             NULL,
-            101 /* JobEventReasonCode.WorkerHeartbeatStale */,
+            101 /* EventReasonCode.WorkerHeartbeatStale */,
             NULL
         FROM @marked m;
 

@@ -44,7 +44,7 @@ public sealed class StopWorkerSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         Assert.Null(stoppedEvent.JobId);
         Assert.Equal(ns, stoppedEvent.NamespaceId);
         Assert.Equal(ActorCode.Worker, stoppedEvent.ActorCode);
-        Assert.Equal(JobEventReasonCode.WorkerCleanShutdown, stoppedEvent.ReasonCode);
+        Assert.Equal(EventReasonCode.WorkerCleanShutdown, stoppedEvent.ReasonCode);
     }
 
     [Fact(DisplayName = "A second stop on a terminal worker is a no-op and writes no further event")]

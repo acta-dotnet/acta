@@ -73,7 +73,7 @@ public sealed class InvalidBackoffManifest : IJobManifest
                     RequiresCancellationToken: false,
                     Priority: JobPriorityCode.Normal,
                     MaxAttempts: 1,
-                    AuditLevel: JobAuditLevelCode.Audit,
+                    AuditLevel: DefinitionAuditLevelCode.Audit,
                     AlertProfile: AlertProfileCode.None,
                     Invoker: static async (_, _, _, _) =>
                     {

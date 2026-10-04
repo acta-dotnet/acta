@@ -17,7 +17,7 @@ BEGIN
         DELETE FROM {{schema}}.checkpoints
         WHERE
             job_id = @p_job_id
-            AND kind_code = 20 /* JobCheckpointKindCode.Signal */
+            AND kind_code = 20 /* CheckpointKindCode.Signal */
             AND name = @p_name
             AND version = @p_expected_version;
 

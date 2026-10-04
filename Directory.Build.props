@@ -85,7 +85,7 @@
     <!-- Seven sites in three shapes. Three are not a nested type anyone wrote: they are the container
          Roslyn synthesizes for a C# extension block, which is why the diagnostic names no type at all
          - the message reads "Do not nest type ." with the name blank. Those blocks are the IsTerminal
-         / IsClaimable / GetBehavior members on ExecutionStatusCode, JobStepStatusCode and
+         / IsClaimable / GetBehavior members on ExecutionStatusCode, StepStatusCode and
          JobStatusCode, and the flagged type has no name to rename, no accessibility to set and no
          file to move to; the rule fires on the language feature itself, wherever it is used. Two are
          AttemptIdentity and NoteDetail, the note payload of one [Job] handler each, nested in the

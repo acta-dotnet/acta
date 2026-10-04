@@ -193,7 +193,7 @@ public sealed class AlertProjectionDrainSpec : ActaRuntimeTestBase<ConformanceFi
                         ExecutionNumber = i + 1,
                         ToStatus = JobStatusCode.Failed,
                         ExecutionStatus = ExecutionStatusCode.Failed,
-                        ReasonCode = JobEventReasonCode.JobUnhandledException,
+                        ReasonCode = EventReasonCode.JobUnhandledException,
                         ReasonMessage = "staged backlog",
                     },
                     ct

@@ -16,7 +16,7 @@ internal sealed class RecoveryJob(RecoveryPass pass)
     [Job(
         "sys.recovery",
         Priority = JobPriorityCode.Critical,
-        AuditLevel = JobAuditLevelCode.Failures,
+        AuditLevel = DefinitionAuditLevelCode.Failures,
         AlertProfile = AlertProfileCode.SysCritical
     )]
     [JobSchedule("default", Cron.EveryMinute)]

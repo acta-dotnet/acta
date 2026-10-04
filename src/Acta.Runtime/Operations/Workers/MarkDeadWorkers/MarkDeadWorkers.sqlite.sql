@@ -39,7 +39,7 @@ SELECT
     NULL,
     NULL,
     NULL,
-    101 /* JobEventReasonCode.WorkerHeartbeatStale */,
+    101 /* EventReasonCode.WorkerHeartbeatStale */,
     NULL
 FROM temp._dead_workers d;
 

@@ -61,7 +61,7 @@ public sealed class ResumeScheduleSpec : ActaStorageTestBase<ConformanceFixture>
             JobName: jobName,
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
-            AuditLevel: JobAuditLevelCode.Audit,
+            AuditLevel: DefinitionAuditLevelCode.Audit,
             SlotStatus: slotStatus,
             SlotMinNextRunAtUtc: slotMin,
             Schedules: schedules

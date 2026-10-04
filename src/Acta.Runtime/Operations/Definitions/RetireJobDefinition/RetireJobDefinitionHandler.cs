@@ -29,7 +29,7 @@ internal sealed class RetireJobDefinitionHandler(
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.Id, definitionId.Value));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.Version, command.ExpectedVersion));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ReasonCode, JobEventReasonCode.JobControlManual));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ReasonCode, EventReasonCode.JobControlManual));
                 cmd.AddOperatorAudit(dialect, command.ActorKey, command.ReasonMessage);
             },
             DbProjectionResolver.Resolve<RetireJobDefinitionRow>(),

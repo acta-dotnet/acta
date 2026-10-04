@@ -96,7 +96,7 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
 
         var sig = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct));
         Assert.Equal("go", sig.Name);
-        Assert.Equal(JobCheckpointStatusCode.Pending, sig.Status);
+        Assert.Equal(CheckpointStatusCode.Pending, sig.Status);
 
         Assert.Equal(1, await CountVariableAsync(enqueued.JobId, "ran.before", ct));
         Assert.Equal(0, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
@@ -116,7 +116,7 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
         Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var sig = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct));
-        Assert.Equal(JobCheckpointStatusCode.Pending, sig.Status);
+        Assert.Equal(CheckpointStatusCode.Pending, sig.Status);
         Assert.Equal(0, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
     }
 
@@ -134,7 +134,7 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, job.Status);
         Assert.NotNull(job.NextRunAtUtc);
-        Assert.Equal(JobCheckpointStatusCode.Set, (await ReadSignalsAsync(enqueued.JobId, ct)).Single().Status);
+        Assert.Equal(CheckpointStatusCode.Set, (await ReadSignalsAsync(enqueued.JobId, ct)).Single().Status);
         Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobSignalRaised, ct));
         Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobResumed, ct));
 
@@ -185,7 +185,7 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
         Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(enqueued, "go", JobPayload.None, ct: ct)).Action);
 
         var sig = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct));
-        Assert.Equal(JobCheckpointStatusCode.Set, sig.Status);
+        Assert.Equal(CheckpointStatusCode.Set, sig.Status);
         Assert.Equal(0, sig.ValueFormatId);
         Assert.Null(sig.Value);
     }
@@ -200,7 +200,7 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
         await Jobs.RaiseSignalAsync(enqueued, "review", new ReviewDecision(false, "first"), ct: ct);
         await Jobs.RaiseSignalAsync(enqueued, "review", new ReviewDecision(true, "second"), ct: ct);
 
-        Assert.Equal(JobCheckpointStatusCode.Set, (await ReadSignalsAsync(enqueued.JobId, ct)).Single().Status);
+        Assert.Equal(CheckpointStatusCode.Set, (await ReadSignalsAsync(enqueued.JobId, ct)).Single().Status);
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(new ReviewDecision(true, "second"), await Jobs.GetResultAsync<ReviewDecision>(enqueued, ct));
     }
@@ -221,7 +221,7 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
         Assert.Equal(JobStatusCode.Paused, raise.Status);
 
         Assert.Equal(JobStatusCode.Paused, (await ReadJobAsync(enqueued.JobId, ct)).Status);
-        Assert.Equal(JobCheckpointStatusCode.Set, (await ReadSignalsAsync(enqueued.JobId, ct)).Single().Status);
+        Assert.Equal(CheckpointStatusCode.Set, (await ReadSignalsAsync(enqueued.JobId, ct)).Single().Status);
     }
 
     [Fact(DisplayName = "Raise is rejected against a terminal job and writes no slot")]

@@ -31,14 +31,14 @@ internal static class JobExplainer
                 wait = FindWait(data.Checkpoints);
                 switch (wait?.Kind)
                 {
-                    case JobCheckpointKindCode.Signal:
+                    case CheckpointKindCode.Signal:
                         headline = wait.DueAtUtc is { } expires
                             ? $"Suspended, waiting for signal \"{wait.Name}\"; times out at {Instant(expires)}."
                             : $"Suspended, waiting for signal \"{wait.Name}\".";
                         actions.Add(new JobExplainAction("raise-signal", $"raise signal \"{wait.Name}\""));
                         actions.Add(new JobExplainAction("cancel", "cancel the job"));
                         break;
-                    case JobCheckpointKindCode.ChildLatch:
+                    case CheckpointKindCode.ChildLatch:
                     {
                         // No raise-signal action: the sys.child latch is framework-owned and the raise
                         // verb rejects that name, so offering it would suggest a move that cannot work.
@@ -51,7 +51,7 @@ internal static class JobExplainer
                         actions.Add(new JobExplainAction("cancel", "cancel the job if the wait is no longer needed"));
                         break;
                     }
-                    case JobCheckpointKindCode.Timer:
+                    case CheckpointKindCode.Timer:
                         headline = wait.DueAtUtc is { } due
                             ? $"Suspended on durable sleep \"{wait.Name}\", {DuePhrase(due, nowUtc)}."
                             : $"Suspended on durable sleep \"{wait.Name}\".";
@@ -176,23 +176,23 @@ internal static class JobExplainer
     {
         foreach (var c in checkpoints)
         {
-            if (c.Kind == JobCheckpointKindCode.Signal && c.Status == JobCheckpointStatusCode.Pending)
+            if (c.Kind == CheckpointKindCode.Signal && c.Status == CheckpointStatusCode.Pending)
             {
-                return new JobExplainWait(JobCheckpointKindCode.Signal, c.Name, c.DueAtUtc);
+                return new JobExplainWait(CheckpointKindCode.Signal, c.Name, c.DueAtUtc);
             }
         }
         foreach (var c in checkpoints)
         {
-            if (c.Kind == JobCheckpointKindCode.ChildLatch && c.Status == JobCheckpointStatusCode.Pending)
+            if (c.Kind == CheckpointKindCode.ChildLatch && c.Status == CheckpointStatusCode.Pending)
             {
-                return new JobExplainWait(JobCheckpointKindCode.ChildLatch, c.Name, c.DueAtUtc);
+                return new JobExplainWait(CheckpointKindCode.ChildLatch, c.Name, c.DueAtUtc);
             }
         }
         foreach (var c in checkpoints)
         {
-            if (c.Kind == JobCheckpointKindCode.Timer && c.Status == JobCheckpointStatusCode.Pending)
+            if (c.Kind == CheckpointKindCode.Timer && c.Status == CheckpointStatusCode.Pending)
             {
-                return new JobExplainWait(JobCheckpointKindCode.Timer, c.Name, c.DueAtUtc);
+                return new JobExplainWait(CheckpointKindCode.Timer, c.Name, c.DueAtUtc);
             }
         }
         return null;
@@ -266,16 +266,16 @@ internal static class JobExplainer
     private static string StepPhrase(ExplainStepRow s) =>
         s.Status switch
         {
-            JobStepStatusCode.Succeeded => "succeeded and will not rerun",
-            JobStepStatusCode.Exhausted => s.ReasonMessage is { Length: > 0 } m
+            StepStatusCode.Succeeded => "succeeded and will not rerun",
+            StepStatusCode.Exhausted => s.ReasonMessage is { Length: > 0 } m
                 ? $"exhausted after {Attempts(s.AttemptNumber)}: {m}"
                 : $"exhausted after {Attempts(s.AttemptNumber)}",
-            JobStepStatusCode.Pending => s.NextRetryAtUtc is not null
+            StepStatusCode.Pending => s.NextRetryAtUtc is not null
                 ? s.ReasonMessage is { Length: > 0 } retryReason
                     ? $"is waiting for retry attempt {s.AttemptNumber}: {retryReason}"
                     : $"is waiting for retry attempt {s.AttemptNumber}"
                 : "is in progress",
-            JobStepStatusCode.Interrupted =>
+            StepStatusCode.Interrupted =>
                 "was interrupted before its outcome was recorded; it may have run 0 or 1 times - reconcile externally",
             _ => s.Status.Description,
         };

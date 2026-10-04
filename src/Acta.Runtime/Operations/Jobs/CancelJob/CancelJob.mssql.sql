@@ -160,7 +160,7 @@ BEGIN
                 SET @promoted = @@ROWCOUNT;
             END;
 
-        IF @audit_level = 20 /* JobAuditLevelCode.Audit */
+        IF @audit_level = 20 /* DefinitionAuditLevelCode.Audit */
             BEGIN
                 IF @from_status = 50 /* JobStatusCode.Executing */
                     BEGIN

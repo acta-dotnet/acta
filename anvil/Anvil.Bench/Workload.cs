@@ -130,7 +130,7 @@ public sealed class BenchHandler(BenchSink sink)
 {
     // Audit off so the headline number measures the claim/execute/complete path, not per-job audit
     // event writes. The purge scenario uses the audit-on handler below to generate events.
-    [Job("bench-run", AuditLevel = JobAuditLevelCode.Off)]
+    [Job("bench-run", AuditLevel = DefinitionAuditLevelCode.Off)]
     public async Task<BenchResultPayload> Run(BenchInput input, CancellationToken ct)
     {
         sink.Record(input.EnqueuedTicks);
@@ -171,7 +171,7 @@ public sealed class BenchAuditHandler(BenchSink sink)
 /// </summary>
 public sealed class BenchRateHandler(BenchSink sink)
 {
-    [Job(BenchHost.RateJobName, AuditLevel = JobAuditLevelCode.Audit, RateLimit = BenchHost.DeclaredRate)]
+    [Job(BenchHost.RateJobName, AuditLevel = DefinitionAuditLevelCode.Audit, RateLimit = BenchHost.DeclaredRate)]
     public async Task<BenchResultPayload> Run(BenchInput input, CancellationToken ct)
     {
         sink.RecordMetered(input.EnqueuedTicks);
@@ -191,7 +191,7 @@ public sealed class BenchRateHandler(BenchSink sink)
 /// </summary>
 public sealed class BenchBlockingHandler(RecoveryCoordinator recovery, BenchSink sink, BenchWorkerId workerId)
 {
-    [Job("bench-block", AuditLevel = JobAuditLevelCode.Off)]
+    [Job("bench-block", AuditLevel = DefinitionAuditLevelCode.Off)]
     public Task Run(BenchInput input)
     {
         if (recovery.EnterFirstAttempt(workerId.Value))

@@ -65,7 +65,7 @@ BEGIN
        a message saying why it changed nothing, and the verb reports the job's unchanged status. */
     -- COALESCE, not a bare comparison: a first raise has no slot at all, and NULL = 30 is unknown, which
     -- would skip the upsert below rather than take it.
-    v_expired := COALESCE(v_existing = 30 /* JobCheckpointStatusCode.Expired */, FALSE);
+    v_expired := COALESCE(v_existing = 30 /* CheckpointStatusCode.Expired */, FALSE);
     v_message := CASE
         WHEN v_expired
             THEN LEFT(COALESCE(p_reason_message || ' ', '') || 'Signal not applied: the wait had already expired.', 512)
@@ -86,21 +86,21 @@ BEGIN
             p_job_id,
             p_kind_code,
             p_name,
-            20 /* JobCheckpointStatusCode.Set */,
+            20 /* CheckpointStatusCode.Set */,
             p_value_format_id,
             p_value,
             v_now,
             v_now,
             0)
         ON CONFLICT (job_id, kind_code, name) DO UPDATE SET
-            status_code = 20 /* JobCheckpointStatusCode.Set */,
+            status_code = 20 /* CheckpointStatusCode.Set */,
             value_format_id = EXCLUDED.value_format_id,
             value = EXCLUDED.value,
             modified_at_utc = v_now,
             version = {{schema}}.checkpoints.version + 1;
     END IF;
 
-    IF v_audit_level = 20 /* JobAuditLevelCode.Audit */ THEN
+    IF v_audit_level = 20 /* DefinitionAuditLevelCode.Audit */ THEN
         INSERT INTO {{schema}}.events (
             event_code,
             created_at_utc,
@@ -150,7 +150,7 @@ BEGIN
             version = version + 1
         WHERE job_id = p_job_id;
 
-        IF v_audit_level = 20 /* JobAuditLevelCode.Audit */ THEN
+        IF v_audit_level = 20 /* DefinitionAuditLevelCode.Audit */ THEN
             INSERT INTO {{schema}}.events (
                 event_code,
                 created_at_utc,

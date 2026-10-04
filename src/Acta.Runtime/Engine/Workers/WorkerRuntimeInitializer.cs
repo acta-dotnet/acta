@@ -381,7 +381,7 @@ internal sealed class WorkerRuntimeInitializer(
     {
         foreach (var descriptor in descriptors)
         {
-            if (descriptor.TenantRequirement == JobTenantRequirementCode.Required && !descriptor.Schedules.IsDefaultOrEmpty)
+            if (descriptor.TenantRequirement == DefinitionTenantRequirementCode.Required && !descriptor.Schedules.IsDefaultOrEmpty)
             {
                 throw new InvalidOperationException(
                     $"Job '{descriptor.JobName}' declares TenantRequirement = Required together with [JobSchedule]. "

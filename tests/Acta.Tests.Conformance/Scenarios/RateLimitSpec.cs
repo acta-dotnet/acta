@@ -330,7 +330,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
 
             Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(TestNamespace, enqueued.JobId, ct));
             Assert.Equal(
-                JobEventReasonCode.JobRateLimited,
+                EventReasonCode.JobRateLimited,
                 (await ReadLatestEventAsync(enqueued.JobId, EventCode.JobRescheduled, ct)).ReasonCode
             );
 
@@ -512,7 +512,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
 
         Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(TestNamespace, enqueued.JobId, ct));
         var bounce = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobRescheduled, ct);
-        Assert.Equal(JobEventReasonCode.JobRateLimited, bounce.ReasonCode);
+        Assert.Equal(EventReasonCode.JobRateLimited, bounce.ReasonCode);
         Assert.Equal(0, (await ReadJobAsync(enqueued.JobId, ct)).FailureCount);
         Assert.NotNull(await ReadLockAsync($"{bucket}.{enqueued.JobId}", ct));
 
@@ -553,7 +553,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
                 $"the turn was re-armed with {950 - clock.Elapsed.TotalMilliseconds:0}ms of its validity left"
             );
             Assert.Equal(
-                JobEventReasonCode.JobRateLimited,
+                EventReasonCode.JobRateLimited,
                 (await ReadLatestEventAsync(enqueued.JobId, EventCode.JobRescheduled, ct)).ReasonCode
             );
             Assert.Empty(RateLimitProbes.AdmittedAt(TestNamespace));
@@ -613,9 +613,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
     private async Task<int> CountRateLimitedAsync(long jobId, CancellationToken ct) =>
         (
             await Db.From<EventEntity>()
-                .Where(e =>
-                    e.JobId == jobId && e.EventCode == EventCode.JobRescheduled && e.ReasonCode == JobEventReasonCode.JobRateLimited
-                )
+                .Where(e => e.JobId == jobId && e.EventCode == EventCode.JobRescheduled && e.ReasonCode == EventReasonCode.JobRateLimited)
                 .ToListAsync(ct)
         ).Count;
 
@@ -633,7 +631,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
             RequiresCancellationToken: false,
             Priority: JobPriorityCode.Normal,
             MaxAttempts: 3,
-            AuditLevel: JobAuditLevelCode.Audit,
+            AuditLevel: DefinitionAuditLevelCode.Audit,
             AlertProfile: AlertProfileCode.OnFailure,
             Invoker: static (_, _, _, _) => ValueTask.FromResult(new JobHandlerInvocationResult(false, null)),
             DeserializeInput: static (_, _) => string.Empty,

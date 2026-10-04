@@ -108,7 +108,7 @@ public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<Conform
 
         // Unclassified is the reason a worker declining a claim carries, and the message is where the
         // operator-readable story lives: it names the definition whose handler is missing.
-        Assert.Equal(JobEventReasonCode.Unclassified, finished.ReasonCode);
+        Assert.Equal(EventReasonCode.Unclassified, finished.ReasonCode);
         Assert.NotNull(finished.ReasonMessage);
         Assert.Contains(
             $"definition_id={(await ReadJobAsync(audited.JobId, ct)).DefinitionId}",

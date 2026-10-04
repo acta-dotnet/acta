@@ -255,7 +255,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
                     + "VALUES (@p_job_id, @p_kind, @p_name, NULL, @p_format, @p_value)",
                 ct,
                 ("@p_job_id", enq.JobId),
-                ("@p_kind", (byte)JobCheckpointKindCode.Variable),
+                ("@p_kind", (byte)CheckpointKindCode.Variable),
                 ("@p_name", "custom-format"),
                 ("@p_format", custom.Id),
                 ("@p_value", new byte[] { 0xFF })
@@ -279,7 +279,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         // status_code is written as a literal rather than bound, for the reason the steps fixture
         // below omits its nullable column: a null TINYINT parameter leaves SQL Server no type to
         // infer. due_at_utc is bound only on the calls that set it.
-        Task<int> InsertAsync(string name, JobCheckpointKindCode kind, JobCheckpointStatusCode? status, DateTime? dueAtUtc)
+        Task<int> InsertAsync(string name, CheckpointKindCode kind, CheckpointStatusCode? status, DateTime? dueAtUtc)
         {
             var statusSql = status is null ? "NULL" : ((byte)status.Value).ToString(CultureInfo.InvariantCulture);
             var sql =
@@ -298,7 +298,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
                 );
         }
 
-        Task<int> SetStatusAsync(string name, JobCheckpointStatusCode? status)
+        Task<int> SetStatusAsync(string name, CheckpointStatusCode? status)
         {
             var statusSql = status is null ? "NULL" : ((byte)status.Value).ToString(CultureInfo.InvariantCulture);
             return Db.ExecuteRawAsync(
@@ -311,52 +311,52 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
 
         // One control per legal arm, so a rejection below proves the shape was refused and not the
         // statement.
-        Assert.Equal(1, await InsertAsync("ok-variable", JobCheckpointKindCode.Variable, null, null));
-        Assert.Equal(1, await InsertAsync("ok-progress", JobCheckpointKindCode.Progress, null, null));
-        Assert.Equal(1, await InsertAsync("ok-signal", JobCheckpointKindCode.Signal, JobCheckpointStatusCode.Pending, due));
-        Assert.Equal(1, await InsertAsync("ok-latch", JobCheckpointKindCode.ChildLatch, JobCheckpointStatusCode.Set, null));
-        Assert.Equal(1, await InsertAsync("ok-timer", JobCheckpointKindCode.Timer, JobCheckpointStatusCode.Pending, due));
-        Assert.Equal(1, await InsertAsync("ok-timer-consumed", JobCheckpointKindCode.Timer, JobCheckpointStatusCode.Consumed, due));
+        Assert.Equal(1, await InsertAsync("ok-variable", CheckpointKindCode.Variable, null, null));
+        Assert.Equal(1, await InsertAsync("ok-progress", CheckpointKindCode.Progress, null, null));
+        Assert.Equal(1, await InsertAsync("ok-signal", CheckpointKindCode.Signal, CheckpointStatusCode.Pending, due));
+        Assert.Equal(1, await InsertAsync("ok-latch", CheckpointKindCode.ChildLatch, CheckpointStatusCode.Set, null));
+        Assert.Equal(1, await InsertAsync("ok-timer", CheckpointKindCode.Timer, CheckpointStatusCode.Pending, due));
+        Assert.Equal(1, await InsertAsync("ok-timer-consumed", CheckpointKindCode.Timer, CheckpointStatusCode.Consumed, due));
 
         // A stateful kind with no status. This is the shape the stateful arms admitted while they
         // tested membership alone: `NULL IN (...)` is unknown, and a CHECK passes on unknown.
-        await Assert.ThrowsAnyAsync<DbException>(() => InsertAsync("bad-signal-null", JobCheckpointKindCode.Signal, null, due));
-        await Assert.ThrowsAnyAsync<DbException>(() => InsertAsync("bad-latch-null", JobCheckpointKindCode.ChildLatch, null, null));
-        await Assert.ThrowsAnyAsync<DbException>(() => InsertAsync("bad-timer-null", JobCheckpointKindCode.Timer, null, due));
+        await Assert.ThrowsAnyAsync<DbException>(() => InsertAsync("bad-signal-null", CheckpointKindCode.Signal, null, due));
+        await Assert.ThrowsAnyAsync<DbException>(() => InsertAsync("bad-latch-null", CheckpointKindCode.ChildLatch, null, null));
+        await Assert.ThrowsAnyAsync<DbException>(() => InsertAsync("bad-timer-null", CheckpointKindCode.Timer, null, due));
 
         // A stateful kind carrying a status its own arm does not list.
         await Assert.ThrowsAnyAsync<DbException>(() =>
-            InsertAsync("bad-timer-set", JobCheckpointKindCode.Timer, JobCheckpointStatusCode.Set, due)
+            InsertAsync("bad-timer-set", CheckpointKindCode.Timer, CheckpointStatusCode.Set, due)
         );
         await Assert.ThrowsAnyAsync<DbException>(() =>
-            InsertAsync("bad-signal-consumed", JobCheckpointKindCode.Signal, JobCheckpointStatusCode.Consumed, due)
+            InsertAsync("bad-signal-consumed", CheckpointKindCode.Signal, CheckpointStatusCode.Consumed, due)
         );
 
         // A stateless kind carrying either of the columns bound to the stateful arms.
         await Assert.ThrowsAnyAsync<DbException>(() =>
-            InsertAsync("bad-variable-status", JobCheckpointKindCode.Variable, JobCheckpointStatusCode.Pending, null)
+            InsertAsync("bad-variable-status", CheckpointKindCode.Variable, CheckpointStatusCode.Pending, null)
         );
         await Assert.ThrowsAnyAsync<DbException>(() =>
-            InsertAsync("bad-progress-status", JobCheckpointKindCode.Progress, JobCheckpointStatusCode.Set, null)
+            InsertAsync("bad-progress-status", CheckpointKindCode.Progress, CheckpointStatusCode.Set, null)
         );
-        await Assert.ThrowsAnyAsync<DbException>(() => InsertAsync("bad-variable-due", JobCheckpointKindCode.Variable, null, due));
-        await Assert.ThrowsAnyAsync<DbException>(() => InsertAsync("bad-progress-due", JobCheckpointKindCode.Progress, null, due));
+        await Assert.ThrowsAnyAsync<DbException>(() => InsertAsync("bad-variable-due", CheckpointKindCode.Variable, null, due));
+        await Assert.ThrowsAnyAsync<DbException>(() => InsertAsync("bad-progress-due", CheckpointKindCode.Progress, null, due));
 
         // A timer with no due instant is a wait nothing can wake. The three arm routines always compute
         // one, so the shape only exists if something wrote around them.
         await Assert.ThrowsAnyAsync<DbException>(() =>
-            InsertAsync("bad-timer-no-due", JobCheckpointKindCode.Timer, JobCheckpointStatusCode.Pending, null)
+            InsertAsync("bad-timer-no-due", CheckpointKindCode.Timer, CheckpointStatusCode.Pending, null)
         );
         await Assert.ThrowsAnyAsync<DbException>(() =>
-            InsertAsync("bad-timer-consumed-no-due", JobCheckpointKindCode.Timer, JobCheckpointStatusCode.Consumed, null)
+            InsertAsync("bad-timer-consumed-no-due", CheckpointKindCode.Timer, CheckpointStatusCode.Consumed, null)
         );
 
         // The constraint is re-evaluated on every write, and an UPDATE is how a live slot would
         // actually reach a bad shape, so the same shapes have to be unreachable that way too.
-        Assert.Equal(1, await SetStatusAsync("ok-signal", JobCheckpointStatusCode.Set));
+        Assert.Equal(1, await SetStatusAsync("ok-signal", CheckpointStatusCode.Set));
         await Assert.ThrowsAnyAsync<DbException>(() => SetStatusAsync("ok-signal", null));
-        await Assert.ThrowsAnyAsync<DbException>(() => SetStatusAsync("ok-timer", JobCheckpointStatusCode.Set));
-        await Assert.ThrowsAnyAsync<DbException>(() => SetStatusAsync("ok-variable", JobCheckpointStatusCode.Pending));
+        await Assert.ThrowsAnyAsync<DbException>(() => SetStatusAsync("ok-timer", CheckpointStatusCode.Set));
+        await Assert.ThrowsAnyAsync<DbException>(() => SetStatusAsync("ok-variable", CheckpointStatusCode.Pending));
         await Assert.ThrowsAnyAsync<DbException>(() =>
             Db.ExecuteRawAsync(
                 "UPDATE {schema}.checkpoints SET due_at_utc = NULL WHERE job_id = @p_job_id AND name = @p_name",
@@ -397,9 +397,9 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         var retry = DateTime.UtcNow.AddMinutes(5);
 
         // Pending is the one status a retry instant belongs to.
-        Assert.Equal(1, await InsertStepAsync(enq.JobId, "retry-pending", JobStepStatusCode.Pending, ct, nextRetryAtUtc: retry));
+        Assert.Equal(1, await InsertStepAsync(enq.JobId, "retry-pending", StepStatusCode.Pending, ct, nextRetryAtUtc: retry));
 
-        foreach (var terminal in new[] { JobStepStatusCode.Succeeded, JobStepStatusCode.Exhausted, JobStepStatusCode.Interrupted })
+        foreach (var terminal in new[] { StepStatusCode.Succeeded, StepStatusCode.Exhausted, StepStatusCode.Interrupted })
         {
             Assert.Equal(1, await InsertStepAsync(enq.JobId, $"terminal-{(byte)terminal}", terminal, ct));
             await Assert.ThrowsAnyAsync<DbException>(() =>
@@ -409,7 +409,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
 
         // The live path into a terminal status is an UPDATE of the pending row, which is where
         // start_step and complete_step have to drop the instant as part of the transition.
-        await Assert.ThrowsAnyAsync<DbException>(() => SetStepStatusAsync(enq.JobId, "retry-pending", JobStepStatusCode.Interrupted, ct));
+        await Assert.ThrowsAnyAsync<DbException>(() => SetStepStatusAsync(enq.JobId, "retry-pending", StepStatusCode.Interrupted, ct));
     }
 
     [Fact(DisplayName = "ck_steps_result_succeeded admits a stored result only on a Succeeded row")]
@@ -418,9 +418,9 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         var ct = TestContext.Current.CancellationToken;
         var enq = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
 
-        Assert.Equal(1, await InsertStepAsync(enq.JobId, "result-succeeded", JobStepStatusCode.Succeeded, ct, resultFormatId: 1));
+        Assert.Equal(1, await InsertStepAsync(enq.JobId, "result-succeeded", StepStatusCode.Succeeded, ct, resultFormatId: 1));
 
-        foreach (var status in new[] { JobStepStatusCode.Pending, JobStepStatusCode.Exhausted, JobStepStatusCode.Interrupted })
+        foreach (var status in new[] { StepStatusCode.Pending, StepStatusCode.Exhausted, StepStatusCode.Interrupted })
         {
             Assert.Equal(1, await InsertStepAsync(enq.JobId, $"no-result-{(byte)status}", status, ct));
             await Assert.ThrowsAnyAsync<DbException>(() =>
@@ -430,7 +430,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
 
         // complete_step writes the status and the result together, so a Succeeded row can never be moved
         // off that status while the result stays behind.
-        await Assert.ThrowsAnyAsync<DbException>(() => SetStepStatusAsync(enq.JobId, "result-succeeded", JobStepStatusCode.Exhausted, ct));
+        await Assert.ThrowsAnyAsync<DbException>(() => SetStepStatusAsync(enq.JobId, "result-succeeded", StepStatusCode.Exhausted, ct));
     }
 
     [Fact(DisplayName = "ck_steps_reason_pair rejects a reason message with no reason code, on INSERT and on UPDATE")]
@@ -440,21 +440,21 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         var enq = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
 
         // Both legal shapes: no reason at all, and the full pair complete_step writes on a failure.
-        Assert.Equal(1, await InsertStepAsync(enq.JobId, "reason-none", JobStepStatusCode.Pending, ct));
+        Assert.Equal(1, await InsertStepAsync(enq.JobId, "reason-none", StepStatusCode.Pending, ct));
         Assert.Equal(
             1,
             await InsertStepAsync(
                 enq.JobId,
                 "reason-pair",
-                JobStepStatusCode.Pending,
+                StepStatusCode.Pending,
                 ct,
-                reasonCode: JobEventReasonCode.JobUnhandledException,
+                reasonCode: EventReasonCode.JobUnhandledException,
                 reasonMessage: "boom"
             )
         );
 
         await Assert.ThrowsAnyAsync<DbException>(() =>
-            InsertStepAsync(enq.JobId, "reason-orphan", JobStepStatusCode.Pending, ct, reasonMessage: "boom")
+            InsertStepAsync(enq.JobId, "reason-orphan", StepStatusCode.Pending, ct, reasonMessage: "boom")
         );
 
         // The same orphan reached by UPDATE: clearing only the code off a paired row.
@@ -474,11 +474,11 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
     private Task<int> InsertStepAsync(
         long jobId,
         string name,
-        JobStepStatusCode status,
+        StepStatusCode status,
         CancellationToken ct,
         DateTime? nextRetryAtUtc = null,
         byte resultFormatId = 0,
-        JobEventReasonCode? reasonCode = null,
+        EventReasonCode? reasonCode = null,
         string? reasonMessage = null
     )
     {
@@ -529,7 +529,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         );
     }
 
-    private Task<int> SetStepStatusAsync(long jobId, string name, JobStepStatusCode status, CancellationToken ct) =>
+    private Task<int> SetStepStatusAsync(long jobId, string name, StepStatusCode status, CancellationToken ct) =>
         Db.ExecuteRawAsync(
             "UPDATE {schema}.steps SET status_code = "
                 + ((byte)status).ToString(CultureInfo.InvariantCulture)

@@ -32,7 +32,7 @@ public sealed class ExplainScenarioSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.NotNull(x);
         Assert.Equal(JobStatusCode.Suspended, x!.Status);
         Assert.NotNull(x.ActiveWait);
-        Assert.Equal(JobCheckpointKindCode.Signal, x.ActiveWait!.Kind);
+        Assert.Equal(CheckpointKindCode.Signal, x.ActiveWait!.Kind);
         Assert.Equal("go", x.ActiveWait.Name);
         Assert.Null(x.Lease);
         Assert.Contains(x.NextActions, a => a.Kind == "raise-signal");
@@ -80,7 +80,7 @@ public sealed class ExplainScenarioSpec : ActaRuntimeTestBase<ConformanceFixture
         // explanation projection at all, which no signal-only fact could show.
         Assert.NotNull(x);
         Assert.Equal(JobStatusCode.Suspended, x!.Status);
-        Assert.Equal(JobCheckpointKindCode.ChildLatch, x.ActiveWait!.Kind);
+        Assert.Equal(CheckpointKindCode.ChildLatch, x.ActiveWait!.Kind);
         Assert.Equal($"sys.child.{child.Id}", x.ActiveWait.Name);
         Assert.NotNull(x.ActiveWait.DueAtUtc);
         Assert.Contains($"waiting for child job {child.Id}", x.Headline, StringComparison.Ordinal);
@@ -102,7 +102,7 @@ public sealed class ExplainScenarioSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(JobStatusCode.Succeeded, x!.Status);
         var step = Assert.Single(x.Steps);
         Assert.Equal("compute", step.Name);
-        Assert.Equal(JobStepStatusCode.Succeeded, step.Status);
+        Assert.Equal(StepStatusCode.Succeeded, step.Status);
         Assert.Contains("will not rerun", step.Explanation);
     }
 }

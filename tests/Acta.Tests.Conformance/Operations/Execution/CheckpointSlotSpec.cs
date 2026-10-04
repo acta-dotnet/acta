@@ -30,7 +30,7 @@ public sealed class CheckpointSlotSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         Assert.Equal(1, (await SlotAsync(CheckpointSlotAction.Set, job, "color", Value("red"), ct)).Found);
         var inserted = Assert.Single(await SlotsAsync(job, ct));
-        Assert.Equal(JobCheckpointKindCode.Variable, inserted.Kind);
+        Assert.Equal(CheckpointKindCode.Variable, inserted.Kind);
         Assert.Null(inserted.Status);
         Assert.Equal(Value("red"), inserted.Value);
         Assert.Equal(0, inserted.Version);
@@ -110,14 +110,14 @@ public sealed class CheckpointSlotSpec : ActaRuntimeTestBase<ConformanceFixture,
             0,
             (
                 await Execution.CheckpointSlotAsync(
-                    Command(CheckpointSlotAction.Exists, job, "shared", null, JobCheckpointKindCode.Progress),
+                    Command(CheckpointSlotAction.Exists, job, "shared", null, CheckpointKindCode.Progress),
                     ct
                 )
             ).Found
         );
 
         await Execution.CheckpointSlotAsync(
-            Command(CheckpointSlotAction.Set, job, "shared", Value("progress"), JobCheckpointKindCode.Progress),
+            Command(CheckpointSlotAction.Set, job, "shared", Value("progress"), CheckpointKindCode.Progress),
             ct
         );
 
@@ -133,13 +133,13 @@ public sealed class CheckpointSlotSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         await Assert.ThrowsAnyAsync<DbException>(() =>
             Execution.CheckpointSlotAsync(
-                new CheckpointSlotCommand(CheckpointSlotAction.Set, job, JobCheckpointKindCode.Variable, "empty", 0, null),
+                new CheckpointSlotCommand(CheckpointSlotAction.Set, job, CheckpointKindCode.Variable, "empty", 0, null),
                 ct
             )
         );
         await Assert.ThrowsAnyAsync<DbException>(() =>
             Execution.CheckpointSlotAsync(
-                new CheckpointSlotCommand(CheckpointSlotAction.GetOrSet, job, JobCheckpointKindCode.Variable, "empty", Json, null),
+                new CheckpointSlotCommand(CheckpointSlotAction.GetOrSet, job, CheckpointKindCode.Variable, "empty", Json, null),
                 ct
             )
         );
@@ -157,7 +157,7 @@ public sealed class CheckpointSlotSpec : ActaRuntimeTestBase<ConformanceFixture,
         long jobId,
         string name,
         byte[]? value,
-        JobCheckpointKindCode kind = JobCheckpointKindCode.Variable
+        CheckpointKindCode kind = CheckpointKindCode.Variable
     ) => new(action, jobId, kind, name, value is null ? (byte)0 : Json, value);
 
     private Task<CheckpointSlotRow> SlotAsync(CheckpointSlotAction action, long jobId, string name, byte[]? value, CancellationToken ct) =>

@@ -36,7 +36,7 @@ public sealed class ListOutboxSourcesSpec : OutboxRelayIntegrationBase
                     DeduplicationKey = "sys.outbox",
                     InputFormatId = 1,
                     Input = [0],
-                    AuditLevel = JobAuditLevelCode.Off,
+                    AuditLevel = DefinitionAuditLevelCode.Off,
                     CreatedAtUtc = DateTime.UtcNow,
                 },
                 ct

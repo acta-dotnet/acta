@@ -91,7 +91,7 @@ internal sealed record DefinitionSchedules(
     string JobName,
     byte InputFormatId,
     ReadOnlyMemory<byte> Input,
-    JobAuditLevelCode AuditLevel,
+    DefinitionAuditLevelCode AuditLevel,
     JobStatusCode SlotStatus,
     DateTime? SlotMinNextRunAtUtc,
     IReadOnlyList<SlotSchedule> Schedules

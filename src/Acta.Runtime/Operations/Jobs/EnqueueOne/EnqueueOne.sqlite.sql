@@ -23,7 +23,7 @@ WHERE EXISTS (
     JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = @p_job_name
     WHERE
         ns.name = @p_namespace_name
-        AND jd.status_code <> 10 /* JobDefinitionStatusCode.Active */
+        AND jd.status_code <> 10 /* DefinitionStatusCode.Active */
 );
 
 SELECT ACTA_ERROR('Enqueue rejected: one or more child rows reference a missing or terminal parent job.')
@@ -63,7 +63,7 @@ WHERE
         JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = @p_job_name
         WHERE
             ns.name = @p_namespace_name
-            AND jd.tenant_requirement_code = 10 /* JobTenantRequirementCode.Required */
+            AND jd.tenant_requirement_code = 10 /* DefinitionTenantRequirementCode.Required */
     )
     AND NOT EXISTS (
         SELECT 1 FROM {{schema}}.jobs pj
@@ -78,7 +78,7 @@ WHERE
         JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = @p_job_name
         WHERE
             ns.name = @p_namespace_name
-            AND jd.tenant_requirement_code = 20 /* JobTenantRequirementCode.Forbidden */
+            AND jd.tenant_requirement_code = 20 /* DefinitionTenantRequirementCode.Forbidden */
     );
 
 SELECT
@@ -186,7 +186,7 @@ SELECT
     ns.id,
     jd.id,
     CASE
-        WHEN jd.tenant_requirement_code = 20 /* JobTenantRequirementCode.Forbidden */ THEN NULL
+        WHEN jd.tenant_requirement_code = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
         ELSE COALESCE(
             (
                 SELECT t.id FROM {{schema}}.tenants t

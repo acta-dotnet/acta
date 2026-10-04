@@ -73,11 +73,11 @@ BEGIN TRY
         ELSE 1 /* DefinitionOverrideAction.Applied */
     END;
 
-    IF @action = 1 /* DefinitionOverrideAction.Applied */ AND @existing_status <> 240 /* JobDefinitionStatusCode.Retired */
+    IF @action = 1 /* DefinitionOverrideAction.Applied */ AND @existing_status <> 240 /* DefinitionStatusCode.Retired */
     BEGIN
         UPDATE {{schema}}.definitions
         SET
-            status_code = 240 /* JobDefinitionStatusCode.Retired */,
+            status_code = 240 /* DefinitionStatusCode.Retired */,
             modified_at_utc = @now,
             version = version + 1
         WHERE id = @p_id;
@@ -165,11 +165,11 @@ BEGIN TRY
             220 /* JobStatusCode.Cancelled */,
             NULL,
             NULL,
-            42 /* JobEventReasonCode.JobDefinitionRetired */,
+            42 /* EventReasonCode.JobDefinitionRetired */,
             @p_reason_message
         FROM @cancelled c
         INNER JOIN @parked p ON p.job_id = c.job_id
-        WHERE p.audit_level_code = 20 /* JobAuditLevelCode.Audit */;
+        WHERE p.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */;
 
         INSERT INTO {{schema}}.events (
             event_code,

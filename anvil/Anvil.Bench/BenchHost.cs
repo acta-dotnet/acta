@@ -298,7 +298,7 @@ public static class ProviderConn
         var q = Qualifier(provider, schema);
         var started = (int)EventCode.JobExecutionStarted;
         var rescheduled = (int)EventCode.JobRescheduled;
-        var rateLimited = (int)JobEventReasonCode.JobRateLimited;
+        var rateLimited = (int)EventReasonCode.JobRateLimited;
         try
         {
             await using var connection = await OpenAsync(provider, schema, ct);

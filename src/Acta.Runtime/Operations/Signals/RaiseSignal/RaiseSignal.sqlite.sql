@@ -10,14 +10,14 @@ WHERE
     c.job_id = @p_job_id
     AND c.kind_code = @p_kind_code
     AND c.name = @p_name
-    AND c.status_code = 30 /* JobCheckpointStatusCode.Expired */;
+    AND c.status_code = 30 /* CheckpointStatusCode.Expired */;
 
 INSERT INTO {{schema}}.checkpoints (job_id, kind_code, name, status_code, value_format_id, value, modified_at_utc, version)
 SELECT
     @p_job_id,
     @p_kind_code,
     @p_name,
-    20 /* JobCheckpointStatusCode.Set */,
+    20 /* CheckpointStatusCode.Set */,
     @p_value_format_id,
     @p_value,
     {{now}},
@@ -33,7 +33,7 @@ WHERE
     AND NOT EXISTS (SELECT 1 FROM temp._raise_expired)
 ON CONFLICT (job_id, kind_code, name) DO UPDATE
 SET
-    status_code = 20 /* JobCheckpointStatusCode.Set */,
+    status_code = 20 /* CheckpointStatusCode.Set */,
     value_format_id = @p_value_format_id,
     value = @p_value,
     modified_at_utc = {{now}},
@@ -72,7 +72,7 @@ JOIN {{schema}}.runtimes r ON r.job_id = j.id
 WHERE
     j.id = @p_job_id
     AND r.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-    AND j.audit_level_code = 20 /* JobAuditLevelCode.Audit */;
+    AND j.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */;
 
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id, actor_code, actor_key, job_id, job_ref, execution_number,
@@ -103,7 +103,7 @@ JOIN {{schema}}.runtimes r ON r.job_id = j.id
 WHERE
     j.id = @p_job_id
     AND r.status_code = 20 /* JobStatusCode.Suspended */
-    AND j.audit_level_code = 20 /* JobAuditLevelCode.Audit */
+    AND j.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
     AND NOT EXISTS (SELECT 1 FROM temp._raise_expired);
 
 UPDATE {{schema}}.runtimes

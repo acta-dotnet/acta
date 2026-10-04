@@ -658,7 +658,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
                     JobName: jobName,
                     InputFormatId: 0,
                     Input: ReadOnlyMemory<byte>.Empty,
-                    AuditLevel: JobAuditLevelCode.Audit,
+                    AuditLevel: DefinitionAuditLevelCode.Audit,
                     SlotStatus: JobStatusCode.Ready,
                     SlotMinNextRunAtUtc: cursor,
                     Schedules:
@@ -695,7 +695,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         await Db.ExecuteRawAsync(
             "UPDATE {schema}.definitions SET status_code = @p_status WHERE id = @p_id",
             ct,
-            ("@p_status", (byte)JobDefinitionStatusCode.Retired),
+            ("@p_status", (byte)DefinitionStatusCode.Retired),
             ("@p_id", defId)
         );
         var purged = await RetentionTestOps.PurgeUntilAsync(

@@ -69,7 +69,7 @@ event_insert AS (
         10 /* JobStatusCode.Ready */,
         230 /* ExecutionStatusCode.Orphaned */,
         NULL,
-        21 /* JobEventReasonCode.JobLeaseExpired */,
+        21 /* EventReasonCode.JobLeaseExpired */,
         'Worker lease expired on the recovery slot; re-armed by a worker''s recovery monitor.'
     FROM repaired x
     JOIN {{schema}}.jobs j ON j.id = x.job_id

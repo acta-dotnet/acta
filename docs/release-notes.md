@@ -63,6 +63,12 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   before. The HTTP bodies do not change; the OpenAPI document names each response type.
 - **`OutboxQuarantinedItem` is now `OutboxQuarantinedListItem`**, the name every other list row
   takes. Its members are unchanged.
+- **Code families are named by the table they describe.** `JobCheckpointKindCode`,
+  `JobCheckpointStatusCode`, `JobDefinitionStatusCode`, `JobStepStatusCode`, and `JobEventReasonCode`
+  drop the `Job` prefix, and `JobAuditLevelCode` and `JobTenantRequirementCode` become
+  `DefinitionAuditLevelCode` and `DefinitionTenantRequirementCode`. Their generated `Extensions` and
+  `JsonConverter` classes follow, as does `JobStepStatusExtensions`, now `StepStatusExtensions`.
+  Members, stored values, and JSON strings are unchanged; the OpenAPI schemas take the new names.
 
 ### Additions
 

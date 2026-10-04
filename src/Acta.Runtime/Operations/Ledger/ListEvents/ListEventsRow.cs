@@ -24,7 +24,7 @@ internal sealed record ListEventsRow(
     JobStatusCode? ToStatus,
     ExecutionStatusCode? ExecutionStatus,
     int? DurationMs,
-    JobEventReasonCode? ReasonCode,
+    EventReasonCode? ReasonCode,
     string? ReasonMessage,
     Guid? JobRef,
     Guid? LineageRootJobRef,

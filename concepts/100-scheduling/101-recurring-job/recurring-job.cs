@@ -19,8 +19,8 @@ namespace Acta.Concepts.Recurring
 
     public sealed class PurgeStaleSessionsJob
     {
-        // One stable recurring slot fires on the cadence; JobAuditLevelCode.Off skips the events per fire.
-        [Job("purge-stale-sessions", AuditLevel = JobAuditLevelCode.Off)]
+        // One stable recurring slot fires on the cadence; DefinitionAuditLevelCode.Off skips the events per fire.
+        [Job("purge-stale-sessions", AuditLevel = DefinitionAuditLevelCode.Off)]
         [JobSchedule("every-15-seconds", Cron.Every15Seconds)]
         public async Task<int> Handle(PurgeStaleSessions input, JobContext context, CancellationToken ct)
         {

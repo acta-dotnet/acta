@@ -81,7 +81,7 @@ internal static class LedgerEndpoints
                             EventCode: query.EventCode("eventCode"),
                             TenantKey: query.Text("tenantKey"),
                             ActorCode: query.Code("actorCode", ActorCodeExtensions.FromCode),
-                            ReasonCode: query.Code("reasonCode", JobEventReasonCodeExtensions.FromCode),
+                            ReasonCode: query.Code("reasonCode", EventReasonCodeExtensions.FromCode),
                             CreatedFromUtc: query.DateTime("createdFromUtc"),
                             CreatedToUtc: query.DateTime("createdToUtc"),
                             PageSize: query.Int("pageSize"),

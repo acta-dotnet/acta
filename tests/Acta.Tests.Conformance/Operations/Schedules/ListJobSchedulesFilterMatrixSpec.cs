@@ -55,7 +55,7 @@ public sealed class ListJobSchedulesFilterMatrixSpec : ActaRuntimeTestBase<Confo
                     jobName,
                     0,
                     ReadOnlyMemory<byte>.Empty,
-                    JobAuditLevelCode.Audit,
+                    DefinitionAuditLevelCode.Audit,
                     slotStatus,
                     slotMin,
                     schedules

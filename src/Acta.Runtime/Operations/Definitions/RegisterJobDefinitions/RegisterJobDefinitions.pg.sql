@@ -92,7 +92,7 @@ BEGIN
         SELECT
             p_namespace_id,
             b.name,
-            10 /* JobDefinitionStatusCode.Active */,
+            10 /* DefinitionStatusCode.Active */,
             b.input_type_name,
             b.output_type_name,
             b.input_format_id,
@@ -124,7 +124,7 @@ BEGIN
             0
         FROM batch b
         ON CONFLICT (namespace_id, name) DO UPDATE SET
-            status_code = 10 /* JobDefinitionStatusCode.Active */,
+            status_code = 10 /* DefinitionStatusCode.Active */,
             input_type_name = EXCLUDED.input_type_name,
             output_type_name = EXCLUDED.output_type_name,
             input_format_id = EXCLUDED.input_format_id,
@@ -156,7 +156,7 @@ BEGIN
         WHERE
             EXCLUDED.manifest_generation_at_utc >= {{schema}}.definitions.manifest_generation_at_utc
             AND (
-                {{schema}}.definitions.status_code <> 10 /* JobDefinitionStatusCode.Active */
+                {{schema}}.definitions.status_code <> 10 /* DefinitionStatusCode.Active */
                 OR {{schema}}.definitions.definition_hash IS DISTINCT FROM EXCLUDED.definition_hash
             )
         RETURNING definitions.name, definitions.id

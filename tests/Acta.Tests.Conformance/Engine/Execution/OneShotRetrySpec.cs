@@ -49,7 +49,7 @@ public sealed class OneShotRetrySpec : ActaRuntimeTestBase<ConformanceFixture, T
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         var finished = events.Where(e => e.EventCode == EventCode.JobExecutionFinished).OrderByDescending(e => e.Id).First();
-        Assert.Equal(JobEventReasonCode.JobUnhandledException, finished.JobEventReasonCode);
+        Assert.Equal(EventReasonCode.JobUnhandledException, finished.EventReasonCode);
 
         Assert.Equal(3, RetryProbe.Attempts(TestNamespace));
     }

@@ -77,12 +77,12 @@ BEGIN
                 FROM {{schema}}.checkpoints WITH (UPDLOCK, HOLDLOCK)
                 WHERE
                     job_id = @p_id
-                    AND kind_code IN (20 /* JobCheckpointKindCode.Signal */, 50 /* JobCheckpointKindCode.ChildLatch */)
+                    AND kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
                     AND name = @p_wait_signal_name;
             END
 
         SET @to_status = CASE
-            WHEN @signal_suspend = 1 AND @sig_state = 20 /* JobCheckpointStatusCode.Set */ THEN 10 /* JobStatusCode.Ready */
+            WHEN @signal_suspend = 1 AND @sig_state = 20 /* CheckpointStatusCode.Set */ THEN 10 /* JobStatusCode.Ready */
             WHEN @signal_suspend = 1 THEN 20 /* JobStatusCode.Suspended */
             WHEN @rearm = 1 THEN 10 /* JobStatusCode.Ready */
             WHEN @handler = 1 THEN @p_handler_status_code
@@ -117,7 +117,7 @@ BEGIN
                 SET @action = 1 /* CompleteExecutionAction.Completed */;
 
                 SET @c_next = CASE
-                    WHEN @signal_suspend = 1 AND @sig_state = 20 /* JobCheckpointStatusCode.Set */ THEN @now
+                    WHEN @signal_suspend = 1 AND @sig_state = 20 /* CheckpointStatusCode.Set */ THEN @now
                     WHEN @signal_suspend = 1 THEN @sig_due
                     WHEN @rearm = 1 THEN COALESCE(@p_reschedule_resume_at_utc, DATEADD(SECOND, @p_reschedule_delay_seconds, @now))
                     -- A handler's pause keeps a next run, which marks it held (ScheduleWalker, "held").
@@ -197,7 +197,7 @@ BEGIN
                         INNER JOIN @p_schedule_advances adv ON adv.schedule_id = js.id
                         WHERE
                             (adv.expected_version IS NULL OR js.version = adv.expected_version)
-                            AND @c_audit = 20 /* JobAuditLevelCode.Audit */
+                            AND @c_audit = 20 /* DefinitionAuditLevelCode.Audit */
                             AND js.status_code = 30 /* ScheduleStatusCode.Paused */
                             AND js.paused_until_utc IS NOT NULL
                             AND js.paused_until_utc <= @now;
@@ -264,9 +264,9 @@ BEGIN
                 -- a recorded failure, which is what closes the incident: the job's newest finished event is
                 -- not a success. Never failed, or already answered, writes nothing. One seek on the timeline index.
                 IF
-                    @c_audit = 20 /* JobAuditLevelCode.Audit */
+                    @c_audit = 20 /* DefinitionAuditLevelCode.Audit */
                     OR (
-                        @c_audit = 10 /* JobAuditLevelCode.Failures */ AND @rearm = 0
+                        @c_audit = 10 /* DefinitionAuditLevelCode.Failures */ AND @rearm = 0
                         AND NOT (
                             @handler = 1 AND @p_handler_status_code IN (220 /* JobStatusCode.Cancelled */, 30 /* JobStatusCode.Paused */)
                         )
@@ -314,7 +314,7 @@ BEGIN
                     END
 
                 IF
-                    @recurring = 1 AND @c_audit = 20 /* JobAuditLevelCode.Audit */
+                    @recurring = 1 AND @c_audit = 20 /* DefinitionAuditLevelCode.Audit */
                     AND @p_final_status IN (10 /* JobStatusCode.Ready */, 30 /* JobStatusCode.Paused */)
                     BEGIN
                         INSERT INTO {{schema}}.events (
@@ -344,7 +344,7 @@ BEGIN
                     END
 
                 IF
-                    @rearm = 1 AND @c_audit = 20 /* JobAuditLevelCode.Audit */
+                    @rearm = 1 AND @c_audit = 20 /* DefinitionAuditLevelCode.Audit */
                     AND NOT (@signal_suspend = 1 AND @to_status = 10 /* JobStatusCode.Ready */)
                     BEGIN
                         INSERT INTO {{schema}}.events (
@@ -376,7 +376,7 @@ BEGIN
                     END
 
                 IF
-                    @handler = 1 AND @c_audit = 20 /* JobAuditLevelCode.Audit */
+                    @handler = 1 AND @c_audit = 20 /* DefinitionAuditLevelCode.Audit */
                     AND @p_handler_status_code IN (220 /* JobStatusCode.Cancelled */, 30 /* JobStatusCode.Paused */)
                     BEGIN
                         INSERT INTO {{schema}}.events (
@@ -416,7 +416,7 @@ BEGIN
 
                         SELECT @psig = status_code
                         FROM {{schema}}.checkpoints WITH (UPDLOCK, HOLDLOCK)
-                        WHERE job_id = @parent_id AND kind_code = 50 /* JobCheckpointKindCode.ChildLatch */ AND name = @sig;
+                        WHERE job_id = @parent_id AND kind_code = 50 /* CheckpointKindCode.ChildLatch */ AND name = @sig;
 
                         SELECT
                             @pstatus = pr.status_code,
@@ -434,7 +434,7 @@ BEGIN
                         /* No revival: an Expired latch already resolved the parent's wait TimedOut under
                            this same slot lock, so a child landing terminal afterwards writes no slot and
                            releases no parent. The audit event below still records that it happened. */
-                        DECLARE @latch_expired BIT = CASE WHEN @psig = 30 /* JobCheckpointStatusCode.Expired */ THEN 1 ELSE 0 END;
+                        DECLARE @latch_expired BIT = CASE WHEN @psig = 30 /* CheckpointStatusCode.Expired */ THEN 1 ELSE 0 END;
                         -- Capped because the caller's message can already sit at the column width, and an
                         -- overflow here would fail a completion over an audit line.
                         DECLARE @pmessage NVARCHAR(512) = CASE
@@ -469,9 +469,9 @@ BEGIN
                                         )
                                         VALUES (
                                             @parent_id,
-                                            50 /* JobCheckpointKindCode.ChildLatch */,
+                                            50 /* CheckpointKindCode.ChildLatch */,
                                             @sig,
-                                            20 /* JobCheckpointStatusCode.Set */,
+                                            20 /* CheckpointStatusCode.Set */,
                                             1 /* JobPayloadFormat.Json */,
                                             @envelope_bytes,
                                             @now,
@@ -483,15 +483,15 @@ BEGIN
                                     BEGIN
                                         UPDATE {{schema}}.checkpoints
                                         SET
-                                            status_code = 20 /* JobCheckpointStatusCode.Set */,
+                                            status_code = 20 /* CheckpointStatusCode.Set */,
                                             value_format_id = 1 /* JobPayloadFormat.Json */,
                                             value = @envelope_bytes,
                                             modified_at_utc = @now,
                                             version = version + 1
-                                        WHERE job_id = @parent_id AND kind_code = 50 /* JobCheckpointKindCode.ChildLatch */ AND name = @sig;
+                                        WHERE job_id = @parent_id AND kind_code = 50 /* CheckpointKindCode.ChildLatch */ AND name = @sig;
                                     END
 
-                                IF @paudit = 20 /* JobAuditLevelCode.Audit */
+                                IF @paudit = 20 /* DefinitionAuditLevelCode.Audit */
                                     BEGIN
                                         INSERT INTO {{schema}}.events (
                                             event_code, created_at_utc, namespace_id,
@@ -525,7 +525,7 @@ BEGIN
                                             version = version + 1
                                         WHERE job_id = @parent_id;
 
-                                        IF @paudit = 20 /* JobAuditLevelCode.Audit */
+                                        IF @paudit = 20 /* DefinitionAuditLevelCode.Audit */
                                             BEGIN
                                                 INSERT INTO {{schema}}.events (
                                                     event_code, created_at_utc, namespace_id,
@@ -545,7 +545,7 @@ BEGIN
                                                     NULL,
                                                     20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */,
                                                     NULL, NULL,
-                                                    60 /* JobEventReasonCode.JobSignalReleased */, NULL
+                                                    60 /* EventReasonCode.JobSignalReleased */, NULL
                                                 );
                                             END
 

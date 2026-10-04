@@ -14,9 +14,9 @@ BEGIN
     INSERT INTO {{schema}}.checkpoints (job_id, kind_code, name, status_code, value_format_id, value, modified_at_utc, version)
     VALUES (
         p_job_id,
-        20 /* JobCheckpointKindCode.Signal */,
+        20 /* CheckpointKindCode.Signal */,
         p_name,
-        20 /* JobCheckpointStatusCode.Set */,
+        20 /* CheckpointStatusCode.Set */,
         p_value_format_id,
         p_value,
         now(),
@@ -25,7 +25,7 @@ BEGIN
     ON CONFLICT (job_id, kind_code, name) DO UPDATE SET
         value_format_id = EXCLUDED.value_format_id,
         value = EXCLUDED.value,
-        status_code = 20 /* JobCheckpointStatusCode.Set */,
+        status_code = 20 /* CheckpointStatusCode.Set */,
         modified_at_utc = now(),
         version = checkpoints.version + 1
     WHERE checkpoints.modified_at_utc <= p_stale_before_utc;
@@ -37,6 +37,6 @@ BEGIN
         (CASE WHEN c.value = p_value THEN 1 /* ControlAction.Applied */ ELSE 3 /* ControlAction.Rejected */ END)::SMALLINT,
         c.modified_at_utc
     FROM {{schema}}.checkpoints c
-    WHERE c.job_id = p_job_id AND c.kind_code = 20 /* JobCheckpointKindCode.Signal */ AND c.name = p_name;
+    WHERE c.job_id = p_job_id AND c.kind_code = 20 /* CheckpointKindCode.Signal */ AND c.name = p_name;
 END;
 $$;

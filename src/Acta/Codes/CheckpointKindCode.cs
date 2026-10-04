@@ -8,9 +8,9 @@ namespace Acta;
 /// durable slot; the kind keeps the name spaces structurally separate (a user variable can never
 /// collide with a signal or a child latch of the same name).
 /// </summary>
-[JsonConverter(typeof(JobCheckpointKindCodeJsonConverter))]
+[JsonConverter(typeof(CheckpointKindCodeJsonConverter))]
 [CodeKind("job-checkpoint-kind")]
-public enum JobCheckpointKindCode : byte
+public enum CheckpointKindCode : byte
 {
     /// <summary>User variable slot written by <c>SetVariableAsync</c> / <c>GetOrSetVariableAsync</c>.</summary>
     [Code("variable", "User variable slot; UPSERT, last-writer-wins, no state machine.")]

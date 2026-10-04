@@ -144,7 +144,7 @@ public sealed class RegisterJobDefinitionsSpec : ActaStorageTestBase<Conformance
         await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen2, [Def(keep, 2, typeof(int))], ct);
 
         var after = await ReadAsync(absent, ct);
-        Assert.Equal(JobDefinitionStatusCode.Active, after.Status);
+        Assert.Equal(DefinitionStatusCode.Active, after.Status);
         Assert.Equal(before.Version, after.Version);
         Assert.Equal(JobStatusCode.Ready, await jobs.GetStatusAsync(parked, ct));
     }
@@ -159,11 +159,11 @@ public sealed class RegisterJobDefinitionsSpec : ActaStorageTestBase<Conformance
         await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen2, [Def(job, 1, typeof(int))], ct);
         await RetireAsync(job, ct);
         var retired = await ReadAsync(job, ct);
-        Assert.Equal(JobDefinitionStatusCode.Retired, retired.Status);
+        Assert.Equal(DefinitionStatusCode.Retired, retired.Status);
 
         await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen1, [Def(job, 7, typeof(int))], ct);
         var still = await ReadAsync(job, ct);
-        Assert.Equal(JobDefinitionStatusCode.Retired, still.Status);
+        Assert.Equal(DefinitionStatusCode.Retired, still.Status);
         Assert.Equal(retired.Version, still.Version);
     }
 

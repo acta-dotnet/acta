@@ -53,7 +53,7 @@ internal sealed class DefinitionEntity : IEntity<int>
     /// by registration, so a definition absent from a manifest keeps running.
     /// </summary>
     [DbColumn("status_code")]
-    public JobDefinitionStatusCode Status { get; internal set; }
+    public DefinitionStatusCode Status { get; internal set; }
 
     /// <summary>
     /// SHA-256 hex over all code-owned columns (policy defaults + contract + formats), computed C#-side
@@ -121,7 +121,7 @@ internal sealed class DefinitionEntity : IEntity<int>
     /// contract-adjacent, and an operator flip would break handler assumptions about tenant scope.
     /// </summary>
     [DbColumn("tenant_requirement_code")]
-    public JobTenantRequirementCode TenantRequirement { get; internal set; }
+    public DefinitionTenantRequirementCode TenantRequirement { get; internal set; }
 
     // ---------- Policy (triples: default, operator _override, DB-computed _effective) ----------
     // Convention: each code-owned default is bare-named; its operator override is the same name +
@@ -292,15 +292,15 @@ internal sealed class DefinitionEntity : IEntity<int>
     /// mutations. Does not gate alert MERGE; alerts and audit are independent.
     /// </summary>
     [DbColumn("audit_level_code")]
-    public JobAuditLevelCode AuditLevel { get; internal set; }
+    public DefinitionAuditLevelCode AuditLevel { get; internal set; }
 
     /// <summary>Operator override of <see cref="AuditLevel"/>; NULL = inherit.</summary>
     [DbColumn("audit_level_code_override")]
-    public JobAuditLevelCode? AuditLevelOverride { get; internal set; }
+    public DefinitionAuditLevelCode? AuditLevelOverride { get; internal set; }
 
     /// <summary>Effective audit level (DB-computed); read-only.</summary>
     [DbColumn("audit_level_code_effective", Generated = "COALESCE(audit_level_code_override, audit_level_code)")]
-    public JobAuditLevelCode AuditLevelEffective { get; internal set; }
+    public DefinitionAuditLevelCode AuditLevelEffective { get; internal set; }
 
     /// <summary>
     /// Automatic-alert behavior for state-mutating operations (<c>None</c> / <c>OnFailure</c> /

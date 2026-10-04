@@ -33,7 +33,7 @@ BEGIN
     IF p_succeeded THEN
         UPDATE {{schema}}.steps a
         SET
-            status_code = 100 /* JobStepStatusCode.Succeeded */,
+            status_code = 100 /* StepStatusCode.Succeeded */,
             result_format_id = p_result_format_id,
             result = p_result,
             next_retry_at_utc = NULL,
@@ -60,7 +60,7 @@ BEGIN
     IF v_exhaust THEN
         UPDATE {{schema}}.steps a
         SET
-            status_code = 200 /* JobStepStatusCode.Exhausted */,
+            status_code = 200 /* StepStatusCode.Exhausted */,
             next_retry_at_utc = NULL,
             reason_code = p_reason_code,
             reason_message = p_reason_message,

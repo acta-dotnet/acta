@@ -16,7 +16,7 @@ namespace Acta;
 /// Creates the exception for the exhausted step <paramref name="stepName"/> after
 /// <paramref name="attemptCount"/> attempt(s), carrying the final failure context.
 /// </remarks>
-public sealed class StepExhaustedException(string stepName, int attemptCount, JobEventReasonCode? lastReasonCode, string? lastReasonMessage)
+public sealed class StepExhaustedException(string stepName, int attemptCount, EventReasonCode? lastReasonCode, string? lastReasonMessage)
     : Exception(
         $"Step '{stepName}' exhausted after {attemptCount} attempt(s): {lastReasonMessage ?? lastReasonCode?.ToString() ?? "no reason recorded"}."
     )
@@ -28,7 +28,7 @@ public sealed class StepExhaustedException(string stepName, int attemptCount, Jo
     public int AttemptCount { get; } = attemptCount;
 
     /// <summary>Reason code of the final failed attempt, or <c>null</c> when none was recorded.</summary>
-    public JobEventReasonCode? LastReasonCode { get; } = lastReasonCode;
+    public EventReasonCode? LastReasonCode { get; } = lastReasonCode;
 
     /// <summary>Operator-readable message of the final failed attempt.</summary>
     public string? LastReasonMessage { get; } = lastReasonMessage;

@@ -40,7 +40,7 @@ internal sealed class RetentionJob(RetentionCoordinator coordinator, IOptions<Jo
     [Job(
         "sys.retention",
         Priority = JobPriorityCode.Critical,
-        AuditLevel = JobAuditLevelCode.Failures,
+        AuditLevel = DefinitionAuditLevelCode.Failures,
         AlertProfile = AlertProfileCode.SysCritical
     )]
     [JobSchedule("default", Cron.Hourly)]

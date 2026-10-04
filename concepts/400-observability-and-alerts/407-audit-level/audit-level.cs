@@ -53,7 +53,7 @@ namespace Acta.Concepts.AuditLevel
     public static class AuditWorkJob
     {
         // Audit (default): both started and finished events are written for every execution.
-        [Job("audit-work", AuditLevel = JobAuditLevelCode.Audit)]
+        [Job("audit-work", AuditLevel = DefinitionAuditLevelCode.Audit)]
         public static void Handle(AuditWork input) => Console.WriteLine($"[{input.Id}] running at Audit level");
     }
 
@@ -61,14 +61,14 @@ namespace Acta.Concepts.AuditLevel
     {
         // Failures: a failure writes an event, and so does the success that answers one; a run that
         // succeeds after no failure leaves none.
-        [Job("failures-work", AuditLevel = JobAuditLevelCode.Failures)]
+        [Job("failures-work", AuditLevel = DefinitionAuditLevelCode.Failures)]
         public static void Handle(FailuresWork input) => Console.WriteLine($"[{input.Id}] running at Failures level");
     }
 
     public static class OffWorkJob
     {
         // Off: no audit-filtered events at all; use for high-frequency definitions to keep events lean.
-        [Job("off-work", AuditLevel = JobAuditLevelCode.Off)]
+        [Job("off-work", AuditLevel = DefinitionAuditLevelCode.Off)]
         public static void Handle(OffWork input) => Console.WriteLine($"[{input.Id}] running at Off level");
     }
 }

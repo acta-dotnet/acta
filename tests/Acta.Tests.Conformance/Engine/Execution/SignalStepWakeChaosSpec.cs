@@ -98,7 +98,7 @@ public sealed class SignalStepWakeChaosSpec : ActaRuntimeTestBase<ConformanceFix
 
         // --- 2. The step slot is Exhausted after two attempts (no read operation, read the row).
         var step = Assert.Single(await Db.From<StepEntity>().Where(a => a.JobId == enqueued.JobId).ToListAsync(ct));
-        Assert.Equal(JobStepStatusCode.Exhausted, step.Status);
+        Assert.Equal(StepStatusCode.Exhausted, step.Status);
         Assert.Equal(2, step.AttemptNumber);
 
         // --- 3. The parent is Failed with the step's failure reason.
@@ -108,7 +108,7 @@ public sealed class SignalStepWakeChaosSpec : ActaRuntimeTestBase<ConformanceFix
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         var finished = events.Where(e => e.EventCode == EventCode.JobExecutionFinished).OrderByDescending(e => e.Id).First();
-        Assert.Equal(JobEventReasonCode.JobUnhandledException, finished.JobEventReasonCode);
+        Assert.Equal(EventReasonCode.JobUnhandledException, finished.EventReasonCode);
         Assert.Single(events, e => e.EventCode == EventCode.JobRescheduled);
         Assert.Equal(2, JobStepProbes.BodyInvocations[enqueued.JobId]);
     }

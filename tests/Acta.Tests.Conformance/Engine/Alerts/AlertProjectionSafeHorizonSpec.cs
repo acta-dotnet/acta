@@ -176,7 +176,7 @@ public sealed class AlertProjectionSafeHorizonSpec : ActaRuntimeTestBase<Conform
                     ExecutionNumber = executionNumber,
                     ToStatus = JobStatusCode.Failed,
                     ExecutionStatus = ExecutionStatusCode.Failed,
-                    ReasonCode = JobEventReasonCode.JobUnhandledException,
+                    ReasonCode = EventReasonCode.JobUnhandledException,
                     ReasonMessage = "staged for the horizon",
                 },
                 ct

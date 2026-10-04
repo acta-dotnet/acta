@@ -37,7 +37,7 @@ internal static class DefinitionsEndpoints
             static query => new ListDefinitionsQuery(
                 JobNamespace: query.Text("jobNamespace"),
                 NameContains: query.Text("nameContains"),
-                Status: query.Enum<JobDefinitionStatusCode>("status"),
+                Status: query.Enum<DefinitionStatusCode>("status"),
                 PageSize: query.Int("pageSize"),
                 Cursor: query.Text("cursor"),
                 IncludeTotal: query.Bool("includeTotal") ?? false,

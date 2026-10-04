@@ -4,7 +4,7 @@ namespace Acta.Runtime;
 internal sealed record CheckpointSlotCommand(
     CheckpointSlotAction Action,
     long JobId,
-    JobCheckpointKindCode Kind,
+    CheckpointKindCode Kind,
     string Name,
     byte ValueFormatId,
     byte[]? Value

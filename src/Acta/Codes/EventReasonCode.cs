@@ -6,9 +6,9 @@ namespace Acta;
 /// Stable family-local reason identifiers. Nearby values improve catalog readability but carry no
 /// runtime subject, subgroup, or outcome semantics. Detailed diagnostics remain structured event data.
 /// </summary>
-[JsonConverter(typeof(JobEventReasonCodeJsonConverter))]
+[JsonConverter(typeof(EventReasonCodeJsonConverter))]
 [CodeKind("job-event-reason", Extensible = true)]
-public enum JobEventReasonCode : byte
+public enum EventReasonCode : byte
 {
     /// <summary>
     /// The persisted id is not one this build knows: the row was written by a newer Acta that added a

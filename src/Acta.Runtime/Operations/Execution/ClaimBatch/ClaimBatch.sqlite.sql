@@ -99,7 +99,7 @@ JOIN {{schema}}.runtimes r ON r.job_id = j.id
 JOIN temp._claimed c ON c.id = j.id
 WHERE
     @p_start_executing = 1
-    AND j.audit_level_code = 20 /* JobAuditLevelCode.Audit */;
+    AND j.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */;
 
 SELECT
     j.id,

@@ -35,7 +35,7 @@ public sealed class ArmOrConsumeSleepTimerSpec : ActaRuntimeTestBase<Conformance
 
         var timer = Assert.Single(await TimersAsync(job.JobId, ct));
         Assert.Equal(TimerName, timer.Name);
-        Assert.Equal(JobCheckpointStatusCode.Pending, timer.Status);
+        Assert.Equal(CheckpointStatusCode.Pending, timer.Status);
         Assert.Equal(due, timer.DueAtUtc);
     }
 
@@ -73,7 +73,7 @@ public sealed class ArmOrConsumeSleepTimerSpec : ActaRuntimeTestBase<Conformance
 
         Assert.Equal(new SleepDecision(SleepOutcome.Continue, null), consumed);
         var timer = Assert.Single(await TimersAsync(job.JobId, ct));
-        Assert.Equal(JobCheckpointStatusCode.Consumed, timer.Status);
+        Assert.Equal(CheckpointStatusCode.Consumed, timer.Status);
         Assert.Equal(1, timer.Version);
 
         var after = await ReadJobAsync(job.JobId, ct);
@@ -95,7 +95,7 @@ public sealed class ArmOrConsumeSleepTimerSpec : ActaRuntimeTestBase<Conformance
         Assert.Equal(new SleepDecision(SleepOutcome.Continue, null), await SleepAsync(job.JobId, TimerName, delaySeconds: 600, ct));
 
         var after = Assert.Single(await TimersAsync(job.JobId, ct));
-        Assert.Equal(JobCheckpointStatusCode.Consumed, after.Status);
+        Assert.Equal(CheckpointStatusCode.Consumed, after.Status);
         Assert.Equal(consumed.Version, after.Version);
     }
 
@@ -152,11 +152,11 @@ public sealed class ArmOrConsumeSleepTimerSpec : ActaRuntimeTestBase<Conformance
     {
         var past = DateTime.UtcNow.AddMinutes(-5);
         var affected = await Db.From<CheckpointEntity>()
-            .Where(c => c.JobId == jobId && c.Kind == JobCheckpointKindCode.Timer && c.Name == TimerName)
+            .Where(c => c.JobId == jobId && c.Kind == CheckpointKindCode.Timer && c.Name == TimerName)
             .UpdateOnlyAsync(() => new CheckpointEntity { DueAtUtc = past }, ct);
         Assert.Equal(1, affected);
     }
 
     private Task<IReadOnlyList<CheckpointEntity>> TimersAsync(long jobId, CancellationToken ct) =>
-        Db.From<CheckpointEntity>().Where(c => c.JobId == jobId && c.Kind == JobCheckpointKindCode.Timer).ToListAsync(ct);
+        Db.From<CheckpointEntity>().Where(c => c.JobId == jobId && c.Kind == CheckpointKindCode.Timer).ToListAsync(ct);
 }

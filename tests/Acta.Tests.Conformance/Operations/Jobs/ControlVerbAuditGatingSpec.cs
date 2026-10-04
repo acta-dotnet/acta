@@ -28,8 +28,8 @@ public sealed class ControlVerbAuditGatingSpec : ActaRuntimeTestBase<Conformance
 
         var jobL = await EnqueueAsync(ct);
         var jobF = await EnqueueAsync(ct);
-        await SetAuditLevelAsync(Db, jobL, JobAuditLevelCode.Off, ct);
-        await SetAuditLevelAsync(Db, jobF, JobAuditLevelCode.Audit, ct);
+        await SetAuditLevelAsync(Db, jobL, DefinitionAuditLevelCode.Off, ct);
+        await SetAuditLevelAsync(Db, jobF, DefinitionAuditLevelCode.Audit, ct);
 
         var outcomeL = await Services.GetRequiredService<PauseJobHandler>().PauseAsync(jobL, input, ct);
         var outcomeF = await Services.GetRequiredService<PauseJobHandler>().PauseAsync(jobF, input, ct);
@@ -53,8 +53,8 @@ public sealed class ControlVerbAuditGatingSpec : ActaRuntimeTestBase<Conformance
         var jobF = await EnqueueAsync(ct);
         await SetJobStatusAsync(Db, jobL, (byte)JobStatusCode.Paused, ct);
         await SetJobStatusAsync(Db, jobF, (byte)JobStatusCode.Paused, ct);
-        await SetAuditLevelAsync(Db, jobL, JobAuditLevelCode.Off, ct);
-        await SetAuditLevelAsync(Db, jobF, JobAuditLevelCode.Audit, ct);
+        await SetAuditLevelAsync(Db, jobL, DefinitionAuditLevelCode.Off, ct);
+        await SetAuditLevelAsync(Db, jobF, DefinitionAuditLevelCode.Audit, ct);
 
         var outcomeL = await Services.GetRequiredService<ResumeJobHandler>().ResumeAsync(jobL, input, null, ct);
         var outcomeF = await Services.GetRequiredService<ResumeJobHandler>().ResumeAsync(jobF, input, null, ct);
@@ -76,8 +76,8 @@ public sealed class ControlVerbAuditGatingSpec : ActaRuntimeTestBase<Conformance
 
         var jobL = await EnqueueAsync(ct);
         var jobF = await EnqueueAsync(ct);
-        await SetAuditLevelAsync(Db, jobL, JobAuditLevelCode.Off, ct);
-        await SetAuditLevelAsync(Db, jobF, JobAuditLevelCode.Audit, ct);
+        await SetAuditLevelAsync(Db, jobL, DefinitionAuditLevelCode.Off, ct);
+        await SetAuditLevelAsync(Db, jobF, DefinitionAuditLevelCode.Audit, ct);
 
         var outcomeL = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(jobL, input, ct);
         var outcomeF = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(jobF, input, ct);
@@ -101,8 +101,8 @@ public sealed class ControlVerbAuditGatingSpec : ActaRuntimeTestBase<Conformance
         var jobF = await EnqueueAsync(ct);
         await SetJobStatusAsync(Db, jobL, (byte)JobStatusCode.Succeeded, ct);
         await SetJobStatusAsync(Db, jobF, (byte)JobStatusCode.Succeeded, ct);
-        await SetAuditLevelAsync(Db, jobL, JobAuditLevelCode.Off, ct);
-        await SetAuditLevelAsync(Db, jobF, JobAuditLevelCode.Audit, ct);
+        await SetAuditLevelAsync(Db, jobL, DefinitionAuditLevelCode.Off, ct);
+        await SetAuditLevelAsync(Db, jobF, DefinitionAuditLevelCode.Audit, ct);
 
         var outcomeL = await Services.GetRequiredService<RestartJobHandler>().RestartAsync(jobL, input, null, ct);
         var outcomeF = await Services.GetRequiredService<RestartJobHandler>().RestartAsync(jobF, input, null, ct);
@@ -124,24 +124,24 @@ public sealed class ControlVerbAuditGatingSpec : ActaRuntimeTestBase<Conformance
 
         var jobL = await EnqueueAsync(ct);
         var jobF = await EnqueueAsync(ct);
-        await SetAuditLevelAsync(Db, jobL, JobAuditLevelCode.Off, ct);
-        await SetAuditLevelAsync(Db, jobF, JobAuditLevelCode.Audit, ct);
+        await SetAuditLevelAsync(Db, jobL, DefinitionAuditLevelCode.Off, ct);
+        await SetAuditLevelAsync(Db, jobF, DefinitionAuditLevelCode.Audit, ct);
 
         var outcomeL = await Services
             .GetRequiredService<Acta.Runtime.Signals>()
-            .RaiseSignalAsync(new SignalSlotRaise(jobL, JobCheckpointKindCode.Signal, "gate", 0, null, input), ct);
+            .RaiseSignalAsync(new SignalSlotRaise(jobL, CheckpointKindCode.Signal, "gate", 0, null, input), ct);
         var outcomeF = await Services
             .GetRequiredService<Acta.Runtime.Signals>()
-            .RaiseSignalAsync(new SignalSlotRaise(jobF, JobCheckpointKindCode.Signal, "gate", 0, null, input), ct);
+            .RaiseSignalAsync(new SignalSlotRaise(jobF, CheckpointKindCode.Signal, "gate", 0, null, input), ct);
 
         Assert.Equal(ControlAction.Applied, outcomeL.Action);
         Assert.Equal(JobStatusCode.Ready, outcomeL.Status);
-        Assert.Equal(JobCheckpointStatusCode.Set, (await ReadSignalsAsync(jobL, ct)).Single().Status);
+        Assert.Equal(CheckpointStatusCode.Set, (await ReadSignalsAsync(jobL, ct)).Single().Status);
         Assert.Equal(0, await CountEventsAsync(jobL, EventCode.JobSignalRaised, ct));
 
         Assert.Equal(ControlAction.Applied, outcomeF.Action);
         Assert.Equal(JobStatusCode.Ready, outcomeF.Status);
-        Assert.Equal(JobCheckpointStatusCode.Set, (await ReadSignalsAsync(jobF, ct)).Single().Status);
+        Assert.Equal(CheckpointStatusCode.Set, (await ReadSignalsAsync(jobF, ct)).Single().Status);
         Assert.Equal(1, await CountEventsAsync(jobF, EventCode.JobSignalRaised, ct));
     }
 
@@ -155,9 +155,9 @@ public sealed class ControlVerbAuditGatingSpec : ActaRuntimeTestBase<Conformance
     }
 
     private static JobControlInput ControlInput() =>
-        new(new JobControlActor(ActorCode.Operator, "test"), JobEventReasonCode.JobControlManual, "audit gate test");
+        new(new JobControlActor(ActorCode.Operator, "test"), EventReasonCode.JobControlManual, "audit gate test");
 
-    private static Task SetAuditLevelAsync(IDbSession db, long jobId, JobAuditLevelCode auditLevel, CancellationToken ct) =>
+    private static Task SetAuditLevelAsync(IDbSession db, long jobId, DefinitionAuditLevelCode auditLevel, CancellationToken ct) =>
         db.ExecuteRawAsync(
             "UPDATE {schema}.jobs SET audit_level_code = @p_level WHERE id = @p_id",
             ct,

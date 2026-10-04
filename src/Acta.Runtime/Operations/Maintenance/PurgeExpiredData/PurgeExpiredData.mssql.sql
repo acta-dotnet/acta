@@ -58,7 +58,7 @@ BEGIN
                     AND NOT EXISTS (
                         SELECT 1 FROM {{schema}}.schedules s
                         INNER JOIN {{schema}}.definitions d ON d.id = j.definition_id
-                        WHERE s.job_id = j.id AND d.status_code <> 240 /* JobDefinitionStatusCode.Retired */
+                        WHERE s.job_id = j.id AND d.status_code <> 240 /* DefinitionStatusCode.Retired */
                     )
                 ORDER BY r.retention_until_utc, r.job_id;
 
@@ -217,7 +217,7 @@ BEGIN
                 DELETE TOP (@p_batch_size) FROM {{schema}}.checkpoints
                 WHERE
                     job_id = @alerts_slot_id
-                    AND kind_code = 10 /* JobCheckpointKindCode.Variable */
+                    AND kind_code = 10 /* CheckpointKindCode.Variable */
                     AND name LIKE 'alerts-skip-%'
                     AND modified_at_utc <= @p_cutoff_utc;
                 SET @rows = @@ROWCOUNT;

@@ -67,7 +67,7 @@ AS $$
             NULL,
             NULL
         FROM updated u
-        WHERE u.audit_level_code = 20 /* JobAuditLevelCode.Audit */
+        WHERE u.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
         RETURNING 1
     ),
     current AS (

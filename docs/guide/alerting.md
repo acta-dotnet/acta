@@ -114,8 +114,8 @@ Everything else is invisible to alerting. Two exclusions are worth stating outri
   `job.rate-limited` (66), `job.step-retry-scheduled` (61), `job.attempt-aborted` (25), or
   `job.unclassified` (10, an admission that failed on a provider error) falls
   outside the three reason codes above, so the attempt ends without producing an alert even though it
-  did not succeed (`JobEventReasonCode.JobConcurrencyKeyHeld`, `JobEventReasonCode.JobRateLimited`,
-  `JobEventReasonCode.JobStepRetryScheduled`, `JobEventReasonCode.JobAttemptAborted`).
+  did not succeed (`EventReasonCode.JobConcurrencyKeyHeld`, `EventReasonCode.JobRateLimited`,
+  `EventReasonCode.JobStepRetryScheduled`, `EventReasonCode.JobAttemptAborted`).
 
 A recurring slot's rollover carries the failed attempt's reason through onto its `Ready` event
 (`JobExecution.ComputeRecurringOutcome`). That is the only reason a nightly job that throws every
@@ -444,7 +444,7 @@ route through the handler-status completion path and stop the whole slot
 | An `AtMostOnce()` step was re-entered before its outcome was recorded, uncaught | `job.step-interrupted` (63) | `JobExecution.RunAsync` |
 
 A whole-job deadline is **not** one of them: the deadline lands the job `Cancelled`, not `Failed`
-(`JobExecution.RunAsync`, `JobEventReasonCode.JobDeadlineExceeded`), and the alertable set has no
+(`JobExecution.RunAsync`, `EventReasonCode.JobDeadlineExceeded`), and the alertable set has no
 `Cancelled` branch (`GetAlertableEvents.sql`). No profile alerts on a deadline — the `on-terminal`
 `[Code]` description (`AlertProfileCode.OnTerminal`) and
 [Known limitations](../technical/known-limitations.md) both say the same.
@@ -514,7 +514,7 @@ from a `None` job naming an unconfigured channel is not caught until it fails de
 | `JobsOptions.cs` | `src/Acta/Configuration/JobsOptions.cs` |
 | `JobContext.cs` | `src/Acta/Execution/JobContext.cs` |
 | `JobExecution.cs` | `src/Acta.Runtime/Engine/Execution/JobExecution.cs` |
-| `JobEventReasonCode.cs` | `src/Acta/Codes/JobEventReasonCode.cs` |
+| `EventReasonCode.cs` | `src/Acta/Codes/EventReasonCode.cs` |
 | `EventCode.cs` | `src/Acta/Codes/EventCode.cs` |
 | `BackoffSchedule.cs` | `src/Acta.Runtime/Kernel/BackoffSchedule.cs` |
 | `WorkerBuilder.cs` | `src/Acta.Runtime/Hosting/WorkerBuilder.cs` |

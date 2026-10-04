@@ -77,7 +77,7 @@ BEGIN
         FROM unnest(p_b_namespace_name, p_b_job_name) AS b(namespace_name, job_name)
         INNER JOIN {{schema}}.namespaces ns ON ns.name = b.namespace_name
         INNER JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = b.job_name
-        WHERE jd.status_code <> 10 /* JobDefinitionStatusCode.Active */
+        WHERE jd.status_code <> 10 /* DefinitionStatusCode.Active */
     ) THEN
         RAISE EXCEPTION 'ACTA:ENQ_DEF_RETIRED:Enqueue rejected: the job definition is retired.'
             USING ERRCODE = 'P0001';
@@ -210,7 +210,7 @@ BEGIN
         INNER JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = b.job_name
         LEFT JOIN {{schema}}.jobs pj ON pj.id = b.parent_id
         WHERE
-            jd.tenant_requirement_code = 10 /* JobTenantRequirementCode.Required */
+            jd.tenant_requirement_code = 10 /* DefinitionTenantRequirementCode.Required */
             AND b.tenant_key IS NULL
             AND pj.tenant_id IS NULL
     ) THEN
@@ -224,7 +224,7 @@ BEGIN
         INNER JOIN {{schema}}.namespaces ns ON ns.name = b.namespace_name
         INNER JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = b.job_name
         WHERE
-            jd.tenant_requirement_code = 20 /* JobTenantRequirementCode.Forbidden */
+            jd.tenant_requirement_code = 20 /* DefinitionTenantRequirementCode.Forbidden */
             AND b.tenant_key IS NOT NULL
     ) THEN
         RAISE EXCEPTION 'ACTA:ENQ_TENANT_FORBIDDEN:Enqueue rejected: one or more rows target a definition that forbids a tenant and name one.'
@@ -325,7 +325,7 @@ BEGIN
         COALESCE(b.correlation_key, pj.correlation_key),
         ns.id,
         jd.id,
-        CASE WHEN jd.tenant_requirement_code = 20 /* JobTenantRequirementCode.Forbidden */ THEN NULL
+        CASE WHEN jd.tenant_requirement_code = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
             ELSE COALESCE(t.id, pj.tenant_id) END,
         b.input_format_id,
         b.input,

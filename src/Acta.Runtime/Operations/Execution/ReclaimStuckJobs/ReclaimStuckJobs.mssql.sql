@@ -196,12 +196,12 @@ BEGIN
             10 /* JobStatusCode.Ready */,
             NULL,
             NULL,
-            67 /* JobEventReasonCode.JobLaneRepaired */,
+            67 /* EventReasonCode.JobLaneRepaired */,
             N'Lane had no live head; the sys.recovery system job released its lowest Blocked member.'
         FROM @repaired x
         INNER JOIN {{schema}}.jobs j ON j.id = x.id
         INNER JOIN {{schema}}.runtimes r ON r.job_id = x.id
-        WHERE j.audit_level_code IN (10 /* JobAuditLevelCode.Failures */, 20 /* JobAuditLevelCode.Audit */);
+        WHERE j.audit_level_code IN (10 /* DefinitionAuditLevelCode.Failures */, 20 /* DefinitionAuditLevelCode.Audit */);
 
         WITH stuck AS (
             SELECT
@@ -218,8 +218,8 @@ BEGIN
                     FROM {{schema}}.checkpoints c
                     WHERE
                         c.job_id = r.job_id
-                        AND c.kind_code IN (20 /* JobCheckpointKindCode.Signal */, 50 /* JobCheckpointKindCode.ChildLatch */)
-                        AND c.status_code = 30 /* JobCheckpointStatusCode.Expired */
+                        AND c.kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
+                        AND c.status_code = 30 /* CheckpointStatusCode.Expired */
                         AND c.due_at_utc = r.next_run_at_utc
                 ) THEN 1 ELSE 0 END AS wait_resolved,
                 /* MaxAttempts is the one-off retry budget and a slot's failure_count accumulates
@@ -318,7 +318,7 @@ BEGIN
             to_status_code,
             230 /* ExecutionStatusCode.Orphaned */,
             NULL,
-            21 /* JobEventReasonCode.JobLeaseExpired */,
+            21 /* EventReasonCode.JobLeaseExpired */,
             /* Suspended is reachable only through the resolved-wait arm above, so the landed status is
                what tells the two messages apart. */
             CASE WHEN to_status_code = 20 /* JobStatusCode.Suspended */
@@ -326,7 +326,7 @@ BEGIN
                 ELSE N'Worker lease expired; reclaimed by the sys.recovery system job.'
             END
         FROM @reclaimed
-        WHERE audit_level_code IN (10 /* JobAuditLevelCode.Failures */, 20 /* JobAuditLevelCode.Audit */);
+        WHERE audit_level_code IN (10 /* DefinitionAuditLevelCode.Failures */, 20 /* DefinitionAuditLevelCode.Audit */);
 
         /* A head reclaimed to Failed hands its lane on; a head re-armed Ready keeps it. Promotion runs
            under the lane locks and re-reads each head rather than trusting the walk. */

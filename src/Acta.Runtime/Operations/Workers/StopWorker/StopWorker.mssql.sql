@@ -44,7 +44,7 @@ BEGIN
             NULL,
             NULL,
             NULL,
-            100 /* JobEventReasonCode.WorkerCleanShutdown */,
+            100 /* EventReasonCode.WorkerCleanShutdown */,
             NULL
         FROM @stopped s;
 

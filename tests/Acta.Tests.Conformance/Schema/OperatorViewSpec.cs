@@ -208,7 +208,7 @@ public sealed partial class OperatorViewSpec : ActaRuntimeTestBase<ConformanceFi
         cmd.CommandText =
             $"INSERT INTO {Db.Schema}.checkpoints (job_id, kind_code, name, value_format_id, value) VALUES (@p_job_id, @p_kind_code, @p_name, @p_value_format_id, @p_value)";
         Add(cmd, "@p_job_id", jobId);
-        Add(cmd, "@p_kind_code", (byte)JobCheckpointKindCode.Variable);
+        Add(cmd, "@p_kind_code", (byte)CheckpointKindCode.Variable);
         Add(cmd, "@p_name", name);
         Add(cmd, "@p_value_format_id", JobPayloadFormat.Text.Id);
         Add(cmd, "@p_value", Encoding.UTF8.GetBytes(value));

@@ -128,7 +128,7 @@ JOIN {{schema}}.runtimes r ON r.job_id = j.id
 JOIN temp._restart_job s ON s.id = j.id
 WHERE
     j.id = @p_id
-    AND j.audit_level_code = 20 /* JobAuditLevelCode.Audit */
+    AND j.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
     AND (@p_expected_version IS NULL OR r.version = @p_expected_version)
     AND s.rejected = 0;
 
@@ -137,7 +137,7 @@ WHERE
 DELETE FROM {{schema}}.steps
 WHERE
     job_id = @p_id
-    AND status_code = 200 /* JobStepStatusCode.Exhausted */
+    AND status_code = 200 /* StepStatusCode.Exhausted */
     AND (SELECT s.rejected FROM temp._restart_job s) = 0
     AND (@p_expected_version IS NULL OR (SELECT s.from_version FROM temp._restart_job s) = @p_expected_version);
 

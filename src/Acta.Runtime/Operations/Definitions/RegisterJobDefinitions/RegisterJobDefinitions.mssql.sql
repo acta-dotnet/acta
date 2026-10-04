@@ -15,7 +15,7 @@ BEGIN
         DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
 
         UPDATE jd SET
-            status_code = 10 /* JobDefinitionStatusCode.Active */,
+            status_code = 10 /* DefinitionStatusCode.Active */,
             input_type_name = src.input_type_name,
             output_type_name = src.output_type_name,
             input_format_id = src.input_format_id,
@@ -50,7 +50,7 @@ BEGIN
         WHERE
             @p_manifest_generation >= jd.manifest_generation_at_utc
             AND (
-                jd.status_code <> 10 /* JobDefinitionStatusCode.Active */
+                jd.status_code <> 10 /* DefinitionStatusCode.Active */
                 OR jd.definition_hash <> src.definition_hash
             );
 
@@ -76,7 +76,7 @@ BEGIN
         SELECT
             @p_namespace_id,
             src.name,
-            10 /* JobDefinitionStatusCode.Active */,
+            10 /* DefinitionStatusCode.Active */,
             src.input_type_name,
             src.output_type_name,
             src.input_format_id,

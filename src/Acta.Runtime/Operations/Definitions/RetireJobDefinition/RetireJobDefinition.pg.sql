@@ -33,14 +33,14 @@ WITH target AS (
 retired AS (
     UPDATE {{schema}}.definitions jd
     SET
-        status_code = 240 /* JobDefinitionStatusCode.Retired */,
+        status_code = 240 /* DefinitionStatusCode.Retired */,
         modified_at_utc = now(),
         version = jd.version + 1
     FROM target t
     WHERE
         jd.id = t.id
         AND t.version = @p_version
-        AND t.status_code <> 240 /* JobDefinitionStatusCode.Retired */
+        AND t.status_code <> 240 /* DefinitionStatusCode.Retired */
     RETURNING jd.id, jd.namespace_id
 ),
 -- A laned job is parked here only in a lane locked above; Blocked is parked too, and an in-flight
@@ -123,11 +123,11 @@ cancel_events AS (
         220 /* JobStatusCode.Cancelled */,
         NULL,
         NULL,
-        42 /* JobEventReasonCode.JobDefinitionRetired */,
+        42 /* EventReasonCode.JobDefinitionRetired */,
         @p_reason_message
     FROM parked p
     INNER JOIN swept s ON s.job_id = p.job_id
-    WHERE p.audit_level_code = 20 /* JobAuditLevelCode.Audit */
+    WHERE p.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
 ),
 definition_event AS (
     INSERT INTO {{schema}}.events (

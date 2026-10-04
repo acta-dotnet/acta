@@ -36,7 +36,7 @@ public sealed class RequeueOutboxSpec : OutboxRelayIntegrationBase
                     DeduplicationKey = "sys.outbox",
                     InputFormatId = 1,
                     Input = [0],
-                    AuditLevel = JobAuditLevelCode.Off,
+                    AuditLevel = DefinitionAuditLevelCode.Off,
                     CreatedAtUtc = DateTime.UtcNow,
                 },
                 ct

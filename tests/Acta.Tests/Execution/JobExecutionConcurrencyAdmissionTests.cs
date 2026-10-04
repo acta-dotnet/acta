@@ -72,7 +72,7 @@ public sealed class JobExecutionConcurrencyAdmissionTests
         Assert.Equal(RunOnceOutcome.Rearmed, outcome);
         Assert.False(harness.HandlerRan);
         Assert.Equal(ExecutionOutcome.Rescheduled, completion.Outcome);
-        Assert.Equal(JobEventReasonCode.JobConcurrencyKeyHeld, completion.JobEventReasonCode);
+        Assert.Equal(EventReasonCode.JobConcurrencyKeyHeld, completion.EventReasonCode);
 
         // Budget-neutral: the fixed bounce delay re-arms the row and no failure count is written at
         // all, so the next attempt reads the budget exactly as this one found it.
@@ -111,7 +111,7 @@ public sealed class JobExecutionConcurrencyAdmissionTests
         Assert.Equal(RunOnceOutcome.Rearmed, outcome);
         Assert.False(harness.HandlerRan);
         Assert.Equal(ExecutionOutcome.Rescheduled, completion.Outcome);
-        Assert.Equal(JobEventReasonCode.Unclassified, completion.JobEventReasonCode);
+        Assert.Equal(EventReasonCode.Unclassified, completion.EventReasonCode);
         Assert.Equal(new JobsOptions().ConcurrencyKeyBounceDelaySeconds, completion.RescheduleDelaySeconds);
         Assert.Null(completion.FailureCount);
         Assert.Equal(0, harness.SlotReleases);

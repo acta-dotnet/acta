@@ -416,12 +416,7 @@ internal sealed class PostgresDialect : ISqlDialect
         AddScalar(postgres, "@p_id", NpgsqlDbType.Bigint, request.JobId);
         AddScalar(postgres, "@p_leased_by_worker_id", NpgsqlDbType.Integer, request.WorkerId);
         AddScalar(postgres, "@p_execution_number", NpgsqlDbType.Integer, request.ExpectedExecutionNumber);
-        AddScalar(
-            postgres,
-            "@p_reason_code",
-            NpgsqlDbType.Smallint,
-            request.JobEventReasonCode is { } reason ? (short)reason : DBNull.Value
-        );
+        AddScalar(postgres, "@p_reason_code", NpgsqlDbType.Smallint, request.EventReasonCode is { } reason ? (short)reason : DBNull.Value);
         AddScalar(postgres, "@p_reason_message", NpgsqlDbType.Varchar, (object?)request.ReasonMessage ?? DBNull.Value);
         AddScalar(postgres, "@p_result_format_id", NpgsqlDbType.Smallint, (short)request.ResultFormatId);
         AddScalar(postgres, "@p_result", NpgsqlDbType.Bytea, resultBytes);

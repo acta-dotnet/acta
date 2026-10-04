@@ -20,7 +20,7 @@ namespace Acta.Tests.Conformance.Operations.Ledger;
 )]
 public sealed class ForwardCodeReadSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
-    // No member of EventCode, JobEventReasonCode, or AlertKindCode holds this id, and none of the three
+    // No member of EventCode, EventReasonCode, or AlertKindCode holds this id, and none of the three
     // columns carries an IN-list CHECK, so a newer Acta may write it.
     private const byte UnassignedId = 200;
 
@@ -40,10 +40,7 @@ public sealed class ForwardCodeReadSpec : ActaRuntimeTestBase<ConformanceFixture
 
         var rewritten = await Db.From<EventEntity>()
             .Where(e => e.JobRef == jobRef)
-            .UpdateOnlyAsync(
-                () => new EventEntity { EventCode = (EventCode)UnassignedId, ReasonCode = (JobEventReasonCode)UnassignedId },
-                ct
-            );
+            .UpdateOnlyAsync(() => new EventEntity { EventCode = (EventCode)UnassignedId, ReasonCode = (EventReasonCode)UnassignedId }, ct);
         Assert.True(rewritten > 0);
 
         var page = await Operations.Ledger.ListEventsAsync(new ListEventsQuery(JobId: enqueued.JobId, PageSize: 100), ct);
@@ -53,7 +50,7 @@ public sealed class ForwardCodeReadSpec : ActaRuntimeTestBase<ConformanceFixture
             e =>
             {
                 Assert.Equal(EventCode.Unspecified, e.EventCode);
-                Assert.Equal(JobEventReasonCode.Unspecified, e.ReasonCode);
+                Assert.Equal(EventReasonCode.Unspecified, e.ReasonCode);
             }
         );
 
@@ -67,7 +64,7 @@ public sealed class ForwardCodeReadSpec : ActaRuntimeTestBase<ConformanceFixture
             e =>
             {
                 Assert.Equal(EventCode.Unspecified, e.EventCode);
-                Assert.Equal(JobEventReasonCode.Unspecified, e.ReasonCode);
+                Assert.Equal(EventReasonCode.Unspecified, e.ReasonCode);
             }
         );
     }

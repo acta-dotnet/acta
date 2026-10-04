@@ -379,7 +379,7 @@ internal sealed class SqliteDialect : ISqlDialect
         AddInt(command, "@p_id", request.JobId);
         AddInt(command, "@p_leased_by_worker_id", request.WorkerId);
         AddInt(command, "@p_execution_number", request.ExpectedExecutionNumber);
-        AddNullableInt(command, "@p_reason_code", request.JobEventReasonCode is { } reason ? (short)reason : null);
+        AddNullableInt(command, "@p_reason_code", request.EventReasonCode is { } reason ? (short)reason : null);
         AddNullableText(command, "@p_reason_message", request.ReasonMessage);
         AddInt(command, "@p_result_format_id", request.ResultFormatId);
         AddNullableBlob(command, "@p_result", resultBytes);

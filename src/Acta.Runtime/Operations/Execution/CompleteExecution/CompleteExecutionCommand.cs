@@ -14,7 +14,7 @@ internal sealed record CompleteExecutionCommand(
     ExecutionOutcome Outcome,
     byte ResultFormatId,
     ReadOnlyMemory<byte> Result,
-    JobEventReasonCode? JobEventReasonCode = null,
+    EventReasonCode? EventReasonCode = null,
     string? ReasonMessage = null,
     int? DurationMs = null,
     IReadOnlyList<ScheduleAdvance>? ScheduleAdvances = null,

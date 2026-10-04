@@ -21,7 +21,7 @@ namespace Acta.Concepts.ResetState
     {
         // Each fire re-runs the same durable job, so variables persist across fires unless the handler
         // clears its durable state as the final act of the cycle.
-        [Job("collect-metrics", AuditLevel = JobAuditLevelCode.Off)]
+        [Job("collect-metrics", AuditLevel = DefinitionAuditLevelCode.Off)]
         [JobSchedule("every-5-seconds", "PT5S")]
         public async Task Handle(CollectMetrics input, JobContext context, CancellationToken ct)
         {

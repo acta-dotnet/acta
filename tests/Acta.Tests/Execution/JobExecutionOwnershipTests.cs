@@ -22,7 +22,7 @@ public sealed class JobExecutionOwnershipTests
         var completion = harness.Completion;
         Assert.Equal(RunOnceOutcome.Rearmed, outcome);
         Assert.Equal(ExecutionOutcome.Failed, completion.Outcome);
-        Assert.Equal(JobEventReasonCode.JobAttemptAborted, completion.JobEventReasonCode);
+        Assert.Equal(EventReasonCode.JobAttemptAborted, completion.EventReasonCode);
         Assert.Contains(JobExecutionHarness.StepName, completion.ReasonMessage);
 
         // The re-arm shape, not a terminal one: the execution row records Rescheduled, the job goes
@@ -57,7 +57,7 @@ public sealed class JobExecutionOwnershipTests
         var completion = harness.Completion;
         Assert.Equal(RunOnceOutcome.Rearmed, outcome);
         Assert.Equal(ExecutionOutcome.Failed, completion.Outcome);
-        Assert.Equal(JobEventReasonCode.JobAttemptAborted, completion.JobEventReasonCode);
+        Assert.Equal(EventReasonCode.JobAttemptAborted, completion.EventReasonCode);
         Assert.Contains(JobExecutionHarness.StepName, completion.ReasonMessage);
         Assert.DoesNotContain("boom", completion.ReasonMessage, StringComparison.Ordinal);
         Assert.Equal((byte)ExecutionStatusCode.Rescheduled, completion.RescheduleStatusCode);
@@ -75,7 +75,7 @@ public sealed class JobExecutionOwnershipTests
         var completion = harness.Completion;
         Assert.Equal(RunOnceOutcome.Failed, outcome);
         Assert.Equal(ExecutionOutcome.Failed, completion.Outcome);
-        Assert.Equal(JobEventReasonCode.JobAttemptAborted, completion.JobEventReasonCode);
+        Assert.Equal(EventReasonCode.JobAttemptAborted, completion.EventReasonCode);
         Assert.Contains(JobExecutionHarness.StepName, completion.ReasonMessage);
         Assert.Null(completion.RescheduleStatusCode);
     }
@@ -100,7 +100,7 @@ public sealed class JobExecutionOwnershipTests
         Assert.Contains(submitted, c => c.Outcome == ExecutionOutcome.Succeeded);
         foreach (var completion in submitted.Where(c => c.Outcome == ExecutionOutcome.Failed))
         {
-            Assert.NotNull(completion.JobEventReasonCode);
+            Assert.NotNull(completion.EventReasonCode);
             Assert.False(string.IsNullOrWhiteSpace(completion.ReasonMessage));
         }
     }

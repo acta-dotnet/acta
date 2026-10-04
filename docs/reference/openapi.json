@@ -8366,6 +8366,10 @@
           }
         }
       },
+      "CheckpointKindCode": {
+        "description": "Discriminator for `JobCheckpoint` rows: which durable substrate feature owns the\n`(job_id, kind_code, name)` slot. One physical table carries every simple job-internal\ndurable slot; the kind keeps the name spaces structurally separate (a user variable can never\ncollide with a signal or a child latch of the same name)."
+      },
+      "CheckpointStatusCode": { },
       "ControlAction": {
         "enum": [
           "applied",
@@ -8390,6 +8394,10 @@
       },
       "DeadlineBehaviorCode": {
         "description": "How the engine treats a job that has passed its deadline."
+      },
+      "DefinitionAuditLevelCode": { },
+      "DefinitionStatusCode": {
+        "description": "Lifecycle status of a job definition. Numeric bands are a readability convention only;\nbehavior follows the explicit members. There is no per-definition Deprecated state by design:\noperators pause individual Jobs via `IJobs.PauseAsync`."
       },
       "DiscardOutboxResponse": {
         "required": [
@@ -8649,7 +8657,7 @@
               },
               {
                 "description": "Reason recorded with the event, or null.",
-                "$ref": "#/components/schemas/JobEventReasonCode"
+                "$ref": "#/components/schemas/EventReasonCode"
               }
             ]
           },
@@ -8688,6 +8696,7 @@
         },
         "description": "One audit event row in a ValueTask&lt;PagedResult&lt;EventListItem&gt;&gt; ILedger.ListEventsAsync(ListEventsQuery query, CancellationToken ct = default(CancellationToken)) page. JSON serialization\ncarries the public job refs and hides the numeric job ids; events outlive their job, and each\nref parameter documents whether it survives the purge."
       },
+      "EventReasonCode": { },
       "ExecutionStatusCode": { },
       "GetInputTemplateHttpResponse": {
         "required": [
@@ -8835,7 +8844,6 @@
           }
         }
       },
-      "JobAuditLevelCode": { },
       "JobCheckpointHttpResponse": {
         "required": [
           "kind",
@@ -8849,7 +8857,7 @@
         "type": "object",
         "properties": {
           "kind": {
-            "$ref": "#/components/schemas/JobCheckpointKindCode"
+            "$ref": "#/components/schemas/CheckpointKindCode"
           },
           "name": {
             "type": "string"
@@ -8860,7 +8868,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/JobCheckpointStatusCode"
+                "$ref": "#/components/schemas/CheckpointStatusCode"
               }
             ]
           },
@@ -8891,10 +8899,6 @@
           }
         }
       },
-      "JobCheckpointKindCode": {
-        "description": "Discriminator for `JobCheckpoint` rows: which durable substrate feature owns the\n`(job_id, kind_code, name)` slot. One physical table carries every simple job-internal\ndurable slot; the kind keeps the name spaces structurally separate (a user variable can never\ncollide with a signal or a child latch of the same name)."
-      },
-      "JobCheckpointStatusCode": { },
       "JobDefinitionDetail": {
         "required": [
           "jobNamespace",
@@ -8968,7 +8972,7 @@
             "type": "string"
           },
           "status": {
-            "$ref": "#/components/schemas/JobDefinitionStatusCode"
+            "$ref": "#/components/schemas/DefinitionStatusCode"
           },
           "definitionHash": {
             "type": "string"
@@ -9210,7 +9214,7 @@
             "format": "int32"
           },
           "auditLevel": {
-            "$ref": "#/components/schemas/JobAuditLevelCode"
+            "$ref": "#/components/schemas/DefinitionAuditLevelCode"
           },
           "auditLevelOverride": {
             "oneOf": [
@@ -9218,12 +9222,12 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/JobAuditLevelCode"
+                "$ref": "#/components/schemas/DefinitionAuditLevelCode"
               }
             ]
           },
           "auditLevelEffective": {
-            "$ref": "#/components/schemas/JobAuditLevelCode"
+            "$ref": "#/components/schemas/DefinitionAuditLevelCode"
           },
           "alertProfile": {
             "$ref": "#/components/schemas/AlertProfileCode"
@@ -9361,7 +9365,7 @@
             "type": "string"
           },
           "status": {
-            "$ref": "#/components/schemas/JobDefinitionStatusCode"
+            "$ref": "#/components/schemas/DefinitionStatusCode"
           },
           "inputTypeName": {
             "type": "string"
@@ -9550,9 +9554,6 @@
         },
         "description": "The complete operator-override set applied to a job definition's policy. Each field is the override\nfor its policy slot: a non-null value sets the override, `null` clears it (the effective value\nfalls back to the code default). Applied as a whole - the supplied set replaces the row's current\noverrides - so the dashboard reads the current overrides, edits, and writes the full set back. Never\ntouches the code-owned defaults, the contract/formats, or `definition_hash`. A\n`DeadlineSeconds` override on a scheduled definition lands but is ignored: a deadline anchors\nto job creation, and a recurring slot's row lives forever, so the runtime never hands a slot a\ndeadline. `RateLimit` is the one field that is not this definition's alone: it applies to\nevery definition sharing the meter (declared `RateKey`, or the definition name) in one write,\nclearing included, so the meter never carries two rates."
       },
-      "JobDefinitionStatusCode": {
-        "description": "Lifecycle status of a job definition. Numeric bands are a readability convention only;\nbehavior follows the explicit members. There is no per-definition Deprecated state by design:\noperators pause individual Jobs via `IJobs.PauseAsync`."
-      },
       "JobDetail": {
         "required": [
           "jobRef",
@@ -9737,7 +9738,6 @@
         ],
         "description": "Coarse outcome classifier for one enqueued row."
       },
-      "JobEventReasonCode": { },
       "JobExplainAction": {
         "required": [
           "kind",
@@ -9820,7 +9820,7 @@
             "type": "string"
           },
           "status": {
-            "$ref": "#/components/schemas/JobStepStatusCode"
+            "$ref": "#/components/schemas/StepStatusCode"
           },
           "explanation": {
             "type": "string"
@@ -9837,7 +9837,7 @@
         "type": "object",
         "properties": {
           "kind": {
-            "$ref": "#/components/schemas/JobCheckpointKindCode"
+            "$ref": "#/components/schemas/CheckpointKindCode"
           },
           "name": {
             "type": "string"
@@ -10253,9 +10253,6 @@
         "description": "Public stable reference for one Job row: \"job_\" plus 26 lowercase Crockford Base32 characters\nencoding the canonical big-endian UUID bytes. Dashboards, HTTP APIs, and clients address jobs\nby this value; the numeric JobId stays the internal engine identity. Parsing is\ncase-insensitive; emission is always canonical lowercase."
       },
       "JobStatusCode": { },
-      "JobStepStatusCode": {
-        "description": "State machine for `JobStep` rows. INSERT-once on first invocation (`Pending`);\nUPDATE-in-place across retries; terminal transition to `Succeeded` (with `Result` populated),\n`Exhausted` (parent receives `StepExhaustedException`), or `Interrupted` (an\n`AtMostOnce` step re-entered before completion; parent receives `StepInterruptedException`). One row per\n`(JobId, Name)`; the framework never INSERTs a second step row for the same slot."
-      },
       "JsonElement": { },
       "MisfireStrategyCode": { },
       "NamespaceListItem": {
@@ -11937,6 +11934,9 @@
           }
         },
         "description": "What setting a schedule's overrides did, and the schedule's state after the attempt."
+      },
+      "StepStatusCode": {
+        "description": "State machine for `JobStep` rows. INSERT-once on first invocation (`Pending`);\nUPDATE-in-place across retries; terminal transition to `Succeeded` (with `Result` populated),\n`Exhausted` (parent receives `StepExhaustedException`), or `Interrupted` (an\n`AtMostOnce` step re-entered before completion; parent receives `StepInterruptedException`). One row per\n`(JobId, Name)`; the framework never INSERTs a second step row for the same slot."
       },
       "SuspendNamespaceResponse": {
         "required": [

@@ -91,7 +91,7 @@ public sealed class SignalSuspendHandoffRaceChaosSpec : ActaRuntimeTestBase<Conf
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
         Assert.Equal(decision, await Jobs.GetResultAsync<ReviewDecision>(enqueued, ct));
-        Assert.Equal(JobCheckpointStatusCode.Set, (await ReadSignalsAsync(enqueued.JobId, ct)).Single().Status);
+        Assert.Equal(CheckpointStatusCode.Set, (await ReadSignalsAsync(enqueued.JobId, ct)).Single().Status);
     }
 
     [Fact(DisplayName = "The same completion with nothing raised in the window still parks the job Suspended")]

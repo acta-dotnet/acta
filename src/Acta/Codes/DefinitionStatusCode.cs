@@ -7,9 +7,9 @@ namespace Acta;
 /// behavior follows the explicit members. There is no per-definition Deprecated state by design:
 /// operators pause individual Jobs via <c>IJobs.PauseAsync</c>.
 /// </summary>
-[JsonConverter(typeof(JobDefinitionStatusCodeJsonConverter))]
+[JsonConverter(typeof(DefinitionStatusCodeJsonConverter))]
 [CodeKind("job-definition-status")]
-public enum JobDefinitionStatusCode : byte
+public enum DefinitionStatusCode : byte
 {
     [Code("active", "Enqueue allowed; claim allowed.")]
     Active = 10,

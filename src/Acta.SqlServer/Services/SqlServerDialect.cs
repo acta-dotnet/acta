@@ -462,7 +462,7 @@ internal sealed class SqlServerDialect : ISqlDialect
         AddParameter(sql, "@p_id", SqlDbType.BigInt, request.JobId);
         AddParameter(sql, "@p_leased_by_worker_id", SqlDbType.Int, request.WorkerId);
         AddParameter(sql, "@p_execution_number", SqlDbType.Int, request.ExpectedExecutionNumber);
-        AddParameter(sql, "@p_reason_code", SqlDbType.TinyInt, request.JobEventReasonCode is { } reason ? (byte)reason : DBNull.Value);
+        AddParameter(sql, "@p_reason_code", SqlDbType.TinyInt, request.EventReasonCode is { } reason ? (byte)reason : DBNull.Value);
         AddParameter(sql, "@p_reason_message", SqlDbType.NVarChar, (object?)request.ReasonMessage ?? DBNull.Value, size: 512);
         AddParameter(sql, "@p_result_format_id", SqlDbType.TinyInt, request.ResultFormatId);
         AddParameter(sql, "@p_result", SqlDbType.VarBinary, resultBytes);

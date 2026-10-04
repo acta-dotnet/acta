@@ -49,7 +49,7 @@ internal sealed class StepEntity : IEntity<long>
     /// <c>Pending</c> while retrying; <c>Succeeded</c> / <c>Exhausted</c> on terminal. CHECK rejects 0.
     /// </summary>
     [DbColumn("status_code")]
-    public JobStepStatusCode Status { get; set; }
+    public StepStatusCode Status { get; set; }
 
     /// <summary>
     /// Step attempt ordinal across retries (1-based; incremented on each failure within budget).
@@ -70,7 +70,7 @@ internal sealed class StepEntity : IEntity<long>
     /// so post-mortem reads always have the final failure context.
     /// </summary>
     [DbColumn("reason_code")]
-    public JobEventReasonCode? ReasonCode { get; set; }
+    public EventReasonCode? ReasonCode { get; set; }
 
     /// <summary>
     /// Free-form prose paired with <see cref="ReasonCode"/> by <c>ck_steps_reason_pair</c>. NULL until

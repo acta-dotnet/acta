@@ -92,7 +92,7 @@ public sealed class SetJobDefinitionOverridesBindMatrixSpec : ActaStorageTestBas
                 DeadlineSeconds: 444, // distinct int 4
                 DeadlineBehavior: DeadlineBehaviorCode.Advisory, // ≠ Strict base
                 JobRetentionSeconds: 555, // distinct int 5
-                AuditLevel: JobAuditLevelCode.Audit, // ≠ Off base
+                AuditLevel: DefinitionAuditLevelCode.Audit, // ≠ Off base
                 AlertProfile: AlertProfileCode.OnTerminal, // ≠ None base
                 AlertChannelName: channelName,
                 RunbookUrl: runbookUrl,
@@ -116,7 +116,7 @@ public sealed class SetJobDefinitionOverridesBindMatrixSpec : ActaStorageTestBas
         Assert.Equal(444, after.DeadlineSecondsOverride);
         Assert.Equal(DeadlineBehaviorCode.Advisory, after.DeadlineBehaviorOverride);
         Assert.Equal(555, after.JobRetentionSecondsOverride);
-        Assert.Equal(JobAuditLevelCode.Audit, after.AuditLevelOverride);
+        Assert.Equal(DefinitionAuditLevelCode.Audit, after.AuditLevelOverride);
         Assert.Equal(AlertProfileCode.OnTerminal, after.AlertProfileOverride);
         Assert.Equal(channelName, after.AlertChannelNameOverride);
         Assert.Equal(runbookUrl, after.RunbookUrlOverride);
@@ -131,7 +131,7 @@ public sealed class SetJobDefinitionOverridesBindMatrixSpec : ActaStorageTestBas
         Assert.Equal(444, after.DeadlineSecondsEffective);
         Assert.Equal(DeadlineBehaviorCode.Advisory, after.DeadlineBehaviorEffective);
         Assert.Equal(555, after.JobRetentionSecondsEffective);
-        Assert.Equal(JobAuditLevelCode.Audit, after.AuditLevelEffective);
+        Assert.Equal(DefinitionAuditLevelCode.Audit, after.AuditLevelEffective);
         Assert.Equal(AlertProfileCode.OnTerminal, after.AlertProfileEffective);
         Assert.Equal(channelName, after.AlertChannelNameEffective);
         Assert.Equal(runbookUrl, after.RunbookUrlEffective);
@@ -165,7 +165,7 @@ public sealed class SetJobDefinitionOverridesBindMatrixSpec : ActaStorageTestBas
                 DeadlineSeconds: 444,
                 DeadlineBehavior: DeadlineBehaviorCode.Advisory,
                 JobRetentionSeconds: 555,
-                AuditLevel: JobAuditLevelCode.Audit,
+                AuditLevel: DefinitionAuditLevelCode.Audit,
                 AlertProfile: AlertProfileCode.OnTerminal,
                 AlertChannelName: "chan-" + TestId,
                 RunbookUrl: "https://rb/" + TestId,
@@ -214,7 +214,7 @@ public sealed class SetJobDefinitionOverridesBindMatrixSpec : ActaStorageTestBas
         Assert.Equal(0, cleared.DeadlineSecondsEffective); // no deadline
         Assert.Equal(DeadlineBehaviorCode.Strict, cleared.DeadlineBehaviorEffective);
         Assert.Equal(7776000, cleared.JobRetentionSecondsEffective); // framework default
-        Assert.Equal(JobAuditLevelCode.Off, cleared.AuditLevelEffective);
+        Assert.Equal(DefinitionAuditLevelCode.Off, cleared.AuditLevelEffective);
         Assert.Equal(AlertProfileCode.None, cleared.AlertProfileEffective);
         Assert.Null(cleared.AlertChannelNameEffective);
         Assert.Null(cleared.RunbookUrlEffective);

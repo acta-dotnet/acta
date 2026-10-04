@@ -90,7 +90,7 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
         var timers = await ReadTimersAsync(enqueued.JobId, ct);
         var nap = Assert.Single(timers);
         Assert.Equal("nap", nap.Name);
-        Assert.Equal(JobCheckpointStatusCode.Pending, nap.Status);
+        Assert.Equal(CheckpointStatusCode.Pending, nap.Status);
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, job.Status);
@@ -116,7 +116,7 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var timer = Assert.Single(await ReadTimersAsync(enqueued.JobId, ct));
-        Assert.Equal(JobCheckpointStatusCode.Pending, timer.Status);
+        Assert.Equal(CheckpointStatusCode.Pending, timer.Status);
         Assert.Equal(originalDue, timer.DueAtUtc);
     }
 
@@ -136,7 +136,7 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var timer = Assert.Single(await ReadTimersAsync(enqueued.JobId, ct));
-        Assert.Equal(JobCheckpointStatusCode.Consumed, timer.Status);
+        Assert.Equal(CheckpointStatusCode.Consumed, timer.Status);
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Succeeded, job.Status);
@@ -206,14 +206,14 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, job.Status);
         var events = await Db.From<EventEntity>().Where(e => e.JobId == enqueued.JobId).ToListAsync(ct);
-        Assert.Contains(events, e => e.ReasonCode == JobEventReasonCode.JobUnhandledException);
-        Assert.DoesNotContain(events, e => e.ReasonCode == JobEventReasonCode.JobHandlerRescheduled);
+        Assert.Contains(events, e => e.ReasonCode == EventReasonCode.JobUnhandledException);
+        Assert.DoesNotContain(events, e => e.ReasonCode == EventReasonCode.JobHandlerRescheduled);
         Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobSuspended, ct));
     }
 
     private async Task<IReadOnlyList<CheckpointEntity>> ReadTimersAsync(long jobId, CancellationToken ct)
     {
-        return await Db.From<CheckpointEntity>().Where(t => t.JobId == jobId && t.Kind == JobCheckpointKindCode.Timer).ToListAsync(ct);
+        return await Db.From<CheckpointEntity>().Where(t => t.JobId == jobId && t.Kind == CheckpointKindCode.Timer).ToListAsync(ct);
     }
 
     private static Task SetJobNextRunAsync(IDbSession db, long jobId, DateTime nextRun, CancellationToken ct) =>

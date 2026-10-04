@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 10)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 11)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -1152,22 +1152,22 @@ BEGIN
     FROM acta.checkpoints jt
     WHERE
         jt.job_id = p_job_id
-        AND jt.kind_code = 30 /* JobCheckpointKindCode.Timer */
+        AND jt.kind_code = 30 /* CheckpointKindCode.Timer */
         AND jt.name = p_name;
 
-    IF v_state = 10 /* JobCheckpointStatusCode.Pending */ AND v_existing_due > v_now THEN
+    IF v_state = 10 /* CheckpointStatusCode.Pending */ AND v_existing_due > v_now THEN
 
         RETURN QUERY SELECT 1 /* SleepOutcome.Suspend */::SMALLINT, v_existing_due;
-    ELSIF v_state = 10 /* JobCheckpointStatusCode.Pending */ THEN
+    ELSIF v_state = 10 /* CheckpointStatusCode.Pending */ THEN
 
         UPDATE acta.checkpoints jt
         SET
-            status_code = 100 /* JobCheckpointStatusCode.Consumed */,
+            status_code = 100 /* CheckpointStatusCode.Consumed */,
             modified_at_utc = now(),
             version = jt.version + 1
         WHERE
             jt.job_id = p_job_id
-            AND jt.kind_code = 30 /* JobCheckpointKindCode.Timer */
+            AND jt.kind_code = 30 /* CheckpointKindCode.Timer */
             AND jt.name = p_name;
         /* Only the worker still executing may clear the instant. A reclaimed row is Ready again on an
            instant the reclaim owns, and ck_runtimes_ready_due requires a Ready row to keep one. */
@@ -1186,7 +1186,7 @@ BEGIN
     ELSIF v_due <= v_now THEN
 
         RETURN QUERY SELECT 2 /* SleepOutcome.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
-    ELSIF EXISTS (SELECT 1 FROM acta.checkpoints jt WHERE jt.job_id = p_job_id AND jt.kind_code = 30 /* JobCheckpointKindCode.Timer */ AND jt.status_code = 10 /* JobCheckpointStatusCode.Pending */) THEN
+    ELSIF EXISTS (SELECT 1 FROM acta.checkpoints jt WHERE jt.job_id = p_job_id AND jt.kind_code = 30 /* CheckpointKindCode.Timer */ AND jt.status_code = 10 /* CheckpointStatusCode.Pending */) THEN
         RETURN QUERY SELECT 3 /* SleepOutcome.Reject */::SMALLINT, NULL::TIMESTAMPTZ;
     ELSE
         INSERT INTO acta.checkpoints (
@@ -1200,9 +1200,9 @@ BEGIN
             version)
         VALUES (
             p_job_id,
-            30 /* JobCheckpointKindCode.Timer */,
+            30 /* CheckpointKindCode.Timer */,
             p_name,
-            10 /* JobCheckpointStatusCode.Pending */,
+            10 /* CheckpointStatusCode.Pending */,
             v_due,
             now(),
             now(),
@@ -1361,7 +1361,7 @@ BEGIN
         END LOOP;
     END IF;
 
-    IF v_audit_level = 20 /* JobAuditLevelCode.Audit */ THEN
+    IF v_audit_level = 20 /* DefinitionAuditLevelCode.Audit */ THEN
         IF v_from_status = 50 /* JobStatusCode.Executing */ THEN
             INSERT INTO acta.events (
                 event_code,
@@ -1717,7 +1717,7 @@ AS $$
         FROM updated u
         WHERE
             p_start_executing
-            AND u.audit_level_code = 20 /* JobAuditLevelCode.Audit */
+            AND u.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
         RETURNING 1
     ),
 
@@ -1893,7 +1893,7 @@ AS $$
             NULL,
             NULL
         FROM updated u
-        WHERE p_start_executing AND u.audit_level_code = 20 /* JobAuditLevelCode.Audit */
+        WHERE p_start_executing AND u.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
         RETURNING 1
     )
     SELECT
@@ -2016,13 +2016,13 @@ BEGIN
         FROM acta.checkpoints
         WHERE
             job_id = p_id
-            AND kind_code IN (20 /* JobCheckpointKindCode.Signal */, 50 /* JobCheckpointKindCode.ChildLatch */)
+            AND kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
             AND name = p_wait_signal_name
         FOR UPDATE;
     END IF;
 
     v_to_status := CASE
-        WHEN v_signal_suspend AND v_sig_state = 20 /* JobCheckpointStatusCode.Set */ THEN 10 /* JobStatusCode.Ready */
+        WHEN v_signal_suspend AND v_sig_state = 20 /* CheckpointStatusCode.Set */ THEN 10 /* JobStatusCode.Ready */
         WHEN v_signal_suspend THEN 20 /* JobStatusCode.Suspended */
         WHEN p_reschedule_status_code IS NOT NULL THEN 10 /* JobStatusCode.Ready */
         WHEN v_handler THEN p_handler_status_code
@@ -2035,7 +2035,7 @@ BEGIN
     SET
         status_code = v_to_status,
         next_run_at_utc = CASE
-            WHEN v_signal_suspend AND v_sig_state = 20 /* JobCheckpointStatusCode.Set */ THEN now()
+            WHEN v_signal_suspend AND v_sig_state = 20 /* CheckpointStatusCode.Set */ THEN now()
             WHEN v_signal_suspend THEN v_sig_due
             WHEN v_rearm THEN COALESCE(p_reschedule_resume_at_utc, now() + make_interval(secs => p_reschedule_delay_seconds))
             -- A handler's pause keeps a next run, which marks it held (ScheduleWalker, "held").
@@ -2085,7 +2085,7 @@ BEGIN
     IF v_recurring THEN
 
         IF p_advance_schedule_ids IS NOT NULL AND cardinality(p_advance_schedule_ids) > 0 THEN
-            IF v_audit = 20 /* JobAuditLevelCode.Audit */ THEN
+            IF v_audit = 20 /* DefinitionAuditLevelCode.Audit */ THEN
                 INSERT INTO acta.events (
                     event_code,
                     created_at_utc,
@@ -2189,8 +2189,8 @@ BEGIN
     -- At Failures a failure carrying no reschedule is written, and a success only when it answers a
     -- recorded failure, which is what closes the incident: the job's newest finished event is not a
     -- success. Never failed, or already answered, writes nothing. One seek on the timeline index.
-    IF v_audit = 20 /* JobAuditLevelCode.Audit */
-        OR (v_audit = 10 /* JobAuditLevelCode.Failures */ AND NOT v_rearm
+    IF v_audit = 20 /* DefinitionAuditLevelCode.Audit */
+        OR (v_audit = 10 /* DefinitionAuditLevelCode.Failures */ AND NOT v_rearm
             AND NOT (v_handler AND p_handler_status_code IN (220 /* JobStatusCode.Cancelled */, 30 /* JobStatusCode.Paused */))
             AND (NOT p_execution_succeeded
                 OR COALESCE((
@@ -2244,7 +2244,7 @@ BEGIN
             p_reason_message);
     END IF;
 
-    IF v_recurring AND v_audit = 20 /* JobAuditLevelCode.Audit */ AND p_final_status IN (10 /* JobStatusCode.Ready */, 30 /* JobStatusCode.Paused */) THEN
+    IF v_recurring AND v_audit = 20 /* DefinitionAuditLevelCode.Audit */ AND p_final_status IN (10 /* JobStatusCode.Ready */, 30 /* JobStatusCode.Paused */) THEN
         INSERT INTO acta.events (
             event_code,
             created_at_utc,
@@ -2288,7 +2288,7 @@ BEGIN
             p_reason_message);
     END IF;
 
-    IF v_rearm AND v_audit = 20 /* JobAuditLevelCode.Audit */ AND NOT (v_signal_suspend AND v_to_status = 10 /* JobStatusCode.Ready */) THEN
+    IF v_rearm AND v_audit = 20 /* DefinitionAuditLevelCode.Audit */ AND NOT (v_signal_suspend AND v_to_status = 10 /* JobStatusCode.Ready */) THEN
         INSERT INTO acta.events (
             event_code,
             created_at_utc,
@@ -2329,7 +2329,7 @@ BEGIN
             p_reason_message);
     END IF;
 
-    IF v_handler AND v_audit = 20 /* JobAuditLevelCode.Audit */ AND p_handler_status_code IN (220 /* JobStatusCode.Cancelled */, 30 /* JobStatusCode.Paused */) THEN
+    IF v_handler AND v_audit = 20 /* DefinitionAuditLevelCode.Audit */ AND p_handler_status_code IN (220 /* JobStatusCode.Cancelled */, 30 /* JobStatusCode.Paused */) THEN
         INSERT INTO acta.events (
             event_code,
             created_at_utc,
@@ -2375,7 +2375,7 @@ BEGIN
 
         SELECT js.status_code INTO v_psig
         FROM acta.checkpoints js
-        WHERE js.job_id = v_parent_id AND js.kind_code = 50 /* JobCheckpointKindCode.ChildLatch */ AND js.name = v_sig
+        WHERE js.job_id = v_parent_id AND js.kind_code = 50 /* CheckpointKindCode.ChildLatch */ AND js.name = v_sig
         FOR UPDATE;
 
         SELECT pr.status_code, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id, pr.execution_number, j.audit_level_code, j.job_ref
@@ -2390,7 +2390,7 @@ BEGIN
            still happened, so the audit event below still records it and says why it changed nothing. */
         -- COALESCE, not a bare comparison: a first completion has no latch row at all, and NULL = 30 is
         -- unknown, which would skip the upsert below rather than take it.
-        v_latch_expired := COALESCE(v_psig = 30 /* JobCheckpointStatusCode.Expired */, FALSE);
+        v_latch_expired := COALESCE(v_psig = 30 /* CheckpointStatusCode.Expired */, FALSE);
         -- Capped because the caller's message can already sit at the column width, and an overflow here
         -- would fail a completion over an audit line.
         v_pmessage := CASE
@@ -2405,9 +2405,9 @@ BEGIN
                 INSERT INTO acta.checkpoints (job_id, kind_code, name, status_code, value_format_id, value, created_at_utc, modified_at_utc, version)
                 VALUES (
                     v_parent_id,
-                    50 /* JobCheckpointKindCode.ChildLatch */,
+                    50 /* CheckpointKindCode.ChildLatch */,
                     v_sig,
-                    20 /* JobCheckpointStatusCode.Set */,
+                    20 /* CheckpointStatusCode.Set */,
                     1 /* JobPayloadFormat.Json */,
                     convert_to(json_build_object(
                         'childJobId', p_id,
@@ -2416,14 +2416,14 @@ BEGIN
                     now(),
                     0)
                 ON CONFLICT (job_id, kind_code, name) DO UPDATE SET
-                    status_code = 20 /* JobCheckpointStatusCode.Set */,
+                    status_code = 20 /* CheckpointStatusCode.Set */,
                     value_format_id = EXCLUDED.value_format_id,
                     value = EXCLUDED.value,
                     modified_at_utc = now(),
                     version = acta.checkpoints.version + 1;
             END IF;
 
-            IF v_paudit = 20 /* JobAuditLevelCode.Audit */ THEN
+            IF v_paudit = 20 /* DefinitionAuditLevelCode.Audit */ THEN
                 INSERT INTO acta.events (
                     event_code,
                     created_at_utc,
@@ -2473,7 +2473,7 @@ BEGIN
                     version = version + 1
                 WHERE job_id = v_parent_id;
 
-                IF v_paudit = 20 /* JobAuditLevelCode.Audit */ THEN
+                IF v_paudit = 20 /* DefinitionAuditLevelCode.Audit */ THEN
                     INSERT INTO acta.events (
                         event_code,
                         created_at_utc,
@@ -2510,7 +2510,7 @@ BEGIN
                         10 /* JobStatusCode.Ready */,
                         NULL,
                         NULL,
-                        60 /* JobEventReasonCode.JobSignalReleased */,
+                        60 /* EventReasonCode.JobSignalReleased */,
                         NULL);
                 END IF;
 
@@ -2598,7 +2598,7 @@ BEGIN
     IF p_succeeded THEN
         UPDATE acta.steps a
         SET
-            status_code = 100 /* JobStepStatusCode.Succeeded */,
+            status_code = 100 /* StepStatusCode.Succeeded */,
             result_format_id = p_result_format_id,
             result = p_result,
             next_retry_at_utc = NULL,
@@ -2625,7 +2625,7 @@ BEGIN
     IF v_exhaust THEN
         UPDATE acta.steps a
         SET
-            status_code = 200 /* JobStepStatusCode.Exhausted */,
+            status_code = 200 /* StepStatusCode.Exhausted */,
             next_retry_at_utc = NULL,
             reason_code = p_reason_code,
             reason_message = p_reason_message,
@@ -2668,7 +2668,7 @@ BEGIN
     DELETE FROM acta.checkpoints c
     WHERE
         c.job_id = p_job_id
-        AND c.kind_code = 20 /* JobCheckpointKindCode.Signal */
+        AND c.kind_code = 20 /* CheckpointKindCode.Signal */
         AND c.name = p_name
         AND c.version = p_expected_version;
 
@@ -2756,7 +2756,7 @@ BEGIN
         FROM unnest(p_b_namespace_name, p_b_job_name) AS b(namespace_name, job_name)
         INNER JOIN acta.namespaces ns ON ns.name = b.namespace_name
         INNER JOIN acta.definitions jd ON jd.namespace_id = ns.id AND jd.name = b.job_name
-        WHERE jd.status_code <> 10 /* JobDefinitionStatusCode.Active */
+        WHERE jd.status_code <> 10 /* DefinitionStatusCode.Active */
     ) THEN
         RAISE EXCEPTION 'ACTA:ENQ_DEF_RETIRED:Enqueue rejected: the job definition is retired.'
             USING ERRCODE = 'P0001';
@@ -2889,7 +2889,7 @@ BEGIN
         INNER JOIN acta.definitions jd ON jd.namespace_id = ns.id AND jd.name = b.job_name
         LEFT JOIN acta.jobs pj ON pj.id = b.parent_id
         WHERE
-            jd.tenant_requirement_code = 10 /* JobTenantRequirementCode.Required */
+            jd.tenant_requirement_code = 10 /* DefinitionTenantRequirementCode.Required */
             AND b.tenant_key IS NULL
             AND pj.tenant_id IS NULL
     ) THEN
@@ -2903,7 +2903,7 @@ BEGIN
         INNER JOIN acta.namespaces ns ON ns.name = b.namespace_name
         INNER JOIN acta.definitions jd ON jd.namespace_id = ns.id AND jd.name = b.job_name
         WHERE
-            jd.tenant_requirement_code = 20 /* JobTenantRequirementCode.Forbidden */
+            jd.tenant_requirement_code = 20 /* DefinitionTenantRequirementCode.Forbidden */
             AND b.tenant_key IS NOT NULL
     ) THEN
         RAISE EXCEPTION 'ACTA:ENQ_TENANT_FORBIDDEN:Enqueue rejected: one or more rows target a definition that forbids a tenant and name one.'
@@ -3004,7 +3004,7 @@ BEGIN
         COALESCE(b.correlation_key, pj.correlation_key),
         ns.id,
         jd.id,
-        CASE WHEN jd.tenant_requirement_code = 20 /* JobTenantRequirementCode.Forbidden */ THEN NULL
+        CASE WHEN jd.tenant_requirement_code = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
             ELSE COALESCE(t.id, pj.tenant_id) END,
         b.input_format_id,
         b.input,
@@ -3286,7 +3286,7 @@ BEGIN
             USING ERRCODE = 'P0001';
     END IF;
 
-    IF v_def_status <> 10 /* JobDefinitionStatusCode.Active */ THEN
+    IF v_def_status <> 10 /* DefinitionStatusCode.Active */ THEN
         RAISE EXCEPTION 'ACTA:ENQ_DEF_RETIRED:Enqueue rejected: the job definition is retired.'
             USING ERRCODE = 'P0001';
     END IF;
@@ -3307,7 +3307,7 @@ BEGIN
         END IF;
     END IF;
 
-    IF v_def_tenant_req = 20 /* JobTenantRequirementCode.Forbidden */ AND p_tenant_key IS NOT NULL THEN
+    IF v_def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */ AND p_tenant_key IS NOT NULL THEN
         RAISE EXCEPTION 'ACTA:ENQ_TENANT_FORBIDDEN:Enqueue rejected: the job definition forbids a tenant and the row names one.'
             USING ERRCODE = 'P0001';
     END IF;
@@ -3350,7 +3350,7 @@ BEGIN
                 USING ERRCODE = 'P0001';
         END IF;
 
-        IF v_def_tenant_req = 10 /* JobTenantRequirementCode.Required */ AND v_tenant_id IS NULL AND v_parent_tenant IS NULL THEN
+        IF v_def_tenant_req = 10 /* DefinitionTenantRequirementCode.Required */ AND v_tenant_id IS NULL AND v_parent_tenant IS NULL THEN
             RAISE EXCEPTION 'ACTA:ENQ_TENANT_REQUIRED:Enqueue rejected: the job definition requires a tenant and the row carries none.'
                 USING ERRCODE = 'P0001';
         END IF;
@@ -3406,7 +3406,7 @@ BEGIN
             COALESCE(p_correlation_key, v_parent_corr),
             v_ns_id,
             v_def_id,
-            CASE WHEN v_def_tenant_req = 20 /* JobTenantRequirementCode.Forbidden */ THEN NULL
+            CASE WHEN v_def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
                 ELSE COALESCE(v_tenant_id, v_parent_tenant) END,
             COALESCE(p_input_format_id, CASE WHEN p_input IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END),
             p_input,
@@ -3418,7 +3418,7 @@ BEGIN
             DO NOTHING
         RETURNING id INTO v_job_id;
     ELSE
-        IF v_def_tenant_req = 10 /* JobTenantRequirementCode.Required */ AND v_tenant_id IS NULL THEN
+        IF v_def_tenant_req = 10 /* DefinitionTenantRequirementCode.Required */ AND v_tenant_id IS NULL THEN
             RAISE EXCEPTION 'ACTA:ENQ_TENANT_REQUIRED:Enqueue rejected: the job definition requires a tenant and the row carries none.'
                 USING ERRCODE = 'P0001';
         END IF;
@@ -3659,7 +3659,7 @@ BEGIN
             NULL,
             NULL,
             NULL,
-            101 /* JobEventReasonCode.WorkerHeartbeatStale */,
+            101 /* EventReasonCode.WorkerHeartbeatStale */,
             NULL
         FROM dead d
         RETURNING 1
@@ -3686,9 +3686,9 @@ BEGIN
     INSERT INTO acta.checkpoints (job_id, kind_code, name, status_code, value_format_id, value, modified_at_utc, version)
     VALUES (
         p_job_id,
-        20 /* JobCheckpointKindCode.Signal */,
+        20 /* CheckpointKindCode.Signal */,
         p_name,
-        20 /* JobCheckpointStatusCode.Set */,
+        20 /* CheckpointStatusCode.Set */,
         p_value_format_id,
         p_value,
         now(),
@@ -3697,7 +3697,7 @@ BEGIN
     ON CONFLICT (job_id, kind_code, name) DO UPDATE SET
         value_format_id = EXCLUDED.value_format_id,
         value = EXCLUDED.value,
-        status_code = 20 /* JobCheckpointStatusCode.Set */,
+        status_code = 20 /* CheckpointStatusCode.Set */,
         modified_at_utc = now(),
         version = checkpoints.version + 1
     WHERE checkpoints.modified_at_utc <= p_stale_before_utc;
@@ -3709,7 +3709,7 @@ BEGIN
         (CASE WHEN c.value = p_value THEN 1 /* ControlAction.Applied */ ELSE 3 /* ControlAction.Rejected */ END)::SMALLINT,
         c.modified_at_utc
     FROM acta.checkpoints c
-    WHERE c.job_id = p_job_id AND c.kind_code = 20 /* JobCheckpointKindCode.Signal */ AND c.name = p_name;
+    WHERE c.job_id = p_job_id AND c.kind_code = 20 /* CheckpointKindCode.Signal */ AND c.name = p_name;
 END;
 $$;
 
@@ -3840,7 +3840,7 @@ BEGIN
         END LOOP;
     END IF;
 
-    IF v_audit_level = 20 /* JobAuditLevelCode.Audit */ THEN
+    IF v_audit_level = 20 /* DefinitionAuditLevelCode.Audit */ THEN
         INSERT INTO acta.events (
             event_code,
             created_at_utc,
@@ -3964,7 +3964,7 @@ BEGIN
         job_id = p_job_id
         AND (status_code = 10 /* JobStatusCode.Ready */ OR (status_code = 30 /* JobStatusCode.Paused */ AND next_run_at_utc IS NULL));
 
-    IF v_audit = 20 /* JobAuditLevelCode.Audit */ THEN
+    IF v_audit = 20 /* DefinitionAuditLevelCode.Audit */ THEN
         INSERT INTO acta.events (
             event_code,
             created_at_utc,
@@ -4054,7 +4054,7 @@ BEGIN
                 AND NOT EXISTS (
                     SELECT 1 FROM acta.schedules s
                     JOIN acta.definitions d ON d.id = j.definition_id
-                    WHERE s.job_id = j.id AND d.status_code <> 240 /* JobDefinitionStatusCode.Retired */)
+                    WHERE s.job_id = j.id AND d.status_code <> 240 /* DefinitionStatusCode.Retired */)
             ORDER BY r.retention_until_utc, r.job_id
             LIMIT p_batch_size
             FOR UPDATE OF j, r SKIP LOCKED) q;
@@ -4137,7 +4137,7 @@ BEGIN
             SELECT k.job_id, k.kind_code, k.name FROM acta.checkpoints k
             WHERE
                 k.job_id = v_alerts_slot_id
-                AND k.kind_code = 10 /* JobCheckpointKindCode.Variable */
+                AND k.kind_code = 10 /* CheckpointKindCode.Variable */
                 AND k.name LIKE 'alerts-skip-%'
                 AND k.modified_at_utc <= p_cutoff_utc
             LIMIT p_batch_size);
@@ -4550,7 +4550,7 @@ BEGIN
        a message saying why it changed nothing, and the verb reports the job's unchanged status. */
     -- COALESCE, not a bare comparison: a first raise has no slot at all, and NULL = 30 is unknown, which
     -- would skip the upsert below rather than take it.
-    v_expired := COALESCE(v_existing = 30 /* JobCheckpointStatusCode.Expired */, FALSE);
+    v_expired := COALESCE(v_existing = 30 /* CheckpointStatusCode.Expired */, FALSE);
     v_message := CASE
         WHEN v_expired
             THEN LEFT(COALESCE(p_reason_message || ' ', '') || 'Signal not applied: the wait had already expired.', 512)
@@ -4571,21 +4571,21 @@ BEGIN
             p_job_id,
             p_kind_code,
             p_name,
-            20 /* JobCheckpointStatusCode.Set */,
+            20 /* CheckpointStatusCode.Set */,
             p_value_format_id,
             p_value,
             v_now,
             v_now,
             0)
         ON CONFLICT (job_id, kind_code, name) DO UPDATE SET
-            status_code = 20 /* JobCheckpointStatusCode.Set */,
+            status_code = 20 /* CheckpointStatusCode.Set */,
             value_format_id = EXCLUDED.value_format_id,
             value = EXCLUDED.value,
             modified_at_utc = v_now,
             version = acta.checkpoints.version + 1;
     END IF;
 
-    IF v_audit_level = 20 /* JobAuditLevelCode.Audit */ THEN
+    IF v_audit_level = 20 /* DefinitionAuditLevelCode.Audit */ THEN
         INSERT INTO acta.events (
             event_code,
             created_at_utc,
@@ -4635,7 +4635,7 @@ BEGIN
             version = version + 1
         WHERE job_id = p_job_id;
 
-        IF v_audit_level = 20 /* JobAuditLevelCode.Audit */ THEN
+        IF v_audit_level = 20 /* DefinitionAuditLevelCode.Audit */ THEN
             INSERT INTO acta.events (
                 event_code,
                 created_at_utc,
@@ -4866,13 +4866,13 @@ BEGIN
         10 /* JobStatusCode.Ready */,
         NULL,
         NULL,
-        67 /* JobEventReasonCode.JobLaneRepaired */,
+        67 /* EventReasonCode.JobLaneRepaired */,
         'Lane had no live head; the sys.recovery system job released its lowest Blocked member.'
     FROM acta.jobs j
     INNER JOIN acta.runtimes r ON r.job_id = j.id
     WHERE
         j.id = ANY (v_repaired)
-        AND j.audit_level_code IN (10 /* JobAuditLevelCode.Failures */, 20 /* JobAuditLevelCode.Audit */);
+        AND j.audit_level_code IN (10 /* DefinitionAuditLevelCode.Failures */, 20 /* DefinitionAuditLevelCode.Audit */);
 
     RETURN QUERY
     WITH stuck AS (
@@ -4895,8 +4895,8 @@ BEGIN
                 FROM acta.checkpoints c
                 WHERE
                     c.job_id = r.job_id
-                    AND c.kind_code IN (20 /* JobCheckpointKindCode.Signal */, 50 /* JobCheckpointKindCode.ChildLatch */)
-                    AND c.status_code = 30 /* JobCheckpointStatusCode.Expired */
+                    AND c.kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
+                    AND c.status_code = 30 /* CheckpointStatusCode.Expired */
                     AND c.due_at_utc = r.next_run_at_utc
             ) AS wait_resolved,
             /* MaxAttempts is the one-off retry budget and a slot's failure_count accumulates across
@@ -4986,14 +4986,14 @@ BEGIN
             r.new_status,
             230 /* ExecutionStatusCode.Orphaned */,
             NULL,
-            21 /* JobEventReasonCode.JobLeaseExpired */,
+            21 /* EventReasonCode.JobLeaseExpired */,
             /* Suspended is reachable only through the resolved-wait arm above, so the landed status is
                what tells the two messages apart. */
             CASE WHEN r.new_status = 20 /* JobStatusCode.Suspended */
                 THEN 'Worker lease expired while an expired wait was resolving; re-armed on the same deadline with no attempt charged.'
                 ELSE 'Worker lease expired; reclaimed by the sys.recovery system job.' END
         FROM reclaimed r
-        WHERE r.audit_level_code IN (10 /* JobAuditLevelCode.Failures */, 20 /* JobAuditLevelCode.Audit */)
+        WHERE r.audit_level_code IN (10 /* DefinitionAuditLevelCode.Failures */, 20 /* DefinitionAuditLevelCode.Audit */)
     )
     SELECT r.id, r.new_status, r.job_parent_id, 0::SMALLINT
     FROM reclaimed r;
@@ -5238,7 +5238,7 @@ BEGIN
         SELECT
             p_namespace_id,
             b.name,
-            10 /* JobDefinitionStatusCode.Active */,
+            10 /* DefinitionStatusCode.Active */,
             b.input_type_name,
             b.output_type_name,
             b.input_format_id,
@@ -5270,7 +5270,7 @@ BEGIN
             0
         FROM batch b
         ON CONFLICT (namespace_id, name) DO UPDATE SET
-            status_code = 10 /* JobDefinitionStatusCode.Active */,
+            status_code = 10 /* DefinitionStatusCode.Active */,
             input_type_name = EXCLUDED.input_type_name,
             output_type_name = EXCLUDED.output_type_name,
             input_format_id = EXCLUDED.input_format_id,
@@ -5302,7 +5302,7 @@ BEGIN
         WHERE
             EXCLUDED.manifest_generation_at_utc >= acta.definitions.manifest_generation_at_utc
             AND (
-                acta.definitions.status_code <> 10 /* JobDefinitionStatusCode.Active */
+                acta.definitions.status_code <> 10 /* DefinitionStatusCode.Active */
                 OR acta.definitions.definition_hash IS DISTINCT FROM EXCLUDED.definition_hash
             )
         RETURNING definitions.name, definitions.id
@@ -5637,7 +5637,7 @@ event_insert AS (
         10 /* JobStatusCode.Ready */,
         230 /* ExecutionStatusCode.Orphaned */,
         NULL,
-        21 /* JobEventReasonCode.JobLeaseExpired */,
+        21 /* EventReasonCode.JobLeaseExpired */,
         'Worker lease expired on the recovery slot; re-armed by a worker''s recovery monitor.'
     FROM repaired x
     JOIN acta.jobs j ON j.id = x.job_id
@@ -5715,7 +5715,7 @@ BEGIN
         version = r.version + 1
     WHERE r.job_id = p_id;
 
-    IF v_audit = 20 /* JobAuditLevelCode.Audit */ THEN
+    IF v_audit = 20 /* DefinitionAuditLevelCode.Audit */ THEN
         INSERT INTO acta.events (
             event_code,
             created_at_utc,
@@ -5859,7 +5859,7 @@ BEGIN
         version = r.version + 1
     WHERE r.job_id = p_id;
 
-    IF v_audit = 20 /* JobAuditLevelCode.Audit */ THEN
+    IF v_audit = 20 /* DefinitionAuditLevelCode.Audit */ THEN
         INSERT INTO acta.events (
             event_code,
             created_at_utc,
@@ -6047,7 +6047,7 @@ BEGIN
     DELETE FROM acta.steps WHERE job_id = p_id;
     DELETE FROM acta.results WHERE job_id = p_id;
 
-    IF v_audit_level = 20 /* JobAuditLevelCode.Audit */ THEN
+    IF v_audit_level = 20 /* DefinitionAuditLevelCode.Audit */ THEN
         INSERT INTO acta.events (
             event_code,
             created_at_utc,
@@ -6393,9 +6393,9 @@ BEGIN
     DELETE FROM acta.steps s
     WHERE
         s.job_id = p_id
-        AND s.status_code = 200 /* JobStepStatusCode.Exhausted */;
+        AND s.status_code = 200 /* StepStatusCode.Exhausted */;
 
-    IF v_audit_level = 20 /* JobAuditLevelCode.Audit */ THEN
+    IF v_audit_level = 20 /* DefinitionAuditLevelCode.Audit */ THEN
         INSERT INTO acta.events (
             event_code,
             created_at_utc,
@@ -6532,7 +6532,7 @@ BEGIN
         version = r.version + 1
     WHERE r.job_id = p_id;
 
-    IF v_audit_level = 20 /* JobAuditLevelCode.Audit */ THEN
+    IF v_audit_level = 20 /* DefinitionAuditLevelCode.Audit */ THEN
         INSERT INTO acta.events (
             event_code,
             created_at_utc,
@@ -6732,7 +6732,7 @@ BEGIN
         job_id = p_job_id
         AND (status_code = 10 /* JobStatusCode.Ready */ OR (status_code = 30 /* JobStatusCode.Paused */ AND next_run_at_utc IS NULL));
 
-    IF v_audit = 20 /* JobAuditLevelCode.Audit */ THEN
+    IF v_audit = 20 /* DefinitionAuditLevelCode.Audit */ THEN
         INSERT INTO acta.events (
             event_code,
             created_at_utc,
@@ -7066,7 +7066,7 @@ BEGIN
         job_id = p_job_id
         AND (status_code = 10 /* JobStatusCode.Ready */ OR (status_code = 30 /* JobStatusCode.Paused */ AND next_run_at_utc IS NULL));
 
-    IF v_audit = 20 /* JobAuditLevelCode.Audit */ THEN
+    IF v_audit = 20 /* DefinitionAuditLevelCode.Audit */ THEN
         INSERT INTO acta.events (
             event_code,
             created_at_utc,
@@ -7364,7 +7364,7 @@ AS $$
             NULL,
             NULL
         FROM updated u
-        WHERE u.audit_level_code = 20 /* JobAuditLevelCode.Audit */
+        WHERE u.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
         RETURNING 1
     ),
     current AS (
@@ -7449,7 +7449,7 @@ BEGIN
         VALUES (
             p_job_id,
             p_name,
-            10 /* JobStepStatusCode.Pending */,
+            10 /* StepStatusCode.Pending */,
             1,
             0 /* JobPayloadFormat.None */,
             v_now,
@@ -7460,15 +7460,15 @@ BEGIN
 
         RETURN QUERY SELECT 1 /* StartStepOutcomeCode.Invoke */::SMALLINT, v_attempt, v_version,
             NULL::TIMESTAMPTZ, 0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
-    ELSIF v_state = 100 /* JobStepStatusCode.Succeeded */ THEN
+    ELSIF v_state = 100 /* StepStatusCode.Succeeded */ THEN
 
         RETURN QUERY SELECT 3 /* StartStepOutcomeCode.ReplaySuccess */::SMALLINT, v_attempt, v_version,
             NULL::TIMESTAMPTZ, v_rfid, v_result, NULL::SMALLINT, NULL::VARCHAR;
-    ELSIF v_state = 200 /* JobStepStatusCode.Exhausted */ THEN
+    ELSIF v_state = 200 /* StepStatusCode.Exhausted */ THEN
 
         RETURN QUERY SELECT 4 /* StartStepOutcomeCode.Exhausted */::SMALLINT, v_attempt, v_version,
             NULL::TIMESTAMPTZ, 0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, v_rcode, v_rmsg;
-    ELSIF v_state = 230 /* JobStepStatusCode.Interrupted */ THEN
+    ELSIF v_state = 230 /* StepStatusCode.Interrupted */ THEN
         -- Terminal at-most-once ambiguity from an earlier replay; re-throw consistently, no mutation.
         RETURN QUERY SELECT 5 /* StartStepOutcomeCode.Interrupted */::SMALLINT, v_attempt, v_version,
             NULL::TIMESTAMPTZ, 0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
@@ -7482,9 +7482,9 @@ BEGIN
         -- (one transition, one version bump) and let the orchestration throw StepInterruptedException.
         UPDATE acta.steps a
         SET
-            status_code = 230 /* JobStepStatusCode.Interrupted */,
+            status_code = 230 /* StepStatusCode.Interrupted */,
             next_retry_at_utc = NULL,
-            reason_code = 63 /* JobEventReasonCode.JobStepInterrupted */,
+            reason_code = 63 /* EventReasonCode.JobStepInterrupted */,
             reason_message = 'At-most-once step re-entered before completion; outcome unknown.',
             modified_at_utc = v_now,
             version = a.version + 1
@@ -7701,7 +7701,7 @@ AS $$
         NULL,
         NULL,
         NULL,
-        100 /* JobEventReasonCode.WorkerCleanShutdown */,
+        100 /* EventReasonCode.WorkerCleanShutdown */,
         NULL
     FROM stopped s;
 $$;
@@ -7953,7 +7953,7 @@ BEGIN
             OR (status_code = 30 /* JobStatusCode.Paused */ AND next_run_at_utc IS NULL)
         );
 
-    IF v_audit = 20 /* JobAuditLevelCode.Audit */ THEN
+    IF v_audit = 20 /* DefinitionAuditLevelCode.Audit */ THEN
         INSERT INTO acta.events (
             event_code,
             created_at_utc,
@@ -8081,7 +8081,7 @@ BEGIN
         input_format_id = p_input_format_id
     WHERE id = p_id;
 
-    IF v_audit = 20 /* JobAuditLevelCode.Audit */ THEN
+    IF v_audit = 20 /* DefinitionAuditLevelCode.Audit */ THEN
         -- The event carries only bounded JSON metadata about the previous payload (format name and
         -- byte count), never the payload itself, so nothing outlives the job's payload retention.
         IF v_old_format_id <> 0 /* JobPayloadFormat.None */ THEN
@@ -8364,7 +8364,7 @@ BEGIN
             p_job_id,
             p_kind_code,
             p_name,
-            10 /* JobCheckpointStatusCode.Pending */,
+            10 /* CheckpointStatusCode.Pending */,
             CASE WHEN p_timeout_seconds IS NULL THEN NULL ELSE v_now + make_interval(secs => p_timeout_seconds) END,
             0 /* JobPayloadFormat.None */,
             NULL,
@@ -8395,21 +8395,21 @@ BEGIN
         FOR UPDATE;
     END IF;
 
-    IF v_state = 20 /* JobCheckpointStatusCode.Set */ THEN
+    IF v_state = 20 /* CheckpointStatusCode.Set */ THEN
         RETURN QUERY SELECT
             2 /* SignalWaitOutcomeCode.ContinueSet */::SMALLINT,
             v_fmt,
             v_val;
-    ELSIF v_state = 30 /* JobCheckpointStatusCode.Expired */ THEN
+    ELSIF v_state = 30 /* CheckpointStatusCode.Expired */ THEN
         RETURN QUERY SELECT
             3 /* SignalWaitOutcomeCode.TimedOut */::SMALLINT,
             0 /* JobPayloadFormat.None */::SMALLINT,
             NULL::BYTEA;
-    ELSIF v_state = 10 /* JobCheckpointStatusCode.Pending */ AND v_due IS NOT NULL AND v_due <= v_now THEN
+    ELSIF v_state = 10 /* CheckpointStatusCode.Pending */ AND v_due IS NOT NULL AND v_due <= v_now THEN
 
         UPDATE acta.checkpoints js
         SET
-            status_code = 30 /* JobCheckpointStatusCode.Expired */,
+            status_code = 30 /* CheckpointStatusCode.Expired */,
             modified_at_utc = v_now,
             version = js.version + 1
         WHERE js.job_id = p_job_id AND js.kind_code = p_kind_code AND js.name = p_name;
@@ -8419,7 +8419,7 @@ BEGIN
             0 /* JobPayloadFormat.None */::SMALLINT,
             NULL::BYTEA;
     ELSE
-        IF v_state = 10 /* JobCheckpointStatusCode.Pending */ AND v_due IS NULL AND p_timeout_seconds IS NOT NULL THEN
+        IF v_state = 10 /* CheckpointStatusCode.Pending */ AND v_due IS NULL AND p_timeout_seconds IS NOT NULL THEN
 
             UPDATE acta.checkpoints js
             SET
@@ -8430,7 +8430,7 @@ BEGIN
                 js.job_id = p_job_id
                 AND js.kind_code = p_kind_code
                 AND js.name = p_name
-                AND js.status_code = 10 /* JobCheckpointStatusCode.Pending */
+                AND js.status_code = 10 /* CheckpointStatusCode.Pending */
                 AND js.due_at_utc IS NULL;
         END IF;
 
@@ -8446,7 +8446,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.10-a48fe531a01e97de9f4f42d5079938e2', 'acta');
+VALUES (-1, 'objects-1.11-95a79cca8a544a9493efd6b8e095412e', 'acta');
 
 COMMIT;
 

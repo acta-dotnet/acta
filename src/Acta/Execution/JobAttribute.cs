@@ -117,7 +117,7 @@ public sealed class JobAttribute(string name) : Attribute
     /// MERGE. When left unset the generator applies the framework default (<c>Audit</c>). Sub-minute
     /// recurring definitions should consider <c>Off</c> or <c>Failures</c> to keep <c>events</c> lean.
     /// </summary>
-    public JobAuditLevelCode AuditLevel { get; init; } = JobAuditLevelCode.Audit;
+    public DefinitionAuditLevelCode AuditLevel { get; init; } = DefinitionAuditLevelCode.Audit;
 
     /// <summary>
     /// Whether jobs of this definition must, may, or must not carry a tenant. Persisted on the
@@ -125,7 +125,7 @@ public sealed class JobAttribute(string name) : Attribute
     /// tenant-less enqueue (explicit TenantKey or parent inheritance both satisfy it), and
     /// <c>Forbidden</c> rejects an explicit TenantKey and suppresses parent inheritance.
     /// </summary>
-    public JobTenantRequirementCode TenantRequirement { get; init; } = JobTenantRequirementCode.Optional;
+    public DefinitionTenantRequirementCode TenantRequirement { get; init; } = DefinitionTenantRequirementCode.Optional;
 
     /// <summary>
     /// For a recurring definition, the maximum <c>results</c> rows retained on the slot (newest

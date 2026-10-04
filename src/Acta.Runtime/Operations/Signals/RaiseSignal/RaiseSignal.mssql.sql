@@ -65,7 +65,7 @@ BEGIN
         /* No revival: an Expired slot already resolved the wait TimedOut, so a late raise writes no
            slot and releases no job. The raise still happened, so it is still recorded: the event below
            carries a message saying why it changed nothing, and the verb reports the unchanged status. */
-        SET @expired = CASE WHEN @existing = 30 /* JobCheckpointStatusCode.Expired */ THEN 1 ELSE 0 END;
+        SET @expired = CASE WHEN @existing = 30 /* CheckpointStatusCode.Expired */ THEN 1 ELSE 0 END;
         SET @message = CASE
             WHEN @expired = 1
                 THEN LEFT(COALESCE(@p_reason_message + N' ', N'') + N'Signal not applied: the wait had already expired.', 512)
@@ -79,11 +79,11 @@ BEGIN
                         job_id, kind_code, name, status_code, value_format_id, value,
                         created_at_utc, modified_at_utc, version
                     )
-                    VALUES (@p_job_id, @p_kind_code, @p_name, 20 /* JobCheckpointStatusCode.Set */, @p_value_format_id, @p_value, @now, @now, 0);
+                    VALUES (@p_job_id, @p_kind_code, @p_name, 20 /* CheckpointStatusCode.Set */, @p_value_format_id, @p_value, @now, @now, 0);
                 ELSE
                     UPDATE {{schema}}.checkpoints
                     SET
-                        status_code = 20 /* JobCheckpointStatusCode.Set */,
+                        status_code = 20 /* CheckpointStatusCode.Set */,
                         value_format_id = @p_value_format_id,
                         value = @p_value,
                         modified_at_utc = @now,
@@ -91,7 +91,7 @@ BEGIN
                     WHERE job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name;
             END
 
-        IF @audit_level = 20 /* JobAuditLevelCode.Audit */
+        IF @audit_level = 20 /* DefinitionAuditLevelCode.Audit */
             INSERT INTO {{schema}}.events (
                 event_code, created_at_utc, namespace_id,
                 actor_code, actor_key,
@@ -123,7 +123,7 @@ BEGIN
                     version = version + 1
                 WHERE job_id = @p_job_id;
 
-                IF @audit_level = 20 /* JobAuditLevelCode.Audit */
+                IF @audit_level = 20 /* DefinitionAuditLevelCode.Audit */
                     INSERT INTO {{schema}}.events (
                         event_code, created_at_utc, namespace_id,
                         actor_code, actor_key,

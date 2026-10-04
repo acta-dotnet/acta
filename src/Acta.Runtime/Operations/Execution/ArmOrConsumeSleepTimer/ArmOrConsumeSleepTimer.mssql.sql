@@ -31,24 +31,24 @@ BEGIN
         FROM {{schema}}.checkpoints
         WHERE
             job_id = @p_job_id
-            AND kind_code = 30 /* JobCheckpointKindCode.Timer */
+            AND kind_code = 30 /* CheckpointKindCode.Timer */
             AND name = @p_name;
 
-        IF @existing_state = 10 /* JobCheckpointStatusCode.Pending */ AND @existing_due > @now
+        IF @existing_state = 10 /* CheckpointStatusCode.Pending */ AND @existing_due > @now
             BEGIN
 
                 SET @outcome = 1 /* SleepOutcome.Suspend */;
                 SET @result_due = @existing_due;
             END
-        ELSE IF @existing_state = 10 /* JobCheckpointStatusCode.Pending */
+        ELSE IF @existing_state = 10 /* CheckpointStatusCode.Pending */
             BEGIN
 
                 UPDATE {{schema}}.checkpoints
                 SET
-                    status_code = 100 /* JobCheckpointStatusCode.Consumed */,
+                    status_code = 100 /* CheckpointStatusCode.Consumed */,
                     modified_at_utc = @now,
                     version = version + 1
-                WHERE job_id = @p_job_id AND kind_code = 30 /* JobCheckpointKindCode.Timer */ AND name = @p_name;
+                WHERE job_id = @p_job_id AND kind_code = 30 /* CheckpointKindCode.Timer */ AND name = @p_name;
 
                 /* Only the worker still executing may clear the instant. A reclaimed row is Ready again
                    on an instant the reclaim owns, and ck_runtimes_ready_due requires Ready to keep one. */
@@ -75,8 +75,8 @@ BEGIN
             EXISTS (
                 SELECT 1 FROM {{schema}}.checkpoints
                 WHERE
-                    job_id = @p_job_id AND kind_code = 30 /* JobCheckpointKindCode.Timer */ AND status_code = 10
-            /* JobCheckpointStatusCode.Pending */
+                    job_id = @p_job_id AND kind_code = 30 /* CheckpointKindCode.Timer */ AND status_code = 10
+            /* CheckpointStatusCode.Pending */
             )
             BEGIN
                 SET @outcome = 3 /* SleepOutcome.Reject */;
@@ -88,7 +88,7 @@ BEGIN
                     created_at_utc, modified_at_utc, version
                 )
                 VALUES (
-                    @p_job_id, 30 /* JobCheckpointKindCode.Timer */, @p_name, 10 /* JobCheckpointStatusCode.Pending */, @due,
+                    @p_job_id, 30 /* CheckpointKindCode.Timer */, @p_name, 10 /* CheckpointStatusCode.Pending */, @due,
                     @now, @now, 0
                 );
 

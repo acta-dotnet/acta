@@ -36,7 +36,7 @@ public sealed class HandlerControlSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Null(job.NextRunAtUtc);
         Assert.Equal(0, job.FailureCount);
         var finishedEvent = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobExecutionFinished, ct);
-        Assert.Equal(JobEventReasonCode.JobHandlerFailed, finishedEvent.ReasonCode);
+        Assert.Equal(EventReasonCode.JobHandlerFailed, finishedEvent.ReasonCode);
 
         // Did not return to user code, and the failed attempt persisted no result payload.
         Assert.Equal(1, await CountVariableAsync(enqueued.JobId, "ran.before", ct));
@@ -63,7 +63,7 @@ public sealed class HandlerControlSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Null(job.NextRunAtUtc);
         Assert.Equal(0, job.FailureCount);
         var finishedEvent = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobExecutionFinished, ct);
-        Assert.Equal(JobEventReasonCode.JobNonRetryableException, finishedEvent.ReasonCode);
+        Assert.Equal(EventReasonCode.JobNonRetryableException, finishedEvent.ReasonCode);
         Assert.NotNull(job.RetentionUntilUtc);
 
         // A single failed finished event: the attempt was never re-armed for a retry.
@@ -90,7 +90,7 @@ public sealed class HandlerControlSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Null(job.NextRunAtUtc);
         Assert.Equal(0, job.FailureCount);
         var cancelEvent = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobCancelled, ct);
-        Assert.Equal(JobEventReasonCode.JobHandlerCancelled, cancelEvent.ReasonCode);
+        Assert.Equal(EventReasonCode.JobHandlerCancelled, cancelEvent.ReasonCode);
 
         Assert.Equal(0, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
         Assert.Null(await Services.GetRequiredService<GetJobResultHandler>().ReadAsync(enqueued.JobId, null, ct));
@@ -114,7 +114,7 @@ public sealed class HandlerControlSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.NotNull(job.NextRunAtUtc);
         Assert.Equal(0, job.FailureCount);
         var pauseEvent = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobPaused, ct);
-        Assert.Equal(JobEventReasonCode.JobHandlerPaused, pauseEvent.ReasonCode);
+        Assert.Equal(EventReasonCode.JobHandlerPaused, pauseEvent.ReasonCode);
 
         Assert.Equal(0, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
         Assert.Null(await Services.GetRequiredService<GetJobResultHandler>().ReadAsync(enqueued.JobId, null, ct));

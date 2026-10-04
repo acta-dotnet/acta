@@ -35,7 +35,7 @@ public sealed class FrameworkJobRegistrationSpec : ActaRuntimeTestBase<Conforman
 
         var def = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == ns && d.Name == "sys.recovery").SingleOrDefaultAsync(ct);
         Assert.NotNull(def);
-        Assert.Equal(JobDefinitionStatusCode.Active, def!.Status);
+        Assert.Equal(DefinitionStatusCode.Active, def!.Status);
 
         // The recurring slot job carries the job name as its deduplication_key.
         var slot = await Db.From<JobEntity>()
@@ -58,7 +58,7 @@ public sealed class FrameworkJobRegistrationSpec : ActaRuntimeTestBase<Conforman
 
         var def = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == ns && d.Name == "sys.retention").SingleOrDefaultAsync(ct);
         Assert.NotNull(def);
-        Assert.Equal(JobDefinitionStatusCode.Active, def!.Status);
+        Assert.Equal(DefinitionStatusCode.Active, def!.Status);
 
         var slot = await Db.From<JobEntity>()
             .Where(j => j.NamespaceId == ns && j.DeduplicationKey == "sys.retention")

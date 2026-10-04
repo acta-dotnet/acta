@@ -39,7 +39,7 @@ public sealed class JobExecutorUnsupportedClaimTests
 
         // No catalog reason describes a worker declining a claim; Unclassified says the story is in the
         // message, and the message names the definition so an operator can see which handler is missing.
-        Assert.Equal(JobEventReasonCode.Unclassified, released.JobEventReasonCode);
+        Assert.Equal(EventReasonCode.Unclassified, released.EventReasonCode);
         Assert.NotNull(released.ReasonMessage);
         Assert.Contains("definition_id=1", released.ReasonMessage!, StringComparison.Ordinal);
 

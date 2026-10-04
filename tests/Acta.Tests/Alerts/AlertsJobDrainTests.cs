@@ -238,7 +238,7 @@ public sealed class AlertsJobDrainTests
                 AlertChannelName: null,
                 ExecutionStatus: ExecutionStatusCode.Failed,
                 ToStatus: JobStatusCode.Failed,
-                ReasonCode: JobEventReasonCode.JobUnhandledException,
+                ReasonCode: EventReasonCode.JobUnhandledException,
                 ReasonMessage: "boom"
             );
     }

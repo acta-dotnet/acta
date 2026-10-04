@@ -104,13 +104,13 @@ SELECT
     10 /* JobStatusCode.Ready */,
     NULL,
     NULL,
-    67 /* JobEventReasonCode.JobLaneRepaired */,
+    67 /* EventReasonCode.JobLaneRepaired */,
     'Lane had no live head; the sys.recovery system job released its lowest Blocked member.'
 FROM {{schema}}.jobs j
 INNER JOIN {{schema}}.runtimes r ON r.job_id = j.id
 INNER JOIN temp._repair_lanes rl ON rl.id = j.id
 WHERE
-    j.audit_level_code IN (10 /* JobAuditLevelCode.Failures */, 20 /* JobAuditLevelCode.Audit */);
+    j.audit_level_code IN (10 /* DefinitionAuditLevelCode.Failures */, 20 /* DefinitionAuditLevelCode.Audit */);
 
 DROP TABLE IF EXISTS temp._reclaim_jobs;
 
@@ -140,8 +140,8 @@ FROM (
             FROM {{schema}}.checkpoints c
             WHERE
                 c.job_id = r.job_id
-                AND c.kind_code IN (20 /* JobCheckpointKindCode.Signal */, 50 /* JobCheckpointKindCode.ChildLatch */)
-                AND c.status_code = 30 /* JobCheckpointStatusCode.Expired */
+                AND c.kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
+                AND c.status_code = 30 /* CheckpointStatusCode.Expired */
                 AND c.due_at_utc = r.next_run_at_utc
         ) THEN 1 ELSE 0 END AS wait_resolved,
         /* MaxAttempts is the one-off retry budget and a slot's failure_count accumulates across
@@ -195,7 +195,7 @@ SELECT
     rj.to_status,
     230 /* ExecutionStatusCode.Orphaned */,
     NULL,
-    21 /* JobEventReasonCode.JobLeaseExpired */,
+    21 /* EventReasonCode.JobLeaseExpired */,
     CASE WHEN rj.wait_resolved = 1
         THEN 'Worker lease expired while an expired wait was resolving; re-armed on the same deadline with no attempt charged.'
         ELSE 'Worker lease expired; reclaimed by the sys.recovery system job.' END
@@ -203,7 +203,7 @@ FROM {{schema}}.jobs j
 JOIN {{schema}}.runtimes r ON r.job_id = j.id
 INNER JOIN temp._reclaim_jobs rj ON rj.id = j.id
 WHERE
-    j.audit_level_code IN (10 /* JobAuditLevelCode.Failures */, 20 /* JobAuditLevelCode.Audit */);
+    j.audit_level_code IN (10 /* DefinitionAuditLevelCode.Failures */, 20 /* DefinitionAuditLevelCode.Audit */);
 
 UPDATE {{schema}}.runtimes
 SET

@@ -72,7 +72,7 @@ BEGIN
         IF
             EXISTS (
                 SELECT 1 FROM @resolved
-                WHERE def_status <> 10 /* JobDefinitionStatusCode.Active */
+                WHERE def_status <> 10 /* DefinitionStatusCode.Active */
             )
             BEGIN
                 THROW 50003, 'ACTA:ENQ_DEF_RETIRED:Enqueue rejected: the job definition is retired.', 1;
@@ -285,7 +285,7 @@ BEGIN
                 INNER JOIN @p_batch b ON b.ordinal = r.ordinal
                 LEFT JOIN @parents p ON p.ordinal = b.ordinal
                 WHERE
-                    r.def_tenant_req = 10 /* JobTenantRequirementCode.Required */
+                    r.def_tenant_req = 10 /* DefinitionTenantRequirementCode.Required */
                     AND r.tenant_id IS NULL
                     AND p.tenant_id IS NULL
             )
@@ -301,7 +301,7 @@ BEGIN
                 FROM @resolved r
                 INNER JOIN @p_batch b ON b.ordinal = r.ordinal
                 WHERE
-                    r.def_tenant_req = 20 /* JobTenantRequirementCode.Forbidden */
+                    r.def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */
                     AND b.tenant_key IS NOT NULL
             )
             BEGIN
@@ -402,7 +402,7 @@ BEGIN
                     r.ns_id,
                     r.def_id,
                     CASE
-                        WHEN r.def_tenant_req = 20 /* JobTenantRequirementCode.Forbidden */ THEN NULL
+                        WHEN r.def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
                         ELSE COALESCE(r.tenant_id, p.tenant_id)
                     END,
                     b.input_format_id,
@@ -457,7 +457,7 @@ BEGIN
                     r.ns_id,
                     r.def_id,
                     CASE
-                        WHEN r.def_tenant_req = 20 /* JobTenantRequirementCode.Forbidden */ THEN NULL
+                        WHEN r.def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
                         ELSE COALESCE(r.tenant_id, p.tenant_id)
                     END,
                     b.input_format_id,

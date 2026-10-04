@@ -10,14 +10,7 @@ namespace Acta.Runtime;
 /// </summary>
 internal static class CheckpointSlot
 {
-    public static Task SetAsync(
-        Execution store,
-        long jobId,
-        JobCheckpointKindCode kind,
-        string name,
-        JobPayload payload,
-        CancellationToken ct
-    )
+    public static Task SetAsync(Execution store, long jobId, CheckpointKindCode kind, string name, JobPayload payload, CancellationToken ct)
     {
         CheckpointPayload.EnsureWritable(payload);
         return Run(store, CheckpointSlotAction.Set, jobId, kind, name, payload, ct);
@@ -26,7 +19,7 @@ internal static class CheckpointSlot
     public static async Task<CheckpointValue?> GetAsync(
         Execution store,
         long jobId,
-        JobCheckpointKindCode kind,
+        CheckpointKindCode kind,
         string name,
         CancellationToken ct
     )
@@ -38,7 +31,7 @@ internal static class CheckpointSlot
     public static async Task<CheckpointValue> GetOrSetAsync(
         Execution store,
         long jobId,
-        JobCheckpointKindCode kind,
+        CheckpointKindCode kind,
         string name,
         JobPayload payload,
         CancellationToken ct
@@ -49,27 +42,17 @@ internal static class CheckpointSlot
         return row.Found == 0 ? throw new InvalidOperationException("checkpoint_slot get-or-set returned no stored value.") : ToValue(row);
     }
 
-    public static async Task<bool> ExistsAsync(
-        Execution store,
-        long jobId,
-        JobCheckpointKindCode kind,
-        string name,
-        CancellationToken ct
-    ) => (await Run(store, CheckpointSlotAction.Exists, jobId, kind, name, null, ct)).Found != 0;
+    public static async Task<bool> ExistsAsync(Execution store, long jobId, CheckpointKindCode kind, string name, CancellationToken ct) =>
+        (await Run(store, CheckpointSlotAction.Exists, jobId, kind, name, null, ct)).Found != 0;
 
-    public static async Task<bool> DeleteAsync(
-        Execution store,
-        long jobId,
-        JobCheckpointKindCode kind,
-        string name,
-        CancellationToken ct
-    ) => (await Run(store, CheckpointSlotAction.Delete, jobId, kind, name, null, ct)).Found != 0;
+    public static async Task<bool> DeleteAsync(Execution store, long jobId, CheckpointKindCode kind, string name, CancellationToken ct) =>
+        (await Run(store, CheckpointSlotAction.Delete, jobId, kind, name, null, ct)).Found != 0;
 
     private static Task<CheckpointSlotRow> Run(
         Execution store,
         CheckpointSlotAction action,
         long jobId,
-        JobCheckpointKindCode kind,
+        CheckpointKindCode kind,
         string name,
         JobPayload? payload,
         CancellationToken ct

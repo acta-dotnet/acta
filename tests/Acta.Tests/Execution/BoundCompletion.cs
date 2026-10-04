@@ -8,7 +8,7 @@ namespace Acta.Tests.Execution;
 /// </summary>
 internal sealed record BoundCompletion(
     bool Succeeded,
-    JobEventReasonCode? JobEventReasonCode,
+    EventReasonCode? EventReasonCode,
     string? ReasonMessage,
     byte? RescheduleStatusCode,
     int? RescheduleDelaySeconds,

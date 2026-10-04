@@ -415,7 +415,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                                 Diagnostics.InvalidPolicyValue(
                                     named.Key,
                                     al.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                                    "The value is not a defined `JobAuditLevelCode`.",
+                                    "The value is not a defined `DefinitionAuditLevelCode`.",
                                     location
                                 )
                             );
@@ -433,7 +433,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                                 Diagnostics.InvalidPolicyValue(
                                     named.Key,
                                     tr.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                                    "The value is not a defined `JobTenantRequirementCode`.",
+                                    "The value is not a defined `DefinitionTenantRequirementCode`.",
                                     location
                                 )
                             );
@@ -762,7 +762,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
 
     /// <summary>
     /// Enum-typed attribute arguments box as their underlying type: byte for the code-family enums
-    /// (JobPriorityCode / JobAuditLevelCode / AlertProfileCode), so an `is int` pattern silently
+    /// (JobPriorityCode / DefinitionAuditLevelCode / AlertProfileCode), so an `is int` pattern silently
     /// misses them. Read whatever integral the constant carries and narrow to byte.
     /// </summary>
     private static bool TryGetEnumByte(TypedConstant constant, out byte value)
@@ -1634,7 +1634,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             sb.AppendLine($"                    RequiresCancellationToken: {(j.RequiresCancellationToken ? "true" : "false")},");
             sb.AppendLine($"                    Priority: JobPriorityCode.{j.PriorityName},");
             sb.AppendLine($"                    MaxAttempts: {j.MaxAttempts},");
-            sb.AppendLine($"                    AuditLevel: JobAuditLevelCode.{j.AuditLevelName},");
+            sb.AppendLine($"                    AuditLevel: DefinitionAuditLevelCode.{j.AuditLevelName},");
             sb.AppendLine($"                    AlertProfile: AlertProfileCode.{j.AlertProfileName},");
             sb.AppendLine($"                    Invoker: GeneratedHandlerDispatch.Invoke_{j.JobNameSafe()},");
             sb.AppendLine($"                    DeserializeInput: GeneratedHandlerDispatch.DeserializeInput_{j.JobNameSafe()},");
@@ -1643,7 +1643,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             var policyLines = new List<string>();
             if (j.TenantRequirementId != 0)
             {
-                policyLines.Add($"TenantRequirement = (Acta.JobTenantRequirementCode){j.TenantRequirementId},");
+                policyLines.Add($"TenantRequirement = (Acta.DefinitionTenantRequirementCode){j.TenantRequirementId},");
             }
 
             if (j.ConcurrencyLimit is { } concurrencyLimit)

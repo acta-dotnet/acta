@@ -29,7 +29,7 @@ public sealed class ResumeJobSpec : ActaRuntimeTestBase<ConformanceFixture, Test
     }
 
     private static JobControlInput ControlInput(string reason) =>
-        new(new JobControlActor(ActorCode.Operator, "test"), JobEventReasonCode.JobControlManual, reason);
+        new(new JobControlActor(ActorCode.Operator, "test"), EventReasonCode.JobControlManual, reason);
 
     private static Task SetJobStatusAsync(IDbSession db, long jobId, byte statusCode, CancellationToken ct) =>
         RuntimeStateStaging.SetStatusAsync(db, jobId, statusCode, ct);

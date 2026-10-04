@@ -80,7 +80,7 @@ internal static class ChaosSpecHelpers
         );
         Assert.Equal(from, match.FromStatus);
         Assert.Equal(to, match.ToStatus);
-        Assert.Equal(JobEventReasonCode.JobLeaseExpired, match.JobEventReasonCode);
+        Assert.Equal(EventReasonCode.JobLeaseExpired, match.EventReasonCode);
         return match;
     }
 

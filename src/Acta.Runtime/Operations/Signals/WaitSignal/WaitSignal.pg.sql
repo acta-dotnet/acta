@@ -49,7 +49,7 @@ BEGIN
             p_job_id,
             p_kind_code,
             p_name,
-            10 /* JobCheckpointStatusCode.Pending */,
+            10 /* CheckpointStatusCode.Pending */,
             CASE WHEN p_timeout_seconds IS NULL THEN NULL ELSE v_now + make_interval(secs => p_timeout_seconds) END,
             0 /* JobPayloadFormat.None */,
             NULL,
@@ -80,21 +80,21 @@ BEGIN
         FOR UPDATE;
     END IF;
 
-    IF v_state = 20 /* JobCheckpointStatusCode.Set */ THEN
+    IF v_state = 20 /* CheckpointStatusCode.Set */ THEN
         RETURN QUERY SELECT
             2 /* SignalWaitOutcomeCode.ContinueSet */::SMALLINT,
             v_fmt,
             v_val;
-    ELSIF v_state = 30 /* JobCheckpointStatusCode.Expired */ THEN
+    ELSIF v_state = 30 /* CheckpointStatusCode.Expired */ THEN
         RETURN QUERY SELECT
             3 /* SignalWaitOutcomeCode.TimedOut */::SMALLINT,
             0 /* JobPayloadFormat.None */::SMALLINT,
             NULL::BYTEA;
-    ELSIF v_state = 10 /* JobCheckpointStatusCode.Pending */ AND v_due IS NOT NULL AND v_due <= v_now THEN
+    ELSIF v_state = 10 /* CheckpointStatusCode.Pending */ AND v_due IS NOT NULL AND v_due <= v_now THEN
 
         UPDATE {{schema}}.checkpoints js
         SET
-            status_code = 30 /* JobCheckpointStatusCode.Expired */,
+            status_code = 30 /* CheckpointStatusCode.Expired */,
             modified_at_utc = v_now,
             version = js.version + 1
         WHERE js.job_id = p_job_id AND js.kind_code = p_kind_code AND js.name = p_name;
@@ -104,7 +104,7 @@ BEGIN
             0 /* JobPayloadFormat.None */::SMALLINT,
             NULL::BYTEA;
     ELSE
-        IF v_state = 10 /* JobCheckpointStatusCode.Pending */ AND v_due IS NULL AND p_timeout_seconds IS NOT NULL THEN
+        IF v_state = 10 /* CheckpointStatusCode.Pending */ AND v_due IS NULL AND p_timeout_seconds IS NOT NULL THEN
 
             UPDATE {{schema}}.checkpoints js
             SET
@@ -115,7 +115,7 @@ BEGIN
                 js.job_id = p_job_id
                 AND js.kind_code = p_kind_code
                 AND js.name = p_name
-                AND js.status_code = 10 /* JobCheckpointStatusCode.Pending */
+                AND js.status_code = 10 /* CheckpointStatusCode.Pending */
                 AND js.due_at_utc IS NULL;
         END IF;
 

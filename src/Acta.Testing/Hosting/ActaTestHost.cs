@@ -243,10 +243,10 @@ public static class ActaTestHost
 
         public async Task ForceTimerDueAsync(long jobId, string? name = null, CancellationToken ct = default)
         {
-            var timer = await FindCheckpointAsync(jobId, JobCheckpointKindCode.Timer, JobCheckpointStatusCode.Pending, name, ct);
+            var timer = await FindCheckpointAsync(jobId, CheckpointKindCode.Timer, CheckpointStatusCode.Pending, name, ct);
             var due = DateTime.UtcNow.AddMinutes(-1);
             var affected = await Db.From<CheckpointEntity>()
-                .Where(c => c.JobId == jobId && c.Kind == JobCheckpointKindCode.Timer && c.Name == timer.Name)
+                .Where(c => c.JobId == jobId && c.Kind == CheckpointKindCode.Timer && c.Name == timer.Name)
                 .UpdateOnlyAsync(() => new CheckpointEntity { DueAtUtc = due, ModifiedAtUtc = DbFn.UtcNow }, ct);
             if (affected != 1)
             {
@@ -260,7 +260,7 @@ public static class ActaTestHost
 
         public async Task ForceStepRetryDueAsync(long jobId, string? name = null, CancellationToken ct = default)
         {
-            var steps = await Db.From<StepEntity>().Where(s => s.JobId == jobId && s.Status == JobStepStatusCode.Pending).ToListAsync(ct);
+            var steps = await Db.From<StepEntity>().Where(s => s.JobId == jobId && s.Status == StepStatusCode.Pending).ToListAsync(ct);
             var candidates = steps.Where(s => s.NextRetryAtUtc is not null);
             if (!string.IsNullOrWhiteSpace(name))
             {
@@ -358,8 +358,8 @@ public static class ActaTestHost
 
         private async Task<CheckpointEntity> FindCheckpointAsync(
             long jobId,
-            JobCheckpointKindCode kind,
-            JobCheckpointStatusCode state,
+            CheckpointKindCode kind,
+            CheckpointStatusCode state,
             string? name,
             CancellationToken ct
         )
@@ -398,8 +398,8 @@ public static class ActaTestHost
             var waits = await Db.From<CheckpointEntity>()
                 .Where(c =>
                     c.JobId == jobId
-                    && (c.Kind == JobCheckpointKindCode.Signal || c.Kind == JobCheckpointKindCode.ChildLatch)
-                    && c.Status == JobCheckpointStatusCode.Pending
+                    && (c.Kind == CheckpointKindCode.Signal || c.Kind == CheckpointKindCode.ChildLatch)
+                    && c.Status == CheckpointStatusCode.Pending
                 )
                 .ToListAsync(ct);
             var candidates = waits.Where(c => c.DueAtUtc is not null);

@@ -180,13 +180,13 @@ BEGIN
         10 /* JobStatusCode.Ready */,
         NULL,
         NULL,
-        67 /* JobEventReasonCode.JobLaneRepaired */,
+        67 /* EventReasonCode.JobLaneRepaired */,
         'Lane had no live head; the sys.recovery system job released its lowest Blocked member.'
     FROM {{schema}}.jobs j
     INNER JOIN {{schema}}.runtimes r ON r.job_id = j.id
     WHERE
         j.id = ANY (v_repaired)
-        AND j.audit_level_code IN (10 /* JobAuditLevelCode.Failures */, 20 /* JobAuditLevelCode.Audit */);
+        AND j.audit_level_code IN (10 /* DefinitionAuditLevelCode.Failures */, 20 /* DefinitionAuditLevelCode.Audit */);
 
     RETURN QUERY
     WITH stuck AS (
@@ -209,8 +209,8 @@ BEGIN
                 FROM {{schema}}.checkpoints c
                 WHERE
                     c.job_id = r.job_id
-                    AND c.kind_code IN (20 /* JobCheckpointKindCode.Signal */, 50 /* JobCheckpointKindCode.ChildLatch */)
-                    AND c.status_code = 30 /* JobCheckpointStatusCode.Expired */
+                    AND c.kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
+                    AND c.status_code = 30 /* CheckpointStatusCode.Expired */
                     AND c.due_at_utc = r.next_run_at_utc
             ) AS wait_resolved,
             /* MaxAttempts is the one-off retry budget and a slot's failure_count accumulates across
@@ -300,14 +300,14 @@ BEGIN
             r.new_status,
             230 /* ExecutionStatusCode.Orphaned */,
             NULL,
-            21 /* JobEventReasonCode.JobLeaseExpired */,
+            21 /* EventReasonCode.JobLeaseExpired */,
             /* Suspended is reachable only through the resolved-wait arm above, so the landed status is
                what tells the two messages apart. */
             CASE WHEN r.new_status = 20 /* JobStatusCode.Suspended */
                 THEN 'Worker lease expired while an expired wait was resolving; re-armed on the same deadline with no attempt charged.'
                 ELSE 'Worker lease expired; reclaimed by the sys.recovery system job.' END
         FROM reclaimed r
-        WHERE r.audit_level_code IN (10 /* JobAuditLevelCode.Failures */, 20 /* JobAuditLevelCode.Audit */)
+        WHERE r.audit_level_code IN (10 /* DefinitionAuditLevelCode.Failures */, 20 /* DefinitionAuditLevelCode.Audit */)
     )
     SELECT r.id, r.new_status, r.job_parent_id, 0::SMALLINT
     FROM reclaimed r;

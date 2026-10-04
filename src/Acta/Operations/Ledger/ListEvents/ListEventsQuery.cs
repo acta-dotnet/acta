@@ -26,7 +26,7 @@ public sealed record ListEventsQuery(
     string? TenantKey = null,
     int? WorkerId = null,
     ActorCode? ActorCode = null,
-    JobEventReasonCode? ReasonCode = null,
+    EventReasonCode? ReasonCode = null,
     DateTime? CreatedFromUtc = null,
     DateTime? CreatedToUtc = null,
     int? PageSize = null,

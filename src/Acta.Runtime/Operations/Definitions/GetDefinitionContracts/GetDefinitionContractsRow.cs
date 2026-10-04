@@ -15,7 +15,7 @@ internal sealed record GetDefinitionContractsRow(
     string OutputFormatName,
     int Id,
     string DefinitionHash,
-    JobDefinitionStatusCode Status,
+    DefinitionStatusCode Status,
     DateTime ModifiedAtUtc,
     JobPriorityCode Priority,
     int MaxAttempts,
@@ -27,7 +27,7 @@ internal sealed record GetDefinitionContractsRow(
     int DeadlineSeconds,
     DeadlineBehaviorCode DeadlineBehavior,
     int JobRetentionSeconds,
-    JobAuditLevelCode AuditLevel,
+    DefinitionAuditLevelCode AuditLevel,
     AlertProfileCode AlertProfile,
     string? AlertChannelName,
     string? RunbookUrl

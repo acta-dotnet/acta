@@ -43,7 +43,7 @@ internal sealed class SetJobDefinitionOverridesHandler(DefinitionKeyResolution k
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Definition.DescriptionOverride, overrides.Description));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorCode, actor.ActorCode));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorKey, actor.ActorKey));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ReasonCode, JobEventReasonCode.JobControlManual));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ReasonCode, EventReasonCode.JobControlManual));
                 cmd.Parameters.Add(
                     dialect.CreateParameter(ActaSchema.Event.ReasonMessage, command.ReasonMessage.Truncate(ActaTextLimits.ReasonMessage))
                 );

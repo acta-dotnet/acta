@@ -69,7 +69,7 @@ public sealed class AtMostOnceStepManifest : IJobManifest
             RequiresCancellationToken: true,
             Priority: JobPriorityCode.Normal,
             MaxAttempts: 5,
-            AuditLevel: JobAuditLevelCode.Audit,
+            AuditLevel: DefinitionAuditLevelCode.Audit,
             AlertProfile: AlertProfileCode.OnFailure,
             Invoker: async (_, _, ctx, ct) =>
             {
@@ -133,7 +133,7 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal(StartStepOutcomeCode.Interrupted, first.Outcome);
 
         var row1 = await ReadStepAsync(enqueued.JobId, ct);
-        Assert.Equal(JobStepStatusCode.Interrupted, row1.Status);
+        Assert.Equal(StepStatusCode.Interrupted, row1.Status);
         var versionAfterInterrupt = row1.Version;
 
         // A later replay of an already-Interrupted slot returns Interrupted again with NO further mutation.
@@ -141,7 +141,7 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal(StartStepOutcomeCode.Interrupted, second.Outcome);
 
         var row2 = await ReadStepAsync(enqueued.JobId, ct);
-        Assert.Equal(JobStepStatusCode.Interrupted, row2.Status);
+        Assert.Equal(StepStatusCode.Interrupted, row2.Status);
         Assert.Equal(versionAfterInterrupt, row2.Version);
     }
 
@@ -165,7 +165,7 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
                 Succeeded: false,
                 ResultFormatId: 0,
                 Result: null,
-                JobEventReasonCode.JobUnhandledException,
+                EventReasonCode.JobUnhandledException,
                 "first attempt failed",
                 DelaySeconds: 60,
                 MaxAttempts: 5,
@@ -187,9 +187,9 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal(StartStepOutcomeCode.Interrupted, interrupted.Outcome);
 
         var row = await ReadStepAsync(enqueued.JobId, ct);
-        Assert.Equal(JobStepStatusCode.Interrupted, row.Status);
+        Assert.Equal(StepStatusCode.Interrupted, row.Status);
         Assert.Null(row.NextRetryAtUtc);
-        Assert.Equal(JobEventReasonCode.JobStepInterrupted, row.ReasonCode);
+        Assert.Equal(EventReasonCode.JobStepInterrupted, row.ReasonCode);
     }
 
     [Fact(DisplayName = "Uncaught StepInterruptedException fails the parent terminally without re-invoking the body")]
@@ -210,15 +210,15 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         // The slot is terminal Interrupted with the step-interrupted reason stamped by start_step.
         var row = await ReadStepAsync(enqueued.JobId, ct);
-        Assert.Equal(JobStepStatusCode.Interrupted, row.Status);
-        Assert.Equal(JobEventReasonCode.JobStepInterrupted, row.ReasonCode);
+        Assert.Equal(StepStatusCode.Interrupted, row.Status);
+        Assert.Equal(EventReasonCode.JobStepInterrupted, row.ReasonCode);
 
         // Explain surfaces the interruption at both job and step level.
         var x = await Jobs.ExplainAsync(JobLookup.ById(enqueued.JobId), ct);
         Assert.NotNull(x);
         Assert.Equal(JobStatusCode.Failed, x!.Status);
         var step = Assert.Single(x.Steps);
-        Assert.Equal(JobStepStatusCode.Interrupted, step.Status);
+        Assert.Equal(StepStatusCode.Interrupted, step.Status);
         Assert.Contains("reconcile", step.Explanation, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -238,7 +238,7 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.False(AtMostOnceStepHandler.BodyInvocations.ContainsKey(enqueued.JobId));
 
         var row = await ReadStepAsync(enqueued.JobId, ct);
-        Assert.Equal(JobStepStatusCode.Interrupted, row.Status);
+        Assert.Equal(StepStatusCode.Interrupted, row.Status);
 
         var status = await Jobs.GetStatusAsync(JobLookup.ById(enqueued.JobId), ct);
         Assert.Equal(JobStatusCode.Succeeded, status);

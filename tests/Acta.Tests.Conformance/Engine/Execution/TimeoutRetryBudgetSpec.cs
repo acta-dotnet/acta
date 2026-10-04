@@ -37,7 +37,7 @@ public sealed class TimeoutRetryBudgetSpec : ActaRuntimeTestBase<ConformanceFixt
 
         var events1 = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         var finished1 = events1.Where(e => e.EventCode == EventCode.JobExecutionFinished).OrderByDescending(e => e.Id).First();
-        Assert.Equal(JobEventReasonCode.JobExecutionTimeout, finished1.JobEventReasonCode);
+        Assert.Equal(EventReasonCode.JobExecutionTimeout, finished1.EventReasonCode);
         Assert.Equal(ExecutionStatusCode.Rescheduled, finished1.ExecutionStatus);
 
         // Attempt 2: claim+run again (zero backoff, so the job is immediately claimable).
@@ -51,6 +51,6 @@ public sealed class TimeoutRetryBudgetSpec : ActaRuntimeTestBase<ConformanceFixt
 
         var events2 = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         var finished2 = events2.Where(e => e.EventCode == EventCode.JobExecutionFinished).OrderByDescending(e => e.Id).First();
-        Assert.Equal(JobEventReasonCode.JobExecutionTimeout, finished2.JobEventReasonCode);
+        Assert.Equal(EventReasonCode.JobExecutionTimeout, finished2.EventReasonCode);
     }
 }

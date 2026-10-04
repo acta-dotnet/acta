@@ -43,7 +43,7 @@ public sealed class ControlVerbsSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(ActorCode.Operator, pausedEvent.ActorCode);
         Assert.Equal(JobStatusCode.Ready, pausedEvent.FromStatus);
         Assert.Equal(JobStatusCode.Paused, pausedEvent.ToStatus);
-        Assert.Equal(JobEventReasonCode.JobControlManual, pausedEvent.ReasonCode);
+        Assert.Equal(EventReasonCode.JobControlManual, pausedEvent.ReasonCode);
         Assert.Equal("maintenance window", pausedEvent.ReasonMessage);
 
         var resume = await Jobs.ResumeAsync(enqueued, "all clear", ct: ct);
@@ -81,7 +81,7 @@ public sealed class ControlVerbsSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(JobStatusCode.Ready, cancelEvent.FromStatus);
         Assert.Equal(JobStatusCode.Cancelled, cancelEvent.ToStatus);
         // Reason is always recorded on the event.
-        Assert.Equal(JobEventReasonCode.JobControlManual, cancelEvent.ReasonCode);
+        Assert.Equal(EventReasonCode.JobControlManual, cancelEvent.ReasonCode);
         Assert.Equal("no longer needed", cancelEvent.ReasonMessage);
         // The caller-supplied actor id (e.g. an authenticated principal name) persists on the event.
         Assert.Equal("spec-actor", cancelEvent.ActorKey);

@@ -54,7 +54,7 @@ namespace Acta.Concepts.ScheduleControl
     public sealed class HourlyReportJob
     {
         // 1h interval: will not fire during the short demo run, so only schedule-control is exercised.
-        [Job("hourly-report", AuditLevel = JobAuditLevelCode.Off)]
+        [Job("hourly-report", AuditLevel = DefinitionAuditLevelCode.Off)]
         [JobSchedule("every-hour", "1h")]
         public async Task Handle(GenerateHourlyReport input, CancellationToken ct)
         {

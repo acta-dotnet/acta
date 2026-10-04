@@ -29,7 +29,7 @@ WHERE
     j.definition_id IN (
         SELECT s.id
         FROM temp._retire_job_definition s
-        WHERE s.version = @p_version AND s.status_code <> 240 /* JobDefinitionStatusCode.Retired */
+        WHERE s.version = @p_version AND s.status_code <> 240 /* DefinitionStatusCode.Retired */
     )
     AND r.status_code IN (
         10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */
@@ -37,13 +37,13 @@ WHERE
 
 UPDATE {{schema}}.definitions
 SET
-    status_code = 240 /* JobDefinitionStatusCode.Retired */,
+    status_code = 240 /* DefinitionStatusCode.Retired */,
     modified_at_utc = {{now}},
     version = version + 1
 WHERE
     id = @p_id
     AND version = @p_version
-    AND status_code <> 240 /* JobDefinitionStatusCode.Retired */;
+    AND status_code <> 240 /* DefinitionStatusCode.Retired */;
 
 UPDATE {{schema}}.runtimes
 SET
@@ -91,10 +91,10 @@ SELECT
     220 /* JobStatusCode.Cancelled */,
     NULL,
     NULL,
-    42 /* JobEventReasonCode.JobDefinitionRetired */,
+    42 /* EventReasonCode.JobDefinitionRetired */,
     @p_reason_message
 FROM temp._retire_parked_jobs p
-WHERE p.audit_level_code = 20 /* JobAuditLevelCode.Audit */;
+WHERE p.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */;
 
 INSERT INTO {{schema}}.events (
     event_code,
@@ -135,7 +135,7 @@ SELECT
     @p_reason_code,
     @p_reason_message
 FROM temp._retire_job_definition s
-WHERE s.version = @p_version AND s.status_code <> 240 /* JobDefinitionStatusCode.Retired */;
+WHERE s.version = @p_version AND s.status_code <> 240 /* DefinitionStatusCode.Retired */;
 
 -- Once every parked member is cancelled, each of their lanes hands on to its lowest-id unfinished
 -- member if that member is Blocked and no member still runs. The immediate transaction is the lanes'

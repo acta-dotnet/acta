@@ -87,7 +87,7 @@ BEGIN
                     NULL,
                     NULL
                 FROM @started st
-                WHERE st.audit_level_code = 20 /* JobAuditLevelCode.Audit */;
+                WHERE st.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */;
             END
         ELSE
             BEGIN

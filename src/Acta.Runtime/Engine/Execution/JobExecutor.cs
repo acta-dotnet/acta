@@ -492,7 +492,7 @@ internal sealed class JobExecutor(
             ExecutionOutcome.Rescheduled,
             0,
             ReadOnlyMemory<byte>.Empty,
-            JobEventReasonCode.Unclassified,
+            EventReasonCode.Unclassified,
             reason.Truncate(ActaTextLimits.ReasonMessage),
             DurationMs: 0
         )
@@ -565,7 +565,7 @@ internal sealed class JobExecutor(
             ExecutionOutcome.Rescheduled,
             0,
             ReadOnlyMemory<byte>.Empty,
-            JobEventReasonCode.Unclassified,
+            EventReasonCode.Unclassified,
             reasonMessage.Truncate(ActaTextLimits.ReasonMessage),
             DurationMs: 0
         )

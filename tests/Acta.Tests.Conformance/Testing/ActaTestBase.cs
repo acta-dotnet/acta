@@ -127,14 +127,14 @@ public abstract class ActaTestBase<TFixture> : IAsyncLifetime
     protected async Task<int> CountVariableAsync(long jobId, string name, CancellationToken ct)
     {
         return await Db.From<CheckpointEntity>()
-            .Where(v => v.JobId == jobId && v.Kind == JobCheckpointKindCode.Variable && v.Name == name)
+            .Where(v => v.JobId == jobId && v.Kind == CheckpointKindCode.Variable && v.Name == name)
             .CountAsync(ct);
     }
 
     private protected async Task<IReadOnlyList<CheckpointEntity>> ReadSignalsAsync(long jobId, CancellationToken ct)
     {
         return await Db.From<CheckpointEntity>()
-            .Where(s => s.JobId == jobId && (s.Kind == JobCheckpointKindCode.Signal || s.Kind == JobCheckpointKindCode.ChildLatch))
+            .Where(s => s.JobId == jobId && (s.Kind == CheckpointKindCode.Signal || s.Kind == CheckpointKindCode.ChildLatch))
             .ToListAsync(ct);
     }
 
@@ -174,7 +174,7 @@ internal sealed record TestJobRow(JobEntity Job, RuntimeEntity Runtime)
     public string? CorrelationKey => Job.CorrelationKey;
     public string? ConcurrencyKey => Job.ConcurrencyKey;
     public byte InputFormatId => Job.InputFormatId;
-    public JobAuditLevelCode AuditLevel => Job.AuditLevel;
+    public DefinitionAuditLevelCode AuditLevel => Job.AuditLevel;
     public DateTime CreatedAtUtc => Job.CreatedAtUtc;
     public JobStatusCode Status => Runtime.Status;
     public JobPriorityCode Priority => Runtime.Priority;

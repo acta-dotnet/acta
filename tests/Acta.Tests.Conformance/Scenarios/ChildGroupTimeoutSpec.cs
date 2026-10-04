@@ -58,7 +58,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
             boundedReport.Children.Select(c => (c.Status, c.TimedOut, c.Succeeded))
         );
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(bounded.JobId, ct)).Status);
-        Assert.Equal(0, await CountReasonAsync(bounded.JobId, JobEventReasonCode.JobWaitTimedOut, ct));
+        Assert.Equal(0, await CountReasonAsync(bounded.JobId, EventReasonCode.JobWaitTimedOut, ct));
         Assert.Empty(await ReadDeadlineSlotsAsync(unbounded.JobId, ct));
     }
 
@@ -105,10 +105,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         {
             Assert.Equal(JobStatusCode.Cancelled, (await ReadJobAsync(cancelledId, ct)).Status);
             Assert.Equal(1, await CountEventsAsync(cancelledId, EventCode.JobCancelled, ct));
-            Assert.Equal(
-                JobEventReasonCode.JobWaitTimedOut,
-                (await ReadLatestEventAsync(cancelledId, EventCode.JobCancelled, ct)).ReasonCode
-            );
+            Assert.Equal(EventReasonCode.JobWaitTimedOut, (await ReadLatestEventAsync(cancelledId, EventCode.JobCancelled, ct)).ReasonCode);
         }
 
         // The sibling was started by the same parent but never joined the group, so nothing reaches it.
@@ -201,7 +198,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         // of a wait always carrying a positive bound.
         Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         var second = (await ReadLatchesAsync(parent.JobId, ct)).Single(l => l.Name != first.Name);
-        Assert.Equal(JobCheckpointStatusCode.Pending, second.Status);
+        Assert.Equal(CheckpointStatusCode.Pending, second.Status);
         Assert.NotNull(second.DueAtUtc);
 
         await RewindLatchAsync(parent.JobId, second.Name, ct);
@@ -312,7 +309,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         // That is inert: a member resolves off its own latch, and a Set latch wins however stale the
         // group's instant has become.
         var reused = Assert.Single(await ReadDeadlineSlotsAsync(landed.JobId, ct));
-        Assert.Equal(0, await CountReasonAsync(landed.JobId, JobEventReasonCode.JobWaitTimedOut, ct));
+        Assert.Equal(0, await CountReasonAsync(landed.JobId, EventReasonCode.JobWaitTimedOut, ct));
         var landedReport = await Jobs.GetResultAsync<TwoGroupReport>(landed, ct);
         Assert.True(landedReport!.First.Succeeded);
         Assert.True(landedReport.Second.Succeeded);
@@ -334,7 +331,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.True(expiredReport.Second.TimedOut);
         Assert.Single(await ReadDeadlineSlotsAsync(expired.JobId, ct));
         Assert.Equal(1, await CountEventsAsync(member, EventCode.JobCancelled, ct));
-        Assert.Equal(JobCheckpointStatusCode.Expired, Assert.Single(await ReadLatchesAsync(expired.JobId, ct)).Status);
+        Assert.Equal(CheckpointStatusCode.Expired, Assert.Single(await ReadLatchesAsync(expired.JobId, ct)).Status);
     }
 
     [Fact(DisplayName = "A bounded ExecuteChild reports the timeout on its job outcome")]
@@ -380,7 +377,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         var latch = Assert.Single(await ReadLatchesAsync(bounded.JobId, ct));
         var boundedMap = await Jobs.GetLineageMapAsync(bounded, ct: ct);
         Assert.NotNull(boundedMap!.ActiveWait);
-        Assert.Equal(JobCheckpointKindCode.ChildLatch, boundedMap.ActiveWait!.Kind);
+        Assert.Equal(CheckpointKindCode.ChildLatch, boundedMap.ActiveWait!.Kind);
         Assert.Equal(latch.Name, boundedMap.ActiveWait.Name);
         Assert.Equal(latch.DueAtUtc, boundedMap.ActiveWait.DueAtUtc);
 
@@ -389,7 +386,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
 
         var unboundedMap = await Jobs.GetLineageMapAsync(unbounded, ct: ct);
         Assert.NotNull(unboundedMap!.ActiveWait);
-        Assert.Equal(JobCheckpointKindCode.ChildLatch, unboundedMap.ActiveWait!.Kind);
+        Assert.Equal(CheckpointKindCode.ChildLatch, unboundedMap.ActiveWait!.Kind);
         Assert.Null(unboundedMap.ActiveWait.DueAtUtc);
     }
 
@@ -444,13 +441,13 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         return children.ToDictionary(j => j.DeduplicationKey!, j => j.Id, StringComparer.Ordinal);
     }
 
-    private async Task<int> CountReasonAsync(long jobId, JobEventReasonCode reason, CancellationToken ct) =>
+    private async Task<int> CountReasonAsync(long jobId, EventReasonCode reason, CancellationToken ct) =>
         await Db.From<EventEntity>().Where(e => e.JobId == jobId && e.ReasonCode == reason).CountAsync(ct);
 
     private async Task<IReadOnlyList<CheckpointEntity>> ReadDeadlineSlotsAsync(long jobId, CancellationToken ct)
     {
         var variables = await Db.From<CheckpointEntity>()
-            .Where(c => c.JobId == jobId && c.Kind == JobCheckpointKindCode.Variable)
+            .Where(c => c.JobId == jobId && c.Kind == CheckpointKindCode.Variable)
             .ToListAsync(ct);
         // The framework's own constant, not a copy: a spec that recognised the slot by a stale literal
         // would stop finding it and quietly assert nothing.
@@ -458,7 +455,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
     }
 
     private async Task<IReadOnlyList<CheckpointEntity>> ReadLatchesAsync(long jobId, CancellationToken ct) =>
-        [.. (await ReadSignalsAsync(jobId, ct)).Where(c => c.Kind == JobCheckpointKindCode.ChildLatch)];
+        [.. (await ReadSignalsAsync(jobId, ct)).Where(c => c.Kind == CheckpointKindCode.ChildLatch)];
 
     // Two seconds is the coarsest overshoot an arm can legitimately produce: RemainingWait rounds the
     // remaining UP to whole seconds (a group deadline is a not-before, so a member never gives up

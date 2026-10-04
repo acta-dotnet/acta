@@ -43,7 +43,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.Equal(JobStatusCode.Ready, released.Status);
         var latch = Assert.Single(await ReadSignalsAsync(parent.JobId, ct));
         Assert.Equal($"sys.child.{child.Id}", latch.Name);
-        Assert.Equal(JobCheckpointStatusCode.Set, latch.Status);
+        Assert.Equal(CheckpointStatusCode.Set, latch.Status);
         Assert.Equal(1, await CountEventsAsync(parent.JobId, EventCode.JobSignalRaised, ct));
         Assert.Equal(1, await CountEventsAsync(parent.JobId, EventCode.JobResumed, ct));
 
@@ -153,14 +153,14 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         var rootJob = await ReadJobAsync(root.JobId, ct);
         Assert.Equal(JobStatusCode.Cancelled, rootJob.Status);
         var rootCancelEvent = await ReadLatestEventAsync(root.JobId, EventCode.JobCancelled, ct);
-        Assert.Equal(JobEventReasonCode.JobControlManual, rootCancelEvent.ReasonCode);
+        Assert.Equal(EventReasonCode.JobControlManual, rootCancelEvent.ReasonCode);
 
         foreach (var descendantId in (long[])[child.JobId, grandchild.JobId, behindDone.JobId])
         {
             var descendant = await ReadJobAsync(descendantId, ct);
             Assert.Equal(JobStatusCode.Cancelled, descendant.Status);
             var descendantCancelEvent = await ReadLatestEventAsync(descendantId, EventCode.JobCancelled, ct);
-            Assert.Equal(JobEventReasonCode.JobParentCancelled, descendantCancelEvent.ReasonCode);
+            Assert.Equal(EventReasonCode.JobParentCancelled, descendantCancelEvent.ReasonCode);
             Assert.Equal(1, await CountEventsAsync(descendantId, EventCode.JobCancelled, ct));
         }
 
@@ -178,12 +178,12 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         var parentJob = await ReadJobAsync(parent.JobId, ct);
         Assert.Equal(JobStatusCode.Cancelled, parentJob.Status);
         var parentCancelEvent = await ReadLatestEventAsync(parent.JobId, EventCode.JobCancelled, ct);
-        Assert.Equal(JobEventReasonCode.JobHandlerCancelled, parentCancelEvent.ReasonCode);
+        Assert.Equal(EventReasonCode.JobHandlerCancelled, parentCancelEvent.ReasonCode);
 
         var child = Assert.Single(await ReadChildrenAsync(parent.JobId, ct));
         Assert.Equal(JobStatusCode.Cancelled, child.Status);
         var childCancelEvent = await ReadLatestEventAsync(child.Id, EventCode.JobCancelled, ct);
-        Assert.Equal(JobEventReasonCode.JobParentCancelled, childCancelEvent.ReasonCode);
+        Assert.Equal(EventReasonCode.JobParentCancelled, childCancelEvent.ReasonCode);
     }
 
     [Fact(DisplayName = "Parent completion never cascades and a raise to a terminal parent is a no-op")]
@@ -267,7 +267,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
 
         Assert.Equal(JobStatusCode.Failed, (await ReadJobAsync(child.Id, ct)).Status);
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(parent.JobId, ct)).Status);
-        Assert.Equal(JobCheckpointStatusCode.Set, Assert.Single(await ReadSignalsAsync(parent.JobId, ct)).Status);
+        Assert.Equal(CheckpointStatusCode.Set, Assert.Single(await ReadSignalsAsync(parent.JobId, ct)).Status);
     }
 
     [Fact(DisplayName = "The maintenance sweep re-raises a stale latch lost to a crash and releases the parent")]

@@ -43,7 +43,7 @@ BEGIN
                     result_format_id, created_at_utc, modified_at_utc, version
                 )
                 VALUES (
-                    @p_job_id, @p_name, 10 /* JobStepStatusCode.Pending */, 1,
+                    @p_job_id, @p_name, 10 /* StepStatusCode.Pending */, 1,
                     0 /* JobPayloadFormat.None */, @now, @now, 0
                 );
 
@@ -56,21 +56,21 @@ BEGIN
                 SET @rmsg = NULL;
                 SET @next = NULL;
             END
-        ELSE IF @state = 100 /* JobStepStatusCode.Succeeded */
+        ELSE IF @state = 100 /* StepStatusCode.Succeeded */
             BEGIN
                 SET @outcome = 3 /* StartStepOutcomeCode.ReplaySuccess */;
                 SET @next = NULL;
                 SET @rcode = NULL;
                 SET @rmsg = NULL;
             END
-        ELSE IF @state = 200 /* JobStepStatusCode.Exhausted */
+        ELSE IF @state = 200 /* StepStatusCode.Exhausted */
             BEGIN
                 SET @outcome = 4 /* StartStepOutcomeCode.Exhausted */;
                 SET @next = NULL;
                 SET @rfid = 0 /* JobPayloadFormat.None */;
                 SET @result = NULL;
             END
-        ELSE IF @state = 230 /* JobStepStatusCode.Interrupted */
+        ELSE IF @state = 230 /* StepStatusCode.Interrupted */
             BEGIN
             -- Terminal at-most-once ambiguity from an earlier replay; re-throw consistently, no mutation.
                 SET @outcome = 5 /* StartStepOutcomeCode.Interrupted */;
@@ -96,9 +96,9 @@ BEGIN
             -- (one transition, one version bump) and let the orchestration throw StepInterruptedException.
                 UPDATE {{schema}}.steps
                 SET
-                    status_code = 230 /* JobStepStatusCode.Interrupted */,
+                    status_code = 230 /* StepStatusCode.Interrupted */,
                     next_retry_at_utc = NULL,
-                    reason_code = 63 /* JobEventReasonCode.JobStepInterrupted */,
+                    reason_code = 63 /* EventReasonCode.JobStepInterrupted */,
                     reason_message = N'At-most-once step re-entered before completion; outcome unknown.',
                     modified_at_utc = @now,
                     version = version + 1

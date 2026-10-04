@@ -37,7 +37,7 @@ public class ContractDriftDetectorTests
             JobDefinitionRegistration.ContractOf(Desc(name, inputType)),
             Id: 0,
             DefinitionHash: "",
-            Status: JobDefinitionStatusCode.Active,
+            Status: DefinitionStatusCode.Active,
             ModifiedAtUtc: gen,
             Effective: null! // drift detection ignores effective policy
         );

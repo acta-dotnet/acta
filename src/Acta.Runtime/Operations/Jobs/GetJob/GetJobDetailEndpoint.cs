@@ -98,9 +98,9 @@ internal sealed record GetJobDetailHttpResponse(
 
 /// <summary>HTTP projection of one <see cref="JobCheckpointItem"/>; the value carries the format-dispatched shape.</summary>
 internal sealed record JobCheckpointHttpResponse(
-    JobCheckpointKindCode Kind,
+    CheckpointKindCode Kind,
     string Name,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JobCheckpointStatusCode? Status,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] CheckpointStatusCode? Status,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DateTime? DueAtUtc,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JobPayloadHttpResponse? Value,
     DateTime CreatedAtUtc,

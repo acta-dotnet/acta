@@ -41,7 +41,7 @@ internal sealed class RegisterJobDefinitionsHandler(IDbSession session, ISqlDial
             {
                 anyChange = true; // new
             }
-            else if (s.DefinitionHash != row.DefinitionHash || s.Status != JobDefinitionStatusCode.Active)
+            else if (s.DefinitionHash != row.DefinitionHash || s.Status != DefinitionStatusCode.Active)
             {
                 anyChange = true; // changed or needs reactivation
             }

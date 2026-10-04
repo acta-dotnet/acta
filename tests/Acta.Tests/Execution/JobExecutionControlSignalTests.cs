@@ -22,7 +22,7 @@ public sealed class JobExecutionControlSignalTests
         var completion = harness.Completion;
         Assert.Equal(RunOnceOutcome.Rearmed, outcome);
         Assert.Equal(ExecutionOutcome.Failed, completion.Outcome);
-        Assert.Equal(JobEventReasonCode.JobUnhandledException, completion.JobEventReasonCode);
+        Assert.Equal(EventReasonCode.JobUnhandledException, completion.EventReasonCode);
         Assert.Contains(nameof(HomeMadeSignal), completion.ReasonMessage, StringComparison.Ordinal);
     }
 }

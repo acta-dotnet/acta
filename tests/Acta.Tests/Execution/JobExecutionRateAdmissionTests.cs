@@ -64,7 +64,7 @@ public sealed class JobExecutionRateAdmissionTests
         Assert.Equal(RunOnceOutcome.Rearmed, outcome);
         Assert.False(harness.HandlerRan);
         Assert.Equal(ExecutionOutcome.Rescheduled, completion.Outcome);
-        Assert.Equal(JobEventReasonCode.JobRateLimited, completion.JobEventReasonCode);
+        Assert.Equal(EventReasonCode.JobRateLimited, completion.EventReasonCode);
 
         // The reserved turn verbatim, not a delay: the meter booked a place in its queue, so any
         // recomputation here would land the job somewhere other than where the bucket expects it.
@@ -163,7 +163,7 @@ public sealed class JobExecutionRateAdmissionTests
         Assert.Equal(RunOnceOutcome.Completed, outcome);
         Assert.False(harness.HandlerRan);
         Assert.Equal(ExecutionOutcome.Cancelled, harness.Completion.Outcome);
-        Assert.Equal(JobEventReasonCode.JobDeadlineExceeded, harness.Completion.JobEventReasonCode);
+        Assert.Equal(EventReasonCode.JobDeadlineExceeded, harness.Completion.EventReasonCode);
         Assert.Equal(1, harness.SlotReleases);
     }
 
@@ -221,7 +221,7 @@ public sealed class JobExecutionRateAdmissionTests
         var completion = harness.Completion;
         Assert.Equal(RunOnceOutcome.Rearmed, outcome);
         Assert.False(harness.HandlerRan);
-        Assert.Equal(JobEventReasonCode.Unclassified, completion.JobEventReasonCode);
+        Assert.Equal(EventReasonCode.Unclassified, completion.EventReasonCode);
         Assert.Equal(new JobsOptions().ConcurrencyKeyBounceDelaySeconds, completion.RescheduleDelaySeconds);
         Assert.Null(completion.RescheduleResumeAtUtc);
         Assert.Null(completion.FailureCount);
@@ -239,6 +239,6 @@ public sealed class JobExecutionRateAdmissionTests
 
         Assert.Equal(RunOnceOutcome.Rearmed, outcome);
         Assert.Empty(harness.RateRequests);
-        Assert.Equal(JobEventReasonCode.JobConcurrencyKeyHeld, harness.Completion.JobEventReasonCode);
+        Assert.Equal(EventReasonCode.JobConcurrencyKeyHeld, harness.Completion.EventReasonCode);
     }
 }

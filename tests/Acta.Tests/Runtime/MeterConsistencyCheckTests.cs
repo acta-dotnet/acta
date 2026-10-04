@@ -20,7 +20,7 @@ public sealed class MeterConsistencyCheckTests
             Contract: new DefinitionContract("Input", null, 0, "none", 0, "none"),
             Id: name.GetHashCode(StringComparison.Ordinal),
             DefinitionHash: "hash",
-            Status: JobDefinitionStatusCode.Active,
+            Status: DefinitionStatusCode.Active,
             ModifiedAtUtc: new DateTime(2026, 9, 19, 0, 0, 0, DateTimeKind.Utc),
             Effective: new EffectiveJobPolicy(
                 JobPriorityCode.Normal,
@@ -33,7 +33,7 @@ public sealed class MeterConsistencyCheckTests
                 DeadlineSeconds: 0,
                 DeadlineBehavior: DeadlineBehaviorCode.Strict,
                 JobRetentionSeconds: 3600,
-                AuditLevel: JobAuditLevelCode.Audit,
+                AuditLevel: DefinitionAuditLevelCode.Audit,
                 AlertProfile: AlertProfileCode.OnFailure,
                 AlertChannelName: null,
                 RunbookUrl: null

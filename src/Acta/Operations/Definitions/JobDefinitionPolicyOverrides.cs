@@ -22,7 +22,7 @@ public sealed record JobDefinitionPolicyOverrides(
     int? DeadlineSeconds = null,
     DeadlineBehaviorCode? DeadlineBehavior = null,
     int? JobRetentionSeconds = null,
-    JobAuditLevelCode? AuditLevel = null,
+    DefinitionAuditLevelCode? AuditLevel = null,
     AlertProfileCode? AlertProfile = null,
     string? AlertChannelName = null,
     string? RunbookUrl = null,

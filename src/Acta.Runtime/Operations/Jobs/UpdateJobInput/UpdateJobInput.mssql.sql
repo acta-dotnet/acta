@@ -67,7 +67,7 @@ BEGIN
             input_format_id = @p_input_format_id
         WHERE id = @p_id;
 
-        IF @audit_level = 20 /* JobAuditLevelCode.Audit */
+        IF @audit_level = 20 /* DefinitionAuditLevelCode.Audit */
             BEGIN
             -- The event carries only bounded JSON metadata about the previous payload (format name
             -- and byte count), never the payload itself. Pure ASCII, so VARCHAR -> VARBINARY is UTF-8.

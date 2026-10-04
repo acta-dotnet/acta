@@ -98,4 +98,4 @@ JOIN {{schema}}.runtimes r ON r.job_id = j.id
 WHERE
     j.id = @p_id
     AND (SELECT moved FROM temp._se_done) = 1
-    AND j.audit_level_code = 20 /* JobAuditLevelCode.Audit */;
+    AND j.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */;

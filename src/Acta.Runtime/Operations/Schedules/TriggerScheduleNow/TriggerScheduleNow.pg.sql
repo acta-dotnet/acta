@@ -83,7 +83,7 @@ BEGIN
             OR (status_code = 30 /* JobStatusCode.Paused */ AND next_run_at_utc IS NULL)
         );
 
-    IF v_audit = 20 /* JobAuditLevelCode.Audit */ THEN
+    IF v_audit = 20 /* DefinitionAuditLevelCode.Audit */ THEN
         INSERT INTO {{schema}}.events (
             event_code,
             created_at_utc,

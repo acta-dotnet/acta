@@ -58,7 +58,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(0, result.EmptyBytesLength);
 
         var rows = await Db.From<CheckpointEntity>()
-            .Where(v => v.JobId == enqueued.JobId && v.Kind == JobCheckpointKindCode.Variable)
+            .Where(v => v.JobId == enqueued.JobId && v.Kind == CheckpointKindCode.Variable)
             .ToListAsync(ct);
 
         Assert.Contains(rows, v => v.Name == "fetch.status" && v.ValueFormatId == JobPayloadFormat.Json.Id);
@@ -81,7 +81,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var progress = await Db.From<CheckpointEntity>()
-            .Where(v => v.JobId == enqueued.JobId && v.Kind == JobCheckpointKindCode.Progress && v.Name == "sys.progress")
+            .Where(v => v.JobId == enqueued.JobId && v.Kind == CheckpointKindCode.Progress && v.Name == "sys.progress")
             .SingleOrDefaultAsync(ct);
 
         Assert.NotNull(progress);
@@ -174,7 +174,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.InRange(result.FactoryCalls, 1, 16);
 
         var rowCount = await Db.From<CheckpointEntity>()
-            .Where(v => v.JobId == enqueued.JobId && v.Kind == JobCheckpointKindCode.Variable && v.Name == "race.winner")
+            .Where(v => v.JobId == enqueued.JobId && v.Kind == CheckpointKindCode.Variable && v.Name == "race.winner")
             .CountAsync(ct);
         Assert.Equal(1, rowCount);
     }
@@ -215,7 +215,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
     private async Task<CheckpointEntity?> ReadVariableRowAsync(long jobId, string name, CancellationToken ct)
     {
         return await Db.From<CheckpointEntity>()
-            .Where(v => v.JobId == jobId && v.Kind == JobCheckpointKindCode.Variable && v.Name == name)
+            .Where(v => v.JobId == jobId && v.Kind == CheckpointKindCode.Variable && v.Name == name)
             .SingleOrDefaultAsync(ct);
     }
 
@@ -257,7 +257,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
             """,
             ct,
             ("@p_job_id", jobId),
-            ("@p_kind_code", (byte)JobCheckpointKindCode.Variable),
+            ("@p_kind_code", (byte)CheckpointKindCode.Variable),
             ("@p_name", "corrupt.value"),
             ("@p_value_format_id", JobPayloadFormat.Json.Id),
             ("@p_value", Encoding.UTF8.GetBytes("{InvalidJson")),

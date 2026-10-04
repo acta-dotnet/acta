@@ -40,7 +40,7 @@ public sealed class MultiScheduleSlotManifest : IJobManifest
                 RequiresCancellationToken: true,
                 Priority: JobPriorityCode.Normal,
                 MaxAttempts: 2,
-                AuditLevel: JobAuditLevelCode.Audit,
+                AuditLevel: DefinitionAuditLevelCode.Audit,
                 AlertProfile: AlertProfileCode.OnFailure,
                 Invoker: static async (_, _, ctx, ct) =>
                 {

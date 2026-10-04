@@ -78,7 +78,7 @@ public sealed class RecoveryJobSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         Assert.Equal(1, reclaimed.FailureCount);
 
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(parent.JobId, ct)).Status);
-        Assert.Equal(JobCheckpointStatusCode.Set, Assert.Single(await ReadSignalsAsync(parent.JobId, ct)).Status);
+        Assert.Equal(CheckpointStatusCode.Set, Assert.Single(await ReadSignalsAsync(parent.JobId, ct)).Status);
 
         var published = _wakeups.Published.Skip(before).Select(c => c.Kind).ToList();
         Assert.Contains(WorkerWakeupChannelKind.WorkerNamespace, published);

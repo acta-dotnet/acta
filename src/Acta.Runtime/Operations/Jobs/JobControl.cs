@@ -12,7 +12,7 @@ internal static class JobControl
     public static JobControlInput Operator(string? reasonMessage, string? actorKey, int? expectedVersion = null) =>
         new(
             JobControlActor.Operator(actorKey),
-            JobEventReasonCode.JobControlManual,
+            EventReasonCode.JobControlManual,
             reasonMessage.Truncate(ActaTextLimits.ReasonMessage),
             expectedVersion
         );

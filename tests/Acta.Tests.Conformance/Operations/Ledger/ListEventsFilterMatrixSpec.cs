@@ -336,15 +336,15 @@ public sealed class ListEventsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
         await Jobs.CancelAsync(JobLookup.ById(j1), "spec cancel", "op", ct: ct);
 
         var all = (await queries.Ledger.ListEventsAsync(new ListEventsQuery(JobId: j1, PageSize: 100), ct)).Items;
-        Assert.Contains(all, e => e.ReasonCode == JobEventReasonCode.JobControlManual);
+        Assert.Contains(all, e => e.ReasonCode == EventReasonCode.JobControlManual);
 
-        var expected = all.Where(e => e.ReasonCode == JobEventReasonCode.JobControlManual).Select(e => e.JobEventId).ToHashSet();
+        var expected = all.Where(e => e.ReasonCode == EventReasonCode.JobControlManual).Select(e => e.JobEventId).ToHashSet();
         var page = await queries.Ledger.ListEventsAsync(
-            new ListEventsQuery(JobId: j1, ReasonCode: JobEventReasonCode.JobControlManual, PageSize: 100),
+            new ListEventsQuery(JobId: j1, ReasonCode: EventReasonCode.JobControlManual, PageSize: 100),
             ct
         );
         Assert.Equal(expected, [.. page.Items.Select(e => e.JobEventId)]);
-        Assert.All(page.Items, e => Assert.Equal(JobEventReasonCode.JobControlManual, e.ReasonCode));
+        Assert.All(page.Items, e => Assert.Equal(EventReasonCode.JobControlManual, e.ReasonCode));
     }
 
     [Fact(DisplayName = "CreatedFromUtc and CreatedToUtc split the timeline at a boundary instant")]

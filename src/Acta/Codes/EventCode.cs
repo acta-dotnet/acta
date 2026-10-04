@@ -57,7 +57,7 @@ public enum EventCode : byte
     /// <summary>
     /// job_id / job_ref are null; definition_id carries the identity. Emitted when an operator retires
     /// a definition; each job the retire cancelled carries its own job.cancelled event with
-    /// <see cref="JobEventReasonCode.JobDefinitionRetired"/>. Always emitted regardless of audit level:
+    /// <see cref="EventReasonCode.JobDefinitionRetired"/>. Always emitted regardless of audit level:
     /// config governance is low-volume.
     /// </summary>
     [Code("definition.retired", "An operator retired a job definition; enqueue is rejected and its parked jobs were cancelled.")]
@@ -66,7 +66,7 @@ public enum EventCode : byte
     [Code("job.execution-started", "Handler invocation began; paired with job.execution-finished on (JobId, ExecutionNumber).")]
     JobExecutionStarted = 40,
 
-    [Code("job.execution-finished", "Per-attempt outcome finalized. DurationMs / ExecutionStatusCode / JobEventReasonCode populated.")]
+    [Code("job.execution-finished", "Per-attempt outcome finalized. DurationMs / ExecutionStatusCode / EventReasonCode populated.")]
     JobExecutionFinished = 41,
 
     [Code("job.recurring-rolled-over", "Recurring Job's NextRunAtUtc advanced to the next firing instant.")]

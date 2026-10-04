@@ -37,7 +37,7 @@ internal sealed class CompleteExecutionHandler(IDbSession session, ISqlDialect d
             DbParams.For(ActaSchema.Job.Id, command.JobId),
             DbParams.For(ActaSchema.Sql.LeasedByWorkerId, command.WorkerId),
             DbParams.For(ActaSchema.Runtime.ExecutionNumber, command.ExpectedExecutionNumber),
-            DbParams.For(ActaSchema.Event.ReasonCode, command.JobEventReasonCode is { } rc ? (short)rc : null),
+            DbParams.For(ActaSchema.Event.ReasonCode, command.EventReasonCode is { } rc ? (short)rc : null),
             DbParams.For(ActaSchema.Event.ReasonMessage, command.ReasonMessage),
             DbParams.For(ActaSchema.Result.ResultFormatId, command.ResultFormatId),
             DbParams.For(ActaSchema.Result.Result, resultBytes),

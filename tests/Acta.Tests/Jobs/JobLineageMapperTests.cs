@@ -15,10 +15,10 @@ public class JobLineageMapperTests
     [Fact]
     public void A_bounded_child_wait_is_the_active_wait_and_carries_its_deadline()
     {
-        var map = Map(Checkpoint(JobCheckpointKindCode.ChildLatch, "sys.child.42", Now.AddMinutes(30)));
+        var map = Map(Checkpoint(CheckpointKindCode.ChildLatch, "sys.child.42", Now.AddMinutes(30)));
 
         Assert.NotNull(map.ActiveWait);
-        Assert.Equal(JobCheckpointKindCode.ChildLatch, map.ActiveWait!.Kind);
+        Assert.Equal(CheckpointKindCode.ChildLatch, map.ActiveWait!.Kind);
         Assert.Equal("sys.child.42", map.ActiveWait.Name);
         Assert.Equal(Now.AddMinutes(30), map.ActiveWait.DueAtUtc);
     }
@@ -26,10 +26,10 @@ public class JobLineageMapperTests
     [Fact]
     public void An_unbounded_child_wait_is_the_active_wait_with_no_deadline()
     {
-        var map = Map(Checkpoint(JobCheckpointKindCode.ChildLatch, "sys.child.42", due: null));
+        var map = Map(Checkpoint(CheckpointKindCode.ChildLatch, "sys.child.42", due: null));
 
         Assert.NotNull(map.ActiveWait);
-        Assert.Equal(JobCheckpointKindCode.ChildLatch, map.ActiveWait!.Kind);
+        Assert.Equal(CheckpointKindCode.ChildLatch, map.ActiveWait!.Kind);
         Assert.Null(map.ActiveWait.DueAtUtc);
     }
 
@@ -37,24 +37,24 @@ public class JobLineageMapperTests
     public void A_bounded_signal_wait_carries_its_deadline_and_still_outranks_a_child_latch()
     {
         var map = Map(
-            Checkpoint(JobCheckpointKindCode.ChildLatch, "sys.child.42", Now.AddMinutes(5)),
-            Checkpoint(JobCheckpointKindCode.Signal, "approval", Now.AddMinutes(30))
+            Checkpoint(CheckpointKindCode.ChildLatch, "sys.child.42", Now.AddMinutes(5)),
+            Checkpoint(CheckpointKindCode.Signal, "approval", Now.AddMinutes(30))
         );
 
-        Assert.Equal(JobCheckpointKindCode.Signal, map.ActiveWait!.Kind);
+        Assert.Equal(CheckpointKindCode.Signal, map.ActiveWait!.Kind);
         Assert.Equal(Now.AddMinutes(30), map.ActiveWait.DueAtUtc);
     }
 
     [Fact]
     public void A_set_child_latch_is_not_an_active_wait()
     {
-        var map = Map(new ExplainCheckpointRow(JobCheckpointKindCode.ChildLatch, "sys.child.42", JobCheckpointStatusCode.Set, null));
+        var map = Map(new ExplainCheckpointRow(CheckpointKindCode.ChildLatch, "sys.child.42", CheckpointStatusCode.Set, null));
 
         Assert.Null(map.ActiveWait);
     }
 
-    private static ExplainCheckpointRow Checkpoint(JobCheckpointKindCode kind, string name, DateTime? due) =>
-        new(kind, name, JobCheckpointStatusCode.Pending, due);
+    private static ExplainCheckpointRow Checkpoint(CheckpointKindCode kind, string name, DateTime? due) =>
+        new(kind, name, CheckpointStatusCode.Pending, due);
 
     private static JobLineageMap Map(params ExplainCheckpointRow[] checkpoints) =>
         JobLineageMapper.Map(new JobLineageData(Focus(), [], [], checkpoints, []), childLimit: 10);

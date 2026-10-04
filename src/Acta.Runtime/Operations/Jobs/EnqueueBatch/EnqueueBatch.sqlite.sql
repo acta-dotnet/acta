@@ -24,7 +24,7 @@ WHERE EXISTS (
     SELECT 1 FROM JSON_EACH(@p_rows) r
     JOIN {{schema}}.namespaces ns ON ns.name = JSON_EXTRACT(r.value, '$.namespace_name')
     JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = JSON_EXTRACT(r.value, '$.job_name')
-    WHERE jd.status_code <> 10 /* JobDefinitionStatusCode.Active */
+    WHERE jd.status_code <> 10 /* DefinitionStatusCode.Active */
 );
 
 SELECT ACTA_ERROR('Enqueue rejected: one or more child rows reference a missing or terminal parent job.')
@@ -67,7 +67,7 @@ WHERE EXISTS (
     JOIN {{schema}}.namespaces ns ON ns.name = JSON_EXTRACT(r.value, '$.namespace_name')
     JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = JSON_EXTRACT(r.value, '$.job_name')
     WHERE
-        jd.tenant_requirement_code = 10 /* JobTenantRequirementCode.Required */
+        jd.tenant_requirement_code = 10 /* DefinitionTenantRequirementCode.Required */
         AND JSON_EXTRACT(r.value, '$.tenant_key') IS NULL
         AND NOT EXISTS (
             SELECT 1 FROM {{schema}}.jobs pj
@@ -81,7 +81,7 @@ WHERE EXISTS (
     JOIN {{schema}}.namespaces ns ON ns.name = JSON_EXTRACT(r.value, '$.namespace_name')
     JOIN {{schema}}.definitions jd ON jd.namespace_id = ns.id AND jd.name = JSON_EXTRACT(r.value, '$.job_name')
     WHERE
-        jd.tenant_requirement_code = 20 /* JobTenantRequirementCode.Forbidden */
+        jd.tenant_requirement_code = 20 /* DefinitionTenantRequirementCode.Forbidden */
         AND JSON_EXTRACT(r.value, '$.tenant_key') IS NOT NULL
 );
 
@@ -156,7 +156,7 @@ SELECT
     ns.id,
     jd.id,
     CASE
-        WHEN jd.tenant_requirement_code = 20 /* JobTenantRequirementCode.Forbidden */ THEN NULL
+        WHEN jd.tenant_requirement_code = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
         ELSE COALESCE(
             (
                 SELECT t.id FROM {{schema}}.tenants t

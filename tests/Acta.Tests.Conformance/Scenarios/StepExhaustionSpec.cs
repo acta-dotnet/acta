@@ -68,7 +68,7 @@ public sealed class StepExhaustionManifest : IJobManifest
                 RequiresCancellationToken: true,
                 Priority: JobPriorityCode.Normal,
                 MaxAttempts: 2,
-                AuditLevel: JobAuditLevelCode.Audit,
+                AuditLevel: DefinitionAuditLevelCode.Audit,
                 AlertProfile: AlertProfileCode.OnFailure,
                 Invoker: static async (_, _, ctx, ct) =>
                 {
@@ -94,7 +94,7 @@ public sealed class StepExhaustionManifest : IJobManifest
                 RequiresCancellationToken: true,
                 Priority: JobPriorityCode.Normal,
                 MaxAttempts: 1,
-                AuditLevel: JobAuditLevelCode.Audit,
+                AuditLevel: DefinitionAuditLevelCode.Audit,
                 AlertProfile: AlertProfileCode.OnFailure,
                 Invoker: static async (_, _, ctx, ct) =>
                 {
@@ -132,7 +132,7 @@ public sealed class StepExhaustionSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal(RunOnceOutcome.Failed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var step = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
-        Assert.Equal(JobStepStatusCode.Exhausted, step.Status);
+        Assert.Equal(StepStatusCode.Exhausted, step.Status);
         // attempt_number=1: far below MaxAttempts=100, proving window fired, not attempt-count.
         Assert.Equal(1, step.AttemptNumber);
         Assert.Null(step.NextRetryAtUtc);
@@ -150,7 +150,7 @@ public sealed class StepExhaustionSpec : ActaRuntimeTestBase<ConformanceFixture,
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "step-window-exhaust", JobPayload.None), ct);
         Assert.Equal(RunOnceOutcome.Failed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal(JobStepStatusCode.Exhausted, Assert.Single(await ReadStepsAsync(enqueued.JobId, ct)).Status);
+        Assert.Equal(StepStatusCode.Exhausted, Assert.Single(await ReadStepsAsync(enqueued.JobId, ct)).Status);
 
         Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(enqueued, "provider is back", ct: ct)).Action);
 
@@ -158,7 +158,7 @@ public sealed class StepExhaustionSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal(RunOnceOutcome.Failed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(2, StepExhaustionProbes.BodyInvocations.GetValueOrDefault(enqueued.JobId));
         var step = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
-        Assert.Equal(JobStepStatusCode.Exhausted, step.Status);
+        Assert.Equal(StepStatusCode.Exhausted, step.Status);
         Assert.Equal(1, step.AttemptNumber);
     }
 
@@ -170,7 +170,7 @@ public sealed class StepExhaustionSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         // Tick 1: step attempt 1 → body fails (invocations=1) → step Pending → parent re-arms (budget neutral).
         Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal(JobStepStatusCode.Pending, (await ReadStepsAsync(enqueued.JobId, ct)).Single().Status);
+        Assert.Equal(StepStatusCode.Pending, (await ReadStepsAsync(enqueued.JobId, ct)).Single().Status);
         Assert.Equal(1, StepExhaustionProbes.BodyInvocations.GetValueOrDefault(enqueued.JobId));
 
         // Tick 2: step attempt 2 → body fails (invocations=2) → step Exhausted →
@@ -178,7 +178,7 @@ public sealed class StepExhaustionSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var stepAfterExhaust = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
-        Assert.Equal(JobStepStatusCode.Exhausted, stepAfterExhaust.Status);
+        Assert.Equal(StepStatusCode.Exhausted, stepAfterExhaust.Status);
         Assert.Equal(2, stepAfterExhaust.AttemptNumber);
         Assert.Null(stepAfterExhaust.NextRetryAtUtc);
         // Body ran exactly twice: once per in-budget attempt.
@@ -197,14 +197,14 @@ public sealed class StepExhaustionSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         // Step row is still Exhausted, unchanged by the re-entry (StartStep is read-only on Exhausted slots).
         var stepAfterReentry = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
-        Assert.Equal(JobStepStatusCode.Exhausted, stepAfterReentry.Status);
+        Assert.Equal(StepStatusCode.Exhausted, stepAfterReentry.Status);
         Assert.Equal(2, stepAfterReentry.AttemptNumber);
         Assert.Null(stepAfterReentry.NextRetryAtUtc);
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Failed, job.Status);
         var finishedEvent = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobExecutionFinished, ct);
-        Assert.Equal(JobEventReasonCode.JobUnhandledException, finishedEvent.ReasonCode);
+        Assert.Equal(EventReasonCode.JobUnhandledException, finishedEvent.ReasonCode);
     }
 
     private async Task<IReadOnlyList<StepEntity>> ReadStepsAsync(long jobId, CancellationToken ct)

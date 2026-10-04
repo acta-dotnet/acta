@@ -61,7 +61,7 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(ActorCode.Sys, reclaimEvent.ActorCode);
         Assert.Equal(ExecutionStatusCode.Orphaned, reclaimEvent.ExecutionStatus);
         Assert.Equal(JobStatusCode.Ready, reclaimEvent.ToStatus);
-        Assert.Equal(JobEventReasonCode.JobLeaseExpired, reclaimEvent.ReasonCode);
+        Assert.Equal(EventReasonCode.JobLeaseExpired, reclaimEvent.ReasonCode);
     }
 
     [Fact(DisplayName = "Job goes terminal Failed once failure_count reaches MaxAttempts")]
@@ -145,7 +145,7 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
             .ToListAsync(ct);
         var reclaimEvent = Assert.Single(events);
         Assert.Equal(ExecutionStatusCode.Orphaned, reclaimEvent.ExecutionStatus);
-        Assert.Equal(JobEventReasonCode.JobLeaseExpired, reclaimEvent.ReasonCode);
+        Assert.Equal(EventReasonCode.JobLeaseExpired, reclaimEvent.ReasonCode);
     }
 
     [Fact(DisplayName = "Live EXECUTING lease is not reclaimed: the job stays Executing with no LeaseExpired event")]
@@ -186,7 +186,7 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
             .Where(e =>
                 e.JobId == enqueued.JobId
                 && e.EventCode == EventCode.JobExecutionFinished
-                && e.ReasonCode == JobEventReasonCode.JobLeaseExpired
+                && e.ReasonCode == EventReasonCode.JobLeaseExpired
             )
             .ToListAsync(ct);
         Assert.Empty(leaseExpiredEvents);
@@ -228,7 +228,7 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
                 ct,
                 ("@p_due", DateTime.UtcNow.AddMinutes(-5)),
                 ("@p_job_id", enqueued.JobId),
-                ("@p_kind", (byte)JobCheckpointKindCode.Timer),
+                ("@p_kind", (byte)CheckpointKindCode.Timer),
                 ("@p_name", TimerName)
             )
         );

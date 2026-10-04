@@ -25,13 +25,13 @@ public class RecurringOutcomeTests
             Job(failureCount: 5),
             Descriptor(maxAttempts: 2),
             Fire(NextRun),
-            JobEventReasonCode.JobUnhandledException,
+            EventReasonCode.JobUnhandledException,
             "boom"
         );
 
         Assert.Equal(JobStatusCode.Ready, status);
         Assert.Equal(6, failureCount);
-        Assert.Equal(JobEventReasonCode.JobUnhandledException, reason);
+        Assert.Equal(EventReasonCode.JobUnhandledException, reason);
         Assert.Equal("boom", message);
     }
 
@@ -69,7 +69,7 @@ public class RecurringOutcomeTests
         );
 
         Assert.Equal(JobStatusCode.Paused, status);
-        Assert.Equal(JobEventReasonCode.JobSchedulesExhausted, reason);
+        Assert.Equal(EventReasonCode.JobSchedulesExhausted, reason);
     }
 
     private static RecurringFireOutcome Fire(DateTime? nextRun) => new([], [], nextRun);
@@ -108,7 +108,7 @@ public class RecurringOutcomeTests
             RequiresCancellationToken: true,
             Priority: JobPriorityCode.Normal,
             MaxAttempts: maxAttempts,
-            AuditLevel: JobAuditLevelCode.Audit,
+            AuditLevel: DefinitionAuditLevelCode.Audit,
             AlertProfile: AlertProfileCode.OnFailure,
             Invoker: static async (_, _, _, _) =>
             {

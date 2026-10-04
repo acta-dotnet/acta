@@ -162,7 +162,7 @@ public class CliOutputTests
         EventCode code,
         JobStatusCode? from,
         JobStatusCode? to,
-        JobEventReasonCode? reason = null,
+        EventReasonCode? reason = null,
         string? message = null,
         string? detail = null
     ) =>
@@ -204,7 +204,7 @@ public class CliOutputTests
                     EventCode.JobExecutionFinished,
                     JobStatusCode.Executing,
                     JobStatusCode.Failed,
-                    JobEventReasonCode.JobUnhandledException,
+                    EventReasonCode.JobUnhandledException,
                     "boom in handler"
                 ),
             ],
@@ -243,7 +243,7 @@ public class CliOutputTests
                     EventCode.JobExecutionFinished,
                     JobStatusCode.Executing,
                     JobStatusCode.Failed,
-                    JobEventReasonCode.JobUnhandledException,
+                    EventReasonCode.JobUnhandledException,
                     "boom"
                 ),
             ],
@@ -312,10 +312,10 @@ public class CliOutputTests
             Status: JobStatusCode.Suspended,
             StatusMeaning: JobStatusCode.Suspended.Description,
             Headline: "Suspended, waiting for signal \"fraud-review\".",
-            ActiveWait: new JobExplainWait(JobCheckpointKindCode.Signal, "fraud-review", null),
+            ActiveWait: new JobExplainWait(CheckpointKindCode.Signal, "fraud-review", null),
             Lease: null,
             LastExecutedBy: "payments-v42",
-            Steps: [new JobExplainStep("reserve-stock", JobStepStatusCode.Succeeded, "succeeded and will not rerun")],
+            Steps: [new JobExplainStep("reserve-stock", StepStatusCode.Succeeded, "succeeded and will not rerun")],
             Reason: null,
             NextActions:
             [
@@ -401,7 +401,7 @@ public class CliOutputTests
             Status: JobStatusCode.Suspended,
             StatusMeaning: JobStatusCode.Suspended.Description,
             Headline: "Suspended on durable sleep \"cool-down\", due in 12m.",
-            ActiveWait: new JobExplainWait(JobCheckpointKindCode.Timer, "cool-down", new DateTime(2026, 7, 4, 12, 12, 0, DateTimeKind.Utc)),
+            ActiveWait: new JobExplainWait(CheckpointKindCode.Timer, "cool-down", new DateTime(2026, 7, 4, 12, 12, 0, DateTimeKind.Utc)),
             Lease: null,
             LastExecutedBy: null,
             Steps: [],
@@ -672,7 +672,7 @@ public class CliOutputTests
                     ToStatus: JobStatusCode.Failed,
                     ExecutionStatus: null,
                     DurationMs: 12,
-                    ReasonCode: JobEventReasonCode.JobUnhandledException,
+                    ReasonCode: EventReasonCode.JobUnhandledException,
                     ReasonMessage: "boom",
                     DetailText: null,
                     WorkerRef: SentinelWorkerRef,
@@ -706,7 +706,7 @@ public class CliOutputTests
                 WorkerRef: SentinelWorkerRef
             ),
             LastExecutedBy: null,
-            Steps: [new JobExplainStep("reserve-stock", JobStepStatusCode.Succeeded, "succeeded and will not rerun")],
+            Steps: [new JobExplainStep("reserve-stock", StepStatusCode.Succeeded, "succeeded and will not rerun")],
             Reason: "worker shutdown",
             NextActions: [new JobExplainAction("cancel", "cancel the job")]
         );

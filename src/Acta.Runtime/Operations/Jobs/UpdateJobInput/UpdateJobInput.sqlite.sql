@@ -68,7 +68,7 @@ FROM {{schema}}.jobs j
 JOIN {{schema}}.runtimes r ON r.job_id = j.id
 WHERE
     j.id = @p_id
-    AND j.audit_level_code = 20 /* JobAuditLevelCode.Audit */
+    AND j.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
     AND r.status_code NOT IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
 
 UPDATE {{schema}}.jobs

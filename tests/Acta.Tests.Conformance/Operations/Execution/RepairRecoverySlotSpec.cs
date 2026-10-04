@@ -51,7 +51,7 @@ public sealed class RepairRecoverySlotSpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.Equal(ActorCode.Sys, lost.ActorCode);
         Assert.Equal(before.ExecutionNumber, lost.ExecutionNumber);
         Assert.Equal(ExecutionStatusCode.Orphaned, lost.ExecutionStatus);
-        Assert.Equal(JobEventReasonCode.JobLeaseExpired, lost.ReasonCode);
+        Assert.Equal(EventReasonCode.JobLeaseExpired, lost.ReasonCode);
         Assert.Equal(JobStatusCode.Executing, lost.FromStatus);
         Assert.Equal(JobStatusCode.Ready, lost.ToStatus);
     }

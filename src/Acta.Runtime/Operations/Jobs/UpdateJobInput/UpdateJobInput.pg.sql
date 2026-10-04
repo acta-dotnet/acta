@@ -57,7 +57,7 @@ BEGIN
         input_format_id = p_input_format_id
     WHERE id = p_id;
 
-    IF v_audit = 20 /* JobAuditLevelCode.Audit */ THEN
+    IF v_audit = 20 /* DefinitionAuditLevelCode.Audit */ THEN
         -- The event carries only bounded JSON metadata about the previous payload (format name and
         -- byte count), never the payload itself, so nothing outlives the job's payload retention.
         IF v_old_format_id <> 0 /* JobPayloadFormat.None */ THEN

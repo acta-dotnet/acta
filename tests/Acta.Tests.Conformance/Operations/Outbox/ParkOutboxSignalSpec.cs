@@ -39,7 +39,7 @@ public sealed class ParkOutboxSignalSpec : ActaStorageTestBase<ConformanceFixtur
         var row = await RowAsync(jobId, OutboxSignalNames.Requeue, ct);
         Assert.Equal((byte)ControlAction.Applied, admission.Action);
         Assert.Equal(row.ModifiedAtUtc, admission.PendingSinceUtc);
-        Assert.Equal(JobCheckpointStatusCode.Set, row.Status);
+        Assert.Equal(CheckpointStatusCode.Set, row.Status);
         Assert.Equal(Json, row.ValueFormatId);
         Assert.Equal(command, row.Value);
         Assert.Equal(0, row.Version);
@@ -140,7 +140,7 @@ public sealed class ParkOutboxSignalSpec : ActaStorageTestBase<ConformanceFixtur
     private async Task<CheckpointEntity> RowAsync(long jobId, string name, CancellationToken ct) =>
         Assert.Single(
             await Db.From<CheckpointEntity>()
-                .Where(c => c.JobId == jobId && c.Kind == JobCheckpointKindCode.Signal && c.Name == name)
+                .Where(c => c.JobId == jobId && c.Kind == CheckpointKindCode.Signal && c.Name == name)
                 .ToListAsync(ct)
         );
 

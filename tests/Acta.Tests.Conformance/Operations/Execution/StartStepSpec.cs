@@ -32,7 +32,7 @@ public sealed class StartStepSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         Assert.Equal(StartStepOutcomeCode.Invoke, start.Outcome);
         Assert.Equal(1, start.AttemptNumber);
         var step = await ReadStepAsync(job, ct);
-        Assert.Equal(JobStepStatusCode.Pending, step.Status);
+        Assert.Equal(StepStatusCode.Pending, step.Status);
         Assert.Equal(1, step.AttemptNumber);
         Assert.Equal(step.Version, start.Version);
         Assert.Null(step.NextRetryAtUtc);
@@ -66,9 +66,9 @@ public sealed class StartStepSpec : ActaRuntimeTestBase<ConformanceFixture, Test
 
         Assert.Equal(StartStepOutcomeCode.Interrupted, reentered.Outcome);
         var interrupted = await ReadStepAsync(job, ct);
-        Assert.Equal(JobStepStatusCode.Interrupted, interrupted.Status);
+        Assert.Equal(StepStatusCode.Interrupted, interrupted.Status);
         Assert.Equal(1, interrupted.AttemptNumber);
-        Assert.Equal(JobEventReasonCode.JobStepInterrupted, interrupted.ReasonCode);
+        Assert.Equal(EventReasonCode.JobStepInterrupted, interrupted.ReasonCode);
 
         // Interrupted is terminal: a later entry answers the same and writes nothing.
         Assert.Equal(StartStepOutcomeCode.Interrupted, (await Execution.StartStepAsync(job, StepName, atMostOnce: true, ct)).Outcome);
@@ -140,10 +140,10 @@ public sealed class StartStepSpec : ActaRuntimeTestBase<ConformanceFixture, Test
             var refused = await Execution.StartStepAsync(job, StepName, atMostOnce: false, ct);
             Assert.Equal(StartStepOutcomeCode.Exhausted, refused.Outcome);
             Assert.Equal(1, refused.AttemptNumber);
-            Assert.Equal(JobEventReasonCode.JobUnhandledException, refused.ReasonCode);
+            Assert.Equal(EventReasonCode.JobUnhandledException, refused.ReasonCode);
             Assert.Equal("card declined", refused.ReasonMessage);
         }
-        Assert.Equal(JobStepStatusCode.Exhausted, (await ReadStepAsync(job, ct)).Status);
+        Assert.Equal(StepStatusCode.Exhausted, (await ReadStepAsync(job, ct)).Status);
     }
 
     private static readonly byte[] Result = Encoding.UTF8.GetBytes("{\"receipt\":7}");
@@ -173,7 +173,7 @@ public sealed class StartStepSpec : ActaRuntimeTestBase<ConformanceFixture, Test
                     false,
                     0,
                     null,
-                    JobEventReasonCode.JobUnhandledException,
+                    EventReasonCode.JobUnhandledException,
                     "card declined",
                     DelaySeconds: 600,
                     maxAttempts,

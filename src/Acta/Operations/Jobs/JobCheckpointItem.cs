@@ -13,9 +13,9 @@ namespace Acta;
 /// <param name="CreatedAtUtc">First-write instant.</param>
 /// <param name="ModifiedAtUtc">Last write of any kind (state transition or value overwrite).</param>
 public sealed record JobCheckpointItem(
-    JobCheckpointKindCode Kind,
+    CheckpointKindCode Kind,
     string Name,
-    JobCheckpointStatusCode? Status,
+    CheckpointStatusCode? Status,
     DateTime? DueAtUtc,
     JobPayload? Value,
     DateTime CreatedAtUtc,

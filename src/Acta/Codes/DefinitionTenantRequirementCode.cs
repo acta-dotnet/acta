@@ -7,9 +7,9 @@ namespace Acta;
 /// boundary in the database, so every write path (API, outbox relay, any other client) receives
 /// the same rule.
 /// </summary>
-[JsonConverter(typeof(JobTenantRequirementCodeJsonConverter))]
+[JsonConverter(typeof(DefinitionTenantRequirementCodeJsonConverter))]
 [CodeKind("job-tenant-requirement")]
-public enum JobTenantRequirementCode : byte
+public enum DefinitionTenantRequirementCode : byte
 {
     /// <summary>The definition accepts tenant-scoped and tenant-less jobs alike.</summary>
     [Code("optional", "Jobs may carry a tenant or not; no enqueue-time tenant rule applies.")]

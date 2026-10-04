@@ -22,7 +22,7 @@ internal sealed record ExplainHeaderRow(
     string? WorkerDeploymentVersion,
     WorkerStatusCode? WorkerStatus,
     DateTime? WorkerLastHeartbeatAtUtc,
-    JobEventReasonCode? LatestReasonCode,
+    EventReasonCode? LatestReasonCode,
     string? LatestReasonMessage,
     int? LastExecutedByWorkerId,
     string? LastExecutedByWorkerName,
@@ -34,7 +34,7 @@ internal sealed record ExplainHeaderRow(
 [DbProjection]
 internal sealed record ExplainStepRow(
     string Name,
-    JobStepStatusCode Status,
+    StepStatusCode Status,
     int AttemptNumber,
     DateTime? NextRetryAtUtc,
     string? ReasonMessage
@@ -42,7 +42,7 @@ internal sealed record ExplainStepRow(
 
 /// <summary>One <c>checkpoints</c> row for the explain read (signal / timer / variable / progress / child-latch), in SELECT order.</summary>
 [DbProjection]
-internal sealed record ExplainCheckpointRow(JobCheckpointKindCode Kind, string Name, JobCheckpointStatusCode? Status, DateTime? DueAtUtc);
+internal sealed record ExplainCheckpointRow(CheckpointKindCode Kind, string Name, CheckpointStatusCode? Status, DateTime? DueAtUtc);
 
 /// <summary>The three consistent result sets the explain read returns for one Job.</summary>
 internal sealed record JobExplainData(
@@ -69,7 +69,7 @@ internal sealed record LineageJobRow(
 
 /// <summary>One <c>steps</c> row of the focused Job for the lineage read, in SELECT order.</summary>
 [DbProjection]
-internal sealed record LineageStepRow(string Name, JobStepStatusCode Status);
+internal sealed record LineageStepRow(string Name, StepStatusCode Status);
 
 /// <summary>One direct child of the focused Job for the lineage read, in SELECT order.</summary>
 [DbProjection]
@@ -112,9 +112,9 @@ internal sealed record JobInputRow(byte FormatId, byte[]? Input)
 /// </summary>
 [DbProjection]
 internal sealed record JobCheckpointReadRow(
-    JobCheckpointKindCode Kind,
+    CheckpointKindCode Kind,
     string Name,
-    JobCheckpointStatusCode? Status,
+    CheckpointStatusCode? Status,
     DateTime? DueAtUtc,
     byte ValueFormatId,
     byte[]? Value,

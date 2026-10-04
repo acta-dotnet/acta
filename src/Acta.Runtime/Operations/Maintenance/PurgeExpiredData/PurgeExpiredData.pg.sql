@@ -45,7 +45,7 @@ BEGIN
                 AND NOT EXISTS (
                     SELECT 1 FROM {{schema}}.schedules s
                     JOIN {{schema}}.definitions d ON d.id = j.definition_id
-                    WHERE s.job_id = j.id AND d.status_code <> 240 /* JobDefinitionStatusCode.Retired */)
+                    WHERE s.job_id = j.id AND d.status_code <> 240 /* DefinitionStatusCode.Retired */)
             ORDER BY r.retention_until_utc, r.job_id
             LIMIT p_batch_size
             FOR UPDATE OF j, r SKIP LOCKED) q;
@@ -128,7 +128,7 @@ BEGIN
             SELECT k.job_id, k.kind_code, k.name FROM {{schema}}.checkpoints k
             WHERE
                 k.job_id = v_alerts_slot_id
-                AND k.kind_code = 10 /* JobCheckpointKindCode.Variable */
+                AND k.kind_code = 10 /* CheckpointKindCode.Variable */
                 AND k.name LIKE 'alerts-skip-%'
                 AND k.modified_at_utc <= p_cutoff_utc
             LIMIT p_batch_size);

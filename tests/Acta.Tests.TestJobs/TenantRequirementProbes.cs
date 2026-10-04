@@ -13,9 +13,9 @@ public sealed record TenantNeutralWork(string Note);
 /// </summary>
 public static class TenantRequirementProbes
 {
-    [Job("tenant-required-probe", TenantRequirement = JobTenantRequirementCode.Required)]
+    [Job("tenant-required-probe", TenantRequirement = DefinitionTenantRequirementCode.Required)]
     public static Task RequiredRun(TenantScopedWork input) => Task.CompletedTask;
 
-    [Job("tenant-forbidden-probe", TenantRequirement = JobTenantRequirementCode.Forbidden)]
+    [Job("tenant-forbidden-probe", TenantRequirement = DefinitionTenantRequirementCode.Forbidden)]
     public static Task ForbiddenRun(TenantNeutralWork input) => Task.CompletedTask;
 }

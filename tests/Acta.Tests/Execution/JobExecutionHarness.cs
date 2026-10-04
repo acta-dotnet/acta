@@ -329,7 +329,7 @@ internal sealed class JobExecutionHarness(
             RequiresCancellationToken: true,
             Priority: JobPriorityCode.Normal,
             MaxAttempts: maxAttempts,
-            AuditLevel: JobAuditLevelCode.Audit,
+            AuditLevel: DefinitionAuditLevelCode.Audit,
             AlertProfile: AlertProfileCode.OnFailure,
             Invoker: async (_, _, ctx, token) =>
             {

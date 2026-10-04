@@ -36,6 +36,6 @@ public sealed class ExecutionTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtur
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         var finished = events.Where(e => e.EventCode == EventCode.JobExecutionFinished).OrderByDescending(e => e.Id).First();
-        Assert.Equal(JobEventReasonCode.JobExecutionTimeout, finished.JobEventReasonCode);
+        Assert.Equal(EventReasonCode.JobExecutionTimeout, finished.EventReasonCode);
     }
 }

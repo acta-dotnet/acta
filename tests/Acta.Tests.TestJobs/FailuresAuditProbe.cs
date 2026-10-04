@@ -22,7 +22,7 @@ public static class FailuresAuditProbe
 
     public static int Attempts(string jobNamespace) => _attempts.TryGetValue(jobNamespace, out var n) ? n : 0;
 
-    [Job("failures-audit-probe", MaxAttempts = 6, Backoff = "0s", AuditLevel = JobAuditLevelCode.Failures)]
+    [Job("failures-audit-probe", MaxAttempts = 6, Backoff = "0s", AuditLevel = DefinitionAuditLevelCode.Failures)]
     public static async Task Run(JobContext ctx, CancellationToken ct)
     {
         var attempt = _attempts.AddOrUpdate(ctx.JobNamespace, 1, static (_, n) => n + 1);

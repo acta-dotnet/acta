@@ -119,7 +119,7 @@ namespace Acta.Concepts.ScheduleMisfire
 
     public sealed class SkipReportJob
     {
-        [Job("skip-report", AuditLevel = JobAuditLevelCode.Off)]
+        [Job("skip-report", AuditLevel = DefinitionAuditLevelCode.Off)]
         [JobSchedule("every-2s-skip", "PT2S", MisfireStrategy = MisfireStrategyCode.Skip)]
         public async Task Handle(SkipReportInput input, CancellationToken ct)
         {
@@ -146,7 +146,7 @@ namespace Acta.Concepts.ScheduleMisfire
 
         public static Task WaitForExecutionAsync(CancellationToken ct) => _completed.Task.WaitAsync(ct);
 
-        [Job("catch-up-report", AuditLevel = JobAuditLevelCode.Off)]
+        [Job("catch-up-report", AuditLevel = DefinitionAuditLevelCode.Off)]
         [JobSchedule("every-2s-catchup", "PT2S", MisfireStrategy = MisfireStrategyCode.CatchUpOnce)]
         public async Task Handle(CatchUpReportInput input, CancellationToken ct)
         {

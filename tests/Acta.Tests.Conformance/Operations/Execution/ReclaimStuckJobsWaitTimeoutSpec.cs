@@ -53,7 +53,7 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         Assert.Equal(enqueued.JobId, claimed.JobId);
         var resolved = await Services
             .GetRequiredService<Acta.Runtime.Signals>()
-            .WaitSignalAsync(enqueued.JobId, JobCheckpointKindCode.Signal, "go", timeoutSeconds: null, ct);
+            .WaitSignalAsync(enqueued.JobId, CheckpointKindCode.Signal, "go", timeoutSeconds: null, ct);
         Assert.Equal(SignalWaitOutcomeCode.TimedOut, resolved.Outcome);
 
         Assert.Equal(1, (await RecoverySweep.ReclaimAtLeastOneAsync(Services, ns, ct)).Reclaimed);
@@ -71,7 +71,7 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         var recovery = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobExecutionFinished, ct);
         Assert.Equal(ExecutionStatusCode.Orphaned, recovery.ExecutionStatus);
         Assert.Equal(JobStatusCode.Suspended, recovery.ToStatus);
-        Assert.Equal(JobEventReasonCode.JobLeaseExpired, recovery.ReasonCode);
+        Assert.Equal(EventReasonCode.JobLeaseExpired, recovery.ReasonCode);
 
         // The replay lands exactly what the surviving path would have landed, still budget-neutral.
         Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
@@ -79,10 +79,7 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         Assert.Equal(JobStatusCode.Cancelled, settled.Status);
         Assert.Equal(0, settled.FailureCount);
         Assert.NotNull(settled.RetentionUntilUtc);
-        Assert.Equal(
-            JobEventReasonCode.JobWaitTimedOut,
-            (await ReadLatestEventAsync(enqueued.JobId, EventCode.JobCancelled, ct)).ReasonCode
-        );
+        Assert.Equal(EventReasonCode.JobWaitTimedOut, (await ReadLatestEventAsync(enqueued.JobId, EventCode.JobCancelled, ct)).ReasonCode);
     }
 
     [Fact(DisplayName = "A crash before the wait expired is charged and re-armed the ordinary way")]
@@ -106,7 +103,7 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         var reclaimed = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, reclaimed.Status);
         Assert.Equal(1, reclaimed.FailureCount);
-        Assert.Equal(JobCheckpointStatusCode.Pending, (await ReadSignalsAsync(enqueued.JobId, ct)).Single().Status);
+        Assert.Equal(CheckpointStatusCode.Pending, (await ReadSignalsAsync(enqueued.JobId, ct)).Single().Status);
     }
 
     [Fact(DisplayName = "An expired slot the handler already passed does not make a later crash free")]
@@ -126,7 +123,7 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         // The Try wait resolves TimedOut and the handler parks on a second, unbounded wait: the job now
         // carries an Expired slot it walked past, which must not read as a deadline still resolving.
         Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal(JobCheckpointStatusCode.Expired, (await ReadSignalsAsync(enqueued.JobId, ct)).Single(s => s.Name == "go").Status);
+        Assert.Equal(CheckpointStatusCode.Expired, (await ReadSignalsAsync(enqueued.JobId, ct)).Single(s => s.Name == "go").Status);
 
         Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(enqueued, "hold", JobPayload.None, ct: ct)).Action);
         Assert.Single(
@@ -211,7 +208,7 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         );
         var resolved = await Services
             .GetRequiredService<Acta.Runtime.Signals>()
-            .WaitSignalAsync(enqueued.JobId, JobCheckpointKindCode.Signal, "go", timeoutSeconds: null, ct);
+            .WaitSignalAsync(enqueued.JobId, CheckpointKindCode.Signal, "go", timeoutSeconds: null, ct);
         Assert.Equal(SignalWaitOutcomeCode.TimedOut, resolved.Outcome);
 
         Assert.Equal(1, (await RecoverySweep.ReclaimAtLeastOneAsync(Services, ns, ct)).Reclaimed);

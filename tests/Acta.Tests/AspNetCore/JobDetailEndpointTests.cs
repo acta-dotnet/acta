@@ -29,7 +29,7 @@ public sealed class JobDetailEndpointTests
                 StoredCheckpoints =
                 [
                     new JobCheckpointItem(
-                        JobCheckpointKindCode.Variable,
+                        CheckpointKindCode.Variable,
                         "counter",
                         null,
                         null,

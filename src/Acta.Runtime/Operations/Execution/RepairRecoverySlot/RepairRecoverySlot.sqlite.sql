@@ -45,7 +45,7 @@ SELECT
     10 /* JobStatusCode.Ready */,
     230 /* ExecutionStatusCode.Orphaned */,
     NULL,
-    21 /* JobEventReasonCode.JobLeaseExpired */,
+    21 /* EventReasonCode.JobLeaseExpired */,
     'Worker lease expired on the recovery slot; re-armed by a worker''s recovery monitor.'
 FROM temp._repair_slot s
 JOIN {{schema}}.jobs j ON j.id = s.job_id;

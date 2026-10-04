@@ -71,7 +71,7 @@ BEGIN
                 THROW 50005, 'ACTA:ENQ_NS_SUSPENDED:Enqueue rejected: one or more rows reference a suspended namespace.', 1;
             END;
 
-        IF @def_status <> 10 /* JobDefinitionStatusCode.Active */
+        IF @def_status <> 10 /* DefinitionStatusCode.Active */
             BEGIN
                 THROW 50003, 'ACTA:ENQ_DEF_RETIRED:Enqueue rejected: the job definition is retired.', 1;
             END;
@@ -95,7 +95,7 @@ BEGIN
                     END;
             END;
 
-        IF @def_tenant_req = 20 /* JobTenantRequirementCode.Forbidden */ AND @p_tenant_key IS NOT NULL
+        IF @def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */ AND @p_tenant_key IS NOT NULL
             BEGIN
                 THROW 50008, 'ACTA:ENQ_TENANT_FORBIDDEN:Enqueue rejected: the job definition forbids a tenant and the row names one.', 1;
             END;
@@ -214,7 +214,7 @@ BEGIN
                     END;
             END;
 
-        IF @def_tenant_req = 10 /* JobTenantRequirementCode.Required */ AND @tenant_id IS NULL AND @parent_tenant IS NULL
+        IF @def_tenant_req = 10 /* DefinitionTenantRequirementCode.Required */ AND @tenant_id IS NULL AND @parent_tenant IS NULL
             BEGIN
                 THROW 50007, 'ACTA:ENQ_TENANT_REQUIRED:Enqueue rejected: the job definition requires a tenant and the row carries none.', 1;
             END;
@@ -241,7 +241,7 @@ BEGIN
                     @p_deduplication_key, COALESCE(@p_correlation_key, @parent_corr),
                     @ns_id, @def_id,
                     CASE
-                        WHEN @def_tenant_req = 20 /* JobTenantRequirementCode.Forbidden */ THEN NULL
+                        WHEN @def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
                         ELSE COALESCE(@tenant_id, @parent_tenant)
                     END,
                     COALESCE(

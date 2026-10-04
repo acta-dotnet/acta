@@ -11,7 +11,7 @@ internal sealed record CompleteStepCommand(
     bool Succeeded,
     byte ResultFormatId,
     byte[]? Result,
-    JobEventReasonCode? ReasonCode,
+    EventReasonCode? ReasonCode,
     string? ReasonMessage,
     int DelaySeconds,
     int MaxAttempts,

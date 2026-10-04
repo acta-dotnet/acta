@@ -18,7 +18,7 @@ public sealed class RaiseSignalSpec : ActaRuntimeTestBase<ConformanceFixture, Te
     private async Task<CheckpointEntity> ReadSlotAsync(long jobId, string name, CancellationToken ct) =>
         Assert.Single(
             await Db.From<CheckpointEntity>()
-                .Where(c => c.JobId == jobId && c.Kind == JobCheckpointKindCode.Signal && c.Name == name)
+                .Where(c => c.JobId == jobId && c.Kind == CheckpointKindCode.Signal && c.Name == name)
                 .ToListAsync(ct)
         );
 
@@ -37,14 +37,14 @@ public sealed class RaiseSignalSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         Assert.Null(raise.Version);
 
         var slot = await ReadSlotAsync(enqueued.JobId, "review", ct);
-        Assert.Equal(JobCheckpointStatusCode.Set, slot.Status);
+        Assert.Equal(CheckpointStatusCode.Set, slot.Status);
         Assert.Equal(payload.Format.Id, slot.ValueFormatId);
         Assert.Equal(payload.Data.ToArray(), slot.Value);
 
         var evt = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobSignalRaised, ct);
         Assert.Equal(ActorCode.Operator, evt.ActorCode);
         Assert.Equal("op-1", evt.ActorKey);
-        Assert.Equal(JobEventReasonCode.JobSignalReleased, evt.ReasonCode);
+        Assert.Equal(EventReasonCode.JobSignalReleased, evt.ReasonCode);
         Assert.Equal(JobStatusCode.Ready, evt.FromStatus);
         Assert.Equal(JobStatusCode.Ready, evt.ToStatus);
     }

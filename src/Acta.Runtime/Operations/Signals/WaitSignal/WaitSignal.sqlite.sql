@@ -10,12 +10,12 @@
    the arm, so only a wait armed by an earlier call can expire. Pg and mssql state the same rule. */
 UPDATE {{schema}}.checkpoints
 SET
-    status_code = 30 /* JobCheckpointStatusCode.Expired */,
+    status_code = 30 /* CheckpointStatusCode.Expired */,
     modified_at_utc = {{now}},
     version = version + 1
 WHERE
     job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name
-    AND status_code = 10 /* JobCheckpointStatusCode.Pending */
+    AND status_code = 10 /* CheckpointStatusCode.Pending */
     AND due_at_utc IS NOT NULL
     AND due_at_utc <= {{now}};
 
@@ -25,7 +25,7 @@ INSERT INTO {{schema}}.checkpoints (
 )
 VALUES (
     @p_job_id, @p_kind_code, @p_name,
-    10 /* JobCheckpointStatusCode.Pending */,
+    10 /* CheckpointStatusCode.Pending */,
     CASE WHEN @p_timeout_seconds IS NULL THEN NULL ELSE {{now}} + (@p_timeout_seconds) * 1000 END,
     0 /* JobPayloadFormat.None */,
     NULL, {{now}}, 0
@@ -39,24 +39,24 @@ SET
     version = version + 1
 WHERE
     job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name
-    AND status_code = 10 /* JobCheckpointStatusCode.Pending */
+    AND status_code = 10 /* CheckpointStatusCode.Pending */
     AND due_at_utc IS NULL
     AND @p_timeout_seconds IS NOT NULL;
 
 SELECT
     CASE
-        WHEN js.status_code = 20 /* JobCheckpointStatusCode.Set */
+        WHEN js.status_code = 20 /* CheckpointStatusCode.Set */
             THEN 2 /* SignalWaitOutcomeCode.ContinueSet */
-        WHEN js.status_code = 30 /* JobCheckpointStatusCode.Expired */
+        WHEN js.status_code = 30 /* CheckpointStatusCode.Expired */
             THEN 3 /* SignalWaitOutcomeCode.TimedOut */
         ELSE 1 /* SignalWaitOutcomeCode.SuspendPending */
     END AS outcome_code,
     CASE
-        WHEN js.status_code = 20 /* JobCheckpointStatusCode.Set */ THEN js.value_format_id
+        WHEN js.status_code = 20 /* CheckpointStatusCode.Set */ THEN js.value_format_id
         ELSE 0 /* JobPayloadFormat.None */
     END AS value_format_id,
     CASE
-        WHEN js.status_code = 20 /* JobCheckpointStatusCode.Set */ THEN js.value
+        WHEN js.status_code = 20 /* CheckpointStatusCode.Set */ THEN js.value
         ELSE NULL
     END AS value
 FROM {{schema}}.checkpoints js

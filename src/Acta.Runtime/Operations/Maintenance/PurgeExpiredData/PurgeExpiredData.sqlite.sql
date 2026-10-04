@@ -33,7 +33,7 @@ WHERE
     AND NOT EXISTS (
         SELECT 1 FROM {{schema}}.schedules s
         JOIN {{schema}}.definitions d ON d.id = j.definition_id
-        WHERE s.job_id = j.id AND d.status_code <> 240 /* JobDefinitionStatusCode.Retired */)
+        WHERE s.job_id = j.id AND d.status_code <> 240 /* DefinitionStatusCode.Retired */)
 ORDER BY r.retention_until_utc, r.job_id
 LIMIT @p_batch_size;
 
@@ -102,7 +102,7 @@ CREATE TEMP TABLE _purge_skip AS
         AND j.namespace_id = @p_namespace_id
         AND j.deduplication_key = 'sys.alerts'
         AND j.parent_id IS NULL
-        AND c.kind_code = 10 /* JobCheckpointKindCode.Variable */
+        AND c.kind_code = 10 /* CheckpointKindCode.Variable */
         AND c.name LIKE 'alerts-skip-%'
         AND c.modified_at_utc <= @p_cutoff_utc
     LIMIT @p_batch_size;

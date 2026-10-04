@@ -29,7 +29,7 @@ public sealed class DefinitionRegistrationValidationTests
             RequiresCancellationToken: false,
             Priority: JobPriorityCode.Normal,
             MaxAttempts: 1,
-            AuditLevel: JobAuditLevelCode.Audit,
+            AuditLevel: DefinitionAuditLevelCode.Audit,
             AlertProfile: AlertProfileCode.None,
             Invoker: static async (_, _, _, _) =>
             {
@@ -64,7 +64,7 @@ public sealed class DefinitionRegistrationValidationTests
             ),
             Id: 1,
             DefinitionHash: "hash",
-            Status: JobDefinitionStatusCode.Active,
+            Status: DefinitionStatusCode.Active,
             ModifiedAtUtc: Gen,
             Effective: new EffectiveJobPolicy(
                 JobPriorityCode.Normal,
@@ -77,7 +77,7 @@ public sealed class DefinitionRegistrationValidationTests
                 DeadlineSeconds: 0,
                 DeadlineBehavior: DeadlineBehaviorCode.Strict,
                 JobRetentionSeconds: JobDefinitionRegistration.DefaultJobRetentionSeconds,
-                AuditLevel: JobAuditLevelCode.Audit,
+                AuditLevel: DefinitionAuditLevelCode.Audit,
                 AlertProfile: AlertProfileCode.None,
                 AlertChannelName: null,
                 RunbookUrl: null

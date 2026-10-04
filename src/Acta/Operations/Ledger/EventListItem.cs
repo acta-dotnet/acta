@@ -38,7 +38,7 @@ public sealed record EventListItem(
     JobStatusCode? ToStatus,
     ExecutionStatusCode? ExecutionStatus,
     int? DurationMs,
-    JobEventReasonCode? ReasonCode,
+    EventReasonCode? ReasonCode,
     string? ReasonMessage,
     string? DetailText,
     WorkerRef? WorkerRef,

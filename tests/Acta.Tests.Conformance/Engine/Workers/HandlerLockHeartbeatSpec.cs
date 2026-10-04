@@ -84,7 +84,7 @@ public sealed class HandlerLockHeartbeatSpec : ActaRuntimeTestBase<ConformanceFi
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         var finished = Assert.Single(events, e => e.EventCode == EventCode.JobExecutionFinished);
-        Assert.Equal(JobEventReasonCode.JobAttemptAborted, finished.JobEventReasonCode);
+        Assert.Equal(EventReasonCode.JobAttemptAborted, finished.EventReasonCode);
     }
 
     private string LockKey()

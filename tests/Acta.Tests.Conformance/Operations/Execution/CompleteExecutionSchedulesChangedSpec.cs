@@ -298,7 +298,7 @@ public sealed class CompleteExecutionSchedulesChangedSpec : ActaRuntimeTestBase<
             JobName: jobName,
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
-            AuditLevel: JobAuditLevelCode.Audit,
+            AuditLevel: DefinitionAuditLevelCode.Audit,
             SlotStatus: slotStatus,
             SlotMinNextRunAtUtc: slotMin,
             Schedules: schedules

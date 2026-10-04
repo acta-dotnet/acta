@@ -85,7 +85,7 @@ public sealed class WorkerRuntimeRegistrationSpec : ActaRuntimeTestBase<Conforma
         Assert.Equal("30s..2h x3 ±25%", def.Backoff);
         Assert.Equal(45, def.ExecutionTimeoutSeconds);
         Assert.Equal(7 * 24 * 60 * 60, def.JobRetentionSeconds);
-        Assert.Equal(JobAuditLevelCode.Off, def.AuditLevel);
+        Assert.Equal(DefinitionAuditLevelCode.Off, def.AuditLevel);
         Assert.Equal("ops", def.AlertChannelName);
         Assert.Equal("https://runbook.example/policy-probe", def.RunbookUrl);
         Assert.Equal("Policy Probe", def.DisplayName);

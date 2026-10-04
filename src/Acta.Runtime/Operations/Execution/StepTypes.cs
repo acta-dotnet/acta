@@ -44,7 +44,7 @@ internal sealed record StartStepDecision(
     DateTime? NextRetryAtUtc,
     byte ResultFormatId,
     byte[]? Result,
-    JobEventReasonCode? ReasonCode,
+    EventReasonCode? ReasonCode,
     string? ReasonMessage
 );
 

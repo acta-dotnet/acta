@@ -20,7 +20,7 @@ internal sealed record AlertableEvent(
     string? AlertChannelName,
     ExecutionStatusCode? ExecutionStatus,
     JobStatusCode? ToStatus,
-    JobEventReasonCode? ReasonCode,
+    EventReasonCode? ReasonCode,
     string? ReasonMessage
 );
 

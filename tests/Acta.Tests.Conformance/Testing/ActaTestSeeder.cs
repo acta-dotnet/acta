@@ -52,7 +52,7 @@ internal sealed class ActaTestSeeder(IDbSession db)
                 {
                     NamespaceId = namespaceId,
                     Name = name,
-                    Status = JobDefinitionStatusCode.Active,
+                    Status = DefinitionStatusCode.Active,
                     DefinitionHash = "test-hash",
                     ManifestGenerationAtUtc = now,
                     InputTypeName = "TestInput",
@@ -67,7 +67,7 @@ internal sealed class ActaTestSeeder(IDbSession db)
                     DeadlineSeconds = 0,
                     DeadlineBehavior = DeadlineBehaviorCode.Advisory,
                     JobRetentionSeconds = 3600,
-                    AuditLevel = JobAuditLevelCode.Off,
+                    AuditLevel = DefinitionAuditLevelCode.Off,
                     AlertProfile = alertProfile,
                     CreatedAtUtc = now,
                     ModifiedAtUtc = now,
@@ -102,7 +102,7 @@ internal sealed class ActaTestSeeder(IDbSession db)
                     // null varbinary parameter, which SQL Server cannot implicitly type).
                     InputFormatId = 1,
                     Input = [0],
-                    AuditLevel = JobAuditLevelCode.Off,
+                    AuditLevel = DefinitionAuditLevelCode.Off,
                     CreatedAtUtc = DateTime.UtcNow,
                 },
                 ct

@@ -57,7 +57,7 @@ internal sealed class ListJobDefinitionsHandler(IDbSession session, ISqlDialect 
         ISqlDialect dialect,
         string? jobNamespace,
         string? nameSearch,
-        JobDefinitionStatusCode? status,
+        DefinitionStatusCode? status,
         string? tags,
         object[]? after,
         int take,

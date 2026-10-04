@@ -6,7 +6,7 @@ namespace Acta.Runtime;
 /// </summary>
 internal sealed record SignalSlotRaise(
     long JobId,
-    JobCheckpointKindCode Kind,
+    CheckpointKindCode Kind,
     string Name,
     byte ValueFormatId,
     byte[]? Value,

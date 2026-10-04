@@ -19,7 +19,7 @@ internal sealed class OutboxRelayJob(OutboxRelayRegistry registry, OutboxInbox i
     [Job(
         "sys.outbox",
         Priority = JobPriorityCode.Critical,
-        AuditLevel = JobAuditLevelCode.Failures,
+        AuditLevel = DefinitionAuditLevelCode.Failures,
         AlertProfile = AlertProfileCode.SysCritical
     )]
     [JobSchedule("default", Cron.Every5Seconds)]

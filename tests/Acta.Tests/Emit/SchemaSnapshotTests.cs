@@ -38,7 +38,7 @@ public sealed class SchemaSnapshotTests
         Assert.All(snapshot.CodeFamilies, f => Assert.NotEmpty(f.ValueIds));
     }
 
-    // Extensible families (AlertKindCode, EventCode, JobEventReasonCode: real [CodeKind(Extensible = true)]
+    // Extensible families (AlertKindCode, EventCode, EventReasonCode: real [CodeKind(Extensible = true)]
     // enums) emit no CHECK-list DDL at all (SqlSchemaEmitter's own !IsExtensible guard), so nothing about
     // their membership is physical schema: the snapshot must not carry them at all, and the coded columns
     // that use them must carry no value list either. A non-extensible family (job-status) is the control:

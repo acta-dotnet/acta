@@ -98,7 +98,7 @@ AS $$
             NULL,
             NULL
         FROM updated u
-        WHERE p_start_executing AND u.audit_level_code = 20 /* JobAuditLevelCode.Audit */
+        WHERE p_start_executing AND u.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
         RETURNING 1
     )
     SELECT

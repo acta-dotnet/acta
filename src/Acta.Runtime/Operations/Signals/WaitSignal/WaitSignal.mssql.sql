@@ -37,21 +37,21 @@ BEGIN
         FROM {{schema}}.checkpoints WITH (UPDLOCK, HOLDLOCK)
         WHERE job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name;
 
-        IF @state = 20 /* JobCheckpointStatusCode.Set */
+        IF @state = 20 /* CheckpointStatusCode.Set */
             BEGIN
                 SET @outcome = 2 /* SignalWaitOutcomeCode.ContinueSet */;
             END
-        ELSE IF @state = 30 /* JobCheckpointStatusCode.Expired */
+        ELSE IF @state = 30 /* CheckpointStatusCode.Expired */
             BEGIN
                 SET @outcome = 3 /* SignalWaitOutcomeCode.TimedOut */;
                 SET @fmt = 0 /* JobPayloadFormat.None */;
                 SET @val = NULL;
             END
-        ELSE IF @state = 10 /* JobCheckpointStatusCode.Pending */ AND @due IS NOT NULL AND @due <= @now
+        ELSE IF @state = 10 /* CheckpointStatusCode.Pending */ AND @due IS NOT NULL AND @due <= @now
             BEGIN
                 UPDATE {{schema}}.checkpoints
                 SET
-                    status_code = 30 /* JobCheckpointStatusCode.Expired */,
+                    status_code = 30 /* CheckpointStatusCode.Expired */,
                     modified_at_utc = @now,
                     version = version + 1
                 WHERE job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name;
@@ -69,12 +69,12 @@ BEGIN
                             created_at_utc, modified_at_utc, version
                         )
                         VALUES (
-                            @p_job_id, @p_kind_code, @p_name, 10 /* JobCheckpointStatusCode.Pending */,
+                            @p_job_id, @p_kind_code, @p_name, 10 /* CheckpointStatusCode.Pending */,
                             CASE WHEN @p_timeout_seconds IS NULL THEN NULL ELSE DATEADD(SECOND, @p_timeout_seconds, @now) END,
                             0 /* JobPayloadFormat.None */, NULL, @now, @now, 0
                         );
                     END
-                ELSE IF @state = 10 /* JobCheckpointStatusCode.Pending */ AND @due IS NULL AND @p_timeout_seconds IS NOT NULL
+                ELSE IF @state = 10 /* CheckpointStatusCode.Pending */ AND @due IS NULL AND @p_timeout_seconds IS NOT NULL
                     BEGIN
                         UPDATE {{schema}}.checkpoints
                         SET
@@ -83,7 +83,7 @@ BEGIN
                             version = version + 1
                         WHERE
                             job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name
-                            AND status_code = 10 /* JobCheckpointStatusCode.Pending */
+                            AND status_code = 10 /* CheckpointStatusCode.Pending */
                             AND due_at_utc IS NULL;
                     END
                 SET @outcome = 1 /* SignalWaitOutcomeCode.SuspendPending */;

@@ -79,7 +79,7 @@ FROM {{schema}}.jobs j
 JOIN {{schema}}.runtimes r ON r.job_id = j.id
 WHERE
     j.id = @p_id
-    AND j.audit_level_code = 20 /* JobAuditLevelCode.Audit */
+    AND j.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
     AND (@p_expected_version IS NULL OR r.version = @p_expected_version)
     AND r.status_code = 30 /* JobStatusCode.Paused */;
 

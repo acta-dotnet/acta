@@ -52,7 +52,7 @@ public sealed class GetDefinitionContractsSpec : ActaStorageTestBase<Conformance
         Assert.Equal(typeof(int).FullName, stored.Contract.InputTypeName);
         Assert.Equal(JobPayloadFormat.Json.Id, stored.Contract.InputFormatId);
         Assert.False(string.IsNullOrEmpty(stored.DefinitionHash));
-        Assert.Equal(JobDefinitionStatusCode.Active, stored.Status);
+        Assert.Equal(DefinitionStatusCode.Active, stored.Status);
         Assert.Equal(3, stored.Effective.MaxAttempts);
         Assert.Equal(secondId, catalog[second].Id);
         Assert.Equal(5, catalog[second].Effective.MaxAttempts);
@@ -91,7 +91,7 @@ public sealed class GetDefinitionContractsSpec : ActaStorageTestBase<Conformance
             .RetireAsync(TestNamespace, name, await VersionAsync(id, ct), "left the build", "tester", ct);
         Assert.Equal(ControlAction.Applied, retired.Action);
 
-        Assert.Equal(JobDefinitionStatusCode.Retired, Assert.Single(await ReadAsync(TestNamespaceId, ct)).Status);
+        Assert.Equal(DefinitionStatusCode.Retired, Assert.Single(await ReadAsync(TestNamespaceId, ct)).Status);
     }
 
     [Fact(DisplayName = "The catalog holds only the asked namespace's definitions")]

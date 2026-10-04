@@ -36,8 +36,8 @@ public sealed class PersistedCodeContractTests
         SettingScopeCode.Global=10|global
         SettingScopeCode.Namespace=30|namespace
         SettingScopeCode.Definition=40|definition
-        JobDefinitionStatusCode.Active=10|active
-        JobDefinitionStatusCode.Retired=240|retired
+        DefinitionStatusCode.Active=10|active
+        DefinitionStatusCode.Retired=240|retired
         EventCode.Unspecified=0|unspecified
         EventCode.TenantSuspended=10|tenant.suspended
         EventCode.TenantResumed=11|tenant.resumed
@@ -75,33 +75,33 @@ public sealed class PersistedCodeContractTests
         EventCode.SettingUpdated=160|setting.updated
         EventCode.OutboxRequeued=180|outbox.requeued
         EventCode.OutboxDiscarded=181|outbox.discarded
-        JobEventReasonCode.Unspecified=0|unspecified
-        JobEventReasonCode.Unclassified=10|job.unclassified
-        JobEventReasonCode.JobUnhandledException=20|job.unhandled-exception
-        JobEventReasonCode.JobLeaseExpired=21|job.lease-expired
-        JobEventReasonCode.JobExecutionTimeout=22|job.execution-timeout
-        JobEventReasonCode.JobNonRetryableException=23|job.non-retryable-exception
-        JobEventReasonCode.JobDeadlineExceeded=24|job.deadline-exceeded
-        JobEventReasonCode.JobAttemptAborted=25|job.attempt-aborted
-        JobEventReasonCode.JobSchedulesExhausted=30|job.schedules-exhausted
-        JobEventReasonCode.JobControlManual=40|job.control-manual
-        JobEventReasonCode.JobParentCancelled=41|job.parent-cancelled
-        JobEventReasonCode.JobDefinitionRetired=42|job.definition-retired
-        JobEventReasonCode.JobHandlerRescheduled=50|job.handler-rescheduled
-        JobEventReasonCode.JobHandlerSuspended=51|job.handler-suspended
-        JobEventReasonCode.JobHandlerFailed=52|job.handler-failed
-        JobEventReasonCode.JobHandlerCancelled=53|job.handler-cancelled
-        JobEventReasonCode.JobHandlerPaused=54|job.handler-paused
-        JobEventReasonCode.JobSignalReleased=60|job.signal-released
-        JobEventReasonCode.JobStepRetryScheduled=61|job.step-retry-scheduled
-        JobEventReasonCode.JobConcurrencyKeyHeld=62|job.concurrency-key-held
-        JobEventReasonCode.JobStepInterrupted=63|job.step-interrupted
-        JobEventReasonCode.JobResultOversized=64|job.result-oversized
-        JobEventReasonCode.JobWaitTimedOut=65|job.wait-timed-out
-        JobEventReasonCode.JobRateLimited=66|job.rate-limited
-        JobEventReasonCode.JobLaneRepaired=67|job.lane-repaired
-        JobEventReasonCode.WorkerCleanShutdown=100|worker.clean-shutdown
-        JobEventReasonCode.WorkerHeartbeatStale=101|worker.heartbeat-stale
+        EventReasonCode.Unspecified=0|unspecified
+        EventReasonCode.Unclassified=10|job.unclassified
+        EventReasonCode.JobUnhandledException=20|job.unhandled-exception
+        EventReasonCode.JobLeaseExpired=21|job.lease-expired
+        EventReasonCode.JobExecutionTimeout=22|job.execution-timeout
+        EventReasonCode.JobNonRetryableException=23|job.non-retryable-exception
+        EventReasonCode.JobDeadlineExceeded=24|job.deadline-exceeded
+        EventReasonCode.JobAttemptAborted=25|job.attempt-aborted
+        EventReasonCode.JobSchedulesExhausted=30|job.schedules-exhausted
+        EventReasonCode.JobControlManual=40|job.control-manual
+        EventReasonCode.JobParentCancelled=41|job.parent-cancelled
+        EventReasonCode.JobDefinitionRetired=42|job.definition-retired
+        EventReasonCode.JobHandlerRescheduled=50|job.handler-rescheduled
+        EventReasonCode.JobHandlerSuspended=51|job.handler-suspended
+        EventReasonCode.JobHandlerFailed=52|job.handler-failed
+        EventReasonCode.JobHandlerCancelled=53|job.handler-cancelled
+        EventReasonCode.JobHandlerPaused=54|job.handler-paused
+        EventReasonCode.JobSignalReleased=60|job.signal-released
+        EventReasonCode.JobStepRetryScheduled=61|job.step-retry-scheduled
+        EventReasonCode.JobConcurrencyKeyHeld=62|job.concurrency-key-held
+        EventReasonCode.JobStepInterrupted=63|job.step-interrupted
+        EventReasonCode.JobResultOversized=64|job.result-oversized
+        EventReasonCode.JobWaitTimedOut=65|job.wait-timed-out
+        EventReasonCode.JobRateLimited=66|job.rate-limited
+        EventReasonCode.JobLaneRepaired=67|job.lane-repaired
+        EventReasonCode.WorkerCleanShutdown=100|worker.clean-shutdown
+        EventReasonCode.WorkerHeartbeatStale=101|worker.heartbeat-stale
         ExecutionStatusCode.Executing=50|executing
         ExecutionStatusCode.Succeeded=100|succeeded
         ExecutionStatusCode.Rescheduled=150|rescheduled
@@ -110,36 +110,36 @@ public sealed class PersistedCodeContractTests
         ExecutionStatusCode.Failed=200|failed
         ExecutionStatusCode.Cancelled=220|cancelled
         ExecutionStatusCode.Orphaned=230|orphaned
-        JobCheckpointKindCode.Variable=10|variable
-        JobCheckpointKindCode.Signal=20|signal
-        JobCheckpointKindCode.Timer=30|timer
-        JobCheckpointKindCode.Progress=40|progress
-        JobCheckpointKindCode.ChildLatch=50|child-latch
-        JobCheckpointStatusCode.Pending=10|pending
-        JobCheckpointStatusCode.Set=20|set
-        JobCheckpointStatusCode.Expired=30|expired
-        JobCheckpointStatusCode.Consumed=100|consumed
-        JobStepStatusCode.Pending=10|pending
-        JobStepStatusCode.Succeeded=100|succeeded
-        JobStepStatusCode.Exhausted=200|exhausted
-        JobStepStatusCode.Interrupted=230|interrupted
+        CheckpointKindCode.Variable=10|variable
+        CheckpointKindCode.Signal=20|signal
+        CheckpointKindCode.Timer=30|timer
+        CheckpointKindCode.Progress=40|progress
+        CheckpointKindCode.ChildLatch=50|child-latch
+        CheckpointStatusCode.Pending=10|pending
+        CheckpointStatusCode.Set=20|set
+        CheckpointStatusCode.Expired=30|expired
+        CheckpointStatusCode.Consumed=100|consumed
+        StepStatusCode.Pending=10|pending
+        StepStatusCode.Succeeded=100|succeeded
+        StepStatusCode.Exhausted=200|exhausted
+        StepStatusCode.Interrupted=230|interrupted
         DeadlineBehaviorCode.Strict=10|strict
         DeadlineBehaviorCode.Advisory=20|advisory
         ActorCode.Sys=10|sys
         ActorCode.Operator=20|operator
         ActorCode.Job=50|job
         ActorCode.Worker=70|worker
-        JobAuditLevelCode.Off=0|off
-        JobAuditLevelCode.Failures=10|failures
-        JobAuditLevelCode.Audit=20|audit
+        DefinitionAuditLevelCode.Off=0|off
+        DefinitionAuditLevelCode.Failures=10|failures
+        DefinitionAuditLevelCode.Audit=20|audit
         JobPriorityCode.Bulk=0|bulk
         JobPriorityCode.Normal=50|normal
         JobPriorityCode.High=70|high
         JobPriorityCode.Critical=85|critical
         JobPriorityCode.Realtime=100|realtime
-        JobTenantRequirementCode.Optional=0|optional
-        JobTenantRequirementCode.Required=10|required
-        JobTenantRequirementCode.Forbidden=20|forbidden
+        DefinitionTenantRequirementCode.Optional=0|optional
+        DefinitionTenantRequirementCode.Required=10|required
+        DefinitionTenantRequirementCode.Forbidden=20|forbidden
         JobStatusCode.Ready=10|ready
         JobStatusCode.Blocked=15|blocked
         JobStatusCode.Suspended=20|suspended
@@ -179,7 +179,7 @@ public sealed class PersistedCodeContractTests
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "FF47B0D5797B2E36CA918DD4AB382E8FBBE5A9561C86DD9349DE11CCEF6DC66E";
+    private const string ExpectedDescriptionHash = "DEAB960620CED465978EC524AD818522190E463BEC251563CDAFC89A1A594616";
 
     [Fact]
     public void Frozen_contract_covers_all_29_families_and_168_values()
@@ -205,11 +205,11 @@ public sealed class PersistedCodeContractTests
 
         Assert.Equal(168, CodeManifests.All.Count);
         Assert.Equal(37, Enum.GetValues<EventCode>().Length);
-        Assert.Equal(27, Enum.GetValues<JobEventReasonCode>().Length);
+        Assert.Equal(27, Enum.GetValues<EventReasonCode>().Length);
 
         Assert.Equal((byte)200, (byte)JobStatusCode.Failed);
         Assert.Equal((byte)200, (byte)ExecutionStatusCode.Failed);
-        Assert.Equal((byte)200, (byte)JobStepStatusCode.Exhausted);
+        Assert.Equal((byte)200, (byte)StepStatusCode.Exhausted);
         Assert.Equal((byte)200, (byte)AlertDeliveryStatusCode.Failed);
         Assert.Equal((byte)200, (byte)WorkerStatusCode.Dead);
 
@@ -284,7 +284,7 @@ public sealed class PersistedCodeContractTests
         // A value with no member can still reach Code or the JSON writer by a cast; an extensible
         // family names it by its id-0 member instead of throwing, a closed family still throws.
         Assert.Equal("unspecified", ((EventCode)200).Code);
-        Assert.Equal("unspecified", ((JobEventReasonCode)200).Code);
+        Assert.Equal("unspecified", ((EventReasonCode)200).Code);
         Assert.Equal("unspecified", ((AlertKindCode)200).Code);
         Assert.Throws<ArgumentOutOfRangeException>(() => ((JobStatusCode)250).Code);
 
@@ -310,7 +310,7 @@ public sealed class PersistedCodeContractTests
         // The two widest families are the ones whose headroom is worth pinning: their assigned ids
         // (the manifest is the assigned set) plus the architecture reserve held out of EventCode.
         Assert.Equal(37, EventCode.Manifest.Count);
-        Assert.Equal(27, JobEventReasonCode.Manifest.Count);
+        Assert.Equal(27, EventReasonCode.Manifest.Count);
         Assert.Equal(31, typeof(EventCode).GetCustomAttributes<ReservedCodeRangeAttribute>().Sum(range => range.End - range.Start + 1));
         Assert.All(
             CodeFamilies(),

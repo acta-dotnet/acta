@@ -26,7 +26,7 @@ SELECT
     NULL,
     NULL,
     NULL,
-    100 /* JobEventReasonCode.WorkerCleanShutdown */,
+    100 /* EventReasonCode.WorkerCleanShutdown */,
     NULL
 FROM {{schema}}.workers w
 WHERE w.id = @p_worker_id AND CHANGES() > 0;
