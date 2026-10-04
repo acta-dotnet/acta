@@ -1,0 +1,199 @@
+# Operations
+
+> Generated from the source tree. Do not edit by hand. Regenerate:
+> `ACTA_EMIT_DOCS=1 dotnet test tests/Acta.Tests --filter OperationsIndexTests`.
+
+One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`. **Facade** is the public method that runs it; an operation with none is engine-only. **HTTP** routes sit under `{mount}/v1`. The dialect columns say whether the SQL is a routine or inline. **Writes** lists the tables its SQL inserts into, updates, or deletes from. **Specs** are in `tests/Acta.Tests.Conformance/Operations/<Group>/`.
+
+## Alerts
+
+| Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `AcknowledgeJobAlert` | `IAlerts.AcknowledgeAsync` | `POST /alerts/{alertRef}/acknowledge` | · | routine | routine | inline | `alerts`, `events` | · |
+| `GetAlertableEvents` | · | · | · | inline | inline | inline | · | · |
+| `GetDeliverableAlerts` | · | · | · | inline | inline | inline | · | · |
+| `GetJobAlert` | `IAlerts.GetAsync` | `GET /alerts/{alertRef}` | · | inline | inline | inline | · | · |
+| `ListJobAlerts` | `IAlerts.ListAsync` | `GET /alerts` | · | inline | inline | inline | · | · |
+| `RaiseJobAlert` | · | · | · | routine | routine | inline | `alerts` | · |
+| `ResolveJobAlertManual` | `IAlerts.ResolveAsync` | `POST /alerts/{alertRef}/resolve` | · | routine | routine | inline | `alerts`, `events` | · |
+| `ResolveJobAlerts` | · | · | · | routine | routine | inline | `alerts` | · |
+| `UpdateAlertDelivery` | · | · | · | routine | routine | inline | `alerts` | · |
+
+## Clock
+
+| Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `GetUtcNow` | · | · | · | inline | inline | inline | · | · |
+
+## Definitions
+
+| Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `GetDefinitionContracts` | · | · | · | inline | inline | inline | · | · |
+| `GetJobDefinition` | `IDefinitions.GetAsync` | `GET /definitions/{jobNamespace}/{jobName}` | · | inline | inline | inline | · | · |
+| `ListJobDefinitions` | `IDefinitions.ListAsync` | `GET /definitions` | · | inline | inline | inline | · | · |
+| `RegisterJobDefinitions` | · | · | · | routine | routine | inline | `definitions` | · |
+| `RetireJobDefinition` | `IDefinitions.RetireAsync` | `POST /definitions/{jobNamespace}/{jobName}/retire` | · | inline | inline | inline | `definitions`, `events`, `runtimes` | · |
+| `SetJobDefinitionOverrides` | `IDefinitions.UpdateOverridesAsync` | `PATCH /definitions/{jobNamespace}/{jobName}` | · | routine | routine | inline | `definitions`, `events` | · |
+
+## Execution
+
+| Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `ArmOrConsumeSleepTimer` | · | · | · | routine | routine | inline | `checkpoints`, `runtimes` | · |
+| `CheckpointSlot` | · | · | · | routine | routine | inline | `checkpoints` | · |
+| `ClaimBatch` | · | · | · | routine | routine | inline | `events`, `runtimes` | · |
+| `ClaimOne` | · | · | · | routine | routine | inline | `events`, `runtimes` | · |
+| `CompleteExecution` | · | · | · | routine | routine | inline | `checkpoints`, `events`, `results`, `runtimes`, `schedules` | · |
+| `CompleteStep` | · | · | · | routine | routine | inline | `steps` | · |
+| `GetChildJobIds` | · | · | · | inline | inline | inline | · | · |
+| `GetStaleChildLatches` | · | · | · | inline | inline | inline | · | · |
+| `ReclaimStuckJobs` | · | · | · | routine | routine | inline | `events`, `runtimes` | · |
+| `RecordJobNote` | · | · | · | routine | routine | inline | `events` | · |
+| `RepairRecoverySlot` | · | · | · | routine | routine | inline | `events`, `runtimes` | · |
+| `StartExecution` | · | · | · | routine | routine | inline | `events`, `runtimes` | · |
+| `StartStep` | · | · | · | routine | routine | inline | `steps` | · |
+
+## Jobs
+
+| Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `CancelJob` | `IJobs.CancelAsync` | `POST /jobs/{jobRef}/cancel` | `cancel` | routine | routine | inline | `events`, `runtimes` | · |
+| `EnqueueBatch` | `IJobs.EnqueueBatchAsync` | · | · | routine | routine | inline | `jobs`, `lanes`, `runtimes`, `tags` | · |
+| `EnqueueOne` | `IJobs.EnqueueAsync`<br>`IJobs.RunAndWaitAsync` | `POST /jobs` | · | routine | routine | inline | `jobs`, `lanes`, `runtimes`, `tags` | · |
+| `GetInputTemplate` | `IJobs.GetInputTemplate` | `GET /jobs/input-template` | · | · | · | · | · | · |
+| `GetJob` | `IJobs.RunAndWaitAsync`<br>`IJobs.GetAsync` | `GET /jobs/{jobRef}`<br>`GET /jobs/by-key`<br>`GET /jobs/{jobRef}/detail` | · | inline | inline | inline | · | · |
+| `GetJobCheckpoints` | `IJobs.GetCheckpointsAsync` | · | · | inline | inline | inline | · | · |
+| `GetJobExplanation` | `IJobs.ExplainAsync` | · | `explain` | inline | inline | inline | · | · |
+| `GetJobInput` | `IJobs.GetInputAsync` | `GET /jobs/{jobRef}/input` | · | inline | inline | inline | · | · |
+| `GetJobLineageMap` | `IJobs.GetLineageMapAsync` | · | · | inline | inline | inline | · | · |
+| `GetJobResult` | `IJobs.RunAndWaitAsync`<br>`IJobs.GetResultAsync` | · | `result` | inline | inline | inline | · | · |
+| `GetJobStatus` | `IJobs.GetStatusAsync` | · | `status` | inline | inline | inline | · | · |
+| `PauseJob` | `IJobs.PauseAsync` | `POST /jobs/{jobRef}/pause` | `pause` | routine | routine | inline | `events`, `runtimes` | · |
+| `PurgeJob` | `IJobs.PurgeAsync` | `POST /jobs/{jobRef}/purge` | · | routine | routine | inline | `alerts`, `events`, `jobs`, `tags` | · |
+| `ReprioritizeJob` | `IJobs.ReprioritizeAsync` | `POST /jobs/{jobRef}/reprioritize` | · | routine | routine | inline | `events`, `runtimes` | · |
+| `RescheduleJob` | `IJobs.RescheduleAsync` | `POST /jobs/{jobRef}/reschedule` | · | routine | routine | inline | `events`, `runtimes` | · |
+| `ResetJobState` | · | · | · | routine | routine | inline | `checkpoints`, `events`, `results`, `steps` | · |
+| `ResolveJobIdByDeduplicationKey` | `IJobs.GetJobIdAsync` | · | · | inline | inline | inline | · | · |
+| `ResolveJobIdByRef` | `IJobs.GetJobIdAsync` | · | · | inline | inline | inline | · | · |
+| `RestartJob` | `IJobs.RestartAsync` | `POST /jobs/{jobRef}/restart` | `restart` | routine | routine | inline | `events`, `runtimes`, `steps` | · |
+| `ResumeJob` | `IJobs.ResumeAsync` | `POST /jobs/{jobRef}/resume` | `resume` | routine | routine | inline | `events`, `runtimes` | · |
+| `UpdateJobInput` | `IJobs.UpdateJobInputAsync` | `POST /jobs/{jobRef}/input` | · | routine | routine | inline | `events`, `jobs` | · |
+
+## Ledger
+
+| Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `GetOverview` | `ILedger.GetOverviewAsync` | `GET /overview` | · | inline | inline | inline | · | · |
+| `ListEvents` | `ILedger.ListEventsAsync` | `GET /events`<br>`GET /jobs/{jobRef}/events`<br>`GET /definitions/{jobNamespace}/{jobName}/events` | `events` | inline | inline | inline | · | · |
+| `ListJobs` | `ILedger.ListJobsAsync` | `GET /jobs` | · | inline | inline | inline | · | · |
+
+## Locks
+
+| Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `AcquireLock` | · | · | · | routine | routine | inline | `locks` | · |
+| `AcquireSlot` | · | · | · | routine | routine | inline | `locks` | · |
+| `ExtendLock` | · | · | · | routine | routine | inline | `locks` | · |
+| `ReleaseLock` | · | · | · | routine | routine | inline | `locks` | · |
+| `ReserveRate` | · | · | · | routine | routine | inline | `locks` | · |
+
+## Maintenance
+
+| Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `PurgeExpiredData` | · | · | · | routine | routine | inline | `alerts`, `checkpoints`, `events`, `jobs`, `lanes`, `locks`, `tags`, `workers` | · |
+
+## Namespaces
+
+| Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `ListNamespaceItems` | `INamespaces.ListAsync` | · | · | inline | inline | inline | · | · |
+| `ListNamespaces` | `INamespaces.ListNamesAsync`<br>`INamespaces.ListAsync` | · | · | inline | inline | inline | · | · |
+| `ResumeNamespace` | `INamespaces.ResumeAsync` | `POST /namespaces/{jobNamespace}/resume` | · | routine | routine | inline | `events`, `namespaces` | · |
+| `SuspendNamespace` | `INamespaces.SuspendAsync` | `POST /namespaces/{jobNamespace}/suspend` | · | routine | routine | inline | `events`, `namespaces` | · |
+| `UpdateNamespace` | `INamespaces.UpdateAsync` | `PATCH /namespaces/{jobNamespace}` | · | routine | routine | inline | `events`, `namespaces` | · |
+
+## Outbox
+
+| Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `ClaimOutbox` | · | · | · | inline | inline | inline | · | · |
+| `ConsumeOutboxSignal` | · | · | · | routine | routine | inline | `checkpoints` | · |
+| `CountOutboxBacklog` | · | · | · | inline | inline | inline | · | · |
+| `CountOutboxQuarantined` | · | · | · | inline | inline | inline | · | · |
+| `DeleteClaimedOutbox` | · | · | · | inline | inline | inline | · | · |
+| `DiscardOutbox` | `IOutbox.DiscardAsync` | `POST /outbox/{jobNamespace}/discard` | · | · | · | · | · | · |
+| `DiscardQuarantinedOutbox` | · | · | · | inline | inline | inline | · | · |
+| `GetOutboxSignal` | · | · | · | inline | inline | inline | · | · |
+| `ListOutboxQuarantined` | `IOutbox.ListQuarantinedAsync` | `GET /outbox/{jobNamespace}/quarantined` | · | · | · | · | · | · |
+| `ListOutboxSources` | `IOutbox.ListSourcesAsync` | `GET /outbox/sources` | · | · | · | · | · | · |
+| `ListQuarantinedOutbox` | · | · | · | inline | inline | inline | · | · |
+| `ParkOutboxSignal` | · | · | · | routine | routine | inline | `checkpoints` | · |
+| `QuarantineOutbox` | · | · | · | inline | inline | inline | · | · |
+| `RecordOutboxEvent` | · | · | · | routine | routine | inline | `events` | · |
+| `ReleaseClaimedOutbox` | · | · | · | inline | inline | inline | · | · |
+| `RequeueOutbox` | `IOutbox.RequeueAsync` | `POST /outbox/{jobNamespace}/requeue` | · | · | · | · | · | · |
+| `RequeueQuarantinedOutbox` | · | · | · | inline | inline | inline | · | · |
+| `RescheduleOutbox` | · | · | · | inline | inline | inline | · | · |
+
+## Schedules
+
+| Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `GetLiveSchedules` | · | · | · | inline | inline | inline | · | · |
+| `GetScheduleState` | · | · | · | inline | inline | inline | · | · |
+| `ListJobSchedules` | `ISchedules.ListAsync` | `GET /schedules` | · | inline | inline | inline | · | · |
+| `PauseSchedule` | `ISchedules.PauseAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/pause` | · | routine | routine | inline | `events`, `runtimes`, `schedules` | · |
+| `PreviewSchedule` | `ISchedules.PreviewAsync` | `GET /schedules/{jobNamespace}/{jobName}/{scheduleName}/preview` | · | · | · | · | · | · |
+| `RegisterScheduledJobs` | · | · | · | routine | routine | inline | `jobs`, `runtimes`, `schedules` | · |
+| `ResumeSchedule` | `ISchedules.ResumeAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/resume` | · | routine | routine | inline | `events`, `runtimes`, `schedules` | · |
+| `SetScheduleOverrides` | `ISchedules.UpdateOverridesAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/overrides` | · | routine | routine | inline | `events`, `runtimes`, `schedules` | · |
+| `TriggerScheduleNow` | `ISchedules.TriggerNowAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/trigger` | · | routine | routine | inline | `events`, `runtimes` | · |
+
+## Settings
+
+| Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `GetSetting` | `ISettings.GetAsync` | · | · | inline | inline | inline | · | · |
+| `SetSetting` | `ISettings.SetAsync` | · | · | routine | routine | inline | `events`, `settings` | · |
+
+## Signals
+
+| Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `RaiseSignal` | `IJobs.RaiseSignalAsync` | `POST /jobs/{jobRef}/signals/{signalName}` | `signal` | routine | routine | inline | `checkpoints`, `events`, `runtimes` | · |
+| `WaitSignal` | · | · | · | routine | routine | inline | `checkpoints` | · |
+
+## Tags
+
+| Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `GetTags` | `ITags.GetAsync` | `GET /alerts/{alertRef}/tags`<br>`GET /definitions/{jobNamespace}/{jobName}/tags`<br>`GET /jobs/{jobRef}/tags`<br>`GET /namespaces/{jobNamespace}/tags`<br>`GET /schedules/{jobNamespace}/{jobName}/{scheduleName}/tags`<br>`GET /tenants/{tenantKey}/tags`<br>`GET /workers/{workerRef}/tags` | · | inline | inline | inline | · | · |
+| `RemoveTags` | `ITags.RemoveAsync` | `DELETE /alerts/{alertRef}/tags/{tagName}`<br>`DELETE /definitions/{jobNamespace}/{jobName}/tags/{tagName}`<br>`DELETE /jobs/{jobRef}/tags/{tagName}`<br>`DELETE /namespaces/{jobNamespace}/tags/{tagName}`<br>`DELETE /schedules/{jobNamespace}/{jobName}/{scheduleName}/tags/{tagName}`<br>`DELETE /tenants/{tenantKey}/tags/{tagName}`<br>`DELETE /workers/{workerRef}/tags/{tagName}` | · | · | · | · | · | · |
+| `ReplaceTags` | `ITags.ReplaceAsync` | · | · | · | · | · | · | · |
+| `UpsertTags` | `ITags.UpsertAsync` | `POST /alerts/{alertRef}/tags`<br>`POST /definitions/{jobNamespace}/{jobName}/tags`<br>`POST /jobs/{jobRef}/tags`<br>`POST /namespaces/{jobNamespace}/tags`<br>`POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/tags`<br>`POST /tenants/{tenantKey}/tags`<br>`POST /workers/{workerRef}/tags` | · | · | · | · | · | · |
+
+## Tenants
+
+| Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `GetTenant` | `ITenants.GetAsync` | `GET /tenants/{tenantKey}` | · | inline | inline | inline | · | · |
+| `GetTenantKey` | · | · | · | inline | inline | inline | · | · |
+| `ListTenants` | `ITenants.ListAsync` | `GET /tenants` | · | inline | inline | inline | · | · |
+| `RegisterTenant` | `ITenants.RegisterAsync` | `POST /tenants` | · | routine | routine | inline | `tenants` | · |
+| `ResumeTenant` | `ITenants.ResumeAsync` | `POST /tenants/{tenantKey}/resume` | · | routine | routine | inline | `events`, `tenants` | · |
+| `SuspendTenant` | `ITenants.SuspendAsync` | `POST /tenants/{tenantKey}/suspend` | · | routine | routine | inline | `events`, `tenants` | · |
+| `UpdateTenant` | `ITenants.UpdateAsync` | `PATCH /tenants/{tenantKey}` | · | routine | routine | inline | `events`, `tenants` | · |
+
+## Workers
+
+| Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `ExtendWorkerLeases` | · | · | · | routine | routine | inline | `runtimes`, `workers` | · |
+| `GetWorker` | `IWorkers.GetAsync` | `GET /workers/{workerRef}` | · | inline | inline | inline | · | · |
+| `ListWorkers` | `IWorkers.ListAsync` | `GET /workers` | · | inline | inline | inline | · | · |
+| `MarkDeadWorkers` | · | · | · | routine | routine | inline | `events`, `workers` | · |
+| `StartWorker` | · | · | · | routine | routine | inline | `events`, `namespaces`, `workers` | · |
+| `StopWorker` | · | · | · | routine | routine | inline | `events`, `workers` | · |
+

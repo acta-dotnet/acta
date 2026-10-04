@@ -50,7 +50,8 @@ complete per-provider SQL (migrations, views, routines) for DBA-run provisioning
 application principal is not allowed DDL. The [HTTP API contract](./reference/openapi.json) is the
 OpenAPI document of the dashboard JSON API, and the
 [conformance contracts](./reference/conformance-contracts.md) list every specified behavior with the
-arrange/act/assert that proves it.
+arrange/act/assert that proves it. The [operations index](./reference/operations.md) maps each operation
+to its facade method, HTTP routes, CLI verb, SQL, and specs.
 
 ## Internals
 
