@@ -612,6 +612,28 @@ alphabet after data exists would strand stored identifiers. Loosening
 a rule later is compatible and tightening is breaking, so whatever 1.0 accepts stays accepted: the
 simplification belongs before the 1.0 freeze or not at all.
 
+## Hardening the SQL-coordinated model
+
+Marko (2026-10-04): Acta's advantage is that durable execution and business data share one
+transactional database. The next step is to make that model boringly reliable under real production
+failures, not to grow it toward Temporal: fewer moving parts, transactional job creation, predictable
+recovery, and confidence that worker crashes, database failovers, rolling deploys, and ambiguous
+commits cannot corrupt execution state.
+
+Five strands:
+
+- Self-healing recovery: every state a crash can strand has a check that repairs it without an operator.
+- Strict lease fencing: a worker whose lease expired cannot complete, checkpoint, or re-arm the execution it lost.
+- Frozen storage contracts: the 1.0 schema, routine signatures, and persisted vocabulary change only through a deliberate migration.
+- Deterministic crash and failover tests: each critical transition (claim, complete, retry, re-arm, signal, child latch, outbox relay) runs with a crash injected before and after its commit, and with the commit's outcome unknown to the caller.
+- Load protection: retries, reclaims, and polling back off and stay capped, so a slow database does not turn into a retry storm, and a worker never claims more than it can run.
+
+Some of this exists already: the rolling-deploy rules, forward-only migrations, completion retries that
+act as backpressure, and the conformance suites on three providers. The first step is an audit that
+maps each strand to what already holds and the test that proves it, and lists the gaps. The ambiguous
+commit, where a completion's commit succeeded but its acknowledgement was lost, is the case most likely
+to need new tests.
+
 ## Possible order
 
 Declarative flows and the contract checker fit together and feel like the strongest first direction.
