@@ -52,7 +52,7 @@ public sealed class WaitTimeoutReclaimSpec : ActaRuntimeTestBase<ConformanceFixt
         );
         Assert.Equal(enqueued.JobId, claimed.JobId);
         var resolved = await Services
-            .GetRequiredService<ISignalStore>()
+            .GetRequiredService<ISignals>()
             .WaitSignalAsync(enqueued.JobId, JobCheckpointKindCode.Signal, "go", timeoutSeconds: null, ct);
         Assert.Equal(SignalWaitOutcomeCode.TimedOut, resolved.Outcome);
 
@@ -204,7 +204,7 @@ public sealed class WaitTimeoutReclaimSpec : ActaRuntimeTestBase<ConformanceFixt
 
         Assert.Single(await Services.GetRequiredService<IExecutionStore>().ClaimOneAsync(ns, worker, DeadLeaseTtlSeconds, enqueued, ct));
         var resolved = await Services
-            .GetRequiredService<ISignalStore>()
+            .GetRequiredService<ISignals>()
             .WaitSignalAsync(enqueued.JobId, JobCheckpointKindCode.Signal, "go", timeoutSeconds: null, ct);
         Assert.Equal(SignalWaitOutcomeCode.TimedOut, resolved.Outcome);
 

@@ -559,7 +559,7 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
             namespaceId: TestNamespaceId,
             leaseTtlSeconds: 180,
             jobStore: Services.GetRequiredService<IJobStore>(),
-            signalStore: Services.GetRequiredService<ISignalStore>(),
+            signals: Services.GetRequiredService<ISignals>(),
             alerts: Services.GetRequiredService<IAlertLifecycle>(),
             executionStore: Services.GetRequiredService<IExecutionStore>(),
             serializers: Services.GetRequiredService<IJobPayloadSerializerRegistry>(),

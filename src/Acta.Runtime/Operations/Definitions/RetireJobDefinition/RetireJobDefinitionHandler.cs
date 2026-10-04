@@ -12,7 +12,7 @@ internal sealed class RetireJobDefinitionHandler(
     IDbSession session,
     ISqlDialect dialect,
     WorkerWakeupPublisher wakeupPublisher,
-    ISignalStore signalStore
+    ISignals signals
 )
 {
     public async ValueTask<RetireJobDefinitionResponse> HandleAsync(RetireJobDefinitionCommand command, CancellationToken ct)
@@ -56,7 +56,7 @@ internal sealed class RetireJobDefinitionHandler(
             }
 
             await wakeupPublisher.WakeAsync(WorkerWakeupChannel.JobCompletion(jobId), WorkerWakeupReason.JobFinished, ct);
-            if (row.ParentId is { } parent && await RaiseChildLatch.Run(signalStore, jobId, parent, JobStatusCode.Cancelled, ct))
+            if (row.ParentId is { } parent && await RaiseChildLatch.Run(signals, jobId, parent, JobStatusCode.Cancelled, ct))
             {
                 released = true;
             }

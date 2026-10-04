@@ -99,11 +99,11 @@ public sealed class RecoveryPassTests
             throw new NotSupportedException("A recovery pass never waits on a wakeup.");
     }
 
-    private sealed class FakeSignalStore : ISignalStore
+    private sealed class FakeSignalStore : ISignals
     {
         public bool Releases { get; init; }
 
-        public Task<JobControlOutcome> RaiseSignalAsync(RaiseSignalCommand command, CancellationToken ct) =>
+        public Task<JobControlOutcome> RaiseSignalAsync(SignalSlotRaise command, CancellationToken ct) =>
             Task.FromResult(
                 Releases
                     ? new JobControlOutcome(ControlAction.Applied, JobStatusCode.Ready, null)

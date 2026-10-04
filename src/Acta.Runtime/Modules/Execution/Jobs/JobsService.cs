@@ -13,7 +13,7 @@ internal sealed class JobsService(
     IJobStore store,
     IActaClock clock,
     IJobPayloadSerializerRegistry serializers,
-    Acta.Runtime.ISignalStore signalStore,
+    ISignals signals,
     GetLiveSchedulesHandler liveSchedules,
     IExecutionStore executionStore,
     WorkerWakeupPublisher wakeupPublisher,
@@ -368,8 +368,7 @@ internal sealed class JobsService(
         {
             await wakeupPublisher.WakeAsync(WorkerWakeupChannel.JobCompletion(result.JobId), WorkerWakeupReason.JobFinished, ct);
             var released =
-                cancel.ParentId is { } parentId
-                && await RaiseChildLatch.Run(signalStore, jobId.Value, parentId, JobStatusCode.Cancelled, ct);
+                cancel.ParentId is { } parentId && await RaiseChildLatch.Run(signals, jobId.Value, parentId, JobStatusCode.Cancelled, ct);
 
             // A released parent or a promoted lane member is new work; the routine knows no namespace
             // name, so every worker namespace hears it.

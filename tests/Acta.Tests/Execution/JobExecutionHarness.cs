@@ -166,7 +166,7 @@ internal sealed class JobExecutionHarness(
             namespaceId: 1,
             leaseTtlSeconds: options.Value.LeaseTtlSeconds,
             jobStore: null!,
-            signalStore: null!,
+            signals: null!,
             alerts: null!,
             executionStore: _store,
             new HarnessSerializers(),
@@ -611,7 +611,7 @@ internal sealed class JobExecutionHarness(
     // The root provider JobExecutor resolves its store from. Only the store is answered, so a path
     // that starts resolving anything else fails loudly instead of silently taking a null.
     // The services the executor resolves for an attempt, and a scope that is the provider itself: the
-    // stores are the scripted ones, the signal store and the alert sink are never reached by a handler
+    // stores are the scripted ones, the signal seam and the alert sink are never reached by a handler
     // that runs one step, and anything else resolves to null.
     private sealed class StoreOnlyServices(IExecutionStore store, IJobStore jobs)
         : IServiceProvider,
@@ -630,7 +630,7 @@ internal sealed class JobExecutionHarness(
             : serviceType == typeof(IServiceScopeFactory) ? this
             : serviceType == typeof(WorkerWakeupPublisher) ? _wakeup
             : serviceType == typeof(IJobContextAccessor) ? _accessor
-            : serviceType == typeof(Acta.Runtime.ISignalStore) ? NoSignals.Instance
+            : serviceType == typeof(ISignals) ? NoSignals.Instance
             : serviceType == typeof(IAlertLifecycle) ? NoAlerts.Instance
             : null;
 
@@ -640,11 +640,11 @@ internal sealed class JobExecutionHarness(
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
-        private sealed class NoSignals : Acta.Runtime.ISignalStore
+        private sealed class NoSignals : ISignals
         {
             public static readonly NoSignals Instance = new();
 
-            public Task<JobControlOutcome> RaiseSignalAsync(Acta.Runtime.RaiseSignalCommand command, CancellationToken ct) =>
+            public Task<JobControlOutcome> RaiseSignalAsync(SignalSlotRaise command, CancellationToken ct) =>
                 throw new NotSupportedException();
 
             public Task<Acta.Runtime.SignalWaitDecision> WaitSignalAsync(

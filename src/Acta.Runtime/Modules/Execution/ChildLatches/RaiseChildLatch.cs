@@ -14,13 +14,7 @@ internal static class RaiseChildLatch
 {
     public const string NamePrefix = "sys.child.";
 
-    public static async Task<bool> Run(
-        ISignalStore signals,
-        long childJobId,
-        long parentJobId,
-        JobStatusCode childStatus,
-        CancellationToken ct
-    )
+    public static async Task<bool> Run(ISignals signals, long childJobId, long parentJobId, JobStatusCode childStatus, CancellationToken ct)
     {
         // Write side of the child-latch checkpoint key. The name is persisted in the ledger and matched
         // as text by JobContext.WaitChildAsync, in another process and possibly another culture, so the
@@ -30,7 +24,7 @@ internal static class RaiseChildLatch
         var envelope = ChildOutcomeEnvelope.Write(childJobId, childStatus);
         var input = new JobControlInput(new JobControlActor(ActorCode.Sys), JobEventReasonCode.JobSignalReleased, null);
         var outcome = await signals.RaiseSignalAsync(
-            new RaiseSignalCommand(parentJobId, JobCheckpointKindCode.ChildLatch, slotName, JobPayloadFormat.Json.Id, envelope, input),
+            new SignalSlotRaise(parentJobId, JobCheckpointKindCode.ChildLatch, slotName, JobPayloadFormat.Json.Id, envelope, input),
             ct
         );
         return outcome.Action == ControlAction.Applied && outcome.Status == JobStatusCode.Ready;

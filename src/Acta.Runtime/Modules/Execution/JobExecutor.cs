@@ -277,7 +277,7 @@ internal sealed class JobExecutor(
                 namespaceId,
                 _options.Value.LeaseTtlSeconds,
                 _rootServices.GetRequiredService<IJobStore>(),
-                _rootServices.GetRequiredService<Acta.Runtime.ISignalStore>(),
+                _rootServices.GetRequiredService<ISignals>(),
                 _rootServices.GetRequiredService<IAlertLifecycle>(),
                 _rootServices.GetRequiredService<Acta.Runtime.IExecutionStore>(),
                 _serializers,

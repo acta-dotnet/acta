@@ -14,7 +14,7 @@ internal sealed class JobsApi(
     JobDescriptorIndex descriptorIndex,
     IWorkerWakeup wakeup,
     JobsService jobsService,
-    SignalService signalService
+    RaiseSignalHandler raiseSignal
 ) : IJobs
 {
     public ValueTask<JobEnqueueOutcome> EnqueueAsync(JobEnqueueRequest request, CancellationToken ct = default) =>
@@ -484,7 +484,7 @@ internal sealed class JobsApi(
         byte[]? value,
         string? actorKey,
         CancellationToken ct
-    ) => signalService.RaiseAsync(job, name, valueFormatId, value, actorKey, ct);
+    ) => raiseSignal.HandleAsync(new RaiseSignalCommand(job, name, valueFormatId, value, actorKey), ct);
 
     public JobInputTemplate? GetInputTemplate(string jobNamespace, string jobName) =>
         descriptorIndex.Find(jobNamespace, jobName) is { } descriptor

@@ -45,7 +45,7 @@ public sealed class RuntimeJobContextLockReleaseTests
             namespaceId: 1,
             leaseTtlSeconds: 180,
             jobStore: null!,
-            signalStore: null!,
+            signals: null!,
             alerts: null!,
             executionStore: null!,
             new ThrowingSerializerRegistry(),

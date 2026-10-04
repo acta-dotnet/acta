@@ -18,7 +18,7 @@ internal sealed class RuntimeJobContext(
     int namespaceId,
     int leaseTtlSeconds,
     IJobStore jobStore,
-    Acta.Runtime.ISignalStore signalStore,
+    ISignals signals,
     IAlertLifecycle alerts,
     Acta.Runtime.IExecutionStore executionStore,
     IJobPayloadSerializerRegistry serializers,
@@ -41,7 +41,7 @@ internal sealed class RuntimeJobContext(
     private const string ProgressVariableName = "sys.progress";
 
     private readonly IJobStore _jobStore = jobStore;
-    private readonly Acta.Runtime.ISignalStore _signalStore = signalStore;
+    private readonly ISignals _signals = signals;
     private readonly IAlertLifecycle _alerts = alerts;
     private readonly Acta.Runtime.IExecutionStore _executionStore = executionStore;
     private readonly IJobPayloadSerializerRegistry _serializers = serializers;
@@ -212,7 +212,7 @@ internal sealed class RuntimeJobContext(
         var kind = name.StartsWith(RaiseChildLatch.NamePrefix, StringComparison.Ordinal)
             ? JobCheckpointKindCode.ChildLatch
             : JobCheckpointKindCode.Signal;
-        var decision = await _signalStore.WaitSignalAsync(JobId, kind, name, timeoutSeconds, ct);
+        var decision = await _signals.WaitSignalAsync(JobId, kind, name, timeoutSeconds, ct);
         return decision.Outcome switch
         {
             SignalWaitOutcomeCode.ContinueSet => new SignalWaitOutcome(decision.ValueFormatId, decision.Value),

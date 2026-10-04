@@ -66,7 +66,6 @@ public static class ActaServiceCollectionExtensions
         // Feature services over the store ports the providers register (e.g. IJobStore).
         services.TryAddSingleton<TenantKeyCache>();
         services.TryAddSingleton<JobsService>();
-        services.TryAddSingleton<SignalService>();
 
         // The operator facade and its module-owned domain facades. Application code injects IJobs
         // alone; dashboards, CLIs, and operator hosts inject IActaOperations. Each domain facade is
@@ -159,6 +158,9 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<RequeueOutboxHandler>();
         services.TryAddSingleton<DiscardOutboxHandler>();
         services.TryAddSingleton<IOutbox, Outbox>();
+        services.TryAddSingleton<RaiseSignalHandler>();
+        services.TryAddSingleton<WaitSignalHandler>();
+        services.TryAddSingleton<ISignals, Signals>();
 
         // Consumers light up the meter with WithMetrics(m => m.AddMeter(JobMetrics.MeterName)).
         services.TryAddSingleton<JobMetrics>();
