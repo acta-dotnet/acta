@@ -20,7 +20,7 @@ internal static class TenantsEndpoints
                 IncludeTotal: query.Bool("includeTotal") ?? false,
                 Tags: query.Tags()
             ),
-            static (operations, query, ct) => operations.Tenants.ListAsync(query, ct),
+            static (call, query) => call.Operations.Tenants.ListAsync(query, call.Ct),
             [
                 new QueryParameterDoc(
                     "status",

@@ -16,4 +16,7 @@ internal static class RouteKeys
 
     public static WorkerRef Worker(HttpContext http) =>
         WorkerRef.TryParse(Value(http, "workerRef"), out var parsed) ? parsed : throw new MalformedRouteKeyException("workerRef", "worker");
+
+    public static AlertRef Alert(HttpContext http) =>
+        AlertRef.TryParse(Value(http, "alertRef"), out var parsed) ? parsed : throw new MalformedRouteKeyException("alertRef", "alert");
 }

@@ -22,6 +22,23 @@ internal sealed class QueryReader(HttpRequest request)
 
     public IReadOnlyList<TagFilter>? Tags() => QueryBinding.Tags(request.Query);
 
+    /// <summary>A job-ref filter: absent is null, and one that does not parse is the 400 every ref-valued parameter gives.</summary>
+    public JobLookup? Job(string name, ActaEndpointOptions options)
+    {
+        if (Text(name) is not { } text)
+        {
+            return null;
+        }
+
+        if (JobTargetBinding.TryParseTarget(text, options, out var job))
+        {
+            return job;
+        }
+
+        _error ??= $"{name} is not a valid job ref.";
+        return null;
+    }
+
     public int? Int(string name)
     {
         string? error = null;

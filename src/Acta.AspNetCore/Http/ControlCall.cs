@@ -47,4 +47,12 @@ internal static class ControlStatus
                 },
             codes
         );
+
+    /// <summary>The alert verbs, idempotent and never conflicting: NotFound 404, every other outcome 200.</summary>
+    public static ControlStatus<T> Alert<T>()
+        where T : IAlertControlResponse =>
+        new(
+            static response => response.Action == ControlAction.NotFound ? StatusCodes.Status404NotFound : StatusCodes.Status200OK,
+            [StatusCodes.Status200OK, StatusCodes.Status404NotFound]
+        );
 }

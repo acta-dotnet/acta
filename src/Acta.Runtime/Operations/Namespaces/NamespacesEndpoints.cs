@@ -20,7 +20,7 @@ internal static class NamespacesEndpoints
                 IncludeTotal: query.Bool("includeTotal") ?? false,
                 Tags: query.Tags()
             ),
-            static (operations, query, ct) => operations.Namespaces.ListAsync(query, ct),
+            static (call, query) => call.Operations.Namespaces.ListAsync(query, call.Ct),
             [
                 new QueryParameterDoc(
                     "status",

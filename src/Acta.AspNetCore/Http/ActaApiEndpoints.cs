@@ -178,7 +178,6 @@ internal static class ActaApiEndpoints
             JobDepthEndpoints.MapControls(controls, options);
             ScheduleControlEndpoints.Map(controls, options);
             DefinitionControlEndpoints.Map(controls, options);
-            AlertControlEndpoints.Map(controls, options);
             OutboxControlEndpoints.Map(controls, options);
             TagEndpoints.MapControls(controls, options);
         }
@@ -191,6 +190,7 @@ internal static class ActaApiEndpoints
         WorkersEndpoints.Map(group, controls, options);
         NamespacesEndpoints.Map(group, controls, options);
         TenantsEndpoints.Map(group, controls, options);
+        AlertsEndpoints.Map(group, controls, options);
 
         group
             .MapGet(
@@ -927,116 +927,6 @@ internal static class ActaApiEndpoints
             .WithSummary("Preview a schedule's upcoming fire instants.")
             .Produces<SchedulePreview>(StatusCodes.Status200OK)
             .WithQueryParameters([new QueryParameterDoc("limit", QueryParameterKind.Int, "How many upcoming occurrences to forecast.")])
-            .ProducesProblem(StatusCodes.Status404NotFound);
-
-        group
-            .MapGet(
-                "/alerts",
-                (HttpContext http, IJobs jobs, IActaOperations operations, CancellationToken ct) =>
-                {
-                    string? error = null;
-                    if (
-                        !QueryBinding.TryEnum<AlertSeverityCode>(http.Request.Query, "severityAtLeast", out var severity, ref error)
-                        || !QueryBinding.TryBool(http.Request.Query, "unresolvedOnly", out var unresolvedOnly, ref error)
-                        || !QueryBinding.TryEnum<AlertDeliveryStatusCode>(http.Request.Query, "deliveryStatus", out var delivery, ref error)
-                        || !QueryBinding.TryBool(http.Request.Query, "acknowledgedOnly", out var acknowledged, ref error)
-                        || !QueryBinding.TryInt(http.Request.Query, "pageSize", out var pageSize, ref error)
-                        || !QueryBinding.TryBool(http.Request.Query, "includeTotal", out var includeTotal, ref error)
-                    )
-                    {
-                        return Task.FromResult(BadRequest(error));
-                    }
-
-                    var jobRefText = QueryBinding.Text(http.Request.Query, "jobRef");
-                    JobLookup? jobFilter = null;
-                    if (jobRefText is not null)
-                    {
-                        if (!JobTargetBinding.TryParseTarget(jobRefText, options, out var parsed))
-                        {
-                            return Task.FromResult(BadRequest("jobRef is not a valid job ref."));
-                        }
-
-                        jobFilter = parsed;
-                    }
-
-                    return Guard(async () =>
-                    {
-                        long? jobId = null;
-                        if (jobFilter is { } filter)
-                        {
-                            jobId = await jobs.GetJobIdAsync(filter, ct);
-                            if (jobId is null)
-                            {
-                                return NotFound("Job");
-                            }
-                        }
-
-                        var query = new ListAlertsQuery(
-                            JobNamespace: QueryBinding.Text(http.Request.Query, "jobNamespace"),
-                            JobId: jobId,
-                            UnresolvedOnly: unresolvedOnly,
-                            SeverityAtLeast: severity,
-                            DeliveryStatus: delivery,
-                            AcknowledgedOnly: acknowledged,
-                            PageSize: pageSize,
-                            Cursor: QueryBinding.Text(http.Request.Query, "cursor"),
-                            IncludeTotal: includeTotal ?? false,
-                            Tags: QueryBinding.Tags(http.Request.Query)
-                        );
-                        return Results.Json(
-                            await operations.Alerts.ListAsync(query, ct),
-                            DashboardJsonContext.Default.PagedResultAlertListItem
-                        );
-                    });
-                }
-            )
-            .WithSummary("List alerts.")
-            .Produces<PagedResult<AlertListItem>>(StatusCodes.Status200OK)
-            .WithQueryParameters([
-                new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Only alerts raised in this namespace."),
-                new QueryParameterDoc("jobRef", QueryParameterKind.String, "Only alerts attached to this job ref."),
-                new QueryParameterDoc(
-                    "severityAtLeast",
-                    QueryParameterKind.String,
-                    "Severity floor as a kebab code; lower severities are excluded."
-                ),
-                new QueryParameterDoc("unresolvedOnly", QueryParameterKind.Bool, "True restricts to alerts with no resolved instant."),
-                new QueryParameterDoc(
-                    "acknowledgedOnly",
-                    QueryParameterKind.Bool,
-                    "True restricts to acknowledged alerts, false to unacknowledged; omit for both."
-                ),
-                new QueryParameterDoc(
-                    "deliveryStatus",
-                    QueryParameterKind.String,
-                    "Exact delivery status as a kebab code.",
-                    CodeKind: "alert-delivery-status"
-                ),
-                .. QueryParameterDocExtensions.PagingCore,
-                .. QueryParameterDocExtensions.IncludeTotal,
-                .. QueryParameterDocExtensions.TagFilter,
-            ])
-            .ProducesProblem(StatusCodes.Status404NotFound);
-
-        group
-            .MapGet(
-                "/alerts/{alertRef}",
-                static (string alertRef, IActaOperations operations, CancellationToken ct) =>
-                    Guard(async () =>
-                    {
-                        if (!AlertRef.TryParse(alertRef, out var parsed))
-                        {
-                            return RefSegment.Malformed("alertRef", "alert");
-                        }
-
-                        var alert = await operations.Alerts.GetAsync(parsed, ct);
-                        return alert is null
-                            ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Alert not found.")
-                            : Results.Json(alert, DashboardJsonContext.Default.AlertDetail);
-                    })
-            )
-            .WithSummary("Read one alert.")
-            .Produces<AlertDetail>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
     }
 

@@ -43,13 +43,6 @@ internal static class TagEndpoints
                     TagRoutes.ReadAsync(operations, () => ScheduleTarget(jobNamespace, jobName, scheduleName), ct)
             )
             .WithSummary("Read the schedule's tags.");
-        group
-            .MapGet(
-                "/alerts/{alertRef}/tags",
-                (string alertRef, IActaOperations operations, CancellationToken ct) =>
-                    TagRoutes.ReadAsync(operations, () => AlertTarget(alertRef), ct)
-            )
-            .WithSummary("Read the alert's tags.");
     }
 
     public static void MapControls(RouteGroupBuilder outer, ActaEndpointOptions options)
@@ -142,22 +135,6 @@ internal static class TagEndpoints
                     TagRoutes.RemoveAsync(http, operations, options, () => ScheduleTarget(jobNamespace, jobName, scheduleName), tagName, ct)
             )
             .WithSummary("Remove one tag from the schedule.");
-
-        withBody
-            .MapPost(
-                "/alerts/{alertRef}/tags",
-                (string alertRef, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    TagRoutes.UpsertAsync(http, operations, options, () => AlertTarget(alertRef), ct)
-            )
-            .AcceptsJson<TagUpsertRequest>()
-            .WithSummary("Add or update one tag on the alert.");
-        group
-            .MapDelete(
-                "/alerts/{alertRef}/tags/{tagName}",
-                (string alertRef, string tagName, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    TagRoutes.RemoveAsync(http, operations, options, () => AlertTarget(alertRef), tagName, ct)
-            )
-            .WithSummary("Remove one tag from the alert.");
     }
 
     /// <summary>
@@ -191,11 +168,6 @@ internal static class TagEndpoints
             return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid definition key.", ex.Message);
         }
     }
-
-    private static TagTarget AlertTarget(string alertRef) =>
-        AlertRef.TryParse(alertRef, out var parsed)
-            ? TagTarget.ForAlert(parsed)
-            : throw new ArgumentException("alertRef is not a valid alert ref.");
 
     private static TagTarget ScheduleTarget(string jobNamespace, string jobName, string scheduleName) =>
         TagTarget.ForSchedule(new ScheduleLookup(JobLookup.ByDeduplicationKey(jobNamespace, jobName), scheduleName));

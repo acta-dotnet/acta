@@ -19,7 +19,7 @@ internal static class WorkersEndpoints
                 IncludeTotal: query.Bool("includeTotal") ?? false,
                 Tags: query.Tags()
             ),
-            static (operations, query, ct) => operations.Workers.ListAsync(query, ct),
+            static (call, query) => call.Operations.Workers.ListAsync(query, call.Ct),
             [
                 new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Only workers registered for this namespace."),
                 new QueryParameterDoc(

@@ -18,14 +18,16 @@ internal static class RouteTable
         string summary,
         JsonTypeInfo<PagedResult<TItem>> json,
         Func<QueryReader, TQuery> bind,
-        Func<IActaOperations, TQuery, CancellationToken, ValueTask<PagedResult<TItem>>> list,
+        Func<ListCall, TQuery, ValueTask<PagedResult<TItem>>> list,
         params QueryParameterDoc[] parameters
     ) =>
         group
             .MapGet(
                 pattern,
-                (HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    Run(async () => Results.Json(await list(operations, QueryReader.Bind(http.Request, bind), ct), json))
+                (HttpContext http, IActaOperations operations, IJobs jobs, CancellationToken ct) =>
+                    Run(async () =>
+                        Results.Json(await list(new ListCall(operations, jobs, ct), QueryReader.Bind(http.Request, bind)), json)
+                    )
             )
             .WithSummary(summary)
             .Produces<PagedResult<TItem>>(StatusCodes.Status200OK)
@@ -255,7 +257,15 @@ internal static class RouteTable
         {
             return BadRequest(ex.Message);
         }
+        catch (TargetNotFoundException ex)
+        {
+            return NotFound(ex.Entity);
+        }
     }
+
+    /// <summary>The internal id of the job a filter names, or null with no filter; a filter naming no job is the 404.</summary>
+    public static async ValueTask<long?> JobIdAsync(this ListCall call, JobLookup? job) =>
+        job is { } lookup ? await call.Jobs.GetJobIdAsync(lookup, call.Ct) ?? throw new TargetNotFoundException("Job") : null;
 
     public static IResult BadRequest(string? detail) =>
         Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid request.", detail: detail);
