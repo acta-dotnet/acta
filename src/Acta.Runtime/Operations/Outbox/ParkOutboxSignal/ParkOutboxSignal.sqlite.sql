@@ -1,5 +1,5 @@
 -- Park admission for the sys.outbox operator inbox: insert when the slot is free, supersede when the
--- pending command has outlived the worker-dead window, reject otherwise. See IOutboxSignalStore.ParkAsync.
+-- pending command has outlived the worker-dead window, reject otherwise.
 INSERT INTO {{schema}}.checkpoints (job_id, kind_code, name, status_code, value_format_id, value, modified_at_utc, version)
 VALUES (
     @p_job_id,

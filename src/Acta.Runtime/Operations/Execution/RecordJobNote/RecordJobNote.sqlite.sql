@@ -1,4 +1,4 @@
--- Appends one application-authored job.note-recorded event; see IExecutionStore.RecordJobNoteAsync.
+-- Appends one application-authored job.note-recorded event; see Execution.RecordJobNoteAsync.
 INSERT INTO {{schema}}.events (
     event_code,
     created_at_utc,

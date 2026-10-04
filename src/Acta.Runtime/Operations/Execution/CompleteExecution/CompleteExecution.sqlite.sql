@@ -175,7 +175,7 @@ WHERE
           AND (json_extract(a.value, '$.expected_version') IS NULL OR json_extract(a.value, '$.expected_version') = {{schema}}.schedules.version))
     -- An operator pause inside the fire window wins; only an elapsed TIMED pause auto-resumes here.
     -- Same predicate as the audit insert above, so the two cannot disagree.
-    -- Orphaned by a deployment while this attempt ran; see IExecutionStore.CompleteExecutionAsync.
+    -- Orphaned by a deployment while this attempt ran; see Execution.CompleteExecutionAsync.
     AND status_code <> 230 /* ScheduleStatusCode.Orphaned */
     AND (
         status_code <> 30 /* ScheduleStatusCode.Paused */
@@ -183,7 +183,7 @@ WHERE
     );
 
 -- The slot's next state is read from the schedules as they stand now, not from the plan made before
--- the handler ran; see IExecutionStore.CompleteExecutionAsync.
+-- the handler ran; see Execution.CompleteExecutionAsync.
 UPDATE {{schema}}.runtimes
 SET
     status_code = CASE WHEN (SELECT MIN(CASE WHEN js.status_code = 30 /* ScheduleStatusCode.Paused */ THEN js.paused_until_utc ELSE js.next_run_at_utc END)

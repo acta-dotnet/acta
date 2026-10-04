@@ -1,4 +1,4 @@
--- Re-arms one namespace's sys.recovery slot when it is stranded; see IExecutionStore.RepairRecoverySlotAsync.
+-- Re-arms one namespace's sys.recovery slot when it is stranded; see Execution.RepairRecoverySlotAsync.
 DROP TABLE IF EXISTS temp._repair_slot;
 
 CREATE TEMP TABLE _repair_slot AS
