@@ -283,7 +283,7 @@ public static class ActaServiceCollectionExtensions
         {
             services.AddSingleton(sp => new OutboxRelayRegistry(
                 builder.Workers,
-                sp.GetRequiredService<IJobSubmission>(),
+                sp.GetRequiredService<EnqueueBatchHandler>(),
                 sp.GetService<ILoggerFactory>()
             ));
         }

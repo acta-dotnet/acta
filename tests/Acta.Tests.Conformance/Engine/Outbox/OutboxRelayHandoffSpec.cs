@@ -27,11 +27,11 @@ public sealed class OutboxRelayHandoffSpec : OutboxRelayIntegrationBase
         await Fixture.SeedOutboxRowAsync(SourceTable, seed);
 
         var store = new HookedOutboxStore(SourceStore);
-        var target = new HookedJobSubmission(OwnedSubmission) { FailInstead = () => new InvalidOperationException("target unavailable") };
+        var target = new HookedJobSubmission(Services) { FailInstead = () => new InvalidOperationException("target unavailable") };
 
         // Tick 1: claim commits, then the target enqueue fails -> infrastructure failure that releases the
         // claim and fails the tick. No target job exists and the source row is back to Pending.
-        await Assert.ThrowsAsync<InvalidOperationException>(() => Relay(store, target).RunTickAsync(TickOptions(), ct));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Relay(store.Source, target.Handler).RunTickAsync(TickOptions(), ct));
         Assert.Equal(0, await CountLedgerJobsAsync(dedup, ct));
         var released = await Fixture.ReadOutboxRowAsync(SourceTable, seed.OutboxId);
         Assert.True(released.Exists);
@@ -39,7 +39,7 @@ public sealed class OutboxRelayHandoffSpec : OutboxRelayIntegrationBase
 
         // Tick 2: the target is healthy -> the reclaimed row is delivered once and deleted.
         target.FailInstead = null;
-        await Relay(store, target).RunTickAsync(TickOptions(), ct);
+        await Relay(store.Source, target.Handler).RunTickAsync(TickOptions(), ct);
         Assert.Equal(0, await Fixture.CountOutboxAsync(SourceTable));
         Assert.Equal(1, await CountLedgerJobsAsync(dedup, ct));
     }
@@ -62,7 +62,7 @@ public sealed class OutboxRelayHandoffSpec : OutboxRelayIntegrationBase
 
         // Tick 1: enqueue commits (one target job), then the source delete crashes -> the tick fails and the
         // row stays Claimed.
-        await Assert.ThrowsAsync<InvalidOperationException>(() => Relay(store, OwnedSubmission).RunTickAsync(opts, ct));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Relay(store.Source, OwnedSubmission).RunTickAsync(opts, ct));
         Assert.Equal(1, await CountLedgerJobsAsync(dedup, ct));
         Assert.Equal(1, await Fixture.CountOutboxAsync(SourceTable));
 
@@ -72,7 +72,7 @@ public sealed class OutboxRelayHandoffSpec : OutboxRelayIntegrationBase
         // Tick 2: the reclaimed row re-enqueues and the ledger deduplicates it (already ingested), so the
         // finalize deletes the source row and there is still exactly one target job.
         failFinalize = false;
-        await Relay(store, OwnedSubmission).RunTickAsync(opts, ct);
+        await Relay(store.Source, OwnedSubmission).RunTickAsync(opts, ct);
         Assert.Equal(1, await CountLedgerJobsAsync(dedup, ct));
         Assert.Equal(0, await Fixture.CountOutboxAsync(SourceTable));
     }
@@ -86,12 +86,12 @@ public sealed class OutboxRelayHandoffSpec : OutboxRelayIntegrationBase
         await Fixture.SeedOutboxRowAsync(SourceTable, seed);
 
         var store = new HookedOutboxStore(SourceStore);
-        await Relay(store, OwnedSubmission).RunTickAsync(TickOptions(), ct);
+        await Relay(store.Source, OwnedSubmission).RunTickAsync(TickOptions(), ct);
         Assert.Equal(1, await CountLedgerJobsAsync(dedup, ct));
         Assert.Equal(0, await Fixture.CountOutboxAsync(SourceTable));
 
         // A subsequent tick (the post-deletion crash-restart window) claims nothing and resurrects nothing.
-        await Relay(store, OwnedSubmission).RunTickAsync(TickOptions(), ct);
+        await Relay(store.Source, OwnedSubmission).RunTickAsync(TickOptions(), ct);
         Assert.Equal(0, await Fixture.CountOutboxAsync(SourceTable));
         Assert.Equal(1, await CountLedgerJobsAsync(dedup, ct));
     }
@@ -107,7 +107,7 @@ public sealed class OutboxRelayHandoffSpec : OutboxRelayIntegrationBase
         }
         Assert.Equal(3, await Fixture.CountOutboxAsync(SourceTable));
 
-        await Relay(new HookedOutboxStore(SourceStore), OwnedSubmission).RunTickAsync(TickOptions(), ct);
+        await Relay(new HookedOutboxStore(SourceStore).Source, OwnedSubmission).RunTickAsync(TickOptions(), ct);
         Assert.Equal(1, await CountLedgerJobsAsync(dedup, ct));
         Assert.Equal(0, await Fixture.CountOutboxAsync(SourceTable));
     }

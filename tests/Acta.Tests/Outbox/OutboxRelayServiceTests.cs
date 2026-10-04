@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Acta.Runtime;
 using Acta.Tests.Runtime;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Acta.Tests.Outbox;
@@ -57,7 +58,7 @@ public sealed class OutboxRelayServiceTests
         var late = Row("k1", created: Now.AddSeconds(5), id: Guid.NewGuid());
         var store = new FakeStore(early, late);
         var target = new FakeSubmission();
-        var svc = new OutboxRelayService(store.Source(), target);
+        var svc = new OutboxRelayService(store.Source(), target.Handler());
 
         var summary = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
 
@@ -80,7 +81,7 @@ public sealed class OutboxRelayServiceTests
         var lower = Row("ord-1", created: Now.AddSeconds(5), id: Guid.NewGuid());
         var store = new FakeStore(upper, lower);
         var target = new FakeSubmission();
-        var svc = new OutboxRelayService(store.Source(), target);
+        var svc = new OutboxRelayService(store.Source(), target.Handler());
 
         await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
 
@@ -95,7 +96,7 @@ public sealed class OutboxRelayServiceTests
         var row = Row("k1");
         var store = new FakeStore(row);
         var target = new FakeSubmission { Action = JobEnqueueAction.Deduplicated };
-        var svc = new OutboxRelayService(store.Source(), target);
+        var svc = new OutboxRelayService(store.Source(), target.Handler());
 
         var summary = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
 
@@ -118,7 +119,7 @@ public sealed class OutboxRelayServiceTests
         var store = new FakeStore(good1, good2, bad);
         // Deterministic rejection whenever the batch contains the "bad" job.
         var target = new FakeSubmission { RejectWhen = reqs => reqs.Any(r => r.JobName == "bad") };
-        var svc = new OutboxRelayService(store.Source(), target);
+        var svc = new OutboxRelayService(store.Source(), target.Handler());
 
         var summary = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
 
@@ -141,7 +142,7 @@ public sealed class OutboxRelayServiceTests
         var bad = Row("bad", job: "bad", failureCount: 4);
         var store = new FakeStore(bad);
         var target = new FakeSubmission { RejectWhen = _ => true };
-        var svc = new OutboxRelayService(store.Source(), target);
+        var svc = new OutboxRelayService(store.Source(), target.Handler());
 
         var ex = await Assert.ThrowsAsync<OutboxQuarantineTickException>(() =>
             svc.RunTickAsync(Options(threshold: 5), TestContext.Current.CancellationToken)
@@ -159,7 +160,7 @@ public sealed class OutboxRelayServiceTests
         var row = Row("k1", meta: "{ not json");
         var store = new FakeStore(row);
         var target = new FakeSubmission();
-        var svc = new OutboxRelayService(store.Source(), target);
+        var svc = new OutboxRelayService(store.Source(), target.Handler());
 
         await Assert.ThrowsAsync<OutboxQuarantineTickException>(() => svc.RunTickAsync(Options(), TestContext.Current.CancellationToken));
 
@@ -172,7 +173,7 @@ public sealed class OutboxRelayServiceTests
     {
         var store = new FakeStore([.. Enumerable.Range(0, 20 * 256 + 300).Select(i => Row($"k{i}"))]);
         var target = new FakeSubmission();
-        var svc = new OutboxRelayService(store.Source(), target);
+        var svc = new OutboxRelayService(store.Source(), target.Handler());
 
         var summary = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
 
@@ -190,7 +191,7 @@ public sealed class OutboxRelayServiceTests
         var aged = Row("k1", failureCount: 4, created: Now.AddSeconds(5), id: Guid.NewGuid());
         var store = new FakeStore(fresh, aged);
         var target = new FakeSubmission { RejectWhen = _ => true };
-        var svc = new OutboxRelayService(store.Source(), target);
+        var svc = new OutboxRelayService(store.Source(), target.Handler());
 
         // The count-4 row reaches the threshold of five and quarantines; the count-0 row reschedules at 1.
         await Assert.ThrowsAsync<OutboxQuarantineTickException>(() =>
@@ -213,7 +214,7 @@ public sealed class OutboxRelayServiceTests
         var rows = Enumerable.Range(0, 20 * 256).Select(i => Row($"k{i}", job: "bad")).ToArray();
         var store = new FakeStore(rows);
         var target = new FakeSubmission { RejectWhen = _ => true };
-        var svc = new OutboxRelayService(store.Source(), target);
+        var svc = new OutboxRelayService(store.Source(), target.Handler());
 
         // A high threshold so the rejections reschedule rather than quarantine (no tick failure).
         await svc.RunTickAsync(Options(threshold: 1000), TestContext.Current.CancellationToken);
@@ -239,7 +240,7 @@ public sealed class OutboxRelayServiceTests
                 throw new OperationCanceledException(cts.Token);
             },
         };
-        var svc = new OutboxRelayService(store.Source(), target);
+        var svc = new OutboxRelayService(store.Source(), target.Handler());
 
         await Assert.ThrowsAsync<OperationCanceledException>(() => svc.RunTickAsync(Options(), cts.Token));
 
@@ -256,7 +257,7 @@ public sealed class OutboxRelayServiceTests
         // classified as infrastructure: the claim is released best-effort and the tick fails without
         // consuming any quarantine budget.
         var target = new FakeSubmission { OnEnqueue = () => throw new InvalidOperationException("target unavailable") };
-        var svc = new OutboxRelayService(store.Source(), target);
+        var svc = new OutboxRelayService(store.Source(), target.Handler());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => svc.RunTickAsync(Options(), TestContext.Current.CancellationToken));
 
@@ -270,40 +271,65 @@ public sealed class OutboxRelayServiceTests
     {
         // A plain transient exception surfacing through the store (a source-database fault) fails the
         // tick and is retried on the next tick; it never quarantines a row.
-        // The claim fails; nothing else is reached.
         var store = Source(call => call.Stem == "ClaimOutbox" ? throw new InvalidOperationException("source database unavailable") : null);
         var target = new FakeSubmission();
-        var svc = new OutboxRelayService(store, target);
+        var svc = new OutboxRelayService(store, target.Handler());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => svc.RunTickAsync(Options(), TestContext.Current.CancellationToken));
 
         Assert.Empty(target.Batches);
     }
 
-    private sealed class FakeSubmission : IJobSubmission
+    /// <summary>
+    /// The real owned batch enqueue over a scripted session: each enqueue round trip is recorded as the rows it
+    /// bound, rejected when the script says so, and otherwise answered with one outcome per row.
+    /// </summary>
+    private sealed class FakeSubmission
     {
         public JobEnqueueAction Action { get; init; } = JobEnqueueAction.Inserted;
-        public Func<IReadOnlyList<JobEnqueueRequest>, bool>? RejectWhen { get; init; }
+        public Func<IReadOnlyList<Enqueued>, bool>? RejectWhen { get; init; }
         public Action? OnEnqueue { get; init; }
-        public List<IReadOnlyList<JobEnqueueRequest>> Batches { get; } = [];
+        public List<IReadOnlyList<Enqueued>> Batches { get; } = [];
         public int Calls { get; private set; }
 
-        public ValueTask<IReadOnlyList<JobEnqueueOutcome>> EnqueueBatchAsync(
-            IReadOnlyList<JobEnqueueRequest> requests,
-            CancellationToken ct
-        )
+        public EnqueueBatchHandler Handler() => new ScriptedSession(Answer).Services().GetRequiredService<EnqueueBatchHandler>();
+
+        private EnqueueOutcomeRow[] Answer(BoundCall call)
         {
             Calls++;
             OnEnqueue?.Invoke();
+            var requests = Requests(call);
             if (RejectWhen?.Invoke(requests) == true)
             {
                 throw new ArgumentException("deterministic target rejection");
             }
             Batches.Add(requests);
-            IReadOnlyList<JobEnqueueOutcome> outcomes = requests.Select(_ => new JobEnqueueOutcome(1, JobRef.New(), Action)).ToList();
-            return ValueTask.FromResult(outcomes);
+            return [.. requests.Select((_, ordinal) => new EnqueueOutcomeRow(ordinal, 1, Guid.NewGuid(), Action))];
+        }
+
+        // One row binds its columns; a batch binds its rows as one JSON array.
+        private static List<Enqueued> Requests(BoundCall call)
+        {
+            if (call.Stem == "EnqueueOne")
+            {
+                return [new Enqueued((string)call.Parameters["p_job_name"]!, call.Parameters["p_deduplication_key"] as string)];
+            }
+
+            using var document = JsonDocument.Parse((string)call.Parameters["p_rows"]!);
+            return
+            [
+                .. document
+                    .RootElement.EnumerateArray()
+                    .Select(row => new Enqueued(
+                        row.GetProperty("job_name").GetString()!,
+                        row.GetProperty("deduplication_key").GetString()
+                    )),
+            ];
         }
     }
+
+    /// <summary>One enqueued row as the target bound it.</summary>
+    private sealed record Enqueued(string JobName, string? DeduplicationKey);
 
     // The real outbox source over a scripted session, binding through the SQLite source dialect.
     private static OutboxSource Source(Func<BoundCall, object?> answer) => new(new ScriptedSession(answer), new SqliteOutboxDialect());

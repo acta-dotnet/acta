@@ -9,9 +9,9 @@ namespace Acta.Runtime;
 /// batches, coalesce duplicate handoffs, enqueue representatives through the owned batch path, then
 /// finalize under the claim token. Retry, per-group rejection isolation, quarantine, and the single
 /// bounded tick summary all live here; the source is the injected <see cref="OutboxSource"/>
-/// and the target is the normal <see cref="IJobs.EnqueueBatchAsync(IReadOnlyList{JobEnqueueRequest}, CancellationToken)"/>.
+/// and the target is the owned batch enqueue, <see cref="EnqueueBatchHandler"/>.
 /// </summary>
-internal sealed class OutboxRelayService(OutboxSource source, IJobSubmission target, ILogger<OutboxRelayService>? log = null)
+internal sealed class OutboxRelayService(OutboxSource source, EnqueueBatchHandler target, ILogger<OutboxRelayService>? log = null)
 {
     /// <summary>Per tick: at most MaxBatches source claims of BatchSize rows. The next tick continues any backlog.</summary>
     private const int MaxBatches = 20;
@@ -436,7 +436,7 @@ internal sealed class OutboxRelayService(OutboxSource source, IJobSubmission tar
 
         try
         {
-            var outcomes = await target.EnqueueBatchAsync(groups.Select(g => g.Request).ToList(), ct);
+            var outcomes = await target.HandleAsync(new EnqueueBatchCommand(groups.Select(g => g.Request).ToList()), ct);
             // Outcomes align with request order. A representative that Inserted relayed one new job and its
             // coalesced members were absorbed; a Deduplicated representative absorbs the whole group.
             for (var index = 0; index < groups.Count; index++)

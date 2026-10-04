@@ -1,5 +1,7 @@
 using System.Data.Common;
 using Acta.Runtime;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Acta.Tests.Conformance.Testing;
 
@@ -41,89 +43,123 @@ public readonly record struct OutboxRowState(
 /// </summary>
 internal sealed class HookedOutboxStore
 {
-    public HookedOutboxStore(OutboxSource inner) => Source = new OutboxSource(new HookedSession(inner.Session, this), inner.Dialect);
+    public HookedOutboxStore(OutboxSource inner) =>
+        Source = new OutboxSource(
+            new HookedSession(
+                inner.Session,
+                stem => stem == "DeleteClaimedOutbox" && BeforeDelete is { } hook ? hook() : Task.CompletedTask
+            ),
+            inner.Dialect
+        );
 
     /// <summary>When set, awaited just before the real delete runs (models a crash after the target commit).</summary>
     public Func<Task>? BeforeDelete { get; set; }
 
     public OutboxSource Source { get; }
-
-    private sealed class HookedSession(IDbSession inner, HookedOutboxStore store) : IDbSession
-    {
-        public DbProvider Provider => inner.Provider;
-
-        public string Schema => inner.Schema;
-
-        public Task<DbConnection> OpenConnectionAsync(CancellationToken ct) => inner.OpenConnectionAsync(ct);
-
-        public Task<T> QueryAsync<T>(
-            string stem,
-            Action<DbCommand> bind,
-            Func<DbDataReader, CancellationToken, Task<T>> read,
-            CancellationToken ct
-        ) => inner.QueryAsync(stem, bind, read, ct);
-
-        public Task<T> QueryAsync<T>(
-            StoreCommand command,
-            Action<DbCommand> bind,
-            Func<DbDataReader, CancellationToken, Task<T>> read,
-            CancellationToken ct
-        ) => inner.QueryAsync(command, bind, read, ct);
-
-        public Task<IReadOnlyList<T>> ExecuteAsync<T>(
-            StoreCommand command,
-            Action<DbCommand> bind,
-            Func<DbDataReader, T> mapRow,
-            CancellationToken ct
-        ) => inner.ExecuteAsync(command, bind, mapRow, ct);
-
-        public Task<IReadOnlyList<T>> ExecuteInTransactionAsync<T>(
-            DbTransaction transaction,
-            StoreCommand command,
-            Action<DbCommand> bind,
-            Func<DbDataReader, T> mapRow,
-            CancellationToken ct
-        ) => inner.ExecuteInTransactionAsync(transaction, command, bind, mapRow, ct);
-
-        public Task<T?> ExecuteSingleAsync<T>(
-            StoreCommand command,
-            Action<DbCommand> bind,
-            Func<DbDataReader, T> mapRow,
-            CancellationToken ct
-        )
-            where T : class => inner.ExecuteSingleAsync(command, bind, mapRow, ct);
-
-        public async Task ExecuteAsync(StoreCommand command, Action<DbCommand> bind, CancellationToken ct)
-        {
-            if (command.Operation == "DeleteClaimedOutbox" && store.BeforeDelete is { } hook)
-            {
-                await hook();
-            }
-            await inner.ExecuteAsync(command, bind, ct);
-        }
-
-        public Task<T> RunWithRetryAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct) =>
-            inner.RunWithRetryAsync(action, ct);
-
-        public Task<T> RunInOwnedTransactionAsync<T>(
-            Func<DbTransaction, CancellationToken, Task<(T Result, bool Commit)>> work,
-            CancellationToken ct
-        ) => inner.RunInOwnedTransactionAsync(work, ct);
-    }
 }
 
 /// <summary>
-/// A delegating <see cref="IJobSubmission"/> that can raise a chosen exception instead of enqueuing, so a
-/// spec proves the relay's behavior when the target ingestion path fails (an infrastructure failure that
-/// releases the claim, or a deterministic rejection that reschedules).
+/// The real owned batch enqueue over the ledger session, able to raise a chosen exception instead of
+/// enqueuing, so a spec proves the relay's behavior when the target ingestion path fails (an infrastructure
+/// failure that releases the claim, or a deterministic rejection that reschedules).
 /// </summary>
-internal sealed class HookedJobSubmission(IJobSubmission inner) : IJobSubmission
+internal sealed class HookedJobSubmission
 {
+    public HookedJobSubmission(IServiceProvider services)
+    {
+        var session = new HookedSession(
+            services.GetRequiredService<IDbSession>(),
+            stem => FailInstead is { } make && stem.StartsWith("Enqueue", StringComparison.Ordinal) ? throw make() : Task.CompletedTask
+        );
+        var dialect = services.GetRequiredService<ISqlDialect>();
+        var wakeup = services.GetRequiredService<WorkerWakeupPublisher>();
+        var options = services.GetRequiredService<IOptions<JobsOptions>>();
+        Handler = new EnqueueBatchHandler(new EnqueueOneHandler(session, dialect, wakeup, options), session, dialect, wakeup, options);
+    }
+
     /// <summary>When set, invoked to obtain an exception to throw before the real enqueue runs.</summary>
     public Func<Exception>? FailInstead { get; set; }
 
-    public ValueTask<IReadOnlyList<JobEnqueueOutcome>> EnqueueBatchAsync(IReadOnlyList<JobEnqueueRequest> requests, CancellationToken ct)
+    public EnqueueBatchHandler Handler { get; }
+}
+
+/// <summary>A real session that awaits a hook, given the SQL stem, before each named command runs.</summary>
+internal sealed class HookedSession(IDbSession inner, Func<string, Task> before) : IDbSession
+{
+    public DbProvider Provider => inner.Provider;
+
+    public string Schema => inner.Schema;
+
+    public Task<DbConnection> OpenConnectionAsync(CancellationToken ct) => inner.OpenConnectionAsync(ct);
+
+    public async Task<T> QueryAsync<T>(
+        string stem,
+        Action<DbCommand> bind,
+        Func<DbDataReader, CancellationToken, Task<T>> read,
+        CancellationToken ct
+    )
     {
-        return FailInstead is { } make ? throw make() : inner.EnqueueBatchAsync(requests, ct);
+        await before(stem);
+        return await inner.QueryAsync(stem, bind, read, ct);
     }
+
+    public async Task<T> QueryAsync<T>(
+        StoreCommand command,
+        Action<DbCommand> bind,
+        Func<DbDataReader, CancellationToken, Task<T>> read,
+        CancellationToken ct
+    )
+    {
+        await before(command.Operation);
+        return await inner.QueryAsync(command, bind, read, ct);
+    }
+
+    public async Task<IReadOnlyList<T>> ExecuteAsync<T>(
+        StoreCommand command,
+        Action<DbCommand> bind,
+        Func<DbDataReader, T> mapRow,
+        CancellationToken ct
+    )
+    {
+        await before(command.Operation);
+        return await inner.ExecuteAsync(command, bind, mapRow, ct);
+    }
+
+    public async Task<IReadOnlyList<T>> ExecuteInTransactionAsync<T>(
+        DbTransaction transaction,
+        StoreCommand command,
+        Action<DbCommand> bind,
+        Func<DbDataReader, T> mapRow,
+        CancellationToken ct
+    )
+    {
+        await before(command.Operation);
+        return await inner.ExecuteInTransactionAsync(transaction, command, bind, mapRow, ct);
+    }
+
+    public async Task<T?> ExecuteSingleAsync<T>(
+        StoreCommand command,
+        Action<DbCommand> bind,
+        Func<DbDataReader, T> mapRow,
+        CancellationToken ct
+    )
+        where T : class
+    {
+        await before(command.Operation);
+        return await inner.ExecuteSingleAsync(command, bind, mapRow, ct);
+    }
+
+    public async Task ExecuteAsync(StoreCommand command, Action<DbCommand> bind, CancellationToken ct)
+    {
+        await before(command.Operation);
+        await inner.ExecuteAsync(command, bind, ct);
+    }
+
+    public Task<T> RunWithRetryAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct) =>
+        inner.RunWithRetryAsync(action, ct);
+
+    public Task<T> RunInOwnedTransactionAsync<T>(
+        Func<DbTransaction, CancellationToken, Task<(T Result, bool Commit)>> work,
+        CancellationToken ct
+    ) => inner.RunInOwnedTransactionAsync(work, ct);
 }

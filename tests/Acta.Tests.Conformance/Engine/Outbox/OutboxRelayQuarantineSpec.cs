@@ -33,7 +33,7 @@ public sealed class OutboxRelayQuarantineSpec : OutboxRelayIntegrationBase
         // Ticks 1..4: below the default threshold of five, each rejection reschedules quietly (no throw).
         for (var attempt = 1; attempt <= 4; attempt++)
         {
-            await Relay(store, OwnedSubmission).RunTickAsync(TickOptions(), ct);
+            await Relay(store.Source, OwnedSubmission).RunTickAsync(TickOptions(), ct);
             var pending = await Fixture.ReadOutboxRowAsync(SourceTable, seed.OutboxId);
             Assert.Equal((byte)OutboxStatusCode.Pending, pending.StatusCode);
             Assert.Equal(attempt, pending.FailureCount);
@@ -42,7 +42,7 @@ public sealed class OutboxRelayQuarantineSpec : OutboxRelayIntegrationBase
 
         // Tick 5: the fifth rejection reaches the threshold, quarantines the row, and raises one bounded summary.
         var summary = await Assert.ThrowsAsync<OutboxQuarantineTickException>(() =>
-            Relay(store, OwnedSubmission).RunTickAsync(TickOptions(), ct)
+            Relay(store.Source, OwnedSubmission).RunTickAsync(TickOptions(), ct)
         );
         Assert.Equal(1, summary.QuarantinedCount);
 
@@ -69,14 +69,11 @@ public sealed class OutboxRelayQuarantineSpec : OutboxRelayIntegrationBase
 
         var store = new HookedOutboxStore(SourceStore);
         // The target must never be reached for a contract-rejected row; fail loudly if it is.
-        var target = new HookedJobSubmission(OwnedSubmission)
-        {
-            FailInstead = () => new InvalidOperationException("target must not be called"),
-        };
+        var target = new HookedJobSubmission(Services) { FailInstead = () => new InvalidOperationException("target must not be called") };
 
         // A tiny payload cap so the oversized row is over the target inline limit; the echo payload stays under it.
         var summary = await Assert.ThrowsAsync<OutboxQuarantineTickException>(() =>
-            Relay(store, target).RunTickAsync(TickOptions(maxPayload: 64), ct)
+            Relay(store.Source, target.Handler).RunTickAsync(TickOptions(maxPayload: 64), ct)
         );
         Assert.Equal(3, summary.QuarantinedCount);
 

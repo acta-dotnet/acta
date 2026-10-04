@@ -65,7 +65,7 @@ internal sealed class ActaBuilder(IServiceCollection services) : IActaBuilder
         namespaceName = IdentifierSyntax.CanonicalizeUserKebab(namespaceName, nameof(namespaceName));
         ArgumentNullException.ThrowIfNull(configure);
 
-        var builder = new WorkerBuilder(Services);
+        var builder = new WorkerBuilder();
         configure(builder);
 
         if (builder.OwnerTeam is not null && string.IsNullOrWhiteSpace(builder.OwnerTeam))

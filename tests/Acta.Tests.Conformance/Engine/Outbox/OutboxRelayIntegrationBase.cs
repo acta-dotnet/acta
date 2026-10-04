@@ -31,11 +31,9 @@ public abstract class OutboxRelayIntegrationBase : ActaRuntimeTestBase<Conforman
 
     private protected int MaxInlinePayloadBytes => Services.GetRequiredService<IOptions<JobsOptions>>().Value.MaxInlinePayloadBytes;
 
-    private protected IJobSubmission OwnedSubmission => new JobsSubmission(Jobs);
+    private protected EnqueueBatchHandler OwnedSubmission => Services.GetRequiredService<EnqueueBatchHandler>();
 
-    private protected static OutboxRelayService Relay(OutboxSource store, IJobSubmission target) => new(store, target);
-
-    private protected static OutboxRelayService Relay(HookedOutboxStore store, IJobSubmission target) => new(store.Source, target);
+    private protected static OutboxRelayService Relay(OutboxSource store, EnqueueBatchHandler target) => new(store, target);
 
     private protected OutboxRelayTickOptions TickOptions(int quarantineThreshold = 5, int leaseTtlSeconds = 180, int? maxPayload = null) =>
         new(SourceTable, quarantineThreshold, leaseTtlSeconds, maxPayload ?? MaxInlinePayloadBytes);

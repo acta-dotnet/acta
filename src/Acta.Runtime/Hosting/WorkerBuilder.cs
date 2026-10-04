@@ -1,6 +1,3 @@
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-
 namespace Acta.Runtime;
 
 /// <summary>
@@ -8,7 +5,7 @@ namespace Acta.Runtime;
 /// and identity for <c>ActaBuilder.Run</c> to fold into a <c>WorkerRegistration</c>; never instantiated by
 /// consumer code.
 /// </summary>
-internal sealed class WorkerBuilder(IServiceCollection services) : IWorkerBuilder
+internal sealed class WorkerBuilder : IWorkerBuilder
 {
     private readonly List<ManifestRegistration> _manifests = [];
     private readonly List<AlertChannelDeclaration> _alertChannels = [];
@@ -93,10 +90,6 @@ internal sealed class WorkerBuilder(IServiceCollection services) : IWorkerBuilde
             );
 
         Relay = new OutboxRelayRegistration(sourceName, source.Schema, source.Table, source.QuarantineThreshold, factory);
-
-        // The relay's target ingestion path (owned batch enqueue). Shared across namespaces; the source
-        // store and service are per-namespace and resolved by OutboxRelayRegistry from the registration.
-        services.TryAddSingleton<IJobSubmission, JobsSubmission>();
         return this;
     }
 
