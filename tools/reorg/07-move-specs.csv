@@ -5,7 +5,7 @@ DbSession/FluentReadSpec.cs,Db/FluentReadSpec.cs,FluentReadSpec,FluentReadSpec,F
 DbSession/JobSummary.cs,Db/JobSummary.cs,JobSummary,JobSummary,Projection record used only by FluentReadSpec
 DbSession/SessionProviderDiscriminatorSpec.cs,Db/SessionProviderDiscriminatorSpec.cs,SessionProviderDiscriminatorSpec,SessionProviderDiscriminatorSpec,IDbSession provider wiring mirrors src Db
 DbSession/SettingsUniqueKeySpec.cs,Schema/SettingsUniqueKeySpec.cs,SettingsUniqueKeySpec,SettingsUniqueKeySpec,Asserts settings unique indexes; a schema constraint not session
-Features/Alerts/AlertAcknowledgeResolveSpec.cs,Operations/Alerts/AlertAcknowledgeResolveSpec.cs,AlertAcknowledgeResolveSpec,AlertAcknowledgeResolveSpec,Covers AcknowledgeJobAlert and ResolveJobAlertManual
+Features/Alerts/AlertAcknowledgeResolveSpec.cs,,AlertAcknowledgeResolveSpec,,Split per operation: AcknowledgeJobAlertSpec and ResolveJobAlertManualSpec
 Features/Alerts/AlertChannelRegistrySpec.cs,Engine/Alerts/AlertChannelRegistrySpec.cs,AlertChannelRegistrySpec,AlertChannelRegistrySpec,Tests AlertChannelRegistry in Engine/Alerts
 Features/Alerts/AlertChannelValidationSpec.cs,Engine/Alerts/AlertChannelValidationSpec.cs,AlertChannelValidationSpec,AlertChannelValidationSpec,Worker startup AlertRoutingCheck in Engine/Alerts
 Features/Alerts/AlertDeliveryFailureSpec.cs,Engine/Alerts/AlertDeliveryFailureSpec.cs,AlertDeliveryFailureSpec,AlertDeliveryFailureSpec,Runs AlertsJob delivery against failing transports
@@ -56,7 +56,7 @@ Features/Jobs/GetJobStatusSpec.cs,Operations/Jobs/GetJobStatusSpec.cs,GetJobStat
 Features/Jobs/IdentifierCaseFoldingSpec.cs,Operations/Jobs/IdentifierCaseFoldingSpec.cs,IdentifierCaseFoldingSpec,IdentifierCaseFoldingSpec,Key normalization across several operations
 Features/Jobs/JobControlVersionGuardSpec.cs,Operations/Jobs/JobControlVersionGuardSpec.cs,JobControlVersionGuardSpec,JobControlVersionGuardSpec,Version guard across PauseJob and RescheduleJob
 Features/Jobs/JobNoteSpec.cs,Operations/Execution/RecordJobNoteSpec.cs,JobNoteSpec,RecordJobNoteSpec,RecordJobNote operation owned by Execution
-Features/Jobs/JobPayloadReadsSpec.cs,Operations/Jobs/JobPayloadReadsSpec.cs,JobPayloadReadsSpec,JobPayloadReadsSpec,Covers GetJobInput and GetJobCheckpoints
+Features/Jobs/JobPayloadReadsSpec.cs,,JobPayloadReadsSpec,,Split per operation: GetJobInputSpec and GetJobCheckpointsSpec
 Features/Jobs/JobPurgeSpec.cs,Operations/Jobs/PurgeJobSpec.cs,JobPurgeSpec,PurgeJobSpec,PurgeJob operation
 Features/Jobs/JobReprioritizeSpec.cs,Operations/Jobs/ReprioritizeJobSpec.cs,JobReprioritizeSpec,ReprioritizeJobSpec,ReprioritizeJob operation
 Features/Jobs/JobRescheduleSpec.cs,Operations/Jobs/RescheduleJobSpec.cs,JobRescheduleSpec,RescheduleJobSpec,RescheduleJob operation

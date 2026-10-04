@@ -1,9 +1,7 @@
 # Known specs violations; entries may only be removed.
-operation: Alerts/AcknowledgeJobAlert
 operation: Alerts/GetAlertableEvents
 operation: Alerts/GetDeliverableAlerts
 operation: Alerts/GetJobAlert
-operation: Alerts/ResolveJobAlertManual
 operation: Alerts/ResolveJobAlerts
 operation: Alerts/UpdateAlertDelivery
 operation: Execution/ArmOrConsumeSleepTimer
@@ -14,8 +12,6 @@ operation: Execution/GetChildJobIds
 operation: Execution/GetStaleChildLatches
 operation: Execution/RepairRecoverySlot
 operation: Execution/StartStep
-operation: Jobs/GetJobCheckpoints
-operation: Jobs/GetJobInput
 operation: Locks/AcquireSlot
 operation: Locks/ReserveRate
 operation: Outbox/ConsumeOutboxSignal

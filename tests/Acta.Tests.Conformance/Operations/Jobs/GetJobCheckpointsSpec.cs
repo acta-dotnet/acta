@@ -7,47 +7,15 @@ using Xunit;
 
 namespace Acta.Tests.Conformance.Operations.Jobs;
 
-/// <summary>
-/// Conformance for the job payload reads: <c>GetJobInput</c> returns the stored input payload and
-/// format (null when no row matches), and <c>GetJobCheckpoints</c> lists a job's durable slots ordered
-/// by kind then name with the value payload and state round-tripped.
-/// </summary>
+/// <summary>Conformance for GetJobCheckpoints: a job's slots list by kind then name with state and value intact.</summary>
 [ConformanceSpec(
-    "job-payload-reads.input-and-checkpoints",
-    "GetJobInput reads stored input and GetJobCheckpoints lists a job's slots",
+    "job-payload-reads.checkpoints",
+    "GetJobCheckpoints lists a job's slots by kind then name",
     Area = "Reads",
-    Contract = "GetJobInput returns a job's stored input payload and format or null when no row matches, and GetJobCheckpoints lists slots ordered by kind then name."
+    Contract = "GetJobCheckpoints lists a job's slots by kind then name with state and value round-tripped, and nothing for a job without slots or a missing id."
 )]
-public sealed class JobPayloadReadsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+public sealed class GetJobCheckpointsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
-    [Fact(DisplayName = "GetJobInput returns the payload the job was enqueued with")]
-    public async Task Input_readable_after_enqueue_equals_enqueued()
-    {
-        var ct = TestContext.Current.CancellationToken;
-
-        var input = JobPayload.Json(new AddNumbers(4, 9));
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", input), ct);
-
-        var record = await Services.GetRequiredService<GetJobInputHandler>().ReadAsync(enqueued.JobId, ct);
-        Assert.NotNull(record);
-        Assert.Equal(input.Format.Id, record!.FormatId);
-        Assert.Equal(input.Data.ToArray(), record.Data.ToArray());
-
-        var payload = await Jobs.GetInputAsync(enqueued, ct);
-        Assert.NotNull(payload);
-        Assert.Equal(input.Format.Id, payload!.Value.Format.Id);
-        Assert.Equal(input.Data.ToArray(), payload.Value.Data.ToArray());
-    }
-
-    [Fact(DisplayName = "GetJobInput returns null when no job row matches the id")]
-    public async Task Input_null_for_missing_job()
-    {
-        var ct = TestContext.Current.CancellationToken;
-
-        var record = await Services.GetRequiredService<GetJobInputHandler>().ReadAsync(-987_654_321L, ct);
-        Assert.Null(record);
-    }
-
     [Fact(DisplayName = "GetJobCheckpoints lists variable and signal slots with kind, state, and value round-tripped")]
     public async Task Checkpoints_round_trip_kind_state_and_value()
     {

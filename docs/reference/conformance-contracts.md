@@ -494,16 +494,20 @@
 
 ## Control
 
-### Operator acknowledge/resolve verbs on IAlerts.
-- **Contract:** AcknowledgeAsync and ResolveAsync stamp and audit once and are idempotent, and only ResolveAsync suppresses a queued delivery and ends the reminders.
+### Acknowledge stamps and audits an alert once
+- **Contract:** Acknowledge stamps and audits alert.acknowledged once, repeats without a second event, keeps a due reminder due, and reports NotFound for an unknown ref.
 - **Guarantees:**
   - AcknowledgeAsync sets the timestamp, audits alert.acknowledged, and updates the acknowledged list filter
   - Re-acknowledging an already-acknowledged alert is Applied without mutation and emits no second event
+  - AcknowledgeAsync does not defer a reminder that is already due
+  - AcknowledgeAsync and ResolveAsync return NotFound for an unknown alert ref
+
+### Resolve stamps an alert once and settles its queued delivery
+- **Contract:** Resolve stamps and audits alert.resolved once without a prior acknowledge, repeats without a second event, and suppresses a queued delivery.
+- **Guarantees:**
   - ResolveAsync sets resolved_at_utc and audits alert.resolved without requiring a prior acknowledge
   - Re-resolving an already-resolved alert is Applied without mutation and emits no second event
   - ResolveAsync suppresses a queued delivery and clears retry_after_utc, leaving an already-sent one alone
-  - AcknowledgeAsync does not defer a reminder that is already due
-  - AcknowledgeAsync and ResolveAsync return NotFound for an unknown alert ref
 
 ### Cancel stamps retention once and rejects a re-cancel
 - **Contract:** Cancel from Suspended or Dispatched applies and stamps retention_until_utc, and re-cancelling a Cancelled job is Rejected without re-stamping.
@@ -1273,13 +1277,17 @@
   - A known worker id returns its durable detail projection
   - An unknown worker id returns null
 
-### GetJobInput reads stored input and GetJobCheckpoints lists a job's slots
-- **Contract:** GetJobInput returns a job's stored input payload and format or null when no row matches, and GetJobCheckpoints lists slots ordered by kind then name.
+### GetJobCheckpoints lists a job's slots by kind then name
+- **Contract:** GetJobCheckpoints lists a job's slots by kind then name with state and value round-tripped, and nothing for a job without slots or a missing id.
+- **Guarantees:**
+  - GetJobCheckpoints lists variable and signal slots with kind, state, and value round-tripped
+  - GetJobCheckpoints returns an empty list for a job with no slots and a missing id
+
+### GetJobInput reads the stored input or null
+- **Contract:** GetJobInput returns the payload and format a job was enqueued with, and null when no job row matches.
 - **Guarantees:**
   - GetJobInput returns the payload the job was enqueued with
   - GetJobInput returns null when no job row matches the id
-  - GetJobCheckpoints lists variable and signal slots with kind, state, and value round-tripped
-  - GetJobCheckpoints returns an empty list for a job with no slots and a missing id
 
 ### ListJobAlerts filter-matrix selects exactly matching rows per dimension
 - **Contract:** ListJobAlerts filters partition the alert rows to exactly the matching ids and exclude all non-matching ids for each filter dimension.
