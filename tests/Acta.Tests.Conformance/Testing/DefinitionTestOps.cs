@@ -32,7 +32,7 @@ internal static class DefinitionTestOps
         string jobNamespace,
         string jobName,
         int expectedVersion,
-        JobDefinitionPolicyOverrides overrides,
+        DefinitionPolicyOverrides overrides,
         JobControlActor actor,
         string? reasonMessage,
         CancellationToken ct

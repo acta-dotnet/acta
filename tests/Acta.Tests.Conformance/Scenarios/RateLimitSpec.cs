@@ -373,7 +373,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
             TestNamespace,
             "rate-shared-left",
             left.Version,
-            new JobDefinitionPolicyOverrides(RateLimit: "1/s"),
+            new DefinitionPolicyOverrides(RateLimit: "1/s"),
             ct: ct
         );
         Assert.Equal(ControlAction.Applied, outcome.Action);
@@ -398,7 +398,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
             TestNamespace,
             "rate-shared-left",
             left.Version,
-            new JobDefinitionPolicyOverrides(RateLimit: "1/s"),
+            new DefinitionPolicyOverrides(RateLimit: "1/s"),
             ct: ct
         );
         Assert.Equal(ControlAction.Applied, set.Action);
@@ -409,7 +409,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
             TestNamespace,
             "rate-shared-left",
             leftOverridden.Version,
-            new JobDefinitionPolicyOverrides(RateLimit: null),
+            new DefinitionPolicyOverrides(RateLimit: null),
             ct: ct
         );
         Assert.Equal(ControlAction.Applied, cleared.Action);
@@ -431,7 +431,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
             TestNamespace,
             "stripe",
             stripe.Version,
-            new JobDefinitionPolicyOverrides(RateLimit: "1/s"),
+            new DefinitionPolicyOverrides(RateLimit: "1/s"),
             ct: ct
         );
         Assert.Equal(ControlAction.Applied, outcome.Action);
@@ -453,7 +453,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
             TestNamespace,
             "stripe",
             stripe.Version,
-            new JobDefinitionPolicyOverrides(RateLimit: "1/s"),
+            new DefinitionPolicyOverrides(RateLimit: "1/s"),
             ct: ct
         );
         Assert.Equal(ControlAction.Applied, set.Action);
@@ -464,7 +464,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
             TestNamespace,
             "stripe",
             stripeOverridden.Version,
-            new JobDefinitionPolicyOverrides(RateLimit: null),
+            new DefinitionPolicyOverrides(RateLimit: null),
             ct: ct
         );
         Assert.Equal(ControlAction.Applied, cleared.Action);
@@ -485,7 +485,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
             TestNamespace,
             "rate-shared-left",
             left.Version,
-            new JobDefinitionPolicyOverrides(RateLimit: "1/s"),
+            new DefinitionPolicyOverrides(RateLimit: "1/s"),
             ct: ct
         );
         Assert.Equal(ControlAction.Applied, outcome.Action);

@@ -12,19 +12,19 @@ namespace Acta.Tests.Runtime;
 /// </summary>
 public sealed class DefinitionOverrideValidationTests
 {
-    private static JobDefinitionPolicyOverrides Normalize(JobDefinitionPolicyOverrides overrides) =>
+    private static DefinitionPolicyOverrides Normalize(DefinitionPolicyOverrides overrides) =>
         SetJobDefinitionOverridesHandler.Normalize(overrides);
 
     [Fact]
     public void An_execution_timeout_past_the_CancelAfter_ceiling_is_rejected()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() =>
-            Normalize(new JobDefinitionPolicyOverrides(ExecutionTimeoutSeconds: JobDefinitionRegistration.MaxExecutionTimeoutSeconds + 1))
+            Normalize(new DefinitionPolicyOverrides(ExecutionTimeoutSeconds: JobDefinitionRegistration.MaxExecutionTimeoutSeconds + 1))
         );
 
         // The ceiling itself is a legal value.
         var normalized = Normalize(
-            new JobDefinitionPolicyOverrides(ExecutionTimeoutSeconds: JobDefinitionRegistration.MaxExecutionTimeoutSeconds)
+            new DefinitionPolicyOverrides(ExecutionTimeoutSeconds: JobDefinitionRegistration.MaxExecutionTimeoutSeconds)
         );
         Assert.Equal(JobDefinitionRegistration.MaxExecutionTimeoutSeconds, normalized.ExecutionTimeoutSeconds);
     }
@@ -38,28 +38,28 @@ public sealed class DefinitionOverrideValidationTests
     {
         // Rejected rather than coerced, like Backoff: a meter that silently stops metering is worse
         // than a refused write.
-        Assert.Throws<ArgumentException>(() => Normalize(new JobDefinitionPolicyOverrides(RateLimit: rateLimit)));
+        Assert.Throws<ArgumentException>(() => Normalize(new DefinitionPolicyOverrides(RateLimit: rateLimit)));
 
-        Assert.Equal("1000/s", Normalize(new JobDefinitionPolicyOverrides(RateLimit: "1000/s")).RateLimit);
+        Assert.Equal("1000/s", Normalize(new DefinitionPolicyOverrides(RateLimit: "1000/s")).RateLimit);
     }
 
     [Theory]
     [InlineData("https://rb/é")] // non-ASCII in an ASCII column
     [InlineData("https://rb/\U0001F600")] // astral characters are equally out of range
     public void A_non_ascii_runbook_url_is_rejected(string url) =>
-        Assert.Throws<ArgumentException>(() => Normalize(new JobDefinitionPolicyOverrides(RunbookUrl: url)));
+        Assert.Throws<ArgumentException>(() => Normalize(new DefinitionPolicyOverrides(RunbookUrl: url)));
 
     [Fact]
     public void An_over_length_runbook_url_is_rejected_not_cut()
     {
         var url = "https://rb/" + new string('a', 600);
-        Assert.Throws<ArgumentException>(() => Normalize(new JobDefinitionPolicyOverrides(RunbookUrl: url)));
+        Assert.Throws<ArgumentException>(() => Normalize(new DefinitionPolicyOverrides(RunbookUrl: url)));
     }
 
     [Fact]
     public void Display_text_overrides_truncate_to_their_columns()
     {
-        var normalized = Normalize(new JobDefinitionPolicyOverrides(DisplayName: new string('d', 200), Description: new string('x', 600)));
+        var normalized = Normalize(new DefinitionPolicyOverrides(DisplayName: new string('d', 200), Description: new string('x', 600)));
 
         Assert.Equal(128, normalized.DisplayName!.Length);
         Assert.Equal(512, normalized.Description!.Length);

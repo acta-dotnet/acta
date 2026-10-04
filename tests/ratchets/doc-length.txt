@@ -39,9 +39,6 @@ JobBehaviorPipeline.cs
 JobCheckpointItem.cs
 JobContext.cs
 JobControlException.cs
-JobDefinitionDetail.cs
-JobDefinitionListItem.cs
-JobDefinitionPolicyOverrides.cs
 JobDetail.cs
 JobEnqueueOptions.cs
 JobEnqueueRequest.cs

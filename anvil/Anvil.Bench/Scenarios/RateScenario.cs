@@ -155,7 +155,7 @@ public sealed class RateScenario : IScenario
             BenchHost.Namespace,
             BenchHost.RateJobName,
             definition.Version,
-            new JobDefinitionPolicyOverrides(RateLimit: rate),
+            new DefinitionPolicyOverrides(RateLimit: rate),
             ct: ct
         );
         if (outcome.Action != ControlAction.Applied)

@@ -3,15 +3,13 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// The full job definition row returned by <see cref="IDefinitions.GetAsync"/>: the whole
-/// <c>definitions</c> row in its authoritative column order - identity + control, contract + formats,
-/// every policy triple (code <c>default</c>, operator <c>override</c> [null = inherit], DB-computed
-/// <c>effective</c>), and audit bookkeeping. Backs the dashboard's definition detail editor, where
-/// operators see and edit defaults vs overrides vs effective. The grid uses the slimmer
-/// <see cref="JobDefinitionListItem"/>. A definition is addressed by its natural key (namespace +
-/// name); the catalog id stays off the wire.
+/// The whole <c>definitions</c> row <see cref="IDefinitions.GetAsync"/> returns, in column order: identity and
+/// control, contract and formats, each policy as its code default, operator override (null inherits), and
+/// effective value, and audit bookkeeping. The dashboard's definition editor reads it; the grid reads the slimmer
+/// <see cref="DefinitionListItem"/>. A definition is addressed by namespace and name, and its catalog id stays off
+/// the wire.
 /// </summary>
-public sealed record JobDefinitionDetail(
+public sealed record DefinitionDetail(
     [property: JsonIgnore] int DefinitionId,
     string JobNamespace,
     string JobName,

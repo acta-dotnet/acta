@@ -11,7 +11,7 @@ namespace Acta.AspNetCore;
 /// </summary>
 internal sealed record SetJobDefinitionOverridesHttpRequest(
     int ExpectedVersion = 0,
-    JobDefinitionPolicyOverrides? Overrides = null,
+    DefinitionPolicyOverrides? Overrides = null,
     string? ReasonMessage = null
 ) : IControlRequest;
 
@@ -33,7 +33,7 @@ internal static class DefinitionsEndpoints
         reads.MapList(
             "/definitions",
             "List job definitions.",
-            DashboardJsonContext.Default.PagedResultJobDefinitionListItem,
+            DashboardJsonContext.Default.PagedResultDefinitionListItem,
             static query => new ListDefinitionsQuery(
                 JobNamespace: query.Text("jobNamespace"),
                 NameContains: query.Text("nameContains"),
@@ -62,7 +62,7 @@ internal static class DefinitionsEndpoints
             "/definitions/{jobNamespace}/{jobName}",
             "Read one job definition and its effective policy.",
             "Definition",
-            DashboardJsonContext.Default.JobDefinitionDetail,
+            DashboardJsonContext.Default.DefinitionDetail,
             static (http, call) => call.Operations.Definitions.GetAsync(Key(http).Namespace, Key(http).Name, call.Ct)
         );
         reads.MapTags(controls, "/definitions/{jobNamespace}/{jobName}/tags", "definition", options, static http => TagTarget(http));
@@ -84,7 +84,7 @@ internal static class DefinitionsEndpoints
                     key.Namespace,
                     key.Name,
                     call.Body!.ExpectedVersion,
-                    call.Body.Overrides ?? new JobDefinitionPolicyOverrides(),
+                    call.Body.Overrides ?? new DefinitionPolicyOverrides(),
                     call.ReasonMessage,
                     call.ActorKey,
                     call.Ct

@@ -12,7 +12,7 @@ internal sealed class Definitions(
         string jobNamespace,
         string jobName,
         int expectedVersion,
-        JobDefinitionPolicyOverrides overrides,
+        DefinitionPolicyOverrides overrides,
         string? reasonMessage = null,
         string? actorKey = null,
         CancellationToken ct = default
@@ -35,9 +35,9 @@ internal sealed class Definitions(
             ct
         );
 
-    public ValueTask<JobDefinitionDetail?> GetAsync(string jobNamespace, string jobName, CancellationToken ct = default) =>
+    public ValueTask<DefinitionDetail?> GetAsync(string jobNamespace, string jobName, CancellationToken ct = default) =>
         getJobDefinition.HandleAsync(new GetJobDefinitionQuery(jobNamespace, jobName), ct);
 
-    public ValueTask<PagedResult<JobDefinitionListItem>> ListAsync(ListDefinitionsQuery query, CancellationToken ct = default) =>
+    public ValueTask<PagedResult<DefinitionListItem>> ListAsync(ListDefinitionsQuery query, CancellationToken ct = default) =>
         listJobDefinitions.HandleAsync(query, ct);
 }

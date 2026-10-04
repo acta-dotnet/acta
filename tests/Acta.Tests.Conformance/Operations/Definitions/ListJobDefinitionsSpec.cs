@@ -24,7 +24,7 @@ public sealed class ListJobDefinitionsSpec : ActaRuntimeTestBase<ConformanceFixt
         var ct = TestContext.Current.CancellationToken;
         var queries = Services.GetRequiredService<IActaOperations>();
 
-        var seen = new List<JobDefinitionListItem>();
+        var seen = new List<DefinitionListItem>();
         string? cursor = null;
         var pages = 0;
         do

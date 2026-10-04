@@ -84,7 +84,7 @@ public sealed class SetJobDefinitionOverridesBindMatrixSpec : ActaStorageTestBas
             TestNamespace,
             name,
             before.Version,
-            new JobDefinitionPolicyOverrides(
+            new DefinitionPolicyOverrides(
                 Priority: JobPriorityCode.High, // ≠ Bulk base
                 MaxAttempts: 7, // ≠ 3 base
                 Backoff: "5s..9m x4 +-20%", // distinct expression
@@ -157,7 +157,7 @@ public sealed class SetJobDefinitionOverridesBindMatrixSpec : ActaStorageTestBas
             TestNamespace,
             name,
             v0,
-            new JobDefinitionPolicyOverrides(
+            new DefinitionPolicyOverrides(
                 Priority: JobPriorityCode.High,
                 MaxAttempts: 7,
                 Backoff: "5s..9m x4 +-20%",
@@ -183,7 +183,7 @@ public sealed class SetJobDefinitionOverridesBindMatrixSpec : ActaStorageTestBas
             TestNamespace,
             name,
             set.Version,
-            new JobDefinitionPolicyOverrides(),
+            new DefinitionPolicyOverrides(),
             Actor,
             "clear all",
             ct

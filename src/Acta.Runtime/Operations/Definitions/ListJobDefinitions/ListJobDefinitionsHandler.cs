@@ -6,7 +6,7 @@ namespace Acta.Runtime;
 /// <summary><see cref="IDefinitions.ListAsync"/>: definitions by namespace, then name, one keyset page at a time.</summary>
 internal sealed class ListJobDefinitionsHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<PagedResult<JobDefinitionListItem>> HandleAsync(ListDefinitionsQuery query, CancellationToken ct)
+    public async ValueTask<PagedResult<DefinitionListItem>> HandleAsync(ListDefinitionsQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
         var jobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace));
@@ -42,7 +42,7 @@ internal sealed class ListJobDefinitionsHandler(IDbSession session, ISqlDialect 
                     paging.Fetch,
                     query.IncludeTotal
                 ),
-            DbProjectionResolver.Resolve<JobDefinitionListItem>(),
+            DbProjectionResolver.Resolve<DefinitionListItem>(),
             ct
         );
         return paging.Page(rows, total, static item => [item.JobNamespace, item.JobName, item.DefinitionId]);

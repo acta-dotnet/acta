@@ -5,7 +5,7 @@ internal sealed record SetJobDefinitionOverridesCommand(
     string JobNamespace,
     string JobName,
     int ExpectedVersion,
-    JobDefinitionPolicyOverrides Overrides,
+    DefinitionPolicyOverrides Overrides,
     string? ReasonMessage,
     string? ActorKey
 );

@@ -69,6 +69,9 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   `DefinitionAuditLevelCode` and `DefinitionTenantRequirementCode`. Their generated `Extensions` and
   `JsonConverter` classes follow, as does `JobStepStatusExtensions`, now `StepStatusExtensions`.
   Members, stored values, and JSON strings are unchanged; the OpenAPI schemas take the new names.
+- **Definition read models drop the `Job` prefix.** `JobDefinitionDetail`, `JobDefinitionListItem`, and
+  `JobDefinitionPolicyOverrides` are now `DefinitionDetail`, `DefinitionListItem`, and
+  `DefinitionPolicyOverrides`. Members and JSON are unchanged; the OpenAPI schemas take the new names.
 
 ### Additions
 

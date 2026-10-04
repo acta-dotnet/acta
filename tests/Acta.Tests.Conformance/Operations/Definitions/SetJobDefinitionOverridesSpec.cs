@@ -41,7 +41,7 @@ public sealed class SetJobDefinitionOverridesSpec : ActaStorageTestBase<Conforma
                     TestNamespace,
                     name,
                     before.Version,
-                    new JobDefinitionPolicyOverrides(MaxAttempts: 10 + i),
+                    new DefinitionPolicyOverrides(MaxAttempts: 10 + i),
                     Actor,
                     "race",
                     ct
@@ -111,7 +111,7 @@ public sealed class SetJobDefinitionOverridesSpec : ActaStorageTestBase<Conforma
             TestNamespace,
             name,
             before.Version,
-            new JobDefinitionPolicyOverrides(MaxAttempts: 9),
+            new DefinitionPolicyOverrides(MaxAttempts: 9),
             Actor,
             "bump retries",
             ct
@@ -140,7 +140,7 @@ public sealed class SetJobDefinitionOverridesSpec : ActaStorageTestBase<Conforma
             TestNamespace,
             name,
             v0,
-            new JobDefinitionPolicyOverrides(MaxAttempts: 12),
+            new DefinitionPolicyOverrides(MaxAttempts: 12),
             Actor,
             "set",
             ct
@@ -153,7 +153,7 @@ public sealed class SetJobDefinitionOverridesSpec : ActaStorageTestBase<Conforma
             TestNamespace,
             name,
             set.Version,
-            new JobDefinitionPolicyOverrides(),
+            new DefinitionPolicyOverrides(),
             Actor,
             "clear",
             ct
@@ -177,7 +177,7 @@ public sealed class SetJobDefinitionOverridesSpec : ActaStorageTestBase<Conforma
             TestNamespace,
             name,
             before.Version + 1,
-            new JobDefinitionPolicyOverrides(MaxAttempts: 99),
+            new DefinitionPolicyOverrides(MaxAttempts: 99),
             Actor,
             "stale",
             ct
@@ -206,7 +206,7 @@ public sealed class SetJobDefinitionOverridesSpec : ActaStorageTestBase<Conforma
                 TestNamespace,
                 name,
                 before.Version,
-                new JobDefinitionPolicyOverrides(Backoff: badBackoff),
+                new DefinitionPolicyOverrides(Backoff: badBackoff),
                 Actor,
                 "bad",
                 ct
@@ -244,7 +244,7 @@ public sealed class SetJobDefinitionOverridesSpec : ActaStorageTestBase<Conforma
                     TestNamespace,
                     name,
                     before.Version,
-                    new JobDefinitionPolicyOverrides(
+                    new DefinitionPolicyOverrides(
                         MaxAttempts: maxAttempts,
                         ExecutionTimeoutSeconds: executionTimeoutSeconds,
                         DeadlineSeconds: deadlineSeconds,
@@ -275,7 +275,7 @@ public sealed class SetJobDefinitionOverridesSpec : ActaStorageTestBase<Conforma
                 TestNamespace,
                 name,
                 before.Version,
-                new JobDefinitionPolicyOverrides(MaxAttempts: 1, DeadlineSeconds: 0, JobRetentionSeconds: 0),
+                new DefinitionPolicyOverrides(MaxAttempts: 1, DeadlineSeconds: 0, JobRetentionSeconds: 0),
                 "boundary",
                 Actor.ActorKey,
                 ct
@@ -295,7 +295,7 @@ public sealed class SetJobDefinitionOverridesSpec : ActaStorageTestBase<Conforma
             TestNamespace,
             TestKey("ghost-definition"),
             0,
-            new JobDefinitionPolicyOverrides(MaxAttempts: 1),
+            new DefinitionPolicyOverrides(MaxAttempts: 1),
             Actor,
             "ghost",
             ct
@@ -318,7 +318,7 @@ public sealed class SetJobDefinitionOverridesSpec : ActaStorageTestBase<Conforma
             TestNamespace,
             name,
             v0,
-            new JobDefinitionPolicyOverrides(MaxAttempts: 7),
+            new DefinitionPolicyOverrides(MaxAttempts: 7),
             Actor,
             "audited edit",
             ct

@@ -64,7 +64,7 @@ public sealed class GetJobDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
             definition.JobNamespace,
             definition.JobName,
             before!.Version,
-            new JobDefinitionPolicyOverrides(DisplayName: displayName, Description: description),
+            new DefinitionPolicyOverrides(DisplayName: displayName, Description: description),
             new JobControlActor(ActorCode.Operator, "tester"),
             "detail projection round-trip",
             ct

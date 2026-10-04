@@ -14,7 +14,7 @@ public sealed class DefinitionKeyResolutionTests
 {
     private const string Namespace = "billing";
 
-    private static JobDefinitionListItem Row(int id, string name) =>
+    private static DefinitionListItem Row(int id, string name) =>
         new(
             DefinitionId: id,
             JobNamespace: Namespace,
@@ -38,7 +38,7 @@ public sealed class DefinitionKeyResolutionTests
 
     // invoice sits between a suffix sibling (invoice-retry) and a prefix sibling (bulk-invoice), so a
     // resolver that over- or under-matched in either direction lands on the wrong row.
-    private static readonly JobDefinitionListItem[] Catalog = [Row(1, "invoice"), Row(2, "invoice-retry"), Row(3, "bulk-invoice")];
+    private static readonly DefinitionListItem[] Catalog = [Row(1, "invoice"), Row(2, "invoice-retry"), Row(3, "bulk-invoice")];
 
     private static DefinitionKeyResolution Keys(IDbSession session) => new(session, null!);
 
@@ -76,7 +76,7 @@ public sealed class DefinitionKeyResolutionTests
                 Namespace,
                 "invoic",
                 ExpectedVersion: 1,
-                new JobDefinitionPolicyOverrides(MaxAttempts: 9),
+                new DefinitionPolicyOverrides(MaxAttempts: 9),
                 ReasonMessage: "typo",
                 ActorKey: "tester"
             ),
@@ -90,7 +90,7 @@ public sealed class DefinitionKeyResolutionTests
     /// A session whose list read ignores the name filter entirely and returns the whole catalog. Nothing
     /// but the resolver's own ordinal match can produce the right row, which is exactly what is pinned.
     /// </summary>
-    private sealed class OverMatchingSession(IReadOnlyList<JobDefinitionListItem> rows) : DbSessionStub
+    private sealed class OverMatchingSession(IReadOnlyList<DefinitionListItem> rows) : DbSessionStub
     {
         public override Task<T> QueryAsync<T>(
             string stem,
@@ -99,7 +99,7 @@ public sealed class DefinitionKeyResolutionTests
             CancellationToken ct
         )
         {
-            (IReadOnlyList<JobDefinitionListItem> Rows, long? Total) page = (rows, rows.Count);
+            (IReadOnlyList<DefinitionListItem> Rows, long? Total) page = (rows, rows.Count);
             return Task.FromResult((T)(object)page);
         }
     }

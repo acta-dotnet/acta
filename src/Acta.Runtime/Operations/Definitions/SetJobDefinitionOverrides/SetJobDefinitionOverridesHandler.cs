@@ -60,7 +60,7 @@ internal sealed class SetJobDefinitionOverridesHandler(DefinitionKeyResolution k
     /// as kebab, and the free-form display name and description cut to their columns like every other
     /// operator-supplied message, so an over-length value never surfaces as a provider write error.
     /// </summary>
-    internal static JobDefinitionPolicyOverrides Normalize(JobDefinitionPolicyOverrides overrides)
+    internal static DefinitionPolicyOverrides Normalize(DefinitionPolicyOverrides overrides)
     {
         ArgumentNullException.ThrowIfNull(overrides);
 

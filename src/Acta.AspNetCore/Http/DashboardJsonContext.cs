@@ -17,8 +17,8 @@ namespace Acta.AspNetCore;
     UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow
 )]
 [JsonSerializable(typeof(PagedResult<JobListItem>))]
-[JsonSerializable(typeof(PagedResult<JobDefinitionListItem>))]
-[JsonSerializable(typeof(JobDefinitionDetail))]
+[JsonSerializable(typeof(PagedResult<DefinitionListItem>))]
+[JsonSerializable(typeof(DefinitionDetail))]
 [JsonSerializable(typeof(PagedResult<ScheduleListItem>))]
 [JsonSerializable(typeof(PagedResult<WorkerListItem>))]
 [JsonSerializable(typeof(WorkerDetail))]

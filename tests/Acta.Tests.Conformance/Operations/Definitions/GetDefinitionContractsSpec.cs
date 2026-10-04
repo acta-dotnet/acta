@@ -70,7 +70,7 @@ public sealed class GetDefinitionContractsSpec : ActaStorageTestBase<Conformance
             TestNamespace,
             name,
             await VersionAsync(id, ct),
-            new JobDefinitionPolicyOverrides(MaxAttempts: 9),
+            new DefinitionPolicyOverrides(MaxAttempts: 9),
             new JobControlActor(ActorCode.Operator, "tester"),
             null,
             ct

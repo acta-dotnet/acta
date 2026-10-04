@@ -25,16 +25,14 @@ internal sealed class FakeDefinitions : IDefinitions
             ValueTask.FromResult(new RetireJobDefinitionResponse(Outcome(jobName, expectedVersion)));
         Get = static (jobNamespace, jobName, _) => ValueTask.FromResult(Detail(jobNamespace, jobName));
         List = static (query, _) =>
-            ValueTask.FromResult(
-                new PagedResult<JobDefinitionListItem>(query.JobNamespace == "billing" ? [Item] : [], null, false, 50, null)
-            );
+            ValueTask.FromResult(new PagedResult<DefinitionListItem>(query.JobNamespace == "billing" ? [Item] : [], null, false, 50, null));
     }
 
     public Func<
         string,
         string,
         int,
-        JobDefinitionPolicyOverrides,
+        DefinitionPolicyOverrides,
         string?,
         string?,
         CancellationToken,
@@ -43,15 +41,15 @@ internal sealed class FakeDefinitions : IDefinitions
 
     public Func<string, string, int, string?, string?, CancellationToken, ValueTask<RetireJobDefinitionResponse>> Retire { get; set; }
 
-    public Func<string, string, CancellationToken, ValueTask<JobDefinitionDetail?>> Get { get; set; }
+    public Func<string, string, CancellationToken, ValueTask<DefinitionDetail?>> Get { get; set; }
 
-    public Func<ListDefinitionsQuery, CancellationToken, ValueTask<PagedResult<JobDefinitionListItem>>> List { get; set; }
+    public Func<ListDefinitionsQuery, CancellationToken, ValueTask<PagedResult<DefinitionListItem>>> List { get; set; }
 
     ValueTask<SetJobDefinitionOverridesResponse> IDefinitions.UpdateOverridesAsync(
         string jobNamespace,
         string jobName,
         int expectedVersion,
-        JobDefinitionPolicyOverrides overrides,
+        DefinitionPolicyOverrides overrides,
         string? reasonMessage,
         string? actorKey,
         CancellationToken ct
@@ -66,11 +64,10 @@ internal sealed class FakeDefinitions : IDefinitions
         CancellationToken ct
     ) => Retire(jobNamespace, jobName, expectedVersion, reasonMessage, actorKey, ct);
 
-    ValueTask<JobDefinitionDetail?> IDefinitions.GetAsync(string jobNamespace, string jobName, CancellationToken ct) =>
+    ValueTask<DefinitionDetail?> IDefinitions.GetAsync(string jobNamespace, string jobName, CancellationToken ct) =>
         Get(jobNamespace, jobName, ct);
 
-    ValueTask<PagedResult<JobDefinitionListItem>> IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct) =>
-        List(query, ct);
+    ValueTask<PagedResult<DefinitionListItem>> IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct) => List(query, ct);
 
     private static ControlAction Outcome(string jobName, int expectedVersion) =>
         jobName == "missing" ? ControlAction.NotFound
@@ -81,7 +78,7 @@ internal sealed class FakeDefinitions : IDefinitions
     /// Validates the key before it resolves, as DefinitionKeyResolution does, so a non-canonical key (uppercase, a
     /// wildcard) is an InvalidQueryException the edge maps to 400, never a miss.
     /// </summary>
-    private static JobDefinitionDetail? Detail(string jobNamespace, string jobName)
+    private static DefinitionDetail? Detail(string jobNamespace, string jobName)
     {
         try
         {
@@ -96,7 +93,7 @@ internal sealed class FakeDefinitions : IDefinitions
         return jobNamespace == "billing" && jobName == "send-invoice" ? SendInvoice : null;
     }
 
-    private static readonly JobDefinitionListItem Item = new(
+    private static readonly DefinitionListItem Item = new(
         5,
         "billing",
         "send-invoice",
@@ -117,7 +114,7 @@ internal sealed class FakeDefinitions : IDefinitions
         2
     );
 
-    private static readonly JobDefinitionDetail SendInvoice = new(
+    private static readonly DefinitionDetail SendInvoice = new(
         DefinitionId: 5,
         JobNamespace: "billing",
         JobName: "send-invoice",

@@ -4839,7 +4839,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobDefinitionDetail"
+                  "$ref": "#/components/schemas/DefinitionDetail"
                 }
               }
             }
@@ -7060,7 +7060,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PagedResultOfJobDefinitionListItem"
+                  "$ref": "#/components/schemas/PagedResultOfDefinitionListItem"
                 }
               }
             }
@@ -8396,6 +8396,661 @@
         "description": "How the engine treats a job that has passed its deadline."
       },
       "DefinitionAuditLevelCode": { },
+      "DefinitionDetail": {
+        "required": [
+          "jobNamespace",
+          "jobName",
+          "status",
+          "definitionHash",
+          "manifestGenerationAtUtc",
+          "inputTypeName",
+          "inputFormatId",
+          "inputFormatName",
+          "outputTypeName",
+          "outputFormatId",
+          "outputFormatName",
+          "priority",
+          "priorityOverride",
+          "priorityEffective",
+          "maxAttempts",
+          "maxAttemptsOverride",
+          "maxAttemptsEffective",
+          "concurrencyLimit",
+          "concurrencyLimitOverride",
+          "concurrencyLimitEffective",
+          "rateLimit",
+          "rateLimitOverride",
+          "rateLimitEffective",
+          "rateKey",
+          "lane",
+          "backoff",
+          "backoffOverride",
+          "backoffEffective",
+          "executionTimeoutSeconds",
+          "executionTimeoutSecondsOverride",
+          "executionTimeoutSecondsEffective",
+          "deadlineSeconds",
+          "deadlineSecondsOverride",
+          "deadlineSecondsEffective",
+          "deadlineBehavior",
+          "deadlineBehaviorOverride",
+          "deadlineBehaviorEffective",
+          "jobRetentionSeconds",
+          "jobRetentionSecondsOverride",
+          "jobRetentionSecondsEffective",
+          "auditLevel",
+          "auditLevelOverride",
+          "auditLevelEffective",
+          "alertProfile",
+          "alertProfileOverride",
+          "alertProfileEffective",
+          "alertChannelName",
+          "alertChannelNameOverride",
+          "alertChannelNameEffective",
+          "runbookUrl",
+          "runbookUrlOverride",
+          "runbookUrlEffective",
+          "displayName",
+          "displayNameOverride",
+          "displayNameEffective",
+          "description",
+          "descriptionOverride",
+          "descriptionEffective",
+          "createdAtUtc",
+          "modifiedAtUtc",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "jobNamespace": {
+            "type": "string"
+          },
+          "jobName": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DefinitionStatusCode"
+          },
+          "definitionHash": {
+            "type": "string"
+          },
+          "manifestGenerationAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "inputTypeName": {
+            "type": "string"
+          },
+          "inputFormatId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "uint8"
+          },
+          "inputFormatName": {
+            "type": "string"
+          },
+          "outputTypeName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "outputFormatId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "uint8"
+          },
+          "outputFormatName": {
+            "type": "string"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/JobPriorityCode"
+          },
+          "priorityOverride": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobPriorityCode"
+              }
+            ]
+          },
+          "priorityEffective": {
+            "$ref": "#/components/schemas/JobPriorityCode"
+          },
+          "maxAttempts": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "maxAttemptsOverride": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "maxAttemptsEffective": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "concurrencyLimit": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "concurrencyLimitOverride": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "concurrencyLimitEffective": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "rateLimit": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rateLimitOverride": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rateLimitEffective": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rateKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lane": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "backoff": {
+            "type": "string"
+          },
+          "backoffOverride": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "backoffEffective": {
+            "type": "string"
+          },
+          "executionTimeoutSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "executionTimeoutSecondsOverride": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "executionTimeoutSecondsEffective": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "deadlineSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "deadlineSecondsOverride": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "deadlineSecondsEffective": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "deadlineBehavior": {
+            "$ref": "#/components/schemas/DeadlineBehaviorCode"
+          },
+          "deadlineBehaviorOverride": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DeadlineBehaviorCode"
+              }
+            ]
+          },
+          "deadlineBehaviorEffective": {
+            "$ref": "#/components/schemas/DeadlineBehaviorCode"
+          },
+          "jobRetentionSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "jobRetentionSecondsOverride": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "jobRetentionSecondsEffective": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "auditLevel": {
+            "$ref": "#/components/schemas/DefinitionAuditLevelCode"
+          },
+          "auditLevelOverride": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DefinitionAuditLevelCode"
+              }
+            ]
+          },
+          "auditLevelEffective": {
+            "$ref": "#/components/schemas/DefinitionAuditLevelCode"
+          },
+          "alertProfile": {
+            "$ref": "#/components/schemas/AlertProfileCode"
+          },
+          "alertProfileOverride": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AlertProfileCode"
+              }
+            ]
+          },
+          "alertProfileEffective": {
+            "$ref": "#/components/schemas/AlertProfileCode"
+          },
+          "alertChannelName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "alertChannelNameOverride": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "alertChannelNameEffective": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "runbookUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "runbookUrlOverride": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "runbookUrlEffective": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "displayName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "displayNameOverride": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "displayNameEffective": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "descriptionOverride": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "descriptionEffective": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "modifiedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "The whole `definitions` row ValueTask&lt;DefinitionDetail?&gt; IDefinitions.GetAsync(string jobNamespace, string jobName, CancellationToken ct = default(CancellationToken)) returns, in column order: identity and\ncontrol, contract and formats, each policy as its code default, operator override (null inherits), and\neffective value, and audit bookkeeping. The dashboard's definition editor reads it; the grid reads the slimmer\nDefinitionListItem. A definition is addressed by namespace and name, and its catalog id stays off\nthe wire."
+      },
+      "DefinitionListItem": {
+        "required": [
+          "jobNamespace",
+          "jobName",
+          "status",
+          "inputTypeName",
+          "outputTypeName",
+          "priorityOverride",
+          "priorityEffective",
+          "maxAttemptsOverride",
+          "maxAttemptsEffective",
+          "concurrencyLimitOverride",
+          "concurrencyLimitEffective",
+          "rateLimitOverride",
+          "rateLimitEffective",
+          "rateKey",
+          "lane",
+          "modifiedAtUtc",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "jobNamespace": {
+            "type": "string"
+          },
+          "jobName": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DefinitionStatusCode"
+          },
+          "inputTypeName": {
+            "type": "string"
+          },
+          "outputTypeName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "priorityOverride": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobPriorityCode"
+              }
+            ]
+          },
+          "priorityEffective": {
+            "$ref": "#/components/schemas/JobPriorityCode"
+          },
+          "maxAttemptsOverride": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "maxAttemptsEffective": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "concurrencyLimitOverride": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "concurrencyLimitEffective": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "rateLimitOverride": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rateLimitEffective": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rateKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lane": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "modifiedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "One definition in an ValueTask&lt;PagedResult&lt;DefinitionListItem&gt;&gt; IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct = default(CancellationToken)) page, trimmed to the dashboard grid: identity, status,\ncontract type names, the four policies the grid shows (priority, max attempts, concurrency limit, rate limit) as\noverride and effective so it can flag an operator override, and the rate key, which names the meter and so says\nwhich definitions share it. DefinitionDetail carries the whole row. A definition is addressed by\nnamespace and name, and its catalog id stays off the wire."
+      },
+      "DefinitionPolicyOverrides": {
+        "type": "object",
+        "properties": {
+          "priority": { },
+          "maxAttempts": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "concurrencyLimit": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "rateLimit": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "backoff": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "executionTimeoutSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "deadlineSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "deadlineBehavior": { },
+          "jobRetentionSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "auditLevel": { },
+          "alertProfile": { },
+          "alertChannelName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "runbookUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "displayName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "The whole operator-override set for a definition's policy, applied as a unit: a non-null field sets its override\nand null clears it back to the code default, so the dashboard reads, edits, and writes the full set. Code defaults,\ncontract, formats, and `definition_hash` are never touched. A `DeadlineSeconds` override on a scheduled\ndefinition lands but is ignored: a deadline anchors to job creation, and a recurring slot lives forever.\n`RateLimit` applies to every definition sharing the meter (declared `RateKey`, or the name) in one\nwrite, clearing included, so the meter never carries two rates."
+      },
       "DefinitionStatusCode": {
         "description": "Lifecycle status of a job definition. Numeric bands are a readability convention only;\nbehavior follows the explicit members. There is no per-definition Deprecated state by design:\noperators pause individual Jobs via `IJobs.PauseAsync`."
       },
@@ -8898,661 +9553,6 @@
             "format": "date-time"
           }
         }
-      },
-      "JobDefinitionDetail": {
-        "required": [
-          "jobNamespace",
-          "jobName",
-          "status",
-          "definitionHash",
-          "manifestGenerationAtUtc",
-          "inputTypeName",
-          "inputFormatId",
-          "inputFormatName",
-          "outputTypeName",
-          "outputFormatId",
-          "outputFormatName",
-          "priority",
-          "priorityOverride",
-          "priorityEffective",
-          "maxAttempts",
-          "maxAttemptsOverride",
-          "maxAttemptsEffective",
-          "concurrencyLimit",
-          "concurrencyLimitOverride",
-          "concurrencyLimitEffective",
-          "rateLimit",
-          "rateLimitOverride",
-          "rateLimitEffective",
-          "rateKey",
-          "lane",
-          "backoff",
-          "backoffOverride",
-          "backoffEffective",
-          "executionTimeoutSeconds",
-          "executionTimeoutSecondsOverride",
-          "executionTimeoutSecondsEffective",
-          "deadlineSeconds",
-          "deadlineSecondsOverride",
-          "deadlineSecondsEffective",
-          "deadlineBehavior",
-          "deadlineBehaviorOverride",
-          "deadlineBehaviorEffective",
-          "jobRetentionSeconds",
-          "jobRetentionSecondsOverride",
-          "jobRetentionSecondsEffective",
-          "auditLevel",
-          "auditLevelOverride",
-          "auditLevelEffective",
-          "alertProfile",
-          "alertProfileOverride",
-          "alertProfileEffective",
-          "alertChannelName",
-          "alertChannelNameOverride",
-          "alertChannelNameEffective",
-          "runbookUrl",
-          "runbookUrlOverride",
-          "runbookUrlEffective",
-          "displayName",
-          "displayNameOverride",
-          "displayNameEffective",
-          "description",
-          "descriptionOverride",
-          "descriptionEffective",
-          "createdAtUtc",
-          "modifiedAtUtc",
-          "version"
-        ],
-        "type": "object",
-        "properties": {
-          "jobNamespace": {
-            "type": "string"
-          },
-          "jobName": {
-            "type": "string"
-          },
-          "status": {
-            "$ref": "#/components/schemas/DefinitionStatusCode"
-          },
-          "definitionHash": {
-            "type": "string"
-          },
-          "manifestGenerationAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "inputTypeName": {
-            "type": "string"
-          },
-          "inputFormatId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "uint8"
-          },
-          "inputFormatName": {
-            "type": "string"
-          },
-          "outputTypeName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "outputFormatId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "uint8"
-          },
-          "outputFormatName": {
-            "type": "string"
-          },
-          "priority": {
-            "$ref": "#/components/schemas/JobPriorityCode"
-          },
-          "priorityOverride": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JobPriorityCode"
-              }
-            ]
-          },
-          "priorityEffective": {
-            "$ref": "#/components/schemas/JobPriorityCode"
-          },
-          "maxAttempts": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "maxAttemptsOverride": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "maxAttemptsEffective": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "concurrencyLimit": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "concurrencyLimitOverride": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "concurrencyLimitEffective": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "rateLimit": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "rateLimitOverride": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "rateLimitEffective": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "rateKey": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "lane": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "backoff": {
-            "type": "string"
-          },
-          "backoffOverride": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "backoffEffective": {
-            "type": "string"
-          },
-          "executionTimeoutSeconds": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "executionTimeoutSecondsOverride": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "executionTimeoutSecondsEffective": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "deadlineSeconds": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "deadlineSecondsOverride": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "deadlineSecondsEffective": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "deadlineBehavior": {
-            "$ref": "#/components/schemas/DeadlineBehaviorCode"
-          },
-          "deadlineBehaviorOverride": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/DeadlineBehaviorCode"
-              }
-            ]
-          },
-          "deadlineBehaviorEffective": {
-            "$ref": "#/components/schemas/DeadlineBehaviorCode"
-          },
-          "jobRetentionSeconds": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "jobRetentionSecondsOverride": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "jobRetentionSecondsEffective": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "auditLevel": {
-            "$ref": "#/components/schemas/DefinitionAuditLevelCode"
-          },
-          "auditLevelOverride": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/DefinitionAuditLevelCode"
-              }
-            ]
-          },
-          "auditLevelEffective": {
-            "$ref": "#/components/schemas/DefinitionAuditLevelCode"
-          },
-          "alertProfile": {
-            "$ref": "#/components/schemas/AlertProfileCode"
-          },
-          "alertProfileOverride": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/AlertProfileCode"
-              }
-            ]
-          },
-          "alertProfileEffective": {
-            "$ref": "#/components/schemas/AlertProfileCode"
-          },
-          "alertChannelName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "alertChannelNameOverride": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "alertChannelNameEffective": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "runbookUrl": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "runbookUrlOverride": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "runbookUrlEffective": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "displayName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "displayNameOverride": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "displayNameEffective": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "description": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "descriptionOverride": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "descriptionEffective": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "createdAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "modifiedAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          }
-        },
-        "description": "The full job definition row returned by ValueTask&lt;JobDefinitionDetail?&gt; IDefinitions.GetAsync(string jobNamespace, string jobName, CancellationToken ct = default(CancellationToken)): the whole\n`definitions` row in its authoritative column order - identity + control, contract + formats,\nevery policy triple (code `default`, operator `override` [null = inherit], DB-computed\n`effective`), and audit bookkeeping. Backs the dashboard's definition detail editor, where\noperators see and edit defaults vs overrides vs effective. The grid uses the slimmer\nJobDefinitionListItem. A definition is addressed by its natural key (namespace +\nname); the catalog id stays off the wire."
-      },
-      "JobDefinitionListItem": {
-        "required": [
-          "jobNamespace",
-          "jobName",
-          "status",
-          "inputTypeName",
-          "outputTypeName",
-          "priorityOverride",
-          "priorityEffective",
-          "maxAttemptsOverride",
-          "maxAttemptsEffective",
-          "concurrencyLimitOverride",
-          "concurrencyLimitEffective",
-          "rateLimitOverride",
-          "rateLimitEffective",
-          "rateKey",
-          "lane",
-          "modifiedAtUtc",
-          "version"
-        ],
-        "type": "object",
-        "properties": {
-          "jobNamespace": {
-            "type": "string"
-          },
-          "jobName": {
-            "type": "string"
-          },
-          "status": {
-            "$ref": "#/components/schemas/DefinitionStatusCode"
-          },
-          "inputTypeName": {
-            "type": "string"
-          },
-          "outputTypeName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "priorityOverride": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JobPriorityCode"
-              }
-            ]
-          },
-          "priorityEffective": {
-            "$ref": "#/components/schemas/JobPriorityCode"
-          },
-          "maxAttemptsOverride": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "maxAttemptsEffective": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "concurrencyLimitOverride": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "concurrencyLimitEffective": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "rateLimitOverride": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "rateLimitEffective": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "rateKey": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "lane": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "modifiedAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          }
-        },
-        "description": "One job definition row in a ValueTask&lt;PagedResult&lt;JobDefinitionListItem&gt;&gt; IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct = default(CancellationToken)) page, trimmed to what\nthe dashboard definitions grid renders: identity, status, contract type names, the four policy\ncolumns it surfaces (priority, max attempts, concurrency limit, and rate limit, each as effective +\noverride so the grid can flag an operator override), and the rate key, which names the meter the\nrate is spent from and so says which definitions share it. The full row - every policy triple, formats, audit bookkeeping - is read on\ndemand via ValueTask&lt;JobDefinitionDetail?&gt; IDefinitions.GetAsync(string jobNamespace, string jobName, CancellationToken ct = default(CancellationToken)) (JobDefinitionDetail). A definition is\naddressed by its natural key (namespace + name); the catalog id stays off the wire."
-      },
-      "JobDefinitionPolicyOverrides": {
-        "type": "object",
-        "properties": {
-          "priority": { },
-          "maxAttempts": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "concurrencyLimit": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "rateLimit": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "backoff": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "executionTimeoutSeconds": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "deadlineSeconds": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "deadlineBehavior": { },
-          "jobRetentionSeconds": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "auditLevel": { },
-          "alertProfile": { },
-          "alertChannelName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "runbookUrl": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "displayName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "description": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        },
-        "description": "The complete operator-override set applied to a job definition's policy. Each field is the override\nfor its policy slot: a non-null value sets the override, `null` clears it (the effective value\nfalls back to the code default). Applied as a whole - the supplied set replaces the row's current\noverrides - so the dashboard reads the current overrides, edits, and writes the full set back. Never\ntouches the code-owned defaults, the contract/formats, or `definition_hash`. A\n`DeadlineSeconds` override on a scheduled definition lands but is ignored: a deadline anchors\nto job creation, and a recurring slot's row lives forever, so the runtime never hands a slot a\ndeadline. `RateLimit` is the one field that is not this definition's alone: it applies to\nevery definition sharing the meter (declared `RateKey`, or the definition name) in one write,\nclearing included, so the meter never carries two rates."
       },
       "JobDetail": {
         "required": [
@@ -10626,7 +10626,7 @@
         },
         "description": "One page of a keyset-paginated list read."
       },
-      "PagedResultOfEventListItem": {
+      "PagedResultOfDefinitionListItem": {
         "required": [
           "items",
           "nextCursor",
@@ -10639,7 +10639,7 @@
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/EventListItem"
+              "$ref": "#/components/schemas/DefinitionListItem"
             },
             "description": "The page rows, at most PageSize of them."
           },
@@ -10676,7 +10676,7 @@
         },
         "description": "One page of a keyset-paginated list read."
       },
-      "PagedResultOfJobDefinitionListItem": {
+      "PagedResultOfEventListItem": {
         "required": [
           "items",
           "nextCursor",
@@ -10689,7 +10689,7 @@
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/JobDefinitionListItem"
+              "$ref": "#/components/schemas/EventListItem"
             },
             "description": "The page rows, at most PageSize of them."
           },
@@ -11830,7 +11830,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/JobDefinitionPolicyOverrides"
+                "$ref": "#/components/schemas/DefinitionPolicyOverrides"
               }
             ]
           },

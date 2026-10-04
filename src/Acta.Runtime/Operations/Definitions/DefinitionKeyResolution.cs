@@ -21,7 +21,7 @@ internal sealed class DefinitionKeyResolution(IDbSession session, ISqlDialect di
             "ListJobDefinitions",
             cmd =>
                 ListJobDefinitionsHandler.Bind(cmd, dialect, ns, name, status: null, tags: null, after: null, take: 2, includeTotal: false),
-            DbProjectionResolver.Resolve<JobDefinitionListItem>(),
+            DbProjectionResolver.Resolve<DefinitionListItem>(),
             ct
         );
         foreach (var row in rows)

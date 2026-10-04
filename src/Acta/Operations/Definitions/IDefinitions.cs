@@ -11,7 +11,7 @@ public interface IDefinitions
         string jobNamespace,
         string jobName,
         int expectedVersion,
-        JobDefinitionPolicyOverrides overrides,
+        DefinitionPolicyOverrides overrides,
         string? reasonMessage = null,
         string? actorKey = null,
         CancellationToken ct = default
@@ -39,8 +39,8 @@ public interface IDefinitions
     );
 
     /// <summary>Read a single job definition's full detail by its natural key, or null when none matches.</summary>
-    ValueTask<JobDefinitionDetail?> GetAsync(string jobNamespace, string jobName, CancellationToken ct = default);
+    ValueTask<DefinitionDetail?> GetAsync(string jobNamespace, string jobName, CancellationToken ct = default);
 
     /// <summary>List job definitions ordered by namespace then name, optionally filtered by namespace and status.</summary>
-    ValueTask<PagedResult<JobDefinitionListItem>> ListAsync(ListDefinitionsQuery query, CancellationToken ct = default);
+    ValueTask<PagedResult<DefinitionListItem>> ListAsync(ListDefinitionsQuery query, CancellationToken ct = default);
 }
