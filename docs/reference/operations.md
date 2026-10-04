@@ -29,7 +29,7 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `GetDefinitionContracts` | · | · | · | inline | inline | inline | · | · |
+| `GetDefinitionContracts` | · | · | · | inline | inline | inline | · | `GetDefinitionContractsSpec` |
 | `GetJobDefinition` | `IDefinitions.GetAsync` | `GET /definitions/{jobNamespace}/{jobName}` | · | inline | inline | inline | · | `GetJobDefinitionSpec` |
 | `ListJobDefinitions` | `IDefinitions.ListAsync` | `GET /definitions` | · | inline | inline | inline | · | `ListJobDefinitionsFilterMatrixSpec`, `ListJobDefinitionsSpec` |
 | `RegisterJobDefinitions` | · | · | · | routine | routine | inline | `definitions` | `RegisterJobDefinitionsSpec` |

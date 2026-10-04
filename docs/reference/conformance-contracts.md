@@ -229,6 +229,15 @@
   - Retiring an already retired definition is applied and writes no further events
   - An equal manifest generation reactivates a retired definition and an older one cannot
 
+### The catalog read returns every definition of one namespace
+- **Contract:** GetDefinitionContracts returns every definition of one namespace, retired ones included, with its contract, hash, status, and override-aware effective policy.
+- **Guarantees:**
+  - A namespace without definitions reads an empty catalog
+  - Each definition reads back its identity, generation, contract, hash, status, and policy
+  - An operator override reads back as the effective policy
+  - A retired definition stays in the catalog with its Retired status
+  - The catalog holds only the asked namespace's definitions
+
 ### GetTenant reads a tenant by key and GetTenantKey reads its key by id
 - **Contract:** GetTenant returns the TenantDetail for a known key in any status or null, and GetTenantKey returns that tenant's key for its id.
 - **Guarantees:**

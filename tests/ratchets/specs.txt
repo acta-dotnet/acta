@@ -6,7 +6,6 @@ operation: Alerts/GetJobAlert
 operation: Alerts/ResolveJobAlertManual
 operation: Alerts/ResolveJobAlerts
 operation: Alerts/UpdateAlertDelivery
-operation: Definitions/GetDefinitionContracts
 operation: Execution/ArmOrConsumeSleepTimer
 operation: Execution/CheckpointSlot
 operation: Execution/ClaimOne
