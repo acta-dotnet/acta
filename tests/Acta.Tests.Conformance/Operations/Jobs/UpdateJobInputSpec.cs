@@ -1,0 +1,197 @@
+using Acta.Runtime;
+using Acta.Tests.Conformance.Contracts;
+using Acta.Tests.Conformance.Testing;
+using TestJobs;
+using Xunit;
+
+namespace Acta.Tests.Conformance.Operations.Jobs;
+
+/// <summary>
+/// Operator UpdateJobInputAsync: amends a job's stored input payload. Allowed in any status except
+/// Dispatched/Executing (a mid-flight handler may already have read the input); the transition is
+/// audited (job.input-amended) with bounded metadata (format name and byte count) about the
+/// previous payload in the event detail, never the payload itself.
+/// </summary>
+[ConformanceSpec(
+    "job.update-input",
+    "Operator update-input amends stored input and audits bounded payload metadata.",
+    Area = "Control",
+    Contract = "UpdateJobInput replaces a job's input in any status except Dispatched/Executing and audits job.input-amended with prior-payload metadata, never the payload."
+)]
+public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+{
+    [Fact(DisplayName = "UpdateJobInput amends a Ready job's input and audits the old payload's format and byte count")]
+    public async Task Amend_ready_job_applies_new_input_and_audits_old_payload()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var oldInput = JobPayload.Json(new AddNumbers(2, 3));
+        var newInput = JobPayload.Json(new AddNumbers(7, 8));
+        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", oldInput), ct);
+
+        var result = await Jobs.UpdateJobInputAsync(enqueued, newInput, "corrected operands", "spec-actor", ct);
+
+        Assert.Equal(ControlAction.Applied, result.Action);
+        Assert.Equal(JobStatusCode.Ready, result.Status);
+
+        var job = await ReadJobRowAsync(enqueued.JobId, ct);
+        Assert.Equal(newInput.Format.Id, job.InputFormatId);
+        Assert.Equal(newInput.Data.ToArray(), job.Input);
+
+        var evt = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobInputAmended, ct);
+        Assert.Equal("spec-actor", evt.ActorKey);
+        Assert.Equal("corrected operands", evt.ReasonMessage);
+        Assert.Equal(JobPayloadFormat.Json.Id, evt.DetailFormatId);
+        Assert.NotNull(evt.Detail);
+        using var doc = System.Text.Json.JsonDocument.Parse(evt.Detail!);
+        Assert.Equal("json", doc.RootElement.GetProperty("format").GetString());
+        Assert.Equal(oldInput.Data.Length, doc.RootElement.GetProperty("bytes").GetInt32());
+        // The old payload bytes themselves must be gone from the ledger.
+        Assert.True(evt.Detail!.AsSpan().IndexOf(oldInput.Data.Span) < 0);
+    }
+
+    // ACTA-004 acceptance: the amended-away payload must not outlive the job's payload retention.
+    private const int NoEventPurgeDays = 100_000;
+    private const int NoAlertPurgeDays = 100_000;
+    private const int NoWorkerPurgeSeconds = 100_000_000;
+
+    [Fact(DisplayName = "UpdateJobInput audit metadata outlives the purged job without leaking payload bytes")]
+    public async Task Amended_old_payload_never_survives_the_retention_purge()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var marker = $"acta004-{Guid.NewGuid():N}";
+
+        // Terminal Succeeded through the real path via the zero-retention probe, carrying the marker input.
+        var oldInput = JobPayload.Json(new PurgeProbe(marker));
+        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "purge-now", oldInput), ct);
+        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+
+        var amend = await Jobs.UpdateJobInputAsync(enqueued, JobPayload.Json(new PurgeProbe("clean")), "scrub", "spec-actor", ct);
+        Assert.Equal(ControlAction.Applied, amend.Action);
+
+        // Sweep with the events window wide open: the job row goes, the ledger stays. Bounded retries
+        // because a concurrent spec's purge can hold rows this call's sweep would otherwise reap.
+        for (var attempt = 0; ; attempt++)
+        {
+            await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
+            if (await Db.From<Job>().Where(j => j.Id == enqueued.JobId).SingleOrDefaultAsync(ct) is null)
+            {
+                break;
+            }
+            Assert.True(attempt < 10, $"terminal job {enqueued.JobId} never drained");
+            await Task.Delay(100, ct);
+        }
+
+        // The amend event outlives the job (events carry no FK to jobs) with metadata only.
+        var evt = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobInputAmended, ct);
+        Assert.Equal(JobPayloadFormat.Json.Id, evt.DetailFormatId);
+        using var doc = System.Text.Json.JsonDocument.Parse(evt.Detail!);
+        Assert.Equal("json", doc.RootElement.GetProperty("format").GetString());
+        Assert.Equal(oldInput.Data.Length, doc.RootElement.GetProperty("bytes").GetInt32());
+
+        // No surviving event row or API projection carries the marker anywhere.
+        var rows = await Db.From<JobEvent>().Where(e => e.JobId == enqueued.JobId).ToListAsync(ct);
+        Assert.NotEmpty(rows);
+        foreach (var row in rows)
+        {
+            Assert.DoesNotContain(marker, row.ReasonMessage ?? "");
+            if (row.Detail is not null)
+            {
+                Assert.DoesNotContain(marker, System.Text.Encoding.UTF8.GetString(row.Detail));
+            }
+        }
+
+        var page = await Operations.Ledger.ListEventsAsync(new ListEventsQuery(JobId: enqueued.JobId, PageSize: 100), ct);
+        Assert.Contains(page.Items, i => i.EventCode == EventCode.JobInputAmended && i.DetailText is not null);
+        foreach (var item in page.Items)
+        {
+            Assert.DoesNotContain(marker, item.DetailText ?? "");
+            Assert.DoesNotContain(marker, item.ReasonMessage ?? "");
+        }
+    }
+
+    [Fact(DisplayName = "UpdateJobInput rejects a Dispatched or Executing job and leaves its input unchanged")]
+    public async Task Amend_in_flight_job_is_rejected()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var newInput = JobPayload.Json(new AddNumbers(9, 9));
+
+        foreach (var status in new[] { JobStatusCode.Dispatched, JobStatusCode.Executing })
+        {
+            var oldInput = JobPayload.Json(new AddNumbers(1, 1));
+            var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", oldInput), ct);
+            await SetJobStatusAsync(enqueued.JobId, (byte)status, ct);
+
+            var result = await Jobs.UpdateJobInputAsync(enqueued, newInput, "should not apply", ct: ct);
+
+            Assert.Equal(ControlAction.Rejected, result.Action);
+            Assert.Equal(status, result.Status);
+
+            var job = await ReadJobRowAsync(enqueued.JobId, ct);
+            Assert.Equal(oldInput.Data.ToArray(), job.Input);
+            Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobInputAmended, ct));
+        }
+    }
+
+    [Fact(DisplayName = "UpdateJobInput on a Failed job feeds the new input to the handler after RestartAsync")]
+    public async Task Amend_failed_job_then_restart_runs_with_new_input()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var enqueued = await Jobs.EnqueueAsync(
+            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
+            ct
+        );
+        await SetJobStatusAsync(enqueued.JobId, (byte)JobStatusCode.Failed, ct);
+
+        var amend = await Jobs.UpdateJobInputAsync(enqueued, JobPayload.Json(new AddNumbers(10, 20)), "retry with new operands", ct: ct);
+        Assert.Equal(ControlAction.Applied, amend.Action);
+
+        var restart = await Jobs.RestartAsync(enqueued, ct: ct);
+        Assert.Equal(ControlAction.Applied, restart.Action);
+        Assert.Equal(JobStatusCode.Ready, restart.Status);
+
+        Assert.Equal(RunOnceOutcome.Completed, await Runtime.RunOnceAsync(enqueued.JobId, ct));
+
+        var typed = await Jobs.GetResultAsync<AddNumbersResult>(enqueued, ct);
+        Assert.NotNull(typed);
+        Assert.Equal(30, typed!.Sum);
+    }
+
+    [Fact(DisplayName = "UpdateJobInput stores the new payload's format id, so a text job amends as text")]
+    public async Task Amend_stores_the_payloads_format_id()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var oldInput = JobPayload.FromBytes(JobPayloadFormat.Text, System.Text.Encoding.UTF8.GetBytes("first"));
+        var newInput = JobPayload.FromBytes(JobPayloadFormat.Text, System.Text.Encoding.UTF8.GetBytes("second"));
+        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", oldInput), ct);
+
+        var result = await Jobs.UpdateJobInputAsync(enqueued, newInput, "reformat", "spec-actor", ct);
+        Assert.Equal(ControlAction.Applied, result.Action);
+
+        var stored = await Jobs.GetInputAsync(enqueued, ct);
+        Assert.NotNull(stored);
+        Assert.Equal(JobPayloadFormat.Text.Id, stored!.Value.Format.Id);
+        Assert.Equal(newInput.Data.ToArray(), stored.Value.Data.ToArray());
+    }
+
+    [Fact(DisplayName = "UpdateJobInput returns NotFound for an unknown lookup")]
+    public async Task Amend_unknown_is_notfound()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var result = await Jobs.UpdateJobInputAsync(JobLookup.ById(999_999_999_999L), JobPayload.Json(new AddNumbers(0, 0)), ct: ct);
+        Assert.Equal(ControlAction.NotFound, result.Action);
+    }
+
+    private async Task<Job> ReadJobRowAsync(long jobId, CancellationToken ct)
+    {
+        var job = await Db.From<Job>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct);
+        Assert.NotNull(job);
+        return job!;
+    }
+
+    private Task SetJobStatusAsync(long jobId, byte statusCode, CancellationToken ct) =>
+        RuntimeStateStaging.SetStatusAsync(Db, jobId, statusCode, ct);
+}

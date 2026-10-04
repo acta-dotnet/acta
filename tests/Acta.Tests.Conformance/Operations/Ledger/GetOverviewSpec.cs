@@ -1,0 +1,301 @@
+using Acta.Runtime;
+using Acta.Tests.Conformance.Contracts;
+using Acta.Tests.Conformance.Testing;
+using Microsoft.Extensions.DependencyInjection;
+using TestJobs;
+using Xunit;
+
+namespace Acta.Tests.Conformance.Operations.Ledger;
+
+/// <summary>
+/// Conformance for <c>GetOverview</c>: the one-row health summary that counts Ready, Executing,
+/// and Failed jobs, the oldest due Ready age, unresolved alert counts, worker health counts, and
+/// due-soon schedule count, optionally scoped to a namespace.
+/// </summary>
+[ConformanceSpec(
+    "get-overview.health-counters",
+    "GetOverview returns accurate health counters scoped to a namespace and globally",
+    Area = "Reads",
+    Contract = "GetOverview returns non-negative health counters for the requested namespace and a globally-scoped result that is a superset of any namespace-scoped result."
+)]
+public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+{
+    [Fact(
+        DisplayName = "Namespace-scoped counters are non-negative and reflect the enqueued job, and the global result is a superset of the namespace count"
+    )]
+    public async Task Namespace_scoped_ReadyCount_reflects_enqueued_job()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        _ = Services.GetRequiredService<ISqlDialect>();
+        var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
+
+        var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
+        await EnqueueTestOps.EnqueueBatchAsync(
+            Services,
+            [
+                new JobEnqueueRow(
+                    NamespaceName: TestNamespace,
+                    JobName: "add-numbers",
+                    Input: payload,
+                    DeduplicationKey: TestKey("overview")
+                ),
+            ],
+            ct
+        );
+
+        var ns = await Operations.Ledger.GetOverviewAsync(new OverviewQuery(TestNamespace, 180, 3600), ct);
+
+        Assert.True(ns.ReadyCount >= 1, $"Expected ReadyCount >= 1 in namespace {TestNamespace}, got {ns.ReadyCount}.");
+        Assert.NotNull(ns.OldestReadyAgeSeconds);
+        Assert.True(ns.OldestReadyAgeSeconds >= 0, $"OldestReadyAgeSeconds must be non-negative, got {ns.OldestReadyAgeSeconds}.");
+        Assert.True(ns.ExecutingCount >= 0);
+        Assert.True(ns.FailedCount >= 0);
+        Assert.True(ns.UnresolvedAlertCount >= 0);
+        Assert.True(ns.UnresolvedCriticalAlertCount >= 0);
+        Assert.True(ns.DeadWorkerCount >= 0);
+        Assert.True(ns.StaleWorkerCount >= 0);
+        Assert.True(ns.DueSoonScheduleCount >= 0);
+        Assert.True(ns.ExecutorCapacity >= 0);
+        Assert.True(ns.JobCount >= 1, $"Expected JobCount >= 1 in namespace {TestNamespace}, got {ns.JobCount}.");
+        Assert.True(ns.SystemJobCount >= 0);
+        Assert.True(ns.JobCount >= ns.SystemJobCount, "JobCount includes system jobs, so it must be >= SystemJobCount.");
+
+        var global = await Operations.Ledger.GetOverviewAsync(new OverviewQuery(null, 180, 3600), ct);
+
+        Assert.True(
+            global.ReadyCount >= ns.ReadyCount,
+            $"Global ReadyCount ({global.ReadyCount}) must be >= namespace-scoped count ({ns.ReadyCount})."
+        );
+        Assert.True(
+            global.JobCount >= ns.JobCount,
+            $"Global JobCount ({global.JobCount}) must be >= namespace-scoped count ({ns.JobCount})."
+        );
+    }
+
+    [Fact(DisplayName = "An unknown namespace returns all-zero counters and a null OldestReadyAgeSeconds")]
+    public async Task Unknown_namespace_returns_zero_counters()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var result = await Operations.Ledger.GetOverviewAsync(new OverviewQuery("no-such-namespace-xyz", 180, 3600), ct);
+
+        Assert.Equal(0, result.ReadyCount);
+        Assert.Null(result.OldestReadyAgeSeconds);
+        Assert.Equal(0, result.ExecutingCount);
+        Assert.Equal(0, result.FailedCount);
+        Assert.Equal(0, result.UnresolvedAlertCount);
+        Assert.Equal(0, result.UnresolvedCriticalAlertCount);
+        Assert.Equal(0, result.DeadWorkerCount);
+        Assert.Equal(0, result.StaleWorkerCount);
+        Assert.Equal(0, result.DueSoonScheduleCount);
+        Assert.Equal(0, result.JobCount);
+        Assert.Equal(0, result.SystemJobCount);
+        Assert.Equal(0, result.ExecutorCapacity);
+        Assert.Null(result.ScheduleLagSeconds);
+    }
+
+    /// <summary>
+    /// Drives deterministic, isolated state in this test's fresh namespace (RegisterSystemJobs = false,
+    /// so no system jobs and no schedules) and pins all overview counters to exact values.
+    /// <para>
+    /// <list type="bullet">
+    ///   <item>ReadyCount / ExecutingCount / FailedCount / JobCount · driven via enqueue + claim + StartExecution + CompleteExecution.</item>
+    ///   <item>SystemJobCount · 0: no system job definitions registered.</item>
+    ///   <item>UnresolvedAlertCount / UnresolvedCriticalAlertCount · 2 / 1: one Error + one Critical raised via RaiseJobAlert.</item>
+    ///   <item>DeadWorkerCount · 1: W1 aged 2 h, swept by MarkDeadWorkers with 60 s window.</item>
+    ///   <item>StaleWorkerCount · threshold flip: W2 aged 2 min; staleAfterSeconds=60 → 1, staleAfterSeconds=14400 → 0.</item>
+    ///   <item>DueSoonScheduleCount · 0: dueSoonSeconds=1 and the slot cursors are parked a day out, so the one-second window can never include them.</item>
+    ///   <item>ExecutorCapacity · threshold flip, inverted from StaleWorkerCount: staleAfterSeconds=60 → 0, staleAfterSeconds=14400 → 1 (W2's single slot).</item>
+    ///   <item>ScheduleLagSeconds · null: the parked cursors are a day ahead, so no live schedule is past due.</item>
+    /// </list>
+    /// </para>
+    /// </summary>
+    [Fact(DisplayName = "Backlog counts a Suspended wait only once it has actually expired")]
+    public async Task Backlog_counts_a_suspended_wait_only_once_expired()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var before = await Operations.Ledger.GetOverviewAsync(new OverviewQuery(TestNamespace, 3600, 1), ct);
+
+        // An unbounded wait is never backlog: no worker will ever claim it, and only a raise can move it.
+        var unbounded = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(unbounded, ct));
+
+        // Nor is a bounded one while its deadline is still ahead: a queue of long approval waits is
+        // work nobody is behind on, and counting it would make the gauge cry wolf.
+        var bounded = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal-timeout", JobPayload.None), ct);
+        Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(bounded, ct));
+
+        var waiting = await Operations.Ledger.GetOverviewAsync(new OverviewQuery(TestNamespace, 3600, 1), ct);
+        Assert.Equal(before.ReadyCount, waiting.ReadyCount);
+
+        // Past the deadline it is backlog, because the claim will now take it and a worker is what it
+        // is waiting for.
+        await Db.From<JobRuntime>()
+            .Where(r => r.Id == bounded.JobId)
+            .UpdateOnlyAsync(() => new JobRuntime { NextRunAtUtc = DateTime.UtcNow.AddMinutes(-1) }, ct);
+
+        var expired = await Operations.Ledger.GetOverviewAsync(new OverviewQuery(TestNamespace, 3600, 1), ct);
+        Assert.Equal(before.ReadyCount + 1, expired.ReadyCount);
+        Assert.NotNull(expired.OldestReadyAgeSeconds);
+    }
+
+    [Fact(DisplayName = "Driven state pins all overview counters to exact values in an isolated namespace")]
+    public async Task Driven_state_pins_exact_overview_counters()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var dialect = Services.GetRequiredService<ISqlDialect>();
+        const int LeaseTtl = 300; // 5 min; no heartbeat in this test
+
+        // W1: single worker registered by Runtime.InitializeAsync in this unique namespace.
+        var w1 = await Db.From<JobWorker>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);
+        Assert.NotNull(w1);
+
+        // ── Baseline snapshot ─────────────────────────────────────────────────────────────────────
+        // Runtime.InitializeAsync seeds one Ready slot job for every schedule whose environments list
+        // is empty (currently: recurring-ping with "every-5-minutes"). Take a before-snapshot now so
+        // ReadyCount and JobCount assertions use deltas and remain correct if the manifest changes.
+        var before = await Operations.Ledger.GetOverviewAsync(new OverviewQuery(TestNamespace, 3600, 1), ct);
+        // Confirm the namespace is otherwise clean (fresh, unique per test-instance).
+        Assert.Equal(0, before.ExecutingCount);
+        Assert.Equal(0, before.FailedCount);
+        Assert.Equal(0, before.UnresolvedAlertCount);
+        Assert.Equal(0, before.DeadWorkerCount);
+        Assert.Equal(0, before.StaleWorkerCount);
+        Assert.Equal(0, before.SystemJobCount);
+
+        // ── Job counters ───────────────────────────────────────────────────────────────────────────
+        // Enqueue 4 jobs. RegisterSystemJobs = false → no system job definitions → SystemJobCount = 0.
+        var j1 = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 2))), ct);
+        var j2 = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct);
+        var j3 = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(3, 4))), ct);
+        var j4 = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(4, 5))), ct);
+
+        // j3 → Executing: claim + StartExecution, leave running (no CompleteExecution call).
+        var c3 = Assert.Single(await Services.GetRequiredService<IExecution>().ClaimOneAsync(ns, w1!.Id, LeaseTtl, j3, ct));
+        Assert.Equal(
+            StartExecutionAction.Started,
+            await Services
+                .GetRequiredService<IExecution>()
+                .StartExecutionAsync(c3.JobId, w1.Id, c3.ExecutionNumber, c3.Version, LeaseTtl, ct)
+        );
+
+        // j4 → Failed: claim + start + ctx.FailAsync-style complete (HandlerStatusCode = 200 bypasses the failure budget).
+        var c4 = Assert.Single(await Services.GetRequiredService<IExecution>().ClaimOneAsync(ns, w1.Id, LeaseTtl, j4, ct));
+        Assert.Equal(
+            StartExecutionAction.Started,
+            await Services
+                .GetRequiredService<IExecution>()
+                .StartExecutionAsync(c4.JobId, w1.Id, c4.ExecutionNumber, c4.Version, LeaseTtl, ct)
+        );
+        var cr4 = await Services
+            .GetRequiredService<IExecution>()
+            .CompleteExecutionAsync(
+                new CompleteExecutionCommand(c4.JobId, w1.Id, c4.ExecutionNumber, ExecutionOutcome.Failed, 0, ReadOnlyMemory<byte>.Empty)
+                {
+                    HandlerStatusCode = (byte)JobStatusCode.Failed,
+                },
+                ct
+            );
+        Assert.Equal(CompleteExecutionAction.Completed, cr4.Action);
+
+        // ── Alerts ────────────────────────────────────────────────────────────────────────────────
+        // Two unresolved alerts on j1: one Error (severity 3) and one Critical (severity 4).
+        await AlertTestOps.RaiseAsync(
+            Services,
+            TestNamespace,
+            j1.JobId,
+            AlertOriginCode.Manual,
+            AlertSeverityCode.Error,
+            AlertKindCode.Manual,
+            "pin-error",
+            "error body",
+            "ops",
+            AlertDeliveryStatusCode.Pending,
+            null,
+            ct
+        );
+        await AlertTestOps.RaiseAsync(
+            Services,
+            TestNamespace,
+            j1.JobId,
+            AlertOriginCode.Manual,
+            AlertSeverityCode.Critical,
+            AlertKindCode.Manual,
+            "pin-critical",
+            "critical body",
+            "ops",
+            AlertDeliveryStatusCode.Pending,
+            null,
+            ct
+        );
+
+        // ── Dead worker ───────────────────────────────────────────────────────────────────────────
+        // Direct-stamp W1 Dead. Using the global MarkDeadWorkers reaper is racy on the shared parallel
+        // schema (a concurrent global sweep races our own); stamping the exact status keeps
+        // DeadWorkerCount deterministic. DeadWorkerCount is namespace-scoped.
+        await Db.From<JobWorker>().Where(w => w.Id == w1.Id).UpdateOnlyAsync(() => new JobWorker { Status = WorkerStatusCode.Dead }, ct);
+
+        // ── Stale-worker threshold flip ───────────────────────────────────────────────────────────
+        // W2 is started fresh after W1 is dead, then aged to 2 min ago.
+        // staleAfterSeconds=60 → W2's 2 min > 1 min → stale (count = 1).
+        // staleAfterSeconds=14400 (4 h) → W2's 2 min < 4 h → not stale (count = 0).
+        var (_, w2Id) = await WorkerTestOps.StartAsync(
+            Services,
+            TestNamespace,
+            ownerTeam: "test",
+            description: null,
+            hostName: "host-pin-w2",
+            deploymentVersion: "v2",
+            engineVersion: null,
+            dotnetVersion: null,
+            processId: 0,
+            maxConcurrency: 1,
+            ct
+        );
+        // Aged two minutes, well inside every dead-after window the suite's global reapers use (five
+        // minutes and up), so a concurrent sweep never flips W2 Dead and inflates DeadWorkerCount (the
+        // off-by-one flake), while the one-minute threshold below still counts it stale.
+        await Db.From<JobWorker>()
+            .Where(w => w.Id == w2Id)
+            .UpdateOnlyAsync(
+                () => new JobWorker { Status = WorkerStatusCode.Draining, LastHeartbeatAtUtc = DateTime.UtcNow.AddMinutes(-2) },
+                ct
+            );
+
+        // ── Narrow-threshold assertion (staleAfterSeconds = 1 min) ───────────────────────────────
+        var ovNarrow = await Operations.Ledger.GetOverviewAsync(new OverviewQuery(TestNamespace, 60, 1), ct);
+
+        // ReadyCount and JobCount: delta from before (before includes slot jobs seeded by InitializeAsync).
+        Assert.Equal(before.ReadyCount + 2, ovNarrow.ReadyCount); // j1, j2 added; j3 Executing, j4 Failed
+        Assert.Equal(1, ovNarrow.ExecutingCount); // j3 is Executing
+        Assert.Equal(1, ovNarrow.FailedCount); // j4 is Failed
+        Assert.Equal(2, ovNarrow.UnresolvedAlertCount); // 2 raised, none resolved
+        Assert.Equal(1, ovNarrow.UnresolvedCriticalAlertCount); // 1 Critical (severity = 40)
+        Assert.Equal(1, ovNarrow.DeadWorkerCount); // W1 swept Dead, scoped to TestNamespace
+        Assert.Equal(1, ovNarrow.StaleWorkerCount); // W2 Draining, 2 min > 1 min threshold
+        Assert.Equal(0, ovNarrow.DueSoonScheduleCount); // dueSoonSeconds=1: harness parks slot cursors a day out
+        Assert.Equal(before.JobCount + 4, ovNarrow.JobCount); // 4 enqueued on top of slot jobs
+        Assert.Equal(0, ovNarrow.SystemJobCount); // RegisterSystemJobs = false, recurring-ping is not a __ job
+        Assert.NotNull(ovNarrow.OldestReadyAgeSeconds);
+        Assert.True(ovNarrow.OldestReadyAgeSeconds >= 0);
+        // Capacity is StaleWorkerCount's exact inverse here: W1 is Dead and W2 is past the 1 min threshold,
+        // so neither contributes a slot. A capacity that ignored freshness would read 1.
+        Assert.Equal(0, ovNarrow.ExecutorCapacity);
+        Assert.Null(ovNarrow.ScheduleLagSeconds); // the harness parks slot cursors a day out, so none is past due
+
+        // ── Wide-threshold assertion (staleAfterSeconds = 4 h): count flips to 0 ────────────────
+        var ovWide = await Operations.Ledger.GetOverviewAsync(new OverviewQuery(TestNamespace, 14400, 1), ct);
+
+        Assert.Equal(0, ovWide.StaleWorkerCount); // threshold crossed: W2's 2 min < 4 h
+        Assert.Equal(1, ovWide.ExecutorCapacity); // same crossing, other direction: W2's single slot is live again
+        Assert.Null(ovWide.ScheduleLagSeconds);
+        // Cross-check that other counters are unchanged across the threshold call.
+        Assert.Equal(before.ReadyCount + 2, ovWide.ReadyCount);
+        Assert.Equal(1, ovWide.ExecutingCount);
+        Assert.Equal(1, ovWide.FailedCount);
+        Assert.Equal(1, ovWide.DeadWorkerCount);
+        Assert.Equal(2, ovWide.UnresolvedAlertCount);
+        Assert.Equal(1, ovWide.UnresolvedCriticalAlertCount);
+    }
+}

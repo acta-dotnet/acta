@@ -25,6 +25,6 @@
   </ItemGroup>
   <ItemGroup>
     <!-- The specs compile into each provider test project, against its own ConformanceFixture. -->
-    <Compile Remove="DbSession/**;Features/**;Runtime/**;Scenarios/**" />
+    <Compile Remove="Db/**;Engine/**;Operations/**;Scenarios/**;Schema/**" />
   </ItemGroup>
 </Project>

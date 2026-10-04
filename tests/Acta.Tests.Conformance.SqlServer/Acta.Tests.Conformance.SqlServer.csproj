@@ -34,9 +34,10 @@
   <ItemGroup>
     <!-- The shared specs, bound to this provider by the ConformanceFixture alias in GlobalUsings.cs. -->
     <Compile Include="..\Acta.Tests.Conformance\GlobalUsings.cs" Link="Shared\GlobalUsings.cs" />
-    <Compile Include="..\Acta.Tests.Conformance\DbSession\**\*.cs" LinkBase="Shared\DbSession" />
-    <Compile Include="..\Acta.Tests.Conformance\Features\**\*.cs" LinkBase="Shared\Features" />
-    <Compile Include="..\Acta.Tests.Conformance\Runtime\**\*.cs" LinkBase="Shared\Runtime" />
+    <Compile Include="..\Acta.Tests.Conformance\Db\**\*.cs" LinkBase="Shared\Db" />
+    <Compile Include="..\Acta.Tests.Conformance\Engine\**\*.cs" LinkBase="Shared\Engine" />
+    <Compile Include="..\Acta.Tests.Conformance\Operations\**\*.cs" LinkBase="Shared\Operations" />
     <Compile Include="..\Acta.Tests.Conformance\Scenarios\**\*.cs" LinkBase="Shared\Scenarios" />
+    <Compile Include="..\Acta.Tests.Conformance\Schema\**\*.cs" LinkBase="Shared\Schema" />
   </ItemGroup>
 </Project>

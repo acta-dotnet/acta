@@ -76,4 +76,4 @@ from application workers.
 - [The leaderless-recovery Engineering Lab](../../../docs/engineering-labs.md)
 - [`worker-crash-recovery.cs`](./worker-crash-recovery.cs)
 - [`RecoveryJob.cs`](../../../src/Acta.Runtime/Engine/Recovery/RecoveryJob.cs)
-- [`WorkerCrashRecoveryChaosSpec.cs`](../../../tests/Acta.Tests.Conformance/Runtime/WorkerCrashRecoveryChaosSpec.cs)
+- [`WorkerCrashRecoveryChaosSpec.cs`](../../../tests/Acta.Tests.Conformance/Engine/Recovery/WorkerCrashRecoveryChaosSpec.cs)

@@ -70,4 +70,4 @@ enough when the label needs no validation or lifecycle.
 - [The related Engineering Lab](../../../docs/engineering-labs.md)
 - [`tenant-scope.cs`](./tenant-scope.cs)
 - [`ITenants.cs`](../../../src/Acta/Operations/Tenants/ITenants.cs)
-- [`TenantEnqueueSpec.cs`](../../../tests/Acta.Tests.Conformance/Features/Jobs/TenantEnqueueSpec.cs)
+- [`TenantEnqueueSpec.cs`](../../../tests/Acta.Tests.Conformance/Operations/Jobs/TenantEnqueueSpec.cs)

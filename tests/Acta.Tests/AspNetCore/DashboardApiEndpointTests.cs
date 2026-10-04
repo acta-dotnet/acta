@@ -260,7 +260,7 @@ public sealed class DashboardApiEndpointTests
         // The read ran scoped to the resolved catalog id, which never reaches the wire.
         Assert.Equal(5, fakes.Ledger.LastEventsQuery!.DefinitionId);
         // definition_id alone would also match every execution event for the definition's jobs
-        // (deliberate, per ListJobEventsFilterMatrixSpec); the dashboard's Change history panel
+        // (deliberate, per ListEventsFilterMatrixSpec); the dashboard's Change history panel
         // narrows to the one definition-change event code so it doesn't flood with job noise.
         Assert.Equal(Acta.EventCode.JobDefinitionOverridesUpdated, fakes.Ledger.LastEventsQuery.EventCode);
 

@@ -792,7 +792,7 @@ dotnet_diagnostic.CA1040.severity = none
 # instance state today. Marking it static would make one arrange vocabulary carry two modifiers,
 # split by which member currently happens to need the fixture rather than by what any of them means,
 # and it would change no call site, because a static protected member is reached the same way.
-[tests/Acta.Tests.Conformance/Features/Outbox/OutboxSpecBase.cs]
+[tests/Acta.Tests.Conformance/Operations/Outbox/OutboxSpecBase.cs]
 dotnet_diagnostic.CA1822.severity = none
 
 # CA1822: the eight private *CoreAsync catalog reads - ListTables, ListViews, ListColumns,
