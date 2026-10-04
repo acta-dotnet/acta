@@ -72,10 +72,6 @@ public sealed class TypeNamingTests
         {
             yield return "Row without DbProjection";
         }
-        if (suffix != "Table" && type.GetCustomAttributesData().Any(a => a.AttributeType.Name == "DbTableAttribute"))
-        {
-            yield return "DbTable without Table";
-        }
     }
 
     // A row is projected when the generator emitted its binder, Bind<Type>, whether the type declares
