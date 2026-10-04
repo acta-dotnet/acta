@@ -20,7 +20,7 @@ await host.StartAsync();
 var jobs = host.Services.GetRequiredService<IJobs>();
 var operations = host.Services.GetRequiredService<IActaOperations>();
 
-var acmeId = await operations.Tenants.RegisterAsync("acme", "Acme GmbH", "Active customer used by the lab");
+var acmeId = (await operations.Tenants.RegisterAsync("acme", "Acme GmbH", "Active customer used by the lab")).TenantId;
 await operations.Tenants.RegisterAsync("held-customer", "Held customer");
 await operations.Tenants.SuspendAsync("held-customer", "Held for the lab's rejection demo");
 
