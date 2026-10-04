@@ -3,9 +3,9 @@ namespace Acta.Runtime;
 /// <summary><see cref="IDefinitions"/>, one line per operation.</summary>
 internal sealed class Definitions(
     SetJobDefinitionOverridesHandler setJobDefinitionOverrides,
-    RetireJobDefinitionHandler retireJobDefinition,
-    GetJobDefinitionHandler getJobDefinition,
-    ListJobDefinitionsHandler listJobDefinitions
+    RetireDefinitionHandler retireDefinition,
+    GetDefinitionHandler getDefinition,
+    ListDefinitionsHandler listDefinitions
 ) : IDefinitions
 {
     public ValueTask<SetJobDefinitionOverridesResponse> UpdateOverridesAsync(
@@ -22,22 +22,18 @@ internal sealed class Definitions(
             ct
         );
 
-    public ValueTask<RetireJobDefinitionResponse> RetireAsync(
+    public ValueTask<RetireDefinitionResponse> RetireAsync(
         string jobNamespace,
         string jobName,
         int expectedVersion,
         string? reasonMessage = null,
         string? actorKey = null,
         CancellationToken ct = default
-    ) =>
-        retireJobDefinition.HandleAsync(
-            new RetireJobDefinitionCommand(jobNamespace, jobName, expectedVersion, reasonMessage, actorKey),
-            ct
-        );
+    ) => retireDefinition.HandleAsync(new RetireDefinitionCommand(jobNamespace, jobName, expectedVersion, reasonMessage, actorKey), ct);
 
     public ValueTask<DefinitionDetail?> GetAsync(string jobNamespace, string jobName, CancellationToken ct = default) =>
-        getJobDefinition.HandleAsync(new GetJobDefinitionQuery(jobNamespace, jobName), ct);
+        getDefinition.HandleAsync(new GetDefinitionQuery(jobNamespace, jobName), ct);
 
     public ValueTask<PagedResult<DefinitionListItem>> ListAsync(ListDefinitionsQuery query, CancellationToken ct = default) =>
-        listJobDefinitions.HandleAsync(query, ct);
+        listDefinitions.HandleAsync(query, ct);
 }

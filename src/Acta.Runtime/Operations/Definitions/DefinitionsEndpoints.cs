@@ -20,7 +20,7 @@ internal sealed record SetJobDefinitionOverridesHttpRequest(
 /// optimistic-concurrency <c>Version</c> the operator last read and an optional note. The actor is
 /// stamped server-side from the authenticated principal; the body never carries it.
 /// </summary>
-internal sealed record RetireJobDefinitionHttpRequest(int ExpectedVersion = 0, string? ReasonMessage = null) : IControlRequest;
+internal sealed record RetireDefinitionHttpRequest(int ExpectedVersion = 0, string? ReasonMessage = null) : IControlRequest;
 
 /// <summary>
 /// The Definitions routes: the list, one definition, its tags, the overrides update, and retire. A definition is
@@ -94,9 +94,9 @@ internal static class DefinitionsEndpoints
             "/definitions/{jobNamespace}/{jobName}/retire",
             "Retire the definition and cancel its parked jobs.",
             options,
-            DashboardJsonContext.Default.RetireJobDefinitionHttpRequest,
+            DashboardJsonContext.Default.RetireDefinitionHttpRequest,
             "Invalid definition key.",
-            ControlStatus.Definition<RetireJobDefinitionResponse>(),
+            ControlStatus.Definition<RetireDefinitionResponse>(),
             Key,
             static (call, key) =>
                 call.Operations.Definitions.RetireAsync(

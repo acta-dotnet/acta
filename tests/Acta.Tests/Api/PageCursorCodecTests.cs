@@ -32,11 +32,11 @@ public sealed class PageCursorCodecTests
     [Fact]
     public void Round_trips_text_text_int_keys()
     {
-        var cursor = PageCursorCodec.Encode("ListJobDefinitions", "ns asc, name asc, id asc", FilterHash, ["billing", "send-invoice", 42]);
+        var cursor = PageCursorCodec.Encode("ListDefinitions", "ns asc, name asc, id asc", FilterHash, ["billing", "send-invoice", 42]);
 
         var keys = PageCursorCodec.Decode(
             cursor,
-            "ListJobDefinitions",
+            "ListDefinitions",
             "ns asc, name asc, id asc",
             FilterHash,
             [CursorKeyKind.Text, CursorKeyKind.Text, CursorKeyKind.Int]
@@ -108,7 +108,7 @@ public sealed class PageCursorCodecTests
         var cursor = PageCursorCodec.Encode(Op, Order, FilterHash, [Utc, 1L]);
 
         Assert.Throws<InvalidPageCursorException>(() =>
-            PageCursorCodec.Decode(cursor, "ListJobAlerts", Order, FilterHash, [CursorKeyKind.Utc, CursorKeyKind.Long])
+            PageCursorCodec.Decode(cursor, "ListAlerts", Order, FilterHash, [CursorKeyKind.Utc, CursorKeyKind.Long])
         );
     }
 

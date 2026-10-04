@@ -135,17 +135,17 @@ public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFix
         var resultCount = await Db.From<ResultEntity>().Where(r => r.JobId == slotId).CountAsync(ct);
         Assert.Equal(3, resultCount);
 
-        var latest = await Services.GetRequiredService<GetJobResultHandler>().ReadAsync(slotId, null, ct);
+        var latest = await Services.GetRequiredService<GetResultHandler>().ReadAsync(slotId, null, ct);
         Assert.NotNull(latest);
         Assert.Equal(5, latest!.ExecutionNumber);
         Assert.Equal(5, DeserializeResult(latest).Sequence);
 
-        var fourth = await Services.GetRequiredService<GetJobResultHandler>().ReadAsync(slotId, 4, ct);
+        var fourth = await Services.GetRequiredService<GetResultHandler>().ReadAsync(slotId, 4, ct);
         Assert.NotNull(fourth);
         Assert.Equal(4, fourth!.ExecutionNumber);
         Assert.Equal(4, DeserializeResult(fourth).Sequence);
 
-        Assert.Null(await Services.GetRequiredService<GetJobResultHandler>().ReadAsync(slotId, 1, ct));
+        Assert.Null(await Services.GetRequiredService<GetResultHandler>().ReadAsync(slotId, 1, ct));
     }
 
     [Fact(DisplayName = "In-budget failure re-arms Ready and a later success resets the failure count")]

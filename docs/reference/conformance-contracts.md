@@ -1391,8 +1391,8 @@
   - A job-less alert reads with no job id and no job ref
   - A resolved incident's ref keeps answering its closed row after its key opens a fresh incident with a ref of its own
 
-### GetJobDefinition returns one definition by name and null for an unknown name
-- **Contract:** GetJobDefinition returns the fully-projected definitions row for the supplied namespace and name, and null when none matches.
+### GetDefinition returns one definition by name and null for an unknown name
+- **Contract:** GetDefinition returns the fully-projected definitions row for the supplied namespace and name, and null when none matches.
 - **Guarantees:**
   - A known name returns the matching definition row
   - An unknown name returns null
@@ -1439,11 +1439,11 @@
   - A known worker id returns its durable detail projection
   - An unknown worker id returns null
 
-### GetJobCheckpoints lists a job's slots by kind then name
-- **Contract:** GetJobCheckpoints lists a job's slots by kind then name with state and value round-tripped, an empty set for a job without slots, and null for a missing id.
+### GetCheckpoints lists a job's slots by kind then name
+- **Contract:** GetCheckpoints lists a job's slots by kind then name with state and value round-tripped, an empty set for a job without slots, and null for a missing id.
 - **Guarantees:**
-  - GetJobCheckpoints lists variable and signal slots with kind, state, and value round-tripped
-  - GetJobCheckpoints returns an empty set for a job with no slots and null for a missing id
+  - GetCheckpoints lists variable and signal slots with kind, state, and value round-tripped
+  - GetCheckpoints returns an empty set for a job with no slots and null for a missing id
 
 ### GetJobInput reads the stored input or null
 - **Contract:** GetJobInput returns the payload and format a job was enqueued with, and null when no job row matches.
@@ -1451,8 +1451,8 @@
   - GetJobInput returns the payload the job was enqueued with
   - GetJobInput returns null when no job row matches the id
 
-### ListJobAlerts filter-matrix selects exactly matching rows per dimension
-- **Contract:** ListJobAlerts filters partition the alert rows to exactly the matching ids and exclude all non-matching ids for each filter dimension.
+### ListAlerts filter-matrix selects exactly matching rows per dimension
+- **Contract:** ListAlerts filters partition the alert rows to exactly the matching ids and exclude all non-matching ids for each filter dimension.
 - **Guarantees:**
   - JobId filter returns only that job's alerts and excludes all other jobs' alerts
   - DeliveryStatus filter partitions alerts by status and the total matches the filtered count
@@ -1460,24 +1460,24 @@
   - UnresolvedOnly filter excludes resolved alerts and includes them when filter is null
   - JobNamespace filter scopes alerts to exactly one namespace and excludes all other namespaces
 
-### ListJobAlerts pages alerts newest first with severity floor and full stored text
-- **Contract:** ListJobAlerts returns alert rows ordered created_at_utc then id descending with severity floor and an opt-in filter-wide count in one command.
+### ListAlerts pages alerts newest first with severity floor and full stored text
+- **Contract:** ListAlerts returns alert rows ordered created_at_utc then id descending with severity floor and an opt-in filter-wide count in one command.
 - **Guarantees:**
   - Alerts page newest first with the severity floor excluding lower rows, full stored text, and a filter-wide total
   - Alert list keeps the job ref after the job row is gone
-  - ListJobAlerts returns the keyset page and the filter-wide total from one command
+  - ListAlerts returns the keyset page and the filter-wide total from one command
   - An acknowledged alert row carries acknowledged_at_utc, an open one carries null
   - GetAsync point-reads one alert in the list projection shape and answers null for a missing id
 
-### ListJobDefinitions filter-matrix selects exactly matching rows per dimension
-- **Contract:** ListJobDefinitions filters partition the definition rows to exactly the matching ids and exclude all non-matching ids for each filter dimension.
+### ListDefinitions filter-matrix selects exactly matching rows per dimension
+- **Contract:** ListDefinitions filters partition the definition rows to exactly the matching ids and exclude all non-matching ids for each filter dimension.
 - **Guarantees:**
   - Status filter partitions definitions by status and each partition excludes all definitions with different statuses
   - NameContains filter selects definitions whose name carries the term anywhere, not only as a prefix
   - JobNamespace filter scopes definitions to exactly one namespace and excludes all other namespaces
 
-### ListJobDefinitions pages the catalog by name order without duplicates
-- **Contract:** ListJobDefinitions pages the catalog ordered namespace then name then id and reads the page plus an opt-in filter-wide count in one command.
+### ListDefinitions pages the catalog by name order without duplicates
+- **Contract:** ListDefinitions pages the catalog ordered namespace then name then id and reads the page plus an opt-in filter-wide count in one command.
 - **Guarantees:**
   - Walking NextCursor visits every definition exactly once in ascending order and TotalCount matches the walk
 
@@ -1500,16 +1500,16 @@
   - A job timeline pages newest first with only that job's events and a job-scoped TotalCount matching the walk
   - ListJobEvents returns the keyset page and the job-scoped total from one command
 
-### ListJobSchedules filter-matrix selects exactly matching rows per dimension
-- **Contract:** ListJobSchedules filters partition the schedule rows to exactly the matching ids and exclude all non-matching ids for each filter dimension.
+### ListSchedules filter-matrix selects exactly matching rows per dimension
+- **Contract:** ListSchedules filters partition the schedule rows to exactly the matching ids and exclude all non-matching ids for each filter dimension.
 - **Guarantees:**
   - JobName filter returns only that job's schedules and excludes all other jobs' schedules
   - Origin filter returns only definition-sourced schedules with the filter-wide total matching
   - LiveOnly excludes orphaned schedules and liveOnly=false includes them
   - JobNamespace filter scopes schedules to exactly one namespace and excludes all other namespaces
 
-### ListJobSchedules pages live schedules next-run first without duplicates
-- **Contract:** ListJobSchedules pages live schedules next-run first by cursor without duplicates and reads the page plus an opt-in filter-wide count in one command.
+### ListSchedules pages live schedules next-run first without duplicates
+- **Contract:** ListSchedules pages live schedules next-run first by cursor without duplicates and reads the page plus an opt-in filter-wide count in one command.
 - **Guarantees:**
   - Walking NextCursor visits every live schedule once in ascending next-run order, excluding rows without a next run, with a matching total
 
@@ -1633,8 +1633,8 @@
 
 ## Results
 
-### GetJobResult returns null before completion and the typed result after
-- **Contract:** GetJobResult is a non-blocking read that returns null before the job produces a result and the typed and raw payload after a successful run.
+### GetResult returns null before completion and the typed result after
+- **Contract:** GetResult is a non-blocking read that returns null before the job produces a result and the typed and raw payload after a successful run.
 - **Guarantees:**
   - Returns null before a result exists without blocking
   - The typed result deserializes and the raw payload is returned after completion
@@ -2207,22 +2207,22 @@
 | `EventsView` | yes | yes | yes |
 | `ExtendLock` | yes | yes | yes |
 | `ExtendWorkerLeases` | yes | yes | yes |
+| `GetAlert` | yes | yes | yes |
 | `GetAlertableEvents` | yes | yes | yes |
+| `GetCheckpoints` | yes | yes | yes |
 | `GetChildJobIds` | yes | yes | yes |
+| `GetDefinition` | yes | yes | yes |
 | `GetDefinitionContracts` | yes | yes | yes |
 | `GetDeliverableAlerts` | yes | yes | yes |
 | `GetJob` | yes | yes | yes |
-| `GetJobAlert` | yes | yes | yes |
-| `GetJobCheckpoints` | yes | yes | yes |
-| `GetJobDefinition` | yes | yes | yes |
 | `GetJobExplanation` | yes | yes | yes |
 | `GetJobInput` | yes | yes | yes |
 | `GetJobLineageMap` | yes | yes | yes |
-| `GetJobResult` | yes | yes | yes |
 | `GetJobStatus` | yes | yes | yes |
 | `GetLiveSchedules` | yes | yes | yes |
 | `GetOutboxSignal` | yes | yes | yes |
 | `GetOverview` | yes | yes | yes |
+| `GetResult` | yes | yes | yes |
 | `GetScheduleState` | yes | yes | yes |
 | `GetSetting` | yes | yes | yes |
 | `GetStaleChildLatches` | yes | yes | yes |
@@ -2232,14 +2232,14 @@
 | `GetUtcNow` | yes | yes | yes |
 | `GetWorker` | yes | yes | yes |
 | `JobsView` | yes | yes | yes |
+| `ListAlerts` | yes | yes | yes |
+| `ListDefinitions` | yes | yes | yes |
 | `ListEvents` | yes | yes | yes |
-| `ListJobAlerts` | yes | yes | yes |
-| `ListJobDefinitions` | yes | yes | yes |
-| `ListJobSchedules` | yes | yes | yes |
 | `ListJobs` | yes | yes | yes |
 | `ListNamespaceItems` | yes | yes | yes |
 | `ListNamespaces` | yes | yes | yes |
 | `ListQuarantinedOutbox` | yes | yes | yes |
+| `ListSchedules` | yes | yes | yes |
 | `ListTenants` | yes | yes | yes |
 | `ListWorkers` | yes | yes | yes |
 | `LoadAppliedVersions` | yes | yes | yes |
@@ -2277,7 +2277,7 @@
 | `ResumeNamespace` | yes | yes | yes |
 | `ResumeSchedule` | yes | yes | yes |
 | `ResumeTenant` | yes | yes | yes |
-| `RetireJobDefinition` | yes | yes | yes |
+| `RetireDefinition` | yes | yes | yes |
 | `SchedulesView` | yes | yes | yes |
 | `SetJobDefinitionOverrides` | yes | yes | yes |
 | `SetScheduleOverrides` | yes | yes | yes |

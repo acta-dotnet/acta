@@ -22,7 +22,7 @@ internal sealed class FakeDefinitions : IDefinitions
             return ValueTask.FromResult(new SetJobDefinitionOverridesResponse(Outcome(jobName, expectedVersion)));
         };
         Retire = static (_, jobName, expectedVersion, _, _, _) =>
-            ValueTask.FromResult(new RetireJobDefinitionResponse(Outcome(jobName, expectedVersion)));
+            ValueTask.FromResult(new RetireDefinitionResponse(Outcome(jobName, expectedVersion)));
         Get = static (jobNamespace, jobName, _) => ValueTask.FromResult(Detail(jobNamespace, jobName));
         List = static (query, _) =>
             ValueTask.FromResult(new PagedResult<DefinitionListItem>(query.JobNamespace == "billing" ? [Item] : [], null, false, 50, null));
@@ -39,7 +39,7 @@ internal sealed class FakeDefinitions : IDefinitions
         ValueTask<SetJobDefinitionOverridesResponse>
     > UpdateOverrides { get; set; }
 
-    public Func<string, string, int, string?, string?, CancellationToken, ValueTask<RetireJobDefinitionResponse>> Retire { get; set; }
+    public Func<string, string, int, string?, string?, CancellationToken, ValueTask<RetireDefinitionResponse>> Retire { get; set; }
 
     public Func<string, string, CancellationToken, ValueTask<DefinitionDetail?>> Get { get; set; }
 
@@ -55,7 +55,7 @@ internal sealed class FakeDefinitions : IDefinitions
         CancellationToken ct
     ) => UpdateOverrides(jobNamespace, jobName, expectedVersion, overrides, reasonMessage, actorKey, ct);
 
-    ValueTask<RetireJobDefinitionResponse> IDefinitions.RetireAsync(
+    ValueTask<RetireDefinitionResponse> IDefinitions.RetireAsync(
         string jobNamespace,
         string jobName,
         int expectedVersion,

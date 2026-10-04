@@ -14,8 +14,8 @@ internal sealed class Jobs(
     GetJobLineageMapHandler getJobLineageMap,
     GetJobStatusHandler getJobStatus,
     GetJobInputHandler getJobInput,
-    GetJobResultHandler getJobResult,
-    GetJobCheckpointsHandler getJobCheckpoints,
+    GetResultHandler getResult,
+    GetCheckpointsHandler getCheckpoints,
     CancelJobHandler cancelJob,
     PauseJobHandler pauseJob,
     ResumeJobHandler resumeJob,
@@ -155,13 +155,13 @@ internal sealed class Jobs(
         getJobInput.HandleAsync(new GetJobInputQuery(job), ct);
 
     public ValueTask<JobPayload?> GetResultAsync(JobLookup job, CancellationToken ct = default) =>
-        getJobResult.HandleAsync(new GetJobResultQuery(job), ct);
+        getResult.HandleAsync(new GetResultQuery(job), ct);
 
     public ValueTask<TResult?> GetResultAsync<TResult>(JobLookup job, CancellationToken ct = default) =>
-        getJobResult.HandleAsync<TResult>(new GetJobResultQuery(job), ct);
+        getResult.HandleAsync<TResult>(new GetResultQuery(job), ct);
 
     public ValueTask<CheckpointSet?> GetCheckpointsAsync(JobLookup job, CancellationToken ct = default) =>
-        getJobCheckpoints.HandleAsync(new GetJobCheckpointsQuery(job), ct);
+        getCheckpoints.HandleAsync(new GetCheckpointsQuery(job), ct);
 
     public ValueTask<CancelJobResponse> CancelAsync(
         JobLookup job,

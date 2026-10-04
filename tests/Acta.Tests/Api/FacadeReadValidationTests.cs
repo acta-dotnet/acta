@@ -30,9 +30,9 @@ public sealed class FacadeReadValidationTests
         ) => read(new DataTable().CreateDataReader(), ct);
     }
 
-    private static ListJobAlertsHandler ListAlerts() => new(new EmptyPageSession(), null!);
+    private static ListAlertsHandler ListAlerts() => new(new EmptyPageSession(), null!);
 
-    private static ListJobSchedulesHandler ListSchedules() => new(new EmptyPageSession(), null!);
+    private static ListSchedulesHandler ListSchedules() => new(new EmptyPageSession(), null!);
 
     private static readonly CancellationToken Ct = TestContext.Current.CancellationToken;
 

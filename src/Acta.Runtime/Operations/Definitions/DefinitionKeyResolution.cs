@@ -18,9 +18,8 @@ internal sealed class DefinitionKeyResolution(IDbSession session, ISqlDialect di
         }
 
         var (rows, _) = await session.QueryPageAsync(
-            "ListJobDefinitions",
-            cmd =>
-                ListJobDefinitionsHandler.Bind(cmd, dialect, ns, name, status: null, tags: null, after: null, take: 2, includeTotal: false),
+            "ListDefinitions",
+            cmd => ListDefinitionsHandler.Bind(cmd, dialect, ns, name, status: null, tags: null, after: null, take: 2, includeTotal: false),
             DbProjectionResolver.Resolve<DefinitionListItem>(),
             ct
         );

@@ -10,10 +10,10 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `AcknowledgeJobAlert` | `IAlerts.AcknowledgeAsync` | `POST /alerts/{alertRef}/acknowledge` | · | routine | routine | inline | `alerts`, `events` | `AcknowledgeJobAlertSpec` |
+| `GetAlert` | `IAlerts.GetAsync` | `GET /alerts/{alertRef}` | · | inline | inline | inline | · | `GetAlertSpec` |
 | `GetAlertableEvents` | · | · | · | inline | inline | inline | · | `GetAlertableEventsSpec` |
 | `GetDeliverableAlerts` | · | · | · | inline | inline | inline | · | `GetDeliverableAlertsSpec` |
-| `GetJobAlert` | `IAlerts.GetAsync` | `GET /alerts/{alertRef}` | · | inline | inline | inline | · | `GetJobAlertSpec` |
-| `ListJobAlerts` | `IAlerts.ListAsync` | `GET /alerts` | · | inline | inline | inline | · | `ListJobAlertsFilterMatrixSpec`, `ListJobAlertsSpec` |
+| `ListAlerts` | `IAlerts.ListAsync` | `GET /alerts` | · | inline | inline | inline | · | `ListAlertsFilterMatrixSpec`, `ListAlertsSpec` |
 | `RaiseJobAlert` | · | · | · | routine | routine | inline | `alerts` | `RaiseJobAlertRefStabilitySpec`, `RaiseJobAlertSpec` |
 | `ResolveJobAlertManual` | `IAlerts.ResolveAsync` | `POST /alerts/{alertRef}/resolve` | · | routine | routine | inline | `alerts`, `events` | `ResolveJobAlertManualSpec` |
 | `ResolveJobAlerts` | · | · | · | routine | routine | inline | `alerts` | `ResolveJobAlertsSpec` |
@@ -29,11 +29,11 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `GetDefinition` | `IDefinitions.GetAsync` | `GET /definitions/{jobNamespace}/{jobName}` | · | inline | inline | inline | · | `GetDefinitionContractsSpec`, `GetDefinitionSpec` |
 | `GetDefinitionContracts` | · | · | · | inline | inline | inline | · | `GetDefinitionContractsSpec` |
-| `GetJobDefinition` | `IDefinitions.GetAsync` | `GET /definitions/{jobNamespace}/{jobName}` | · | inline | inline | inline | · | `GetJobDefinitionSpec` |
-| `ListJobDefinitions` | `IDefinitions.ListAsync` | `GET /definitions` | · | inline | inline | inline | · | `ListJobDefinitionsFilterMatrixSpec`, `ListJobDefinitionsSpec` |
+| `ListDefinitions` | `IDefinitions.ListAsync` | `GET /definitions` | · | inline | inline | inline | · | `ListDefinitionsFilterMatrixSpec`, `ListDefinitionsSpec` |
 | `RegisterJobDefinitions` | · | · | · | routine | routine | inline | `definitions` | `RegisterJobDefinitionsSpec` |
-| `RetireJobDefinition` | `IDefinitions.RetireAsync` | `POST /definitions/{jobNamespace}/{jobName}/retire` | · | inline | inline | inline | `definitions`, `events`, `runtimes` | `RetireJobDefinitionSpec` |
+| `RetireDefinition` | `IDefinitions.RetireAsync` | `POST /definitions/{jobNamespace}/{jobName}/retire` | · | inline | inline | inline | `definitions`, `events`, `runtimes` | `RetireDefinitionSpec` |
 | `SetJobDefinitionOverrides` | `IDefinitions.UpdateOverridesAsync` | `PATCH /definitions/{jobNamespace}/{jobName}` | · | routine | routine | inline | `definitions`, `events` | `SetJobDefinitionOverridesBindMatrixSpec`, `SetJobDefinitionOverridesSpec` |
 
 ## Execution
@@ -61,14 +61,14 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 | `CancelJob` | `IJobs.CancelAsync` | `POST /jobs/{jobRef}/cancel` | `cancel` | routine | routine | inline | `events`, `runtimes` | `CancelJobSpec` |
 | `EnqueueBatch` | `IJobs.EnqueueBatchAsync` | · | · | routine | routine | inline | `jobs`, `lanes`, `runtimes`, `tags` | `EnqueueBatchConcurrencySpec`, `EnqueueBatchRejectionSpec`, `EnqueueBatchSpec` |
 | `EnqueueOne` | `IJobs.EnqueueAsync`<br>`IJobs.RunAndWaitAsync` | `POST /jobs` | · | routine | routine | inline | `jobs`, `lanes`, `runtimes`, `tags` | `EnqueueOneTransactionalSpec` |
+| `GetCheckpoints` | `IJobs.GetCheckpointsAsync` | · | · | inline | inline | inline | · | `GetCheckpointsSpec` |
 | `GetInputTemplate` | `IJobs.GetInputTemplate` | `GET /jobs/input-template` | · | · | · | · | · | `GetInputTemplateSpec` |
-| `GetJob` | `IJobs.RunAndWaitAsync`<br>`IJobs.GetAsync` | `GET /jobs/{jobRef}`<br>`GET /jobs/by-key`<br>`GET /jobs/{jobRef}/detail` | · | inline | inline | inline | · | `GetJobCheckpointsSpec`, `GetJobExplanationSpec`, `GetJobInputSpec`, `GetJobLineageMapSpec`, `GetJobResultSpec`, `GetJobSpec`, `GetJobStatusSpec` |
-| `GetJobCheckpoints` | `IJobs.GetCheckpointsAsync` | · | · | inline | inline | inline | · | `GetJobCheckpointsSpec` |
+| `GetJob` | `IJobs.RunAndWaitAsync`<br>`IJobs.GetAsync` | `GET /jobs/{jobRef}`<br>`GET /jobs/by-key`<br>`GET /jobs/{jobRef}/detail` | · | inline | inline | inline | · | `GetJobExplanationSpec`, `GetJobInputSpec`, `GetJobLineageMapSpec`, `GetJobSpec`, `GetJobStatusSpec` |
 | `GetJobExplanation` | `IJobs.ExplainAsync` | · | `explain` | inline | inline | inline | · | `GetJobExplanationSpec` |
 | `GetJobInput` | `IJobs.GetInputAsync` | `GET /jobs/{jobRef}/input` | · | inline | inline | inline | · | `GetJobInputSpec` |
 | `GetJobLineageMap` | `IJobs.GetLineageMapAsync` | · | · | inline | inline | inline | · | `GetJobLineageMapSpec` |
-| `GetJobResult` | `IJobs.RunAndWaitAsync`<br>`IJobs.GetResultAsync` | · | `result` | inline | inline | inline | · | `GetJobResultSpec` |
 | `GetJobStatus` | `IJobs.GetStatusAsync` | · | `status` | inline | inline | inline | · | `GetJobStatusSpec` |
+| `GetResult` | `IJobs.RunAndWaitAsync`<br>`IJobs.GetResultAsync` | · | `result` | inline | inline | inline | · | `GetResultSpec` |
 | `PauseJob` | `IJobs.PauseAsync` | `POST /jobs/{jobRef}/pause` | `pause` | routine | routine | inline | `events`, `runtimes` | `PauseJobSpec` |
 | `PurgeJob` | `IJobs.PurgeAsync` | `POST /jobs/{jobRef}/purge` | · | routine | routine | inline | `alerts`, `events`, `jobs`, `tags` | `PurgeJobSpec` |
 | `ReprioritizeJob` | `IJobs.ReprioritizeAsync` | `POST /jobs/{jobRef}/reprioritize` | · | routine | routine | inline | `events`, `runtimes` | `ReprioritizeJobSpec` |
@@ -143,7 +143,7 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `GetLiveSchedules` | · | · | · | inline | inline | inline | · | `GetLiveSchedulesSpec` |
 | `GetScheduleState` | · | · | · | inline | inline | inline | · | `GetScheduleStateSpec` |
-| `ListJobSchedules` | `ISchedules.ListAsync` | `GET /schedules` | · | inline | inline | inline | · | `ListJobSchedulesFilterMatrixSpec`, `ListJobSchedulesSpec` |
+| `ListSchedules` | `ISchedules.ListAsync` | `GET /schedules` | · | inline | inline | inline | · | `ListSchedulesFilterMatrixSpec`, `ListSchedulesSpec` |
 | `PauseSchedule` | `ISchedules.PauseAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/pause` | · | routine | routine | inline | `events`, `runtimes`, `schedules` | `PauseScheduleSpec` |
 | `PreviewSchedule` | `ISchedules.PreviewAsync` | `GET /schedules/{jobNamespace}/{jobName}/{scheduleName}/preview` | · | · | · | · | · | `PreviewScheduleSysNameSpec` |
 | `RegisterScheduledJobs` | · | · | · | routine | routine | inline | `jobs`, `runtimes`, `schedules` | `RegisterScheduledJobsMisfireMatrixSpec`, `RegisterScheduledJobsNoteSpec`, `RegisterScheduledJobsSpec` |

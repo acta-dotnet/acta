@@ -29,7 +29,7 @@ public interface IDefinitions
     /// <paramref name="expectedVersion"/> is Rejected; retiring an already retired definition is
     /// Applied and cancels nothing more.
     /// </summary>
-    ValueTask<RetireJobDefinitionResponse> RetireAsync(
+    ValueTask<RetireDefinitionResponse> RetireAsync(
         string jobNamespace,
         string jobName,
         int expectedVersion,

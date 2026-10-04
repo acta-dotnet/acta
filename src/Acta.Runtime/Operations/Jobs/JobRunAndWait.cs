@@ -8,7 +8,7 @@ namespace Acta.Runtime;
 internal sealed class JobRunAndWait(
     EnqueueOneHandler enqueueOne,
     GetJobHandler getJob,
-    GetJobResultHandler getJobResult,
+    GetResultHandler getResult,
     IJobPayloadSerializerRegistry serializers,
     IWorkerWakeup wakeup
 )
@@ -48,7 +48,7 @@ internal sealed class JobRunAndWait(
         {
             case JobStatusCode.Succeeded:
                 var result =
-                    await getJobResult.ReadAsync(jobId, executionNumber: null, ct)
+                    await getResult.ReadAsync(jobId, executionNumber: null, ct)
                     ?? throw new InvalidOperationException(
                         $"Job {jobId} ('{snapshot.JobName}') succeeded but stored no result. Either it is "
                             + "result-less, in which case use the non-result RunAndWaitAsync overload, or its "

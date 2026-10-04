@@ -6,7 +6,7 @@ internal sealed class Schedules(
     ResumeScheduleHandler resumeSchedule,
     SetScheduleOverridesHandler setScheduleOverrides,
     TriggerScheduleNowHandler triggerScheduleNow,
-    ListJobSchedulesHandler listJobSchedules,
+    ListSchedulesHandler listSchedules,
     PreviewScheduleHandler previewSchedule
 ) : ISchedules
 {
@@ -47,7 +47,7 @@ internal sealed class Schedules(
     ) => triggerScheduleNow.HandleAsync(new TriggerScheduleNowCommand(schedule, reasonMessage, actorKey), ct);
 
     public ValueTask<PagedResult<ScheduleListItem>> ListAsync(ListSchedulesQuery query, CancellationToken ct = default) =>
-        listJobSchedules.HandleAsync(query, ct);
+        listSchedules.HandleAsync(query, ct);
 
     public ValueTask<SchedulePreview?> PreviewAsync(ScheduleLookup schedule, int count = 10, CancellationToken ct = default) =>
         previewSchedule.HandleAsync(new PreviewScheduleQuery(schedule, count), ct);

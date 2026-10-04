@@ -79,7 +79,7 @@ public sealed class GoldenPathSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         Assert.Equal(JobStatusCode.Executing, finishedEvent.FromStatus);
         Assert.Equal(JobStatusCode.Succeeded, finishedEvent.ToStatus);
 
-        var result = await Services.GetRequiredService<GetJobResultHandler>().ReadAsync(jobId, null, ct);
+        var result = await Services.GetRequiredService<GetResultHandler>().ReadAsync(jobId, null, ct);
         Assert.NotNull(result);
         Assert.Equal(JobPayloadFormat.Json.Id, result!.Format.Id);
         var resultPayload = JobPayload.FromBytes(result.Format, result.Data.ToArray());

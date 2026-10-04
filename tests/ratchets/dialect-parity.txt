@@ -13,7 +13,7 @@ RegisterScheduledJobs
 ResetJobState
 ResolveJobAlertManual
 ResumeSchedule
-RetireJobDefinition
+RetireDefinition
 SetScheduleOverrides
 StartExecution
 StopWorker

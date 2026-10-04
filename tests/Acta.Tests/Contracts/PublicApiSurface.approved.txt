@@ -975,7 +975,7 @@ interface Acta.IDefinitionControlResponse
 interface Acta.IDefinitions
     System.Threading.Tasks.ValueTask<Acta.DefinitionDetail> GetAsync(System.String jobNamespace, System.String jobName, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.DefinitionListItem>> ListAsync(Acta.ListDefinitionsQuery query, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.RetireJobDefinitionResponse> RetireAsync(System.String jobNamespace, System.String jobName, System.Int32 expectedVersion, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.RetireDefinitionResponse> RetireAsync(System.String jobNamespace, System.String jobName, System.Int32 expectedVersion, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.SetJobDefinitionOverridesResponse> UpdateOverridesAsync(System.String jobNamespace, System.String jobName, System.Int32 expectedVersion, Acta.DefinitionPolicyOverrides overrides, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
 interface Acta.IJobContextAccessor
     Acta.JobContext JobContext { get;set; }
@@ -2014,7 +2014,7 @@ sealed class Acta.ResumeTenantResponse
     .ctor(Acta.ControlAction Action, System.Nullable<System.Int32> Version)
     Acta.ControlAction Action { get;init; }
     System.Nullable<System.Int32> Version { get;init; }
-sealed class Acta.RetireJobDefinitionResponse
+sealed class Acta.RetireDefinitionResponse
     .ctor(Acta.ControlAction Action)
     Acta.ControlAction Action { get;init; }
 sealed class Acta.ScheduleDescriptor

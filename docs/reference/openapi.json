@@ -4885,7 +4885,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RetireJobDefinitionHttpRequest"
+                "$ref": "#/components/schemas/RetireDefinitionHttpRequest"
               }
             }
           },
@@ -4957,7 +4957,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RetireJobDefinitionResponse"
+                  "$ref": "#/components/schemas/RetireDefinitionResponse"
                 }
               }
             }
@@ -4967,7 +4967,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RetireJobDefinitionResponse"
+                  "$ref": "#/components/schemas/RetireDefinitionResponse"
                 }
               }
             }
@@ -4977,7 +4977,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RetireJobDefinitionResponse"
+                  "$ref": "#/components/schemas/RetireDefinitionResponse"
                 }
               }
             }
@@ -11641,7 +11641,7 @@
         },
         "description": "What resuming a tenant did, and the tenant's version after the attempt."
       },
-      "RetireJobDefinitionHttpRequest": {
+      "RetireDefinitionHttpRequest": {
         "type": "object",
         "properties": {
           "expectedVersion": {
@@ -11660,7 +11660,7 @@
           }
         }
       },
-      "RetireJobDefinitionResponse": {
+      "RetireDefinitionResponse": {
         "required": [
           "action"
         ],

@@ -450,7 +450,7 @@ public sealed class ControlContractTests
                 outcome,
                 path,
                 status,
-                typeof(RetireJobDefinitionResponse),
+                typeof(RetireDefinitionResponse),
                 action,
                 new { expectedVersion, reasonMessage = "because" }
             );
