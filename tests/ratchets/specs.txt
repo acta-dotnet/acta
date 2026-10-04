@@ -25,4 +25,3 @@ operation: Outbox/GetOutboxSignal
 operation: Outbox/ListOutboxQuarantined
 operation: Outbox/ListQuarantinedOutbox
 operation: Outbox/ParkOutboxSignal
-operation: Tenants/GetTenantKey

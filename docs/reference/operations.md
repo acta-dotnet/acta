@@ -178,8 +178,8 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `GetTenant` | `ITenants.GetAsync` | `GET /tenants/{tenantKey}` | · | inline | inline | inline | · | `GetTenantSpec` |
-| `GetTenantKey` | · | · | · | inline | inline | inline | · | · |
+| `GetTenant` | `ITenants.GetAsync` | `GET /tenants/{tenantKey}` | · | inline | inline | inline | · | `GetTenantKeySpec`, `GetTenantSpec` |
+| `GetTenantKey` | · | · | · | inline | inline | inline | · | `GetTenantKeySpec` |
 | `ListTenants` | `ITenants.ListAsync` | `GET /tenants` | · | inline | inline | inline | · | `ListTenantsSpec` |
 | `RegisterTenant` | `ITenants.RegisterAsync` | `POST /tenants` | · | routine | routine | inline | `tenants` | `RegisterTenantSpec` |
 | `ResumeTenant` | `ITenants.ResumeAsync` | `POST /tenants/{tenantKey}/resume` | · | routine | routine | inline | `events`, `tenants` | `ResumeTenantSpec` |

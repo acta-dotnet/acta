@@ -18,6 +18,13 @@
   - An unwritten name and an unregistered scope target both read null
   - A read accepts the reserved sys prefix but rejects a malformed name or a job without its namespace
 
+### A tenant id resolves to its stored key
+- **Contract:** GetTenantKey returns the normalized key of the tenant with the given id whatever its status, and null when no tenant has that id.
+- **Guarantees:**
+  - A tenant registered with a mixed-case key reads back its lowercase key
+  - A suspended tenant still resolves its key
+  - An id no tenant has reads null
+
 ### Namespace resume flips status back, emits one 15xx event, and rejects sys
 - **Contract:** Resume flips a suspended namespace back to Active and emits namespace.resumed, while sys is rejected at the facade.
 - **Guarantees:**
