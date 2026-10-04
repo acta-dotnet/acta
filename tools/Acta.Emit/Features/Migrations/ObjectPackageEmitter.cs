@@ -25,7 +25,9 @@ internal static class ObjectPackageEmitter
 
     private static string HashFor(string repoRoot, ProviderInfo provider) =>
         ObjectPackageStamp.HashOf([
-            .. ProvisionScriptEmitter.Views(repoRoot, provider.Token),
+            // A view installs with its {{decode:...}} tokens expanded from the code catalog, so the hash
+            // reads the expanded text: a code change that relabels a view is a new package.
+            .. ProvisionScriptEmitter.Views(repoRoot, provider.Token).Select(v => (v.Name, CodeDecodeSql.RenderDecodeTokens(v.Body))),
             .. ProvisionScriptEmitter.Routines(repoRoot, provider.Token),
         ]);
 

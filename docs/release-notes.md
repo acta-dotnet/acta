@@ -76,7 +76,8 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   family's default (`JobPriorityCode.Bulk`, `DefinitionAuditLevelCode.Off`) or, where none fits, a new
   `Unspecified = 0`; an `Unspecified` deadline-behavior override means no override.
   `CodeKindAttribute.Extensible` is gone, since every family now behaves the way it did. The OpenAPI
-  enums list `unspecified`.
+  enums list `unspecified`. The object package hash now covers the operator views' expanded code
+  labels, so the package moves to revision 13; the minimum stays 9.
 - **Code families are named by the table they describe.** `JobCheckpointKindCode`,
   `JobCheckpointStatusCode`, `JobDefinitionStatusCode`, `JobStepStatusCode`, and `JobEventReasonCode`
   drop the `Job` prefix, and `JobAuditLevelCode` and `JobTenantRequirementCode` become
