@@ -3,6 +3,14 @@ using Microsoft.AspNetCore.Routing;
 
 namespace Acta.AspNetCore;
 
+/// <summary>PATCH body for a namespace update. Null field clears it. ExpectedVersion drives the CAS.</summary>
+internal sealed record UpdateNamespaceHttpRequest(
+    string? OwnerTeam = null,
+    string? Description = null,
+    int? ExpectedVersion = null,
+    string? ReasonMessage = null
+) : IControlRequest;
+
 /// <summary>The Namespaces routes: the list, the namespace's tags, suspend, resume, and the update.</summary>
 internal static class NamespacesEndpoints
 {
@@ -44,7 +52,7 @@ internal static class NamespacesEndpoints
             "/namespaces/{jobNamespace}/suspend",
             "Suspend the namespace: new work is rejected at enqueue.",
             options,
-            DashboardJsonContext.Default.JobControlRequest,
+            DashboardJsonContext.Default.ControlHttpRequest,
             "Invalid namespace jobNamespace.",
             ControlStatus.Admin<SuspendNamespaceResponse>(StatusCodes.Status200OK, StatusCodes.Status404NotFound),
             Name,
@@ -54,7 +62,7 @@ internal static class NamespacesEndpoints
             "/namespaces/{jobNamespace}/resume",
             "Resume a suspended namespace.",
             options,
-            DashboardJsonContext.Default.JobControlRequest,
+            DashboardJsonContext.Default.ControlHttpRequest,
             "Invalid namespace jobNamespace.",
             ControlStatus.Admin<ResumeNamespaceResponse>(StatusCodes.Status200OK, StatusCodes.Status404NotFound),
             Name,
@@ -65,7 +73,7 @@ internal static class NamespacesEndpoints
             "/namespaces/{jobNamespace}",
             "Update the namespace's owner team and description.",
             options,
-            DashboardJsonContext.Default.NamespacePatchRequest,
+            DashboardJsonContext.Default.UpdateNamespaceHttpRequest,
             "Invalid namespace update.",
             ControlStatus.Admin<UpdateNamespaceResponse>(
                 StatusCodes.Status200OK,

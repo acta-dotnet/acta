@@ -8,15 +8,15 @@ namespace Acta.AspNetCore;
 /// Body of the job-control POSTs that accept a compare-and-set token (pause, resume, restart, cancel).
 /// A null <c>ExpectedVersion</c> applies the verb unconditionally; a non-null one that misses the row's
 /// current version answers 409 with action versionConflict and writes nothing. Purge and the admin
-/// suspend/resume verbs take no token and keep the reason-only <see cref="JobControlRequest"/>.
+/// suspend/resume verbs take no token and keep the reason-only <see cref="ControlHttpRequest"/>.
 /// </summary>
-internal sealed record JobVersionedControlRequest(string? ReasonMessage = null, int? ExpectedVersion = null) : IControlRequest;
+internal sealed record VersionedControlHttpRequest(string? ReasonMessage = null, int? ExpectedVersion = null) : IControlRequest;
 
 /// <summary>
 /// Body of a job-reschedule POST. <c>NextRunAtUtc</c> is mandatory (missing or default is a 400); the
 /// framework stamps the actor and reason code itself. <c>ExpectedVersion</c> is the optional CAS guard.
 /// </summary>
-internal sealed record JobRescheduleRequest(DateTime NextRunAtUtc = default, string? ReasonMessage = null, int? ExpectedVersion = null)
+internal sealed record RescheduleJobHttpRequest(DateTime NextRunAtUtc = default, string? ReasonMessage = null, int? ExpectedVersion = null)
     : IControlRequest;
 
 /// <summary>
@@ -24,7 +24,7 @@ internal sealed record JobRescheduleRequest(DateTime NextRunAtUtc = default, str
 /// a missing or unrecognized one fails deserialization (400). The framework stamps the actor and reason
 /// code itself. <c>ExpectedVersion</c> is the optional CAS guard.
 /// </summary>
-internal sealed record JobReprioritizeRequest(
+internal sealed record ReprioritizeJobHttpRequest(
     [property: JsonRequired] JobPriorityCode Priority,
     string? ReasonMessage = null,
     int? ExpectedVersion = null
@@ -99,7 +99,7 @@ internal static class JobsEndpoints
             "/jobs/{jobRef}/pause",
             "Pause the job until an operator resumes it.",
             options,
-            DashboardJsonContext.Default.JobVersionedControlRequest,
+            DashboardJsonContext.Default.VersionedControlHttpRequest,
             "Invalid request.",
             ControlStatus.Job<PauseJobResponse>(),
             RouteKeys.JobByRef,
@@ -109,7 +109,7 @@ internal static class JobsEndpoints
             "/jobs/{jobRef}/resume",
             "Resume a paused job.",
             options,
-            DashboardJsonContext.Default.JobVersionedControlRequest,
+            DashboardJsonContext.Default.VersionedControlHttpRequest,
             "Invalid request.",
             ControlStatus.Job<ResumeJobResponse>(),
             RouteKeys.JobByRef,
@@ -119,7 +119,7 @@ internal static class JobsEndpoints
             "/jobs/{jobRef}/restart",
             "Restart a terminal job with its original input.",
             options,
-            DashboardJsonContext.Default.JobVersionedControlRequest,
+            DashboardJsonContext.Default.VersionedControlHttpRequest,
             "Invalid request.",
             ControlStatus.Job<RestartJobResponse>(),
             RouteKeys.JobByRef,
@@ -129,7 +129,7 @@ internal static class JobsEndpoints
             "/jobs/{jobRef}/cancel",
             "Cancel the job.",
             options,
-            DashboardJsonContext.Default.JobVersionedControlRequest,
+            DashboardJsonContext.Default.VersionedControlHttpRequest,
             "Invalid request.",
             ControlStatus.Job<CancelJobResponse>(),
             RouteKeys.JobByRef,
@@ -142,7 +142,7 @@ internal static class JobsEndpoints
             "/jobs/{jobRef}/purge",
             "Delete the job's record from the ledger.",
             options,
-            DashboardJsonContext.Default.JobControlRequest,
+            DashboardJsonContext.Default.ControlHttpRequest,
             "Invalid request.",
             ControlStatus.Job<PurgeJobResponse>(),
             RouteKeys.JobByRef,
@@ -152,7 +152,7 @@ internal static class JobsEndpoints
             "/jobs/{jobRef}/reschedule",
             "Move the job's next-run instant.",
             options,
-            DashboardJsonContext.Default.JobRescheduleRequest,
+            DashboardJsonContext.Default.RescheduleJobHttpRequest,
             "Invalid request.",
             ControlStatus.Job<RescheduleJobResponse>(),
             RouteKeys.JobByRef,
@@ -173,7 +173,7 @@ internal static class JobsEndpoints
             "/jobs/{jobRef}/reprioritize",
             "Change the job's priority.",
             options,
-            DashboardJsonContext.Default.JobReprioritizeRequest,
+            DashboardJsonContext.Default.ReprioritizeJobHttpRequest,
             "Invalid request.",
             ControlStatus.Job<ReprioritizeJobResponse>(),
             RouteKeys.JobByRef,

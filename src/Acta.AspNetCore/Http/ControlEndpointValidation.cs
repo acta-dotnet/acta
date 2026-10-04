@@ -15,7 +15,7 @@ internal static class ControlEndpointValidation
         HttpContext http,
         ActaEndpointOptions options,
         CancellationToken ct
-    ) => ReadOptionalTextAsync(http, options, DashboardJsonContext.Default.JobControlRequest, static r => r.ReasonMessage, ct);
+    ) => ReadOptionalTextAsync(http, options, DashboardJsonContext.Default.ControlHttpRequest, static r => r.ReasonMessage, ct);
 
     /// <summary>
     /// Reads the reason-and-token body of the job control verbs that accept a compare-and-set guard.
@@ -28,7 +28,7 @@ internal static class ControlEndpointValidation
         CancellationToken ct
     )
     {
-        var (body, error) = await ReadOptionalJsonBodyAsync(http, options, DashboardJsonContext.Default.JobVersionedControlRequest, ct);
+        var (body, error) = await ReadOptionalJsonBodyAsync(http, options, DashboardJsonContext.Default.VersionedControlHttpRequest, ct);
         if (error is not null)
         {
             return (null, null, error);
@@ -45,7 +45,7 @@ internal static class ControlEndpointValidation
 
     /// <summary>
     /// Reads an optional JSON body and extracts one caller-supplied text field via
-    /// <paramref name="selectText"/> (e.g. <c>JobControlRequest.ReasonMessage</c>, <c>AlertControlRequest.Note</c>):
+    /// <paramref name="selectText"/> (e.g. <c>ControlHttpRequest.ReasonMessage</c>, <c>ControlHttpRequest.Note</c>):
     /// no body at all is a no-op (null, null); a present body is parsed and shape-validated (415/400 on
     /// malformed input), then the selected text is trimmed and length-capped via
     /// <see cref="ValidateReasonLength"/>. Shared by every control endpoint whose body carries a single

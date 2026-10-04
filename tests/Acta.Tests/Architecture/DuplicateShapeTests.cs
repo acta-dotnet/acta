@@ -16,12 +16,19 @@ public sealed class DuplicateShapeTests
     // Every operation has its own input and response, so two operations may match on purpose.
     private static readonly string[] PerOperationSuffixes = ["Command", "Query", "Response"];
 
+    // An HTTP body is the wire copy of a command or model: Acta.AspNetCore sees only the public contract, and its
+    // projection changes a member's representation, so the suffix marks the copy as deliberate.
+    private static readonly string[] WireSuffixes = ["HttpRequest", "HttpResponse"];
+
     [Fact]
     public void No_two_types_share_one_shape()
     {
         var copies = ShippedCode
             .Types.Where(type =>
-                !type.IsInterface && !typeof(Attribute).IsAssignableFrom(type) && !typeof(Exception).IsAssignableFrom(type)
+                !type.IsInterface
+                && !typeof(Attribute).IsAssignableFrom(type)
+                && !typeof(Exception).IsAssignableFrom(type)
+                && !WireSuffixes.Any(suffix => ShippedCode.SimpleName(type).EndsWith(suffix, StringComparison.Ordinal))
             )
             .Select(type => (Type: type, Shape: Shape(type)))
             .Where(entry => entry.Shape.Count >= MinProperties)

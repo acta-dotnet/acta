@@ -9,7 +9,7 @@ namespace Acta.AspNetCore;
 /// HTTP projection of a <see cref="JobInputTemplate"/>. <c>Template</c> is the skeleton inlined as raw
 /// JSON (never a string); a job this host does not know reports every field null with format "none".
 /// </summary>
-internal sealed record JobInputTemplateResponse(
+internal sealed record GetInputTemplateHttpResponse(
     string JobNamespace,
     string JobName,
     string? InputTypeName,
@@ -51,19 +51,19 @@ internal static class GetInputTemplateEndpoint
                     }
 
                     return Results.Json(
-                        new JobInputTemplateResponse(
+                        new GetInputTemplateHttpResponse(
                             jobNamespace,
                             jobName,
                             template?.InputTypeName,
                             template?.InputFormat.Name ?? JobPayloadFormat.None.Name,
                             shape
                         ),
-                        DashboardJsonContext.Default.JobInputTemplateResponse
+                        DashboardJsonContext.Default.GetInputTemplateHttpResponse
                     );
                 }
             )
             .WithSummary("Read a job's compile-time input template.")
             // No 404: a name this host has no assembly for is a 200 with a null template, and the only
             // other answer is the group-wide 400 for a missing required parameter.
-            .Produces<JobInputTemplateResponse>(StatusCodes.Status200OK);
+            .Produces<GetInputTemplateHttpResponse>(StatusCodes.Status200OK);
 }

@@ -30,7 +30,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/TagUpsertRequest"
+                "$ref": "#/components/schemas/UpsertTagHttpRequest"
               }
             }
           },
@@ -319,7 +319,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/JobVersionedControlRequest"
+                "$ref": "#/components/schemas/VersionedControlHttpRequest"
               }
             }
           }
@@ -438,7 +438,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/JobVersionedControlRequest"
+                "$ref": "#/components/schemas/VersionedControlHttpRequest"
               }
             }
           }
@@ -557,7 +557,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/JobVersionedControlRequest"
+                "$ref": "#/components/schemas/VersionedControlHttpRequest"
               }
             }
           }
@@ -676,7 +676,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/JobVersionedControlRequest"
+                "$ref": "#/components/schemas/VersionedControlHttpRequest"
               }
             }
           }
@@ -795,7 +795,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/JobControlRequest"
+                "$ref": "#/components/schemas/ControlHttpRequest"
               }
             }
           }
@@ -914,7 +914,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/JobRescheduleRequest"
+                "$ref": "#/components/schemas/RescheduleJobHttpRequest"
               }
             }
           },
@@ -1034,7 +1034,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/JobReprioritizeRequest"
+                "$ref": "#/components/schemas/ReprioritizeJobHttpRequest"
               }
             }
           },
@@ -1154,7 +1154,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/JobInputRequest"
+                "$ref": "#/components/schemas/UpdateJobInputHttpRequest"
               }
             }
           },
@@ -1314,7 +1314,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobPayloadResponse"
+                  "$ref": "#/components/schemas/JobPayloadHttpResponse"
                 }
               }
             }
@@ -1342,7 +1342,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/JobEnqueueApiRequest"
+                "$ref": "#/components/schemas/EnqueueOneHttpRequest"
               }
             }
           },
@@ -1404,7 +1404,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobEnqueueResponse"
+                  "$ref": "#/components/schemas/EnqueueOneHttpResponse"
                 }
               }
             }
@@ -1414,7 +1414,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobEnqueueResponse"
+                  "$ref": "#/components/schemas/EnqueueOneHttpResponse"
                 }
               }
             }
@@ -1778,7 +1778,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/TagUpsertRequest"
+                "$ref": "#/components/schemas/UpsertTagHttpRequest"
               }
             }
           },
@@ -2067,7 +2067,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/TagUpsertRequest"
+                "$ref": "#/components/schemas/UpsertTagHttpRequest"
               }
             }
           },
@@ -2356,7 +2356,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/JobControlRequest"
+                "$ref": "#/components/schemas/ControlHttpRequest"
               }
             }
           }
@@ -2465,7 +2465,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/JobControlRequest"
+                "$ref": "#/components/schemas/ControlHttpRequest"
               }
             }
           }
@@ -2574,7 +2574,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/NamespacePatchRequest"
+                "$ref": "#/components/schemas/UpdateNamespaceHttpRequest"
               }
             }
           },
@@ -2694,7 +2694,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/TagUpsertRequest"
+                "$ref": "#/components/schemas/UpsertTagHttpRequest"
               }
             }
           },
@@ -2973,7 +2973,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/TenantRegistrationRequest"
+                "$ref": "#/components/schemas/RegisterTenantHttpRequest"
               }
             }
           },
@@ -3035,7 +3035,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TenantRegistrationResponse"
+                  "$ref": "#/components/schemas/RegisterTenantHttpResponse"
                 }
               }
             }
@@ -3189,7 +3189,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/JobControlRequest"
+                "$ref": "#/components/schemas/ControlHttpRequest"
               }
             }
           }
@@ -3298,7 +3298,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/JobControlRequest"
+                "$ref": "#/components/schemas/ControlHttpRequest"
               }
             }
           }
@@ -3407,7 +3407,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/TenantPatchRequest"
+                "$ref": "#/components/schemas/UpdateTenantHttpRequest"
               }
             }
           },
@@ -3605,7 +3605,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/TagUpsertRequest"
+                "$ref": "#/components/schemas/UpsertTagHttpRequest"
               }
             }
           },
@@ -3894,7 +3894,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AlertControlRequest"
+                "$ref": "#/components/schemas/ControlHttpRequest"
               }
             }
           }
@@ -4003,7 +4003,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AlertControlRequest"
+                "$ref": "#/components/schemas/ControlHttpRequest"
               }
             }
           }
@@ -4112,7 +4112,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/OutboxControlRequest"
+                "$ref": "#/components/schemas/OutboxControlHttpRequest"
               }
             }
           }
@@ -4231,7 +4231,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/OutboxControlRequest"
+                "$ref": "#/components/schemas/OutboxControlHttpRequest"
               }
             }
           }
@@ -4358,7 +4358,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/TagUpsertRequest"
+                "$ref": "#/components/schemas/UpsertTagHttpRequest"
               }
             }
           },
@@ -4671,7 +4671,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SetDefinitionOverridesRequest"
+                "$ref": "#/components/schemas/SetJobDefinitionOverridesHttpRequest"
               }
             }
           },
@@ -4885,7 +4885,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RetireDefinitionRequest"
+                "$ref": "#/components/schemas/RetireJobDefinitionHttpRequest"
               }
             }
           },
@@ -5021,7 +5021,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/TagUpsertRequest"
+                "$ref": "#/components/schemas/UpsertTagHttpRequest"
               }
             }
           },
@@ -5358,7 +5358,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SchedulePauseRequest"
+                "$ref": "#/components/schemas/PauseScheduleHttpRequest"
               }
             }
           }
@@ -5493,7 +5493,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/JobControlRequest"
+                "$ref": "#/components/schemas/ControlHttpRequest"
               }
             }
           }
@@ -5628,7 +5628,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/JobControlRequest"
+                "$ref": "#/components/schemas/ControlHttpRequest"
               }
             }
           }
@@ -5763,7 +5763,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SetScheduleOverridesRequest"
+                "$ref": "#/components/schemas/SetScheduleOverridesHttpRequest"
               }
             }
           },
@@ -6095,7 +6095,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobDetailResponse"
+                  "$ref": "#/components/schemas/GetJobDetailHttpResponse"
                 }
               }
             }
@@ -6181,7 +6181,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobInputTemplateResponse"
+                  "$ref": "#/components/schemas/GetInputTemplateHttpResponse"
                 }
               }
             }
@@ -8063,17 +8063,6 @@
         },
         "description": "Result of an admin control transition: the action plus the row version after the attempt."
       },
-      "AlertControlRequest": {
-        "type": "object",
-        "properties": {
-          "reasonMessage": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        }
-      },
       "AlertDeliveryStatusCode": {
         "description": "Delivery state of one alert row. Numeric bands are a readability convention only; behavior\nfollows the explicit members."
       },
@@ -8388,6 +8377,17 @@
         ],
         "description": "Coarse outcome of a control verb: on jobs, schedules, alerts, the outbox, tenants, namespaces, and settings."
       },
+      "ControlHttpRequest": {
+        "type": "object",
+        "properties": {
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "DeadlineBehaviorCode": {
         "description": "How the engine treats a job that has passed its deadline."
       },
@@ -8410,6 +8410,95 @@
           }
         },
         "description": "What parking a discard of a source's quarantined rows did."
+      },
+      "EnqueueOneHttpRequest": {
+        "type": "object",
+        "properties": {
+          "jobNamespace": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "jobName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "input": { },
+          "text": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "base64": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "formatId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "uint8"
+          },
+          "deduplicationKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "correlationKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tenantKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "priority": { },
+          "delaySeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "nextRunAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "EnqueueOneHttpResponse": {
+        "required": [
+          "jobRef",
+          "action"
+        ],
+        "type": "object",
+        "properties": {
+          "jobRef": {
+            "$ref": "#/components/schemas/JobRef"
+          },
+          "action": {
+            "$ref": "#/components/schemas/JobEnqueueAction"
+          }
+        }
       },
       "EventCode": {
         "description": "Stable family-local event identifiers. Nearby values improve catalog readability but carry no\nruntime subject, subgroup, or outcome semantics. Match events by enum member or textual code."
@@ -8600,11 +8689,154 @@
         "description": "One audit event row in a ValueTask&lt;PagedResult&lt;EventListItem&gt;&gt; ILedger.ListEventsAsync(ListEventsQuery query, CancellationToken ct = default(CancellationToken)) page. JSON serialization\ncarries the public job refs and hides the numeric job ids; events outlive their job, and each\nref parameter documents whether it survives the purge."
       },
       "ExecutionStatusCode": { },
-      "JobAuditLevelCode": { },
-      "JobCheckpointKindCode": {
-        "description": "Discriminator for `JobCheckpoint` rows: which durable substrate feature owns the\n`(job_id, kind_code, name)` slot. One physical table carries every simple job-internal\ndurable slot; the kind keeps the name spaces structurally separate (a user variable can never\ncollide with a signal or a child latch of the same name)."
+      "GetInputTemplateHttpResponse": {
+        "required": [
+          "jobNamespace",
+          "jobName",
+          "inputTypeName",
+          "inputFormatName",
+          "template"
+        ],
+        "type": "object",
+        "properties": {
+          "jobNamespace": {
+            "type": "string"
+          },
+          "jobName": {
+            "type": "string"
+          },
+          "inputTypeName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "inputFormatName": {
+            "type": "string"
+          },
+          "template": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
+          }
+        }
       },
-      "JobCheckpointResponse": {
+      "GetJobDetailHttpResponse": {
+        "required": [
+          "job",
+          "input",
+          "result",
+          "checkpoints",
+          "explain",
+          "lineage",
+          "schedules",
+          "schedulesTotal",
+          "tenantKey",
+          "maxAttemptsEffective",
+          "workers",
+          "workersTotal"
+        ],
+        "type": "object",
+        "properties": {
+          "job": {
+            "$ref": "#/components/schemas/JobDetail"
+          },
+          "input": {
+            "$ref": "#/components/schemas/JobPayloadHttpResponse"
+          },
+          "result": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobPayloadHttpResponse"
+              }
+            ]
+          },
+          "checkpoints": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JobCheckpointHttpResponse"
+            }
+          },
+          "explain": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobExplanation"
+              }
+            ]
+          },
+          "lineage": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobLineageMap"
+              }
+            ]
+          },
+          "schedules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScheduleListItem"
+            }
+          },
+          "schedulesTotal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "tenantKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "maxAttemptsEffective": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "workers": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/WorkerListItem"
+            }
+          },
+          "workersTotal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        }
+      },
+      "JobAuditLevelCode": { },
+      "JobCheckpointHttpResponse": {
         "required": [
           "kind",
           "name",
@@ -8645,7 +8877,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/JobPayloadResponse"
+                "$ref": "#/components/schemas/JobPayloadHttpResponse"
               }
             ]
           },
@@ -8659,18 +8891,10 @@
           }
         }
       },
-      "JobCheckpointStatusCode": { },
-      "JobControlRequest": {
-        "type": "object",
-        "properties": {
-          "reasonMessage": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        }
+      "JobCheckpointKindCode": {
+        "description": "Discriminator for `JobCheckpoint` rows: which durable substrate feature owns the\n`(job_id, kind_code, name)` slot. One physical table carries every simple job-internal\ndurable slot; the kind keeps the name spaces structurally separate (a user variable can never\ncollide with a signal or a child latch of the same name)."
       },
+      "JobCheckpointStatusCode": { },
       "JobDefinitionDetail": {
         "required": [
           "jobNamespace",
@@ -9506,210 +9730,12 @@
         },
         "description": "Read projection of a Job row exposed by `IJobs.GetAsync`: identity, linkage, status,\nscheduling, leasing, retention, and input format. The input payload itself is never returned.\nProperty order mirrors the `jobs` entity (identity, scope/routing, caller keys, input) and\nthen its 1:1 `runtimes` row, so the shape reads in the same order as the schema; a column\nresolved to a public value follows the id it came from, and the created/modified pair closes the\nrecord together. JSON serialization carries the public refs and hides the numeric ids.\n`DefinitionId` is the surrogate for the namespace+name pair; non-null because the job\nrow's definition_id is NOT NULL."
       },
-      "JobDetailResponse": {
-        "required": [
-          "job",
-          "input",
-          "result",
-          "checkpoints",
-          "explain",
-          "lineage",
-          "schedules",
-          "schedulesTotal",
-          "tenantKey",
-          "maxAttemptsEffective",
-          "workers",
-          "workersTotal"
-        ],
-        "type": "object",
-        "properties": {
-          "job": {
-            "$ref": "#/components/schemas/JobDetail"
-          },
-          "input": {
-            "$ref": "#/components/schemas/JobPayloadResponse"
-          },
-          "result": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JobPayloadResponse"
-              }
-            ]
-          },
-          "checkpoints": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/JobCheckpointResponse"
-            }
-          },
-          "explain": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JobExplanation"
-              }
-            ]
-          },
-          "lineage": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JobLineageMap"
-              }
-            ]
-          },
-          "schedules": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ScheduleListItem"
-            }
-          },
-          "schedulesTotal": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int64"
-          },
-          "tenantKey": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "maxAttemptsEffective": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "workers": {
-            "type": [
-              "null",
-              "array"
-            ],
-            "items": {
-              "$ref": "#/components/schemas/WorkerListItem"
-            }
-          },
-          "workersTotal": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int64"
-          }
-        }
-      },
       "JobEnqueueAction": {
         "enum": [
           "inserted",
           "deduplicated"
         ],
         "description": "Coarse outcome classifier for one enqueued row."
-      },
-      "JobEnqueueApiRequest": {
-        "type": "object",
-        "properties": {
-          "jobNamespace": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "jobName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "input": { },
-          "text": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "base64": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "formatId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "uint8"
-          },
-          "deduplicationKey": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "correlationKey": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "tenantKey": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "priority": { },
-          "delaySeconds": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "nextRunAtUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          }
-        }
-      },
-      "JobEnqueueResponse": {
-        "required": [
-          "jobRef",
-          "action"
-        ],
-        "type": "object",
-        "properties": {
-          "jobRef": {
-            "$ref": "#/components/schemas/JobRef"
-          },
-          "action": {
-            "$ref": "#/components/schemas/JobEnqueueAction"
-          }
-        }
       },
       "JobEventReasonCode": { },
       "JobExplainAction": {
@@ -9907,67 +9933,6 @@
           }
         },
         "description": "Plain-English explanation of a Job's current durable state: where the work is, why it moved there,\nand what an operator can do next. Assembled from the same `runtimes` / `workers` /\n`steps` / `checkpoints` / `events` rows an operator could read with a `SELECT`:\nActa explains the work it runs rather than hiding it behind synthesized state. Returned by\nValueTask&lt;JobExplanation?&gt; IJobs.ExplainAsync(JobLookup job, CancellationToken ct = default(CancellationToken)); the CLI renders it as prose, the dashboard as a panel.\nStatusMeaning is the [Code] description of Status; Headline is a\none-sentence summary; ActiveWait / Lease are set only in the relevant states;\nLastExecutedBy names the worker that last ran the job (for states with no live lease);\nReason is the most recent reason on the timeline; NextActions are the operator's\nmoves, most relevant first."
-      },
-      "JobInputRequest": {
-        "type": "object",
-        "properties": {
-          "input": { },
-          "text": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "base64": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "reasonMessage": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        }
-      },
-      "JobInputTemplateResponse": {
-        "required": [
-          "jobNamespace",
-          "jobName",
-          "inputTypeName",
-          "inputFormatName",
-          "template"
-        ],
-        "type": "object",
-        "properties": {
-          "jobNamespace": {
-            "type": "string"
-          },
-          "jobName": {
-            "type": "string"
-          },
-          "inputTypeName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "inputFormatName": {
-            "type": "string"
-          },
-          "template": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JsonElement"
-              }
-            ]
-          }
-        }
       },
       "JobLineageChild": {
         "required": [
@@ -10233,7 +10198,7 @@
         },
         "description": "One job row in a ValueTask&lt;PagedResult&lt;JobListItem&gt;&gt; ILedger.ListJobsAsync(ListJobsQuery query, CancellationToken ct = default(CancellationToken)) page. Carries identity, lifecycle, and\naudit-facing fields only; the input payload is never exposed by list reads. JSON serialization\ncarries the public refs and hides the numeric ids."
       },
-      "JobPayloadResponse": {
+      "JobPayloadHttpResponse": {
         "required": [
           "formatName",
           "formatId"
@@ -10287,79 +10252,9 @@
       "JobRef": {
         "description": "Public stable reference for one Job row: \"job_\" plus 26 lowercase Crockford Base32 characters\nencoding the canonical big-endian UUID bytes. Dashboards, HTTP APIs, and clients address jobs\nby this value; the numeric JobId stays the internal engine identity. Parsing is\ncase-insensitive; emission is always canonical lowercase."
       },
-      "JobReprioritizeRequest": {
-        "required": [
-          "priority"
-        ],
-        "type": "object",
-        "properties": {
-          "priority": {
-            "$ref": "#/components/schemas/JobPriorityCode"
-          },
-          "reasonMessage": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "expectedVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          }
-        }
-      },
-      "JobRescheduleRequest": {
-        "type": "object",
-        "properties": {
-          "nextRunAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "reasonMessage": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "expectedVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          }
-        }
-      },
       "JobStatusCode": { },
       "JobStepStatusCode": {
         "description": "State machine for `JobStep` rows. INSERT-once on first invocation (`Pending`);\nUPDATE-in-place across retries; terminal transition to `Succeeded` (with `Result` populated),\n`Exhausted` (parent receives `StepExhaustedException`), or `Interrupted` (an\n`AtMostOnce` step re-entered before completion; parent receives `StepInterruptedException`). One row per\n`(JobId, Name)`; the framework never INSERTs a second step row for the same slot."
-      },
-      "JobVersionedControlRequest": {
-        "type": "object",
-        "properties": {
-          "reasonMessage": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "expectedVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          }
-        }
       },
       "JsonElement": { },
       "MisfireStrategyCode": { },
@@ -10407,42 +10302,10 @@
         },
         "description": "One namespace row in an ValueTask&lt;PagedResult&lt;NamespaceListItem&gt;&gt; INamespaces.ListAsync(ListNamespacesQuery query, CancellationToken ct = default(CancellationToken)) page, projected from the\n`namespaces` table, and the one representation `GET /namespaces` answers with.\nValueTask&lt;PagedResult&lt;string&gt;&gt; INamespaces.ListNamesAsync(ListNamespacesQuery query, CancellationToken ct = default(CancellationToken)) remains for callers that want only the names."
       },
-      "NamespacePatchRequest": {
-        "type": "object",
-        "properties": {
-          "ownerTeam": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "description": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "expectedVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "reasonMessage": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        }
-      },
       "NamespaceStatusCode": {
         "description": "Namespace state machine. 10-spaced ids; live states 10..80, mirroring\nTenantStatusCode."
       },
-      "OutboxControlRequest": {
+      "OutboxControlHttpRequest": {
         "type": "object",
         "properties": {
           "outboxIds": {
@@ -11249,6 +11112,24 @@
         },
         "description": "What pausing a job did, and the job's status and version after the attempt."
       },
+      "PauseScheduleHttpRequest": {
+        "type": "object",
+        "properties": {
+          "pausedUntilUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "PauseScheduleResponse": {
         "required": [
           "action",
@@ -11402,6 +11283,66 @@
         },
         "description": "What raising a signal on a job did, and the job's status after the attempt; a raise carries no version."
       },
+      "RegisterTenantHttpRequest": {
+        "type": "object",
+        "properties": {
+          "tenantKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "displayName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "RegisterTenantHttpResponse": {
+        "required": [
+          "tenantKey"
+        ],
+        "type": "object",
+        "properties": {
+          "tenantKey": {
+            "type": "string"
+          }
+        }
+      },
+      "ReprioritizeJobHttpRequest": {
+        "required": [
+          "priority"
+        ],
+        "type": "object",
+        "properties": {
+          "priority": {
+            "$ref": "#/components/schemas/JobPriorityCode"
+          },
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expectedVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "ReprioritizeJobResponse": {
         "required": [
           "action",
@@ -11454,6 +11395,30 @@
           }
         },
         "description": "What parking a requeue of a source's quarantined rows did."
+      },
+      "RescheduleJobHttpRequest": {
+        "type": "object",
+        "properties": {
+          "nextRunAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expectedVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
       },
       "RescheduleJobResponse": {
         "required": [
@@ -11679,7 +11644,7 @@
         },
         "description": "What resuming a tenant did, and the tenant's version after the attempt."
       },
-      "RetireDefinitionRequest": {
+      "RetireJobDefinitionHttpRequest": {
         "type": "object",
         "properties": {
           "expectedVersion": {
@@ -11826,24 +11791,6 @@
         "description": "One schedule row in a ValueTask&lt;PagedResult&lt;ScheduleListItem&gt;&gt; ISchedules.ListAsync(ListSchedulesQuery query, CancellationToken ct = default(CancellationToken)) page. Expression and\ntime zone are the effective values: the operator override when present, else the original."
       },
       "ScheduleOriginCode": { },
-      "SchedulePauseRequest": {
-        "type": "object",
-        "properties": {
-          "pausedUntilUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          },
-          "reasonMessage": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        }
-      },
       "SchedulePreview": {
         "required": [
           "expression",
@@ -11869,7 +11816,7 @@
         "description": "A read-only forecast of a schedule's upcoming fire instants, computed live (no persisted state is\nread or written). string SchedulePreview.Expression and string SchedulePreview.TimeZoneId are the effective values\n(operator override when present, else the original); IReadOnlyList&lt;DateTime&gt; SchedulePreview.NextRunsUtc is strictly\nincreasing and may be shorter than requested when the expression is exhausted."
       },
       "ScheduleStatusCode": { },
-      "SetDefinitionOverridesRequest": {
+      "SetJobDefinitionOverridesHttpRequest": {
         "type": "object",
         "properties": {
           "expectedVersion": {
@@ -11910,7 +11857,7 @@
         },
         "description": "What setting a definition's policy overrides did."
       },
-      "SetScheduleOverridesRequest": {
+      "SetScheduleOverridesHttpRequest": {
         "type": "object",
         "properties": {
           "expectedVersion": {
@@ -12053,27 +12000,6 @@
         },
         "description": "One normalized tag attached to a target."
       },
-      "TagUpsertRequest": {
-        "required": [
-          "name",
-          "value"
-        ],
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "value": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        }
-      },
       "TenantDetail": {
         "required": [
           "tenantKey",
@@ -12186,72 +12112,6 @@
         },
         "description": "One tenant row in a ValueTask&lt;PagedResult&lt;TenantListItem&gt;&gt; ITenants.ListAsync(ListTenantsQuery query, CancellationToken ct = default(CancellationToken)) page, projected from\nthe `tenants` table. The string TenantListItem.TenantKey is the caller-supplied opaque external\nidentifier; the human label lives in string? TenantListItem.Description."
       },
-      "TenantPatchRequest": {
-        "type": "object",
-        "properties": {
-          "displayName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "description": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "expectedVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "reasonMessage": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        }
-      },
-      "TenantRegistrationRequest": {
-        "type": "object",
-        "properties": {
-          "tenantKey": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "displayName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "description": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        }
-      },
-      "TenantRegistrationResponse": {
-        "required": [
-          "tenantKey"
-        ],
-        "type": "object",
-        "properties": {
-          "tenantKey": {
-            "type": "string"
-          }
-        }
-      },
       "TenantStatusCode": {
         "description": "Tenant state machine. 10-spaced ids; live states 10..80."
       },
@@ -12304,6 +12164,30 @@
         },
         "description": "What firing a schedule now did, and the schedule's state after the attempt."
       },
+      "UpdateJobInputHttpRequest": {
+        "type": "object",
+        "properties": {
+          "input": { },
+          "text": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "base64": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "UpdateJobInputResponse": {
         "required": [
           "action",
@@ -12337,6 +12221,38 @@
         },
         "description": "What amending a job's input did, and the job's status after the attempt; an amend carries no version."
       },
+      "UpdateNamespaceHttpRequest": {
+        "type": "object",
+        "properties": {
+          "ownerTeam": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expectedVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "UpdateNamespaceResponse": {
         "required": [
           "action",
@@ -12359,6 +12275,38 @@
         },
         "description": "What updating a namespace did, and the namespace's version after the attempt."
       },
+      "UpdateTenantHttpRequest": {
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expectedVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "UpdateTenantResponse": {
         "required": [
           "action",
@@ -12380,6 +12328,47 @@
           }
         },
         "description": "What updating a tenant did, and the tenant's version after the attempt."
+      },
+      "UpsertTagHttpRequest": {
+        "required": [
+          "name",
+          "value"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "value": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "VersionedControlHttpRequest": {
+        "type": "object",
+        "properties": {
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expectedVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
       },
       "WorkerDetail": {
         "required": [

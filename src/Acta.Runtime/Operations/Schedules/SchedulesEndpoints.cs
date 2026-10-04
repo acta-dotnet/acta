@@ -9,14 +9,14 @@ namespace Acta.AspNetCore;
 /// stamps the actor itself, so the body carries only the pause window and the operator note.
 /// Resume and trigger carry only a <c>reasonMessage</c> and share the generic control-request shape.
 /// </summary>
-internal sealed record SchedulePauseRequest(DateTime? PausedUntilUtc = null, string? ReasonMessage = null) : IControlRequest;
+internal sealed record PauseScheduleHttpRequest(DateTime? PausedUntilUtc = null, string? ReasonMessage = null) : IControlRequest;
 
 /// <summary>
 /// Body of a schedule overrides POST (the schedule is addressed by the route's natural key).
 /// <c>ExpectedVersion</c> is the CAS token (the schedule's current <c>version</c>). Full-set
 /// semantics: a null <c>Expression</c>/<c>TimeZoneId</c> clears that override.
 /// </summary>
-internal sealed record SetScheduleOverridesRequest(
+internal sealed record SetScheduleOverridesHttpRequest(
     int? ExpectedVersion = null,
     string? Expression = null,
     string? TimeZoneId = null,
@@ -95,7 +95,7 @@ internal static class SchedulesEndpoints
             "/schedules/{jobNamespace}/{jobName}/{scheduleName}/pause",
             "Pause a recurring schedule, indefinitely or until an instant.",
             options,
-            DashboardJsonContext.Default.SchedulePauseRequest,
+            DashboardJsonContext.Default.PauseScheduleHttpRequest,
             "Invalid schedule request.",
             ControlStatus.Schedule<PauseScheduleResponse>(),
             Key,
@@ -106,7 +106,7 @@ internal static class SchedulesEndpoints
             "/schedules/{jobNamespace}/{jobName}/{scheduleName}/resume",
             "Resume a paused schedule, reconciled by its misfire policy.",
             options,
-            DashboardJsonContext.Default.JobControlRequest,
+            DashboardJsonContext.Default.ControlHttpRequest,
             "Invalid schedule request.",
             ControlStatus.Schedule<ResumeScheduleResponse>(),
             Key,
@@ -116,7 +116,7 @@ internal static class SchedulesEndpoints
             "/schedules/{jobNamespace}/{jobName}/{scheduleName}/trigger",
             "Fire the schedule now, without moving its cadence.",
             options,
-            DashboardJsonContext.Default.JobControlRequest,
+            DashboardJsonContext.Default.ControlHttpRequest,
             "Invalid schedule request.",
             ControlStatus.Schedule<TriggerScheduleNowResponse>(),
             Key,
@@ -126,7 +126,7 @@ internal static class SchedulesEndpoints
             "/schedules/{jobNamespace}/{jobName}/{scheduleName}/overrides",
             "Set or clear the schedule's expression and time-zone overrides.",
             options,
-            DashboardJsonContext.Default.SetScheduleOverridesRequest,
+            DashboardJsonContext.Default.SetScheduleOverridesHttpRequest,
             "Invalid schedule request.",
             ControlStatus.Schedule<SetScheduleOverridesResponse>(),
             Key,

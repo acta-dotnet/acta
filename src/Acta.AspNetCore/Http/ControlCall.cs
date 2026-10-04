@@ -9,10 +9,10 @@ internal interface IControlRequest
 }
 
 /// <summary>
-/// Body of a job-control POST. Only the reason travels over HTTP; the framework stamps the actor
-/// and reason code itself, so callers cannot forge the audit trail.
+/// Body of a control verb that takes only the operator's reason. The framework stamps the actor and reason code
+/// itself, so callers cannot forge the audit trail; an absent body acts with no reason.
 /// </summary>
-internal sealed record JobControlRequest(string? ReasonMessage = null) : IControlRequest;
+internal sealed record ControlHttpRequest(string? ReasonMessage = null) : IControlRequest;
 
 /// <summary>One control request as a route table's verb sees it: the parsed body, its trimmed and capped reason, and the operator.</summary>
 internal sealed record ControlCall<TBody>(

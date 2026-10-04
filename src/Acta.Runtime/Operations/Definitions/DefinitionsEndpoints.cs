@@ -9,7 +9,7 @@ namespace Acta.AspNetCore;
 /// optional note. The actor is stamped server-side from the authenticated principal; the body never
 /// carries it.
 /// </summary>
-internal sealed record SetDefinitionOverridesRequest(
+internal sealed record SetJobDefinitionOverridesHttpRequest(
     int ExpectedVersion = 0,
     JobDefinitionPolicyOverrides? Overrides = null,
     string? ReasonMessage = null
@@ -20,7 +20,7 @@ internal sealed record SetDefinitionOverridesRequest(
 /// optimistic-concurrency <c>Version</c> the operator last read and an optional note. The actor is
 /// stamped server-side from the authenticated principal; the body never carries it.
 /// </summary>
-internal sealed record RetireDefinitionRequest(int ExpectedVersion = 0, string? ReasonMessage = null) : IControlRequest;
+internal sealed record RetireJobDefinitionHttpRequest(int ExpectedVersion = 0, string? ReasonMessage = null) : IControlRequest;
 
 /// <summary>
 /// The Definitions routes: the list, one definition, its tags, the overrides update, and retire. A definition is
@@ -75,7 +75,7 @@ internal static class DefinitionsEndpoints
             "/definitions/{jobNamespace}/{jobName}",
             "Set or clear the definition's operator policy overrides.",
             options,
-            DashboardJsonContext.Default.SetDefinitionOverridesRequest,
+            DashboardJsonContext.Default.SetJobDefinitionOverridesHttpRequest,
             "Invalid definition overrides.",
             ControlStatus.Definition<SetJobDefinitionOverridesResponse>(),
             Key,
@@ -94,7 +94,7 @@ internal static class DefinitionsEndpoints
             "/definitions/{jobNamespace}/{jobName}/retire",
             "Retire the definition and cancel its parked jobs.",
             options,
-            DashboardJsonContext.Default.RetireDefinitionRequest,
+            DashboardJsonContext.Default.RetireJobDefinitionHttpRequest,
             "Invalid definition key.",
             ControlStatus.Definition<RetireJobDefinitionResponse>(),
             Key,

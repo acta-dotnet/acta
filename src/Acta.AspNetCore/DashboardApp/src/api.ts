@@ -270,7 +270,7 @@ export interface NamespaceListItem {
   version: number;
 }
 
-export interface TenantRegistrationResponse {
+export interface RegisterTenantHttpResponse {
   tenantKey: string;
 }
 
@@ -281,8 +281,8 @@ export async function registerTenant(
   tenantKey: string,
   displayName?: string | null,
   description?: string | null
-): Promise<TenantRegistrationResponse> {
-  const { response, body } = await request<TenantRegistrationResponse>({
+): Promise<RegisterTenantHttpResponse> {
+  const { response, body } = await request<RegisterTenantHttpResponse>({
     path: 'tenants',
     method: 'POST',
     headers: controlHeaders(),

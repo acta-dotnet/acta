@@ -9,13 +9,13 @@ namespace Acta.AspNetCore;
 /// identifier. Registration is insert-or-return-existing: a new tenant is created Active, an
 /// existing one is returned untouched. Status changes go through the suspend/resume endpoints.
 /// </summary>
-internal sealed record TenantRegistrationRequest(string? TenantKey = null, string? DisplayName = null, string? Description = null);
+internal sealed record RegisterTenantHttpRequest(string? TenantKey = null, string? DisplayName = null, string? Description = null);
 
 /// <summary>
 /// HTTP projection of a registered tenant: the echoed canonical key, which is how every other
 /// endpoint addresses a tenant. The DB-assigned id stays internal.
 /// </summary>
-internal sealed record TenantRegistrationResponse(string TenantKey);
+internal sealed record RegisterTenantHttpResponse(string TenantKey);
 
 /// <summary>POST /tenants: registers a tenant, or returns the existing one, by its canonical key.</summary>
 internal static class RegisterTenantEndpoint
@@ -33,7 +33,7 @@ internal static class RegisterTenantEndpoint
 
                     var (request, bodyError) = await ControlEndpointValidation.ReadJsonBodyAsync(
                         http,
-                        DashboardJsonContext.Default.TenantRegistrationRequest,
+                        DashboardJsonContext.Default.RegisterTenantHttpRequest,
                         ct
                     );
                     if (bodyError is not null)
@@ -71,8 +71,8 @@ internal static class RegisterTenantEndpoint
                         var canonicalTenantKey = IdentifierSyntax.NormalizeTenantKey(tenantKey, nameof(tenantKey));
                         await operations.Tenants.RegisterAsync(canonicalTenantKey, request.DisplayName, request.Description, ct);
                         return Results.Json(
-                            new TenantRegistrationResponse(canonicalTenantKey),
-                            DashboardJsonContext.Default.TenantRegistrationResponse,
+                            new RegisterTenantHttpResponse(canonicalTenantKey),
+                            DashboardJsonContext.Default.RegisterTenantHttpResponse,
                             statusCode: StatusCodes.Status200OK
                         );
                     }
@@ -87,7 +87,7 @@ internal static class RegisterTenantEndpoint
             // the accurate shape.
             .WithSummary("Register a tenant, or return the existing one.")
             // The body is read manually rather than bound, so the document only learns its shape here.
-            .AcceptsJson<TenantRegistrationRequest>()
-            .Produces<TenantRegistrationResponse>(StatusCodes.Status200OK)
+            .AcceptsJson<RegisterTenantHttpRequest>()
+            .Produces<RegisterTenantHttpResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
 }

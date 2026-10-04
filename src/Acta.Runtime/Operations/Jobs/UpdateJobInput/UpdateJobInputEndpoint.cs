@@ -13,7 +13,7 @@ namespace Acta.AspNetCore;
 /// accepted as a json fallback for any non-none format. <c>ReasonMessage</c> carries the operator's why;
 /// the framework stamps the actor and reason code itself.
 /// </summary>
-internal sealed record JobInputRequest(
+internal sealed record UpdateJobInputHttpRequest(
     // Nullable rather than a bare JsonElement: the absent case has to be a value the schema generator
     // can write as this parameter's default, and an uninitialized JsonElement has nothing to write.
     JsonElement? Input = null,
@@ -47,7 +47,7 @@ internal static class UpdateJobInputEndpoint
 
                     var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(
                         http,
-                        DashboardJsonContext.Default.JobInputRequest,
+                        DashboardJsonContext.Default.UpdateJobInputHttpRequest,
                         ct
                     );
                     if (error is not null)
@@ -151,7 +151,7 @@ internal static class UpdateJobInputEndpoint
             )
             .WithSummary("Amend a waiting job's stored input.")
             // The body is read manually rather than bound, so the document only learns its shape here.
-            .AcceptsJson<JobInputRequest>()
+            .AcceptsJson<UpdateJobInputHttpRequest>()
             .Produces<UpdateJobInputResponse>(StatusCodes.Status200OK)
             .Produces<UpdateJobInputResponse>(StatusCodes.Status409Conflict)
             .Produces<UpdateJobInputResponse>(StatusCodes.Status404NotFound)

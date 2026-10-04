@@ -2,16 +2,12 @@
 AlertDetail
 AlertListItem
 CheckpointValue
-JobCheckpointItem
-JobCheckpointResponse
 JobLineageChild
 JobLineageJob
 LineageChildRow
 LineageJobRow
 OutboxSignalRow
-RegisterTenantCommand
 TenantDetail
 TenantListItem
-TenantRegistrationRequest
 WorkerDetail
 WorkerListItem

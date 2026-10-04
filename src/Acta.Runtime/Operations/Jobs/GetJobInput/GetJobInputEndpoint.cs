@@ -15,7 +15,7 @@ namespace Acta.AspNetCore;
 /// <c>JobsOptions.MaxInlinePayloadBytes</c> only the format, <see cref="ByteLength"/>, and <see cref="Truncated"/>
 /// travel, since a handler result may have been persisted past the cap.
 /// </summary>
-internal sealed record JobPayloadResponse(
+internal sealed record JobPayloadHttpResponse(
     string FormatName,
     byte FormatId,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JsonElement? Json = null,
@@ -25,11 +25,11 @@ internal sealed record JobPayloadResponse(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] bool? Truncated = null
 )
 {
-    public static JobPayloadResponse From(JobPayload payload, int maxInlineBytes)
+    public static JobPayloadHttpResponse From(JobPayload payload, int maxInlineBytes)
     {
         if (payload.IsNone)
         {
-            return new JobPayloadResponse(JobPayloadFormat.NoneName, 0);
+            return new JobPayloadHttpResponse(JobPayloadFormat.NoneName, 0);
         }
 
         var format = payload.Format;
@@ -38,19 +38,19 @@ internal sealed record JobPayloadResponse(
         // format identity and byte length travel, so an oversized row is never materialized to the wire.
         if (payload.Data.Length > maxInlineBytes)
         {
-            return new JobPayloadResponse(format.Name, format.Id, ByteLength: payload.Data.Length, Truncated: true);
+            return new JobPayloadHttpResponse(format.Name, format.Id, ByteLength: payload.Data.Length, Truncated: true);
         }
 
         if (format.Id == JobPayloadFormat.Json.Id)
         {
             // Parse (not reflect) so the stored JSON re-emits verbatim without a reflection-based serializer.
             using var doc = JsonDocument.Parse(payload.Data);
-            return new JobPayloadResponse(format.Name, format.Id, Json: doc.RootElement.Clone());
+            return new JobPayloadHttpResponse(format.Name, format.Id, Json: doc.RootElement.Clone());
         }
 
         return format.Id == JobPayloadFormat.Text.Id
-            ? new JobPayloadResponse(format.Name, format.Id, Text: Encoding.UTF8.GetString(payload.Data.Span))
-            : new JobPayloadResponse(format.Name, format.Id, Base64: Convert.ToBase64String(payload.Data.Span));
+            ? new JobPayloadHttpResponse(format.Name, format.Id, Text: Encoding.UTF8.GetString(payload.Data.Span))
+            : new JobPayloadHttpResponse(format.Name, format.Id, Base64: Convert.ToBase64String(payload.Data.Span));
     }
 }
 
@@ -79,12 +79,12 @@ internal static class GetJobInputEndpoint
 
                     var input = await jobs.GetInputAsync(JobLookup.ById(snapshot.JobId), ct);
                     return Results.Json(
-                        JobPayloadResponse.From(input ?? JobPayload.None, jobsOptions.Value.MaxInlinePayloadBytes),
-                        DashboardJsonContext.Default.JobPayloadResponse
+                        JobPayloadHttpResponse.From(input ?? JobPayload.None, jobsOptions.Value.MaxInlinePayloadBytes),
+                        DashboardJsonContext.Default.JobPayloadHttpResponse
                     );
                 }
             )
             .WithSummary("Read the job's stored input payload.")
-            .Produces<JobPayloadResponse>(StatusCodes.Status200OK)
+            .Produces<JobPayloadHttpResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 }

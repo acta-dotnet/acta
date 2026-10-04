@@ -12,7 +12,7 @@ namespace Acta.AspNetCore;
 /// be 2 or 128..255) supplies the input; all absent enqueues a no-input job. <c>Priority</c> accepts the
 /// code string (e.g. "high").
 /// </summary>
-internal sealed record JobEnqueueApiRequest(
+internal sealed record EnqueueOneHttpRequest(
     string? JobNamespace = null,
     string? JobName = null,
     // Nullable rather than a bare JsonElement: the absent case has to be a value the schema generator
@@ -30,7 +30,7 @@ internal sealed record JobEnqueueApiRequest(
 );
 
 /// <summary>HTTP projection of a <see cref="JobEnqueueOutcome"/>: the public ref and the coarse action.</summary>
-internal sealed record JobEnqueueResponse(JobRef JobRef, JobEnqueueAction Action);
+internal sealed record EnqueueOneHttpResponse(JobRef JobRef, JobEnqueueAction Action);
 
 /// <summary>
 /// POST /jobs: enqueue via IJobs.EnqueueAsync. A namespace/tenant guard rejection surfaces as
@@ -51,7 +51,7 @@ internal static class EnqueueOneEndpoint
 
                     var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(
                         http,
-                        DashboardJsonContext.Default.JobEnqueueApiRequest,
+                        DashboardJsonContext.Default.EnqueueOneHttpRequest,
                         ct
                     );
                     if (error is not null)
@@ -153,8 +153,8 @@ internal static class EnqueueOneEndpoint
                         // the Location header points at the job, which is the one thing a client reads a
                         // 201 for and which this endpoint previously omitted.
                         return Results.Json(
-                            new JobEnqueueResponse(outcome.JobRef, outcome.Action),
-                            DashboardJsonContext.Default.JobEnqueueResponse,
+                            new EnqueueOneHttpResponse(outcome.JobRef, outcome.Action),
+                            DashboardJsonContext.Default.EnqueueOneHttpResponse,
                             statusCode: created ? StatusCodes.Status201Created : StatusCodes.Status200OK
                         );
                     }
@@ -172,9 +172,9 @@ internal static class EnqueueOneEndpoint
             // Both carry Location; 409 is a namespace or tenant guard refusing the enqueue outright.
             .WithSummary("Enqueue a job.")
             // The body is read manually rather than bound, so the document only learns its shape here.
-            .AcceptsJson<JobEnqueueApiRequest>()
-            .Produces<JobEnqueueResponse>(StatusCodes.Status201Created)
-            .Produces<JobEnqueueResponse>(StatusCodes.Status200OK)
+            .AcceptsJson<EnqueueOneHttpRequest>()
+            .Produces<EnqueueOneHttpResponse>(StatusCodes.Status201Created)
+            .Produces<EnqueueOneHttpResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
 }

@@ -4,13 +4,6 @@ using Microsoft.AspNetCore.Routing;
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// Body of an alert acknowledge/resolve POST. Entirely optional: an absent body (or an absent/blank
-/// <c>ReasonMessage</c>) is a presence-only request. The framework stamps the actor itself, so the body carries
-/// only the operator note.
-/// </summary>
-internal sealed record AlertControlRequest(string? ReasonMessage = null) : IControlRequest;
-
-/// <summary>
 /// The Alerts routes: the list, one alert, its tags, and the acknowledge and resolve verbs. An alert is addressed by
 /// its public ref; the verbs are idempotent, so they answer 200 or 404 and never 409.
 /// </summary>
@@ -83,7 +76,7 @@ internal static class AlertsEndpoints
             "/alerts/{alertRef}/acknowledge",
             "Acknowledge the alert: an operator has seen it.",
             options,
-            DashboardJsonContext.Default.AlertControlRequest,
+            DashboardJsonContext.Default.ControlHttpRequest,
             "Invalid alert command.",
             ControlStatus.Alert<AcknowledgeJobAlertResponse>(),
             RouteKeys.Alert,
@@ -93,7 +86,7 @@ internal static class AlertsEndpoints
             "/alerts/{alertRef}/resolve",
             "Resolve the alert: its cause is handled.",
             options,
-            DashboardJsonContext.Default.AlertControlRequest,
+            DashboardJsonContext.Default.ControlHttpRequest,
             "Invalid alert command.",
             ControlStatus.Alert<ResolveJobAlertManualResponse>(),
             RouteKeys.Alert,

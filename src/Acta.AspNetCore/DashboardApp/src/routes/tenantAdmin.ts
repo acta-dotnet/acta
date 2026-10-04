@@ -11,7 +11,7 @@ export interface TenantDetailsInput {
 }
 
 // Full-set PATCH semantics: a blank field clears that column, matching the backend's
-// TenantPatchRequest contract (null DisplayName/Description clears).
+// UpdateTenantHttpRequest contract (null DisplayName/Description clears).
 export function buildTenantDetailsPayload(input: TenantDetailsInput): { displayName: string | null; description: string | null } {
   return {
     displayName: input.displayName.trim() || null,

@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Http;
 namespace Acta.AspNetCore;
 
 /// <summary>Request body for a tag upsert: normalized name plus optional preserved value.</summary>
-internal sealed record TagUpsertRequest(string? Name, string? Value);
+internal sealed record UpsertTagHttpRequest(string? Name, string? Value);
 
 /// <summary>
 /// The tag subresource over <see cref="ITags"/>, behind every group's tag routes. One rule decides the target's
@@ -43,7 +43,11 @@ internal static class TagRoutes
             return confirmationError;
         }
 
-        var (body, bodyError) = await ControlEndpointValidation.ReadJsonBodyAsync(http, DashboardJsonContext.Default.TagUpsertRequest, ct);
+        var (body, bodyError) = await ControlEndpointValidation.ReadJsonBodyAsync(
+            http,
+            DashboardJsonContext.Default.UpsertTagHttpRequest,
+            ct
+        );
         if (bodyError is not null)
         {
             return bodyError;

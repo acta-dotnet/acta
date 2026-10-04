@@ -8,7 +8,7 @@ namespace Acta.AspNetCore;
 /// namespace). A null or absent <c>OutboxIds</c> targets every quarantined row of that source. The
 /// framework stamps the actor itself, so the body carries only the scope and the operator note.
 /// </summary>
-internal sealed record OutboxControlRequest(IReadOnlyList<Guid>? OutboxIds = null, string? ReasonMessage = null) : IControlRequest;
+internal sealed record OutboxControlHttpRequest(IReadOnlyList<Guid>? OutboxIds = null, string? ReasonMessage = null) : IControlRequest;
 
 /// <summary>
 /// The Outbox routes. Sources compose cross-peer from each namespace's <c>sys.outbox</c> slot result, so any host with
@@ -69,7 +69,7 @@ internal static class OutboxEndpoints
             "/outbox/{jobNamespace}/requeue",
             "Return quarantined outbox rows to pending; the next relay pass applies it.",
             options,
-            DashboardJsonContext.Default.OutboxControlRequest,
+            DashboardJsonContext.Default.OutboxControlHttpRequest,
             "Invalid outbox command.",
             ControlStatus.Outbox<RequeueOutboxResponse>(),
             Namespace,
@@ -80,7 +80,7 @@ internal static class OutboxEndpoints
             "/outbox/{jobNamespace}/discard",
             "Delete quarantined outbox rows, keeping the ids as audit evidence.",
             options,
-            DashboardJsonContext.Default.OutboxControlRequest,
+            DashboardJsonContext.Default.OutboxControlHttpRequest,
             "Invalid outbox command.",
             ControlStatus.Outbox<DiscardOutboxResponse>(),
             Namespace,
