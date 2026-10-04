@@ -568,6 +568,28 @@ removal of the newer worker, then a restarted rollback worker; enqueue racing a 
 nobody serves is a startup warning and an overview column; EXPLAIN for one pool is an index scan
 with a limit, for three pools one sort over at most three times the limit.
 
+## Measured against Temporal
+
+Marko wants Acta measured against a self-hosted Temporal with its .NET SDK, on the same machine and
+the same PostgreSQL, across eight scenarios:
+
+- enqueue only
+- enqueue until the handler starts
+- enqueue until an empty handler completes
+- one durable step
+- ten sequential durable steps
+- 100, 1,000, and 10,000 jobs, the last one queued before any worker starts
+
+Each scenario reports p50, p95, and p99 latency, jobs per second, database CPU, application CPU,
+database writes per job, and network bytes per job.
+
+Database writes per job can come from the `pg_stat_database` tuple counters and the WAL position
+before and after a run. CPU and network can come from the database container's stats and the worker
+process's own counters. Temporal's frontend, history, and matching services count as its application
+CPU, since a deployment has to run them. Acta runs Direct and Buffered as separate rows. Both sides
+warm up first, and each round runs on an idle box, because the bench machine's CPU and disk both have
+known slow states.
+
 ## Fewer identifier rules
 
 `IdentifierSyntax` holds about a dozen grammars: kebab, user kebab, dotted kebab, bare identifiers,
