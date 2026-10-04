@@ -1,5 +1,8 @@
+using System.Data.Common;
 using Acta.Runtime;
 using Acta.Tests.Context;
+using Acta.Tests.Runtime;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Xunit;
@@ -62,58 +65,44 @@ public sealed class AlertsJobPoisonEventTests
         Assert.False(await ctx.ExistsVariableAsync("alerts-skip-11", ct));
     }
 
-    private static AlertsJob CreateJob(IAlertLifecycle store, ILogger<AlertsJob> logger) =>
-        new(store, new FixedClock(), channels: null!, transports: null!, Options.Create(new JobsOptions()), logger);
+    private static AlertsJob CreateJob(PoisonAlertStore store, ILogger<AlertsJob> logger)
+    {
+        var alerts = store.Lifecycle();
+        // The clock reads the epoch plus the real lag, which puts every staged event exactly on the horizon, so
+        // this double's subject stays what it is about: which events a raise failure does and does not skip.
+        var clock = new FixedClock(DateTime.UnixEpoch + alerts.SafeHorizonLag);
+        return new(alerts, clock, channels: null!, transports: null!, Options.Create(new JobsOptions()), logger);
+    }
 
-    private sealed class PoisonAlertStore(bool deterministicFailure, Exception? failure = null) : IAlertLifecycle
+    private sealed class PoisonAlertStore(bool deterministicFailure, Exception? failure = null)
     {
         private static readonly AlertableEvent[] Events = [Event(11, 101), Event(12, 102)];
 
         public List<long> RaiseAttempts { get; } = [];
 
-        public Task<AlertOccurrence> RaiseJobAlertAsync(RaiseJobAlertCommand command, CancellationToken ct)
+        /// <summary>The real alert lifecycle over a session that serves the two events and fails the first raise.</summary>
+        public AlertLifecycle Lifecycle() => new ScriptedSession(call =>
+                call.Stem switch
+                {
+                    "GetAlertableEvents" => Events
+                        .Where(e => e.EventId > call.Get(ActaSchema.Sql.CursorEventId))
+                        .Take(call.Get(ActaSchema.Sql.AlertBatchSize))
+                        .ToArray(),
+                    "RaiseJobAlert" => Raise(call.Get(ActaSchema.JobAlert.JobId), call.Get(ActaSchema.Sql.SourceEventId)),
+                    "GetDeliverableAlerts" => Array.Empty<DeliverableAlert>(),
+                    _ => throw new NotSupportedException(call.Stem),
+                }
+            ).Services().GetRequiredService<AlertLifecycle>();
+
+        // A deterministic failure is the provider's unknown-job error, which the raise handler maps to the
+        // ArgumentException the projection skips.
+        private AlertOccurrence Raise(long? jobId, long? sourceEventId)
         {
-            var eventId = command.JobId == 101 ? 11L : 12L;
-            RaiseAttempts.Add(eventId);
-            return command.JobId == 101
-                ? Task.FromException<AlertOccurrence>(
-                    failure
-                        ?? (
-                            deterministicFailure
-                                ? new ArgumentException("The referenced job id does not exist.", "jobId")
-                                : new TimeoutException("provider timeout")
-                        )
-                )
-                : Task.FromResult(new AlertOccurrence(1, command.SourceEventId));
+            RaiseAttempts.Add(jobId == 101 ? 11L : 12L);
+            return jobId == 101
+                ? throw failure ?? (deterministicFailure ? new UnknownJob() : new TimeoutException("provider timeout"))
+                : new AlertOccurrence(1, sourceEventId);
         }
-
-        // Zero lag against the fixed epoch clock puts every staged event exactly on the horizon, so this
-        // double's subject stays what it is about: which events a raise failure does and does not skip.
-        public TimeSpan SafeHorizonLag => TimeSpan.Zero;
-
-        public Task<IReadOnlyList<AlertableEvent>> GetAlertableEventsAsync(
-            int namespaceId,
-            DateTime cursorUtc,
-            long cursorEventId,
-            int batchSize,
-            DateTime horizonUtc,
-            CancellationToken ct
-        ) => Task.FromResult<IReadOnlyList<AlertableEvent>>(Events.Where(e => e.EventId > cursorEventId).Take(batchSize).ToArray());
-
-        public Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(int namespaceId, int batchSize, CancellationToken ct) =>
-            Task.FromResult<IReadOnlyList<DeliverableAlert>>([]);
-
-        public Task<bool> UpdateAlertDeliveryAsync(
-            long alertId,
-            int expectedVersion,
-            AlertDeliveryStatusCode status,
-            int retryCount,
-            DateTime? retryAfterUtc,
-            CancellationToken ct
-        ) => throw new NotSupportedException();
-
-        public Task<int> ResolveJobAlertsAsync(int namespaceId, long jobId, long sourceEventId, CancellationToken ct) =>
-            throw new NotSupportedException();
 
         private static AlertableEvent Event(long eventId, long jobId) =>
             new(
@@ -131,9 +120,11 @@ public sealed class AlertsJobPoisonEventTests
             );
     }
 
-    private sealed class FixedClock : IActaClock
+    private sealed class UnknownJob() : DbException("ACTA:ALERT_UNKNOWN_JOB: 101");
+
+    private sealed class FixedClock(DateTime nowUtc) : IActaClock
     {
-        public ValueTask<DateTime> GetUtcNowAsync(CancellationToken ct) => ValueTask.FromResult(DateTime.UnixEpoch);
+        public ValueTask<DateTime> GetUtcNowAsync(CancellationToken ct) => ValueTask.FromResult(nowUtc);
     }
 
     private sealed class RecordingLogger : ILogger<AlertsJob>

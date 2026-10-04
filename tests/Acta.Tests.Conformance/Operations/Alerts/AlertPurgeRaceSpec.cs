@@ -46,7 +46,7 @@ public sealed class AlertPurgeRaceSpec : ActaRuntimeTestBase<ConformanceFixture,
         DeadlockRetryOff.SkipOnSqlite(Services);
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var store = Services.GetRequiredService<IAlertLifecycle>();
+        var store = Services.GetRequiredService<AlertLifecycle>();
 
         for (var round = 0; round < Rounds; round++)
         {

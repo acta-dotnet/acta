@@ -3,7 +3,7 @@ using System.Globalization;
 
 namespace Acta.Runtime;
 
-/// <summary><see cref="IAlertLifecycle.RaiseJobAlertAsync"/>: one routine call answering the post-raise occurrence.</summary>
+/// <summary><see cref="AlertLifecycle.RaiseJobAlertAsync"/>: one routine call answering the post-raise occurrence.</summary>
 internal sealed class RaiseJobAlertHandler(IDbSession session, ISqlDialect dialect)
 {
     public async Task<AlertOccurrence> HandleAsync(RaiseJobAlertCommand command, CancellationToken ct)

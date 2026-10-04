@@ -66,6 +66,14 @@ internal sealed class ScriptedSession : DbSessionStub
 
     public override Task ExecuteAsync(StoreCommand command, Action<DbCommand> bind, CancellationToken ct) => AnswerAsync(command, bind, ct);
 
+    // A read answers with what its reader would have returned: the row, or the list of rows.
+    public override async Task<T> QueryAsync<T>(
+        string stem,
+        Action<DbCommand> bind,
+        Func<DbDataReader, CancellationToken, Task<T>> read,
+        CancellationToken ct
+    ) => (T)(await AnswerAsync(new StoreCommand(stem), bind, ct))!;
+
     private Task<object?> AnswerAsync(StoreCommand command, Action<DbCommand> bind, CancellationToken ct)
     {
         using var cmd = new SqliteCommand();

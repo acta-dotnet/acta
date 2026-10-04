@@ -1,5 +1,7 @@
 using Acta.Runtime;
 using Acta.Tests.Context;
+using Acta.Tests.Runtime;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Xunit;
 
@@ -136,8 +138,13 @@ public sealed class AlertsJobDrainTests
         Assert.Equal(20L, (await ctx.GetRequiredVariableAsync<AlertsCursor>(AlertsJob.CursorVariableName, ct)).EventId);
     }
 
-    private static AlertsJob CreateJob(IAlertLifecycle store, AlertDrainBudget drain) =>
-        new(store, new FixedClock(), channels: null!, transports: null!, Options.Create(new JobsOptions())) { Drain = drain };
+    private static AlertsJob CreateJob(BacklogAlertStore store, AlertDrainBudget drain)
+    {
+        var alerts = store.Lifecycle();
+        // The clock reads the store's horizon plus the real lag, so every pass's horizon lands exactly on it.
+        var clock = new FixedClock(store.HorizonUtc + alerts.SafeHorizonLag);
+        return new(alerts, clock, channels: null!, transports: null!, Options.Create(new JobsOptions())) { Drain = drain };
+    }
 
     /// <summary>
     /// Records the cursor values written, in order, which is the only way to tell a per-batch
@@ -167,7 +174,7 @@ public sealed class AlertsJobDrainTests
     /// above the cursor, up to the batch size, in id order. <c>ThrowOnRead</c> fails the read at that
     /// 1-based ordinal, standing in for the pass dying between batches.
     /// </summary>
-    private sealed class BacklogAlertStore(int backlog) : IAlertLifecycle
+    private sealed class BacklogAlertStore(int backlog)
     {
         public List<(long Cursor, int BatchSize)> Reads { get; } = [];
 
@@ -176,61 +183,44 @@ public sealed class AlertsJobDrainTests
         public int ThrowOnRead { get; init; }
 
         /// <summary>
-        /// The horizon the fake hands every pass, whatever the clock read: the backlog's own last stamp
-        /// unless a fact sets it later to model history the read never returns. A short batch checkpoints
-        /// its instant here.
+        /// The horizon every pass reads behind, whatever the lag: the backlog's own last stamp unless a fact
+        /// sets it later to model history the read never returns. A short batch checkpoints its instant here.
         /// </summary>
         public DateTime HorizonUtc { get; init; } = Stamp(backlog);
 
-        // The fixed clock reads the epoch, so this lag lands every pass's horizon exactly on HorizonUtc.
-        public TimeSpan SafeHorizonLag => DateTime.UnixEpoch - HorizonUtc;
+        /// <summary>The real alert lifecycle over a session that serves the backlog's reads and counts its raises.</summary>
+        public AlertLifecycle Lifecycle() => new ScriptedSession(call =>
+                call.Stem switch
+                {
+                    "GetAlertableEvents" => Read(
+                        call.Get(ActaSchema.Sql.AlertCursorUtc),
+                        call.Get(ActaSchema.Sql.CursorEventId),
+                        call.Get(ActaSchema.Sql.AlertBatchSize),
+                        call.Get(ActaSchema.Sql.AlertHorizonUtc)
+                    ),
+                    "RaiseJobAlert" => new AlertOccurrence(++Raises, call.Get(ActaSchema.Sql.SourceEventId)),
+                    "GetDeliverableAlerts" => Array.Empty<DeliverableAlert>(),
+                    _ => throw new NotSupportedException(call.Stem),
+                }
+            ).Services().GetRequiredService<AlertLifecycle>();
 
-        public Task<IReadOnlyList<AlertableEvent>> GetAlertableEventsAsync(
-            int namespaceId,
-            DateTime cursorUtc,
-            long cursorEventId,
-            int batchSize,
-            DateTime horizonUtc,
-            CancellationToken ct
-        )
+        private AlertableEvent[] Read(DateTime cursorUtc, long cursorEventId, int batchSize, DateTime horizonUtc)
         {
             Reads.Add((cursorEventId, batchSize));
             if (Reads.Count == ThrowOnRead)
             {
-                return Task.FromException<IReadOnlyList<AlertableEvent>>(new TimeoutException("provider timeout"));
+                throw new TimeoutException("provider timeout");
             }
 
             // The real read's predicate: behind the horizon, past the (stamp, id) cursor, in (stamp, id) order.
-            var rows = Enumerable
+            return Enumerable
                 .Range(1, backlog)
                 .Select(i => (long)i)
                 .Where(id => Stamp(id) <= horizonUtc && (Stamp(id) > cursorUtc || (Stamp(id) == cursorUtc && id > cursorEventId)))
                 .Take(batchSize)
                 .Select(Event)
                 .ToArray();
-            return Task.FromResult<IReadOnlyList<AlertableEvent>>(rows);
         }
-
-        public Task<AlertOccurrence> RaiseJobAlertAsync(RaiseJobAlertCommand command, CancellationToken ct)
-        {
-            Raises++;
-            return Task.FromResult(new AlertOccurrence(Raises, command.SourceEventId));
-        }
-
-        public Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(int namespaceId, int batchSize, CancellationToken ct) =>
-            Task.FromResult<IReadOnlyList<DeliverableAlert>>([]);
-
-        public Task<bool> UpdateAlertDeliveryAsync(
-            long alertId,
-            int expectedVersion,
-            AlertDeliveryStatusCode status,
-            int retryCount,
-            DateTime? retryAfterUtc,
-            CancellationToken ct
-        ) => throw new NotSupportedException();
-
-        public Task<int> ResolveJobAlertsAsync(int namespaceId, long jobId, long sourceEventId, CancellationToken ct) =>
-            throw new NotSupportedException();
 
         // Stamps climb with ids, one second apart, so the stream orders the same way by either half.
         public static DateTime Stamp(long eventId) => DateTime.UnixEpoch.AddSeconds(eventId);
@@ -253,8 +243,8 @@ public sealed class AlertsJobDrainTests
             );
     }
 
-    private sealed class FixedClock : IActaClock
+    private sealed class FixedClock(DateTime nowUtc) : IActaClock
     {
-        public ValueTask<DateTime> GetUtcNowAsync(CancellationToken ct) => ValueTask.FromResult(DateTime.UnixEpoch);
+        public ValueTask<DateTime> GetUtcNowAsync(CancellationToken ct) => ValueTask.FromResult(nowUtc);
     }
 }

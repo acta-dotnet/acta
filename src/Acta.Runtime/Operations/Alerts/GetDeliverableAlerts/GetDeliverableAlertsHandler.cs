@@ -1,6 +1,6 @@
 namespace Acta.Runtime;
 
-/// <summary><see cref="IAlertLifecycle.GetDeliverableAlertsAsync"/>: one read of the alerts due for delivery.</summary>
+/// <summary><see cref="AlertLifecycle.GetDeliverableAlertsAsync"/>: one read of the alerts due for delivery.</summary>
 internal sealed class GetDeliverableAlertsHandler(IDbSession session, ISqlDialect dialect)
 {
     public Task<IReadOnlyList<DeliverableAlert>> HandleAsync(GetDeliverableAlertsQuery query, CancellationToken ct) =>

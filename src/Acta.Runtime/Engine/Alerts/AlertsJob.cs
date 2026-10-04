@@ -21,7 +21,7 @@ namespace Acta.Runtime;
 /// and retry attempts. A transport attempt already in progress may still complete.</para>
 /// </summary>
 internal sealed class AlertsJob(
-    IAlertLifecycle alerts,
+    AlertLifecycle alerts,
     IActaClock clock,
     IAlertChannelRegistry channels,
     IAlertTransportRegistry transports,
@@ -68,7 +68,7 @@ internal sealed class AlertsJob(
     /// </summary>
     private static readonly Backoff RetryBackoff = Backoff.Parse("30s..1h");
 
-    private readonly IAlertLifecycle _alerts = alerts;
+    private readonly AlertLifecycle _alerts = alerts;
     private readonly IActaClock _clock = clock;
     private readonly IAlertChannelRegistry _channels = channels;
     private readonly IAlertTransportRegistry _transports = transports;
@@ -142,7 +142,7 @@ internal sealed class AlertsJob(
     /// the safe horizon, behind which every alertable row has committed; a short batch is the
     /// proof that nothing alertable is left behind that horizon, so the cursor's instant advances to
     /// it and the next pass never rescans the history this one walked. Any change here that reads
-    /// events from a source other than IAlertLifecycle.GetAlertableEventsAsync reopens that.</para>
+    /// events from a source other than AlertLifecycle.GetAlertableEventsAsync reopens that.</para>
     /// </summary>
     private async Task GenerateAsync(JobContext ctx, DateTime nowUtc, CancellationToken ct)
     {

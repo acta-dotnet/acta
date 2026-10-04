@@ -33,7 +33,7 @@ internal static class AlertTestOps
         CancellationToken ct
     ) =>
         services
-            .GetRequiredService<IAlertLifecycle>()
+            .GetRequiredService<AlertLifecycle>()
             .RaiseJobAlertAsync(
                 RaiseJobAlertCommand.Create(
                     jobNamespace,
@@ -83,7 +83,7 @@ internal static class AlertTestOps
         }
 
         var alertsJob = new AlertsJob(
-            services.GetRequiredService<IAlertLifecycle>(),
+            services.GetRequiredService<AlertLifecycle>(),
             services.GetRequiredService<IActaClock>(),
             services.GetRequiredService<IAlertChannelRegistry>(),
             services.GetRequiredService<IAlertTransportRegistry>(),
@@ -127,7 +127,7 @@ internal static class AlertTestOps
     public static async Task<DateTime> HorizonOfThisMomentAsync(IServiceProvider services, CancellationToken ct) =>
         AlertsJob.SafeHorizon(
             await services.GetRequiredService<IServerClock>().GetUtcNowAsync(ct),
-            services.GetRequiredService<IAlertLifecycle>().SafeHorizonLag
+            services.GetRequiredService<AlertLifecycle>().SafeHorizonLag
         );
 
     /// <summary>
@@ -300,7 +300,7 @@ internal static class AlertTestOps
             cancelJob: services.GetRequiredService<CancelJobHandler>(),
             resetJobState: services.GetRequiredService<ResetJobStateHandler>(),
             signals: services.GetRequiredService<Signals>(),
-            alerts: services.GetRequiredService<IAlertLifecycle>(),
+            alerts: services.GetRequiredService<AlertLifecycle>(),
             executionStore: services.GetRequiredService<IExecution>(),
             serializers: services.GetRequiredService<IJobPayloadSerializerRegistry>(),
             locks: services.GetRequiredService<Locks>(),

@@ -568,7 +568,7 @@ internal sealed class JobExecutionHarness(
             : serviceType == typeof(WorkerWakeupPublisher) ? _wakeup
             : serviceType == typeof(IJobContextAccessor) ? _accessor
             : serviceType == typeof(Signals) ? ScriptedSession.Unreachable.GetRequiredService<Signals>()
-            : serviceType == typeof(IAlertLifecycle) ? NoAlerts.Instance
+            : serviceType == typeof(AlertLifecycle) ? ScriptedSession.Unreachable.GetRequiredService<AlertLifecycle>()
             : null;
 
         public IServiceScope CreateScope() => this;
@@ -576,40 +576,6 @@ internal sealed class JobExecutionHarness(
         public void Dispose() { }
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
-
-        private sealed class NoAlerts : IAlertLifecycle
-        {
-            public static readonly NoAlerts Instance = new();
-
-            public TimeSpan SafeHorizonLag => throw new NotSupportedException();
-
-            public Task<AlertOccurrence> RaiseJobAlertAsync(RaiseJobAlertCommand command, CancellationToken ct) =>
-                throw new NotSupportedException();
-
-            public Task<IReadOnlyList<AlertableEvent>> GetAlertableEventsAsync(
-                int namespaceId,
-                DateTime cursorUtc,
-                long cursorEventId,
-                int batchSize,
-                DateTime horizonUtc,
-                CancellationToken ct
-            ) => throw new NotSupportedException();
-
-            public Task<IReadOnlyList<DeliverableAlert>> GetDeliverableAlertsAsync(int namespaceId, int batchSize, CancellationToken ct) =>
-                throw new NotSupportedException();
-
-            public Task<bool> UpdateAlertDeliveryAsync(
-                long alertId,
-                int expectedVersion,
-                AlertDeliveryStatusCode status,
-                int retryCount,
-                DateTime? retryAfterUtc,
-                CancellationToken ct
-            ) => throw new NotSupportedException();
-
-            public Task<int> ResolveJobAlertsAsync(int namespaceId, long jobId, long sourceEventId, CancellationToken ct) =>
-                throw new NotSupportedException();
-        }
     }
 
     private sealed class HarnessClock : IActaClock

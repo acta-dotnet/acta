@@ -196,7 +196,7 @@ public sealed class ListJobAlertsFilterMatrixSpec : ActaRuntimeTestBase<Conforma
         // Resolve alert A
         var nsId = Runtime.RegisteredNamespaceIds[TestNamespace];
         await Services
-            .GetRequiredService<IAlertLifecycle>()
+            .GetRequiredService<AlertLifecycle>()
             .ResolveJobAlertsAsync(nsId, resolveJobId, await NextEventIdAsync(resolveJobId, ct), ct);
 
         // unresolvedOnly=true: only B
