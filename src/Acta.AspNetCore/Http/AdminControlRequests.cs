@@ -8,7 +8,7 @@ internal sealed record TenantPatchRequest(
     string? Description = null,
     int? ExpectedVersion = null,
     string? ReasonMessage = null
-);
+) : IControlRequest;
 
 /// <summary>
 /// PATCH body for a namespace update. Null field clears it. ExpectedVersion drives the CAS.
@@ -18,7 +18,7 @@ internal sealed record NamespacePatchRequest(
     string? Description = null,
     int? ExpectedVersion = null,
     string? ReasonMessage = null
-);
+) : IControlRequest;
 
 /// <summary>
 /// Maps an <see cref="IControlResponse"/> to an HTTP result: Applied/AlreadyInState 200, NotFound

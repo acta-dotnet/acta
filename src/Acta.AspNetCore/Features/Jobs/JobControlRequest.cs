@@ -6,7 +6,7 @@ namespace Acta.AspNetCore;
 /// Body of a job-control POST. Only the reason travels over HTTP; the framework stamps the actor
 /// and reason code itself, so callers cannot forge the audit trail.
 /// </summary>
-internal sealed record JobControlRequest(string? ReasonMessage = null);
+internal sealed record JobControlRequest(string? ReasonMessage = null) : IControlRequest;
 
 /// <summary>
 /// Body of the job-control POSTs that accept a compare-and-set token (pause, resume, restart, cancel).
@@ -14,7 +14,7 @@ internal sealed record JobControlRequest(string? ReasonMessage = null);
 /// current version answers 409 with action versionConflict and writes nothing. Purge and the admin
 /// suspend/resume verbs take no token and keep the reason-only <see cref="JobControlRequest"/>.
 /// </summary>
-internal sealed record JobVersionedControlRequest(string? ReasonMessage = null, int? ExpectedVersion = null);
+internal sealed record JobVersionedControlRequest(string? ReasonMessage = null, int? ExpectedVersion = null) : IControlRequest;
 
 /// <summary>
 /// Body of a job-reschedule POST. <c>NextRunAtUtc</c> is mandatory (missing or default is a 400); the

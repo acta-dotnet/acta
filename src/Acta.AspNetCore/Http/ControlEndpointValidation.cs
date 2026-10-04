@@ -123,6 +123,15 @@ internal static class ControlEndpointValidation
             )
             : null;
 
+    /// <summary>Throws the field's 400 when an optional field exceeds its product limit; for a route table's verbs.</summary>
+    internal static void RequireLength(string? value, string fieldName, int maxLength)
+    {
+        if (value is { Length: var length } && length > maxLength)
+        {
+            throw new InvalidControlException("Invalid field.", $"{fieldName} must not exceed {maxLength} characters ({length} given).");
+        }
+    }
+
     /// <summary>Returns a field-specific 400 response when an optional field exceeds its product limit.</summary>
     internal static IResult? ValidateLength(string? value, string fieldName, int maxLength) =>
         value is { Length: var length } && length > maxLength

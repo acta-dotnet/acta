@@ -102,6 +102,146 @@ internal static class RouteTable
     }
 
     /// <summary>
+    /// A control verb on the target <paramref name="key"/> resolves from the route. It reads the verb's JSON body behind
+    /// the confirmation header (optional unless <paramref name="bodyRequired"/>, so a bare POST acts with defaults), trims
+    /// and caps its reason, and answers with the verb's response at the status <paramref name="status"/> maps it to. An
+    /// argument the facade rejects is caller input, a 400 under <paramref name="invalidTitle"/>.
+    /// </summary>
+    public static RouteHandlerBuilder MapCommand<TKey, TBody, TResponse>(
+        this RouteGroupBuilder controls,
+        string pattern,
+        string summary,
+        ActaEndpointOptions options,
+        JsonTypeInfo<TBody> body,
+        string invalidTitle,
+        ControlStatus<TResponse> status,
+        Func<HttpContext, TKey> key,
+        Func<ControlCall<TBody>, TKey, ValueTask<TResponse>> apply,
+        bool bodyRequired = false
+    )
+        where TBody : class, IControlRequest
+        where TResponse : notnull =>
+        DeclareControl<TBody, TResponse>(
+            controls.MapPost(
+                pattern,
+                (HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                    ControlAsync(http, operations, options, body, bodyRequired, invalidTitle, status, key, apply, ct)
+            ),
+            summary,
+            !bodyRequired,
+            status
+        );
+
+    /// <summary>A PATCH of the target's fields: <see cref="MapCommand"/> with a required body.</summary>
+    public static RouteHandlerBuilder MapUpdate<TKey, TBody, TResponse>(
+        this RouteGroupBuilder controls,
+        string pattern,
+        string summary,
+        ActaEndpointOptions options,
+        JsonTypeInfo<TBody> body,
+        string invalidTitle,
+        ControlStatus<TResponse> status,
+        Func<HttpContext, TKey> key,
+        Func<ControlCall<TBody>, TKey, ValueTask<TResponse>> apply
+    )
+        where TBody : class, IControlRequest
+        where TResponse : notnull =>
+        DeclareControl<TBody, TResponse>(
+            controls.MapPatch(
+                pattern,
+                (HttpContext http, IActaOperations operations, CancellationToken ct) =>
+                    ControlAsync(http, operations, options, body, true, invalidTitle, status, key, apply, ct)
+            ),
+            summary,
+            optional: false,
+            status
+        );
+
+    private static RouteHandlerBuilder DeclareControl<TBody, TResponse>(
+        RouteHandlerBuilder route,
+        string summary,
+        bool optional,
+        ControlStatus<TResponse> status
+    )
+        where TBody : notnull
+        where TResponse : notnull
+    {
+        route.AcceptsJson<TBody>(optional).WithSummary(summary).ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
+        foreach (var code in status.Codes)
+        {
+            route.Produces<TResponse>(code);
+        }
+        return route;
+    }
+
+    private static async Task<IResult> ControlAsync<TKey, TBody, TResponse>(
+        HttpContext http,
+        IActaOperations operations,
+        ActaEndpointOptions options,
+        JsonTypeInfo<TBody> json,
+        bool bodyRequired,
+        string invalidTitle,
+        ControlStatus<TResponse> status,
+        Func<HttpContext, TKey> key,
+        Func<ControlCall<TBody>, TKey, ValueTask<TResponse>> apply,
+        CancellationToken ct
+    )
+        where TBody : class, IControlRequest
+        where TResponse : notnull
+    {
+        TKey target;
+        try
+        {
+            target = key(http);
+        }
+        catch (MalformedRouteKeyException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+
+        TBody? body;
+        IResult? error;
+        if (bodyRequired)
+        {
+            if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
+            {
+                return confirmationError;
+            }
+
+            (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(http, json, ct);
+        }
+        else
+        {
+            (body, error) = await ControlEndpointValidation.ReadOptionalJsonBodyAsync(http, options, json, ct);
+        }
+
+        if (error is not null)
+        {
+            return error;
+        }
+
+        var reason = body?.ReasonMessage?.Trim() is { Length: > 0 } trimmed ? trimmed : null;
+        if (reason is not null && ControlEndpointValidation.ValidateReasonLength(reason, options) is { } reasonError)
+        {
+            return reasonError;
+        }
+
+        try
+        {
+            var response = await apply(new ControlCall<TBody>(http, operations, body, reason, ct), target);
+            return Results.Json(response, response.GetType(), DashboardJsonContext.Default, statusCode: status.Map(response));
+        }
+        catch (InvalidControlException ex)
+        {
+            return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, ex.Title, ex.Message);
+        }
+        catch (ArgumentException ex)
+        {
+            return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, invalidTitle, ex.Message);
+        }
+    }
+
+    /// <summary>
     /// Only the typed validation exceptions are caller errors; anything else, a plain ArgumentException from a
     /// server-side bug included, falls through to the group's sanitized 500.
     /// </summary>

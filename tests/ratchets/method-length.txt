@@ -10,5 +10,4 @@ JobExecution.RunAsync
 JobExecutor.ExecuteOwnedClaimAsync
 JobsOptionsValidator.Validate
 ScheduleControlEndpoints.Map
-TenantControlEndpoints.Map
 WorkerRuntimeInitializer.InitializeOnceAsync

@@ -178,8 +178,6 @@ internal static class ActaApiEndpoints
             JobDepthEndpoints.MapControls(controls, options);
             ScheduleControlEndpoints.Map(controls, options);
             DefinitionControlEndpoints.Map(controls, options);
-            TenantControlEndpoints.Map(controls, options);
-            NamespaceControlEndpoints.Map(controls, options);
             AlertControlEndpoints.Map(controls, options);
             OutboxControlEndpoints.Map(controls, options);
             TagEndpoints.MapControls(controls, options);
@@ -191,6 +189,8 @@ internal static class ActaApiEndpoints
         JobDepthEndpoints.MapReads(group, options);
         TagEndpoints.MapReads(group, options);
         WorkersEndpoints.Map(group, controls, options);
+        NamespacesEndpoints.Map(group, controls, options);
+        TenantsEndpoints.Map(group, controls, options);
 
         group
             .MapGet(
@@ -504,121 +504,6 @@ internal static class ActaApiEndpoints
             .Produces<PagedResult<OutboxQuarantinedListItem>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithQueryParameters([.. QueryParameterDocExtensions.PagingCore, .. QueryParameterDocExtensions.IncludeTotal]);
-
-        group
-            .MapGet(
-                "/namespaces",
-                static (HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                {
-                    string? error = null;
-                    if (
-                        !QueryBinding.TryInt(http.Request.Query, "pageSize", out var pageSize, ref error)
-                        || !QueryBinding.TryBool(http.Request.Query, "includeTotal", out var includeTotal, ref error)
-                        || !QueryBinding.TryEnum<NamespaceStatusCode>(http.Request.Query, "status", out var status, ref error)
-                    )
-                    {
-                        return Task.FromResult(BadRequest(error));
-                    }
-
-                    var query = new ListNamespacesQuery(
-                        NameContains: QueryBinding.Text(http.Request.Query, "nameContains"),
-                        Status: status,
-                        PageSize: pageSize,
-                        Cursor: QueryBinding.Text(http.Request.Query, "cursor"),
-                        IncludeTotal: includeTotal ?? false,
-                        Tags: QueryBinding.Tags(http.Request.Query)
-                    );
-                    return Guard(async () =>
-                        Results.Json(
-                            await operations.Namespaces.ListAsync(query, ct),
-                            DashboardJsonContext.Default.PagedResultNamespaceListItem
-                        )
-                    );
-                }
-            )
-            .WithSummary("List namespaces.")
-            .Produces<PagedResult<NamespaceListItem>>(StatusCodes.Status200OK)
-            .WithQueryParameters([
-                new QueryParameterDoc(
-                    "status",
-                    QueryParameterKind.String,
-                    "Exact namespace status as a kebab code.",
-                    CodeKind: "namespace-status"
-                ),
-                new QueryParameterDoc("nameContains", QueryParameterKind.String, "Case-insensitive substring match on the namespace name."),
-                .. QueryParameterDocExtensions.PagingCore,
-                .. QueryParameterDocExtensions.IncludeTotal,
-                .. QueryParameterDocExtensions.TagFilter,
-            ]);
-
-        group
-            .MapGet(
-                "/tenants",
-                static (HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                {
-                    string? error = null;
-                    if (
-                        !QueryBinding.TryInt(http.Request.Query, "pageSize", out var pageSize, ref error)
-                        || !QueryBinding.TryBool(http.Request.Query, "includeTotal", out var includeTotal, ref error)
-                        || !QueryBinding.TryEnum<TenantStatusCode>(http.Request.Query, "status", out var status, ref error)
-                    )
-                    {
-                        return Task.FromResult(BadRequest(error));
-                    }
-
-                    var query = new ListTenantsQuery(
-                        NameContains: QueryBinding.Text(http.Request.Query, "nameContains"),
-                        Status: status,
-                        PageSize: pageSize,
-                        Cursor: QueryBinding.Text(http.Request.Query, "cursor"),
-                        IncludeTotal: includeTotal ?? false,
-                        Tags: QueryBinding.Tags(http.Request.Query)
-                    );
-                    return Guard(async () =>
-                        Results.Json(await operations.Tenants.ListAsync(query, ct), DashboardJsonContext.Default.PagedResultTenantListItem)
-                    );
-                }
-            )
-            .WithSummary("List tenants.")
-            .Produces<PagedResult<TenantListItem>>(StatusCodes.Status200OK)
-            .WithQueryParameters([
-                new QueryParameterDoc(
-                    "status",
-                    QueryParameterKind.String,
-                    "Exact tenant status as a kebab code.",
-                    CodeKind: "tenant-status"
-                ),
-                new QueryParameterDoc(
-                    "nameContains",
-                    QueryParameterKind.String,
-                    "Case-insensitive substring matched against key, display name, or description."
-                ),
-                .. QueryParameterDocExtensions.PagingCore,
-                .. QueryParameterDocExtensions.IncludeTotal,
-                .. QueryParameterDocExtensions.TagFilter,
-            ]);
-
-        group
-            .MapGet(
-                "/tenants/{tenantKey}",
-                async (string tenantKey, IActaOperations operations, CancellationToken ct) =>
-                {
-                    TenantDetail? tenant;
-                    try
-                    {
-                        tenant = await operations.Tenants.GetAsync(tenantKey, ct);
-                    }
-                    catch (ArgumentException)
-                    {
-                        return NotFound("Tenant");
-                    }
-
-                    return tenant is null ? NotFound("Tenant") : Results.Json(tenant, DashboardJsonContext.Default.TenantDetail);
-                }
-            )
-            .WithSummary("Read one tenant.")
-            .Produces<TenantDetail>(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status404NotFound);
 
         group
             .MapGet(

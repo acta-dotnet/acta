@@ -50,20 +50,6 @@ internal static class TagEndpoints
                     TagRoutes.ReadAsync(operations, () => AlertTarget(alertRef), ct)
             )
             .WithSummary("Read the alert's tags.");
-        group
-            .MapGet(
-                "/namespaces/{jobNamespace}/tags",
-                (string jobNamespace, IActaOperations operations, CancellationToken ct) =>
-                    TagRoutes.ReadAsync(operations, () => TagTarget.ForNamespace(jobNamespace), ct)
-            )
-            .WithSummary("Read the namespace's tags.");
-        group
-            .MapGet(
-                "/tenants/{tenantKey}/tags",
-                (string tenantKey, IActaOperations operations, CancellationToken ct) =>
-                    TagRoutes.ReadAsync(operations, () => TagTarget.ForTenant(tenantKey), ct)
-            )
-            .WithSummary("Read the tenant's tags.");
     }
 
     public static void MapControls(RouteGroupBuilder outer, ActaEndpointOptions options)
@@ -172,38 +158,6 @@ internal static class TagEndpoints
                     TagRoutes.RemoveAsync(http, operations, options, () => AlertTarget(alertRef), tagName, ct)
             )
             .WithSummary("Remove one tag from the alert.");
-
-        withBody
-            .MapPost(
-                "/namespaces/{jobNamespace}/tags",
-                (string jobNamespace, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    TagRoutes.UpsertAsync(http, operations, options, () => TagTarget.ForNamespace(jobNamespace), ct)
-            )
-            .AcceptsJson<TagUpsertRequest>()
-            .WithSummary("Add or update one tag on the namespace.");
-        group
-            .MapDelete(
-                "/namespaces/{jobNamespace}/tags/{tagName}",
-                (string jobNamespace, string tagName, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    TagRoutes.RemoveAsync(http, operations, options, () => TagTarget.ForNamespace(jobNamespace), tagName, ct)
-            )
-            .WithSummary("Remove one tag from the namespace.");
-
-        withBody
-            .MapPost(
-                "/tenants/{tenantKey}/tags",
-                (string tenantKey, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    TagRoutes.UpsertAsync(http, operations, options, () => TagTarget.ForTenant(tenantKey), ct)
-            )
-            .AcceptsJson<TagUpsertRequest>()
-            .WithSummary("Add or update one tag on the tenant.");
-        group
-            .MapDelete(
-                "/tenants/{tenantKey}/tags/{tagName}",
-                (string tenantKey, string tagName, HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    TagRoutes.RemoveAsync(http, operations, options, () => TagTarget.ForTenant(tenantKey), tagName, ct)
-            )
-            .WithSummary("Remove one tag from the tenant.");
     }
 
     /// <summary>
