@@ -1187,6 +1187,14 @@
   - Explain reports a child-suspended parent as awaiting that child, with its deadline
   - Explain reports a completed durable step as non-rerunning
 
+### The input template comes from this host's generated manifest
+- **Contract:** GetInputTemplate returns a registered job's input type, format, and JSON skeleton from this host's manifest, and null for a job the host did not register.
+- **Guarantees:**
+  - A Json job reports its input type, format, and a skeleton of its members
+  - A job that takes no input reports the NoInput type and no skeleton
+  - An unknown job or a namespace this host did not register reads null
+  - A definition stored by another host but absent from this manifest reads null
+
 ### GetJobDefinition returns one definition by name and null for an unknown name
 - **Contract:** GetJobDefinition returns the fully-projected definitions row for the supplied namespace and name, and null when none matches.
 - **Guarantees:**
