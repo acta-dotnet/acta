@@ -3,7 +3,6 @@ using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
-using Lock = Acta.Runtime.Lock;
 
 namespace Acta.Tests.Conformance.Operations.Locks;
 
@@ -124,9 +123,9 @@ public sealed class AcquireSlotSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Null(await ReadAsync($"{prefix}.0", ct));
     }
 
-    private Task<Lock?> ReadAsync(string key, CancellationToken ct) =>
-        Db.From<Lock>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct);
+    private Task<Acta.Runtime.Lock?> ReadAsync(string key, CancellationToken ct) =>
+        Db.From<Acta.Runtime.Lock>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct);
 
-    private async Task<Lock> ReadOneAsync(string key, CancellationToken ct) =>
-        Assert.Single(await Db.From<Lock>().Where(l => l.LockKey == key).ToListAsync(ct));
+    private async Task<Acta.Runtime.Lock> ReadOneAsync(string key, CancellationToken ct) =>
+        Assert.Single(await Db.From<Acta.Runtime.Lock>().Where(l => l.LockKey == key).ToListAsync(ct));
 }

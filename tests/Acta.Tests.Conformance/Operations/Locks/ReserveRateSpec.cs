@@ -3,7 +3,6 @@ using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
-using Lock = Acta.Runtime.Lock;
 
 namespace Acta.Tests.Conformance.Operations.Locks;
 
@@ -115,7 +114,9 @@ public sealed class ReserveRateSpec : ActaStorageTestBase<ConformanceFixture>
 
         // Back-dated as an hour of idleness would leave it; the expiry sweep may also take it, which is the same meter.
         var idle = DateTime.UtcNow.AddHours(-1);
-        await Db.From<Lock>().Where(l => l.LockKey == bucket).UpdateOnlyAsync(() => new Lock { ExpiresAtUtc = idle }, ct);
+        await Db.From<Acta.Runtime.Lock>()
+            .Where(l => l.LockKey == bucket)
+            .UpdateOnlyAsync(() => new Acta.Runtime.Lock { ExpiresAtUtc = idle }, ct);
 
         for (var job = 200; job < 200 + Burst; job++)
         {
@@ -144,16 +145,21 @@ public sealed class ReserveRateSpec : ActaStorageTestBase<ConformanceFixture>
         var key = $"{bucket}.{jobId}";
         Assert.NotNull(await Services.GetRequiredService<Acta.Runtime.Locks>().AcquireLockAsync(key, TimeSpan.FromMinutes(10), jobId, ct));
         var expires = (await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct)).Add(age).AddSeconds(GraceSeconds);
-        Assert.Equal(1, await Db.From<Lock>().Where(l => l.LockKey == key).UpdateOnlyAsync(() => new Lock { ExpiresAtUtc = expires }, ct));
+        Assert.Equal(
+            1,
+            await Db.From<Acta.Runtime.Lock>()
+                .Where(l => l.LockKey == key)
+                .UpdateOnlyAsync(() => new Acta.Runtime.Lock { ExpiresAtUtc = expires }, ct)
+        );
         return (await ReadOneAsync(key, ct)).ExpiresAtUtc.AddSeconds(-GraceSeconds);
     }
 
     /// <summary>The bucket's stored arrival time, which every charge moves one interval and nothing else moves.</summary>
     private async Task<DateTime?> MeterAsync(string bucket, CancellationToken ct) => (await ReadAsync(bucket, ct))?.ExpiresAtUtc;
 
-    private Task<Lock?> ReadAsync(string key, CancellationToken ct) =>
-        Db.From<Lock>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct);
+    private Task<Acta.Runtime.Lock?> ReadAsync(string key, CancellationToken ct) =>
+        Db.From<Acta.Runtime.Lock>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct);
 
-    private async Task<Lock> ReadOneAsync(string key, CancellationToken ct) =>
-        Assert.Single(await Db.From<Lock>().Where(l => l.LockKey == key).ToListAsync(ct));
+    private async Task<Acta.Runtime.Lock> ReadOneAsync(string key, CancellationToken ct) =>
+        Assert.Single(await Db.From<Acta.Runtime.Lock>().Where(l => l.LockKey == key).ToListAsync(ct));
 }

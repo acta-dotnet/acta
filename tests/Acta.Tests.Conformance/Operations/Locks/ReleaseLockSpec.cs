@@ -3,7 +3,6 @@ using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
-using Lock = Acta.Runtime.Lock;
 
 namespace Acta.Tests.Conformance.Operations.Locks;
 
@@ -48,7 +47,7 @@ public sealed class ReleaseLockSpec : ActaStorageTestBase<ConformanceFixture>
         // Gone, not expired in place: the query carries no expiry filter, so an expire-style
         // release would still return the row and fail here. See the class remarks for why
         // absence (table stays O(currently held)) is the contract.
-        var lease = await Db.From<Lock>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct);
+        var lease = await Db.From<Acta.Runtime.Lock>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct);
         Assert.Null(lease);
 
         // Releasing again with the same (now-stale) token is a token-CAS miss.
