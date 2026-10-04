@@ -12,8 +12,11 @@ public sealed class RetentionCoordinatorTests
     public async Task Sections_are_ordered_bounded_and_share_one_database_clock_read()
     {
         var clock = new Clock();
-        var store = new Store(static (_, _) => Task.FromResult(1));
-        var result = await new RetentionCoordinator(store, clock).PurgeExpiredDataAsync(Sweep, TestContext.Current.CancellationToken);
+        var store = new Store(static _ => 1);
+        var result = await new RetentionCoordinator(store.Handler, clock).PurgeExpiredDataAsync(
+            Sweep,
+            TestContext.Current.CancellationToken
+        );
 
         Assert.Equal(1, clock.Reads);
         Assert.Equal(16, store.Calls.Count);
@@ -41,8 +44,11 @@ public sealed class RetentionCoordinatorTests
     [Fact]
     public async Task Empty_batch_ends_only_its_section()
     {
-        var store = new Store(static (_, _) => Task.FromResult(0));
-        var result = await new RetentionCoordinator(store, new Clock()).PurgeExpiredDataAsync(Sweep, TestContext.Current.CancellationToken);
+        var store = new Store(static _ => 0);
+        var result = await new RetentionCoordinator(store.Handler, new Clock()).PurgeExpiredDataAsync(
+            Sweep,
+            TestContext.Current.CancellationToken
+        );
         Assert.Equal(8, store.Calls.Count);
         Assert.Equal(default, result);
     }
@@ -51,19 +57,17 @@ public sealed class RetentionCoordinatorTests
     public async Task Failed_later_batch_is_not_replayed_and_does_not_revisit_committed_sections()
     {
         var committed = 0;
-        var store = new Store(
-            (command, _) =>
+        var store = new Store(command =>
+        {
+            if (command.Section == RetentionSection.Events)
             {
-                if (command.Section == RetentionSection.Events)
-                {
-                    throw new InvalidOperationException("failed batch");
-                }
-                committed++;
-                return Task.FromResult(1);
+                throw new InvalidOperationException("failed batch");
             }
-        );
+            committed++;
+            return 1;
+        });
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            new RetentionCoordinator(store, new Clock()).PurgeExpiredDataAsync(Sweep, TestContext.Current.CancellationToken)
+            new RetentionCoordinator(store.Handler, new Clock()).PurgeExpiredDataAsync(Sweep, TestContext.Current.CancellationToken)
         );
         Assert.Equal(2, committed);
         Assert.Equal(3, store.Calls.Count);
@@ -74,15 +78,13 @@ public sealed class RetentionCoordinatorTests
     public async Task Cancellation_after_a_committed_batch_stops_before_the_next_batch()
     {
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        var store = new Store(
-            (_, _) =>
-            {
-                cancellation.Cancel();
-                return Task.FromResult(1);
-            }
-        );
+        var store = new Store(_ =>
+        {
+            cancellation.Cancel();
+            return 1;
+        });
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            new RetentionCoordinator(store, new Clock()).PurgeExpiredDataAsync(Sweep, cancellation.Token)
+            new RetentionCoordinator(store.Handler, new Clock()).PurgeExpiredDataAsync(Sweep, cancellation.Token)
         );
         Assert.Single(store.Calls);
     }
@@ -93,9 +95,9 @@ public sealed class RetentionCoordinatorTests
     public async Task Invalid_bounds_fail_before_database_work(int batchSize, int iterations)
     {
         var clock = new Clock();
-        var store = new Store(static (_, _) => Task.FromResult(0));
+        var store = new Store(static _ => 0);
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
-            new RetentionCoordinator(store, clock).PurgeExpiredDataAsync(
+            new RetentionCoordinator(store.Handler, clock).PurgeExpiredDataAsync(
                 Sweep with
                 {
                     BatchSize = batchSize,
@@ -115,14 +117,25 @@ public sealed class RetentionCoordinatorTests
         public ValueTask<DateTime> GetUtcNowAsync(CancellationToken ct) => ValueTask.FromResult(Now.AddDays(Reads++));
     }
 
-    private sealed class Store(Func<PurgeExpiredDataCommand, CancellationToken, Task<int>> execute) : IMaintenance
+    /// <summary>The real purge handler over a scripted session that decodes each bound batch back into its command.</summary>
+    internal sealed class Store(Func<PurgeExpiredDataCommand, int> execute)
     {
         public List<PurgeExpiredDataCommand> Calls { get; } = [];
 
-        public Task<int> PurgeExpiredDataAsync(PurgeExpiredDataCommand command, CancellationToken ct)
-        {
-            Calls.Add(command);
-            return execute(command, ct);
-        }
+        public PurgeExpiredDataHandler Handler =>
+            new(
+                new ScriptedSession(call =>
+                {
+                    var command = new PurgeExpiredDataCommand(
+                        call.Get(ActaSchema.Job.NamespaceId),
+                        (RetentionSection)call.Get(ActaSchema.Sql.PurgeSection),
+                        call.Get(ActaSchema.Sql.PurgeCutoffUtc),
+                        call.Get(ActaSchema.Sql.PurgeBatchSize)
+                    );
+                    Calls.Add(command);
+                    return (IReadOnlyList<int>)[execute(command)];
+                }),
+                ScriptedSession.Dialect
+            );
     }
 }

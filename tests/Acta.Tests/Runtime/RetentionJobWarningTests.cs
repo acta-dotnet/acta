@@ -7,7 +7,7 @@ using Xunit;
 namespace Acta.Tests.Runtime;
 
 /// <summary>
-/// The maintenance pass's one-warning rule, at the seam a conformance spec cannot reach: an alert that
+/// The maintenance pass's one-warning rule, where a conformance spec cannot reach: an alert that
 /// aged out before delivery settled is a signal an operator never got, and the pass says so once per
 /// pass rather than once per row.
 /// </summary>
@@ -19,7 +19,7 @@ public sealed class RetentionJobWarningTests
         var logger = new RecordingLogger();
         var ct = TestContext.Current.CancellationToken;
 
-        await CreateJob(new StubRetentionStore(undelivered: 250), logger).Handle(new RecordingJobContext(), ct);
+        await CreateJob(Stub(undelivered: 250), logger).Handle(new RecordingJobContext(), ct);
 
         var record = Assert.Single(logger.Records);
         Assert.Equal(LogLevel.Warning, record.Level);
@@ -34,7 +34,7 @@ public sealed class RetentionJobWarningTests
 
         // Rows went in every other section: the warning is about the undelivered count alone, so a
         // busy-but-healthy pass stays silent.
-        await CreateJob(new StubRetentionStore(undelivered: 0), logger).Handle(new RecordingJobContext(), ct);
+        await CreateJob(Stub(undelivered: 0), logger).Handle(new RecordingJobContext(), ct);
 
         Assert.Empty(logger.Records);
     }
@@ -44,7 +44,7 @@ public sealed class RetentionJobWarningTests
     {
         var logger = new RecordingLogger();
         var batches = new Queue<int>([2, 3, 0]);
-        var store = new DelegateRetentionStore(section => section == RetentionSection.UndeliveredAlerts ? batches.Dequeue() : 0);
+        var store = Purges(section => section == RetentionSection.UndeliveredAlerts ? batches.Dequeue() : 0);
 
         await CreateJob(store, logger).Handle(new RecordingJobContext(), TestContext.Current.CancellationToken);
 
@@ -59,7 +59,7 @@ public sealed class RetentionJobWarningTests
         var logger = new RecordingLogger();
         var batches = new Queue<int>([2, 3, 0]);
         var failure = new InvalidOperationException("failed retention batch");
-        var store = new DelegateRetentionStore(section =>
+        var store = Purges(section =>
         {
             if (section == RetentionSection.UndeliveredAlerts)
             {
@@ -88,7 +88,7 @@ public sealed class RetentionJobWarningTests
         var logger = new RecordingLogger();
         var batches = new Queue<int>([2, 3, 0]);
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        var store = new DelegateRetentionStore(section =>
+        var store = Purges(section =>
         {
             if (section == RetentionSection.UndeliveredAlerts)
             {
@@ -118,7 +118,7 @@ public sealed class RetentionJobWarningTests
     public async Task Failure_before_any_alert_batch_commits_logs_no_purge_warning()
     {
         var logger = new RecordingLogger();
-        var store = new DelegateRetentionStore(static _ => throw new InvalidOperationException("failed retention batch"));
+        var store = Purges(static _ => throw new InvalidOperationException("failed retention batch"));
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             CreateJob(store, logger).Handle(new RecordingJobContext(), TestContext.Current.CancellationToken)
@@ -135,27 +135,23 @@ public sealed class RetentionJobWarningTests
         Assert.Contains("alert-retention-cap", record.Message, StringComparison.Ordinal);
     }
 
-    private static RetentionJob CreateJob(IMaintenance store, ILogger<RetentionJob> logger) =>
-        new(new RetentionCoordinator(store, new StubClock()), Options.Create(new JobsOptions()), logger);
+    private static RetentionJob CreateJob(PurgeExpiredDataHandler purge, ILogger<RetentionJob> logger) =>
+        new(new RetentionCoordinator(purge, new StubClock()), Options.Create(new JobsOptions()), logger);
 
-    private sealed class DelegateRetentionStore(Func<RetentionSection, int> execute) : IMaintenance
+    private static PurgeExpiredDataHandler Purges(Func<RetentionSection, int> execute) =>
+        new RetentionCoordinatorTests.Store(command => execute(command.Section)).Handler;
+
+    // Each section deletes once and then reports empty: three rows anywhere but the undelivered alerts.
+    private static PurgeExpiredDataHandler Stub(int undelivered)
     {
-        public Task<int> PurgeExpiredDataAsync(PurgeExpiredDataCommand command, CancellationToken ct) =>
-            Task.FromResult(execute(command.Section));
-    }
-
-    private sealed class StubRetentionStore(int undelivered) : IMaintenance
-    {
-        private readonly HashSet<RetentionSection> _visited = [];
-
-        public Task<int> PurgeExpiredDataAsync(PurgeExpiredDataCommand command, CancellationToken ct) =>
-            Task.FromResult(
-                _visited.Add(command.Section)
-                    ? command.Section == RetentionSection.UndeliveredAlerts
-                        ? undelivered
-                        : 3
-                    : 0
-            );
+        var visited = new HashSet<RetentionSection>();
+        return Purges(section =>
+            visited.Add(section)
+                ? section == RetentionSection.UndeliveredAlerts
+                    ? undelivered
+                    : 3
+                : 0
+        );
     }
 
     private sealed class StubClock : IServerClock

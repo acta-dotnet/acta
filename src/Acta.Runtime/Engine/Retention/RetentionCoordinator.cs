@@ -1,7 +1,7 @@
 namespace Acta.Runtime;
 
 /// <summary>Runs bounded atomic batches against cutoffs captured once from the database clock.</summary>
-internal sealed class RetentionCoordinator(IMaintenance maintenance, IServerClock clock)
+internal sealed class RetentionCoordinator(PurgeExpiredDataHandler purgeExpiredData, IServerClock clock)
 {
     public Task<PurgeExpiredDataResult> PurgeExpiredDataAsync(RetentionSweep command, CancellationToken ct) =>
         PurgeExpiredDataAsync(command, null, ct);
@@ -34,7 +34,7 @@ internal sealed class RetentionCoordinator(IMaintenance maintenance, IServerCloc
                 for (var iteration = 0; iteration < command.MaxIterations; iteration++)
                 {
                     ct.ThrowIfCancellationRequested();
-                    var deleted = await maintenance.PurgeExpiredDataAsync(batch, ct);
+                    var deleted = await purgeExpiredData.HandleAsync(batch, ct);
                     counts[index] = checked(counts[index] + deleted);
                     if (deleted == 0)
                     {
