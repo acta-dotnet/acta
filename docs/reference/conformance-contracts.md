@@ -10,6 +10,14 @@
 - **Guarantees:**
   - The tenant.suspended event carries the operator name exactly as supplied
 
+### Get reads one setting at exactly the scope its targets name
+- **Contract:** Get returns the setting stored at exactly the inferred scope, with no fallback to a wider one, and null when the setting or its scope target is absent.
+- **Guarantees:**
+  - A read returns the stored value, description, timestamps, and version
+  - A global value does not answer a namespace or definition read
+  - An unwritten name and an unregistered scope target both read null
+  - A read accepts the reserved sys prefix but rejects a malformed name or a job without its namespace
+
 ### Namespace resume flips status back, emits one 15xx event, and rejects sys
 - **Contract:** Resume flips a suspended namespace back to Active and emits namespace.resumed, while sys is rejected at the facade.
 - **Guarantees:**

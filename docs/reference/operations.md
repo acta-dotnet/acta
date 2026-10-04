@@ -155,7 +155,7 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `GetSetting` | `ISettings.GetAsync` | · | · | inline | inline | inline | · | · |
+| `GetSetting` | `ISettings.GetAsync` | · | · | inline | inline | inline | · | `GetSettingSpec` |
 | `SetSetting` | `ISettings.SetAsync` | · | · | routine | routine | inline | `events`, `settings` | `SetSettingSpec` |
 
 ## Signals
