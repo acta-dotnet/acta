@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Acta.Tests.AspNetCore.Fakes;
 using Xunit;
 
 namespace Acta.Tests.AspNetCore;
@@ -11,11 +12,11 @@ namespace Acta.Tests.AspNetCore;
 public sealed class TagEndpointTests
 {
     private const string Confirm = "X-Acta-Control";
-    private static readonly string Found = TestDashboardHost.FoundJobRef.ToString();
+    private static readonly string Found = FakeJobs.FoundJobRef.ToString();
 
     private static Task<(Microsoft.AspNetCore.Builder.WebApplication App, HttpClient Client)> StartControlsAsync(
-        TestDashboardHost.FakeJobs? jobs = null
-    ) => TestDashboardHost.StartAsync(options => options.EnableControls = true, jobs: jobs);
+        FakeOperations? fakes = null
+    ) => TestDashboardHost.StartAsync(options => options.EnableControls = true, fakes: fakes);
 
     [Fact]
     public async Task Get_tags_returns_the_target_tag_set_for_every_entity_route()
@@ -55,9 +56,9 @@ public sealed class TagEndpointTests
     [Fact]
     public async Task Get_tags_maps_an_addressable_unknown_target_to_404_and_a_malformed_one_to_400()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        jobs.TagsFake.Current = null;
-        var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs);
+        var fakes = new FakeOperations();
+        fakes.Tags.Get = (_, _) => ValueTask.FromResult<TagSet?>(null);
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
         await using var _ = app;
 
         var unknown = await client.GetAsync($"/acta/api/v1/jobs/{Found}/tags", TestContext.Current.CancellationToken);
@@ -104,8 +105,8 @@ public sealed class TagEndpointTests
     [Fact]
     public async Task Upsert_tag_records_input_and_returns_applied()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartControlsAsync(fakes);
         await using var _ = app;
 
         using var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{Found}/tags")
@@ -118,15 +119,15 @@ public sealed class TagEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("\"action\":\"applied\"", body);
-        var upserted = Assert.Single(jobs.TagsFake.UpsertCalls);
+        var upserted = Assert.Single(fakes.Tags.UpsertCalls);
         Assert.Equal(new TagInput("env", "Prod"), upserted);
     }
 
     [Fact]
     public async Task Remove_tag_records_name_and_returns_applied()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartControlsAsync(fakes);
         await using var _ = app;
 
         using var request = new HttpRequestMessage(HttpMethod.Delete, $"/acta/api/v1/jobs/{Found}/tags/env");
@@ -134,14 +135,14 @@ public sealed class TagEndpointTests
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("env", Assert.Single(jobs.TagsFake.RemoveCalls));
+        Assert.Equal("env", Assert.Single(fakes.Tags.RemoveCalls));
     }
 
     [Fact]
     public async Task Tag_mutations_require_the_confirmation_header()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartControlsAsync(fakes);
         await using var _ = app;
 
         var post = await client.PostAsync(
@@ -153,16 +154,16 @@ public sealed class TagEndpointTests
 
         Assert.Equal(HttpStatusCode.BadRequest, post.StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, delete.StatusCode);
-        Assert.Empty(jobs.TagsFake.UpsertCalls);
-        Assert.Empty(jobs.TagsFake.RemoveCalls);
+        Assert.Empty(fakes.Tags.UpsertCalls);
+        Assert.Empty(fakes.Tags.RemoveCalls);
     }
 
     [Fact]
     public async Task Tag_mutations_map_not_found_and_invalid_targets()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        jobs.TagsFake.MutationAction = TagMutationAction.NotFound;
-        var (app, client) = await StartControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        fakes.Tags.MutationAction = TagMutationAction.NotFound;
+        var (app, client) = await StartControlsAsync(fakes);
         await using var _ = app;
 
         using var missing = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{Found}/tags")
@@ -186,8 +187,8 @@ public sealed class TagEndpointTests
     [Fact]
     public async Task Tag_mutation_routes_are_absent_when_controls_are_disabled()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
         await using var _ = app;
 
         using var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{Found}/tags")
@@ -198,33 +199,33 @@ public sealed class TagEndpointTests
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        Assert.Empty(jobs.TagsFake.UpsertCalls);
+        Assert.Empty(fakes.Tags.UpsertCalls);
     }
 
     [Fact]
     public async Task Jobs_list_binds_repeated_tag_filters()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
         await using var _ = app;
 
         var response = await client.GetAsync("/acta/api/v1/jobs?tag=env:prod&tag=team", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.NotNull(jobs.LastJobsQuery?.Tags);
-        Assert.Equal([new TagFilter("env", "prod"), new TagFilter("team")], jobs.LastJobsQuery!.Tags);
+        Assert.NotNull(fakes.Ledger.LastJobsQuery?.Tags);
+        Assert.Equal([new TagFilter("env", "prod"), new TagFilter("team")], fakes.Ledger.LastJobsQuery!.Tags);
     }
 
     [Fact]
     public async Task Events_list_binds_repeated_tag_filters()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
         await using var _ = app;
 
         var response = await client.GetAsync("/acta/api/v1/events?tag=env:prod", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal([new TagFilter("env", "prod")], jobs.LastEventsQuery!.Tags);
+        Assert.Equal([new TagFilter("env", "prod")], fakes.Ledger.LastEventsQuery!.Tags);
     }
 }

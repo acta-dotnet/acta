@@ -1,0 +1,184 @@
+namespace Acta.Tests.AspNetCore.Fakes;
+
+/// <summary>
+/// <see cref="IDefinitions"/> over one definition, billing/send-invoice (id 5), the namespace and name the found job's
+/// snapshot carries, so the definition link on the job screen addresses a real row. Both verbs answer a job name of
+/// "missing" as not found and an expectedVersion of 999 as the stale CAS token.
+/// </summary>
+internal sealed class FakeDefinitions : IDefinitions
+{
+    private static readonly DateTime CreatedAtUtc = new(2026, 6, 12, 6, 0, 0, DateTimeKind.Utc);
+
+    public FakeDefinitions()
+    {
+        UpdateOverrides = static (_, jobName, expectedVersion, overrides, _, _, _) =>
+        {
+            // Mirror the production guard: an out-of-range override surfaces as ArgumentOutOfRangeException.
+            if (overrides.MaxAttempts is <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(overrides.MaxAttempts), "MaxAttempts override must be at least 1.");
+            }
+
+            return ValueTask.FromResult(new SetJobDefinitionOverridesResponse(Outcome(jobName, expectedVersion)));
+        };
+        Retire = static (_, jobName, expectedVersion, _, _, _) =>
+            ValueTask.FromResult(new RetireJobDefinitionResponse(Outcome(jobName, expectedVersion)));
+        Get = static (jobNamespace, jobName, _) => ValueTask.FromResult(Detail(jobNamespace, jobName));
+        List = static (query, _) =>
+            ValueTask.FromResult(
+                new PagedResult<JobDefinitionListItem>(query.JobNamespace == "billing" ? [Item] : [], null, false, 50, null)
+            );
+    }
+
+    public Func<
+        string,
+        string,
+        int,
+        JobDefinitionPolicyOverrides,
+        string?,
+        string?,
+        CancellationToken,
+        ValueTask<SetJobDefinitionOverridesResponse>
+    > UpdateOverrides { get; set; }
+
+    public Func<string, string, int, string?, string?, CancellationToken, ValueTask<RetireJobDefinitionResponse>> Retire { get; set; }
+
+    public Func<string, string, CancellationToken, ValueTask<JobDefinitionDetail?>> Get { get; set; }
+
+    public Func<ListDefinitionsQuery, CancellationToken, ValueTask<PagedResult<JobDefinitionListItem>>> List { get; set; }
+
+    ValueTask<SetJobDefinitionOverridesResponse> IDefinitions.UpdateOverridesAsync(
+        string jobNamespace,
+        string jobName,
+        int expectedVersion,
+        JobDefinitionPolicyOverrides overrides,
+        string? reasonMessage,
+        string? actorKey,
+        CancellationToken ct
+    ) => UpdateOverrides(jobNamespace, jobName, expectedVersion, overrides, reasonMessage, actorKey, ct);
+
+    ValueTask<RetireJobDefinitionResponse> IDefinitions.RetireAsync(
+        string jobNamespace,
+        string jobName,
+        int expectedVersion,
+        string? reasonMessage,
+        string? actorKey,
+        CancellationToken ct
+    ) => Retire(jobNamespace, jobName, expectedVersion, reasonMessage, actorKey, ct);
+
+    ValueTask<JobDefinitionDetail?> IDefinitions.GetAsync(string jobNamespace, string jobName, CancellationToken ct) =>
+        Get(jobNamespace, jobName, ct);
+
+    ValueTask<PagedResult<JobDefinitionListItem>> IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct) =>
+        List(query, ct);
+
+    private static ControlAction Outcome(string jobName, int expectedVersion) =>
+        jobName == "missing" ? ControlAction.NotFound
+        : expectedVersion == 999 ? ControlAction.Rejected
+        : ControlAction.Applied;
+
+    /// <summary>
+    /// Validates the key before it resolves, as DefinitionKeyResolution does, so a non-canonical key (uppercase, a
+    /// wildcard) is an InvalidQueryException the edge maps to 400, never a miss.
+    /// </summary>
+    private static JobDefinitionDetail? Detail(string jobNamespace, string jobName)
+    {
+        try
+        {
+            IdentifierSyntax.ValidateKebab(jobNamespace, nameof(jobNamespace));
+            IdentifierSyntax.ValidateDottedKebab(jobName, nameof(jobName), IdentifierSyntax.ExtendedMaxLength);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new InvalidQueryException(ex.Message);
+        }
+
+        return jobNamespace == "billing" && jobName == "send-invoice" ? SendInvoice : null;
+    }
+
+    private static readonly JobDefinitionListItem Item = new(
+        5,
+        "billing",
+        "send-invoice",
+        JobDefinitionStatusCode.Active,
+        "Billing.SendInvoice",
+        null,
+        null,
+        JobPriorityCode.Normal,
+        null,
+        3,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        CreatedAtUtc,
+        2
+    );
+
+    private static readonly JobDefinitionDetail SendInvoice = new(
+        DefinitionId: 5,
+        JobNamespace: "billing",
+        JobName: "send-invoice",
+        Status: JobDefinitionStatusCode.Active,
+        DefinitionHash: "hash-5",
+        ManifestGenerationAtUtc: CreatedAtUtc,
+        InputTypeName: "Billing.SendInvoice",
+        InputFormatId: 1,
+        InputFormatName: "json",
+        OutputTypeName: null,
+        OutputFormatId: 0,
+        OutputFormatName: "none",
+        Priority: JobPriorityCode.Normal,
+        PriorityOverride: null,
+        PriorityEffective: JobPriorityCode.Normal,
+        MaxAttempts: 3,
+        MaxAttemptsOverride: null,
+        MaxAttemptsEffective: 3,
+        ConcurrencyLimit: null,
+        ConcurrencyLimitOverride: null,
+        ConcurrencyLimitEffective: null,
+        RateLimit: null,
+        RateLimitOverride: null,
+        RateLimitEffective: null,
+        RateKey: null,
+        Lane: null,
+        Backoff: "1s..1m x2",
+        BackoffOverride: null,
+        BackoffEffective: "1s..1m x2",
+        ExecutionTimeoutSeconds: 60,
+        ExecutionTimeoutSecondsOverride: null,
+        ExecutionTimeoutSecondsEffective: 60,
+        DeadlineSeconds: 0,
+        DeadlineSecondsOverride: null,
+        DeadlineSecondsEffective: 0,
+        DeadlineBehavior: DeadlineBehaviorCode.Strict,
+        DeadlineBehaviorOverride: null,
+        DeadlineBehaviorEffective: DeadlineBehaviorCode.Strict,
+        JobRetentionSeconds: 0,
+        JobRetentionSecondsOverride: null,
+        JobRetentionSecondsEffective: 0,
+        AuditLevel: JobAuditLevelCode.Audit,
+        AuditLevelOverride: null,
+        AuditLevelEffective: JobAuditLevelCode.Audit,
+        AlertProfile: AlertProfileCode.None,
+        AlertProfileOverride: null,
+        AlertProfileEffective: AlertProfileCode.None,
+        AlertChannelName: null,
+        AlertChannelNameOverride: null,
+        AlertChannelNameEffective: null,
+        RunbookUrl: null,
+        RunbookUrlOverride: null,
+        RunbookUrlEffective: null,
+        DisplayName: null,
+        DisplayNameOverride: null,
+        DisplayNameEffective: null,
+        Description: null,
+        DescriptionOverride: null,
+        DescriptionEffective: null,
+        CreatedAtUtc: CreatedAtUtc,
+        ModifiedAtUtc: CreatedAtUtc,
+        Version: 2
+    );
+}

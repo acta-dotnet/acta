@@ -1,6 +1,7 @@
 using System.Net;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
+using Acta.Tests.AspNetCore.Fakes;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,7 +17,7 @@ namespace Acta.Tests.AspNetCore;
 public sealed class DashboardAuthorizationTests
 {
     private static Task<(Microsoft.AspNetCore.Builder.WebApplication App, HttpClient Client)> StartProtectedAsync(
-        TestDashboardHost.FakeJobs? jobs = null
+        FakeOperations? fakes = null
     ) =>
         TestDashboardHost.StartAsync(
             configureDashboard: options =>
@@ -29,7 +30,7 @@ public sealed class DashboardAuthorizationTests
                 builder.Services.AddAuthentication("Test").AddScheme<AuthenticationSchemeOptions, HeaderAuthHandler>("Test", null);
                 builder.Services.AddAuthorization();
             },
-            jobs: jobs
+            fakes: fakes
         );
 
     [Fact]
@@ -61,32 +62,32 @@ public sealed class DashboardAuthorizationTests
     [Fact]
     public async Task Anonymous_control_posts_are_challenged_and_never_reach_jobs()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartProtectedAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartProtectedAsync(fakes);
         await using var _ = app;
 
-        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{TestDashboardHost.FoundJobRef}/pause");
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{FakeJobs.FoundJobRef}/pause");
         request.Headers.Add("X-Acta-Control", "true");
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-        Assert.Empty(jobs.ControlCalls);
+        Assert.Empty(fakes.Jobs.ControlCalls);
     }
 
     [Fact]
     public async Task Authenticated_control_posts_reach_jobs()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartProtectedAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartProtectedAsync(fakes);
         await using var _ = app;
 
-        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{TestDashboardHost.FoundJobRef}/pause");
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{FakeJobs.FoundJobRef}/pause");
         request.Headers.Add("X-Acta-Control", "true");
         request.Headers.Add("X-Test-User", "operator");
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Single(jobs.ControlCalls);
+        Assert.Single(fakes.Jobs.ControlCalls);
     }
 
     [Fact]

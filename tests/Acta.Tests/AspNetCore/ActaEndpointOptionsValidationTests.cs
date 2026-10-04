@@ -1,3 +1,4 @@
+using Acta.Tests.AspNetCore.Fakes;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,7 +29,7 @@ public sealed class ActaEndpointOptionsValidationTests
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
         builder.WebHost.UseTestServer();
-        builder.Services.AddSingleton<IJobs>(new TestDashboardHost.FakeJobs());
+        builder.Services.AddSingleton<IJobs>(new FakeJobs());
         var app = builder.Build();
 
         Assert.Throws<ArgumentOutOfRangeException>(() => app.MapActaApi("/acta/api", o => o.MaxReasonMessageLength = -1));

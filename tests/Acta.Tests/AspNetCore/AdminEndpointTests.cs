@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
+using Acta.Tests.AspNetCore.Fakes;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -154,14 +155,13 @@ public sealed class AdminEndpointTests
     [Fact]
     public async Task Enqueue_rejection_maps_to_409()
     {
-        var jobs = new TestDashboardHost.FakeJobs
-        {
-            ListJobsException = new EnqueueRejectedException(EnqueueRejectionReason.NamespaceSuspended, "namespace suspended"),
-        };
+        var fakes = new FakeOperations();
+        fakes.Ledger.ListJobs = (_, _) =>
+            throw new EnqueueRejectedException(EnqueueRejectionReason.NamespaceSuspended, "namespace suspended");
         var (app, client) = await TestDashboardHost.StartAsync(
             options => options.EnableControls = true,
             builder => builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.TypeInfoResolverChain.Clear()),
-            jobs
+            fakes
         );
         await using var _ = app;
         var res = await client.GetAsync("/acta/api/v1/jobs", TestContext.Current.CancellationToken);

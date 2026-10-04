@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
+using Acta.Tests.AspNetCore.Fakes;
 using Microsoft.AspNetCore.Builder;
 using Xunit;
 
@@ -16,8 +17,8 @@ public sealed class OutboxControlEndpointTests
 {
     private const string Confirm = "X-Acta-Control";
 
-    private static Task<(WebApplication App, HttpClient Client)> StartWithControlsAsync(TestDashboardHost.FakeJobs? jobs = null) =>
-        TestDashboardHost.StartAsync(options => options.EnableControls = true, jobs: jobs);
+    private static Task<(WebApplication App, HttpClient Client)> StartWithControlsAsync(FakeOperations? fakes = null) =>
+        TestDashboardHost.StartAsync(options => options.EnableControls = true, fakes: fakes);
 
     private static HttpRequestMessage Post(string verb, string jobNamespace = "billing", object? body = null, bool confirm = true)
     {
@@ -38,11 +39,11 @@ public sealed class OutboxControlEndpointTests
     [InlineData("discard")]
     public async Task Each_verb_dispatches_to_the_outbox_facade_and_answers_202(string verb)
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
-        var ids = new[] { TestDashboardHost.FakeJobs.FakeOutbox.QuarantinedId };
+        var ids = new[] { FakeOutbox.QuarantinedId };
         var response = await client.SendAsync(
             Post(verb, body: new { outboxIds = ids, reasonMessage = "fixed the route" }),
             TestContext.Current.CancellationToken
@@ -51,7 +52,7 @@ public sealed class OutboxControlEndpointTests
 
         Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
         Assert.Contains("\"action\":\"accepted\"", body);
-        var call = Assert.Single(jobs.OutboxFake.ControlCalls);
+        var call = Assert.Single(fakes.Outbox.ControlCalls);
         Assert.Equal(verb, call.Verb);
         Assert.Equal("billing", call.JobNamespace);
         Assert.Equal(ids, call.OutboxIds);
@@ -61,14 +62,14 @@ public sealed class OutboxControlEndpointTests
     [Fact]
     public async Task A_bare_post_targets_every_quarantined_row_with_no_reason()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(Post("requeue"), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
-        var call = Assert.Single(jobs.OutboxFake.ControlCalls);
+        var call = Assert.Single(fakes.Outbox.ControlCalls);
         Assert.Null(call.OutboxIds);
         Assert.Null(call.Reason);
     }
@@ -101,22 +102,26 @@ public sealed class OutboxControlEndpointTests
     [Fact]
     public async Task Missing_confirmation_is_400_and_nothing_dispatches()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var noConfirm = await client.SendAsync(Post("requeue", confirm: false), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, noConfirm.StatusCode);
-        Assert.Empty(jobs.OutboxFake.ControlCalls);
+        Assert.Empty(fakes.Outbox.ControlCalls);
     }
 
     // The actor is the authenticated principal: a body that names one is refused, not quietly ignored.
     [Fact]
     public async Task Actor_key_comes_from_the_authenticated_principal_not_the_body()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await TestDashboardHost.StartAuthenticatedAsync("marko", options => options.EnableControls = true, jobs: jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAuthenticatedAsync(
+            "marko",
+            options => options.EnableControls = true,
+            fakes: fakes
+        );
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
@@ -125,7 +130,7 @@ public sealed class OutboxControlEndpointTests
 
         Assert.Equal(HttpStatusCode.BadRequest, spoofed.StatusCode);
         Assert.Equal(HttpStatusCode.Accepted, plain.StatusCode);
-        Assert.Equal("marko", Assert.Single(jobs.OutboxFake.ControlCalls).ActorKey);
+        Assert.Equal("marko", Assert.Single(fakes.Outbox.ControlCalls).ActorKey);
     }
 
     [Fact]
@@ -142,8 +147,8 @@ public sealed class OutboxControlEndpointTests
     [Fact]
     public async Task Undeclared_body_is_415_and_never_widens_the_discard_to_every_row()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         // No Content-Length, no Content-Type, a real scoped body: read as "no body" this used to mean
@@ -158,14 +163,14 @@ public sealed class OutboxControlEndpointTests
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.UnsupportedMediaType, response.StatusCode);
-        Assert.Empty(jobs.OutboxFake.ControlCalls);
+        Assert.Empty(fakes.Outbox.ControlCalls);
     }
 
     [Fact]
     public async Task An_undeclared_empty_body_is_still_an_absent_body()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         // The other side of the peek: a caller that declares nothing and sends nothing is the bare
@@ -179,7 +184,7 @@ public sealed class OutboxControlEndpointTests
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
-        var call = Assert.Single(jobs.OutboxFake.ControlCalls);
+        var call = Assert.Single(fakes.Outbox.ControlCalls);
         Assert.Null(call.OutboxIds);
         Assert.Null(call.Reason);
     }

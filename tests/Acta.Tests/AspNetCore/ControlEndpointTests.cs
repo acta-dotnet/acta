@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using Acta.Tests.AspNetCore.Fakes;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,12 +21,12 @@ public sealed class ControlEndpointTests
 {
     private const string Confirm = "X-Acta-Control";
 
-    private static readonly string Found = TestDashboardHost.FoundJobRef.ToString();
-    private static readonly string Missing = TestDashboardHost.MissingJobRef.ToString();
-    private static readonly string Rejected = TestDashboardHost.RejectedJobRef.ToString();
+    private static readonly string Found = FakeJobs.FoundJobRef.ToString();
+    private static readonly string Missing = FakeJobs.MissingJobRef.ToString();
+    private static readonly string Rejected = FakeJobs.RejectedJobRef.ToString();
 
     private static Task<(WebApplication App, HttpClient Client)> StartWithControlsAsync(
-        TestDashboardHost.FakeJobs? jobs = null,
+        FakeOperations? fakes = null,
         Action<ActaDashboardOptions>? configure = null
     ) =>
         TestDashboardHost.StartAsync(
@@ -34,7 +35,7 @@ public sealed class ControlEndpointTests
                 options.EnableControls = true;
                 configure?.Invoke(options);
             },
-            jobs: jobs
+            fakes: fakes
         );
 
     private static HttpRequestMessage Post(string path, string? reason = "because", bool confirm = true, string? rawBody = null)
@@ -57,8 +58,8 @@ public sealed class ControlEndpointTests
     [InlineData("cancel")]
     public async Task Each_verb_dispatches_to_jobs_and_applies(string verb)
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(Post($"/acta/api/v1/jobs/{Found}/{verb}"), TestContext.Current.CancellationToken);
@@ -67,25 +68,25 @@ public sealed class ControlEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
         Assert.Contains("\"action\":\"applied\"", body);
-        var call = Assert.Single(jobs.ControlCalls);
-        Assert.Equal((verb, TestDashboardHost.FoundJobRef, "because", (string?)null, (int?)null), call);
+        var call = Assert.Single(fakes.Jobs.ControlCalls);
+        Assert.Equal((verb, FakeJobs.FoundJobRef, "because", (string?)null, (int?)null), call);
     }
 
     [Fact]
     public async Task Cancel_records_the_authenticated_principal_as_actor_key()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
+        var fakes = new FakeOperations();
         var (app, client) = await TestDashboardHost.StartAuthenticatedAsync(
             "test-operator",
             options => options.EnableControls = true,
-            jobs
+            fakes
         );
         await using var _ = app;
 
         var response = await client.SendAsync(Post($"/acta/api/v1/jobs/{Found}/cancel"), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var call = Assert.Single(jobs.ControlCalls);
+        var call = Assert.Single(fakes.Jobs.ControlCalls);
         Assert.Equal("test-operator", call.ActorKey);
     }
 
@@ -131,8 +132,8 @@ public sealed class ControlEndpointTests
     [Fact]
     public async Task Missing_confirmation_header_is_400_and_never_reaches_jobs()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(
@@ -141,7 +142,7 @@ public sealed class ControlEndpointTests
         );
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Empty(jobs.ControlCalls);
+        Assert.Empty(fakes.Jobs.ControlCalls);
     }
 
     [Fact]
@@ -161,14 +162,14 @@ public sealed class ControlEndpointTests
     [Fact]
     public async Task Controls_are_disabled_by_default_and_never_reach_jobs()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(Post($"/acta/api/v1/jobs/{Found}/pause"), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        Assert.Empty(jobs.ControlCalls);
+        Assert.Empty(fakes.Jobs.ControlCalls);
     }
 
     [Theory]
@@ -194,8 +195,8 @@ public sealed class ControlEndpointTests
     [Fact]
     public async Task Oversized_reason_is_400()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(
@@ -204,29 +205,29 @@ public sealed class ControlEndpointTests
         );
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Empty(jobs.ControlCalls);
+        Assert.Empty(fakes.Jobs.ControlCalls);
     }
 
     [Fact]
     public async Task Reason_is_trimmed_and_empty_becomes_null()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
         await client.SendAsync(Post($"/acta/api/v1/jobs/{Found}/pause", reason: "  spaced out  "), ct);
         await client.SendAsync(Post($"/acta/api/v1/jobs/{Found}/resume", reason: "   "), ct);
 
-        Assert.Equal("spaced out", jobs.ControlCalls[0].Reason);
-        Assert.Null(jobs.ControlCalls[1].Reason);
+        Assert.Equal("spaced out", fakes.Jobs.ControlCalls[0].Reason);
+        Assert.Null(fakes.Jobs.ControlCalls[1].Reason);
     }
 
     [Fact]
     public async Task Body_is_optional_and_non_json_bodies_are_rejected()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
@@ -244,15 +245,15 @@ public sealed class ControlEndpointTests
         Assert.Equal(HttpStatusCode.OK, noBody.StatusCode);
         Assert.Equal(HttpStatusCode.UnsupportedMediaType, formBody.StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, garbage.StatusCode);
-        var call = Assert.Single(jobs.ControlCalls);
+        var call = Assert.Single(fakes.Jobs.ControlCalls);
         Assert.Null(call.Reason);
     }
 
     [Fact]
     public async Task Undeclared_body_is_415_and_never_reaches_jobs()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         // Neither Content-Length nor Content-Type, but a real reasonMessage in the stream. Read as "no
@@ -267,7 +268,7 @@ public sealed class ControlEndpointTests
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.UnsupportedMediaType, response.StatusCode);
-        Assert.Empty(jobs.ControlCalls);
+        Assert.Empty(fakes.Jobs.ControlCalls);
     }
 
     private static HttpRequestMessage PostReschedule(
@@ -291,8 +292,8 @@ public sealed class ControlEndpointTests
     [Fact]
     public async Task Reschedule_applies_and_captures_the_requested_instant()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
         var nextRunAtUtc = new DateTime(2026, 8, 1, 12, 0, 0, DateTimeKind.Utc);
 
@@ -301,15 +302,15 @@ public sealed class ControlEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("\"action\":\"applied\"", body);
-        var call = Assert.Single(jobs.RescheduleCalls);
-        Assert.Equal((TestDashboardHost.FoundJobRef, nextRunAtUtc, "because", (string?)null, (int?)null), call);
+        var call = Assert.Single(fakes.Jobs.RescheduleCalls);
+        Assert.Equal((FakeJobs.FoundJobRef, nextRunAtUtc, "because", (string?)null, (int?)null), call);
     }
 
     [Fact]
     public async Task Reschedule_missing_next_run_instant_is_400()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(
@@ -318,27 +319,27 @@ public sealed class ControlEndpointTests
         );
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Empty(jobs.RescheduleCalls);
+        Assert.Empty(fakes.Jobs.RescheduleCalls);
     }
 
     [Fact]
     public async Task Reschedule_default_next_run_instant_is_400()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(PostReschedule(DateTime.MinValue), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Empty(jobs.RescheduleCalls);
+        Assert.Empty(fakes.Jobs.RescheduleCalls);
     }
 
     [Fact]
     public async Task Reschedule_oversized_reason_is_400()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(
@@ -347,14 +348,14 @@ public sealed class ControlEndpointTests
         );
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Empty(jobs.RescheduleCalls);
+        Assert.Empty(fakes.Jobs.RescheduleCalls);
     }
 
     [Fact]
     public async Task Reschedule_missing_confirmation_header_is_400_and_never_reaches_jobs()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(
@@ -363,7 +364,7 @@ public sealed class ControlEndpointTests
         );
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Empty(jobs.RescheduleCalls);
+        Assert.Empty(fakes.Jobs.RescheduleCalls);
     }
 
     private static HttpRequestMessage PostReprioritize(
@@ -387,8 +388,8 @@ public sealed class ControlEndpointTests
     [Fact]
     public async Task Reprioritize_applies_and_captures_the_requested_priority()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(PostReprioritize("high"), TestContext.Current.CancellationToken);
@@ -396,28 +397,28 @@ public sealed class ControlEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("\"action\":\"applied\"", body);
-        var call = Assert.Single(jobs.ReprioritizeCalls);
-        Assert.Equal((TestDashboardHost.FoundJobRef, JobPriorityCode.High, "because", (string?)null, (int?)null), call);
+        var call = Assert.Single(fakes.Jobs.ReprioritizeCalls);
+        Assert.Equal((FakeJobs.FoundJobRef, JobPriorityCode.High, "because", (string?)null, (int?)null), call);
     }
 
     [Fact]
     public async Task Reprioritize_unknown_priority_name_is_400()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(PostReprioritize("nope"), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Empty(jobs.ReprioritizeCalls);
+        Assert.Empty(fakes.Jobs.ReprioritizeCalls);
     }
 
     [Fact]
     public async Task Reprioritize_oversized_reason_is_400()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(
@@ -426,20 +427,20 @@ public sealed class ControlEndpointTests
         );
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Empty(jobs.ReprioritizeCalls);
+        Assert.Empty(fakes.Jobs.ReprioritizeCalls);
     }
 
     [Fact]
     public async Task Reprioritize_missing_confirmation_header_is_400_and_never_reaches_jobs()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(PostReprioritize("high", confirm: false), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Empty(jobs.ReprioritizeCalls);
+        Assert.Empty(fakes.Jobs.ReprioritizeCalls);
     }
 
     private static HttpRequestMessage PostTrigger(
@@ -463,8 +464,8 @@ public sealed class ControlEndpointTests
     [Fact]
     public async Task Trigger_applies_and_captures_the_request()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(PostTrigger(), TestContext.Current.CancellationToken);
@@ -472,47 +473,47 @@ public sealed class ControlEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("\"action\":\"applied\"", body);
-        var call = Assert.Single(jobs.TriggerCalls);
+        var call = Assert.Single(fakes.Schedules.TriggerCalls);
         Assert.Equal(("only", "because", (string?)null), call);
     }
 
     [Fact]
     public async Task Trigger_unknown_schedule_is_404()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(PostTrigger(scheduleName: "missing"), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        Assert.Empty(jobs.TriggerCalls);
+        Assert.Empty(fakes.Schedules.TriggerCalls);
     }
 
     [Fact]
     public async Task Trigger_rejected_target_is_409()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(PostTrigger(scheduleName: "rejected"), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Empty(jobs.TriggerCalls);
+        Assert.Empty(fakes.Schedules.TriggerCalls);
     }
 
     [Fact]
     public async Task Trigger_missing_confirmation_header_is_400_and_never_reaches_jobs()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(PostTrigger(confirm: false), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Empty(jobs.TriggerCalls);
+        Assert.Empty(fakes.Schedules.TriggerCalls);
     }
 
     private static HttpRequestMessage PostOverrides(
@@ -547,8 +548,8 @@ public sealed class ControlEndpointTests
     [Fact]
     public async Task Overrides_applies_and_captures_the_requested_change()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(PostOverrides(version: 3), TestContext.Current.CancellationToken);
@@ -556,41 +557,41 @@ public sealed class ControlEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("\"action\":\"applied\"", body);
-        var call = Assert.Single(jobs.SetOverridesCalls);
+        var call = Assert.Single(fakes.Schedules.SetOverridesCalls);
         Assert.Equal(("only", 3, "*/5 * * * *", (string?)null, "because", (string?)null), call);
     }
 
     [Fact]
     public async Task Overrides_missing_version_is_400()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(PostOverrides(version: null), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Empty(jobs.SetOverridesCalls);
+        Assert.Empty(fakes.Schedules.SetOverridesCalls);
     }
 
     [Fact]
     public async Task Overrides_invalid_expression_is_400()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(PostOverrides(expression: "bad-expr"), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Empty(jobs.SetOverridesCalls);
+        Assert.Empty(fakes.Schedules.SetOverridesCalls);
     }
 
     [Fact]
     public async Task Overrides_unknown_schedule_is_404()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(PostOverrides(scheduleName: "missing"), TestContext.Current.CancellationToken);
@@ -601,8 +602,8 @@ public sealed class ControlEndpointTests
     [Fact]
     public async Task Overrides_stale_version_is_409_carrying_current_version()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(PostOverrides(scheduleName: "rejected"), TestContext.Current.CancellationToken);
@@ -615,21 +616,21 @@ public sealed class ControlEndpointTests
     [Fact]
     public async Task Overrides_missing_confirmation_header_is_400_and_never_reaches_jobs()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(PostOverrides(confirm: false), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Empty(jobs.SetOverridesCalls);
+        Assert.Empty(fakes.Schedules.SetOverridesCalls);
     }
 
     [Fact]
     public async Task Purge_applies_and_ignores_the_reason()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(Post($"/acta/api/v1/jobs/{Found}/purge"), TestContext.Current.CancellationToken);
@@ -637,15 +638,15 @@ public sealed class ControlEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("\"action\":\"applied\"", body);
-        var call = Assert.Single(jobs.PurgeCalls);
-        Assert.Equal((TestDashboardHost.FoundJobRef, (string?)null), call);
+        var call = Assert.Single(fakes.Jobs.PurgeCalls);
+        Assert.Equal((FakeJobs.FoundJobRef, (string?)null), call);
     }
 
     [Fact]
     public async Task Purge_missing_confirmation_header_is_400_and_never_reaches_jobs()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(
@@ -654,14 +655,14 @@ public sealed class ControlEndpointTests
         );
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Empty(jobs.PurgeCalls);
+        Assert.Empty(fakes.Jobs.PurgeCalls);
     }
 
     [Fact]
     public async Task Batch_endpoint_is_not_mapped_when_controls_are_enabled()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(Post("/acta/api/v1/jobs/" + "batch"), TestContext.Current.CancellationToken);
@@ -680,19 +681,19 @@ public sealed class ControlEndpointTests
         return request;
     }
 
-    private static TestDashboardHost.FakeJobs JobWithInput(JobPayload? stored) => new() { StoredInput = stored };
+    private static FakeOperations JobWithInput(JobPayload? stored) => new() { Jobs = { StoredInput = stored } };
 
     [Fact]
     public async Task Amend_text_job_with_text_applies_and_reads_back_as_text()
     {
-        var jobs = JobWithInput(JobPayload.FromBytes(JobPayloadFormat.Text, Encoding.UTF8.GetBytes("old")));
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = JobWithInput(JobPayload.FromBytes(JobPayloadFormat.Text, Encoding.UTF8.GetBytes("old")));
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
         var response = await client.SendAsync(AmendInput(new { text = "new body" }), ct);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(JobPayloadFormat.Text.Id, Assert.Single(jobs.InputAmendCalls).Format.Id);
+        Assert.Equal(JobPayloadFormat.Text.Id, Assert.Single(fakes.Jobs.InputAmendCalls).Format.Id);
 
         var body = await (await client.GetAsync($"/acta/api/v1/jobs/{Found}/detail", ct)).Content.ReadAsStringAsync(ct);
         Assert.Contains("\"formatName\":\"text\"", body);
@@ -703,8 +704,8 @@ public sealed class ControlEndpointTests
     [Fact]
     public async Task Amend_binary_job_with_base64_preserves_the_custom_format_id()
     {
-        var jobs = JobWithInput(JobPayload.FromBytes(JobPayloadFormat.Custom(200, "proto"), [9]));
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = JobWithInput(JobPayload.FromBytes(JobPayloadFormat.Custom(200, "proto"), [9]));
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
@@ -712,7 +713,7 @@ public sealed class ControlEndpointTests
         var response = await client.SendAsync(AmendInput(new { base64 = Convert.ToBase64String(bytes) }), ct);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var amended = Assert.Single(jobs.InputAmendCalls);
+        var amended = Assert.Single(fakes.Jobs.InputAmendCalls);
         Assert.Equal(200, amended.Format.Id);
         Assert.Equal(bytes, amended.Data.ToArray());
 
@@ -724,14 +725,14 @@ public sealed class ControlEndpointTests
     [Fact]
     public async Task Amend_json_job_with_input_still_applies_as_json()
     {
-        var jobs = JobWithInput(JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes("{\"a\":1}")));
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = JobWithInput(JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes("{\"a\":1}")));
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
         var response = await client.SendAsync(AmendInput(new { input = new { b = 2 } }), ct);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(JobPayloadFormat.Json.Id, Assert.Single(jobs.InputAmendCalls).Format.Id);
+        Assert.Equal(JobPayloadFormat.Json.Id, Assert.Single(fakes.Jobs.InputAmendCalls).Format.Id);
 
         var body = await (await client.GetAsync($"/acta/api/v1/jobs/{Found}/detail", ct)).Content.ReadAsStringAsync(ct);
         Assert.Contains("\"formatName\":\"json\"", body);
@@ -740,14 +741,14 @@ public sealed class ControlEndpointTests
     [Fact]
     public async Task Amend_text_job_with_input_falls_back_to_json()
     {
-        var jobs = JobWithInput(JobPayload.FromBytes(JobPayloadFormat.Text, Encoding.UTF8.GetBytes("old")));
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = JobWithInput(JobPayload.FromBytes(JobPayloadFormat.Text, Encoding.UTF8.GetBytes("old")));
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
         var response = await client.SendAsync(AmendInput(new { input = new { b = 2 } }), ct);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(JobPayloadFormat.Json.Id, Assert.Single(jobs.InputAmendCalls).Format.Id);
+        Assert.Equal(JobPayloadFormat.Json.Id, Assert.Single(fakes.Jobs.InputAmendCalls).Format.Id);
 
         var body = await (await client.GetAsync($"/acta/api/v1/jobs/{Found}/detail", ct)).Content.ReadAsStringAsync(ct);
         Assert.Contains("\"formatName\":\"json\"", body);
@@ -756,49 +757,49 @@ public sealed class ControlEndpointTests
     [Fact]
     public async Task Amend_json_job_with_text_is_400()
     {
-        var jobs = JobWithInput(JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes("{}")));
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = JobWithInput(JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes("{}")));
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(AmendInput(new { text = "x" }), TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Empty(jobs.InputAmendCalls);
+        Assert.Empty(fakes.Jobs.InputAmendCalls);
     }
 
     [Fact]
     public async Task Amend_with_two_body_fields_is_400()
     {
-        var jobs = JobWithInput(JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes("{}")));
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = JobWithInput(JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes("{}")));
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(AmendInput(new { input = new { a = 1 }, text = "x" }), TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Empty(jobs.InputAmendCalls);
+        Assert.Empty(fakes.Jobs.InputAmendCalls);
     }
 
     [Fact]
     public async Task Amend_invalid_base64_is_400()
     {
-        var jobs = JobWithInput(JobPayload.FromBytes(JobPayloadFormat.Bytes, [1]));
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = JobWithInput(JobPayload.FromBytes(JobPayloadFormat.Bytes, [1]));
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(AmendInput(new { base64 = "not valid base64!" }), TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Empty(jobs.InputAmendCalls);
+        Assert.Empty(fakes.Jobs.InputAmendCalls);
     }
 
     [Fact]
     public async Task Amend_no_input_job_is_409()
     {
-        var jobs = JobWithInput(null);
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = JobWithInput(null);
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(AmendInput(new { input = new { a = 1 } }), TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Empty(jobs.InputAmendCalls);
+        Assert.Empty(fakes.Jobs.InputAmendCalls);
     }
 
     private static HttpRequestMessage PostEnqueue(object body, bool confirm = true)
@@ -845,8 +846,8 @@ public sealed class ControlEndpointTests
     [Fact]
     public async Task Enqueue_with_text_creates_and_reads_back_as_text()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
@@ -862,7 +863,7 @@ public sealed class ControlEndpointTests
             ct
         );
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        Assert.Equal(JobPayloadFormat.Text.Id, Assert.Single(jobs.EnqueueRequests).Input.Format.Id);
+        Assert.Equal(JobPayloadFormat.Text.Id, Assert.Single(fakes.Jobs.EnqueueRequests).Input.Format.Id);
 
         var jobRef = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct)).RootElement.GetProperty("jobRef").GetString();
         var body = await (await client.GetAsync($"/acta/api/v1/jobs/{jobRef}/detail", ct)).Content.ReadAsStringAsync(ct);
@@ -873,8 +874,8 @@ public sealed class ControlEndpointTests
     [Fact]
     public async Task Enqueue_with_base64_and_format_id_creates_and_reads_back_as_bytes()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
@@ -893,7 +894,7 @@ public sealed class ControlEndpointTests
         );
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
-        var enqueued = Assert.Single(jobs.EnqueueRequests);
+        var enqueued = Assert.Single(fakes.Jobs.EnqueueRequests);
         Assert.Equal(JobPayloadFormat.Bytes.Id, enqueued.Input.Format.Id);
         Assert.Equal(bytes, enqueued.Input.Data.ToArray());
 
@@ -905,8 +906,8 @@ public sealed class ControlEndpointTests
     [Fact]
     public async Task Enqueue_base64_without_format_id_is_400()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(
@@ -921,14 +922,14 @@ public sealed class ControlEndpointTests
             TestContext.Current.CancellationToken
         );
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Empty(jobs.EnqueueRequests);
+        Assert.Empty(fakes.Jobs.EnqueueRequests);
     }
 
     [Fact]
     public async Task Enqueue_format_id_without_base64_is_400()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(
@@ -943,7 +944,7 @@ public sealed class ControlEndpointTests
             TestContext.Current.CancellationToken
         );
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Empty(jobs.EnqueueRequests);
+        Assert.Empty(fakes.Jobs.EnqueueRequests);
     }
 
     private static HttpRequestMessage PostTenant(object body, bool confirm = true)
@@ -960,8 +961,8 @@ public sealed class ControlEndpointTests
     [Fact]
     public async Task Register_tenant_applies_and_returns_the_canonical_key()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(
@@ -981,21 +982,21 @@ public sealed class ControlEndpointTests
         Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
         Assert.DoesNotContain("\"tenantId\"", body);
         Assert.Contains("\"tenantKey\":\"cust-001\"", body);
-        var call = Assert.Single(jobs.TenantCalls);
+        var call = Assert.Single(fakes.Tenants.RegisterCalls);
         Assert.Equal(("cust-001", "Acme Corp", "Acme"), call);
     }
 
     [Fact]
     public async Task Tenant_register_requires_a_key()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(PostTenant(new { description = "no key" }), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Empty(jobs.TenantCalls);
+        Assert.Empty(fakes.Tenants.RegisterCalls);
     }
 
     [Fact]
@@ -1012,8 +1013,8 @@ public sealed class ControlEndpointTests
     [Fact]
     public async Task Tenant_register_without_confirmation_is_400_and_never_reaches_jobs()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(
@@ -1022,20 +1023,20 @@ public sealed class ControlEndpointTests
         );
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Empty(jobs.TenantCalls);
+        Assert.Empty(fakes.Tenants.RegisterCalls);
     }
 
     [Fact]
     public async Task Tenant_register_is_disabled_by_default_and_never_reaches_jobs()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(PostTenant(new { tenantKey = "cust-001" }), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        Assert.Empty(jobs.TenantCalls);
+        Assert.Empty(fakes.Tenants.RegisterCalls);
     }
 
     [Fact]
@@ -1044,9 +1045,9 @@ public sealed class ControlEndpointTests
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
         builder.WebHost.UseTestServer();
-        var fake = new TestDashboardHost.FakeJobs();
-        builder.Services.AddSingleton<IJobs>(fake);
-        builder.Services.AddSingleton<IActaOperations>(fake);
+        var fakes = new FakeOperations();
+        builder.Services.AddSingleton<IJobs>(fakes.Jobs);
+        builder.Services.AddSingleton<IActaOperations>(fakes);
         var app = builder.Build();
         app.MapActaApi("/ops/api", options => options.EnableControls = true);
         app.MapActaApi("/ops/readonly");
@@ -1104,8 +1105,8 @@ public sealed class ControlEndpointTests
     [InlineData("resolve")]
     public async Task Alert_verb_dispatches_and_applies(string verb)
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var alertRef = AlertRef.New();
@@ -1120,7 +1121,7 @@ public sealed class ControlEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("\"action\":\"applied\"", body);
         Assert.Contains($"\"alertRef\":\"{alertRef}\"", body);
-        var calls = verb == "acknowledge" ? jobs.AcknowledgeCalls : jobs.ResolveCalls;
+        var calls = verb == "acknowledge" ? fakes.Alerts.AcknowledgeCalls : fakes.Alerts.ResolveCalls;
         var call = Assert.Single(calls);
         Assert.Equal((alertRef, "because", (string?)null), call);
     }
@@ -1130,8 +1131,8 @@ public sealed class ControlEndpointTests
     [InlineData("resolve")]
     public async Task Alert_verb_unknown_alert_is_404(string verb)
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/alerts/{default(AlertRef)}/" + verb);
@@ -1139,8 +1140,8 @@ public sealed class ControlEndpointTests
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        Assert.Empty(jobs.AcknowledgeCalls);
-        Assert.Empty(jobs.ResolveCalls);
+        Assert.Empty(fakes.Alerts.AcknowledgeCalls);
+        Assert.Empty(fakes.Alerts.ResolveCalls);
     }
 
     [Theory]
@@ -1148,8 +1149,8 @@ public sealed class ControlEndpointTests
     [InlineData("resolve")]
     public async Task Alert_verb_with_no_body_is_a_presence_only_request(string verb)
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var alertRef = AlertRef.New();
@@ -1158,7 +1159,7 @@ public sealed class ControlEndpointTests
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var calls = verb == "acknowledge" ? jobs.AcknowledgeCalls : jobs.ResolveCalls;
+        var calls = verb == "acknowledge" ? fakes.Alerts.AcknowledgeCalls : fakes.Alerts.ResolveCalls;
         var call = Assert.Single(calls);
         Assert.Equal((alertRef, (string?)null, (string?)null), call);
     }
@@ -1224,8 +1225,8 @@ public sealed class ControlEndpointTests
     [InlineData("resolve")]
     public async Task Alert_verb_missing_confirmation_header_is_400_and_never_reaches_jobs(string verb)
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartWithControlsAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(
@@ -1234,7 +1235,7 @@ public sealed class ControlEndpointTests
         );
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Empty(jobs.AcknowledgeCalls);
-        Assert.Empty(jobs.ResolveCalls);
+        Assert.Empty(fakes.Alerts.AcknowledgeCalls);
+        Assert.Empty(fakes.Alerts.ResolveCalls);
     }
 }

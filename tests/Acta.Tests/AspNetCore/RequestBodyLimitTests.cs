@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using Acta.Tests.AspNetCore.Fakes;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -12,16 +13,16 @@ namespace Acta.Tests.AspNetCore;
 /// </summary>
 public sealed class RequestBodyLimitTests
 {
-    private static Task<(Microsoft.AspNetCore.Builder.WebApplication App, HttpClient Client)> StartAsync(TestDashboardHost.FakeJobs jobs) =>
+    private static Task<(Microsoft.AspNetCore.Builder.WebApplication App, HttpClient Client)> StartAsync(FakeOperations fakes) =>
         TestDashboardHost.StartAsync(
             configureDashboard: o => o.EnableControls = true,
             configureBuilder: b => b.Services.Configure<JobsOptions>(o => o.MaxInlinePayloadBytes = 64),
-            jobs: jobs
+            fakes: fakes
         );
 
     private static HttpRequestMessage Pause(string body, bool declaredLength)
     {
-        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{TestDashboardHost.FoundJobRef}/pause")
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{FakeJobs.FoundJobRef}/pause")
         {
             Content = new StringContent(body, Encoding.UTF8, "application/json"),
         };
@@ -39,39 +40,39 @@ public sealed class RequestBodyLimitTests
     [Fact]
     public async Task Declared_over_limit_body_maps_to_413_without_reaching_jobs()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(Pause(Body(200), declaredLength: true), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.RequestEntityTooLarge, response.StatusCode);
-        Assert.Empty(jobs.ControlCalls);
+        Assert.Empty(fakes.Jobs.ControlCalls);
     }
 
     [Fact]
     public async Task Chunked_over_limit_body_maps_to_413_without_reaching_jobs()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(Pause(Body(200), declaredLength: false), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.RequestEntityTooLarge, response.StatusCode);
-        Assert.Empty(jobs.ControlCalls);
+        Assert.Empty(fakes.Jobs.ControlCalls);
     }
 
     [Fact]
     public async Task Body_within_the_limit_still_reaches_the_control()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(Pause(Body(10), declaredLength: true), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Single(jobs.ControlCalls);
+        Assert.Single(fakes.Jobs.ControlCalls);
     }
 }

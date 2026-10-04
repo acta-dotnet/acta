@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using Acta.Tests.AspNetCore.Fakes;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -13,12 +14,12 @@ namespace Acta.Tests.AspNetCore;
 /// </summary>
 public sealed class SignalEndpointTests
 {
-    private static readonly string Found = TestDashboardHost.FoundJobRef.ToString();
-    private static readonly string Missing = TestDashboardHost.MissingJobRef.ToString();
-    private static readonly string Rejected = TestDashboardHost.RejectedJobRef.ToString();
+    private static readonly string Found = FakeJobs.FoundJobRef.ToString();
+    private static readonly string Missing = FakeJobs.MissingJobRef.ToString();
+    private static readonly string Rejected = FakeJobs.RejectedJobRef.ToString();
 
-    private static Task<(WebApplication App, HttpClient Client)> StartAsync(TestDashboardHost.FakeJobs jobs) =>
-        TestDashboardHost.StartAsync(options => options.EnableControls = true, jobs: jobs);
+    private static Task<(WebApplication App, HttpClient Client)> StartAsync(FakeOperations fakes) =>
+        TestDashboardHost.StartAsync(options => options.EnableControls = true, fakes: fakes);
 
     private static HttpRequestMessage Post(string jobRef, string name, string? json = null)
     {
@@ -35,8 +36,8 @@ public sealed class SignalEndpointTests
     [Fact]
     public async Task Empty_body_raises_presence_only_and_applies()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(Post(Found, "approval"), TestContext.Current.CancellationToken);
@@ -45,22 +46,22 @@ public sealed class SignalEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
         Assert.Contains("\"action\":\"applied\"", body);
-        var call = Assert.Single(jobs.SignalCalls);
-        Assert.Equal((TestDashboardHost.FoundJobRef, "approval", (byte)0, (byte[]?)null, (string?)null), call);
+        var call = Assert.Single(fakes.Jobs.SignalCalls);
+        Assert.Equal((FakeJobs.FoundJobRef, "approval", (byte)0, (byte[]?)null, (string?)null), call);
     }
 
     [Fact]
     public async Task Json_body_is_stored_verbatim_as_a_json_payload()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartAsync(fakes);
         await using var _ = app;
         const string json = "{\"approved\":true,\"by\":\"alice\"}";
 
         var response = await client.SendAsync(Post(Found, "approval", json), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var call = Assert.Single(jobs.SignalCalls);
+        var call = Assert.Single(fakes.Jobs.SignalCalls);
         Assert.Equal((byte)1, call.FormatId);
         Assert.Equal(json, Encoding.UTF8.GetString(call.Value!));
     }
@@ -68,38 +69,38 @@ public sealed class SignalEndpointTests
     [Fact]
     public async Task Oversized_json_body_is_413_and_never_reaches_jobs()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
+        var fakes = new FakeOperations();
         var (app, client) = await TestDashboardHost.StartAsync(
             options => options.EnableControls = true,
             configureBuilder: builder => builder.Services.Configure<JobsOptions>(options => options.MaxInlinePayloadBytes = 4),
-            jobs: jobs
+            fakes: fakes
         );
         await using var _ = app;
 
         var response = await client.SendAsync(Post(Found, "approval", "{\"x\":1}"), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.RequestEntityTooLarge, response.StatusCode);
-        Assert.Empty(jobs.SignalCalls);
+        Assert.Empty(fakes.Jobs.SignalCalls);
     }
 
     [Fact]
     public async Task Reserved_name_is_400_and_never_reaches_jobs()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(Post(Found, "sys.child.1"), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Empty(jobs.SignalCalls);
+        Assert.Empty(fakes.Jobs.SignalCalls);
     }
 
     [Fact]
     public async Task Unknown_job_is_404()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(Post(Missing, "go"), TestContext.Current.CancellationToken);
@@ -110,8 +111,8 @@ public sealed class SignalEndpointTests
     [Fact]
     public async Task Terminal_job_is_409()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(Post(Rejected, "go"), TestContext.Current.CancellationToken);
@@ -124,8 +125,8 @@ public sealed class SignalEndpointTests
     [Fact]
     public async Task Non_json_body_is_415_and_never_reaches_jobs()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartAsync(fakes);
         await using var _ = app;
 
         var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{Found}/signals/go")
@@ -136,14 +137,14 @@ public sealed class SignalEndpointTests
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.UnsupportedMediaType, response.StatusCode);
-        Assert.Empty(jobs.SignalCalls);
+        Assert.Empty(fakes.Jobs.SignalCalls);
     }
 
     [Fact]
     public async Task Undeclared_body_is_415_and_never_reaches_jobs()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartAsync(fakes);
         await using var _ = app;
 
         // A signal value in a stream that declares neither length nor type. Read as "no body" the
@@ -157,32 +158,32 @@ public sealed class SignalEndpointTests
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.UnsupportedMediaType, response.StatusCode);
-        Assert.Empty(jobs.SignalCalls);
+        Assert.Empty(fakes.Jobs.SignalCalls);
     }
 
     [Fact]
     public async Task Malformed_job_ref_is_400()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await StartAsync(jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await StartAsync(fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(Post("not-a-ref", "go"), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Empty(jobs.SignalCalls);
+        Assert.Empty(fakes.Jobs.SignalCalls);
     }
 
     [Fact]
     public async Task Signal_route_is_absent_when_controls_disabled()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(Post(Found, "go"), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        Assert.Empty(jobs.SignalCalls);
+        Assert.Empty(fakes.Jobs.SignalCalls);
     }
 }

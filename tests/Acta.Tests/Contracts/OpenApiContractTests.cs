@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Acta.AspNetCore;
+using Acta.Tests.AspNetCore.Fakes;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.TestHost;
@@ -366,9 +367,9 @@ public sealed partial class OpenApiContractTests
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
         builder.WebHost.UseTestServer();
-        var fake = new AspNetCore.TestDashboardHost.FakeJobs();
-        builder.Services.AddSingleton<IJobs>(fake);
-        builder.Services.AddSingleton<IActaOperations>(fake);
+        var fakes = new FakeOperations();
+        builder.Services.AddSingleton<IJobs>(fakes.Jobs);
+        builder.Services.AddSingleton<IActaOperations>(fakes);
         builder.Services.AddOpenApi(o =>
         // Every optional member of a request record carries a C# default, and the generator copies
         // each one into the schema. They document nothing a reader needs - the absent case is already

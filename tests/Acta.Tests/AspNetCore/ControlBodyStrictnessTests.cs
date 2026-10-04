@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using Acta.Tests.AspNetCore.Fakes;
 using Xunit;
 
 namespace Acta.Tests.AspNetCore;
@@ -11,7 +12,7 @@ namespace Acta.Tests.AspNetCore;
 /// </summary>
 public sealed class ControlBodyStrictnessTests
 {
-    private static readonly string Found = TestDashboardHost.FoundJobRef.ToString();
+    private static readonly string Found = FakeJobs.FoundJobRef.ToString();
 
     private static HttpRequestMessage Send(HttpMethod method, string path, string json)
     {
@@ -24,8 +25,8 @@ public sealed class ControlBodyStrictnessTests
     [Fact]
     public async Task A_misnamed_outbox_scope_is_refused_instead_of_discarding_every_row()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await TestDashboardHost.StartAsync(options => options.EnableControls = true, jobs: jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(options => options.EnableControls = true, fakes: fakes);
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
@@ -41,14 +42,14 @@ public sealed class ControlBodyStrictnessTests
         Assert.Equal(HttpStatusCode.BadRequest, snake.StatusCode);
         Assert.Contains("$.outbox_ids", await snake.Content.ReadAsStringAsync(ct));
         Assert.Equal(HttpStatusCode.BadRequest, pascal.StatusCode);
-        Assert.Empty(jobs.OutboxFake.ControlCalls);
+        Assert.Empty(fakes.Outbox.ControlCalls);
     }
 
     [Fact]
     public async Task A_reprioritize_without_a_priority_is_refused_instead_of_moving_the_job_to_bulk()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await TestDashboardHost.StartAsync(options => options.EnableControls = true, jobs: jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(options => options.EnableControls = true, fakes: fakes);
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
@@ -59,7 +60,7 @@ public sealed class ControlBodyStrictnessTests
         Assert.Equal(HttpStatusCode.BadRequest, empty.StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, pascal.StatusCode);
         Assert.Equal(HttpStatusCode.OK, exact.StatusCode);
-        Assert.Equal(JobPriorityCode.High, Assert.Single(jobs.ReprioritizeCalls).Item2);
+        Assert.Equal(JobPriorityCode.High, Assert.Single(fakes.Jobs.ReprioritizeCalls).Item2);
     }
 
     [Fact]

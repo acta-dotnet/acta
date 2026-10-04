@@ -1,4 +1,5 @@
 using System.Net;
+using Acta.Tests.AspNetCore.Fakes;
 using Xunit;
 
 namespace Acta.Tests.AspNetCore;
@@ -14,7 +15,7 @@ public sealed class JobDepthReadTests
     [Fact]
     public async Task Input_template_answers_with_controls_disabled()
     {
-        var (app, client) = await TestDashboardHost.StartAsync(jobs: new TestDashboardHost.FakeJobs());
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: new FakeOperations());
         await using var host = app;
 
         var response = await client.GetAsync(

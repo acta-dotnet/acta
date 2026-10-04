@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Acta.AspNetCore;
+using Acta.Tests.AspNetCore.Fakes;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Metadata;
@@ -30,12 +31,12 @@ public sealed class ControlContractTests
     private const string Prefix = "/acta/api/v1";
     private const string Confirm = "X-Acta-Control";
 
-    private static readonly string Found = TestDashboardHost.FoundJobRef.ToString();
-    private static readonly string Missing = TestDashboardHost.MissingJobRef.ToString();
-    private static readonly string Blocked = TestDashboardHost.RejectedJobRef.ToString();
-    private static readonly string KnownAlert = TestDashboardHost.FakeJobs.KnownAlertRef.ToString();
+    private static readonly string Found = FakeJobs.FoundJobRef.ToString();
+    private static readonly string Missing = FakeJobs.MissingJobRef.ToString();
+    private static readonly string Blocked = FakeJobs.RejectedJobRef.ToString();
+    private static readonly string KnownAlert = FakeAlerts.KnownAlertRef.ToString();
     private static readonly string UnknownAlert = default(AlertRef).ToString();
-    private static readonly string KnownWorker = TestDashboardHost.FakeJobs.KnownWorkerRef.ToString();
+    private static readonly string KnownWorker = FakeWorkers.KnownWorkerRef.ToString();
 
     /// <summary>The shared error model every route under the API group declares.</summary>
     private static readonly Type Problem = typeof(Microsoft.AspNetCore.Mvc.ProblemDetails);
@@ -66,7 +67,7 @@ public sealed class ControlContractTests
         string? Action,
         object? Body = null,
         int? Version = null,
-        Action<TestDashboardHost.FakeJobs>? Stage = null,
+        Action<FakeOperations>? Stage = null,
         string? MediaType = null
     );
 
@@ -208,7 +209,7 @@ public sealed class ControlContractTests
     // the row's current version so the caller retries without a re-read.
     private static IEnumerable<Case> JobVerbVersionConflict(string verb, Type declared, JsonObject body)
     {
-        body["expectedVersion"] = TestDashboardHost.CurrentJobVersion + 5;
+        body["expectedVersion"] = FakeJobs.CurrentJobVersion + 5;
         return
         [
             new(
@@ -221,7 +222,7 @@ public sealed class ControlContractTests
                 declared,
                 "versionConflict",
                 body,
-                TestDashboardHost.CurrentJobVersion
+                FakeJobs.CurrentJobVersion
             ),
         ];
     }
@@ -294,10 +295,10 @@ public sealed class ControlContractTests
         ];
     }
 
-    private static void WithStoredInput(TestDashboardHost.FakeJobs jobs) =>
-        jobs.StoredInput = JobPayload.FromBytes(JobPayloadFormat.Json, System.Text.Encoding.UTF8.GetBytes("{}"));
+    private static void WithStoredInput(FakeOperations fakes) =>
+        fakes.Jobs.StoredInput = JobPayload.FromBytes(JobPayloadFormat.Json, System.Text.Encoding.UTF8.GetBytes("{}"));
 
-    private static void WithoutStoredInput(TestDashboardHost.FakeJobs jobs) => jobs.StoredInput = null;
+    private static void WithoutStoredInput(FakeOperations fakes) => fakes.Jobs.StoredInput = null;
 
     private static Case Job(
         Type declared,
@@ -307,7 +308,7 @@ public sealed class ControlContractTests
         int status,
         string action,
         object? body = null,
-        Action<TestDashboardHost.FakeJobs>? stage = null
+        Action<FakeOperations>? stage = null
     ) => new("jobs", route, "POST", outcome, path, status, declared, action, body, Stage: stage);
 
     // Enqueue is control-gated but creates a job rather than transitioning one, so its two outcomes
@@ -603,17 +604,17 @@ public sealed class ControlContractTests
         ];
     }
 
-    private static void TagApplies(TestDashboardHost.FakeJobs jobs) => jobs.TagsFake.MutationAction = TagMutationAction.Applied;
+    private static void TagApplies(FakeOperations fakes) => fakes.Tags.MutationAction = TagMutationAction.Applied;
 
-    private static void TagTargetMissing(TestDashboardHost.FakeJobs jobs) => jobs.TagsFake.MutationAction = TagMutationAction.NotFound;
+    private static void TagTargetMissing(FakeOperations fakes) => fakes.Tags.MutationAction = TagMutationAction.NotFound;
 
     private static string Path(string route, string key) => route[..route.IndexOf('{', StringComparison.Ordinal)] + key;
 
     [Fact]
     public async Task Every_control_outcome_answers_with_its_declared_type()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await TestDashboardHost.StartAsync(options => options.EnableControls = true, jobs: jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(options => options.EnableControls = true, fakes: fakes);
         await using var _ = app;
         var declared = Declarations(app);
         var failures = new List<string>();
@@ -641,7 +642,7 @@ public sealed class ControlContractTests
 
         foreach (var row in Table)
         {
-            row.Stage?.Invoke(jobs);
+            row.Stage?.Invoke(fakes);
             using var request = Request(row);
             var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
             var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);

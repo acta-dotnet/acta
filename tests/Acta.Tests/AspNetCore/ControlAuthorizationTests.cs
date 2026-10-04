@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
 using Acta.AspNetCore;
+using Acta.Tests.AspNetCore.Fakes;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -18,7 +19,7 @@ namespace Acta.Tests.AspNetCore;
 public sealed class ControlAuthorizationTests
 {
     private const string Confirm = "X-Acta-Control";
-    private static readonly string Found = TestDashboardHost.FoundJobRef.ToString();
+    private static readonly string Found = FakeJobs.FoundJobRef.ToString();
 
     private sealed class FakeAuthorizer(Func<ActaControlRequest, ActaControlDecision> decide) : IActaControlAuthorizer
     {
@@ -42,12 +43,12 @@ public sealed class ControlAuthorizationTests
     [Fact]
     public async Task Denying_authorizer_blocks_the_control_and_never_reaches_jobs()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
+        var fakes = new FakeOperations();
         var authorizer = new FakeAuthorizer(_ => ActaControlDecision.Denied("not on your shift"));
         var (app, client) = await TestDashboardHost.StartAsync(
             options => options.EnableControls = true,
             configureBuilder: b => b.Services.AddSingleton<IActaControlAuthorizer>(authorizer),
-            jobs: jobs
+            fakes: fakes
         );
         await using var _ = app;
 
@@ -56,18 +57,18 @@ public sealed class ControlAuthorizationTests
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Contains("not on your shift", body);
-        Assert.Empty(jobs.ControlCalls);
+        Assert.Empty(fakes.Jobs.ControlCalls);
     }
 
     [Fact]
     public async Task Allowing_authorizer_lets_the_control_proceed_and_observes_verb_and_actor()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
+        var fakes = new FakeOperations();
         var authorizer = new FakeAuthorizer(_ => ActaControlDecision.Allowed);
         var (app, client) = await TestDashboardHost.StartAsync(
             options => options.EnableControls = true,
             configureBuilder: b => b.Services.AddSingleton<IActaControlAuthorizer>(authorizer),
-            jobs: jobs,
+            fakes: fakes,
             configureApp: a =>
                 a.Use(
                     (ctx, next) =>
@@ -82,7 +83,7 @@ public sealed class ControlAuthorizationTests
         var response = await client.SendAsync(Post($"/acta/api/v1/jobs/{Found}/cancel"), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Single(jobs.ControlCalls);
+        Assert.Single(fakes.Jobs.ControlCalls);
         var request = Assert.Single(authorizer.Requests);
         Assert.Equal("cancel", request.Verb);
         Assert.Equal("test-operator", request.ActorKey);
@@ -91,25 +92,25 @@ public sealed class ControlAuthorizationTests
     [Fact]
     public async Task No_authorizer_registered_behaves_exactly_as_before()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await TestDashboardHost.StartAsync(options => options.EnableControls = true, jobs: jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(options => options.EnableControls = true, fakes: fakes);
         await using var _ = app;
 
         var response = await client.SendAsync(Post($"/acta/api/v1/jobs/{Found}/cancel"), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Single(jobs.ControlCalls);
+        Assert.Single(fakes.Jobs.ControlCalls);
     }
 
     [Fact]
     public async Task Read_endpoints_are_never_blocked_by_a_denying_authorizer()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
+        var fakes = new FakeOperations();
         var authorizer = new FakeAuthorizer(_ => ActaControlDecision.Denied("no reads for you either"));
         var (app, client) = await TestDashboardHost.StartAsync(
             options => options.EnableControls = true,
             configureBuilder: b => b.Services.AddSingleton<IActaControlAuthorizer>(authorizer),
-            jobs: jobs
+            fakes: fakes
         );
         await using var _ = app;
 
@@ -128,16 +129,16 @@ public sealed class ControlAuthorizationTests
     [Fact]
     public async Task Reads_are_never_blocked_by_a_denying_authorizer()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
+        var fakes = new FakeOperations();
         var authorizer = new FakeAuthorizer(_ => ActaControlDecision.Denied("no reads for you either"));
         var (app, client) = await TestDashboardHost.StartAsync(
             options => options.EnableControls = true,
             configureBuilder: b => b.Services.AddSingleton<IActaControlAuthorizer>(authorizer),
-            jobs: jobs
+            fakes: fakes
         );
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
-        var missing = TestDashboardHost.MissingJobRef.ToString();
+        var missing = FakeJobs.MissingJobRef.ToString();
 
         // Found detail -> 200; a missing job -> 404; input-template -> 200. None hit the authorizer.
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync($"/acta/api/v1/jobs/{Found}/detail", ct)).StatusCode);
@@ -153,12 +154,12 @@ public sealed class ControlAuthorizationTests
     [Fact]
     public async Task Enqueue_and_amend_are_blocked_by_a_denying_authorizer()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
+        var fakes = new FakeOperations();
         var authorizer = new FakeAuthorizer(_ => ActaControlDecision.Denied("not on your shift"));
         var (app, client) = await TestDashboardHost.StartAsync(
             options => options.EnableControls = true,
             configureBuilder: b => b.Services.AddSingleton<IActaControlAuthorizer>(authorizer),
-            jobs: jobs
+            fakes: fakes
         );
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
@@ -169,8 +170,8 @@ public sealed class ControlAuthorizationTests
 
         Assert.Equal(HttpStatusCode.Forbidden, (await client.SendAsync(enqueue, ct)).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await client.SendAsync(Post($"/acta/api/v1/jobs/{Found}/input"), ct)).StatusCode);
-        Assert.Empty(jobs.EnqueueRequests);
-        Assert.Empty(jobs.InputAmendCalls);
+        Assert.Empty(fakes.Jobs.EnqueueRequests);
+        Assert.Empty(fakes.Jobs.InputAmendCalls);
     }
 
     [Fact]
@@ -196,14 +197,14 @@ public sealed class ControlAuthorizationTests
     [Fact]
     public async Task Outbox_control_routes_derive_outbox_verbs_and_honor_a_denial()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
+        var fakes = new FakeOperations();
         var authorizer = new FakeAuthorizer(request =>
             request.Verb == "outbox.discard" ? ActaControlDecision.Denied("not on your shift") : ActaControlDecision.Allowed
         );
         var (app, client) = await TestDashboardHost.StartAsync(
             options => options.EnableControls = true,
             configureBuilder: b => b.Services.AddSingleton<IActaControlAuthorizer>(authorizer),
-            jobs: jobs
+            fakes: fakes
         );
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
@@ -214,7 +215,7 @@ public sealed class ControlAuthorizationTests
         Assert.NotEqual(HttpStatusCode.Forbidden, requeue.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, discard.StatusCode);
         Assert.Equal(["outbox.requeue", "outbox.discard"], authorizer.Requests.Select(r => r.Verb));
-        Assert.Equal("requeue", Assert.Single(jobs.OutboxFake.ControlCalls).Verb);
+        Assert.Equal("requeue", Assert.Single(fakes.Outbox.ControlCalls).Verb);
     }
 
     // A worker-tag control route keeps its `workers` entity even though the mount prefix contains `jobs`.

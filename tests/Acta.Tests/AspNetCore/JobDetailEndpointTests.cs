@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using Acta.Tests.AspNetCore.Fakes;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -14,34 +15,37 @@ namespace Acta.Tests.AspNetCore;
 /// </summary>
 public sealed class JobDetailEndpointTests
 {
-    private static readonly string Found = TestDashboardHost.FoundJobRef.ToString();
-    private static readonly string Missing = TestDashboardHost.MissingJobRef.ToString();
+    private static readonly string Found = FakeJobs.FoundJobRef.ToString();
+    private static readonly string Missing = FakeJobs.MissingJobRef.ToString();
 
-    private static TestDashboardHost.FakeJobs FullyLoadedJob()
+    private static FakeOperations FullyLoadedJob()
     {
-        return new TestDashboardHost.FakeJobs
+        return new FakeOperations
         {
-            StoredInput = JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes("{\"invoiceId\":7}")),
-            StoredResult = JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes("{\"ok\":true}")),
-            StoredCheckpoints =
-            [
-                new JobCheckpointItem(
-                    JobCheckpointKindCode.Variable,
-                    "counter",
-                    null,
-                    null,
-                    JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes("3")),
-                    new DateTime(2026, 6, 12, 6, 0, 0, DateTimeKind.Utc),
-                    new DateTime(2026, 6, 12, 6, 0, 0, DateTimeKind.Utc)
-                ),
-            ],
+            Jobs =
+            {
+                StoredInput = JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes("{\"invoiceId\":7}")),
+                StoredResult = JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes("{\"ok\":true}")),
+                StoredCheckpoints =
+                [
+                    new JobCheckpointItem(
+                        JobCheckpointKindCode.Variable,
+                        "counter",
+                        null,
+                        null,
+                        JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes("3")),
+                        new DateTime(2026, 6, 12, 6, 0, 0, DateTimeKind.Utc),
+                        new DateTime(2026, 6, 12, 6, 0, 0, DateTimeKind.Utc)
+                    ),
+                ],
+            },
         };
     }
 
     [Fact]
     public async Task Detail_composes_the_whole_job_screen_in_one_response()
     {
-        var (app, client) = await TestDashboardHost.StartAsync(jobs: FullyLoadedJob());
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: FullyLoadedJob());
         await using var host = app;
         var ct = TestContext.Current.CancellationToken;
 
@@ -66,7 +70,7 @@ public sealed class JobDetailEndpointTests
         // Explain, lineage.
         Assert.Contains("headline", root.GetProperty("explain").ToString());
         Assert.Equal(
-            TestDashboardHost.ChildJobRef.ToString(),
+            FakeJobs.ChildJobRef.ToString(),
             root.GetProperty("lineage").GetProperty("children")[0].GetProperty("jobRef").GetString()
         );
 
@@ -82,7 +86,7 @@ public sealed class JobDetailEndpointTests
     public async Task Detail_resolves_the_snapshot_tenant_id_to_its_key()
     {
         // The snapshot itself carries the key ("cust-001" for id 1); the aggregate echoes it top-level.
-        var (app, client) = await TestDashboardHost.StartAsync(jobs: new TestDashboardHost.FakeJobs { SnapshotTenantId = 1 });
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: new FakeOperations { Jobs = { SnapshotTenantId = 1 } });
         await using var host = app;
         var ct = TestContext.Current.CancellationToken;
 
@@ -96,7 +100,7 @@ public sealed class JobDetailEndpointTests
     [Fact]
     public async Task Detail_for_a_tenant_less_job_emits_no_tenant_key()
     {
-        var (app, client) = await TestDashboardHost.StartAsync(jobs: new TestDashboardHost.FakeJobs());
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: new FakeOperations());
         await using var host = app;
         var ct = TestContext.Current.CancellationToken;
 
@@ -111,7 +115,7 @@ public sealed class JobDetailEndpointTests
     public async Task Detail_for_an_unresolvable_tenant_id_emits_no_tenant_key()
     {
         // A tenant id whose row is gone projects a null key, never an error, so the field is absent.
-        var (app, client) = await TestDashboardHost.StartAsync(jobs: new TestDashboardHost.FakeJobs { SnapshotTenantId = 999 });
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: new FakeOperations { Jobs = { SnapshotTenantId = 999 } });
         await using var host = app;
         var ct = TestContext.Current.CancellationToken;
 
@@ -126,9 +130,9 @@ public sealed class JobDetailEndpointTests
     public async Task Detail_with_an_unavailable_tenants_surface_still_carries_the_tenant_key()
     {
         // The key rides the snapshot projection, so a throwing tenants surface no longer affects it.
-        var (app, client) = await TestDashboardHost.StartAsync(
-            jobs: new TestDashboardHost.FakeJobs { SnapshotTenantId = 1, TenantsListThrows = true }
-        );
+        var fakes = new FakeOperations { Jobs = { SnapshotTenantId = 1 } };
+        fakes.Tenants.List = (_, _) => throw new InvalidOperationException("Tenants surface unavailable.");
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
         await using var host = app;
         var ct = TestContext.Current.CancellationToken;
 
@@ -158,7 +162,7 @@ public sealed class JobDetailEndpointTests
     {
         // The detail read is on the always-on read surface: no EnableControls, and outside the
         // authorizer scope. A job with no result/checkpoints reports null/empty, not an error.
-        var (app, client) = await TestDashboardHost.StartAsync(jobs: new TestDashboardHost.FakeJobs());
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: new FakeOperations());
         await using var host = app;
         var ct = TestContext.Current.CancellationToken;
 
@@ -176,13 +180,13 @@ public sealed class JobDetailEndpointTests
     [Fact]
     public async Task Detail_withholds_an_oversized_payload_body_and_reports_its_size()
     {
-        var jobs = new TestDashboardHost.FakeJobs
+        var fakes = new FakeOperations
         {
-            StoredInput = JobPayload.FromBytes(JobPayloadFormat.Text, Encoding.UTF8.GetBytes(new string('x', 100))),
+            Jobs = { StoredInput = JobPayload.FromBytes(JobPayloadFormat.Text, Encoding.UTF8.GetBytes(new string('x', 100))) },
         };
         var (app, client) = await TestDashboardHost.StartAsync(
             configureBuilder: builder => builder.Services.Configure<JobsOptions>(o => o.MaxInlinePayloadBytes = 64),
-            jobs: jobs
+            fakes: fakes
         );
         await using var host = app;
         var ct = TestContext.Current.CancellationToken;
@@ -202,13 +206,13 @@ public sealed class JobDetailEndpointTests
     [Fact]
     public async Task At_cap_payload_ships_the_body_without_a_truncated_flag()
     {
-        var jobs = new TestDashboardHost.FakeJobs
+        var fakes = new FakeOperations
         {
-            StoredInput = JobPayload.FromBytes(JobPayloadFormat.Text, Encoding.UTF8.GetBytes(new string('x', 64))),
+            Jobs = { StoredInput = JobPayload.FromBytes(JobPayloadFormat.Text, Encoding.UTF8.GetBytes(new string('x', 64))) },
         };
         var (app, client) = await TestDashboardHost.StartAsync(
             configureBuilder: builder => builder.Services.Configure<JobsOptions>(o => o.MaxInlinePayloadBytes = 64),
-            jobs: jobs
+            fakes: fakes
         );
         await using var host = app;
         var ct = TestContext.Current.CancellationToken;

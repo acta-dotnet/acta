@@ -1,4 +1,5 @@
 using System.Net;
+using Acta.Tests.AspNetCore.Fakes;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -139,20 +140,20 @@ public sealed class LocalOnlyTests
     [Fact]
     public async Task Remote_control_posts_are_rejected_and_never_reach_jobs()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
+        var fakes = new FakeOperations();
         var (app, client) = await TestDashboardHost.StartAsync(
             configureDashboard: options => options.EnableControls = true,
-            jobs: jobs,
+            fakes: fakes,
             configureApp: RemoteAddress("203.0.113.10")
         );
         await using var _ = app;
 
-        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{TestDashboardHost.FoundJobRef}/pause");
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{FakeJobs.FoundJobRef}/pause");
         request.Headers.Add("X-Acta-Control", "true");
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-        Assert.Empty(jobs.ControlCalls);
+        Assert.Empty(fakes.Jobs.ControlCalls);
     }
 
     [Fact]
@@ -161,9 +162,9 @@ public sealed class LocalOnlyTests
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
         builder.WebHost.UseTestServer();
-        var fake = new TestDashboardHost.FakeJobs();
-        builder.Services.AddSingleton<IJobs>(fake);
-        builder.Services.AddSingleton<IActaOperations>(fake);
+        var fakes = new FakeOperations();
+        builder.Services.AddSingleton<IJobs>(fakes.Jobs);
+        builder.Services.AddSingleton<IActaOperations>(fakes);
 
         var app = builder.Build();
         RemoteAddress("203.0.113.10")(app);

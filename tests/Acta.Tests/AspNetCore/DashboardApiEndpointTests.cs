@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.Net;
+using Acta.Tests.AspNetCore.Fakes;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
@@ -14,8 +16,8 @@ namespace Acta.Tests.AspNetCore;
 /// </summary>
 public sealed class DashboardApiEndpointTests
 {
-    private static readonly string Found = TestDashboardHost.FoundJobRef.ToString();
-    private static readonly string Missing = TestDashboardHost.MissingJobRef.ToString();
+    private static readonly string Found = FakeJobs.FoundJobRef.ToString();
+    private static readonly string Missing = FakeJobs.MissingJobRef.ToString();
 
     [Fact]
     public async Task Jobs_endpoint_returns_page_with_no_store_and_no_payload_fields()
@@ -50,14 +52,12 @@ public sealed class DashboardApiEndpointTests
     [Fact]
     public async Task Unhandled_api_exceptions_map_to_generic_500_without_leaking_message()
     {
-        var jobs = new TestDashboardHost.FakeJobs
-        {
-            ListJobsException = new InvalidOperationException("Server=prod-db;Password=secret;connect failed"),
-        };
+        var fakes = new FakeOperations();
+        fakes.Ledger.ListJobs = (_, _) => throw new InvalidOperationException("Server=prod-db;Password=secret;connect failed");
         var (app, client) = await TestDashboardHost.StartAsync(
             configureBuilder: builder =>
                 builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.TypeInfoResolverChain.Clear()),
-            jobs: jobs
+            fakes: fakes
         );
         await using var _ = app;
 
@@ -73,11 +73,9 @@ public sealed class DashboardApiEndpointTests
     [Fact]
     public async Task Database_failures_map_to_503_with_sanitized_unreachable_reason()
     {
-        var jobs = new TestDashboardHost.FakeJobs
-        {
-            ListJobsException = new TimeoutException("Server=prod-db;Password=secret;connect failed"),
-        };
-        var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs);
+        var fakes = new FakeOperations();
+        fakes.Ledger.ListJobs = (_, _) => throw new TimeoutException("Server=prod-db;Password=secret;connect failed");
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
         await using var _ = app;
 
         var response = await client.GetAsync("/acta/api/v1/jobs", TestContext.Current.CancellationToken);
@@ -107,26 +105,26 @@ public sealed class DashboardApiEndpointTests
     [Fact]
     public async Task Events_endpoint_binds_event_code_and_the_ref_filters()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
         await using var _ = app;
 
         var ok = await client.GetAsync(
             "/acta/api/v1/events?eventCode=namespace.updated"
-                + $"&jobRef={TestDashboardHost.FoundJobRef}"
-                + $"&workerRef={TestDashboardHost.FakeJobs.KnownWorkerRef}"
+                + $"&jobRef={FakeJobs.FoundJobRef}"
+                + $"&workerRef={FakeWorkers.KnownWorkerRef}"
                 + "&tenantKey=acme",
             TestContext.Current.CancellationToken
         );
 
         Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
-        Assert.NotNull(jobs.LastEventsQuery);
-        Assert.Equal(Acta.EventCode.NamespaceUpdated, jobs.LastEventsQuery!.EventCode);
+        Assert.NotNull(fakes.Ledger.LastEventsQuery);
+        Assert.Equal(Acta.EventCode.NamespaceUpdated, fakes.Ledger.LastEventsQuery!.EventCode);
         // Each ref is edge-resolved to the internal id the ledger indexes on.
-        Assert.Equal(42L, jobs.LastEventsQuery.JobId);
-        Assert.Equal(42, jobs.LastEventsQuery.WorkerId);
-        Assert.Equal("acme", jobs.LastEventsQuery.TenantKey);
-        Assert.Null(jobs.LastEventsQuery.TenantId);
+        Assert.Equal(42L, fakes.Ledger.LastEventsQuery.JobId);
+        Assert.Equal(42, fakes.Ledger.LastEventsQuery.WorkerId);
+        Assert.Equal("acme", fakes.Ledger.LastEventsQuery.TenantKey);
+        Assert.Null(fakes.Ledger.LastEventsQuery.TenantId);
 
         // A divergent wire code (member JobDefinitionOverridesUpdated) binds via its [Code] string, not the member name.
         var divergent = await client.GetAsync(
@@ -134,7 +132,7 @@ public sealed class DashboardApiEndpointTests
             TestContext.Current.CancellationToken
         );
         Assert.Equal(HttpStatusCode.OK, divergent.StatusCode);
-        Assert.Equal(Acta.EventCode.JobDefinitionOverridesUpdated, jobs.LastEventsQuery!.EventCode);
+        Assert.Equal(Acta.EventCode.JobDefinitionOverridesUpdated, fakes.Ledger.LastEventsQuery!.EventCode);
 
         var badCode = await client.GetAsync("/acta/api/v1/events?eventCode=nope", TestContext.Current.CancellationToken);
         var badJobRef = await client.GetAsync("/acta/api/v1/events?jobRef=abc", TestContext.Current.CancellationToken);
@@ -154,27 +152,27 @@ public sealed class DashboardApiEndpointTests
     [InlineData("lineageRootJobRef")]
     public async Task Events_endpoint_maps_a_job_ref_that_names_no_row_to_404(string parameter)
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
         await using var _ = app;
 
         var response = await client.GetAsync($"/acta/api/v1/events?{parameter}={JobRef.New()}", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        Assert.Null(jobs.LastEventsQuery);
+        Assert.Null(fakes.Ledger.LastEventsQuery);
     }
 
     [Fact]
     public async Task Events_endpoint_maps_a_worker_ref_that_names_no_row_to_404()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
         await using var _ = app;
 
         var response = await client.GetAsync($"/acta/api/v1/events?workerRef={WorkerRef.New()}", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        Assert.Null(jobs.LastEventsQuery);
+        Assert.Null(fakes.Ledger.LastEventsQuery);
     }
 
     /// <summary>The three ref filters answer exactly like their siblings on both inputs.</summary>
@@ -204,13 +202,13 @@ public sealed class DashboardApiEndpointTests
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var known = await client.GetAsync($"/acta/api/v1/alerts/{TestDashboardHost.FakeJobs.KnownAlertRef}", ct);
+        var known = await client.GetAsync($"/acta/api/v1/alerts/{FakeAlerts.KnownAlertRef}", ct);
         var body = await known.Content.ReadAsStringAsync(ct);
         var unknown = await client.GetAsync($"/acta/api/v1/alerts/{AlertRef.New()}", ct);
         var malformed = await client.GetAsync("/acta/api/v1/alerts/9001", ct);
 
         Assert.Equal(HttpStatusCode.OK, known.StatusCode);
-        Assert.Contains($"\"alertRef\":\"{TestDashboardHost.FakeJobs.KnownAlertRef}\"", body);
+        Assert.Contains($"\"alertRef\":\"{FakeAlerts.KnownAlertRef}\"", body);
         Assert.Contains("\"severity\":\"critical\"", body);
         Assert.Contains($"\"jobRef\":\"{Found}\"", body);
         // The numeric alert id and its subject job id are engine internals, not wire identity.
@@ -249,8 +247,8 @@ public sealed class DashboardApiEndpointTests
     [Fact]
     public async Task Definition_events_read_answers_404_for_a_definition_that_does_not_exist()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
@@ -260,11 +258,11 @@ public sealed class DashboardApiEndpointTests
         );
         Assert.Equal(HttpStatusCode.OK, known.StatusCode);
         // The read ran scoped to the resolved catalog id, which never reaches the wire.
-        Assert.Equal(5, jobs.LastEventsQuery!.DefinitionId);
+        Assert.Equal(5, fakes.Ledger.LastEventsQuery!.DefinitionId);
         // definition_id alone would also match every execution event for the definition's jobs
         // (deliberate, per ListJobEventsFilterMatrixSpec); the dashboard's Change history panel
         // narrows to the one definition-change event code so it doesn't flood with job noise.
-        Assert.Equal(Acta.EventCode.JobDefinitionOverridesUpdated, jobs.LastEventsQuery.EventCode);
+        Assert.Equal(Acta.EventCode.JobDefinitionOverridesUpdated, fakes.Ledger.LastEventsQuery.EventCode);
 
         var unknown = await client.GetAsync("/acta/api/v1/definitions/billing/no-such-job/events", ct);
         var detail = await client.GetAsync("/acta/api/v1/definitions/billing/no-such-job", ct);
@@ -367,7 +365,7 @@ public sealed class DashboardApiEndpointTests
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var knownRef = TestDashboardHost.FakeJobs.KnownWorkerRef;
+        var knownRef = FakeWorkers.KnownWorkerRef;
         var known = await client.GetAsync($"/acta/api/v1/workers/{knownRef}", ct);
         var missing = await client.GetAsync($"/acta/api/v1/workers/{WorkerRef.New()}", ct);
         var malformed = await client.GetAsync("/acta/api/v1/workers/not-a-ref", ct);
@@ -434,7 +432,7 @@ public sealed class DashboardApiEndpointTests
             TestContext.Current.CancellationToken
         );
 
-        Assert.Contains($"\"outboxId\":\"{TestDashboardHost.FakeJobs.FakeOutbox.QuarantinedId}\"", body);
+        Assert.Contains($"\"outboxId\":\"{FakeOutbox.QuarantinedId}\"", body);
         Assert.Contains("\"lastError\":\"route rejected: unknown job\"", body);
         Assert.Contains("\"totalCount\":1", body);
     }
@@ -466,8 +464,9 @@ public sealed class DashboardApiEndpointTests
     {
         // Only the typed validation exceptions map to 400. A plain ArgumentException thrown by a
         // server-side bug must reach the sanitized 500 handler and must not echo its message.
-        var jobs = new TestDashboardHost.FakeJobs { ListJobsException = new ArgumentException("secret internal detail") };
-        var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs);
+        var fakes = new FakeOperations();
+        fakes.Ledger.ListJobs = (_, _) => throw new ArgumentException("secret internal detail");
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
         await using var _ = app;
 
         var response = await client.GetAsync("/acta/api/v1/jobs", TestContext.Current.CancellationToken);
@@ -481,15 +480,24 @@ public sealed class DashboardApiEndpointTests
     public async Task Client_abort_produces_no_error_log_and_no_response()
     {
         var provider = new RecordingLoggerProvider();
-        var jobs = new TestDashboardHost.FakeJobs { ListJobsAwaitCancellation = true };
-        var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs, configureBuilder: b => b.Logging.AddProvider(provider));
+        var readStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var fakes = new FakeOperations();
+        // The read holds until the request's token cancels, so the abort surfaces as a real
+        // OperationCanceledException carrying RequestAborted, as a client disconnecting mid-read does.
+        fakes.Ledger.ListJobs = async (_, ct) =>
+        {
+            readStarted.TrySetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+            throw new UnreachableException();
+        };
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes, configureBuilder: b => b.Logging.AddProvider(provider));
         await using var _ = app;
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         var requestTask = client.GetAsync("/acta/api/v1/jobs", cts.Token);
         // The abort has to land while the read is in flight, so wait for the read to say it is rather
         // than sleeping a guess at how long the request takes to reach the handler.
-        await jobs.ListJobsStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+        await readStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
         cts.Cancel();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => requestTask);
@@ -501,10 +509,17 @@ public sealed class DashboardApiEndpointTests
     public async Task Aborted_overview_is_absorbed_at_the_api_boundary_without_an_error_log()
     {
         var provider = new RecordingLoggerProvider();
-        var jobs = new TestDashboardHost.FakeJobs { OverviewAwaitCancellation = true };
+        var readStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var fakes = new FakeOperations();
+        fakes.Ledger.GetOverview = async (_, ct) =>
+        {
+            readStarted.TrySetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+            throw new UnreachableException();
+        };
         using var requestAborted = new CancellationTokenSource();
         var (app, client) = await TestDashboardHost.StartAsync(
-            jobs: jobs,
+            fakes: fakes,
             configureBuilder: b => b.Logging.AddProvider(provider),
             configureApp: app =>
                 app.Use(
@@ -518,7 +533,7 @@ public sealed class DashboardApiEndpointTests
         await using var _ = app;
 
         var request = client.GetAsync("/acta/api/v1/overview", TestContext.Current.CancellationToken);
-        await jobs.OverviewStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+        await readStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
         requestAborted.Cancel();
         var response = await request;
 
@@ -530,8 +545,9 @@ public sealed class DashboardApiEndpointTests
     public async Task Cancellation_unrelated_to_request_abort_remains_a_service_error()
     {
         var provider = new RecordingLoggerProvider();
-        var jobs = new TestDashboardHost.FakeJobs { ListJobsException = new TaskCanceledException("provider timeout") };
-        var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs, configureBuilder: b => b.Logging.AddProvider(provider));
+        var fakes = new FakeOperations();
+        fakes.Ledger.ListJobs = (_, _) => throw new TaskCanceledException("provider timeout");
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes, configureBuilder: b => b.Logging.AddProvider(provider));
         await using var _ = app;
 
         var response = await client.GetAsync("/acta/api/v1/jobs", TestContext.Current.CancellationToken);
@@ -669,33 +685,33 @@ public sealed class DashboardApiEndpointTests
     [Fact]
     public async Task Jobs_accepts_a_tenantKey_filter_and_ignores_the_retired_tenantId()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
         var ok = await client.GetAsync("/acta/api/v1/jobs?tenantKey=acme", ct);
         Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
-        Assert.Equal("acme", jobs.LastJobsQuery!.TenantKey);
+        Assert.Equal("acme", fakes.Ledger.LastJobsQuery!.TenantKey);
 
         // tenantId left the wire: it is no longer bound, so it neither filters nor 400s.
         var retired = await client.GetAsync("/acta/api/v1/jobs?tenantId=abc", ct);
         Assert.Equal(HttpStatusCode.OK, retired.StatusCode);
-        Assert.Null(jobs.LastJobsQuery!.TenantId);
+        Assert.Null(fakes.Ledger.LastJobsQuery!.TenantId);
     }
 
     [Fact]
     public async Task Jobs_accepts_a_lane_filter()
     {
-        var jobs = new TestDashboardHost.FakeJobs();
-        var (app, client) = await TestDashboardHost.StartAsync(jobs: jobs);
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
         var ok = await client.GetAsync("/acta/api/v1/jobs?lane=customer-42", ct);
 
         Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
-        Assert.Equal("customer-42", jobs.LastJobsQuery!.Lane);
+        Assert.Equal("customer-42", fakes.Ledger.LastJobsQuery!.Lane);
     }
 
     [Fact]
@@ -765,9 +781,9 @@ public sealed class DashboardApiEndpointTests
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
         builder.WebHost.UseTestServer();
-        var fake = new TestDashboardHost.FakeJobs();
-        builder.Services.AddSingleton<IJobs>(fake);
-        builder.Services.AddSingleton<IActaOperations>(fake);
+        var fakes = new FakeOperations();
+        builder.Services.AddSingleton<IJobs>(fakes.Jobs);
+        builder.Services.AddSingleton<IActaOperations>(fakes);
         var app = builder.Build();
         app.MapActaApi("/ops/api");
         await app.StartAsync(TestContext.Current.CancellationToken);
