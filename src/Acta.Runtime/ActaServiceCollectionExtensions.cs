@@ -71,7 +71,6 @@ public static class ActaServiceCollectionExtensions
         // The operator facade and its module-owned domain facades. Application code injects IJobs
         // alone; dashboards, CLIs, and operator hosts inject IActaOperations. Each domain facade is
         // registered here (the composition root may see every module) but owned by its module.
-        services.TryAddSingleton<IOutbox, OutboxApi>();
         services.TryAddSingleton<IActaOperations, OperationsApi>();
 
         // Operation groups that have moved to handlers: each group's handlers, then its facade.
@@ -150,6 +149,16 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ListJobSchedulesHandler>();
         services.TryAddSingleton<PreviewScheduleHandler>();
         services.TryAddSingleton<ISchedules, Schedules>();
+        services.TryAddSingleton<ParkOutboxSignalHandler>();
+        services.TryAddSingleton<GetOutboxSignalHandler>();
+        services.TryAddSingleton<ConsumeOutboxSignalHandler>();
+        services.TryAddSingleton<RecordOutboxEventHandler>();
+        services.TryAddSingleton<OutboxInbox>();
+        services.TryAddSingleton<ListOutboxSourcesHandler>();
+        services.TryAddSingleton<ListOutboxQuarantinedHandler>();
+        services.TryAddSingleton<RequeueOutboxHandler>();
+        services.TryAddSingleton<DiscardOutboxHandler>();
+        services.TryAddSingleton<IOutbox, Outbox>();
 
         // Consumers light up the meter with WithMetrics(m => m.AddMeter(JobMetrics.MeterName)).
         services.TryAddSingleton<JobMetrics>();
@@ -231,7 +240,7 @@ public static class ActaServiceCollectionExtensions
         }
 
         // Per-namespace outbox relay resolution: sys.outbox, executing under a namespace, resolves ITS
-        // registration + a source store/service bound to it (schema/table/factory/threshold) from the
+        // registration + a source and relay service bound to it (schema/table/factory/threshold) from the
         // declared workers. Registered only when a relay exists, so a non-relay process stays untouched.
         if (builder.Workers.Any(w => w.Relay is not null))
         {

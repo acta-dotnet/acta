@@ -3606,12 +3606,22 @@
               }
             }
           },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "202": {
             "description": "Accepted",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OutboxControlResult"
+                  "$ref": "#/components/schemas/RequeueOutboxResponse"
                 }
               }
             }
@@ -3621,7 +3631,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OutboxControlResult"
+                  "$ref": "#/components/schemas/RequeueOutboxResponse"
                 }
               }
             }
@@ -3631,17 +3641,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OutboxControlResult"
-                }
-              }
-            }
-          },
-          "415": {
-            "description": "Unsupported Media Type",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/RequeueOutboxResponse"
                 }
               }
             }
@@ -3725,12 +3725,22 @@
               }
             }
           },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "202": {
             "description": "Accepted",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OutboxControlResult"
+                  "$ref": "#/components/schemas/DiscardOutboxResponse"
                 }
               }
             }
@@ -3740,7 +3750,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OutboxControlResult"
+                  "$ref": "#/components/schemas/DiscardOutboxResponse"
                 }
               }
             }
@@ -3750,17 +3760,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OutboxControlResult"
-                }
-              }
-            }
-          },
-          "415": {
-            "description": "Unsupported Media Type",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/DiscardOutboxResponse"
                 }
               }
             }
@@ -6433,7 +6433,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PagedResultOfOutboxQuarantinedItem"
+                  "$ref": "#/components/schemas/PagedResultOfOutboxQuarantinedListItem"
                 }
               }
             }
@@ -8357,6 +8357,26 @@
       },
       "DeadlineBehaviorCode": {
         "description": "How the engine treats a job that has passed its deadline."
+      },
+      "DiscardOutboxResponse": {
+        "required": [
+          "action",
+          "pendingSinceUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ControlAction"
+          },
+          "pendingSinceUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        },
+        "description": "What parking a discard of a source's quarantined rows did."
       },
       "EventCode": {
         "description": "Stable family-local event identifiers. Nearby values improve catalog readability but carry no\nruntime subject, subgroup, or outcome semantics. Match events by enum member or textual code."
@@ -10446,29 +10466,7 @@
           }
         }
       },
-      "OutboxControlResult": {
-        "required": [
-          "action",
-          "pendingSinceUtc"
-        ],
-        "type": "object",
-        "properties": {
-          "action": {
-            "description": "Accepted (parked), Rejected (an unapplied command is pending), or NotFound (no relay slot).",
-            "$ref": "#/components/schemas/ControlAction"
-          },
-          "pendingSinceUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "When the blocking pending command was parked; null except on Rejected.",
-            "format": "date-time"
-          }
-        },
-        "description": "Outcome of an IOutbox control verb (Requeue / Discard). These verbs park a durable\ncommand that the next relay pass applies, so success is ControlAction.Accepted\n(parked, with application owed to that pass); once applied, the evidence lands as an audit event\non the namespace's `sys.outbox` slot job."
-      },
-      "OutboxQuarantinedItem": {
+      "OutboxQuarantinedListItem": {
         "required": [
           "outboxId",
           "jobNamespace",
@@ -10484,34 +10482,28 @@
         "properties": {
           "outboxId": {
             "type": "string",
-            "description": "The staging row's producer-minted id; the target of a scoped requeue/discard.",
             "format": "uuid"
           },
           "jobNamespace": {
-            "type": "string",
-            "description": "The route's target namespace carried on the row."
+            "type": "string"
           },
           "jobName": {
-            "type": "string",
-            "description": "The route's target job name carried on the row."
+            "type": "string"
           },
           "deduplicationKey": {
-            "type": "string",
-            "description": "The row's ledger deduplication key."
+            "type": "string"
           },
           "correlationKey": {
             "type": [
               "null",
               "string"
-            ],
-            "description": "The producer's correlation key; null when none was set."
+            ]
           },
           "tenantKey": {
             "type": [
               "null",
               "string"
-            ],
-            "description": "The row's tenant key; null for a tenant-less row."
+            ]
           },
           "failureCount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -10519,23 +10511,20 @@
               "integer",
               "string"
             ],
-            "description": "Delivery attempts consumed before quarantine.",
             "format": "int32"
           },
           "lastError": {
             "type": [
               "null",
               "string"
-            ],
-            "description": "The bounded last delivery error, kept as evidence."
+            ]
           },
           "createdAtUtc": {
             "type": "string",
-            "description": "When the producer staged the row.",
             "format": "date-time"
           }
         },
-        "description": "One Quarantined staging row as the operator listing reports it: identity and routing fields plus\nthe failure evidence. The payload never leaves the producer's database."
+        "description": "One Quarantined staging row as the operator listing reports it: identity and routing fields (a null\ncorrelation or tenant key was never set), when the producer staged it, and the failure evidence\n(`FailureCount` delivery attempts consumed before quarantine, and the bounded `LastError`).\n`OutboxId` is the producer-minted id a scoped requeue or discard targets. The payload never leaves\nthe producer's database."
       },
       "OutboxSourceListItem": {
         "required": [
@@ -10585,7 +10574,7 @@
           },
           "isLocal": {
             "type": "boolean",
-            "description": "Whether this process registered the source, so ValueTask&lt;PagedResult&lt;OutboxQuarantinedItem&gt;&gt; IOutbox.ListQuarantinedAsync(ListOutboxQuarantinedQuery query, CancellationToken ct = default(CancellationToken)) works here."
+            "description": "Whether this process registered the source, so ValueTask&lt;PagedResult&lt;OutboxQuarantinedListItem&gt;&gt; IOutbox.ListQuarantinedAsync(ListOutboxQuarantinedQuery query, CancellationToken ct = default(CancellationToken)) works here."
           }
         },
         "description": "One relay source as ValueTask&lt;PagedResult&lt;OutboxSourceListItem&gt;&gt; IOutbox.ListSourcesAsync(ListOutboxSourcesQuery query, CancellationToken ct = default(CancellationToken)) reports it: the namespace's\n`sys.outbox` slot plus the accounting parsed from the slot's persisted tick summary. The\nsummary (and the counters parsed from it) is null until the slot's first successful tick."
@@ -10980,7 +10969,7 @@
         },
         "description": "One page of a keyset-paginated list read."
       },
-      "PagedResultOfOutboxQuarantinedItem": {
+      "PagedResultOfOutboxQuarantinedListItem": {
         "required": [
           "items",
           "nextCursor",
@@ -10993,7 +10982,7 @@
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/OutboxQuarantinedItem"
+              "$ref": "#/components/schemas/OutboxQuarantinedListItem"
             },
             "description": "The page rows, at most PageSize of them."
           },
@@ -11316,6 +11305,26 @@
             ]
           }
         }
+      },
+      "RequeueOutboxResponse": {
+        "required": [
+          "action",
+          "pendingSinceUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ControlAction"
+          },
+          "pendingSinceUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        },
+        "description": "What parking a requeue of a source's quarantined rows did."
       },
       "ResolveJobAlertManualResponse": {
         "required": [

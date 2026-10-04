@@ -10,8 +10,6 @@ JobLineageJob
 JobSnapshotRow
 LineageChildRow
 LineageJobRow
-OutboxQuarantinedItem
-OutboxQuarantinedRow
 OutboxSignalRow
 RegisterTenantCommand
 TenantDetail

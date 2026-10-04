@@ -13,7 +13,7 @@ BEGIN TRY
     SET status_code = 10 /* OutboxStatusCode.Pending */, claim_token = NULL, claim_until_utc = NULL
     WHERE status_code = 20 /* OutboxStatusCode.Claimed */ AND claim_until_utc <= SYSUTCDATETIME();
 
-    /* A laned row waits while an older row of its lane is Pending or Claimed (IOutboxRelayStore.ClaimDueAsync).
+    /* A laned row waits while an older row of its lane is Pending or Claimed (IOutboxSource.ClaimDueAsync).
        The check carries no READPAST: an older row another relay holds must still count, so it waits out
        that claim or reads its last committed version instead of skipping it. */
     WITH due AS (

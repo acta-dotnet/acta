@@ -84,12 +84,6 @@ public sealed class CommandTextCompositionTests
         ["Acta.Runtime/Schema/SchemaMigrationRunner.cs::ApplyAsync"] = (2, "embedded migration/prelude DDL, {{schema}} only"),
         ["Acta.Runtime/Schema/SqlObjectInstaller.cs::Run"] = (1, "embedded view/routine DDL batch"),
         ["Acta.Runtime/Schema/SqlObjectInstaller.cs::CurrentDefinition"] = (1, "provider-owned hook SQL, name bound as @p_name"),
-        // The outbox relay's two counters, the only relay commands whose SQL is identical on all
-        // three providers and therefore composed inline instead of shipped as resources. The single
-        // hole is the qualified table reference, produced by OutboxIdentifier.Qualify, which
-        // bare-identifier validates both the schema and the table before joining them.
-        ["Acta.Runtime/Stores/RelationalOutboxRelayStore.cs::CountBacklogAsync"] = (1, "table ref, OutboxIdentifier.Qualify"),
-        ["Acta.Runtime/Stores/RelationalOutboxRelayStore.cs::CountQuarantinedAsync"] = (1, "table ref, OutboxIdentifier.Qualify"),
         // The three provider staging extensions. The INSERT text is built once by OutboxStaging.Prepare
         // over an OutboxIdentifier.Qualify'd table reference and handed here as a parameter; every
         // column value is added as a provider DbParameter in the lines below the assignment.

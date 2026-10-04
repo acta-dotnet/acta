@@ -88,21 +88,6 @@ internal static class OutboxSchema
         );
 
         /// <summary>
-        /// The backlog count is the one relay command whose SQL is identical across the three source
-        /// providers, so it is composed here as shared inline text over the validated table reference
-        /// instead of landing as three per-provider resources.
-        /// </summary>
-        public static string CountBacklog(string tableRef) =>
-            $"SELECT COUNT(*) FROM {tableRef} WHERE status_code = 10 /* OutboxStatusCode.Pending */;";
-
-        /// <summary>
-        /// Same shared-inline reasoning as CountBacklog: the quarantine total the tick summary carries
-        /// cross-peer so operator surfaces see it without reaching the source database.
-        /// </summary>
-        public static string CountQuarantined(string tableRef) =>
-            $"SELECT COUNT(*) FROM {tableRef} WHERE status_code = 90 /* OutboxStatusCode.Quarantined */;";
-
-        /// <summary>
         /// A JSON array of per-row reschedule/quarantine records
         /// ([{"outbox_id","failure_count","backoff_seconds"?,"last_error"}, ...]) so each of those finalizes
         /// the whole claimed group in one set-based round trip; every provider unnests it server-side

@@ -4,7 +4,7 @@ using Xunit;
 namespace Acta.Tests.Outbox;
 
 /// <summary>
-/// Provider-neutral relay policy proven against an in-memory <see cref="IOutboxRelayStore"/> and a spy
+/// Provider-neutral relay policy proven against an in-memory <see cref="IOutboxSource"/> and a spy
 /// target: coalescing, target deduplication, per-group rejection isolation, backoff, quarantine at
 /// threshold, immediate malformed quarantine, the bounded tick summary, the 20x256 tick bound, and
 /// best-effort cancellation release.
@@ -277,7 +277,7 @@ public sealed class OutboxRelayServiceTests
         Assert.Empty(target.Batches);
     }
 
-    private sealed class ThrowingStore : IOutboxRelayStore
+    private sealed class ThrowingStore : IOutboxSource
     {
         public Task<IReadOnlyList<OutboxRow>> ClaimDueAsync(ClaimOutboxCommand command, CancellationToken ct) =>
             throw new InvalidOperationException("source database unavailable");
@@ -294,8 +294,10 @@ public sealed class OutboxRelayServiceTests
 
         public Task<long> CountQuarantinedAsync(CancellationToken ct) => Task.FromResult(0L);
 
-        public Task<IReadOnlyList<OutboxQuarantinedRow>> ListQuarantinedAsync(ListQuarantinedOutboxCommand command, CancellationToken ct) =>
-            Task.FromResult<IReadOnlyList<OutboxQuarantinedRow>>([]);
+        public Task<IReadOnlyList<OutboxQuarantinedListItem>> ListQuarantinedAsync(
+            ListQuarantinedOutboxCommand command,
+            CancellationToken ct
+        ) => Task.FromResult<IReadOnlyList<OutboxQuarantinedListItem>>([]);
 
         public Task<IReadOnlyList<Guid>> RequeueQuarantinedAsync(RequeueQuarantinedOutboxCommand command, CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<Guid>>([]);
@@ -329,7 +331,7 @@ public sealed class OutboxRelayServiceTests
         }
     }
 
-    private sealed class FakeStore(params OutboxRow[] rows) : IOutboxRelayStore
+    private sealed class FakeStore(params OutboxRow[] rows) : IOutboxSource
     {
         private readonly Queue<OutboxRow> _due = new(rows);
 
@@ -379,8 +381,10 @@ public sealed class OutboxRelayServiceTests
 
         public Task<long> CountQuarantinedAsync(CancellationToken ct) => Task.FromResult((long)Quarantined.Count);
 
-        public Task<IReadOnlyList<OutboxQuarantinedRow>> ListQuarantinedAsync(ListQuarantinedOutboxCommand command, CancellationToken ct) =>
-            Task.FromResult<IReadOnlyList<OutboxQuarantinedRow>>([]);
+        public Task<IReadOnlyList<OutboxQuarantinedListItem>> ListQuarantinedAsync(
+            ListQuarantinedOutboxCommand command,
+            CancellationToken ct
+        ) => Task.FromResult<IReadOnlyList<OutboxQuarantinedListItem>>([]);
 
         public Task<IReadOnlyList<Guid>> RequeueQuarantinedAsync(RequeueQuarantinedOutboxCommand command, CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<Guid>>([]);

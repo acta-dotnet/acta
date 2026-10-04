@@ -19,7 +19,7 @@ public static class SqlServerOutboxRelayExtensions
         configure(options);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.ConnectionString, nameof(options.ConnectionString));
 
-        ((OutboxSourceBuilder)source).SetStoreFactory(new SqlServerOutboxSourceStoreFactory(options.ConnectionString));
+        ((OutboxSourceBuilder)source).SetStoreFactory(new SqlServerOutboxSourceFactory(options.ConnectionString));
         return source;
     }
 }

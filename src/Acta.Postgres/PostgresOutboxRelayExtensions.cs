@@ -19,7 +19,7 @@ public static class PostgresOutboxRelayExtensions
         configure(options);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.ConnectionString, nameof(options.ConnectionString));
 
-        ((OutboxSourceBuilder)source).SetStoreFactory(new PostgresOutboxSourceStoreFactory(options.ConnectionString));
+        ((OutboxSourceBuilder)source).SetStoreFactory(new PostgresOutboxSourceFactory(options.ConnectionString));
         return source;
     }
 }

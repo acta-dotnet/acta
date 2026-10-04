@@ -14,7 +14,7 @@ namespace Acta.Runtime;
 /// the tick so the <c>SysCritical</c> alert path fires. The five-second cadence plus normal worker
 /// discovery is the expected pickup latency floor, since cross-database producer staging sends no wakeup.
 /// </summary>
-internal sealed class OutboxRelayJob(OutboxRelayRegistry registry, IOutboxSignalStore signals, IOptions<JobsOptions> options)
+internal sealed class OutboxRelayJob(OutboxRelayRegistry registry, OutboxInbox inbox, IOptions<JobsOptions> options)
 {
     [Job(
         "sys.outbox",
@@ -30,7 +30,7 @@ internal sealed class OutboxRelayJob(OutboxRelayRegistry registry, IOutboxSignal
         var registration = registry.Registration(ctx.JobNamespace);
         var service = registry.Service(ctx.JobNamespace);
 
-        var (requeued, discarded) = await service.ApplyOperatorSignalsAsync(ctx.JobId, signals, ct);
+        var (requeued, discarded) = await service.ApplyOperatorSignalsAsync(ctx.JobId, inbox, ct);
 
         var summary = await service.RunTickAsync(
             new OutboxRelayTickOptions(

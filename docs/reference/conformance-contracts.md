@@ -1883,6 +1883,8 @@
 | `CompleteExecution` | yes | yes | yes |
 | `CompleteStep` | yes | yes | yes |
 | `ConsumeOutboxSignal` | yes | yes | yes |
+| `CountOutboxBacklog` | yes | yes | yes |
+| `CountOutboxQuarantined` | yes | yes | yes |
 | `DefinitionsView` | yes | yes | yes |
 | `DeleteClaimedOutbox` | yes | yes | yes |
 | `DiscardQuarantinedOutbox` | yes | yes | yes |

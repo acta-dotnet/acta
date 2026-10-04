@@ -8,21 +8,21 @@ namespace Acta.Runtime;
 /// Provider-neutral relay policy for one <c>sys.outbox</c> tick: claim due source rows in bounded
 /// batches, coalesce duplicate handoffs, enqueue representatives through the owned batch path, then
 /// finalize under the claim token. Retry, per-group rejection isolation, quarantine, and the single
-/// bounded tick summary all live here; the source persistence is the injected <see cref="IOutboxRelayStore"/>
+/// bounded tick summary all live here; the source is the injected <see cref="IOutboxSource"/>
 /// and the target is the normal <see cref="IJobs.EnqueueBatchAsync(IReadOnlyList{JobEnqueueRequest}, CancellationToken)"/>.
 /// </summary>
-internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission target, ILogger<OutboxRelayService>? log = null)
+internal sealed class OutboxRelayService(IOutboxSource source, IJobSubmission target, ILogger<OutboxRelayService>? log = null)
 {
     /// <summary>Per tick: at most MaxBatches source claims of BatchSize rows. The next tick continues any backlog.</summary>
     private const int MaxBatches = 20;
     private const int BatchSize = 256;
 
     /// <summary>
-    /// The bound source store, exposed so operator surfaces resolve reads (quarantine listing) against
-    /// the same source the tick drains - the registry's 1:1 namespace-to-source invariant is what makes
-    /// this the right store for the slot's parked commands.
+    /// The bound source, exposed so operator surfaces resolve reads (quarantine listing) against the same
+    /// source the tick drains - the registry's 1:1 namespace-to-source invariant is what makes this the
+    /// right source for the slot's parked commands.
     /// </summary>
-    internal IOutboxRelayStore Store => store;
+    internal IOutboxSource Source => source;
 
     /// <summary>
     /// Applies the slot's parked operator commands, requeue first so freed rows are claimable in the
@@ -31,20 +31,16 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission
     /// (both verbs only match Quarantined rows), and a consume miss means a newer command superseded
     /// this one mid-apply and simply applies next tick.
     /// </summary>
-    public async Task<(int Requeued, int Discarded)> ApplyOperatorSignalsAsync(
-        long slotJobId,
-        IOutboxSignalStore signals,
-        CancellationToken ct
-    )
+    public async Task<(int Requeued, int Discarded)> ApplyOperatorSignalsAsync(long slotJobId, OutboxInbox inbox, CancellationToken ct)
     {
-        var requeued = await ApplyOneSignalAsync(slotJobId, OutboxSignalNames.Requeue, signals, ct);
-        var discarded = await ApplyOneSignalAsync(slotJobId, OutboxSignalNames.Discard, signals, ct);
+        var requeued = await ApplyOneSignalAsync(slotJobId, OutboxSignalNames.Requeue, inbox, ct);
+        var discarded = await ApplyOneSignalAsync(slotJobId, OutboxSignalNames.Discard, inbox, ct);
         return (requeued, discarded);
     }
 
-    private async Task<int> ApplyOneSignalAsync(long slotJobId, string name, IOutboxSignalStore signals, CancellationToken ct)
+    private async Task<int> ApplyOneSignalAsync(long slotJobId, string name, OutboxInbox inbox, CancellationToken ct)
     {
-        var row = await signals.GetAsync(slotJobId, name, ct);
+        var row = await inbox.GetAsync(slotJobId, name, ct);
         if (row is null)
         {
             return 0;
@@ -63,24 +59,24 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission
         if (payload is null)
         {
             // A malformed command must not wedge the two-name inbox: consume it, leave the trail.
-            await signals.RecordAppliedAsync(
+            await inbox.RecordAppliedAsync(
                 new RecordOutboxEventCommand(slotJobId, EventCodeFor(name), null, "Malformed operator command discarded unapplied."),
                 ct
             );
-            await signals.ConsumeAsync(slotJobId, name, row.Version, ct);
+            await inbox.ConsumeAsync(slotJobId, name, row.Version, ct);
             return 0;
         }
 
         var affected =
             name == OutboxSignalNames.Requeue
-                ? await store.RequeueQuarantinedAsync(new RequeueQuarantinedOutboxCommand(payload.OutboxIds), ct)
-                : await store.DiscardQuarantinedAsync(new DiscardQuarantinedOutboxCommand(payload.OutboxIds), ct);
+                ? await source.RequeueQuarantinedAsync(new RequeueQuarantinedOutboxCommand(payload.OutboxIds), ct)
+                : await source.DiscardQuarantinedAsync(new DiscardQuarantinedOutboxCommand(payload.OutboxIds), ct);
 
-        await signals.RecordAppliedAsync(
+        await inbox.RecordAppliedAsync(
             new RecordOutboxEventCommand(slotJobId, EventCodeFor(name), payload.ActorKey, Evidence(payload.ReasonMessage, affected)),
             ct
         );
-        await signals.ConsumeAsync(slotJobId, name, row.Version, ct);
+        await inbox.ConsumeAsync(slotJobId, name, row.Version, ct);
         return affected.Count;
     }
 
@@ -178,7 +174,7 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission
 
         for (var batch = 0; batch < MaxBatches && budget.Remaining > 0; batch++)
         {
-            var claimed = await store.ClaimDueAsync(new ClaimOutboxCommand(token, BatchSize, options.LeaseTtlSeconds), ct);
+            var claimed = await source.ClaimDueAsync(new ClaimOutboxCommand(token, BatchSize, options.LeaseTtlSeconds), ct);
             if (claimed.Count == 0)
             {
                 break;
@@ -218,8 +214,8 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission
 
         // Both totals are read after finalization, so the summary reports what still awaits relay and
         // what currently sits in quarantine - the cross-peer channel operator surfaces read.
-        var backlog = await store.CountBacklogAsync(ct);
-        var quarantineTotal = await store.CountQuarantinedAsync(ct);
+        var backlog = await source.CountBacklogAsync(ct);
+        var quarantineTotal = await source.CountQuarantinedAsync(ct);
         return new OutboxTickSummary(claimedTotal, counters.Relayed, counters.Deduplicated, quarantinedIds.Count, backlog, quarantineTotal);
     }
 
@@ -334,18 +330,18 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission
         // Finalization is one store round trip per outcome kind for the whole batch, not one per group.
         if (safeIds.Count > 0)
         {
-            await store.DeleteClaimedAsync(new FinalizeOutboxCommand(token, safeIds), ct);
+            await source.DeleteClaimedAsync(new FinalizeOutboxCommand(token, safeIds), ct);
         }
 
         if (quarantines.Count > 0)
         {
-            await store.QuarantineAsync(new QuarantineOutboxCommand(token, quarantines), ct);
+            await source.QuarantineAsync(new QuarantineOutboxCommand(token, quarantines), ct);
             quarantinedIds.AddRange(quarantines.Select(q => q.OutboxId));
         }
 
         if (reschedules.Count > 0)
         {
-            await store.RescheduleAsync(new RescheduleOutboxCommand(token, reschedules), ct);
+            await source.RescheduleAsync(new RescheduleOutboxCommand(token, reschedules), ct);
         }
 
         // Any valid group whose target enqueue never ran (budget exhausted mid-batch) is unprocessed:
@@ -503,7 +499,7 @@ internal sealed class OutboxRelayService(IOutboxRelayStore store, IJobSubmission
     {
         try
         {
-            await store.ReleaseClaimedAsync(new FinalizeOutboxCommand(token, outboxIds), CancellationToken.None);
+            await source.ReleaseClaimedAsync(new FinalizeOutboxCommand(token, outboxIds), CancellationToken.None);
         }
         catch (Exception ex)
         {

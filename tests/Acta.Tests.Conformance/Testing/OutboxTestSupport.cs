@@ -35,11 +35,11 @@ public readonly record struct OutboxRowState(
 );
 
 /// <summary>
-/// A delegating <see cref="IOutboxRelayStore"/> decorator with optional hooks, so a handoff spec can
+/// A delegating <see cref="IOutboxSource"/> decorator with optional hooks, so a handoff spec can
 /// inject a failure at a chosen source seam (the crash windows the brief proves) while every other call
 /// passes straight through to the real provider store.
 /// </summary>
-internal sealed class HookedOutboxStore(IOutboxRelayStore inner) : IOutboxRelayStore
+internal sealed class HookedOutboxStore(IOutboxSource inner) : IOutboxSource
 {
     /// <summary>When set, awaited just before the real delete runs (models a crash after the target commit).</summary>
     public Func<Task>? BeforeDelete { get; set; }
@@ -66,8 +66,10 @@ internal sealed class HookedOutboxStore(IOutboxRelayStore inner) : IOutboxRelayS
 
     public Task<long> CountQuarantinedAsync(CancellationToken ct) => inner.CountQuarantinedAsync(ct);
 
-    public Task<IReadOnlyList<OutboxQuarantinedRow>> ListQuarantinedAsync(ListQuarantinedOutboxCommand command, CancellationToken ct) =>
-        inner.ListQuarantinedAsync(command, ct);
+    public Task<IReadOnlyList<OutboxQuarantinedListItem>> ListQuarantinedAsync(
+        ListQuarantinedOutboxCommand command,
+        CancellationToken ct
+    ) => inner.ListQuarantinedAsync(command, ct);
 
     public Task<IReadOnlyList<Guid>> RequeueQuarantinedAsync(RequeueQuarantinedOutboxCommand command, CancellationToken ct) =>
         inner.RequeueQuarantinedAsync(command, ct);

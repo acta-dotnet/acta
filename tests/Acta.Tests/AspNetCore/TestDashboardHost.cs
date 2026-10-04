@@ -892,15 +892,15 @@ internal static class TestDashboardHost
                     )
                 );
 
-            public ValueTask<PagedResult<OutboxQuarantinedItem>> ListQuarantinedAsync(
+            public ValueTask<PagedResult<OutboxQuarantinedListItem>> ListQuarantinedAsync(
                 ListOutboxQuarantinedQuery query,
                 CancellationToken ct = default
             ) =>
                 query.JobNamespace == "billing"
                     ? ValueTask.FromResult(
-                        new PagedResult<OutboxQuarantinedItem>(
+                        new PagedResult<OutboxQuarantinedListItem>(
                             [
-                                new OutboxQuarantinedItem(
+                                new OutboxQuarantinedListItem(
                                     QuarantinedId,
                                     "billing",
                                     "send-invoice",
@@ -922,42 +922,59 @@ internal static class TestDashboardHost
                         $"Namespace '{query.JobNamespace}' has no outbox relay registered in this process."
                     );
 
-            public ValueTask<OutboxControlResult> RequeueAsync(
+            public ValueTask<RequeueOutboxResponse> RequeueAsync(
                 string jobNamespace,
                 IReadOnlyList<Guid>? outboxIds = null,
                 string? reasonMessage = null,
                 string? actorKey = null,
                 CancellationToken ct = default
-            ) => Control("requeue", jobNamespace, outboxIds, reasonMessage, actorKey);
+            ) =>
+                Control(
+                    "requeue",
+                    jobNamespace,
+                    outboxIds,
+                    reasonMessage,
+                    actorKey,
+                    static (action, pendingSince) => new RequeueOutboxResponse(action, pendingSince)
+                );
 
-            public ValueTask<OutboxControlResult> DiscardAsync(
+            public ValueTask<DiscardOutboxResponse> DiscardAsync(
                 string jobNamespace,
                 IReadOnlyList<Guid>? outboxIds = null,
                 string? reasonMessage = null,
                 string? actorKey = null,
                 CancellationToken ct = default
-            ) => Control("discard", jobNamespace, outboxIds, reasonMessage, actorKey);
+            ) =>
+                Control(
+                    "discard",
+                    jobNamespace,
+                    outboxIds,
+                    reasonMessage,
+                    actorKey,
+                    static (action, pendingSince) => new DiscardOutboxResponse(action, pendingSince)
+                );
 
-            private ValueTask<OutboxControlResult> Control(
+            private ValueTask<T> Control<T>(
                 string verb,
                 string jobNamespace,
                 IReadOnlyList<Guid>? outboxIds,
                 string? reasonMessage,
-                string? actorKey
+                string? actorKey,
+                Func<ControlAction, DateTime?, T> response
             )
             {
                 if (jobNamespace == "missing")
                 {
-                    return ValueTask.FromResult(new OutboxControlResult(ControlAction.NotFound, null));
+                    return ValueTask.FromResult(response(ControlAction.NotFound, null));
                 }
 
                 if (jobNamespace == "rejected")
                 {
-                    return ValueTask.FromResult(new OutboxControlResult(ControlAction.Rejected, PendingSince));
+                    return ValueTask.FromResult(response(ControlAction.Rejected, PendingSince));
                 }
 
                 ControlCalls.Add((verb, jobNamespace, outboxIds, reasonMessage, actorKey));
-                return ValueTask.FromResult(new OutboxControlResult(ControlAction.Accepted, null));
+                return ValueTask.FromResult(response(ControlAction.Accepted, null));
             }
         }
 

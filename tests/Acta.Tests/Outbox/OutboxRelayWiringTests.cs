@@ -75,7 +75,7 @@ public sealed class OutboxRelayWiringTests
         Assert.Equal(7, b.QuarantineThreshold);
 
         // No winner-takes-all: each namespace keeps its own provider store factory.
-        Assert.NotSame(a.SourceStoreFactory, b.SourceStoreFactory);
+        Assert.NotSame(a.SourceFactory, b.SourceFactory);
     }
 
     [Fact]

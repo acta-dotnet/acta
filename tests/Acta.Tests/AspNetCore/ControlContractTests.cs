@@ -102,8 +102,8 @@ public sealed class ControlContractTests
         .. DefinitionRetire(),
         .. AlertVerb("acknowledge", typeof(AcknowledgeJobAlertResponse)),
         .. AlertVerb("resolve", typeof(ResolveJobAlertManualResponse)),
-        .. OutboxVerb("requeue"),
-        .. OutboxVerb("discard"),
+        .. OutboxVerb("requeue", typeof(RequeueOutboxResponse)),
+        .. OutboxVerb("discard", typeof(DiscardOutboxResponse)),
         .. AdminVerb("namespaces", "/namespaces/{jobNamespace}", "billing", "suspend", typeof(SuspendNamespaceResponse)),
         .. AdminVerb("namespaces", "/namespaces/{jobNamespace}", "billing", "resume", typeof(ResumeNamespaceResponse)),
         .. AdminPatch("namespaces", "/namespaces/{jobNamespace}", "billing", "ownerTeam", "payments", typeof(UpdateNamespaceResponse)),
@@ -420,11 +420,11 @@ public sealed class ControlContractTests
 
     // The outbox verbs park a durable command the next relay pass applies, so their success is 202
     // rather than 200; the other two outcomes are the usual pair.
-    private static IEnumerable<Case> OutboxVerb(string verb)
+    private static IEnumerable<Case> OutboxVerb(string verb, Type declared)
     {
         var route = $"/outbox/{{jobNamespace}}/{verb}";
         Case Row(string outcome, string jobNamespace, int status, string action) =>
-            new("outbox", route, "POST", outcome, $"/outbox/{jobNamespace}/{verb}", status, typeof(OutboxControlResult), action, Reason);
+            new("outbox", route, "POST", outcome, $"/outbox/{jobNamespace}/{verb}", status, declared, action, Reason);
         return
         [
             Row("accepted", "billing", StatusCodes.Status202Accepted, "accepted"),

@@ -25,7 +25,8 @@ public sealed class OutboxRelaySignalApplySpec : OutboxRelayIntegrationBase
     public async Task Parked_requeue_frees_the_row_and_the_same_pass_relays_it()
     {
         var ct = TestContext.Current.CancellationToken;
-        var signals = Services.GetRequiredService<IOutboxSignalStore>();
+        var signals = Services.GetRequiredService<OutboxInbox>();
+        var park = Services.GetRequiredService<ParkOutboxSignalHandler>();
         var dedup = TestKey("sig-apply");
 
         var row = EchoRow(dedup, status: 90, failureCount: 5);
@@ -52,7 +53,7 @@ public sealed class OutboxRelaySignalApplySpec : OutboxRelayIntegrationBase
             );
 
         var payload = new OutboxSignalPayload(Guid.NewGuid(), "marko", "fixed the target route", [row.OutboxId]);
-        var admitted = await signals.ParkAsync(
+        var admitted = await park.HandleAsync(
             new ParkOutboxSignalCommand(
                 slotJobId,
                 OutboxSignalNames.Requeue,

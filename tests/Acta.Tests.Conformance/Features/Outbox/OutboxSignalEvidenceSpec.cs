@@ -23,7 +23,7 @@ public sealed class OutboxSignalEvidenceSpec : ActaStorageTestBase<ConformanceFi
     public async Task Applied_command_evidence_event_is_always_emitted()
     {
         var ct = TestContext.Current.CancellationToken;
-        var store = Services.GetRequiredService<IOutboxSignalStore>();
+        var store = Services.GetRequiredService<OutboxInbox>();
         // SeedJobAsync writes AuditLevel Off - exactly the case that proves the event has no audit gate.
         var (jobId, _) = await Seeder.SeedJobAsync(TestNamespaceId, ct: ct);
         await Db.From<JobRuntime>()

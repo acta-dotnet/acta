@@ -31,7 +31,6 @@ IExecutionStore.cs
 IJobContextAccessor.cs
 IJobPayloadSerializerRegistry.cs
 IJobs.cs
-IOutboxRelayStore.cs
 ISchedules.cs
 ISettings.cs
 ITenants.cs
@@ -92,8 +91,6 @@ Lock.cs
 LockLeaseHeartbeat.cs
 MessageTruncator.cs
 NamespaceListItem.cs
-OutboxControlResult.cs
-OutboxQuarantinedItem.cs
 OutboxRelayCommands.cs
 OutboxRelayJob.cs
 OutboxRelayRegistry.cs
@@ -108,7 +105,6 @@ PostgresOutboxStagingExtensions.cs
 RateLimitSpec.cs
 RecoveryPass.cs
 RecoverySlotMonitor.cs
-RelationalOutboxRelayStore.cs
 RuntimeJobContext.cs
 ScheduleListItem.cs
 ScheduleRows.cs

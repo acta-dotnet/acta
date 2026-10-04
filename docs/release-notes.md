@@ -50,10 +50,14 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   answers `PauseAsync`, `ResumeAsync`, `UpdateOverridesAsync`, and `TriggerNowAsync` with
   `PauseScheduleResponse`, `ResumeScheduleResponse`, `SetScheduleOverridesResponse`, and
   `TriggerScheduleNowResponse` instead of `ScheduleControlResult`; each carries the same five members
-  and implements the new `IScheduleControlResponse`, which extends `IControlResponse`.
-  `ITenants.RegisterAsync` returns
-  `RegisterTenantResponse`, whose `TenantId` is the id it returned before. The HTTP bodies do not
-  change; the OpenAPI document names each response type.
+  and implements the new `IScheduleControlResponse`, which extends `IControlResponse`. `IOutbox`
+  answers `RequeueAsync` and `DiscardAsync` with `RequeueOutboxResponse` and `DiscardOutboxResponse`
+  instead of `OutboxControlResult`; each carries the same `Action` and `PendingSinceUtc` and implements
+  the new `IOutboxControlResponse`. `ITenants.RegisterAsync` returns `RegisterTenantResponse`, whose
+  `TenantId` is the id it returned before. The HTTP bodies do not change; the OpenAPI document names
+  each response type.
+- **`OutboxQuarantinedItem` is now `OutboxQuarantinedListItem`**, the name every other list row
+  takes. Its members are unchanged.
 
 ### Additions
 

@@ -521,6 +521,10 @@ static class Acta.DeduplicationKey
     System.String PerHour(System.String definitionName, System.String businessKey, System.DateTimeOffset instant)
     System.String PerTimeBucket(System.String definitionName, System.String businessKey, System.DateTimeOffset instant, System.TimeSpan bucketSize)
     System.String PerTimeBucket(System.String definitionName, System.String businessKey, System.TimeSpan bucketSize)
+sealed class Acta.DiscardOutboxResponse
+    .ctor(Acta.ControlAction Action, System.Nullable<System.DateTime> PendingSinceUtc)
+    Acta.ControlAction Action { get;init; }
+    System.Nullable<System.DateTime> PendingSinceUtc { get;init; }
 enum Acta.DriverVersionPolicy
     Fail = 0
     Warn = 1
@@ -779,10 +783,13 @@ interface Acta.INamespaces
     System.Threading.Tasks.ValueTask<Acta.SuspendNamespaceResponse> SuspendAsync(System.String name, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.UpdateNamespaceResponse> UpdateAsync(System.String name, System.Int32 expectedVersion, System.String ownerTeam, System.String description, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
 interface Acta.IOutbox
-    System.Threading.Tasks.ValueTask<Acta.OutboxControlResult> DiscardAsync(System.String jobNamespace, System.Collections.Generic.IReadOnlyList<System.Guid> outboxIds = default, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.OutboxControlResult> RequeueAsync(System.String jobNamespace, System.Collections.Generic.IReadOnlyList<System.Guid> outboxIds = default, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.OutboxQuarantinedItem>> ListQuarantinedAsync(Acta.ListOutboxQuarantinedQuery query, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.DiscardOutboxResponse> DiscardAsync(System.String jobNamespace, System.Collections.Generic.IReadOnlyList<System.Guid> outboxIds = default, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.OutboxQuarantinedListItem>> ListQuarantinedAsync(Acta.ListOutboxQuarantinedQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.OutboxSourceListItem>> ListSourcesAsync(Acta.ListOutboxSourcesQuery query, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.RequeueOutboxResponse> RequeueAsync(System.String jobNamespace, System.Collections.Generic.IReadOnlyList<System.Guid> outboxIds = default, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
+interface Acta.IOutboxControlResponse
+    Acta.ControlAction Action { get; }
+    System.Nullable<System.DateTime> PendingSinceUtc { get; }
 interface Acta.IOutboxSourceBuilder
     System.Int32 QuarantineThreshold { get;set; }
     System.String Schema { get;set; }
@@ -1834,11 +1841,7 @@ sealed class Acta.NamespaceStatusCodeJsonConverter
     Acta.NamespaceStatusCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.NamespaceStatusCode value, System.Text.Json.JsonSerializerOptions options)
 struct Acta.NoInput
-sealed class Acta.OutboxControlResult
-    .ctor(Acta.ControlAction Action, System.Nullable<System.DateTime> PendingSinceUtc)
-    Acta.ControlAction Action { get;init; }
-    System.Nullable<System.DateTime> PendingSinceUtc { get;init; }
-sealed class Acta.OutboxQuarantinedItem
+sealed class Acta.OutboxQuarantinedListItem
     .ctor(System.Guid OutboxId, System.String JobNamespace, System.String JobName, System.String DeduplicationKey, System.String CorrelationKey, System.String TenantKey, System.Int32 FailureCount, System.String LastError, System.DateTime CreatedAtUtc)
     System.DateTime CreatedAtUtc { get;init; }
     System.Guid OutboxId { get;init; }
@@ -1941,6 +1944,10 @@ sealed class Acta.RemoveTagsResponse
 sealed class Acta.ReplaceTagsResponse
     .ctor(Acta.TagMutationAction Action)
     Acta.TagMutationAction Action { get;init; }
+sealed class Acta.RequeueOutboxResponse
+    .ctor(Acta.ControlAction Action, System.Nullable<System.DateTime> PendingSinceUtc)
+    Acta.ControlAction Action { get;init; }
+    System.Nullable<System.DateTime> PendingSinceUtc { get;init; }
 sealed class Acta.RescheduleJobException
     .ctor(System.DateTimeOffset resumeAtUtc, System.String message = default)
     .ctor(System.TimeSpan delay, System.String message = default)

@@ -76,7 +76,7 @@ public sealed partial class PgConformanceFixture
         return Convert.ToInt32(await cmd.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
     }
 
-    public object CreateOutboxStore(string table) => Acta.Postgres.PostgresOutboxSource.CreateStore(Conn, Schema, table);
+    public object CreateOutboxStore(string table) => Acta.Postgres.PostgresOutboxSource.CreateSource(Conn, Schema, table);
 
     public void ApplyOutboxSource(Acta.IOutboxSourceBuilder source)
     {

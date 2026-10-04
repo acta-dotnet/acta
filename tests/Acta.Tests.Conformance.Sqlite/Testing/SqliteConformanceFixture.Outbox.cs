@@ -76,7 +76,7 @@ public sealed partial class SqliteConformanceFixture
     }
 
     public object CreateOutboxStore(string table) =>
-        Acta.Sqlite.SqliteOutboxSource.CreateStore(SqliteIntegrationSchema.BootstrappedConnectionString, "main", table);
+        Acta.Sqlite.SqliteOutboxSource.CreateSource(SqliteIntegrationSchema.BootstrappedConnectionString, "main", table);
 
     public void ApplyOutboxSource(Acta.IOutboxSourceBuilder source)
     {

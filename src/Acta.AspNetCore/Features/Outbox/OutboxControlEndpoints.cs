@@ -16,11 +16,7 @@ internal static class OutboxControlEndpoints
 {
     public static void Map(RouteGroupBuilder outer, ActaEndpointOptions options)
     {
-        // The two verbs share one response shape across their three outcomes, so declare it once.
         var group = outer.MapGroup("");
-        group.ProducesJson<OutboxControlResult>(StatusCodes.Status202Accepted);
-        group.ProducesJson<OutboxControlResult>(StatusCodes.Status409Conflict);
-        group.ProducesJson<OutboxControlResult>(StatusCodes.Status404NotFound);
         // Both verbs read the optional body, so both can refuse a content type that is not JSON.
         group.ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
 
@@ -33,7 +29,8 @@ internal static class OutboxControlEndpoints
             // The body is read manually rather than bound, so the document only learns its shape from
             // this declaration; optional because a bare POST targets every quarantined row.
             .AcceptsJson<OutboxControlRequest>(optional: true)
-            .WithSummary("Return quarantined outbox rows to pending; the next relay pass applies it.");
+            .WithSummary("Return quarantined outbox rows to pending; the next relay pass applies it.")
+            .Outcomes<RequeueOutboxResponse>();
 
         group
             .MapPost(
@@ -42,7 +39,8 @@ internal static class OutboxControlEndpoints
                     HandleAsync(http, operations, options, "discard", jobNamespace, ct)
             )
             .AcceptsJson<OutboxControlRequest>(optional: true)
-            .WithSummary("Delete quarantined outbox rows, keeping the ids as audit evidence.");
+            .WithSummary("Delete quarantined outbox rows, keeping the ids as audit evidence.")
+            .Outcomes<DiscardOutboxResponse>();
     }
 
     private static async Task<IResult> HandleAsync(
@@ -77,11 +75,11 @@ internal static class OutboxControlEndpoints
         var actorKey = http.User?.Identity?.Name;
         try
         {
-            var result =
+            return ToResult(
                 verb == "requeue"
                     ? await operations.Outbox.RequeueAsync(jobNamespace, body?.OutboxIds, reasonMessage, actorKey, ct)
-                    : await operations.Outbox.DiscardAsync(jobNamespace, body?.OutboxIds, reasonMessage, actorKey, ct);
-            return ToResult(result);
+                    : await operations.Outbox.DiscardAsync(jobNamespace, body?.OutboxIds, reasonMessage, actorKey, ct)
+            );
         }
         catch (ArgumentException ex)
         {
@@ -90,11 +88,22 @@ internal static class OutboxControlEndpoints
         }
     }
 
+    /// <summary>Accepted, rejected, and not-found carry the same body, so a client reads <c>action</c> alone.</summary>
+    private static RouteHandlerBuilder Outcomes<TResponse>(this RouteHandlerBuilder route)
+        where TResponse : IOutboxControlResponse
+    {
+        route.ProducesJson<TResponse>(StatusCodes.Status202Accepted);
+        route.ProducesJson<TResponse>(StatusCodes.Status409Conflict);
+        route.ProducesJson<TResponse>(StatusCodes.Status404NotFound);
+        return route;
+    }
+
     // Accepted 202 (the next relay pass applies it), Rejected 409 (a command is already parked), NotFound 404.
-    private static IResult ToResult(OutboxControlResult result) =>
+    private static IResult ToResult(IOutboxControlResponse result) =>
         Results.Json(
             result,
-            DashboardJsonContext.Default.OutboxControlResult,
+            result.GetType(),
+            DashboardJsonContext.Default,
             statusCode: result.Action switch
             {
                 ControlAction.Accepted => StatusCodes.Status202Accepted,

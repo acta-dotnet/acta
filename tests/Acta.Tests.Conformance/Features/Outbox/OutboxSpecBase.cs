@@ -14,7 +14,7 @@ public abstract class OutboxSpecBase : ActaTestBase<ConformanceFixture>
 {
     private protected string TableName { get; private set; } = null!;
 
-    private protected IOutboxRelayStore Store { get; private set; } = null!;
+    private protected IOutboxSource Store { get; private set; } = null!;
 
     protected const int LeaseTtlSeconds = 180;
 
@@ -22,7 +22,7 @@ public abstract class OutboxSpecBase : ActaTestBase<ConformanceFixture>
     {
         TableName = "acta_outbox_" + TestId;
         await Fixture.ApplyOutboxDdlAsync(TableName);
-        Store = (IOutboxRelayStore)Fixture.CreateOutboxStore(TableName);
+        Store = (IOutboxSource)Fixture.CreateOutboxStore(TableName);
     }
 
     // A due Pending row staged "in the past" so the claim predicate (next_attempt_at_utc <= db_now) is

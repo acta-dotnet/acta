@@ -24,20 +24,21 @@ public sealed class OutboxSignalInboxSpec : ActaStorageTestBase<ConformanceFixtu
     public async Task Park_admission_and_consume_follow_the_inbox_contract()
     {
         var ct = TestContext.Current.CancellationToken;
-        var store = Services.GetRequiredService<IOutboxSignalStore>();
+        var store = Services.GetRequiredService<OutboxInbox>();
+        var park = Services.GetRequiredService<ParkOutboxSignalHandler>();
         var (jobId, _) = await Seeder.SeedJobAsync(TestNamespaceId, ct: ct);
 
         var nothingIsStale = DateTime.UtcNow.AddHours(-1);
         byte[] first = [1, 1, 1];
 
-        var admitted = await store.ParkAsync(
+        var admitted = await park.HandleAsync(
             new ParkOutboxSignalCommand(jobId, OutboxSignalNames.Requeue, ValueFormatId: 1, first, nothingIsStale),
             ct
         );
         Assert.Equal(1, admitted.Action);
 
         // A second command while one is pending is rejected with the incumbent's park instant.
-        var rejected = await store.ParkAsync(
+        var rejected = await park.HandleAsync(
             new ParkOutboxSignalCommand(jobId, OutboxSignalNames.Requeue, ValueFormatId: 1, [2, 2, 2], nothingIsStale),
             ct
         );
@@ -53,7 +54,7 @@ public sealed class OutboxSignalInboxSpec : ActaStorageTestBase<ConformanceFixtu
         // the version bump invalidates the old command's consume.
         var everythingIsStale = DateTime.UtcNow.AddHours(1);
         byte[] superseding = [3, 3, 3];
-        var superseded = await store.ParkAsync(
+        var superseded = await park.HandleAsync(
             new ParkOutboxSignalCommand(jobId, OutboxSignalNames.Requeue, ValueFormatId: 1, superseding, everythingIsStale),
             ct
         );

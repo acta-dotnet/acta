@@ -481,7 +481,7 @@ internal static class ActaApiEndpoints
                         {
                             return Results.Json(
                                 await operations.Outbox.ListQuarantinedAsync(query, ct),
-                                DashboardJsonContext.Default.PagedResultOutboxQuarantinedItem
+                                DashboardJsonContext.Default.PagedResultOutboxQuarantinedListItem
                             );
                         }
                         catch (InvalidOperationException ex)
@@ -498,7 +498,7 @@ internal static class ActaApiEndpoints
                 }
             )
             .WithSummary("List a relay source's quarantined staging rows.")
-            .Produces<PagedResult<OutboxQuarantinedItem>>(StatusCodes.Status200OK)
+            .Produces<PagedResult<OutboxQuarantinedListItem>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithQueryParameters([.. QueryParameterDocExtensions.PagingCore, .. QueryParameterDocExtensions.IncludeTotal]);
 

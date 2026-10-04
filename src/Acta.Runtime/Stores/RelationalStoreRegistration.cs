@@ -15,7 +15,6 @@ internal static class RelationalStoreRegistration
         services.AddSingleton<RetentionCoordinator>();
         services.AddSingleton<IJobStore, RelationalJobStore>();
         services.AddSingleton<ISignalStore, RelationalSignalStore>();
-        services.AddSingleton<IOutboxSignalStore, RelationalOutboxSignalStore>();
         services.AddSingleton<IExecutionStore, RelationalExecutionStore>();
     }
 }

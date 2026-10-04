@@ -19,7 +19,7 @@ public static class SqliteOutboxRelayExtensions
         configure(options);
         ArgumentException.ThrowIfNullOrWhiteSpace(options.ConnectionString, nameof(options.ConnectionString));
 
-        ((OutboxSourceBuilder)source).SetStoreFactory(new SqliteOutboxSourceStoreFactory(options.ConnectionString));
+        ((OutboxSourceBuilder)source).SetStoreFactory(new SqliteOutboxSourceFactory(options.ConnectionString));
         return source;
     }
 }
