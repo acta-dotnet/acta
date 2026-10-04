@@ -12,6 +12,7 @@ internal interface IControlRequest
 internal sealed record ControlCall<TBody>(
     HttpContext Http,
     IActaOperations Operations,
+    IJobs Jobs,
     TBody? Body,
     string? ReasonMessage,
     CancellationToken Ct
@@ -33,6 +34,20 @@ internal sealed record ControlStatus<TResponse>(Func<TResponse, int> Map, int[] 
 
 internal static class ControlStatus
 {
+    /// <summary>The job verbs: Applied 200, Rejected and VersionConflict 409 (the job's state or a stale expectedVersion), NotFound 404.</summary>
+    public static ControlStatus<T> Job<T>()
+        where T : IJobControlResponse =>
+        new(
+            static response =>
+                response.Action switch
+                {
+                    ControlAction.Applied => StatusCodes.Status200OK,
+                    ControlAction.Rejected or ControlAction.VersionConflict => StatusCodes.Status409Conflict,
+                    _ => StatusCodes.Status404NotFound,
+                },
+            [StatusCodes.Status200OK, StatusCodes.Status409Conflict, StatusCodes.Status404NotFound]
+        );
+
     /// <summary>The admin verbs: Applied and AlreadyInState 200, NotFound 404, VersionConflict 409.</summary>
     public static ControlStatus<T> Admin<T>(params int[] codes)
         where T : IControlResponse =>

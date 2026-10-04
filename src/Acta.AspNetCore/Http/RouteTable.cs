@@ -18,7 +18,7 @@ internal static class RouteTable
         string summary,
         JsonTypeInfo<PagedResult<TItem>> json,
         Func<QueryReader, TQuery> bind,
-        Func<ListCall, TQuery, ValueTask<PagedResult<TItem>>> list,
+        Func<ReadCall, TQuery, ValueTask<PagedResult<TItem>>> list,
         params QueryParameterDoc[] parameters
     ) =>
         group
@@ -26,7 +26,7 @@ internal static class RouteTable
                 pattern,
                 (HttpContext http, IActaOperations operations, IJobs jobs, CancellationToken ct) =>
                     Run(async () =>
-                        Results.Json(await list(new ListCall(operations, jobs, ct), QueryReader.Bind(http.Request, bind)), json)
+                        Results.Json(await list(new ReadCall(operations, jobs, ct), QueryReader.Bind(http.Request, bind)), json)
                     )
             )
             .WithSummary(summary)
@@ -39,14 +39,16 @@ internal static class RouteTable
         string summary,
         string entity,
         JsonTypeInfo<TDetail> json,
-        Func<HttpContext, IActaOperations, CancellationToken, ValueTask<TDetail?>> read
+        Func<HttpContext, ReadCall, ValueTask<TDetail?>> read
     )
         where TDetail : class =>
         group
             .MapGet(
                 pattern,
-                (HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    Run(async () => await read(http, operations, ct) is { } detail ? Results.Json(detail, json) : NotFound(entity))
+                (HttpContext http, IActaOperations operations, IJobs jobs, CancellationToken ct) =>
+                    Run(async () =>
+                        await read(http, new ReadCall(operations, jobs, ct)) is { } detail ? Results.Json(detail, json) : NotFound(entity)
+                    )
             )
             .WithSummary(summary)
             .Produces<TDetail>(StatusCodes.Status200OK)
@@ -126,8 +128,17 @@ internal static class RouteTable
         DeclareControl<TBody, TResponse>(
             controls.MapPost(
                 pattern,
-                (HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    ControlAsync(http, operations, options, body, bodyRequired, invalidTitle, status, key, apply, ct)
+                (HttpContext http, IActaOperations operations, IJobs jobs, CancellationToken ct) =>
+                    ControlAsync(
+                        new ControlCall<TBody>(http, operations, jobs, null, null, ct),
+                        options,
+                        body,
+                        bodyRequired,
+                        invalidTitle,
+                        status,
+                        key,
+                        apply
+                    )
             ),
             summary,
             !bodyRequired,
@@ -151,8 +162,17 @@ internal static class RouteTable
         DeclareControl<TBody, TResponse>(
             controls.MapPatch(
                 pattern,
-                (HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    ControlAsync(http, operations, options, body, true, invalidTitle, status, key, apply, ct)
+                (HttpContext http, IActaOperations operations, IJobs jobs, CancellationToken ct) =>
+                    ControlAsync(
+                        new ControlCall<TBody>(http, operations, jobs, null, null, ct),
+                        options,
+                        body,
+                        true,
+                        invalidTitle,
+                        status,
+                        key,
+                        apply
+                    )
             ),
             summary,
             optional: false,
@@ -176,21 +196,21 @@ internal static class RouteTable
         return route;
     }
 
+    // The request arrives as a call with no body yet; the verb gets it back with the body read and its reason capped.
     private static async Task<IResult> ControlAsync<TKey, TBody, TResponse>(
-        HttpContext http,
-        IActaOperations operations,
+        ControlCall<TBody> request,
         ActaEndpointOptions options,
         JsonTypeInfo<TBody> json,
         bool bodyRequired,
         string invalidTitle,
         ControlStatus<TResponse> status,
         Func<HttpContext, TKey> key,
-        Func<ControlCall<TBody>, TKey, ValueTask<TResponse>> apply,
-        CancellationToken ct
+        Func<ControlCall<TBody>, TKey, ValueTask<TResponse>> apply
     )
         where TBody : class, IControlRequest
         where TResponse : notnull
     {
+        var (http, ct) = (request.Http, request.Ct);
         TKey target;
         try
         {
@@ -230,7 +250,7 @@ internal static class RouteTable
 
         try
         {
-            var response = await apply(new ControlCall<TBody>(http, operations, body, reason, ct), target);
+            var response = await apply(request with { Body = body, ReasonMessage = reason }, target);
             return Results.Json(response, response.GetType(), DashboardJsonContext.Default, statusCode: status.Map(response));
         }
         catch (InvalidControlException ex)
@@ -268,7 +288,7 @@ internal static class RouteTable
     }
 
     /// <summary>The internal id of the job a filter names, or null with no filter; a filter naming no job is the 404.</summary>
-    public static async ValueTask<long?> JobIdAsync(this ListCall call, JobLookup? job) =>
+    public static async ValueTask<long?> JobIdAsync(this ReadCall call, JobLookup? job) =>
         job is { } lookup ? await call.Jobs.GetJobIdAsync(lookup, call.Ct) ?? throw new TargetNotFoundException("Job") : null;
 
     public static IResult BadRequest(string? detail) =>

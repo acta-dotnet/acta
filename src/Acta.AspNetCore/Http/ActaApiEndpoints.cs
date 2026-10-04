@@ -176,14 +176,13 @@ internal static class ActaApiEndpoints
             controls.ProducesProblem(StatusCodes.Status403Forbidden);
             ActaControlEndpoints.Map(controls, options);
             JobDepthEndpoints.MapControls(controls, options);
-            TagEndpoints.MapControls(controls, options);
         }
 
         // The depth payload reads (input/result/checkpoints/input-template) are part of the always-on
         // read surface: Acta operators see everything, so they map unconditionally alongside the other
         // reads. A size cap inside the endpoints is the only payload-read guard; mutations gate above.
         JobDepthEndpoints.MapReads(group, options);
-        TagEndpoints.MapReads(group, options);
+        JobsEndpoints.Map(group, controls, options);
         WorkersEndpoints.Map(group, controls, options);
         NamespacesEndpoints.Map(group, controls, options);
         TenantsEndpoints.Map(group, controls, options);
@@ -192,24 +191,6 @@ internal static class ActaApiEndpoints
         DefinitionsEndpoints.Map(group, controls, options);
         SchedulesEndpoints.Map(group, controls, options);
         LedgerEndpoints.Map(group, options);
-
-        group
-            .MapGet(
-                "/jobs/{jobRef}",
-                async (string jobRef, IJobs jobs, CancellationToken ct) =>
-                {
-                    if (!JobTargetBinding.TryParseTarget(jobRef, options, out var lookup))
-                    {
-                        return RefSegment.Malformed("jobRef", "job");
-                    }
-
-                    var snapshot = await jobs.GetAsync(lookup, ct);
-                    return snapshot is null ? NotFound("Job") : Results.Json(snapshot, DashboardJsonContext.Default.JobDetail);
-                }
-            )
-            .WithSummary("Read one job.")
-            .Produces<JobDetail>(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status404NotFound);
 
         // The stored input on its own, for callers that want only the payload (the enqueue screen's
         // clone prefill) and would otherwise pay the whole detail composition for one field.
@@ -280,46 +261,6 @@ internal static class ActaApiEndpoints
             .Produces<JobDetailResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
-        // A lookup, not a filter, and deliberately its own route. Both parameters are required and
-        // together identify at most one job, so this answers with a single object or 404. Folding it
-        // into /jobs would make one route return either a page or a job depending on which query
-        // parameters arrived, which is a worse contract than the path segment it would remove.
-        group
-            .MapGet(
-                "/jobs/by-key",
-                static (HttpContext http, IJobs jobs, CancellationToken ct) =>
-                {
-                    var jobNamespace = QueryBinding.Text(http.Request.Query, "jobNamespace");
-                    var deduplicationKey = QueryBinding.Text(http.Request.Query, "deduplicationKey");
-                    return jobNamespace is null || deduplicationKey is null
-                        ? Task.FromResult(BadRequest("jobNamespace and deduplicationKey are required."))
-                        : Guard(async () =>
-                        {
-                            var snapshot = await jobs.GetAsync(JobLookup.ByDeduplicationKey(jobNamespace, deduplicationKey), ct);
-                            return snapshot is null
-                                ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Job not found.")
-                                : Results.Json(snapshot, DashboardJsonContext.Default.JobDetail);
-                        });
-                }
-            )
-            .WithSummary("Resolve a job by namespace and deduplication key.")
-            .Produces<JobDetail>(StatusCodes.Status200OK)
-            .WithQueryParameters([
-                new QueryParameterDoc(
-                    "jobNamespace",
-                    QueryParameterKind.String,
-                    "The deduplication key's namespace scope.",
-                    Required: true
-                ),
-                new QueryParameterDoc(
-                    "deduplicationKey",
-                    QueryParameterKind.String,
-                    "The caller-supplied deduplication key to resolve.",
-                    Required: true
-                ),
-            ])
-            .ProducesProblem(StatusCodes.Status404NotFound);
-
         group
             .MapGet(
                 "/capabilities",
@@ -353,47 +294,6 @@ internal static class ActaApiEndpoints
             .WithSummary("Read this host's API capabilities.")
             .Produces<CapabilitiesResponse>(StatusCodes.Status200OK);
     }
-
-    /// <summary>
-    /// Only the typed validation exceptions are caller errors; anything else (including a plain
-    /// ArgumentException thrown by a server-side bug) falls through to the sanitized 500 handler.
-    /// </summary>
-    private static async Task<IResult> Guard(Func<Task<IResult>> action)
-    {
-        try
-        {
-            return await action();
-        }
-        catch (ArgumentException ex) when (ex is InvalidPageCursorException or InvalidQueryException)
-        {
-            return BadRequest(ex.Message);
-        }
-    }
-
-    /// <summary>
-    /// Binds an optional job-ref query filter from its already-read value. Absent is null with no
-    /// error; malformed is a 400, the same answer every other ref-valued query parameter gives.
-    /// </summary>
-    private static bool TryParseJobFilter(string? text, ActaEndpointOptions options, string name, out JobLookup? job, ref string? error)
-    {
-        job = null;
-        if (text is null)
-        {
-            return true;
-        }
-
-        if (!JobTargetBinding.TryParseTarget(text, options, out var parsed))
-        {
-            error = $"{name} is not a valid job ref.";
-            return false;
-        }
-
-        job = parsed;
-        return true;
-    }
-
-    private static IResult BadRequest(string? detail) =>
-        Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid request.", detail: detail);
 
     /// <summary>
     /// The entity is named at every call site rather than defaulted, the way RefSegment.Malformed names

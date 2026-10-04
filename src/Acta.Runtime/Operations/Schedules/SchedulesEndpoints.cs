@@ -71,11 +71,11 @@ internal static class SchedulesEndpoints
                 "Preview a schedule's upcoming fire instants.",
                 "Schedule",
                 DashboardJsonContext.Default.SchedulePreview,
-                static (http, operations, ct) =>
-                    operations.Schedules.PreviewAsync(
+                static (http, call) =>
+                    call.Operations.Schedules.PreviewAsync(
                         Key(http),
                         QueryReader.Bind(http.Request, static query => query.Int("limit")) ?? 10,
-                        ct
+                        call.Ct
                     )
             )
             .WithQueryParameters([new QueryParameterDoc("limit", QueryParameterKind.Int, "How many upcoming occurrences to forecast.")]);

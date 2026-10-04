@@ -44,11 +44,11 @@ internal static class TenantsEndpoints
             "Read one tenant.",
             "Tenant",
             DashboardJsonContext.Default.TenantDetail,
-            static async (http, operations, ct) =>
+            static async (http, call) =>
             {
                 try
                 {
-                    return await operations.Tenants.GetAsync(Key(http), ct);
+                    return await call.Operations.Tenants.GetAsync(Key(http), call.Ct);
                 }
                 catch (ArgumentException)
                 {

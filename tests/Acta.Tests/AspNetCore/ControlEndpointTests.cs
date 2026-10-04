@@ -1044,7 +1044,9 @@ public sealed class ControlEndpointTests
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
         builder.WebHost.UseTestServer();
-        builder.Services.AddSingleton<IJobs>(new TestDashboardHost.FakeJobs());
+        var fake = new TestDashboardHost.FakeJobs();
+        builder.Services.AddSingleton<IJobs>(fake);
+        builder.Services.AddSingleton<IActaOperations>(fake);
         var app = builder.Build();
         app.MapActaApi("/ops/api", options => options.EnableControls = true);
         app.MapActaApi("/ops/readonly");

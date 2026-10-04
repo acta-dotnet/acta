@@ -71,7 +71,7 @@ internal static class AlertsEndpoints
             "Read one alert.",
             "Alert",
             DashboardJsonContext.Default.AlertDetail,
-            static (http, operations, ct) => operations.Alerts.GetAsync(RouteKeys.Alert(http), ct)
+            static (http, call) => call.Operations.Alerts.GetAsync(RouteKeys.Alert(http), call.Ct)
         );
         reads.MapTags(controls, "/alerts/{alertRef}/tags", "alert", options, static http => TagTarget.ForAlert(RouteKeys.Alert(http)));
         if (controls is null)

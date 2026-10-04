@@ -25,4 +25,8 @@ internal static class RouteKeys
         JobTargetBinding.TryParseTarget(Value(http, "jobRef"), options, out var job)
             ? job
             : throw new MalformedRouteKeyException("jobRef", "job");
+
+    /// <summary>A job by its ref alone: a control verb never takes the <c>id:&lt;n&gt;</c> debug lookup.</summary>
+    public static JobLookup JobByRef(HttpContext http) =>
+        JobRef.TryParse(Value(http, "jobRef"), out var job) ? JobLookup.ByRef(job) : throw new MalformedRouteKeyException("jobRef", "job");
 }

@@ -38,7 +38,7 @@ internal static class WorkersEndpoints
             "Read one worker.",
             "Worker",
             DashboardJsonContext.Default.WorkerDetail,
-            static (http, operations, ct) => operations.Workers.GetAsync(RouteKeys.Worker(http), ct)
+            static (http, call) => call.Operations.Workers.GetAsync(RouteKeys.Worker(http), call.Ct)
         );
         reads.MapTags(controls, "/workers/{workerRef}/tags", "worker", options, static http => TagTarget.ForWorker(RouteKeys.Worker(http)));
     }
