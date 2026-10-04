@@ -1,4 +1,6 @@
 using Acta.Tests.Conformance.Testing;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Xunit;
 
 namespace Acta.Tests.Architecture;
@@ -7,7 +9,8 @@ namespace Acta.Tests.Architecture;
 /// Holds <c>src/</c> to the operation layout in <c>docs/internals/source-layout.md</c>: <c>Operations/Group/Operation/</c>
 /// and no deeper, files named after their operation, all three dialects or none, and SQL only under <c>Operations/</c>
 /// and <c>Schema/</c>. Once a group's Runtime folder holds C#, each of its operations needs a handler and each public
-/// operation folder a Runtime twin. What still differs is listed in the <c>layout</c> ratchet.
+/// operation folder a Runtime twin, and no Operations file names a type declared under <c>Engine/</c>. What still differs is
+/// listed in the <c>layout</c> ratchet.
 /// </summary>
 public sealed class OperationLayoutTests
 {
@@ -78,6 +81,47 @@ public sealed class OperationLayoutTests
             .Select(file => file.Relative.Split('/'))
             .Where(parts => parts.Length > 3 && parts[2] is not "Operations" and not "Schema")
             .Select(parts => $"sql-placement: {parts[0]}/{parts[1]}/{parts[2]}");
+
+    // Operations are the blocks the engine composes, so the dependency runs one way. The scan is by name, crefs included:
+    // it cannot see an Engine type reached only through a member of a non-Engine type, so no such member returns one.
+    [Fact]
+    public void Operations_never_reference_the_engine()
+    {
+        var files = ShippedCode
+            .SourceFiles("*.cs")
+            .Where(file => file.Relative.StartsWith("src/Acta.Runtime/", StringComparison.Ordinal))
+            .ToList();
+        var engineTypes = files
+            .Where(file => file.Relative.StartsWith("src/Acta.Runtime/Engine/", StringComparison.Ordinal))
+            .SelectMany(file => DeclaredTypes(file.Path))
+            .ToHashSet();
+        Assert.NotEmpty(engineTypes);
+
+        var violations = files
+            .Where(file => file.Relative.StartsWith("src/Acta.Runtime/Operations/", StringComparison.Ordinal))
+            .SelectMany(file => NamesUsed(file.Path).Where(engineTypes.Contains).Distinct().Select(name => $"{file.Relative}: {name}"))
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+        Assert.True(violations.Count == 0, "Operations files that name an Engine type:\n" + string.Join("\n", violations));
+    }
+
+    private static IEnumerable<string> DeclaredTypes(string path)
+    {
+        var nodes = CSharpSyntaxTree.ParseText(File.ReadAllText(path)).GetRoot().DescendantNodes().ToList();
+        return nodes
+            .OfType<BaseTypeDeclarationSyntax>()
+            .Select(type => type.Identifier.Text)
+            .Concat(nodes.OfType<DelegateDeclarationSyntax>().Select(type => type.Identifier.Text));
+    }
+
+    private static IEnumerable<string> NamesUsed(string path) =>
+        CSharpSyntaxTree
+            .ParseText(File.ReadAllText(path))
+            .GetRoot()
+            .DescendantNodes(descendIntoTrivia: true)
+            .OfType<SimpleNameSyntax>()
+            .Select(name => name.Identifier.Text);
 
     private static string Relative(string root, string path) => Path.GetRelativePath(root, path).Replace('\\', '/');
 }

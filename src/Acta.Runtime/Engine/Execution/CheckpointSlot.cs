@@ -1,26 +1,6 @@
 namespace Acta.Runtime;
 
 /// <summary>
-/// Which CRUD shape a <c>checkpoint_slot</c> call takes. The values are the routine's dispatch
-/// discriminator; they are never persisted.
-/// </summary>
-internal enum CheckpointSlotAction : short
-{
-    Set = 10,
-    Get = 20,
-    GetOrSet = 30,
-    Exists = 40,
-    Delete = 50,
-}
-
-/// <summary>
-/// One row of <c>checkpoint_slot</c>: the action outcome flag plus the slot value columns (NULL for
-/// the write/exists/delete shapes and for a missing slot).
-/// </summary>
-[DbProjection]
-internal sealed record CheckpointSlotRow(int Found, byte? ValueFormatId, byte[]? Value, int? Version);
-
-/// <summary>
 /// The one generic CRUD operation over a <c>checkpoints</c> slot (user variables and the progress
 /// slot): last-writer-wins set, get, atomic get-or-set, exists, and delete, dispatched by
 /// <see cref="CheckpointSlotAction"/> through <see cref="IExecution.CheckpointSlotAsync"/>. Checkpoint

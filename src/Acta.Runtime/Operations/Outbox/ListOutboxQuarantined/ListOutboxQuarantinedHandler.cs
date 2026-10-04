@@ -21,7 +21,7 @@ internal sealed class ListOutboxQuarantinedHandler(OutboxRelayRegistry? registry
         );
         var source =
             registry is not null && registry.HasRelay(jobNamespace)
-                ? registry.Service(jobNamespace).Source
+                ? registry.Source(jobNamespace)
                 : throw new InvalidOperationException(
                     $"Namespace '{jobNamespace}' has no outbox relay registered in this process. Quarantined rows live in the "
                         + "producer's source database, which only a host that called AddOutboxRelay for this namespace can read; "

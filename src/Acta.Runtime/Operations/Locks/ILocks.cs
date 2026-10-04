@@ -41,7 +41,7 @@ internal interface ILocks
 
     /// <summary>
     /// CAS on the hold token, which is unchanged so the same token still releases; false when the lock
-    /// had been stolen or reacquired. <see cref="LockLeaseHeartbeat"/> calls it to keep a long-running
+    /// had been stolen or reacquired. The engine's lock-lease heartbeat calls it to keep a long-running
     /// handler's locks alive by moving <c>locks.expires_at_utc</c>.
     /// </summary>
     Task<bool> ExtendLockAsync(LockToken token, TimeSpan ttl, CancellationToken ct);

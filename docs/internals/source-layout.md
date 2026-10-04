@@ -43,21 +43,22 @@ tests/Acta.Tests.Conformance/Operations/Jobs/PauseJobSpec.cs
 
 ## Engine
 
-`Acta.Runtime/Engine/` runs jobs: workers, execution, recovery, retention, alert projection and delivery, the outbox relay, and definition registration. It composes operations by calling their handlers directly, with no interface in between.
+`Acta.Runtime/Engine/` runs jobs: workers, execution, recovery, retention, alert projection and delivery, the outbox relay, and definition registration. It composes operations by calling their handlers, or a group's seam interface where the engine's unit tests fake the whole group (for example `ILocks`, `IExecution`, `ISignals`).
 
 ## The other Runtime folders
 
 - `Db/`: the session, `ISqlDialect`, value coercion, deadlock retry, the SQL resource catalog, and paging.
 - `Entities/`: the table models, one class per table.
 - `Schema/`: the schema model, the migration runner and installer, baseline stamps, the schema commands, and the operator views in `Schema/Views/`.
-- `Hosting/`: `ActaBuilder`, `AddActa`, provider registration, and option validators.
+- `Hosting/`: `ActaBuilder`, `AddActa`, provider registration, option validators, and what registration builds: the job catalog indexes and the outbox relay registry.
+- `Kernel/`: what operations and the engine both use: the wakeup publisher, text limits, tag filters, catalog validation and hashing, backoff, and metrics.
 - `Cli/`: the operator CLI, a presenter over the public facades.
 
 ## Enforced by
 
 | Test | Rule |
 |---|---|
-| `OperationLayoutTests` | operation folders and depth, file names, all three dialects or none, no SQL outside `Operations/` and `Schema/`; once a group's Runtime folder holds C#, a handler per operation and a Runtime twin for each public operation folder |
+| `OperationLayoutTests` | operation folders and depth, file names, all three dialects or none, no SQL outside `Operations/` and `Schema/`; once a group's Runtime folder holds C#, a handler per operation and a Runtime twin for each public operation folder; no `Operations/` file names a type declared under `Engine/` |
 | `TypeNamingTests` | the banned suffixes, the `Row` rule, and the `Table` suffix |
 | `DuplicateShapeTests` | no two types declaring the same property names, except operations' own inputs and responses |
 | `DialectParityTests` | an operation's three SQL files return the same columns |

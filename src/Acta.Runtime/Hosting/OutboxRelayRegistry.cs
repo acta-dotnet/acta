@@ -37,6 +37,9 @@ internal sealed class OutboxRelayRegistry(
                     + "framework-job registration defect: sys.outbox is added only to namespaces that call AddOutboxRelay."
             );
 
+    /// <summary>This namespace's outbox source, for the operator reads that run outside the relay.</summary>
+    public IOutboxSource Source(string namespaceName) => Service(namespaceName).Source;
+
     /// <summary>The relay service bound to this namespace's source; lazily created and cached per namespace.</summary>
     public OutboxRelayService Service(string namespaceName) =>
         _services.GetOrAdd(

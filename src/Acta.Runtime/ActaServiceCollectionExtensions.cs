@@ -64,10 +64,9 @@ public static class ActaServiceCollectionExtensions
 
         services.TryAddSingleton<TenantKeyCache>();
 
-        // The operator facade and its module-owned domain facades. Application code injects IJobs
-        // alone; dashboards, CLIs, and operator hosts inject IActaOperations. Each domain facade is
-        // registered here (the composition root may see every module) but owned by its module.
-        services.TryAddSingleton<IActaOperations, OperationsApi>();
+        // The operator facade over the group facades. Application code injects IJobs alone; dashboards,
+        // CLIs, and operator hosts inject IActaOperations.
+        services.TryAddSingleton<IActaOperations, ActaOperations>();
 
         // Operation groups that have moved to handlers: each group's handlers, then its facade.
         services.AddSingleton<IServerClock, GetUtcNowHandler>();

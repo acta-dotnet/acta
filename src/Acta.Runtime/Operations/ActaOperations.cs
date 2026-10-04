@@ -4,7 +4,7 @@ namespace Acta.Runtime;
 /// <see cref="IActaOperations"/> implementation: composes the group facades. Each is registered with its
 /// handlers and injected here, so this class is pure composition.
 /// </summary>
-internal sealed class OperationsApi(
+internal sealed class ActaOperations(
     ActaProviderInfo provider,
     ISchedules schedules,
     IDefinitions definitions,

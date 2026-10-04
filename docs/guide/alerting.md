@@ -498,10 +498,10 @@ from a `None` job naming an unconfigured channel is not caught until it fails de
 
 | Cited as | Path |
 | --- | --- |
-| `AlertsJob.cs` | `src/Acta.Runtime/Modules/Alerting/AlertsJob.cs` |
-| `AlertChannelDecision.cs` | `src/Acta.Runtime/Modules/Alerting/AlertChannelDecision.cs` |
-| `AlertChannelRegistry.cs` | `src/Acta.Runtime/Modules/Alerting/AlertChannelRegistry.cs` |
-| `AlertRoutingCheck.cs` | `src/Acta.Runtime/Modules/Alerting/AlertRoutingCheck.cs` |
+| `AlertsJob.cs` | `src/Acta.Runtime/Engine/Alerts/AlertsJob.cs` |
+| `AlertChannelDecision.cs` | `src/Acta.Runtime/Engine/Alerts/AlertChannelDecision.cs` |
+| `AlertChannelRegistry.cs` | `src/Acta.Runtime/Engine/Alerts/AlertChannelRegistry.cs` |
+| `AlertRoutingCheck.cs` | `src/Acta.Runtime/Engine/Alerts/AlertRoutingCheck.cs` |
 | `IAlertLifecycle.cs` | `src/Acta.Runtime/Operations/Alerts/IAlertLifecycle.cs` |
 | `JobAlert.cs` | `src/Acta.Runtime/Entities/JobAlert.cs` |
 | `AlertProfileCode.cs` | `src/Acta/Codes/AlertProfileCode.cs` |
@@ -513,7 +513,7 @@ from a `None` job naming an unconfigured channel is not caught until it fails de
 | `JobAttribute.cs` | `src/Acta/Execution/JobAttribute.cs` |
 | `JobsOptions.cs` | `src/Acta/Configuration/JobsOptions.cs` |
 | `JobContext.cs` | `src/Acta/Execution/JobContext.cs` |
-| `JobExecution.cs` | `src/Acta.Runtime/Modules/Execution/JobExecution.cs` |
+| `JobExecution.cs` | `src/Acta.Runtime/Engine/Execution/JobExecution.cs` |
 | `JobEventReasonCode.cs` | `src/Acta/Codes/JobEventReasonCode.cs` |
 | `EventCode.cs` | `src/Acta/Codes/EventCode.cs` |
 | `BackoffSchedule.cs` | `src/Acta.Runtime/Kernel/BackoffSchedule.cs` |
