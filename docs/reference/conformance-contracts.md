@@ -1513,6 +1513,14 @@
 
 ## Scheduling
 
+### The live-schedule read returns a slot's non-orphaned schedules by name
+- **Contract:** GetLiveSchedules returns one slot's non-orphaned schedules in name order, each with its effective and declared expression and time zone, cursor, and status.
+- **Guarantees:**
+  - A slot's schedules read back in name order with their declaration, cursor, and status
+  - An override becomes the effective expression and time zone while the declared ones stay
+  - An orphaned schedule drops out while a paused one stays with its pause
+  - A job that owns no schedules reads an empty list
+
 ### GetScheduleState returns live cursors for the namespace, empty when none exist
 - **Contract:** GetScheduleState returns the non-orphaned per-schedule cursors for the given namespace id, or an empty list when none exist.
 - **Guarantees:**

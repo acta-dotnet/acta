@@ -141,7 +141,7 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `GetLiveSchedules` | · | · | · | inline | inline | inline | · | · |
+| `GetLiveSchedules` | · | · | · | inline | inline | inline | · | `GetLiveSchedulesSpec` |
 | `GetScheduleState` | · | · | · | inline | inline | inline | · | `GetScheduleStateSpec` |
 | `ListJobSchedules` | `ISchedules.ListAsync` | `GET /schedules` | · | inline | inline | inline | · | `ListJobSchedulesFilterMatrixSpec`, `ListJobSchedulesSpec` |
 | `PauseSchedule` | `ISchedules.PauseAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/pause` | · | routine | routine | inline | `events`, `runtimes`, `schedules` | `PauseScheduleSpec` |
