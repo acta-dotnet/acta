@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 13)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 14)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -7468,86 +7468,6 @@ AS $$
     FROM stopped s;
 $$;
 
-CREATE OR REPLACE FUNCTION acta.suspend_namespace(
-    p_namespace_name VARCHAR,
-    p_actor_code SMALLINT,
-    p_actor_key VARCHAR,
-    p_reason_message VARCHAR
-)
-RETURNS TABLE (action SMALLINT, version INT)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_id INT;
-    v_status SMALLINT;
-    v_version INT;
-BEGIN
-    SELECT n.id, n.status_code, n.version INTO v_id, v_status, v_version
-    FROM acta.namespaces n
-    WHERE n.name = p_namespace_name
-    FOR UPDATE;
-
-    IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::INT;
-        RETURN;
-    END IF;
-
-    IF v_status = 20 /* NamespaceStatusCode.Suspended */ THEN
-        RETURN QUERY SELECT 6 /* ControlAction.AlreadyInState */::SMALLINT, v_version;
-        RETURN;
-    END IF;
-
-    UPDATE acta.namespaces AS n
-    SET
-        status_code = 20 /* NamespaceStatusCode.Suspended */,
-        modified_at_utc = now(),
-        version = n.version + 1
-    WHERE n.id = v_id
-    RETURNING n.version INTO v_version;
-
-    INSERT INTO acta.events (
-        event_code,
-        created_at_utc,
-        namespace_id,
-        actor_code,
-        actor_key,
-        job_id,
-        job_ref,
-        execution_number,
-        lineage_root_id,
-        definition_id,
-        tenant_id,
-        worker_id,
-        from_status_code,
-        to_status_code,
-        execution_status_code,
-        duration_ms,
-        reason_code,
-        reason_message)
-    VALUES (
-        20 /* EventCode.NamespaceSuspended */,
-        now(),
-        v_id,
-        p_actor_code,
-        p_actor_key,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        p_reason_message);
-
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_version;
-END;
-$$;
-
 CREATE OR REPLACE FUNCTION acta.suspend_tenant(
     p_tenant_key VARCHAR,
     p_actor_code SMALLINT,
@@ -8208,7 +8128,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.13-88ebce2e3856f02d1cf8227924b82d6b', 'acta');
+VALUES (-1, 'objects-1.14-c76ede023e37e814267ecd19fac37c9e', 'acta');
 
 COMMIT;
 

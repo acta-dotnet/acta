@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 13)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 14)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -8513,81 +8513,6 @@ BEGIN
     END CATCH;
 END;
 GO
-CREATE OR ALTER PROCEDURE acta.suspend_namespace
-    @p_namespace_name VARCHAR(128),
-    @p_actor_code TINYINT,
-    @p_actor_key NVARCHAR(128),
-    @p_reason_message NVARCHAR(512)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @id INT, @status TINYINT, @version INT;
-
-        SELECT
-            @id = n.id,
-            @status = n.status_code,
-            @version = n.version
-        FROM acta.namespaces n WITH (UPDLOCK, ROWLOCK)
-        WHERE n.name = @p_namespace_name;
-
-        IF @id IS NULL
-            BEGIN
-
-                SELECT
-                    CAST(2 /* ControlAction.NotFound */ AS SMALLINT) AS action,
-                    CAST(NULL AS INT) AS version;
-                GOTO Finish;
-            END;
-
-        IF @status = 20 /* NamespaceStatusCode.Suspended */
-            BEGIN
-
-                SELECT
-                    CAST(6 /* ControlAction.AlreadyInState */ AS SMALLINT) AS action,
-                    @version AS version;
-                GOTO Finish;
-            END;
-
-        UPDATE acta.namespaces
-        SET status_code = 20 /* NamespaceStatusCode.Suspended */, modified_at_utc = @now, version = version + 1
-        WHERE id = @id;
-        SET @version = @version + 1;
-
-        INSERT INTO acta.events (
-            event_code, created_at_utc, namespace_id, actor_code, actor_key,
-            job_id, job_ref, execution_number, lineage_root_id, definition_id, tenant_id, worker_id,
-            from_status_code, to_status_code, execution_status_code, duration_ms, reason_code, reason_message
-        )
-        VALUES (
-            20 /* EventCode.NamespaceSuspended */, @now, @id, @p_actor_code, @p_actor_key,
-            NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-            NULL, NULL, NULL, NULL, NULL, @p_reason_message
-        );
-
-        SELECT
-            CAST(1 /* ControlAction.Applied */ AS SMALLINT) AS action,
-            @version AS version;
-
-    Finish:
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
 CREATE OR ALTER PROCEDURE acta.suspend_tenant
     @p_tenant_key VARCHAR(128),
     @p_actor_code TINYINT,
@@ -9259,9 +9184,9 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.13-a02fb468c0563427209947cb50af52dc', 'acta'
+SELECT -1, 'objects-1.14-81eb8da8a70ab9547b093965b3eb77c9', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
-    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'acknowledge_job_alert', 'acquire_lock', 'acquire_slot', 'apply_tags', 'arm_or_consume_sleep_timer', 'cancel_job', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_step', 'consume_outbox_signal', 'enqueue_batch', 'enqueue_one', 'extend_lock', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'pause_job', 'pause_schedule', 'purge_expired_data', 'purge_job', 'raise_job_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_job_note', 'record_outbox_event', 'register_job_definitions', 'register_scheduled_jobs', 'register_tenant', 'release_lock', 'repair_recovery_slot', 'reprioritize_job', 'reschedule_job', 'reserve_rate', 'reset_job_state', 'resolve_job_alert_manual', 'resolve_job_alerts', 'restart_job', 'resume_job', 'resume_namespace', 'resume_schedule', 'resume_tenant', 'set_job_definition_overrides', 'set_schedule_overrides', 'start_execution', 'start_step', 'start_worker', 'stop_worker', 'suspend_namespace', 'suspend_tenant', 'trigger_schedule_now', 'update_alert_delivery', 'update_job_input', 'update_namespace', 'update_tenant', 'wait_signal')) = 66;
+    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'acknowledge_job_alert', 'acquire_lock', 'acquire_slot', 'apply_tags', 'arm_or_consume_sleep_timer', 'cancel_job', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_step', 'consume_outbox_signal', 'enqueue_batch', 'enqueue_one', 'extend_lock', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'pause_job', 'pause_schedule', 'purge_expired_data', 'purge_job', 'raise_job_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_job_note', 'record_outbox_event', 'register_job_definitions', 'register_scheduled_jobs', 'register_tenant', 'release_lock', 'repair_recovery_slot', 'reprioritize_job', 'reschedule_job', 'reserve_rate', 'reset_job_state', 'resolve_job_alert_manual', 'resolve_job_alerts', 'restart_job', 'resume_job', 'resume_namespace', 'resume_schedule', 'resume_tenant', 'set_job_definition_overrides', 'set_schedule_overrides', 'start_execution', 'start_step', 'start_worker', 'stop_worker', 'suspend_tenant', 'trigger_schedule_now', 'update_alert_delivery', 'update_job_input', 'update_namespace', 'update_tenant', 'wait_signal')) = 65;
 GO
 COMMIT TRANSACTION;
 GO

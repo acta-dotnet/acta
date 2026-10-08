@@ -1,79 +1,28 @@
-CREATE OR REPLACE FUNCTION {{schema}}.suspend_namespace(
-    p_namespace_name VARCHAR,
-    p_actor_code SMALLINT,
-    p_actor_key VARCHAR,
-    p_reason_message VARCHAR
-)
-RETURNS TABLE (action SMALLINT, version INT)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_id INT;
-    v_status SMALLINT;
-    v_version INT;
-BEGIN
-    SELECT n.id, n.status_code, n.version INTO v_id, v_status, v_version
+-- One statement: the name's row is locked, then suspended and audited only when it is not suspended yet.
+WITH target AS (
+    SELECT n.id, n.status_code, n.version
     FROM {{schema}}.namespaces n
-    WHERE n.name = p_namespace_name
-    FOR UPDATE;
-
-    IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::INT;
-        RETURN;
-    END IF;
-
-    IF v_status = 20 /* NamespaceStatusCode.Suspended */ THEN
-        RETURN QUERY SELECT 6 /* ControlAction.AlreadyInState */::SMALLINT, v_version;
-        RETURN;
-    END IF;
-
+    WHERE n.name = @p_namespace_name
+    FOR UPDATE
+),
+suspended AS (
     UPDATE {{schema}}.namespaces AS n
-    SET
-        status_code = 20 /* NamespaceStatusCode.Suspended */,
-        modified_at_utc = now(),
-        version = n.version + 1
-    WHERE n.id = v_id
-    RETURNING n.version INTO v_version;
-
-    INSERT INTO {{schema}}.events (
-        event_code,
-        created_at_utc,
-        namespace_id,
-        actor_code,
-        actor_key,
-        job_id,
-        job_ref,
-        execution_number,
-        lineage_root_id,
-        definition_id,
-        tenant_id,
-        worker_id,
-        from_status_code,
-        to_status_code,
-        execution_status_code,
-        duration_ms,
-        reason_code,
-        reason_message)
-    VALUES (
-        20 /* EventCode.NamespaceSuspended */,
-        now(),
-        v_id,
-        p_actor_code,
-        p_actor_key,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        p_reason_message);
-
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_version;
-END;
-$$;
+    SET status_code = 20 /* NamespaceStatusCode.Suspended */, modified_at_utc = now(), version = n.version + 1
+    FROM target t
+    WHERE n.id = t.id AND t.status_code <> 20 /* NamespaceStatusCode.Suspended */
+    RETURNING n.id, n.version
+),
+audit AS (
+    INSERT INTO {{schema}}.events (event_code, created_at_utc, namespace_id, actor_code, actor_key, reason_message)
+    SELECT 20 /* EventCode.NamespaceSuspended */, now(), s.id, @p_actor_code, @p_actor_key, @p_reason_message
+    FROM suspended s
+)
+SELECT 1 /* ControlAction.Applied */::SMALLINT AS action, s.version AS version
+FROM suspended s
+UNION ALL
+SELECT 6 /* ControlAction.AlreadyInState */::SMALLINT AS action, t.version AS version
+FROM target t
+WHERE t.status_code = 20 /* NamespaceStatusCode.Suspended */
+UNION ALL
+SELECT 2 /* ControlAction.NotFound */::SMALLINT AS action, NULL::INT AS version
+WHERE NOT EXISTS (SELECT 1 FROM target);
