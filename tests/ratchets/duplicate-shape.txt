@@ -1,7 +1,1 @@
 # Known duplicate-shape violations; entries may only be removed.
-AlertDetail
-AlertListItem
-TenantDetail
-TenantListItem
-WorkerDetail
-WorkerListItem

@@ -69,7 +69,7 @@ A type is named `{Subject}{Role}`, and each role has exactly one suffix. An oper
 | How a job, an attempt, or a wait ended, for handler code only | `Outcome` | `JobOutcome`, `ChildJobOutcome`, `SignalWaitOutcome` |
 
 - **A `Get` query returns one thing and a `List` query returns a page.** `Get` returns a `Detail`, a `Snapshot`, a `Set`, or a single value, and `null` when nothing is found. `List` always returns `PagedResult<XListItem>`, never an unpaged list. `PagedResult<T>` keeps its name: it is a page, not an operation's response.
-- **Every operation has its own input and its own response.** Responses that belong together share an interface (`IJobControlResponse`), never a class, so changing one operation's response changes no other operation.
+- **Every operation has its own input and its own response.** Responses that belong together share an interface (`IJobControlResponse`), never a class, so changing one operation's response changes no other operation. A subject's `Detail` and `ListItem` stay two types for the same reason, even where they match today.
 - **`Row` means the database loaded it.** Every `*Row` carries `[DbProjection]`. A model the public API exposes is never a row; SQL fills it directly.
 - **A type takes the subject of the table it describes.** `StepStatusCode` maps `steps.status_code`, `DefinitionAuditLevelCode` maps `definitions.audit_level_code`, and `EventReasonCode` maps `events.reason_code`. `Job` prefixes only what describes a job itself (`JobStatusCode`, `JobDetail`).
 - **`Outcome` is a handler-code noun, never an operation's return.** It names how a job, a child, a map, or a wait ended inside handler code; what an operation returns is a `Response`.

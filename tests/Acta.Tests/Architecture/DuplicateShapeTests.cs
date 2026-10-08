@@ -33,7 +33,9 @@ public sealed class DuplicateShapeTests
             .Select(type => (Type: type, Shape: Shape(type)))
             .Where(entry => entry.Shape.Count >= MinProperties)
             .GroupBy(entry => string.Join(",", entry.Shape), StringComparer.Ordinal)
-            .Where(group => group.Count() > 1 && !group.All(entry => IsPerOperation(entry.Type)))
+            .Where(group =>
+                group.Count() > 1 && !group.All(entry => IsPerOperation(entry.Type)) && !IsReadModelPair(group.Select(entry => entry.Type))
+            )
             .SelectMany(group =>
                 group.Select(entry =>
                     (
@@ -47,6 +49,20 @@ public sealed class DuplicateShapeTests
             );
 
         Ratchet.Check("duplicate-shape", copies, "Return the existing type instead of copying it; SQL can fill a public model directly.");
+    }
+
+    // A Get and a List each own their read model, so one subject's Detail and ListItem may match today and diverge later.
+    private static bool IsReadModelPair(IEnumerable<Type> types)
+    {
+        var subjects = types
+            .Select(ShippedCode.SimpleName)
+            .Select(name =>
+                name.EndsWith("ListItem", StringComparison.Ordinal) ? name[..^"ListItem".Length]
+                : name.EndsWith("Detail", StringComparison.Ordinal) ? name[..^"Detail".Length]
+                : null
+            )
+            .ToList();
+        return subjects.All(subject => subject is not null) && subjects.Distinct(StringComparer.Ordinal).Count() == 1;
     }
 
     private static bool IsPerOperation(Type type) =>
