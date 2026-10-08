@@ -1,5 +1,5 @@
 -- Version-CAS consume of an applied operator command: a miss means a newer command superseded the row
--- mid-apply and survives for the next tick. See IOutboxSignalStore.ConsumeAsync.
+-- mid-apply and survives for the next tick.
 CREATE OR REPLACE FUNCTION {{schema}}.consume_outbox_signal(p_job_id BIGINT, p_name VARCHAR, p_expected_version INT)
 RETURNS TABLE (out_consumed BIGINT)
 LANGUAGE plpgsql

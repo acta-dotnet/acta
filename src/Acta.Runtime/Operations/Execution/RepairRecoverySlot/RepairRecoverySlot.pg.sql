@@ -1,4 +1,4 @@
--- Re-arms one namespace's sys.recovery slot when it is stranded; see IExecutionStore.RepairRecoverySlotAsync.
+-- Re-arms one namespace's sys.recovery slot when it is stranded; see Execution.RepairRecoverySlotAsync.
 CREATE OR REPLACE FUNCTION {{schema}}.repair_recovery_slot(
     p_namespace_id INT,
     p_job_id BIGINT

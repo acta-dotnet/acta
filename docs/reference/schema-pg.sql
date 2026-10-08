@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 40)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 41)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -1645,7 +1645,7 @@ BEGIN
               -- Edited while this attempt ran: the plan is older than the row, and the edit wins. NULL is a
               -- caller from before the guard, applied as before.
               AND (adv.expected_version IS NULL OR js.version = adv.expected_version)
-              -- Orphaned by a deployment while this attempt ran; see IExecutionStore.CompleteExecutionAsync.
+              -- Orphaned by a deployment while this attempt ran; see Execution.CompleteExecutionAsync.
               AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */
               AND (
                   js.status_code <> 30 /* ScheduleStatusCode.Paused */
@@ -1654,7 +1654,7 @@ BEGIN
         END IF;
 
         -- The slot's next state is read from the schedules as they stand now, not from the plan made
-        -- before the handler ran; see IExecutionStore.CompleteExecutionAsync.
+        -- before the handler ran; see Execution.CompleteExecutionAsync.
         SELECT MIN(CASE WHEN js.status_code = 30 /* ScheduleStatusCode.Paused */ THEN js.paused_until_utc ELSE js.next_run_at_utc END)
         INTO v_slot_wake
         FROM acta.schedules js
@@ -2154,7 +2154,7 @@ END;
 $$;
 
 -- Version-CAS consume of an applied operator command: a miss means a newer command superseded the row
--- mid-apply and survives for the next tick. See IOutboxSignalStore.ConsumeAsync.
+-- mid-apply and survives for the next tick.
 CREATE OR REPLACE FUNCTION acta.consume_outbox_signal(p_job_id BIGINT, p_name VARCHAR, p_expected_version INT)
 RETURNS TABLE (out_consumed BIGINT)
 LANGUAGE plpgsql
@@ -3168,7 +3168,7 @@ END;
 $$;
 
 -- Park admission for the sys.outbox operator inbox: insert when the slot is free, supersede when the
--- pending command has outlived the worker-dead window, reject otherwise. See IOutboxSignalStore.ParkAsync.
+-- pending command has outlived the worker-dead window, reject otherwise.
 CREATE OR REPLACE FUNCTION acta.park_outbox_signal(
     p_job_id BIGINT,
     p_name VARCHAR,
@@ -4590,7 +4590,7 @@ AS $$
     RETURNING hold_token;
 $$;
 
--- Re-arms one namespace's sys.recovery slot when it is stranded; see IExecutionStore.RepairRecoverySlotAsync.
+-- Re-arms one namespace's sys.recovery slot when it is stranded; see Execution.RepairRecoverySlotAsync.
 CREATE OR REPLACE FUNCTION acta.repair_recovery_slot(
     p_namespace_id INT,
     p_job_id BIGINT
@@ -4673,7 +4673,7 @@ SELECT CASE
     ELSE 0 /* RecoverySlotRepair.Missing */ END AS outcome;
 $$;
 
--- GCRA with a reservation; the full contract is on ILockStore.ReserveRateAsync. A turn is honoured
+-- GCRA with a reservation; the full contract is on Locks.ReserveRateAsync. A turn is honoured
 -- while it is fresh, one second past its instant (one interval when that is longer); a stale one goes
 -- back through the meter, so a queue of overdue jobs cannot all start at once after a long stall.
 
@@ -5207,7 +5207,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.40-c20414d0d089f1de5da4876763743b4e', 'acta');
+VALUES (-1, 'objects-1.41-9074819a9b360b044ab04817385403d0', 'acta');
 
 COMMIT;
 

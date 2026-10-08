@@ -228,7 +228,7 @@ BEGIN
               -- Edited while this attempt ran: the plan is older than the row, and the edit wins. NULL is a
               -- caller from before the guard, applied as before.
               AND (adv.expected_version IS NULL OR js.version = adv.expected_version)
-              -- Orphaned by a deployment while this attempt ran; see IExecutionStore.CompleteExecutionAsync.
+              -- Orphaned by a deployment while this attempt ran; see Execution.CompleteExecutionAsync.
               AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */
               AND (
                   js.status_code <> 30 /* ScheduleStatusCode.Paused */
@@ -237,7 +237,7 @@ BEGIN
         END IF;
 
         -- The slot's next state is read from the schedules as they stand now, not from the plan made
-        -- before the handler ran; see IExecutionStore.CompleteExecutionAsync.
+        -- before the handler ran; see Execution.CompleteExecutionAsync.
         SELECT MIN(CASE WHEN js.status_code = 30 /* ScheduleStatusCode.Paused */ THEN js.paused_until_utc ELSE js.next_run_at_utc END)
         INTO v_slot_wake
         FROM {{schema}}.schedules js

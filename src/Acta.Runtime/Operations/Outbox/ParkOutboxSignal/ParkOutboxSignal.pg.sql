@@ -1,5 +1,5 @@
 -- Park admission for the sys.outbox operator inbox: insert when the slot is free, supersede when the
--- pending command has outlived the worker-dead window, reject otherwise. See IOutboxSignalStore.ParkAsync.
+-- pending command has outlived the worker-dead window, reject otherwise.
 CREATE OR REPLACE FUNCTION {{schema}}.park_outbox_signal(
     p_job_id BIGINT,
     p_name VARCHAR,

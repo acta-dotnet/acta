@@ -1,4 +1,4 @@
--- GCRA with a reservation; the full contract is on ILockStore.ReserveRateAsync. A turn is honoured
+-- GCRA with a reservation; the full contract is on Locks.ReserveRateAsync. A turn is honoured
 -- while it is fresh, one second past its instant (one interval when that is longer); a stale one goes
 -- back through the meter, so a queue of overdue jobs cannot all start at once after a long stall.
 

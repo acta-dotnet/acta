@@ -218,7 +218,7 @@ BEGIN
                         WHERE
                             -- Edited while this attempt ran: the plan was made against an older version, and the edit wins.
                             (adv.expected_version IS NULL OR js.version = adv.expected_version)
-                            -- Orphaned by a deployment while this attempt ran; see IExecutionStore.CompleteExecutionAsync.
+                            -- Orphaned by a deployment while this attempt ran; see Execution.CompleteExecutionAsync.
                             AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */
                             AND (
                                 js.status_code <> 30 /* ScheduleStatusCode.Paused */
@@ -226,7 +226,7 @@ BEGIN
                             );
 
                         -- The slot's next state is read from the schedules as they stand now, not from the
-                        -- plan made before the handler ran; see IExecutionStore.CompleteExecutionAsync.
+                        -- plan made before the handler ran; see Execution.CompleteExecutionAsync.
                         SET @slot_wake = (
                             SELECT MIN(CASE WHEN js.status_code = 30 /* ScheduleStatusCode.Paused */ THEN js.paused_until_utc ELSE js.next_run_at_utc END)
                             FROM {{schema}}.schedules js
