@@ -59,14 +59,14 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>?
         return Task.FromResult(new JobEnqueueResponse(id, JobRef.New(), JobEnqueueAction.Inserted));
     }
 
-    private protected override Task<SignalWaitOutcome> WaitSignalCoreAsync(string name, CancellationToken ct)
+    private protected override Task<SignalSlotState> WaitSignalCoreAsync(string name, CancellationToken ct)
     {
         if (!name.StartsWith("sys.child.", StringComparison.Ordinal))
         {
             // A plain user signal: resolve it as immediately Set with no payload. Only the child-latch
             // shape carries an outcome envelope, and only that shape is seeded.
             Events.Add($"wait:{name}");
-            return Task.FromResult(new SignalWaitOutcome(0, null));
+            return Task.FromResult(new SignalSlotState(0, null));
         }
 
         var id = long.Parse(name["sys.child.".Length..], CultureInfo.InvariantCulture);
@@ -80,7 +80,7 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>?
                     ChildJobId = id,
                 }
                 : new ChildJobOutcome(id, JobStatusCode.Succeeded);
-        return Task.FromResult(new SignalWaitOutcome(0, EnvelopeBytes(outcome)));
+        return Task.FromResult(new SignalSlotState(0, EnvelopeBytes(outcome)));
     }
 
     private static byte[] EnvelopeBytes(ChildJobOutcome o)

@@ -7,8 +7,8 @@ AlertRows.cs
 AlertsJob.cs
 AttemptWatchdog.cs
 CatalogHash.cs
-ChildWaitResult.cs
-ChildrenWaitResult.cs
+ChildWaitOutcome.cs
+ChildrenWaitOutcome.cs
 ClaimTypes.cs
 CliCommandRunner.cs
 ClockSkewValidator.cs
@@ -95,7 +95,7 @@ SchemaColumnTypes.cs
 SchemaMigrationRunner.cs
 SchemaModel.cs
 SignalSuspendSignal.cs
-SignalWaitResult.cs
+SignalWaitOutcome.cs
 SqlObjectInstaller.cs
 SqlResourceCatalog.cs
 SqlServerOutboxDdl.cs

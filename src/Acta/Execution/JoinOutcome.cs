@@ -5,7 +5,7 @@ namespace Acta;
 /// <see cref="JobContext.JoinAsync(IReadOnlyList{JobEnqueueResponse}, CancellationToken)"/>: the child
 /// outcomes in caller order. The join waits for every child and returns; it never throws because a
 /// child failed. Call <see cref="ThrowIfAnyFailed"/> to opt into escalation. The bounded overload
-/// returns a <see cref="ChildrenWaitResult"/> instead, which adds the group's timeout facts.
+/// returns a <see cref="ChildrenWaitOutcome"/> instead, which adds the group's timeout facts.
 /// </summary>
 public sealed record JoinOutcome(IReadOnlyList<ChildJobOutcome> Children)
 {

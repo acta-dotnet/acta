@@ -185,7 +185,7 @@ public static class ChildGroupTimeoutProbes
         return ids;
     }
 
-    private static ChildGroupReport Report(ChildrenWaitResult result) =>
+    private static ChildGroupReport Report(ChildrenWaitOutcome result) =>
         new(result.TimedOut, result.Succeeded, [.. result.Children.Select(Entry)]);
 
     private static ChildGroupEntry Entry(ChildJobOutcome outcome) =>

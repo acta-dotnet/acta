@@ -171,11 +171,11 @@ and `record-response` re-sends with the same key, which is the at-least-once con
 
 A handler parks on a named signal and something outside raises it: a webhook, an operator, another
 job. `var r = await ctx.TryWaitSignalAsync("shipped", TimeSpan.FromDays(14), ct);` returns a
-`SignalWaitResult`; branch on `r.TimedOut` to handle the deadline in code. The other overload,
+`SignalWaitOutcome`; branch on `r.TimedOut` to handle the deadline in code. The other overload,
 `await ctx.WaitSignalAsync("shipped", TimeSpan.FromDays(14), ct)`, returns nothing, and a timeout
 ends the job `Cancelled` with reason `job.wait-timed-out` instead of returning; use it only when a
 missed deadline should stop the job. Both are typed too: `TryWaitSignalAsync<T>` returns
-`SignalWaitResult<T>` with `Value`, and `WaitSignalAsync<T>` returns the raised value. The raising
+`SignalWaitOutcome<T>` with `Value`, and `WaitSignalAsync<T>` returns the raised value. The raising
 side is `await jobs.RaiseSignalAsync(JobLookup.ByRef(jobRef), "shipped", new Shipped(trackingId))`
 on `IJobs`. The deadline is stored once, as database time plus the timeout, so restarts and
 downtime never lengthen it, and a raise that lands before the parked job re-enters still wins.

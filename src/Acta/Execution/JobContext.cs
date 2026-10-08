@@ -513,17 +513,17 @@ public abstract class JobContext
     /// <summary>
     /// Resuming twin of <see cref="WaitSignalAsync(string, TimeSpan, CancellationToken)"/>: a wait whose
     /// re-entry settles the slot <c>Expired</c> returns a result carrying
-    /// <see cref="SignalWaitResult.TimedOut"/>, and the handler continues rather than the Job being
+    /// <see cref="SignalWaitOutcome.TimedOut"/>, and the handler continues rather than the Job being
     /// cancelled. The expiration, its never-extend replay rule, and a raise winning right up to that
     /// settlement are identical; only what an expired slot does to the handler differs.
     /// </summary>
-    public async Task<SignalWaitResult> TryWaitSignalAsync(string name, TimeSpan timeout, CancellationToken ct = default)
+    public async Task<SignalWaitOutcome> TryWaitSignalAsync(string name, TimeSpan timeout, CancellationToken ct = default)
     {
         name = IdentifierSyntax.CanonicalizeUserKebab(name, nameof(name), IdentifierSyntax.ExtendedMaxLength);
         var seconds = ToWaitTimeoutSeconds(timeout);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
         var outcome = await WaitSignalCoreAsync(name, seconds, resumeOnTimeout: true, linked.Token);
-        return outcome.TimedOut ? SignalWaitResult.Expired : SignalWaitResult.Signalled;
+        return outcome.TimedOut ? SignalWaitOutcome.Expired : SignalWaitOutcome.Signalled;
     }
 
     /// <summary>
@@ -531,7 +531,7 @@ public abstract class JobContext
     /// <c>Value</c> is <c>default</c> on a timeout and on a presence-only raise; branch on
     /// <c>TimedOut</c> to tell the two apart.
     /// </summary>
-    public async Task<SignalWaitResult<T>> TryWaitSignalAsync<T>(string name, TimeSpan timeout, CancellationToken ct = default)
+    public async Task<SignalWaitOutcome<T>> TryWaitSignalAsync<T>(string name, TimeSpan timeout, CancellationToken ct = default)
     {
         name = IdentifierSyntax.CanonicalizeUserKebab(name, nameof(name), IdentifierSyntax.ExtendedMaxLength);
         var seconds = ToWaitTimeoutSeconds(timeout);
@@ -539,11 +539,11 @@ public abstract class JobContext
         var outcome = await WaitSignalCoreAsync(name, seconds, resumeOnTimeout: true, linked.Token);
         if (outcome.TimedOut)
         {
-            return SignalWaitResult<T>.Expired;
+            return SignalWaitOutcome<T>.Expired;
         }
 
         var value = outcome.ValueFormatId == 0 ? default : DeserializeSignalPayload<T>(outcome.ValueFormatId, outcome.Value!);
-        return SignalWaitResult<T>.Signalled(value);
+        return SignalWaitOutcome<T>.Signalled(value);
     }
 
     /// <summary>
@@ -563,13 +563,13 @@ public abstract class JobContext
     /// presence-only signal with no payload (<see cref="Value"/> is <c>null</c>). <c>TimedOut</c> is
     /// set only on the resuming path of a bounded wait whose expiration passed.
     /// </summary>
-    private protected readonly record struct SignalWaitOutcome(byte ValueFormatId, byte[]? Value, bool TimedOut = false);
+    private protected readonly record struct SignalSlotState(byte ValueFormatId, byte[]? Value, bool TimedOut = false);
 
     /// <summary>
     /// Subclass sink: reads or arms the named signal slot. Returns normally with the slot payload when
     /// it is <c>Set</c>; throws the framework signal-suspend signal to re-arm the Job for a subsequent claim.
     /// </summary>
-    private protected abstract Task<SignalWaitOutcome> WaitSignalCoreAsync(string name, CancellationToken ct);
+    private protected abstract Task<SignalSlotState> WaitSignalCoreAsync(string name, CancellationToken ct);
 
     /// <summary>
     /// Subclass sink for the bounded overloads: <paramref name="timeoutSeconds"/> is the wait length the
@@ -579,7 +579,7 @@ public abstract class JobContext
     /// otherwise ends the attempt. The default forwards to the unbounded sink, so a subclass that
     /// overrides only that one keeps working and simply never expires a wait.
     /// </summary>
-    private protected virtual Task<SignalWaitOutcome> WaitSignalCoreAsync(
+    private protected virtual Task<SignalSlotState> WaitSignalCoreAsync(
         string name,
         int? timeoutSeconds,
         bool resumeOnTimeout,
@@ -691,7 +691,7 @@ public abstract class JobContext
     /// and worker downtime cannot lengthen the wait. Passing that instant makes the wait resolvable as
     /// timed out rather than closing the latch: the replayed wait settles it under its lock, so a child
     /// landing before that re-entry is still taken. A child timeout never cancels this Job: the
-    /// handler resumes with <see cref="ChildWaitResult.TimedOut"/> and is free to compensate, start a
+    /// handler resumes with <see cref="ChildWaitOutcome.TimedOut"/> and is free to compensate, start a
     /// replacement child, or cancel itself. Acta cancels the unfinished child and its descendant
     /// subtree (reason <c>job.wait-timed-out</c>) before this call returns. Waiting stays
     /// budget-neutral, and cancelling <paramref name="ct"/> remains a separate, non-durable concern.
@@ -701,7 +701,7 @@ public abstract class JobContext
     /// <param name="childJobId">The child started by <c>StartChildAsync</c>.</param>
     /// <param name="timeout">Wait length from DB now; whole-second precision (sub-second rounds up). Must be positive.</param>
     /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
-    public async Task<ChildWaitResult> TryWaitChildAsync(long childJobId, TimeSpan timeout, CancellationToken ct = default)
+    public async Task<ChildWaitOutcome> TryWaitChildAsync(long childJobId, TimeSpan timeout, CancellationToken ct = default)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(childJobId);
         var seconds = ToWaitTimeoutSeconds(timeout);
@@ -709,14 +709,14 @@ public abstract class JobContext
         var outcome = await WaitSignalCoreAsync(ChildLatchName(childJobId), seconds, resumeOnTimeout: true, linked.Token);
         if (!outcome.TimedOut)
         {
-            return ChildWaitResult.Landed(ParseChildOutcome(childJobId, outcome));
+            return ChildWaitOutcome.Landed(ParseChildOutcome(childJobId, outcome));
         }
 
         // The parent has stopped waiting, so the child's work is no longer wanted. Cancelling before
         // the result is handed back means the handler never sees TimedOut while the subtree is still
         // burning workers, and a replay re-runs a cancel that is a no-op on terminal rows.
         await CancelTimedOutChildCoreAsync(childJobId, linked.Token);
-        return ChildWaitResult.Expired(childJobId);
+        return ChildWaitOutcome.Expired(childJobId);
     }
 
     /// <summary>
@@ -727,7 +727,7 @@ public abstract class JobContext
     /// </summary>
     private static string ChildLatchName(long childJobId) => ChildSignalPrefix + childJobId.ToString(CultureInfo.InvariantCulture);
 
-    private static ChildJobOutcome ParseChildOutcome(long childJobId, SignalWaitOutcome outcome) =>
+    private static ChildJobOutcome ParseChildOutcome(long childJobId, SignalSlotState outcome) =>
         outcome.Value is null
             ? throw new InvalidOperationException($"Child outcome slot for job {childJobId} carries no envelope.")
             : ChildOutcomeEnvelope.Parse(outcome.Value);
@@ -760,13 +760,13 @@ public abstract class JobContext
     /// <summary>
     /// Bounded twin of <see cref="WaitChildrenAsync(IReadOnlyList{long}, CancellationToken)"/>, and the
     /// same call as <see cref="TryWaitChildrenAsync"/>. It returns a
-    /// <see cref="ChildrenWaitResult"/> rather than the unbounded form's plain list, because a group
+    /// <see cref="ChildrenWaitOutcome"/> rather than the unbounded form's plain list, because a group
     /// that ran out of time has more to report than an outcome per child.
     /// </summary>
     /// <param name="childJobIds">The children to wait for, in the order the outcomes come back.</param>
     /// <param name="timeout">Budget for the whole group from DB now, not per child. Must be positive.</param>
     /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
-    public Task<ChildrenWaitResult> WaitChildrenAsync(IReadOnlyList<long> childJobIds, TimeSpan timeout, CancellationToken ct = default) =>
+    public Task<ChildrenWaitOutcome> WaitChildrenAsync(IReadOnlyList<long> childJobIds, TimeSpan timeout, CancellationToken ct = default) =>
         TryWaitChildrenAsync(childJobIds, timeout, ct);
 
     /// <summary>
@@ -784,7 +784,7 @@ public abstract class JobContext
     /// <param name="childJobIds">The children to wait for, in the order the outcomes come back.</param>
     /// <param name="timeout">Budget for the whole group from DB now, not per child. Must be positive.</param>
     /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
-    public async Task<ChildrenWaitResult> TryWaitChildrenAsync(
+    public async Task<ChildrenWaitOutcome> TryWaitChildrenAsync(
         IReadOnlyList<long> childJobIds,
         TimeSpan timeout,
         CancellationToken ct = default
@@ -805,11 +805,11 @@ public abstract class JobContext
         if (childJobIds.Count == 0)
         {
             // No group, so no deadline to persist: an empty wait is over before it starts.
-            return ChildrenWaitResult.From([]);
+            return ChildrenWaitOutcome.From([]);
         }
 
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
-        return ChildrenWaitResult.From(await WaitChildGroupAsync(childJobIds, timeout, linked.Token));
+        return ChildrenWaitOutcome.From(await WaitChildGroupAsync(childJobIds, timeout, linked.Token));
     }
 
     /// <summary>
@@ -1208,7 +1208,7 @@ public abstract class JobContext
     /// <summary>
     /// Bounded twin of <see cref="JoinAsync(IReadOnlyList{JobEnqueueResponse}, CancellationToken)"/>: the
     /// whole join shares one stored absolute deadline that a replay reuses and never extends. It returns
-    /// a <see cref="ChildrenWaitResult"/> rather than a <see cref="JoinOutcome"/>, because the two carry
+    /// a <see cref="ChildrenWaitOutcome"/> rather than a <see cref="JoinOutcome"/>, because the two carry
     /// the same ordered child outcomes and only one of them can also say the group ran out of time;
     /// minting a second near-identical record would have been the larger surface. On expiry Acta cancels
     /// only the unfinished children and their subtrees, and this Job resumes.
@@ -1216,7 +1216,7 @@ public abstract class JobContext
     /// <param name="children">The child handles to join on, in the order the outcomes come back.</param>
     /// <param name="timeout">Budget for the whole join from DB now, not per child. Must be positive.</param>
     /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
-    public Task<ChildrenWaitResult> JoinAsync(
+    public Task<ChildrenWaitOutcome> JoinAsync(
         IReadOnlyList<JobEnqueueResponse> children,
         TimeSpan timeout,
         CancellationToken ct = default

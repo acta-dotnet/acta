@@ -437,7 +437,7 @@ dotnet_diagnostic.CA1062.severity = none
 # completed unit of work into a failure over a cleanup step the lease TTL already covers - and reports
 # it through OnLockReleaseFailure; the inner bare catch guards that observer and is deliberately silent,
 # because a broken observability hook must not alter the outcome either.
-# CA1819: SignalWaitOutcome.Value, on the protected record struct WaitSignalCoreAsync returns. It is
+# CA1819: SignalSlotState.Value, on the protected record struct WaitSignalCoreAsync returns. It is
 # not a property guarding state a caller could reach past - it is the raised slot's stored bytes in
 # transit, returned by the subclass sink and handed straight to DeserializeSignalPayload(byte,
 # byte[]), which takes byte[] because the serializer registry does. Widening it to ReadOnlyMemory

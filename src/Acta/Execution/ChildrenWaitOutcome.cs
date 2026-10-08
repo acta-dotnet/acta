@@ -13,9 +13,9 @@ namespace Acta;
 /// expiry; the awaiting Job is never cancelled by a group timeout. Construction is gated to the
 /// framework (private constructor, internal factory).
 /// </remarks>
-public sealed record ChildrenWaitResult
+public sealed record ChildrenWaitOutcome
 {
-    private ChildrenWaitResult(IReadOnlyList<ChildJobOutcome> children) => Children = children;
+    private ChildrenWaitOutcome(IReadOnlyList<ChildJobOutcome> children) => Children = children;
 
     /// <summary>The per-child entries, in the order the child ids were given.</summary>
     public IReadOnlyList<ChildJobOutcome> Children { get; }
@@ -43,5 +43,5 @@ public sealed record ChildrenWaitResult
         }
     }
 
-    internal static ChildrenWaitResult From(IReadOnlyList<ChildJobOutcome> children) => new(children);
+    internal static ChildrenWaitOutcome From(IReadOnlyList<ChildJobOutcome> children) => new(children);
 }

@@ -296,8 +296,8 @@ internal sealed class StepOptionsCapturingContext : JobContext
         CancellationToken ct
     ) => Unsupported<Task>();
 
-    private protected override Task<SignalWaitOutcome> WaitSignalCoreAsync(string name, CancellationToken ct) =>
-        Unsupported<Task<SignalWaitOutcome>>();
+    private protected override Task<SignalSlotState> WaitSignalCoreAsync(string name, CancellationToken ct) =>
+        Unsupported<Task<SignalSlotState>>();
 
     private protected override T? DeserializeSignalPayload<T>(byte valueFormatId, byte[] value)
         where T : default => Unsupported<T?>();

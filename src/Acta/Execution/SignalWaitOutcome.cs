@@ -10,9 +10,9 @@ namespace Acta;
 /// Construction is gated to the framework (private constructor, internal factories) so a caller
 /// cannot synthesise a result that is both received and timed out.
 /// </remarks>
-public sealed record SignalWaitResult
+public sealed record SignalWaitOutcome
 {
-    private SignalWaitResult(bool timedOut) => TimedOut = timedOut;
+    private SignalWaitOutcome(bool timedOut) => TimedOut = timedOut;
 
     /// <summary>True when the wait settled the slot <c>Expired</c> with nothing raised on it.</summary>
     public bool TimedOut { get; }
@@ -20,19 +20,19 @@ public sealed record SignalWaitResult
     /// <summary>True when the raise reached the slot first; the complement of <see cref="TimedOut"/>.</summary>
     public bool Received => !TimedOut;
 
-    internal static SignalWaitResult Signalled { get; } = new(timedOut: false);
+    internal static SignalWaitOutcome Signalled { get; } = new(timedOut: false);
 
-    internal static SignalWaitResult Expired { get; } = new(timedOut: true);
+    internal static SignalWaitOutcome Expired { get; } = new(timedOut: true);
 }
 
 /// <summary>
-/// Typed twin of <see cref="SignalWaitResult"/> for
+/// Typed twin of <see cref="SignalWaitOutcome"/> for
 /// <c>ctx.TryWaitSignalAsync&lt;T&gt;(name, timeout)</c>. <see cref="Value"/> carries the deserialized
 /// payload when the signal arrived, and is <c>default</c> on a timeout or a presence-only raise.
 /// </summary>
-public sealed record SignalWaitResult<T>
+public sealed record SignalWaitOutcome<T>
 {
-    private SignalWaitResult(bool timedOut, T? value)
+    private SignalWaitOutcome(bool timedOut, T? value)
     {
         TimedOut = timedOut;
         Value = value;
@@ -47,7 +47,7 @@ public sealed record SignalWaitResult<T>
     /// <summary>The raised payload, or <c>default</c> on a timeout or a presence-only raise.</summary>
     public T? Value { get; }
 
-    internal static SignalWaitResult<T> Signalled(T? value) => new(timedOut: false, value);
+    internal static SignalWaitOutcome<T> Signalled(T? value) => new(timedOut: false, value);
 
-    internal static SignalWaitResult<T> Expired { get; } = new(timedOut: true, value: default);
+    internal static SignalWaitOutcome<T> Expired { get; } = new(timedOut: true, value: default);
 }

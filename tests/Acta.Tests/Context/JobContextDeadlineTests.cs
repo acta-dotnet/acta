@@ -46,7 +46,7 @@ public class JobContextDeadlineTests
             CancellationToken ct
         ) => throw new NotSupportedException();
 
-        private protected override Task<SignalWaitOutcome> WaitSignalCoreAsync(string name, CancellationToken ct) =>
+        private protected override Task<SignalSlotState> WaitSignalCoreAsync(string name, CancellationToken ct) =>
             throw new NotSupportedException();
 
         private protected override T? DeserializeSignalPayload<T>(byte valueFormatId, byte[] value)

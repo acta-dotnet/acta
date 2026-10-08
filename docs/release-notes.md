@@ -102,7 +102,9 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   stays 9.
 - **Return types take one suffix per role.** `JobEnqueueOutcome`, what every `EnqueueAsync` and
   `EnqueueBatchAsync` overload returns, is now `JobEnqueueResponse`, the pair of `JobEnqueueRequest`.
-  Members and JSON are unchanged.
+  What the handler waits return takes the `Outcome` noun of `JoinOutcome` and `MapOutcome`:
+  `ChildWaitResult`, `ChildrenWaitResult`, and `SignalWaitResult` (with `SignalWaitResult<T>`) are now
+  `ChildWaitOutcome`, `ChildrenWaitOutcome`, and `SignalWaitOutcome`. Members and JSON are unchanged.
 
 ### Additions
 

@@ -12,9 +12,9 @@ namespace Acta;
 /// handler resumes. Construction is gated to the framework (private constructor, internal factories)
 /// so a caller cannot synthesise a result that both completed and timed out.
 /// </remarks>
-public sealed record ChildWaitResult
+public sealed record ChildWaitOutcome
 {
-    private ChildWaitResult(long childJobId, ChildJobOutcome? outcome)
+    private ChildWaitOutcome(long childJobId, ChildJobOutcome? outcome)
     {
         ChildJobId = childJobId;
         Outcome = outcome;
@@ -32,7 +32,7 @@ public sealed record ChildWaitResult
     /// <summary>The child's terminal outcome, or <c>null</c> on a timeout.</summary>
     public ChildJobOutcome? Outcome { get; }
 
-    internal static ChildWaitResult Expired(long childJobId) => new(childJobId, outcome: null);
+    internal static ChildWaitOutcome Expired(long childJobId) => new(childJobId, outcome: null);
 
-    internal static ChildWaitResult Landed(ChildJobOutcome outcome) => new(outcome.ChildJobId, outcome);
+    internal static ChildWaitOutcome Landed(ChildJobOutcome outcome) => new(outcome.ChildJobId, outcome);
 }

@@ -195,7 +195,7 @@ internal sealed class RuntimeJobContext(
         }
     }
 
-    private protected override Task<SignalWaitOutcome> WaitSignalCoreAsync(string name, CancellationToken ct) =>
+    private protected override Task<SignalSlotState> WaitSignalCoreAsync(string name, CancellationToken ct) =>
         WaitSignalCoreAsync(name, timeoutSeconds: null, resumeOnTimeout: false, ct);
 
     /// <summary>
@@ -203,7 +203,7 @@ internal sealed class RuntimeJobContext(
     /// the absolute expiration, so timeout policy lives in code, and a replay of the other
     /// overload against the same slot is free to decide differently.
     /// </summary>
-    private protected override async Task<SignalWaitOutcome> WaitSignalCoreAsync(
+    private protected override async Task<SignalSlotState> WaitSignalCoreAsync(
         string name,
         int? timeoutSeconds,
         bool resumeOnTimeout,
@@ -216,9 +216,9 @@ internal sealed class RuntimeJobContext(
         var decision = await _signals.WaitSignalAsync(JobId, kind, name, timeoutSeconds, ct);
         return decision.Outcome switch
         {
-            SignalWaitOutcomeCode.ContinueSet => new SignalWaitOutcome(decision.ValueFormatId, decision.Value),
+            SignalWaitOutcomeCode.ContinueSet => new SignalSlotState(decision.ValueFormatId, decision.Value),
             SignalWaitOutcomeCode.SuspendPending => throw new SignalSuspendSignal(name, reasonMessage: null), // The host locks the slot and finalizes the attempt Suspended (or Ready if a raise won the race).
-            SignalWaitOutcomeCode.TimedOut when resumeOnTimeout => new SignalWaitOutcome(0, null, TimedOut: true),
+            SignalWaitOutcomeCode.TimedOut when resumeOnTimeout => new SignalSlotState(0, null, TimedOut: true),
             SignalWaitOutcomeCode.TimedOut => throw new WaitTimeoutSignal(name), // The host lands the attempt Cancelled, budget-neutral, like the Strict-deadline path.
             _ => throw new InvalidOperationException($"wait_signal returned an unknown outcome for job {JobId}, signal '{name}'."),
         };

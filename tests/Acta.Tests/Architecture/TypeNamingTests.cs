@@ -26,7 +26,7 @@ public sealed class TypeNamingTests
         "Outcome",
     ];
 
-    // Outcome stays as a domain noun for how a job or a child ended, in handler code.
+    // Outcome stays as a domain noun for how a job, a child, or a wait ended, in handler code.
     private static readonly HashSet<string> DomainOutcomes =
     [
         "JobOutcome",
@@ -35,6 +35,9 @@ public sealed class TypeNamingTests
         "MapItemOutcome",
         "ParallelOutcome",
         "JoinOutcome",
+        "ChildWaitOutcome",
+        "ChildrenWaitOutcome",
+        "SignalWaitOutcome",
     ];
 
     [Fact]
