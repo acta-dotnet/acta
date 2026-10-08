@@ -15,7 +15,7 @@ internal sealed class Execution(
     StartStepHandler startStep,
     CompleteStepHandler completeStep,
     CheckpointSlotHandler checkpointSlot,
-    RecordJobNoteHandler recordJobNote,
+    RecordNoteHandler recordNote,
     GetChildJobIdsHandler getChildJobIds,
     GetStaleChildLatchesHandler getStaleChildLatches,
     ArmOrConsumeSleepTimerHandler armOrConsumeSleepTimer
@@ -119,8 +119,8 @@ internal sealed class Execution(
     /// reaches it asynchronously, and a handler that ignores its token never sees it), so reading the runtime row would
     /// file the note under the attempt that replaced its author.
     /// </summary>
-    public Task RecordJobNoteAsync(long jobId, int executionNumber, string message, JobPayload? detail, CancellationToken ct) =>
-        recordJobNote.HandleAsync(new RecordJobNoteCommand(jobId, executionNumber, message, detail), ct);
+    public Task RecordNoteAsync(long jobId, int executionNumber, string message, JobPayload? detail, CancellationToken ct) =>
+        recordNote.HandleAsync(new RecordNoteCommand(jobId, executionNumber, message, detail), ct);
 
     /// <summary>
     /// Reads the ids of a job's direct children, terminal ones included: the per-level feed for the

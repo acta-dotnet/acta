@@ -1,4 +1,6 @@
--- Appends one application-authored job.note-recorded event; see Execution.RecordJobNoteAsync.
+-- Appends one application-authored job.note-recorded event, written by ctx.NoteAsync.
+
+WITH inserted AS (
 INSERT INTO {{schema}}.events (
     event_code,
     created_at_utc,
@@ -12,11 +14,10 @@ INSERT INTO {{schema}}.events (
     tenant_id,
     detail_format_id,
     detail,
-    reason_message
-)
+    reason_message)
 SELECT
     90 /* EventCode.JobNoteRecorded */,
-    {{now}},
+    now(),
     j.namespace_id,
     50 /* ActorCode.Job */,
     j.id,
@@ -29,6 +30,7 @@ SELECT
     @p_detail,
     @p_reason_message
 FROM {{schema}}.jobs j
-WHERE j.id = @p_job_id;
-
-SELECT CHANGES() AS inserted;
+WHERE j.id = @p_job_id
+RETURNING 1
+)
+SELECT count(*)::INT AS inserted FROM inserted;

@@ -2228,7 +2228,7 @@
 | `RaiseJobAlert` | yes | yes | yes |
 | `RaiseSignal` | yes | yes | yes |
 | `ReclaimStuckJobs` | yes | yes | yes |
-| `RecordJobNote` | yes | yes | yes |
+| `RecordNote` | yes | yes | yes |
 | `RecordOutboxEvent` | yes | yes | yes |
 | `RegisterJobDefinitions` | yes | yes | yes |
 | `RegisterScheduledJobs` | yes | yes | yes |

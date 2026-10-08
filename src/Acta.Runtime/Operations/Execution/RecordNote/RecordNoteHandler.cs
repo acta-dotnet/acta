@@ -1,11 +1,11 @@
 namespace Acta.Runtime;
 
-/// <summary><see cref="Execution.RecordJobNoteAsync"/>: one routine call; an unknown job id throws.</summary>
-internal sealed class RecordJobNoteHandler(IDbSession session, ISqlDialect dialect)
+/// <summary><see cref="Execution.RecordNoteAsync"/>: one routine call; an unknown job id throws.</summary>
+internal sealed class RecordNoteHandler(IDbSession session, ISqlDialect dialect)
 {
-    public Task HandleAsync(RecordJobNoteCommand command, CancellationToken ct) =>
+    public Task HandleAsync(RecordNoteCommand command, CancellationToken ct) =>
         session.ExecuteAsync(
-            new StoreCommand("RecordJobNote"),
+            new StoreCommand("RecordNote"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.JobId, command.JobId));
@@ -16,9 +16,7 @@ internal sealed class RecordJobNoteHandler(IDbSession session, ISqlDialect diale
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.Detail, command.Detail?.Data.ToArray()));
             },
             static reader =>
-                reader.GetInt32(0) == 1
-                    ? true
-                    : throw new InvalidOperationException("ACTA:NOTE_UNKNOWN_JOB:record_job_note: unknown job id"),
+                reader.GetInt32(0) == 1 ? true : throw new InvalidOperationException("ACTA:NOTE_UNKNOWN_JOB:record_note: unknown job id"),
             ct
         );
 }

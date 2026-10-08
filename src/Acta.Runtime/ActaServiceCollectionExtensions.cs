@@ -188,7 +188,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<StartStepHandler>();
         services.TryAddSingleton<CompleteStepHandler>();
         services.TryAddSingleton<CheckpointSlotHandler>();
-        services.TryAddSingleton<RecordJobNoteHandler>();
+        services.TryAddSingleton<RecordNoteHandler>();
         services.TryAddSingleton<GetChildJobIdsHandler>();
         services.TryAddSingleton<GetStaleChildLatchesHandler>();
         services.TryAddSingleton<ArmOrConsumeSleepTimerHandler>();

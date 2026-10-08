@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 38)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 39)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -4268,54 +4268,6 @@ BEGIN
 END;
 $$;
 
--- Appends one application-authored job.note-recorded event; see IExecutionStore.RecordJobNoteAsync.
-
-CREATE OR REPLACE FUNCTION acta.record_job_note(
-    p_job_id BIGINT,
-    p_execution_number INT,
-    p_reason_message VARCHAR,
-    p_detail_format_id SMALLINT,
-    p_detail BYTEA
-)
-RETURNS TABLE (inserted INT)
-LANGUAGE sql
-AS $$
-WITH inserted AS (
-    INSERT INTO acta.events (
-        event_code,
-        created_at_utc,
-        namespace_id,
-        actor_code,
-        job_id,
-        job_ref,
-        execution_number,
-        lineage_root_id,
-        definition_id,
-        tenant_id,
-        detail_format_id,
-        detail,
-        reason_message)
-    SELECT
-        90 /* EventCode.JobNoteRecorded */,
-        now(),
-        j.namespace_id,
-        50 /* ActorCode.Job */,
-        j.id,
-        j.job_ref,
-        p_execution_number,
-        COALESCE(j.lineage_root_id, j.id),
-        j.definition_id,
-        j.tenant_id,
-        p_detail_format_id,
-        p_detail,
-        p_reason_message
-    FROM acta.jobs j
-    WHERE j.id = p_job_id
-    RETURNING 1
-)
-SELECT count(*)::INT AS inserted FROM inserted;
-$$;
-
 -- Appends the applied-command evidence event against the sys.outbox slot job. Always emitted (no
 -- audit-level gate): this is the trail for actions whose subject rows live in the producer's database.
 CREATE OR REPLACE FUNCTION acta.record_outbox_event(
@@ -5379,7 +5331,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.38-8d45f87a6a22ddf8ac39d08cb4712f2a', 'acta');
+VALUES (-1, 'objects-1.39-619a7142fa3df66bf9e84a3f891881ce', 'acta');
 
 COMMIT;
 

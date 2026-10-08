@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 38)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 39)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -4937,66 +4937,6 @@ BEGIN
     END CATCH;
 END;
 GO
--- Appends one application-authored job.note-recorded event; see IExecutionStore.RecordJobNoteAsync.
-CREATE OR ALTER PROCEDURE acta.record_job_note
-    @p_job_id BIGINT,
-    @p_execution_number INT,
-    @p_reason_message NVARCHAR(512),
-    @p_detail_format_id TINYINT,
-    @p_detail VARBINARY(MAX)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        INSERT INTO acta.events (
-            event_code,
-            created_at_utc,
-            namespace_id,
-            actor_code,
-            job_id,
-            job_ref,
-            execution_number,
-            lineage_root_id,
-            definition_id,
-            tenant_id,
-            detail_format_id,
-            detail,
-            reason_message)
-        SELECT
-            90 /* EventCode.JobNoteRecorded */,
-            SYSUTCDATETIME(),
-            j.namespace_id,
-            50 /* ActorCode.Job */,
-            j.id,
-            j.job_ref,
-            @p_execution_number,
-            COALESCE(j.lineage_root_id, j.id),
-            j.definition_id,
-            j.tenant_id,
-            @p_detail_format_id,
-            @p_detail,
-            @p_reason_message
-        FROM acta.jobs j
-        WHERE j.id = @p_job_id;
-
-        SELECT @@ROWCOUNT AS inserted;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
 -- Appends the applied-command evidence event against the sys.outbox slot job. Always emitted (no
 -- audit-level gate): this is the trail for actions whose subject rows live in the producer's database.
 CREATE OR ALTER PROCEDURE acta.record_outbox_event
@@ -6179,9 +6119,9 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.38-0dfa1227e544c391eca21b899d1d082b', 'acta'
+SELECT -1, 'objects-1.39-e70c631181ef6cb3648b923684148502', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
-    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'acquire_lock', 'acquire_slot', 'apply_tags', 'arm_or_consume_sleep_timer', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_step', 'consume_outbox_signal', 'enqueue_batch', 'enqueue_one', 'extend_lock', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'purge_expired_data', 'raise_job_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_job_note', 'record_outbox_event', 'register_job_definitions', 'register_scheduled_jobs', 'release_lock', 'repair_recovery_slot', 'reserve_rate', 'resolve_job_alerts', 'start_execution', 'start_step', 'update_alert_delivery', 'wait_signal')) = 41;
+    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'acquire_lock', 'acquire_slot', 'apply_tags', 'arm_or_consume_sleep_timer', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_step', 'consume_outbox_signal', 'enqueue_batch', 'enqueue_one', 'extend_lock', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'purge_expired_data', 'raise_job_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_outbox_event', 'register_job_definitions', 'register_scheduled_jobs', 'release_lock', 'repair_recovery_slot', 'reserve_rate', 'resolve_job_alerts', 'start_execution', 'start_step', 'update_alert_delivery', 'wait_signal')) = 40;
 GO
 COMMIT TRANSACTION;
 GO

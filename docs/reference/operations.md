@@ -49,7 +49,7 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 | `GetChildJobIds` | · | · | · | inline | inline | inline | · | `GetChildJobIdsSpec` |
 | `GetStaleChildLatches` | · | · | · | inline | inline | inline | · | `GetStaleChildLatchesSpec` |
 | `ReclaimStuckJobs` | · | · | · | routine | routine | inline | `events`, `runtimes` | `ReclaimStuckJobsSpec`, `ReclaimStuckJobsWaitTimeoutSpec` |
-| `RecordJobNote` | · | · | · | routine | routine | inline | `events` | `RecordJobNoteSpec` |
+| `RecordNote` | · | · | · | inline | inline | inline | `events` | `RecordNoteSpec` |
 | `RepairRecoverySlot` | · | · | · | routine | routine | inline | `events`, `runtimes` | `RepairRecoverySlotSpec` |
 | `StartExecution` | · | · | · | routine | routine | inline | `events`, `runtimes` | `StartExecutionStaleVersionSpec` |
 | `StartStep` | · | · | · | routine | routine | inline | `steps` | `StartStepSpec` |

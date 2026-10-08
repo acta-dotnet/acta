@@ -13,7 +13,7 @@ namespace Acta.Tests.Conformance.Operations.Execution;
     Area = "Execution",
     Contract = "ctx.NoteAsync appends a job.note-recorded event carrying the message, the job's identity, the optional JSON detail, and the attempt that authored it."
 )]
-public sealed class RecordJobNoteSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+public sealed class RecordNoteSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "A note for an unknown job throws the stable marker before committing")]
     public async Task Unknown_job_is_rejected()
@@ -21,7 +21,7 @@ public sealed class RecordJobNoteSpec : ActaRuntimeTestBase<ConformanceFixture, 
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             Services
                 .GetRequiredService<Acta.Runtime.Execution>()
-                .RecordJobNoteAsync(-1, 1, "unknown", null, TestContext.Current.CancellationToken)
+                .RecordNoteAsync(-1, 1, "unknown", null, TestContext.Current.CancellationToken)
         );
         Assert.Contains("ACTA:NOTE_UNKNOWN_JOB:", error.Message);
     }
@@ -71,7 +71,7 @@ public sealed class RecordJobNoteSpec : ActaRuntimeTestBase<ConformanceFixture, 
             )
         );
 
-        await Services.GetRequiredService<Acta.Runtime.Execution>().RecordJobNoteAsync(enqueued.JobId, 7, "late note", null, ct);
+        await Services.GetRequiredService<Acta.Runtime.Execution>().RecordNoteAsync(enqueued.JobId, 7, "late note", null, ct);
 
         var events = await Operations.Ledger.ListEventsAsync(
             new ListEventsQuery(JobId: enqueued.JobId, EventCode: EventCode.JobNoteRecorded, PageSize: 50),
