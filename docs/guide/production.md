@@ -29,6 +29,7 @@ for production deployments, not for an evaluation.
 - Review retention versus manual purge in the [Operator guide](./operator-guide.md), including backup retention.
 - Verify backup and restore behavior with queued, executing, and terminal jobs.
 - Drill the [documented failure modes](./failure-modes.md) for worker loss, SQL outage, and restore.
+- Test a rolling deploy with mixed old and new workers and queued rows before relying on one.
 - Review known limitations before using Acta in production: [`known-limitations.md`](../technical/known-limitations.md).
 
 ## Provider choice
@@ -308,8 +309,19 @@ app.MapActa("/acta", options =>
 });
 ```
 
-Behind a reverse proxy on the same host, do not rely on `LocalOnly`; the TCP peer may be the proxy
-loopback address. Gate remote access with host authorization.
+Behind a reverse proxy on the same host, do not rely on `LocalOnly`: it checks the TCP peer address
+and the host name the request carries, not the original client, so the proxy's loopback address
+passes every forwarded request that keeps a local host name. Gate remote access with host
+authorization, and configure `ForwardedHeaders` if the host needs the true client IP.
+
+The `X-Acta-Control: true` header on control POSTs is the cross-site request forgery barrier, not
+authentication: a cross-origin page cannot send it without a preflight. Keep it on, unless the host
+supplies antiforgery of its own and no ambient credentials (integrated Windows auth, `SameSite=None`
+cookies) reach the API.
+
+Anyone authorized for the read surface can read every job input, result, and checkpoint value in
+full; there is no per-payload redaction. Treat read authorization as the data-classification
+boundary, and keep secrets and PII out of payloads (see [Payload size guidance](#payload-size-guidance)).
 
 ## Alert channel setup
 
@@ -347,17 +359,9 @@ alert, and terminal (Stopped or Dead) worker rows according to:
 
 Set retention long enough for audit, incident response, delayed restarts, and operational analysis.
 Shorter retention reduces storage growth but removes old job inputs, results, checkpoints, steps,
-and lineage.
-
-A completed child keeps its row and result past its own deadline while its parent is not terminal,
-because the parent's replay dedupes onto that child and reads its result. A parent that waits,
-sleeps, or stays paused for a long time therefore holds its finished children for that long; once
-it is terminal the tree drains from the leaves up. A parent restarted after its children were purged
-runs them again.
-
-A recurring job that a cancel or a failure stopped also stays past its deadline while its definition
-is live, because deleting it would let the next start register the declaration as a new job.
-Retiring the definition lets it drain.
+and lineage. A completed child outlives its deadline while its parent is not terminal, and a
+stopped recurring job while its definition is live; the rules, and how the sweep differs from a
+manual purge, are in [Operator guide § retention and purge](./operator-guide.md#retention-and-purge).
 
 ## Process behavior on failure
 

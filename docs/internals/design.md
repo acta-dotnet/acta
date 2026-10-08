@@ -8,13 +8,14 @@ document defers to this one. Reopening anything here is a category-reshaping cha
 The vocabulary itself (Job, Execution, Attempt, Status, namespace, durable slot, provider, the three
 identities, the substrate tables) is defined once in [`concepts.md`](../guide/concepts.md). This
 document explains why the model is shaped that way; it does not re-teach the mechanics. Where the code
-lives is in [`source-layout.md`](source-layout.md).
+lives is in [`source-layout.md`](source-layout.md). Whether Acta fits a problem is
+[`choosing-acta.md`](../choosing-acta.md).
 
 ## What Acta is
 
 Acta is SQL-native durable work for .NET. It records jobs, retries, schedules, checkpoints, events, workers, and operator controls in your database, so durable work lives in SQL and the runtime state is inspectable with ordinary queries.
 
-One work-unit shape for every kind of work, source-generated dispatch with zero runtime reflection on the hot path, named-operation hot writes, durable coordination composed from ordinary jobs, and an append-only event ledger of every lifecycle transition and execution attempt.
+One work-unit shape for every kind of work, source-generated dispatch with zero runtime reflection on the hot path, one handler and one SQL file per dialect for every operation, durable coordination composed from ordinary jobs, and an append-only event ledger of every lifecycle transition and execution attempt.
 
 **Leaderless** means every worker is a peer, every claim is a competitive race, and there is no persistent leader role, election, or lock. System maintenance runs as ordinary recurring `[Job]`s claimed via the same `Status: Ready -> Dispatched` discipline as user code; singleton-per-namespace comes from row-level claim mutual exclusion, not coordinated leadership.
 
@@ -33,26 +34,6 @@ Deliberate non-goals. Adding any of these is a category-reshaping change. Acta d
   a card network, email provider, webhook receiver, and SQL database share one exactly-once commit.
   Acta gives you at-least-once jobs, checkpointed durable steps, deduplication keys, and
   `AtMostOnce()` step semantics; applications still own external side-effect safety.
-
-## Use Acta when
-
-- You already run SQL Server, PostgreSQL, or SQLite.
-- You want durable background jobs without adding a broker.
-- You want job state inspectable with SQL.
-- You need retries, delays, schedules, and operator controls.
-- You want deterministic tests around job behavior.
-- You want a local dashboard/API for operations.
-
-## Do not use Acta when
-
-- You want a long-running function's local variables to survive a crash without naming what to
-  persist. Acta re-runs the handler from the top and skips completed steps, so state that outlives an
-  attempt is an explicit step result or durable variable.
-- You need a general-purpose message bus.
-- You need Kafka-style streaming.
-- You need BPMN or visual workflow modeling.
-- You want a hosted orchestration control plane.
-- Your external side effects cannot tolerate duplicate attempts, be made idempotent, or be reconciled with `AtMostOnce()` step semantics.
 
 ## The four claims
 
@@ -108,23 +89,11 @@ code is `ReasonCode`, the prose is `ReasonMessage`, both on the event, never on 
 A **firing** is one scheduled occurrence of a recurring `[JobSchedule]`; the **execution** is the
 handler run that processes it (1:1 in steady state; misfire policy decides missed firings).
 
-## Settled decisions and conventions
-
-Every load-bearing call: substrate, boundaries, behavior, storage, naming, codes, packages,
-provider contract, tooling, AOT: lives in [the settled-decisions ledger below](#settled-decisions-ledger), one line per
-decision with its reason. This document does not repeat the ledger.
-
-## Invariants this document guarantees
-
-1. The framework's identity does not change without a settled-decision update recorded in [the settled-decisions ledger below](#settled-decisions-ledger).
-2. The four claims are testable: every other artifact explains how its subject contributes to one of them.
-3. The substrate-generality discipline applies to every proposal. New tables / methods carry a justification or are rejected.
-4. The vocabulary is enforced at the analyzer level for compile-time names; documentation reviewers enforce it for prose.
-
 ## Settled decisions ledger
-The settled-call ledger: every load-bearing decision, one line each, the call plus its reason.
-Vocabulary is defined in [`concepts.md`](../guide/concepts.md); the rationale behind the model is
-the principles above. Reopening an entry means writing a proposal, not editing this file.
+
+Every load-bearing decision, one line each, the call plus its reason. Vocabulary is defined in
+[`concepts.md`](../guide/concepts.md); the rationale behind the model is the principles above.
+Reopening an entry means writing a proposal, not editing this file.
 
 ### Identity
 
@@ -136,13 +105,13 @@ the principles above. Reopening an entry means writing a proposal, not editing t
 
 ### Substrate
 
-- **Server ledger mutations are atomic routines; reads are embedded SQL and installed views.** SQLite supplies transactional inline equivalents. Resource kind selects dispatch, caller transactions remain supported on all providers, and installed routines retain their executable compatibility obligations throughout 1.x. See [SQL execution policy](sql-execution-policy.md). *Reason:* one database command for state transitions, ordinary SQL visibility, and an explicit shared database contract.
-- **Source code is the source of truth.** Entity classes + XML docs are canonical; `data-model.md`, `code-families.md`, and each provider's `M001_init.sql` are emit-generated and CI drift-gated. *Reason:* one declaration site, no doc drift.
-- **Hot-row mutation goes through semantic operations.** Each state-mutating operation is one handler in `Acta.Runtime/Operations/` over `IDbSession` + `ISqlDialect`, written once for every provider; providers own the executable SQL and dialect binds, not handlers. No production generic `InsertAsync`/`UpdateAsync`/`DeleteAsync`. *Reason:* SQL enforces atomicity while one shared C# implementation holds provider-independent policy.
+- **Thirty installed routines carry the hot ledger mutations on PostgreSQL and SQL Server; every other operation is inline SQL.** Enqueue, claim, start, complete, the step and slot writes, leases, recovery, retention, alert raise and settlement, outbox signals, and definition and schedule registration are routines; reads, control verbs, and the rest run as embedded SQL, and SQLite runs every mutation inline inside an owned transaction. `SqlCommandCatalogTests` pins the list, so adding a routine is a decision. See [SQL execution policy](sql-execution-policy.md). *Reason:* a routine buys one round trip and a server-side plan, and costs a DBA-run package revision on every edit; only the hot paths earn that.
+- **Source code is the source of truth.** Entity classes + XML docs are canonical; `data-model.md`, `code-families.md`, `operations.md`, `conformance-contracts.md`, the provisioning scripts, and each provider's `M001_init.sql` are emit-generated and CI drift-gated. *Reason:* one declaration site, no doc drift.
+- **Every operation is one handler over `IDbSession` and `ISqlDialect`, written once, with its SQL beside it per dialect.** Providers own executable SQL and dialect binds, not handlers. No production generic `InsertAsync`/`UpdateAsync`/`DeleteAsync`. *Reason:* SQL enforces atomicity while one shared C# implementation holds provider-independent policy.
 - **`JobEvent` is the execution ledger AND the audit timeline.** Paired `started`/`finished` events on `(JobId, ExecutionNumber)` carry per-attempt history; no per-attempt table. *Reason:* one append-only substrate, one retention sweep.
 - **`JobEvent` carries an optional `detail`/`detail_format_id` payload pair**, paired by `ck_events_detail_pair`; format `0` means no detail. Richer event-specific data still goes to OTel spans and logs; durable state lives on the entity row. *Reason:* keeps `JobEvent` frugal while still giving free-form (text) or structured (json) context beyond `ReasonCode`/`ReasonMessage` a home.
 - **One merged `checkpoints` table; `steps` stays separate.** Variables, signals, timers, progress, and child latches share one `(job_id, kind_code, name)` table; steps keep their own (attempt counters, retry budget, stored results). *Reason:* one physical shape for every simple slot; only steps carry a genuinely different shape.
-- **Single-tier retention on `JobEvent`.** One knob (`JobEventsRetentionDays`, default 365) sweeps every row. *Reason:* the two-tier variant added a knob nobody tuned.
+- **Single-tier retention on `JobEvent`.** One knob (`JobEventsRetention`, default 365 days) sweeps every row. *Reason:* the two-tier variant added a knob nobody tuned.
 - **`JobResult` is keyed by `(JobId, ExecutionNumber)`** with CASCADE FK. *Reason:* the natural identity callers already address by.
 - **Timer checkpoints are arm/consume only.** `Pending → Consumed`; no `Cancelled` state; `ResetJobState` deletes rows outright. *Reason:* a state the runtime cannot reach is schema debt.
 - **A `Lock` carries no acquisition timestamp.** Lifecycle is `expires_at_utc` plus a per-hold `hold_token` that extend and release compare. *Reason:* no code path ever consulted the acquire instant.
@@ -185,47 +154,46 @@ the principles above. Reopening an entry means writing a proposal, not editing t
 - **All datetime columns are `datetime2(3)` UTC** with a `Utc` suffix. *Reason:* one precision, one zone, self-describing names.
 - **Acta names are lowercase ASCII kebab/dotted-kebab, Acta keys are normalized lowercase ASCII, and external/display values are preserved.** Name casing is rejected rather than silently folded; key equality still normalizes at write/lookup seams. *Reason:* Acta-owned identifiers survive every collation, terminal, and URL without corrupting user business values.
 - **Three text tiers via `DbKind`:** `AsciiString`, `UnicodeString` (cold/mid tables only), `BinaryPayload`; never `jsonb`. *Reason:* hot tables stay narrow; validation lives at the application boundary.
+- **SQLite tables are `STRICT` and keep `AUTOINCREMENT`.** *Reason:* the file enforces the declared types, as the servers do, and a rowid is never reused.
 - **Optimistic-concurrency token is `int Version`**, manually incremented; no `rowversion`, no `xmin`. *Reason:* uniform across providers and operator-observable.
 - **Server-side defaults via `DbColumn.Default`** for audit timestamps and version columns. *Reason:* the DB clock is authoritative for "when was this row written"; no NTP-drift hazard.
 - **Audit tables (`JobEvent`, `JobAlert`) carry no enforced FKs** to retention-deletable rows; they denormalize identifying facts at INSERT. *Reason:* an FK to a purgeable row collapses the analytics window.
 
 ### Codes
 
-- **Every ordinary persisted code family is a byte-backed BCL enum + source-generated `<Name>Extensions`.** SQL Server stores it as `tinyint`; PostgreSQL uses `smallint`; SQLite uses `INTEGER`; provider checks enforce the same logical unsigned-byte contract. *Reason:* one byte of logical identity is sufficient for all current closed catalogues, including events and reasons.
+- **Every persisted code family is a byte-backed BCL enum + source-generated `<Name>Extensions`.** SQL Server stores it as `tinyint`; PostgreSQL uses `smallint`; SQLite uses `INTEGER`. *Reason:* one byte of logical identity is sufficient for every catalogue, including events and reasons.
 - **A numeric code is identified by `(code family, id)`.** IDs are stable only within their family; enum members carry programmatic meaning and textual codes carry operator-facing meaning. Numeric grouping is a readability convention and runtime code must use explicit member switches rather than ordering, division, or range predicates. *Reason:* compact persistence must not become an encoded semantic language.
 - **Canonical lifecycle values are conventional, not behavioral:** success `100`, failure/exhaustion/dead `200`, cancellation `220`, interrupted/indeterminate `230`, retired/deprecated `240`. *Reason:* visual alignment aids SQL inspection while exhaustive member logic remains authoritative.
 - **`code_kind` is declared explicitly via `[CodeKind("kebab-name")]`.** *Reason:* renaming a C# enum must not silently rename an operator-facing discriminator.
-- **No `codes` table and no generated per-table views (removed 2026-07).** The full decode surface is `code-families.md`; SQL operators get curated `_view` surfaces with generated name-only `CASE` decodes for common workflow fields. *Reason:* one C# code truth without a sync table, while common day-2 SQL stays readable.
-- **Closed catalogues reject unknown values and permanently reserve `255`.** `FromId`, textual conversion, JSON conversion, and database checks reject unassigned values; retired ids/text codes and permanent reservations are never reused. *Reason:* schema-as-API requires an enumerable, immutable value space.
+- **No `codes` table, no generated per-table views, and no value-list CHECK on any code column.** The full decode surface is `code-families.md`; SQL operators get curated `_view` surfaces with generated name-only `CASE` decodes for common workflow fields. *Reason:* one C# code truth without a sync table, and adding a value is a release, not a DDL migration a DBA runs.
+- **Id `0` is the family's default or `Unspecified`, and an unknown id decodes as it.** `FromId`, textual and JSON conversion read an id this build does not know as the id-0 member; the SQL compares exact ids, so an older worker's claim, retention, and delivery queries pass over a value it does not know. A value that changes engine behaviour ships readers first and writers a release later. Retired ids and text codes are never reused, and `255` is never assigned. *Reason:* a row a newer build wrote must read back on an older one during a rolling deploy, and a zero default cannot masquerade as a real value.
 - **`JobPayloadFormat` is the sole `255` exception.** `0` means no payload, `1..127` is framework-owned, and `128..255` is consumer-owned. *Reason:* payload formats are an extensible registry rather than a closed catalogue.
-- **Byte-backed enums reserve `0` unless absence, none, or off is meaningful** and otherwise number sparsely. Capacity reports count active, deprecated, retired, and permanently reserved identities separately from held reserve. *Reason:* a zero default cannot masquerade as a real value and tombstones must remain visible in capacity planning.
 
 ### Packages
 
-- **Package split by surface:** `Acta` (public API and SDK), `Acta.Runtime` (the engine and its database access), providers, `Acta.AspNetCore`, `Acta.Redis`, and `Acta.Testing`. *Reason:* an assembly boundary is a stronger API-safety guarantee than `internal` alone.
+- **Package split by surface:** `Acta` (public API and SDK), `Acta.Runtime` (the engine, the operations, and database access), providers, `Acta.AspNetCore`, `Acta.Redis`, and `Acta.Testing`. *Reason:* an assembly boundary is a stronger API-safety guarantee than `internal` alone.
 - **Relational-provider baseline.** SQL Server, PostgreSQL, and SQLite ship side-by-side against one provider-neutral entity model. *Reason:* shipping distributed and embedded providers in lockstep prevents single-provider assumptions.
 - **No in-memory provider.** *Reason:* it would pass tests the real providers fail.
 - **Visibility default is `internal sealed`** outside the `Acta` SDK project. *Reason:* the API boundary is grep-checkable.
 
-### Architecture vocabulary
+### Structure
 
-Reserved terms for internal structure; a generated job descriptor set is a *manifest*, never a module.
+The terms for internal structure; where each piece lives is [`source-layout.md`](source-layout.md).
 
-- **Module:** a cohesive capability with an exposed API, hidden implementation, owned state and invariants, and acyclic dependencies on other modules' APIs only. Target modules: Execution (the durable-work kernel), Alerting, Outbox, Operations.
-- **Subdomain:** a cohesive area inside a module with no independent API or state ownership. Catalog and Scheduling are Execution subdomains because completion advances schedule state atomically.
-- **Use case:** one operation's vertical slice inside a module (enqueue, claim, complete).
-- **Component:** a privileged runtime helper that is not a module because it needs cross-cutting knowledge (Maintenance/retention).
-- **Adapter:** a project that connects external technology to declared ports: providers, `Acta.Redis`, `Acta.AspNetCore`, `Acta.Testing`.
-- **Public facade:** the consumer surface (`IJobs` and friends), deliberately simpler than the internal structure; the public API never mirrors the module graph.
-- **No module gate:** a module is a folder, and its code calls the code it needs directly, with no declared port in between. Where each piece lives: `docs/internals/source-layout.md`.
-- **Tags follow the shared-substrate model:** each target's owner owns its tag rows by scope, the physical `tags` table is one partitioned substrate, and every write goes through the Tags capability's SQL under the ownership map. There is no Tags module and no tag-metadata API in front of it. *Reason:* tags span every target type by design; a nominal module whose table everyone joins would be boundary theatre.
+- **Operation:** one thing a caller or the engine can do, in one folder, `Operations/<Group>/<Operation>/`: its public types in `Acta`, its command or query, its handler, and its SQL per dialect in `Acta.Runtime`. The same `VerbNoun` names the folder, the SQL stem, and the facade method. *Reason:* one place to read an operation whole, in every dialect.
+- **Group:** the operations of one subject (Jobs, Schedules, Alerts, ...), with one hand-written facade of one line per operation and the types the group shares. There is no mediator and no layer between facade and handler. *Reason:* a group is a folder, not a boundary; its handlers call what they need directly.
+- **Engine:** `Acta.Runtime/Engine/` runs jobs (workers, execution, recovery, retention, alert projection and delivery, the outbox relay, definition registration) and composes operations by calling their handlers. No operation references the engine. *Reason:* the dependency points one way, so an operation reads on its own.
+- **Adapter:** a project that connects an external technology: the providers, `Acta.Redis`, `Acta.AspNetCore`, `Acta.Testing`.
+- **Manifest:** the generated per-assembly set of job descriptors (`{Area}JobsManifest : IJobManifest`). The word is reserved for that.
+- **Public facade:** the consumer surface (`IJobs` and friends), deliberately simpler than the internal structure; the public API never mirrors the folder tree.
+- **Tags follow the shared-substrate model:** each target's owner owns its tag rows by scope, the physical `tags` table is one partitioned substrate, and every write goes through the Tags group's SQL under the ownership map. There is no tag-metadata API in front of it. *Reason:* tags span every target type by design; a boundary around a table everyone joins would be theatre.
 
 ### Provider contract
 
 - **Provider conformance is one shared spec suite** all three relational providers gate on. *Reason:* one definition of "provider-compliant".
 - **All hot-path writes are semantic operations** whose provider SQL writes the `JobEvent` in the same transaction. *Reason:* one round-trip; audit and state are atomic.
 - **SQL sits beside its operation:** `src/Acta.Runtime/Operations/{Group}/{Operation}/` holds that operation's file for every dialect (`X.pg.sql`, `X.mssql.sql`, `X.sqlite.sql`), the schema commands sit in `Schema/`, and the operator views in `Schema/Views/`. *Reason:* the SQL tree is public-facing in a product whose pitch is inspectable SQL; one folder per operation shows every dialect of it side by side.
-- **Core behavior is implemented once in `Acta.Runtime`.** Each operation's handler owns command building and mapping; providers own only dialects, executable SQL, and bulk binds, with no per-provider handlers. Statically gated by `ArchitectureBoundary`, and `OperationLayoutTests` keeps each operation's SQL beside its handler, in all three dialects. *Reason:* one implementation of provider-independent policy, with SQL and dialects the only provider-specific surface.
+- **Core behavior is implemented once in `Acta.Runtime`.** Each operation's handler owns command building and mapping; providers own only dialects, executable SQL, and bulk binds, with no per-provider handlers. Statically gated by `ArchitectureBoundaryTests`, and `OperationLayoutTests` keeps each operation's SQL beside its handler, in all three dialects. *Reason:* one implementation of provider-independent policy, with SQL and dialects the only provider-specific surface.
 - **No production raw-session API crosses into feature behavior.** `Acta.Testing` owns the test query DSL and raw ADO helpers. *Reason:* ad-hoc product writes would bypass operation-owned invariants.
 
 ### Handler contract
@@ -252,9 +220,10 @@ Reserved terms for internal structure; a generated job descriptor set is a *mani
 - **`TimeProvider`, not `DateTime.UtcNow`**, for anything driving scheduling, lease, or claim correctness; carve-outs are DB-rendered defaults, the `DeduplicationKey.Per*` convenience overloads, and the clock-free wakeup hint. *Reason:* testability and clock-source clarity.
 - **Per-execution DI scope.** Scoped services receive fresh instances per attempt. *Reason:* the attempt is the unit of work.
 
-### Invariants
+## Invariants
 
 1. The framework's identity does not change without an update to this ledger.
-2. Every claim about Acta in any other doc is testable: a conformance test, a generated diagnostic, or a CI gate enforces it.
+2. The four claims are testable: every claim about Acta in any other doc is held by a conformance test, a generated diagnostic, or a CI gate.
 3. New tables and new methods carry a substrate-generality justification or are rejected.
-4. Source code is the source of truth for everything mechanically derivable; this ledger captures only what isn't.
+4. The vocabulary is enforced at the analyzer level for compile-time names; documentation reviewers enforce it for prose.
+5. Source code is the source of truth for everything mechanically derivable; this ledger captures only what isn't.

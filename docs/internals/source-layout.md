@@ -1,6 +1,6 @@
 # Source layout
 
-Where code lives in `src/`, and the tests that hold it there. rc.5 moves the tree to this layout one group at a time. Until it lands, `tests/ratchets/` lists what still differs.
+Where code lives in `src/`, and the tests that hold it there.
 
 ## Projects
 

@@ -1,13 +1,15 @@
 # SQL execution policy
 
-PostgreSQL and SQL Server execute Acta ledger mutations through atomic routines; reads use embedded
-SQL and installed views; SQLite implements the same store contracts with transactional inline SQL.
+PostgreSQL and SQL Server execute the hot ledger mutations through installed atomic routines and
+everything else through embedded SQL and installed views; SQLite runs every mutation as embedded SQL
+inside a transaction the session owns.
 
-This is the execution policy referenced by [the design decisions](design.md). The server
-providers each install 58 routines: the 53 mutation operations plus `UpdateAlertDelivery`,
-`ResolveAlerts`, `RepairRecoverySlot`, `AcquireSlot`, and `ReserveRate`. Hot paths, control operations, catalog registration,
-recovery, and maintenance all follow the same rule. Routine placement is a compatibility decision,
-not an inference from SQL size.
+This is the execution policy referenced by [the design decisions](design.md). The server providers
+each install thirty routines: enqueue, claim, start and complete, the step and slot writes, leases,
+recovery, retention, alert raise and settlement, outbox signals, and definition and schedule
+registration. Every other operation, control verbs included, is embedded SQL on every provider.
+`SqlCommandCatalogTests` pins the routine list; moving an operation across that line is a decision,
+because an installed routine is a compatibility obligation and every edit to one is a package revision.
 
 ## Resources and execution
 
@@ -18,13 +20,15 @@ not an inference from SQL size.
 
 `SqlResourceCatalog` resolves exactly one file for each stem and dialect. Two files with one stem fail when the catalog is built, and a missing one fails before a connection opens. `DbSession` uses the file's kind to configure the command. There is no provider-wide routine switch.
 
-Shared stores use query methods for reads and execute methods for mutations. Stores never decide
-transaction ownership from the number of SQL statements. Parameter binding stays provider-specific,
-including PostgreSQL arrays and SQL Server TVPs.
+A handler reads through the session's query methods and mutates through its execute methods, and an
+inline mutation on PostgreSQL or SQL Server runs inside a transaction the session opens and commits
+around the one command, so it is as atomic as a routine. A handler never decides transaction
+ownership from the number of SQL statements. Parameter binding stays provider-specific, including
+PostgreSQL arrays and SQL Server TVPs.
 
-**Every semantic mutation store call is atomic.** The database changes and their audit evidence
-commit or roll back together. A higher-level API may orchestrate several store calls; this rule does
-not make those separate calls one transaction.
+**Every mutation operation is atomic.** The database changes and their audit evidence commit or roll
+back together. A higher-level API may orchestrate several operations; this rule does not make those
+separate calls one transaction.
 
 ## Transaction and retry ownership
 
@@ -32,7 +36,7 @@ not make those separate calls one transaction.
 | --- | --- |
 | Owned PostgreSQL ledger call | One function invocation, atomic in the database statement transaction. |
 | Owned SQL Server ledger call | One procedure invocation; the procedure begins and commits its transaction inside the call. |
-| Owned SQLite mutation | `DbSession` starts an immediate transaction, executes and reads the file, then commits. |
+| Owned inline mutation | `DbSession` starts a transaction (immediate on SQLite), executes and reads the file, then commits. |
 | Caller-transaction enqueue | All three providers join the supplied transaction. Acta never commits, disposes, or retries it. |
 | Ordinary read | No additional write transaction. |
 

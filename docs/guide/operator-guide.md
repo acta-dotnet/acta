@@ -634,27 +634,6 @@ data and database backups are outside its reach). Do not use manual purge as bac
 pausing, cancelling, rescheduling, or fixing worker capacity addresses runnable work without
 deleting evidence.
 
-## Migrations
-
-Schema lives in `src/Acta.{Postgres,SqlServer,Sqlite}/Schema/Migrations/M001_init.sql` (generated; never hand-edit).
-`ApplyMigrationsOnStartup = true` applies it on boot, which is the right dev-mode default and the
-wrong production one: apply the script from a deployment step instead. Operation routines install
-and curated operator views re-apply on bootstrap after migrations under the same schema lock.
-
-## Alerts
-
-Alert channels are worker startup configuration. Acta SQL may persist alert channel_name as routing
-metadata. Acta SQL must never persist alert transport endpoint, webhook URL, credential, routing key,
-or opaque transport config. Delivery configuration is process startup configuration resolved through
-AlertChannelRegistry. Every worker namespace has an implicit `default` log channel unless overridden
-with `w.AddAlertChannel(...)`. Store real endpoints/secrets in appsettings, environment variables, or a
-secret store, then pass them into `AddAlertChannel` at startup. Route a job with
-`[Job(AlertChannelName = "...")]`; `AlertProfile` decides what fires, incident identity collapses
-repeats onto one open row per job and condition, `AlertReminderInterval` (24 hours, settable) governs
-how often a still-open incident pages again, and delivery retries are capped at five per send series.
-Alert rows are queryable like everything else:
-`SELECT * FROM acta.alerts_view WHERE delivery_status = 'pending'` shows what has not delivered yet.
-
 ## What maintenance does for you
 
 Workers heartbeat their leases (`HeartbeatInterval`); `sys.recovery` reclaims jobs whose lease
@@ -663,31 +642,5 @@ marks silent workers Dead after `WorkerDeadAfter`, and re-raises any child-compl
 left pending; `sys.retention` runs the purge. If a job looks stuck in `Dispatched`/`Executing`, check the
 worker's `last_seen_at_utc` first; recovery is automatic once the lease lapses.
 
-## Security and exposure
-
-Acta ships no login system; the dashboard and JSON API are local-only by default (`LocalOnly = true`, non-loopback requests get 403). Exposing the surface remotely means setting `LocalOnly = false` and wiring host authorization through `ConfigureEndpoints`, as in the `MapActa` example above. Beyond that:
-
-- `LocalOnly` checks the TCP peer address and the host the request names (`localhost`, a `.localhost` name, or an IP address), not the original client: behind a reverse proxy or gateway on the same host, the peer is the proxy's loopback address, so the check passes for every forwarded request that keeps a local host name. Behind a proxy, do not rely on `LocalOnly`: gate on real authorization through `ConfigureEndpoints`, and configure `ForwardedHeaders` if the host needs the true client IP.
-- The `X-Acta-Control: true` header on control POSTs is the cross-site request forgery barrier, not auth: a cross-origin page cannot send it without a preflight. Keep it on, unless the host supplies antiforgery of its own and no ambient credentials (integrated Windows auth, `SameSite=None` cookies) reach the API, and enable controls (`EnableControls = true`) only behind authorization.
-- Keep secrets and PII out of job input, result, and tags; store large or sensitive blobs externally and enqueue a reference (URI plus checksum and size). Payloads are readable in full by anyone authorized for the read surface (see the dashboard section above), so this is the data-classification boundary: there is no per-payload redaction or disclosure gate to fall back on.
-- Every host doubles as its own control CLI (`<app> jobs info|pause|resume|restart|cancel|debug`); use `j.DisableCli()` only if the host owns its own command line.
-
-## Production checklist
-
-Use this for staging and production workloads.
-
-Version and schema:
-- The migration history is frozen: schema changes ship as additive `Mnnn` migrations, the baseline is never re-cut, and bootstrap refuses to start on a baseline mismatch rather than applying it. Every release-candidate database, rc.3 included, is dropped and reprovisioned once for 1.0; from 1.0 on the provisioning script upgrades in place. Keep `ApplyMigrationsOnStartup = false` outside dev and apply migration SQL from a deploy step.
-- Pin Acta versions across a namespace. Set `DeploymentVersion` to a build id; set `JobsOptions.ManifestGenerationUtc` only when deterministic definition promotion matters for your packaging/deploy shape.
-
-Provider and database:
-- SQL Server or Postgres for distributed multi-worker; SQLite for embedded single-node. Choose the schema name before installing. Size the connection pool for executors, claim loops, dashboard reads, and alerts. Keep the database clock healthy (`AllowClockSkew = true` bypasses the startup skew check). SQL polling is the correctness baseline; Redis wakeup only lowers pickup latency.
-
-Worker coordination:
-- Keep `HeartbeatInterval` identical across replicas; the lease (x4) and dead-worker (x7) windows derive from it, so the proportions cannot drift. Tune `MaxConcurrentExecutors`/`ClaimBatchSize` against database capacity. Keep system maintenance on unless you have a tested replacement.
-
-Handlers:
-- Stable kebab-case `[Job("...")]` names; treat `TIn`, `TOut`, name, and format as durable contract. Make external side effects idempotent (Acta is at-least-once). Steps for run-once internal slots; child jobs for independently visible, retryable work.
-
-Validation and caveats:
-- Run the conformance suite for your provider, the `anvil/Anvil` crash/reclaim flows, and the `anvil/Anvil.Bench` baselines. Test a rolling deploy with mixed old/new workers and queued rows. Hardening, authorization guidance, and capacity/retention/alerting playbooks still need real deployment feedback.
+Deployment, exposure, migrations, alert channels, and the production checklist are in the
+[Production guide](./production.md).

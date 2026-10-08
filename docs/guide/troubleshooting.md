@@ -20,42 +20,8 @@ wait is active, what the latest recorded reason was, and what operator actions a
 cannot predict arbitrary user code, external system state, or whether a non-idempotent side effect
 already happened outside Acta.
 
-Common outputs:
-
-```text
-Suspended, waiting for signal "fraud-review".
-
-Next actions:
-- Raise signal "fraud-review".
-- Cancel the job.
-```
-
-```text
-Executing, but its lease expired 2m ago.
-
-Worker:
-- Worker payments-v17 (17), lease expired at 2026-07-04T11:58:00.0000000Z.
-- Last heartbeat at 2026-07-04T11:56:00.0000000Z.
-- Recovery should return it to Ready on the next maintenance tick.
-```
-
-```text
-Failed.
-
-Reason:
-- Report store unavailable.
-
-Next actions:
-- Inspect the timeline with 'jobs events'.
-- Restart the job only after the underlying cause is fixed.
-```
-
-```text
-Succeeded.
-
-Durable work:
-- Step "reserve-stock" succeeded and will not rerun.
-```
+Sample outputs for a suspended, an expired-lease, a failed, and a succeeded job are in
+[Operator guide § built-in control CLI](./operator-guide.md#built-in-control-cli).
 
 ## A Job Did Not Start
 
