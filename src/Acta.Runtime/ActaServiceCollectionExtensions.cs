@@ -108,8 +108,8 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ResumeTenantHandler>();
         services.TryAddSingleton<UpdateTenantHandler>();
         services.TryAddSingleton<ITenants, Tenants>();
+        services.TryAddSingleton<ListNamespaceNamesHandler>();
         services.TryAddSingleton<ListNamespacesHandler>();
-        services.TryAddSingleton<ListNamespaceItemsHandler>();
         services.TryAddSingleton<SuspendNamespaceHandler>();
         services.TryAddSingleton<ResumeNamespaceHandler>();
         services.TryAddSingleton<UpdateNamespaceHandler>();

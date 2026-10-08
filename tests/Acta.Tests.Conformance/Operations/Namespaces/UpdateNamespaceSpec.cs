@@ -76,7 +76,7 @@ public sealed class UpdateNamespaceSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(before!.OwnerTeam, after!.OwnerTeam);
         Assert.Equal(before.Version, after.Version);
 
-        var page = await Operations.Namespaces.ListNamesAsync(new ListNamespacesQuery(NameContains: "sys"), ct);
+        var page = await Operations.Namespaces.ListNamesAsync(new ListNamespaceNamesQuery(NameContains: "sys"), ct);
         Assert.Contains("sys", page.Items);
     }
 

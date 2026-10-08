@@ -1,7 +1,14 @@
-SELECT TOP (@p_take) ns.name
+SELECT TOP (@p_take)
+    ns.id AS namespace_id,
+    ns.name AS job_namespace,
+    ns.status_code AS status,
+    ns.owner_team,
+    ns.description,
+    ns.version
 FROM {{schema}}.namespaces ns
 WHERE
     (@p_name_search IS NULL OR ns.name LIKE @p_name_search)
+    AND (@p_status_code IS NULL OR ns.status_code = @p_status_code)
     AND (@p_tag_filters IS NULL OR NOT EXISTS (
         SELECT 1
         FROM
@@ -23,6 +30,7 @@ SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
     FROM {{schema}}.namespaces ns
     WHERE
         (@p_name_search IS NULL OR ns.name LIKE @p_name_search)
+        AND (@p_status_code IS NULL OR ns.status_code = @p_status_code)
         AND (@p_tag_filters IS NULL OR NOT EXISTS (
             SELECT 1
             FROM

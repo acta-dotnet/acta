@@ -1,38 +1,38 @@
-using System.Globalization;
-
 namespace Acta.Runtime;
 
-/// <summary><see cref="INamespaces.ListAsync"/>: namespaces by name ascending, one keyset page at a time.</summary>
-internal sealed class ListNamespaceItemsHandler(IDbSession session, ISqlDialect dialect)
+/// <summary>
+/// <see cref="INamespaces.ListNamesAsync"/>: namespace names ascending, one keyset page at a time.
+/// </summary>
+internal sealed class ListNamespaceNamesHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<PagedResult<NamespaceListItem>> HandleAsync(ListNamespaceItemsQuery query, CancellationToken ct)
+    public async ValueTask<PagedResult<string>> HandleAsync(ListNamespaceNamesQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
         var (fragment, pattern) = NamespaceNames.Search(query.NameContains);
-        var tags = TagFilterJson.Normalize(query.Tags, nameof(ListNamespaceItemsQuery));
+        var tags = TagFilterJson.Normalize(query.Tags, nameof(ListNamespaceNamesQuery));
+        // The cursor's operation name predates the ListNamespaceNames stem; it stays so issued cursors still decode.
         var paging = Paging.Start(
-            "ListNamespaceItems",
+            "ListNamespaces",
             "name asc",
             [CursorKeyKind.Text],
             query.Cursor,
             query.PageSize,
-            [("contains", fragment), ("status", ((byte?)query.Status)?.ToString(CultureInfo.InvariantCulture)), ("tags", tags)]
+            [("contains", fragment), ("tags", tags)]
         );
 
         var (rows, total) = await session.QueryPageAsync(
-            "ListNamespaceItems",
+            "ListNamespaceNames",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NameSearchFilter, pattern));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Namespace.StatusCode, query.Status));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagFiltersJson, tags));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorNamespaceName, (string?)paging.After?[0]));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, paging.Fetch));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.IncludeTotalFlag, query.IncludeTotal ? true : (bool?)null));
             },
-            DbProjectionResolver.Resolve<NamespaceListItem>(),
+            static reader => reader.GetString(0),
             ct
         );
-        return paging.Page(rows, total, static item => [item.JobNamespace]);
+        return paging.Page(rows, total, static name => [name]);
     }
 }

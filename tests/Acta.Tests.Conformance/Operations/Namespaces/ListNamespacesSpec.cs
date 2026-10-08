@@ -1,3 +1,4 @@
+using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Xunit;
@@ -5,50 +6,62 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Namespaces;
 
 /// <summary>
-/// Conformance for <c>ListNamespaces</c>: a keyset page of namespace names ordered name
-/// ascending, with an optional name filter and an opt-in filter-wide total, all in one round trip.
+/// Conformance for <c>ListNamespaces</c>: the admin-list read that pages namespaces name-ascending
+/// carrying status, owner team, description, and version, alongside the seeded sys row.
 /// </summary>
 [ConformanceSpec(
-    "list-namespaces.keyset-page",
-    "ListNamespaces pages namespaces name-ascending with an opt-in total",
+    "list-namespaces.admin-page",
+    "ListNamespaces pages namespaces with status, fields, and version",
     Area = "Reads",
-    Contract = "ListNamespaces pages namespace names ascending without duplicates and reads the page plus an opt-in filter-wide count in one command."
+    Contract = "ListNamespaces pages namespaces name-ascending carrying id, status, owner_team, description, and version, and includes the seeded sys row."
 )]
 public sealed class ListNamespacesSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
-    [Fact(DisplayName = "Walking the cursor visits the registered TestNamespace once with no duplicates")]
-    public async Task Contains_registered_namespace_with_no_duplicates()
+    protected override bool RunAsWorker => true;
+
+    // The name is this run's own, so filtering on it reaches the row in a database holding earlier runs.
+    private async Task<NamespaceListItem> FindAsync(string name, CancellationToken ct) =>
+        (await Operations.Namespaces.ListAsync(new ListNamespacesQuery(NameContains: name), ct)).Items.Single(r => r.JobNamespace == name);
+
+    [Fact(DisplayName = "The admin row carries the namespace id, status, owner team, description, and version")]
+    public async Task Row_carries_status_fields_and_version()
     {
         var ct = TestContext.Current.CancellationToken;
+        var nsId = Runtime.RegisteredNamespaceIds[TestNamespace];
 
-        // Keyset paging is self-consistent under the database's own collation (the cursor predicate and
-        // ORDER BY share it), so we assert coverage and uniqueness rather than a client-side string order.
-        var seen = new List<string>();
-        string? cursor = null;
-        var pages = 0;
-        do
-        {
-            var page = await Operations.Namespaces.ListNamesAsync(new ListNamespacesQuery(PageSize: 50, Cursor: cursor), ct);
-            seen.AddRange(page.Items);
-            cursor = page.NextCursor;
-            Assert.True(++pages < 100_000, "pagination did not terminate");
-        } while (cursor is not null);
+        // Write distinct non-null owner_team/description and bump the version off its default so a broken
+        // projection cannot pass by reading a stray null or a stray 0.
+        var current = (await Db.From<NamespaceEntity>().Where(n => n.Name == TestNamespace).SingleOrDefaultAsync(ct))!;
+        var updated = await Operations.Namespaces.UpdateAsync(
+            TestNamespace,
+            current.Version,
+            "platform-team",
+            "namespace admin description",
+            null,
+            null,
+            ct
+        );
+        Assert.NotNull(updated.Version);
 
-        Assert.Contains(TestNamespace, seen);
-        Assert.Equal(seen.Count, seen.Distinct(StringComparer.Ordinal).Count());
+        var row = await FindAsync(TestNamespace, ct);
+        Assert.Equal(nsId, row.NamespaceId);
+        Assert.Equal(TestNamespace, row.JobNamespace);
+        Assert.Equal(NamespaceStatusCode.Active, row.Status);
+        Assert.Equal("platform-team", row.OwnerTeam);
+        Assert.Equal("namespace admin description", row.Description);
+        Assert.Equal(updated.Version, row.Version);
     }
 
-    [Fact(DisplayName = "A name filter narrows to the matching namespaces and IncludeTotal counts them")]
-    public async Task Total_counts_the_filtered_names_and_is_opt_in()
+    [Fact(DisplayName = "The seeded sys namespace is present as id 1, name sys, status active")]
+    public async Task Sys_row_is_present()
     {
         var ct = TestContext.Current.CancellationToken;
 
-        Assert.Null((await Operations.Namespaces.ListNamesAsync(new ListNamespacesQuery(PageSize: 1), ct)).TotalCount);
-
-        // The fixture namespace is this run's own name, so only names containing it can match.
-        var page = await Operations.Namespaces.ListNamesAsync(new ListNamespacesQuery(NameContains: TestNamespace, IncludeTotal: true), ct);
-        Assert.Contains(TestNamespace, page.Items);
-        Assert.All(page.Items, name => Assert.Contains(TestNamespace, name, StringComparison.Ordinal));
-        Assert.Equal(page.Items.Count, page.TotalCount);
+        var page = await Operations.Namespaces.ListAsync(new ListNamespacesQuery(NameContains: "sys", IncludeTotal: true), ct);
+        var sys = page.Items.Single(r => r.JobNamespace == "sys");
+        Assert.Equal(1, sys.NamespaceId);
+        Assert.Equal(NamespaceStatusCode.Active, sys.Status);
+        Assert.NotNull(page.TotalCount);
+        Assert.True(page.TotalCount >= 1);
     }
 }

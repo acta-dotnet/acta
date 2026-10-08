@@ -1,22 +1,23 @@
+using System.Globalization;
+
 namespace Acta.Runtime;
 
-/// <summary>
-/// <see cref="INamespaces.ListNamesAsync"/>: namespace names ascending, one keyset page at a time.
-/// </summary>
+/// <summary><see cref="INamespaces.ListAsync"/>: namespaces by name ascending, one keyset page at a time.</summary>
 internal sealed class ListNamespacesHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<PagedResult<string>> HandleAsync(ListNamespacesQuery query, CancellationToken ct)
+    public async ValueTask<PagedResult<NamespaceListItem>> HandleAsync(ListNamespacesQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
         var (fragment, pattern) = NamespaceNames.Search(query.NameContains);
         var tags = TagFilterJson.Normalize(query.Tags, nameof(ListNamespacesQuery));
+        // The cursor's operation name predates the ListNamespaces stem; it stays so issued cursors still decode.
         var paging = Paging.Start(
-            "ListNamespaces",
+            "ListNamespaceItems",
             "name asc",
             [CursorKeyKind.Text],
             query.Cursor,
             query.PageSize,
-            [("contains", fragment), ("tags", tags)]
+            [("contains", fragment), ("status", ((byte?)query.Status)?.ToString(CultureInfo.InvariantCulture)), ("tags", tags)]
         );
 
         var (rows, total) = await session.QueryPageAsync(
@@ -24,14 +25,15 @@ internal sealed class ListNamespacesHandler(IDbSession session, ISqlDialect dial
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NameSearchFilter, pattern));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Namespace.StatusCode, query.Status));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagFiltersJson, tags));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorNamespaceName, (string?)paging.After?[0]));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, paging.Fetch));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.IncludeTotalFlag, query.IncludeTotal ? true : (bool?)null));
             },
-            static reader => reader.GetString(0),
+            DbProjectionResolver.Resolve<NamespaceListItem>(),
             ct
         );
-        return paging.Page(rows, total, static name => [name]);
+        return paging.Page(rows, total, static item => [item.JobNamespace]);
     }
 }

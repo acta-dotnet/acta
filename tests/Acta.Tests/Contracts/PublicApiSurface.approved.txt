@@ -1070,8 +1070,8 @@ interface Acta.ILedger
     System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.EventListItem>> ListEventsAsync(Acta.ListEventsQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.JobListItem>> ListJobsAsync(Acta.ListJobsQuery query, System.Threading.CancellationToken ct = default)
 interface Acta.INamespaces
-    System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.NamespaceListItem>> ListAsync(Acta.ListNamespaceItemsQuery query, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.PagedResult<System.String>> ListNamesAsync(Acta.ListNamespacesQuery query, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.NamespaceListItem>> ListAsync(Acta.ListNamespacesQuery query, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.PagedResult<System.String>> ListNamesAsync(Acta.ListNamespaceNamesQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ResumeNamespaceResponse> ResumeAsync(System.String name, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.SuspendNamespaceResponse> SuspendAsync(System.String name, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.UpdateNamespaceResponse> UpdateAsync(System.String name, System.Int32 expectedVersion, System.String ownerTeam, System.String description, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
@@ -1729,18 +1729,18 @@ sealed class Acta.ListJobsQuery
     System.String JobNamespace { get;init; }
     System.String Lane { get;init; }
     System.String TenantKey { get;init; }
-sealed class Acta.ListNamespaceItemsQuery
-    .ctor(System.String NameContains = default, System.Nullable<Acta.NamespaceStatusCode> Status = default, System.Nullable<System.Int32> PageSize = default, System.String Cursor = default, System.Boolean IncludeTotal = default, System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags = default)
+sealed class Acta.ListNamespaceNamesQuery
+    .ctor(System.String NameContains = default, System.Nullable<System.Int32> PageSize = default, System.String Cursor = default, System.Boolean IncludeTotal = default, System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags = default)
     System.Boolean IncludeTotal { get;init; }
     System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags { get;init; }
-    System.Nullable<Acta.NamespaceStatusCode> Status { get;init; }
     System.Nullable<System.Int32> PageSize { get;init; }
     System.String Cursor { get;init; }
     System.String NameContains { get;init; }
 sealed class Acta.ListNamespacesQuery
-    .ctor(System.String NameContains = default, System.Nullable<System.Int32> PageSize = default, System.String Cursor = default, System.Boolean IncludeTotal = default, System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags = default)
+    .ctor(System.String NameContains = default, System.Nullable<Acta.NamespaceStatusCode> Status = default, System.Nullable<System.Int32> PageSize = default, System.String Cursor = default, System.Boolean IncludeTotal = default, System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags = default)
     System.Boolean IncludeTotal { get;init; }
     System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags { get;init; }
+    System.Nullable<Acta.NamespaceStatusCode> Status { get;init; }
     System.Nullable<System.Int32> PageSize { get;init; }
     System.String Cursor { get;init; }
     System.String NameContains { get;init; }

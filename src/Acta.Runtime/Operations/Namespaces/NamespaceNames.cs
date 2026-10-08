@@ -9,7 +9,7 @@ internal static class NamespaceNames
     /// </summary>
     public static (string? Fragment, string? Pattern) Search(string? nameContains)
     {
-        var fragment = QueryValidation.ValidateNamespaceFragment(nameContains, nameof(ListNamespacesQuery.NameContains));
+        var fragment = QueryValidation.ValidateNamespaceFragment(nameContains, nameof(ListNamespaceNamesQuery.NameContains));
         return (fragment, fragment is null ? null : "%" + fragment + "%");
     }
 }

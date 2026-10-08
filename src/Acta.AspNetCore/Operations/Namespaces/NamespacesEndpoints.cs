@@ -20,7 +20,7 @@ internal static class NamespacesEndpoints
             "/namespaces",
             "List namespaces.",
             DashboardJsonContext.Default.PagedResultNamespaceListItem,
-            static query => new ListNamespaceItemsQuery(
+            static query => new ListNamespacesQuery(
                 NameContains: query.Text("nameContains"),
                 Status: query.Enum<NamespaceStatusCode>("status"),
                 PageSize: query.Int("pageSize"),

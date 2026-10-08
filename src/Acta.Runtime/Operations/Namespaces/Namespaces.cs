@@ -2,18 +2,18 @@ namespace Acta.Runtime;
 
 /// <summary><see cref="INamespaces"/>, one line per operation.</summary>
 internal sealed class Namespaces(
+    ListNamespaceNamesHandler listNamespaceNames,
     ListNamespacesHandler listNamespaces,
-    ListNamespaceItemsHandler listNamespaceItems,
     SuspendNamespaceHandler suspendNamespace,
     ResumeNamespaceHandler resumeNamespace,
     UpdateNamespaceHandler updateNamespace
 ) : INamespaces
 {
-    public ValueTask<PagedResult<string>> ListNamesAsync(ListNamespacesQuery query, CancellationToken ct = default) =>
-        listNamespaces.HandleAsync(query, ct);
+    public ValueTask<PagedResult<string>> ListNamesAsync(ListNamespaceNamesQuery query, CancellationToken ct = default) =>
+        listNamespaceNames.HandleAsync(query, ct);
 
-    public ValueTask<PagedResult<NamespaceListItem>> ListAsync(ListNamespaceItemsQuery query, CancellationToken ct = default) =>
-        listNamespaceItems.HandleAsync(query, ct);
+    public ValueTask<PagedResult<NamespaceListItem>> ListAsync(ListNamespacesQuery query, CancellationToken ct = default) =>
+        listNamespaces.HandleAsync(query, ct);
 
     public ValueTask<SuspendNamespaceResponse> SuspendAsync(
         string name,

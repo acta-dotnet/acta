@@ -1516,17 +1516,17 @@
   - ListJobs returns the keyset page and the filter-wide total from one command
   - The list projection exposes no payload column
 
-### ListNamespaceItems pages namespaces with status, fields, and version
-- **Contract:** ListNamespaceItems pages namespaces name-ascending carrying id, status, owner_team, description, and version, and includes the seeded sys row.
-- **Guarantees:**
-  - The admin row carries the namespace id, status, owner team, description, and version
-  - The seeded sys namespace is present as id 1, name sys, status active
-
-### ListNamespaces pages namespaces name-ascending with an opt-in total
-- **Contract:** ListNamespaces pages namespace names ascending without duplicates and reads the page plus an opt-in filter-wide count in one command.
+### ListNamespaceNames pages namespaces name-ascending with an opt-in total
+- **Contract:** ListNamespaceNames pages namespace names ascending without duplicates and reads the page plus an opt-in filter-wide count in one command.
 - **Guarantees:**
   - Walking the cursor visits the registered TestNamespace once with no duplicates
   - A name filter narrows to the matching namespaces and IncludeTotal counts them
+
+### ListNamespaces pages namespaces with status, fields, and version
+- **Contract:** ListNamespaces pages namespaces name-ascending carrying id, status, owner_team, description, and version, and includes the seeded sys row.
+- **Guarantees:**
+  - The admin row carries the namespace id, status, owner team, description, and version
+  - The seeded sys namespace is present as id 1, name sys, status active
 
 ### ListTenants pages tenants key-ascending with an opt-in total
 - **Contract:** ListTenants pages tenants by key ascending without duplicates and reads the page plus an opt-in filter-wide count in one command.
@@ -2209,7 +2209,7 @@
 | `ListDefinitions` | yes | yes | yes |
 | `ListEvents` | yes | yes | yes |
 | `ListJobs` | yes | yes | yes |
-| `ListNamespaceItems` | yes | yes | yes |
+| `ListNamespaceNames` | yes | yes | yes |
 | `ListNamespaces` | yes | yes | yes |
 | `ListQuarantinedOutbox` | yes | yes | yes |
 | `ListSchedules` | yes | yes | yes |

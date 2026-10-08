@@ -119,6 +119,9 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   `enqueue_job`, and a database provisioned from the previous `docs/reference/schema-<provider>.sql` runs the
   new one before this build starts. The old routines stay installed for older workers during a rolling deploy;
   drop them once none runs. The object package moves to revision 49; the minimum stays 9.
+- **`INamespaces.ListNamesAsync` takes `ListNamespaceNamesQuery`.** The name list has its own query,
+  without the `Status` filter it never applied. `ListAsync` keeps `ListNamespacesQuery` with the same
+  members.
 
 ### Additions
 

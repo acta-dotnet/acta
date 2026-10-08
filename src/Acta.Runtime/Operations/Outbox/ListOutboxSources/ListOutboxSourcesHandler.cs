@@ -24,7 +24,7 @@ internal sealed class ListOutboxSourcesHandler(IJobs jobs, INamespaces namespace
         }
         else
         {
-            var page = await namespaces.ListNamesAsync(new ListNamespacesQuery(PageSize: pageSize, Cursor: query.Cursor), ct);
+            var page = await namespaces.ListNamesAsync(new ListNamespaceNamesQuery(PageSize: pageSize, Cursor: query.Cursor), ct);
             (names, nextCursor, hasMore) = (page.Items, page.NextCursor, page.HasMore);
         }
 
