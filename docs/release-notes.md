@@ -91,6 +91,15 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   set holds `CheckpointItem`, with the same members, ordered by kind and then by name. A job without
   slots answers an empty set, and a lookup that matches no job now answers `null` instead of an empty
   list, as `ITags.GetAsync` does.
+- **Only the hot paths stay installed routines.** Every operator verb and other cold write now runs as
+  inline SQL in its own transaction: job, schedule, tenant, and namespace control, worker start and stop,
+  alert acknowledge and resolve, definition overrides, job notes, and the three tag writes. Thirty routines
+  remain (enqueue, claim, start and complete, steps, signals, locks and meters, recovery, retention,
+  alert projection, the outbox inbox, and definition and schedule registration). Four of them take new
+  names: `raise_alert`, `resolve_alerts`, `register_definitions`, and `register_schedules`. A database
+  keeps the routines it already has, so older workers still find them during a rolling deploy; drop
+  the retired ones once no older worker runs. The object package moves to revision 45; the minimum
+  stays 9.
 
 ### Additions
 

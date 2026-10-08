@@ -10,6 +10,42 @@ namespace Acta.Tests.Storage;
 
 public sealed class SqlCommandCatalogTests
 {
+    // The routines that stay installed: the hot paths, where one round trip and a server-side plan pay for a
+    // routine edit costing a migration. Everything else runs inline; adding a routine is a decision, not a drift.
+    private static readonly string[] InstalledRoutines =
+    [
+        "AcquireLock",
+        "AcquireSlot",
+        "ArmOrConsumeSleepTimer",
+        "CheckpointSlot",
+        "ClaimBatch",
+        "ClaimOne",
+        "CompleteExecution",
+        "CompleteStep",
+        "ConsumeOutboxSignal",
+        "EnqueueBatch",
+        "EnqueueOne",
+        "ExtendLock",
+        "ExtendWorkerLeases",
+        "MarkDeadWorkers",
+        "ParkOutboxSignal",
+        "PurgeExpiredData",
+        "RaiseAlert",
+        "RaiseSignal",
+        "ReclaimStuckJobs",
+        "RecordOutboxEvent",
+        "RegisterDefinitions",
+        "RegisterSchedules",
+        "ReleaseLock",
+        "RepairRecoverySlot",
+        "ReserveRate",
+        "ResolveAlerts",
+        "StartExecution",
+        "StartStep",
+        "UpdateAlertDelivery",
+        "WaitSignal",
+    ];
+
     [Theory]
     [InlineData("pg")]
     [InlineData("mssql")]
@@ -23,7 +59,7 @@ public sealed class SqlCommandCatalogTests
             .Select(r => ProviderSqlResources.Stem(r.LogicalPath))
             .ToList();
 
-        Assert.Equal(30, routines.Count);
+        Assert.Equal(InstalledRoutines, routines.Order(StringComparer.Ordinal));
         Assert.Equal(
             routines.Select(JsonNamingPolicy.SnakeCaseLower.ConvertName).Order(StringComparer.Ordinal),
             catalog.Routines().Select(r => r.Name)
