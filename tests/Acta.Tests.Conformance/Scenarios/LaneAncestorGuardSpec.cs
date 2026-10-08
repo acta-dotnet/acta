@@ -93,7 +93,7 @@ public sealed class LaneAncestorGuardSpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(parent.JobId, ct)).Status);
 
         var single = await Jobs.EnqueueAsync(Step("orders", "gc", lane: "orders") with { ParentJobId = parent.JobId }, ct);
-        var batched = await Jobs.EnqueueBatchAsync([Step("orders", "gc2", lane: "orders") with { ParentJobId = parent.JobId }], ct);
+        var batched = (await Jobs.EnqueueBatchAsync([Step("orders", "gc2", lane: "orders") with { ParentJobId = parent.JobId }], ct)).Jobs;
 
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(single.JobId, ct)).Status);
         Assert.Equal(JobStatusCode.Blocked, (await ReadJobAsync(batched[0].JobId, ct)).Status);
@@ -110,15 +110,15 @@ public sealed class LaneAncestorGuardSpec : ActaRuntimeTestBase<ConformanceFixtu
         }
 
         var single = await Jobs.EnqueueAsync(Step("deep", "single", lane: "deep") with { ParentJobId = tip.JobId }, ct);
-        var batched = await Jobs.EnqueueBatchAsync([Step("deeper", "batched", lane: "deeper") with { ParentJobId = tip.JobId }], ct);
+        var batched = (await Jobs.EnqueueBatchAsync([Step("deeper", "batched", lane: "deeper") with { ParentJobId = tip.JobId }], ct)).Jobs;
 
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(single.JobId, ct)).Status);
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(batched[0].JobId, ct)).Status);
     }
 
-    private JobEnqueueRequest Step(string probeLane, string label, string? lane) =>
+    private EnqueueJobRequest Step(string probeLane, string label, string? lane) =>
         new(TestNamespace, "lane-step", JobPayload.Json(new LaneStep(probeLane, label)), Lane: lane);
 
-    private JobEnqueueRequest Defined(string label, string? lane) =>
+    private EnqueueJobRequest Defined(string label, string? lane) =>
         new(TestNamespace, "lane-defined", JobPayload.Json(new LaneDefinedStep(label)), Lane: lane);
 }

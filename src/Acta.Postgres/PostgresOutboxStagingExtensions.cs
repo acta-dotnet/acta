@@ -6,7 +6,7 @@ using NpgsqlTypes;
 namespace Acta.Postgres;
 
 /// <summary>
-/// Transactional external-outbox staging for PostgreSQL producers: validates a <see cref="JobEnqueueRequest"/>
+/// Transactional external-outbox staging for PostgreSQL producers: validates an <see cref="EnqueueJobRequest"/>
 /// through the shared staging core and executes one canonical <c>acta_outbox</c> INSERT on the caller's own open
 /// <see cref="NpgsqlTransaction"/>, so the outbox row commits or rolls back with the producer's business writes. Zero
 /// configuration: no dependency injection, no <c>AddActa</c>, no ledger connection; reference the package, write
@@ -17,7 +17,7 @@ public static class PostgresOutboxStagingExtensions
 {
     public static Task AddToActaOutboxAsync(
         this NpgsqlTransaction transaction,
-        JobEnqueueRequest request,
+        EnqueueJobRequest request,
         string table = "acta_outbox",
         string? schema = null,
         CancellationToken cancellationToken = default

@@ -117,12 +117,12 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         var before = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(TestNamespace, 3600, 1), ct);
 
         // An unbounded wait is never backlog: no worker will ever claim it, and only a raise can move it.
-        var unbounded = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+        var unbounded = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(unbounded, ct));
 
         // Nor is a bounded one while its deadline is still ahead: a queue of long approval waits is
         // work nobody is behind on, and counting it would make the gauge cry wolf.
-        var bounded = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal-timeout", JobPayload.None), ct);
+        var bounded = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal-timeout", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(bounded, ct));
 
         var waiting = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(TestNamespace, 3600, 1), ct);
@@ -166,10 +166,10 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
 
         // ── Job counters ───────────────────────────────────────────────────────────────────────────
         // Enqueue 4 jobs. RegisterSystemJobs = false → no system job definitions → SystemJobCount = 0.
-        var j1 = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 2))), ct);
-        var j2 = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct);
-        var j3 = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(3, 4))), ct);
-        var j4 = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(4, 5))), ct);
+        var j1 = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 2))), ct);
+        var j2 = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct);
+        var j3 = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(3, 4))), ct);
+        var j4 = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(4, 5))), ct);
 
         // j3 → Executing: claim + StartExecution, leave running (no CompleteExecution call).
         var c3 = Assert.Single(await Services.GetRequiredService<Acta.Runtime.Execution>().ClaimOneAsync(ns, w1!.Id, LeaseTtl, j3, ct));

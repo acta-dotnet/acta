@@ -33,7 +33,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         var lastSeenBefore = workerBefore.LastHeartbeatAtUtc;
 
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
             ct
         );
         var dialect = Services.GetRequiredService<ISqlDialect>();
@@ -80,7 +80,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         var workerId = worker!.Id;
 
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
             ct
         );
         var dialect = Services.GetRequiredService<ISqlDialect>();

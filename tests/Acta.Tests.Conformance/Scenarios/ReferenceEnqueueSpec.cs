@@ -41,10 +41,10 @@ public sealed class ReferenceEnqueueSpec : ActaRuntimeTestBase<ConformanceFixtur
 
         var refJobs = referenceHost.GetRequiredService<IJobs>();
         var outcome = await refJobs.EnqueueAsync(new AddNumbers(2, 3), o => o.DeduplicationKey("ref-typed-1"), ct);
-        Assert.Equal(JobEnqueueAction.Inserted, outcome.Action);
+        Assert.Equal(EnqueueJobAction.Inserted, outcome.Action);
 
         var again = await refJobs.EnqueueAsync(new AddNumbers(2, 3), o => o.DeduplicationKey("ref-typed-1"), ct);
-        Assert.Equal(JobEnqueueAction.Deduplicated, again.Action);
+        Assert.Equal(EnqueueJobAction.Deduplicated, again.Action);
         Assert.Equal(outcome.JobId, again.JobId);
 
         // The real worker (the test-base host) claims and completes the referenced enqueue.

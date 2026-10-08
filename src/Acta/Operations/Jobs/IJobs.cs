@@ -15,21 +15,21 @@ public interface IJobs
     /// <summary>
     /// Enqueue one Job for asynchronous execution. Resolves <c>(JobNamespace, JobName)</c> from
     /// <paramref name="request"/> against the registered runtime and returns the internal
-    /// <c>JobId</c>, the public <c>JobRef</c>, and the coarse <see cref="JobEnqueueAction"/>
+    /// <c>JobId</c>, the public <c>JobRef</c>, and the coarse <see cref="EnqueueJobAction"/>
     /// (<c>Inserted</c>, or <c>Deduplicated</c> when an existing row matched
-    /// <see cref="JobEnqueueRequest.DeduplicationKey"/>).
+    /// <see cref="EnqueueJobRequest.DeduplicationKey"/>).
     /// </summary>
-    ValueTask<JobEnqueueResponse> EnqueueAsync(JobEnqueueRequest request, CancellationToken ct = default);
+    ValueTask<EnqueueJobResponse> EnqueueAsync(EnqueueJobRequest request, CancellationToken ct = default);
 
     /// <summary>
     /// Typed enqueue. Resolves <typeparamref name="TInput"/> to its registered job (namespace, name,
     /// payload format) from the generated manifest, serializes <paramref name="input"/>, and enqueues.
-    /// Returns the same <see cref="JobEnqueueResponse"/> as the raw path; it converts implicitly to
+    /// Returns the same <see cref="EnqueueJobResponse"/> as the raw path; it converts implicitly to
     /// <see cref="JobLookup"/> for the read and control verbs. Throws when the input type is
     /// unregistered or ambiguous across namespaces (set <c>options.Namespace</c> or use
-    /// <see cref="EnqueueAsync(JobEnqueueRequest, CancellationToken)"/>).
+    /// <see cref="EnqueueAsync(EnqueueJobRequest, CancellationToken)"/>).
     /// </summary>
-    ValueTask<JobEnqueueResponse> EnqueueAsync<TInput>(TInput input, JobEnqueueOptions? options = null, CancellationToken ct = default)
+    ValueTask<EnqueueJobResponse> EnqueueAsync<TInput>(TInput input, JobEnqueueOptions? options = null, CancellationToken ct = default)
         where TInput : notnull;
 
     /// <summary>
@@ -37,7 +37,7 @@ public interface IJobs
     /// Identical semantics to passing the equivalent <see cref="JobEnqueueOptions"/>; the default
     /// implementation builds the options and forwards.
     /// </summary>
-    ValueTask<JobEnqueueResponse> EnqueueAsync<TInput>(
+    ValueTask<EnqueueJobResponse> EnqueueAsync<TInput>(
         TInput input,
         Action<JobEnqueueOptionsBuilder> configure,
         CancellationToken ct = default
@@ -80,7 +80,7 @@ public interface IJobs
     /// <paramref name="input"/>, and enqueues. No input-type inference. Throws when the manifest is
     /// unregistered, or bound to more than one namespace with <c>options.Namespace</c> unset.
     /// </summary>
-    ValueTask<JobEnqueueResponse> EnqueueAsync<TInput>(
+    ValueTask<EnqueueJobResponse> EnqueueAsync<TInput>(
         JobContract<TInput> job,
         TInput input,
         JobEnqueueOptions? options = null,
@@ -93,7 +93,7 @@ public interface IJobs
     /// from the JobRef once terminal, or call the contract RunAndWaitAsync to wait). Explicit overload so
     /// the path is discoverable rather than relying on the implicit two-arg to one-arg conversion.
     /// </summary>
-    ValueTask<JobEnqueueResponse> EnqueueAsync<TInput, TResult>(
+    ValueTask<EnqueueJobResponse> EnqueueAsync<TInput, TResult>(
         JobContract<TInput, TResult> job,
         TInput input,
         JobEnqueueOptions? options = null,
@@ -104,7 +104,7 @@ public interface IJobs
     /// <summary>
     /// Enqueue a no-input job by contract. Valid when the contract's job declares no input.
     /// </summary>
-    ValueTask<JobEnqueueResponse> EnqueueAsync(JobContract<NoInput> job, JobEnqueueOptions? options = null, CancellationToken ct = default);
+    ValueTask<EnqueueJobResponse> EnqueueAsync(JobContract<NoInput> job, JobEnqueueOptions? options = null, CancellationToken ct = default);
 
     /// <summary>
     /// Enqueue-and-wait against an explicit result-bearing contract. Same waiting semantics as the
@@ -121,30 +121,26 @@ public interface IJobs
         where TResult : notnull;
 
     /// <summary>
-    /// Batched enqueue. One round-trip writes every <paramref name="requests"/> row; the returned list
-    /// is positionally aligned, so <c>outcomes[i]</c> corresponds to <c>requests[i]</c>. Each outcome
-    /// carries the internal <c>JobId</c>, the public <c>JobRef</c>, and the coarse
-    /// <see cref="JobEnqueueAction"/>.
+    /// Batched enqueue. One round-trip writes every <paramref name="requests"/> row and answers each in
+    /// <see cref="EnqueueJobsResponse.Jobs"/>, positionally aligned, so <c>Jobs[i]</c> corresponds to <c>requests[i]</c>.
+    /// Each carries the internal <c>JobId</c>, the public <c>JobRef</c>, and the coarse <see cref="EnqueueJobAction"/>.
     /// </summary>
-    ValueTask<IReadOnlyList<JobEnqueueResponse>> EnqueueBatchAsync(
-        IReadOnlyList<JobEnqueueRequest> requests,
-        CancellationToken ct = default
-    );
+    ValueTask<EnqueueJobsResponse> EnqueueBatchAsync(IReadOnlyList<EnqueueJobRequest> requests, CancellationToken ct = default);
 
     /// <summary>
-    /// Transactional twin of <see cref="EnqueueAsync(JobEnqueueRequest, CancellationToken)"/>: inserts the job through
+    /// Transactional twin of <see cref="EnqueueAsync(EnqueueJobRequest, CancellationToken)"/>: inserts the job through
     /// the caller's open <paramref name="transaction"/>, so a same-database business mutation and the enqueue share one
     /// commit. The rules hold for every transactional twin below: the caller owns the transaction (Acta never opens,
     /// commits, rolls back, disposes, or retries it); no worker wakeup is published, since Acta cannot know when the
-    /// caller commits; the <see cref="JobEnqueueResponse"/> is provisional until commit, and any exception means rolling
+    /// caller commits; the <see cref="EnqueueJobResponse"/> is provisional until commit, and any exception means rolling
     /// back the whole business transaction. No transactional <c>RunAndWaitAsync</c>: the job is invisible until commit.
     /// </summary>
-    ValueTask<JobEnqueueResponse> EnqueueAsync(DbTransaction transaction, JobEnqueueRequest request, CancellationToken ct = default);
+    ValueTask<EnqueueJobResponse> EnqueueAsync(DbTransaction transaction, EnqueueJobRequest request, CancellationToken ct = default);
 
     /// <summary>
     /// Transactional twin of <see cref="EnqueueAsync{TInput}(TInput, JobEnqueueOptions, CancellationToken)"/>.
     /// </summary>
-    ValueTask<JobEnqueueResponse> EnqueueAsync<TInput>(
+    ValueTask<EnqueueJobResponse> EnqueueAsync<TInput>(
         DbTransaction transaction,
         TInput input,
         JobEnqueueOptions? options = null,
@@ -156,7 +152,7 @@ public interface IJobs
     /// Transactional twin of the fluent typed enqueue; the default implementation builds the options and
     /// forwards to the transactional typed overload.
     /// </summary>
-    ValueTask<JobEnqueueResponse> EnqueueAsync<TInput>(
+    ValueTask<EnqueueJobResponse> EnqueueAsync<TInput>(
         DbTransaction transaction,
         TInput input,
         Action<JobEnqueueOptionsBuilder> configure,
@@ -175,7 +171,7 @@ public interface IJobs
     /// Transactional twin of the input-contract enqueue
     /// (<see cref="EnqueueAsync{TInput}(JobContract{TInput}, TInput, JobEnqueueOptions, CancellationToken)"/>).
     /// </summary>
-    ValueTask<JobEnqueueResponse> EnqueueAsync<TInput>(
+    ValueTask<EnqueueJobResponse> EnqueueAsync<TInput>(
         DbTransaction transaction,
         JobContract<TInput> job,
         TInput input,
@@ -188,7 +184,7 @@ public interface IJobs
     /// Transactional twin of the result-bearing contract enqueue used fire-and-forget
     /// (<see cref="EnqueueAsync{TInput, TResult}(JobContract{TInput, TResult}, TInput, JobEnqueueOptions, CancellationToken)"/>).
     /// </summary>
-    ValueTask<JobEnqueueResponse> EnqueueAsync<TInput, TResult>(
+    ValueTask<EnqueueJobResponse> EnqueueAsync<TInput, TResult>(
         DbTransaction transaction,
         JobContract<TInput, TResult> job,
         TInput input,
@@ -201,7 +197,7 @@ public interface IJobs
     /// Transactional twin of the no-input contract enqueue
     /// (<see cref="EnqueueAsync(JobContract{NoInput}, JobEnqueueOptions, CancellationToken)"/>).
     /// </summary>
-    ValueTask<JobEnqueueResponse> EnqueueAsync(
+    ValueTask<EnqueueJobResponse> EnqueueAsync(
         DbTransaction transaction,
         JobContract<NoInput> job,
         JobEnqueueOptions? options = null,
@@ -209,12 +205,12 @@ public interface IJobs
     );
 
     /// <summary>
-    /// Transactional twin of <see cref="EnqueueBatchAsync(IReadOnlyList{JobEnqueueRequest}, CancellationToken)"/>:
+    /// Transactional twin of <see cref="EnqueueBatchAsync(IReadOnlyList{EnqueueJobRequest}, CancellationToken)"/>:
     /// the whole batch inserts through <paramref name="transaction"/> atomically and publishes no wakeup.
     /// </summary>
-    ValueTask<IReadOnlyList<JobEnqueueResponse>> EnqueueBatchAsync(
+    ValueTask<EnqueueJobsResponse> EnqueueBatchAsync(
         DbTransaction transaction,
-        IReadOnlyList<JobEnqueueRequest> requests,
+        IReadOnlyList<EnqueueJobRequest> requests,
         CancellationToken ct = default
     );
 

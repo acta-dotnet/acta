@@ -103,15 +103,15 @@ internal sealed class Primer(
     private async Task EnqueueBatchAsync(string jobName, string runId, Func<int, JobPayload> buildPayload, CancellationToken ct)
     {
         var serializeTimer = Stopwatch.StartNew();
-        var requests = new JobEnqueueRequest[RowsPerFormat];
+        var requests = new EnqueueJobRequest[RowsPerFormat];
         for (var i = 0; i < RowsPerFormat; i++)
         {
-            requests[i] = new JobEnqueueRequest(Namespace, jobName, buildPayload(i), CorrelationKey: runId);
+            requests[i] = new EnqueueJobRequest(Namespace, jobName, buildPayload(i), CorrelationKey: runId);
         }
         serializeTimer.Stop();
 
         var enqueueTimer = Stopwatch.StartNew();
-        var outcomes = await jobs.EnqueueBatchAsync(requests, ct);
+        var outcomes = (await jobs.EnqueueBatchAsync(requests, ct)).Jobs;
         enqueueTimer.Stop();
 
         Console.WriteLine(

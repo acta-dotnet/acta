@@ -107,7 +107,7 @@ public sealed class ClaimOneSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         var request = new ClaimRequest(NamespaceId, workerId, MaxBatch: 1);
 
         var notDue = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(
+            new EnqueueJobRequest(
                 TestNamespace,
                 "add-numbers",
                 JobPayload.Json(new AddNumbers(2, 3)),
@@ -171,8 +171,8 @@ public sealed class ClaimOneSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         }
     }
 
-    private async Task<JobEnqueueResponse> EnqueueAsync(CancellationToken ct) =>
-        await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct);
+    private async Task<EnqueueJobResponse> EnqueueAsync(CancellationToken ct) =>
+        await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct);
 
     /// <summary>
     /// Claims until a job comes back, bounded to a short budget. The claim skips a row another connection

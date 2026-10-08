@@ -6,13 +6,13 @@ public abstract partial class JobContext
 
     /// <summary>
     /// Enqueues a child job from a typed input, replay-safe: <paramref name="name"/> is the child's deduplication key,
-    /// so a replay returns the existing child (<see cref="JobEnqueueAction.Deduplicated"/>). Join with <see cref="WaitChildAsync"/>.
+    /// so a replay returns the existing child (<see cref="EnqueueJobAction.Deduplicated"/>). Join with <see cref="WaitChildAsync"/>.
     /// </summary>
     /// <param name="name">Stable kebab-case child name, unique among this Job's children.</param>
     /// <param name="input">Typed input resolved to a job route via the generated manifest.</param>
     /// <param name="configure">Optional enqueue options; the parent id and deduplication key are framework-set and win.</param>
     /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
-    public async Task<JobEnqueueResponse> StartChildAsync<TInput>(
+    public async Task<EnqueueJobResponse> StartChildAsync<TInput>(
         string name,
         TInput input,
         Action<JobEnqueueOptionsBuilder>? configure = null,
@@ -34,7 +34,7 @@ public abstract partial class JobContext
     /// <param name="name">Stable kebab-case child name, unique among this Job's children.</param>
     /// <param name="input">Typed input resolved to a job route via the generated manifest.</param>
     /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
-    public Task<JobEnqueueResponse> StartChildAsync<TInput>(string name, TInput input, CancellationToken ct)
+    public Task<EnqueueJobResponse> StartChildAsync<TInput>(string name, TInput input, CancellationToken ct)
         where TInput : notnull => StartChildAsync(name, input, configure: null, ct: ct);
 
     /// <summary>
@@ -44,7 +44,7 @@ public abstract partial class JobContext
     /// (<paramref name="jobNamespace"/>, <paramref name="jobName"/>) targeting, including a namespace
     /// other than this Job's.
     /// </summary>
-    public async Task<JobEnqueueResponse> StartChildAsync(
+    public async Task<EnqueueJobResponse> StartChildAsync(
         string name,
         string jobNamespace,
         string jobName,
@@ -55,7 +55,7 @@ public abstract partial class JobContext
     {
         name = IdentifierSyntax.CanonicalizeUserKebab(name, nameof(name), IdentifierSyntax.ExtendedMaxLength);
         var options = BuildChildOptions(name, configure);
-        var request = new JobEnqueueRequest(
+        var request = new EnqueueJobRequest(
             jobNamespace,
             jobName,
             input,
@@ -292,7 +292,7 @@ public abstract partial class JobContext
     /// Subclass sink: typed child enqueue through the shared enqueue path. The options carry the
     /// framework-set parent id and deduplication key.
     /// </summary>
-    private protected abstract Task<JobEnqueueResponse> StartChildCoreAsync<TInput>(
+    private protected abstract Task<EnqueueJobResponse> StartChildCoreAsync<TInput>(
         TInput input,
         JobEnqueueOptions options,
         CancellationToken ct
@@ -302,7 +302,7 @@ public abstract partial class JobContext
     /// <summary>
     /// Subclass sink: raw-route child enqueue through the shared enqueue path.
     /// </summary>
-    private protected abstract Task<JobEnqueueResponse> StartChildCoreAsync(JobEnqueueRequest request, CancellationToken ct);
+    private protected abstract Task<EnqueueJobResponse> StartChildCoreAsync(EnqueueJobRequest request, CancellationToken ct);
 
     /// <summary>
     /// Subclass sink: read and deserialize the child's stored result.

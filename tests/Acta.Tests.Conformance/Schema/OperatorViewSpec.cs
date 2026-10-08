@@ -86,7 +86,7 @@ public sealed partial class OperatorViewSpec : ActaRuntimeTestBase<ConformanceFi
         var ct = TestContext.Current.CancellationToken;
         RetryProbe.Reset(TestNamespace);
 
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
         await Runtime.RunOnceAsync(enqueued, ct);
         await Runtime.RunOnceAsync(enqueued, ct);
         await Runtime.RunOnceAsync(enqueued, ct);
@@ -110,10 +110,10 @@ public sealed partial class OperatorViewSpec : ActaRuntimeTestBase<ConformanceFi
         var tenantKey = TestKey("view-tenant");
         var tenantId = (await Operations.Tenants.RegisterAsync(tenantKey, null, null, ct)).TenantId;
         var scoped = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "retry-probe", JobPayload.None, TenantKey: tenantKey),
+            new EnqueueJobRequest(TestNamespace, "retry-probe", JobPayload.None, TenantKey: tenantKey),
             ct
         );
-        var unscoped = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
+        var unscoped = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
 
         await using var conn = await Db.GetConnectionAsync(ct);
         await using (var cmd = conn.CreateCommand())
@@ -144,7 +144,7 @@ public sealed partial class OperatorViewSpec : ActaRuntimeTestBase<ConformanceFi
     public async Task Tags_view_decodes_exact_job_target()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
         await Operations.Tags.UpsertAsync(TagTarget.ForJob(enqueued), new TagInput("operator-view", "visible"), ct: ct);
 
         await using var conn = await Db.GetConnectionAsync(ct);
@@ -169,7 +169,7 @@ public sealed partial class OperatorViewSpec : ActaRuntimeTestBase<ConformanceFi
     public async Task Payload_views_expose_displayable_payload_text()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
 
         await using var conn = await Db.GetConnectionAsync(ct);
         await InsertCheckpointPayload(conn, enqueued.JobId, "operator-view.payload", "checkpoint text", ct);

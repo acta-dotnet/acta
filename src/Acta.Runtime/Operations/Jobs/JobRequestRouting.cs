@@ -8,7 +8,7 @@ namespace Acta.Runtime;
 internal sealed class JobRequestRouting(IJobPayloadSerializerRegistry serializers, JobTypeIndex typeIndex, JobContractIndex contractIndex)
 {
     /// <summary>The request for an input whose CLR type maps to exactly one registered job.</summary>
-    public JobEnqueueRequest FromInput<TInput>(TInput input, JobEnqueueOptions? options)
+    public EnqueueJobRequest FromInput<TInput>(TInput input, JobEnqueueOptions? options)
         where TInput : notnull
     {
         ArgumentNullException.ThrowIfNull(input);
@@ -20,7 +20,7 @@ internal sealed class JobRequestRouting(IJobPayloadSerializerRegistry serializer
     /// The request for a generated manifest contract, checked against the registered descriptor so a hand-built
     /// contract with the wrong input or result type fails here. The no-input overload passes a default input.
     /// </summary>
-    public JobEnqueueRequest FromContract<TInput>(
+    public EnqueueJobRequest FromContract<TInput>(
         JobContract<TInput> job,
         TInput input,
         JobEnqueueOptions? options,
@@ -71,7 +71,7 @@ internal sealed class JobRequestRouting(IJobPayloadSerializerRegistry serializer
             : job.ManifestType;
     }
 
-    private static JobEnqueueRequest Request(string jobNamespace, string jobName, JobPayload input, JobEnqueueOptions? options) =>
+    private static EnqueueJobRequest Request(string jobNamespace, string jobName, JobPayload input, JobEnqueueOptions? options) =>
         new(
             JobNamespace: jobNamespace,
             JobName: jobName,

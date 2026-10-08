@@ -38,7 +38,7 @@ internal sealed class JobEntity : IEntity<long>
     /// <summary>
     /// Primary key and internal engine identity, used by every join, claim, event, and lock; the
     /// public handle is <see cref="JobRef"/>. Provider-native IDENTITY: the database assigns the id
-    /// at INSERT, and <c>enqueue_batch</c> correlates the <c>RETURNING</c>/<c>OUTPUT</c> rows back to
+    /// at INSERT, and <c>enqueue_jobs</c> correlates the <c>RETURNING</c>/<c>OUTPUT</c> rows back to
     /// their input via the caller-supplied <see cref="JobRef"/> (insertion order is not guaranteed).
     /// </summary>
     [DbColumn("id", DbKind.Int64)]

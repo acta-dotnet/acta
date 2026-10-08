@@ -13,14 +13,14 @@ namespace Acta.Runtime;
 /// </summary>
 internal sealed class OutboxRelayRegistry(
     IEnumerable<WorkerRegistration> workers,
-    EnqueueBatchHandler target,
+    EnqueueJobsHandler target,
     ILoggerFactory? loggerFactory = null
 )
 {
     private readonly Dictionary<string, OutboxRelayRegistration> _byNamespace = workers
         .Where(w => w.Relay is not null)
         .ToDictionary(w => w.NamespaceName, w => w.Relay!, StringComparer.Ordinal);
-    private readonly EnqueueBatchHandler _target = target;
+    private readonly EnqueueJobsHandler _target = target;
     private readonly ILoggerFactory? _loggerFactory = loggerFactory;
     private readonly ConcurrentDictionary<string, OutboxRelay> _services = new(StringComparer.Ordinal);
 

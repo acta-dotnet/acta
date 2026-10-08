@@ -29,7 +29,7 @@ public sealed class ResolveJobIdByRefSpec : ActaRuntimeTestBase<ConformanceFixtu
         var deduplicationKey = TestKey("ck-resolve-ref");
 
         var outcome = await Jobs.EnqueueAsync(new AddNumbers(1, 2), new JobEnqueueOptions { DeduplicationKey = deduplicationKey }, ct);
-        Assert.Equal(JobEnqueueAction.Inserted, outcome.Action);
+        Assert.Equal(EnqueueJobAction.Inserted, outcome.Action);
         Assert.NotEqual(Guid.Empty, outcome.JobRef.Value);
 
         var resolved = await Services
@@ -43,7 +43,7 @@ public sealed class ResolveJobIdByRefSpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.Equal(outcome.JobRef, snapshot.JobRef);
 
         var deduplicated = await Jobs.EnqueueAsync(new AddNumbers(1, 2), new JobEnqueueOptions { DeduplicationKey = deduplicationKey }, ct);
-        Assert.Equal(JobEnqueueAction.Deduplicated, deduplicated.Action);
+        Assert.Equal(EnqueueJobAction.Deduplicated, deduplicated.Action);
         Assert.Equal(outcome.JobRef, deduplicated.JobRef);
 
         var missing = await Services

@@ -5,12 +5,12 @@ using Microsoft.Extensions.Options;
 namespace Acta.Runtime;
 
 /// <summary>
-/// <see cref="IJobs.EnqueueBatchAsync(IReadOnlyList{JobEnqueueRequest}, CancellationToken)"/>: prepares every row,
+/// <see cref="IJobs.EnqueueBatchAsync(IReadOnlyList{EnqueueJobRequest}, CancellationToken)"/>: prepares every row,
 /// rejects same-batch duplicate keys, and inserts the batch in one statement. An owned batch wakes each due
 /// namespace once; one in the caller's transaction never wakes.
 /// </summary>
-internal sealed class EnqueueBatchHandler(
-    EnqueueOneHandler enqueueOne,
+internal sealed class EnqueueJobsHandler(
+    EnqueueJobHandler enqueueJob,
     IDbSession session,
     ISqlDialect dialect,
     WorkerWakeupPublisher wakeup,
@@ -22,19 +22,19 @@ internal sealed class EnqueueBatchHandler(
 
     private readonly int _maxInlinePayloadBytes = options.Value.MaxInlinePayloadBytes;
 
-    public async ValueTask<IReadOnlyList<JobEnqueueResponse>> HandleAsync(EnqueueBatchCommand command, CancellationToken ct)
+    public async ValueTask<EnqueueJobsResponse> HandleAsync(EnqueueJobsCommand command, CancellationToken ct)
     {
         var requests = command.Requests;
         ArgumentNullException.ThrowIfNull(requests);
         if (requests.Count == 0)
         {
-            return [];
+            return new EnqueueJobsResponse([]);
         }
 
         // One row dispatches to the scalar path; the outcomes are contractually identical.
         if (requests.Count == 1)
         {
-            return [await enqueueOne.HandleAsync(new EnqueueOneCommand(requests[0], command.Transaction), ct)];
+            return new EnqueueJobsResponse([await enqueueJob.HandleAsync(new EnqueueJobCommand(requests[0], command.Transaction), ct)]);
         }
 
         var (prepared, rows) = Prepare(requests, _maxInlinePayloadBytes);
@@ -52,14 +52,14 @@ internal sealed class EnqueueBatchHandler(
         {
             throw new InvalidOperationException(
                 $"Enqueue batch returned {outcomeRows.Count} outcomes for {rows.Length} input rows. "
-                    + "The enqueue_batch routine must produce exactly one outcome per input ordinal."
+                    + "The enqueue_jobs routine must produce exactly one outcome per input ordinal."
             );
         }
 
-        var outcomes = new JobEnqueueResponse[rows.Length];
+        var outcomes = new EnqueueJobResponse[rows.Length];
         foreach (var row in outcomeRows)
         {
-            outcomes[row.Ordinal] = new JobEnqueueResponse(row.JobId, new JobRef(row.JobRef), row.Action);
+            outcomes[row.Ordinal] = new EnqueueJobResponse(row.JobId, new JobRef(row.JobRef), row.Action);
         }
 
         if (command.Transaction is null)
@@ -67,32 +67,32 @@ internal sealed class EnqueueBatchHandler(
             await WakeNamespacesAsync(prepared, outcomes, ct);
         }
 
-        return outcomes;
+        return new EnqueueJobsResponse(outcomes);
     }
 
     /// <summary>
-    /// One <c>enqueue_batch</c> call, through <paramref name="transaction"/> when it is set; the refs align with the
+    /// One <c>enqueue_jobs</c> call, through <paramref name="transaction"/> when it is set; the refs align with the
     /// rows by position and each outcome carries its input ordinal.
     /// </summary>
-    internal Task<IReadOnlyList<EnqueueBatchRow>> InsertAsync(
+    internal Task<IReadOnlyList<EnqueueJobsRow>> InsertAsync(
         IReadOnlyList<JobEnqueueValues> rows,
         IReadOnlyList<Guid> jobRefs,
         DbTransaction? transaction,
         CancellationToken ct
     )
     {
-        var command = new StoreCommand("EnqueueBatch");
-        var map = DbProjectionResolver.Resolve<EnqueueBatchRow>();
+        var command = new StoreCommand("EnqueueJobs");
+        var map = DbProjectionResolver.Resolve<EnqueueJobsRow>();
         return transaction is null
             ? session.ExecuteAsync(command, Bind, map, ct)
             : session.ExecuteInTransactionAsync(transaction, command, Bind, map, ct);
 
-        void Bind(DbCommand cmd) => dialect.BindEnqueueBatch(cmd, rows, jobRefs, session.Schema);
+        void Bind(DbCommand cmd) => dialect.BindEnqueueJobs(cmd, rows, jobRefs, session.Schema);
     }
 
     /// <summary>Prepares every row against the batch limits, then rejects same-batch duplicate keys.</summary>
-    private static (JobEnqueueRequest[] Prepared, JobEnqueueValues[] Rows) Prepare(
-        IReadOnlyList<JobEnqueueRequest> requests,
+    private static (EnqueueJobRequest[] Prepared, JobEnqueueValues[] Rows) Prepare(
+        IReadOnlyList<EnqueueJobRequest> requests,
         int maxInlinePayloadBytes
     )
     {
@@ -104,7 +104,7 @@ internal sealed class EnqueueBatchHandler(
             );
         }
 
-        var prepared = new JobEnqueueRequest[requests.Count];
+        var prepared = new EnqueueJobRequest[requests.Count];
         var rows = new JobEnqueueValues[requests.Count];
         long payloadBytes = 0;
         for (var i = 0; i < requests.Count; i++)
@@ -130,7 +130,7 @@ internal sealed class EnqueueBatchHandler(
     /// One wake per distinct namespace; a due-now row's WorkAvailable outranks a delayed row's HorizonChanged for
     /// the same namespace (the wake itself is identical; the reason is metrics-only).
     /// </summary>
-    private async ValueTask WakeNamespacesAsync(JobEnqueueRequest[] requests, JobEnqueueResponse[] outcomes, CancellationToken ct)
+    private async ValueTask WakeNamespacesAsync(EnqueueJobRequest[] requests, EnqueueJobResponse[] outcomes, CancellationToken ct)
     {
         Dictionary<string, WorkerWakeupReason>? wakes = null;
         for (var i = 0; i < outcomes.Length; i++)

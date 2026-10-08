@@ -22,7 +22,7 @@ public sealed class GetJobInputSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         var ct = TestContext.Current.CancellationToken;
 
         var input = JobPayload.Json(new AddNumbers(4, 9));
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", input), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", input), ct);
 
         var record = await Services.GetRequiredService<GetJobInputHandler>().ReadAsync(enqueued.JobId, ct);
         Assert.NotNull(record);

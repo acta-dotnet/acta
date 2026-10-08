@@ -82,7 +82,7 @@ await lab.ShowAsync(
 
 // The same gate with a size: [Job(ConcurrencyLimit = 2)] gives the key two slots, so two of these
 // four run together and the rest bounce. No enqueue key here, so the definition name is the key.
-var shards = new List<JobEnqueueResponse>();
+var shards = new List<EnqueueJobResponse>();
 for (var i = 0; i < 4; i++)
 {
     shards.Add(await jobs.EnqueueAsync(new ReindexShard(i)));
@@ -144,7 +144,7 @@ await lab.ShowAsync(
 
 // The third gate: how OFTEN, not how many. [Job(RateLimit = "5/s")] meters starts against the
 // database clock, and a job that arrives early is booked the next free instant rather than retried.
-var pings = new List<JobEnqueueResponse>();
+var pings = new List<EnqueueJobResponse>();
 for (var i = 0; i < 12; i++)
 {
     pings.Add(await jobs.EnqueueAsync(new PingEndpoint(i)));
@@ -183,7 +183,7 @@ await lab.ShowAsync(
 );
 await host.StopAsync();
 
-static async Task<int> ExecutingShardCountAsync(IJobs jobs, List<JobEnqueueResponse> shards, CancellationToken ct)
+static async Task<int> ExecutingShardCountAsync(IJobs jobs, List<EnqueueJobResponse> shards, CancellationToken ct)
 {
     var executing = 0;
     foreach (var shard in shards)

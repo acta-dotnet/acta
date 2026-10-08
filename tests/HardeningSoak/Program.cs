@@ -181,13 +181,13 @@ while (elapsed.Elapsed.TotalSeconds < durationSeconds)
     var submitted = Stopwatch.GetTimestamp();
     var requests = Enumerable
         .Range(0, perTick)
-        .Select(_ => new JobEnqueueRequest(
+        .Select(_ => new EnqueueJobRequest(
             BenchHost.Namespace,
             BenchHost.AuditJobName,
             JobPayload.Json(new BenchInput(submitted, pad, WorkMs: 1))
         ))
         .ToArray();
-    var added = await host.Jobs.EnqueueBatchAsync(requests, ct);
+    var added = (await host.Jobs.EnqueueBatchAsync(requests, ct)).Jobs;
     emitted += added.Count;
     if (tick % 20 == 0)
     {
@@ -358,7 +358,7 @@ async Task RetentionAsync(CancellationToken token)
     catch (OperationCanceledException) when (token.IsCancellationRequested) { }
 }
 
-async Task ObserveDurableCompletionAsync(JobEnqueueResponse job, long submitted, CancellationToken token)
+async Task ObserveDurableCompletionAsync(EnqueueJobResponse job, long submitted, CancellationToken token)
 {
     while (await host.Jobs.GetStatusAsync(job, token) != JobStatusCode.Succeeded)
     {

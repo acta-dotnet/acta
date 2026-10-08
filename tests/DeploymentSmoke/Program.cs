@@ -42,7 +42,7 @@ await app.StartAsync();
 using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 var jobs = app.Services.GetRequiredService<IJobs>();
 var job = await jobs.EnqueueAsync(
-    new JobEnqueueRequest("deployment-smoke", "binary-probe", JobPayload.CopyBytes(JobPayloadFormat.Bytes, [1, 2, 3, 4])),
+    new EnqueueJobRequest("deployment-smoke", "binary-probe", JobPayload.CopyBytes(JobPayloadFormat.Bytes, [1, 2, 3, 4])),
     deadline.Token
 );
 while (await jobs.GetStatusAsync(job, deadline.Token) != JobStatusCode.Succeeded)

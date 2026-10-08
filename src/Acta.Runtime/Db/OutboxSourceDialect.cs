@@ -45,9 +45,9 @@ internal abstract class OutboxSourceDialect : ISqlDialect
 
     public void BindExcludedDefinitionIds(DbCommand command, int[]? definitionIds) => throw NotOutbox();
 
-    public void BindEnqueueOne(DbCommand command, JobEnqueueValues row, Guid jobRef, string schema) => throw NotOutbox();
+    public void BindEnqueueJob(DbCommand command, JobEnqueueValues row, Guid jobRef, string schema) => throw NotOutbox();
 
-    public void BindEnqueueBatch(DbCommand command, IReadOnlyList<JobEnqueueValues> rows, IReadOnlyList<Guid> jobRefs, string schema) =>
+    public void BindEnqueueJobs(DbCommand command, IReadOnlyList<JobEnqueueValues> rows, IReadOnlyList<Guid> jobRefs, string schema) =>
         throw NotOutbox();
 
     public void BindRegisterDefinitions(

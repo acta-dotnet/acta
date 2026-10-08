@@ -20,7 +20,7 @@ public sealed class PgDirectSqlEnqueueTests : ActaRuntimeTestBase<PgConformanceF
         {
             command.CommandText = $$"""
                 SELECT ordinal, job_id, job_ref, action
-                FROM {{Schema.SchemaName}}.enqueue_one(
+                FROM {{Schema.SchemaName}}.enqueue_job(
                     p_namespace_name => @namespace,
                     p_job_name => 'add-numbers',
                     p_input => convert_to('{"left":1,"right":2}', 'UTF8'));

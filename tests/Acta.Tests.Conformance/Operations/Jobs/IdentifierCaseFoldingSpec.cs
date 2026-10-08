@@ -19,7 +19,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
 )]
 public sealed class IdentifierCaseFoldingSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
-    // Enqueue-only: InitializeAsync registers the namespace + job definition so EnqueueBatch.Run
+    // Enqueue-only: InitializeAsync registers the namespace + job definition so EnqueueJobs.Run
     // can resolve them. No claim/execute loop is started.
     protected override bool RunAsWorker => true;
 
@@ -51,7 +51,7 @@ public sealed class IdentifierCaseFoldingSpec : ActaRuntimeTestBase<ConformanceF
         var second = await EnqueueAsync([Row(deduplicationKey: key)], ct);
 
         Assert.Equal(first[0].JobId, second[0].JobId);
-        Assert.Equal(JobEnqueueAction.Deduplicated, second[0].Action);
+        Assert.Equal(EnqueueJobAction.Deduplicated, second[0].Action);
 
         var stored = await Db.From<JobEntity>().Where(j => j.Id == first[0].JobId).SingleOrDefaultAsync(ct);
         Assert.NotNull(stored);
@@ -109,7 +109,7 @@ public sealed class IdentifierCaseFoldingSpec : ActaRuntimeTestBase<ConformanceF
     public async Task Signal_name_rejects_mixed_case()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
 
         // First run: suspends waiting for signal "go"
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
@@ -136,9 +136,9 @@ public sealed class IdentifierCaseFoldingSpec : ActaRuntimeTestBase<ConformanceF
         );
     }
 
-    private async Task<IReadOnlyList<JobEnqueueResponse>> EnqueueAsync(IReadOnlyList<JobEnqueueValues> rows, CancellationToken ct)
+    private async Task<IReadOnlyList<EnqueueJobResponse>> EnqueueAsync(IReadOnlyList<JobEnqueueValues> rows, CancellationToken ct)
     {
         _ = Services.GetRequiredService<ISqlDialect>();
-        return await EnqueueTestOps.EnqueueBatchAsync(Services, rows, ct);
+        return (await EnqueueTestOps.EnqueueBatchAsync(Services, rows, ct)).Jobs;
     }
 }

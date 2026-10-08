@@ -1,7 +1,7 @@
 namespace Acta.Runtime;
 
 /// <summary>
-/// Caller-supplied per-row enqueue request, shared by the scalar <c>EnqueueOne</c> and the batched <c>EnqueueBatch</c>
+/// Caller-supplied per-row enqueue request, shared by the scalar <c>EnqueueJob</c> and the batched <c>EnqueueJobs</c>
 /// operations. <paramref name="ConcurrencyKey"/> is a named mutual-exclusion key (null is unconstrained): at most one
 /// Job per <c>(JobNamespace, ConcurrencyKey)</c> executes at a time, enforced at execution admission, where a loser
 /// re-arms Ready after a fixed bounce delay (mutual exclusion only, no per-key ordering). Two mutually exclusive

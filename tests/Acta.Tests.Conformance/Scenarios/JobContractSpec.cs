@@ -27,7 +27,7 @@ public sealed class JobContractSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         var ct = TestContext.Current.CancellationToken;
 
         var outcome = await Jobs.EnqueueAsync(TestJobsManifest.AddNumbers, new AddNumbers(2, 3), ct: ct);
-        Assert.Equal(JobEnqueueAction.Inserted, outcome.Action);
+        Assert.Equal(EnqueueJobAction.Inserted, outcome.Action);
 
         var snapshot = await Jobs.GetAsync(outcome, ct);
         Assert.Equal("add-numbers", snapshot!.JobName);
@@ -43,7 +43,7 @@ public sealed class JobContractSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         var ct = TestContext.Current.CancellationToken;
 
         var outcome = await Jobs.EnqueueAsync(TestJobsManifest.Cancellable, ct: ct);
-        Assert.Equal(JobEnqueueAction.Inserted, outcome.Action);
+        Assert.Equal(EnqueueJobAction.Inserted, outcome.Action);
 
         var snapshot = await Jobs.GetAsync(outcome, ct);
         Assert.Equal("cancellable", snapshot!.JobName);
@@ -106,7 +106,7 @@ public sealed class JobContractSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         // AddNumbers is a result job, so TestJobsManifest.AddNumbers is JobContract<AddNumbers, AddNumbersResult>.
         // This binds EnqueueAsync<TInput, TResult>(JobContract<TInput, TResult>, ...) and drops the result.
         var outcome = await Jobs.EnqueueAsync(TestJobsManifest.AddNumbers, new AddNumbers(2, 3), ct: ct);
-        Assert.Equal(JobEnqueueAction.Inserted, outcome.Action);
+        Assert.Equal(EnqueueJobAction.Inserted, outcome.Action);
     }
 
     [Fact(DisplayName = "A wrong input type on a hand-built contract throws before enqueue")]

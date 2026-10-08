@@ -93,9 +93,9 @@ public sealed class LaneRetentionSpec : ActaRuntimeTestBase<ConformanceFixture, 
         return await Db.From<LaneEntity>().Where(l => l.NamespaceId == ns && l.Name == lane).SingleOrDefaultAsync(ct) is not null;
     }
 
-    private async Task<JobEnqueueResponse> StepAsync(string lane, CancellationToken ct) =>
+    private async Task<EnqueueJobResponse> StepAsync(string lane, CancellationToken ct) =>
         await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "lane-step", JobPayload.Json(new LaneStep(lane, lane)), Lane: lane),
+            new EnqueueJobRequest(TestNamespace, "lane-step", JobPayload.Json(new LaneStep(lane, lane)), Lane: lane),
             ct
         );
 }

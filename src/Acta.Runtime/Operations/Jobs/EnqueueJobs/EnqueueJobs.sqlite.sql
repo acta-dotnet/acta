@@ -257,8 +257,8 @@ SELECT
     COALESCE(ins.job_ref, ex.job_ref, exc.job_ref) AS job_ref,
     CASE
         WHEN ins.id IS NOT NULL
-            THEN 1 /* JobEnqueueAction.Inserted */
-        ELSE 2 /* JobEnqueueAction.Deduplicated */
+            THEN 1 /* EnqueueJobAction.Inserted */
+        ELSE 2 /* EnqueueJobAction.Deduplicated */
     END AS action
 FROM JSON_EACH(@p_rows) r
 LEFT JOIN {{schema}}.jobs ins ON ins.job_ref = JSON_EXTRACT(r.value, '$.job_ref')

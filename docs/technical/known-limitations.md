@@ -327,7 +327,7 @@ On SQLite, a `JobId` returned by a transactional enqueue that then rolls back is
 the transaction that advanced it and the next insert receives the same id. PostgreSQL and SQL Server
 allocate from non-transactional sequences, which burn the value instead. Acta's own contract is the same
 on all three: a transactional enqueue that rolls back leaves no durable row. What differs is what the
-returned identity means afterwards — an application that holds `JobEnqueueResponse.JobId` across a
+returned identity means afterwards — an application that holds `EnqueueJobResponse.JobId` across a
 rollback and looks it up later can, on SQLite, read a *different* job that has since been given that id.
 Hold `JobRef` instead. It is a UUIDv7 minted in your process before the row is written, so you have it
 in advance and nothing else will ever carry it, whereas a `JobId` is only meaningful for an enqueue that

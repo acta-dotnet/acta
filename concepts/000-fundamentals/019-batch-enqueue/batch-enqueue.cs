@@ -18,10 +18,10 @@ await host.StartAsync();
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 // EnqueueBatchAsync writes the whole batch in one round-trip; outcomes return in request order.
-var requests = Enumerable.Range(1, 500).Select(_ => new JobEnqueueRequest("batch-enqueue", "ping")).ToList();
+var requests = Enumerable.Range(1, 500).Select(_ => new EnqueueJobRequest("batch-enqueue", "ping")).ToList();
 
 var sw = Stopwatch.StartNew();
-var outcomes = await jobs.EnqueueBatchAsync(requests);
+var outcomes = (await jobs.EnqueueBatchAsync(requests)).Jobs;
 sw.Stop();
 Console.WriteLine(
     $"Enqueued {outcomes.Count} jobs in one round-trip in {sw.ElapsedMilliseconds} ms (ids {outcomes[0].JobId}..{outcomes[^1].JobId})."

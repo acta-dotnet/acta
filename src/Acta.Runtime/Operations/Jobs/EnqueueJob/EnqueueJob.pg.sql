@@ -1,7 +1,7 @@
 -- Only p_namespace_name and p_job_name are required; other params default (p_job_ref is server-generated
 -- when omitted; p_input_format_id defaults json/none by input presence). Parameter ORDER is fixed:
 -- the provider store invokes this function positionally.
-CREATE OR REPLACE FUNCTION {{schema}}.enqueue_one(
+CREATE OR REPLACE FUNCTION {{schema}}.enqueue_job(
     p_job_ref UUID DEFAULT GEN_RANDOM_UUID(),
     p_namespace_name VARCHAR DEFAULT NULL,
     p_job_name VARCHAR DEFAULT NULL,
@@ -282,10 +282,10 @@ BEGIN
         SELECT 50 /* TagScopeCode.Job */, v_job_id, v_ns_id, t.name, t.value, t.value_search
         FROM unnest(p_t_name, p_t_value, p_t_value_search) AS t(name, value, value_search);
 
-        RETURN QUERY SELECT 0, v_job_id, p_job_ref, 1 /* JobEnqueueAction.Inserted */;
+        RETURN QUERY SELECT 0, v_job_id, p_job_ref, 1 /* EnqueueJobAction.Inserted */;
     ELSE
         RETURN QUERY
-        SELECT 0, j.id, j.job_ref, 2 /* JobEnqueueAction.Deduplicated */
+        SELECT 0, j.id, j.job_ref, 2 /* EnqueueJobAction.Deduplicated */
         FROM {{schema}}.jobs j
         WHERE
             (p_parent_id IS NULL

@@ -34,7 +34,7 @@ public sealed class HandlerLockHeartbeatSpec : ActaRuntimeTestBase<ConformanceFi
         LockHolder.Reset(TestNamespace);
         var lockKey = LockKey();
 
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "lock-holder", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "lock-holder", JobPayload.None), ct);
 
         var run = Runtime.RunOnceAsync(enqueued, ct);
         await LockHolder.Entered(TestNamespace).WaitAsync(Timeout, ct);
@@ -62,7 +62,7 @@ public sealed class HandlerLockHeartbeatSpec : ActaRuntimeTestBase<ConformanceFi
         LockHolder.Reset(TestNamespace);
         var lockKey = LockKey();
 
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "lock-holder", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "lock-holder", JobPayload.None), ct);
 
         var run = Runtime.RunOnceAsync(enqueued, ct);
         await LockHolder.Entered(TestNamespace).WaitAsync(Timeout, ct);

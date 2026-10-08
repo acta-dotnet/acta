@@ -1,4 +1,4 @@
--- Its own leading statement (the EnqueueOne guard-stack shape), because the insert below is filtered
+-- Its own leading statement (the EnqueueJob guard-stack shape), because the insert below is filtered
 -- by the ghost guard: a raise whose row that guard removes never evaluates its SELECT list, so an
 -- unknown job would pass silently where the other two dialects reject it before any guard runs.
 SELECT ACTA_ERROR('ACTA:ALERT_UNKNOWN_JOB:raise_alert: unknown job id')

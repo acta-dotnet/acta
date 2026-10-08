@@ -148,7 +148,7 @@ public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
 
             foreach (var line in plan)
             {
-                var chunk = new List<JobEnqueueRequest>(ChunkSize);
+                var chunk = new List<EnqueueJobRequest>(ChunkSize);
                 for (var i = 0; i < line.Count; i++)
                 {
                     chunk.Add(
@@ -169,7 +169,7 @@ public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
                     if (chunk.Count == ChunkSize)
                     {
                         await FlushChunkAsync(chunk, line.Fails, progress, ct);
-                        chunk = new List<JobEnqueueRequest>(ChunkSize);
+                        chunk = new List<EnqueueJobRequest>(ChunkSize);
                     }
                 }
 
@@ -189,14 +189,14 @@ public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
     }
 
     private async Task FlushChunkAsync(
-        IReadOnlyList<JobEnqueueRequest> chunk,
+        IReadOnlyList<EnqueueJobRequest> chunk,
         bool expectedToFail,
         SeedProgress progress,
         CancellationToken ct
     )
     {
-        var outcomes = await _jobs.EnqueueBatchAsync(chunk, ct);
-        var inserted = outcomes.Count(outcome => outcome.Action == JobEnqueueAction.Inserted);
+        var outcomes = (await _jobs.EnqueueBatchAsync(chunk, ct)).Jobs;
+        var inserted = outcomes.Count(outcome => outcome.Action == EnqueueJobAction.Inserted);
         progress.Advance(inserted, outcomes.Count - inserted);
         if (expectedToFail)
         {
@@ -204,7 +204,7 @@ public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
         }
     }
 
-    internal static JobEnqueueRequest Request(
+    internal static EnqueueJobRequest Request(
         string namespaceName,
         string runId,
         int batch,

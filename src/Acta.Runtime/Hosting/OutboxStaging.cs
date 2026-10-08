@@ -5,7 +5,7 @@ namespace Acta.Runtime;
 
 /// <summary>
 /// The EF-free staging core the provider packages consume: normalizes and validates a raw
-/// <see cref="JobEnqueueRequest"/> through the shared enqueue validation from the <c>Acta</c> SDK (identifiers, tags,
+/// <see cref="EnqueueJobRequest"/> through the shared enqueue validation from the <c>Acta</c> SDK (identifiers, tags,
 /// schedule mutual exclusion, priority, payload pair) and layers the two stricter outbox-only rules on top, a
 /// required deduplication key and no parent id, projecting a valid request into an <see cref="OutboxStagingValues"/>
 /// with a client-generated <c>outbox_id</c>. <see cref="Prepare"/> runs the whole provider-neutral prologue
@@ -32,7 +32,7 @@ internal static class OutboxStaging
     /// </summary>
     public static (OutboxStagingValues Row, DbConnection Connection, string Sql) Prepare(
         DbTransaction transaction,
-        JobEnqueueRequest request,
+        EnqueueJobRequest request,
         string table,
         string? schema
     )
@@ -44,7 +44,7 @@ internal static class OutboxStaging
         return (row, connection, $"INSERT INTO {tableRef}\n{InsertColumnsAndValues}");
     }
 
-    public static OutboxStagingValues Stage(JobEnqueueRequest request)
+    public static OutboxStagingValues Stage(EnqueueJobRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -54,14 +54,14 @@ internal static class OutboxStaging
         {
             throw new ArgumentException(
                 "An outbox record requires a non-null DeduplicationKey.",
-                $"{nameof(request)}.{nameof(JobEnqueueRequest.DeduplicationKey)}"
+                $"{nameof(request)}.{nameof(EnqueueJobRequest.DeduplicationKey)}"
             );
         }
 
         return normalized.ParentJobId is not null
             ? throw new ArgumentException(
                 "An outbox record cannot carry a ParentJobId; external records request root jobs only.",
-                $"{nameof(request)}.{nameof(JobEnqueueRequest.ParentJobId)}"
+                $"{nameof(request)}.{nameof(EnqueueJobRequest.ParentJobId)}"
             )
             : new OutboxStagingValues(
                 OutboxId: Guid.NewGuid(),
@@ -86,7 +86,7 @@ internal static class OutboxStaging
 
 /// <summary>
 /// The canonical, caller-supplied columns of one staged external-outbox row, projected from a validated
-/// <see cref="JobEnqueueRequest"/> by <see cref="OutboxStaging"/>. Carries only what the producer
+/// <see cref="EnqueueJobRequest"/> by <see cref="OutboxStaging"/>. Carries only what the producer
 /// writes: <c>outbox_id</c> is the client-generated GUID and the operational columns
 /// (<c>created_at_utc</c>, <c>status_code</c>, <c>failure_count</c>, <c>next_attempt_at_utc</c>, the claim
 /// pair, <c>last_error</c>) are omitted so the database defaults apply. Each provider staging extension

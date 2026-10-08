@@ -74,13 +74,13 @@ internal sealed class HookedJobSubmission
         var dialect = services.GetRequiredService<ISqlDialect>();
         var wakeup = services.GetRequiredService<WorkerWakeupPublisher>();
         var options = services.GetRequiredService<IOptions<JobsOptions>>();
-        Handler = new EnqueueBatchHandler(new EnqueueOneHandler(session, dialect, wakeup, options), session, dialect, wakeup, options);
+        Handler = new EnqueueJobsHandler(new EnqueueJobHandler(session, dialect, wakeup, options), session, dialect, wakeup, options);
     }
 
     /// <summary>When set, invoked to obtain an exception to throw before the real enqueue runs.</summary>
     public Func<Exception>? FailInstead { get; set; }
 
-    public EnqueueBatchHandler Handler { get; }
+    public EnqueueJobsHandler Handler { get; }
 }
 
 /// <summary>A real session that awaits a hook, given the SQL stem, before each named command runs.</summary>

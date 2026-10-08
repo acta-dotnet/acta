@@ -10,7 +10,7 @@ namespace Acta.Tests.Conformance.Scenarios;
 /// <summary>
 /// The P0-02 golden-path spec. Runs the slice end-to-end against a provider:
 ///   1. Register the <c>add-numbers</c> definition (via <c>Runtime.InitializeAsync</c>).
-///   2. Enqueue one <c>AddNumbers(2, 3)</c> via <c>IJobs.EnqueueAsync(JobEnqueueRequest)</c>.
+///   2. Enqueue one <c>AddNumbers(2, 3)</c> via <c>IJobs.EnqueueAsync(EnqueueJobRequest)</c>.
 ///   3. <c>Runtime.RunOnceAsync</c> claims, executes, and completes the row.
 ///   4. Query snapshot / timeline / result and assert the full state.
 /// Identical assertions run against SqlServer and Postgres via the provider one-liners under
@@ -41,7 +41,7 @@ public sealed class GoldenPathSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(input);
 
-        var enqueueRequest = new JobEnqueueRequest(
+        var enqueueRequest = new EnqueueJobRequest(
             JobNamespace: TestNamespace,
             JobName: "add-numbers",
             Input: payload,

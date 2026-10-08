@@ -6,7 +6,7 @@ using Microsoft.Data.SqlClient;
 namespace Acta.SqlServer;
 
 /// <summary>
-/// Transactional external-outbox staging for SQL Server producers. Validates a <see cref="JobEnqueueRequest"/>
+/// Transactional external-outbox staging for SQL Server producers. Validates an <see cref="EnqueueJobRequest"/>
 /// through the shared staging core and executes one canonical <c>acta_outbox</c> INSERT on the caller's own
 /// open <see cref="SqlTransaction"/>, so the outbox row commits or rolls back with the producer's own
 /// business writes. Zero configuration: no dependency injection, no <c>AddActa</c>, no ledger connection;
@@ -17,7 +17,7 @@ public static class SqlServerOutboxStagingExtensions
 {
     public static Task AddToActaOutboxAsync(
         this SqlTransaction transaction,
-        JobEnqueueRequest request,
+        EnqueueJobRequest request,
         string table = "acta_outbox",
         string? schema = null,
         CancellationToken cancellationToken = default

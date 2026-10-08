@@ -20,7 +20,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Enqueue",
     Contract = "Batch enqueues racing into one namespace all land without a deadlock, unlaned ones as Ready and laned ones in batch order behind their lane head."
 )]
-public sealed class EnqueueBatchConcurrencySpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+public sealed class EnqueueJobsConcurrencySpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private const int Producers = 4;
     private const int BatchSize = 1000;
@@ -53,26 +53,26 @@ public sealed class EnqueueBatchConcurrencySpec : ActaRuntimeTestBase<Conformanc
         await using var tx = await conn.BeginTransactionAsync(ct);
         var winner = await Jobs.EnqueueAsync(
             tx,
-            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1)), DeduplicationKey: key),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1)), DeduplicationKey: key),
             ct
         );
 
         // The batch meets the uncommitted key and waits on it; the producer then commits.
         var batch = Jobs.EnqueueBatchAsync(
             [
-                new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 2)), DeduplicationKey: key),
-                new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(3, 3))),
+                new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 2)), DeduplicationKey: key),
+                new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(3, 3))),
             ],
             ct
         );
         await Task.Delay(500, ct);
         Assert.False(batch.IsCompleted, "the batch did not wait on the uncommitted key");
         await tx.CommitAsync(ct);
-        var outcomes = await batch;
+        var outcomes = (await batch).Jobs;
 
-        Assert.Equal((JobEnqueueAction.Deduplicated, winner.JobId), (outcomes[0].Action, outcomes[0].JobId));
+        Assert.Equal((EnqueueJobAction.Deduplicated, winner.JobId), (outcomes[0].Action, outcomes[0].JobId));
         Assert.Equal(winner.JobRef, outcomes[0].JobRef);
-        Assert.Equal(JobEnqueueAction.Inserted, outcomes[1].Action);
+        Assert.Equal(EnqueueJobAction.Inserted, outcomes[1].Action);
     }
 
     [Fact(DisplayName = "Four producers racing 1000-row unlaned batches into one namespace all land as Ready")]
@@ -140,8 +140,8 @@ public sealed class EnqueueBatchConcurrencySpec : ActaRuntimeTestBase<Conformanc
                         var ids = new List<long[]>(batchesPerProducer);
                         for (var b = 0; b < batchesPerProducer; b++)
                         {
-                            var outcomes = await Jobs.EnqueueBatchAsync(Batch(p, b, lane), ct);
-                            Assert.All(outcomes, o => Assert.Equal(JobEnqueueAction.Inserted, o.Action));
+                            var outcomes = (await Jobs.EnqueueBatchAsync(Batch(p, b, lane), ct)).Jobs;
+                            Assert.All(outcomes, o => Assert.Equal(EnqueueJobAction.Inserted, o.Action));
                             ids.Add([.. outcomes.Select(o => o.JobId)]);
                         }
                         return ids;
@@ -156,11 +156,11 @@ public sealed class EnqueueBatchConcurrencySpec : ActaRuntimeTestBase<Conformanc
         return [.. results.SelectMany(r => r)];
     }
 
-    private List<JobEnqueueRequest> Batch(int producer, int batch, Func<int, string>? lane) =>
+    private List<EnqueueJobRequest> Batch(int producer, int batch, Func<int, string>? lane) =>
         [
             .. Enumerable
                 .Range(0, BatchSize)
-                .Select(i => new JobEnqueueRequest(
+                .Select(i => new EnqueueJobRequest(
                     TestNamespace,
                     "add-numbers",
                     JobPayload.Json(new AddNumbers(producer * 1_000_000 + batch * BatchSize + i, i)),

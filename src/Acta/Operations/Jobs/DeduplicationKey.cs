@@ -3,7 +3,7 @@ using System.Globalization;
 namespace Acta;
 
 /// <summary>
-/// Composes stable, normalized string values for <see cref="JobEnqueueRequest.DeduplicationKey"/>.
+/// Composes stable, normalized string values for <see cref="EnqueueJobRequest.DeduplicationKey"/>.
 /// Keys are trimmed and lowercased, so two ids that differ only by case are one key; hash a
 /// case-sensitive external id before composing it.
 /// Component normalization permits system-shaped text inside a definition-qualified key; validation
@@ -28,7 +28,7 @@ public static class DeduplicationKey
     /// <summary>
     /// Compose a tenant-relative key, <c>&lt;tenantKey&gt;:&lt;businessKey&gt;</c>, so equal business keys under
     /// different tenants never collide. Deduplication and concurrency keys are both namespace-scoped opaque strings,
-    /// so the same composition serves <see cref="JobEnqueueRequest.ConcurrencyKey"/> values, and the result nests as
+    /// so the same composition serves <see cref="EnqueueJobRequest.ConcurrencyKey"/> values, and the result nests as
     /// the business key of <see cref="ForDefinition"/> when definition and tenant qualification are both wanted. A
     /// tenant key containing <c>:</c> can compose to another tenant's key, so keep it out of tenant keys composed here.
     /// </summary>

@@ -47,7 +47,7 @@ public sealed class SqliteCallerConnectionPrepTests : ActaRuntimeTestBase<Sqlite
         // The enqueue itself relies on acta_blob, so its success proves both functions were installed by
         // the caller-connection preparation on this raw handle.
         var outcome = await Jobs.EnqueueAsync(tx, Request(), ct);
-        Assert.Equal(JobEnqueueAction.Inserted, outcome.Action);
+        Assert.Equal(EnqueueJobAction.Inserted, outcome.Action);
 
         // acta_blob base64-decodes; acta_error raises. Both confirm the functions are present on the handle.
         await using (var blob = conn.CreateCommand())
@@ -83,7 +83,7 @@ public sealed class SqliteCallerConnectionPrepTests : ActaRuntimeTestBase<Sqlite
         return builder.ConnectionString;
     }
 
-    private JobEnqueueRequest Request() =>
+    private EnqueueJobRequest Request() =>
         new(TestNamespace, "add-numbers", JobPayload.CopyBytes(JobPayloadFormat.Json, "{\"left\":1,\"right\":2}"u8.ToArray()));
 
     private static async Task<long> ScalarAsync(SqliteConnection conn, SqliteTransaction? tx, string sql, CancellationToken ct)

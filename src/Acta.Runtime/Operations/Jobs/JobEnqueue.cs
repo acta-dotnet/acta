@@ -12,8 +12,8 @@ internal static class JobEnqueue
     /// Normalizes and validates one request, caps its payload, and canonicalizes it into the row the routine
     /// takes; <paramref name="index"/> names the row in a batch's messages.
     /// </summary>
-    public static (JobEnqueueRequest Request, JobEnqueueValues Row) Prepare(
-        JobEnqueueRequest request,
+    public static (EnqueueJobRequest Request, JobEnqueueValues Row) Prepare(
+        EnqueueJobRequest request,
         string paramName,
         int index,
         int maxInlinePayloadBytes
@@ -167,11 +167,11 @@ internal static class JobEnqueue
     /// The publish rule: a request scheduled ahead of now (a positive delay or any absolute run time) wakes
     /// HorizonChanged when inserted and nothing when deduplicated; a due-now request wakes WorkAvailable either way.
     /// </summary>
-    public static WorkerWakeupReason? WakeReason(JobEnqueueRequest request, JobEnqueueAction action)
+    public static WorkerWakeupReason? WakeReason(EnqueueJobRequest request, EnqueueJobAction action)
     {
         var scheduledAhead = request.DelaySeconds is > 0 || request.NextRunAtUtc is not null;
         return !scheduledAhead ? WorkerWakeupReason.WorkAvailable
-            : action == JobEnqueueAction.Inserted ? WorkerWakeupReason.HorizonChanged
+            : action == EnqueueJobAction.Inserted ? WorkerWakeupReason.HorizonChanged
             : null;
     }
 }

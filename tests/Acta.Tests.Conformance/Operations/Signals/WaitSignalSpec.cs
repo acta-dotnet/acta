@@ -25,7 +25,7 @@ public sealed class WaitSignalSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         Assert.Single(await Db.From<CheckpointEntity>().Where(c => c.JobId == jobId && c.Kind == kind && c.Name == name).ToListAsync(ct));
 
     private async Task<long> EnqueueAsync(CancellationToken ct) =>
-        (await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct)).JobId;
+        (await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct)).JobId;
 
     [Fact(DisplayName = "A first wait arms a Pending slot and answers SuspendPending without touching the job")]
     public async Task First_wait_arms_a_pending_slot()

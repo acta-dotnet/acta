@@ -26,7 +26,7 @@ public sealed class HandlerControlSpec : ActaRuntimeTestBase<ConformanceFixture,
     public async Task Fail_ends_terminal_failed_without_returning_to_user_code()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-handler-fail", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-handler-fail", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
 
@@ -54,7 +54,7 @@ public sealed class HandlerControlSpec : ActaRuntimeTestBase<ConformanceFixture,
     public async Task Non_retryable_exception_lands_terminal_failed_without_retries()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-throw-not-implemented", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-throw-not-implemented", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
 
@@ -80,7 +80,7 @@ public sealed class HandlerControlSpec : ActaRuntimeTestBase<ConformanceFixture,
     public async Task Cancel_ends_terminal_cancelled_and_emits_job_cancelled()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-handler-cancel", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-handler-cancel", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
@@ -103,7 +103,7 @@ public sealed class HandlerControlSpec : ActaRuntimeTestBase<ConformanceFixture,
     public async Task Pause_holds_paused_with_a_next_run_and_emits_job_paused()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-handler-pause", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-handler-pause", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
@@ -133,7 +133,7 @@ public sealed class HandlerControlSpec : ActaRuntimeTestBase<ConformanceFixture,
     public async Task Paused_job_resumes_to_ready_via_external_control()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-handler-pause", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-handler-pause", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(JobStatusCode.Paused, (await ReadJobAsync(enqueued.JobId, ct)).Status);

@@ -16,7 +16,7 @@ public sealed class BatchDeduplicationScopeTests
         ];
 
         var exception = Assert.Throws<DuplicateDeduplicationKeyInBatchException>(() =>
-            EnqueueBatchHandler.ValidateDeduplicationKeyUniqueness(rows)
+            EnqueueJobsHandler.ValidateDeduplicationKeyUniqueness(rows)
         );
 
         Assert.Equal("invoice-7", exception.DeduplicationKey);
@@ -31,7 +31,7 @@ public sealed class BatchDeduplicationScopeTests
     {
         JobEnqueueValues[] rows = [Root("billing", "invoice-7"), Root("shipping", "invoice-7")];
 
-        EnqueueBatchHandler.ValidateDeduplicationKeyUniqueness(rows);
+        EnqueueJobsHandler.ValidateDeduplicationKeyUniqueness(rows);
     }
 
     [Fact]
@@ -40,7 +40,7 @@ public sealed class BatchDeduplicationScopeTests
         JobEnqueueValues[] rows = [Child(42, "line-7"), Child(42, "other"), Child(42, "line-7")];
 
         var exception = Assert.Throws<DuplicateDeduplicationKeyInBatchException>(() =>
-            EnqueueBatchHandler.ValidateDeduplicationKeyUniqueness(rows)
+            EnqueueJobsHandler.ValidateDeduplicationKeyUniqueness(rows)
         );
 
         Assert.Equal("line-7", exception.DeduplicationKey);
@@ -55,7 +55,7 @@ public sealed class BatchDeduplicationScopeTests
     {
         JobEnqueueValues[] rows = [Child(42, "line-7"), Child(43, "line-7")];
 
-        EnqueueBatchHandler.ValidateDeduplicationKeyUniqueness(rows);
+        EnqueueJobsHandler.ValidateDeduplicationKeyUniqueness(rows);
     }
 
     [Fact]
@@ -63,7 +63,7 @@ public sealed class BatchDeduplicationScopeTests
     {
         JobEnqueueValues[] rows = [Root("billing", "invoice-7"), Child(42, "invoice-7")];
 
-        EnqueueBatchHandler.ValidateDeduplicationKeyUniqueness(rows);
+        EnqueueJobsHandler.ValidateDeduplicationKeyUniqueness(rows);
     }
 
     private static JobEnqueueValues Root(string jobNamespace, string deduplicationKey) =>

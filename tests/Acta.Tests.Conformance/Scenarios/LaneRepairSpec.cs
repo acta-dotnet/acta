@@ -105,10 +105,12 @@ public sealed class LaneRepairSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         // More stranded lanes than the pass visits, so its whole window is stranded and only the cap binds.
         const int Lanes = 1100;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var enqueued = await Jobs.EnqueueBatchAsync(
-            [.. Enumerable.Range(0, Lanes).SelectMany(i => new[] { Step($"cap-{i}", "head"), Step($"cap-{i}", "follower") })],
-            ct
-        );
+        var enqueued = (
+            await Jobs.EnqueueBatchAsync(
+                [.. Enumerable.Range(0, Lanes).SelectMany(i => new[] { Step($"cap-{i}", "head"), Step($"cap-{i}", "follower") })],
+                ct
+            )
+        ).Jobs;
         // Every head hand-set to Succeeded, so every lane is stranded behind a Blocked follower.
         await RuntimeStateStaging.UpdateAsync(
             Db,
@@ -131,10 +133,10 @@ public sealed class LaneRepairSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
     private Task PassAsync(CancellationToken ct) =>
         Services.GetRequiredService<RecoveryPass>().RunAsync(Runtime.RegisteredNamespaceIds[TestNamespace], TestNamespace, ct);
 
-    private JobEnqueueRequest Step(string lane, string label) =>
+    private EnqueueJobRequest Step(string lane, string label) =>
         new(TestNamespace, "lane-step", JobPayload.Json(new LaneStep(lane, label)), Lane: lane);
 
-    private async Task AssertUntouchedAsync(JobEnqueueResponse follower, CancellationToken ct)
+    private async Task AssertUntouchedAsync(EnqueueJobResponse follower, CancellationToken ct)
     {
         Assert.Equal(JobStatusCode.Blocked, await StatusAsync(follower, ct));
         Assert.Empty(
@@ -145,15 +147,15 @@ public sealed class LaneRepairSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
     }
 
     // A hand UPDATE, the way an operator or a bug strands a lane: no settle runs, so nothing promotes.
-    private Task SetStatusAsync(JobEnqueueResponse job, JobStatusCode status, CancellationToken ct) =>
+    private Task SetStatusAsync(EnqueueJobResponse job, JobStatusCode status, CancellationToken ct) =>
         Db.ExecuteRawAsync($"UPDATE {{schema}}.runtimes SET status_code = {(int)status} WHERE job_id = @p_id", ct, ("@p_id", job.JobId));
 
-    private async Task<JobEnqueueResponse> StepAsync(string lane, string label, CancellationToken ct) =>
+    private async Task<EnqueueJobResponse> StepAsync(string lane, string label, CancellationToken ct) =>
         await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "lane-step", JobPayload.Json(new LaneStep(lane, label)), Lane: lane),
+            new EnqueueJobRequest(TestNamespace, "lane-step", JobPayload.Json(new LaneStep(lane, label)), Lane: lane),
             ct
         );
 
-    private async Task<JobStatusCode> StatusAsync(JobEnqueueResponse outcome, CancellationToken ct) =>
+    private async Task<JobStatusCode> StatusAsync(EnqueueJobResponse outcome, CancellationToken ct) =>
         (await ReadJobAsync(outcome.JobId, ct)).Status;
 }

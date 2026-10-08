@@ -82,7 +82,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
     {
         var ct = TestContext.Current.CancellationToken;
         var parent = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "job-parent-try-wait-child-subtree", JobPayload.None),
+            new EnqueueJobRequest(TestNamespace, "job-parent-try-wait-child-subtree", JobPayload.None),
             ct
         );
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
@@ -241,7 +241,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
     {
         var ct = TestContext.Current.CancellationToken;
         var parent = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "job-parent-try-wait-child-then-unbounded", JobPayload.None),
+            new EnqueueJobRequest(TestNamespace, "job-parent-try-wait-child-then-unbounded", JobPayload.None),
             ct
         );
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
@@ -275,11 +275,11 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
     public async Task Wait_on_a_foreign_job_times_out_and_cancels_nothing()
     {
         var ct = TestContext.Current.CancellationToken;
-        var foreign = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+        var foreign = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(foreign, ct));
 
         var parent = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(
+            new EnqueueJobRequest(
                 TestNamespace,
                 "job-parent-try-wait-foreign-job",
                 JobPayload.Json(new TryWaitForeignStart(foreign.JobId))
@@ -310,7 +310,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
     public async Task Unbounded_child_wait_keeps_its_old_shape()
     {
         var ct = TestContext.Current.CancellationToken;
-        var parent = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
+        var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
 
         var latch = Assert.Single(await ReadSignalsAsync(parent.JobId, ct));
@@ -327,18 +327,18 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(parent, ct));
     }
 
-    private async Task<JobEnqueueResponse> StartParentAsync(string childJobName, CancellationToken ct) =>
+    private async Task<EnqueueJobResponse> StartParentAsync(string childJobName, CancellationToken ct) =>
         await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "job-parent-try-wait-child", JobPayload.Json(new TryWaitChildStart(childJobName))),
+            new EnqueueJobRequest(TestNamespace, "job-parent-try-wait-child", JobPayload.Json(new TryWaitChildStart(childJobName))),
             ct
         );
 
     // Drives the retry probe to the instant after its bounded wait expired: the first child is
     // cancelled, the replacement is started, and the parent is parked on the replacement's latch.
-    private async Task<(JobEnqueueResponse Parent, long First)> DriveToChildTimeoutAsync(CancellationToken ct)
+    private async Task<(EnqueueJobResponse Parent, long First)> DriveToChildTimeoutAsync(CancellationToken ct)
     {
         var parent = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "job-parent-try-wait-child-then-retry", JobPayload.None),
+            new EnqueueJobRequest(TestNamespace, "job-parent-try-wait-child-then-retry", JobPayload.None),
             ct
         );
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));

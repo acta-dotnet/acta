@@ -10,7 +10,7 @@ namespace Acta.Tests.Conformance.Testing;
 /// </summary>
 internal static class EnqueueTestOps
 {
-    public static async Task<IReadOnlyList<JobEnqueueResponse>> EnqueueBatchAsync(
+    public static async Task<EnqueueJobsResponse> EnqueueBatchAsync(
         IServiceProvider services,
         IReadOnlyList<JobEnqueueValues> rows,
         CancellationToken ct
@@ -23,7 +23,7 @@ internal static class EnqueueTestOps
             JobEnqueue.ValidateRow(canonical[i], i);
         }
 
-        EnqueueBatchHandler.ValidateDeduplicationKeyUniqueness(canonical);
+        EnqueueJobsHandler.ValidateDeduplicationKeyUniqueness(canonical);
 
         var refs = new Guid[canonical.Length];
         for (var i = 0; i < refs.Length; i++)
@@ -33,19 +33,19 @@ internal static class EnqueueTestOps
 
         if (canonical.Length == 1)
         {
-            var one = await services.GetRequiredService<EnqueueOneHandler>().InsertAsync(canonical[0], refs[0], null, ct);
-            return [new JobEnqueueResponse(one[0].JobId, new JobRef(one[0].JobRef), one[0].Action)];
+            var one = await services.GetRequiredService<EnqueueJobHandler>().InsertAsync(canonical[0], refs[0], null, ct);
+            return new EnqueueJobsResponse([new EnqueueJobResponse(one[0].JobId, new JobRef(one[0].JobRef), one[0].Action)]);
         }
 
-        var outcomes = new JobEnqueueResponse[canonical.Length];
-        foreach (var row in await services.GetRequiredService<EnqueueBatchHandler>().InsertAsync(canonical, refs, null, ct))
+        var outcomes = new EnqueueJobResponse[canonical.Length];
+        foreach (var row in await services.GetRequiredService<EnqueueJobsHandler>().InsertAsync(canonical, refs, null, ct))
         {
-            outcomes[row.Ordinal] = new JobEnqueueResponse(row.JobId, new JobRef(row.JobRef), row.Action);
+            outcomes[row.Ordinal] = new EnqueueJobResponse(row.JobId, new JobRef(row.JobRef), row.Action);
         }
 
-        return outcomes;
+        return new EnqueueJobsResponse(outcomes);
     }
 
-    public static async Task<JobEnqueueResponse> EnqueueOneAsync(IServiceProvider services, JobEnqueueValues row, CancellationToken ct) =>
-        (await EnqueueBatchAsync(services, [row], ct))[0];
+    public static async Task<EnqueueJobResponse> EnqueueJobAsync(IServiceProvider services, JobEnqueueValues row, CancellationToken ct) =>
+        (await EnqueueBatchAsync(services, [row], ct)).Jobs[0];
 }

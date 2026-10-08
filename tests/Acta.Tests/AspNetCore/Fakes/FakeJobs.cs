@@ -110,7 +110,7 @@ internal sealed class FakeJobs : IJobs
     /// <summary>The format-resolved payloads the amend endpoint built.</summary>
     public List<JobPayload> InputAmendCalls { get; } = [];
 
-    public List<JobEnqueueRequest> EnqueueRequests { get; } = [];
+    public List<EnqueueJobRequest> EnqueueRequests { get; } = [];
 
     public Func<JobLookup, CancellationToken, ValueTask<JobDetail?>> Get { get; set; }
 
@@ -128,7 +128,7 @@ internal sealed class FakeJobs : IJobs
 
     public Func<string, string, JobInputTemplate?> GetInputTemplate { get; set; }
 
-    public Func<JobEnqueueRequest, CancellationToken, ValueTask<JobEnqueueResponse>> Enqueue { get; set; }
+    public Func<EnqueueJobRequest, CancellationToken, ValueTask<EnqueueJobResponse>> Enqueue { get; set; }
 
     public Func<JobLookup, string?, string?, int?, CancellationToken, ValueTask<PauseJobResponse>> Pause { get; set; }
 
@@ -173,7 +173,7 @@ internal sealed class FakeJobs : IJobs
 
     JobInputTemplate? IJobs.GetInputTemplate(string jobNamespace, string jobName) => GetInputTemplate(jobNamespace, jobName);
 
-    ValueTask<JobEnqueueResponse> IJobs.EnqueueAsync(JobEnqueueRequest request, CancellationToken ct) => Enqueue(request, ct);
+    ValueTask<EnqueueJobResponse> IJobs.EnqueueAsync(EnqueueJobRequest request, CancellationToken ct) => Enqueue(request, ct);
 
     ValueTask<PauseJobResponse> IJobs.PauseAsync(
         JobLookup job,
@@ -251,24 +251,24 @@ internal sealed class FakeJobs : IJobs
     ValueTask<RaiseSignalResponse> IJobs.RaiseSignalAsync<T>(JobLookup job, string name, T value, string? actorKey, CancellationToken ct) =>
         throw new NotSupportedException();
 
-    ValueTask<JobEnqueueResponse> IJobs.EnqueueAsync<TInput>(TInput input, JobEnqueueOptions? options, CancellationToken ct) =>
+    ValueTask<EnqueueJobResponse> IJobs.EnqueueAsync<TInput>(TInput input, JobEnqueueOptions? options, CancellationToken ct) =>
         throw new NotSupportedException();
 
-    ValueTask<JobEnqueueResponse> IJobs.EnqueueAsync<TInput>(
+    ValueTask<EnqueueJobResponse> IJobs.EnqueueAsync<TInput>(
         JobContract<TInput> job,
         TInput input,
         JobEnqueueOptions? options,
         CancellationToken ct
     ) => throw new NotSupportedException();
 
-    ValueTask<JobEnqueueResponse> IJobs.EnqueueAsync<TInput, TResult>(
+    ValueTask<EnqueueJobResponse> IJobs.EnqueueAsync<TInput, TResult>(
         JobContract<TInput, TResult> job,
         TInput input,
         JobEnqueueOptions? options,
         CancellationToken ct
     ) => throw new NotSupportedException();
 
-    ValueTask<JobEnqueueResponse> IJobs.EnqueueAsync(JobContract<NoInput> job, JobEnqueueOptions? options, CancellationToken ct) =>
+    ValueTask<EnqueueJobResponse> IJobs.EnqueueAsync(JobContract<NoInput> job, JobEnqueueOptions? options, CancellationToken ct) =>
         throw new NotSupportedException();
 
     ValueTask<JobOutcome> IJobs.RunAndWaitAsync<TInput>(TInput input, JobExecutionOptions? options, CancellationToken ct) =>
@@ -287,20 +287,20 @@ internal sealed class FakeJobs : IJobs
         CancellationToken ct
     ) => throw new NotSupportedException();
 
-    ValueTask<IReadOnlyList<JobEnqueueResponse>> IJobs.EnqueueBatchAsync(IReadOnlyList<JobEnqueueRequest> requests, CancellationToken ct) =>
+    ValueTask<EnqueueJobsResponse> IJobs.EnqueueBatchAsync(IReadOnlyList<EnqueueJobRequest> requests, CancellationToken ct) =>
         throw new NotSupportedException();
 
-    ValueTask<JobEnqueueResponse> IJobs.EnqueueAsync(DbTransaction transaction, JobEnqueueRequest request, CancellationToken ct) =>
+    ValueTask<EnqueueJobResponse> IJobs.EnqueueAsync(DbTransaction transaction, EnqueueJobRequest request, CancellationToken ct) =>
         throw new NotSupportedException();
 
-    ValueTask<JobEnqueueResponse> IJobs.EnqueueAsync<TInput>(
+    ValueTask<EnqueueJobResponse> IJobs.EnqueueAsync<TInput>(
         DbTransaction transaction,
         TInput input,
         JobEnqueueOptions? options,
         CancellationToken ct
     ) => throw new NotSupportedException();
 
-    ValueTask<JobEnqueueResponse> IJobs.EnqueueAsync<TInput>(
+    ValueTask<EnqueueJobResponse> IJobs.EnqueueAsync<TInput>(
         DbTransaction transaction,
         JobContract<TInput> job,
         TInput input,
@@ -308,7 +308,7 @@ internal sealed class FakeJobs : IJobs
         CancellationToken ct
     ) => throw new NotSupportedException();
 
-    ValueTask<JobEnqueueResponse> IJobs.EnqueueAsync<TInput, TResult>(
+    ValueTask<EnqueueJobResponse> IJobs.EnqueueAsync<TInput, TResult>(
         DbTransaction transaction,
         JobContract<TInput, TResult> job,
         TInput input,
@@ -316,16 +316,16 @@ internal sealed class FakeJobs : IJobs
         CancellationToken ct
     ) => throw new NotSupportedException();
 
-    ValueTask<JobEnqueueResponse> IJobs.EnqueueAsync(
+    ValueTask<EnqueueJobResponse> IJobs.EnqueueAsync(
         DbTransaction transaction,
         JobContract<NoInput> job,
         JobEnqueueOptions? options,
         CancellationToken ct
     ) => throw new NotSupportedException();
 
-    ValueTask<IReadOnlyList<JobEnqueueResponse>> IJobs.EnqueueBatchAsync(
+    ValueTask<EnqueueJobsResponse> IJobs.EnqueueBatchAsync(
         DbTransaction transaction,
-        IReadOnlyList<JobEnqueueRequest> requests,
+        IReadOnlyList<EnqueueJobRequest> requests,
         CancellationToken ct
     ) => throw new NotSupportedException();
 
@@ -363,7 +363,7 @@ internal sealed class FakeJobs : IJobs
         return null;
     }
 
-    private JobEnqueueResponse Insert(JobEnqueueRequest request)
+    private EnqueueJobResponse Insert(EnqueueJobRequest request)
     {
         EnqueueRequests.Add(request);
 
@@ -371,7 +371,7 @@ internal sealed class FakeJobs : IJobs
         // endpoint distinguishes created from matched, so the fake has to as well.
         if (request.DeduplicationKey is { Length: > 0 } key && _deduplicated.TryGetValue(key, out var existing))
         {
-            return new JobEnqueueResponse(existing.Id, existing.Ref, JobEnqueueAction.Deduplicated);
+            return new EnqueueJobResponse(existing.Id, existing.Ref, EnqueueJobAction.Deduplicated);
         }
 
         var id = 100 + EnqueueRequests.Count;
@@ -383,7 +383,7 @@ internal sealed class FakeJobs : IJobs
             _deduplicated[fresh] = (id, jobRef);
         }
 
-        return new JobEnqueueResponse(id, jobRef, JobEnqueueAction.Inserted);
+        return new EnqueueJobResponse(id, jobRef, EnqueueJobAction.Inserted);
     }
 
     private UpdateJobInputResponse Amend(JobLookup job, JobPayload input)

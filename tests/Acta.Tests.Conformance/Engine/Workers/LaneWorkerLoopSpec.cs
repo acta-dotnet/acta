@@ -30,13 +30,13 @@ public abstract class LaneWorkerLoopSpec : ActaRuntimeTestBase<ConformanceFixtur
 
     protected async Task EachLaneDrainsInOrderAsync(CancellationToken ct)
     {
-        var batch = new List<JobEnqueueRequest>();
+        var batch = new List<EnqueueJobRequest>();
         for (var i = 1; i <= PerLane; i++)
         {
             batch.Add(Step("orders", $"o{i}"));
             batch.Add(Step("billing", $"b{i}"));
         }
-        var outcomes = await Jobs.EnqueueBatchAsync(batch, ct);
+        var outcomes = (await Jobs.EnqueueBatchAsync(batch, ct)).Jobs;
 
         using var loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var loop = Runtime.RunLoopAsync(loopCts.Token);
@@ -55,7 +55,7 @@ public abstract class LaneWorkerLoopSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(1, LaneProbes.MaxConcurrent(TestNamespace));
     }
 
-    private JobEnqueueRequest Step(string lane, string label) =>
+    private EnqueueJobRequest Step(string lane, string label) =>
         new(TestNamespace, "lane-step", JobPayload.Json(new LaneStep(lane, label)), Lane: lane);
 }
 

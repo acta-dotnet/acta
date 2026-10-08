@@ -6,7 +6,7 @@ namespace Acta.Runtime;
 /// keeps running after the caller stops waiting.
 /// </summary>
 internal sealed class JobRunAndWait(
-    EnqueueOneHandler enqueueOne,
+    EnqueueJobHandler enqueueJob,
     GetJobHandler getJob,
     GetResultHandler getResult,
     IJobPayloadSerializerRegistry serializers,
@@ -14,7 +14,7 @@ internal sealed class JobRunAndWait(
 )
 {
     public async ValueTask<JobOutcome> RunAsync(
-        Func<JobExecutionOptions, JobEnqueueRequest> request,
+        Func<JobExecutionOptions, EnqueueJobRequest> request,
         JobExecutionOptions? options,
         CancellationToken ct
     )
@@ -32,7 +32,7 @@ internal sealed class JobRunAndWait(
 
     /// <summary>The same wait, then the result; a succeeded job that stored none throws rather than answering a default.</summary>
     public async ValueTask<JobOutcome<TResult>> RunAsync<TResult>(
-        Func<JobExecutionOptions, JobEnqueueRequest> request,
+        Func<JobExecutionOptions, EnqueueJobRequest> request,
         JobExecutionOptions? options,
         CancellationToken ct
     )
@@ -68,7 +68,7 @@ internal sealed class JobRunAndWait(
     /// ends it at once; without one, PollInterval is the discovery floor.
     /// </summary>
     private async ValueTask<(long JobId, JobDetail? Snapshot, bool TimedOut)> EnqueueAndAwaitAsync(
-        Func<JobExecutionOptions, JobEnqueueRequest> request,
+        Func<JobExecutionOptions, EnqueueJobRequest> request,
         JobExecutionOptions? options,
         CancellationToken ct
     )
@@ -83,7 +83,7 @@ internal sealed class JobRunAndWait(
             throw new ArgumentOutOfRangeException(nameof(options), options.PollInterval, "PollInterval must be greater than zero.");
         }
 
-        var jobId = (await enqueueOne.HandleAsync(new EnqueueOneCommand(request(options)), ct)).JobId;
+        var jobId = (await enqueueJob.HandleAsync(new EnqueueJobCommand(request(options)), ct)).JobId;
         var (snapshot, timedOut) = await CompletionWait.AwaitAsync(
             wakeup,
             jobId,

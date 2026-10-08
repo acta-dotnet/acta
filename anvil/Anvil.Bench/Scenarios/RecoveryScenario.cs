@@ -32,7 +32,7 @@ public sealed class RecoveryScenario : IScenario
         cluster.Sink.Expect(1);
 
         await cluster.Jobs.EnqueueAsync(
-            new JobEnqueueRequest(
+            new EnqueueJobRequest(
                 BenchHost.Namespace,
                 BenchHost.BlockJobName,
                 BenchPayloads.Json(new BenchInput(Stopwatch.GetTimestamp()))
@@ -59,7 +59,7 @@ public sealed class RecoveryScenario : IScenario
         var budget = TimeSpan.FromSeconds(cfg.LeaseTtlSeconds + 60);
         while (cluster.Sink.Samples.IsEmpty && deadline.Elapsed < budget)
         {
-            await cluster.Jobs.EnqueueAsync(new JobEnqueueRequest(BenchHost.Namespace, BenchHost.RecoveryJobName), ct);
+            await cluster.Jobs.EnqueueAsync(new EnqueueJobRequest(BenchHost.Namespace, BenchHost.RecoveryJobName), ct);
             try
             {
                 await cluster.Sink.Completed.WaitAsync(TimeSpan.FromSeconds(1), ct);

@@ -86,6 +86,6 @@ public sealed class OutboxLaneHoldSpec : OutboxRelayIntegrationBase
 
     private string Key(string label) => $"{label}-{TestId}";
 
-    private JobEnqueueRequest Row(string lane, string label, string jobName = "lane-step") =>
+    private EnqueueJobRequest Row(string lane, string label, string jobName = "lane-step") =>
         new(TestNamespace, jobName, JobPayload.Json(new LaneStep(lane, label)), DeduplicationKey: Key(label), Lane: $"{lane}-{TestId}");
 }

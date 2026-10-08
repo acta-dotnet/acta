@@ -23,7 +23,7 @@ public sealed class TimeoutRetryBudgetSpec : ActaRuntimeTestBase<ConformanceFixt
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "timeout-budget-probe", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "timeout-budget-probe", JobPayload.None), ct);
 
         // Attempt 1: handler blocks until the 1s timeout fires.
         // In budget (1 < MaxAttempts=2): job re-arms to Ready, failure_count 0→1.

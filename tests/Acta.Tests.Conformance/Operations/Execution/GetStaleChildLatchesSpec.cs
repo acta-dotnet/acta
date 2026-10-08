@@ -71,7 +71,7 @@ public sealed class GetStaleChildLatchesSpec : ActaRuntimeTestBase<ConformanceFi
     /// <summary>Runs a parent once so it starts its child and suspends on that child's Pending latch.</summary>
     private async Task<(long Parent, long Child)> ParentWaitingOnChildAsync(CancellationToken ct)
     {
-        var parent = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
+        var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         var child = Assert.Single(await Db.From<JobEntity>().Where(j => j.ParentId == parent.JobId).ToListAsync(ct));
         var latch = Assert.Single(await ReadSignalsAsync(parent.JobId, ct));

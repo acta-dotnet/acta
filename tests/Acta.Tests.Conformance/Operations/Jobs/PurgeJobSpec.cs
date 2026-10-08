@@ -95,7 +95,7 @@ public sealed class PurgeJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         // behind as the live descendant the purge guard must see.
         var parentId = await EnqueueAsync(ct);
         await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1)), ParentJobId: parentId),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1)), ParentJobId: parentId),
             ct
         );
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parentId, ct));
@@ -119,7 +119,7 @@ public sealed class PurgeJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
     private async Task<long> EnqueueAsync(CancellationToken ct)
     {
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
             ct
         );
         return enqueued.JobId;

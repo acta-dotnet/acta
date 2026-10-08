@@ -28,11 +28,13 @@ public sealed class GetJobStatusSpec : ActaRuntimeTestBase<ConformanceFixture, T
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
 
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(3, 4));
-        var results = await EnqueueTestOps.EnqueueBatchAsync(
-            Services,
-            [new JobEnqueueValues(NamespaceName: TestNamespace, JobName: "add-numbers", Input: payload)],
-            ct
-        );
+        var results = (
+            await EnqueueTestOps.EnqueueBatchAsync(
+                Services,
+                [new JobEnqueueValues(NamespaceName: TestNamespace, JobName: "add-numbers", Input: payload)],
+                ct
+            )
+        ).Jobs;
         var jobId = results[0].JobId;
 
         var status = await Services.GetRequiredService<GetJobStatusHandler>().ReadAsync(jobId, ct);

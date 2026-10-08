@@ -2,7 +2,7 @@ namespace Acta;
 
 internal static class JobEnqueueRequestValidation
 {
-    public static JobEnqueueRequest NormalizeAndValidate(JobEnqueueRequest request, string paramName)
+    public static EnqueueJobRequest NormalizeAndValidate(EnqueueJobRequest request, string paramName)
     {
         ArgumentNullException.ThrowIfNull(request, paramName);
 
@@ -15,7 +15,7 @@ internal static class JobEnqueueRequestValidation
         {
             IdentifierSyntax.ValidateExternalToken(
                 correlationKey,
-                Field(paramName, nameof(JobEnqueueRequest.CorrelationKey)),
+                Field(paramName, nameof(EnqueueJobRequest.CorrelationKey)),
                 IdentifierSyntax.DefaultMaxLength
             );
         }
@@ -24,23 +24,23 @@ internal static class JobEnqueueRequestValidation
         {
             JobNamespace = IdentifierSyntax.CanonicalizeUserKebab(
                 request.JobNamespace,
-                Field(paramName, nameof(JobEnqueueRequest.JobNamespace))
+                Field(paramName, nameof(EnqueueJobRequest.JobNamespace))
             ),
             JobName = IdentifierSyntax.CanonicalizeUserKebab(
                 request.JobName,
-                Field(paramName, nameof(JobEnqueueRequest.JobName)),
+                Field(paramName, nameof(EnqueueJobRequest.JobName)),
                 IdentifierSyntax.ExtendedMaxLength
             ),
             DeduplicationKey = request.DeduplicationKey is null
                 ? null
-                : IdentifierSyntax.NormalizeKey(request.DeduplicationKey, Field(paramName, nameof(JobEnqueueRequest.DeduplicationKey))),
-            ConcurrencyKey = NormalizeOpaque(request.ConcurrencyKey, Field(paramName, nameof(JobEnqueueRequest.ConcurrencyKey))),
+                : IdentifierSyntax.NormalizeKey(request.DeduplicationKey, Field(paramName, nameof(EnqueueJobRequest.DeduplicationKey))),
+            ConcurrencyKey = NormalizeOpaque(request.ConcurrencyKey, Field(paramName, nameof(EnqueueJobRequest.ConcurrencyKey))),
             Lane = request.Lane is null
                 ? null
-                : IdentifierSyntax.NormalizeKey(request.Lane, Field(paramName, nameof(JobEnqueueRequest.Lane))),
+                : IdentifierSyntax.NormalizeKey(request.Lane, Field(paramName, nameof(EnqueueJobRequest.Lane))),
             TenantKey = request.TenantKey is null
                 ? null
-                : IdentifierSyntax.NormalizeTenantKey(request.TenantKey, Field(paramName, nameof(JobEnqueueRequest.TenantKey))),
+                : IdentifierSyntax.NormalizeTenantKey(request.TenantKey, Field(paramName, nameof(EnqueueJobRequest.TenantKey))),
             Tags = NormalizeTags(request.Tags, paramName),
         };
     }
@@ -49,9 +49,9 @@ internal static class JobEnqueueRequestValidation
         value is null ? null : IdentifierSyntax.NormalizeKey(value, paramName);
 
     private static TagInput[]? NormalizeTags(IReadOnlyList<TagInput>? tags, string paramName) =>
-        tags is null ? null : TagInput.NormalizeSet(tags, Field(paramName, nameof(JobEnqueueRequest.Tags)), "job");
+        tags is null ? null : TagInput.NormalizeSet(tags, Field(paramName, nameof(EnqueueJobRequest.Tags)), "job");
 
-    private static void ValidateSchedule(JobEnqueueRequest request, string paramName)
+    private static void ValidateSchedule(EnqueueJobRequest request, string paramName)
     {
         if (request.NextRunAtUtc is not null && request.DelaySeconds is not null)
         {
@@ -61,19 +61,19 @@ internal static class JobEnqueueRequestValidation
         if (request.DelaySeconds is < 0)
         {
             throw new ArgumentOutOfRangeException(
-                Field(paramName, nameof(JobEnqueueRequest.DelaySeconds)),
+                Field(paramName, nameof(EnqueueJobRequest.DelaySeconds)),
                 request.DelaySeconds,
                 "DelaySeconds must be non-negative."
             );
         }
     }
 
-    private static void ValidateParentId(JobEnqueueRequest request, string paramName)
+    private static void ValidateParentId(EnqueueJobRequest request, string paramName)
     {
         if (request.ParentJobId is <= 0)
         {
             throw new ArgumentOutOfRangeException(
-                Field(paramName, nameof(JobEnqueueRequest.ParentJobId)),
+                Field(paramName, nameof(EnqueueJobRequest.ParentJobId)),
                 request.ParentJobId,
                 "ParentJobId must be positive."
             );
@@ -85,17 +85,17 @@ internal static class JobEnqueueRequestValidation
         {
             throw new ArgumentException(
                 "OverrideParentTenant requires both a ParentJobId and an explicit TenantKey.",
-                Field(paramName, nameof(JobEnqueueRequest.OverrideParentTenant))
+                Field(paramName, nameof(EnqueueJobRequest.OverrideParentTenant))
             );
         }
     }
 
-    private static void ValidatePriority(JobEnqueueRequest request, string paramName)
+    private static void ValidatePriority(EnqueueJobRequest request, string paramName)
     {
         if (request.Priority is { } priority && !Enum.IsDefined(priority))
         {
             throw new ArgumentOutOfRangeException(
-                Field(paramName, nameof(JobEnqueueRequest.Priority)),
+                Field(paramName, nameof(EnqueueJobRequest.Priority)),
                 priority,
                 "Priority is not a defined JobPriorityCode."
             );

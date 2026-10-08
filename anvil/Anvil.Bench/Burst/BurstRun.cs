@@ -87,14 +87,14 @@ internal sealed class BurstRun(BurstHost host, BurstDb db, BurstOptions options)
     {
         Phase("SEED", $"enqueueing {Num(options.Events)} single-attempt failing jobs");
         var enqueue = Stopwatch.StartNew();
-        var chunk = new List<JobEnqueueRequest>(SeedChunkSize);
+        var chunk = new List<EnqueueJobRequest>(SeedChunkSize);
         for (var i = 0; i < options.Events; i++)
         {
             chunk.Add(Request(i));
             if (chunk.Count == SeedChunkSize)
             {
                 await host.Jobs.EnqueueBatchAsync(chunk, ct);
-                chunk = new List<JobEnqueueRequest>(SeedChunkSize);
+                chunk = new List<EnqueueJobRequest>(SeedChunkSize);
             }
         }
         if (chunk.Count > 0)
@@ -664,7 +664,7 @@ internal sealed class BurstRun(BurstHost host, BurstDb db, BurstOptions options)
         );
     }
 
-    private JobEnqueueRequest Request(int index) =>
+    private EnqueueJobRequest Request(int index) =>
         new(
             options.Namespace,
             BurstJobNames.All[index % BurstJobNames.All.Length],

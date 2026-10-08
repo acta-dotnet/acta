@@ -26,7 +26,7 @@ public sealed class RaiseSignalSpec : ActaRuntimeTestBase<ConformanceFixture, Te
     public async Task Raise_sets_the_slot_and_audits_the_operator()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal-typed", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal-typed", JobPayload.None), ct);
         var payload = JobPayload.Json(new ReviewDecision(true, "ship it"));
 
         var raise = await Jobs.RaiseSignalAsync(enqueued, "review", payload, actorKey: "op-1", ct: ct);
@@ -53,7 +53,7 @@ public sealed class RaiseSignalSpec : ActaRuntimeTestBase<ConformanceFixture, Te
     public async Task Repeat_raise_overwrites_one_slot()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal-typed", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal-typed", JobPayload.None), ct);
         await Jobs.RaiseSignalAsync(enqueued, "review", new ReviewDecision(false, "first"), ct: ct);
         var first = await ReadSlotAsync(enqueued.JobId, "review", ct);
 
@@ -74,7 +74,7 @@ public sealed class RaiseSignalSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         Assert.Equal(ControlAction.NotFound, missing.Action);
         Assert.Null(missing.Status);
 
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
         Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(enqueued, ct: ct)).Action);
 
         var finished = await Jobs.RaiseSignalAsync(enqueued, "go", JobPayload.None, ct: ct);

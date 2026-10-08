@@ -25,11 +25,11 @@ var jobs = host.Services.GetRequiredService<IJobs>();
 for (var i = 1; i <= 3; i++)
 {
     await jobs.EnqueueAsync(
-        new JobEnqueueRequest("orders-eu", "process-order", JobPayload.Json(new ProcessOrder($"EU-{i}"))),
+        new EnqueueJobRequest("orders-eu", "process-order", JobPayload.Json(new ProcessOrder($"EU-{i}"))),
         CancellationToken.None
     );
     await jobs.EnqueueAsync(
-        new JobEnqueueRequest("orders-us", "process-order", JobPayload.Json(new ProcessOrder($"US-{i}"))),
+        new EnqueueJobRequest("orders-us", "process-order", JobPayload.Json(new ProcessOrder($"US-{i}"))),
         CancellationToken.None
     );
 }

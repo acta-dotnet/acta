@@ -23,7 +23,7 @@ public sealed class GetChildJobIdsSpec : ActaRuntimeTestBase<ConformanceFixture,
     {
         var ct = TestContext.Current.CancellationToken;
         var root = await EnqueueAsync(parentJobId: null, "root", ct);
-        var children = new List<JobEnqueueResponse>();
+        var children = new List<EnqueueJobResponse>();
         for (var i = 0; i < 3; i++)
         {
             children.Add(await EnqueueAsync(root.JobId, $"c{i}", ct));
@@ -48,9 +48,9 @@ public sealed class GetChildJobIdsSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Empty(await Execution.GetChildJobIdsAsync(grandchild.JobId, ct));
     }
 
-    private async Task<JobEnqueueResponse> EnqueueAsync(long? parentJobId, string key, CancellationToken ct) =>
+    private async Task<EnqueueJobResponse> EnqueueAsync(long? parentJobId, string key, CancellationToken ct) =>
         await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(
+            new EnqueueJobRequest(
                 TestNamespace,
                 "job-child-echo",
                 JobPayload.Json(new ChildEcho(1)),

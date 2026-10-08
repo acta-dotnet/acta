@@ -67,7 +67,7 @@ public sealed class WorkerLoopDispatchSpec : ActaRuntimeTestBase<ConformanceFixt
         var ids = new long[backlog];
         for (var i = 0; i < backlog; i++)
         {
-            var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", payload), ct);
+            var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", payload), ct);
             ids[i] = enqueued.JobId;
         }
 
@@ -97,7 +97,7 @@ public sealed class WorkerLoopDispatchSpec : ActaRuntimeTestBase<ConformanceFixt
         var loop = await StartParkedLoopAsync(loopCts.Token, ct);
 
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
             ct
         );
 
@@ -123,7 +123,7 @@ public sealed class WorkerLoopDispatchSpec : ActaRuntimeTestBase<ConformanceFixt
 
         var dbNow = await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct);
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(
+            new EnqueueJobRequest(
                 TestNamespace,
                 "add-numbers",
                 JobPayload.Json(new AddNumbers(2, 3)),
@@ -155,11 +155,13 @@ public sealed class WorkerLoopDispatchSpec : ActaRuntimeTestBase<ConformanceFixt
         // Insert straight through the enqueue operation, bypassing the Jobs facade - the wakeup publish
         // never reaches this process's transport, simulating a writer in another process with no
         // shared transport. The safety poll is the only discovery path.
-        var rows = await EnqueueTestOps.EnqueueBatchAsync(
-            Services,
-            [new JobEnqueueValues(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3)))],
-            ct
-        );
+        var rows = (
+            await EnqueueTestOps.EnqueueBatchAsync(
+                Services,
+                [new JobEnqueueValues(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3)))],
+                ct
+            )
+        ).Jobs;
         var jobId = rows[0].JobId;
 
         await WaitUntilAllDoneAsync(Services.GetRequiredService<GetJobStatusHandler>(), [jobId], ct);
@@ -211,7 +213,7 @@ public sealed class WorkerLoopDispatchSpec : ActaRuntimeTestBase<ConformanceFixt
         // the row Ready due-now, and complete_execution's final-Ready report is the ONLY publish
         // site that can see that transition. Without it every retry would wait out the safety poll.
         FlakyRecoverProbe.Reset(TestNamespace);
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "flaky-recover", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "flaky-recover", JobPayload.None), ct);
 
         await WaitUntilAllDoneAsync(Services.GetRequiredService<GetJobStatusHandler>(), [enqueued.JobId], ct);
 

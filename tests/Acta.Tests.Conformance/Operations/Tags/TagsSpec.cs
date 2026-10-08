@@ -185,7 +185,7 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
         var ct = TestContext.Current.CancellationToken;
         var key = TestKey("tag-dedup");
         var first = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(
+            new EnqueueJobRequest(
                 TestNamespace,
                 "add-numbers",
                 JobPayload.Json(new AddNumbers(2, 3)),
@@ -195,7 +195,7 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
             ct
         );
         var second = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(
+            new EnqueueJobRequest(
                 TestNamespace,
                 "add-numbers",
                 JobPayload.Json(new AddNumbers(9, 9)),
@@ -205,8 +205,8 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
             ct
         );
 
-        Assert.Equal(JobEnqueueAction.Inserted, first.Action);
-        Assert.Equal(JobEnqueueAction.Deduplicated, second.Action);
+        Assert.Equal(EnqueueJobAction.Inserted, first.Action);
+        Assert.Equal(EnqueueJobAction.Deduplicated, second.Action);
         Assert.Equal(first.JobId, second.JobId);
         var tags = Assert.IsType<TagSet>(await Operations.Tags.GetAsync(TagTarget.ForJob(first), ct));
         Assert.Equal([new TagItem("version", "first")], tags.Items);
@@ -323,7 +323,7 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
         );
         var worker = Assert.Single(await Db.From<WorkerEntity>().Where(x => x.NamespaceId == namespaceId).ToListAsync(ct));
 
-        var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct);
+        var job = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct);
 
         var schedule = Assert.Single(
             await Db.From<ScheduleEntity>().Where(x => x.NamespaceId == namespaceId && x.Name == "every-5-minutes").ToListAsync(ct)

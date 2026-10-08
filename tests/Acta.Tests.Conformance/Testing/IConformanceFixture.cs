@@ -114,7 +114,7 @@ public interface IConformanceFixture
     /// </summary>
     ValueTask<(int BusinessRows, int OutboxRows)> StageWithBusinessWriteAsync(
         string outboxTable,
-        Acta.JobEnqueueRequest request,
+        Acta.EnqueueJobRequest request,
         bool commit
     );
 
@@ -122,7 +122,7 @@ public interface IConformanceFixture
     /// Stage every request in <paramref name="requests"/>, in order, through the provider's
     /// <c>AddToActaOutboxAsync</c> extension on one native transaction, then commit it.
     /// </summary>
-    ValueTask StageInOneTransactionAsync(string outboxTable, IReadOnlyList<Acta.JobEnqueueRequest> requests);
+    ValueTask StageInOneTransactionAsync(string outboxTable, IReadOnlyList<Acta.EnqueueJobRequest> requests);
 
     /// <summary>
     /// Build the provider's external-outbox source store (an internal <c>OutboxSource</c>, returned

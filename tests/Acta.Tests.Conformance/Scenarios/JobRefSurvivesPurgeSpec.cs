@@ -74,7 +74,7 @@ public sealed class JobRefSurvivesPurgeSpec : ActaRuntimeTestBase<ConformanceFix
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var replacementPayload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(0, 0));
         var replacement = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", replacementPayload, null, null, null),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", replacementPayload, null, null, null),
             ct
         );
         Assert.NotEqual(jobId, replacement.JobId);

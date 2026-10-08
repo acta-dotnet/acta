@@ -25,7 +25,7 @@ public sealed class ReprioritizeJobSpec : ActaRuntimeTestBase<ConformanceFixture
         var ct = TestContext.Current.CancellationToken;
 
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
             ct
         );
         var before = await ReadJobAsync(enqueued.JobId, ct);
@@ -94,7 +94,7 @@ public sealed class ReprioritizeJobSpec : ActaRuntimeTestBase<ConformanceFixture
     private async Task<long> EnqueueAsync(CancellationToken ct)
     {
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
             ct
         );
         return enqueued.JobId;

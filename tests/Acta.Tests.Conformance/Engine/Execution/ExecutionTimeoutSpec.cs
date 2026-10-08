@@ -25,7 +25,7 @@ public sealed class ExecutionTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtur
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "timeout-probe", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "timeout-probe", JobPayload.None), ct);
 
         // The handler blocks on its token forever; the 1s timeout cancels it and the run completes.
         await Runtime.RunOnceAsync(enqueued, ct).WaitAsync(SpecWaits.Gate, ct);

@@ -56,7 +56,7 @@ public sealed class AnvilOutboxDatabase(string path, AnvilSession session)
             id.Value = operationId;
             await insert.ExecuteNonQueryAsync(ct);
             await transaction.AddToActaOutboxAsync(
-                new JobEnqueueRequest(
+                new EnqueueJobRequest(
                     session.NamespaceName,
                     "outbox-receipt",
                     AnvilPayloads.Json(new OutboxReceipt(operationId)),

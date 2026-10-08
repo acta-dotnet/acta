@@ -19,7 +19,7 @@ public class JobRequestBuilderTests
     public void Create_with_namespace_and_name_builds_equivalent_to_record_constructor()
     {
         var built = JobRequestBuilder.Create(Ns, Name).Build();
-        var direct = new JobEnqueueRequest(Ns, Name);
+        var direct = new EnqueueJobRequest(Ns, Name);
         Assert.Equal(direct, built);
     }
 

@@ -29,8 +29,8 @@ internal sealed record EnqueueOneHttpRequest(
     DateTime? NextRunAtUtc = null
 );
 
-/// <summary>HTTP projection of a <see cref="JobEnqueueResponse"/>: the public ref and the coarse action.</summary>
-internal sealed record EnqueueOneHttpResponse(JobRef JobRef, JobEnqueueAction Action);
+/// <summary>HTTP projection of an <see cref="EnqueueJobResponse"/>: the public ref and the coarse action.</summary>
+internal sealed record EnqueueOneHttpResponse(JobRef JobRef, EnqueueJobAction Action);
 
 /// <summary>
 /// POST /jobs: enqueue via IJobs.EnqueueAsync. A namespace/tenant guard rejection surfaces as
@@ -126,7 +126,7 @@ internal static class EnqueueOneEndpoint
                             : JobPayload.None;
                     }
 
-                    var request = new JobEnqueueRequest(
+                    var request = new EnqueueJobRequest(
                         JobNamespace: body.JobNamespace,
                         JobName: body.JobName,
                         Input: input,
@@ -141,7 +141,7 @@ internal static class EnqueueOneEndpoint
                     try
                     {
                         var outcome = await jobs.EnqueueAsync(request, ct);
-                        var created = outcome.Action == JobEnqueueAction.Inserted;
+                        var created = outcome.Action == EnqueueJobAction.Inserted;
 
                         // Built from this request's own path rather than a link generator: the read lives at
                         // {this path}/{jobRef} under whatever pattern the host mounted, so appending the ref

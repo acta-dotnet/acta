@@ -40,7 +40,7 @@ public sealed class LatencyScenario : IScenario
         {
             var target = host.Sink.Samples.Count + 1;
             await host.Jobs.EnqueueAsync(
-                new JobEnqueueRequest(
+                new EnqueueJobRequest(
                     BenchHost.Namespace,
                     BenchHost.JobName,
                     BenchPayloads.Json(new BenchInput(Stopwatch.GetTimestamp(), pad))

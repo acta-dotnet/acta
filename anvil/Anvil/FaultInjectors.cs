@@ -252,7 +252,7 @@ public sealed class FaultInjectors(
         while (processed < jobsPerSecond)
         {
             var count = Math.Min(PressureChunkSize, jobsPerSecond - processed);
-            var requests = new List<JobEnqueueRequest>(count);
+            var requests = new List<EnqueueJobRequest>(count);
             for (var i = 0; i < count; i++)
             {
                 var index = processed + i;
@@ -269,7 +269,7 @@ public sealed class FaultInjectors(
                 );
             }
 
-            var outcomes = await jobs.EnqueueBatchAsync(requests, ct);
+            var outcomes = (await jobs.EnqueueBatchAsync(requests, ct)).Jobs;
             lock (_gate)
             {
                 _pressureJobsAdded += outcomes.Count;

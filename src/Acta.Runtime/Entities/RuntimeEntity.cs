@@ -86,7 +86,7 @@ namespace Acta.Runtime;
 [DbCheck(Name = "ck_runtimes_inflight_leased", Sql = "status_code NOT IN (40, 50) OR leased_by_worker_id IS NOT NULL")]
 // A Ready row is due at a known instant, which is what lets ix_runtimes_claim_ready leave out NULL instants
 // without losing a Ready row, and lets the claim seek it in its own order instead of sorting. Every routine that lands Ready writes the instant
-// in the same statement: EnqueueOne, EnqueueBatch, RegisterSchedules, RestartJob, ResumeJob,
+// in the same statement: EnqueueJob, EnqueueJobs, RegisterSchedules, RestartJob, ResumeJob,
 // RescheduleJob, TriggerScheduleNow, RaiseSignal, CompleteExecution (re-arm and signal release),
 // ReclaimStuckJobs, RepairRecoverySlot. NULL is reserved for a Suspended row's unbounded wait.
 [DbCheck(Name = "ck_runtimes_ready_due", Sql = "status_code <> 10 OR next_run_at_utc IS NOT NULL")]

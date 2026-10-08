@@ -24,14 +24,14 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Enqueue",
     Contract = "Every transactional enqueue overload joins the caller transaction, rejects invalid transactions, publishes no wakeup, and leaves completion to the caller."
 )]
-public sealed class EnqueueOneTransactionalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
+public sealed class EnqueueJobTransactionalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
 {
     private const string ProbeTable = "acta_txn_contract_probe";
 
     private readonly RecordingWakeup _wakeup = new();
 
     // Enqueue-only: RunAsWorker keeps InitializeAsync so the per-test namespace is registered (enqueue
-    // resolves it), but the claim/execute loop is never started - identical to EnqueueBatchSpec.
+    // resolves it), but the claim/execute loop is never started - identical to EnqueueJobsSpec.
     protected override bool RunAsWorker => true;
 
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
@@ -95,11 +95,11 @@ public sealed class EnqueueOneTransactionalSpec : ActaRuntimeTestBase<Conformanc
         await using (var tx = await conn.BeginTransactionAsync(ct))
         {
             var inserted = await Jobs.EnqueueAsync(tx, Request(key: key), ct);
-            Assert.Equal(JobEnqueueAction.Inserted, inserted.Action);
+            Assert.Equal(EnqueueJobAction.Inserted, inserted.Action);
 
             // The second enqueue sees the first row uncommitted on the same connection, so it dedupes.
             var deduplicated = await Jobs.EnqueueAsync(tx, Request(key: key), ct);
-            Assert.Equal(JobEnqueueAction.Deduplicated, deduplicated.Action);
+            Assert.Equal(EnqueueJobAction.Deduplicated, deduplicated.Action);
             Assert.Equal(inserted.JobId, deduplicated.JobId);
 
             await tx.RollbackAsync(ct);
@@ -112,7 +112,7 @@ public sealed class EnqueueOneTransactionalSpec : ActaRuntimeTestBase<Conformanc
         await using (var tx = await conn.BeginTransactionAsync(ct))
         {
             var reinserted = await Jobs.EnqueueAsync(tx, Request(key: key), ct);
-            Assert.Equal(JobEnqueueAction.Inserted, reinserted.Action);
+            Assert.Equal(EnqueueJobAction.Inserted, reinserted.Action);
             await tx.CommitAsync(ct);
         }
 
@@ -198,7 +198,7 @@ public sealed class EnqueueOneTransactionalSpec : ActaRuntimeTestBase<Conformanc
 
             // A same-batch duplicate deduplication key is a deterministic pre-SQL rejection. Acta throws
             // the translated type once (no retry) and the caller must roll back the whole transaction.
-            IReadOnlyList<JobEnqueueRequest> batch = [Request(key: dupKey), Request(key: dupKey)];
+            IReadOnlyList<EnqueueJobRequest> batch = [Request(key: dupKey), Request(key: dupKey)];
             await Assert.ThrowsAsync<DuplicateDeduplicationKeyInBatchException>(async () => await Jobs.EnqueueBatchAsync(tx, batch, ct));
 
             await tx.RollbackAsync(ct);
@@ -229,11 +229,11 @@ public sealed class EnqueueOneTransactionalSpec : ActaRuntimeTestBase<Conformanc
         Assert.True(_wakeup.Count > before);
     }
 
-    private JobEnqueueRequest Request(string jobName = "add-numbers", string? key = null)
+    private EnqueueJobRequest Request(string jobName = "add-numbers", string? key = null)
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 1));
-        return new JobEnqueueRequest(TestNamespace, jobName, payload, DeduplicationKey: key);
+        return new EnqueueJobRequest(TestNamespace, jobName, payload, DeduplicationKey: key);
     }
 
     private static async Task InsertBusinessRowAsync(DbConnection conn, DbTransaction tx, string probe, string marker, CancellationToken ct)

@@ -10,7 +10,7 @@ internal readonly record struct JobRoute(string Namespace, string JobName, JobPa
 /// Maps a job input CLR type to its enqueue route, backing the typed
 /// <see cref="IJobs.EnqueueAsync{TInput}(TInput, JobEnqueueOptions, CancellationToken)"/> and
 /// <see cref="IJobs.RunAndWaitAsync{TInput}"/> facade. Built once at <see cref="ActaServiceCollectionExtensions.UseActa"/>
-/// from the declared catalogs (Reference and Run); the raw <see cref="JobEnqueueRequest"/> path carries the namespace
+/// from the declared catalogs (Reference and Run); the raw <see cref="EnqueueJobRequest"/> path carries the namespace
 /// and name and needs no index. When one type is registered under several namespaces or appears as <c>NoInput</c> for
 /// several jobs in one, <see cref="Resolve"/> reports the ambiguity and points the caller at the namespace option or the raw path.
 /// </summary>
@@ -67,7 +67,7 @@ internal sealed class JobTypeIndex
             throw new InvalidOperationException(
                 $"No registered job has input type '{inputType.FullName}'. Register the owning manifest via "
                     + "j.Reference<TManifest>(...) or j.Run<TManifest>(...), or enqueue via the raw "
-                    + "JobEnqueueRequest path."
+                    + "EnqueueJobRequest path."
             );
         }
 
@@ -89,7 +89,7 @@ internal sealed class JobTypeIndex
             var candidates = string.Join(", ", routes.Select(r => $"{r.Namespace}/{r.JobName}"));
             throw new InvalidOperationException(
                 $"Input type '{inputType.FullName}' maps to multiple jobs ({candidates}). Set "
-                    + "JobEnqueueOptions.Namespace to disambiguate, or use the raw JobEnqueueRequest path."
+                    + "JobEnqueueOptions.Namespace to disambiguate, or use the raw EnqueueJobRequest path."
             );
         }
 
@@ -100,6 +100,6 @@ internal sealed class JobTypeIndex
         new(
             $"Input type '{inputType.FullName}' maps to multiple jobs in namespace '{ns}' "
                 + $"({string.Join(", ", scoped.Select(r => r.JobName))}): typically several no-input jobs sharing "
-                + "NoInput. Enqueue these via the raw JobEnqueueRequest path, which names the job."
+                + "NoInput. Enqueue these via the raw EnqueueJobRequest path, which names the job."
         );
 }

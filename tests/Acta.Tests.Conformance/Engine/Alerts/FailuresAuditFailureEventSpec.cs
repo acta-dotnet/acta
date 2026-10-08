@@ -40,7 +40,7 @@ public sealed class FailuresAuditFailureEventSpec : ActaRuntimeTestBase<Conforma
         var ct = TestContext.Current.CancellationToken;
         FailuresAuditProbe.Reset(TestNamespace, failingAttempts: Budget);
 
-        var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, JobName, JobPayload.None), ct);
+        var job = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, JobName, JobPayload.None), ct);
         await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => FailuresAuditProbe.Attempts(TestNamespace), Budget, ct);
 
         // Exactly one, not one per attempt: the five in-budget re-arms each carry a reschedule, which
@@ -80,7 +80,7 @@ public sealed class FailuresAuditFailureEventSpec : ActaRuntimeTestBase<Conforma
         var ct = TestContext.Current.CancellationToken;
         FailuresAuditProbe.Reset(TestNamespace, failingAttempts: 0);
 
-        var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, JobName, JobPayload.None), ct);
+        var job = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, JobName, JobPayload.None), ct);
         await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => FailuresAuditProbe.Attempts(TestNamespace), 1, ct);
 
         // The status is asserted beside the silence, because an attempt that never ran would also write
@@ -98,7 +98,7 @@ public sealed class FailuresAuditFailureEventSpec : ActaRuntimeTestBase<Conforma
         var ct = TestContext.Current.CancellationToken;
         FailuresAuditProbe.Reset(TestNamespace, failingAttempts: 2);
 
-        var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, JobName, JobPayload.None), ct);
+        var job = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, JobName, JobPayload.None), ct);
         await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => FailuresAuditProbe.Attempts(TestNamespace), 3, ct);
 
         // The two throws were re-arms, which this level drops, so the success has no failure to answer.

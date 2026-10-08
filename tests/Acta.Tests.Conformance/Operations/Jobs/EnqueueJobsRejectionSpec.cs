@@ -19,9 +19,9 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Enqueue",
     Contract = "A batch with a same-batch duplicate DeduplicationKey, duplicate tag names, or an unknown namespace or job is rejected atomically and no job rows are inserted."
 )]
-public sealed class EnqueueBatchRejectionSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+public sealed class EnqueueJobsRejectionSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
-    // Enqueue-only spec - InitializeAsync (worker mode) registers the namespace so EnqueueBatch.Run
+    // Enqueue-only spec - InitializeAsync (worker mode) registers the namespace so EnqueueJobs.Run
     // can resolve it; we never start the claim/execute loop.
     protected override bool RunAsWorker => true;
 
@@ -83,7 +83,7 @@ public sealed class EnqueueBatchRejectionSpec : ActaRuntimeTestBase<ConformanceF
 
         var result = await RunAsync(command, ct);
         Assert.Equal(4, result.Count);
-        Assert.All(result, r => Assert.Equal(JobEnqueueAction.Inserted, r.Action));
+        Assert.All(result, r => Assert.Equal(EnqueueJobAction.Inserted, r.Action));
         Assert.Equal(before + 4, await CountJobsAsync(ct));
     }
 
@@ -139,14 +139,14 @@ public sealed class EnqueueBatchRejectionSpec : ActaRuntimeTestBase<ConformanceF
         var ct = TestContext.Current.CancellationToken;
         var taken = (await RunAsync([Row(null, new AddNumbers(1, 1))], ct))[0];
         var before = await CountJobsAsync(ct);
-        var enqueueBatch = Services.GetRequiredService<EnqueueBatchHandler>();
+        var enqueueJobs = Services.GetRequiredService<EnqueueJobsHandler>();
         JobEnqueueValues[] rows =
         [
             JobEnqueue.Canonicalize(Row(null, new AddNumbers(2, 2), [new TagInput("probe", "taken-ref")])),
             JobEnqueue.Canonicalize(Row(null, new AddNumbers(3, 3))),
         ];
 
-        await Assert.ThrowsAnyAsync<Exception>(() => enqueueBatch.InsertAsync(rows, [taken.JobRef.Value, JobRef.New().Value], null, ct));
+        await Assert.ThrowsAnyAsync<Exception>(() => enqueueJobs.InsertAsync(rows, [taken.JobRef.Value, JobRef.New().Value], null, ct));
 
         Assert.Equal(before, await CountJobsAsync(ct));
         Assert.Empty(await Db.From<TagEntity>().Where(t => t.Name == "probe").ToListAsync(ct));
@@ -165,10 +165,10 @@ public sealed class EnqueueBatchRejectionSpec : ActaRuntimeTestBase<ConformanceF
         );
     }
 
-    private async Task<IReadOnlyList<JobEnqueueResponse>> RunAsync(IReadOnlyList<JobEnqueueValues> command, CancellationToken ct)
+    private async Task<IReadOnlyList<EnqueueJobResponse>> RunAsync(IReadOnlyList<JobEnqueueValues> command, CancellationToken ct)
     {
         _ = Services.GetRequiredService<ISqlDialect>();
-        return await EnqueueTestOps.EnqueueBatchAsync(Services, command, ct);
+        return (await EnqueueTestOps.EnqueueBatchAsync(Services, command, ct)).Jobs;
     }
 
     private async Task<int> CountJobsAsync(CancellationToken ct)

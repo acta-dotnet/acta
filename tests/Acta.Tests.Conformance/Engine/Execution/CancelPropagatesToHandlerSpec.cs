@@ -28,7 +28,7 @@ public sealed class CancelPropagatesToHandlerSpec : ActaRuntimeTestBase<Conforma
         var timeout = SpecWaits.Gate;
         CancellableHandler.Reset(TestNamespace);
 
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "cancellable", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "cancellable", JobPayload.None), ct);
 
         // Dispatch in the background; the handler blocks on its token until cancelled.
         var run = Runtime.RunOnceAsync(enqueued, ct);

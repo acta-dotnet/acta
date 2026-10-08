@@ -48,7 +48,7 @@ internal sealed class DefinitionEntity : IEntity<int>
 
     /// <summary>
     /// Lifecycle of this definition (<c>Active</c> / <c>Retired</c>); enqueue is rejected at the DB
-    /// boundary by <c>enqueue_batch</c> when not <c>Active</c>. No override. Registration writes
+    /// boundary by <c>enqueue_jobs</c> when not <c>Active</c>. No override. Registration writes
     /// <c>Active</c> and nothing else: <c>Retired</c> is written only by the operator retire verb, never
     /// by registration, so a definition absent from a manifest keeps running.
     /// </summary>

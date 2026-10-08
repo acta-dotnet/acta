@@ -26,7 +26,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
     public async Task Arming_stores_the_expiration_on_the_slot_and_the_job()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal-timeout", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal-timeout", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
@@ -46,7 +46,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
     public async Task Signal_before_the_deadline_wins()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal-timeout-typed", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal-timeout-typed", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         Assert.Equal(
@@ -68,7 +68,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
     public async Task Presence_signal_before_the_deadline_resumes_the_handler()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal-timeout", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal-timeout", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(enqueued, "go", JobPayload.None, ct: ct)).Action);
@@ -83,7 +83,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
     public async Task Expired_non_try_wait_cancels_the_job_budget_neutrally()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal-timeout", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal-timeout", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var before = await ReadJobAsync(enqueued.JobId, ct);
@@ -110,7 +110,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
     public async Task Claim_records_the_real_prior_status_on_the_started_event()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal-timeout", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal-timeout", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         await ExpireWaitAsync(Db, enqueued.JobId, "go", ct);
 
@@ -137,7 +137,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
     public async Task Expired_try_wait_resumes_the_handler_once()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-try-wait-signal-timeout", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-try-wait-signal-timeout", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         await ExpireWaitAsync(Db, enqueued.JobId, "go", ct);
 
@@ -160,7 +160,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
     {
         var ct = TestContext.Current.CancellationToken;
         var received = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "job-try-wait-signal-timeout-typed", JobPayload.None),
+            new EnqueueJobRequest(TestNamespace, "job-try-wait-signal-timeout-typed", JobPayload.None),
             ct
         );
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(received, ct));
@@ -172,7 +172,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         );
 
         var expired = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "job-try-wait-signal-timeout-typed", JobPayload.None),
+            new EnqueueJobRequest(TestNamespace, "job-try-wait-signal-timeout-typed", JobPayload.None),
             ct
         );
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(expired, ct));
@@ -188,7 +188,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
     public async Task Replay_does_not_extend_the_stored_expiration()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal-timeout-replay", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal-timeout-replay", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         var armed = (await ReadSignalsAsync(enqueued.JobId, ct)).Single().DueAtUtc;
         Assert.NotNull(armed);
@@ -209,7 +209,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "job-try-wait-signal-timeout-typed", JobPayload.None),
+            new EnqueueJobRequest(TestNamespace, "job-try-wait-signal-timeout-typed", JobPayload.None),
             ct
         );
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
@@ -238,7 +238,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "job-try-wait-signal-timeout-then-hold", JobPayload.None),
+            new EnqueueJobRequest(TestNamespace, "job-try-wait-signal-timeout-then-hold", JobPayload.None),
             ct
         );
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
@@ -282,7 +282,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "job-try-wait-signal-timeout-then-unbounded", JobPayload.None),
+            new EnqueueJobRequest(TestNamespace, "job-try-wait-signal-timeout-then-unbounded", JobPayload.None),
             ct
         );
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
@@ -316,7 +316,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "job-wait-signal-timeout-upgrade", JobPayload.None),
+            new EnqueueJobRequest(TestNamespace, "job-wait-signal-timeout-upgrade", JobPayload.None),
             ct
         );
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
@@ -347,7 +347,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "job-wait-signal-timeout-downgrade", JobPayload.None),
+            new EnqueueJobRequest(TestNamespace, "job-wait-signal-timeout-downgrade", JobPayload.None),
             ct
         );
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
@@ -367,7 +367,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
     public async Task Bounded_wait_arms_a_slot_an_unbounded_arrival_already_created()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
 
         // The unbounded arrival's slot, armed by the handler itself. Two first arrivals racing the same
         // absent slot leave exactly this state for the loser, which is the interleaving this pins: the
@@ -391,7 +391,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
     public async Task Unbounded_wait_keeps_its_old_shape()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var slot = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct));

@@ -59,7 +59,7 @@ public sealed class ChildJobCrossNamespaceSpec : ActaTestBase<ConformanceFixture
     {
         var ct = TestContext.Current.CancellationToken;
         var parent = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "job-parent-cross-namespace", JobPayload.Json(new CrossNamespaceStart(ChildNamespace))),
+            new EnqueueJobRequest(TestNamespace, "job-parent-cross-namespace", JobPayload.Json(new CrossNamespaceStart(ChildNamespace))),
             ct
         );
 

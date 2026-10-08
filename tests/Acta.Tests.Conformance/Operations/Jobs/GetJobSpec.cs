@@ -29,18 +29,20 @@ public sealed class GetJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
 
         var deduplicationKey = TestKey("get-job");
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
-        var results = await EnqueueTestOps.EnqueueBatchAsync(
-            Services,
-            [
-                new JobEnqueueValues(
-                    NamespaceName: TestNamespace,
-                    JobName: "add-numbers",
-                    Input: payload,
-                    DeduplicationKey: deduplicationKey
-                ),
-            ],
-            ct
-        );
+        var results = (
+            await EnqueueTestOps.EnqueueBatchAsync(
+                Services,
+                [
+                    new JobEnqueueValues(
+                        NamespaceName: TestNamespace,
+                        JobName: "add-numbers",
+                        Input: payload,
+                        DeduplicationKey: deduplicationKey
+                    ),
+                ],
+                ct
+            )
+        ).Jobs;
         var jobId = results[0].JobId;
 
         var snapshot = await Services.GetRequiredService<GetJobHandler>().ReadAsync(jobId, ct);
@@ -75,11 +77,13 @@ public sealed class GetJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
         var tenantId = (await Operations.Tenants.RegisterAsync(tenantKey, null, null, ct)).TenantId;
 
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
-        var results = await EnqueueTestOps.EnqueueBatchAsync(
-            Services,
-            [new JobEnqueueValues(NamespaceName: TestNamespace, JobName: "add-numbers", Input: payload, TenantKey: tenantKey)],
-            ct
-        );
+        var results = (
+            await EnqueueTestOps.EnqueueBatchAsync(
+                Services,
+                [new JobEnqueueValues(NamespaceName: TestNamespace, JobName: "add-numbers", Input: payload, TenantKey: tenantKey)],
+                ct
+            )
+        ).Jobs;
 
         var snapshot = await Services.GetRequiredService<GetJobHandler>().ReadAsync(results[0].JobId, ct);
 

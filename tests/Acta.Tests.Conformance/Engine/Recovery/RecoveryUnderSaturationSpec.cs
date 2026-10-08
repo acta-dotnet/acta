@@ -45,7 +45,7 @@ public sealed class RecoveryUnderSaturationSpec : ActaRuntimeTestBase<Conformanc
     public async Task Sweep_runs_while_the_only_executor_is_held()
     {
         var ct = TestContext.Current.CancellationToken;
-        var blocking = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "chaos-holding", JobPayload.None), ct);
+        var blocking = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "chaos-holding", JobPayload.None), ct);
         ChaosProbes.Reset(blocking.JobId);
 
         using var hostCts = CancellationTokenSource.CreateLinkedTokenSource(ct);

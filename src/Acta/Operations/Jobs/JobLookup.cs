@@ -5,7 +5,7 @@ namespace Acta;
 /// a <c>(JobNamespace, DeduplicationKey)</c> pair that resolves to the root <c>job</c> row (root only,
 /// parent_id IS NULL), or the database-local numeric <see cref="JobId"/>. Construct via
 /// <see cref="ByRef"/>, <see cref="ByDeduplicationKey"/>, or <see cref="ById"/>; implicit conversions
-/// exist for <see cref="JobRef"/> and <see cref="JobEnqueueResponse"/>.
+/// exist for <see cref="JobRef"/> and <see cref="EnqueueJobResponse"/>.
 /// </summary>
 public readonly record struct JobLookup
 {
@@ -69,7 +69,7 @@ public readonly record struct JobLookup
 
     public static implicit operator JobLookup(JobRef jobRef) => ByRef(jobRef);
 
-    public static implicit operator JobLookup(JobEnqueueResponse outcome)
+    public static implicit operator JobLookup(EnqueueJobResponse outcome)
     {
         ArgumentNullException.ThrowIfNull(outcome);
         return ById(outcome.JobId);

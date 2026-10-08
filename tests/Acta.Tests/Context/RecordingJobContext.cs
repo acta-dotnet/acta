@@ -26,7 +26,7 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>?
     public List<JobEnqueueOptions> StartOptions { get; } = [];
 
     /// <summary>Raw child enqueue requests in start order.</summary>
-    public List<JobEnqueueRequest> RawStarted { get; } = [];
+    public List<EnqueueJobRequest> RawStarted { get; } = [];
 
     /// <summary>Steps invoked, in order: name and the resolved <see cref="StepOptions"/> each call forwarded.</summary>
     public List<(string Name, StepOptions Options)> Steps { get; } = [];
@@ -44,7 +44,7 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>?
     public override string JobName => "parent";
     public override CancellationToken CancellationToken => CancellationToken.None;
 
-    private protected override Task<JobEnqueueResponse> StartChildCoreAsync<TInput>(
+    private protected override Task<EnqueueJobResponse> StartChildCoreAsync<TInput>(
         TInput input,
         JobEnqueueOptions options,
         CancellationToken ct
@@ -56,7 +56,7 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>?
         Started.Add((name, input));
         StartOptions.Add(options);
         Events.Add($"start:{name}");
-        return Task.FromResult(new JobEnqueueResponse(id, JobRef.New(), JobEnqueueAction.Inserted));
+        return Task.FromResult(new EnqueueJobResponse(id, JobRef.New(), EnqueueJobAction.Inserted));
     }
 
     private protected override Task<SignalSlotState> WaitSignalCoreAsync(string name, CancellationToken ct)
@@ -138,14 +138,14 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>?
     private protected override T? DeserializeSignalPayload<T>(byte valueFormatId, byte[] value)
         where T : default => Unsupported<T?>();
 
-    private protected override Task<JobEnqueueResponse> StartChildCoreAsync(JobEnqueueRequest request, CancellationToken ct)
+    private protected override Task<EnqueueJobResponse> StartChildCoreAsync(EnqueueJobRequest request, CancellationToken ct)
     {
         var name = request.DeduplicationKey ?? throw new InvalidOperationException("child request carried no deduplication key.");
         var id = ++_nextId;
         _idToName[id] = name;
         RawStarted.Add(request);
         Events.Add($"start:{name}");
-        return Task.FromResult(new JobEnqueueResponse(id, JobRef.New(), JobEnqueueAction.Inserted));
+        return Task.FromResult(new EnqueueJobResponse(id, JobRef.New(), EnqueueJobAction.Inserted));
     }
 
     private protected override Task<TResult?> GetChildResultCoreAsync<TResult>(long childJobId, CancellationToken ct)

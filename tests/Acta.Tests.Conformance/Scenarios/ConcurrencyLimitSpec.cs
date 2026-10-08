@@ -171,7 +171,7 @@ public sealed class ConcurrencyLimitSpec : ActaRuntimeTestBase<ConformanceFixtur
         for (var i = 0; i < jobs; i++)
         {
             await Jobs.EnqueueAsync(
-                new JobEnqueueRequest(TestNamespace, "concurrency-limit-probe", JobPayload.None) { ConcurrencyKey = key },
+                new EnqueueJobRequest(TestNamespace, "concurrency-limit-probe", JobPayload.None) { ConcurrencyKey = key },
                 ct
             );
         }

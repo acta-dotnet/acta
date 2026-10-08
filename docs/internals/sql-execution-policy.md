@@ -135,7 +135,7 @@ first compile, or at a recompile after a statistic the plan read goes stale. An 
 can therefore switch to that scan at any time. A pinned seek reads more pages than a scan of a small
 child table, but it locks only the batch's own keys.
 
-- Both `runtimes` inserts in `enqueue_batch` carry `OPTION (LOOP JOIN)`, so `fk_runtimes_jobs` and
+- Both `runtimes` inserts in `enqueue_jobs` carry `OPTION (LOOP JOIN)`, so `fk_runtimes_jobs` and
   `fk_runtimes_lanes` seek each parent by key and lock only rows the batch inserted or already holds.
 - The same rule covers set-based deletes and locking reads driven by a table variable.
   `purge_expired_data` names every permanent table it deletes from or reads under `UPDLOCK` through

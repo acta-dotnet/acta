@@ -24,7 +24,7 @@ public sealed class ExplainScenarioSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Explains_a_suspended_job()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var x = await Jobs.ExplainAsync(JobLookup.ById(enqueued.JobId), ct);
@@ -43,7 +43,7 @@ public sealed class ExplainScenarioSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Explains_a_completed_job()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(
             ControlAction.Applied,
@@ -64,7 +64,7 @@ public sealed class ExplainScenarioSpec : ActaRuntimeTestBase<ConformanceFixture
     {
         var ct = TestContext.Current.CancellationToken;
         var parent = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(
+            new EnqueueJobRequest(
                 TestNamespace,
                 "job-parent-try-wait-child",
                 JobPayload.Json(new TestJobs.TryWaitChildStart("job-wait-signal"))
@@ -93,7 +93,7 @@ public sealed class ExplainScenarioSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Explains_a_completed_durable_step()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-step-basic", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-step-basic", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var x = await Jobs.ExplainAsync(JobLookup.ById(enqueued.JobId), ct);

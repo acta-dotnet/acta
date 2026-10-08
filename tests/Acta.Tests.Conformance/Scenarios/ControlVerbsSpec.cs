@@ -29,7 +29,7 @@ public sealed class ControlVerbsSpec : ActaRuntimeTestBase<ConformanceFixture, T
     public async Task Pause_then_resume_round_trips_status_reason_and_events()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await EnqueueOneAsync(ct);
+        var enqueued = await EnqueueJobAsync(ct);
 
         var pause = await Jobs.PauseAsync(enqueued, "maintenance window", ct: ct);
         Assert.Equal(enqueued.JobId, pause.JobId);
@@ -65,7 +65,7 @@ public sealed class ControlVerbsSpec : ActaRuntimeTestBase<ConformanceFixture, T
     public async Task Cancel_terminates_and_persists_reason()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await EnqueueOneAsync(ct);
+        var enqueued = await EnqueueJobAsync(ct);
 
         var cancel = await Jobs.CancelAsync(enqueued, "no longer needed", actorKey: "spec-actor", ct: ct);
         Assert.Equal(ControlAction.Applied, cancel.Action);
@@ -91,7 +91,7 @@ public sealed class ControlVerbsSpec : ActaRuntimeTestBase<ConformanceFixture, T
     public async Task Restart_revives_terminal_resets_failure_clears_retention_keeps_execution_number()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await EnqueueOneAsync(ct);
+        var enqueued = await EnqueueJobAsync(ct);
 
         // Drive one real execution (own per-test namespace, so no cross-test claim contention) so
         // execution_number is non-zero - otherwise the "unchanged" assertion below would be a vacuous
@@ -127,7 +127,7 @@ public sealed class ControlVerbsSpec : ActaRuntimeTestBase<ConformanceFixture, T
     public async Task Resume_non_paused_job_is_rejected_with_current_status()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await EnqueueOneAsync(ct);
+        var enqueued = await EnqueueJobAsync(ct);
 
         // Freshly enqueued job is Ready, not Paused.
         var resume = await Jobs.ResumeAsync(enqueued, ct: ct);
@@ -148,13 +148,13 @@ public sealed class ControlVerbsSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Null(result.Status);
     }
 
-    private async Task<JobEnqueueResponse> EnqueueOneAsync(CancellationToken ct)
+    private async Task<EnqueueJobResponse> EnqueueJobAsync(CancellationToken ct)
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(2, 3));
 
         return await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(
+            new EnqueueJobRequest(
                 JobNamespace: TestNamespace,
                 JobName: "add-numbers",
                 Input: payload,

@@ -124,15 +124,17 @@ public sealed class LaneOrderingSpec : ActaRuntimeTestBase<ConformanceFixture, T
     public async Task Batch_lands_members_in_batch_order()
     {
         var ct = TestContext.Current.CancellationToken;
-        var outcomes = await Jobs.EnqueueBatchAsync(
-            [
-                Request("lane-step", new LaneStep("orders", "p1"), "orders"),
-                Request("lane-step", new LaneStep("billing", "q"), "billing"),
-                Request("lane-step", new LaneStep("orders", "p2"), "orders"),
-                Request("lane-step", new LaneStep("orders", "p3"), "orders"),
-            ],
-            ct
-        );
+        var outcomes = (
+            await Jobs.EnqueueBatchAsync(
+                [
+                    Request("lane-step", new LaneStep("orders", "p1"), "orders"),
+                    Request("lane-step", new LaneStep("billing", "q"), "billing"),
+                    Request("lane-step", new LaneStep("orders", "p2"), "orders"),
+                    Request("lane-step", new LaneStep("orders", "p3"), "orders"),
+                ],
+                ct
+            )
+        ).Jobs;
 
         Assert.Equal(outcomes.Select(o => o.JobId).Order(), outcomes.Select(o => o.JobId));
         Assert.Equal(JobStatusCode.Ready, await StatusAsync(outcomes[0], ct));
@@ -157,19 +159,21 @@ public sealed class LaneOrderingSpec : ActaRuntimeTestBase<ConformanceFixture, T
         );
         await DrainAsync([finished], ct);
 
-        var outcomes = await Jobs.EnqueueBatchAsync(
-            [
-                Request("lane-step", new LaneStep("orders", "a"), "orders") with
-                {
-                    DeduplicationKey = "a",
-                },
-                Request("lane-step", new LaneStep("orders", "b"), "orders"),
-                Request("lane-step", new LaneStep("orders", "c"), "orders"),
-            ],
-            ct
-        );
+        var outcomes = (
+            await Jobs.EnqueueBatchAsync(
+                [
+                    Request("lane-step", new LaneStep("orders", "a"), "orders") with
+                    {
+                        DeduplicationKey = "a",
+                    },
+                    Request("lane-step", new LaneStep("orders", "b"), "orders"),
+                    Request("lane-step", new LaneStep("orders", "c"), "orders"),
+                ],
+                ct
+            )
+        ).Jobs;
 
-        Assert.Equal(JobEnqueueAction.Deduplicated, outcomes[0].Action);
+        Assert.Equal(EnqueueJobAction.Deduplicated, outcomes[0].Action);
         Assert.Equal(finished.JobId, outcomes[0].JobId);
         Assert.Equal(JobStatusCode.Ready, await StatusAsync(outcomes[1], ct));
         Assert.Equal(JobStatusCode.Blocked, await StatusAsync(outcomes[2], ct));
@@ -233,19 +237,19 @@ public sealed class LaneOrderingSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(["d1", "d2"], LaneProbes.Ran(TestNamespace).Where(l => l != "e"));
     }
 
-    private JobEnqueueRequest Request<TInput>(string jobName, TInput input, string? lane)
+    private EnqueueJobRequest Request<TInput>(string jobName, TInput input, string? lane)
         where TInput : notnull => new(TestNamespace, jobName, JobPayload.Json(input), Lane: lane);
 
-    private async Task<JobEnqueueResponse> EnqueueAsync<TInput>(string jobName, TInput input, string lane, CancellationToken ct)
+    private async Task<EnqueueJobResponse> EnqueueAsync<TInput>(string jobName, TInput input, string lane, CancellationToken ct)
         where TInput : notnull => await Jobs.EnqueueAsync(Request(jobName, input, lane), ct);
 
-    private async Task<JobEnqueueResponse> EnqueueStepAsync(string lane, string label, JobPriorityCode priority, CancellationToken ct) =>
+    private async Task<EnqueueJobResponse> EnqueueStepAsync(string lane, string label, JobPriorityCode priority, CancellationToken ct) =>
         await Jobs.EnqueueAsync(Request("lane-step", new LaneStep(lane, label), lane) with { Priority = priority }, ct);
 
-    private async Task<JobStatusCode> StatusAsync(JobEnqueueResponse outcome, CancellationToken ct) =>
+    private async Task<JobStatusCode> StatusAsync(EnqueueJobResponse outcome, CancellationToken ct) =>
         (await ReadJobAsync(outcome.JobId, ct)).Status;
 
-    private async Task<List<JobStatusCode>> StatusesAsync(IReadOnlyList<JobEnqueueResponse> jobs, CancellationToken ct)
+    private async Task<List<JobStatusCode>> StatusesAsync(IReadOnlyList<EnqueueJobResponse> jobs, CancellationToken ct)
     {
         var statuses = new List<JobStatusCode>(jobs.Count);
         foreach (var job in jobs)
@@ -258,7 +262,7 @@ public sealed class LaneOrderingSpec : ActaRuntimeTestBase<ConformanceFixture, T
 
     // One claim per tick, until every listed job is terminal: a lane that promoted nothing would leave a
     // member Blocked and run the tick budget out.
-    private async Task DrainAsync(IReadOnlyList<JobEnqueueResponse> jobs, CancellationToken ct)
+    private async Task DrainAsync(IReadOnlyList<EnqueueJobResponse> jobs, CancellationToken ct)
     {
         for (var tick = 0; tick < 60; tick++)
         {

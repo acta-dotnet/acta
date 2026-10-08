@@ -62,7 +62,7 @@ public sealed class SqlServerLaneIsolationTests : ActaRuntimeTestBase<SqlServerC
         var outcome = await Jobs.EnqueueAsync(tx, Step($"lane-{level}".ToLowerInvariant()), ct);
         await tx.CommitAsync(ct);
 
-        Assert.Equal(JobEnqueueAction.Inserted, outcome.Action);
+        Assert.Equal(EnqueueJobAction.Inserted, outcome.Action);
     }
 
     // Allowing SNAPSHOT only makes it available to a session that asks for it; it changes no default.
@@ -75,6 +75,6 @@ public sealed class SqlServerLaneIsolationTests : ActaRuntimeTestBase<SqlServerC
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
-    private JobEnqueueRequest Step(string lane) =>
+    private EnqueueJobRequest Step(string lane) =>
         new(TestNamespace, "lane-step", JobPayload.Json(new LaneStep(lane, "isolated")), Lane: lane);
 }

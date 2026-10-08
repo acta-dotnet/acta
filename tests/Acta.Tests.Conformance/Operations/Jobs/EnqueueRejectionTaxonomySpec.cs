@@ -19,11 +19,11 @@ public sealed class EnqueueRejectionTaxonomySpec : ActaRuntimeTestBase<Conforman
 {
     protected override bool RunAsWorker => true;
 
-    private JobEnqueueRequest Request(string jobName = "add-numbers", string? tenantKey = null)
+    private EnqueueJobRequest Request(string jobName = "add-numbers", string? tenantKey = null)
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
-        return new JobEnqueueRequest(TestNamespace, jobName, payload, TenantKey: tenantKey);
+        return new EnqueueJobRequest(TestNamespace, jobName, payload, TenantKey: tenantKey);
     }
 
     [Fact(DisplayName = "Enqueue into a suspended namespace throws NamespaceSuspended")]

@@ -42,16 +42,16 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var ready = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
-        var paused = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+        var ready = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+        var paused = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
         Assert.Equal(ControlAction.Applied, (await Jobs.PauseAsync(paused, "parked for the retire", ct: ct)).Action);
 
-        var suspended = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+        var suspended = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(suspended, ct));
         Assert.Equal(JobStatusCode.Suspended, (await ReadJobAsync(suspended.JobId, ct)).Status);
 
         var untouched = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 2))),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 2))),
             ct
         );
 
@@ -107,7 +107,7 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         var (leaseTtl, ns, workerId) = await DepsAsync(ct);
 
         var running = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
             ct
         );
         var claimed = Assert.Single(
@@ -152,7 +152,7 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var parent = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
+        var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         Assert.Equal(JobStatusCode.Suspended, (await ReadJobAsync(parent.JobId, ct)).Status);
 
@@ -175,7 +175,7 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(ControlAction.Applied, (await RetireAsync("add-numbers", ct)).Action);
 
         var rejected = await Assert.ThrowsAsync<EnqueueRejectedException>(async () =>
-            await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct)
+            await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct)
         );
         Assert.Equal(EnqueueRejectionReason.DefinitionRetired, rejected.Reason);
     }
@@ -187,7 +187,7 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         var before = await Operations.Definitions.GetAsync(TestNamespace, "add-numbers", ct);
         var eventsBefore = await CountDefinitionEventsAsync(before!.DefinitionId, ct);
         var parked = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))),
             ct
         );
 
@@ -211,7 +211,7 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var parked = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+        var parked = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
         Assert.Equal(ControlAction.Applied, (await RetireAsync("job-wait-signal", ct)).Action);
 
         var definition = await Operations.Definitions.GetAsync(TestNamespace, "job-wait-signal", ct);
@@ -237,14 +237,14 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         await DefinitionTestOps.RegisterAsync(Services, ns, OlderGeneration, descriptors, ct);
         Assert.Equal(DefinitionStatusCode.Retired, (await Operations.Definitions.GetAsync(TestNamespace, "add-numbers", ct))!.Status);
         await Assert.ThrowsAsync<EnqueueRejectedException>(async () =>
-            await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct)
+            await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct)
         );
 
         await DefinitionTestOps.RegisterAsync(Services, ns, Generation, descriptors, ct);
         Assert.Equal(DefinitionStatusCode.Active, (await Operations.Definitions.GetAsync(TestNamespace, "add-numbers", ct))!.Status);
 
         var accepted = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))),
             ct
         );
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(accepted.JobId, ct)).Status);

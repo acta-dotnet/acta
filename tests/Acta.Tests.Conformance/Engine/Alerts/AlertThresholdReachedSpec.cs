@@ -32,7 +32,7 @@ public sealed class AlertThresholdReachedSpec : ActaRuntimeTestBase<ConformanceF
         var ct = TestContext.Current.CancellationToken;
         RetryProbe.Reset(TestNamespace);
 
-        var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
+        var job = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
 
         // Three attempts: two non-terminal re-arms (hit threshold at 2) then one terminal Failed.
         await RunUntilAttemptsAsync(job, () => RetryProbe.Attempts(TestNamespace), 3, ct);
@@ -64,7 +64,7 @@ public sealed class AlertThresholdReachedSpec : ActaRuntimeTestBase<ConformanceF
         var ct = TestContext.Current.CancellationToken;
         RetryProbe.Reset(TestNamespace);
 
-        var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
+        var job = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
 
         // Three attempts with a threshold of one exercise the threshold crossing, the suppressed
         // above-threshold branch, and the terminal final-failure branch.
@@ -95,7 +95,7 @@ public sealed class AlertThresholdReachedSpec : ActaRuntimeTestBase<ConformanceF
         var ct = TestContext.Current.CancellationToken;
         RetryProbe.Reset(TestNamespace);
 
-        var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
+        var job = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
         await RunUntilAttemptsAsync(job, () => RetryProbe.Attempts(TestNamespace), 3, ct);
 
         // Threshold=5: 3 non-terminal failures never reach it, so ThresholdReached is never emitted.
@@ -169,7 +169,7 @@ public sealed class AlertThresholdReachedSpec : ActaRuntimeTestBase<ConformanceF
         var ct = TestContext.Current.CancellationToken;
 
         // Enqueue a job to get a real jobId; not run: only the id is needed for alert rows.
-        var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
+        var job = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
         var jobId = job.JobId;
         var deduplicationKey = $"auto:99:{jobId}:threshold-reached:test-{TestId}";
 
@@ -217,7 +217,7 @@ public sealed class AlertThresholdReachedSpec : ActaRuntimeTestBase<ConformanceF
             ct
         );
 
-    private async Task RunUntilAttemptsAsync(JobEnqueueResponse job, Func<int> attempts, int target, CancellationToken ct)
+    private async Task RunUntilAttemptsAsync(EnqueueJobResponse job, Func<int> attempts, int target, CancellationToken ct)
     {
         for (var i = 0; i < target + 12 && attempts() < target; i++)
         {

@@ -45,10 +45,10 @@ internal static class ChaosSpecHelpers
         Assert.Equal(1, affected);
     }
 
-    public static async Task<JobEnqueueResponse> EnqueueNoPayloadAsync(IJobs jobs, string ns, string jobName, CancellationToken ct) =>
-        await jobs.EnqueueAsync(new JobEnqueueRequest(ns, jobName, JobPayload.None), ct);
+    public static async Task<EnqueueJobResponse> EnqueueNoPayloadAsync(IJobs jobs, string ns, string jobName, CancellationToken ct) =>
+        await jobs.EnqueueAsync(new EnqueueJobRequest(ns, jobName, JobPayload.None), ct);
 
-    public static async Task<JobEnqueueResponse> EnqueueAddNumbersAsync(
+    public static async Task<EnqueueJobResponse> EnqueueAddNumbersAsync(
         IServiceProvider services,
         IJobs jobs,
         string ns,
@@ -58,7 +58,7 @@ internal static class ChaosSpecHelpers
         var serializers = services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new TestJobs.AddNumbers(2, 3));
         return await jobs.EnqueueAsync(
-            new JobEnqueueRequest(
+            new EnqueueJobRequest(
                 JobNamespace: ns,
                 JobName: "add-numbers",
                 Input: payload,
@@ -105,7 +105,7 @@ internal static class ChaosSpecHelpers
     public static async Task StopWorkerMidCompletionRetryAsync(
         WorkerRuntime runtime,
         StoreFaultPlan faults,
-        JobEnqueueResponse enqueued,
+        EnqueueJobResponse enqueued,
         CancellationToken ct
     )
     {

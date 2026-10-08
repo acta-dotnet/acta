@@ -102,12 +102,12 @@ internal sealed class CamelCaseJobControlActionConverter()
     : JsonStringEnumConverter<ControlAction>(System.Text.Json.JsonNamingPolicy.CamelCase);
 
 /// <summary>
-/// Serializes <see cref="JobEnqueueAction"/> camelCase ("inserted", "deduplicated"), the same
+/// Serializes <see cref="EnqueueJobAction"/> camelCase ("inserted", "deduplicated"), the same
 /// convention its two sibling action enums already follow. Without this it was the one action on the
 /// API answering in PascalCase.
 /// </summary>
 internal sealed class CamelCaseJobEnqueueActionConverter()
-    : JsonStringEnumConverter<JobEnqueueAction>(System.Text.Json.JsonNamingPolicy.CamelCase);
+    : JsonStringEnumConverter<EnqueueJobAction>(System.Text.Json.JsonNamingPolicy.CamelCase);
 
 /// <summary>
 /// Serializes <see cref="TagMutationAction"/> camelCase ("applied", "notFound"), the words the tag writes

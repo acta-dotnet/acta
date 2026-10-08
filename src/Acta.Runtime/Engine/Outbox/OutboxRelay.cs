@@ -9,9 +9,9 @@ namespace Acta.Runtime;
 /// batches, coalesce duplicate handoffs, enqueue representatives through the owned batch path, then
 /// finalize under the claim token. Retry, per-group rejection isolation, quarantine, and the single
 /// bounded tick summary all live here; the source is the injected <see cref="OutboxSource"/>
-/// and the target is the owned batch enqueue, <see cref="EnqueueBatchHandler"/>.
+/// and the target is the owned batch enqueue, <see cref="EnqueueJobsHandler"/>.
 /// </summary>
-internal sealed class OutboxRelay(OutboxSource source, EnqueueBatchHandler target, ILogger<OutboxRelay>? log = null)
+internal sealed class OutboxRelay(OutboxSource source, EnqueueJobsHandler target, ILogger<OutboxRelay>? log = null)
 {
     /// <summary>Per tick: at most MaxBatches source claims of BatchSize rows. The next tick continues any backlog.</summary>
     private const int MaxBatches = 20;
@@ -234,7 +234,7 @@ internal sealed class OutboxRelay(OutboxSource source, EnqueueBatchHandler targe
         var groups = Coalesce(claimed);
 
         var immediateQuarantine = new List<(OutboxGroup Group, string Error)>();
-        var valid = new List<(JobEnqueueRequest Request, OutboxGroup Group)>();
+        var valid = new List<(EnqueueJobRequest Request, OutboxGroup Group)>();
         foreach (var group in groups)
         {
             try
@@ -362,7 +362,7 @@ internal sealed class OutboxRelay(OutboxSource source, EnqueueBatchHandler targe
     /// propagate.
     /// </summary>
     private async Task EnqueueGroupsAsync(
-        IReadOnlyList<(JobEnqueueRequest Request, OutboxGroup Group)> groups,
+        IReadOnlyList<(EnqueueJobRequest Request, OutboxGroup Group)> groups,
         Dictionary<OutboxGroup, GroupSafety> results,
         Dictionary<OutboxGroup, string> errors,
         TickBudget budget,
@@ -421,7 +421,7 @@ internal sealed class OutboxRelay(OutboxSource source, EnqueueBatchHandler targe
     /// rejection. Infrastructure faults throw.
     /// </summary>
     private async Task<(bool Exhausted, string? Error)> TryEnqueueAsync(
-        IReadOnlyList<(JobEnqueueRequest Request, OutboxGroup Group)> groups,
+        IReadOnlyList<(EnqueueJobRequest Request, OutboxGroup Group)> groups,
         TickBudget budget,
         TickCounters counters,
         CancellationToken ct
@@ -434,13 +434,13 @@ internal sealed class OutboxRelay(OutboxSource source, EnqueueBatchHandler targe
 
         try
         {
-            var outcomes = await target.HandleAsync(new EnqueueBatchCommand(groups.Select(g => g.Request).ToList()), ct);
+            var outcomes = (await target.HandleAsync(new EnqueueJobsCommand(groups.Select(g => g.Request).ToList()), ct)).Jobs;
             // Outcomes align with request order. A representative that Inserted relayed one new job and its
             // coalesced members were absorbed; a Deduplicated representative absorbs the whole group.
             for (var index = 0; index < groups.Count; index++)
             {
                 var memberRows = groups[index].Group.Rows.Count;
-                if (outcomes[index].Action == JobEnqueueAction.Inserted)
+                if (outcomes[index].Action == EnqueueJobAction.Inserted)
                 {
                     counters.Relayed++;
                     counters.Deduplicated += memberRows - 1;
@@ -464,7 +464,7 @@ internal sealed class OutboxRelay(OutboxSource source, EnqueueBatchHandler targe
     }
 
     private static void MarkSafe(
-        IReadOnlyList<(JobEnqueueRequest Request, OutboxGroup Group)> groups,
+        IReadOnlyList<(EnqueueJobRequest Request, OutboxGroup Group)> groups,
         Dictionary<OutboxGroup, GroupSafety> results
     )
     {

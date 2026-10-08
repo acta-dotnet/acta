@@ -136,7 +136,7 @@ public sealed class LaneLockOrderSpec : ActaRuntimeTestBase<ConformanceFixture, 
             // Every lane exists before the race, so both batches go straight to locking the same lane rows;
             // a lane one batch creates would instead hold the other on its uncommitted insert.
             string[] lanes = [.. Enumerable.Range(0, 8).Select(i => $"{(char)('a' + i)}-{round}")];
-            var seeds = await Jobs.EnqueueBatchAsync([.. lanes.Select(l => Step(l, $"seed-{l}"))], ct);
+            var seeds = (await Jobs.EnqueueBatchAsync([.. lanes.Select(l => Step(l, $"seed-{l}"))], ct)).Jobs;
             var complete = await StartedAsync(seeds[0], ct);
 
             var batches = Enumerable
@@ -195,7 +195,7 @@ public sealed class LaneLockOrderSpec : ActaRuntimeTestBase<ConformanceFixture, 
         );
         await gate.CommitAsync(ct);
 
-        foreach (var child in await batch)
+        foreach (var child in (await batch).Jobs)
         {
             var detail = (await Jobs.GetAsync(child, ct))!;
             Assert.Equal("defined-lane", detail.Lane);
@@ -205,7 +205,7 @@ public sealed class LaneLockOrderSpec : ActaRuntimeTestBase<ConformanceFixture, 
     }
 
     // Claims and starts the job as this namespace's worker and hands back its completion, unsent.
-    private async Task<Func<Task<CompleteExecutionResponse>>> StartedAsync(JobEnqueueResponse job, CancellationToken ct)
+    private async Task<Func<Task<CompleteExecutionResponse>>> StartedAsync(EnqueueJobResponse job, CancellationToken ct)
     {
         var store = Services.GetRequiredService<Execution>();
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
@@ -231,8 +231,8 @@ public sealed class LaneLockOrderSpec : ActaRuntimeTestBase<ConformanceFixture, 
             );
     }
 
-    private JobEnqueueRequest Defined(string label) => new(TestNamespace, "lane-defined", JobPayload.Json(new LaneDefinedStep(label)));
+    private EnqueueJobRequest Defined(string label) => new(TestNamespace, "lane-defined", JobPayload.Json(new LaneDefinedStep(label)));
 
-    private JobEnqueueRequest Step(string lane, string label) =>
+    private EnqueueJobRequest Step(string lane, string label) =>
         new(TestNamespace, "lane-step", JobPayload.Json(new LaneStep(lane, label)), Lane: lane.Length == 0 ? null : lane);
 }

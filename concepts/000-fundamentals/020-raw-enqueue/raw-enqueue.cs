@@ -18,7 +18,7 @@ var jobs = host.Services.GetRequiredService<IJobs>();
 
 // Raw request names (namespace, job) explicitly instead of inferring from the input type: for
 // out-of-process callers without the manifest, or when the input type alone is ambiguous.
-var request = new JobEnqueueRequest(
+var request = new EnqueueJobRequest(
     JobNamespace: "raw-enqueue",
     JobName: "send-welcome-email",
     Input: JobPayload.Json(new SendWelcomeEmail("sam@example.com", "Sam"))

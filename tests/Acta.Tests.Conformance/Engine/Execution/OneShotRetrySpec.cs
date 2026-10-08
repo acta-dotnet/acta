@@ -28,7 +28,7 @@ public sealed class OneShotRetrySpec : ActaRuntimeTestBase<ConformanceFixture, T
         var ct = TestContext.Current.CancellationToken;
         RetryProbe.Reset(TestNamespace);
 
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
 
         // Attempts 1 and 2 are in budget (MaxAttempts = 3): each re-arms to Ready, bumping failure_count.
         await Runtime.RunOnceAsync(enqueued, ct);

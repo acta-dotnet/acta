@@ -37,7 +37,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(bounded, ct));
 
         var unbounded = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(
+            new EnqueueJobRequest(
                 TestNamespace,
                 "job-parent-wait-children-unbounded",
                 JobPayload.Json(new UnboundedChildGroupStart(["job-child-quick", "job-child-quick"]))
@@ -67,7 +67,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
     {
         var ct = TestContext.Current.CancellationToken;
         var parent = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "job-parent-try-wait-children-subtree", JobPayload.None),
+            new EnqueueJobRequest(TestNamespace, "job-parent-try-wait-children-subtree", JobPayload.None),
             ct
         );
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
@@ -247,7 +247,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
     public async Task Two_groups_in_one_job_keep_separate_deadlines()
     {
         var ct = TestContext.Current.CancellationToken;
-        var parent = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-parent-two-groups", JobPayload.None), ct);
+        var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-two-groups", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
 
         // Let the first group land, member by member, so the second group's deadline is derived only
@@ -300,7 +300,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var landed = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-parent-re-wait-same-group", JobPayload.None), ct);
+        var landed = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-re-wait-same-group", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(landed, ct));
         await CompleteHeldChildAsync(Assert.Single(await ReadLatchesAsync(landed.JobId, ct)).Name, ct);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(landed, ct));
@@ -316,7 +316,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.Equal(landedReport.First.Children[0].ChildJobId, landedReport.Second.Children[0].ChildJobId);
         Assert.NotNull(reused.Value);
 
-        var expired = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-parent-re-wait-same-group", JobPayload.None), ct);
+        var expired = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-re-wait-same-group", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(expired, ct));
         var member = await OnlyChildAsync(expired.JobId, ct);
         await ExpireGroupWaitAsync(expired.JobId, ct);
@@ -338,7 +338,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
     public async Task Bounded_execute_child_surfaces_the_timeout()
     {
         var ct = TestContext.Current.CancellationToken;
-        var parent = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-parent-execute-child-bounded", JobPayload.None), ct);
+        var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-execute-child-bounded", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         var child = await OnlyChildAsync(parent.JobId, ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(child, ct));
@@ -381,7 +381,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.Equal(latch.Name, boundedMap.ActiveWait.Name);
         Assert.Equal(latch.DueAtUtc, boundedMap.ActiveWait.DueAtUtc);
 
-        var unbounded = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
+        var unbounded = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(unbounded, ct));
 
         var unboundedMap = await Jobs.GetLineageMapAsync(unbounded, ct: ct);
@@ -395,7 +395,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
     private async Task AssertWrapperTimesOutAsync(string parentJobName)
     {
         var ct = TestContext.Current.CancellationToken;
-        var parent = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, parentJobName, JobPayload.None), ct);
+        var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, parentJobName, JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
 
         var members = await ChildIdsAsync(parent.JobId, ct);
@@ -418,9 +418,9 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(fast, ct)).Status);
     }
 
-    private async Task<JobEnqueueResponse> StartGroupParentAsync(string parentJobName, string[] childJobNames, CancellationToken ct) =>
+    private async Task<EnqueueJobResponse> StartGroupParentAsync(string parentJobName, string[] childJobNames, CancellationToken ct) =>
         await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, parentJobName, JobPayload.Json(new ChildGroupStart(childJobNames))),
+            new EnqueueJobRequest(TestNamespace, parentJobName, JobPayload.Json(new ChildGroupStart(childJobNames))),
             ct
         );
 

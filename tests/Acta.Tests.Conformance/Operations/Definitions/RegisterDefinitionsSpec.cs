@@ -136,7 +136,7 @@ public sealed class RegisterDefinitionsSpec : ActaStorageTestBase<ConformanceFix
 
         var jobs = Services.GetRequiredService<IJobs>();
         var payload = Services.GetRequiredService<IJobPayloadSerializerRegistry>().Resolve(JobPayloadFormat.Json.Id).Serialize(1);
-        var parked = await jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, absent, payload, null, null, null), ct);
+        var parked = await jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, absent, payload, null, null, null), ct);
         var before = await ReadAsync(absent, ct);
 
         // Re-register without 'absent'. Changing 'keep' defeats the C#-side no-op write gate, so the

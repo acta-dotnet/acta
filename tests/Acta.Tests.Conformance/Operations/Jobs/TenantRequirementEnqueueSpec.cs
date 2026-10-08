@@ -53,7 +53,7 @@ public sealed class TenantRequirementEnqueueSpec : ActaRuntimeTestBase<Conforman
     {
         var ct = TestContext.Current.CancellationToken;
 
-        // A second benign row keeps this on the batch routine (single-row lists route to EnqueueOne).
+        // A second benign row keeps this on the batch routine (single-row lists route to EnqueueJob).
         await Assert.ThrowsAnyAsync<Exception>(() =>
             EnqueueTestOps.EnqueueBatchAsync(Services, [Row("tenant-required-probe"), Row("add-numbers")], ct)
         );
@@ -65,7 +65,7 @@ public sealed class TenantRequirementEnqueueSpec : ActaRuntimeTestBase<Conforman
         var ct = TestContext.Current.CancellationToken;
         var key = await RegisterTenantAsync("req-root", ct);
 
-        var result = await EnqueueTestOps.EnqueueBatchAsync(Services, [Row("tenant-required-probe", tenantKey: key)], ct);
+        var result = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row("tenant-required-probe", tenantKey: key)], ct)).Jobs;
         var job = await ReadJobAsync(result[0].JobId, ct);
 
         Assert.NotNull(job);
@@ -78,8 +78,8 @@ public sealed class TenantRequirementEnqueueSpec : ActaRuntimeTestBase<Conforman
         var ct = TestContext.Current.CancellationToken;
         var key = await RegisterTenantAsync("req-child", ct);
 
-        var parent = await EnqueueTestOps.EnqueueBatchAsync(Services, [Row("add-numbers", tenantKey: key)], ct);
-        var child = await EnqueueTestOps.EnqueueBatchAsync(Services, [Row("tenant-required-probe", parentId: parent[0].JobId)], ct);
+        var parent = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row("add-numbers", tenantKey: key)], ct)).Jobs;
+        var child = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row("tenant-required-probe", parentId: parent[0].JobId)], ct)).Jobs;
         var childJob = await ReadJobAsync(child[0].JobId, ct);
 
         Assert.NotNull(childJob);
@@ -91,7 +91,7 @@ public sealed class TenantRequirementEnqueueSpec : ActaRuntimeTestBase<Conforman
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var parent = await EnqueueTestOps.EnqueueBatchAsync(Services, [Row("add-numbers")], ct);
+        var parent = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row("add-numbers")], ct)).Jobs;
 
         await Assert.ThrowsAnyAsync<Exception>(() =>
             EnqueueTestOps.EnqueueBatchAsync(Services, [Row("tenant-required-probe", parentId: parent[0].JobId)], ct)
@@ -104,7 +104,7 @@ public sealed class TenantRequirementEnqueueSpec : ActaRuntimeTestBase<Conforman
         var ct = TestContext.Current.CancellationToken;
         var key = await RegisterTenantAsync("forb-root", ct);
 
-        // A second benign row keeps this on the batch routine (single-row lists route to EnqueueOne).
+        // A second benign row keeps this on the batch routine (single-row lists route to EnqueueJob).
         await Assert.ThrowsAnyAsync<Exception>(() =>
             EnqueueTestOps.EnqueueBatchAsync(Services, [Row("tenant-forbidden-probe", tenantKey: key), Row("add-numbers")], ct)
         );
@@ -116,13 +116,15 @@ public sealed class TenantRequirementEnqueueSpec : ActaRuntimeTestBase<Conforman
         var ct = TestContext.Current.CancellationToken;
         var key = await RegisterTenantAsync("forb-child", ct);
 
-        var parent = await EnqueueTestOps.EnqueueBatchAsync(Services, [Row("add-numbers", tenantKey: key)], ct);
-        // A second benign row keeps this on the batch routine (single-row lists route to EnqueueOne).
-        var child = await EnqueueTestOps.EnqueueBatchAsync(
-            Services,
-            [Row("tenant-forbidden-probe", parentId: parent[0].JobId), Row("add-numbers")],
-            ct
-        );
+        var parent = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row("add-numbers", tenantKey: key)], ct)).Jobs;
+        // A second benign row keeps this on the batch routine (single-row lists route to EnqueueJob).
+        var child = (
+            await EnqueueTestOps.EnqueueBatchAsync(
+                Services,
+                [Row("tenant-forbidden-probe", parentId: parent[0].JobId), Row("add-numbers")],
+                ct
+            )
+        ).Jobs;
         var childJob = await ReadJobAsync(child[0].JobId, ct);
 
         Assert.NotNull(childJob);

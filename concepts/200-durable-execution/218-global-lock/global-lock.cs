@@ -22,11 +22,11 @@ var jobs = host.Services.GetRequiredService<IJobs>();
 
 // Enqueue one job per namespace; both will race for the same global lock.
 var alpha = await jobs.EnqueueAsync(
-    new JobEnqueueRequest("ns-alpha", "critical-section", JobPayload.Json(new CriticalSection("alpha"))),
+    new EnqueueJobRequest("ns-alpha", "critical-section", JobPayload.Json(new CriticalSection("alpha"))),
     CancellationToken.None
 );
 var beta = await jobs.EnqueueAsync(
-    new JobEnqueueRequest("ns-beta", "critical-section", JobPayload.Json(new CriticalSection("beta"))),
+    new EnqueueJobRequest("ns-beta", "critical-section", JobPayload.Json(new CriticalSection("beta"))),
     CancellationToken.None
 );
 

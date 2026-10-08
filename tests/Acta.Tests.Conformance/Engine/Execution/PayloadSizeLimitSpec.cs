@@ -34,7 +34,7 @@ public sealed class PayloadSizeLimitSpec : ActaRuntimeTestBase<ConformanceFixtur
         var oversize = JobPayload.Text(new string('x', Cap * 4));
 
         await Assert.ThrowsAsync<PayloadTooLargeException>(async () =>
-            await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", oversize), ct)
+            await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", oversize), ct)
         );
     }
 
@@ -52,7 +52,7 @@ public sealed class PayloadSizeLimitSpec : ActaRuntimeTestBase<ConformanceFixtur
     public async Task Oversize_variable_write_in_handler_throws()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "oversize-variable-probe", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "oversize-variable-probe", JobPayload.None), ct);
 
         await Runtime.RunOnceAsync(enqueued, ct);
 
@@ -64,7 +64,7 @@ public sealed class PayloadSizeLimitSpec : ActaRuntimeTestBase<ConformanceFixtur
     public async Task Oversize_handler_result_is_dropped_not_thrown()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "oversize-result-probe", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "oversize-result-probe", JobPayload.None), ct);
 
         await Runtime.RunOnceAsync(enqueued, ct);
 

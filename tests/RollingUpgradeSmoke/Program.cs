@@ -70,9 +70,9 @@ try
 
     var requests = Enumerable
         .Range(1, 8)
-        .Select(value => new JobEnqueueRequest("upgrade-smoke", "probe", JobPayload.Json(new ProbeInput(value))))
+        .Select(value => new EnqueueJobRequest("upgrade-smoke", "probe", JobPayload.Json(new ProbeInput(value))))
         .ToArray();
-    var enqueued = await jobs.EnqueueBatchAsync(requests, ct);
+    var enqueued = (await jobs.EnqueueBatchAsync(requests, ct)).Jobs;
     var renewals = WatchLeaseRenewalsAsync(enqueued[0].JobId);
     await Task.WhenAll(enqueued.Select((job, index) => VerifyProbeAsync(job, expected: index + 1)));
     if (await renewals < 1)
@@ -119,7 +119,7 @@ finally
 // process completed the execution it claimed, on its first attempt, with its lease never lost.
 async Task HoldAsync()
 {
-    var job = await jobs.EnqueueAsync(new JobEnqueueRequest("upgrade-smoke", "hold-probe"), ct);
+    var job = await jobs.EnqueueAsync(new EnqueueJobRequest("upgrade-smoke", "hold-probe"), ct);
     while (await jobs.GetStatusAsync(job, ct) is not (JobStatusCode.Succeeded or JobStatusCode.Failed or JobStatusCode.Cancelled))
     {
         await Task.Delay(100, ct);
@@ -136,7 +136,7 @@ async Task HoldAsync()
     Console.WriteLine($"PASS {provider} {profile} hold: execution held across the other generation's provisioning, then completed.");
 }
 
-async Task VerifyProbeAsync(JobEnqueueResponse job, int expected)
+async Task VerifyProbeAsync(EnqueueJobResponse job, int expected)
 {
     while (true)
     {

@@ -132,13 +132,13 @@ public sealed class ArmOrConsumeSleepTimerSpec : ActaRuntimeTestBase<Conformance
         Assert.Equal(TimerName, Assert.Single(await TimersAsync(job.JobId, ct)).Name);
     }
 
-    private async Task<JobEnqueueResponse> EnqueueAsync(CancellationToken ct) =>
-        await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct);
+    private async Task<EnqueueJobResponse> EnqueueAsync(CancellationToken ct) =>
+        await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct);
 
     private Task<ArmOrConsumeSleepTimerResponse> SleepAsync(long jobId, string name, int delaySeconds, CancellationToken ct) =>
         Execution.ArmOrConsumeSleepTimerAsync(new ArmOrConsumeSleepTimerCommand(jobId, name, delaySeconds, null), ct);
 
-    private async Task StartExecutingAsync(JobEnqueueResponse job, CancellationToken ct)
+    private async Task StartExecutingAsync(EnqueueJobResponse job, CancellationToken ct)
     {
         const int leaseTtlSeconds = 30;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];

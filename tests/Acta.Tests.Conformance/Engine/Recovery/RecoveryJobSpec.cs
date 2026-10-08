@@ -55,14 +55,14 @@ public sealed class RecoveryJobSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         var workerId = await ChaosSpecHelpers.WorkerIdAsync(Db, TestNamespaceId, ct);
 
         var stranded = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
             ct
         );
         Assert.Single(await Execution.ClaimOneAsync(TestNamespaceId, workerId, LeaseTtlSeconds, stranded, ct));
 
         // A parent Suspended on a child that landed terminal with its latch never set: the raise lost to
         // a crash between the two writes, which only the handler's backstop pass can repair.
-        var parent = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
+        var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         var child = Assert.Single(await Db.From<JobEntity>().Where(j => j.ParentId == parent.JobId).ToListAsync(ct));
         await SetTerminalWithoutRaiseAsync(child.Id, ct);

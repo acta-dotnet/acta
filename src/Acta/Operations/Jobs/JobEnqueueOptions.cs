@@ -3,7 +3,7 @@ namespace Acta;
 /// <summary>
 /// Common per-enqueue choices for the typed
 /// <see cref="IJobs.EnqueueAsync{TInput}(TInput, JobEnqueueOptions, CancellationToken)"/> facade, the
-/// alternative to constructing a wire <see cref="JobEnqueueRequest"/>. Every member is optional; the
+/// alternative to constructing a wire <see cref="EnqueueJobRequest"/>. Every member is optional; the
 /// job name, namespace, and payload format are resolved from the input type's generated descriptor.
 /// </summary>
 public class JobEnqueueOptions
@@ -17,7 +17,7 @@ public class JobEnqueueOptions
 
     /// <summary>
     /// Exact final deduplication key, unique per namespace for root jobs. A second enqueue with the
-    /// same key returns the existing Job (<see cref="JobEnqueueAction.Deduplicated"/>).
+    /// same key returns the existing Job (<see cref="EnqueueJobAction.Deduplicated"/>).
     /// </summary>
     public string? DeduplicationKey { get; init; }
 

@@ -102,7 +102,7 @@ public sealed class ConcurrencyKeyMutexSpec : ActaRuntimeTestBase<ConformanceFix
         ExclusiveProbe.Reset(TestNamespace);
         for (var i = 0; i < jobs; i++)
         {
-            await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "exclusive-probe", JobPayload.None) { ConcurrencyKey = key }, ct);
+            await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "exclusive-probe", JobPayload.None) { ConcurrencyKey = key }, ct);
         }
 
         // Parallel single-tick executors race the claim and the execution-time lock; losers bounce
@@ -156,7 +156,7 @@ public sealed class ConcurrencyKeyMutexSpec : ActaRuntimeTestBase<ConformanceFix
         // attempt-overlap is audit-level, so the bounce's job.rescheduled event row is written.
         // The handler must never run (a bounce skips it), so its gate needs no release.
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "attempt-overlap", JobPayload.None) { ConcurrencyKey = key },
+            new EnqueueJobRequest(TestNamespace, "attempt-overlap", JobPayload.None) { ConcurrencyKey = key },
             ct
         );
 
@@ -175,15 +175,15 @@ public sealed class ConcurrencyKeyMutexSpec : ActaRuntimeTestBase<ConformanceFix
         await locks.ReleaseLockAsync(held.Value, ct);
     }
 
-    // Enqueues through the public IJobs surface with JobEnqueueRequest.ConcurrencyKey, so these specs
-    // also exercise the concurrency-key path end-to-end (request to row via enqueue_batch).
+    // Enqueues through the public IJobs surface with EnqueueJobRequest.ConcurrencyKey, so these specs
+    // also exercise the concurrency-key path end-to-end (request to row via enqueue_jobs).
     private async Task<IReadOnlyList<long>> EnqueueSameKeyAsync(string key, int count, CancellationToken ct)
     {
         var ids = new long[count];
         for (var i = 0; i < count; i++)
         {
             var enqueued = await Jobs.EnqueueAsync(
-                new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))) { ConcurrencyKey = key },
+                new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))) { ConcurrencyKey = key },
                 ct
             );
             ids[i] = enqueued.JobId;

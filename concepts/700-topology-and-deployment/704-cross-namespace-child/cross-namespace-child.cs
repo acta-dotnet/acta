@@ -21,7 +21,7 @@ await host.StartAsync();
 var jobs = host.Services.GetRequiredService<IJobs>();
 
 var order = await jobs.EnqueueAsync(
-    new JobEnqueueRequest("storefront", "place-order", JobPayload.Json(new PlaceOrder("order-7", 99.90m))),
+    new EnqueueJobRequest("storefront", "place-order", JobPayload.Json(new PlaceOrder("order-7", 99.90m))),
     CancellationToken.None
 );
 

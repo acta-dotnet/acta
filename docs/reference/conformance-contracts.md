@@ -678,10 +678,10 @@
   - Four producers racing 1000-row batches over shared lanes land in batch order behind one head per lane
 
 ### Enqueue rejects a suspended namespace and resumes once reactivated
-- **Contract:** EnqueueOne/EnqueueBatch reject enqueue into a suspended namespace and accept it again once the namespace is reactivated.
+- **Contract:** EnqueueJob/EnqueueJobs reject enqueue into a suspended namespace and accept it again once the namespace is reactivated.
 - **Guarantees:**
   - A suspended namespace rejects enqueue and persists nothing
-  - A suspended namespace rejects EnqueueOne and persists nothing
+  - A suspended namespace rejects EnqueueJob and persists nothing
   - Enqueue succeeds again once the namespace is reactivated
 
 ### Tenant suspension is admission control, not work closure
@@ -931,7 +931,7 @@
   - A tenant-scoped job's context carries the tenant id and its external key
 
 ### Handler sees its public JobRef matching the enqueue outcome
-- **Contract:** A handler receives the same public JobRef via ctx.JobRef that the caller gets from JobEnqueueResponse.
+- **Contract:** A handler receives the same public JobRef via ctx.JobRef that the caller gets from EnqueueJobResponse.
 - **Guarantees:**
   - Handler reads the same JobRef the enqueue outcome returned, stable across claim and execution
 
@@ -1877,7 +1877,7 @@
   - ck_steps_result_succeeded admits a stored result only on a Succeeded row
   - ck_steps_reason_pair rejects a reason message with no reason code, on INSERT and on UPDATE
   - ck_workers_max_concurrency rejects an INSERT with max_concurrency zero
-  - runtimes and tags agree with jobs on namespace_id after EnqueueOne, EnqueueBatch, a child enqueue, and Restart
+  - runtimes and tags agree with jobs on namespace_id after EnqueueJob, EnqueueJobs, a child enqueue, and Restart
   - A recurring slot's schedule row agrees with its job on namespace_id and definition_id
 
 ### M001 installs exactly the modelled entity tables
@@ -2175,8 +2175,8 @@
 | `DeleteClaimedOutbox` | yes | yes | yes |
 | `DiscardQuarantinedOutbox` | yes | yes | yes |
 | `DropSchema` | yes | yes | · |
-| `EnqueueBatch` | yes | yes | yes |
-| `EnqueueOne` | yes | yes | yes |
+| `EnqueueJob` | yes | yes | yes |
+| `EnqueueJobs` | yes | yes | yes |
 | `EnsureMigrations` | yes | yes | yes |
 | `EventsView` | yes | yes | yes |
 | `ExtendLock` | yes | yes | yes |

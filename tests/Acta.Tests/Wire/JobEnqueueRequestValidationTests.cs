@@ -10,7 +10,7 @@ public sealed class JobEnqueueRequestValidationTests
     [Fact]
     public void NormalizeAndValidate_normalizes_keys_without_touching_external_or_display_values()
     {
-        var request = new JobEnqueueRequest(
+        var request = new EnqueueJobRequest(
             "billing",
             "send-invoice",
             DeduplicationKey: "Order-1",
@@ -35,28 +35,28 @@ public sealed class JobEnqueueRequestValidationTests
 
     [Theory]
     [MemberData(nameof(InvalidRequests))]
-    public void NormalizeAndValidate_rejects_invalid_public_edge_inputs(JobEnqueueRequest request)
+    public void NormalizeAndValidate_rejects_invalid_public_edge_inputs(EnqueueJobRequest request)
     {
         Assert.ThrowsAny<ArgumentException>(() => JobEnqueueRequestValidation.NormalizeAndValidate(request, nameof(request)));
     }
 
-    public static TheoryData<JobEnqueueRequest> InvalidRequests() =>
+    public static TheoryData<EnqueueJobRequest> InvalidRequests() =>
         [
-            new JobEnqueueRequest("bad namespace", Name),
-            new JobEnqueueRequest("Billing", Name),
-            new JobEnqueueRequest(Ns, "Send-Invoice"),
-            new JobEnqueueRequest(Ns, new string('a', IdentifierSyntax.ExtendedMaxLength + 1)),
-            new JobEnqueueRequest(Ns, Name, DeduplicationKey: "sys.reserved"),
-            new JobEnqueueRequest(Ns, Name, ConcurrencyKey: new string('x', IdentifierSyntax.ExtendedMaxLength + 1)),
-            new JobEnqueueRequest(Ns, Name, TenantKey: " "),
-            new JobEnqueueRequest(Ns, Name, CorrelationKey: new string('c', IdentifierSyntax.DefaultMaxLength + 1)),
-            new JobEnqueueRequest(Ns, Name, Tags: [new TagInput("bad tag", null)]),
-            new JobEnqueueRequest(Ns, Name, Tags: [new TagInput("Env.Prod", "blue")]),
-            new JobEnqueueRequest(Ns, Name, Tags: [new TagInput("ok", new string('v', IdentifierSyntax.ExtendedMaxLength + 1))]),
-            new JobEnqueueRequest(Ns, Name, Tags: [null!]),
-            new JobEnqueueRequest(Ns, Name, NextRunAtUtc: DateTime.UtcNow, DelaySeconds: 1),
-            new JobEnqueueRequest(Ns, Name, DelaySeconds: -1),
-            new JobEnqueueRequest(Ns, Name, ParentJobId: 0),
-            new JobEnqueueRequest(Ns, Name, Priority: (JobPriorityCode)255),
+            new EnqueueJobRequest("bad namespace", Name),
+            new EnqueueJobRequest("Billing", Name),
+            new EnqueueJobRequest(Ns, "Send-Invoice"),
+            new EnqueueJobRequest(Ns, new string('a', IdentifierSyntax.ExtendedMaxLength + 1)),
+            new EnqueueJobRequest(Ns, Name, DeduplicationKey: "sys.reserved"),
+            new EnqueueJobRequest(Ns, Name, ConcurrencyKey: new string('x', IdentifierSyntax.ExtendedMaxLength + 1)),
+            new EnqueueJobRequest(Ns, Name, TenantKey: " "),
+            new EnqueueJobRequest(Ns, Name, CorrelationKey: new string('c', IdentifierSyntax.DefaultMaxLength + 1)),
+            new EnqueueJobRequest(Ns, Name, Tags: [new TagInput("bad tag", null)]),
+            new EnqueueJobRequest(Ns, Name, Tags: [new TagInput("Env.Prod", "blue")]),
+            new EnqueueJobRequest(Ns, Name, Tags: [new TagInput("ok", new string('v', IdentifierSyntax.ExtendedMaxLength + 1))]),
+            new EnqueueJobRequest(Ns, Name, Tags: [null!]),
+            new EnqueueJobRequest(Ns, Name, NextRunAtUtc: DateTime.UtcNow, DelaySeconds: 1),
+            new EnqueueJobRequest(Ns, Name, DelaySeconds: -1),
+            new EnqueueJobRequest(Ns, Name, ParentJobId: 0),
+            new EnqueueJobRequest(Ns, Name, Priority: (JobPriorityCode)255),
         ];
 }

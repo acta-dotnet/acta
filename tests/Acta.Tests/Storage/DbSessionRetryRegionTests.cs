@@ -380,10 +380,10 @@ public class DbSessionRetryRegionTests
 
         public void BindExcludedDefinitionIds(DbCommand command, int[]? definitionIds) => throw new NotSupportedException();
 
-        public void BindEnqueueOne(DbCommand command, JobEnqueueValues row, Guid jobRef, string schema) =>
+        public void BindEnqueueJob(DbCommand command, JobEnqueueValues row, Guid jobRef, string schema) =>
             throw new NotSupportedException();
 
-        public void BindEnqueueBatch(DbCommand command, IReadOnlyList<JobEnqueueValues> rows, IReadOnlyList<Guid> jobRefs, string schema) =>
+        public void BindEnqueueJobs(DbCommand command, IReadOnlyList<JobEnqueueValues> rows, IReadOnlyList<Guid> jobRefs, string schema) =>
             throw new NotSupportedException();
 
         public void BindRegisterDefinitions(

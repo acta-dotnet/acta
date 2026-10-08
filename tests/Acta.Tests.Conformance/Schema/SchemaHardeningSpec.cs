@@ -130,7 +130,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Runtimes_check_rejects_negative_failure_count()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enq = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
+        var enq = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
 
         Assert.Equal(
             1,
@@ -148,7 +148,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Runtimes_status_requires_its_paired_column()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enq = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
+        var enq = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
 
         Task<int> SetLeasedAsync(JobStatusCode status) =>
             Db.ExecuteRawAsync(
@@ -226,7 +226,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Code_column_stores_an_unknown_id()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enq = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
+        var enq = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
 
         Task<int> SetStatusAsync(byte status) =>
             Db.ExecuteRawAsync(
@@ -245,7 +245,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Consumer_payload_format_255_is_accepted()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enq = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
+        var enq = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
         var custom = JobPayloadFormat.Custom(byte.MaxValue, "custom-max");
 
         Assert.Equal(
@@ -273,7 +273,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Checkpoints_kind_shape_rejects_mismatched_shapes()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enq = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
+        var enq = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
         var due = DateTime.UtcNow.AddMinutes(5);
 
         // status_code is written as a literal rather than bound, for the reason the steps fixture
@@ -371,7 +371,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Steps_check_rejects_attempt_number_zero()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enq = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
+        var enq = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
 
         // Raw insert, omitting the nullable `result` column entirely: binding it explicit-NULL trips
         // SQL Server's inability to infer a SqlDbType for a null varbinary parameter (the same class of
@@ -393,7 +393,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Steps_terminal_rows_carry_no_retry_instant()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enq = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
+        var enq = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
         var retry = DateTime.UtcNow.AddMinutes(5);
 
         // Pending is the one status a retry instant belongs to.
@@ -416,7 +416,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Steps_result_lives_only_on_a_succeeded_row()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enq = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
+        var enq = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
 
         Assert.Equal(1, await InsertStepAsync(enq.JobId, "result-succeeded", StepStatusCode.Succeeded, ct, resultFormatId: 1));
 
@@ -437,7 +437,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Steps_reason_message_requires_a_reason_code()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enq = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
+        var enq = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
 
         // Both legal shapes: no reason at all, and the full pair complete_step writes on a failure.
         Assert.Equal(1, await InsertStepAsync(enq.JobId, "reason-none", StepStatusCode.Pending, ct));
@@ -563,30 +563,32 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         await Assert.ThrowsAnyAsync<DbException>(() => Db.From<WorkerEntity>().InsertAsync<int>(NewWorker(0), ct));
     }
 
-    [Fact(DisplayName = "runtimes and tags agree with jobs on namespace_id after EnqueueOne, EnqueueBatch, a child enqueue, and Restart")]
+    [Fact(DisplayName = "runtimes and tags agree with jobs on namespace_id after EnqueueJob, EnqueueJobs, a child enqueue, and Restart")]
     public async Task Denormalized_namespace_id_agrees_with_jobs_across_write_paths()
     {
         var ct = TestContext.Current.CancellationToken;
         var tags = new[] { new TagInput("kind", "denorm-check") };
 
         var one = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 2)), Tags: tags),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 2)), Tags: tags),
             ct
         );
         await AssertNamespaceAgreementAsync(one.JobId, ct);
 
-        var batch = await Jobs.EnqueueBatchAsync(
-            [new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(3, 4)), Tags: tags)],
-            ct
-        );
+        var batch = (
+            await Jobs.EnqueueBatchAsync(
+                [new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(3, 4)), Tags: tags)],
+                ct
+            )
+        ).Jobs;
         await AssertNamespaceAgreementAsync(batch[0].JobId, ct);
 
         var parent = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(5, 6))),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(5, 6))),
             ct
         );
         var child = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(
+            new EnqueueJobRequest(
                 TestNamespace,
                 "add-numbers",
                 JobPayload.Json(new AddNumbers(7, 8)),

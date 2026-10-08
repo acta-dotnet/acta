@@ -316,7 +316,7 @@ internal static class AlertTestOps
     /// </summary>
     public static async Task RunUntilAttemptsAsync(
         WorkerRuntime runtime,
-        JobEnqueueResponse job,
+        EnqueueJobResponse job,
         Func<int> attempts,
         int target,
         CancellationToken ct

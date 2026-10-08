@@ -110,7 +110,7 @@ WHERE
     AND COALESCE(@p_lane, jd.lane) IS NOT NULL
 ON CONFLICT (namespace_id, name) DO NOTHING;
 
--- begin child-only: SqliteDialect.BindEnqueueOne drops this statement for a job with no parent, whose
+-- begin child-only: SqliteDialect.BindEnqueueJob drops this statement for a job with no parent, whose
 -- ancestor walk would find nothing, because parsing it is a quarter of an enqueue's cost.
 SELECT
     ACTA_ERROR(
@@ -277,8 +277,8 @@ SELECT
     COALESCE(ins.job_ref, ex.job_ref, exc.job_ref) AS job_ref,
     CASE
         WHEN ins.id IS NOT NULL
-            THEN 1 /* JobEnqueueAction.Inserted */
-        ELSE 2 /* JobEnqueueAction.Deduplicated */
+            THEN 1 /* EnqueueJobAction.Inserted */
+        ELSE 2 /* EnqueueJobAction.Deduplicated */
     END AS action
 FROM (SELECT 1) one
 LEFT JOIN {{schema}}.jobs ins ON ins.job_ref = @p_job_ref

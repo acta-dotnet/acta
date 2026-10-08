@@ -32,7 +32,7 @@ public sealed class AlertsProjectionSpec : ActaRuntimeTestBase<ConformanceFixtur
         var ct = TestContext.Current.CancellationToken;
         RetryProbe.Reset(TestNamespace);
 
-        var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
+        var job = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
 
         // Three attempts: two in-budget re-arms (non-terminal failures), then terminal Failed.
         await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => RetryProbe.Attempts(TestNamespace), 3, ct);
@@ -59,7 +59,7 @@ public sealed class AlertsProjectionSpec : ActaRuntimeTestBase<ConformanceFixtur
         var ct = TestContext.Current.CancellationToken;
         RetryProbe.Reset(TestNamespace);
 
-        var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
+        var job = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
         await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => RetryProbe.Attempts(TestNamespace), 3, ct);
 
         await RunAlertsAsync(job.JobId, ct);
@@ -87,7 +87,7 @@ public sealed class AlertsProjectionSpec : ActaRuntimeTestBase<ConformanceFixtur
         var ct = TestContext.Current.CancellationToken;
         RetryProbe.Reset(TestNamespace);
 
-        var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
+        var job = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "retry-probe", JobPayload.None), ct);
         await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => RetryProbe.Attempts(TestNamespace), 1, ct);
 
         // Generate + deliver: the OnFailure job has no explicit channel, so it routes to the seeded
@@ -106,7 +106,7 @@ public sealed class AlertsProjectionSpec : ActaRuntimeTestBase<ConformanceFixtur
         var ct = TestContext.Current.CancellationToken;
         FlakyRecoverProbe.Reset(TestNamespace);
 
-        var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "flaky-recover", JobPayload.None), ct);
+        var job = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "flaky-recover", JobPayload.None), ct);
 
         // Attempt 1 fails -> re-arm. Project it: an open FirstFailure alert (unresolved).
         await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => FlakyRecoverProbe.Attempts(TestNamespace), 1, ct);
@@ -143,7 +143,7 @@ public sealed class AlertsProjectionSpec : ActaRuntimeTestBase<ConformanceFixtur
         var ct = TestContext.Current.CancellationToken;
         NoAlertProbe.Reset(TestNamespace);
 
-        var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "no-alert-probe", JobPayload.None), ct);
+        var job = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "no-alert-probe", JobPayload.None), ct);
         await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => NoAlertProbe.Attempts(TestNamespace), 1, ct);
 
         await RunAlertsAsync(job.JobId, ct);

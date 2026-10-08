@@ -25,7 +25,7 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Reschedule_via_context_method_rearms_ready_with_forward_dated_next_run()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-reschedule-delay", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-reschedule-delay", JobPayload.None), ct);
 
         // next_run_at_utc is computed DB-side off the reschedule delay, so bracket the run with two
         // DB-clock reads rather than DateTime.UtcNow: the test process's clock can skew from the
@@ -57,7 +57,7 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Reschedule_via_direct_throw_rearms_like_the_context_method()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-reschedule-throw", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-reschedule-throw", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
@@ -71,7 +71,7 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Reschedule_to_absolute_past_is_immediately_reclaimable()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-reschedule-until-past", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-reschedule-until-past", JobPayload.None), ct);
 
         // The probe re-arms to a past instant on every attempt, so two consecutive ticks both claim it.
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
@@ -83,7 +83,7 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task First_sleep_arms_pending_timer_and_suspends_the_handler()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-sleep-basic", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-sleep-basic", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
@@ -106,7 +106,7 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Sleep_rerun_before_due_does_not_extend_or_duplicate_the_timer()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-sleep-basic", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-sleep-basic", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         var originalDue = (await ReadTimersAsync(enqueued.JobId, ct)).Single().DueAtUtc;
@@ -124,7 +124,7 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Sleep_rerun_after_due_consumes_the_timer_and_continues()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-sleep-basic", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-sleep-basic", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
@@ -148,7 +148,7 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Zero_delay_sleep_continues_without_arming_a_timer()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-sleep-zero", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-sleep-zero", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
@@ -162,7 +162,7 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Sleep_validation_rejects_invalid_names_and_negative_delay()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-sleep-validation", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-sleep-validation", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
@@ -177,7 +177,7 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task A_second_distinct_pending_sleep_is_rejected()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-sleep-reject", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-sleep-reject", JobPayload.None), ct);
 
         // A distinct pending sleep already controls the Job before the handler runs.
         await InsertPendingTimerAsync(Db, enqueued.JobId, "already-pending", DateTime.UtcNow.AddMinutes(10), ct);
@@ -196,7 +196,7 @@ public sealed class RescheduleSleepSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Unknown_control_exception_fails_the_attempt_not_translated_to_a_rearm()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-control-unknown", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-control-unknown", JobPayload.None), ct);
 
         // An unrecognized JobControlException is a handler exception to the runtime: the attempt fails
         // under the retry budget and re-arms, rather than being translated into a reschedule / suspend

@@ -9095,6 +9095,13 @@
         },
         "description": "What parking a discard of a source's quarantined rows did."
       },
+      "EnqueueJobAction": {
+        "enum": [
+          "inserted",
+          "deduplicated"
+        ],
+        "description": "Coarse outcome classifier for one enqueued row."
+      },
       "EnqueueOneHttpRequest": {
         "type": "object",
         "properties": {
@@ -9180,12 +9187,12 @@
             "$ref": "#/components/schemas/JobRef"
           },
           "action": {
-            "$ref": "#/components/schemas/JobEnqueueAction"
+            "$ref": "#/components/schemas/EnqueueJobAction"
           }
         }
       },
       "EventCode": {
-        "description": "Stable family-local event identifiers. Nearby values improve catalog readability but carry no runtime subject,\nsubgroup, or outcome semantics; match events by enum member or textual code. There is no `job.enqueued`\nevent on purpose: the Job row's own `(created_at_utc, namespace_id, definition_id)` records the enqueue fact,\nand a separate event row would be write amplification on the narrow append-heavy events table; dedup outcomes\nreach the caller via `JobEnqueueResponse.Action`, and cross-job rate analytics query `acta.jobs` directly."
+        "description": "Stable family-local event identifiers. Nearby values improve catalog readability but carry no runtime subject,\nsubgroup, or outcome semantics; match events by enum member or textual code. There is no `job.enqueued`\nevent on purpose: the Job row's own `(created_at_utc, namespace_id, definition_id)` records the enqueue fact,\nand a separate event row would be write amplification on the narrow append-heavy events table; dedup outcomes\nreach the caller via `EnqueueJobResponse.Action`, and cross-job rate analytics query `acta.jobs` directly."
       },
       "EventListItem": {
         "required": [
@@ -9677,13 +9684,6 @@
           }
         },
         "description": "Read projection of a Job row exposed by `IJobs.GetAsync`: identity, linkage, status, scheduling, leasing,\nretention, and input format; the input payload itself is never returned. Property order mirrors the `jobs`\nentity (identity, scope and routing, caller keys, input) and then its 1:1 `runtimes` row, so the shape reads\nin schema order; a column resolved to a public value follows the id it came from, and the created/modified pair\ncloses the record. JSON carries the public refs and hides the numeric ids. `DefinitionId` is the surrogate\nfor the namespace+name pair, non-null because the row's definition_id is NOT NULL."
-      },
-      "JobEnqueueAction": {
-        "enum": [
-          "inserted",
-          "deduplicated"
-        ],
-        "description": "Coarse outcome classifier for one enqueued row."
       },
       "JobExplainAction": {
         "required": [

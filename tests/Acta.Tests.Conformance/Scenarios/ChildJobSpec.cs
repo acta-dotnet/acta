@@ -28,7 +28,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
     public async Task Parent_starts_child_waits_on_latch_and_reads_result()
     {
         var ct = TestContext.Current.CancellationToken;
-        var parent = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
+        var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         Assert.Equal(JobStatusCode.Suspended, (await ReadJobAsync(parent.JobId, ct)).Status);
@@ -56,7 +56,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
     public async Task Child_start_is_replay_deduped_by_name()
     {
         var ct = TestContext.Current.CancellationToken;
-        var parent = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
+        var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         // Force a replay while the child is still pending: the re-run StartChildAsync must dedupe.
@@ -70,7 +70,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
     public async Task Failed_child_returns_outcome_record_and_envelope_round_trips()
     {
         var ct = TestContext.Current.CancellationToken;
-        var parent = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-parent-of-failing-child", JobPayload.None), ct);
+        var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-of-failing-child", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         var child = Assert.Single(await ReadChildrenAsync(parent.JobId, ct));
@@ -92,7 +92,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
     public async Task Wait_children_joins_all_regardless_of_completion_order()
     {
         var ct = TestContext.Current.CancellationToken;
-        var parent = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-parent-many", JobPayload.None), ct);
+        var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-many", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         var children = await ReadChildrenAsync(parent.JobId, ct);
@@ -118,21 +118,21 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
     public async Task Operator_cancel_cascades_to_the_live_subtree_only()
     {
         var ct = TestContext.Current.CancellationToken;
-        var root = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+        var root = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(root, ct));
 
         // Attach descendants through the public ParentId wire: a 3-level chain, plus a finished child
         // that itself has a live grandchild, so the walk must pass through the terminal node.
         var child = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None, DeduplicationKey: "held", ParentJobId: root.JobId),
+            new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None, DeduplicationKey: "held", ParentJobId: root.JobId),
             ct
         );
         var grandchild = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None, DeduplicationKey: "held", ParentJobId: child.JobId),
+            new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None, DeduplicationKey: "held", ParentJobId: child.JobId),
             ct
         );
         var done = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(
+            new EnqueueJobRequest(
                 TestNamespace,
                 "job-child-echo",
                 JobPayload.Json(new ChildEcho(1)),
@@ -142,7 +142,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
             ct
         );
         var behindDone = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None, DeduplicationKey: "held", ParentJobId: done.JobId),
+            new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None, DeduplicationKey: "held", ParentJobId: done.JobId),
             ct
         );
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(done, ct));
@@ -171,7 +171,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
     public async Task Handler_cancel_cascades_to_children()
     {
         var ct = TestContext.Current.CancellationToken;
-        var parent = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-parent-cancel-self", JobPayload.None), ct);
+        var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-cancel-self", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
 
@@ -190,7 +190,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
     public async Task Parent_completion_never_cascades_and_late_raise_noops()
     {
         var ct = TestContext.Current.CancellationToken;
-        var parent = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-parent-fire-and-forget", JobPayload.None), ct);
+        var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-fire-and-forget", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(parent.JobId, ct)).Status);
@@ -209,12 +209,12 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
     public async Task Terminal_parent_rejects_new_children()
     {
         var ct = TestContext.Current.CancellationToken;
-        var done = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-child-echo", JobPayload.Json(new ChildEcho(1))), ct);
+        var done = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-child-echo", JobPayload.Json(new ChildEcho(1))), ct);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(done, ct));
 
         await Assert.ThrowsAnyAsync<DbException>(async () =>
             await Jobs.EnqueueAsync(
-                new JobEnqueueRequest(TestNamespace, "job-child-echo", JobPayload.Json(new ChildEcho(2)), ParentJobId: done.JobId),
+                new EnqueueJobRequest(TestNamespace, "job-child-echo", JobPayload.Json(new ChildEcho(2)), ParentJobId: done.JobId),
                 ct
             )
         );
@@ -224,7 +224,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
     public async Task User_signals_cannot_use_the_child_latch_namespace()
     {
         var ct = TestContext.Current.CancellationToken;
-        var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+        var job = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
 
         await Assert.ThrowsAsync<ArgumentException>(async () => await Jobs.RaiseSignalAsync(job, "sys.child.1", JobPayload.None, ct: ct));
     }
@@ -234,7 +234,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var parent = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
+        var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         var child = Assert.Single(await ReadChildrenAsync(parent.JobId, ct));
 
@@ -275,7 +275,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var parent = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
+        var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         var child = Assert.Single(await ReadChildrenAsync(parent.JobId, ct));
 
@@ -309,14 +309,14 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
     public async Task Concurrent_cancel_and_child_completions_converge()
     {
         var ct = TestContext.Current.CancellationToken;
-        var root = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+        var root = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(root, ct));
 
-        var children = new JobEnqueueResponse[5];
+        var children = new EnqueueJobResponse[5];
         for (var i = 0; i < children.Length; i++)
         {
             children[i] = await Jobs.EnqueueAsync(
-                new JobEnqueueRequest(
+                new EnqueueJobRequest(
                     TestNamespace,
                     "job-child-echo",
                     JobPayload.Json(new ChildEcho(i)),

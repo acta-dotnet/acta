@@ -40,10 +40,10 @@ public abstract class WorkerShutdownDrainSpec : ActaRuntimeTestBase<ConformanceF
     // Drive the real claim/dispatch loop under a worker-scoped token (the token base.StopAsync cancels on a
     // graceful host stop), block a handler in-flight, then cancel the token to simulate the shutdown and
     // await the drain. Returns the enqueued job once the loop has fully unwound.
-    private async Task<JobEnqueueResponse> RunInFlightThenShutdownAsync(CancellationToken ct)
+    private async Task<EnqueueJobResponse> RunInFlightThenShutdownAsync(CancellationToken ct)
     {
         CancellableHandler.Reset(TestNamespace);
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "cancellable", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "cancellable", JobPayload.None), ct);
 
         using var workerCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var loop = Runtime.RunLoopAsync(workerCts.Token);

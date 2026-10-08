@@ -130,9 +130,9 @@ public sealed class BufferedBackpressureOwnershipSpec : ActaRuntimeTestBase<Conf
 
     // Everything is enqueued before the worker starts so the loop claims full batches: the holding job
     // first, then the rows that fill the channel and block the loop.
-    private async Task<(JobEnqueueResponse Blocking, List<long> Waiting)> EnqueueAsync(CancellationToken ct)
+    private async Task<(EnqueueJobResponse Blocking, List<long> Waiting)> EnqueueAsync(CancellationToken ct)
     {
-        var blocking = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "chaos-holding", JobPayload.None), ct);
+        var blocking = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "chaos-holding", JobPayload.None), ct);
         ChaosProbes.Reset(blocking.JobId);
         var waiting = new List<long>(WaitingJobs);
         for (var i = 0; i < WaitingJobs; i++)
@@ -145,14 +145,14 @@ public sealed class BufferedBackpressureOwnershipSpec : ActaRuntimeTestBase<Conf
 
     // The loop is blocked once the executor is held and every row the two batches can take is
     // Dispatched under the worker's lease: the channel's three plus the ones stuck behind the write.
-    private async Task WaitUntilBlockedAsync(JobEnqueueResponse blocking, List<long> waiting, CancellationToken ct)
+    private async Task WaitUntilBlockedAsync(EnqueueJobResponse blocking, List<long> waiting, CancellationToken ct)
     {
         await ChaosProbes.WaitStartedAsync(blocking.JobId, ct).WaitAsync(SpecWaits.Gate, ct);
         var claimed = await WaitUntilAsync(async () => await DispatchedCountAsync(waiting, ct) >= WaitingJobs - 1, SpecWaits.Converge, ct);
         Assert.True(claimed, "the claim loop did not fill the channel within the converge budget");
     }
 
-    private static async Task EndRunAsync(JobEnqueueResponse blocking, CancellationTokenSource hostCts, Task run)
+    private static async Task EndRunAsync(EnqueueJobResponse blocking, CancellationTokenSource hostCts, Task run)
     {
         ChaosProbes.Release(blocking.JobId);
         await hostCts.CancelAsync();

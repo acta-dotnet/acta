@@ -33,10 +33,10 @@ public sealed class ListEventsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
         );
     }
 
-    private async Task<IReadOnlyList<JobEnqueueResponse>> EnqueueAsync(IReadOnlyList<JobEnqueueValues> rows, CancellationToken ct)
+    private async Task<IReadOnlyList<EnqueueJobResponse>> EnqueueAsync(IReadOnlyList<JobEnqueueValues> rows, CancellationToken ct)
     {
         _ = Services.GetRequiredService<ISqlDialect>();
-        return await EnqueueTestOps.EnqueueBatchAsync(Services, rows, ct);
+        return (await EnqueueTestOps.EnqueueBatchAsync(Services, rows, ct)).Jobs;
     }
 
     private async Task<HashSet<long>> EventIdsAsync(long jobId, CancellationToken ct)
@@ -253,12 +253,10 @@ public sealed class ListEventsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
         var t2Id = (await Operations.Tenants.RegisterAsync(t2Key, null, null, ct)).TenantId;
 
         // Two jobs under t1, one under t2
-        var t1Outcomes = await EnqueueTestOps.EnqueueBatchAsync(
-            Services,
-            [AddNumbersRow(tenantKey: t1Key), AddNumbersRow(tenantKey: t1Key)],
-            ct
-        );
-        var t2Outcomes = await EnqueueTestOps.EnqueueBatchAsync(Services, [AddNumbersRow(tenantKey: t2Key)], ct);
+        var t1Outcomes = (
+            await EnqueueTestOps.EnqueueBatchAsync(Services, [AddNumbersRow(tenantKey: t1Key), AddNumbersRow(tenantKey: t1Key)], ct)
+        ).Jobs;
+        var t2Outcomes = (await EnqueueTestOps.EnqueueBatchAsync(Services, [AddNumbersRow(tenantKey: t2Key)], ct)).Jobs;
         var ta = t1Outcomes[0].JobId;
         var tb = t1Outcomes[1].JobId;
         var tc = t2Outcomes[0].JobId;

@@ -37,7 +37,7 @@ public sealed class OutboxLaneOrderSpec : OutboxRelayIntegrationBase
         Assert.Equal(JobStatusCode.Blocked, (await ReadJobAsync(second.JobId, ct)).Status);
     }
 
-    private JobEnqueueRequest Step(string dedup, JobPriorityCode priority) =>
+    private EnqueueJobRequest Step(string dedup, JobPriorityCode priority) =>
         new(
             TestNamespace,
             "lane-step",

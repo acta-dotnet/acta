@@ -37,7 +37,7 @@ public sealed class LaneRetireSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var head = await Jobs.EnqueueAsync(Step("orders", "head", "orders"), ct);
         var follower = await Jobs.EnqueueAsync(Step("orders", "follower", "orders"), ct);
         var other = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "lane-defined", JobPayload.Json(new LaneDefinedStep("other")), Lane: "orders"),
+            new EnqueueJobRequest(TestNamespace, "lane-defined", JobPayload.Json(new LaneDefinedStep("other")), Lane: "orders"),
             ct
         );
         var definition = await Operations.Definitions.GetAsync(TestNamespace, "lane-step", ct);
@@ -61,7 +61,7 @@ public sealed class LaneRetireSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(other.JobId, ct)).Status);
     }
 
-    private JobEnqueueRequest Step(string probeLane, string label, string? lane) =>
+    private EnqueueJobRequest Step(string probeLane, string label, string? lane) =>
         new(TestNamespace, "lane-step", JobPayload.Json(new LaneStep(probeLane, label)), Lane: lane);
 
     /// <summary>The in-process wakeup, cancelling the caller's token at the first publish it sees.</summary>

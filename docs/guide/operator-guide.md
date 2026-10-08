@@ -470,7 +470,7 @@ event history. The outcome maps to 200
 (applied), 409 (rejected), or 404 (not found) — and that shape is the whole API's rule, not this
 family's: every control family answers 200, 404 and 409 (202 for the accepted-then-applied outbox
 verbs) with its own envelope, and `ProblemDetails` is reserved for malformed input, authorization,
-and server faults. The one deliberate exception is the enqueue guard's 409: `JobEnqueueAction` has no
+and server faults. The one deliberate exception is the enqueue guard's 409: `EnqueueJobAction` has no
 rejected value and a refused enqueue mints no job ref for the envelope to name, so that rejection
 stays a problem document with its `reasonCode`. Controls are
 opt-in (`EnableControls = true`)

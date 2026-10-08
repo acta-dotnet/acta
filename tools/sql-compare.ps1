@@ -117,7 +117,7 @@ if ($ChangedSince) {
 }
 
 if ([string]::IsNullOrWhiteSpace($Resource)) {
-    throw 'Specify a SQL stem such as EnqueueOne, or use -List / -ChangedSince.'
+    throw 'Specify a SQL stem such as EnqueueJob, or use -List / -ChangedSince.'
 }
 
 $logicalResource = ConvertTo-LogicalResource $Resource.Trim()

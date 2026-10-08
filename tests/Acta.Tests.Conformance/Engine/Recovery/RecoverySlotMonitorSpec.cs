@@ -205,7 +205,7 @@ public sealed class RecoverySlotMonitorSpec : ActaRuntimeTestBase<ConformanceFix
         // A worker died holding the recovery slot, and an ordinary job was stranded behind it. Nothing
         // here runs a claim loop, so there is no executor to take either one: that is the saturated case
         // the seven-minute bound is about, staged by having no pool at all rather than by filling one.
-        var stranded = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "chaos-counting", JobPayload.None), ct);
+        var stranded = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "chaos-counting", JobPayload.None), ct);
         await StrandAsync(stranded.JobId, JobStatusCode.Executing, DateTime.UtcNow.AddMinutes(-5), ct);
         await StrandAsync(slotId, JobStatusCode.Executing, DateTime.UtcNow.AddMinutes(-5), ct);
 

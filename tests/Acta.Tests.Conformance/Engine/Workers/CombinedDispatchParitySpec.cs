@@ -44,10 +44,10 @@ public sealed class CombinedDispatchParitySpec : ActaRuntimeTestBase<Conformance
         var ct = TestContext.Current.CancellationToken;
         var counter = Services.GetRequiredService<LoadExecutionCounter>();
 
-        var batch = new List<JobEnqueueRequest>(JobCount);
+        var batch = new List<EnqueueJobRequest>(JobCount);
         for (var i = 0; i < JobCount; i++)
         {
-            batch.Add(new JobEnqueueRequest(TestNamespace, "load-echo", JobPayload.Json(new LoadEcho())));
+            batch.Add(new EnqueueJobRequest(TestNamespace, "load-echo", JobPayload.Json(new LoadEcho())));
         }
         await Jobs.EnqueueBatchAsync(batch, ct);
 

@@ -57,7 +57,7 @@ public sealed class ListAlertsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new TestJobs.AddNumbers(0, 0));
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", payload, null, null, null), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", payload, null, null, null), ct);
         return enqueued.JobId;
     }
 

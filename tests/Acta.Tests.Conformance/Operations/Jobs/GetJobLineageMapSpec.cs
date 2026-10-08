@@ -24,7 +24,7 @@ public sealed class GetJobLineageMapSpec : ActaRuntimeTestBase<ConformanceFixtur
     private async Task<long> EnqueueAsync(long? parentId, CancellationToken ct)
     {
         var outcome = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1)), ParentJobId: parentId),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1)), ParentJobId: parentId),
             ct
         );
         return outcome.JobId;

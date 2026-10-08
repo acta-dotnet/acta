@@ -52,7 +52,7 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, T
         var ct = TestContext.Current.CancellationToken;
 
         var outcome = await Jobs.EnqueueAsync(new AddNumbers(2, 3), ct: ct);
-        Assert.Equal(JobEnqueueAction.Inserted, outcome.Action);
+        Assert.Equal(EnqueueJobAction.Inserted, outcome.Action);
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(outcome, ct));
 
@@ -89,14 +89,14 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, T
         };
 
         var first = await Jobs.EnqueueAsync(new AddNumbers(1, 1), options, ct);
-        Assert.Equal(JobEnqueueAction.Inserted, first.Action);
+        Assert.Equal(EnqueueJobAction.Inserted, first.Action);
 
         var snapshot = await Jobs.GetAsync(first, ct);
         Assert.Equal("typed-invoice-1", snapshot!.DeduplicationKey);
 
         // Same deduplication key dedupes onto the same row.
         var again = await Jobs.EnqueueAsync(new AddNumbers(1, 1), new JobEnqueueOptions { DeduplicationKey = "typed-invoice-1" }, ct);
-        Assert.Equal(JobEnqueueAction.Deduplicated, again.Action);
+        Assert.Equal(EnqueueJobAction.Deduplicated, again.Action);
         Assert.Equal(first.JobId, again.JobId);
     }
 

@@ -110,9 +110,9 @@ public sealed class RollingDeploySpec : ActaRuntimeTestBase<ConformanceFixture, 
         var newRuntime = newGeneration.GetServices<WorkerRuntime>().Single();
         await newRuntime.InitializeAsync(ct);
 
-        var shared = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, SharedJob, JobPayload.Json(new AddNumbers(2, 3))), ct);
-        var newOnly = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, NewJob, JobPayload.None), ct);
-        var oldOnly = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, OldOnlyJob, JobPayload.None), ct);
+        var shared = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, SharedJob, JobPayload.Json(new AddNumbers(2, 3))), ct);
+        var newOnly = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, NewJob, JobPayload.None), ct);
+        var oldOnly = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, OldOnlyJob, JobPayload.None), ct);
 
         // --- 2. The old generation drains what it can. The new generation's job is not its work.
         await TickUntilNothingClaimedAsync(Runtime, ct);
@@ -133,7 +133,7 @@ public sealed class RollingDeploySpec : ActaRuntimeTestBase<ConformanceFixture, 
 
         // --- 3. The generation that carries the handler runs the handed-back job, no retry spent, and
         // hands back the other way: a job of the definition it omitted is not its work either.
-        var oldOnlyAgain = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, OldOnlyJob, JobPayload.None), ct);
+        var oldOnlyAgain = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, OldOnlyJob, JobPayload.None), ct);
         await RunUntilSucceededAsync(newRuntime, newOnly.JobId, ct);
         Assert.Equal(0, (await ReadJobAsync(newOnly.JobId, ct)).FailureCount);
         await TickUntilNothingClaimedAsync(newRuntime, ct);
@@ -150,8 +150,8 @@ public sealed class RollingDeploySpec : ActaRuntimeTestBase<ConformanceFixture, 
         // --- 4. Rollback: the new generation is gone and a fresh old-generation process takes over,
         // with one job of each definition waiting for it.
         await newGeneration.DisposeAsync();
-        var strandedNew = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, NewJob, JobPayload.None), ct);
-        var rolledBackOld = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, OldOnlyJob, JobPayload.None), ct);
+        var strandedNew = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, NewJob, JobPayload.None), ct);
+        var rolledBackOld = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, OldOnlyJob, JobPayload.None), ct);
 
         await using var rollback = BuildGenerationProvider<TestJobsManifest>(GenerationA, "generation-a-rollback");
         var rollbackRuntime = rollback.GetServices<WorkerRuntime>().Single();
@@ -194,7 +194,7 @@ public sealed class RollingDeploySpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(EventReasonCode.JobDefinitionRetired, cancelEvent.ReasonCode);
 
         var rejected = await Assert.ThrowsAsync<EnqueueRejectedException>(async () =>
-            await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, NewJob, JobPayload.None), ct)
+            await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, NewJob, JobPayload.None), ct)
         );
         Assert.Equal(EnqueueRejectionReason.DefinitionRetired, rejected.Reason);
     }

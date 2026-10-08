@@ -43,7 +43,7 @@ public sealed class TransactionalEnqueueSmokeSpec : ActaRuntimeTestBase<Conforma
         {
             await InsertBusinessRowAsync(conn, tx, probe, marker, ct);
             var outcome = await Jobs.EnqueueAsync(tx, Request("add-numbers", new AddNumbers(2, 3), marker), ct);
-            Assert.Equal(JobEnqueueAction.Inserted, outcome.Action);
+            Assert.Equal(EnqueueJobAction.Inserted, outcome.Action);
             await tx.CommitAsync(ct);
         }
 
@@ -85,14 +85,16 @@ public sealed class TransactionalEnqueueSmokeSpec : ActaRuntimeTestBase<Conforma
         await using (var tx = await conn.BeginTransactionAsync(ct))
         {
             await InsertBusinessRowAsync(conn, tx, probe, committedMarker, ct);
-            var outcomes = await Jobs.EnqueueBatchAsync(
-                tx,
-                [
-                    Request("add-numbers", new AddNumbers(1, 1), committedKeys[0]),
-                    Request("add-numbers", new AddNumbers(2, 2), committedKeys[1]),
-                ],
-                ct
-            );
+            var outcomes = (
+                await Jobs.EnqueueBatchAsync(
+                    tx,
+                    [
+                        Request("add-numbers", new AddNumbers(1, 1), committedKeys[0]),
+                        Request("add-numbers", new AddNumbers(2, 2), committedKeys[1]),
+                    ],
+                    ct
+                )
+            ).Jobs;
             Assert.Equal(2, outcomes.Count);
             await tx.CommitAsync(ct);
         }
@@ -136,11 +138,11 @@ public sealed class TransactionalEnqueueSmokeSpec : ActaRuntimeTestBase<Conforma
     private async Task<JobEntity?> JobByKeyAsync(string deduplicationKey, CancellationToken ct) =>
         await Db.From<JobEntity>().Where(j => j.DeduplicationKey == deduplicationKey).SingleOrDefaultAsync(ct);
 
-    private JobEnqueueRequest Request(string jobName, object input, string deduplicationKey)
+    private EnqueueJobRequest Request(string jobName, object input, string deduplicationKey)
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(input);
-        return new JobEnqueueRequest(TestNamespace, jobName, payload, deduplicationKey);
+        return new EnqueueJobRequest(TestNamespace, jobName, payload, deduplicationKey);
     }
 
     private static async Task InsertBusinessRowAsync(DbConnection conn, DbTransaction tx, string probe, string marker, CancellationToken ct)

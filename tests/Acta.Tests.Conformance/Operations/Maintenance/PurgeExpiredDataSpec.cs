@@ -519,16 +519,16 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
 
     // A real parent/child pair through the enqueue path: the child is enqueued under the parent's id
     // (while the parent is still Ready), so lineage columns are stamped by the provider routine.
-    private async Task<(JobEnqueueResponse Parent, JobEnqueueResponse Child)> EnqueueParentAndChildAsync(CancellationToken ct)
+    private async Task<(EnqueueJobResponse Parent, EnqueueJobResponse Child)> EnqueueParentAndChildAsync(CancellationToken ct)
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var json = serializers.Resolve(JobPayloadFormat.Json.Id);
         var parent = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "purge-now", json.Serialize(new PurgeProbe("parent")), null, null, null),
+            new EnqueueJobRequest(TestNamespace, "purge-now", json.Serialize(new PurgeProbe("parent")), null, null, null),
             ct
         );
         var child = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(
+            new EnqueueJobRequest(
                 TestNamespace,
                 "purge-now",
                 json.Serialize(new PurgeProbe("child")),

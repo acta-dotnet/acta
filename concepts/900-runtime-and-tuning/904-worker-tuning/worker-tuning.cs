@@ -45,7 +45,7 @@ var jobs = host.Services.GetRequiredService<IJobs>();
 const int BatchSize = 12;
 var requests = Enumerable
     .Range(1, BatchSize)
-    .Select(i => new JobEnqueueRequest("worker-tuning", "slow-task", JobPayload.Json(new SlowTask(i))))
+    .Select(i => new EnqueueJobRequest("worker-tuning", "slow-task", JobPayload.Json(new SlowTask(i))))
     .ToList();
 
 Console.WriteLine($"Enqueuing {BatchSize} jobs (cap={Cap}, batchSize=8, profile=Direct)...");

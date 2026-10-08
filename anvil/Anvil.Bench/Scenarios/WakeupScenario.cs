@@ -110,7 +110,7 @@ public sealed class WakeupScenario : IScenario
         {
             var target = host.Sink.Samples.Count + 1;
             await host.Jobs.EnqueueAsync(
-                new JobEnqueueRequest(BenchHost.Namespace, BenchHost.JobName, BenchPayloads.Json(new BenchInput(Stopwatch.GetTimestamp()))),
+                new EnqueueJobRequest(BenchHost.Namespace, BenchHost.JobName, BenchPayloads.Json(new BenchInput(Stopwatch.GetTimestamp()))),
                 ct
             );
             var jobStart = Stopwatch.StartNew();

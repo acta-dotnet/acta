@@ -64,7 +64,7 @@ public sealed class OutboxStagingSpec : ActaTestBase<ConformanceFixture>
         Assert.Equal(0, outbox);
     }
 
-    private JobEnqueueRequest Request() =>
+    private EnqueueJobRequest Request() =>
         new(
             "orders",
             "send-receipt",

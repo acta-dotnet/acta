@@ -44,7 +44,7 @@ conformance tests. New hot-path tables must justify any FK in review.
 
 ## Enqueue A Job
 
-Creating work from SQL is a write, so call the installed `enqueue_one` routine instead of hand-writing
+Creating work from SQL is a write, so call the installed `enqueue_job` routine instead of hand-writing
 `INSERT`s. You pass the **namespace name and the job name** (the `[Job("...")]` name); the routine
 resolves the definition, stamps the job ready, and writes the `jobs` and `runtimes` rows in one
 transaction.
@@ -53,7 +53,7 @@ transaction.
 
 ```sql
 SELECT job_id, job_ref, action  /* action: 1 inserted, 2 idempotency-deduped */
-  FROM acta.enqueue_one(
+  FROM acta.enqueue_job(
     p_namespace_name => 'billing',
     p_job_name       => 'send-invoice',
     p_input          => convert_to('{"invoiceId":42}', 'UTF8')
@@ -66,7 +66,7 @@ so declare an empty one even for a tag-free enqueue:
 ```sql
 DECLARE @tags acta.job_enqueue_tag_batch;
 DECLARE @payload varbinary(max) = CAST('{"invoiceId":42}' AS varbinary(max));
-EXEC acta.enqueue_one
+EXEC acta.enqueue_job
     @p_namespace_name = 'billing',
     @p_job_name       = 'send-invoice',
     @p_input          = @payload,

@@ -29,7 +29,7 @@ public sealed class JobContextDiResolutionSpec : ActaRuntimeTestBase<Conformance
         var ct = TestContext.Current.CancellationToken;
 
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "context-probe", JobPayload.Json(new ContextProbe("hello"))),
+            new EnqueueJobRequest(TestNamespace, "context-probe", JobPayload.Json(new ContextProbe("hello"))),
             ct
         );
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
@@ -56,7 +56,7 @@ public sealed class JobContextDiResolutionSpec : ActaRuntimeTestBase<Conformance
         var tenantId = (await Operations.Tenants.RegisterAsync(tenantKey, ct: ct)).TenantId;
 
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "context-probe", JobPayload.Json(new ContextProbe("scoped")), TenantKey: tenantKey),
+            new EnqueueJobRequest(TestNamespace, "context-probe", JobPayload.Json(new ContextProbe("scoped")), TenantKey: tenantKey),
             ct
         );
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));

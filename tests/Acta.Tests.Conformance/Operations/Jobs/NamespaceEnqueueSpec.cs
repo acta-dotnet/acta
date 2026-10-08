@@ -9,7 +9,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Jobs;
 
 /// <summary>
-/// Namespace status gate at enqueue: EnqueueOne/EnqueueBatch reject when the resolved namespace is
+/// Namespace status gate at enqueue: EnqueueJob/EnqueueJobs reject when the resolved namespace is
 /// suspended, and succeed again once it is reactivated. The status is flipped with a direct SQL
 /// UPDATE rather than through <c>INamespaces.SuspendAsync</c>, so this spec pins the enqueue gate on
 /// the persisted status alone and stays independent of the admin verb (which
@@ -20,7 +20,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     "enqueue-jobs.namespace-gate",
     "Enqueue rejects a suspended namespace and resumes once reactivated",
     Area = "Enqueue",
-    Contract = "EnqueueOne/EnqueueBatch reject enqueue into a suspended namespace and accept it again once the namespace is reactivated."
+    Contract = "EnqueueJob/EnqueueJobs reject enqueue into a suspended namespace and accept it again once the namespace is reactivated."
 )]
 public sealed class NamespaceEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -65,15 +65,15 @@ public sealed class NamespaceEnqueueSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(before, await CountJobsAsync(ct));
     }
 
-    [Fact(DisplayName = "A suspended namespace rejects EnqueueOne and persists nothing")]
-    public async Task Suspended_namespace_rejects_enqueue_one()
+    [Fact(DisplayName = "A suspended namespace rejects EnqueueJob and persists nothing")]
+    public async Task Suspended_namespace_rejects_enqueue_job()
     {
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
         await SetNamespaceStatusAsync(NamespaceStatusCode.Suspended, ct);
         var before = await CountJobsAsync(ct);
 
-        await Assert.ThrowsAnyAsync<Exception>(() => EnqueueTestOps.EnqueueOneAsync(Services, Row(), ct));
+        await Assert.ThrowsAnyAsync<Exception>(() => EnqueueTestOps.EnqueueJobAsync(Services, Row(), ct));
 
         Assert.Equal(before, await CountJobsAsync(ct));
     }
@@ -87,7 +87,7 @@ public sealed class NamespaceEnqueueSpec : ActaRuntimeTestBase<ConformanceFixtur
         await Assert.ThrowsAnyAsync<Exception>(() => EnqueueTestOps.EnqueueBatchAsync(Services, [Row()], ct));
 
         await SetNamespaceStatusAsync(NamespaceStatusCode.Active, ct);
-        var result = await EnqueueTestOps.EnqueueBatchAsync(Services, [Row()], ct);
+        var result = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row()], ct)).Jobs;
         var job = await ReadJobAsync(result[0].JobId, ct);
 
         Assert.NotNull(job);

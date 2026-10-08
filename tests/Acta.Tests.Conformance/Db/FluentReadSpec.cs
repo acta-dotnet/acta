@@ -27,7 +27,7 @@ public sealed class FluentReadSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
     public async Task Where_equals_finds_enqueued_job_by_deduplication_key()
     {
         var ct = TestContext.Current.CancellationToken;
-        var deduplicationKey = await EnqueueOne(ct);
+        var deduplicationKey = await EnqueueJob(ct);
 
         var jobs = await Db.From<JobEntity>().Where(j => j.DeduplicationKey == deduplicationKey).ToListAsync(ct);
 
@@ -42,7 +42,7 @@ public sealed class FluentReadSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
     {
         var ct = TestContext.Current.CancellationToken;
         var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var deduplicationKey = await EnqueueOne(ct);
+        var deduplicationKey = await EnqueueJob(ct);
 
         var jobs = await Db.From<JobEntity>()
             .Where(j => j.NamespaceId == namespaceId && j.ParentId == null && j.DeduplicationKey == deduplicationKey)
@@ -59,7 +59,7 @@ public sealed class FluentReadSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
     public async Task Projection_reads_only_declared_columns()
     {
         var ct = TestContext.Current.CancellationToken;
-        var deduplicationKey = await EnqueueOne(ct);
+        var deduplicationKey = await EnqueueJob(ct);
 
         var job = await Db.From<JobEntity>().Where(j => j.DeduplicationKey == deduplicationKey).SingleOrDefaultAsync(ct);
         var rows = await Db.From<RuntimeEntity, JobSummary>().Where(r => r.Id == job!.Id).ToListAsync(ct);
@@ -73,7 +73,7 @@ public sealed class FluentReadSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
     public async Task Count_returns_matching_row_count()
     {
         var ct = TestContext.Current.CancellationToken;
-        var deduplicationKey = await EnqueueOne(ct);
+        var deduplicationKey = await EnqueueJob(ct);
 
         var count = await Db.From<JobEntity>().Where(j => j.DeduplicationKey == deduplicationKey).CountAsync(ct);
 
@@ -84,7 +84,7 @@ public sealed class FluentReadSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
     public async Task In_predicate_matches_status_set()
     {
         var ct = TestContext.Current.CancellationToken;
-        var deduplicationKey = await EnqueueOne(ct);
+        var deduplicationKey = await EnqueueJob(ct);
 
         var job = await Db.From<JobEntity>().Where(j => j.DeduplicationKey == deduplicationKey).SingleOrDefaultAsync(ct);
         var inflight = new List<JobStatusCode> { JobStatusCode.Ready, JobStatusCode.Dispatched, JobStatusCode.Executing };
@@ -93,7 +93,7 @@ public sealed class FluentReadSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         Assert.Single(rows);
     }
 
-    private async Task<string> EnqueueOne(CancellationToken ct)
+    private async Task<string> EnqueueJob(CancellationToken ct)
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(2, 3));

@@ -29,7 +29,7 @@ public sealed class ChildRetentionSpec : ActaRuntimeTestBase<ConformanceFixture,
     public async Task Completed_child_under_live_parent_survives_until_the_tree_is_terminal()
     {
         var ct = TestContext.Current.CancellationToken;
-        var parent = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
+        var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         var childId = Assert.Single(await ChildIdsAsync(parent.JobId, ct));
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(childId, ct));
@@ -67,7 +67,7 @@ public sealed class ChildRetentionSpec : ActaRuntimeTestBase<ConformanceFixture,
     public async Task Manual_purge_takes_a_terminal_tree_leaves_first()
     {
         var ct = TestContext.Current.CancellationToken;
-        var parent = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
+        var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         var childId = Assert.Single(await ChildIdsAsync(parent.JobId, ct));
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(childId, ct));

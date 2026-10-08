@@ -16,12 +16,12 @@ namespace Acta.Tests.Conformance.Sqlite.DbSession;
 /// </summary>
 public sealed class SqliteAmbientTransactionScopeSpec : ActaRuntimeTestBase<SqliteConformanceFixture, TestJobsManifest>
 {
-    private async Task<JobEnqueueResponse> EnqueueAsync(CancellationToken ct)
+    private async Task<EnqueueJobResponse> EnqueueAsync(CancellationToken ct)
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(2, 3));
         return await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", payload, DeduplicationKey: TestKey("ambient")),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", payload, DeduplicationKey: TestKey("ambient")),
             ct
         );
     }
@@ -45,7 +45,7 @@ public sealed class SqliteAmbientTransactionScopeSpec : ActaRuntimeTestBase<Sqli
     {
         var ct = TestContext.Current.CancellationToken;
 
-        JobEnqueueResponse outcome;
+        EnqueueJobResponse outcome;
         using (var scope = new TransactionScope(TransactionScopeOption.Suppress, TransactionScopeAsyncFlowOption.Enabled))
         {
             outcome = await EnqueueAsync(ct);
@@ -53,6 +53,6 @@ public sealed class SqliteAmbientTransactionScopeSpec : ActaRuntimeTestBase<Sqli
         }
 
         Assert.True(outcome.JobId > 0);
-        Assert.Equal(JobEnqueueAction.Inserted, outcome.Action);
+        Assert.Equal(EnqueueJobAction.Inserted, outcome.Action);
     }
 }

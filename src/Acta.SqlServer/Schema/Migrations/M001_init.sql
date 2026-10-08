@@ -457,7 +457,7 @@ GO
 -- TVP table types used by hot-path routines + their batched parameters.
 
 -- Per-row enqueue batch: one row per Job to enqueue (1..5000 per call).
--- Consumed by acta.enqueue_batch's @p_batch sproc parameter.
+-- Consumed by acta.enqueue_jobs's @p_batch sproc parameter.
 IF TYPE_ID(N'{{schema}}.job_enqueue_batch') IS NULL
 EXEC(N'CREATE TYPE {{schema}}.job_enqueue_batch AS TABLE (
     ordinal           INT              NOT NULL,
@@ -481,7 +481,7 @@ EXEC(N'CREATE TYPE {{schema}}.job_enqueue_batch AS TABLE (
 GO
 
 -- Per-tag enqueue batch: zero-or-more rows per Job, joined to the main batch by ordinal.
--- Consumed by acta.enqueue_batch's @p_tag_batch sproc parameter.
+-- Consumed by acta.enqueue_jobs's @p_tag_batch sproc parameter.
 IF TYPE_ID(N'{{schema}}.job_enqueue_tag_batch') IS NULL
 EXEC(N'CREATE TYPE {{schema}}.job_enqueue_tag_batch AS TABLE (
     ordinal INT          NOT NULL,
@@ -574,7 +574,7 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 0)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-da976ae46cb9ebab263ad0225a62ef09', '{{schema}}');
+VALUES (0, 'baseline-e54bb8ef2964873df46a813da387dfbb', '{{schema}}');
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 1)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}');

@@ -39,10 +39,10 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         );
     }
 
-    private async Task<IReadOnlyList<JobEnqueueResponse>> EnqueueAsync(IReadOnlyList<JobEnqueueValues> rows, CancellationToken ct)
+    private async Task<IReadOnlyList<EnqueueJobResponse>> EnqueueAsync(IReadOnlyList<JobEnqueueValues> rows, CancellationToken ct)
     {
         _ = Services.GetRequiredService<ISqlDialect>();
-        return await EnqueueTestOps.EnqueueBatchAsync(Services, rows, ct);
+        return (await EnqueueTestOps.EnqueueBatchAsync(Services, rows, ct)).Jobs;
     }
 
     [Fact(DisplayName = "Status filter returns only jobs at the specified status and the total matches the filtered count")]
@@ -203,12 +203,10 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         var t2Id = (await Operations.Tenants.RegisterAsync(t2Key, null, null, ct)).TenantId;
 
         // Two jobs under T1, one under T2
-        var t1Outcomes = await EnqueueTestOps.EnqueueBatchAsync(
-            Services,
-            [AddNumbersRow(tenantKey: t1Key), AddNumbersRow(tenantKey: t1Key)],
-            ct
-        );
-        var t2Outcomes = await EnqueueTestOps.EnqueueBatchAsync(Services, [AddNumbersRow(tenantKey: t2Key)], ct);
+        var t1Outcomes = (
+            await EnqueueTestOps.EnqueueBatchAsync(Services, [AddNumbersRow(tenantKey: t1Key), AddNumbersRow(tenantKey: t1Key)], ct)
+        ).Jobs;
+        var t2Outcomes = (await EnqueueTestOps.EnqueueBatchAsync(Services, [AddNumbersRow(tenantKey: t2Key)], ct)).Jobs;
         var ta = t1Outcomes[0].JobId;
         var tb = t1Outcomes[1].JobId;
         var tc = t2Outcomes[0].JobId;
@@ -254,11 +252,13 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         var j2 = ns1Outcomes[1].JobId;
 
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
-        var ns2Outcomes = await EnqueueTestOps.EnqueueBatchAsync(
-            Services,
-            [new JobEnqueueValues(NamespaceName: ns2Name, JobName: "add-numbers", Input: payload)],
-            ct
-        );
+        var ns2Outcomes = (
+            await EnqueueTestOps.EnqueueBatchAsync(
+                Services,
+                [new JobEnqueueValues(NamespaceName: ns2Name, JobName: "add-numbers", Input: payload)],
+                ct
+            )
+        ).Jobs;
         var j3 = ns2Outcomes[0].JobId;
 
         var queries = Services.GetRequiredService<IActaOperations>();
@@ -329,14 +329,16 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
 
         // Two echo jobs
         var echoPayload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new Echo("hi"));
-        var echoOutcomes = await EnqueueTestOps.EnqueueBatchAsync(
-            Services,
-            [
-                new JobEnqueueValues(NamespaceName: TestNamespace, JobName: "echo", Input: echoPayload),
-                new JobEnqueueValues(NamespaceName: TestNamespace, JobName: "echo", Input: echoPayload),
-            ],
-            ct
-        );
+        var echoOutcomes = (
+            await EnqueueTestOps.EnqueueBatchAsync(
+                Services,
+                [
+                    new JobEnqueueValues(NamespaceName: TestNamespace, JobName: "echo", Input: echoPayload),
+                    new JobEnqueueValues(NamespaceName: TestNamespace, JobName: "echo", Input: echoPayload),
+                ],
+                ct
+            )
+        ).Jobs;
         var e1 = echoOutcomes[0].JobId;
         var e2 = echoOutcomes[1].JobId;
 

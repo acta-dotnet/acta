@@ -154,10 +154,10 @@ public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<Conform
         var ct = TestContext.Current.CancellationToken;
         var firstUnsupported = await EnqueueAndForgetDescriptorAsync(AuditedJob, ct);
         var secondUnsupported = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, AuditedJob, JobPayload.Json(new AddNumbers(2, 3))),
+            new EnqueueJobRequest(TestNamespace, AuditedJob, JobPayload.Json(new AddNumbers(2, 3))),
             ct
         );
-        var supported = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, FailuresAuditedJob, JobPayload.None), ct);
+        var supported = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, FailuresAuditedJob, JobPayload.None), ct);
 
         // Namespace-level ticks, because the exclusion lives on the scanning claim: the by-id path
         // still hands a named row back.
@@ -191,8 +191,8 @@ public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<Conform
         {
             jobs.Add((await EnqueueAndForgetDescriptorAsync(jobName, ct)).JobId);
             var payload = jobName == AuditedJob ? JobPayload.Json(new AddNumbers(2, 3)) : JobPayload.None;
-            jobs.Add((await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, jobName, payload), ct)).JobId);
-            jobs.Add((await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, jobName, payload), ct)).JobId);
+            jobs.Add((await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, jobName, payload), ct)).JobId);
+            jobs.Add((await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, jobName, payload), ct)).JobId);
         }
 
         await TickUntilNothingClaimedAsync(ct);
@@ -268,10 +268,10 @@ public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<Conform
     /// the way a deployment that removed the handler would. The catalog row stays: a definition is
     /// retired by registration, not by one worker's manifest, and the jobs outlive both.
     /// </summary>
-    private async Task<JobEnqueueResponse> EnqueueAndForgetDescriptorAsync(string jobName, CancellationToken ct)
+    private async Task<EnqueueJobResponse> EnqueueAndForgetDescriptorAsync(string jobName, CancellationToken ct)
     {
         var payload = jobName == AuditedJob ? JobPayload.Json(new AddNumbers(2, 3)) : JobPayload.None;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, jobName, payload), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, jobName, payload), ct);
 
         var definitionId = DefinitionId(jobName);
         Assert.True(Runtime.Descriptors.TryRemove(definitionId, out var removed));

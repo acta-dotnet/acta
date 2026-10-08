@@ -29,7 +29,7 @@ public sealed class StartExecutionStaleVersionSpec : ActaRuntimeTestBase<Conform
         var workerId = await WorkerIdAsync(Db, ns, ct);
 
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
             ct
         );
         _ = Services.GetRequiredService<ISqlDialect>();
@@ -57,7 +57,7 @@ public sealed class StartExecutionStaleVersionSpec : ActaRuntimeTestBase<Conform
         var workerId = await WorkerIdAsync(Db, ns, ct);
 
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
             ct
         );
         _ = Services.GetRequiredService<ISqlDialect>();
@@ -87,7 +87,7 @@ public sealed class StartExecutionStaleVersionSpec : ActaRuntimeTestBase<Conform
         var workerId = await WorkerIdAsync(Db, ns, ct);
 
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
             ct
         );
 

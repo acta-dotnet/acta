@@ -75,10 +75,10 @@ internal interface ISqlDialect
     void BindExcludedDefinitionIds(DbCommand command, int[]? definitionIds);
 
     /// <summary>Binds a one-row enqueue in the provider-native shape (typed arrays / TVP / JSON).</summary>
-    void BindEnqueueOne(DbCommand command, JobEnqueueValues row, Guid jobRef, string schema);
+    void BindEnqueueJob(DbCommand command, JobEnqueueValues row, Guid jobRef, string schema);
 
     /// <summary>Binds a whole-batch enqueue in the provider-native shape; jobRefs align with rows.</summary>
-    void BindEnqueueBatch(DbCommand command, IReadOnlyList<JobEnqueueValues> rows, IReadOnlyList<Guid> jobRefs, string schema);
+    void BindEnqueueJobs(DbCommand command, IReadOnlyList<JobEnqueueValues> rows, IReadOnlyList<Guid> jobRefs, string schema);
 
     /// <summary>Binds the whole-namespace definition registration batch in the provider-native shape.</summary>
     void BindRegisterDefinitions(

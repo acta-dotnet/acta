@@ -39,7 +39,7 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var worker = await ChaosSpecHelpers.WorkerIdAsync(Db, ns, ct);
 
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal-timeout", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal-timeout", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         await ExpireWaitAsync(Db, enqueued.JobId, "go", ct);
         var deadline = (await ReadJobAsync(enqueued.JobId, ct)).NextRunAtUtc;
@@ -89,7 +89,7 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var worker = await ChaosSpecHelpers.WorkerIdAsync(Db, ns, ct);
 
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal-timeout", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal-timeout", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         await ExpireWaitAsync(Db, enqueued.JobId, "go", ct);
 
@@ -114,7 +114,7 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         var worker = await ChaosSpecHelpers.WorkerIdAsync(Db, ns, ct);
 
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "job-try-wait-signal-timeout-then-hold", JobPayload.None),
+            new EnqueueJobRequest(TestNamespace, "job-try-wait-signal-timeout-then-hold", JobPayload.None),
             ct
         );
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
@@ -143,7 +143,7 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
 
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal-timeout", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal-timeout", JobPayload.None), ct);
         await ReclaimAfterResolvedWaitAsync(enqueued, ns, ct);
 
         // Spending no budget is what makes this the only place the loop can surface: the reclaim's
@@ -175,7 +175,7 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
 
         // The Try overload resumes past its expired wait, so this job is the one-off: one worker died
         // on the timeout resolution, the replay finished the work, and nothing is wrong any more.
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-try-wait-signal-timeout", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-try-wait-signal-timeout", JobPayload.None), ct);
         await ReclaimAfterResolvedWaitAsync(enqueued, ns, ct);
 
         await RunAlertsAsync(enqueued.JobId, ns, ct);
@@ -197,7 +197,7 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
     // The whole crash-after-the-flip staging, shared by the facts that go on to ask what it looked
     // like from outside: arm the wait, move it past its deadline, claim it with a lease that is
     // already dead, make the flip the lost worker made, and sweep.
-    private async Task ReclaimAfterResolvedWaitAsync(JobEnqueueResponse enqueued, int ns, CancellationToken ct)
+    private async Task ReclaimAfterResolvedWaitAsync(EnqueueJobResponse enqueued, int ns, CancellationToken ct)
     {
         var worker = await ChaosSpecHelpers.WorkerIdAsync(Db, ns, ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));

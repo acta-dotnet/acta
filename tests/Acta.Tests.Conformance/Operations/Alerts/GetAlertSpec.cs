@@ -136,8 +136,8 @@ public sealed class GetAlertSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.Equal(row.AcknowledgedAtUtc, detail.AcknowledgedAtUtc);
     }
 
-    private ValueTask<JobEnqueueResponse> EnqueueAsync(CancellationToken ct) =>
-        Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct);
+    private ValueTask<EnqueueJobResponse> EnqueueAsync(CancellationToken ct) =>
+        Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct);
 
     private async Task<AlertEntity> RowAsync(long alertId, CancellationToken ct) =>
         Assert.Single(await Db.From<AlertEntity>().Where(a => a.Id == alertId).ToListAsync(ct));

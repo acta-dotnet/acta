@@ -29,7 +29,7 @@ public sealed class AlertProfileMatrixSpec : ActaRuntimeTestBase<ConformanceFixt
         var ct = TestContext.Current.CancellationToken;
         OnTerminalProbe.Reset(TestNamespace);
 
-        var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "on-terminal-probe", JobPayload.None), ct);
+        var job = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "on-terminal-probe", JobPayload.None), ct);
 
         // Attempt 1: non-terminal failure. OnTerminal suppresses it: zero alerts.
         await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => OnTerminalProbe.Attempts(TestNamespace), 1, ct);
@@ -54,7 +54,7 @@ public sealed class AlertProfileMatrixSpec : ActaRuntimeTestBase<ConformanceFixt
         var ct = TestContext.Current.CancellationToken;
         InfoAlertProbe.Reset(TestNamespace);
 
-        var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "info-alert-probe", JobPayload.None), ct);
+        var job = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "info-alert-probe", JobPayload.None), ct);
 
         // Attempt 1: non-terminal failure. Info suppresses it: zero alerts.
         await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => InfoAlertProbe.Attempts(TestNamespace), 1, ct);
@@ -79,7 +79,7 @@ public sealed class AlertProfileMatrixSpec : ActaRuntimeTestBase<ConformanceFixt
         var ct = TestContext.Current.CancellationToken;
         SysCriticalProbe.Reset(TestNamespace);
 
-        var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "sys-critical-probe", JobPayload.None), ct);
+        var job = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "sys-critical-probe", JobPayload.None), ct);
 
         // Attempt 1: non-terminal failure. SysCritical emits a FirstFailure at Critical.
         await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => SysCriticalProbe.Attempts(TestNamespace), 1, ct);
@@ -111,7 +111,7 @@ public sealed class AlertProfileMatrixSpec : ActaRuntimeTestBase<ConformanceFixt
         OnTerminalProbe.Reset(TestNamespace);
 
         // Drive to terminal (2 attempts) to produce a FinalFailure alert.
-        var job = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "on-terminal-probe", JobPayload.None), ct);
+        var job = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "on-terminal-probe", JobPayload.None), ct);
         await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => OnTerminalProbe.Attempts(TestNamespace), 2, ct);
         await RunAlertsAsync(job.JobId, ct);
 

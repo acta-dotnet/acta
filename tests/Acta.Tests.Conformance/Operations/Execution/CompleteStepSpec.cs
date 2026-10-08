@@ -138,7 +138,7 @@ public sealed class CompleteStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
     }
 
     private async Task<long> EnqueueAsync(CancellationToken ct) =>
-        (await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct)).JobId;
+        (await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct)).JobId;
 
     private Task<CompleteStepResponse> FailAsync(long jobId, int version, int maxAttempts, int? retryWindowSeconds, CancellationToken ct) =>
         Execution.CompleteStepAsync(

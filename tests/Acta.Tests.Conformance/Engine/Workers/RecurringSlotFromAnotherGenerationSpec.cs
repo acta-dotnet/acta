@@ -78,11 +78,11 @@ public sealed class RecurringSlotFromAnotherGenerationSpec : ActaRuntimeTestBase
 
         // Before the schedule exists: two ordinary jobs in one lane, the second under the key a slot will use.
         var head = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, UnscheduledPingManifest.JobName, JobPayload.None, Lane: "l", DeduplicationKey: "other"),
+            new EnqueueJobRequest(TestNamespace, UnscheduledPingManifest.JobName, JobPayload.None, Lane: "l", DeduplicationKey: "other"),
             ct
         );
         var behind = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(
+            new EnqueueJobRequest(
                 TestNamespace,
                 UnscheduledPingManifest.JobName,
                 JobPayload.None,

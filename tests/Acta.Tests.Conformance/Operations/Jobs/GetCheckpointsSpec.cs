@@ -23,7 +23,7 @@ public sealed class GetCheckpointsSpec : ActaRuntimeTestBase<ConformanceFixture,
         var execution = Services.GetRequiredService<Acta.Runtime.Execution>();
 
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))),
             ct
         );
 
@@ -72,7 +72,7 @@ public sealed class GetCheckpointsSpec : ActaRuntimeTestBase<ConformanceFixture,
         var ct = TestContext.Current.CancellationToken;
 
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 2))),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 2))),
             ct
         );
 

@@ -1,6 +1,6 @@
 -- Lock order: the batch's lanes in id order, then the parent rows (docs/internals/sql-execution-policy.md,
 -- "Lane lock order").
-CREATE OR REPLACE FUNCTION {{schema}}.enqueue_batch(
+CREATE OR REPLACE FUNCTION {{schema}}.enqueue_jobs(
     p_b_ordinal INT [],
     p_b_job_ref UUID [],
     p_b_namespace_name VARCHAR [],
@@ -521,8 +521,8 @@ BEGIN
         COALESCE(mine.id, root.id, child.id) AS job_id,
         COALESCE(mine.job_ref, root.job_ref, child.job_ref) AS job_ref,
         CASE WHEN mine.id IS NOT NULL
-            THEN 1 /* JobEnqueueAction.Inserted */
-            ELSE 2 /* JobEnqueueAction.Deduplicated */ END AS action
+            THEN 1 /* EnqueueJobAction.Inserted */
+            ELSE 2 /* EnqueueJobAction.Deduplicated */ END AS action
     FROM _enq_batch e
     LEFT JOIN {{schema}}.jobs mine ON mine.id = e.id
     LEFT JOIN {{schema}}.jobs root

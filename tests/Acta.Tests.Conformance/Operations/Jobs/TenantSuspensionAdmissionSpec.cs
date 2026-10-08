@@ -46,10 +46,10 @@ public sealed class TenantSuspensionAdmissionSpec : ActaRuntimeTestBase<Conforma
         var key = TestKey("adm-inherit");
         var tenantId = (await Tenants().RegisterAsync(key, null, null, ct)).TenantId;
 
-        var parent = await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: key)], ct);
+        var parent = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: key)], ct)).Jobs;
         await Tenants().SuspendAsync(key, "hold", null, ct);
 
-        var child = await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: null, parentId: parent[0].JobId)], ct);
+        var child = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: null, parentId: parent[0].JobId)], ct)).Jobs;
         var childJob = await ReadJobAsync(child[0].JobId, ct);
 
         Assert.NotNull(childJob);
@@ -63,7 +63,7 @@ public sealed class TenantSuspensionAdmissionSpec : ActaRuntimeTestBase<Conforma
         var key = TestKey("adm-explicit");
         await Tenants().RegisterAsync(key, null, null, ct);
 
-        var parent = await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: key)], ct);
+        var parent = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantKey: key)], ct)).Jobs;
         await Tenants().SuspendAsync(key, "hold", null, ct);
 
         await Assert.ThrowsAnyAsync<Exception>(() =>

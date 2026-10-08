@@ -1,6 +1,6 @@
 -- Lock order: the batch's lanes in id order, then job rows (docs/internals/sql-execution-policy.md,
 -- "Lane lock order").
-CREATE OR ALTER PROCEDURE {{schema}}.enqueue_batch
+CREATE OR ALTER PROCEDURE {{schema}}.enqueue_jobs
     @p_batch {{schema}}.job_enqueue_batch READONLY,
     @p_tag_batch {{schema}}.job_enqueue_tag_batch READONLY
 AS
@@ -546,8 +546,8 @@ BEGIN
             COALESCE(m.job_ref, e.job_ref) AS job_ref,
             CASE
                 WHEN m.id IS NOT NULL
-                    THEN 1 /* JobEnqueueAction.Inserted */
-                ELSE 2 /* JobEnqueueAction.Deduplicated */
+                    THEN 1 /* EnqueueJobAction.Inserted */
+                ELSE 2 /* EnqueueJobAction.Deduplicated */
             END AS action
         FROM @p_batch b
         LEFT JOIN @map m ON m.job_ref = b.job_ref

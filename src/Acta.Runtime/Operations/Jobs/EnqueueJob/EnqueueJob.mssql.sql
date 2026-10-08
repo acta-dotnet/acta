@@ -1,7 +1,7 @@
 -- Only @p_namespace_name and @p_job_name are required; other scalars default (@p_job_ref is
 -- server-generated when omitted; @p_input_format_id defaults json/none by input presence). The tag TVP
 -- has no default (SQL Server TVPs cannot); pass an empty table variable for a tag-free enqueue.
-CREATE OR ALTER PROCEDURE {{schema}}.enqueue_one
+CREATE OR ALTER PROCEDURE {{schema}}.enqueue_job
     @p_job_ref UNIQUEIDENTIFIER = NULL,
     @p_namespace_name VARCHAR(128) = NULL,
     @p_job_name VARCHAR(128) = NULL,
@@ -303,8 +303,8 @@ BEGIN
             CASE WHEN @job_id IS NOT NULL THEN @p_job_ref ELSE @existing_ref END AS job_ref,
             CASE
                 WHEN @job_id IS NOT NULL
-                    THEN 1 /* JobEnqueueAction.Inserted */
-                ELSE 2 /* JobEnqueueAction.Deduplicated */
+                    THEN 1 /* EnqueueJobAction.Inserted */
+                ELSE 2 /* EnqueueJobAction.Deduplicated */
             END AS action;
 
         IF @entry_trancount = 0

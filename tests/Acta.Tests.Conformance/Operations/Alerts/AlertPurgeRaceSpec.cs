@@ -121,14 +121,16 @@ public sealed class AlertPurgeRaceSpec : ActaRuntimeTestBase<ConformanceFixture,
 
     private async Task<List<long>> TerminalJobsWithAlertsAsync(int round, CancellationToken ct)
     {
-        var outcomes = await Jobs.EnqueueBatchAsync(
-            [
-                .. Enumerable
-                    .Range(0, JobsPerRound)
-                    .Select(i => new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(round, i)))),
-            ],
-            ct
-        );
+        var outcomes = (
+            await Jobs.EnqueueBatchAsync(
+                [
+                    .. Enumerable
+                        .Range(0, JobsPerRound)
+                        .Select(i => new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(round, i)))),
+                ],
+                ct
+            )
+        ).Jobs;
         var ids = outcomes.Select(o => o.JobId).Order().ToList();
         await Db.ExecuteRawAsync(
             "UPDATE {schema}.runtimes SET status_code = @p_status WHERE namespace_id = @p_ns AND job_id >= @p_first AND job_id <= @p_last",

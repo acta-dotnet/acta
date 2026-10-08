@@ -40,7 +40,7 @@ internal sealed class NamespaceEntity : IEntity<int>
 
     /// <summary>
     /// Namespace lifecycle status. Supplied at INSERT by the StartWorker registration (no server-side
-    /// default), mirroring the tenant convention. Enforced at enqueue: EnqueueOne/EnqueueBatch reject
+    /// default), mirroring the tenant convention. Enforced at enqueue: EnqueueJob/EnqueueJobs reject
     /// with a distinguishable error when the resolved namespace is not Active.
     /// </summary>
     [DbColumn("status_code")]

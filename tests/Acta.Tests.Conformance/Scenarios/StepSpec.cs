@@ -25,7 +25,7 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
     public async Task Typed_step_runs_once_and_returns_result()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-step-basic", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-step-basic", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
@@ -45,7 +45,7 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
     public async Task Void_step_succeeds_with_no_result_payload()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-step-void", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-step-void", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
@@ -61,7 +61,7 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
     public async Task Succeeded_step_replays_without_re_running_the_body()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-step-replay", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-step-replay", JobPayload.None), ct);
 
         // Tick 1: step runs, then the handler waits on a signal.
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
@@ -81,7 +81,7 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
     public async Task In_budget_retry_is_budget_neutral_for_the_parent()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-step-retry", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-step-retry", JobPayload.None), ct);
 
         // Tick 1: first execution inserts Pending attempt 1, the body fails, a retry is scheduled.
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
@@ -114,7 +114,7 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
     public async Task Exhausted_step_fails_the_parent_when_uncaught()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-step-exhaust", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-step-exhaust", JobPayload.None), ct);
 
         // Tick 1: attempt 1 fails in budget (step MaxAttempts = 2) -> budget-neutral re-arm.
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
@@ -141,7 +141,7 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
         var ct = TestContext.Current.CancellationToken;
 
         // A real job row to own the step slot (enqueue only; never run).
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-step-basic", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-step-basic", JobPayload.None), ct);
 
         // First start hands out the version a handler would carry; a second start advances the slot,
         // modelling a concurrent execution of the same job that re-entered the step.
@@ -188,7 +188,7 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
         // A real job row owns no step slot (StartStep never ran, or the slot was reset away).
         // A completion arriving for an absent slot must report StaleVersion, not throw - the routine
         // always yields one decision row regardless of whether a matching slot exists.
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-step-basic", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-step-basic", JobPayload.None), ct);
 
         var outcome = await Services
             .GetRequiredService<Execution>()

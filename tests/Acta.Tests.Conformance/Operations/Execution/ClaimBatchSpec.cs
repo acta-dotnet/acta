@@ -57,7 +57,7 @@ public sealed class ClaimBatchSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var payload = JobPayload.Json(new AddNumbers(2, 3));
         for (var i = 0; i < Batch * 3; i++)
         {
-            await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", payload), ct);
+            await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", payload), ct);
         }
 
         var claimed = await Services
@@ -111,7 +111,7 @@ public sealed class ClaimBatchSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var dbNow = await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct);
         var dueAt = dbNow.AddMinutes(2);
         await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3)), NextRunAtUtc: dueAt),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3)), NextRunAtUtc: dueAt),
             ct
         );
 
@@ -147,9 +147,9 @@ public sealed class ClaimBatchSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         {
             excludedJobs.Add((await EnqueueExcludedAsync(ct)).JobId);
         }
-        var normal = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, SupportedJob, JobPayload.None), ct);
+        var normal = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, SupportedJob, JobPayload.None), ct);
         var high = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, SupportedJob, JobPayload.None, Priority: JobPriorityCode.High),
+            new EnqueueJobRequest(TestNamespace, SupportedJob, JobPayload.None, Priority: JobPriorityCode.High),
             ct
         );
 
@@ -192,7 +192,7 @@ public sealed class ClaimBatchSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         await EnqueueExcludedAsync(ct);
         var dbNow = await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct);
         var dueAt = dbNow.AddMinutes(2);
-        await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, SupportedJob, JobPayload.None, NextRunAtUtc: dueAt), ct);
+        await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, SupportedJob, JobPayload.None, NextRunAtUtc: dueAt), ct);
 
         var bounded = await ReadClaimUntilAsync(
             () =>
@@ -231,8 +231,8 @@ public sealed class ClaimBatchSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
 
     private const string SupportedJob = "failures-audit-probe";
 
-    private async Task<JobEnqueueResponse> EnqueueExcludedAsync(CancellationToken ct) =>
-        await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, ExcludedJob, JobPayload.Json(new AddNumbers(2, 3))), ct);
+    private async Task<EnqueueJobResponse> EnqueueExcludedAsync(CancellationToken ct) =>
+        await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, ExcludedJob, JobPayload.Json(new AddNumbers(2, 3))), ct);
 
     private int DefinitionId(string jobName) =>
         Runtime.TryGetDefinitionId(TestNamespace, jobName, out var id)
@@ -296,7 +296,7 @@ public sealed class ClaimBatchSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var ids = new long[Batch * 2];
         for (var i = 0; i < ids.Length; i++)
         {
-            var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", payload), ct);
+            var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", payload), ct);
             ids[i] = enqueued.JobId;
         }
 

@@ -22,7 +22,7 @@ public sealed class InputDeserializationFailureSpec : ActaRuntimeTestBase<Confor
     {
         var ct = TestContext.Current.CancellationToken;
         var malformed = JobPayload.CopyBytes(JobPayloadFormat.Json, "{\"left\":1} trailing"u8);
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", malformed), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", malformed), ct);
 
         await Runtime.RunOnceAsync(enqueued, ct);
 

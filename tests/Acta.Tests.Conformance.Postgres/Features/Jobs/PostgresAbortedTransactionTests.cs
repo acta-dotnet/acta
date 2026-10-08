@@ -33,7 +33,7 @@ public sealed class PostgresAbortedTransactionTests : ActaRuntimeTestBase<PgConf
 
             // An unknown job is a database-level rejection inside the caller transaction.
             await Assert.ThrowsAnyAsync<Exception>(async () =>
-                await Jobs.EnqueueAsync(tx, new JobEnqueueRequest(TestNamespace, "no-such-job", JobPayload.None), ct)
+                await Jobs.EnqueueAsync(tx, new EnqueueJobRequest(TestNamespace, "no-such-job", JobPayload.None), ct)
             );
 
             // PostgreSQL has aborted the transaction, so any further command is refused with 25P02.

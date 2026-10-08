@@ -23,7 +23,7 @@ public sealed class LaneReadSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         var ct = TestContext.Current.CancellationToken;
         var head = await StepAsync("orders", "a", ct);
         var follower = await StepAsync("orders", "b", ct);
-        var loose = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "lane-step", JobPayload.Json(new LaneStep("", "x"))), ct);
+        var loose = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "lane-step", JobPayload.Json(new LaneStep("", "x"))), ct);
 
         var headRead = await Jobs.GetAsync(head, ct);
         var followerRead = await Jobs.GetAsync(follower, ct);
@@ -46,7 +46,7 @@ public sealed class LaneReadSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         var head = await StepAsync("orders", "a", ct);
         var follower = await StepAsync("orders", "b", ct);
         await StepAsync("billing", "c", ct);
-        await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "lane-step", JobPayload.Json(new LaneStep("", "x"))), ct);
+        await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "lane-step", JobPayload.Json(new LaneStep("", "x"))), ct);
 
         var page = await Operations.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, Lane: "Orders"), ct);
 
@@ -54,9 +54,9 @@ public sealed class LaneReadSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.All(page.Items, i => Assert.Equal("orders", i.Lane));
     }
 
-    private async Task<JobEnqueueResponse> StepAsync(string lane, string label, CancellationToken ct) =>
+    private async Task<EnqueueJobResponse> StepAsync(string lane, string label, CancellationToken ct) =>
         await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "lane-step", JobPayload.Json(new LaneStep(lane, label)), Lane: lane),
+            new EnqueueJobRequest(TestNamespace, "lane-step", JobPayload.Json(new LaneStep(lane, label)), Lane: lane),
             ct
         );
 }

@@ -28,7 +28,7 @@ public sealed class CompletionKindMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         var (_, _, ns, workerId) = await DepsAsync(ct);
 
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 2))),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 2))),
             ct
         );
         var claimed = Assert.Single(
@@ -54,7 +54,7 @@ public sealed class CompletionKindMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         var (_, _, ns, workerId) = await DepsAsync(ct);
 
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(3, 4))),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(3, 4))),
             ct
         );
 
@@ -102,7 +102,7 @@ public sealed class CompletionKindMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         var (_, _, ns, workerId) = await DepsAsync(ct);
 
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(5, 6))),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(5, 6))),
             ct
         );
 
@@ -135,7 +135,7 @@ public sealed class CompletionKindMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         var (_, _, ns, workerId) = await DepsAsync(ct);
 
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(7, 8))),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(7, 8))),
             ct
         );
 
@@ -177,7 +177,7 @@ public sealed class CompletionKindMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         var (db, _, ns, workerId) = await DepsAsync(ct);
 
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(9, 10))),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(9, 10))),
             ct
         );
 

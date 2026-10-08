@@ -106,7 +106,7 @@ public sealed class StepDeferredRetrySpec : ActaRuntimeTestBase<ConformanceFixtu
     public async Task Parent_is_ready_at_retry_instant_and_nothing_claimed_before_it()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, ProbeName, JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, ProbeName, JobPayload.None), ct);
 
         // Tick 1: body fails on attempt 1; step schedules a retry in 30s (real DB clock).
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
@@ -140,7 +140,7 @@ public sealed class StepDeferredRetrySpec : ActaRuntimeTestBase<ConformanceFixtu
     public async Task At_retry_instant_body_is_reinvoked_and_parent_completes_done()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, ProbeName, JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, ProbeName, JobPayload.None), ct);
 
         // Tick 1: body fails, retry deferred.
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));

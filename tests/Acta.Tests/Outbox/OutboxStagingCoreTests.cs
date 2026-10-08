@@ -14,7 +14,7 @@ namespace Acta.Tests.Outbox;
 /// </summary>
 public sealed class OutboxStagingCoreTests
 {
-    private static JobEnqueueRequest AllMembers() =>
+    private static EnqueueJobRequest AllMembers() =>
         new(
             "orders",
             "send-receipt",
@@ -31,11 +31,11 @@ public sealed class OutboxStagingCoreTests
             Lane: "lane-9"
         );
 
-    private static JobEnqueueRequest Reconstruct(OutboxStagingValues row)
+    private static EnqueueJobRequest Reconstruct(OutboxStagingValues row)
     {
         var input =
             row.InputFormatId == 0 ? JobPayload.None : JobPayload.CopyBytes(JobPayloadFormat.ForId(row.InputFormatId), row.Input ?? []);
-        return new JobEnqueueRequest(
+        return new EnqueueJobRequest(
             row.JobNamespace,
             row.JobName,
             input,
@@ -94,7 +94,7 @@ public sealed class OutboxStagingCoreTests
     [MemberData(nameof(Payloads))]
     public void Payload_kinds_round_trip(string _, JobPayload payload)
     {
-        var request = new JobEnqueueRequest("orders", "send-receipt", payload, DeduplicationKey: "order-1");
+        var request = new EnqueueJobRequest("orders", "send-receipt", payload, DeduplicationKey: "order-1");
 
         var rebuilt = Reconstruct(OutboxStaging.Stage(request));
 
@@ -105,7 +105,7 @@ public sealed class OutboxStagingCoreTests
     [Fact]
     public void Stage_requires_a_deduplication_key()
     {
-        var request = new JobEnqueueRequest("orders", "send-receipt", JobPayload.None, DeduplicationKey: null);
+        var request = new EnqueueJobRequest("orders", "send-receipt", JobPayload.None, DeduplicationKey: null);
 
         var ex = Assert.Throws<ArgumentException>(() => OutboxStaging.Stage(request));
         Assert.Contains("DeduplicationKey", ex.Message, StringComparison.Ordinal);
@@ -114,7 +114,7 @@ public sealed class OutboxStagingCoreTests
     [Fact]
     public void Stage_rejects_a_parent_id()
     {
-        var request = new JobEnqueueRequest("orders", "send-receipt", JobPayload.Text("hi"), DeduplicationKey: "k") with
+        var request = new EnqueueJobRequest("orders", "send-receipt", JobPayload.Text("hi"), DeduplicationKey: "k") with
         {
             ParentJobId = 42,
         };
@@ -126,7 +126,7 @@ public sealed class OutboxStagingCoreTests
     [Fact]
     public void Stage_rejects_next_run_and_delay_together()
     {
-        var request = new JobEnqueueRequest("orders", "send-receipt", JobPayload.None, DeduplicationKey: "k")
+        var request = new EnqueueJobRequest("orders", "send-receipt", JobPayload.None, DeduplicationKey: "k")
         {
             NextRunAtUtc = DateTime.UtcNow,
             DelaySeconds = 30,
@@ -152,7 +152,7 @@ public sealed class OutboxStagingCoreTests
         var local = new DateTime(2035, 6, 1, 12, 0, 0, DateTimeKind.Local);
 
         var row = OutboxStaging.Stage(
-            new JobEnqueueRequest("orders", "send-receipt", JobPayload.None, DeduplicationKey: "k", NextRunAtUtc: local)
+            new EnqueueJobRequest("orders", "send-receipt", JobPayload.None, DeduplicationKey: "k", NextRunAtUtc: local)
         );
 
         Assert.NotNull(row.NextRunAtUtc);
@@ -165,14 +165,14 @@ public sealed class OutboxStagingCoreTests
     {
         Assert.Null(OutboxMetaWriter.Write(null));
         Assert.Null(OutboxMetaWriter.Write([]));
-        Assert.Null(OutboxStaging.Stage(new JobEnqueueRequest("orders", "j", JobPayload.None, DeduplicationKey: "k")).Meta);
+        Assert.Null(OutboxStaging.Stage(new EnqueueJobRequest("orders", "j", JobPayload.None, DeduplicationKey: "k")).Meta);
     }
 
     // Extension-level guards on the provider staging primitive, proven on an in-memory SQLite transaction
     // (no server): an uppercase table override is rejected before any I/O by the same lowercase identifier
     // validation the relay source uses, and a completed transaction is rejected by the structural transaction
     // validation that mirrors the transactional IJobs overloads.
-    private static JobEnqueueRequest Valid() => new("orders", "send", JobPayload.Text("hi"), DeduplicationKey: "k");
+    private static EnqueueJobRequest Valid() => new("orders", "send", JobPayload.Text("hi"), DeduplicationKey: "k");
 
     [Fact]
     public async Task An_uppercase_table_override_is_rejected()

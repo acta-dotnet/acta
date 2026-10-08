@@ -45,7 +45,7 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
     public async Task Raise_signal_wakes_an_idle_loop_to_run_the_released_job()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(JobStatusCode.Suspended, (await ReadJobAsync(enqueued.JobId, ct)).Status);
 
@@ -85,7 +85,7 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
     public async Task Wait_before_signal_suspends_job()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
@@ -108,7 +108,7 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
     public async Task Wait_signal_is_idempotent_while_pending()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         // Force a re-claim while still pending: the replayed wait must not duplicate the slot or consume an attempt.
@@ -124,7 +124,7 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
     public async Task Raise_signal_releases_suspended_job()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var raise = await Jobs.RaiseSignalAsync(enqueued, "go", JobPayload.None, ct: ct);
@@ -147,7 +147,7 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
     public async Task Signal_raised_before_wait_is_observed()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
 
         // Raise before the handler ever runs: the job is Ready, so the slot is created Set and the status is unchanged.
         var raise = await Jobs.RaiseSignalAsync(enqueued, "go", JobPayload.None, ct: ct);
@@ -164,7 +164,7 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
     public async Task Typed_signal_round_trips_payload()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal-typed", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal-typed", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var decision = new ReviewDecision(true, "looks good");
@@ -179,7 +179,7 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
     public async Task Presence_signal_has_null_payload()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(enqueued, "go", JobPayload.None, ct: ct)).Action);
@@ -194,7 +194,7 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
     public async Task Duplicate_raise_is_last_writer_wins()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal-typed", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal-typed", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         await Jobs.RaiseSignalAsync(enqueued, "review", new ReviewDecision(false, "first"), ct: ct);
@@ -209,7 +209,7 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
     public async Task Raise_signal_does_not_unpause_paused_job()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var pause = await Jobs.PauseAsync(enqueued, ct: ct);
@@ -228,7 +228,7 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
     public async Task Raise_signal_does_not_reactivate_terminal_job()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
 
         Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(enqueued, ct: ct)).Action);
 

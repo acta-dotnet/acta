@@ -148,7 +148,7 @@ public sealed class CheckpointSlotSpec : ActaRuntimeTestBase<ConformanceFixture,
     }
 
     private async Task<long> EnqueueAsync(CancellationToken ct) =>
-        (await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct)).JobId;
+        (await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct)).JobId;
 
     private static byte[] Value(string text) => Encoding.UTF8.GetBytes($"\"{text}\"");
 

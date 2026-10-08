@@ -44,7 +44,7 @@ public static class OutboxProducer
 #endif
         CancellationToken ct)
     {
-        var request = new JobEnqueueRequest("orders", "send-receipt", JobPayload.Text("o-1"), DeduplicationKey: "o-1");
+        var request = new EnqueueJobRequest("orders", "send-receipt", JobPayload.Text("o-1"), DeduplicationKey: "o-1");
 #if SMOKE_POSTGRES || SMOKE_SQLITE || SMOKE_SQLSERVER
         return transaction.AddToActaOutboxAsync(request, cancellationToken: ct);
 #else

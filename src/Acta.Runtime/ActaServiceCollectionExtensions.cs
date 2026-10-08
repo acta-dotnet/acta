@@ -199,8 +199,8 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<UpdateJobInputHandler>();
         services.TryAddSingleton<PurgeJobHandler>();
         services.TryAddSingleton<ResetJobStateHandler>();
-        services.TryAddSingleton<EnqueueOneHandler>();
-        services.TryAddSingleton<EnqueueBatchHandler>();
+        services.TryAddSingleton<EnqueueJobHandler>();
+        services.TryAddSingleton<EnqueueJobsHandler>();
         services.TryAddSingleton<GetInputTemplateHandler>();
         services.TryAddSingleton<JobRequestRouting>();
         services.TryAddSingleton<JobRunAndWait>();
@@ -263,7 +263,7 @@ public static class ActaServiceCollectionExtensions
         ));
 
         // Type to enqueue-route index backing the typed IJobs.EnqueueAsync<TInput> and RunAndWaitAsync
-        // facade. The raw JobEnqueueRequest path needs no index. Captured here because the namespace
+        // facade. The raw EnqueueJobRequest path needs no index. Captured here because the namespace
         // is assigned per Reference/Run call, not on the namespace-neutral manifest.
         var typeIndex = JobTypeIndex.Build(builder.Catalogs);
         services.AddSingleton(typeIndex);
@@ -297,7 +297,7 @@ public static class ActaServiceCollectionExtensions
         {
             services.AddSingleton(sp => new OutboxRelayRegistry(
                 builder.Workers,
-                sp.GetRequiredService<EnqueueBatchHandler>(),
+                sp.GetRequiredService<EnqueueJobsHandler>(),
                 sp.GetService<ILoggerFactory>()
             ));
         }

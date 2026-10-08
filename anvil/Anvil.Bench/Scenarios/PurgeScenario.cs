@@ -62,7 +62,7 @@ public sealed class PurgeScenario : IScenario
                     {
                         var t = Stopwatch.GetTimestamp();
                         await host.Jobs.EnqueueAsync(
-                            new JobEnqueueRequest(
+                            new EnqueueJobRequest(
                                 BenchHost.Namespace,
                                 BenchHost.JobName,
                                 BenchPayloads.Json(new BenchInput(t)),

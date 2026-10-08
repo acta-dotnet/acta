@@ -9,7 +9,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
 
 /// <summary>
 /// Set-based batch enqueue spec - exercises 1..5000-row enqueues through the same
-/// <see cref="EnqueueBatch.Run"/> call that the public
+/// <see cref="EnqueueJobs.Run"/> call that the public
 /// <c>IJobs.EnqueueAsync</c> wraps. Asserts:
 ///   * batch=1 with tags lands one <c>job</c> row and the expected <c>tags</c> rows
 ///     (no <c>events</c> on enqueue - the Job row's own creation columns are the
@@ -27,7 +27,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Enqueue",
     Contract = "A batch enqueue inserts one Ready job per input row with positionally-aligned outcomes, persists tags, and writes no events on enqueue."
 )]
-public sealed class EnqueueBatchSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+public sealed class EnqueueJobsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // Enqueue-only spec - we never call StartAsync, so no claim/execute loop runs. But we still
     // run InitializeAsync (worker-mode) so the per-test namespace is upserted and registered in
@@ -56,11 +56,11 @@ public sealed class EnqueueBatchSpec : ActaRuntimeTestBase<ConformanceFixture, T
         ];
 
         var dialect = Services.GetRequiredService<ISqlDialect>();
-        var result = await EnqueueTestOps.EnqueueBatchAsync(Services, command, ct);
+        var result = (await EnqueueTestOps.EnqueueBatchAsync(Services, command, ct)).Jobs;
 
         Assert.Single(result);
         var outcome = result[0];
-        Assert.Equal(JobEnqueueAction.Inserted, outcome.Action);
+        Assert.Equal(EnqueueJobAction.Inserted, outcome.Action);
         Assert.True(outcome.JobId > 0);
 
         var jobRow = await ReadJobAsync(outcome.JobId, ct);
@@ -99,7 +99,7 @@ public sealed class EnqueueBatchSpec : ActaRuntimeTestBase<ConformanceFixture, T
         }
 
         var dialect = Services.GetRequiredService<ISqlDialect>();
-        var result = await EnqueueTestOps.EnqueueBatchAsync(Services, rows, ct);
+        var result = (await EnqueueTestOps.EnqueueBatchAsync(Services, rows, ct)).Jobs;
 
         Assert.Equal(batchSize, result.Count);
         var seenJobIds = new HashSet<long>();
@@ -109,7 +109,7 @@ public sealed class EnqueueBatchSpec : ActaRuntimeTestBase<ConformanceFixture, T
             // DB-assigned JobIds are unique per row.
             Assert.True(result[i].JobId > 0);
             Assert.True(seenJobIds.Add(result[i].JobId));
-            Assert.Equal(JobEnqueueAction.Inserted, result[i].Action);
+            Assert.Equal(EnqueueJobAction.Inserted, result[i].Action);
         }
 
         // Count only the enqueued jobs (null deduplication_key). The shared test manifest declares a
@@ -138,7 +138,7 @@ public sealed class EnqueueBatchSpec : ActaRuntimeTestBase<ConformanceFixture, T
         ];
 
         var dialect = Services.GetRequiredService<ISqlDialect>();
-        var outcomes = await EnqueueTestOps.EnqueueBatchAsync(Services, rows, ct);
+        var outcomes = (await EnqueueTestOps.EnqueueBatchAsync(Services, rows, ct)).Jobs;
 
         Assert.Equal(2, outcomes.Count);
         var first = await Db.From<JobEntity>().Where(j => j.Id == outcomes[0].JobId).SingleOrDefaultAsync(ct);

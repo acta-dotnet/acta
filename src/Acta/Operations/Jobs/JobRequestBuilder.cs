@@ -3,12 +3,12 @@ using System.Diagnostics.CodeAnalysis;
 namespace Acta;
 
 /// <summary>
-/// Fluent builder for <see cref="JobEnqueueRequest"/> with named, validated, chainable setters, producing wire-shaped
-/// requests only (no runtime or provider coupling) for <see cref="IJobs.EnqueueAsync(JobEnqueueRequest, CancellationToken)"/>.
+/// Fluent builder for <see cref="EnqueueJobRequest"/> with named, validated, chainable setters, producing wire-shaped
+/// requests only (no runtime or provider coupling) for <see cref="IJobs.EnqueueAsync(EnqueueJobRequest, CancellationToken)"/>.
 /// Validation is eager at the setter, not at <see cref="Build"/>: <see cref="ArgumentNullException"/> for nulls,
 /// <see cref="ArgumentException"/> for shape, length, or prefix violations. Tag dedup is last-write-wins in insertion
 /// order. <see cref="Build"/> is repeatable, snapshotting the fields into a fresh request each call, with
-/// <see cref="JobEnqueueRequest.Tags"/> null when no tags were added and a fresh array otherwise, never the builder's own.
+/// <see cref="EnqueueJobRequest.Tags"/> null when no tags were added and a fresh array otherwise, never the builder's own.
 /// </summary>
 public sealed class JobRequestBuilder
 {
@@ -246,12 +246,12 @@ public sealed class JobRequestBuilder
     }
 
     /// <summary>
-    /// Snapshot the current builder state into a fresh <see cref="JobEnqueueRequest"/>. Safe to
+    /// Snapshot the current builder state into a fresh <see cref="EnqueueJobRequest"/>. Safe to
     /// call repeatedly; subsequent builder mutation does not affect prior results.
     /// </summary>
-    public JobEnqueueRequest Build()
+    public EnqueueJobRequest Build()
     {
-        return new JobEnqueueRequest(
+        return new EnqueueJobRequest(
             JobNamespace: _jobNamespace,
             JobName: _jobName,
             Input: _input,

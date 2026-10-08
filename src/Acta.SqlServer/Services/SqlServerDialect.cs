@@ -95,7 +95,7 @@ internal sealed class SqlServerDialect : ISqlDialect
             (object?)DbParams.JsonIdArray(definitionIds) ?? DBNull.Value
         );
 
-    public void BindEnqueueBatch(DbCommand command, IReadOnlyList<JobEnqueueValues> rows, IReadOnlyList<Guid> jobRefs, string schema)
+    public void BindEnqueueJobs(DbCommand command, IReadOnlyList<JobEnqueueValues> rows, IReadOnlyList<Guid> jobRefs, string schema)
     {
         var sql = (SqlCommand)command;
         sql.Parameters.Add(
@@ -118,7 +118,7 @@ internal sealed class SqlServerDialect : ISqlDialect
         );
     }
 
-    public void BindEnqueueOne(DbCommand command, JobEnqueueValues row, Guid jobRef, string schema)
+    public void BindEnqueueJob(DbCommand command, JobEnqueueValues row, Guid jobRef, string schema)
     {
         var sql = (SqlCommand)command;
         AddScalar(sql, "@p_job_ref", SqlDbType.UniqueIdentifier, jobRef);

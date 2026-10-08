@@ -20,7 +20,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Variable_lifecycle_round_trips_through_context_api()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-variable-lifecycle", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-variable-lifecycle", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
@@ -49,7 +49,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Variable_payload_formats_are_persisted_as_expected()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-variable-persistence", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-variable-persistence", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
@@ -76,7 +76,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Progress_is_written_as_system_variable()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-variable-persistence", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-variable-persistence", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
@@ -92,7 +92,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Variables_are_inspectable_with_plain_sql()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-variable-persistence", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-variable-persistence", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
@@ -107,7 +107,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Set_is_last_writer_wins_and_increments_version()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-variable-versioning", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-variable-versioning", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
@@ -124,7 +124,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Get_or_set_preserves_existing_row_without_incrementing_version()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-variable-versioning", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-variable-versioning", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
@@ -143,7 +143,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Variable_validation_rejects_invalid_names_nulls_and_invalid_payloads()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-variable-validation", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-variable-validation", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
@@ -163,7 +163,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Concurrent_get_or_set_stores_one_value_and_returns_the_winner()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-variable-race", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-variable-race", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
@@ -183,7 +183,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Variables_round_trip_common_json_value_shapes()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-variable-roundtrip", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-variable-roundtrip", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
@@ -199,7 +199,7 @@ public sealed class VariableContextSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Corrupted_json_variable_read_fails_instead_of_using_fallback()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-variable-corrupt-reader", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-variable-corrupt-reader", JobPayload.None), ct);
 
         {
             await InsertCorruptedJsonVariableAsync(Db, enqueued.JobId, ct);

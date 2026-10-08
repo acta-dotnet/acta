@@ -2,7 +2,7 @@ namespace Acta.Runtime;
 
 /// <summary>
 /// One claimed external-outbox row: the positional projection of a source row and the fields the relay needs to
-/// reconstruct a <see cref="JobEnqueueRequest"/> and finalize under the current claim token. The constructor order is
+/// reconstruct an <see cref="EnqueueJobRequest"/> and finalize under the current claim token. The constructor order is
 /// the <c>[DbProjection]</c> contract and must match the SELECT column order in every dialect's <c>ClaimOutbox</c> SQL
 /// at every position. Binary is read as <c>byte[]?</c> like the ledger input projections; <c>PriorityCode</c> stays
 /// null when the producer set no override, and so does the reconstructed request; <c>Id</c> is the producer insert

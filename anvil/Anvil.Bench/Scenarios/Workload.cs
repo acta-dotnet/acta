@@ -36,11 +36,11 @@ internal static class Workload
     {
         var pad = Pad(payloadBytes);
         var sw = Stopwatch.StartNew();
-        var batch = new List<JobEnqueueRequest>(Math.Min(EnqueueChunk, count));
+        var batch = new List<EnqueueJobRequest>(Math.Min(EnqueueChunk, count));
         for (var i = 0; i < count; i++)
         {
             batch.Add(
-                new JobEnqueueRequest(
+                new EnqueueJobRequest(
                     BenchHost.Namespace,
                     jobName,
                     BenchPayloads.Json(new BenchInput(Stopwatch.GetTimestamp(), pad, workMs)),
@@ -79,7 +79,7 @@ internal static class Workload
         {
             var start = Stopwatch.GetTimestamp();
             await jobs.EnqueueAsync(
-                new JobEnqueueRequest(
+                new EnqueueJobRequest(
                     BenchHost.Namespace,
                     BenchHost.JobName,
                     BenchPayloads.Json(new BenchInput(start, pad)),
@@ -190,11 +190,11 @@ internal static class Workload
         var emitted = 0;
         while (sw.Elapsed < duration && !ct.IsCancellationRequested)
         {
-            var batch = new List<JobEnqueueRequest>(perTick);
+            var batch = new List<EnqueueJobRequest>(perTick);
             for (var i = 0; i < perTick; i++)
             {
                 batch.Add(
-                    new JobEnqueueRequest(BenchHost.Namespace, jobName, BenchPayloads.Json(new BenchInput(Stopwatch.GetTimestamp(), pad)))
+                    new EnqueueJobRequest(BenchHost.Namespace, jobName, BenchPayloads.Json(new BenchInput(Stopwatch.GetTimestamp(), pad)))
                 );
             }
             await jobs.EnqueueBatchAsync(batch, ct);

@@ -13,11 +13,11 @@ public abstract partial class JobContext
     /// failed and does not cancel siblings; branch on the returned outcome or call
     /// <see cref="JoinOutcome.ThrowIfAnyFailed"/>.
     /// </summary>
-    public async Task<JoinOutcome> JoinAsync(IReadOnlyList<JobEnqueueResponse> children, CancellationToken ct = default) =>
+    public async Task<JoinOutcome> JoinAsync(IReadOnlyList<EnqueueJobResponse> children, CancellationToken ct = default) =>
         new(await WaitChildrenAsync(ChildIds(children), ct));
 
     /// <summary>
-    /// Bounded twin of <see cref="JoinAsync(IReadOnlyList{JobEnqueueResponse}, CancellationToken)"/>: the whole join
+    /// Bounded twin of <see cref="JoinAsync(IReadOnlyList{EnqueueJobResponse}, CancellationToken)"/>: the whole join
     /// shares one stored deadline a replay never extends. It answers a <see cref="ChildrenWaitOutcome"/>, which carries
     /// the same ordered outcomes as a <see cref="JoinOutcome"/> and can also say the group ran out of time.
     /// </summary>
@@ -25,12 +25,12 @@ public abstract partial class JobContext
     /// <param name="timeout">Budget for the whole join from DB now, not per child. Must be positive.</param>
     /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
     public Task<ChildrenWaitOutcome> JoinAsync(
-        IReadOnlyList<JobEnqueueResponse> children,
+        IReadOnlyList<EnqueueJobResponse> children,
         TimeSpan timeout,
         CancellationToken ct = default
     ) => TryWaitChildrenAsync(ChildIds(children), timeout, ct);
 
-    private static long[] ChildIds(IReadOnlyList<JobEnqueueResponse> children)
+    private static long[] ChildIds(IReadOnlyList<EnqueueJobResponse> children)
     {
         ArgumentNullException.ThrowIfNull(children);
         var ids = new long[children.Count];

@@ -73,7 +73,7 @@ public sealed class RelativeDelayUsesDbClockSpec : ActaRuntimeTestBase<Conforman
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var request = new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.None)
+        var request = new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.None)
         {
             NextRunAtUtc = DateTime.UtcNow.AddMinutes(5),
             DelaySeconds = 60,

@@ -37,7 +37,7 @@ var second = await jobs.EnqueueAsync(new NightlySummary("acme"), o => o.Deduplic
 Console.WriteLine($"  enqueue 2: job {second.JobRef} action={second.Action}");
 
 Console.WriteLine(
-    second.Action == JobEnqueueAction.Deduplicated ? "Deduplicated - same bucket, same job." : "ERROR: expected Deduplicated"
+    second.Action == EnqueueJobAction.Deduplicated ? "Deduplicated - same bucket, same job." : "ERROR: expected Deduplicated"
 );
 
 // --- Across buckets: a third enqueue in a new bucket inserts a fresh job ---
@@ -47,7 +47,7 @@ var keyB = DeduplicationKey.PerTimeBucket("nightly-summary", account, instantB, 
 var third = await jobs.EnqueueAsync(new NightlySummary("acme"), o => o.DeduplicationKey(keyB));
 Console.WriteLine($"  enqueue 3: job {third.JobRef} action={third.Action}");
 
-Console.WriteLine(third.Action == JobEnqueueAction.Inserted ? "Inserted - new bucket, new job." : "ERROR: expected Inserted");
+Console.WriteLine(third.Action == EnqueueJobAction.Inserted ? "Inserted - new bucket, new job." : "ERROR: expected Inserted");
 
 Console.WriteLine(first.JobRef != third.JobRef ? "Two distinct jobs across buckets - done." : "ERROR: expected distinct jobs");
 

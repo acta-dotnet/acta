@@ -273,7 +273,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         var ids = new List<long>(jobs);
         for (var i = 0; i < jobs; i++)
         {
-            var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "rate-limited-probe", JobPayload.None), ct);
+            var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "rate-limited-probe", JobPayload.None), ct);
             ids.Add(enqueued.JobId);
         }
 
@@ -326,7 +326,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
 
         foreach (var name in new[] { "rate-shared-left", "rate-shared-right" })
         {
-            var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, name, JobPayload.None), ct);
+            var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, name, JobPayload.None), ct);
 
             Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(TestNamespace, enqueued.JobId, ct));
             Assert.Equal(
@@ -508,7 +508,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         Assert.NotNull((await Locks.AcquireLockAsync(bucket, TimeSpan.FromMinutes(5), ownerJobId: 1600, ct)).Token);
 
         RateLimitProbes.Reset(TestNamespace);
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "rate-and-slot-probe", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "rate-and-slot-probe", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(TestNamespace, enqueued.JobId, ct));
         var bounce = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobRescheduled, ct);

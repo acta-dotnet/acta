@@ -46,7 +46,7 @@ public sealed class SignalSuspendHandoffRaceChaosSpec : ActaRuntimeTestBase<Conf
     public async Task Raise_inside_the_suspend_handoff_lands_the_job_ready()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, JobName, JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, JobName, JobPayload.None), ct);
         var decision = new ReviewDecision(true, "beat the handoff");
         // Baselined after the enqueue's own wake, which lands on this same channel. Inside the window
         // the raise publishes nothing (the job is still Executing), so complete_execution's Ready
@@ -98,7 +98,7 @@ public sealed class SignalSuspendHandoffRaceChaosSpec : ActaRuntimeTestBase<Conf
     public async Task Handoff_with_no_raise_still_suspends_the_job()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, JobName, JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, JobName, JobPayload.None), ct);
 
         // The slot re-read is a decision, not a path that always lands Ready. Without it asserted here,
         // the fact above would pass just as well against a completion that ignored the suspend.

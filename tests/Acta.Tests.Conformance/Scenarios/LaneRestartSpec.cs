@@ -206,7 +206,7 @@ public sealed class LaneRestartSpec : ActaRuntimeTestBase<ConformanceFixture, Te
     public async Task A_handler_pause_promotes_the_restarted_job()
     {
         var ct = TestContext.Current.CancellationToken;
-        var pauser = new JobEnqueueRequest(
+        var pauser = new EnqueueJobRequest(
             TestNamespace,
             "lane-pauser",
             JobPayload.Json(new LanePauserStep("orders", "pauser")),
@@ -235,9 +235,9 @@ public sealed class LaneRestartSpec : ActaRuntimeTestBase<ConformanceFixture, Te
 
     // An older job fails in the lane, the given head becomes the lane's running member, and the older job
     // is restarted Blocked behind it.
-    private async Task<(JobEnqueueResponse Older, JobEnqueueResponse Head)> RestartedBehindAsync(
+    private async Task<(EnqueueJobResponse Older, EnqueueJobResponse Head)> RestartedBehindAsync(
         string lane,
-        JobEnqueueRequest head,
+        EnqueueJobRequest head,
         CancellationToken ct
     )
     {
@@ -262,7 +262,7 @@ public sealed class LaneRestartSpec : ActaRuntimeTestBase<ConformanceFixture, Te
     }
 
     // Claims and starts the job as this namespace's worker and hands back its completion, unsent.
-    private async Task<Func<Task<CompleteExecutionResponse>>> StartedAsync(JobEnqueueResponse job, CancellationToken ct)
+    private async Task<Func<Task<CompleteExecutionResponse>>> StartedAsync(EnqueueJobResponse job, CancellationToken ct)
     {
         var store = Services.GetRequiredService<Execution>();
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
@@ -288,12 +288,12 @@ public sealed class LaneRestartSpec : ActaRuntimeTestBase<ConformanceFixture, Te
             );
     }
 
-    private async Task<JobEnqueueResponse> DoomedAsync(string lane, CancellationToken ct) =>
+    private async Task<EnqueueJobResponse> DoomedAsync(string lane, CancellationToken ct) =>
         await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "lane-doomed", JobPayload.Json(new LaneDoomedStep(lane, "doomed")), Lane: lane),
+            new EnqueueJobRequest(TestNamespace, "lane-doomed", JobPayload.Json(new LaneDoomedStep(lane, "doomed")), Lane: lane),
             ct
         );
 
-    private JobEnqueueRequest Step(string lane, string label) =>
+    private EnqueueJobRequest Step(string lane, string label) =>
         new(TestNamespace, "lane-step", JobPayload.Json(new LaneStep(lane, label)), Lane: lane.Length == 0 ? null : lane);
 }

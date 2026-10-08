@@ -132,6 +132,6 @@ public sealed class LaneSettlePathsSpec : ActaRuntimeTestBase<ConformanceFixture
     private static bool IsWorkAvailable(WorkerWakeupChannel channel) =>
         channel.Kind is WorkerWakeupChannelKind.WorkerNamespace or WorkerWakeupChannelKind.AllWorkerNamespaces;
 
-    private JobEnqueueRequest Request<TInput>(string jobName, TInput input, string? lane)
+    private EnqueueJobRequest Request<TInput>(string jobName, TInput input, string? lane)
         where TInput : notnull => new(TestNamespace, jobName, JobPayload.Json(input), Lane: lane);
 }

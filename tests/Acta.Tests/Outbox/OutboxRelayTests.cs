@@ -95,7 +95,7 @@ public sealed class OutboxRelayTests
     {
         var row = Row("k1");
         var store = new FakeStore(row);
-        var target = new FakeSubmission { Action = JobEnqueueAction.Deduplicated };
+        var target = new FakeSubmission { Action = EnqueueJobAction.Deduplicated };
         var svc = new OutboxRelay(store.Source(), target.Handler());
 
         var summary = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
@@ -286,13 +286,13 @@ public sealed class OutboxRelayTests
     /// </summary>
     private sealed class FakeSubmission
     {
-        public JobEnqueueAction Action { get; init; } = JobEnqueueAction.Inserted;
+        public EnqueueJobAction Action { get; init; } = EnqueueJobAction.Inserted;
         public Func<IReadOnlyList<Enqueued>, bool>? RejectWhen { get; init; }
         public Action? OnEnqueue { get; init; }
         public List<IReadOnlyList<Enqueued>> Batches { get; } = [];
         public int Calls { get; private set; }
 
-        public EnqueueBatchHandler Handler() => new ScriptedSession(Answer).Services().GetRequiredService<EnqueueBatchHandler>();
+        public EnqueueJobsHandler Handler() => new ScriptedSession(Answer).Services().GetRequiredService<EnqueueJobsHandler>();
 
         // Each enqueue routine answers its own row: one for a single request, one per ordinal for a batch.
         private object Answer(BoundCall call)
@@ -305,15 +305,15 @@ public sealed class OutboxRelayTests
                 throw new ArgumentException("deterministic target rejection");
             }
             Batches.Add(requests);
-            return call.Stem == "EnqueueOne"
-                ? new[] { new EnqueueOneRow(0, 1, Guid.NewGuid(), Action) }
-                : requests.Select((_, ordinal) => new EnqueueBatchRow(ordinal, 1, Guid.NewGuid(), Action)).ToArray();
+            return call.Stem == "EnqueueJob"
+                ? new[] { new EnqueueJobRow(0, 1, Guid.NewGuid(), Action) }
+                : requests.Select((_, ordinal) => new EnqueueJobsRow(ordinal, 1, Guid.NewGuid(), Action)).ToArray();
         }
 
         // One row binds its columns; a batch binds its rows as one JSON array.
         private static List<Enqueued> Requests(BoundCall call)
         {
-            if (call.Stem == "EnqueueOne")
+            if (call.Stem == "EnqueueJob")
             {
                 return [new Enqueued((string)call.Parameters["p_job_name"]!, call.Parameters["p_deduplication_key"] as string)];
             }

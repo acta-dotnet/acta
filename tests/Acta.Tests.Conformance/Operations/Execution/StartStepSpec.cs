@@ -149,7 +149,7 @@ public sealed class StartStepSpec : ActaRuntimeTestBase<ConformanceFixture, Test
     private static readonly byte[] Result = Encoding.UTF8.GetBytes("{\"receipt\":7}");
 
     private async Task<long> EnqueueAsync(CancellationToken ct) =>
-        (await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct)).JobId;
+        (await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct)).JobId;
 
     private Task<CompleteStepResponse> CompleteAsync(long jobId, bool succeeded, int version, int maxAttempts, CancellationToken ct) =>
         Execution.CompleteStepAsync(

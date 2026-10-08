@@ -51,9 +51,9 @@ public sealed class PostgresLaneIsolationTests : ActaRuntimeTestBase<PgConforman
         var outcome = await Jobs.EnqueueAsync(tx, Step(lane: null), ct);
         await tx.CommitAsync(ct);
 
-        Assert.Equal(JobEnqueueAction.Inserted, outcome.Action);
+        Assert.Equal(EnqueueJobAction.Inserted, outcome.Action);
     }
 
-    private JobEnqueueRequest Step(string? lane) =>
+    private EnqueueJobRequest Step(string? lane) =>
         new(TestNamespace, "lane-step", JobPayload.Json(new LaneStep(lane ?? "", "isolated")), Lane: lane);
 }

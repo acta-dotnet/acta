@@ -104,7 +104,7 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, AtMostOnceStepManifest.UncaughtProbe, JobPayload.None),
+            new EnqueueJobRequest(TestNamespace, AtMostOnceStepManifest.UncaughtProbe, JobPayload.None),
             ct
         );
 
@@ -119,7 +119,7 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, AtMostOnceStepManifest.UncaughtProbe, JobPayload.None),
+            new EnqueueJobRequest(TestNamespace, AtMostOnceStepManifest.UncaughtProbe, JobPayload.None),
             ct
         );
 
@@ -151,7 +151,7 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
         var ct = TestContext.Current.CancellationToken;
         var store = Services.GetRequiredService<Execution>();
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, AtMostOnceStepManifest.UncaughtProbe, JobPayload.None),
+            new EnqueueJobRequest(TestNamespace, AtMostOnceStepManifest.UncaughtProbe, JobPayload.None),
             ct
         );
 
@@ -197,7 +197,7 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, AtMostOnceStepManifest.UncaughtProbe, JobPayload.None),
+            new EnqueueJobRequest(TestNamespace, AtMostOnceStepManifest.UncaughtProbe, JobPayload.None),
             ct
         );
 
@@ -227,7 +227,7 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, AtMostOnceStepManifest.CaughtProbe, JobPayload.None),
+            new EnqueueJobRequest(TestNamespace, AtMostOnceStepManifest.CaughtProbe, JobPayload.None),
             ct
         );
 

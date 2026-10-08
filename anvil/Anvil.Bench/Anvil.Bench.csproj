@@ -18,7 +18,7 @@
          metadata for the workload payload types, so enqueue serialization needs no reflection under AOT. -->
     <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
     <!-- The three bench jobs (bench-run/bench-audit/bench-block) deliberately share BenchInput and are
-         always enqueued via the raw JobEnqueueRequest path, which names the job, so the typed-route
+         always enqueued via the raw EnqueueJobRequest path, which names the job, so the typed-route
          ambiguity ACTA0104 flags never applies here. -->
     <NoWarn>$(NoWarn);ACTA0104;IDE0011</NoWarn>
     <!-- Microsoft.Data.SqlClient (SQL Server provider) is not AOT/trim-clean, and SQL Server is not an

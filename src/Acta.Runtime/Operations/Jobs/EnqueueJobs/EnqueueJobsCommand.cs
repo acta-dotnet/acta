@@ -3,4 +3,4 @@ using System.Data.Common;
 namespace Acta.Runtime;
 
 /// <summary>The jobs to enqueue in one statement, through the caller's <c>Transaction</c> when it is set.</summary>
-internal sealed record EnqueueBatchCommand(IReadOnlyList<JobEnqueueRequest> Requests, DbTransaction? Transaction = null);
+internal sealed record EnqueueJobsCommand(IReadOnlyList<EnqueueJobRequest> Requests, DbTransaction? Transaction = null);

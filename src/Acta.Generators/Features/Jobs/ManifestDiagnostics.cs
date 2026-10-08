@@ -239,7 +239,7 @@ internal static class ManifestDiagnostics
     public static DiagnosticRecord DuplicateInputType(DiscoveredJob job, string inputTypeName) =>
         new(
             "ACTA0104",
-            $"Input type `{inputTypeName}` is declared by multiple `[Job]` handlers in this manifest; typed enqueue cannot resolve a unique route from it. Give the jobs distinct input types, or enqueue them via the raw `JobEnqueueRequest` path, which names the job.",
+            $"Input type `{inputTypeName}` is declared by multiple `[Job]` handlers in this manifest; typed enqueue cannot resolve a unique route from it. Give the jobs distinct input types, or enqueue them via the raw `EnqueueJobRequest` path, which names the job.",
             job.Location
         );
 

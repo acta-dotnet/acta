@@ -102,16 +102,23 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   keeps the routines it already has, so older workers still find them during a rolling deploy; drop
   the retired ones once no older worker runs. The object package moves to revision 47; the minimum
   stays 9.
-- **Return types take one suffix per role.** `JobEnqueueOutcome`, what every `EnqueueAsync` and
-  `EnqueueBatchAsync` overload returns, is now `JobEnqueueResponse`, the pair of `JobEnqueueRequest`.
-  What the handler waits return takes the `Outcome` noun of `JoinOutcome` and `MapOutcome`:
-  `ChildWaitResult`, `ChildrenWaitResult`, and `SignalWaitResult` (with `SignalWaitResult<T>`) are now
-  `ChildWaitOutcome`, `ChildrenWaitOutcome`, and `SignalWaitOutcome`. `AlertDeliveryOutcome`, what
+- **Return types take one suffix per role.** What the handler waits return takes the `Outcome` noun of
+  `JoinOutcome` and `MapOutcome`: `ChildWaitResult`, `ChildrenWaitResult`, and `SignalWaitResult` (with
+  `SignalWaitResult<T>`) are now `ChildWaitOutcome`, `ChildrenWaitOutcome`, and `SignalWaitOutcome`. `AlertDeliveryOutcome`, what
   `IAlertTransport.SendAsync` returns, is now `AlertSendStatus`, and `JobHandlerInvocationResult`, what a
   generated handler invoker returns, is now `JobHandlerOutput`; rebuild to regenerate the invokers.
   `ActaControlDecision`, what an `IActaControlAuthorizer` returns, is now `ActaControlVerdict`. In
   `Acta.Testing`, `ActaRunOutcome` and `ActaRecoveryOutcome` are now `ActaRunStatus` and `ActaRecoveryReport`.
   Members and JSON are unchanged.
+- **The enqueue contract is named for its verb.** `JobEnqueueRequest`, `JobEnqueueOutcome`, and
+  `JobEnqueueAction` are now `EnqueueJobRequest`, `EnqueueJobResponse`, and `EnqueueJobAction`, with the
+  same members and JSON; `JobEnqueueOptions`, `JobEnqueueOptionsBuilder`, and `JobRequestBuilder` keep their
+  names. Both `EnqueueBatchAsync` overloads return `EnqueueJobsResponse`, whose `Jobs` holds one
+  `EnqueueJobResponse` per request in request order, instead of a bare list. The installed routines
+  `enqueue_one` and `enqueue_batch` are now `enqueue_job` and `enqueue_jobs`, so a direct SQL enqueue calls
+  `enqueue_job`, and a database provisioned from the previous `docs/reference/schema-<provider>.sql` runs the
+  new one before this build starts. The old routines stay installed for older workers during a rolling deploy;
+  drop them once none runs. The object package moves to revision 49; the minimum stays 9.
 
 ### Additions
 

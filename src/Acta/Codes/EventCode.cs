@@ -7,7 +7,7 @@ namespace Acta;
 /// subgroup, or outcome semantics; match events by enum member or textual code. There is no <c>job.enqueued</c>
 /// event on purpose: the Job row's own <c>(created_at_utc, namespace_id, definition_id)</c> records the enqueue fact,
 /// and a separate event row would be write amplification on the narrow append-heavy events table; dedup outcomes
-/// reach the caller via <c>JobEnqueueResponse.Action</c>, and cross-job rate analytics query <c>acta.jobs</c> directly.
+/// reach the caller via <c>EnqueueJobResponse.Action</c>, and cross-job rate analytics query <c>acta.jobs</c> directly.
 /// </summary>
 [JsonConverter(typeof(EventCodeJsonConverter))]
 [ReservedCodeRange(224, 254, "Architecture-controlled reserve")]

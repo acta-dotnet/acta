@@ -20,7 +20,7 @@ public sealed class SqlServerDirectSqlEnqueueTests : ActaRuntimeTestBase<SqlServ
         {
             command.CommandText = $"""
                 DECLARE @tags {Schema.SchemaName}.job_enqueue_tag_batch;
-                EXEC {Schema.SchemaName}.enqueue_one
+                EXEC {Schema.SchemaName}.enqueue_job
                     @p_namespace_name = @namespace,
                     @p_job_name = 'add-numbers',
                     @p_input = 0x7B226C656674223A312C227269676874223A327D,

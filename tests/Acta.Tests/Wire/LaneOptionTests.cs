@@ -60,7 +60,7 @@ public sealed class LaneOptionTests
     [Fact]
     public void Request_validation_canonicalizes_the_lane()
     {
-        var request = new JobEnqueueRequest("billing", "send-invoice", Lane: " Customer-42 ");
+        var request = new EnqueueJobRequest("billing", "send-invoice", Lane: " Customer-42 ");
 
         Assert.Equal("customer-42", JobEnqueueRequestValidation.NormalizeAndValidate(request, nameof(request)).Lane);
     }
@@ -69,7 +69,7 @@ public sealed class LaneOptionTests
     [MemberData(nameof(InvalidLanes))]
     public void Request_validation_rejects_an_invalid_lane(string lane)
     {
-        var request = new JobEnqueueRequest("billing", "send-invoice", Lane: lane);
+        var request = new EnqueueJobRequest("billing", "send-invoice", Lane: lane);
 
         Assert.ThrowsAny<ArgumentException>(() => JobEnqueueRequestValidation.NormalizeAndValidate(request, nameof(request)));
     }

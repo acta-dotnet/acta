@@ -27,7 +27,7 @@ public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         var oldInput = JobPayload.Json(new AddNumbers(2, 3));
         var newInput = JobPayload.Json(new AddNumbers(7, 8));
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", oldInput), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", oldInput), ct);
 
         var result = await Jobs.UpdateJobInputAsync(enqueued, newInput, "corrected operands", "spec-actor", ct);
 
@@ -64,7 +64,7 @@ public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         // Terminal Succeeded through the real path via the zero-retention probe, carrying the marker input.
         var oldInput = JobPayload.Json(new PurgeProbe(marker));
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "purge-now", oldInput), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "purge-now", oldInput), ct);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var amend = await Jobs.UpdateJobInputAsync(enqueued, JobPayload.Json(new PurgeProbe("clean")), "scrub", "spec-actor", ct);
@@ -120,7 +120,7 @@ public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture,
         foreach (var status in new[] { JobStatusCode.Dispatched, JobStatusCode.Executing })
         {
             var oldInput = JobPayload.Json(new AddNumbers(1, 1));
-            var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", oldInput), ct);
+            var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", oldInput), ct);
             await SetJobStatusAsync(enqueued.JobId, (byte)status, ct);
 
             var result = await Jobs.UpdateJobInputAsync(enqueued, newInput, "should not apply", ct: ct);
@@ -140,7 +140,7 @@ public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture,
         var ct = TestContext.Current.CancellationToken;
 
         var enqueued = await Jobs.EnqueueAsync(
-            new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
             ct
         );
         await SetJobStatusAsync(enqueued.JobId, (byte)JobStatusCode.Failed, ct);
@@ -166,7 +166,7 @@ public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         var oldInput = JobPayload.FromBytes(JobPayloadFormat.Text, System.Text.Encoding.UTF8.GetBytes("first"));
         var newInput = JobPayload.FromBytes(JobPayloadFormat.Text, System.Text.Encoding.UTF8.GetBytes("second"));
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", oldInput), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", oldInput), ct);
 
         var result = await Jobs.UpdateJobInputAsync(enqueued, newInput, "reformat", "spec-actor", ct);
         Assert.Equal(ControlAction.Applied, result.Action);

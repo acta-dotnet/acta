@@ -28,11 +28,13 @@ public sealed class ListEventsSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var queries = Services.GetRequiredService<IActaOperations>();
 
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
-        var enqueued = await EnqueueTestOps.EnqueueBatchAsync(
-            Services,
-            [new JobEnqueueValues(NamespaceName: TestNamespace, JobName: "add-numbers", Input: payload)],
-            ct
-        );
+        var enqueued = (
+            await EnqueueTestOps.EnqueueBatchAsync(
+                Services,
+                [new JobEnqueueValues(NamespaceName: TestNamespace, JobName: "add-numbers", Input: payload)],
+                ct
+            )
+        ).Jobs;
         var jobId = enqueued[0].JobId;
         await Runtime.RunOnceAsync(jobId, ct);
 
@@ -70,11 +72,13 @@ public sealed class ListEventsSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
 
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
-        var enqueued = await EnqueueTestOps.EnqueueBatchAsync(
-            Services,
-            [new JobEnqueueValues(NamespaceName: TestNamespace, JobName: "add-numbers", Input: payload)],
-            ct
-        );
+        var enqueued = (
+            await EnqueueTestOps.EnqueueBatchAsync(
+                Services,
+                [new JobEnqueueValues(NamespaceName: TestNamespace, JobName: "add-numbers", Input: payload)],
+                ct
+            )
+        ).Jobs;
         var jobId = enqueued[0].JobId;
         await Runtime.RunOnceAsync(jobId, ct);
 

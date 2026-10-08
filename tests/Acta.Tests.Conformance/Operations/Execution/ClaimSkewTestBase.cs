@@ -67,17 +67,17 @@ public abstract class ClaimSkewTestBase : ActaRuntimeTestBase<ConformanceFixture
     }
 
     /// <summary>Enqueues <paramref name="count"/> rows in one batch, due at <paramref name="nextRunAtUtc"/> or now.</summary>
-    protected async Task<IReadOnlyList<JobEnqueueResponse>> EnqueueManyAsync(
+    protected async Task<IReadOnlyList<EnqueueJobResponse>> EnqueueManyAsync(
         int count,
         JobPriorityCode? priority,
         DateTime? nextRunAtUtc,
         CancellationToken ct
-    ) => await Jobs.EnqueueBatchAsync([.. Enumerable.Range(0, count).Select(_ => Request(priority, nextRunAtUtc))], ct);
+    ) => (await Jobs.EnqueueBatchAsync([.. Enumerable.Range(0, count).Select(_ => Request(priority, nextRunAtUtc))], ct)).Jobs;
 
     /// <summary>Enqueues one row, due at <paramref name="nextRunAtUtc"/> or now.</summary>
-    protected async Task<JobEnqueueResponse> EnqueueAsync(JobPriorityCode priority, DateTime? nextRunAtUtc, CancellationToken ct) =>
+    protected async Task<EnqueueJobResponse> EnqueueAsync(JobPriorityCode priority, DateTime? nextRunAtUtc, CancellationToken ct) =>
         await Jobs.EnqueueAsync(Request(priority, nextRunAtUtc), ct);
 
-    private JobEnqueueRequest Request(JobPriorityCode? priority, DateTime? nextRunAtUtc) =>
+    private EnqueueJobRequest Request(JobPriorityCode? priority, DateTime? nextRunAtUtc) =>
         new(TestNamespace, Job, JobPayload.Json(new AddNumbers(1, 2)), Priority: priority, NextRunAtUtc: nextRunAtUtc);
 }

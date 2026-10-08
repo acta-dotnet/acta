@@ -56,7 +56,7 @@ public abstract class WorkerDrainSpec : ActaRuntimeTestBase<ConformanceFixture, 
     {
         DrainGate.Reset(TestNamespace);
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "drain-gate", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "drain-gate", JobPayload.None), ct);
 
         // Run the full runtime (claim loop + heartbeat) under a host token, the token a hard stop would cancel.
         using var hostCts = CancellationTokenSource.CreateLinkedTokenSource(ct);

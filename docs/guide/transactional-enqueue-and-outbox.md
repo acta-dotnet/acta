@@ -54,7 +54,7 @@ The rules that make this safe:
   and executes it on the transaction's connection.
 - **No worker wakeup.** The transactional overloads publish no wakeup, because Acta cannot know whether
   or when you commit and a pre-commit wake would be wrong. Normal worker polling is the pickup path.
-- **The outcome is provisional until commit.** The returned `JobEnqueueResponse` (its `JobId` / `JobRef`,
+- **The outcome is provisional until commit.** The returned `EnqueueJobResponse` (its `JobId` / `JobRef`,
   and a `Deduplicated` action) becomes durable only when you commit. A rollback means that identity never
   existed. Do not publish or persist a provisional outcome before the commit succeeds.
 - **Any enqueue exception requires a full rollback.** Known rejections are translated through the normal
@@ -75,14 +75,14 @@ until you commit, so waiting inside the transaction would be a misleading timeou
 ## The external outbox
 
 When the business database is not the Acta ledger, stage an Acta-shaped row in the business database and
-let an Acta-owned relay carry it across. Staging is a validated projection of a `JobEnqueueRequest` into
+let an Acta-owned relay carry it across. Staging is a validated projection of an `EnqueueJobRequest` into
 one INSERT on your own open transaction, so the outbox row commits or rolls back with your business writes.
 
 Staging is **zero-configuration**: no dependency injection, no `AddActa`, no ledger connection string, no
 registration of any kind. A producer references its database's provider package (`Acta.Postgres`,
 `Acta.SqlServer`, or `Acta.Sqlite`), writes `using Acta;`, and calls the extension on the concrete
 provider transaction. The producer never learns where the ledger lives; it addresses work only by
-namespace and job name. `JobEnqueueRequest` arrives transitively from the `Acta` package.
+namespace and job name. `EnqueueJobRequest` arrives transitively from the `Acta` package.
 
 ### Producer paths
 
@@ -111,7 +111,7 @@ await using var tx = (NpgsqlTransaction)await connection.BeginTransactionAsync(c
 
 // ... your business writes on the same connection/transaction ...
 
-await tx.AddToActaOutboxAsync(new JobEnqueueRequest(
+await tx.AddToActaOutboxAsync(new EnqueueJobRequest(
     "orders", "send-receipt", JobPayload.Text(orderId), DeduplicationKey: orderId), cancellationToken: ct);
 
 // the business writes and the outbox row commit or roll back together
@@ -125,7 +125,7 @@ validation as the DDL API and the relay source, so producer and relay cannot dis
 
 `AddToActaOutboxAsync` is **void**: one INSERT executed immediately on your open transaction, no receipt,
 no `JobId`, no `JobRef`. Build the request explicitly (through `JobRequestBuilder`, a factory in your
-contracts assembly, or the `JobEnqueueRequest` constructor) and select the exact `JobPayload`.
+contracts assembly, or the `EnqueueJobRequest` constructor) and select the exact `JobPayload`.
 `JobPayload.Json` provides Acta's canonical JSON defaults; binary or custom formats stay explicit. There
 is no typed outbox overload family and no best-effort serialization fallback.
 
@@ -169,7 +169,7 @@ If a team prefers to wrap the ceremony once, a small helper does it:
 
 ```csharp
 public static async Task StageInBusinessTransaction(
-    this DbContext context, JobEnqueueRequest request, CancellationToken ct)
+    this DbContext context, EnqueueJobRequest request, CancellationToken ct)
 {
     await using var efTx = await context.Database.BeginTransactionAsync(ct);
     await context.SaveChangesAsync(ct);
