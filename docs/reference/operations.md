@@ -58,7 +58,7 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `CancelJob` | `IJobs.CancelAsync` | `POST /jobs/{jobRef}/cancel` | `cancel` | routine | routine | inline | `events`, `runtimes` | `CancelJobSpec` |
+| `CancelJob` | `IJobs.CancelAsync` | `POST /jobs/{jobRef}/cancel` | `cancel` | inline | inline | inline | `events`, `runtimes` | `CancelJobSpec` |
 | `EnqueueBatch` | `IJobs.EnqueueBatchAsync` | · | · | routine | routine | inline | `jobs`, `lanes`, `runtimes`, `tags` | `EnqueueBatchConcurrencySpec`, `EnqueueBatchRejectionSpec`, `EnqueueBatchSpec` |
 | `EnqueueOne` | `IJobs.EnqueueAsync`<br>`IJobs.RunAndWaitAsync` | `POST /jobs` | · | routine | routine | inline | `jobs`, `lanes`, `runtimes`, `tags` | `EnqueueOneTransactionalSpec` |
 | `GetCheckpoints` | `IJobs.GetCheckpointsAsync` | · | · | inline | inline | inline | · | `GetCheckpointsSpec` |

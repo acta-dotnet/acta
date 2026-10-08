@@ -610,5 +610,23 @@
     "Major": 1,
     "Revision": 34,
     "Hash": "453df7afd2b658ca3a3ac43fc24ce124"
+  },
+  {
+    "Provider": "mssql",
+    "Major": 1,
+    "Revision": 35,
+    "Hash": "469d46b7018477b4d9f833f32257d90d"
+  },
+  {
+    "Provider": "pg",
+    "Major": 1,
+    "Revision": 35,
+    "Hash": "1fb9ceed8955903daaad92d2c018fa1b"
+  },
+  {
+    "Provider": "sqlite",
+    "Major": 1,
+    "Revision": 35,
+    "Hash": "453df7afd2b658ca3a3ac43fc24ce124"
   }
 ]
