@@ -38,7 +38,7 @@ internal sealed class ListOutboxQuarantinedHandler(OutboxRelayRegistry? registry
             afterOutboxId = parsed;
         }
 
-        var rows = await source.ListQuarantinedAsync(new ListQuarantinedOutboxCommand(paging.Fetch, afterOutboxId), ct);
+        var rows = await source.ListQuarantinedAsync(new ListQuarantinedOutboxQuery(paging.Fetch, afterOutboxId), ct);
         long? total = query.IncludeTotal ? await source.CountQuarantinedAsync(ct) : null;
         return paging.Page(rows, total, static item => [item.OutboxId.ToString("D")]);
     }

@@ -23,12 +23,12 @@ public sealed class DeleteClaimedOutboxSpec : OutboxSpecBase
         var ct = TestContext.Current.CancellationToken;
         var (id, token) = await SeedAndClaimAsync(TestKey("del"), ct);
 
-        await Store.DeleteClaimedAsync(new FinalizeOutboxCommand(Guid.NewGuid(), [id]), ct);
+        await Store.DeleteClaimedAsync(new DeleteClaimedOutboxCommand(Guid.NewGuid(), [id]), ct);
         var afterStale = await Fixture.ReadOutboxRowAsync(TableName, id);
         Assert.True(afterStale.Exists);
         Assert.Equal((byte)OutboxStatusCode.Claimed, afterStale.StatusCode);
 
-        await Store.DeleteClaimedAsync(new FinalizeOutboxCommand(token, [id]), ct);
+        await Store.DeleteClaimedAsync(new DeleteClaimedOutboxCommand(token, [id]), ct);
         Assert.False((await Fixture.ReadOutboxRowAsync(TableName, id)).Exists);
         Assert.Equal(0, await Fixture.CountOutboxAsync(TableName));
     }

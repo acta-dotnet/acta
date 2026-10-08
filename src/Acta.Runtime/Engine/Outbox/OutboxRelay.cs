@@ -328,7 +328,7 @@ internal sealed class OutboxRelay(OutboxSource source, EnqueueBatchHandler targe
         // Finalization is one store round trip per outcome kind for the whole batch, not one per group.
         if (safeIds.Count > 0)
         {
-            await source.DeleteClaimedAsync(new FinalizeOutboxCommand(token, safeIds), ct);
+            await source.DeleteClaimedAsync(new DeleteClaimedOutboxCommand(token, safeIds), ct);
         }
 
         if (quarantines.Count > 0)
@@ -497,7 +497,7 @@ internal sealed class OutboxRelay(OutboxSource source, EnqueueBatchHandler targe
     {
         try
         {
-            await source.ReleaseClaimedAsync(new FinalizeOutboxCommand(token, outboxIds), CancellationToken.None);
+            await source.ReleaseClaimedAsync(new ReleaseClaimedOutboxCommand(token, outboxIds), CancellationToken.None);
         }
         catch (Exception ex)
         {

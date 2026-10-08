@@ -36,7 +36,7 @@ internal sealed class OutboxSource(IDbSession session, ISqlDialect dialect)
     /// Deletes every claimed row the command names whose representative safely ingested; a row whose token
     /// moved is skipped.
     /// </summary>
-    public Task DeleteClaimedAsync(FinalizeOutboxCommand command, CancellationToken ct) => _deleteClaimed.HandleAsync(command, ct);
+    public Task DeleteClaimedAsync(DeleteClaimedOutboxCommand command, CancellationToken ct) => _deleteClaimed.HandleAsync(command, ct);
 
     /// <summary>
     /// Returns recoverable failures to Pending: each row's own failure count, <c>next_attempt_at_utc</c> at the
@@ -54,7 +54,7 @@ internal sealed class OutboxSource(IDbSession session, ISqlDialect dialect)
     /// Best-effort release of unprocessed claims back to Pending on cancellation or at the per-tick bound;
     /// lease expiry and token-CAS finalization make an abandoned claim safe either way.
     /// </summary>
-    public Task ReleaseClaimedAsync(FinalizeOutboxCommand command, CancellationToken ct) => _releaseClaimed.HandleAsync(command, ct);
+    public Task ReleaseClaimedAsync(ReleaseClaimedOutboxCommand command, CancellationToken ct) => _releaseClaimed.HandleAsync(command, ct);
 
     /// <summary>The source's Pending rows, due or backed off, read after finalization for the tick summary.</summary>
     public Task<long> CountBacklogAsync(CancellationToken ct) => _countBacklog.HandleAsync(ct);
@@ -66,10 +66,8 @@ internal sealed class OutboxSource(IDbSession session, ISqlDialect dialect)
     public Task<long> CountQuarantinedAsync(CancellationToken ct) => _countQuarantined.HandleAsync(ct);
 
     /// <summary>One keyset page of Quarantined rows ordered by outbox id: identity and failure evidence, never the payload.</summary>
-    public Task<IReadOnlyList<OutboxQuarantinedListItem>> ListQuarantinedAsync(
-        ListQuarantinedOutboxCommand command,
-        CancellationToken ct
-    ) => _listQuarantined.HandleAsync(command, ct);
+    public Task<IReadOnlyList<OutboxQuarantinedListItem>> ListQuarantinedAsync(ListQuarantinedOutboxQuery query, CancellationToken ct) =>
+        _listQuarantined.HandleAsync(query, ct);
 
     /// <summary>
     /// Returns Quarantined rows to Pending, immediately due, failure count reset and last error kept as

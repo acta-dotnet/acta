@@ -25,10 +25,10 @@ public sealed class ReleaseClaimedOutboxSpec : OutboxSpecBase
         var (id, token) = await SeedAndClaimAsync(TestKey("rel"), ct);
         var before = await Fixture.ReadOutboxRowAsync(TableName, id);
 
-        await Store.ReleaseClaimedAsync(new FinalizeOutboxCommand(Guid.NewGuid(), [id]), ct);
+        await Store.ReleaseClaimedAsync(new ReleaseClaimedOutboxCommand(Guid.NewGuid(), [id]), ct);
         Assert.Equal((byte)OutboxStatusCode.Claimed, (await Fixture.ReadOutboxRowAsync(TableName, id)).StatusCode);
 
-        await Store.ReleaseClaimedAsync(new FinalizeOutboxCommand(token, [id]), ct);
+        await Store.ReleaseClaimedAsync(new ReleaseClaimedOutboxCommand(token, [id]), ct);
 
         var state = await Fixture.ReadOutboxRowAsync(TableName, id);
         Assert.Equal((byte)OutboxStatusCode.Pending, state.StatusCode);

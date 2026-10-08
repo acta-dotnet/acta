@@ -101,7 +101,7 @@ public sealed class ListQuarantinedOutboxSpec : OutboxSpecBase
     }
 
     private Task<IReadOnlyList<OutboxQuarantinedListItem>> ListAsync(int pageSize, Guid? after, CancellationToken ct) =>
-        Store.ListQuarantinedAsync(new ListQuarantinedOutboxCommand(pageSize, after), ct);
+        Store.ListQuarantinedAsync(new ListQuarantinedOutboxQuery(pageSize, after), ct);
 
     private async Task<HashSet<Guid>> SeedQuarantinedAsync(int count)
     {

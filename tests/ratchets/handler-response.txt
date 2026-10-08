@@ -15,7 +15,6 @@ EnqueueBatchHandler
 EnqueueOneHandler
 ExtendLockHandler
 ExtendWorkerLeasesHandler
-ListQuarantinedOutboxHandler
 MarkDeadWorkersHandler
 ParkOutboxSignalHandler
 PurgeExpiredDataHandler

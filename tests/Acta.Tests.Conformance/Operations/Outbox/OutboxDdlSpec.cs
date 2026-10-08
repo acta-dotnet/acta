@@ -38,7 +38,7 @@ public sealed class OutboxDdlSpec : ActaTestBase<ConformanceFixture>
         await Fixture.SeedOutboxRowAsync(table, toDelete);
         var deleteToken = Guid.NewGuid();
         Assert.Single(await store.ClaimDueAsync(new ClaimOutboxCommand(deleteToken, 10, LeaseTtlSeconds), ct));
-        await store.DeleteClaimedAsync(new FinalizeOutboxCommand(deleteToken, [toDelete.OutboxId]), ct);
+        await store.DeleteClaimedAsync(new DeleteClaimedOutboxCommand(deleteToken, [toDelete.OutboxId]), ct);
         Assert.False((await Fixture.ReadOutboxRowAsync(table, toDelete.OutboxId)).Exists);
 
         // Claim then reschedule back to pending with an incremented failure count.
