@@ -42,7 +42,7 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   `ReplaceTagsResponse`, `UpsertTagsResponse`, and `RemoveTagsResponse` instead of `TagMutationResult`;
   each carries the same `Action` and implements the new `ITagMutationResponse`, and `IsApplied` is
   gone (compare `Action` with `TagMutationAction.Applied`). `IDefinitions` answers `UpdateOverridesAsync`
-  and `RetireAsync` with `SetJobDefinitionOverridesResponse` and `RetireDefinitionResponse` instead
+  and `RetireAsync` with `SetDefinitionOverridesResponse` and `RetireDefinitionResponse` instead
   of `DefinitionControlResult`; each carries the same `Action` and implements the new
   `IDefinitionControlResponse`. `IAlerts` answers `AcknowledgeAsync` and `ResolveAsync` with
   `AcknowledgeAlertResponse` and `ResolveAlertResponse` instead of `AlertControlResult`;

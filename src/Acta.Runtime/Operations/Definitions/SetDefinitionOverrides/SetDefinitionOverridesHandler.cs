@@ -5,20 +5,20 @@ namespace Acta.Runtime;
 /// then writes only the override columns, version-guarded, with the policy-changed event. When the
 /// definition is on a rate meter, the routine carries the same rate override to every definition sharing it.
 /// </summary>
-internal sealed class SetJobDefinitionOverridesHandler(DefinitionKeyResolution keys, IDbSession session, ISqlDialect dialect)
+internal sealed class SetDefinitionOverridesHandler(DefinitionKeyResolution keys, IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<SetJobDefinitionOverridesResponse> HandleAsync(SetJobDefinitionOverridesCommand command, CancellationToken ct)
+    public async ValueTask<SetDefinitionOverridesResponse> HandleAsync(SetDefinitionOverridesCommand command, CancellationToken ct)
     {
         var overrides = Normalize(command.Overrides);
         var definitionId = await keys.ResolveAsync(command.JobNamespace, command.JobName, ct);
         if (definitionId is null)
         {
-            return new SetJobDefinitionOverridesResponse(ControlAction.NotFound);
+            return new SetDefinitionOverridesResponse(ControlAction.NotFound);
         }
 
         var actor = JobControlActor.Operator(command.ActorKey);
         var row = await session.ExecuteOneAsync(
-            new StoreCommand("SetJobDefinitionOverrides"),
+            new StoreCommand("SetDefinitionOverrides"),
             cmd =>
             {
                 // The routine takes its arguments by position, so the order here is its signature's.
@@ -48,11 +48,11 @@ internal sealed class SetJobDefinitionOverridesHandler(DefinitionKeyResolution k
                     dialect.CreateParameter(ActaSchema.Event.ReasonMessage, command.ReasonMessage.Truncate(ActaTextLimits.ReasonMessage))
                 );
             },
-            DbProjectionResolver.Resolve<SetJobDefinitionOverridesRow>(),
+            DbProjectionResolver.Resolve<SetDefinitionOverridesRow>(),
             ct
         );
 
-        return new SetJobDefinitionOverridesResponse(row.Action.ToControlAction());
+        return new SetDefinitionOverridesResponse(row.Action.ToControlAction());
     }
 
     /// <summary>

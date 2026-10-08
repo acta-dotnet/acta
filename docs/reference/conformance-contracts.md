@@ -2253,7 +2253,7 @@
 | `ResumeTenant` | yes | yes | yes |
 | `RetireDefinition` | yes | yes | yes |
 | `SchedulesView` | yes | yes | yes |
-| `SetJobDefinitionOverrides` | yes | yes | yes |
+| `SetDefinitionOverrides` | yes | yes | yes |
 | `SetScheduleOverrides` | yes | yes | yes |
 | `StartExecution` | yes | yes | yes |
 | `StartStep` | yes | yes | yes |

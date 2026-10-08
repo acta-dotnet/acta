@@ -7,7 +7,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Definitions;
 
 /// <summary>
-/// Conformance for the operator policy-override write: <c>set_job_definition_overrides</c> writes only
+/// Conformance for the operator policy-override write: <c>set_definition_overrides</c> writes only
 /// the <c>*_override</c> columns (the DB recomputes the <c>*_effective</c> generated columns), leaves the
 /// code defaults and <c>definition_hash</c> untouched, is version-guarded, and emits a definition-scoped
 /// <c>definition.overrides-updated</c> event.
@@ -18,7 +18,7 @@ namespace Acta.Tests.Conformance.Operations.Definitions;
     Area = "Catalog",
     Contract = "Applies an override set version-guarded, recomputes effective, leaves defaults and definition_hash untouched, and emits a policy-changed event."
 )]
-public sealed class SetJobDefinitionOverridesSpec : ActaStorageTestBase<ConformanceFixture>
+public sealed class SetDefinitionOverridesSpec : ActaStorageTestBase<ConformanceFixture>
 {
     private static readonly DateTime Gen = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private static JobControlActor Actor => new(ActorCode.Operator, "tester");

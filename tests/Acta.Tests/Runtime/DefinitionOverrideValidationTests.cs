@@ -4,7 +4,7 @@ using Xunit;
 namespace Acta.Tests.Runtime;
 
 /// <summary>
-/// Boundary validation in <see cref="SetJobDefinitionOverridesHandler.Normalize"/> for the override
+/// Boundary validation in <see cref="SetDefinitionOverridesHandler.Normalize"/> for the override
 /// values that would otherwise fail later and worse: an execution timeout past CancelAfter's
 /// ceiling crashes the attempt after the claim, a malformed rate limit stops metering silently, a
 /// non-ASCII or over-length runbook URL fails or mangles per provider, and free-form display text
@@ -13,7 +13,7 @@ namespace Acta.Tests.Runtime;
 public sealed class DefinitionOverrideValidationTests
 {
     private static DefinitionPolicyOverrides Normalize(DefinitionPolicyOverrides overrides) =>
-        SetJobDefinitionOverridesHandler.Normalize(overrides);
+        SetDefinitionOverridesHandler.Normalize(overrides);
 
     [Fact]
     public void An_unspecified_deadline_behavior_overrides_nothing() =>

@@ -4673,7 +4673,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SetJobDefinitionOverridesHttpRequest"
+                "$ref": "#/components/schemas/SetDefinitionOverridesHttpRequest"
               }
             }
           },
@@ -4745,7 +4745,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SetJobDefinitionOverridesResponse"
+                  "$ref": "#/components/schemas/SetDefinitionOverridesResponse"
                 }
               }
             }
@@ -4755,7 +4755,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SetJobDefinitionOverridesResponse"
+                  "$ref": "#/components/schemas/SetDefinitionOverridesResponse"
                 }
               }
             }
@@ -4765,7 +4765,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SetJobDefinitionOverridesResponse"
+                  "$ref": "#/components/schemas/SetDefinitionOverridesResponse"
                 }
               }
             }
@@ -11818,7 +11818,7 @@
         "description": "A read-only forecast of a schedule's upcoming fire instants, computed live (no persisted state is\nread or written). string SchedulePreview.Expression and string SchedulePreview.TimeZoneId are the effective values\n(operator override when present, else the original); IReadOnlyList&lt;DateTime&gt; SchedulePreview.NextRunsUtc is strictly\nincreasing and may be shorter than requested when the expression is exhausted."
       },
       "ScheduleStatusCode": { },
-      "SetJobDefinitionOverridesHttpRequest": {
+      "SetDefinitionOverridesHttpRequest": {
         "type": "object",
         "properties": {
           "expectedVersion": {
@@ -11847,7 +11847,7 @@
           }
         }
       },
-      "SetJobDefinitionOverridesResponse": {
+      "SetDefinitionOverridesResponse": {
         "required": [
           "action"
         ],

@@ -9,7 +9,7 @@ namespace Acta.AspNetCore;
 /// optional note. The actor is stamped server-side from the authenticated principal; the body never
 /// carries it.
 /// </summary>
-internal sealed record SetJobDefinitionOverridesHttpRequest(
+internal sealed record SetDefinitionOverridesHttpRequest(
     int ExpectedVersion = 0,
     DefinitionPolicyOverrides? Overrides = null,
     string? ReasonMessage = null
@@ -75,9 +75,9 @@ internal static class DefinitionsEndpoints
             "/definitions/{jobNamespace}/{jobName}",
             "Set or clear the definition's operator policy overrides.",
             options,
-            DashboardJsonContext.Default.SetJobDefinitionOverridesHttpRequest,
+            DashboardJsonContext.Default.SetDefinitionOverridesHttpRequest,
             "Invalid definition overrides.",
-            ControlStatus.Definition<SetJobDefinitionOverridesResponse>(),
+            ControlStatus.Definition<SetDefinitionOverridesResponse>(),
             Key,
             static (call, key) =>
                 call.Operations.Definitions.UpdateOverridesAsync(

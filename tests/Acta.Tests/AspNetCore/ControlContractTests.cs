@@ -427,7 +427,7 @@ public sealed class ControlContractTests
                 outcome,
                 path,
                 status,
-                typeof(SetJobDefinitionOverridesResponse),
+                typeof(SetDefinitionOverridesResponse),
                 action,
                 new { expectedVersion, reasonMessage = "because" }
             );

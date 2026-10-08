@@ -69,10 +69,10 @@ public sealed class DefinitionKeyResolutionTests
     {
         // The stub session throws on any write, so an answer at all proves nothing was written.
         var session = new OverMatchingSession(Catalog);
-        var handler = new SetJobDefinitionOverridesHandler(Keys(session), session, null!);
+        var handler = new SetDefinitionOverridesHandler(Keys(session), session, null!);
 
         var outcome = await handler.HandleAsync(
-            new SetJobDefinitionOverridesCommand(
+            new SetDefinitionOverridesCommand(
                 Namespace,
                 "invoic",
                 ExpectedVersion: 1,

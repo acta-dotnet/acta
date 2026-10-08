@@ -2,13 +2,13 @@ namespace Acta.Runtime;
 
 /// <summary><see cref="IDefinitions"/>, one line per operation.</summary>
 internal sealed class Definitions(
-    SetJobDefinitionOverridesHandler setJobDefinitionOverrides,
+    SetDefinitionOverridesHandler setDefinitionOverrides,
     RetireDefinitionHandler retireDefinition,
     GetDefinitionHandler getDefinition,
     ListDefinitionsHandler listDefinitions
 ) : IDefinitions
 {
-    public ValueTask<SetJobDefinitionOverridesResponse> UpdateOverridesAsync(
+    public ValueTask<SetDefinitionOverridesResponse> UpdateOverridesAsync(
         string jobNamespace,
         string jobName,
         int expectedVersion,
@@ -17,8 +17,8 @@ internal sealed class Definitions(
         string? actorKey = null,
         CancellationToken ct = default
     ) =>
-        setJobDefinitionOverrides.HandleAsync(
-            new SetJobDefinitionOverridesCommand(jobNamespace, jobName, expectedVersion, overrides, reasonMessage, actorKey),
+        setDefinitionOverrides.HandleAsync(
+            new SetDefinitionOverridesCommand(jobNamespace, jobName, expectedVersion, overrides, reasonMessage, actorKey),
             ct
         );
 

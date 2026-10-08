@@ -19,7 +19,7 @@ internal sealed class FakeDefinitions : IDefinitions
                 throw new ArgumentOutOfRangeException(nameof(overrides.MaxAttempts), "MaxAttempts override must be at least 1.");
             }
 
-            return ValueTask.FromResult(new SetJobDefinitionOverridesResponse(Outcome(jobName, expectedVersion)));
+            return ValueTask.FromResult(new SetDefinitionOverridesResponse(Outcome(jobName, expectedVersion)));
         };
         Retire = static (_, jobName, expectedVersion, _, _, _) =>
             ValueTask.FromResult(new RetireDefinitionResponse(Outcome(jobName, expectedVersion)));
@@ -36,7 +36,7 @@ internal sealed class FakeDefinitions : IDefinitions
         string?,
         string?,
         CancellationToken,
-        ValueTask<SetJobDefinitionOverridesResponse>
+        ValueTask<SetDefinitionOverridesResponse>
     > UpdateOverrides { get; set; }
 
     public Func<string, string, int, string?, string?, CancellationToken, ValueTask<RetireDefinitionResponse>> Retire { get; set; }
@@ -45,7 +45,7 @@ internal sealed class FakeDefinitions : IDefinitions
 
     public Func<ListDefinitionsQuery, CancellationToken, ValueTask<PagedResult<DefinitionListItem>>> List { get; set; }
 
-    ValueTask<SetJobDefinitionOverridesResponse> IDefinitions.UpdateOverridesAsync(
+    ValueTask<SetDefinitionOverridesResponse> IDefinitions.UpdateOverridesAsync(
         string jobNamespace,
         string jobName,
         int expectedVersion,

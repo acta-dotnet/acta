@@ -83,7 +83,7 @@ internal sealed class RegisterJobDefinitionsHandler(IDbSession session, ISqlDial
     /// the meter's effective rate (override ?? declared): otherwise the join would desync a meter every other
     /// participant agrees on, or silently ride an operator's retune. Only joining is checked - a name absent
     /// from the stored catalog - so a restart never re-litigates what an earlier one, or an override since,
-    /// made stick; that keeps <see cref="SetJobDefinitionOverridesHandler"/> free to retune a meter.
+    /// made stick; that keeps <see cref="SetDefinitionOverridesHandler"/> free to retune a meter.
     /// </summary>
     private static void ValidateJoiningRatesMatchOverriddenMeters(
         List<JobDefinitionRow> rows,

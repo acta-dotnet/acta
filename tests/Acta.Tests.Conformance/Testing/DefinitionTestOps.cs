@@ -27,7 +27,7 @@ internal static class DefinitionTestOps
             .HandleAsync(new RegisterJobDefinitionsCommand(namespaceId, manifestGenerationUtc, descriptors, stored), ct);
     }
 
-    public static async Task<SetJobDefinitionOverridesResponse> UpdateOverridesAsync(
+    public static async Task<SetDefinitionOverridesResponse> UpdateOverridesAsync(
         IServiceProvider services,
         string jobNamespace,
         string jobName,

@@ -112,7 +112,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<DefinitionKeyResolution>();
         services.TryAddSingleton<GetDefinitionHandler>();
         services.TryAddSingleton<ListDefinitionsHandler>();
-        services.TryAddSingleton<SetJobDefinitionOverridesHandler>();
+        services.TryAddSingleton<SetDefinitionOverridesHandler>();
         services.TryAddSingleton<RetireDefinitionHandler>();
         services.TryAddSingleton<IDefinitions, Definitions>();
         services.TryAddSingleton<ListJobsHandler>();

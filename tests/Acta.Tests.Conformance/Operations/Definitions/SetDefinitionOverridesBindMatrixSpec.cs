@@ -7,7 +7,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Definitions;
 
 /// <summary>
-/// Pins the full 13-column override bind matrix of <c>set_job_definition_overrides</c>:
+/// Pins the full 13-column override bind matrix of <c>set_definition_overrides</c>:
 /// each <c>*_override</c> column receives exactly the value written and each <c>*_effective</c>
 /// is <c>COALESCE(override, base)</c>. Distinct values per column make any cross-wiring detectable.
 /// </summary>
@@ -17,7 +17,7 @@ namespace Acta.Tests.Conformance.Operations.Definitions;
     Area = "Catalog",
     Contract = "All 13 override slots bind to their own column, COALESCE recomputes each effective, and null clears the override to fall back to base."
 )]
-public sealed class SetJobDefinitionOverridesBindMatrixSpec : ActaStorageTestBase<ConformanceFixture>
+public sealed class SetDefinitionOverridesBindMatrixSpec : ActaStorageTestBase<ConformanceFixture>
 {
     private static readonly DateTime Gen = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private static JobControlActor Actor => new(ActorCode.Operator, "tester");
