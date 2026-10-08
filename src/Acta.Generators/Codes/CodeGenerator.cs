@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
-using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using static Acta.Generators.CodeFamilyReader;
+using static Acta.Generators.CodeSourceWriter;
 
 namespace Acta.Generators;
 
@@ -16,8 +17,8 @@ namespace Acta.Generators;
 [Generator(LanguageNames.CSharp)]
 public sealed class CodeGenerator : IIncrementalGenerator
 {
-    private const string CodeAttributeMetadataName = "Acta.CodeAttribute";
-    private const string CodeKindAttributeMetadataName = "Acta.CodeKindAttribute";
+    internal const string CodeAttributeMetadataName = "Acta.CodeAttribute";
+    internal const string CodeKindAttributeMetadataName = "Acta.CodeKindAttribute";
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -47,7 +48,7 @@ public sealed class CodeGenerator : IIncrementalGenerator
         context.RegisterSourceOutput(grouped.Collect(), static (spc, families) => EmitMarkdownReport(spc, families));
     }
 
-    private static FieldHit? TransformField(GeneratorAttributeSyntaxContext ctx, System.Threading.CancellationToken ct)
+    internal static FieldHit? TransformField(GeneratorAttributeSyntaxContext ctx, System.Threading.CancellationToken ct)
     {
         if (ctx.TargetSymbol is not IFieldSymbol field)
         {
@@ -107,7 +108,7 @@ public sealed class CodeGenerator : IIncrementalGenerator
         return new FieldHit(enumType, field.Name, id, code, description, lifecycle, OutOfRange: false);
     }
 
-    private static IEnumerable<FamilyModel> GroupByContainingEnum(
+    internal static IEnumerable<FamilyModel> GroupByContainingEnum(
         ImmutableArray<FieldHit> hits,
         ImmutableArray<INamedTypeSymbol> declaredEnums
     )
@@ -127,46 +128,7 @@ public sealed class CodeGenerator : IIncrementalGenerator
             var ns = enumType.ContainingNamespace.IsGlobalNamespace ? null : enumType.ContainingNamespace.ToDisplayString();
             var diagnostics = ImmutableArray.CreateBuilder<DiagnosticRecord>();
 
-            // [CodeKind("kebab-name")] is required on every [Code]-bearing enum. Every
-            // persisted name in Acta is explicit on its attribute; the catalog discriminator is no
-            // exception. The generator derives nothing from the C# enum name: that decoupling
-            // protects operator queries against silent C# renames (see proposal 0008).
-            var codeKindAttr = enumType.GetAttributes().FirstOrDefault(a => a.AttributeClass?.Name == "CodeKindAttribute");
-            string codeKind;
-            if (
-                codeKindAttr is null
-                || codeKindAttr.ConstructorArguments.Length == 0
-                || codeKindAttr.ConstructorArguments[0].Value is not string declaredKind
-                || string.IsNullOrEmpty(declaredKind)
-            )
-            {
-                diagnostics.Add(
-                    new DiagnosticRecord(
-                        "ACTA0201",
-                        $"Enum `{enumType.Name}` declares `[Code]` members but is missing `[CodeKind(\"...\")]`. "
-                            + $"Add `[CodeKind(\"kebab-name\")]` to the enum, where the kebab name matches the "
-                            + $"stable `code_kind` discriminator documented in docs/98.",
-                        Fatal: true
-                    )
-                );
-                codeKind = enumType.Name; // Placeholder: emission skips on diagnostic anyway.
-            }
-            else if (!IsValidCodeShape(declaredKind))
-            {
-                diagnostics.Add(
-                    new DiagnosticRecord(
-                        "ACTA0201",
-                        $"`[CodeKind(\"{declaredKind}\")]` on `{enumType.Name}` must match kebab "
-                            + $"(`[a-z][a-z0-9-]*`) optionally dotted (`.<kebab>`).",
-                        Fatal: true
-                    )
-                );
-                codeKind = declaredKind;
-            }
-            else
-            {
-                codeKind = declaredKind;
-            }
+            var codeKind = ReadCodeKind(enumType, diagnostics);
 
             var underlying = enumType.EnumUnderlyingType?.SpecialType ?? SpecialType.None;
             var storage = underlying == SpecialType.System_Byte ? StorageKind.Byte : StorageKind.Invalid;
@@ -187,59 +149,7 @@ public sealed class CodeGenerator : IIncrementalGenerator
             var reservations = ReadReservations(enumType, diagnostics);
             var reservedRanges = ReadReservedRanges(enumType, diagnostics);
 
-            var codes = new List<CodeModel>();
-            var seenCodes = new HashSet<string>(StringComparer.Ordinal);
-            var seenIds = new HashSet<short>();
-            foreach (var hit in familyHits)
-            {
-                if (hit.OutOfRange)
-                {
-                    diagnostics.Add(
-                        new DiagnosticRecord("ACTA0202", $"`{enumType.Name}.{hit.MemberName}` value is out of short range.", Fatal: true)
-                    );
-                    continue;
-                }
-                if (hit.Id is < 0 or > 254)
-                {
-                    diagnostics.Add(
-                        new DiagnosticRecord(
-                            "ACTA0202",
-                            $"`{enumType.Name}.{hit.MemberName}` value `{hit.Id}` is outside the closed-byte assignment range 0..254; 255 is permanently invalid."
-                        )
-                    );
-                }
-                if (!IsValidCodeShape(hit.Code))
-                {
-                    diagnostics.Add(
-                        new DiagnosticRecord(
-                            "ACTA0202",
-                            $"`{enumType.Name}.{hit.MemberName}` Code `{hit.Code}` must match kebab (`[a-z][a-z0-9-]*`) optionally dotted (`.<kebab>`)."
-                        )
-                    );
-                }
-
-                if (!seenCodes.Add(hit.Code))
-                {
-                    diagnostics.Add(
-                        new DiagnosticRecord(
-                            "ACTA0203",
-                            $"`{enumType.Name}.{hit.MemberName}` Code `{hit.Code}` duplicates another member in the same family."
-                        )
-                    );
-                }
-
-                if (!seenIds.Add(hit.Id))
-                {
-                    diagnostics.Add(
-                        new DiagnosticRecord(
-                            "ACTA0203",
-                            $"`{enumType.Name}.{hit.MemberName}` value `{hit.Id}` duplicates another member in the same family."
-                        )
-                    );
-                }
-
-                codes.Add(new CodeModel(hit.MemberName, hit.Id, hit.Code, hit.Description, hit.Lifecycle));
-            }
+            var codes = ReadCodes(enumType, familyHits, diagnostics);
 
             ValidateReservations(enumType.Name, codes, reservations, reservedRanges, diagnostics);
 
@@ -272,154 +182,11 @@ public sealed class CodeGenerator : IIncrementalGenerator
         }
     }
 
-    private static ImmutableArray<ReservationModel> ReadReservations(
-        INamedTypeSymbol enumType,
-        ImmutableArray<DiagnosticRecord>.Builder diagnostics
-    )
-    {
-        var reservations = ImmutableArray.CreateBuilder<ReservationModel>();
-        foreach (var attr in enumType.GetAttributes().Where(a => a.AttributeClass?.Name == "ReservedCodeAttribute"))
-        {
-            if (
-                attr.ConstructorArguments.Length < 2
-                || attr.ConstructorArguments[0].Value is null
-                || attr.ConstructorArguments[1].Value is not string code
-            )
-            {
-                diagnostics.Add(new DiagnosticRecord("ACTA0204", $"`{enumType.Name}` has an invalid `[ReservedCode]` declaration."));
-                continue;
-            }
-
-            var id = Convert.ToInt16(attr.ConstructorArguments[0].Value, CultureInfo.InvariantCulture);
-            if (id is < 0 or > 254 || !IsValidCodeShape(code))
-            {
-                diagnostics.Add(
-                    new DiagnosticRecord(
-                        "ACTA0204",
-                        $"`{enumType.Name}` reserved code `{code}` / `{id}` must use a valid textual code and an id in 0..254."
-                    )
-                );
-            }
-            reservations.Add(new ReservationModel(id, code));
-        }
-        return reservations.ToImmutable();
-    }
-
-    private static ImmutableArray<ReservedRangeModel> ReadReservedRanges(
-        INamedTypeSymbol enumType,
-        ImmutableArray<DiagnosticRecord>.Builder diagnostics
-    )
-    {
-        var ranges = ImmutableArray.CreateBuilder<ReservedRangeModel>();
-        foreach (var attr in enumType.GetAttributes().Where(a => a.AttributeClass?.Name == "ReservedCodeRangeAttribute"))
-        {
-            if (
-                attr.ConstructorArguments.Length < 3
-                || attr.ConstructorArguments[0].Value is null
-                || attr.ConstructorArguments[1].Value is null
-            )
-            {
-                diagnostics.Add(new DiagnosticRecord("ACTA0204", $"`{enumType.Name}` has an invalid `[ReservedCodeRange]` declaration."));
-                continue;
-            }
-
-            var start = Convert.ToInt16(attr.ConstructorArguments[0].Value, CultureInfo.InvariantCulture);
-            var end = Convert.ToInt16(attr.ConstructorArguments[1].Value, CultureInfo.InvariantCulture);
-            if (start < 0 || end > 254 || start > end)
-            {
-                diagnostics.Add(
-                    new DiagnosticRecord(
-                        "ACTA0204",
-                        $"`{enumType.Name}` reserved range `{start}..{end}` must be ordered and contained in 0..254."
-                    )
-                );
-            }
-            ranges.Add(new ReservedRangeModel(start, end));
-        }
-        return ranges.ToImmutable();
-    }
-
-    private static void ValidateReservations(
-        string enumName,
-        IReadOnlyList<CodeModel> codes,
-        ImmutableArray<ReservationModel> reservations,
-        ImmutableArray<ReservedRangeModel> ranges,
-        ImmutableArray<DiagnosticRecord>.Builder diagnostics
-    )
-    {
-        var reservedIds = new HashSet<short>();
-        var reservedCodes = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var reservation in reservations)
-        {
-            if (!reservedIds.Add(reservation.Id) || !reservedCodes.Add(reservation.Code))
-            {
-                diagnostics.Add(
-                    new DiagnosticRecord("ACTA0204", $"`{enumName}` repeats reserved id `{reservation.Id}` or code `{reservation.Code}`.")
-                );
-            }
-            if (codes.Any(c => c.Id == reservation.Id || string.Equals(c.Code, reservation.Code, StringComparison.Ordinal)))
-            {
-                diagnostics.Add(
-                    new DiagnosticRecord(
-                        "ACTA0204",
-                        $"`{enumName}` reuses reserved id `{reservation.Id}` or textual code `{reservation.Code}`. Tombstones are immutable."
-                    )
-                );
-            }
-        }
-
-        for (var i = 0; i < ranges.Length; i++)
-        {
-            var range = ranges[i];
-            if (codes.Any(c => c.Id >= range.Start && c.Id <= range.End) || reservations.Any(r => r.Id >= range.Start && r.Id <= range.End))
-            {
-                diagnostics.Add(
-                    new DiagnosticRecord(
-                        "ACTA0204",
-                        $"`{enumName}` assigns a code or tombstone inside reserved range `{range.Start}..{range.End}`."
-                    )
-                );
-            }
-            if (ranges.Take(i).Any(other => range.Start <= other.End && other.Start <= range.End))
-            {
-                diagnostics.Add(new DiagnosticRecord("ACTA0204", $"`{enumName}` declares overlapping reserved ranges."));
-            }
-        }
-    }
-
-    private static bool IsValidCodeShape(string code)
-    {
-        if (string.IsNullOrEmpty(code))
-        {
-            return false;
-        }
-
-        var segments = code.Split('.');
-        foreach (var seg in segments)
-        {
-            if (seg.Length == 0 || !(seg[0] >= 'a' && seg[0] <= 'z'))
-            {
-                return false;
-            }
-
-            for (var i = 1; i < seg.Length; i++)
-            {
-                var c = seg[i];
-                var ok = (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-';
-                if (!ok)
-                {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-
     /// <summary>
     /// ACTA02xx diagnostics. Messages are fully formatted at the check site; every descriptor passes
     /// them through. Static descriptors keep the IDs discoverable for analyzer release tracking (RS2002).
     /// </summary>
-    private static readonly DiagnosticDescriptor CodeFamilyDeclaration = new(
+    internal static readonly DiagnosticDescriptor CodeFamilyDeclaration = new(
         id: "ACTA0201",
         title: "Code-family declarations must be complete",
         messageFormat: "{0}",
@@ -428,7 +195,7 @@ public sealed class CodeGenerator : IIncrementalGenerator
         isEnabledByDefault: true
     );
 
-    private static readonly DiagnosticDescriptor CodeValue = new(
+    internal static readonly DiagnosticDescriptor CodeValue = new(
         id: "ACTA0202",
         title: "Code values must be well-formed",
         messageFormat: "{0}",
@@ -437,7 +204,7 @@ public sealed class CodeGenerator : IIncrementalGenerator
         isEnabledByDefault: true
     );
 
-    private static readonly DiagnosticDescriptor DuplicateCodeValue = new(
+    internal static readonly DiagnosticDescriptor DuplicateCodeValue = new(
         id: "ACTA0203",
         title: "Code values must be unique within a family",
         messageFormat: "{0}",
@@ -446,7 +213,7 @@ public sealed class CodeGenerator : IIncrementalGenerator
         isEnabledByDefault: true
     );
 
-    private static readonly DiagnosticDescriptor ReservedCodeValue = new(
+    internal static readonly DiagnosticDescriptor ReservedCodeValue = new(
         id: "ACTA0204",
         title: "Retired and reserved code identities cannot be reused",
         messageFormat: "{0}",
@@ -455,7 +222,7 @@ public sealed class CodeGenerator : IIncrementalGenerator
         isEnabledByDefault: true
     );
 
-    private static DiagnosticDescriptor DescriptorFor(string id) =>
+    internal static DiagnosticDescriptor DescriptorFor(string id) =>
         id switch
         {
             "ACTA0201" => CodeFamilyDeclaration,
@@ -465,364 +232,22 @@ public sealed class CodeGenerator : IIncrementalGenerator
             _ => throw new InvalidOperationException($"Unknown ACTA02xx descriptor '{id}'."),
         };
 
-    private static void Emit(SourceProductionContext spc, FamilyModel family)
-    {
-        foreach (var diag in family.Diagnostics)
-        {
-            spc.ReportDiagnostic(Diagnostic.Create(DescriptorFor(diag.Id), Location.None, diag.Message));
-        }
-        if (family.Diagnostics.Any(d => d.Fatal))
-        {
-            return;
-        }
-
-        EmitExtensions(spc, family);
-    }
-
-    private static void EmitExtensions(SourceProductionContext spc, FamilyModel family)
-    {
-        var storageName = StorageKeyword(family.Storage);
-        var typeName = family.StructName;
-        var extName = $"{typeName}Extensions";
-
-        var sb = new StringBuilder();
-        GeneratorText.AutoGeneratedHeader(sb);
-        sb.AppendLine();
-        if (family.ContainingNamespace is not null)
-        {
-            sb.Append("namespace ").Append(family.ContainingNamespace).AppendLine(";");
-            sb.AppendLine();
-        }
-
-        sb.Append("public static partial class ").AppendLine(extName);
-        sb.AppendLine("{");
-
-        sb.AppendLine(
-            "    private static readonly global::System.Collections.Generic.IReadOnlyList<global::Acta.CodeManifestEntry> _manifest = new global::Acta.CodeManifestEntry[]"
-        );
-        sb.AppendLine("    {");
-        foreach (var c in family.Codes)
-        {
-            sb.Append("        new(\"")
-                .Append(family.CodeKind)
-                .Append("\", (byte)")
-                .Append(c.Id)
-                .Append(", \"")
-                .Append(c.Code)
-                .Append("\", ")
-                .Append(EscapeStringLiteral(c.Description))
-                .Append(", global::Acta.CodeLifecycle.")
-                .Append(c.Lifecycle)
-                .AppendLine("),");
-        }
-        sb.AppendLine("    };");
-        sb.AppendLine();
-
-        sb.Append("    extension(").Append(typeName).AppendLine(")");
-        sb.AppendLine("    {");
-        sb.Append("        public static string CodeKind => \"").Append(family.CodeKind).AppendLine("\";");
-        sb.AppendLine();
-        sb.AppendLine(
-            "        public static global::System.Collections.Generic.IReadOnlyList<global::Acta.CodeManifestEntry> Manifest => _manifest;"
-        );
-        sb.AppendLine();
-        if (family.Codes.Length == 0)
-        {
-            sb.Append("        public static bool IsKnownId(").Append(storageName).AppendLine(" id) => false;");
-        }
-        else
-        {
-            sb.Append("        public static bool IsKnownId(").Append(storageName).Append(" id) => id is ");
-            sb.Append(string.Join(" or ", family.Codes.Select(c => c.Id.ToString(CultureInfo.InvariantCulture))));
-            sb.AppendLine(";");
-        }
-        sb.AppendLine();
-
-        sb.Append("        public static bool IsWritableId(").Append(storageName).AppendLine(" id) => id switch");
-        sb.AppendLine("        {");
-        foreach (var c in family.Codes)
-        {
-            sb.Append("            ").Append(c.Id).Append(" => ").Append(c.Lifecycle == "Retired" ? "false" : "true").AppendLine(",");
-        }
-
-        sb.AppendLine("            _ => false,");
-        sb.AppendLine("        };");
-        sb.AppendLine();
-
-        sb.Append("        public static ").Append(typeName).Append(" FromId(").Append(storageName).AppendLine(" id) => id switch");
-        sb.AppendLine("        {");
-        foreach (var c in family.Codes)
-        {
-            sb.Append("            ").Append(c.Id).Append(" => ").Append(typeName).Append('.').Append(c.MemberName).AppendLine(",");
-        }
-
-        // An id this build does not know was written by a newer Acta, and a forward read must not throw,
-        // so it reads as whichever member holds id 0 (ACTA0201 requires one once a family has members).
-        // FromCode stays strict: it parses caller input, where an unrecognized code is a bad request.
-        var zero = family.Codes.FirstOrDefault(c => c.Id == 0);
-        AppendDefaultArm(sb, typeName, "id", zero is null ? null : typeName + "." + zero.MemberName);
-
-        sb.AppendLine("        };");
-        sb.AppendLine();
-
-        sb.Append("        public static ").Append(typeName).AppendLine(" FromCode(string code) => code switch");
-        sb.AppendLine("        {");
-        foreach (var c in family.Codes)
-        {
-            sb.Append("            \"").Append(c.Code).Append("\" => ").Append(typeName).Append('.').Append(c.MemberName).AppendLine(",");
-        }
-        AppendDefaultArm(sb, typeName, "code", fallback: null);
-        sb.AppendLine("        };");
-        sb.AppendLine("    }");
-        sb.AppendLine();
-
-        sb.Append("    extension(").Append(typeName).AppendLine(" value)");
-        sb.AppendLine("    {");
-        sb.AppendLine("        public byte ToId => value switch");
-        sb.AppendLine("        {");
-        foreach (var c in family.Codes)
-        {
-            sb.Append("            ").Append(typeName).Append('.').Append(c.MemberName).Append(" => ").Append(c.Id).AppendLine(",");
-        }
-        AppendDefaultArm(sb, typeName, "value", fallback: null);
-        sb.AppendLine("        };");
-        sb.AppendLine();
-        sb.AppendLine("        public string Code => value switch");
-        sb.AppendLine("        {");
-        foreach (var c in family.Codes)
-        {
-            sb.Append("            ").Append(typeName).Append('.').Append(c.MemberName).Append(" => \"").Append(c.Code).AppendLine("\",");
-        }
-
-        // A value this build does not know is named by the id-0 member, so the JSON writer (which calls
-        // Code) can serialize a forward-read row instead of throwing.
-        AppendDefaultArm(sb, typeName, "value", zero is null ? null : "\"" + zero.Code + "\"");
-        sb.AppendLine("        };");
-        sb.AppendLine();
-        sb.AppendLine("        public string Description => value switch");
-        sb.AppendLine("        {");
-        foreach (var c in family.Codes)
-        {
-            sb.Append("            ")
-                .Append(typeName)
-                .Append('.')
-                .Append(c.MemberName)
-                .Append(" => ")
-                .Append(EscapeStringLiteral(c.Description))
-                .AppendLine(",");
-        }
-
-        AppendDefaultArm(sb, typeName, "value", fallback: null);
-        sb.AppendLine("        };");
-        sb.AppendLine("    }");
-        sb.AppendLine("}");
-
-        AppendJsonConverter(sb, family, typeName);
-
-        spc.AddSource($"{extName}.g.cs", sb.ToString());
-    }
-
-    /// <summary>
-    /// Canonical strings only, both ways: the wire form of a code is its kebab Code string, and the
-    /// numeric id is a storage detail that never crosses JSON. Reading a number or a numeric string
-    /// would be compatibility shaping for a producer that does not exist.
-    /// </summary>
-    // A switch's last arm: the fallback expression when the family has one, else a throw naming the input.
-    private static void AppendDefaultArm(StringBuilder sb, string typeName, string input, string? fallback)
-    {
-        if (fallback is not null)
-        {
-            sb.Append("            _ => ").Append(fallback).AppendLine(",");
-            return;
-        }
-
-        sb.Append("            _ => throw new global::System.ArgumentOutOfRangeException(nameof(")
-            .Append(input)
-            .Append("), ")
-            .Append(input)
-            .Append(", \"Unknown ")
-            .Append(typeName)
-            .Append(' ')
-            .Append(input)
-            .AppendLine(".\"),");
-    }
-
-    private static void AppendJsonConverter(StringBuilder sb, FamilyModel family, string typeName)
-    {
-        sb.AppendLine();
-        sb.Append("/// <summary>Reads / writes <see cref=\"")
-            .Append(typeName)
-            .AppendLine("\"/> as its kebab <c>Code</c> string. Numeric JSON is not accepted.</summary>");
-        sb.Append("public sealed class ")
-            .Append(typeName)
-            .Append("JsonConverter : global::System.Text.Json.Serialization.JsonConverter<")
-            .Append(typeName)
-            .AppendLine(">");
-        sb.AppendLine("{");
-        sb.Append("    public override ")
-            .Append(typeName)
-            .AppendLine(
-                " Read(ref global::System.Text.Json.Utf8JsonReader reader, global::System.Type typeToConvert, global::System.Text.Json.JsonSerializerOptions options)"
-            );
-        sb.AppendLine("    {");
-        sb.AppendLine("        if (reader.TokenType != global::System.Text.Json.JsonTokenType.String)");
-        sb.AppendLine("        {");
-        sb.Append("            throw new global::System.Text.Json.JsonException(\"")
-            .Append(typeName)
-            .AppendLine(" expects a JSON string.\");");
-        sb.AppendLine("        }");
-        sb.AppendLine();
-        sb.AppendLine("        var s = reader.GetString();");
-        sb.AppendLine("        return s switch");
-        sb.AppendLine("        {");
-        foreach (var c in family.Codes)
-        {
-            sb.Append("            \"").Append(c.Code).Append("\" => ").Append(typeName).Append('.').Append(c.MemberName).AppendLine(",");
-        }
-
-        sb.Append("            _ => throw new global::System.Text.Json.JsonException($\"Unknown ")
-            .Append(typeName)
-            .AppendLine(" code: '{s}'.\"),");
-        sb.AppendLine("        };");
-        sb.AppendLine("    }");
-        sb.AppendLine();
-        sb.Append("    public override void Write(global::System.Text.Json.Utf8JsonWriter writer, ")
-            .Append(typeName)
-            .AppendLine(" value, global::System.Text.Json.JsonSerializerOptions options)");
-        sb.AppendLine("        => writer.WriteStringValue(value.Code);");
-        sb.AppendLine("}");
-    }
-
-    private static void EmitMarkdownReport(SourceProductionContext spc, ImmutableArray<FamilyModel> families)
-    {
-        var validFamilies = families
-            .Where(f => !f.Diagnostics.Any(d => d.Fatal))
-            .OrderBy(f => f.CodeKind, StringComparer.Ordinal)
-            .ToArray();
-        if (validFamilies.Length == 0)
-        {
-            return;
-        }
-
-        var md = new StringBuilder();
-        md.AppendLine("# 98 · Codes (mechanical reference)");
-        md.AppendLine();
-        md.AppendLine("Auto-generated from `[Code]` decorations on each source-generated code family in `Acta` domain folders.");
-        md.AppendLine("Edit the attributes, not this file. Regenerate via `dotnet run --project tools/Acta.Emit -- docs`.");
-        md.AppendLine();
-        md.AppendLine($"Total families: **{validFamilies.Length}**. Total codes: **{validFamilies.Sum(f => f.Codes.Length)}**.");
-        md.AppendLine();
-
-        foreach (var f in validFamilies)
-        {
-            var storageName = StorageKeyword(f.Storage);
-            md.Append("## `")
-                .Append(f.StructName)
-                .Append("` · `")
-                .Append(f.CodeKind)
-                .Append("` (")
-                .Append(storageName)
-                .AppendLine("-backed)");
-            md.AppendLine();
-            md.AppendLine("| Id  | Code | Description | Lifecycle |");
-            md.AppendLine("|----:|------|-------------|-----------|");
-            foreach (var c in f.Codes.OrderBy(c => c.Id))
-            {
-                md.Append("| ").Append(c.Id);
-                md.Append(" | `").Append(EscapeMd(c.Code)).Append('`');
-                md.Append(" | ").Append(EscapeMd(c.Description));
-                md.Append(" | ").Append(c.Lifecycle).AppendLine(" |");
-            }
-            md.AppendLine();
-        }
-
-        var src = new StringBuilder();
-        GeneratorText.AutoGeneratedHeader(src);
-        src.AppendLine();
-        src.AppendLine("namespace Acta;");
-        src.AppendLine();
-        src.AppendLine("public static partial class CodeManifests");
-        src.AppendLine("{");
-        src.AppendLine(
-            "    private static readonly global::System.Collections.Generic.IReadOnlyList<global::Acta.CodeManifestEntry> _all = new global::Acta.CodeManifestEntry[]"
-        );
-        src.AppendLine("    {");
-        foreach (var f in validFamilies)
-        {
-            foreach (var c in f.Codes)
-            {
-                src.Append("        new(\"")
-                    .Append(f.CodeKind)
-                    .Append("\", (byte)")
-                    .Append(c.Id)
-                    .Append(", \"")
-                    .Append(c.Code)
-                    .Append("\", ")
-                    .Append(EscapeStringLiteral(c.Description))
-                    .Append(", global::Acta.CodeLifecycle.")
-                    .Append(c.Lifecycle)
-                    .AppendLine("),");
-            }
-        }
-        src.AppendLine("    };");
-        src.AppendLine();
-        src.AppendLine("    /// <summary>Mechanical manifest entries for every generated code family.</summary>");
-        src.AppendLine("    public static global::System.Collections.Generic.IReadOnlyList<global::Acta.CodeManifestEntry> All => _all;");
-        src.AppendLine();
-        src.AppendLine(
-            "    /// <summary>Mechanical markdown reference for every code family, generated from `[Code]` decorations.</summary>"
-        );
-        src.AppendLine("    public const string MarkdownReport = ");
-
-        var lines = md.ToString().Replace("\r\n", "\n").Split('\n');
-        for (var i = 0; i < lines.Length; i++)
-        {
-            src.Append("        ").Append(EscapeStringLiteral(lines[i]));
-            if (i < lines.Length - 1)
-            {
-                src.AppendLine(" + \"\\n\" +");
-            }
-            else
-            {
-                src.AppendLine(";");
-            }
-        }
-        src.AppendLine("}");
-
-        spc.AddSource("CodeManifests.MarkdownReport.g.cs", src.ToString());
-    }
-
-    private static string EscapeMd(string s) => s.Replace("|", "\\|");
-
-    private static string EscapeStringLiteral(string s)
-    {
-        var escaped = s.Replace("\\", "\\\\").Replace("\"", "\\\"");
-        return "\"" + escaped + "\"";
-    }
-
     /// <summary>
     /// Byte is the only legal storage: ACTA0201 rejects any other underlying type, so Invalid exists
     /// only to carry that rejection to the diagnostic and never reaches emission.
     /// </summary>
-    private enum StorageKind
+    internal enum StorageKind
     {
         Byte,
         Invalid,
     }
 
-    private static string StorageKeyword(StorageKind storage) =>
-        storage switch
-        {
-            StorageKind.Byte => "byte",
-            _ => throw new InvalidOperationException($"Cannot render StorageKind.{storage} as a C# keyword."),
-        };
-
     /// <summary>
     /// Fatal marks family-level breakage that suppresses emission for the whole family.
     /// </summary>
-    private sealed record DiagnosticRecord(string Id, string Message, bool Fatal = false);
+    internal sealed record DiagnosticRecord(string Id, string Message, bool Fatal = false);
 
-    private sealed record FieldHit(
+    internal sealed record FieldHit(
         INamedTypeSymbol EnumType,
         string MemberName,
         short Id,
@@ -832,7 +257,7 @@ public sealed class CodeGenerator : IIncrementalGenerator
         bool OutOfRange
     );
 
-    private sealed record FamilyModel(
+    internal sealed record FamilyModel(
         string? ContainingNamespace,
         string StructName,
         string CodeKind,
@@ -843,13 +268,13 @@ public sealed class CodeGenerator : IIncrementalGenerator
         ImmutableArray<DiagnosticRecord> Diagnostics
     );
 
-    private sealed record CodeModel(string MemberName, short Id, string Code, string Description, string Lifecycle);
+    internal sealed record CodeModel(string MemberName, short Id, string Code, string Description, string Lifecycle);
 
-    private sealed record ReservationModel(short Id, string Code);
+    internal sealed record ReservationModel(short Id, string Code);
 
     /// <summary>
     /// Start/End only: the range's whole machine effect is the ACTA0204 assignment gate, which treats
     /// every held id alike. PermanentlyUnavailable on the attribute records intent for readers.
     /// </summary>
-    private sealed record ReservedRangeModel(short Start, short End);
+    internal sealed record ReservedRangeModel(short Start, short End);
 }
