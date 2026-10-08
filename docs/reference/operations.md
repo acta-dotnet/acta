@@ -188,5 +188,5 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 | `ListWorkers` | `IWorkers.ListAsync` | `GET /workers` | · | inline | inline | inline | · | `ListWorkersFilterMatrixSpec`, `ListWorkersSpec` |
 | `MarkDeadWorkers` | · | · | · | routine | routine | inline | `events`, `workers` | `MarkDeadWorkersSpec` |
 | `StartWorker` | · | · | · | inline | inline | inline | `events`, `namespaces`, `workers` | `StartWorkerIdAllocationSpec`, `StartWorkerSpec` |
-| `StopWorker` | · | · | · | routine | routine | inline | `events`, `workers` | `StopWorkerSpec` |
+| `StopWorker` | · | · | · | inline | inline | inline | `events`, `workers` | `StopWorkerSpec` |
 

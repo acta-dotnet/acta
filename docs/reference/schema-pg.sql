@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 21)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 22)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -7096,61 +7096,6 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION acta.stop_worker(
-    p_namespace_id INT,
-    p_worker_id INT
-)
-RETURNS VOID
-LANGUAGE sql
-AS $$
-    WITH stopped AS (
-        UPDATE acta.workers
-        SET
-            status_code = 100 /* WorkerStatusCode.Stopped */,
-            modified_at_utc = now(),
-            version = version + 1
-        WHERE
-            id = p_worker_id
-            AND status_code IN (10 /* WorkerStatusCode.Active */, 80 /* WorkerStatusCode.Draining */)
-        RETURNING id, worker_ref
-    )
-    INSERT INTO acta.events (
-        event_code,
-        created_at_utc,
-        namespace_id,
-        actor_code,
-        actor_key,
-        job_id,
-        execution_number,
-        lineage_root_id,
-        definition_id,
-        worker_id,
-        from_status_code,
-        to_status_code,
-        execution_status_code,
-        duration_ms,
-        reason_code,
-        reason_message)
-    SELECT
-        121 /* EventCode.WorkerStopped */,
-        now(),
-        p_namespace_id,
-        70 /* ActorCode.Worker */,
-        s.worker_ref::TEXT,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        s.id,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        100 /* EventReasonCode.WorkerCleanShutdown */,
-        NULL
-    FROM stopped s;
-$$;
-
 CREATE OR REPLACE FUNCTION acta.trigger_schedule_now(
     p_job_id BIGINT,
     p_name VARCHAR,
@@ -7562,7 +7507,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.21-e540c51784a62910b442c6eeb98aa741', 'acta');
+VALUES (-1, 'objects-1.22-1947f2f1b7c42959d049907139bffb9d', 'acta');
 
 COMMIT;
 
