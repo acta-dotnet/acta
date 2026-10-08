@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 16)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 17)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -7393,88 +7393,6 @@ AS $$
     FROM stopped s;
 $$;
 
-CREATE OR REPLACE FUNCTION acta.suspend_tenant(
-    p_tenant_key VARCHAR,
-    p_actor_code SMALLINT,
-    p_actor_key VARCHAR,
-    p_reason_message VARCHAR
-)
-RETURNS TABLE (action SMALLINT, version INT)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_id INT;
-    v_status SMALLINT;
-    v_version INT;
-BEGIN
-    SELECT t.id, t.status_code, t.version
-    INTO v_id, v_status, v_version
-    FROM acta.tenants t
-    WHERE t.tenant_key = p_tenant_key
-    FOR UPDATE;
-
-    IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::INT;
-        RETURN;
-    END IF;
-
-    IF v_status = 20 /* TenantStatusCode.Suspended */ THEN
-        RETURN QUERY SELECT 6 /* ControlAction.AlreadyInState */::SMALLINT, v_version;
-        RETURN;
-    END IF;
-
-    UPDATE acta.tenants AS t
-    SET
-        status_code = 20 /* TenantStatusCode.Suspended */,
-        modified_at_utc = now(),
-        version = t.version + 1
-    WHERE t.id = v_id
-    RETURNING t.version INTO v_version;
-
-    -- namespace_id 1 is the seeded sys namespace (M001).
-    INSERT INTO acta.events (
-        event_code,
-        created_at_utc,
-        namespace_id,
-        actor_code,
-        actor_key,
-        job_id,
-        job_ref,
-        execution_number,
-        lineage_root_id,
-        definition_id,
-        tenant_id,
-        worker_id,
-        from_status_code,
-        to_status_code,
-        execution_status_code,
-        duration_ms,
-        reason_code,
-        reason_message)
-    VALUES (
-        10 /* EventCode.TenantSuspended */,
-        now(),
-        1,
-        p_actor_code,
-        p_actor_key,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        v_id,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        p_reason_message);
-
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_version;
-END;
-$$;
-
 CREATE OR REPLACE FUNCTION acta.trigger_schedule_now(
     p_job_id BIGINT,
     p_name VARCHAR,
@@ -7970,7 +7888,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.16-d54404306572dd0bb7fc9ce437fbd3a5', 'acta');
+VALUES (-1, 'objects-1.17-a123e0674521624c7fe30bd6ca23629e', 'acta');
 
 COMMIT;
 
