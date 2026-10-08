@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 27)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 28)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -5454,117 +5454,6 @@ SELECT CASE
     ELSE 0 /* RecoverySlotRepair.Missing */ END AS outcome;
 $$;
 
-CREATE OR REPLACE FUNCTION acta.reprioritize_job(
-    p_id BIGINT,
-    p_priority_code SMALLINT,
-    p_actor_code SMALLINT,
-    p_actor_key VARCHAR,
-    p_reason_code SMALLINT,
-    p_reason_message VARCHAR,
-    p_expected_version INT DEFAULT NULL
-)
-RETURNS TABLE (action SMALLINT, status_code SMALLINT, version INT)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_from_status SMALLINT;
-    v_version INT;
-    v_namespace_id INT;
-    v_lineage BIGINT;
-    v_definition INT;
-    v_tenant INT;
-    v_en INT;
-    v_audit SMALLINT;
-    v_job_ref UUID;
-    v_lane_id BIGINT;
-BEGIN
-    -- Lock order: the lane, then the job's rows (docs/internals/sql-execution-policy.md, "Lane lock
-    -- order"). lane_id never changes, so the unlocked read is safe.
-    SELECT r.lane_id INTO v_lane_id
-    FROM acta.runtimes r
-    WHERE r.job_id = p_id;
-
-    IF v_lane_id IS NOT NULL THEN
-        PERFORM 1
-        FROM acta.lanes l
-        WHERE l.id = v_lane_id
-        FOR UPDATE;
-    END IF;
-
-    SELECT r.status_code, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id, r.execution_number, j.audit_level_code, j.job_ref, r.version
-    INTO v_from_status, v_namespace_id, v_lineage, v_definition, v_tenant, v_en, v_audit, v_job_ref, v_version
-    FROM acta.jobs j
-    JOIN acta.runtimes r ON r.job_id = j.id
-    WHERE j.id = p_id
-    FOR UPDATE;
-
-    IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT, NULL::INT;
-        RETURN;
-    END IF;
-
-    IF p_expected_version IS NOT NULL AND v_version <> p_expected_version THEN
-        RETURN QUERY SELECT 5 /* ControlAction.VersionConflict */::SMALLINT, v_from_status, v_version;
-        RETURN;
-    END IF;
-
-    IF v_from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN
-        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status, v_version;
-        RETURN;
-    END IF;
-
-    UPDATE acta.runtimes AS r
-    SET
-        priority_code = p_priority_code,
-        modified_at_utc = now(),
-        version = r.version + 1
-    WHERE r.job_id = p_id;
-
-    IF v_audit = 20 /* DefinitionAuditLevelCode.Audit */ THEN
-        INSERT INTO acta.events (
-            event_code,
-            created_at_utc,
-            namespace_id,
-            actor_code,
-            actor_key,
-            job_id,
-            job_ref,
-            execution_number,
-            lineage_root_id,
-            definition_id,
-            tenant_id,
-            worker_id,
-            from_status_code,
-            to_status_code,
-            execution_status_code,
-            duration_ms,
-            reason_code,
-            reason_message)
-        VALUES (
-            74 /* EventCode.JobReprioritized */,
-            now(),
-            v_namespace_id,
-            p_actor_code,
-            p_actor_key,
-            p_id,
-            v_job_ref,
-            v_en,
-            COALESCE(v_lineage, p_id),
-            v_definition,
-            v_tenant,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            p_reason_code,
-            p_reason_message);
-    END IF;
-
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_from_status, v_version + 1;
-END;
-$$;
-
 CREATE OR REPLACE FUNCTION acta.reschedule_job(
     p_id BIGINT,
     p_next_run_at_utc TIMESTAMPTZ,
@@ -6927,7 +6816,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.27-493f2bb4cc7980cbaf45cadbc314c67b', 'acta');
+VALUES (-1, 'objects-1.28-769a354035972bdcfa34e025854939d2', 'acta');
 
 COMMIT;
 

@@ -1,110 +1,76 @@
-CREATE OR REPLACE FUNCTION {{schema}}.reprioritize_job(
-    p_id BIGINT,
-    p_priority_code SMALLINT,
-    p_actor_code SMALLINT,
-    p_actor_key VARCHAR,
-    p_reason_code SMALLINT,
-    p_reason_message VARCHAR,
-    p_expected_version INT DEFAULT NULL
-)
-RETURNS TABLE (action SMALLINT, status_code SMALLINT, version INT)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_from_status SMALLINT;
-    v_version INT;
-    v_namespace_id INT;
-    v_lineage BIGINT;
-    v_definition INT;
-    v_tenant INT;
-    v_en INT;
-    v_audit SMALLINT;
-    v_job_ref UUID;
-    v_lane_id BIGINT;
-BEGIN
-    -- Lock order: the lane, then the job's rows (docs/internals/sql-execution-policy.md, "Lane lock
-    -- order"). lane_id never changes, so the unlocked read is safe.
-    SELECT r.lane_id INTO v_lane_id
-    FROM {{schema}}.runtimes r
-    WHERE r.job_id = p_id;
+-- One batch, one implicit transaction; only the final SELECT returns rows. Lock order: the lane, then the
+-- job's rows (docs/internals/sql-execution-policy.md, "Lane lock order"); lane_id never changes, so the
+-- unlocked read that finds it is safe.
+DROP TABLE IF EXISTS pg_temp._reprioritize_job_lane;
+DROP TABLE IF EXISTS pg_temp._reprioritize_job;
+CREATE TEMP TABLE _reprioritize_job_lane (id BIGINT NOT NULL) ON COMMIT DROP;
+CREATE TEMP TABLE _reprioritize_job (
+    from_status SMALLINT NOT NULL,
+    from_version INT NOT NULL,
+    namespace_id INT NOT NULL,
+    lineage_root_id BIGINT,
+    definition_id INT NOT NULL,
+    tenant_id INT,
+    execution_number INT NOT NULL,
+    audit_level_code SMALLINT NOT NULL,
+    job_ref UUID NOT NULL
+) ON COMMIT DROP;
 
-    IF v_lane_id IS NOT NULL THEN
-        PERFORM 1
-        FROM {{schema}}.lanes l
-        WHERE l.id = v_lane_id
-        FOR UPDATE;
-    END IF;
+INSERT INTO _reprioritize_job_lane (id)
+SELECT l.id
+FROM {{schema}}.lanes l
+WHERE l.id = (SELECT r.lane_id FROM {{schema}}.runtimes r WHERE r.job_id = @p_id)
+FOR UPDATE;
 
-    SELECT r.status_code, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id, r.execution_number, j.audit_level_code, j.job_ref, r.version
-    INTO v_from_status, v_namespace_id, v_lineage, v_definition, v_tenant, v_en, v_audit, v_job_ref, v_version
-    FROM {{schema}}.jobs j
-    JOIN {{schema}}.runtimes r ON r.job_id = j.id
-    WHERE j.id = p_id
-    FOR UPDATE;
+INSERT INTO _reprioritize_job (
+    from_status, from_version, namespace_id, lineage_root_id, definition_id, tenant_id, execution_number,
+    audit_level_code, job_ref)
+SELECT
+    r.status_code, r.version, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id, r.execution_number,
+    j.audit_level_code, j.job_ref
+FROM {{schema}}.jobs j
+JOIN {{schema}}.runtimes r ON r.job_id = j.id
+WHERE j.id = @p_id
+FOR UPDATE;
 
-    IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT, NULL::INT;
-        RETURN;
-    END IF;
+UPDATE {{schema}}.runtimes AS r
+SET
+    priority_code = @p_priority_code,
+    modified_at_utc = now(),
+    version = r.version + 1
+FROM _reprioritize_job s
+WHERE
+    r.job_id = @p_id
+    AND (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
+    AND s.from_status NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
 
-    IF p_expected_version IS NOT NULL AND v_version <> p_expected_version THEN
-        RETURN QUERY SELECT 5 /* ControlAction.VersionConflict */::SMALLINT, v_from_status, v_version;
-        RETURN;
-    END IF;
+INSERT INTO {{schema}}.events (
+    event_code, created_at_utc, namespace_id, actor_code, actor_key, job_id, job_ref, execution_number,
+    lineage_root_id, definition_id, tenant_id, reason_code, reason_message)
+SELECT
+    74 /* EventCode.JobReprioritized */, now(), s.namespace_id, @p_actor_code, @p_actor_key, @p_id, s.job_ref,
+    s.execution_number, COALESCE(s.lineage_root_id, @p_id), s.definition_id, s.tenant_id, @p_reason_code, @p_reason_message
+FROM _reprioritize_job s
+WHERE
+    s.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
+    AND (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
+    AND s.from_status NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
 
-    IF v_from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN
-        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status, v_version;
-        RETURN;
-    END IF;
-
-    UPDATE {{schema}}.runtimes AS r
-    SET
-        priority_code = p_priority_code,
-        modified_at_utc = now(),
-        version = r.version + 1
-    WHERE r.job_id = p_id;
-
-    IF v_audit = 20 /* DefinitionAuditLevelCode.Audit */ THEN
-        INSERT INTO {{schema}}.events (
-            event_code,
-            created_at_utc,
-            namespace_id,
-            actor_code,
-            actor_key,
-            job_id,
-            job_ref,
-            execution_number,
-            lineage_root_id,
-            definition_id,
-            tenant_id,
-            worker_id,
-            from_status_code,
-            to_status_code,
-            execution_status_code,
-            duration_ms,
-            reason_code,
-            reason_message)
-        VALUES (
-            74 /* EventCode.JobReprioritized */,
-            now(),
-            v_namespace_id,
-            p_actor_code,
-            p_actor_key,
-            p_id,
-            v_job_ref,
-            v_en,
-            COALESCE(v_lineage, p_id),
-            v_definition,
-            v_tenant,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            p_reason_code,
-            p_reason_message);
-    END IF;
-
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_from_status, v_version + 1;
-END;
-$$;
+SELECT
+    CASE
+        WHEN s.from_status IS NULL THEN 2 /* ControlAction.NotFound */
+        WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN 5 /* ControlAction.VersionConflict */
+        WHEN s.from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+            THEN 3 /* ControlAction.Rejected */
+        ELSE 1 /* ControlAction.Applied */
+    END::SMALLINT AS action,
+    s.from_status AS status_code,
+    CASE
+        WHEN s.from_status IS NULL THEN NULL
+        WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN s.from_version
+        WHEN s.from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+            THEN s.from_version
+        ELSE s.from_version + 1
+    END AS version
+FROM (SELECT 1) one
+LEFT JOIN _reprioritize_job s ON true;
