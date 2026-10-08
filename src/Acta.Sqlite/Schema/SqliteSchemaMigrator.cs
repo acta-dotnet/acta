@@ -1,5 +1,4 @@
 using System.Data;
-using System.Text;
 using Microsoft.Data.Sqlite;
 
 namespace Acta.Sqlite;
@@ -89,11 +88,7 @@ internal static class SqliteSchemaMigrator
         && !string.Equals(builder.DataSource, ":memory:", StringComparison.Ordinal)
         && !builder.DataSource.StartsWith("file:", StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>
-    /// Test-reset path: drops every view and table in the database, then re-applies. SQLite has no
-    /// <c>DROP SCHEMA ... CASCADE</c>, so the objects are enumerated from <c>sqlite_master</c> and
-    /// dropped with foreign keys disabled (order-independent).
-    /// </summary>
+    /// <summary>Test-reset path: drops Acta's views and tables, then re-applies.</summary>
     public static async Task ResetSchemaAsync(SqliteConnection connection, string schemaName, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(connection);
@@ -103,14 +98,13 @@ internal static class SqliteSchemaMigrator
             await connection.OpenAsync(ct);
         }
 
-        await DropSchemaAsync(connection, schemaName, ct);
-        await ApplyAsync(connection, schemaName, ct);
+        await SchemaMigrationRunner.ResetSchemaAsync(connection, schemaName, Hooks, ct);
     }
 
     /// <summary>
-    /// Drops everything Acta installed, applying nothing after. The drop half of
-    /// <see cref="ResetSchemaAsync"/>, kept for symmetry with the server providers; a caller that owns
-    /// the file usually deletes it instead.
+    /// Drops Acta's views and tables, applying nothing after, and leaves any other table in the database
+    /// alone. The drop half of <see cref="ResetSchemaAsync"/>; a caller that owns the file usually
+    /// deletes it instead.
     /// </summary>
     public static async Task DropSchemaAsync(SqliteConnection connection, string schemaName, CancellationToken ct)
     {
@@ -121,33 +115,6 @@ internal static class SqliteSchemaMigrator
             await connection.OpenAsync(ct);
         }
 
-        await DropAllAsync(connection, ct);
-    }
-
-    private static async Task DropAllAsync(SqliteConnection connection, CancellationToken ct)
-    {
-        // FK enforcement off so the drops are order-independent; views first, then tables; skip SQLite's
-        // internal bookkeeping tables. The whole teardown runs as one multi-statement command.
-        var script = new StringBuilder("PRAGMA foreign_keys = OFF;\n");
-        await using (var list = connection.CreateCommand())
-        {
-            list.CommandText =
-                "SELECT type, name FROM sqlite_master "
-                + "WHERE type IN ('view', 'table') AND name NOT LIKE 'sqlite_%' "
-                + "ORDER BY CASE type WHEN 'view' THEN 0 ELSE 1 END;";
-            await using var reader = await list.ExecuteReaderAsync(ct);
-            while (await reader.ReadAsync(ct))
-            {
-                var type = reader.GetString(0).ToUpperInvariant();
-                var name = reader.GetString(1).Replace("\"", "\"\"", StringComparison.Ordinal);
-                script.Append("DROP ").Append(type).Append(" IF EXISTS \"").Append(name).Append("\";\n");
-            }
-        }
-
-        script.Append("PRAGMA foreign_keys = ON;");
-
-        await using var drop = connection.CreateCommand();
-        drop.CommandText = script.ToString();
-        await drop.ExecuteNonQueryAsync(ct);
+        await SchemaMigrationRunner.DropSchemaAsync(connection, schemaName, Hooks, ct);
     }
 }

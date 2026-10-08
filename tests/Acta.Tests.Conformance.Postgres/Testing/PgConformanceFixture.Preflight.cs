@@ -1,3 +1,4 @@
+using System.Data.Common;
 using Acta.Postgres;
 using Acta.Tests.Conformance.Testing;
 using Npgsql;
@@ -5,8 +6,8 @@ using Npgsql;
 namespace Acta.Tests.Conformance.Postgres.Testing;
 
 /// <summary>
-/// PostgreSQL side of the migration-history preflight hooks. A probe is a throwaway schema in the
-/// test database carrying only a <c>migrations</c> table, so it never disturbs <c>acta_test</c>.
+/// PostgreSQL side of the schema bootstrap hooks. A probe is a throwaway schema in the test database
+/// carrying at most a <c>migrations</c> table, so it never disturbs <c>acta_test</c>.
 /// </summary>
 public sealed partial class PgConformanceFixture
 {
@@ -16,6 +17,19 @@ public sealed partial class PgConformanceFixture
         new PostgresProviderBootstrap(new PostgresProviderOptions { ConnectionString = connectionString, Schema = schemaName }).RunAsync(
             ct
         );
+
+    public async Task<DbConnection> OpenConnectionAsync(string connectionString, CancellationToken ct)
+    {
+        var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync(ct);
+        return connection;
+    }
+
+    public async Task ApplyMigrationsAsync(string connectionString, string schemaName, CancellationToken ct)
+    {
+        await using var connection = new NpgsqlConnection(connectionString);
+        await PostgresSchemaMigrator.ApplyAsync(connection, schemaName, ct);
+    }
 
     public async ValueTask<IMigrationHistoryProbe> CreateHistoryProbeAsync(IReadOnlyList<(int Version, string Name)>? history)
     {

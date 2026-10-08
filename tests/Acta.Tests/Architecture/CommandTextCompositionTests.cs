@@ -67,10 +67,6 @@ public sealed class CommandTextCompositionTests
         // contexts, and runs before the connection is opened.
         ["Acta.Postgres/Schema/PostgresSchemaMigrator.cs::EnsureDatabaseAndApplyAsync"] = (1, "database name, ValidateDatabaseName"),
         ["Acta.SqlServer/Schema/SqlServerSchemaMigrator.cs::EnsureDatabaseAndApplyAsync"] = (2, "database name, ValidateDatabaseName"),
-        // The SQLite test-reset teardown. SQLite has no DROP SCHEMA CASCADE, so the object names come
-        // from sqlite_master - the database's own catalog, not a caller - and each is emitted inside a
-        // double-quoted identifier with any embedded quote doubled.
-        ["Acta.Sqlite/Schema/SqliteSchemaMigrator.cs::DropAllAsync"] = (1, "sqlite_master object names, quote-doubled"),
         // Per-connection PRAGMAs. The one interpolated hole is NORMAL or FULL, picked from the
         // ExecutionProfile enum in the constructor; there is no third value it can hold.
         ["Acta.Sqlite/Services/SqliteDialect.cs::OnStateChange"] = (1, "literal PRAGMA text, enum-chosen synchronous mode"),

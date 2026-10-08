@@ -5,8 +5,8 @@ namespace Acta;
 
 /// <summary>
 /// Provider-neutral apply/reset orchestration for provider-owned <c>Mnnn_*.sql</c> migrations.
-/// Provider hooks supply the assembly, batch splitting, and connection-level behavior; every
-/// executable schema command and SQL object body is loaded from that provider assembly.
+/// Provider hooks supply the migrations' assembly, batch splitting, and connection-level behavior;
+/// the bootstrap operations and the object bodies are Acta's, chosen by the dialect token.
 /// </summary>
 internal static class SchemaMigrationRunner
 {
@@ -28,13 +28,16 @@ internal static class SchemaMigrationRunner
 
         var migrations = SchemaMigrationDiscovery.Discover(hooks.ProviderAssembly);
         var sql = new SqlResourceCatalog(hooks.DialectToken, schemaName);
+        var timeout = hooks.CommandTimeoutSeconds;
 
         await using var tx = await conn.BeginTransactionAsync(ct);
         try
         {
-            await SchemaCommands.AcquireLock(conn, tx, schemaName, hooks, sql, ct);
-            await SchemaCommands.EnsureMigrations(conn, tx, hooks, sql, ct);
-            var applied = await SchemaCommands.LoadAppliedVersions(conn, tx, hooks, sql, ct);
+            await new AcquireSchemaLockHandler(conn, sql, timeout).HandleAsync(new AcquireSchemaLockCommand(tx, schemaName), ct);
+            await new EnsureMigrationsHandler(conn, sql, timeout).HandleAsync(new EnsureMigrationsCommand(tx), ct);
+            var applied = (
+                await new LoadAppliedVersionsHandler(conn, sql, timeout).HandleAsync(new LoadAppliedVersionsQuery(tx), ct)
+            ).Versions;
 
             VerifyBaselineStamp(applied, hooks.RequiredBaselineStamp);
             VerifyAppliedNames(migrations, applied);
@@ -135,17 +138,17 @@ internal static class SchemaMigrationRunner
     }
 
     /// <summary>
-    /// Drops everything the provider's schema drop script covers, the schema included, and applies
-    /// nothing after. The drop half of a reset, exposed for callers that want a schema gone rather than
-    /// fresh, such as a benchmark cell that has recorded its measurement.
+    /// Drops everything Acta installed in the schema and applies nothing after. The drop half of a
+    /// reset, exposed for callers that want a schema gone rather than fresh, such as a benchmark cell
+    /// that has recorded its measurement.
     /// </summary>
     public static Task DropSchemaAsync(DbConnection conn, string schemaName, SchemaMigrationProviderHooks hooks, CancellationToken ct) =>
-        SchemaCommands.DropSchema(conn, hooks, new SqlResourceCatalog(hooks.DialectToken, schemaName), ct);
+        new DropSchemaHandler(conn, new SqlResourceCatalog(hooks.DialectToken, schemaName), hooks.CommandTimeoutSeconds).HandleAsync(ct);
 }
 
 /// <summary>
 /// Provider-specific hooks used by the shared migration runner. The provider assembly owns the ordered
-/// migrations; the dialect token selects the schema commands, routines, and views in Acta.
+/// migrations; the dialect token selects the bootstrap operations, routines, and views in Acta.
 /// </summary>
 internal sealed record SchemaMigrationProviderHooks(
     Assembly ProviderAssembly,

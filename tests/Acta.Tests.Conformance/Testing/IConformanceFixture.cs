@@ -40,6 +40,15 @@ public interface IConformanceFixture
     /// </summary>
     Task RunBootstrapPreflightAsync(string connectionString, string schemaName, CancellationToken ct);
 
+    /// <summary>An open connection of this provider to <paramref name="connectionString"/>, owned by the caller.</summary>
+    Task<DbConnection> OpenConnectionAsync(string connectionString, CancellationToken ct);
+
+    /// <summary>
+    /// Apply this build's migrations and install its views and routines in <paramref name="schemaName"/> through the
+    /// provider's own migrator, as a bootstrap with <c>ApplyMigrationsOnStartup</c> does.
+    /// </summary>
+    Task ApplyMigrationsAsync(string connectionString, string schemaName, CancellationToken ct);
+
     /// <summary>
     /// Return a handle to the shared <c>acta_test</c> schema, bootstrapping it with M001 applied on first
     /// touch and caching that bootstrap process-wide; throws via <c>Assert.Skip</c> when the provider env

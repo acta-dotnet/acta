@@ -60,7 +60,7 @@ internal static class ProviderSqlResources
 
     public static readonly string[] Dialects = ["pg", "mssql", "sqlite"];
 
-    /// <summary>Every stem of one dialect, views and schema commands included.</summary>
+    /// <summary>Every stem of one dialect, views included.</summary>
     public static IEnumerable<string> Stems(string dialectToken) => EnumerateIncludingViews(dialectToken).Select(r => Stem(r.LogicalPath));
 
     /// <summary>The SQL of one dialect's file with this stem.</summary>

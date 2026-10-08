@@ -160,6 +160,16 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `SetScheduleOverrides` | `ISchedules.UpdateOverridesAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/overrides` | · | inline | inline | inline | `events`, `runtimes`, `schedules` | `SetScheduleOverridesSpec` |
 | `TriggerScheduleNow` | `ISchedules.TriggerNowAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/trigger` | · | inline | inline | inline | `events`, `runtimes` | `TriggerScheduleNowSpec` |
 
+## Schema
+
+| Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `AcquireSchemaLock` | · | · | · | inline | inline | inline | · | `AcquireSchemaLockSpec` |
+| `DropSchema` | · | · | · | inline | inline | inline | · | `DropSchemaSpec` |
+| `EnsureMigrations` | · | · | · | inline | inline | inline | · | `EnsureMigrationsSpec` |
+| `LoadAppliedVersions` | · | · | · | inline | inline | inline | · | `LoadAppliedVersionsSpec` |
+| `MigrationsTableExists` | · | · | · | inline | inline | inline | · | `MigrationsTableExistsSpec` |
+
 ## Signals
 
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |

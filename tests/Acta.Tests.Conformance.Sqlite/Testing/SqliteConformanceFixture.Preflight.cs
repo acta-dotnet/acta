@@ -1,3 +1,4 @@
+using System.Data.Common;
 using Acta.Sqlite;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Data.Sqlite;
@@ -5,8 +6,8 @@ using Microsoft.Data.Sqlite;
 namespace Acta.Tests.Conformance.Sqlite.Testing;
 
 /// <summary>
-/// SQLite side of the migration-history preflight hooks. SQLite has no schema container, so a probe
-/// is its own temp database file rather than a schema inside the shared one.
+/// SQLite side of the schema bootstrap hooks. SQLite has no schema container, so a probe is its own
+/// temp database file rather than a schema inside the shared one.
 /// </summary>
 public sealed partial class SqliteConformanceFixture
 {
@@ -14,6 +15,19 @@ public sealed partial class SqliteConformanceFixture
 
     public Task RunBootstrapPreflightAsync(string connectionString, string schemaName, CancellationToken ct) =>
         new SqliteProviderBootstrap(new SqliteProviderOptions { ConnectionString = connectionString, Schema = schemaName }).RunAsync(ct);
+
+    public async Task<DbConnection> OpenConnectionAsync(string connectionString, CancellationToken ct)
+    {
+        var connection = new SqliteConnection(connectionString);
+        await connection.OpenAsync(ct);
+        return connection;
+    }
+
+    public async Task ApplyMigrationsAsync(string connectionString, string schemaName, CancellationToken ct)
+    {
+        await using var connection = new SqliteConnection(connectionString);
+        await SqliteSchemaMigrator.ApplyAsync(connection, schemaName, ct);
+    }
 
     public async ValueTask<IMigrationHistoryProbe> CreateHistoryProbeAsync(IReadOnlyList<(int Version, string Name)>? history)
     {

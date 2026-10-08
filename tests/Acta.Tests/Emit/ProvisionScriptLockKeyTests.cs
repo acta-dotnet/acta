@@ -19,7 +19,7 @@ public sealed partial class ProvisionScriptLockKeyTests
 
         var relocated = SchemaWord().Replace(published, "billing_ops");
 
-        Assert.Contains($"'{SchemaCommands.LockKey("billing_ops")}'", relocated, StringComparison.Ordinal);
+        Assert.Contains($"'{AcquireSchemaLockHandler.LockKey("billing_ops")}'", relocated, StringComparison.Ordinal);
     }
 
     [GeneratedRegex(@"\bacta\b")]

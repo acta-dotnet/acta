@@ -75,7 +75,7 @@ public sealed partial class DialectParityTests
         Ratchet.Check("dialect-parity", differences, "Return the same column names, in the same order, from every dialect.");
     }
 
-    // X.<dialect>.sql beside each operation; the schema commands and views are not operations.
+    // X.<dialect>.sql beside each operation; the operator views are not operations.
     private static IEnumerable<(string File, string Stem, string Dialect)> SqlFiles()
     {
         foreach (var (path, relative) in ShippedCode.SourceFiles("*.sql"))
@@ -168,12 +168,16 @@ public sealed partial class DialectParityTests
         {
             return null;
         }
-        if (items is [[{ Text: var first }, { Text: "=" }, ..], ..] && first.StartsWith('@'))
+        if (items is [[{ Text: var first }, ..] assignment, ..] && first.StartsWith('@') && AssignsVariable(assignment))
         {
             return null;
         }
         return [.. items.Select(Alias)];
     }
+
+    // The variable's name, then = or a compound operator (SELECT @sql += ...); the tokenizer splits += into two tokens.
+    private static bool AssignsVariable(List<Token> item) =>
+        item is [_, { Text: "=" }, ..] or [_, { Text: "+" or "-" or "*" or "/" or "%" or "&" or "|" or "^" }, { Text: "=" }, ..];
 
     // Comma-separated items at the list's own depth, up to a clause keyword, or to the closing parenthesis.
     private static List<List<Token>> Items(List<Token> tokens, int start, bool stopAtListEnd)

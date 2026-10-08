@@ -56,7 +56,7 @@ src/Acta/Operations/Ledger/ListJobs/
 - The facade is hand-written, one line per operation: `PauseAsync(...) => pauseJob.HandleAsync(new PauseJobCommand(...), ct)`. There is no mediator and no partial class.
 - A group's handlers and its facade are registered together in `AddActa`.
 - Every operation has its own input and its own response. Related responses share an interface; operations share no classes.
-- SQL sits beside its handler, one file per dialect, embedded in `Acta` and loaded by the dialect token. A file that defines a routine opens with `CREATE OR REPLACE FUNCTION` or `CREATE OR ALTER PROCEDURE` after its leading comments; every other file is inline SQL. A routine keeps its stem, because its installed name is `snake_case(stem)`.
+- An operation's SQL sits beside its handler under `Operations/`, the schema bootstrap's included, one file per dialect, embedded in `Acta` and loaded by the dialect token. The operator views sit under `Schema/Views/`, and the migrations with each provider, in `Schema/Migrations/`. A file that defines a routine opens with `CREATE OR REPLACE FUNCTION` or `CREATE OR ALTER PROCEDURE` after its leading comments; every other file is inline SQL. A routine keeps its stem, because its installed name is `snake_case(stem)`.
 - Most routes have one of five shapes (paged list, detail, command verb, PATCH update, tags) and are one line in the group's `<Group>Endpoints.cs`, in `src/Acta.AspNetCore/Operations/<Group>/`. A route's JSON body is its own `XRequest` in `Operations/<Group>/X/` there, and it answers with the SDK's `XResponse`. A route that fits none of the shapes has its own `XEndpoint.cs` in that folder, and a route that renders or composes what the facades answer is an operation of its own, with its own `XResponse` and parts beside it:
 
 ```text
@@ -88,7 +88,7 @@ src/Acta.AspNetCore/Operations/Jobs/
 - `Querying/`: `IPagedResponse`, page cursors, query limits, and query validation.
 - `Db/`: the session, `ISqlDialect`, value coercion, deadlock retry, the SQL resource catalog, and paging.
 - `Entities/`: the table models, one class per table.
-- `Schema/`: the schema model, the migration runner and installer, baseline stamps, the schema commands, and the operator views in `Schema/Views/`.
+- `Schema/`: the schema model, the migration runner and installer, the baseline and object package stamps, and the operator views in `Schema/Views/`.
 - `Hosting/`: `ActaBuilder`, `AddActa`, the builder interfaces and plug-in seams, provider registration, option validators, what registration builds (the job catalog indexes and the outbox relay registry), and the outbox staging core the provider packages share.
 - `Kernel/`: what operations and the engine both use: the wakeup publisher, text limits, tag filters, catalog validation and hashing, backoff, and metrics.
 - `Cli/`: the operator CLI, a presenter over the public facades.
@@ -97,7 +97,7 @@ src/Acta.AspNetCore/Operations/Jobs/
 
 | Test | Rule |
 |---|---|
-| `OperationLayoutTests` | operation folders and depth, file names, all three dialects or none, no SQL outside `Operations/` and `Schema/`, a handler per operation; no `Operations/` file names a type declared under `Engine/`; route folders in `Acta.AspNetCore` to the same depth and file names |
+| `OperationLayoutTests` | operation folders and depth, file names, all three dialects or none, no SQL outside `Operations/`, `Schema/Views/`, and a provider's `Schema/Migrations/`, every view in all three dialects, a handler per operation; no `Operations/` file names a type declared under `Engine/`; route folders in `Acta.AspNetCore` to the same depth and file names |
 | `TypeNamingTests` | the banned suffixes, `Request` only in `Acta.AspNetCore` and the SDK's `EnqueueJobRequest`, the `Row` rule, and `Entity` on every table model |
 | `HandlerResponseTests` | `XHandler.HandleAsync` takes `XCommand` or `XQuery`, `HandleAsync(XCommand)` returns `XResponse` or nothing, `HandleAsync(ListXQuery)` returns `ListXResponse`, a public one an `IPagedResponse<ListXItem>`, and a `GetX` handler returns `GetXResponse`; rows, commands, queries, responses, and response elements declared in their slice under its name, a row named by no other slice, and every other type in a slice, enums included, starting with the operation's name |
 | `DuplicateShapeTests` | no two types declaring the same property names, except types of different operations or routes, each owned by the folder that declares it |

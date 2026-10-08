@@ -37,14 +37,19 @@ internal static class MigrationHistoryPreflight
         }
 
         var sql = new SqlResourceCatalog(hooks.DialectToken, schemaName);
-        if (!await SchemaCommands.MigrationsTableExists(conn, hooks, sql, ct))
+        var timeout = hooks.CommandTimeoutSeconds;
+        if (!(await new MigrationsTableExistsHandler(conn, sql, timeout).HandleAsync(ct)).Exists)
         {
             throw NotProvisioned(schemaName, hooks.DialectToken);
         }
 
+        var applied = await new LoadAppliedVersionsHandler(conn, sql, timeout).HandleAsync(
+            new LoadAppliedVersionsQuery(Transaction: null),
+            ct
+        );
         Verify(
             SchemaMigrationDiscovery.Discover(hooks.ProviderAssembly),
-            await SchemaCommands.LoadAppliedVersions(conn, tx: null, hooks, sql, ct),
+            applied.Versions,
             hooks.DialectToken,
             hooks.RequiredBaselineStamp
         );

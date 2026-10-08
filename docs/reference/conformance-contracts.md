@@ -1866,6 +1866,34 @@
 
 ## Schema
 
+### Two installers of one schema never hold its lock at once
+- **Contract:** AcquireSchemaLock, taken in the migration transaction, holds every other installer of the same schema off until that transaction ends.
+- **Guarantees:**
+  - A second runner takes the lock only after the first runner's transaction commits
+
+### Dropping the schema removes every table and view Acta installed
+- **Contract:** DropSchema removes every modelled table, every operator view, and the migration-history table, and dropping a schema that is already gone succeeds.
+- **Guarantees:**
+  - An installed schema loses every table, view, and its history, and a second drop succeeds
+
+### The migration-history table is created once and keeps its rows
+- **Contract:** EnsureMigrations creates the migration-history table inside the migration transaction when it is missing, and leaves an existing table and its rows alone.
+- **Guarantees:**
+  - Where there is no history table it creates an empty one
+  - Over an existing history it keeps every recorded row
+  - Rolled back with the migration transaction, the table it created is gone
+
+### The migration history reads back version by version
+- **Contract:** LoadAppliedVersions returns every recorded version with the name it was recorded under, with or without the migration transaction.
+- **Guarantees:**
+  - Every recorded version reads back with the name it was recorded under
+  - Inside the migration transaction it reads the history table that transaction just created
+
+### The history-table probe answers whether the table is there
+- **Contract:** MigrationsTableExists answers false for a schema without a migration-history table and true for one with it, failing on neither.
+- **Guarantees:**
+  - False without a history table, true with an empty one
+
 ### Hardened schema enforces its checks, seed, and denormalized invariants
 - **Contract:** The hardened M001 schema enforces every new CHECK, admits one unresolved alert per deduplication key, seeds sys, and keeps runtimes in step with jobs.
 - **Guarantees:**
@@ -2180,7 +2208,7 @@
 | `DefinitionsView` | yes | yes | yes |
 | `DeleteClaimedOutbox` | yes | yes | yes |
 | `DiscardQuarantinedOutbox` | yes | yes | yes |
-| `DropSchema` | yes | yes | · |
+| `DropSchema` | yes | yes | yes |
 | `EnqueueJob` | yes | yes | yes |
 | `EnqueueJobs` | yes | yes | yes |
 | `EnsureMigrations` | yes | yes | yes |

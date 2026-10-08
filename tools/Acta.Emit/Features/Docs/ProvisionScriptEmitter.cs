@@ -253,14 +253,14 @@ internal static class ProvisionScriptEmitter
     }
 
     /// <summary>
-    /// The lock the bootstrap takes before it reads migration history (<see cref="SchemaCommands.LockKey"/>),
+    /// The lock the bootstrap takes before it reads migration history (<see cref="AcquireSchemaLockHandler.LockKey"/>),
     /// taken by the script at the same point and held to its commit, so a script and a bootstrap, or two
     /// scripts, never interleave: an older one cannot pass its downgrade guard and then overwrite a newer
     /// install that committed meanwhile. SQLite's <c>BEGIN IMMEDIATE</c> is the lock there.
     /// </summary>
     internal static string InstallerLock(string token, string schema)
     {
-        var key = SchemaCommands.LockKey(schema);
+        var key = AcquireSchemaLockHandler.LockKey(schema);
         return token switch
         {
             "pg" => $"SELECT pg_advisory_xact_lock(hashtext('{key}'));",

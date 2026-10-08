@@ -7,17 +7,17 @@ namespace Acta.Tests.Architecture;
 
 /// <summary>
 /// Holds <c>src/</c> to the operation layout in <c>docs/internals/source-layout.md</c>: <c>Operations/Group/Operation/</c>
-/// and no deeper, files named after their operation, all three dialects or none, and SQL only under <c>Operations/</c>
-/// and <c>Schema/</c>, every Schema stem in all three dialects, and no stem twice in one dialect. Each operation has a
-/// handler, and no Operations file names a type declared under <c>Engine/</c>. A route folder in <c>Acta.AspNetCore</c>
-/// keeps the same depth and file names. What still differs is listed in the <c>layout</c> ratchet.
+/// and no deeper, files named after their operation, all three dialects or none, and SQL only under <c>Operations/</c>,
+/// <c>Schema/Views/</c>, and a provider's <c>Schema/Migrations/</c>, every view in all three dialects, and no stem twice
+/// in one dialect. Each operation has a handler, and no Operations file names a type declared under <c>Engine/</c>. A
+/// route folder in <c>Acta.AspNetCore</c> keeps the same depth and file names. What still differs is listed in the
+/// <c>layout</c> ratchet.
 /// </summary>
 public sealed class OperationLayoutTests
 {
     private static readonly string[] Dialects = ["pg", "mssql", "sqlite"];
 
-    // SQLite has no DROP SCHEMA; its bootstrap clears sqlite_master objects in code instead.
-    private static readonly string[] SingleDialectStems = ["DropSchema"];
+    private static readonly string Views = Path.Combine("Schema", "Views") + Path.DirectorySeparatorChar;
 
     [Fact]
     public void Operations_follow_the_source_layout()
@@ -77,8 +77,8 @@ public sealed class OperationLayoutTests
         }
     }
 
-    // Schema SQL has no operation folder, so its dialects are held per stem. The catalog loads by stem, so a stem has
-    // one file per dialect across the whole project.
+    // A view has no operation folder, so its dialects are held per stem. The catalog loads by stem, so a stem has one
+    // file per dialect across the whole project.
     private static IEnumerable<string> SqlStems(string project)
     {
         var files = Directory
@@ -90,25 +90,22 @@ public sealed class OperationLayoutTests
         {
             yield return $"duplicate: {twice.Key}";
         }
-        foreach (
-            var stem in files.Where(file => file.Relative.StartsWith("Schema", StringComparison.Ordinal)).GroupBy(file => file.Parts[0])
-        )
+        foreach (var view in files.Where(file => file.Relative.StartsWith(Views, StringComparison.Ordinal)).GroupBy(file => file.Parts[0]))
         {
-            var partial = stem.Select(file => file.Parts[1]).Distinct().Count() != Dialects.Length;
-            if (partial != SingleDialectStems.Contains(stem.Key))
+            if (view.Select(file => file.Parts[1]).Distinct().Count() != Dialects.Length)
             {
-                yield return partial ? $"dialects: Schema/{stem.Key}" : $"single-dialect stem now has all three: {stem.Key}";
+                yield return $"dialects: Schema/Views/{view.Key}";
             }
         }
     }
 
-    // SQL lives beside its operation or in a project's Schema folder; anything else is keyed by its top folder.
+    // SQL lives beside its operation, with the views, or with a provider's migrations; anything else is keyed by its folder.
     private static IEnumerable<string> SqlPlacement() =>
         ShippedCode
             .SourceFiles("*.sql")
             .Select(file => file.Relative.Split('/'))
-            .Where(parts => parts.Length > 3 && parts[2] is not "Operations" and not "Schema")
-            .Select(parts => $"sql-placement: {parts[0]}/{parts[1]}/{parts[2]}");
+            .Where(parts => parts.Length > 3 && parts[2] is not "Operations" && parts[2..^1] is not ["Schema", "Views" or "Migrations"])
+            .Select(parts => $"sql-placement: {string.Join('/', parts[..^1])}");
 
     // Operations are the blocks the engine composes, so the dependency runs one way. The scan is by name, crefs included:
     // it cannot see an Engine type reached only through a member of a non-Engine type, so no such member returns one.

@@ -1,3 +1,4 @@
+using System.Data.Common;
 using Acta.SqlServer;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Data.SqlClient;
@@ -5,8 +6,8 @@ using Microsoft.Data.SqlClient;
 namespace Acta.Tests.Conformance.SqlServer.Testing;
 
 /// <summary>
-/// SQL Server side of the migration-history preflight hooks. A probe is a throwaway schema in the
-/// test database carrying only a <c>migrations</c> table, so it never disturbs <c>acta_test</c>.
+/// SQL Server side of the schema bootstrap hooks. A probe is a throwaway schema in the test database
+/// carrying at most a <c>migrations</c> table, so it never disturbs <c>acta_test</c>.
 /// </summary>
 public sealed partial class SqlServerConformanceFixture
 {
@@ -16,6 +17,19 @@ public sealed partial class SqlServerConformanceFixture
         new SqlServerProviderBootstrap(new SqlServerProviderOptions { ConnectionString = connectionString, Schema = schemaName }).RunAsync(
             ct
         );
+
+    public async Task<DbConnection> OpenConnectionAsync(string connectionString, CancellationToken ct)
+    {
+        var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync(ct);
+        return connection;
+    }
+
+    public async Task ApplyMigrationsAsync(string connectionString, string schemaName, CancellationToken ct)
+    {
+        await using var connection = new SqlConnection(connectionString);
+        await SqlServerSchemaMigrator.ApplyAsync(connection, schemaName, ct);
+    }
 
     public async ValueTask<IMigrationHistoryProbe> CreateHistoryProbeAsync(IReadOnlyList<(int Version, string Name)>? history)
     {
