@@ -8,7 +8,7 @@ namespace Acta.Tests.Conformance.Engine.Outbox;
 /// <summary>
 /// The relay handoff boundary between an external source and the Acta ledger: the crash windows either
 /// side of the target enqueue never lose a row and never duplicate a target job. Drives the real
-/// <see cref="OutboxRelayService"/> composition with a failure-injecting store/target seam.
+/// <see cref="OutboxRelay"/> composition with a failure-injecting store/target seam.
 /// </summary>
 [ConformanceSpec(
     "outbox.relay-handoff",

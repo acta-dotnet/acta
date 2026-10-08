@@ -1,8 +1,1 @@
 # Known naming violations; entries may only be removed.
-ActaEndpointRouteBuilderExtensions.HeaderedResult (Result)
-ActaProviderInfo (Info)
-AlertChannelDecision (Decision)
-OutboxMetaDto (Dto)
-OutboxRelayService (Service)
-OutboxRelayService.GroupOutcome (Outcome)
-OutboxTagDto (Dto)

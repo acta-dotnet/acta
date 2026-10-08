@@ -418,16 +418,16 @@ internal sealed class AlertsJob(
         {
             var channel = _channels.Resolve(ctx.JobNamespace, a.ChannelName);
             var transport = channel is null ? null : _transports.Resolve(channel.TransportKind);
-            var decision = AlertChannelDecision.Decide(a, channel, transport);
+            var decision = AlertChannelVerdict.Decide(a, channel, transport);
 
             switch (decision.Kind)
             {
-                case AlertChannelDecisionKind.Failed:
+                case AlertChannelVerdictKind.Failed:
                     LogFailedDecision(ctx, a, channel, decision.Reason);
                     await SettleAsync(a, AlertSendStatus.Permanent, settlement, ct);
                     continue;
 
-                case AlertChannelDecisionKind.Suppressed:
+                case AlertChannelVerdictKind.Suppressed:
                     LogSuppressedDecision(ctx, a, channel!, decision.Reason);
                     await SuppressAsync(a, ct);
                     continue;
@@ -490,10 +490,10 @@ internal sealed class AlertsJob(
         JobContext ctx,
         DeliverableAlert alert,
         AlertChannelDeclaration? channel,
-        AlertChannelDecisionReason reason
+        AlertChannelVerdictReason reason
     )
     {
-        if (reason == AlertChannelDecisionReason.MissingChannel)
+        if (reason == AlertChannelVerdictReason.MissingChannel)
         {
             _log.LogWarning(
                 "ACTA sys.alerts: channel ({Detail}) is not configured for namespace ({Namespace}); marking alert ({Ref}) failed.",
@@ -515,10 +515,10 @@ internal sealed class AlertsJob(
         JobContext ctx,
         DeliverableAlert alert,
         AlertChannelDeclaration channel,
-        AlertChannelDecisionReason reason
+        AlertChannelVerdictReason reason
     )
     {
-        if (reason is AlertChannelDecisionReason.DisabledChannel or AlertChannelDecisionReason.DeprecatedChannel)
+        if (reason is AlertChannelVerdictReason.DisabledChannel or AlertChannelVerdictReason.DeprecatedChannel)
         {
             _log.LogInformation(
                 "ACTA sys.alerts: alert ({Ref}) in namespace ({Namespace}) is ({Outcome}): channel ({Detail}) is ({Reason}).",

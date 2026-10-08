@@ -5,7 +5,7 @@ namespace Acta.Runtime;
 /// handlers and injected here, so this class is pure composition.
 /// </summary>
 internal sealed class ActaOperations(
-    ActaProviderInfo provider,
+    SelectedProvider provider,
     ISchedules schedules,
     IDefinitions definitions,
     IWorkers workers,

@@ -29,7 +29,7 @@ internal static class ActaProviderRegistration
         ArgumentNullException.ThrowIfNull(configure);
 
         var services = builder.Services;
-        Add(services, new ActaProviderInfo(provider));
+        Add(services, new SelectedProvider(provider));
         services.Configure(configure);
         services.AddOptions<TOptions>().ValidateOnStart();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<TOptions>, SqlProviderOptionsValidator<TOptions>>());
@@ -62,9 +62,9 @@ internal static class ActaProviderRegistration
         return builder;
     }
 
-    public static void Add(IServiceCollection services, ActaProviderInfo provider)
+    public static void Add(IServiceCollection services, SelectedProvider provider)
     {
-        var existing = services.LastOrDefault(descriptor => descriptor.ServiceType == typeof(ActaProviderInfo));
+        var existing = services.LastOrDefault(descriptor => descriptor.ServiceType == typeof(SelectedProvider));
         if (existing is not null)
         {
             var existingName = Describe(existing);
@@ -81,8 +81,8 @@ internal static class ActaProviderRegistration
     }
 
     public static IReadOnlyList<string> FindAll(IServiceCollection services) =>
-        services.Where(descriptor => descriptor.ServiceType == typeof(ActaProviderInfo)).Select(Describe).ToArray();
+        services.Where(descriptor => descriptor.ServiceType == typeof(SelectedProvider)).Select(Describe).ToArray();
 
     private static string Describe(ServiceDescriptor descriptor) =>
-        descriptor.ImplementationInstance is ActaProviderInfo info ? info.Provider.ToString() : "unknown";
+        descriptor.ImplementationInstance is SelectedProvider info ? info.Provider.ToString() : "unknown";
 }

@@ -766,7 +766,7 @@ dotnet_diagnostic.CA1031.severity = none
 # CA1031: best-effort release of an outbox claim whose rows were already finalized. Escaping would fail
 # a relay tick that actually succeeded; the lease expiry plus the token CAS keep the rows safe either
 # way. Logged at debug.
-[src/Acta.Runtime/Engine/Outbox/OutboxRelayService.cs]
+[src/Acta.Runtime/Engine/Outbox/OutboxRelay.cs]
 dotnet_diagnostic.CA1031.severity = none
 
 # CA1861: four expected-trace arrays, one per [Fact] - the ordered open/begin/execute/commit/dispose

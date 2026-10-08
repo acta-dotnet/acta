@@ -99,7 +99,7 @@ public sealed class TypeNamingTests
                 .Select(method => method.ReturnType),
         ];
 
-    // The last PascalCase word: "Outcome" in CompletionKind, "Dto" in OutboxMetaDto.
+    // The last PascalCase word: "Outcome" in CompletionKind, "Dto" in OutboxMetaJson.
     private static string LastWord(string name)
     {
         for (var i = name.Length - 1; i > 0; i--)

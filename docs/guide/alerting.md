@@ -283,7 +283,7 @@ Nothing but a settlement or a resolution moves the instant, so neither a repeat 
 acknowledge can postpone a reminder.
 
 For each row it resolves the channel by name in the firing namespace, resolves a transport by the
-channel's kind, and decides in this fixed order (`AlertChannelDecision.Decide`):
+channel's kind, and decides in this fixed order (`AlertChannelVerdict.Decide`):
 
 | Condition | Outcome | Delivery status |
 | --- | --- | --- |
@@ -499,7 +499,7 @@ from a `None` job naming an unconfigured channel is not caught until it fails de
 | Cited as | Path |
 | --- | --- |
 | `AlertsJob.cs` | `src/Acta.Runtime/Engine/Alerts/AlertsJob.cs` |
-| `AlertChannelDecision.cs` | `src/Acta.Runtime/Engine/Alerts/AlertChannelDecision.cs` |
+| `AlertChannelVerdict.cs` | `src/Acta.Runtime/Engine/Alerts/AlertChannelVerdict.cs` |
 | `AlertChannelRegistry.cs` | `src/Acta.Runtime/Engine/Alerts/AlertChannelRegistry.cs` |
 | `AlertRoutingCheck.cs` | `src/Acta.Runtime/Engine/Alerts/AlertRoutingCheck.cs` |
 | `AlertLifecycle.cs` | `src/Acta.Runtime/Operations/Alerts/AlertLifecycle.cs` |

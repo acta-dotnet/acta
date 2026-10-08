@@ -12,7 +12,7 @@ namespace Acta.Tests.Conformance.Postgres.Features.Outbox;
 /// The single mixed-provider case: a SQLite external-outbox source relayed into a PostgreSQL ledger,
 /// proving the source and target provider registrations are fully independent - a worker relays a source
 /// database on a different provider than its own ledger. Drives the real relay composition
-/// (<see cref="OutboxRelayService"/> over the SQLite source store and the owned Postgres target). Concrete
+/// (<see cref="OutboxRelay"/> over the SQLite source store and the owned Postgres target). Concrete
 /// (not a generic candidate spec), so it binds no per-provider head and adds no matrix.
 /// </summary>
 public sealed class PgSqliteMixedRelaySpec : ActaRuntimeTestBase<PgConformanceFixture, TestJobs.TestJobsManifest>
@@ -50,7 +50,7 @@ public sealed class PgSqliteMixedRelaySpec : ActaRuntimeTestBase<PgConformanceFi
         // Source store on SQLite, target on the Postgres ledger: two independent provider registrations.
         var store = Acta.Sqlite.SqliteOutboxSource.CreateSource(_sqliteConn, "main", "acta_outbox");
         var target = Services.GetRequiredService<EnqueueBatchHandler>();
-        var relay = new OutboxRelayService(store, target);
+        var relay = new OutboxRelay(store, target);
         var maxInline = Services.GetRequiredService<IOptions<JobsOptions>>().Value.MaxInlinePayloadBytes;
 
         await relay.RunTickAsync(new OutboxRelayTickOptions("sqlite-src", 5, 180, maxInline), ct);

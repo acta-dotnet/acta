@@ -8,7 +8,7 @@ namespace Acta.Tests.Conformance.Engine.Outbox;
 /// <summary>
 /// Shared setup for the relay handoff-boundary integration specs: a live Acta ledger (a running worker
 /// namespace with the <c>echo</c> route registered) plus a live per-test external-outbox source table.
-/// Crash-window specs drive <see cref="OutboxRelayService"/> directly with a failure-injecting store or
+/// Crash-window specs drive <see cref="OutboxRelay"/> directly with a failure-injecting store or
 /// target seam (<see cref="HookedOutboxStore"/> / <see cref="HookedJobSubmission"/>), the composition the
 /// wired <c>sys.outbox</c> job uses in production. Declares no <c>[Fact]</c> so it is not itself a
 /// candidate contract spec; each concrete spec adds its own metadata and guarantees.
@@ -33,7 +33,7 @@ public abstract class OutboxRelayIntegrationBase : ActaRuntimeTestBase<Conforman
 
     private protected EnqueueBatchHandler OwnedSubmission => Services.GetRequiredService<EnqueueBatchHandler>();
 
-    private protected static OutboxRelayService Relay(OutboxSource store, EnqueueBatchHandler target) => new(store, target);
+    private protected static OutboxRelay Relay(OutboxSource store, EnqueueBatchHandler target) => new(store, target);
 
     private protected OutboxRelayTickOptions TickOptions(int quarantineThreshold = 5, int leaseTtlSeconds = 180, int? maxPayload = null) =>
         new(SourceTable, quarantineThreshold, leaseTtlSeconds, maxPayload ?? MaxInlinePayloadBytes);

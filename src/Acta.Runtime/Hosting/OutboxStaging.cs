@@ -127,12 +127,12 @@ internal static class OutboxMetaWriter
             return null;
         }
 
-        var entries = new List<OutboxTagDto>(tags.Count);
+        var entries = new List<OutboxTagJson>(tags.Count);
         foreach (var tag in tags)
         {
-            entries.Add(new OutboxTagDto(tag.Name, tag.Value));
+            entries.Add(new OutboxTagJson(tag.Name, tag.Value));
         }
 
-        return JsonSerializer.Serialize(new OutboxMetaDto(entries), OutboxMetaJsonContext.Default.OutboxMetaDto);
+        return JsonSerializer.Serialize(new OutboxMetaJson(entries), OutboxMetaJsonContext.Default.OutboxMetaJson);
     }
 }

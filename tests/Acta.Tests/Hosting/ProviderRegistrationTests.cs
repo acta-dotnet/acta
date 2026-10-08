@@ -52,8 +52,8 @@ public sealed class ProviderRegistrationTests
         var exception = Assert.Throws<InvalidOperationException>(() =>
             services.UseActa(builder =>
             {
-                builder.Services.AddSingleton(new ActaProviderInfo(DbProvider.Postgres));
-                builder.Services.AddSingleton(new ActaProviderInfo(DbProvider.Sqlite));
+                builder.Services.AddSingleton(new SelectedProvider(DbProvider.Postgres));
+                builder.Services.AddSingleton(new SelectedProvider(DbProvider.Sqlite));
             })
         );
 
@@ -61,8 +61,8 @@ public sealed class ProviderRegistrationTests
         Assert.Contains("Postgres, Sqlite", exception.Message, StringComparison.Ordinal);
     }
 
-    private static IEnumerable<ActaProviderInfo> ProviderInfos(IServiceCollection services) =>
+    private static IEnumerable<SelectedProvider> ProviderInfos(IServiceCollection services) =>
         services
-            .Where(descriptor => descriptor.ServiceType == typeof(ActaProviderInfo))
-            .Select(descriptor => Assert.IsType<ActaProviderInfo>(descriptor.ImplementationInstance));
+            .Where(descriptor => descriptor.ServiceType == typeof(SelectedProvider))
+            .Select(descriptor => Assert.IsType<SelectedProvider>(descriptor.ImplementationInstance));
 }

@@ -245,8 +245,8 @@ public static class ActaEndpointRouteBuilderExtensions
             : Headers(Results.Bytes(bytes, ContentTypeMap.For(path)), options, isIndex: false, isDev: false);
     }
 
-    private static HeaderedResult Headers(IResult inner, ActaDashboardOptions options, bool isIndex, bool isDev) =>
-        new HeaderedResult(inner, options, isIndex, isDev);
+    private static DashboardFileWithHeaders Headers(IResult inner, ActaDashboardOptions options, bool isIndex, bool isDev) =>
+        new DashboardFileWithHeaders(inner, options, isIndex, isDev);
 
     private static string DevIndex(string viteOrigin, string basePath) =>
         $"""
@@ -263,7 +263,7 @@ public static class ActaEndpointRouteBuilderExtensions
     /// <summary>
     /// Wraps a result to stamp cache and security headers after the endpoint resolves.
     /// </summary>
-    private sealed class HeaderedResult(IResult inner, ActaDashboardOptions options, bool isIndex, bool isDev) : IResult
+    private sealed class DashboardFileWithHeaders(IResult inner, ActaDashboardOptions options, bool isIndex, bool isDev) : IResult
     {
         public Task ExecuteAsync(HttpContext httpContext)
         {

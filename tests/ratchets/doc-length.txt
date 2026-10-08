@@ -76,7 +76,7 @@ NamespaceListItem.cs
 OutboxRelayCommands.cs
 OutboxRelayJob.cs
 OutboxRelayRegistry.cs
-OutboxRelayService.cs
+OutboxRelay.cs
 OutboxSourceDialect.cs
 OutboxSourceListItem.cs
 OutboxStaging.cs

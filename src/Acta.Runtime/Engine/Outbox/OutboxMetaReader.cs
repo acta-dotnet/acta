@@ -6,7 +6,7 @@ namespace Acta.Runtime;
 /// <summary>
 /// AOT-safe source-generated parse of the external-outbox <c>meta</c> bag, the mirror of
 /// <c>OutboxMetaWriter</c>. Reads the documented <c>{"tags":[{"name":..,"value":..}]}</c> shape from the
-/// single shared <see cref="OutboxMetaDto"/>: a root object, an optional ordered <c>tags</c> array where
+/// single shared <see cref="OutboxMetaJson"/>: a root object, an optional ordered <c>tags</c> array where
 /// <c>name</c> is a required string and <c>value</c> is a string or JSON null. A malformed shape is a
 /// deterministic contract error the relay quarantines.
 /// </summary>
@@ -23,10 +23,10 @@ internal static class OutboxMetaReader
             return null;
         }
 
-        OutboxMetaDto? meta;
+        OutboxMetaJson? meta;
         try
         {
-            meta = JsonSerializer.Deserialize(metaJson, OutboxMetaJsonContext.Default.OutboxMetaDto);
+            meta = JsonSerializer.Deserialize(metaJson, OutboxMetaJsonContext.Default.OutboxMetaJson);
         }
         catch (JsonException ex)
         {
@@ -58,11 +58,11 @@ internal static class OutboxMetaReader
 /// cannot drift. A presence-only tag carries an explicit JSON <c>null</c> value;
 /// <see cref="JsonIgnoreCondition.Never"/> keeps that null in the serialized form.
 /// </summary>
-internal sealed record OutboxMetaDto(List<OutboxTagDto>? Tags);
+internal sealed record OutboxMetaJson(List<OutboxTagJson>? Tags);
 
 /// <summary>One <c>meta.tags</c> entry: a required <c>name</c> and a string-or-null <c>value</c>.</summary>
-internal sealed record OutboxTagDto(string? Name, string? Value);
+internal sealed record OutboxTagJson(string? Name, string? Value);
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, DefaultIgnoreCondition = JsonIgnoreCondition.Never)]
-[JsonSerializable(typeof(OutboxMetaDto))]
+[JsonSerializable(typeof(OutboxMetaJson))]
 internal sealed partial class OutboxMetaJsonContext : JsonSerializerContext;

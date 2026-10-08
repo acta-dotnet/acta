@@ -11,7 +11,7 @@ namespace Acta.Runtime;
 /// bounded tick summary all live here; the source is the injected <see cref="OutboxSource"/>
 /// and the target is the owned batch enqueue, <see cref="EnqueueBatchHandler"/>.
 /// </summary>
-internal sealed class OutboxRelayService(OutboxSource source, EnqueueBatchHandler target, ILogger<OutboxRelayService>? log = null)
+internal sealed class OutboxRelay(OutboxSource source, EnqueueBatchHandler target, ILogger<OutboxRelay>? log = null)
 {
     /// <summary>Per tick: at most MaxBatches source claims of BatchSize rows. The next tick continues any backlog.</summary>
     private const int MaxBatches = 20;
@@ -112,9 +112,9 @@ internal sealed class OutboxRelayService(OutboxSource source, EnqueueBatchHandle
     /// </summary>
     private static readonly Backoff RowBackoff = Backoff.Range(TimeSpan.FromMinutes(1), TimeSpan.FromHours(8));
 
-    private readonly ILogger _log = log ?? NullLogger<OutboxRelayService>.Instance;
+    private readonly ILogger _log = log ?? NullLogger<OutboxRelay>.Instance;
 
-    private enum GroupOutcome
+    private enum GroupSafety
     {
         Safe,
         Recoverable,
@@ -249,7 +249,7 @@ internal sealed class OutboxRelayService(OutboxSource source, EnqueueBatchHandle
             }
         }
 
-        var results = new Dictionary<OutboxGroup, GroupOutcome>();
+        var results = new Dictionary<OutboxGroup, GroupSafety>();
         var errors = new Dictionary<OutboxGroup, string>();
         try
         {
@@ -286,7 +286,7 @@ internal sealed class OutboxRelayService(OutboxSource source, EnqueueBatchHandle
 
         foreach (var (group, outcome) in results)
         {
-            if (outcome == GroupOutcome.Safe)
+            if (outcome == GroupSafety.Safe)
             {
                 safeIds.AddRange(group.Ids);
                 continue;
@@ -365,7 +365,7 @@ internal sealed class OutboxRelayService(OutboxSource source, EnqueueBatchHandle
     /// </summary>
     private async Task EnqueueGroupsAsync(
         IReadOnlyList<(JobEnqueueRequest Request, OutboxGroup Group)> groups,
-        Dictionary<OutboxGroup, GroupOutcome> results,
+        Dictionary<OutboxGroup, GroupSafety> results,
         Dictionary<OutboxGroup, string> errors,
         TickBudget budget,
         TickCounters counters,
@@ -390,7 +390,7 @@ internal sealed class OutboxRelayService(OutboxSource source, EnqueueBatchHandle
         if (groups.Count == 1)
         {
             // A single group cannot be isolated further: the rejection is its own.
-            results[groups[0].Group] = GroupOutcome.Recoverable;
+            results[groups[0].Group] = GroupSafety.Recoverable;
             errors[groups[0].Group] = batchError;
             return;
         }
@@ -406,11 +406,11 @@ internal sealed class OutboxRelayService(OutboxSource source, EnqueueBatchHandle
             }
             if (groupError is null)
             {
-                results[pair.Group] = GroupOutcome.Safe;
+                results[pair.Group] = GroupSafety.Safe;
             }
             else
             {
-                results[pair.Group] = GroupOutcome.Recoverable;
+                results[pair.Group] = GroupSafety.Recoverable;
                 errors[pair.Group] = groupError;
             }
         }
@@ -467,12 +467,12 @@ internal sealed class OutboxRelayService(OutboxSource source, EnqueueBatchHandle
 
     private static void MarkSafe(
         IReadOnlyList<(JobEnqueueRequest Request, OutboxGroup Group)> groups,
-        Dictionary<OutboxGroup, GroupOutcome> results
+        Dictionary<OutboxGroup, GroupSafety> results
     )
     {
         foreach (var (_, group) in groups)
         {
-            results[group] = GroupOutcome.Safe;
+            results[group] = GroupSafety.Safe;
         }
     }
 

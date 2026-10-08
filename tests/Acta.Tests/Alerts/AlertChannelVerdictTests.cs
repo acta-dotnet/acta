@@ -3,57 +3,57 @@ using Xunit;
 
 namespace Acta.Tests.Alerts;
 
-public sealed class AlertChannelDecisionTests
+public sealed class AlertChannelVerdictTests
 {
     [Fact]
     public void Missing_channel_fails()
     {
-        var decision = AlertChannelDecision.Decide(Alert(), channel: null, transport: null);
+        var decision = AlertChannelVerdict.Decide(Alert(), channel: null, transport: null);
 
-        Assert.Equal(AlertChannelDecisionKind.Failed, decision.Kind);
-        Assert.Equal(AlertChannelDecisionReason.MissingChannel, decision.Reason);
+        Assert.Equal(AlertChannelVerdictKind.Failed, decision.Kind);
+        Assert.Equal(AlertChannelVerdictReason.MissingChannel, decision.Reason);
     }
 
     [Theory]
-    [InlineData(AlertChannelStatusCode.Disabled, (byte)AlertChannelDecisionReason.DisabledChannel)]
-    [InlineData(AlertChannelStatusCode.Deprecated, (byte)AlertChannelDecisionReason.DeprecatedChannel)]
+    [InlineData(AlertChannelStatusCode.Disabled, (byte)AlertChannelVerdictReason.DisabledChannel)]
+    [InlineData(AlertChannelStatusCode.Deprecated, (byte)AlertChannelVerdictReason.DeprecatedChannel)]
     public void Inactive_channel_suppresses(AlertChannelStatusCode status, byte reason)
     {
-        var decision = AlertChannelDecision.Decide(Alert(), Channel(status: status), transport: null);
+        var decision = AlertChannelVerdict.Decide(Alert(), Channel(status: status), transport: null);
 
-        Assert.Equal(AlertChannelDecisionKind.Suppressed, decision.Kind);
-        Assert.Equal((AlertChannelDecisionReason)reason, decision.Reason);
+        Assert.Equal(AlertChannelVerdictKind.Suppressed, decision.Kind);
+        Assert.Equal((AlertChannelVerdictReason)reason, decision.Reason);
     }
 
     [Fact]
     public void Below_min_severity_suppresses()
     {
-        var decision = AlertChannelDecision.Decide(
+        var decision = AlertChannelVerdict.Decide(
             Alert(AlertSeverityCode.Info),
             Channel(minSeverity: AlertSeverityCode.Error),
             transport: null
         );
 
-        Assert.Equal(AlertChannelDecisionKind.Suppressed, decision.Kind);
-        Assert.Equal(AlertChannelDecisionReason.BelowMinSeverity, decision.Reason);
+        Assert.Equal(AlertChannelVerdictKind.Suppressed, decision.Kind);
+        Assert.Equal(AlertChannelVerdictReason.BelowMinSeverity, decision.Reason);
     }
 
     [Fact]
     public void Missing_transport_fails()
     {
-        var decision = AlertChannelDecision.Decide(Alert(), Channel(transportKind: "missing-kind"), transport: null);
+        var decision = AlertChannelVerdict.Decide(Alert(), Channel(transportKind: "missing-kind"), transport: null);
 
-        Assert.Equal(AlertChannelDecisionKind.Failed, decision.Kind);
-        Assert.Equal(AlertChannelDecisionReason.MissingTransport, decision.Reason);
+        Assert.Equal(AlertChannelVerdictKind.Failed, decision.Kind);
+        Assert.Equal(AlertChannelVerdictReason.MissingTransport, decision.Reason);
     }
 
     [Fact]
     public void Active_channel_with_transport_sends()
     {
-        var decision = AlertChannelDecision.Decide(Alert(), Channel(), new StubTransport());
+        var decision = AlertChannelVerdict.Decide(Alert(), Channel(), new StubTransport());
 
-        Assert.Equal(AlertChannelDecisionKind.Send, decision.Kind);
-        Assert.Equal(AlertChannelDecisionReason.Deliver, decision.Reason);
+        Assert.Equal(AlertChannelVerdictKind.Send, decision.Kind);
+        Assert.Equal(AlertChannelVerdictReason.Deliver, decision.Reason);
     }
 
     private static DeliverableAlert Alert(AlertSeverityCode severity = AlertSeverityCode.Error) =>

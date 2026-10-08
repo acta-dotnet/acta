@@ -7,7 +7,7 @@ namespace Acta.Runtime;
 /// to a namespace only when a worker calls <c>AddOutboxRelay</c>. Each tick first applies any parked
 /// operator commands (the two-name signal inbox: requeue before the drain so freed rows are claimable
 /// in the same pass, then discard), then drains a bounded slice of due source rows through
-/// <see cref="OutboxRelayService"/> and returns the tick's accounting line as its result, which the
+/// <see cref="OutboxRelay"/> and returns the tick's accounting line as its result, which the
 /// recurring slot retains, so operator surfaces on any peer read backlog and quarantine from it.
 /// <c>AuditLevel.Failures</c> keeps idle and successful ticks out of <c>events</c> (applied commands
 /// write their own always-emitted evidence events), while quarantine and infrastructure failures fail
