@@ -3,7 +3,7 @@ namespace Acta.Runtime;
 /// <summary><see cref="WorkerLifecycle.ExtendWorkerLeasesAsync"/>: one round trip.</summary>
 internal sealed class ExtendWorkerLeasesHandler(IDbSession session, ISqlDialect dialect)
 {
-    public Task<IReadOnlyList<LeaseRenewalRow>> HandleAsync(ExtendWorkerLeasesCommand command, CancellationToken ct) =>
+    public Task<IReadOnlyList<ExtendWorkerLeasesRow>> HandleAsync(ExtendWorkerLeasesCommand command, CancellationToken ct) =>
         session.ExecuteAsync(
             new StoreCommand("ExtendWorkerLeases"),
             cmd =>
@@ -12,7 +12,7 @@ internal sealed class ExtendWorkerLeasesHandler(IDbSession session, ISqlDialect 
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeaseTtlSeconds, command.LeaseTtlSeconds));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.Draining, command.Draining));
             },
-            DbProjectionResolver.Resolve<LeaseRenewalRow>(),
+            DbProjectionResolver.Resolve<ExtendWorkerLeasesRow>(),
             ct
         );
 }

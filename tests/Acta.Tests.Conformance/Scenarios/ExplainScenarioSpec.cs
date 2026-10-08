@@ -9,7 +9,7 @@ namespace Acta.Tests.Conformance.Scenarios;
 /// Conformance for <c>IJobs.ExplainAsync</c> over live states driven through the real runtime: a
 /// signal wait lands the job Suspended and the explanation names the pending signal, a bounded child
 /// wait names the awaited child and its deadline, and a raise drives the job to Succeeded. Covers the
-/// full facade composition (resolve + GetJobExplanation + clock + JobExplainer), beyond the point-read
+/// full facade composition (resolve + GetJobExplanation read + clock + Explain), beyond the point-read
 /// column mapping.
 /// </summary>
 [ConformanceSpec(

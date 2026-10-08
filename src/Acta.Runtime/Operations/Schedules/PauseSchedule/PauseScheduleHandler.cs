@@ -39,7 +39,7 @@ internal sealed class PauseScheduleHandler(
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.PausedUntilUtc, command.UntilUtc));
                 ScheduleControl.BindTail(cmd, dialect, jobNextRun, command.ActorKey, command.ReasonMessage);
             },
-            DbProjectionResolver.Resolve<ScheduleControlRow>(),
+            DbProjectionResolver.Resolve<PauseScheduleRow>(),
             ct
         );
         await ScheduleControl.WakeIfDueAsync(wakeup, jobNextRun, row.Action, ct);

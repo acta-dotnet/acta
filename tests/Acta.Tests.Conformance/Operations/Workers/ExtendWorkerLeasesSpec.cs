@@ -50,7 +50,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         var extended = await Services.GetRequiredService<WorkerLifecycle>().ExtendWorkerLeasesAsync(workerId, leaseTtl, false, ct);
         // The live worker may hold its own system job by now, so only this job's renewal is asserted.
         Assert.Equal(
-            new LeaseRenewalRow(enqueued.JobId, claimedRow.ExecutionNumber, Renewed: true),
+            new ExtendWorkerLeasesRow(enqueued.JobId, claimedRow.ExecutionNumber, Renewed: true),
             Assert.Single(extended, row => row.JobId == enqueued.JobId)
         );
 
@@ -95,7 +95,7 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         var extended = await Services.GetRequiredService<WorkerLifecycle>().ExtendWorkerLeasesAsync(workerId, leaseTtl, false, ct);
         // The live worker may hold its own system job by now, so only this job's renewal is asserted.
         Assert.Equal(
-            new LeaseRenewalRow(enqueued.JobId, claimed.ExecutionNumber, Renewed: true),
+            new ExtendWorkerLeasesRow(enqueued.JobId, claimed.ExecutionNumber, Renewed: true),
             Assert.Single(extended, row => row.JobId == enqueued.JobId)
         );
 

@@ -24,7 +24,7 @@ internal sealed class ClaimOneHandler(ClaimBatchHandler claimBatch, IDbSession s
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.StartExecuting, request.StartExecuting));
             },
-            DbProjectionResolver.Resolve<ClaimReadyRow>(),
+            DbProjectionResolver.Resolve<ClaimOneRow>(),
             ct
         );
         return rows.Count == 0 ? ClaimResponse.Empty : new ClaimResponse(rows.Select(ClaimResponseMapper.ToClaimedJob).ToList(), null);

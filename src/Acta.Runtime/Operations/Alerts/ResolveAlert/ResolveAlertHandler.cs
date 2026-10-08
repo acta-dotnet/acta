@@ -11,7 +11,7 @@ internal sealed class ResolveAlertHandler(IDbSession session, ISqlDialect dialec
         var row = await session.ExecuteOneAsync(
             new StoreCommand("ResolveAlert"),
             cmd => AlertControl.Bind(cmd, dialect, command.AlertRef, command.ReasonMessage, command.ActorKey),
-            DbProjectionResolver.Resolve<AlertControlRow>(),
+            DbProjectionResolver.Resolve<ResolveAlertRow>(),
             ct
         );
         return new ResolveAlertResponse(command.AlertRef, row.Action, row.AcknowledgedAtUtc, row.ResolvedAtUtc);

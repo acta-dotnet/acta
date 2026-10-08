@@ -11,7 +11,7 @@ internal sealed class DiscardQuarantinedOutboxHandler(IDbSession session, ISqlDi
                 cmd.Parameters.Add(
                     dialect.CreateParameter(OutboxSchema.Sql.OutboxIdsOptional, OutboxJson.OptionalIdArray(command.OutboxIds))
                 ),
-            DbProjectionResolver.Resolve<OutboxAffectedRow>(),
+            DbProjectionResolver.Resolve<DiscardQuarantinedOutboxRow>(),
             ct
         );
         return [.. affected.Select(static row => row.OutboxId)];

@@ -18,11 +18,11 @@ internal sealed class GetJobInputHandler(JobLookupResolution lookup, IDbSession 
     }
 
     /// <summary>The stored input payload and its format by id, or null when no row matches.</summary>
-    internal Task<JobInputRow?> ReadAsync(long jobId, CancellationToken ct) =>
+    internal Task<GetJobInputRow?> ReadAsync(long jobId, CancellationToken ct) =>
         session.QuerySingleAsync(
             "GetJobInput",
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId)),
-            DbProjectionResolver.Resolve<JobInputRow>(),
+            DbProjectionResolver.Resolve<GetJobInputRow>(),
             ct
         );
 }

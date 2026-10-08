@@ -1,0 +1,8 @@
+# Known slice-members violations; entries may only be removed.
+ClaimOutboxCommand (outside a slice)
+DiscardQuarantinedOutboxCommand (outside a slice)
+FinalizeOutboxCommand (outside a slice)
+ListQuarantinedOutboxCommand (outside a slice)
+QuarantineOutboxCommand (outside a slice)
+RequeueQuarantinedOutboxCommand (outside a slice)
+RescheduleOutboxCommand (outside a slice)

@@ -1,35 +1,6 @@
 namespace Acta.Runtime;
 
 /// <summary>
-/// One claimed external-outbox row: the positional projection of a source row and the fields the relay needs to
-/// reconstruct a <see cref="JobEnqueueRequest"/> and finalize under the current claim token. The constructor order is
-/// the <c>[DbProjection]</c> contract and must match the SELECT column order in every dialect's <c>ClaimOutbox</c> SQL
-/// at every position. Binary is read as <c>byte[]?</c> like the ledger input projections; <c>PriorityCode</c> stays
-/// null when the producer set no override, and so does the reconstructed request; <c>Id</c> is the producer insert
-/// order (the identity key, the rowid on SQLite) the claim and the relay batch follow.
-/// </summary>
-[DbProjection]
-internal sealed record OutboxRow(
-    Guid OutboxId,
-    string JobNamespace,
-    string JobName,
-    byte InputFormatId,
-    byte[]? Input,
-    string DeduplicationKey,
-    string? CorrelationKey,
-    string? ConcurrencyKey,
-    string? Lane,
-    byte? PriorityCode,
-    DateTime? NextRunAtUtc,
-    int? DelaySeconds,
-    string? TenantKey,
-    string? MetaJson,
-    DateTime CreatedAtUtc,
-    int FailureCount,
-    long Id
-);
-
-/// <summary>
 /// A bounded claim request: expired-lease recovery plus a due-Pending claim of at most
 /// <paramref name="BatchSize"/> rows, stamping <paramref name="ClaimToken"/> valid for
 /// <paramref name="LeaseTtlSeconds"/> from the source-database clock.
@@ -76,10 +47,3 @@ internal sealed record RequeueQuarantinedOutboxCommand(IReadOnlyList<Guid>? Outb
 /// the ledger. A null <paramref name="OutboxIds"/> targets every quarantined row.
 /// </summary>
 internal sealed record DiscardQuarantinedOutboxCommand(IReadOnlyList<Guid>? OutboxIds);
-
-/// <summary>
-/// The single-column id projection the operator verbs return: the rows a requeue or discard actually
-/// touched, in the same command.
-/// </summary>
-[DbProjection]
-internal sealed record OutboxAffectedRow(Guid OutboxId);

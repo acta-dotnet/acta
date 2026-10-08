@@ -118,7 +118,7 @@ internal sealed class OutboxRelay(OutboxSource source, EnqueueBatchHandler targe
         Recoverable,
     }
 
-    private sealed record OutboxGroup(OutboxRow Representative, IReadOnlyList<OutboxRow> Rows)
+    private sealed record OutboxGroup(ClaimOutboxRow Representative, IReadOnlyList<ClaimOutboxRow> Rows)
     {
         /// <summary>Materialized once at construction (read on both the finalize and release paths).</summary>
         public IReadOnlyList<Guid> Ids { get; } = Rows.Select(r => r.OutboxId).ToList();
@@ -222,7 +222,7 @@ internal sealed class OutboxRelay(OutboxSource source, EnqueueBatchHandler targe
     /// exhausted mid-batch: the unprocessed remainder was released and the tick must end.
     /// </summary>
     private async Task<bool> ProcessBatchAsync(
-        IReadOnlyList<OutboxRow> claimed,
+        IReadOnlyList<ClaimOutboxRow> claimed,
         Guid token,
         OutboxRelayTickOptions options,
         List<Guid> quarantinedIds,
@@ -482,7 +482,7 @@ internal sealed class OutboxRelay(OutboxSource source, EnqueueBatchHandler targe
     /// dedup normalization, so two case-variant handoffs coalesce into one group instead of
     /// colliding at the target.
     /// </summary>
-    private static List<OutboxGroup> Coalesce(IReadOnlyList<OutboxRow> claimed) =>
+    private static List<OutboxGroup> Coalesce(IReadOnlyList<ClaimOutboxRow> claimed) =>
         [
             .. claimed
                 .GroupBy(r => (r.JobNamespace.ToLowerInvariant(), r.DeduplicationKey.ToLowerInvariant()))

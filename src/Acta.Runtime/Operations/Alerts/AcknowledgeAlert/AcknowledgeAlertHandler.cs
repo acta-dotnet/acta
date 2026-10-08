@@ -8,7 +8,7 @@ internal sealed class AcknowledgeAlertHandler(IDbSession session, ISqlDialect di
         var row = await session.ExecuteOneAsync(
             new StoreCommand("AcknowledgeAlert"),
             cmd => AlertControl.Bind(cmd, dialect, command.AlertRef, command.ReasonMessage, command.ActorKey),
-            DbProjectionResolver.Resolve<AlertControlRow>(),
+            DbProjectionResolver.Resolve<AcknowledgeAlertRow>(),
             ct
         );
         return new AcknowledgeAlertResponse(command.AlertRef, row.Action, row.AcknowledgedAtUtc, row.ResolvedAtUtc);

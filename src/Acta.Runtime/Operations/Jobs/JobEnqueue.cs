@@ -124,7 +124,7 @@ internal static class JobEnqueue
     /// RAISE carries only text, so the token lives in the message, matched anywhere because provider wrappers
     /// prepend context such as "SQLite Error N:".
     /// </summary>
-    public static async Task<IReadOnlyList<EnqueueOutcomeRow>> ExecuteAsync(Func<Task<IReadOnlyList<EnqueueOutcomeRow>>> execute)
+    public static async Task<IReadOnlyList<TRow>> ExecuteAsync<TRow>(Func<Task<IReadOnlyList<TRow>>> execute)
     {
         try
         {

@@ -13,8 +13,8 @@ public sealed class DuplicateShapeTests
     // Below three properties, shared names are coincidence rather than copying.
     private const int MinProperties = 3;
 
-    // Every operation has its own input and response, so two operations may match on purpose.
-    private static readonly string[] PerOperationSuffixes = ["Command", "Query", "Response"];
+    // Every operation has its own input, response, and row, so two operations may match on purpose.
+    private static readonly string[] PerOperationSuffixes = ["Command", "Query", "Response", "Row"];
 
     // An HTTP body is the wire copy of a command or model: Acta.AspNetCore sees only the public contract, and its
     // projection changes a member's representation, so the suffix marks the copy as deliberate.

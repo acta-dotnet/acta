@@ -22,7 +22,7 @@ internal sealed class ClaimBatchHandler(IDbSession session, ISqlDialect dialect)
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.StartExecuting, request.StartExecuting));
                 dialect.BindExcludedDefinitionIds(cmd, request.ExcludedDefinitionIds);
             },
-            DbProjectionResolver.Resolve<ClaimReadyRow>(),
+            DbProjectionResolver.Resolve<ClaimBatchRow>(),
             ct
         );
         return ClaimResponseMapper.Map(rows);

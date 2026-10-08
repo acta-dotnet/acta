@@ -25,7 +25,7 @@ public sealed class WorkerHeartbeatDisplacedExecutionTests
         context.RunningAttempts[7] = stale;
         var handed = new TaskCompletionSource<IReadOnlyList<long>>(TaskCreationOptions.RunContinuationsAsynchronously);
         var heartbeat = new WorkerHeartbeat(
-            RenewingWorkerStore(new LeaseRenewalRow(7, ExecutionNumber: 2, Renewed: true)),
+            RenewingWorkerStore(new ExtendWorkerLeasesRow(7, ExecutionNumber: 2, Renewed: true)),
             Options.Create(new JobsOptions()),
             new WorkerRegistration("orders", null, null, [], []),
             context,
@@ -50,6 +50,6 @@ public sealed class WorkerHeartbeatDisplacedExecutionTests
     }
 
     // Every lease extend renews the one row.
-    private static WorkerLifecycle RenewingWorkerStore(LeaseRenewalRow row) =>
+    private static WorkerLifecycle RenewingWorkerStore(ExtendWorkerLeasesRow row) =>
         new ScriptedSession(_ => row).Services().GetRequiredService<WorkerLifecycle>();
 }

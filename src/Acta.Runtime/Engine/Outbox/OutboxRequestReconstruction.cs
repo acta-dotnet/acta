@@ -1,7 +1,7 @@
 namespace Acta.Runtime;
 
 /// <summary>
-/// Rebuilds the canonical <see cref="JobEnqueueRequest"/> from a claimed <see cref="OutboxRow"/> using
+/// Rebuilds the canonical <see cref="JobEnqueueRequest"/> from a claimed <see cref="ClaimOutboxRow"/> using
 /// the raw enqueue vocabulary. A null <c>priority_code</c> stays null in the request (no override); the
 /// external table's <c>ParentJobId</c>-less contract means the reconstructed request is always a root job.
 /// A malformed <c>meta</c>, missing tag name, an over-cap payload, or an unsupported <c>input_format_id</c>
@@ -9,7 +9,7 @@ namespace Acta.Runtime;
 /// </summary>
 internal static class OutboxRequestReconstruction
 {
-    public static JobEnqueueRequest ToRequest(OutboxRow row, int maxInlinePayloadBytes)
+    public static JobEnqueueRequest ToRequest(ClaimOutboxRow row, int maxInlinePayloadBytes)
     {
         var inputLength = row.Input?.Length ?? 0;
         if (inputLength > maxInlinePayloadBytes)

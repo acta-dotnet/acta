@@ -44,8 +44,8 @@ public sealed class RecoveryPassTests
         var execution = ExecutionStore(
             reclaimed:
             [
-                new ReclaimedJobRow(JobId: 7, JobStatusCode.Failed, ParentId: 8, LaneRepaired: false),
-                new ReclaimedJobRow(JobId: 11, JobStatusCode.Ready, ParentId: null, LaneRepaired: false),
+                new ReclaimStuckJobsRow(JobId: 7, JobStatusCode.Failed, ParentId: 8, LaneRepaired: false),
+                new ReclaimStuckJobsRow(JobId: 11, JobStatusCode.Ready, ParentId: null, LaneRepaired: false),
             ],
             staleLatches: [new StaleChildLatch(ParentJobId: 9, ChildJobId: 10, ChildStatus: JobStatusCode.Cancelled)]
         );
@@ -65,7 +65,7 @@ public sealed class RecoveryPassTests
     {
         var wakeups = new RecordingWakeup();
         var execution = ExecutionStore(
-            reclaimed: [new ReclaimedJobRow(JobId: 12, JobStatusCode.Ready, ParentId: null, LaneRepaired: true)]
+            reclaimed: [new ReclaimStuckJobsRow(JobId: 12, JobStatusCode.Ready, ParentId: null, LaneRepaired: true)]
         );
         var pass = Pass(WorkerSweep(), execution, SignalStore(releases: false), wakeup: wakeups);
 
@@ -115,9 +115,7 @@ public sealed class RecoveryPassTests
     // A raise that releases its parent applies and leaves it Ready; one that does not is rejected unwritten.
     private static Signals SignalStore(bool releases) =>
         new ScriptedSession(_ =>
-            releases
-                ? new JobControlActionRow(ControlAction.Applied, JobStatusCode.Ready)
-                : new JobControlActionRow(ControlAction.Rejected, null)
+            releases ? new RaiseSignalRow(ControlAction.Applied, JobStatusCode.Ready) : new RaiseSignalRow(ControlAction.Rejected, null)
         )
             .Services()
             .GetRequiredService<Signals>();
@@ -126,7 +124,7 @@ public sealed class RecoveryPassTests
     private static ScriptedSession WorkerSweep(int marked = 0) => new(_ => marked);
 
     // The reclaim answers the rows it touched and the latch read its stale latches; nothing else is reached.
-    private static Acta.Runtime.Execution ExecutionStore(ReclaimedJobRow[]? reclaimed = null, StaleChildLatch[]? staleLatches = null) =>
+    private static Acta.Runtime.Execution ExecutionStore(ReclaimStuckJobsRow[]? reclaimed = null, StaleChildLatch[]? staleLatches = null) =>
         new ScriptedSession(call =>
             call.Stem switch
             {

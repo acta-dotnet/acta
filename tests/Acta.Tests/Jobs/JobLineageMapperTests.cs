@@ -48,16 +48,16 @@ public class JobLineageMapperTests
     [Fact]
     public void A_set_child_latch_is_not_an_active_wait()
     {
-        var map = Map(new ExplainCheckpointRow(CheckpointKindCode.ChildLatch, "sys.child.42", CheckpointStatusCode.Set, null));
+        var map = Map(new GetJobLineageMapCheckpointRow(CheckpointKindCode.ChildLatch, "sys.child.42", CheckpointStatusCode.Set, null));
 
         Assert.Null(map.ActiveWait);
     }
 
-    private static ExplainCheckpointRow Checkpoint(CheckpointKindCode kind, string name, DateTime? due) =>
+    private static GetJobLineageMapCheckpointRow Checkpoint(CheckpointKindCode kind, string name, DateTime? due) =>
         new(kind, name, CheckpointStatusCode.Pending, due);
 
-    private static JobLineageMap Map(params ExplainCheckpointRow[] checkpoints) =>
-        JobLineageMapper.Map(new JobLineageRows(Focus(), [], [], checkpoints, []), childLimit: 10);
+    private static JobLineageMap Map(params GetJobLineageMapCheckpointRow[] checkpoints) =>
+        GetJobLineageMapHandler.Map(new GetJobLineageMapRows(Focus(), [], [], checkpoints, []), childLimit: 10);
 
     private static JobLineageJob Focus() =>
         new(

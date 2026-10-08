@@ -10,7 +10,7 @@ internal sealed class Signals(RaiseSignalHandler raiseSignal, WaitSignalHandler 
     /// Upserts the <c>(job_id, kind_code, name)</c> slot to Set, last writer wins, and flips a suspended job to
     /// Ready under the shared checkpoint-then-runtime lock order; a terminal target is rejected unwritten.
     /// </summary>
-    public Task<JobControlActionRow> RaiseSignalAsync(SignalSlotRaise raise, CancellationToken ct) => raiseSignal.RaiseSlotAsync(raise, ct);
+    public Task<RaiseSignalRow> RaiseSignalAsync(SignalSlotRaise raise, CancellationToken ct) => raiseSignal.RaiseSlotAsync(raise, ct);
 
     /// <summary>
     /// Reads or arms the slot under a row lock: Set continues with the stored payload, an overdue or Expired

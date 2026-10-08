@@ -58,7 +58,7 @@ public abstract class OutboxSpecBase : ActaTestBase<ConformanceFixture>
             ClaimUntilUtc = DateTime.UtcNow.AddMinutes(-1),
         };
 
-    private protected Task<IReadOnlyList<OutboxRow>> ClaimAsync(Guid token, int batchSize, CancellationToken ct) =>
+    private protected Task<IReadOnlyList<ClaimOutboxRow>> ClaimAsync(Guid token, int batchSize, CancellationToken ct) =>
         Store.ClaimDueAsync(new ClaimOutboxCommand(token, batchSize, LeaseTtlSeconds), ct);
 
     // Seed one due row and claim it, returning its id and the owning token for a finalize proof.

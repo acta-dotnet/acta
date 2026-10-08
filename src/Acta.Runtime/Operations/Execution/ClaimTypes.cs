@@ -63,29 +63,47 @@ internal sealed record ClaimResponse(IReadOnlyList<ClaimedJob> Jobs, ClaimHorizo
 }
 
 /// <summary>
-/// Flat claim routine row. <see cref="JobId"/> is null only on the empty-claim horizon sentinel row.
+/// The columns both claim routines return, in SELECT order, so one mapper reads a <c>ClaimBatch</c> or a
+/// <c>ClaimOne</c> row. <see cref="JobId"/> is null only on the empty-claim horizon sentinel row.
 /// </summary>
-[DbProjection]
-internal sealed record ClaimReadyRow(
-    long? JobId,
-    int? NamespaceId,
-    int? DefinitionId,
-    int? ExecutionNumber,
-    string? DeduplicationKey,
-    string? CorrelationKey,
-    string? ConcurrencyKey,
-    byte? InputFormatId,
-    byte[]? Input,
-    DateTime? NextRunAtUtc,
-    DateTime? LeaseExpiresAtUtc,
-    DateTime? CreatedAtUtc,
-    int? FailureCount,
-    int? Version,
-    Guid? JobRef,
-    int? TenantId,
-    DateTime? DbNowUtc,
-    DateTime? NextReadyAtUtc
-);
+internal interface IClaimColumns
+{
+    long? JobId { get; }
+
+    int? NamespaceId { get; }
+
+    int? DefinitionId { get; }
+
+    int? ExecutionNumber { get; }
+
+    string? DeduplicationKey { get; }
+
+    string? CorrelationKey { get; }
+
+    string? ConcurrencyKey { get; }
+
+    byte? InputFormatId { get; }
+
+    byte[]? Input { get; }
+
+    DateTime? NextRunAtUtc { get; }
+
+    DateTime? LeaseExpiresAtUtc { get; }
+
+    DateTime? CreatedAtUtc { get; }
+
+    int? FailureCount { get; }
+
+    int? Version { get; }
+
+    Guid? JobRef { get; }
+
+    int? TenantId { get; }
+
+    DateTime? DbNowUtc { get; }
+
+    DateTime? NextReadyAtUtc { get; }
+}
 
 /// <summary>
 /// Provider-independent projection of the flat claim rows into a <see cref="ClaimResponse"/>: job rows
@@ -93,7 +111,7 @@ internal sealed record ClaimReadyRow(
 /// </summary>
 internal static class ClaimResponseMapper
 {
-    public static ClaimResponse Map(IReadOnlyList<ClaimReadyRow> rows)
+    public static ClaimResponse Map(IReadOnlyList<IClaimColumns> rows)
     {
         if (rows.Count == 0)
         {
@@ -117,7 +135,7 @@ internal static class ClaimResponseMapper
         return new ClaimResponse(jobs, horizon);
     }
 
-    public static ClaimedJob ToClaimedJob(ClaimReadyRow row) =>
+    public static ClaimedJob ToClaimedJob(IClaimColumns row) =>
         new(
             JobId: row.JobId!.Value,
             JobRef: Required(row.JobRef, "job_ref"),

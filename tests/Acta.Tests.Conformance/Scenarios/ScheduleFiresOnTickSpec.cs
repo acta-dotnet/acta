@@ -233,7 +233,7 @@ public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFix
         return row.NextRunAtUtc!.Value;
     }
 
-    private RecurringPingResult DeserializeResult(JobResultRow row)
+    private RecurringPingResult DeserializeResult(GetResultRow row)
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = JobPayload.FromBytes(row.Format, row.Data.ToArray());

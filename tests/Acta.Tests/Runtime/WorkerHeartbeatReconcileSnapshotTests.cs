@@ -69,7 +69,7 @@ public sealed class WorkerHeartbeatReconcileSnapshotTests
                 {
                     _entered.TrySetResult();
                     await _gate.Task.WaitAsync(ct);
-                    return liveJobIds.Select(id => new LeaseRenewalRow(id, ExecutionNumber: 0, Renewed: true)).ToArray();
+                    return liveJobIds.Select(id => new ExtendWorkerLeasesRow(id, ExecutionNumber: 0, Renewed: true)).ToArray();
                 }
             );
             return session.Services().GetRequiredService<WorkerLifecycle>();

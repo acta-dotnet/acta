@@ -16,7 +16,7 @@ internal sealed class ConsumeOutboxSignalHandler(IDbSession session, ISqlDialect
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.Name, command.Name));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ExpectedRowVersion, command.Version));
             },
-            DbProjectionResolver.Resolve<OutboxSignalConsumeRow>(),
+            DbProjectionResolver.Resolve<ConsumeOutboxSignalRow>(),
             ct
         );
         return row is { Consumed: > 0 };

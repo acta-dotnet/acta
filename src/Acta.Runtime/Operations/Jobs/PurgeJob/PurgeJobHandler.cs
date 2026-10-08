@@ -18,7 +18,7 @@ internal sealed class PurgeJobHandler(JobLookupResolution lookup, IDbSession ses
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId));
                 JobControl.BindActor(cmd, dialect, input, includeReasonMessage: false);
             },
-            DbProjectionResolver.Resolve<JobControlActionRow>(),
+            DbProjectionResolver.Resolve<PurgeJobRow>(),
             ct
         );
         return new PurgeJobResponse(jobId, row.Action, row.Status, null);

@@ -35,7 +35,7 @@ internal sealed class UpdateJobInputHandler(
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Input, input.IsNone ? null : input.Data.ToArray()));
                 JobControl.BindActor(cmd, dialect, control);
             },
-            DbProjectionResolver.Resolve<JobControlActionRow>(),
+            DbProjectionResolver.Resolve<UpdateJobInputRow>(),
             ct
         );
         return new UpdateJobInputResponse(jobId, row.Action, row.Status, null);

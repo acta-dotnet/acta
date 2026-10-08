@@ -48,7 +48,7 @@ internal sealed class ResumeScheduleHandler(
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.NextRunAtUtc, reconciled));
                 ScheduleControl.BindTail(cmd, dialect, jobNextRun, command.ActorKey, command.ReasonMessage);
             },
-            DbProjectionResolver.Resolve<ScheduleControlRow>(),
+            DbProjectionResolver.Resolve<ResumeScheduleRow>(),
             ct
         );
         await ScheduleControl.WakeIfDueAsync(wakeup, jobNextRun, row.Action, ct);

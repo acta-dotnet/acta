@@ -21,7 +21,7 @@ public sealed class OutboxRelayTests
     // Each row stages after the one built before it, as a producer inserting them in turn would.
     private static long _staged;
 
-    private static OutboxRow Row(
+    private static ClaimOutboxRow Row(
         string dedup,
         string ns = "orders",
         string job = "process",
@@ -294,7 +294,8 @@ public sealed class OutboxRelayTests
 
         public EnqueueBatchHandler Handler() => new ScriptedSession(Answer).Services().GetRequiredService<EnqueueBatchHandler>();
 
-        private EnqueueOutcomeRow[] Answer(BoundCall call)
+        // Each enqueue routine answers its own row: one for a single request, one per ordinal for a batch.
+        private object Answer(BoundCall call)
         {
             Calls++;
             OnEnqueue?.Invoke();
@@ -304,7 +305,9 @@ public sealed class OutboxRelayTests
                 throw new ArgumentException("deterministic target rejection");
             }
             Batches.Add(requests);
-            return [.. requests.Select((_, ordinal) => new EnqueueOutcomeRow(ordinal, 1, Guid.NewGuid(), Action))];
+            return call.Stem == "EnqueueOne"
+                ? new[] { new EnqueueOneRow(0, 1, Guid.NewGuid(), Action) }
+                : requests.Select((_, ordinal) => new EnqueueBatchRow(ordinal, 1, Guid.NewGuid(), Action)).ToArray();
         }
 
         // One row binds its columns; a batch binds its rows as one JSON array.
@@ -338,9 +341,9 @@ public sealed class OutboxRelayTests
     /// The due rows in memory behind the real source: a claim takes up to the bound batch size in staging
     /// order, and each finalize records the ids or the per-row records it bound.
     /// </summary>
-    private sealed class FakeStore(params OutboxRow[] rows)
+    private sealed class FakeStore(params ClaimOutboxRow[] rows)
     {
-        private readonly Queue<OutboxRow> _due = new(rows);
+        private readonly Queue<ClaimOutboxRow> _due = new(rows);
 
         public int ClaimCalls { get; private set; }
         public List<Guid> Deleted { get; } = [];
@@ -364,10 +367,10 @@ public sealed class OutboxRelayTests
                 }
             );
 
-        private OutboxRow[] Claim(int batchSize)
+        private ClaimOutboxRow[] Claim(int batchSize)
         {
             ClaimCalls++;
-            var batch = new List<OutboxRow>();
+            var batch = new List<ClaimOutboxRow>();
             while (batch.Count < batchSize && _due.Count > 0)
             {
                 batch.Add(_due.Dequeue());

@@ -74,7 +74,7 @@ internal sealed class EnqueueBatchHandler(
     /// One <c>enqueue_batch</c> call, through <paramref name="transaction"/> when it is set; the refs align with the
     /// rows by position and each outcome carries its input ordinal.
     /// </summary>
-    internal Task<IReadOnlyList<EnqueueOutcomeRow>> InsertAsync(
+    internal Task<IReadOnlyList<EnqueueBatchRow>> InsertAsync(
         IReadOnlyList<JobEnqueueValues> rows,
         IReadOnlyList<Guid> jobRefs,
         DbTransaction? transaction,
@@ -82,7 +82,7 @@ internal sealed class EnqueueBatchHandler(
     )
     {
         var command = new StoreCommand("EnqueueBatch");
-        var map = DbProjectionResolver.Resolve<EnqueueOutcomeRow>();
+        var map = DbProjectionResolver.Resolve<EnqueueBatchRow>();
         return transaction is null
             ? session.ExecuteAsync(command, Bind, map, ct)
             : session.ExecuteInTransactionAsync(transaction, command, Bind, map, ct);

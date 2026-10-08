@@ -24,7 +24,7 @@ internal sealed class GetResultHandler(
         await HandleAsync(query, ct) is { } payload ? serializers.Resolve(payload.Format.Id).Deserialize<TResult>(payload) : default;
 
     /// <summary>The stored result for the latest execution, or for <paramref name="executionNumber"/>; null when there is none.</summary>
-    internal Task<JobResultRow?> ReadAsync(long jobId, int? executionNumber, CancellationToken ct) =>
+    internal Task<GetResultRow?> ReadAsync(long jobId, int? executionNumber, CancellationToken ct) =>
         session.QuerySingleAsync(
             "GetResult",
             cmd =>
@@ -32,7 +32,7 @@ internal sealed class GetResultHandler(
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Result.JobId, jobId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Result.ExecutionNumber, executionNumber));
             },
-            DbProjectionResolver.Resolve<JobResultRow>(),
+            DbProjectionResolver.Resolve<GetResultRow>(),
             ct
         );
 }

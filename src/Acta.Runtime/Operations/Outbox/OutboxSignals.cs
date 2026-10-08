@@ -25,15 +25,3 @@ internal sealed record OutboxSignalPayload(Guid CommandId, string? ActorKey, str
 
 [JsonSerializable(typeof(OutboxSignalPayload))]
 internal sealed partial class OutboxSignalJsonContext : JsonSerializerContext;
-
-/// <summary>
-/// Park admission outcome: <c>Action</c> uses the <c>ControlAction</c> ids (1 = the command is now the
-/// pending one, 3 = rejected while another is pending), and <c>PendingSinceUtc</c> is the pending
-/// command's park instant - the age the rejection reports to the operator.
-/// </summary>
-[DbProjection]
-internal sealed record OutboxSignalAdmissionRow(byte Action, DateTime? PendingSinceUtc);
-
-/// <summary>The consume outcome projection: how many rows the version-CAS delete removed (0 or 1).</summary>
-[DbProjection]
-internal sealed record OutboxSignalConsumeRow(long Consumed);

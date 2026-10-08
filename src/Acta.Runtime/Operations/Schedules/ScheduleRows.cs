@@ -51,20 +51,6 @@ internal sealed record StoredScheduleState(
 );
 
 /// <summary>
-/// The row a schedule control verb answers: the action plus the schedule row's state after the
-/// attempt. Every control statement returns exactly one
-/// <c>(action, status_code, paused_until_utc, next_run_at_utc, version)</c> row, bound by position.
-/// </summary>
-[DbProjection]
-internal sealed record ScheduleControlRow(
-    ControlAction Action,
-    ScheduleStatusCode? Status,
-    DateTime? PausedUntilUtc,
-    DateTime? NextRunAtUtc,
-    int? Version
-);
-
-/// <summary>
 /// One declared schedule's reconciled state for a definition's slot upsert. <c>NextRunAtUtc</c> is the
 /// computed cursor; null means the expression has no upcoming occurrence (exhausted).
 /// </summary>

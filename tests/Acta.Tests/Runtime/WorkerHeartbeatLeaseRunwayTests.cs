@@ -312,10 +312,10 @@ public sealed class WorkerHeartbeatLeaseRunwayTests
         new ScriptedSession(answer).Services().GetRequiredService<WorkerLifecycle>();
 
     private static WorkerLifecycle LiveWorkerStore(IReadOnlyList<long> liveJobIds) =>
-        WorkerStore(_ => liveJobIds.Select(id => new LeaseRenewalRow(id, ExecutionNumber: 0, Renewed: true)).ToArray());
+        WorkerStore(_ => liveJobIds.Select(id => new ExtendWorkerLeasesRow(id, ExecutionNumber: 0, Renewed: true)).ToArray());
 
     private static WorkerLifecycle SkippingWorkerStore(long heldJobId) =>
-        WorkerStore(_ => new LeaseRenewalRow(heldJobId, ExecutionNumber: 0, Renewed: false));
+        WorkerStore(_ => new ExtendWorkerLeasesRow(heldJobId, ExecutionNumber: 0, Renewed: false));
 
     private static WorkerLifecycle ThrowingWorkerStore() =>
         WorkerStore(_ => throw new InvalidOperationException("synthetic transient worker-store fault"));

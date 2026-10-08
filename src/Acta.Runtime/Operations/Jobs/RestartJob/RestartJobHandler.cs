@@ -30,7 +30,7 @@ internal sealed class RestartJobHandler(
     }
 
     /// <summary>One <c>restart_job</c> call by id at <paramref name="nextRunAtUtc"/>, or now when null: no lookup, no wake.</summary>
-    internal Task<JobControlRow> RestartAsync(long jobId, JobControlInput input, DateTime? nextRunAtUtc, CancellationToken ct) =>
+    internal Task<RestartJobRow> RestartAsync(long jobId, JobControlInput input, DateTime? nextRunAtUtc, CancellationToken ct) =>
         session.ExecuteOneAsync(
             new StoreCommand("RestartJob"),
             cmd =>
@@ -40,7 +40,7 @@ internal sealed class RestartJobHandler(
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Runtime.NextRunAtUtc, nextRunAtUtc));
                 JobControl.BindExpectedVersion(cmd, dialect, input);
             },
-            DbProjectionResolver.Resolve<JobControlRow>(),
+            DbProjectionResolver.Resolve<RestartJobRow>(),
             ct
         );
 }

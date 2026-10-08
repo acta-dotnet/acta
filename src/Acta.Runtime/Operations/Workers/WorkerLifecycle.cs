@@ -34,7 +34,7 @@ internal sealed class WorkerLifecycle(
     /// the ids against the jobs it is running to detect ones cancelled or stolen externally. Deliberately
     /// does not bump <c>runtimes.version</c>.
     /// </summary>
-    public Task<IReadOnlyList<LeaseRenewalRow>> ExtendWorkerLeasesAsync(
+    public Task<IReadOnlyList<ExtendWorkerLeasesRow>> ExtendWorkerLeasesAsync(
         int workerId,
         int leaseTtlSeconds,
         bool draining,

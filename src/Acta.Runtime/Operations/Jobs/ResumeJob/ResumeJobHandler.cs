@@ -30,7 +30,7 @@ internal sealed class ResumeJobHandler(
     }
 
     /// <summary>One <c>resume_job</c> call by id at <paramref name="nextRunAtUtc"/>, or now when null: no lookup, no wake.</summary>
-    internal Task<JobControlRow> ResumeAsync(long jobId, JobControlInput input, DateTime? nextRunAtUtc, CancellationToken ct) =>
+    internal Task<ResumeJobRow> ResumeAsync(long jobId, JobControlInput input, DateTime? nextRunAtUtc, CancellationToken ct) =>
         session.ExecuteOneAsync(
             new StoreCommand("ResumeJob"),
             cmd =>
@@ -40,7 +40,7 @@ internal sealed class ResumeJobHandler(
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Runtime.NextRunAtUtc, nextRunAtUtc));
                 JobControl.BindExpectedVersion(cmd, dialect, input);
             },
-            DbProjectionResolver.Resolve<JobControlRow>(),
+            DbProjectionResolver.Resolve<ResumeJobRow>(),
             ct
         );
 }

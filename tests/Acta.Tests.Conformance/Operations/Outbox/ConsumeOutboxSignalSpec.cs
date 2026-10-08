@@ -84,13 +84,7 @@ public sealed class ConsumeOutboxSignalSpec : ActaStorageTestBase<ConformanceFix
     private Task<bool> ConsumeAsync(long jobId, string name, int version, CancellationToken ct) =>
         Services.GetRequiredService<ConsumeOutboxSignalHandler>().HandleAsync(new ConsumeOutboxSignalCommand(jobId, name, version), ct);
 
-    private Task<OutboxSignalAdmissionRow> ParkAsync(
-        long jobId,
-        string name,
-        byte[] value,
-        DateTime staleBeforeUtc,
-        CancellationToken ct
-    ) =>
+    private Task<ParkOutboxSignalRow> ParkAsync(long jobId, string name, byte[] value, DateTime staleBeforeUtc, CancellationToken ct) =>
         Services
             .GetRequiredService<ParkOutboxSignalHandler>()
             .HandleAsync(new ParkOutboxSignalCommand(jobId, name, ValueFormatId: 1, value, staleBeforeUtc), ct);

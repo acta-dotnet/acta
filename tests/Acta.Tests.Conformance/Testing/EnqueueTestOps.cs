@@ -31,13 +31,14 @@ internal static class EnqueueTestOps
             refs[i] = JobRef.New().Value;
         }
 
-        var outcomeRows =
-            canonical.Length == 1
-                ? await services.GetRequiredService<EnqueueOneHandler>().InsertAsync(canonical[0], refs[0], null, ct)
-                : await services.GetRequiredService<EnqueueBatchHandler>().InsertAsync(canonical, refs, null, ct);
+        if (canonical.Length == 1)
+        {
+            var one = await services.GetRequiredService<EnqueueOneHandler>().InsertAsync(canonical[0], refs[0], null, ct);
+            return [new JobEnqueueResponse(one[0].JobId, new JobRef(one[0].JobRef), one[0].Action)];
+        }
 
         var outcomes = new JobEnqueueResponse[canonical.Length];
-        foreach (var row in outcomeRows)
+        foreach (var row in await services.GetRequiredService<EnqueueBatchHandler>().InsertAsync(canonical, refs, null, ct))
         {
             outcomes[row.Ordinal] = new JobEnqueueResponse(row.JobId, new JobRef(row.JobRef), row.Action);
         }

@@ -51,14 +51,6 @@ internal sealed record DeliverableAlert(
 );
 
 /// <summary>
-/// The row an alert control verb (acknowledge / resolve) answers: the action plus the alert's
-/// <c>acknowledged_at_utc</c> / <c>resolved_at_utc</c> after the attempt. Bound by position: the
-/// PostgreSQL routines name their columns with an <c>out_</c> prefix.
-/// </summary>
-[DbProjection]
-internal sealed record AlertControlRow(ControlAction Action, DateTime? AcknowledgedAtUtc, DateTime? ResolvedAtUtc);
-
-/// <summary>
 /// One alert raise's outcome: the row's post-raise <c>occurrence_count</c> and
 /// <c>last_projected_event_id</c>. When the raise applied, the mark equals the command's
 /// <c>SourceEventId</c> by definition; when the replay guard held the write back, both values are the

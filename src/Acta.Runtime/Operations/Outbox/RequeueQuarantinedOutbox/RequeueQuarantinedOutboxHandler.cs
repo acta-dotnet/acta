@@ -11,7 +11,7 @@ internal sealed class RequeueQuarantinedOutboxHandler(IDbSession session, ISqlDi
                 cmd.Parameters.Add(
                     dialect.CreateParameter(OutboxSchema.Sql.OutboxIdsOptional, OutboxJson.OptionalIdArray(command.OutboxIds))
                 ),
-            DbProjectionResolver.Resolve<OutboxAffectedRow>(),
+            DbProjectionResolver.Resolve<RequeueQuarantinedOutboxRow>(),
             ct
         );
         return [.. affected.Select(static row => row.OutboxId)];

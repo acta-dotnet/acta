@@ -9,7 +9,7 @@ internal sealed class GetCheckpointsHandler(JobLookupResolution lookup, IDbSessi
     /// <summary>Every checkpoint slot by job id; an empty set when the job has none, null when no job has the id.</summary>
     internal Task<CheckpointSet?> ReadAsync(long jobId, CancellationToken ct)
     {
-        var read = DbProjectionResolver.Resolve<CheckpointReadRow>();
+        var read = DbProjectionResolver.Resolve<GetCheckpointsRow>();
         // The SQL answers one row with a null kind for a job without slots, and none for a missing one.
         return session.QueryAsync<CheckpointSet?>(
             "GetCheckpoints",

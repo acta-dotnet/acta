@@ -41,7 +41,7 @@ internal sealed class EnqueueOneHandler(
     }
 
     /// <summary>One <c>enqueue_one</c> call with the allocated ref, through <paramref name="transaction"/> when it is set.</summary>
-    internal Task<IReadOnlyList<EnqueueOutcomeRow>> InsertAsync(
+    internal Task<IReadOnlyList<EnqueueOneRow>> InsertAsync(
         JobEnqueueValues row,
         Guid jobRef,
         DbTransaction? transaction,
@@ -49,7 +49,7 @@ internal sealed class EnqueueOneHandler(
     )
     {
         var command = new StoreCommand("EnqueueOne");
-        var map = DbProjectionResolver.Resolve<EnqueueOutcomeRow>();
+        var map = DbProjectionResolver.Resolve<EnqueueOneRow>();
         return transaction is null
             ? session.ExecuteAsync(command, Bind, map, ct)
             : session.ExecuteInTransactionAsync(transaction, command, Bind, map, ct);

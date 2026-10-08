@@ -33,7 +33,7 @@ internal sealed class TriggerScheduleNowHandler(
                     command.ReasonMessage is null ? name : $"{name}: {ScheduleControl.RowReason(command.ReasonMessage)}"
                 );
             },
-            DbProjectionResolver.Resolve<ScheduleControlRow>(),
+            DbProjectionResolver.Resolve<TriggerScheduleNowRow>(),
             ct
         );
         if (row.Action == ControlAction.Applied)

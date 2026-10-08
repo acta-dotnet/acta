@@ -56,7 +56,7 @@ internal sealed class RaiseSignalHandler(
         );
 
     /// <summary><see cref="Signals.RaiseSignalAsync"/>: one routine call for any slot kind, the operator's raise among them.</summary>
-    internal Task<JobControlActionRow> RaiseSlotAsync(SignalSlotRaise raise, CancellationToken ct) =>
+    internal Task<RaiseSignalRow> RaiseSlotAsync(SignalSlotRaise raise, CancellationToken ct) =>
         session.ExecuteOneAsync(
             new StoreCommand("RaiseSignal"),
             cmd =>
@@ -68,7 +68,7 @@ internal sealed class RaiseSignalHandler(
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.Value, raise.Value));
                 JobControl.BindActor(cmd, dialect, raise.Input);
             },
-            DbProjectionResolver.Resolve<JobControlActionRow>(),
+            DbProjectionResolver.Resolve<RaiseSignalRow>(),
             ct
         );
 }

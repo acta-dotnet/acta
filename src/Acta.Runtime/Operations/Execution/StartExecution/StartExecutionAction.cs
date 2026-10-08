@@ -1,0 +1,10 @@
+namespace Acta.Runtime;
+
+internal enum StartExecutionAction : byte
+{
+    Started = 1,
+    NotOwner = 2,
+    LostClaim = 3,
+    AlreadyTerminal = 4,
+    LeaseExpired = 5,
+}

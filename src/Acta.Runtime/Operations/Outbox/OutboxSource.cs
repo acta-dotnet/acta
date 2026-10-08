@@ -29,7 +29,7 @@ internal sealed class OutboxSource(IDbSession session, ISqlDialect dialect)
     /// row is claimed only while no older row of its lane is Pending or Claimed, so a lane reaches the ledger
     /// in staging order; that check must not skip locked rows, or a row another relay holds would read as gone.
     /// </summary>
-    public Task<IReadOnlyList<OutboxRow>> ClaimDueAsync(ClaimOutboxCommand command, CancellationToken ct) =>
+    public Task<IReadOnlyList<ClaimOutboxRow>> ClaimDueAsync(ClaimOutboxCommand command, CancellationToken ct) =>
         _claim.HandleAsync(command, ct);
 
     /// <summary>

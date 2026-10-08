@@ -26,7 +26,7 @@ internal sealed class ReprioritizeJobHandler(
                 JobControl.BindActor(cmd, dialect, input);
                 JobControl.BindExpectedVersion(cmd, dialect, input);
             },
-            DbProjectionResolver.Resolve<JobControlRow>(),
+            DbProjectionResolver.Resolve<ReprioritizeJobRow>(),
             ct
         );
         await JobControl.WakeIfReadyAsync(wakeup, row.Action, row.Status, ct);

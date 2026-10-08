@@ -68,7 +68,7 @@ internal sealed class SetScheduleOverridesHandler(
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.ActorKey, actor.ActorKey));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ChangeSummary, changeSummary));
             },
-            DbProjectionResolver.Resolve<ScheduleControlRow>(),
+            DbProjectionResolver.Resolve<SetScheduleOverridesRow>(),
             ct
         );
         await ScheduleControl.WakeIfDueAsync(wakeup, jobNextRun, row.Action, ct);

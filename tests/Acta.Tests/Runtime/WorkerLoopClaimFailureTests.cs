@@ -155,7 +155,7 @@ public sealed class WorkerLoopClaimFailureTests
     }
 
     /// <summary>The real execution group over a session whose claim answers the rows the script returns.</summary>
-    internal sealed class ClaimStore(Func<CancellationToken, IReadOnlyList<ClaimReadyRow>> onClaim)
+    internal sealed class ClaimStore(Func<CancellationToken, IReadOnlyList<ClaimBatchRow>> onClaim)
     {
         private int _calls;
 

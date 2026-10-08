@@ -43,7 +43,7 @@ public sealed class WorkerLoopDisplacedAttemptTests
     }
 
     // The claim row for the job again, in its next execution.
-    private static ClaimReadyRow Reclaimed() =>
+    private static ClaimBatchRow Reclaimed() =>
         new(
             JobId: JobId,
             NamespaceId: 1,
