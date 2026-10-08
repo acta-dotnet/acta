@@ -22,7 +22,7 @@ internal sealed class SlackAlertTransport(HttpClient? http = null, ILogger<Slack
 
     public string TransportKind => Kind;
 
-    public async Task<AlertDeliveryOutcome> SendAsync(AlertNotification notification, AlertTarget target, CancellationToken ct)
+    public async Task<AlertSendStatus> SendAsync(AlertNotification notification, AlertTarget target, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(target.Endpoint))
         {
@@ -31,7 +31,7 @@ internal sealed class SlackAlertTransport(HttpClient? http = null, ILogger<Slack
                 target.ChannelName,
                 notification.AlertRef.ToString()
             );
-            return AlertDeliveryOutcome.Permanent;
+            return AlertSendStatus.Permanent;
         }
 
         try
@@ -43,11 +43,11 @@ internal sealed class SlackAlertTransport(HttpClient? http = null, ILogger<Slack
 
             if (response.IsSuccessStatusCode)
             {
-                return AlertDeliveryOutcome.Delivered;
+                return AlertSendStatus.Delivered;
             }
 
             var status = (int)response.StatusCode;
-            return status is 429 or >= 500 ? AlertDeliveryOutcome.Retryable : AlertDeliveryOutcome.Permanent;
+            return status is 429 or >= 500 ? AlertSendStatus.Retryable : AlertSendStatus.Permanent;
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -61,7 +61,7 @@ internal sealed class SlackAlertTransport(HttpClient? http = null, ILogger<Slack
                 target.ChannelName,
                 notification.AlertRef.ToString()
             );
-            return AlertDeliveryOutcome.Retryable;
+            return AlertSendStatus.Retryable;
         }
     }
 }

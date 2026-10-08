@@ -104,7 +104,10 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   `EnqueueBatchAsync` overload returns, is now `JobEnqueueResponse`, the pair of `JobEnqueueRequest`.
   What the handler waits return takes the `Outcome` noun of `JoinOutcome` and `MapOutcome`:
   `ChildWaitResult`, `ChildrenWaitResult`, and `SignalWaitResult` (with `SignalWaitResult<T>`) are now
-  `ChildWaitOutcome`, `ChildrenWaitOutcome`, and `SignalWaitOutcome`. Members and JSON are unchanged.
+  `ChildWaitOutcome`, `ChildrenWaitOutcome`, and `SignalWaitOutcome`. `AlertDeliveryOutcome`, what
+  `IAlertTransport.SendAsync` returns, is now `AlertSendStatus`, and `JobHandlerInvocationResult`, what a
+  generated handler invoker returns, is now `JobHandlerOutput`; rebuild to regenerate the invokers.
+  Members and JSON are unchanged.
 
 ### Additions
 

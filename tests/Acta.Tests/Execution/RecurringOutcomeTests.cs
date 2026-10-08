@@ -113,7 +113,7 @@ public class RecurringOutcomeTests
             Invoker: static async (_, _, _, _) =>
             {
                 await Task.CompletedTask;
-                return new JobHandlerInvocationResult(false, null);
+                return new JobHandlerOutput(false, null);
             },
             DeserializeInput: static (_, _) => new NoInput(),
             SerializeOutput: null

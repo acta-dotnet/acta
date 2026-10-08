@@ -203,10 +203,6 @@ enum Acta.AlertChannelValidationMode
     Fail = 2
     Off = 0
     Warn = 1
-enum Acta.AlertDeliveryOutcome
-    Delivered = 1
-    Permanent = 3
-    Retryable = 2
 enum Acta.AlertDeliveryStatusCode
     Delivered = 100
     Failed = 200
@@ -351,6 +347,10 @@ sealed class Acta.AlertRefJsonConverter
     .ctor()
     Acta.AlertRef Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.AlertRef value, System.Text.Json.JsonSerializerOptions options)
+enum Acta.AlertSendStatus
+    Delivered = 1
+    Permanent = 3
+    Retryable = 2
 enum Acta.AlertSeverityCode
     Critical = 40
     Error = 30
@@ -964,7 +964,7 @@ interface Acta.IAlertControlResponse
     System.Nullable<System.DateTime> ResolvedAtUtc { get; }
 interface Acta.IAlertTransport
     System.String TransportKind { get; }
-    System.Threading.Tasks.Task<Acta.AlertDeliveryOutcome> SendAsync(Acta.AlertNotification notification, Acta.AlertTarget target, System.Threading.CancellationToken ct)
+    System.Threading.Tasks.Task<Acta.AlertSendStatus> SendAsync(Acta.AlertNotification notification, Acta.AlertTarget target, System.Threading.CancellationToken ct)
 interface Acta.IAlertTransportRegistry
     Acta.IAlertTransport Resolve(System.String transportKind)
 interface Acta.IAlerts
@@ -997,7 +997,7 @@ interface Acta.IJobPayloadSerializerRegistry
     Acta.IJobPayloadSerializer Resolve(System.Byte formatId)
     System.Boolean IsRegistered(System.Byte formatId)
 interface Acta.IJobPipelineBehavior
-    System.Threading.Tasks.ValueTask<Acta.JobHandlerInvocationResult> InvokeAsync(System.Object request, Acta.JobContext context, Acta.JobBehaviorDelegate next, System.Threading.CancellationToken ct)
+    System.Threading.Tasks.ValueTask<Acta.JobHandlerOutput> InvokeAsync(System.Object request, Acta.JobContext context, Acta.JobBehaviorDelegate next, System.Threading.CancellationToken ct)
 interface Acta.IJobs
     Acta.JobInputTemplate GetInputTemplate(System.String jobNamespace, System.String jobName)
     System.Threading.Tasks.ValueTask<Acta.CancelJobResponse> CancelAsync(Acta.JobLookup job, System.String reasonMessage = default, System.String actorKey = default, System.Nullable<System.Int32> expectedVersion = default, System.Threading.CancellationToken ct = default)
@@ -1155,8 +1155,8 @@ sealed class Acta.JobAttribute
 delegate Acta.JobBehaviorDelegate
     .ctor(System.Object object, System.IntPtr method)
     System.IAsyncResult BeginInvoke(System.AsyncCallback callback, System.Object object)
-    System.Threading.Tasks.ValueTask<Acta.JobHandlerInvocationResult> EndInvoke(System.IAsyncResult result)
-    System.Threading.Tasks.ValueTask<Acta.JobHandlerInvocationResult> Invoke()
+    System.Threading.Tasks.ValueTask<Acta.JobHandlerOutput> EndInvoke(System.IAsyncResult result)
+    System.Threading.Tasks.ValueTask<Acta.JobHandlerOutput> Invoke()
 abstract class Acta.JobContext
     Acta.JobRef JobRef { get; }
     System.Boolean IsOverdue { get; }
@@ -1410,15 +1410,15 @@ sealed class Acta.JobFailedException
     .ctor(System.Int64 jobId, Acta.JobStatusCode terminalStatus)
     Acta.JobStatusCode TerminalStatus { get; }
     System.Int64 JobId { get; }
-struct Acta.JobHandlerInvocationResult
-    .ctor(System.Boolean HasResult, System.Object Result)
-    System.Boolean HasResult { get;init; }
-    System.Object Result { get;init; }
 delegate Acta.JobHandlerInvokeDelegate
     .ctor(System.Object object, System.IntPtr method)
     System.IAsyncResult BeginInvoke(System.IServiceProvider attemptServices, System.Object request, Acta.JobContext context, System.Threading.CancellationToken ct, System.AsyncCallback callback, System.Object object)
-    System.Threading.Tasks.ValueTask<Acta.JobHandlerInvocationResult> EndInvoke(System.IAsyncResult result)
-    System.Threading.Tasks.ValueTask<Acta.JobHandlerInvocationResult> Invoke(System.IServiceProvider attemptServices, System.Object request, Acta.JobContext context, System.Threading.CancellationToken ct)
+    System.Threading.Tasks.ValueTask<Acta.JobHandlerOutput> EndInvoke(System.IAsyncResult result)
+    System.Threading.Tasks.ValueTask<Acta.JobHandlerOutput> Invoke(System.IServiceProvider attemptServices, System.Object request, Acta.JobContext context, System.Threading.CancellationToken ct)
+struct Acta.JobHandlerOutput
+    .ctor(System.Boolean HasResult, System.Object Result)
+    System.Boolean HasResult { get;init; }
+    System.Object Result { get;init; }
 sealed class Acta.JobInputTemplate
     .ctor(System.String InputTypeName, Acta.JobPayloadFormat InputFormat, System.String TemplateJson)
     Acta.JobPayloadFormat InputFormat { get;init; }

@@ -14,7 +14,7 @@ public sealed class JobBehaviorPipelineTests
     public void Build_with_no_behaviors_returns_innermost_unchanged()
     {
         var pipeline = new JobBehaviorPipeline([]);
-        JobBehaviorDelegate innermost = () => new ValueTask<JobHandlerInvocationResult>(new JobHandlerInvocationResult(false, null));
+        JobBehaviorDelegate innermost = () => new ValueTask<JobHandlerOutput>(new JobHandlerOutput(false, null));
 
         var built = pipeline.Build(NullServiceProvider.Instance, new object(), context: null!, innermost, CancellationToken.None);
 
@@ -30,10 +30,10 @@ public sealed class JobBehaviorPipelineTests
             _ => new RecordingBehavior("B", log),
             _ => new RecordingBehavior("C", log),
         ]);
-        ValueTask<JobHandlerInvocationResult> handler()
+        ValueTask<JobHandlerOutput> handler()
         {
             log.Add("handler");
-            return new ValueTask<JobHandlerInvocationResult>(new JobHandlerInvocationResult(false, null));
+            return new ValueTask<JobHandlerOutput>(new JobHandlerOutput(false, null));
         }
 
         var chain = pipeline.Build(NullServiceProvider.Instance, new object(), context: null!, handler, CancellationToken.None);
@@ -46,12 +46,12 @@ public sealed class JobBehaviorPipelineTests
     public async Task Build_short_circuit_behavior_skips_handler()
     {
         var handlerRan = false;
-        var shortCircuitResult = new JobHandlerInvocationResult(true, "cached");
+        var shortCircuitResult = new JobHandlerOutput(true, "cached");
         var pipeline = new JobBehaviorPipeline([_ => new ShortCircuitBehavior(shortCircuitResult)]);
-        ValueTask<JobHandlerInvocationResult> handler()
+        ValueTask<JobHandlerOutput> handler()
         {
             handlerRan = true;
-            return new ValueTask<JobHandlerInvocationResult>(new JobHandlerInvocationResult(false, null));
+            return new ValueTask<JobHandlerOutput>(new JobHandlerOutput(false, null));
         }
 
         var chain = pipeline.Build(NullServiceProvider.Instance, new object(), context: null!, handler, CancellationToken.None);
@@ -66,7 +66,7 @@ public sealed class JobBehaviorPipelineTests
     {
         var thrown = new RescheduleJobException(TimeSpan.FromSeconds(5));
         var pipeline = new JobBehaviorPipeline([_ => new RecordingBehavior("A", [])]);
-        ValueTask<JobHandlerInvocationResult> handler() => throw thrown;
+        ValueTask<JobHandlerOutput> handler() => throw thrown;
 
         var chain = pipeline.Build(NullServiceProvider.Instance, new object(), context: null!, handler, CancellationToken.None);
 
@@ -79,10 +79,10 @@ public sealed class JobBehaviorPipelineTests
     {
         var handlerRuns = 0;
         var pipeline = new JobBehaviorPipeline([_ => new DoubleNextBehavior()]);
-        ValueTask<JobHandlerInvocationResult> handler()
+        ValueTask<JobHandlerOutput> handler()
         {
             handlerRuns++;
-            return new ValueTask<JobHandlerInvocationResult>(new JobHandlerInvocationResult(false, null));
+            return new ValueTask<JobHandlerOutput>(new JobHandlerOutput(false, null));
         }
 
         var chain = pipeline.Build(NullServiceProvider.Instance, new object(), context: null!, handler, CancellationToken.None);
@@ -93,7 +93,7 @@ public sealed class JobBehaviorPipelineTests
 
     private sealed class RecordingBehavior(string tag, List<string> log) : IJobPipelineBehavior
     {
-        public async ValueTask<JobHandlerInvocationResult> InvokeAsync(
+        public async ValueTask<JobHandlerOutput> InvokeAsync(
             object request,
             JobContext context,
             JobBehaviorDelegate next,
@@ -107,9 +107,9 @@ public sealed class JobBehaviorPipelineTests
         }
     }
 
-    private sealed class ShortCircuitBehavior(JobHandlerInvocationResult result) : IJobPipelineBehavior
+    private sealed class ShortCircuitBehavior(JobHandlerOutput result) : IJobPipelineBehavior
     {
-        public ValueTask<JobHandlerInvocationResult> InvokeAsync(
+        public ValueTask<JobHandlerOutput> InvokeAsync(
             object request,
             JobContext context,
             JobBehaviorDelegate next,
@@ -119,7 +119,7 @@ public sealed class JobBehaviorPipelineTests
 
     private sealed class DoubleNextBehavior : IJobPipelineBehavior
     {
-        public async ValueTask<JobHandlerInvocationResult> InvokeAsync(
+        public async ValueTask<JobHandlerOutput> InvokeAsync(
             object request,
             JobContext context,
             JobBehaviorDelegate next,

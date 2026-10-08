@@ -73,7 +73,7 @@ public sealed class StepExhaustionManifest : IJobManifest
                 Invoker: static async (_, _, ctx, ct) =>
                 {
                     await StepExhaustionProbes.ExhaustReplay(ctx, ct);
-                    return new JobHandlerInvocationResult(false, null);
+                    return new JobHandlerOutput(false, null);
                 },
                 DeserializeInput: static (_, _) => new NoInput(),
                 SerializeOutput: null
@@ -99,7 +99,7 @@ public sealed class StepExhaustionManifest : IJobManifest
                 Invoker: static async (_, _, ctx, ct) =>
                 {
                     await StepExhaustionProbes.WindowExhaust(ctx, ct);
-                    return new JobHandlerInvocationResult(false, null);
+                    return new JobHandlerOutput(false, null);
                 },
                 DeserializeInput: static (_, _) => new NoInput(),
                 SerializeOutput: null

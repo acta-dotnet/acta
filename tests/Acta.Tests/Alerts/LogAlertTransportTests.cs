@@ -33,7 +33,7 @@ public sealed class LogAlertTransportTests
 
         var outcome = await transport.SendAsync(notification, target, CancellationToken.None);
 
-        Assert.Equal(AlertDeliveryOutcome.Delivered, outcome);
+        Assert.Equal(AlertSendStatus.Delivered, outcome);
         var entry = Assert.Single(logger.Entries);
         Assert.Equal(LogLevel.Error, entry.Level);
         Assert.Contains("https://runbook.example/job-failed", entry.Message);

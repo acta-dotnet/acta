@@ -74,7 +74,7 @@ public sealed class AtMostOnceStepManifest : IJobManifest
             Invoker: async (_, _, ctx, ct) =>
             {
                 await run(ctx, ct);
-                return new JobHandlerInvocationResult(false, null);
+                return new JobHandlerOutput(false, null);
             },
             DeserializeInput: static (_, _) => new NoInput(),
             SerializeOutput: null

@@ -45,7 +45,7 @@ public sealed class IntervalPingManifest : IJobManifest
                 Invoker: static async (_, _, ctx, ct) =>
                 {
                     await IntervalPingHandler.Run(ctx, ct);
-                    return new JobHandlerInvocationResult(false, null);
+                    return new JobHandlerOutput(false, null);
                 },
                 DeserializeInput: static (_, _) => new NoInput(),
                 SerializeOutput: null

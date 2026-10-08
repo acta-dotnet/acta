@@ -88,11 +88,11 @@ internal sealed class CountingAlertTransport : IAlertTransport
     /// <summary>Every alert ref this transport has ever been handed, in no particular order.</summary>
     public IReadOnlyList<Guid> SentRefs() => [.. _lastSentSequence.Keys];
 
-    public Task<AlertDeliveryOutcome> SendAsync(AlertNotification notification, AlertTarget target, CancellationToken ct)
+    public Task<AlertSendStatus> SendAsync(AlertNotification notification, AlertTarget target, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(notification);
         _lastSentSequence[notification.AlertRef.Value] = Interlocked.Increment(ref _attempts);
-        return Task.FromResult(AlertDeliveryOutcome.Delivered);
+        return Task.FromResult(AlertSendStatus.Delivered);
     }
 }
 

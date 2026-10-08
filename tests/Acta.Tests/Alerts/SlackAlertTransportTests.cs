@@ -10,7 +10,7 @@ namespace Acta.Tests.Alerts;
 /// The Slack webhook transport, driven over a stub <see cref="HttpMessageHandler"/> so the whole
 /// request/response contract is exercised without a network. Four things are pinned: what goes on the
 /// wire (one POST of the <see cref="SlackAlertFormatter"/> payload as UTF-8 JSON to the channel's
-/// endpoint), how an HTTP status maps to <see cref="AlertDeliveryOutcome"/> (2xx delivered, 429 and 5xx
+/// endpoint), how an HTTP status maps to <see cref="AlertSendStatus"/> (2xx delivered, 429 and 5xx
 /// retryable, other 4xx permanent - the difference between an alert that retries and one that is marked
 /// terminally Failed), what an unreachable Slack does (retryable, with a warning that names the channel
 /// and the alert), and that shutdown cancellation propagates instead of being reported as a delivery
@@ -33,7 +33,7 @@ public sealed class SlackAlertTransportTests
 
         var outcome = await transport.SendAsync(Notification(), Target(endpoint: "   "), TestContext.Current.CancellationToken);
 
-        Assert.Equal(AlertDeliveryOutcome.Permanent, outcome);
+        Assert.Equal(AlertSendStatus.Permanent, outcome);
         Assert.Empty(handler.Requests);
         var entry = Assert.Single(log.Entries);
         Assert.Equal(LogLevel.Warning, entry.Level);
@@ -52,7 +52,7 @@ public sealed class SlackAlertTransportTests
 
         var outcome = await transport.SendAsync(notification, Target(), TestContext.Current.CancellationToken);
 
-        Assert.Equal(AlertDeliveryOutcome.Delivered, outcome);
+        Assert.Equal(AlertSendStatus.Delivered, outcome);
         var request = Assert.Single(handler.Requests);
         Assert.Equal(HttpMethod.Post, request.Method);
         Assert.Equal(Endpoint, request.Uri);
@@ -75,17 +75,17 @@ public sealed class SlackAlertTransportTests
 
     [Theory]
     // Slack's own rate limit is the one a storm hits first, and it must not burn the alert.
-    [InlineData(HttpStatusCode.TooManyRequests, AlertDeliveryOutcome.Retryable)]
-    [InlineData(HttpStatusCode.InternalServerError, AlertDeliveryOutcome.Retryable)]
-    [InlineData(HttpStatusCode.ServiceUnavailable, AlertDeliveryOutcome.Retryable)]
-    [InlineData((HttpStatusCode)599, AlertDeliveryOutcome.Retryable)]
+    [InlineData(HttpStatusCode.TooManyRequests, AlertSendStatus.Retryable)]
+    [InlineData(HttpStatusCode.InternalServerError, AlertSendStatus.Retryable)]
+    [InlineData(HttpStatusCode.ServiceUnavailable, AlertSendStatus.Retryable)]
+    [InlineData((HttpStatusCode)599, AlertSendStatus.Retryable)]
     // A revoked or mistyped webhook answers 404/403/400; retrying that forever only burns the queue.
-    [InlineData(HttpStatusCode.NotFound, AlertDeliveryOutcome.Permanent)]
-    [InlineData(HttpStatusCode.Forbidden, AlertDeliveryOutcome.Permanent)]
-    [InlineData(HttpStatusCode.BadRequest, AlertDeliveryOutcome.Permanent)]
+    [InlineData(HttpStatusCode.NotFound, AlertSendStatus.Permanent)]
+    [InlineData(HttpStatusCode.Forbidden, AlertSendStatus.Permanent)]
+    [InlineData(HttpStatusCode.BadRequest, AlertSendStatus.Permanent)]
     // 2xx other than 200: Slack answers 200 today, but IsSuccessStatusCode is the stated rule.
-    [InlineData(HttpStatusCode.Accepted, AlertDeliveryOutcome.Delivered)]
-    public async Task An_http_status_maps_to_the_retry_semantics_the_projector_acts_on(HttpStatusCode status, AlertDeliveryOutcome expected)
+    [InlineData(HttpStatusCode.Accepted, AlertSendStatus.Delivered)]
+    public async Task An_http_status_maps_to_the_retry_semantics_the_projector_acts_on(HttpStatusCode status, AlertSendStatus expected)
     {
         var handler = new StubHandler((_, _) => new HttpResponseMessage(status));
         var transport = new SlackAlertTransport(new HttpClient(handler), new RecordingLogger());
@@ -109,7 +109,7 @@ public sealed class SlackAlertTransportTests
 
         var outcome = await transport.SendAsync(Notification(), Target(), TestContext.Current.CancellationToken);
 
-        Assert.Equal(AlertDeliveryOutcome.Retryable, outcome);
+        Assert.Equal(AlertSendStatus.Retryable, outcome);
         var entry = Assert.Single(log.Entries);
         Assert.Equal(LogLevel.Warning, entry.Level);
         Assert.Contains("failed transiently", entry.Message, StringComparison.Ordinal);

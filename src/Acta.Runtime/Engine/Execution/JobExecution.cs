@@ -385,7 +385,7 @@ internal sealed class JobExecution(
                 jobContext.CancellationToken.ThrowIfCancellationRequested();
                 var requestObject = DeserializeInput(descriptor, job);
                 inputDeserialized = true;
-                ValueTask<JobHandlerInvocationResult> handlerInvocation()
+                ValueTask<JobHandlerOutput> handlerInvocation()
                 {
                     // CLI 'jobs debug --break': raise the debugger and stop right here, so step-into
                     // lands in the user's handler. Only ever set on the CLI debug path (DebugBreak).

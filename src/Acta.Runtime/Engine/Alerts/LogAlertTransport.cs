@@ -16,7 +16,7 @@ internal sealed class LogAlertTransport(ILogger<LogAlertTransport>? log = null) 
 
     public string TransportKind => Kind;
 
-    public Task<AlertDeliveryOutcome> SendAsync(AlertNotification n, AlertTarget target, CancellationToken ct)
+    public Task<AlertSendStatus> SendAsync(AlertNotification n, AlertTarget target, CancellationToken ct)
     {
         // Map the alert severity onto the log level so Error and Critical alerts survive a pipeline that
         // filters out Information; the log transport is the default fallback, so it must not silently
@@ -46,6 +46,6 @@ internal sealed class LogAlertTransport(ILogger<LogAlertTransport>? log = null) 
             n.OccurrenceCount,
             $"[{n.Severity}] ch={target.ChannelName} runbook={n.RunbookUrl} {n.Title} - {n.Message}"
         );
-        return Task.FromResult(AlertDeliveryOutcome.Delivered);
+        return Task.FromResult(AlertSendStatus.Delivered);
     }
 }

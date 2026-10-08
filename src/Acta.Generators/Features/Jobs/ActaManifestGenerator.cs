@@ -1845,7 +1845,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                 sb.AppendLine();
             }
 
-            sb.AppendLine($"    public static async ValueTask<JobHandlerInvocationResult> Invoke_{safe}(");
+            sb.AppendLine($"    public static async ValueTask<JobHandlerOutput> Invoke_{safe}(");
             sb.AppendLine($"        IServiceProvider attemptServices, object request, JobContext context, CancellationToken ct)");
             sb.AppendLine("    {");
             EmitInvokerBody(sb, j);
@@ -1909,12 +1909,12 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             if (hasResult)
             {
                 sb.AppendLine($"        var result = await {target};");
-                sb.AppendLine("        return new JobHandlerInvocationResult(HasResult: true, Result: result);");
+                sb.AppendLine("        return new JobHandlerOutput(HasResult: true, Result: result);");
             }
             else
             {
                 sb.AppendLine($"        await {target};");
-                sb.AppendLine("        return new JobHandlerInvocationResult(HasResult: false, Result: null);");
+                sb.AppendLine("        return new JobHandlerOutput(HasResult: false, Result: null);");
             }
         }
         else
@@ -1933,7 +1933,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             }
             sb.AppendLine("        await ValueTask.CompletedTask;");
             var resultClause = hasResult ? "HasResult: true, Result: result" : "HasResult: false, Result: null";
-            sb.AppendLine($"        return new JobHandlerInvocationResult({resultClause});");
+            sb.AppendLine($"        return new JobHandlerOutput({resultClause});");
         }
     }
 

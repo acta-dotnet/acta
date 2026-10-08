@@ -85,7 +85,7 @@ public sealed class AlertChannelDecisionTests
     {
         public string TransportKind => AlertTransportKinds.Log;
 
-        public Task<AlertDeliveryOutcome> SendAsync(AlertNotification notification, AlertTarget target, CancellationToken ct) =>
-            Task.FromResult(AlertDeliveryOutcome.Delivered);
+        public Task<AlertSendStatus> SendAsync(AlertNotification notification, AlertTarget target, CancellationToken ct) =>
+            Task.FromResult(AlertSendStatus.Delivered);
     }
 }

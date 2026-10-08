@@ -40,7 +40,7 @@ public sealed class ScheduledSlotPriorityManifest : IJobManifest
                 Invoker: static async (_, _, ctx, ct) =>
                 {
                     await PrioritySlotHandler.Run(ctx, ct);
-                    return new JobHandlerInvocationResult(false, null);
+                    return new JobHandlerOutput(false, null);
                 },
                 DeserializeInput: static (_, _) => new NoInput(),
                 SerializeOutput: null

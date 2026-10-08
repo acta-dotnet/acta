@@ -49,7 +49,7 @@ public sealed class RollingGenerationBManifest : IJobManifest
                 Invoker: static async (_, _, ctx, ct) =>
                 {
                     await RollingOnlyHandler.Run(ctx, ct);
-                    return new JobHandlerInvocationResult(false, null);
+                    return new JobHandlerOutput(false, null);
                 },
                 DeserializeInput: static (_, _) => new NoInput(),
                 SerializeOutput: null

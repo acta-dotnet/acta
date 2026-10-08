@@ -5,7 +5,7 @@ namespace Acta;
 /// handler invoker at the innermost link. It captures the per-attempt request, context, and
 /// cancellation token, so a behavior continues the pipeline with no arguments.
 /// </summary>
-public delegate ValueTask<JobHandlerInvocationResult> JobBehaviorDelegate();
+public delegate ValueTask<JobHandlerOutput> JobBehaviorDelegate();
 
 /// <summary>
 /// A behavior wrapping the handler invocation for one attempt. Behaviors run inside the attempt, after
@@ -27,10 +27,10 @@ public interface IJobPipelineBehavior
     /// </summary>
     /// <remarks>
     /// A behavior may skip <paramref name="next"/> to short-circuit, but then it owns producing a valid
-    /// <see cref="JobHandlerInvocationResult"/>. Calling <paramref name="next"/> more than once throws,
+    /// <see cref="JobHandlerOutput"/>. Calling <paramref name="next"/> more than once throws,
     /// because a second call would re-run the handler within the same attempt. Exceptions (including
     /// <c>JobControlException</c> subclasses) must propagate so the runtime outcome ladder classifies
     /// them; do not swallow them into a fake success.
     /// </remarks>
-    ValueTask<JobHandlerInvocationResult> InvokeAsync(object request, JobContext context, JobBehaviorDelegate next, CancellationToken ct);
+    ValueTask<JobHandlerOutput> InvokeAsync(object request, JobContext context, JobBehaviorDelegate next, CancellationToken ct);
 }

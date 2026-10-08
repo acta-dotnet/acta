@@ -424,7 +424,7 @@ internal sealed class AlertsJob(
             {
                 case AlertChannelDecisionKind.Failed:
                     LogFailedDecision(ctx, a, channel, decision.Reason);
-                    await SettleAsync(a, AlertDeliveryOutcome.Permanent, settlement, ct);
+                    await SettleAsync(a, AlertSendStatus.Permanent, settlement, ct);
                     continue;
 
                 case AlertChannelDecisionKind.Suppressed:
@@ -438,7 +438,7 @@ internal sealed class AlertsJob(
         }
     }
 
-    private async Task<AlertDeliveryOutcome> SendAsync(
+    private async Task<AlertSendStatus> SendAsync(
         JobContext ctx,
         DeliverableAlert a,
         AlertChannelDeclaration channel,
@@ -482,7 +482,7 @@ internal sealed class AlertsJob(
                 channel.TransportKind,
                 RenderRef(a.AlertRef)
             );
-            return AlertDeliveryOutcome.Retryable;
+            return AlertSendStatus.Retryable;
         }
     }
 
@@ -542,7 +542,7 @@ internal sealed class AlertsJob(
     private Task SuppressAsync(DeliverableAlert a, CancellationToken ct) =>
         WriteSettlementAsync(a, AlertDeliveryStatusCode.Suppressed, a.RetryCount, retryAfterUtc: null, ct);
 
-    private Task SettleAsync(DeliverableAlert a, AlertDeliveryOutcome outcome, AlertSettlementClock settlement, CancellationToken ct)
+    private Task SettleAsync(DeliverableAlert a, AlertSendStatus outcome, AlertSettlementClock settlement, CancellationToken ct)
     {
         // Read once per settlement, so the status, the count and the instant this row lands with all
         // describe the same moment - the moment the attempt settled, not the moment the pass began.
@@ -553,10 +553,10 @@ internal sealed class AlertsJob(
             // ended. A row that took four attempts to land would otherwise carry that four into its next
             // reminder, where one throw is enough to reach the cap - a reminder that goes terminal on its
             // first failure, having never once been retried. Each series starts with the whole curve.
-            case AlertDeliveryOutcome.Delivered:
+            case AlertSendStatus.Delivered:
                 return WriteSettlementAsync(a, AlertDeliveryStatusCode.Delivered, retryCount: 0, ReminderAfter(a, nowUtc), ct);
 
-            case AlertDeliveryOutcome.Retryable:
+            case AlertSendStatus.Retryable:
                 var nextRetryCount = a.RetryCount + 1;
                 if (nextRetryCount >= _maxDeliveryRetries)
                 {

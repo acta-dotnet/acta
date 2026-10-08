@@ -61,7 +61,7 @@ public sealed class AddPipelineBehaviorRegistrationTests
 
     private sealed class BehaviorA : IJobPipelineBehavior
     {
-        public ValueTask<JobHandlerInvocationResult> InvokeAsync(
+        public ValueTask<JobHandlerOutput> InvokeAsync(
             object request,
             JobContext context,
             JobBehaviorDelegate next,
@@ -71,7 +71,7 @@ public sealed class AddPipelineBehaviorRegistrationTests
 
     private sealed class BehaviorB : IJobPipelineBehavior
     {
-        public ValueTask<JobHandlerInvocationResult> InvokeAsync(
+        public ValueTask<JobHandlerOutput> InvokeAsync(
             object request,
             JobContext context,
             JobBehaviorDelegate next,

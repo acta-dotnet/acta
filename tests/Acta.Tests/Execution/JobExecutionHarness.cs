@@ -334,7 +334,7 @@ internal sealed class JobExecutionHarness(
             Invoker: async (_, _, ctx, token) =>
             {
                 await handler(ctx, token);
-                return new JobHandlerInvocationResult(false, null);
+                return new JobHandlerOutput(false, null);
             },
             DeserializeInput: static (_, _) => new NoInput(),
             SerializeOutput: null

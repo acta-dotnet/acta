@@ -42,7 +42,7 @@ namespace Acta.Concepts.PipelineBehavior
     // take constructor dependencies (including the scoped JobContext).
     public sealed class TimingBehavior : IJobPipelineBehavior
     {
-        public async ValueTask<JobHandlerInvocationResult> InvokeAsync(
+        public async ValueTask<JobHandlerOutput> InvokeAsync(
             object request,
             JobContext context,
             JobBehaviorDelegate next,

@@ -83,7 +83,7 @@ public sealed class AlertTransportContractTests
 
         var outcome = await new LogAlertTransport(logger).SendAsync(Notification(), Target(), TestContext.Current.CancellationToken);
 
-        Assert.Equal(AlertDeliveryOutcome.Delivered, outcome);
+        Assert.Equal(AlertSendStatus.Delivered, outcome);
         var entry = Assert.Single(logger.Entries);
         AssertRendersRefsOnly(entry.Message, TestAlertRef.ToString(), TestJobRef.ToString());
 

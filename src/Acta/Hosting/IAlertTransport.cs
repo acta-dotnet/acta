@@ -1,9 +1,9 @@
 namespace Acta;
 
 /// <summary>
-/// Outcome of one delivery attempt by an <see cref="IAlertTransport"/>.
+/// What one <see cref="IAlertTransport.SendAsync"/> call reports about its delivery attempt.
 /// </summary>
-public enum AlertDeliveryOutcome : byte
+public enum AlertSendStatus : byte
 {
     /// <summary>Delivered successfully; the alert is marked <c>Delivered</c>.</summary>
     Delivered = 1,
@@ -56,10 +56,10 @@ public interface IAlertTransport
 
     /// <summary>
     /// Deliver <paramref name="notification"/> to <paramref name="target"/>. Never throws for an expected
-    /// transport failure; returns <see cref="AlertDeliveryOutcome.Retryable"/> or
-    /// <see cref="AlertDeliveryOutcome.Permanent"/> instead.
+    /// transport failure; returns <see cref="AlertSendStatus.Retryable"/> or
+    /// <see cref="AlertSendStatus.Permanent"/> instead.
     /// </summary>
-    Task<AlertDeliveryOutcome> SendAsync(AlertNotification notification, AlertTarget target, CancellationToken ct);
+    Task<AlertSendStatus> SendAsync(AlertNotification notification, AlertTarget target, CancellationToken ct);
 }
 
 /// <summary>

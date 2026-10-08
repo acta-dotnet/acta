@@ -633,7 +633,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
             MaxAttempts: 3,
             AuditLevel: DefinitionAuditLevelCode.Audit,
             AlertProfile: AlertProfileCode.OnFailure,
-            Invoker: static (_, _, _, _) => ValueTask.FromResult(new JobHandlerInvocationResult(false, null)),
+            Invoker: static (_, _, _, _) => ValueTask.FromResult(new JobHandlerOutput(false, null)),
             DeserializeInput: static (_, _) => string.Empty,
             SerializeOutput: null
         )

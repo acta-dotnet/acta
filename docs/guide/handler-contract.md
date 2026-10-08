@@ -167,7 +167,7 @@ public sealed class LoggingBehavior : IJobPipelineBehavior
         _log = log;
     }
 
-    public async ValueTask<JobHandlerInvocationResult> InvokeAsync(
+    public async ValueTask<JobHandlerOutput> InvokeAsync(
         object request,
         JobContext context,
         JobBehaviorDelegate next,
@@ -186,7 +186,7 @@ Rules:
 * Behaviors resolve from the per-attempt DI scope; they take constructor-injected dependencies, including the scoped `JobContext`.
 * Default lifetime is scoped (one instance per attempt), which a behavior using `JobContext` requires. A stateless behavior with no scoped dependencies may register as a singleton: `jobs.AddPipelineBehavior<ValidationBehavior>(ServiceLifetime.Singleton)`.
 * First registered is outermost; last wraps the handler. A behavior type registered twice is registered once.
-* `next` is called at most once; a second call throws, because it would re-run the handler within one attempt. A behavior may skip `next` to short-circuit, but then it owns returning a valid `JobHandlerInvocationResult`.
+* `next` is called at most once; a second call throws, because it would re-run the handler within one attempt. A behavior may skip `next` to short-circuit, but then it owns returning a valid `JobHandlerOutput`.
 * Exceptions, including control-signal exceptions, propagate through behaviors to the runtime; a behavior must not swallow them into a success.
 * `IJobPipelineBehavior` is registered, never attributed; `[Job]` is never placed on it.
 

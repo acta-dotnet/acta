@@ -593,7 +593,7 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
     {
         public string TransportKind => ThrowingKind;
 
-        public Task<AlertDeliveryOutcome> SendAsync(AlertNotification n, AlertTarget t, CancellationToken ct) =>
+        public Task<AlertSendStatus> SendAsync(AlertNotification n, AlertTarget t, CancellationToken ct) =>
             throw new InvalidOperationException("Test: simulated transport failure.");
     }
 
@@ -606,10 +606,10 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
     {
         public string TransportKind => PausingKind;
 
-        public async Task<AlertDeliveryOutcome> SendAsync(AlertNotification n, AlertTarget t, CancellationToken ct)
+        public async Task<AlertSendStatus> SendAsync(AlertNotification n, AlertTarget t, CancellationToken ct)
         {
             await Task.Delay(SendPause, ct);
-            return AlertDeliveryOutcome.Delivered;
+            return AlertSendStatus.Delivered;
         }
     }
 
@@ -628,14 +628,14 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
 
         public void ResolveDuringSend(Func<Task> action) => Interlocked.Exchange(ref _duringSend, action);
 
-        public async Task<AlertDeliveryOutcome> SendAsync(AlertNotification n, AlertTarget t, CancellationToken ct)
+        public async Task<AlertSendStatus> SendAsync(AlertNotification n, AlertTarget t, CancellationToken ct)
         {
             if (Interlocked.Exchange(ref _duringSend, null) is { } action)
             {
                 await action();
             }
 
-            return AlertDeliveryOutcome.Delivered;
+            return AlertSendStatus.Delivered;
         }
     }
 }
