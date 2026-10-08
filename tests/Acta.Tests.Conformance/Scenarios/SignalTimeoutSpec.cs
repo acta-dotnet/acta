@@ -380,7 +380,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
 
         // Still pending - the bound arms a deadline, it does not resolve the wait - and now bounded, so
         // the job the next suspend caches it on can be claimed back at that instant.
-        Assert.Equal(SignalWaitOutcomeCode.SuspendPending, decision.Outcome);
+        Assert.Equal(WaitSignalOutcomeCode.SuspendPending, decision.Outcome);
         var slot = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct));
         Assert.Equal(CheckpointStatusCode.Pending, slot.Status);
         Assert.NotNull(slot.DueAtUtc);

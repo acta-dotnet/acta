@@ -91,7 +91,7 @@ internal sealed class RecoverySlotMonitor(
             // A slot row that is gone cannot be claimed, so there is nothing to run.
             if (
                 await CheckAndRepairAsync(_execution, _publisher, namespaceId, namespaceName, slotJobId, _log, ct)
-                == RecoverySlotRepair.Missing
+                == RepairRecoverySlotOutcomeCode.Missing
             )
             {
                 continue;
@@ -124,7 +124,7 @@ internal sealed class RecoverySlotMonitor(
     /// stranded slot commit one repair and one event between them; the second sees a healthy slot.
     /// Shared with the initializer, which runs it once at startup ahead of any periodic check.
     /// </summary>
-    internal static async Task<RecoverySlotRepair> CheckAndRepairAsync(
+    internal static async Task<RepairRecoverySlotOutcomeCode> CheckAndRepairAsync(
         Execution execution,
         WorkerWakeupPublisher? publisher,
         int namespaceId,
@@ -137,14 +137,14 @@ internal sealed class RecoverySlotMonitor(
         var outcome = (await execution.RepairRecoverySlotAsync(namespaceId, slotJobId, ct)).Repair;
         switch (outcome)
         {
-            case RecoverySlotRepair.Missing:
+            case RepairRecoverySlotOutcomeCode.Missing:
                 log.LogWarning(
                     "Namespace ({Namespace}): the sys.recovery slot row is gone; the recovery monitor will not recreate it.",
                     namespaceName
                 );
-                return RecoverySlotRepair.Missing;
-            case RecoverySlotRepair.Healthy:
-                return RecoverySlotRepair.Healthy;
+                return RepairRecoverySlotOutcomeCode.Missing;
+            case RepairRecoverySlotOutcomeCode.Healthy:
+                return RepairRecoverySlotOutcomeCode.Healthy;
             default:
                 break;
         }
@@ -156,6 +156,6 @@ internal sealed class RecoverySlotMonitor(
             await publisher.WakeAsync(WorkerWakeupChannel.WorkerNamespace(namespaceName), WorkerWakeupReason.WorkAvailable, ct);
         }
 
-        return RecoverySlotRepair.Repaired;
+        return RepairRecoverySlotOutcomeCode.Repaired;
     }
 }

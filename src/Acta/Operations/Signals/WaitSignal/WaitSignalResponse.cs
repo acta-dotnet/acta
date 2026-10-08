@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>Routine outcome for one <c>wait_signal</c> call; mirrors the SQL <c>outcome_code</c>.</summary>
-internal enum SignalWaitOutcomeCode : byte
+internal enum WaitSignalOutcomeCode : byte
 {
     /// <summary>No Set slot; a Pending row exists (created or already present). The job must suspend.</summary>
     SuspendPending = 1,
@@ -18,4 +18,4 @@ internal enum SignalWaitOutcomeCode : byte
 
 /// <summary>The wait decision plus the stored payload when the outcome is ContinueSet.</summary>
 [DbProjection]
-internal sealed record WaitSignalResponse(SignalWaitOutcomeCode Outcome, byte ValueFormatId, byte[]? Value);
+internal sealed record WaitSignalResponse(WaitSignalOutcomeCode Outcome, byte ValueFormatId, byte[]? Value);

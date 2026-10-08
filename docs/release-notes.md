@@ -121,7 +121,8 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   `enqueue_one` and `enqueue_batch` are now `enqueue_job` and `enqueue_jobs`, so a direct SQL enqueue calls
   `enqueue_job`, and a database provisioned from the previous `docs/reference/schema-<provider>.sql` runs the
   new one before this build starts. The old routines stay installed for older workers during a rolling deploy;
-  drop them once none runs. The object package moves to revision 49; the minimum stays 9.
+  drop them once none runs. The object package moves to revision 49; the minimum stays 9. It moves to revision 50 for a
+  comment-only edit of `repair_recovery_slot`, `wait_signal`, and `arm_or_consume_sleep_timer`.
 - **Each list returns its own response.** `PagedResult<T>` is gone. Every list method returns its own
   `ListXResponse`, named for the operation, which implements the new `IPagedResponse<T>` with the same five
   members, and its element is `ListXItem`: `ILedger.ListJobsAsync` returns `ListJobsResponse` and

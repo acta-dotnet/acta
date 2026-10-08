@@ -39,11 +39,11 @@ BEGIN
 
         IF @state = 20 /* CheckpointStatusCode.Set */
             BEGIN
-                SET @outcome = 2 /* SignalWaitOutcomeCode.ContinueSet */;
+                SET @outcome = 2 /* WaitSignalOutcomeCode.ContinueSet */;
             END
         ELSE IF @state = 30 /* CheckpointStatusCode.Expired */
             BEGIN
-                SET @outcome = 3 /* SignalWaitOutcomeCode.TimedOut */;
+                SET @outcome = 3 /* WaitSignalOutcomeCode.TimedOut */;
                 SET @fmt = 0 /* JobPayloadFormat.None */;
                 SET @val = NULL;
             END
@@ -56,7 +56,7 @@ BEGIN
                     version = version + 1
                 WHERE job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name;
 
-                SET @outcome = 3 /* SignalWaitOutcomeCode.TimedOut */;
+                SET @outcome = 3 /* WaitSignalOutcomeCode.TimedOut */;
                 SET @fmt = 0 /* JobPayloadFormat.None */;
                 SET @val = NULL;
             END
@@ -86,7 +86,7 @@ BEGIN
                             AND status_code = 10 /* CheckpointStatusCode.Pending */
                             AND due_at_utc IS NULL;
                     END
-                SET @outcome = 1 /* SignalWaitOutcomeCode.SuspendPending */;
+                SET @outcome = 1 /* WaitSignalOutcomeCode.SuspendPending */;
                 SET @fmt = 0 /* JobPayloadFormat.None */;
                 SET @val = NULL;
             END

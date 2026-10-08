@@ -39,7 +39,7 @@ public sealed class RecoverySlotMonitorSpec : ActaRuntimeTestBase<ConformanceFix
         await StrandAsync(slotId, JobStatusCode.Executing, DateTime.UtcNow.AddMinutes(5), ct);
         var before = await RuntimeAsync(slotId, ct);
 
-        Assert.Equal(RecoverySlotRepair.Healthy, await CheckAsync(slotId, ct));
+        Assert.Equal(RepairRecoverySlotOutcomeCode.Healthy, await CheckAsync(slotId, ct));
 
         var after = await RuntimeAsync(slotId, ct);
         Assert.Equal(JobStatusCode.Executing, after.Status);
@@ -55,7 +55,7 @@ public sealed class RecoverySlotMonitorSpec : ActaRuntimeTestBase<ConformanceFix
         await StrandAsync(slotId, JobStatusCode.Executing, DateTime.UtcNow.AddMinutes(-5), ct);
         var before = await RuntimeAsync(slotId, ct);
 
-        Assert.Equal(RecoverySlotRepair.Repaired, await CheckAsync(slotId, ct));
+        Assert.Equal(RepairRecoverySlotOutcomeCode.Repaired, await CheckAsync(slotId, ct));
 
         var after = await RuntimeAsync(slotId, ct);
         Assert.Equal(JobStatusCode.Ready, after.Status);
@@ -74,7 +74,7 @@ public sealed class RecoverySlotMonitorSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Equal(JobStatusCode.Ready, lost.ToStatus);
 
         // A second check sees a Ready slot and does nothing.
-        Assert.Equal(RecoverySlotRepair.Healthy, await CheckAsync(slotId, ct));
+        Assert.Equal(RepairRecoverySlotOutcomeCode.Healthy, await CheckAsync(slotId, ct));
     }
 
     [Fact(DisplayName = "A slot claimed but not yet started when its worker died is recorded as lost from Dispatched")]
@@ -85,7 +85,7 @@ public sealed class RecoverySlotMonitorSpec : ActaRuntimeTestBase<ConformanceFix
         await StrandAsync(slotId, JobStatusCode.Dispatched, DateTime.UtcNow.AddMinutes(-5), ct);
         var before = await RuntimeAsync(slotId, ct);
 
-        Assert.Equal(RecoverySlotRepair.Repaired, await CheckAsync(slotId, ct));
+        Assert.Equal(RepairRecoverySlotOutcomeCode.Repaired, await CheckAsync(slotId, ct));
 
         Assert.Equal(JobStatusCode.Ready, (await RuntimeAsync(slotId, ct)).Status);
         var finished = await Db.From<EventEntity>()
@@ -116,8 +116,8 @@ public sealed class RecoverySlotMonitorSpec : ActaRuntimeTestBase<ConformanceFix
             .ToArray();
         start.SetResult();
         var outcomes = await Task.WhenAll(repairs);
-        Assert.Single(outcomes, o => o == RecoverySlotRepair.Repaired);
-        Assert.Single(outcomes, o => o == RecoverySlotRepair.Healthy);
+        Assert.Single(outcomes, o => o == RepairRecoverySlotOutcomeCode.Repaired);
+        Assert.Single(outcomes, o => o == RepairRecoverySlotOutcomeCode.Healthy);
 
         var finished = await Db.From<EventEntity>()
             .Where(e => e.JobId == slotId && e.EventCode == EventCode.JobExecutionFinished && e.ExecutionNumber == before.ExecutionNumber)
@@ -140,7 +140,7 @@ public sealed class RecoverySlotMonitorSpec : ActaRuntimeTestBase<ConformanceFix
         // because SQLite waits for the write lock synchronously, inside BEGIN IMMEDIATE; awaited inline
         // it would hold this thread, and the commit that lets it through would never be reached.
         await using var conn = await Db.OpenConnectionAsync(ct);
-        RecoverySlotRepair outcome;
+        RepairRecoverySlotOutcomeCode outcome;
         await using (var tx = await conn.BeginTransactionAsync(ct))
         {
             await RenewLeaseAsync(conn, tx, slotId, DateTime.UtcNow.AddMinutes(5), ct);
@@ -153,7 +153,7 @@ public sealed class RecoverySlotMonitorSpec : ActaRuntimeTestBase<ConformanceFix
             outcome = (await repair).Repair;
         }
 
-        Assert.Equal(RecoverySlotRepair.Healthy, outcome);
+        Assert.Equal(RepairRecoverySlotOutcomeCode.Healthy, outcome);
         var after = await RuntimeAsync(slotId, ct);
         Assert.Equal(JobStatusCode.Executing, after.Status);
         Assert.Equal(before.Version, after.Version);
@@ -174,8 +174,11 @@ public sealed class RecoverySlotMonitorSpec : ActaRuntimeTestBase<ConformanceFix
         var ct = TestContext.Current.CancellationToken;
         var missingId = long.MaxValue;
 
-        Assert.Equal(RecoverySlotRepair.Missing, (await Execution.RepairRecoverySlotAsync(TestNamespaceId, missingId, ct)).Repair);
-        Assert.Equal(RecoverySlotRepair.Missing, await CheckAsync(missingId, ct));
+        Assert.Equal(
+            RepairRecoverySlotOutcomeCode.Missing,
+            (await Execution.RepairRecoverySlotAsync(TestNamespaceId, missingId, ct)).Repair
+        );
+        Assert.Equal(RepairRecoverySlotOutcomeCode.Missing, await CheckAsync(missingId, ct));
 
         Assert.Empty(await Db.From<RuntimeEntity>().Where(r => r.Id == missingId).ToListAsync(ct));
         Assert.Empty(await Db.From<EventEntity>().Where(e => e.JobId == missingId).ToListAsync(ct));
@@ -364,7 +367,7 @@ public sealed class RecoverySlotMonitorSpec : ActaRuntimeTestBase<ConformanceFix
         await loop.WaitAsync(SpecWaits.Gate, ct);
     }
 
-    private Task<RecoverySlotRepair> CheckAsync(long slotId, CancellationToken ct) =>
+    private Task<RepairRecoverySlotOutcomeCode> CheckAsync(long slotId, CancellationToken ct) =>
         RecoverySlotMonitor.CheckAndRepairAsync(
             Execution,
             publisher: null,

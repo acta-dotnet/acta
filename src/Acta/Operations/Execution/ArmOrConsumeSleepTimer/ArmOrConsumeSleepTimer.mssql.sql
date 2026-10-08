@@ -37,7 +37,7 @@ BEGIN
         IF @existing_state = 10 /* CheckpointStatusCode.Pending */ AND @existing_due > @now
             BEGIN
 
-                SET @outcome = 1 /* SleepOutcomeCode.Suspend */;
+                SET @outcome = 1 /* ArmOrConsumeSleepTimerOutcomeCode.Suspend */;
                 SET @result_due = @existing_due;
             END
         ELSE IF @existing_state = 10 /* CheckpointStatusCode.Pending */
@@ -59,17 +59,17 @@ BEGIN
                     version = version + 1
                 WHERE job_id = @p_job_id AND status_code = 50 /* JobStatusCode.Executing */;
 
-                SET @outcome = 2 /* SleepOutcomeCode.Continue */;
+                SET @outcome = 2 /* ArmOrConsumeSleepTimerOutcomeCode.Continue */;
             END
         ELSE IF @existing_state IS NOT NULL
             BEGIN
 
-                SET @outcome = 2 /* SleepOutcomeCode.Continue */;
+                SET @outcome = 2 /* ArmOrConsumeSleepTimerOutcomeCode.Continue */;
             END
         ELSE IF @due <= @now
             BEGIN
 
-                SET @outcome = 2 /* SleepOutcomeCode.Continue */;
+                SET @outcome = 2 /* ArmOrConsumeSleepTimerOutcomeCode.Continue */;
             END
         ELSE IF
             EXISTS (
@@ -79,7 +79,7 @@ BEGIN
             /* CheckpointStatusCode.Pending */
             )
             BEGIN
-                SET @outcome = 3 /* SleepOutcomeCode.Reject */;
+                SET @outcome = 3 /* ArmOrConsumeSleepTimerOutcomeCode.Reject */;
             END
         ELSE
             BEGIN
@@ -92,7 +92,7 @@ BEGIN
                     @now, @now, 0
                 );
 
-                SET @outcome = 1 /* SleepOutcomeCode.Suspend */;
+                SET @outcome = 1 /* ArmOrConsumeSleepTimerOutcomeCode.Suspend */;
                 SET @result_due = @due;
             END
 

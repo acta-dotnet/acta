@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>What the recovery-slot repair found: the row absent, in no need of repair, or re-armed by this call.</summary>
-internal enum RecoverySlotRepair
+internal enum RepairRecoverySlotOutcomeCode
 {
     Missing = 0,
     Healthy = 1,
@@ -9,4 +9,4 @@ internal enum RecoverySlotRepair
 }
 
 /// <summary>The recovery slot's state as the repair found or left it.</summary>
-internal readonly record struct RepairRecoverySlotResponse(RecoverySlotRepair Repair);
+internal readonly record struct RepairRecoverySlotResponse(RepairRecoverySlotOutcomeCode Repair);

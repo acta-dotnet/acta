@@ -183,9 +183,9 @@ internal sealed partial class RuntimeJobContext(
         );
         switch (decision.Outcome)
         {
-            case SleepOutcomeCode.Continue:
+            case ArmOrConsumeSleepTimerOutcomeCode.Continue:
                 return;
-            case SleepOutcomeCode.Suspend:
+            case ArmOrConsumeSleepTimerOutcomeCode.Suspend:
                 // The host writes the stored due to runtimes.next_run_at_utc and finalizes the attempt Suspended.
                 throw new SuspendSignal(decision.DueAtUtc!.Value, reason);
             default:
@@ -216,10 +216,10 @@ internal sealed partial class RuntimeJobContext(
         var decision = await _signals.WaitSignalAsync(JobId, kind, name, timeoutSeconds, ct);
         return decision.Outcome switch
         {
-            SignalWaitOutcomeCode.ContinueSet => new SignalSlotState(decision.ValueFormatId, decision.Value),
-            SignalWaitOutcomeCode.SuspendPending => throw new SignalSuspendSignal(name, reasonMessage: null), // The host locks the slot and finalizes the attempt Suspended (or Ready if a raise won the race).
-            SignalWaitOutcomeCode.TimedOut when resumeOnTimeout => new SignalSlotState(0, null, TimedOut: true),
-            SignalWaitOutcomeCode.TimedOut => throw new WaitTimeoutSignal(name), // The host lands the attempt Cancelled, budget-neutral, like the Strict-deadline path.
+            WaitSignalOutcomeCode.ContinueSet => new SignalSlotState(decision.ValueFormatId, decision.Value),
+            WaitSignalOutcomeCode.SuspendPending => throw new SignalSuspendSignal(name, reasonMessage: null), // The host locks the slot and finalizes the attempt Suspended (or Ready if a raise won the race).
+            WaitSignalOutcomeCode.TimedOut when resumeOnTimeout => new SignalSlotState(0, null, TimedOut: true),
+            WaitSignalOutcomeCode.TimedOut => throw new WaitTimeoutSignal(name), // The host lands the attempt Cancelled, budget-neutral, like the Strict-deadline path.
             _ => throw new InvalidOperationException($"wait_signal returned an unknown outcome for job {JobId}, signal '{name}'."),
         };
     }

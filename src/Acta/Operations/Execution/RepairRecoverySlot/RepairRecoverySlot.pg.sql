@@ -76,7 +76,7 @@ event_insert AS (
     RETURNING 1
 )
 SELECT CASE
-    WHEN EXISTS (SELECT 1 FROM repaired) THEN 2 /* RecoverySlotRepair.Repaired */
-    WHEN EXISTS (SELECT 1 FROM {{schema}}.runtimes r WHERE r.job_id = p_job_id AND r.namespace_id = p_namespace_id) THEN 1 /* RecoverySlotRepair.Healthy */
-    ELSE 0 /* RecoverySlotRepair.Missing */ END AS outcome;
+    WHEN EXISTS (SELECT 1 FROM repaired) THEN 2 /* RepairRecoverySlotOutcomeCode.Repaired */
+    WHEN EXISTS (SELECT 1 FROM {{schema}}.runtimes r WHERE r.job_id = p_job_id AND r.namespace_id = p_namespace_id) THEN 1 /* RepairRecoverySlotOutcomeCode.Healthy */
+    ELSE 0 /* RepairRecoverySlotOutcomeCode.Missing */ END AS outcome;
 $$;

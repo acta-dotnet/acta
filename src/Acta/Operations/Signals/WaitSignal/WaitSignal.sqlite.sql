@@ -46,10 +46,10 @@ WHERE
 SELECT
     CASE
         WHEN js.status_code = 20 /* CheckpointStatusCode.Set */
-            THEN 2 /* SignalWaitOutcomeCode.ContinueSet */
+            THEN 2 /* WaitSignalOutcomeCode.ContinueSet */
         WHEN js.status_code = 30 /* CheckpointStatusCode.Expired */
-            THEN 3 /* SignalWaitOutcomeCode.TimedOut */
-        ELSE 1 /* SignalWaitOutcomeCode.SuspendPending */
+            THEN 3 /* WaitSignalOutcomeCode.TimedOut */
+        ELSE 1 /* WaitSignalOutcomeCode.SuspendPending */
     END AS outcome_code,
     CASE
         WHEN js.status_code = 20 /* CheckpointStatusCode.Set */ THEN js.value_format_id

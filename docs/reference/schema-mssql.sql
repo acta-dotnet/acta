@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 49)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 50)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -1194,7 +1194,7 @@ BEGIN
         IF @existing_state = 10 /* CheckpointStatusCode.Pending */ AND @existing_due > @now
             BEGIN
 
-                SET @outcome = 1 /* SleepOutcomeCode.Suspend */;
+                SET @outcome = 1 /* ArmOrConsumeSleepTimerOutcomeCode.Suspend */;
                 SET @result_due = @existing_due;
             END
         ELSE IF @existing_state = 10 /* CheckpointStatusCode.Pending */
@@ -1216,17 +1216,17 @@ BEGIN
                     version = version + 1
                 WHERE job_id = @p_job_id AND status_code = 50 /* JobStatusCode.Executing */;
 
-                SET @outcome = 2 /* SleepOutcomeCode.Continue */;
+                SET @outcome = 2 /* ArmOrConsumeSleepTimerOutcomeCode.Continue */;
             END
         ELSE IF @existing_state IS NOT NULL
             BEGIN
 
-                SET @outcome = 2 /* SleepOutcomeCode.Continue */;
+                SET @outcome = 2 /* ArmOrConsumeSleepTimerOutcomeCode.Continue */;
             END
         ELSE IF @due <= @now
             BEGIN
 
-                SET @outcome = 2 /* SleepOutcomeCode.Continue */;
+                SET @outcome = 2 /* ArmOrConsumeSleepTimerOutcomeCode.Continue */;
             END
         ELSE IF
             EXISTS (
@@ -1236,7 +1236,7 @@ BEGIN
             /* CheckpointStatusCode.Pending */
             )
             BEGIN
-                SET @outcome = 3 /* SleepOutcomeCode.Reject */;
+                SET @outcome = 3 /* ArmOrConsumeSleepTimerOutcomeCode.Reject */;
             END
         ELSE
             BEGIN
@@ -1249,7 +1249,7 @@ BEGIN
                     @now, @now, 0
                 );
 
-                SET @outcome = 1 /* SleepOutcomeCode.Suspend */;
+                SET @outcome = 1 /* ArmOrConsumeSleepTimerOutcomeCode.Suspend */;
                 SET @result_due = @due;
             END
 
@@ -5300,9 +5300,9 @@ BEGIN
         INNER JOIN acta.jobs j ON j.id = x.job_id;
 
         SELECT CASE
-            WHEN EXISTS (SELECT 1 FROM @repaired) THEN 2 /* RecoverySlotRepair.Repaired */
-            WHEN EXISTS (SELECT 1 FROM acta.runtimes r WHERE r.job_id = @p_job_id AND r.namespace_id = @p_namespace_id) THEN 1 /* RecoverySlotRepair.Healthy */
-            ELSE 0 /* RecoverySlotRepair.Missing */ END AS outcome;
+            WHEN EXISTS (SELECT 1 FROM @repaired) THEN 2 /* RepairRecoverySlotOutcomeCode.Repaired */
+            WHEN EXISTS (SELECT 1 FROM acta.runtimes r WHERE r.job_id = @p_job_id AND r.namespace_id = @p_namespace_id) THEN 1 /* RepairRecoverySlotOutcomeCode.Healthy */
+            ELSE 0 /* RepairRecoverySlotOutcomeCode.Missing */ END AS outcome;
 
         IF @entry_trancount = 0
             COMMIT TRANSACTION;
@@ -5882,11 +5882,11 @@ BEGIN
 
         IF @state = 20 /* CheckpointStatusCode.Set */
             BEGIN
-                SET @outcome = 2 /* SignalWaitOutcomeCode.ContinueSet */;
+                SET @outcome = 2 /* WaitSignalOutcomeCode.ContinueSet */;
             END
         ELSE IF @state = 30 /* CheckpointStatusCode.Expired */
             BEGIN
-                SET @outcome = 3 /* SignalWaitOutcomeCode.TimedOut */;
+                SET @outcome = 3 /* WaitSignalOutcomeCode.TimedOut */;
                 SET @fmt = 0 /* JobPayloadFormat.None */;
                 SET @val = NULL;
             END
@@ -5899,7 +5899,7 @@ BEGIN
                     version = version + 1
                 WHERE job_id = @p_job_id AND kind_code = @p_kind_code AND name = @p_name;
 
-                SET @outcome = 3 /* SignalWaitOutcomeCode.TimedOut */;
+                SET @outcome = 3 /* WaitSignalOutcomeCode.TimedOut */;
                 SET @fmt = 0 /* JobPayloadFormat.None */;
                 SET @val = NULL;
             END
@@ -5929,7 +5929,7 @@ BEGIN
                             AND status_code = 10 /* CheckpointStatusCode.Pending */
                             AND due_at_utc IS NULL;
                     END
-                SET @outcome = 1 /* SignalWaitOutcomeCode.SuspendPending */;
+                SET @outcome = 1 /* WaitSignalOutcomeCode.SuspendPending */;
                 SET @fmt = 0 /* JobPayloadFormat.None */;
                 SET @val = NULL;
             END
@@ -5953,7 +5953,7 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.49-e80f19ef3d4ea0fd66f2cf5c5dd3a587', 'acta'
+SELECT -1, 'objects-1.50-f7ef378c5b7a4c8f0f1d3405db96bd54', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
     WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_step', 'consume_outbox_signal', 'enqueue_job', 'enqueue_jobs', 'extend_lock', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'purge_expired_data', 'raise_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_outbox_event', 'register_definitions', 'register_schedules', 'release_lock', 'repair_recovery_slot', 'reserve_rate', 'resolve_alerts', 'start_execution', 'start_step', 'update_alert_delivery', 'wait_signal')) = 39;
 GO

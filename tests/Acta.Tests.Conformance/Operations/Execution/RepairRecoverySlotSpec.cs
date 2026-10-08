@@ -32,7 +32,7 @@ public sealed class RepairRecoverySlotSpec : ActaRuntimeTestBase<ConformanceFixt
         await StrandAsync(slotId, DateTime.UtcNow.AddMinutes(-5), ct);
         var before = await RuntimeAsync(slotId, ct);
 
-        Assert.Equal(RecoverySlotRepair.Repaired, (await Execution.RepairRecoverySlotAsync(NamespaceId, slotId, ct)).Repair);
+        Assert.Equal(RepairRecoverySlotOutcomeCode.Repaired, (await Execution.RepairRecoverySlotAsync(NamespaceId, slotId, ct)).Repair);
 
         var dbNow = await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct);
         var after = await RuntimeAsync(slotId, ct);
@@ -62,12 +62,12 @@ public sealed class RepairRecoverySlotSpec : ActaRuntimeTestBase<ConformanceFixt
         var slotId = await RecoverySlotIdAsync(ct);
 
         var idle = await RuntimeAsync(slotId, ct);
-        Assert.Equal(RecoverySlotRepair.Healthy, (await Execution.RepairRecoverySlotAsync(NamespaceId, slotId, ct)).Repair);
+        Assert.Equal(RepairRecoverySlotOutcomeCode.Healthy, (await Execution.RepairRecoverySlotAsync(NamespaceId, slotId, ct)).Repair);
         AssertSame(idle, await RuntimeAsync(slotId, ct));
 
         await StrandAsync(slotId, DateTime.UtcNow.AddMinutes(5), ct);
         var live = await RuntimeAsync(slotId, ct);
-        Assert.Equal(RecoverySlotRepair.Healthy, (await Execution.RepairRecoverySlotAsync(NamespaceId, slotId, ct)).Repair);
+        Assert.Equal(RepairRecoverySlotOutcomeCode.Healthy, (await Execution.RepairRecoverySlotAsync(NamespaceId, slotId, ct)).Repair);
         AssertSame(live, await RuntimeAsync(slotId, ct));
 
         Assert.Empty(
@@ -83,7 +83,7 @@ public sealed class RepairRecoverySlotSpec : ActaRuntimeTestBase<ConformanceFixt
         await StrandAsync(slotId, DateTime.UtcNow.AddMinutes(-5), ct);
         var stranded = await RuntimeAsync(slotId, ct);
 
-        Assert.Equal(RecoverySlotRepair.Missing, (await Execution.RepairRecoverySlotAsync(int.MaxValue, slotId, ct)).Repair);
+        Assert.Equal(RepairRecoverySlotOutcomeCode.Missing, (await Execution.RepairRecoverySlotAsync(int.MaxValue, slotId, ct)).Repair);
 
         AssertSame(stranded, await RuntimeAsync(slotId, ct));
         Assert.Empty(

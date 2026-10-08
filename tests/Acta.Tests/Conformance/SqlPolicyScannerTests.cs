@@ -201,7 +201,7 @@ public sealed class SqlCodePolicyAssertTests
         var failure = Assert.Single(
             SqlCodePolicyAssert.ScanRequiredAnnotations(
                 "Fake/Fake.sql",
-                "SELECT CASE WHEN ready THEN\n    1\nELSE 2 /* SignalWaitOutcomeCode.ContinueSet */ END AS outcome_code;"
+                "SELECT CASE WHEN ready THEN\n    1\nELSE 2 /* WaitSignalOutcomeCode.ContinueSet */ END AS outcome_code;"
             )
         );
 

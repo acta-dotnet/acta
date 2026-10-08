@@ -35,7 +35,7 @@ public sealed class WaitSignalSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
 
         var decision = await WaitAsync(jobId, "go", null, ct);
 
-        Assert.Equal(SignalWaitOutcomeCode.SuspendPending, decision.Outcome);
+        Assert.Equal(WaitSignalOutcomeCode.SuspendPending, decision.Outcome);
         Assert.Null(decision.Value);
         var slot = await ReadSlotAsync(jobId, CheckpointKindCode.Signal, "go", ct);
         Assert.Equal(CheckpointStatusCode.Pending, slot.Status);
@@ -55,7 +55,7 @@ public sealed class WaitSignalSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         await WaitAsync(jobId, "go", null, ct);
         var armed = await ReadSlotAsync(jobId, CheckpointKindCode.Signal, "go", ct);
 
-        Assert.Equal(SignalWaitOutcomeCode.SuspendPending, (await WaitAsync(jobId, "go", null, ct)).Outcome);
+        Assert.Equal(WaitSignalOutcomeCode.SuspendPending, (await WaitAsync(jobId, "go", null, ct)).Outcome);
 
         var slot = await ReadSlotAsync(jobId, CheckpointKindCode.Signal, "go", ct);
         Assert.Equal(armed.Version, slot.Version);
@@ -72,7 +72,7 @@ public sealed class WaitSignalSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
 
         var decision = await WaitAsync(jobId, "review", 60, ct);
 
-        Assert.Equal(SignalWaitOutcomeCode.ContinueSet, decision.Outcome);
+        Assert.Equal(WaitSignalOutcomeCode.ContinueSet, decision.Outcome);
         Assert.Equal(payload.Format.Id, decision.ValueFormatId);
         Assert.Equal(payload.Data.ToArray(), decision.Value);
     }
@@ -107,9 +107,9 @@ public sealed class WaitSignalSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
             .Where(c => c.JobId == jobId && c.Kind == CheckpointKindCode.Signal && c.Name == "go")
             .UpdateOnlyAsync(() => new CheckpointEntity { DueAtUtc = past }, ct);
 
-        Assert.Equal(SignalWaitOutcomeCode.TimedOut, (await WaitAsync(jobId, "go", 60, ct)).Outcome);
+        Assert.Equal(WaitSignalOutcomeCode.TimedOut, (await WaitAsync(jobId, "go", 60, ct)).Outcome);
         Assert.Equal(CheckpointStatusCode.Expired, (await ReadSlotAsync(jobId, CheckpointKindCode.Signal, "go", ct)).Status);
-        Assert.Equal(SignalWaitOutcomeCode.TimedOut, (await WaitAsync(jobId, "go", null, ct)).Outcome);
+        Assert.Equal(WaitSignalOutcomeCode.TimedOut, (await WaitAsync(jobId, "go", null, ct)).Outcome);
     }
 
     [Fact(DisplayName = "A Set slot of another kind does not satisfy a wait of the same name")]
@@ -120,7 +120,7 @@ public sealed class WaitSignalSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var input = new JobControlInput(new JobControlActor(ActorCode.Sys), EventReasonCode.JobSignalReleased, null);
         await Slots.RaiseSignalAsync(new SignalSlotRaise(jobId, CheckpointKindCode.ChildLatch, "go", 0, null, input), ct);
 
-        Assert.Equal(SignalWaitOutcomeCode.SuspendPending, (await WaitAsync(jobId, "go", null, ct)).Outcome);
+        Assert.Equal(WaitSignalOutcomeCode.SuspendPending, (await WaitAsync(jobId, "go", null, ct)).Outcome);
         Assert.Equal(CheckpointStatusCode.Set, (await ReadSlotAsync(jobId, CheckpointKindCode.ChildLatch, "go", ct)).Status);
     }
 }

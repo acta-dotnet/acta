@@ -87,7 +87,7 @@ src/Acta/Operations/Ledger/ListJobs/
 |---|---|
 | `OperationLayoutTests` | operation folders and depth, file names, all three dialects or none, no SQL outside `Operations/` and `Schema/`, a handler per operation; no `Operations/` file names a type declared under `Engine/` |
 | `TypeNamingTests` | the banned suffixes, the `Row` rule, and `Entity` on every table model |
-| `HandlerResponseTests` | `XHandler.HandleAsync` takes `XCommand` or `XQuery`, `HandleAsync(XCommand)` returns `XResponse` or nothing, `HandleAsync(ListXQuery)` returns `ListXResponse`, a public one an `IPagedResponse<ListXItem>`, and a `GetX` handler returns `GetXResponse`; rows, commands, queries, responses, and response elements declared in their slice under its name, a row named by no other slice, and every other type in a slice but an enum starting with the operation's name |
+| `HandlerResponseTests` | `XHandler.HandleAsync` takes `XCommand` or `XQuery`, `HandleAsync(XCommand)` returns `XResponse` or nothing, `HandleAsync(ListXQuery)` returns `ListXResponse`, a public one an `IPagedResponse<ListXItem>`, and a `GetX` handler returns `GetXResponse`; rows, commands, queries, responses, and response elements declared in their slice under its name, a row named by no other slice, and every other type in a slice, enums included, starting with the operation's name |
 | `DuplicateShapeTests` | no two types declaring the same property names, except types of different operations, each owned by the operation folder that declares it |
 | `DialectParityTests` | an operation's three SQL files return the same columns |
 | `FileLengthTests` | at most 600 lines per source file; the 150-line method cap is MA0051's, in the build |

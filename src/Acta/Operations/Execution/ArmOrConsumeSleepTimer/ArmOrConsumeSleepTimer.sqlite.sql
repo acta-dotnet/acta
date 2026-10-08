@@ -53,12 +53,12 @@ WHERE
 
 SELECT
     CASE
-        WHEN EXISTS (SELECT 1 FROM temp._due_timer) THEN 2 /* SleepOutcomeCode.Continue */
-        WHEN jt.status_code = 10 /* CheckpointStatusCode.Pending */ THEN 1 /* SleepOutcomeCode.Suspend */
-        WHEN jt.status_code IS NOT NULL THEN 2 /* SleepOutcomeCode.Continue */
+        WHEN EXISTS (SELECT 1 FROM temp._due_timer) THEN 2 /* ArmOrConsumeSleepTimerOutcomeCode.Continue */
+        WHEN jt.status_code = 10 /* CheckpointStatusCode.Pending */ THEN 1 /* ArmOrConsumeSleepTimerOutcomeCode.Suspend */
+        WHEN jt.status_code IS NOT NULL THEN 2 /* ArmOrConsumeSleepTimerOutcomeCode.Continue */
         WHEN COALESCE(@p_resume_at_utc, {{now}} + (@p_delay_seconds) * 1000) > {{now}}
-            AND EXISTS (SELECT 1 FROM {{schema}}.checkpoints x WHERE x.job_id = @p_job_id AND x.kind_code = 30 /* CheckpointKindCode.Timer */ AND x.status_code = 10 /* CheckpointStatusCode.Pending */) THEN 3 /* SleepOutcomeCode.Reject */
-        ELSE 2 /* SleepOutcomeCode.Continue */
+            AND EXISTS (SELECT 1 FROM {{schema}}.checkpoints x WHERE x.job_id = @p_job_id AND x.kind_code = 30 /* CheckpointKindCode.Timer */ AND x.status_code = 10 /* CheckpointStatusCode.Pending */) THEN 3 /* ArmOrConsumeSleepTimerOutcomeCode.Reject */
+        ELSE 2 /* ArmOrConsumeSleepTimerOutcomeCode.Continue */
     END AS outcome_code,
     CASE
         WHEN jt.status_code = 10 /* CheckpointStatusCode.Pending */ THEN jt.due_at_utc

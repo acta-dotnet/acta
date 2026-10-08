@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 49)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 50)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -889,7 +889,7 @@ BEGIN
 
     IF v_state = 10 /* CheckpointStatusCode.Pending */ AND v_existing_due > v_now THEN
 
-        RETURN QUERY SELECT 1 /* SleepOutcomeCode.Suspend */::SMALLINT, v_existing_due;
+        RETURN QUERY SELECT 1 /* ArmOrConsumeSleepTimerOutcomeCode.Suspend */::SMALLINT, v_existing_due;
     ELSIF v_state = 10 /* CheckpointStatusCode.Pending */ THEN
 
         UPDATE acta.checkpoints jt
@@ -911,15 +911,15 @@ BEGIN
         WHERE
             r2.job_id = p_job_id
             AND r2.status_code = 50 /* JobStatusCode.Executing */;
-        RETURN QUERY SELECT 2 /* SleepOutcomeCode.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
+        RETURN QUERY SELECT 2 /* ArmOrConsumeSleepTimerOutcomeCode.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
     ELSIF v_state IS NOT NULL THEN
 
-        RETURN QUERY SELECT 2 /* SleepOutcomeCode.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
+        RETURN QUERY SELECT 2 /* ArmOrConsumeSleepTimerOutcomeCode.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
     ELSIF v_due <= v_now THEN
 
-        RETURN QUERY SELECT 2 /* SleepOutcomeCode.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
+        RETURN QUERY SELECT 2 /* ArmOrConsumeSleepTimerOutcomeCode.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
     ELSIF EXISTS (SELECT 1 FROM acta.checkpoints jt WHERE jt.job_id = p_job_id AND jt.kind_code = 30 /* CheckpointKindCode.Timer */ AND jt.status_code = 10 /* CheckpointStatusCode.Pending */) THEN
-        RETURN QUERY SELECT 3 /* SleepOutcomeCode.Reject */::SMALLINT, NULL::TIMESTAMPTZ;
+        RETURN QUERY SELECT 3 /* ArmOrConsumeSleepTimerOutcomeCode.Reject */::SMALLINT, NULL::TIMESTAMPTZ;
     ELSE
         INSERT INTO acta.checkpoints (
             job_id,
@@ -939,7 +939,7 @@ BEGIN
             now(),
             now(),
             0);
-        RETURN QUERY SELECT 1 /* SleepOutcomeCode.Suspend */::SMALLINT, v_due;
+        RETURN QUERY SELECT 1 /* ArmOrConsumeSleepTimerOutcomeCode.Suspend */::SMALLINT, v_due;
     END IF;
 END;
 $$;
@@ -4668,9 +4668,9 @@ event_insert AS (
     RETURNING 1
 )
 SELECT CASE
-    WHEN EXISTS (SELECT 1 FROM repaired) THEN 2 /* RecoverySlotRepair.Repaired */
-    WHEN EXISTS (SELECT 1 FROM acta.runtimes r WHERE r.job_id = p_job_id AND r.namespace_id = p_namespace_id) THEN 1 /* RecoverySlotRepair.Healthy */
-    ELSE 0 /* RecoverySlotRepair.Missing */ END AS outcome;
+    WHEN EXISTS (SELECT 1 FROM repaired) THEN 2 /* RepairRecoverySlotOutcomeCode.Repaired */
+    WHEN EXISTS (SELECT 1 FROM acta.runtimes r WHERE r.job_id = p_job_id AND r.namespace_id = p_namespace_id) THEN 1 /* RepairRecoverySlotOutcomeCode.Healthy */
+    ELSE 0 /* RepairRecoverySlotOutcomeCode.Missing */ END AS outcome;
 $$;
 
 -- GCRA with a reservation; the full contract is on Locks.ReserveRateAsync. A turn is honoured
@@ -5140,7 +5140,7 @@ BEGIN
            returning here rather than resolving is what keeps a zero-second bound identical on all three. */
         IF v_armed = 1 THEN
             RETURN QUERY SELECT
-                1 /* SignalWaitOutcomeCode.SuspendPending */::SMALLINT,
+                1 /* WaitSignalOutcomeCode.SuspendPending */::SMALLINT,
                 0 /* JobPayloadFormat.None */::SMALLINT,
                 NULL::BYTEA;
             RETURN;
@@ -5158,12 +5158,12 @@ BEGIN
 
     IF v_state = 20 /* CheckpointStatusCode.Set */ THEN
         RETURN QUERY SELECT
-            2 /* SignalWaitOutcomeCode.ContinueSet */::SMALLINT,
+            2 /* WaitSignalOutcomeCode.ContinueSet */::SMALLINT,
             v_fmt,
             v_val;
     ELSIF v_state = 30 /* CheckpointStatusCode.Expired */ THEN
         RETURN QUERY SELECT
-            3 /* SignalWaitOutcomeCode.TimedOut */::SMALLINT,
+            3 /* WaitSignalOutcomeCode.TimedOut */::SMALLINT,
             0 /* JobPayloadFormat.None */::SMALLINT,
             NULL::BYTEA;
     ELSIF v_state = 10 /* CheckpointStatusCode.Pending */ AND v_due IS NOT NULL AND v_due <= v_now THEN
@@ -5176,7 +5176,7 @@ BEGIN
         WHERE js.job_id = p_job_id AND js.kind_code = p_kind_code AND js.name = p_name;
 
         RETURN QUERY SELECT
-            3 /* SignalWaitOutcomeCode.TimedOut */::SMALLINT,
+            3 /* WaitSignalOutcomeCode.TimedOut */::SMALLINT,
             0 /* JobPayloadFormat.None */::SMALLINT,
             NULL::BYTEA;
     ELSE
@@ -5196,7 +5196,7 @@ BEGIN
         END IF;
 
         RETURN QUERY SELECT
-            1 /* SignalWaitOutcomeCode.SuspendPending */::SMALLINT,
+            1 /* WaitSignalOutcomeCode.SuspendPending */::SMALLINT,
             0 /* JobPayloadFormat.None */::SMALLINT,
             NULL::BYTEA;
     END IF;
@@ -5207,7 +5207,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.49-f91d8ef637a3b9be876ff9cdbab6687f', 'acta');
+VALUES (-1, 'objects-1.50-486e23839c8396452e759baa802b4096', 'acta');
 
 COMMIT;
 

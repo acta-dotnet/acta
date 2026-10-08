@@ -53,7 +53,7 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         var resolved = await Services
             .GetRequiredService<Acta.Signals>()
             .WaitSignalAsync(enqueued.JobId, CheckpointKindCode.Signal, "go", timeoutSeconds: null, ct);
-        Assert.Equal(SignalWaitOutcomeCode.TimedOut, resolved.Outcome);
+        Assert.Equal(WaitSignalOutcomeCode.TimedOut, resolved.Outcome);
 
         Assert.Equal(1, (await RecoverySweep.ReclaimAtLeastOneAsync(Services, ns, ct)).Reclaimed);
 
@@ -202,7 +202,7 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         var resolved = await Services
             .GetRequiredService<Acta.Signals>()
             .WaitSignalAsync(enqueued.JobId, CheckpointKindCode.Signal, "go", timeoutSeconds: null, ct);
-        Assert.Equal(SignalWaitOutcomeCode.TimedOut, resolved.Outcome);
+        Assert.Equal(WaitSignalOutcomeCode.TimedOut, resolved.Outcome);
 
         Assert.Equal(1, (await RecoverySweep.ReclaimAtLeastOneAsync(Services, ns, ct)).Reclaimed);
         Assert.Equal(JobStatusCode.Suspended, (await ReadJobAsync(enqueued.JobId, ct)).Status);

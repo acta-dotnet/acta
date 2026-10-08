@@ -64,7 +64,7 @@ BEGIN
            returning here rather than resolving is what keeps a zero-second bound identical on all three. */
         IF v_armed = 1 THEN
             RETURN QUERY SELECT
-                1 /* SignalWaitOutcomeCode.SuspendPending */::SMALLINT,
+                1 /* WaitSignalOutcomeCode.SuspendPending */::SMALLINT,
                 0 /* JobPayloadFormat.None */::SMALLINT,
                 NULL::BYTEA;
             RETURN;
@@ -82,12 +82,12 @@ BEGIN
 
     IF v_state = 20 /* CheckpointStatusCode.Set */ THEN
         RETURN QUERY SELECT
-            2 /* SignalWaitOutcomeCode.ContinueSet */::SMALLINT,
+            2 /* WaitSignalOutcomeCode.ContinueSet */::SMALLINT,
             v_fmt,
             v_val;
     ELSIF v_state = 30 /* CheckpointStatusCode.Expired */ THEN
         RETURN QUERY SELECT
-            3 /* SignalWaitOutcomeCode.TimedOut */::SMALLINT,
+            3 /* WaitSignalOutcomeCode.TimedOut */::SMALLINT,
             0 /* JobPayloadFormat.None */::SMALLINT,
             NULL::BYTEA;
     ELSIF v_state = 10 /* CheckpointStatusCode.Pending */ AND v_due IS NOT NULL AND v_due <= v_now THEN
@@ -100,7 +100,7 @@ BEGIN
         WHERE js.job_id = p_job_id AND js.kind_code = p_kind_code AND js.name = p_name;
 
         RETURN QUERY SELECT
-            3 /* SignalWaitOutcomeCode.TimedOut */::SMALLINT,
+            3 /* WaitSignalOutcomeCode.TimedOut */::SMALLINT,
             0 /* JobPayloadFormat.None */::SMALLINT,
             NULL::BYTEA;
     ELSE
@@ -120,7 +120,7 @@ BEGIN
         END IF;
 
         RETURN QUERY SELECT
-            1 /* SignalWaitOutcomeCode.SuspendPending */::SMALLINT,
+            1 /* WaitSignalOutcomeCode.SuspendPending */::SMALLINT,
             0 /* JobPayloadFormat.None */::SMALLINT,
             NULL::BYTEA;
     END IF;

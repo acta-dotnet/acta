@@ -16,9 +16,9 @@ internal sealed class RepairRecoverySlotHandler(IDbSession session, ISqlDialect 
             },
             // Widened through Convert: SQLite hands every integer back as Int64.
             static reader =>
-                (RecoverySlotRepair)Convert.ToInt32(reader.GetValue(0), CultureInfo.InvariantCulture),
+                (RepairRecoverySlotOutcomeCode)Convert.ToInt32(reader.GetValue(0), CultureInfo.InvariantCulture),
             ct
         );
-        return new RepairRecoverySlotResponse(rows.Count == 0 ? RecoverySlotRepair.Missing : rows[0]);
+        return new RepairRecoverySlotResponse(rows.Count == 0 ? RepairRecoverySlotOutcomeCode.Missing : rows[0]);
     }
 }
