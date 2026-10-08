@@ -12,7 +12,6 @@ RegisterScheduledJobs
 ResetJobState
 ResolveJobAlertManual
 RetireDefinition
-SetScheduleOverrides
 StartExecution
 StopWorker
 TriggerScheduleNow
