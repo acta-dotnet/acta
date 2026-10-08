@@ -1,5 +1,4 @@
 # Known length violations; entries may only be removed.
-ActaSchemaGenerator.cs
 AlertsJob.cs
 CodeGenerator.cs
 DbProjectionGenerator.cs

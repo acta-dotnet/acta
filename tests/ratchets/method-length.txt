@@ -1,3 +1,2 @@
 # Known method-length violations; entries may only be removed.
-ActaSchemaGenerator.Transform
 CodeGenerator.GroupByContainingEnum
