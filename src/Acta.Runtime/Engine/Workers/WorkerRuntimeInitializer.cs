@@ -91,100 +91,8 @@ internal sealed class WorkerRuntimeInitializer(
         // the provider (a scalar clock read), not the Acta schema, so it is safe this early.
         await ValidateClockSkewAsync(ns, ct);
 
-        // System jobs (e.g. sys.recovery) auto-register into every worker namespace ahead
-        // of the user manifests (the runtime assembly's own generated RuntimeJobs), so each namespace carries
-        // its maintenance catalog (unless JobsOptions.RegisterSystemJobs is off, e.g. external
-        // maintenance). System jobs are identified by their reserved sys. names; every manifest's
-        // descriptors land under this one worker's namespace.
-        var manifests = new List<JobDescriptorManifest>();
-
-        var frameworkNames = FrameworkJobs.For(_options.Value.RegisterSystemJobs, _workerRegistration.Relay is not null);
-        // sys.recovery is the only thing that marks dead workers and reclaims their in-flight jobs.
-        // Without it a worker that dies takes its jobs with it - they stay Executing behind a lapsed
-        // lease and are never re-run - and nothing surfaces that until a worker actually dies. Say it
-        // at startup instead, because someone switching these off to trim overhead is not expecting
-        // to have switched off crash recovery.
-        if (!frameworkNames.Contains("sys.recovery"))
-        {
-            _log.LogWarning(
-                "Namespace ({Namespace}): sys.recovery is not registered, so crashed workers are never marked dead and their "
-                    + "in-flight jobs are never reclaimed. Those jobs stay Executing behind a lapsed lease permanently. Set "
-                    + "JobsOptions.RegisterSystemJobs = true, or run an equivalent reclaim sweep yourself.",
-                ns
-            );
-        }
-
-        if (frameworkNames.Count > 0)
-        {
-            manifests.Add(
-                new JobDescriptorManifest([.. RuntimeJobs.Descriptors.Descriptors.Where(d => frameworkNames.Contains(d.JobName))])
-            );
-        }
-        manifests.AddRange(_workerRegistration.Manifests.Select(r => r.GetDescriptors()));
-
-        // Register every manifest's descriptors in ONE batch (system + all user manifests): one round
-        // trip, one set for the shape checks below, and every definition arrives with its complete
-        // schedule set, which register_schedules needs because it orphans, on each slot it is
-        // given, the definition-origin schedules that slot's batch omits. Registration touches nothing
-        // the batch does not name, so a definition absent from it keeps running. An empty combined set
-        // skips the call entirely (the RegisterDefinitions.Run early-return), so an enqueue-only /
-        // manifest-less worker writes no catalog at all.
-        // The shape checks run before the worker row below is written: a catalog that fails them
-        // must leave no Active worker and no worker.started event behind for a process that will
-        // never heartbeat.
-        ImmutableArray<JobDescriptor> allDescriptors = [.. manifests.SelectMany(m => m.Descriptors)];
-        ValidateHasDescriptors(ns, allDescriptors);
-        ValidateUniqueJobNames(allDescriptors);
-        ValidateScheduleTimeZones(allDescriptors);
-        ValidateTenantRequirements(allDescriptors);
-        ValidateDeadlineRequirements(allDescriptors);
-        ValidateRecurringResultCaps(allDescriptors);
-        foreach (var descriptor in allDescriptors)
-        {
-            JobDefinitionRegistration.ValidateDescriptorShape(descriptor, ns);
-        }
-
-        // Namespace + worker register in one round trip (one transaction): the namespace row is updated
-        // only when its catalog hash changed and inserted only when the name is absent (an unchanged
-        // restart writes nothing, allocates no id, and takes no key-range locks) and this process's
-        // worker row is appended. The worker row landing before definitions is harmless: definitions
-        // only need the namespace id, which this call also returns. The in-process guard (worker
-        // already in context) makes a second InitializeAsync on the SAME instance a no-op: it neither
-        // re-upserts the namespace nor appends a second append-only worker row.
-        if (!_context.WorkerIdByNamespace.TryGetValue(ns, out var _))
-        {
-            // Host + deployment version stamp the append-only workers row. DeploymentVersion is the
-            // explicit option, else the entry assembly's InformationalVersion, else "unknown"; read
-            // once at startup, not on the hot path.
-            var deploymentVersion =
-                _options.Value.DeploymentVersion
-                ?? Assembly.GetEntryAssembly()?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
-                ?? "unknown";
-            var engineVersion =
-                typeof(WorkerRuntimeInitializer).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
-                ?? "unknown";
-            // The registration's public ref is allocated here, not by the database: the workers row is
-            // append-only, so this process's ref is fixed for the lifetime of the registration. The
-            // store writes address the row by its numeric id, so only the id is kept in context.
-            var workerRef = WorkerRef.New().Value;
-            var (registeredNamespaceId, registeredWorkerId) = await _workers.StartWorkerAsync(
-                StartWorkerCommand.Create(
-                    ns,
-                    _workerRegistration.OwnerTeam,
-                    _workerRegistration.Description,
-                    Environment.MachineName,
-                    deploymentVersion,
-                    engineVersion,
-                    RuntimeInformation.FrameworkDescription,
-                    Environment.ProcessId,
-                    _options.Value.MaxConcurrentExecutors,
-                    workerRef
-                ),
-                ct
-            );
-            _context.NamespaceIds[ns] = registeredNamespaceId;
-            _context.WorkerIdByNamespace[ns] = registeredWorkerId;
-        }
+        var allDescriptors = CollectDescriptors(_workerRegistration, ns);
+        await RegisterWorkerAsync(_workerRegistration, ns, ct);
 
         var namespaceId = _context.NamespaceIds[ns];
 
@@ -230,6 +138,108 @@ internal sealed class WorkerRuntimeInitializer(
         MeterConsistencyCheck.Check(ns, catalog, _log);
 
         await ReconcileSchedulesAsync(namespaceId, ct);
+    }
+
+    private ImmutableArray<JobDescriptor> CollectDescriptors(WorkerRegistration registration, string ns)
+    {
+        // System jobs (e.g. sys.recovery) auto-register into every worker namespace ahead
+        // of the user manifests (the runtime assembly's own generated RuntimeJobs), so each namespace carries
+        // its maintenance catalog (unless JobsOptions.RegisterSystemJobs is off, e.g. external
+        // maintenance). System jobs are identified by their reserved sys. names; every manifest's
+        // descriptors land under this one worker's namespace.
+        var manifests = new List<JobDescriptorManifest>();
+
+        var frameworkNames = FrameworkJobs.For(_options.Value.RegisterSystemJobs, registration.Relay is not null);
+        // sys.recovery is the only thing that marks dead workers and reclaims their in-flight jobs.
+        // Without it a worker that dies takes its jobs with it - they stay Executing behind a lapsed
+        // lease and are never re-run - and nothing surfaces that until a worker actually dies. Say it
+        // at startup instead, because someone switching these off to trim overhead is not expecting
+        // to have switched off crash recovery.
+        if (!frameworkNames.Contains("sys.recovery"))
+        {
+            _log.LogWarning(
+                "Namespace ({Namespace}): sys.recovery is not registered, so crashed workers are never marked dead and their "
+                    + "in-flight jobs are never reclaimed. Those jobs stay Executing behind a lapsed lease permanently. Set "
+                    + "JobsOptions.RegisterSystemJobs = true, or run an equivalent reclaim sweep yourself.",
+                ns
+            );
+        }
+
+        if (frameworkNames.Count > 0)
+        {
+            manifests.Add(
+                new JobDescriptorManifest([.. RuntimeJobs.Descriptors.Descriptors.Where(d => frameworkNames.Contains(d.JobName))])
+            );
+        }
+        manifests.AddRange(registration.Manifests.Select(r => r.GetDescriptors()));
+
+        // Register every manifest's descriptors in ONE batch (system + all user manifests): one round
+        // trip, one set for the shape checks below, and every definition arrives with its complete
+        // schedule set, which register_schedules needs because it orphans, on each slot it is
+        // given, the definition-origin schedules that slot's batch omits. Registration touches nothing
+        // the batch does not name, so a definition absent from it keeps running. An empty combined set
+        // skips the call entirely (the RegisterDefinitions.Run early-return), so an enqueue-only /
+        // manifest-less worker writes no catalog at all.
+        // The shape checks run before the worker row below is written: a catalog that fails them
+        // must leave no Active worker and no worker.started event behind for a process that will
+        // never heartbeat.
+        ImmutableArray<JobDescriptor> allDescriptors = [.. manifests.SelectMany(m => m.Descriptors)];
+        ValidateHasDescriptors(ns, allDescriptors);
+        ValidateUniqueJobNames(allDescriptors);
+        ValidateScheduleTimeZones(allDescriptors);
+        ValidateTenantRequirements(allDescriptors);
+        ValidateDeadlineRequirements(allDescriptors);
+        ValidateRecurringResultCaps(allDescriptors);
+        foreach (var descriptor in allDescriptors)
+        {
+            JobDefinitionRegistration.ValidateDescriptorShape(descriptor, ns);
+        }
+        return allDescriptors;
+    }
+
+    private async Task RegisterWorkerAsync(WorkerRegistration registration, string ns, CancellationToken ct)
+    {
+        // Namespace + worker register in one round trip (one transaction): the namespace row is updated
+        // only when its catalog hash changed and inserted only when the name is absent (an unchanged
+        // restart writes nothing, allocates no id, and takes no key-range locks) and this process's
+        // worker row is appended. The worker row landing before definitions is harmless: definitions
+        // only need the namespace id, which this call also returns. The in-process guard (worker
+        // already in context) makes a second InitializeAsync on the SAME instance a no-op: it neither
+        // re-upserts the namespace nor appends a second append-only worker row.
+        if (!_context.WorkerIdByNamespace.TryGetValue(ns, out var _))
+        {
+            // Host + deployment version stamp the append-only workers row. DeploymentVersion is the
+            // explicit option, else the entry assembly's InformationalVersion, else "unknown"; read
+            // once at startup, not on the hot path.
+            var deploymentVersion =
+                _options.Value.DeploymentVersion
+                ?? Assembly.GetEntryAssembly()?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+                ?? "unknown";
+            var engineVersion =
+                typeof(WorkerRuntimeInitializer).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+                ?? "unknown";
+            // The registration's public ref is allocated here, not by the database: the workers row is
+            // append-only, so this process's ref is fixed for the lifetime of the registration. The
+            // store writes address the row by its numeric id, so only the id is kept in context.
+            var workerRef = WorkerRef.New().Value;
+            var (registeredNamespaceId, registeredWorkerId) = await _workers.StartWorkerAsync(
+                StartWorkerCommand.Create(
+                    ns,
+                    registration.OwnerTeam,
+                    registration.Description,
+                    Environment.MachineName,
+                    deploymentVersion,
+                    engineVersion,
+                    RuntimeInformation.FrameworkDescription,
+                    Environment.ProcessId,
+                    _options.Value.MaxConcurrentExecutors,
+                    workerRef
+                ),
+                ct
+            );
+            _context.NamespaceIds[ns] = registeredNamespaceId;
+            _context.WorkerIdByNamespace[ns] = registeredWorkerId;
+        }
     }
 
     /// <summary>

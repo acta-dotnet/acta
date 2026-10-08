@@ -19,6 +19,18 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
 
         var failures = new List<string>();
 
+        CheckRetention(options, failures);
+        CheckLowerBounds(options, failures);
+        CheckCoordination(options, failures);
+        CheckUpperBounds(options, failures);
+        CheckDefinedValues(options, failures);
+
+        return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
+    }
+
+    /// <summary>The retention windows: at least a day, whole days where the purge counts days, alerts within events.</summary>
+    private static void CheckRetention(JobsOptions options, List<string> failures)
+    {
         if (options.JobEventsRetention < TimeSpan.FromDays(1))
         {
             failures.Add("JobsOptions.JobEventsRetention must be >= 1 day: retention is destructive.");
@@ -57,7 +69,11 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
                 "JobsOptions.AlertRetention must not exceed JobEventsRetention: an incident is closed by the events that explain it."
             );
         }
+    }
 
+    /// <summary>The per-knob floors of the claim loop, the executors, payloads, and alert delivery.</summary>
+    private static void CheckLowerBounds(JobsOptions options, List<string> failures)
+    {
         if (options.SafetyPollInterval < TimeSpan.FromSeconds(1))
         {
             failures.Add("JobsOptions.SafetyPollInterval must be >= 1s: it is the idle claim loop's DB-traffic bound.");
@@ -109,7 +125,11 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
         {
             failures.Add("JobsOptions.AlertReminderInterval must be > 0: it is the re-notification spacing for an unresolved alert.");
         }
+    }
 
+    /// <summary>The lease, heartbeat, and dead-worker windows, alone and against each other.</summary>
+    private static void CheckCoordination(JobsOptions options, List<string> failures)
+    {
         // Coordination invariants. Each base value must be positive on its own before the cross-field
         // relationships are meaningful, so the relationship checks run only once the bases are valid to
         // avoid drowning the real cause in derived noise.
@@ -158,7 +178,11 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
                 "JobsOptions.WorkerDeadAfter must be > LeaseTtlSeconds: a worker whose leases just lapsed must not be retired while it might still recover."
             );
         }
+    }
 
+    /// <summary>The plausibility ceilings on every sized knob.</summary>
+    private static void CheckUpperBounds(JobsOptions options, List<string> failures)
+    {
         // Upper bounds. Generous plausibility ceilings, not policy: they catch unit mistakes
         // (milliseconds bound where seconds were meant, ticks, ms-vs-days) before a huge value
         // overflows an int-second conversion or parks data for decades.
@@ -222,7 +246,11 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
         {
             failures.Add("JobsOptions.WorkerDeadAfter must be <= 30 days.");
         }
+    }
 
+    /// <summary>The enum knobs hold a defined member.</summary>
+    private static void CheckDefinedValues(JobsOptions options, List<string> failures)
+    {
         // Config binding accepts any numeric literal for an enum; an undefined value would otherwise
         // flow into switches as a silent no-match.
         if (!Enum.IsDefined(options.AlertChannelValidationMode))
@@ -239,7 +267,5 @@ internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
         {
             failures.Add($"JobsOptions.ExecutionProfile has undefined value {(byte)options.ExecutionProfile}.");
         }
-
-        return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
     }
 }

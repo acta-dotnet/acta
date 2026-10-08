@@ -35,6 +35,39 @@ public static class ActaServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configure);
 
+        AddRuntimeDefaults(services);
+        AddOperations(services);
+        AddExecutionServices(services);
+
+        var builder = new ActaBuilder(services);
+        configure(builder);
+
+        // Fail fast at configuration time unless exactly one durable provider was selected. Official
+        // provider extensions reject conflicts before adding their provider-specific graph; this final
+        // check also protects internal/custom registrations that bypass those extensions.
+        var providerRegistrations = ActaProviderRegistration.FindAll(services);
+        if (providerRegistrations.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "UseActa requires a durable provider. Call j.UseSqlServer(...), j.UsePostgres(...), or j.UseSqlite(...) inside the configure callback."
+            );
+        }
+        if (providerRegistrations.Count != 1)
+        {
+            throw new InvalidOperationException(
+                $"UseActa requires exactly one durable provider, but found {providerRegistrations.Count}: {string.Join(", ", providerRegistrations)}."
+            );
+        }
+
+        AddDeclared(services, builder);
+        AddHost(services, builder);
+
+        return services;
+    }
+
+    /// <summary>Options and their validation, the wake transport, recovery, the payload serializers, and the tenant cache.</summary>
+    private static void AddRuntimeDefaults(IServiceCollection services)
+    {
         // Register the default options so consumers can resolve IOptions<JobsOptions> even when no
         // ConfigureOptions() call lands. JobsOptionsValidator enforces every per-knob and
         // coordination-invariant rule and aggregates violations; ValidateOnStart surfaces them at host
@@ -63,7 +96,11 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<IJobPayloadSerializerRegistry, JobPayloadSerializerRegistry>();
 
         services.TryAddSingleton<TenantKeyCache>();
+    }
 
+    /// <summary>Every operation group: its handlers, then its facade.</summary>
+    private static void AddOperations(IServiceCollection services)
+    {
         // The operator facade over the group facades. Application code injects IJobs alone; dashboards,
         // CLIs, and operator hosts inject IActaOperations.
         services.TryAddSingleton<IActaOperations, ActaOperations>();
@@ -193,7 +230,11 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<GetStaleChildLatchesHandler>();
         services.TryAddSingleton<ArmOrConsumeSleepTimerHandler>();
         services.TryAddSingleton<Execution>();
+    }
 
+    /// <summary>Metrics, the alert transports, and the ambient JobContext.</summary>
+    private static void AddExecutionServices(IServiceCollection services)
+    {
         // Consumers light up the meter with WithMetrics(m => m.AddMeter(JobMetrics.MeterName)).
         services.TryAddSingleton<JobMetrics>();
 
@@ -215,27 +256,11 @@ public static class ActaServiceCollectionExtensions
                 "JobContext is only resolvable inside a job-handler attempt; it is unavailable on the root provider and on enqueue-only paths."
             )
         );
+    }
 
-        var builder = new ActaBuilder(services);
-        configure(builder);
-
-        // Fail fast at configuration time unless exactly one durable provider was selected. Official
-        // provider extensions reject conflicts before adding their provider-specific graph; this final
-        // check also protects internal/custom registrations that bypass those extensions.
-        var providerRegistrations = ActaProviderRegistration.FindAll(services);
-        if (providerRegistrations.Count == 0)
-        {
-            throw new InvalidOperationException(
-                "UseActa requires a durable provider. Call j.UseSqlServer(...), j.UsePostgres(...), or j.UseSqlite(...) inside the configure callback."
-            );
-        }
-        if (providerRegistrations.Count != 1)
-        {
-            throw new InvalidOperationException(
-                $"UseActa requires exactly one durable provider, but found {providerRegistrations.Count}: {string.Join(", ", providerRegistrations)}."
-            );
-        }
-
+    /// <summary>What the builder declared: alert channels and routing, the enqueue indexes, the pipeline, the workers, and outbox relays.</summary>
+    private static void AddDeclared(IServiceCollection services, ActaBuilder builder)
+    {
         services.TryAddSingleton(new AlertChannelRegistry(builder.Workers));
 
         // Worker startup checks each namespace's alert routing against the declared channels.
@@ -284,7 +309,11 @@ public static class ActaServiceCollectionExtensions
                 sp.GetService<ILoggerFactory>()
             ));
         }
+    }
 
+    /// <summary>The process host: a CLI verb when the command line asks for one, else the worker host.</summary>
+    private static void AddHost(IServiceCollection services, ActaBuilder builder)
+    {
         // CLI mode: a process started as `myapp jobs <verb> ...` runs the verb and exits instead of
         // booting the worker. The swap replaces the worker host; WorkerRuntime singletons stay
         // registered so the debug verb can run one job in-process. Opt out via j.DisableCli().
@@ -302,7 +331,5 @@ public static class ActaServiceCollectionExtensions
             // enqueue resolves.
             services.AddHostedService<WorkerRuntimeHost>();
         }
-
-        return services;
     }
 }

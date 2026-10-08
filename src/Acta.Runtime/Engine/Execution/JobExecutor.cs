@@ -28,16 +28,22 @@ internal sealed class JobExecutor(
 )
 {
     private readonly int _leaseTtlSeconds = options.Value.LeaseTtlSeconds;
-    private readonly Locks _locks = locks;
-    private readonly IActaClock _clock = clock;
-    private readonly IJobPayloadSerializerRegistry _serializers = serializers;
     private readonly IServiceProvider _rootServices = rootServices;
-    private readonly IOptions<JobsOptions> _options = options;
     private readonly WorkerContext _context = context;
     private readonly JobExecution _jobExecution = jobExecution;
     private readonly Execution _execution = rootServices.GetRequiredService<Execution>();
     private readonly ILogger _log = log ?? NullLogger.Instance;
     private readonly JobMetrics? _metrics = metrics;
+    private readonly AttemptContextFactory _contexts = new(
+        rootServices,
+        context,
+        clock,
+        serializers,
+        locks,
+        options,
+        log ?? NullLogger.Instance,
+        metrics
+    );
 
     // Re-arm delay for a claim this deployment cannot run, in whole seconds (the store verb's unit).
     // SafetyPollInterval is the honest unit for it: the option is documented as the bound on how long
@@ -150,11 +156,75 @@ internal sealed class JobExecutor(
             JobLogScope.For(job.JobId, descriptor.JobName, namespaceName, job.ExecutionNumber, workerId, job.CorrelationKey)
         );
 
-        // Link a per-attempt cancellation source off the worker token AND a dedicated timeout source; the
-        // heartbeat cancels it when an external cancel or lease steal drops this job from the worker's
-        // lease set, and the timeout source cancels it when the per-attempt wall-clock cap elapses. The
-        // separate timeout source lets the execution tell a timeout from an external cancel. Registering the
-        // attempt also lets the heartbeat extend every lock it holds.
+        var (attempt, attemptCts, timeoutCts) = RegisterAttempt(job, descriptor, ct);
+        try
+        {
+            await using var attemptScope = _rootServices.CreateAsyncScope();
+            var attemptServices = attemptScope.ServiceProvider;
+            // The claim is this worker's from here until something settles it, so anything that fails
+            // before the handler runs hands the claim back rather than leaving it leased and unowned.
+            AttemptSetup setup;
+            try
+            {
+                setup = await _contexts.ReadSetupAsync(job, descriptor, ct);
+            }
+            catch (Exception ex) when (!ct.IsCancellationRequested)
+            {
+                _log.LogError(
+                    ex,
+                    "WorkerRuntime: attempt setup failed before the handler ran for job {JobId}; returning it to Ready.",
+                    job.JobId
+                );
+                await ReleaseClaimAsync(
+                    job,
+                    workerId,
+                    alreadyStarted,
+                    $"Attempt setup failed before the handler ran ({ex.GetType().Name}); returned to Ready.",
+                    ct
+                );
+                throw;
+            }
+            var jobContext = _contexts.Create(
+                job,
+                descriptor,
+                namespaceName,
+                namespaceId,
+                workerId,
+                setup,
+                attempt,
+                attemptServices,
+                attemptCts.Token
+            );
+
+            // Publish the context on the attempt scope so DI-resolved handlers (e.g. MediatR) inject it.
+            // The handler resolves from this same scope, so the scoped accessor carries the set value.
+            attemptServices.GetRequiredService<IJobContextAccessor>().JobContext = jobContext;
+
+            return await _jobExecution.RunAsync(attemptServices, descriptor, job, jobContext, workerId, setup.Fire, alreadyStarted, ct);
+        }
+        finally
+        {
+            // Identity-conditional: a reclaimed job can be re-dispatched in-process while this stale
+            // attempt is still unwinding, so removing by key alone would untrack the replacement.
+            _context.RunningAttempts.TryRemove(new KeyValuePair<long, RunningAttempt>(job.JobId, attempt));
+            attemptCts.Dispose();
+            timeoutCts.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Links a per-attempt cancellation source off the worker token AND a dedicated timeout source; the
+    /// heartbeat cancels it when an external cancel or lease steal drops this job from the worker's
+    /// lease set, and the timeout source cancels it when the per-attempt wall-clock cap elapses. The
+    /// separate timeout source lets the execution tell a timeout from an external cancel. Registering the
+    /// attempt also lets the heartbeat extend every lock it holds.
+    /// </summary>
+    private (RunningAttempt Attempt, CancellationTokenSource AttemptCts, CancellationTokenSource TimeoutCts) RegisterAttempt(
+        ClaimedJob job,
+        JobDescriptor descriptor,
+        CancellationToken ct
+    )
+    {
         var timeoutCts = new CancellationTokenSource();
         var attemptCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
         var attempt = new RunningAttempt(attemptCts, timeoutCts: timeoutCts)
@@ -178,148 +248,7 @@ internal sealed class JobExecutor(
             timeoutCts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
         }
         _context.RunningAttempts[job.JobId] = attempt;
-
-        try
-        {
-            await using var attemptScope = _rootServices.CreateAsyncScope();
-            var attemptServices = attemptScope.ServiceProvider;
-
-            // Recurring slot fire: read live schedules once, plan the due set + cursor advances at a
-            // single captured nowUtc. The due names are visible to the handler; the advances + slot
-            // MIN apply at completion. Non-slot jobs keep the unchanged one-shot path.
-            var isRecurring = _context.RecurringSlotJobIds.ContainsKey(job.JobId);
-            RecurringFirePlan? fireOutcome = null;
-            StepRetryDefaults stepRetryDefaults;
-            string? tenantKey;
-            // The claim is this worker's from here until something settles it, so the reads the handler
-            // needs are repeated like the writes are, on the host token, and anything else that fails
-            // before the handler runs hands the claim back rather than leaving it leased and unowned.
-            try
-            {
-                if (isRecurring || string.Equals(job.DeduplicationKey, descriptor.JobName, StringComparison.Ordinal))
-                {
-                    var (nowUtc, _) = await CompletionWrite.RetryAsync(
-                        async token => await _clock.GetUtcNowAsync(token),
-                        _log,
-                        job.JobId,
-                        ct,
-                        _metrics
-                    );
-                    var liveSchedules = _rootServices.GetRequiredService<GetLiveSchedulesHandler>();
-                    var (live, _) = await CompletionWrite.RetryAsync(
-                        async token => await liveSchedules.HandleAsync(new GetLiveSchedulesQuery(job.JobId), token),
-                        _log,
-                        job.JobId,
-                        ct,
-                        _metrics
-                    );
-                    // A slot another runtime registered after this one started is not in the startup set. Its
-                    // deduplication key is its job name, which a one-off may share, so live schedules decide.
-                    if (!isRecurring && live.Count > 0)
-                    {
-                        isRecurring = true;
-                        _context.RecurringSlotJobIds.TryAdd(job.JobId, 0);
-                    }
-                    if (isRecurring)
-                    {
-                        fireOutcome = ScheduleWalker.PlanFire(live, nowUtc);
-                    }
-                }
-
-                var backoff = Backoff.Parse(descriptor.Backoff ?? JobDefinitionRegistration.DefaultBackoffExpression);
-                stepRetryDefaults = new StepRetryDefaults(
-                    descriptor.MaxAttempts,
-                    DurationSyntax.ToWholeSeconds(backoff.InitialDelay, nameof(backoff)),
-                    DurationSyntax.ToWholeSeconds(backoff.MaxDelay, nameof(backoff)),
-                    (decimal)backoff.Multiplier,
-                    (decimal)backoff.Jitter
-                );
-
-                // Resolve the external tenant key off the process-lifetime cache (one point read per
-                // distinct tenant); the claim projection itself stays join-free.
-                if (job.TenantId is { } jobTenantId)
-                {
-                    var tenants = _rootServices.GetRequiredService<Acta.Runtime.TenantKeyCache>();
-                    (tenantKey, _) = await CompletionWrite.RetryAsync(
-                        async token => await tenants.ResolveAsync(jobTenantId, token),
-                        _log,
-                        job.JobId,
-                        ct,
-                        _metrics
-                    );
-                }
-                else
-                {
-                    tenantKey = null;
-                }
-            }
-            catch (Exception ex) when (!ct.IsCancellationRequested)
-            {
-                _log.LogError(
-                    ex,
-                    "WorkerRuntime: attempt setup failed before the handler ran for job {JobId}; returning it to Ready.",
-                    job.JobId
-                );
-                await ReleaseClaimAsync(
-                    job,
-                    workerId,
-                    alreadyStarted,
-                    $"Attempt setup failed before the handler ran ({ex.GetType().Name}); returned to Ready.",
-                    ct
-                );
-                throw;
-            }
-
-            var jobContext = new RuntimeJobContext(
-                job,
-                descriptor.JobName,
-                namespaceName,
-                namespaceId,
-                _options.Value.LeaseTtlSeconds,
-                _rootServices.GetRequiredService<CancelJobHandler>(),
-                _rootServices.GetRequiredService<ResetJobStateHandler>(),
-                _rootServices.GetRequiredService<Signals>(),
-                _rootServices.GetRequiredService<AlertLifecycle>(),
-                _rootServices.GetRequiredService<Execution>(),
-                _serializers,
-                _locks,
-                fireOutcome?.TriggeringScheduleNames ?? [],
-                // A recurring slot never carries the whole-job deadline: it anchors to job creation
-                // and the slot row lives forever, so the Strict paths would cancel the slot
-                // terminally and the advisory surface (ctx.IsOverdue, ctx.TimeUntilDeadline) would
-                // report permanently overdue to every occurrence. Worker init rejects the
-                // Deadline + [JobSchedule] combination; a null here covers slots that predate the
-                // rule or gained a deadline through an override, in the one place every consumer
-                // reads from.
-                !isRecurring && descriptor.DeadlineSeconds is { } deadlineSecs && deadlineSecs > 0
-                    ? job.CreatedAtUtc.AddSeconds(deadlineSecs)
-                    : (DateTime?)null,
-                attemptCts.Token,
-                _options.Value.MaxInlinePayloadBytes,
-                attempt,
-                stepRetryDefaults,
-                _log,
-                _metrics,
-                attemptServices.GetService<IJobs>(),
-                tenantKey,
-                workerId,
-                _clock
-            );
-
-            // Publish the context on the attempt scope so DI-resolved handlers (e.g. MediatR) inject it.
-            // The handler resolves from this same scope, so the scoped accessor carries the set value.
-            attemptServices.GetRequiredService<IJobContextAccessor>().JobContext = jobContext;
-
-            return await _jobExecution.RunAsync(attemptServices, descriptor, job, jobContext, workerId, fireOutcome, alreadyStarted, ct);
-        }
-        finally
-        {
-            // Identity-conditional: a reclaimed job can be re-dispatched in-process while this stale
-            // attempt is still unwinding, so removing by key alone would untrack the replacement.
-            _context.RunningAttempts.TryRemove(new KeyValuePair<long, RunningAttempt>(job.JobId, attempt));
-            attemptCts.Dispose();
-            timeoutCts.Dispose();
-        }
+        return (attempt, attemptCts, timeoutCts);
     }
 
     /// <summary>
