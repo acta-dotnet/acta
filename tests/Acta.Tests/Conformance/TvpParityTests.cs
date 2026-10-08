@@ -34,11 +34,7 @@ public sealed partial class TvpParityTests
         ["job_schedule_slot_batch"] = "definition_id",
         ["job_schedule_upsert_batch"] = "definition_id, name",
         ["job_schedule_advance_batch"] = "schedule_id",
-        ["complete_executions_batch"] = "ordinal",
     };
-
-    // Declared by M001 but bound by nothing since the Bulk profile went; the next baseline re-cut drops it.
-    private static readonly HashSet<string> Unbound = ["complete_executions_batch"];
 
     [Fact]
     public void M001_tvp_types_declare_the_pinned_primary_keys()
@@ -89,10 +85,7 @@ public sealed partial class TvpParityTests
                 }
             }
 
-            if (!Unbound.Contains(block.Groups[1].Value))
-            {
-                declared[block.Groups[1].Value] = columns;
-            }
+            declared[block.Groups[1].Value] = columns;
         }
 
         Assert.Equal(declared.Keys.Order(StringComparer.Ordinal), SqlServerDialect.TvpShapes.Keys.Order(StringComparer.Ordinal));

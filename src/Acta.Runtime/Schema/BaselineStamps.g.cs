@@ -12,7 +12,7 @@ namespace Acta.Runtime;
 /// </summary>
 internal static class BaselineStamps
 {
-    internal const string Mssql = "baseline-9df4b32afd5461b06f8b5df86c7eb0b2";
+    internal const string Mssql = "baseline-63d1bdfd309fcc678f53e6c8f81ca015";
 
     internal const string Pg = "baseline-c9dc8fbc2218b7f2e44ff33ff29f66a8";
 

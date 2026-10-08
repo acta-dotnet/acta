@@ -538,25 +538,6 @@ EXEC(N'CREATE TYPE {{schema}}.job_schedule_advance_batch AS TABLE (
 );');
 GO
 
--- Per-row group-committed completion batch: one row per simple terminal completion under the
--- Bulk execution profile. Consumed by acta.complete_executions_batch's @p_batch sproc parameter.
-IF TYPE_ID(N'{{schema}}.complete_executions_batch') IS NULL
-EXEC(N'CREATE TYPE {{schema}}.complete_executions_batch AS TABLE (
-    ordinal           INT            NOT NULL PRIMARY KEY,
-    job_id            BIGINT         NOT NULL,
-    worker_id         INT            NOT NULL,
-    execution_number  INT            NOT NULL,
-    succeeded         BIT            NOT NULL,
-    duration_ms       INT            NULL,
-    reason_code       TINYINT        NULL,
-    reason_message    NVARCHAR(512)  NULL,
-    result_format_id  TINYINT        NOT NULL,
-    result            VARBINARY(MAX) NULL,
-    failure_count     INT            NULL,
-    retention_seconds INT            NULL
-);');
-GO
-
 -- Per-definition recurring slot batch: one row per definition reconciled in a single
 -- acta.register_scheduled_jobs call (all definitions share one namespace, passed as a scalar).
 -- deduplication_key is the slot job's natural key (the job name).
@@ -593,7 +574,7 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 0)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-9df4b32afd5461b06f8b5df86c7eb0b2', '{{schema}}');
+VALUES (0, 'baseline-63d1bdfd309fcc678f53e6c8f81ca015', '{{schema}}');
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 1)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}');
