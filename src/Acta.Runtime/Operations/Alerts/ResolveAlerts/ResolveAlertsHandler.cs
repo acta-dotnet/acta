@@ -1,15 +1,15 @@
 namespace Acta.Runtime;
 
 /// <summary>
-/// <see cref="AlertLifecycle.ResolveJobAlertsAsync"/>: one routine call answering an explicit count, so it
+/// <see cref="AlertLifecycle.ResolveAlertsAsync"/>: one routine call answering an explicit count, so it
 /// never depends on driver row-count tokens.
 /// </summary>
-internal sealed class ResolveJobAlertsHandler(IDbSession session, ISqlDialect dialect)
+internal sealed class ResolveAlertsHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async Task<int> HandleAsync(ResolveJobAlertsCommand command, CancellationToken ct) =>
+    public async Task<int> HandleAsync(ResolveAlertsCommand command, CancellationToken ct) =>
         (
             await session.ExecuteAsync(
-                new StoreCommand("ResolveJobAlerts"),
+                new StoreCommand("ResolveAlerts"),
                 cmd =>
                 {
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Alert.NamespaceId, command.NamespaceId));

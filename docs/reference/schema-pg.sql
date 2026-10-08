@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 42)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 43)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -4785,7 +4785,7 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION acta.resolve_job_alerts(
+CREATE OR REPLACE FUNCTION acta.resolve_alerts(
     p_namespace_id INT,
     p_job_id BIGINT,
     p_source_event_id BIGINT
@@ -5207,7 +5207,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.42-df9cde2f6ff32d6d13231d4e26eef7d3', 'acta');
+VALUES (-1, 'objects-1.43-c95abffaee725528edd1acca9e281681', 'acta');
 
 COMMIT;
 

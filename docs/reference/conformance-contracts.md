@@ -218,7 +218,7 @@
   - Raising with a null jobId still inserts a job-less alert
 
 ### A success resolves its job's open automatic failure alerts once
-- **Contract:** ResolveJobAlerts closes one job's open automatic failure alerts marked before the success event, stamps that event as the mark, and returns the count.
+- **Contract:** ResolveAlerts closes one job's open automatic failure alerts marked before the success event, stamps that event as the mark, and returns the count.
 - **Guarantees:**
   - Every open automatic failure kind on the job closes, manual alerts and other jobs stay open, and the count says how many
   - A success no newer than the alert's projection mark closes nothing, and the next newer one does
@@ -2244,7 +2244,7 @@
 | `ReserveRate` | yes | yes | yes |
 | `ResetJobState` | yes | yes | yes |
 | `ResolveAlert` | yes | yes | yes |
-| `ResolveJobAlerts` | yes | yes | yes |
+| `ResolveAlerts` | yes | yes | yes |
 | `ResolveJobIdByDeduplicationKey` | yes | yes | yes |
 | `ResolveJobIdByRef` | yes | yes | yes |
 | `RestartJob` | yes | yes | yes |

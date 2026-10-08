@@ -191,12 +191,12 @@ of its own.
 ## Resolution
 
 A successful execution resolves that job's open automatic alerts and writes nothing
-(`AlertsJob.ProjectAsync`, `ResolveJobAlerts.*.sql`). It is:
+(`AlertsJob.ProjectAsync`, `ResolveAlerts.*.sql`). It is:
 
 - **Job-instance-scoped** — `job_id` and `origin = Automatic`, kinds `FirstFailure` /
-  `ThresholdReached` / `FinalFailure`, and only rows still unresolved (`ResolveJobAlerts.*.sql`).
+  `ThresholdReached` / `FinalFailure`, and only rows still unresolved (`ResolveAlerts.*.sql`).
 - **Ordered.** Resolution applies only to alerts whose `last_projected_event_id` precedes the success
-  event (`ResolveJobAlerts.*.sql`), so a replayed success cannot close an alert that a later failure
+  event (`ResolveAlerts.*.sql`), so a replayed success cannot close an alert that a later failure
   opened.
 - **Idempotent, and run on every success.** Within one batch a job can go fail → success → fail →
   success, where the second failure opens a fresh incident on the same key (the first is already
@@ -326,7 +326,7 @@ The delivery guarantee:
 > An alert resolved before delivery selection is not sent. Resolution suppresses further pending and
 > retry attempts. A transport attempt already in progress may still complete.
 
-Both resolve paths settle the delivery they close (`ResolveJobAlerts.*.sql`,
+Both resolve paths settle the delivery they close (`ResolveAlerts.*.sql`,
 `ResolveAlert.*.sql`): a `Pending` or `RetryAfter` row moves to `Suppressed` and its
 retry timer clears, so a notification queued for a condition that has cleared is cancelled rather than
 sent. An already-settled row (`Delivered`, `Failed`, `Suppressed`) keeps its status — resolving does

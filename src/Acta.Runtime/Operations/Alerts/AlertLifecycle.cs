@@ -9,7 +9,7 @@ internal sealed class AlertLifecycle(
     GetAlertableEventsHandler getAlertableEvents,
     GetDeliverableAlertsHandler getDeliverableAlerts,
     UpdateAlertDeliveryHandler updateAlertDelivery,
-    ResolveJobAlertsHandler resolveJobAlerts
+    ResolveAlertsHandler resolveAlerts
 )
 {
     /// <summary>
@@ -75,6 +75,6 @@ internal sealed class AlertLifecycle(
     /// and RetryAfter become Suppressed and <c>retry_after_utc</c> is cleared, while a Delivered, Failed, or
     /// Suppressed row keeps the status that records what happened.
     /// </summary>
-    public Task<int> ResolveJobAlertsAsync(int namespaceId, long jobId, long sourceEventId, CancellationToken ct) =>
-        resolveJobAlerts.HandleAsync(new ResolveJobAlertsCommand(namespaceId, jobId, sourceEventId), ct);
+    public Task<int> ResolveAlertsAsync(int namespaceId, long jobId, long sourceEventId, CancellationToken ct) =>
+        resolveAlerts.HandleAsync(new ResolveAlertsCommand(namespaceId, jobId, sourceEventId), ct);
 }

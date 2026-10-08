@@ -56,7 +56,7 @@ public sealed class AlertPurgeRaceSpec : ActaRuntimeTestBase<ConformanceFixture,
             foreach (var id in ids)
             {
                 racers.Add(Run(start, () => RaiseRepeatedlyAsync(id, ct), ct));
-                racers.Add(Run(start, () => store.ResolveJobAlertsAsync(ns, id, long.MaxValue, ct), ct));
+                racers.Add(Run(start, () => store.ResolveAlertsAsync(ns, id, long.MaxValue, ct), ct));
                 racers.Add(
                     Run(
                         start,

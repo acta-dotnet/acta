@@ -126,7 +126,7 @@ public sealed class AlertProfileMatrixSpec : ActaRuntimeTestBase<ConformanceFixt
         // event the projector already stamped on the row.
         await Services
             .GetRequiredService<AlertLifecycle>()
-            .ResolveJobAlertsAsync(NamespaceId, job.JobId, await NextEventIdAsync(job.JobId, ct), ct);
+            .ResolveAlertsAsync(NamespaceId, job.JobId, await NextEventIdAsync(job.JobId, ct), ct);
         var afterResolve = await ReadAlertsAsync(NamespaceId, ct);
         var resolved = Assert.Single(afterResolve, a => a.Kind == AlertKindCode.FinalFailure);
         Assert.NotNull(resolved.ResolvedAtUtc);

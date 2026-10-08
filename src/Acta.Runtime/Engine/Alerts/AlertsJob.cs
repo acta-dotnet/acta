@@ -288,7 +288,7 @@ internal sealed class AlertsJob(
             // success behind a newer failure leaves the alert that failure opened open.
             if (e.JobId is { } jobId)
             {
-                await _alerts.ResolveJobAlertsAsync(ctx.NamespaceId, jobId, e.EventId, ct);
+                await _alerts.ResolveAlertsAsync(ctx.NamespaceId, jobId, e.EventId, ct);
             }
             return;
         }

@@ -11,9 +11,9 @@ namespace Acta.Tests.Conformance.Operations.Alerts;
     "resolve-job-alerts.on-success",
     "A success resolves its job's open automatic failure alerts once",
     Area = "Alerts",
-    Contract = "ResolveJobAlerts closes one job's open automatic failure alerts marked before the success event, stamps that event as the mark, and returns the count."
+    Contract = "ResolveAlerts closes one job's open automatic failure alerts marked before the success event, stamps that event as the mark, and returns the count."
 )]
-public sealed class ResolveJobAlertsSpec : ActaStorageTestBase<ConformanceFixture>
+public sealed class ResolveAlertsSpec : ActaStorageTestBase<ConformanceFixture>
 {
     private int DefId;
     private long JobIdValue;
@@ -112,7 +112,7 @@ public sealed class ResolveJobAlertsSpec : ActaStorageTestBase<ConformanceFixtur
     }
 
     private Task<int> ResolveAsync(int namespaceId, long jobId, long sourceEventId, CancellationToken ct) =>
-        Services.GetRequiredService<AlertLifecycle>().ResolveJobAlertsAsync(namespaceId, jobId, sourceEventId, ct);
+        Services.GetRequiredService<AlertLifecycle>().ResolveAlertsAsync(namespaceId, jobId, sourceEventId, ct);
 
     /// <summary>
     /// A keyless raise, so every call is its own row. The source event id stands in for the failure event the

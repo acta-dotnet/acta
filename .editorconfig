@@ -637,7 +637,7 @@ dotnet_diagnostic.CA1031.severity = none
 [src/Acta.Runtime/Db/DbSession.cs]
 dotnet_diagnostic.CA1031.severity = none
 
-# CA2208: RaiseJobAlertHandler's 'jobId' is not a parameter of that method by accident - it is the
+# CA2208: RaiseAlertHandler's 'jobId' is not a parameter of that method by accident - it is the
 # unknown-job signal itself. AlertsJob classifies the failure with when (ex.ParamName == "jobId") and
 # the conformance spec pins the shape, so the paramName is a protocol token between the provider and
 # the projection, not a misnamed argument. Renaming it to 'command' would break that filter and let a

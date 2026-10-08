@@ -30,7 +30,7 @@ BEGIN
         IF @v_ns IS NULL
             THROW 50000, 'raise_alert: unknown namespace', 1;
 
-        -- The job row is locked before any of its alert rows, as purge_job and resolve_job_alerts lock it
+        -- The job row is locked before any of its alert rows, as purge_job and resolve_alerts lock it
         -- (docs/internals/sql-execution-policy.md, "Alert lock order"), so a raise waits out a purge of its
         -- job rather than deadlocking with it or landing an alert on the deleted job.
         DECLARE @v_job_ref UNIQUEIDENTIFIER;

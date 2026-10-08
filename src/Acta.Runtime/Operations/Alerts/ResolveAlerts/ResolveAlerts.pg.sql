@@ -1,4 +1,4 @@
-CREATE OR REPLACE FUNCTION {{schema}}.resolve_job_alerts(
+CREATE OR REPLACE FUNCTION {{schema}}.resolve_alerts(
     p_namespace_id INT,
     p_job_id BIGINT,
     p_source_event_id BIGINT

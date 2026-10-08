@@ -171,7 +171,7 @@ public sealed class ListAlertsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
         var ct = TestContext.Current.CancellationToken;
         var queries = Services.GetRequiredService<IActaOperations>();
 
-        // Alert A: Automatic + FirstFailure kind so ResolveJobAlerts will close it. The subject is a job
+        // Alert A: Automatic + FirstFailure kind so ResolveAlerts will close it. The subject is a job
         // this spec enqueues, for the reason EnqueueProbeJobAsync documents - a hardcoded id names rows
         // another spec created. This was the one fact the rest of the class's migration missed.
         var resolveJobId = await EnqueueProbeJobAsync(ct);
@@ -185,7 +185,7 @@ public sealed class ListAlertsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
             kind: AlertKindCode.FirstFailure
         );
 
-        // Alert B: Manual: ResolveJobAlerts ignores it
+        // Alert B: Manual: ResolveAlerts ignores it
         await RaiseAsync(Db, null, AlertSeverityCode.Warning, AlertDeliveryStatusCode.Pending, ct);
 
         // Capture IDs before resolving (via origin discrimination, independent of unresolvedOnly filter)
@@ -197,7 +197,7 @@ public sealed class ListAlertsFilterMatrixSpec : ActaRuntimeTestBase<Conformance
         var nsId = Runtime.RegisteredNamespaceIds[TestNamespace];
         await Services
             .GetRequiredService<AlertLifecycle>()
-            .ResolveJobAlertsAsync(nsId, resolveJobId, await NextEventIdAsync(resolveJobId, ct), ct);
+            .ResolveAlertsAsync(nsId, resolveJobId, await NextEventIdAsync(resolveJobId, ct), ct);
 
         // unresolvedOnly=true: only B
         var unresolvedPage = await queries.Alerts.ListAsync(

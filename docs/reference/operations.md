@@ -16,7 +16,7 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 | `ListAlerts` | `IAlerts.ListAsync` | `GET /alerts` | · | inline | inline | inline | · | `ListAlertsFilterMatrixSpec`, `ListAlertsSpec` |
 | `RaiseAlert` | · | · | · | routine | routine | inline | `alerts` | `RaiseAlertRefStabilitySpec`, `RaiseAlertSpec` |
 | `ResolveAlert` | `IAlerts.ResolveAsync` | `POST /alerts/{alertRef}/resolve` | · | inline | inline | inline | `alerts`, `events` | `ResolveAlertSpec` |
-| `ResolveJobAlerts` | · | · | · | routine | routine | inline | `alerts` | `ResolveJobAlertsSpec` |
+| `ResolveAlerts` | · | · | · | routine | routine | inline | `alerts` | `ResolveAlertsSpec` |
 | `UpdateAlertDelivery` | · | · | · | routine | routine | inline | `alerts` | `UpdateAlertDeliverySpec` |
 
 ## Clock

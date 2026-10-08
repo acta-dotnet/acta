@@ -5,7 +5,7 @@ SQL and installed views; SQLite implements the same store contracts with transac
 
 This is the execution policy referenced by [the design decisions](design.md). The server
 providers each install 58 routines: the 53 mutation operations plus `UpdateAlertDelivery`,
-`ResolveJobAlerts`, `RepairRecoverySlot`, `AcquireSlot`, and `ReserveRate`. Hot paths, control operations, catalog registration,
+`ResolveAlerts`, `RepairRecoverySlot`, `AcquireSlot`, and `ReserveRate`. Hot paths, control operations, catalog registration,
 recovery, and maintenance all follow the same rule. Routine placement is a compatibility decision,
 not an inference from SQL size.
 
@@ -165,7 +165,7 @@ child table, but it locks only the batch's own keys.
 ### Alert lock order
 
 A routine that writes a job's alerts locks the job row first, then the alert rows. `purge_job` holds the
-job row while it deletes the job's alerts, and `raise_alert` and `resolve_job_alerts` lock the same
+job row while it deletes the job's alerts, and `raise_alert` and `resolve_alerts` lock the same
 row before they touch an alert: `UPDLOCK` on SQL Server, `FOR SHARE` on PostgreSQL against the
 purge's `FOR UPDATE`. A raise or resolve that meets a purge of its job waits for it. A raise that then
 finds the job gone is refused, so no alert outlives its job.

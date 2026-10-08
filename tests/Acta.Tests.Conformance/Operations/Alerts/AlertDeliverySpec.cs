@@ -306,7 +306,7 @@ public sealed class AlertDeliverySpec : ActaStorageTestBase<ConformanceFixture>
     private async Task<int> ResolveAsync(long jobId, CancellationToken ct) =>
         await Services
             .GetRequiredService<AlertLifecycle>()
-            .ResolveJobAlertsAsync(TestNamespaceId, jobId, await NextEventIdAsync(jobId, ct), ct);
+            .ResolveAlertsAsync(TestNamespaceId, jobId, await NextEventIdAsync(jobId, ct), ct);
 
     // Moves the row's scheduled instant without touching anything else, which is how these facts travel
     // in time: the delivery read compares retry_after_utc against the database's own clock, so rewinding
@@ -353,7 +353,7 @@ public sealed class AlertDeliverySpec : ActaStorageTestBase<ConformanceFixture>
         RaiseAutomaticAsync(deduplicationKey, JobIdValue, ct);
 
     // The shape the projector writes: Automatic origin, a failure kind, and a job the resolve verb can
-    // scope to - the only rows ResolveJobAlerts closes.
+    // scope to - the only rows ResolveAlerts closes.
     private Task RaiseAutomaticAsync(string deduplicationKey, long jobId, CancellationToken ct) =>
         AlertTestOps.RaiseAsync(
             Services,
