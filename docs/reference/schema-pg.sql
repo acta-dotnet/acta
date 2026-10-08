@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 15)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 16)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -7753,89 +7753,6 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION acta.update_namespace(
-    p_namespace_name VARCHAR,
-    p_owner_team VARCHAR,
-    p_description VARCHAR,
-    p_expected_version INT,
-    p_actor_code SMALLINT,
-    p_actor_key VARCHAR,
-    p_reason_message VARCHAR
-)
-RETURNS TABLE (action SMALLINT, version INT)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_id INT;
-    v_version INT;
-BEGIN
-    SELECT n.id, n.version INTO v_id, v_version
-    FROM acta.namespaces n
-    WHERE n.name = p_namespace_name
-    FOR UPDATE;
-
-    IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::INT;
-        RETURN;
-    END IF;
-
-    IF v_version <> p_expected_version THEN
-        RETURN QUERY SELECT 5 /* ControlAction.VersionConflict */::SMALLINT, v_version;
-        RETURN;
-    END IF;
-
-    UPDATE acta.namespaces AS n
-    SET
-        owner_team = p_owner_team,
-        description = p_description,
-        modified_at_utc = now(),
-        version = n.version + 1
-    WHERE n.id = v_id
-    RETURNING n.version INTO v_version;
-
-    INSERT INTO acta.events (
-        event_code,
-        created_at_utc,
-        namespace_id,
-        actor_code,
-        actor_key,
-        job_id,
-        job_ref,
-        execution_number,
-        lineage_root_id,
-        definition_id,
-        tenant_id,
-        worker_id,
-        from_status_code,
-        to_status_code,
-        execution_status_code,
-        duration_ms,
-        reason_code,
-        reason_message)
-    VALUES (
-        22 /* EventCode.NamespaceUpdated */,
-        now(),
-        v_id,
-        p_actor_code,
-        p_actor_key,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        p_reason_message);
-
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_version;
-END;
-$$;
-
 CREATE OR REPLACE FUNCTION acta.update_tenant(
     p_tenant_key VARCHAR,
     p_display_name VARCHAR,
@@ -8053,7 +7970,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.15-fed35d0e21a50b648b67abbd3458e616', 'acta');
+VALUES (-1, 'objects-1.16-d54404306572dd0bb7fc9ce437fbd3a5', 'acta');
 
 COMMIT;
 

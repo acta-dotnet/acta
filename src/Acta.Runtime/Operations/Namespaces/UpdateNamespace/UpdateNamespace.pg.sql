@@ -1,82 +1,28 @@
-CREATE OR REPLACE FUNCTION {{schema}}.update_namespace(
-    p_namespace_name VARCHAR,
-    p_owner_team VARCHAR,
-    p_description VARCHAR,
-    p_expected_version INT,
-    p_actor_code SMALLINT,
-    p_actor_key VARCHAR,
-    p_reason_message VARCHAR
-)
-RETURNS TABLE (action SMALLINT, version INT)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_id INT;
-    v_version INT;
-BEGIN
-    SELECT n.id, n.version INTO v_id, v_version
+-- One statement: the name's row is locked, then updated and audited only at the expected version.
+WITH target AS (
+    SELECT n.id, n.version
     FROM {{schema}}.namespaces n
-    WHERE n.name = p_namespace_name
-    FOR UPDATE;
-
-    IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::INT;
-        RETURN;
-    END IF;
-
-    IF v_version <> p_expected_version THEN
-        RETURN QUERY SELECT 5 /* ControlAction.VersionConflict */::SMALLINT, v_version;
-        RETURN;
-    END IF;
-
+    WHERE n.name = @p_namespace_name
+    FOR UPDATE
+),
+updated AS (
     UPDATE {{schema}}.namespaces AS n
-    SET
-        owner_team = p_owner_team,
-        description = p_description,
-        modified_at_utc = now(),
-        version = n.version + 1
-    WHERE n.id = v_id
-    RETURNING n.version INTO v_version;
-
-    INSERT INTO {{schema}}.events (
-        event_code,
-        created_at_utc,
-        namespace_id,
-        actor_code,
-        actor_key,
-        job_id,
-        job_ref,
-        execution_number,
-        lineage_root_id,
-        definition_id,
-        tenant_id,
-        worker_id,
-        from_status_code,
-        to_status_code,
-        execution_status_code,
-        duration_ms,
-        reason_code,
-        reason_message)
-    VALUES (
-        22 /* EventCode.NamespaceUpdated */,
-        now(),
-        v_id,
-        p_actor_code,
-        p_actor_key,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        p_reason_message);
-
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_version;
-END;
-$$;
+    SET owner_team = @p_owner_team, description = @p_description, modified_at_utc = now(), version = n.version + 1
+    FROM target t
+    WHERE n.id = t.id AND t.version = @p_expected_version
+    RETURNING n.id, n.version
+),
+audit AS (
+    INSERT INTO {{schema}}.events (event_code, created_at_utc, namespace_id, actor_code, actor_key, reason_message)
+    SELECT 22 /* EventCode.NamespaceUpdated */, now(), u.id, @p_actor_code, @p_actor_key, @p_reason_message
+    FROM updated u
+)
+SELECT 1 /* ControlAction.Applied */::SMALLINT AS action, u.version AS version
+FROM updated u
+UNION ALL
+SELECT 5 /* ControlAction.VersionConflict */::SMALLINT AS action, t.version AS version
+FROM target t
+WHERE t.version <> @p_expected_version
+UNION ALL
+SELECT 2 /* ControlAction.NotFound */::SMALLINT AS action, NULL::INT AS version
+WHERE NOT EXISTS (SELECT 1 FROM target);
