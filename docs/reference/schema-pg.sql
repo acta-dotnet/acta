@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 28)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 29)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -4024,116 +4024,6 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION acta.purge_job(
-    p_id BIGINT,
-    p_actor_code SMALLINT,
-    p_actor_key VARCHAR,
-    p_reason_code SMALLINT
-)
-RETURNS TABLE (action SMALLINT, status_code SMALLINT)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_from_status SMALLINT;
-    v_namespace_id INT;
-    v_definition INT;
-    v_tenant INT;
-    v_job_ref UUID;
-    v_job_name VARCHAR;
-    v_parent_id BIGINT;
-BEGIN
-    SELECT r.status_code, j.namespace_id, j.definition_id, j.tenant_id, j.job_ref, d.name, j.parent_id
-    INTO v_from_status, v_namespace_id, v_definition, v_tenant, v_job_ref, v_job_name, v_parent_id
-    FROM acta.jobs j
-    JOIN acta.runtimes r ON r.job_id = j.id
-    JOIN acta.definitions d ON d.id = j.definition_id
-    WHERE j.id = p_id
-    FOR UPDATE OF j, r;
-
-    IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT;
-        RETURN;
-    END IF;
-
-    IF v_from_status NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN
-        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status;
-        RETURN;
-    END IF;
-
-    -- parent_id carries no DB FK/cascade; purging a job that has child jobs would orphan the child's
-    -- lineage (parent_id / lineage_root_id would point at a row that no longer exists), so reject. A
-    -- completed child of a live parent is kept too: the parent's replay dedupes onto it and reads its result.
-    IF EXISTS (SELECT 1 FROM acta.jobs c WHERE c.parent_id = p_id)
-        OR EXISTS (
-            SELECT 1 FROM acta.runtimes p
-            WHERE p.job_id = v_parent_id
-              AND p.status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)) THEN
-        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status;
-        RETURN;
-    END IF;
-
-    -- Canonical deletion lock order: job (above), schedules, alerts, events, tags, then targets.
-    PERFORM 1 FROM acta.schedules s WHERE s.job_id = p_id ORDER BY s.id FOR UPDATE;
-    PERFORM 1 FROM acta.alerts a WHERE a.job_id = p_id ORDER BY a.id FOR UPDATE;
-    PERFORM 1 FROM acta.events e WHERE e.job_id = p_id ORDER BY e.id FOR UPDATE;
-
-    DELETE FROM acta.tags t
-    WHERE
-        (t.scope_code = 50 /* TagScopeCode.Job */ AND t.scope_id = p_id)
-        OR (t.scope_code = 60 /* TagScopeCode.Schedule */ AND t.scope_id IN (
-            SELECT s.id FROM acta.schedules s WHERE s.job_id = p_id))
-        OR (t.scope_code = 80 /* TagScopeCode.Alert */ AND t.scope_id IN (
-            SELECT a.id FROM acta.alerts a WHERE a.job_id = p_id))
-        OR (t.scope_code = 90 /* TagScopeCode.Event */ AND t.scope_id IN (
-            SELECT e.id FROM acta.events e WHERE e.job_id = p_id));
-
-    DELETE FROM acta.events WHERE job_id = p_id;
-    DELETE FROM acta.alerts WHERE job_id = p_id;
-    DELETE FROM acta.jobs WHERE id = p_id;
-
-    INSERT INTO acta.events (
-        event_code,
-        created_at_utc,
-        namespace_id,
-        actor_code,
-        actor_key,
-        job_id,
-        job_ref,
-        execution_number,
-        lineage_root_id,
-        definition_id,
-        tenant_id,
-        worker_id,
-        from_status_code,
-        to_status_code,
-        execution_status_code,
-        duration_ms,
-        reason_code,
-        reason_message)
-    VALUES (
-        75 /* EventCode.JobPurged */,
-        now(),
-        v_namespace_id,
-        p_actor_code,
-        p_actor_key,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        v_definition,
-        v_tenant,
-        NULL,
-        v_from_status,
-        NULL,
-        NULL,
-        NULL,
-        p_reason_code,
-        'purged ' || v_job_ref::text || ' (' || v_job_name || ')');
-
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, NULL::SMALLINT;
-END;
-$$;
-
 CREATE OR REPLACE FUNCTION acta.raise_job_alert(
     p_namespace_name VARCHAR,
     p_job_id BIGINT,
@@ -6816,7 +6706,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.28-769a354035972bdcfa34e025854939d2', 'acta');
+VALUES (-1, 'objects-1.29-16f2b0f3bbd5fbe026690a5ccbeafb23', 'acta');
 
 COMMIT;
 
