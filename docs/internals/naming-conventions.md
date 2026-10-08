@@ -107,7 +107,7 @@ The boundary has three sides, and only two of them are inside it:
   - **Ambient identity on `JobContext`**: `JobId`, `NamespaceId`, `TenantId`, `WorkerId`.
   - **Addressing and resolution**: `JobLookup.ById`, and `IJobs.GetJobIdAsync`, which exists precisely
     to turn a lookup into the internal id an advanced caller then uses.
-  - **Write outcomes, failures, and their ids**: `JobEnqueueOutcome`, `IJobControlResponse.JobId`, the other
+  - **Write outcomes, failures, and their ids**: `JobEnqueueResponse`, `IJobControlResponse.JobId`, the other
     `Job*Outcome` records, `JobFailedException.JobId`,
     `DuplicateDeduplicationKeyInBatchException.ParentJobId` / its `ForChild` factory, and the
     `Acta.Testing` host helpers that take a job id (`IActaTestHost.RunOnceAsync(long)` and the `Force*` helpers).

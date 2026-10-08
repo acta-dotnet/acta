@@ -26,7 +26,7 @@ public sealed class SqlServerTransactionOwnershipTests : ActaRuntimeTestBase<Sql
         await using var conn = new SqlConnection(ConnectionString());
         await conn.OpenAsync(ct);
 
-        JobEnqueueOutcome outcome;
+        JobEnqueueResponse outcome;
         await using (var tx = (SqlTransaction)await conn.BeginTransactionAsync(ct))
         {
             outcome = await Jobs.EnqueueAsync(tx, Request(), ct);

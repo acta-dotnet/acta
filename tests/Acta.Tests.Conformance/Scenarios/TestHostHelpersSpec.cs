@@ -120,7 +120,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
         await Assert.ThrowsAsync<InvalidOperationException>(() => host.ForceGroupWaitTimeoutDueAsync(single.JobId, ct));
     }
 
-    private static async Task RunUntilAsync(IActaTestHost host, JobEnqueueOutcome job, JobStatusCode expected, CancellationToken ct)
+    private static async Task RunUntilAsync(IActaTestHost host, JobEnqueueResponse job, JobStatusCode expected, CancellationToken ct)
     {
         for (var tick = 0; tick < MaxTicks; tick++)
         {
@@ -135,7 +135,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
 
     private static async Task<CheckpointEntity> RunUntilWaitingAsync(
         IActaTestHost host,
-        JobEnqueueOutcome job,
+        JobEnqueueResponse job,
         string signal,
         CancellationToken ct
     )

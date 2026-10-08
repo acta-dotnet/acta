@@ -358,7 +358,7 @@ async Task RetentionAsync(CancellationToken token)
     catch (OperationCanceledException) when (token.IsCancellationRequested) { }
 }
 
-async Task ObserveDurableCompletionAsync(JobEnqueueOutcome job, long submitted, CancellationToken token)
+async Task ObserveDurableCompletionAsync(JobEnqueueResponse job, long submitted, CancellationToken token)
 {
     while (await host.Jobs.GetStatusAsync(job, token) != JobStatusCode.Succeeded)
     {

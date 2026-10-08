@@ -312,7 +312,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         var root = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
         Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(root, ct));
 
-        var children = new JobEnqueueOutcome[5];
+        var children = new JobEnqueueResponse[5];
         for (var i = 0; i < children.Length; i++)
         {
             children[i] = await Jobs.EnqueueAsync(

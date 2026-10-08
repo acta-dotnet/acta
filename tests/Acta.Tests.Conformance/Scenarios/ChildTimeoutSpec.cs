@@ -327,7 +327,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(RunOnceOutcome.NothingClaimed, await Runtime.RunOnceAsync(parent, ct));
     }
 
-    private async Task<JobEnqueueOutcome> StartParentAsync(string childJobName, CancellationToken ct) =>
+    private async Task<JobEnqueueResponse> StartParentAsync(string childJobName, CancellationToken ct) =>
         await Jobs.EnqueueAsync(
             new JobEnqueueRequest(TestNamespace, "job-parent-try-wait-child", JobPayload.Json(new TryWaitChildStart(childJobName))),
             ct
@@ -335,7 +335,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
 
     // Drives the retry probe to the instant after its bounded wait expired: the first child is
     // cancelled, the replacement is started, and the parent is parked on the replacement's latch.
-    private async Task<(JobEnqueueOutcome Parent, long First)> DriveToChildTimeoutAsync(CancellationToken ct)
+    private async Task<(JobEnqueueResponse Parent, long First)> DriveToChildTimeoutAsync(CancellationToken ct)
     {
         var parent = await Jobs.EnqueueAsync(
             new JobEnqueueRequest(TestNamespace, "job-parent-try-wait-child-then-retry", JobPayload.None),

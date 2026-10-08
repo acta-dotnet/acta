@@ -10,7 +10,7 @@ namespace Acta.Tests.Conformance.Testing;
 /// </summary>
 internal static class EnqueueTestOps
 {
-    public static async Task<IReadOnlyList<JobEnqueueOutcome>> EnqueueBatchAsync(
+    public static async Task<IReadOnlyList<JobEnqueueResponse>> EnqueueBatchAsync(
         IServiceProvider services,
         IReadOnlyList<JobEnqueueRow> rows,
         CancellationToken ct
@@ -36,15 +36,15 @@ internal static class EnqueueTestOps
                 ? await services.GetRequiredService<EnqueueOneHandler>().InsertAsync(canonical[0], refs[0], null, ct)
                 : await services.GetRequiredService<EnqueueBatchHandler>().InsertAsync(canonical, refs, null, ct);
 
-        var outcomes = new JobEnqueueOutcome[canonical.Length];
+        var outcomes = new JobEnqueueResponse[canonical.Length];
         foreach (var row in outcomeRows)
         {
-            outcomes[row.Ordinal] = new JobEnqueueOutcome(row.JobId, new JobRef(row.JobRef), row.Action);
+            outcomes[row.Ordinal] = new JobEnqueueResponse(row.JobId, new JobRef(row.JobRef), row.Action);
         }
 
         return outcomes;
     }
 
-    public static async Task<JobEnqueueOutcome> EnqueueOneAsync(IServiceProvider services, JobEnqueueRow row, CancellationToken ct) =>
+    public static async Task<JobEnqueueResponse> EnqueueOneAsync(IServiceProvider services, JobEnqueueRow row, CancellationToken ct) =>
         (await EnqueueBatchAsync(services, [row], ct))[0];
 }

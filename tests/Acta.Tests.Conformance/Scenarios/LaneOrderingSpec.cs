@@ -236,16 +236,16 @@ public sealed class LaneOrderingSpec : ActaRuntimeTestBase<ConformanceFixture, T
     private JobEnqueueRequest Request<TInput>(string jobName, TInput input, string? lane)
         where TInput : notnull => new(TestNamespace, jobName, JobPayload.Json(input), Lane: lane);
 
-    private async Task<JobEnqueueOutcome> EnqueueAsync<TInput>(string jobName, TInput input, string lane, CancellationToken ct)
+    private async Task<JobEnqueueResponse> EnqueueAsync<TInput>(string jobName, TInput input, string lane, CancellationToken ct)
         where TInput : notnull => await Jobs.EnqueueAsync(Request(jobName, input, lane), ct);
 
-    private async Task<JobEnqueueOutcome> EnqueueStepAsync(string lane, string label, JobPriorityCode priority, CancellationToken ct) =>
+    private async Task<JobEnqueueResponse> EnqueueStepAsync(string lane, string label, JobPriorityCode priority, CancellationToken ct) =>
         await Jobs.EnqueueAsync(Request("lane-step", new LaneStep(lane, label), lane) with { Priority = priority }, ct);
 
-    private async Task<JobStatusCode> StatusAsync(JobEnqueueOutcome outcome, CancellationToken ct) =>
+    private async Task<JobStatusCode> StatusAsync(JobEnqueueResponse outcome, CancellationToken ct) =>
         (await ReadJobAsync(outcome.JobId, ct)).Status;
 
-    private async Task<List<JobStatusCode>> StatusesAsync(IReadOnlyList<JobEnqueueOutcome> jobs, CancellationToken ct)
+    private async Task<List<JobStatusCode>> StatusesAsync(IReadOnlyList<JobEnqueueResponse> jobs, CancellationToken ct)
     {
         var statuses = new List<JobStatusCode>(jobs.Count);
         foreach (var job in jobs)
@@ -258,7 +258,7 @@ public sealed class LaneOrderingSpec : ActaRuntimeTestBase<ConformanceFixture, T
 
     // One claim per tick, until every listed job is terminal: a lane that promoted nothing would leave a
     // member Blocked and run the tick budget out.
-    private async Task DrainAsync(IReadOnlyList<JobEnqueueOutcome> jobs, CancellationToken ct)
+    private async Task DrainAsync(IReadOnlyList<JobEnqueueResponse> jobs, CancellationToken ct)
     {
         for (var tick = 0; tick < 60; tick++)
         {

@@ -231,7 +231,7 @@ public sealed class ClaimBatchSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
 
     private const string SupportedJob = "failures-audit-probe";
 
-    private async Task<JobEnqueueOutcome> EnqueueExcludedAsync(CancellationToken ct) =>
+    private async Task<JobEnqueueResponse> EnqueueExcludedAsync(CancellationToken ct) =>
         await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, ExcludedJob, JobPayload.Json(new AddNumbers(2, 3))), ct);
 
     private int DefinitionId(string jobName) =>

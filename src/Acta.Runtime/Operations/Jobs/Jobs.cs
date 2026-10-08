@@ -28,17 +28,17 @@ internal sealed class Jobs(
     GetInputTemplateHandler getInputTemplate
 ) : IJobs
 {
-    public ValueTask<JobEnqueueOutcome> EnqueueAsync(JobEnqueueRequest request, CancellationToken ct = default) =>
+    public ValueTask<JobEnqueueResponse> EnqueueAsync(JobEnqueueRequest request, CancellationToken ct = default) =>
         enqueueOne.HandleAsync(new EnqueueOneCommand(request), ct);
 
-    public ValueTask<JobEnqueueOutcome> EnqueueAsync<TInput>(
+    public ValueTask<JobEnqueueResponse> EnqueueAsync<TInput>(
         TInput input,
         JobEnqueueOptions? options = null,
         CancellationToken ct = default
     )
         where TInput : notnull => EnqueueAsync(routing.FromInput(input, options), ct);
 
-    public ValueTask<JobEnqueueOutcome> EnqueueAsync<TInput>(
+    public ValueTask<JobEnqueueResponse> EnqueueAsync<TInput>(
         JobContract<TInput> job,
         TInput input,
         JobEnqueueOptions? options = null,
@@ -46,7 +46,7 @@ internal sealed class Jobs(
     )
         where TInput : notnull => EnqueueAsync(routing.FromContract(job, input, options), ct);
 
-    public ValueTask<JobEnqueueOutcome> EnqueueAsync<TInput, TResult>(
+    public ValueTask<JobEnqueueResponse> EnqueueAsync<TInput, TResult>(
         JobContract<TInput, TResult> job,
         TInput input,
         JobEnqueueOptions? options = null,
@@ -54,24 +54,24 @@ internal sealed class Jobs(
     )
         where TInput : notnull => EnqueueAsync((JobContract<TInput>)job, input, options, ct);
 
-    public ValueTask<JobEnqueueOutcome> EnqueueAsync(
+    public ValueTask<JobEnqueueResponse> EnqueueAsync(
         JobContract<NoInput> job,
         JobEnqueueOptions? options = null,
         CancellationToken ct = default
     ) => EnqueueAsync(routing.FromContract(job, default, options), ct);
 
-    public ValueTask<IReadOnlyList<JobEnqueueOutcome>> EnqueueBatchAsync(
+    public ValueTask<IReadOnlyList<JobEnqueueResponse>> EnqueueBatchAsync(
         IReadOnlyList<JobEnqueueRequest> requests,
         CancellationToken ct = default
     ) => enqueueBatch.HandleAsync(new EnqueueBatchCommand(requests), ct);
 
-    public ValueTask<JobEnqueueOutcome> EnqueueAsync(
+    public ValueTask<JobEnqueueResponse> EnqueueAsync(
         DbTransaction transaction,
         JobEnqueueRequest request,
         CancellationToken ct = default
     ) => enqueueOne.HandleAsync(new EnqueueOneCommand(request, transaction ?? throw new ArgumentNullException(nameof(transaction))), ct);
 
-    public ValueTask<JobEnqueueOutcome> EnqueueAsync<TInput>(
+    public ValueTask<JobEnqueueResponse> EnqueueAsync<TInput>(
         DbTransaction transaction,
         TInput input,
         JobEnqueueOptions? options = null,
@@ -79,7 +79,7 @@ internal sealed class Jobs(
     )
         where TInput : notnull => EnqueueAsync(transaction, routing.FromInput(input, options), ct);
 
-    public ValueTask<JobEnqueueOutcome> EnqueueAsync<TInput>(
+    public ValueTask<JobEnqueueResponse> EnqueueAsync<TInput>(
         DbTransaction transaction,
         JobContract<TInput> job,
         TInput input,
@@ -88,7 +88,7 @@ internal sealed class Jobs(
     )
         where TInput : notnull => EnqueueAsync(transaction, routing.FromContract(job, input, options), ct);
 
-    public ValueTask<JobEnqueueOutcome> EnqueueAsync<TInput, TResult>(
+    public ValueTask<JobEnqueueResponse> EnqueueAsync<TInput, TResult>(
         DbTransaction transaction,
         JobContract<TInput, TResult> job,
         TInput input,
@@ -97,14 +97,14 @@ internal sealed class Jobs(
     )
         where TInput : notnull => EnqueueAsync(transaction, (JobContract<TInput>)job, input, options, ct);
 
-    public ValueTask<JobEnqueueOutcome> EnqueueAsync(
+    public ValueTask<JobEnqueueResponse> EnqueueAsync(
         DbTransaction transaction,
         JobContract<NoInput> job,
         JobEnqueueOptions? options = null,
         CancellationToken ct = default
     ) => EnqueueAsync(transaction, routing.FromContract(job, default, options), ct);
 
-    public ValueTask<IReadOnlyList<JobEnqueueOutcome>> EnqueueBatchAsync(
+    public ValueTask<IReadOnlyList<JobEnqueueResponse>> EnqueueBatchAsync(
         DbTransaction transaction,
         IReadOnlyList<JobEnqueueRequest> requests,
         CancellationToken ct = default

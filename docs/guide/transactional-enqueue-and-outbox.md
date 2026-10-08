@@ -54,7 +54,7 @@ The rules that make this safe:
   and executes it on the transaction's connection.
 - **No worker wakeup.** The transactional overloads publish no wakeup, because Acta cannot know whether
   or when you commit and a pre-commit wake would be wrong. Normal worker polling is the pickup path.
-- **The outcome is provisional until commit.** The returned `JobEnqueueOutcome` (its `JobId` / `JobRef`,
+- **The outcome is provisional until commit.** The returned `JobEnqueueResponse` (its `JobId` / `JobRef`,
   and a `Deduplicated` action) becomes durable only when you commit. A rollback means that identity never
   existed. Do not publish or persist a provisional outcome before the commit succeeds.
 - **Any enqueue exception requires a full rollback.** Known rejections are translated through the normal

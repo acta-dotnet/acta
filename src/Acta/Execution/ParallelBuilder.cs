@@ -24,5 +24,5 @@ public sealed class ParallelBuilder
 
     internal IReadOnlyList<Branch> Branches => _branches;
 
-    internal sealed record Branch(string BranchName, Func<JobContext, string, CancellationToken, Task<JobEnqueueOutcome>> Start);
+    internal sealed record Branch(string BranchName, Func<JobContext, string, CancellationToken, Task<JobEnqueueResponse>> Start);
 }

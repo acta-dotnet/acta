@@ -73,12 +73,12 @@ public sealed class LaneControlVerbsSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.True(row.NextRunAtUtc >= later.AddSeconds(-1), $"promotion moved the instant to {row.NextRunAtUtc:O}");
     }
 
-    private async Task<JobEnqueueOutcome> StepAsync(string label, CancellationToken ct) =>
+    private async Task<JobEnqueueResponse> StepAsync(string label, CancellationToken ct) =>
         await Jobs.EnqueueAsync(
             new JobEnqueueRequest(TestNamespace, "lane-step", JobPayload.Json(new LaneStep("orders", label)), Lane: "orders"),
             ct
         );
 
-    private async Task<JobStatusCode> StatusAsync(JobEnqueueOutcome outcome, CancellationToken ct) =>
+    private async Task<JobStatusCode> StatusAsync(JobEnqueueResponse outcome, CancellationToken ct) =>
         (await ReadJobAsync(outcome.JobId, ct)).Status;
 }

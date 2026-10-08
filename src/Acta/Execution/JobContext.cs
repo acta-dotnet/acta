@@ -603,7 +603,7 @@ public abstract class JobContext
     /// <param name="input">Typed input resolved to a job route via the generated manifest.</param>
     /// <param name="configure">Optional enqueue options; the parent id and deduplication key are framework-set and win over configured values.</param>
     /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
-    public async Task<JobEnqueueOutcome> StartChildAsync<TInput>(
+    public async Task<JobEnqueueResponse> StartChildAsync<TInput>(
         string name,
         TInput input,
         Action<JobEnqueueOptionsBuilder>? configure = null,
@@ -627,7 +627,7 @@ public abstract class JobContext
     /// <param name="name">Stable kebab-case child name, unique among this Job's children.</param>
     /// <param name="input">Typed input resolved to a job route via the generated manifest.</param>
     /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
-    public Task<JobEnqueueOutcome> StartChildAsync<TInput>(string name, TInput input, CancellationToken ct)
+    public Task<JobEnqueueResponse> StartChildAsync<TInput>(string name, TInput input, CancellationToken ct)
         where TInput : notnull => StartChildAsync(name, input, configure: null, ct: ct);
 
     /// <summary>
@@ -637,7 +637,7 @@ public abstract class JobContext
     /// (<paramref name="jobNamespace"/>, <paramref name="jobName"/>) targeting, including a namespace
     /// other than this Job's.
     /// </summary>
-    public async Task<JobEnqueueOutcome> StartChildAsync(
+    public async Task<JobEnqueueResponse> StartChildAsync(
         string name,
         string jobNamespace,
         string jobName,
@@ -1178,7 +1178,7 @@ public abstract class JobContext
     /// Subclass sink: typed child enqueue through the shared enqueue path. The options carry the
     /// framework-set parent id and deduplication key.
     /// </summary>
-    private protected abstract Task<JobEnqueueOutcome> StartChildCoreAsync<TInput>(
+    private protected abstract Task<JobEnqueueResponse> StartChildCoreAsync<TInput>(
         TInput input,
         JobEnqueueOptions options,
         CancellationToken ct
@@ -1188,7 +1188,7 @@ public abstract class JobContext
     /// <summary>
     /// Subclass sink: raw-route child enqueue through the shared enqueue path.
     /// </summary>
-    private protected abstract Task<JobEnqueueOutcome> StartChildCoreAsync(JobEnqueueRequest request, CancellationToken ct);
+    private protected abstract Task<JobEnqueueResponse> StartChildCoreAsync(JobEnqueueRequest request, CancellationToken ct);
 
     /// <summary>
     /// Subclass sink: read and deserialize the child's stored result.
@@ -1202,11 +1202,11 @@ public abstract class JobContext
     /// failed and does not cancel siblings; branch on the returned outcome or call
     /// <see cref="JoinOutcome.ThrowIfAnyFailed"/>.
     /// </summary>
-    public async Task<JoinOutcome> JoinAsync(IReadOnlyList<JobEnqueueOutcome> children, CancellationToken ct = default) =>
+    public async Task<JoinOutcome> JoinAsync(IReadOnlyList<JobEnqueueResponse> children, CancellationToken ct = default) =>
         new(await WaitChildrenAsync(ChildIds(children), ct));
 
     /// <summary>
-    /// Bounded twin of <see cref="JoinAsync(IReadOnlyList{JobEnqueueOutcome}, CancellationToken)"/>: the
+    /// Bounded twin of <see cref="JoinAsync(IReadOnlyList{JobEnqueueResponse}, CancellationToken)"/>: the
     /// whole join shares one stored absolute deadline that a replay reuses and never extends. It returns
     /// a <see cref="ChildrenWaitResult"/> rather than a <see cref="JoinOutcome"/>, because the two carry
     /// the same ordered child outcomes and only one of them can also say the group ran out of time;
@@ -1217,12 +1217,12 @@ public abstract class JobContext
     /// <param name="timeout">Budget for the whole join from DB now, not per child. Must be positive.</param>
     /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
     public Task<ChildrenWaitResult> JoinAsync(
-        IReadOnlyList<JobEnqueueOutcome> children,
+        IReadOnlyList<JobEnqueueResponse> children,
         TimeSpan timeout,
         CancellationToken ct = default
     ) => TryWaitChildrenAsync(ChildIds(children), timeout, ct);
 
-    private static long[] ChildIds(IReadOnlyList<JobEnqueueOutcome> children)
+    private static long[] ChildIds(IReadOnlyList<JobEnqueueResponse> children)
     {
         ArgumentNullException.ThrowIfNull(children);
         var ids = new long[children.Count];

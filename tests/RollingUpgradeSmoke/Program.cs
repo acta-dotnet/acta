@@ -136,7 +136,7 @@ async Task HoldAsync()
     Console.WriteLine($"PASS {provider} {profile} hold: execution held across the other generation's provisioning, then completed.");
 }
 
-async Task VerifyProbeAsync(JobEnqueueOutcome job, int expected)
+async Task VerifyProbeAsync(JobEnqueueResponse job, int expected)
 {
     while (true)
     {

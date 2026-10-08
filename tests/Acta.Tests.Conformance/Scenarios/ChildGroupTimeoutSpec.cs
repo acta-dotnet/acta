@@ -418,7 +418,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(fast, ct)).Status);
     }
 
-    private async Task<JobEnqueueOutcome> StartGroupParentAsync(string parentJobName, string[] childJobNames, CancellationToken ct) =>
+    private async Task<JobEnqueueResponse> StartGroupParentAsync(string parentJobName, string[] childJobNames, CancellationToken ct) =>
         await Jobs.EnqueueAsync(
             new JobEnqueueRequest(TestNamespace, parentJobName, JobPayload.Json(new ChildGroupStart(childJobNames))),
             ct

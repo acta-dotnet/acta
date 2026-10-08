@@ -189,13 +189,13 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         return command;
     }
 
-    private async Task<JobEnqueueOutcome> EnqueueLaneStepAsync(string lane, CancellationToken ct) =>
+    private async Task<JobEnqueueResponse> EnqueueLaneStepAsync(string lane, CancellationToken ct) =>
         await Jobs.EnqueueAsync(
             new JobEnqueueRequest(TestNamespace, "lane-step", JobPayload.Json(new LaneStep(lane, lane)), Lane: lane),
             ct
         );
 
-    private async Task<JobEnqueueOutcome> EnqueueOneAsync(string deduplicationKey, CancellationToken ct)
+    private async Task<JobEnqueueResponse> EnqueueOneAsync(string deduplicationKey, CancellationToken ct)
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(2, 3));

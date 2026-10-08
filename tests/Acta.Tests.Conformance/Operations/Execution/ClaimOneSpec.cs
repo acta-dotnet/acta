@@ -171,7 +171,7 @@ public sealed class ClaimOneSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         }
     }
 
-    private async Task<JobEnqueueOutcome> EnqueueAsync(CancellationToken ct) =>
+    private async Task<JobEnqueueResponse> EnqueueAsync(CancellationToken ct) =>
         await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct);
 
     /// <summary>

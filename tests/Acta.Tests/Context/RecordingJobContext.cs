@@ -44,7 +44,7 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>?
     public override string JobName => "parent";
     public override CancellationToken CancellationToken => CancellationToken.None;
 
-    private protected override Task<JobEnqueueOutcome> StartChildCoreAsync<TInput>(
+    private protected override Task<JobEnqueueResponse> StartChildCoreAsync<TInput>(
         TInput input,
         JobEnqueueOptions options,
         CancellationToken ct
@@ -56,7 +56,7 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>?
         Started.Add((name, input));
         StartOptions.Add(options);
         Events.Add($"start:{name}");
-        return Task.FromResult(new JobEnqueueOutcome(id, JobRef.New(), JobEnqueueAction.Inserted));
+        return Task.FromResult(new JobEnqueueResponse(id, JobRef.New(), JobEnqueueAction.Inserted));
     }
 
     private protected override Task<SignalWaitOutcome> WaitSignalCoreAsync(string name, CancellationToken ct)
@@ -138,14 +138,14 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>?
     private protected override T? DeserializeSignalPayload<T>(byte valueFormatId, byte[] value)
         where T : default => Unsupported<T?>();
 
-    private protected override Task<JobEnqueueOutcome> StartChildCoreAsync(JobEnqueueRequest request, CancellationToken ct)
+    private protected override Task<JobEnqueueResponse> StartChildCoreAsync(JobEnqueueRequest request, CancellationToken ct)
     {
         var name = request.DeduplicationKey ?? throw new InvalidOperationException("child request carried no deduplication key.");
         var id = ++_nextId;
         _idToName[id] = name;
         RawStarted.Add(request);
         Events.Add($"start:{name}");
-        return Task.FromResult(new JobEnqueueOutcome(id, JobRef.New(), JobEnqueueAction.Inserted));
+        return Task.FromResult(new JobEnqueueResponse(id, JobRef.New(), JobEnqueueAction.Inserted));
     }
 
     private protected override Task<TResult?> GetChildResultCoreAsync<TResult>(long childJobId, CancellationToken ct)

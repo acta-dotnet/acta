@@ -77,7 +77,7 @@ public interface IActaTestHost : IAsyncDisposable
     Task<ActaRunOutcome> RunOnceAsync(long jobId, CancellationToken ct = default);
 
     /// <summary>Convenience overload taking the enqueue result directly: <c>RunOnceAsync(enqueued, ct)</c>.</summary>
-    Task<ActaRunOutcome> RunOnceAsync(JobEnqueueOutcome enqueued, CancellationToken ct = default);
+    Task<ActaRunOutcome> RunOnceAsync(JobEnqueueResponse enqueued, CancellationToken ct = default);
 
     /// <summary>Run one framework recovery pass for <paramref name="jobNamespace"/>.</summary>
     Task<ActaRecoveryOutcome> RunRecoveryOnceAsync(string jobNamespace, CancellationToken ct = default);
@@ -206,7 +206,7 @@ public static class ActaTestHost
             return (ActaRunOutcome)(byte)outcome;
         }
 
-        public Task<ActaRunOutcome> RunOnceAsync(JobEnqueueOutcome enqueued, CancellationToken ct = default) =>
+        public Task<ActaRunOutcome> RunOnceAsync(JobEnqueueResponse enqueued, CancellationToken ct = default) =>
             RunOnceAsync(enqueued.JobId, ct);
 
         public async Task<ActaRecoveryOutcome> RunRecoveryOnceAsync(string jobNamespace, CancellationToken ct = default)

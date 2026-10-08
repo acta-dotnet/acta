@@ -235,7 +235,7 @@ public sealed class LaneRestartSpec : ActaRuntimeTestBase<ConformanceFixture, Te
 
     // An older job fails in the lane, the given head becomes the lane's running member, and the older job
     // is restarted Blocked behind it.
-    private async Task<(JobEnqueueOutcome Older, JobEnqueueOutcome Head)> RestartedBehindAsync(
+    private async Task<(JobEnqueueResponse Older, JobEnqueueResponse Head)> RestartedBehindAsync(
         string lane,
         JobEnqueueRequest head,
         CancellationToken ct
@@ -262,7 +262,7 @@ public sealed class LaneRestartSpec : ActaRuntimeTestBase<ConformanceFixture, Te
     }
 
     // Claims and starts the job as this namespace's worker and hands back its completion, unsent.
-    private async Task<Func<Task<CompleteExecutionResult>>> StartedAsync(JobEnqueueOutcome job, CancellationToken ct)
+    private async Task<Func<Task<CompleteExecutionResult>>> StartedAsync(JobEnqueueResponse job, CancellationToken ct)
     {
         var store = Services.GetRequiredService<Execution>();
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
@@ -288,7 +288,7 @@ public sealed class LaneRestartSpec : ActaRuntimeTestBase<ConformanceFixture, Te
             );
     }
 
-    private async Task<JobEnqueueOutcome> DoomedAsync(string lane, CancellationToken ct) =>
+    private async Task<JobEnqueueResponse> DoomedAsync(string lane, CancellationToken ct) =>
         await Jobs.EnqueueAsync(
             new JobEnqueueRequest(TestNamespace, "lane-doomed", JobPayload.Json(new LaneDoomedStep(lane, "doomed")), Lane: lane),
             ct

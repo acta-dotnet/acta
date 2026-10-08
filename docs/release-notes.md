@@ -100,6 +100,9 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   keeps the routines it already has, so older workers still find them during a rolling deploy; drop
   the retired ones once no older worker runs. The object package moves to revision 45; the minimum
   stays 9.
+- **Return types take one suffix per role.** `JobEnqueueOutcome`, what every `EnqueueAsync` and
+  `EnqueueBatchAsync` overload returns, is now `JobEnqueueResponse`, the pair of `JobEnqueueRequest`.
+  Members and JSON are unchanged.
 
 ### Additions
 

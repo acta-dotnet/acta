@@ -14,7 +14,7 @@ namespace Acta.Tests.Conformance.Engine.Execution;
     "job-context.job-ref",
     "Handler sees its public JobRef matching the enqueue outcome",
     Area = "Execution",
-    Contract = "A handler receives the same public JobRef via ctx.JobRef that the caller gets from JobEnqueueOutcome."
+    Contract = "A handler receives the same public JobRef via ctx.JobRef that the caller gets from JobEnqueueResponse."
 )]
 public sealed class JobRefContextSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {

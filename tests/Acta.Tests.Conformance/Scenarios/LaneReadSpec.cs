@@ -54,7 +54,7 @@ public sealed class LaneReadSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.All(page.Items, i => Assert.Equal("orders", i.Lane));
     }
 
-    private async Task<JobEnqueueOutcome> StepAsync(string lane, string label, CancellationToken ct) =>
+    private async Task<JobEnqueueResponse> StepAsync(string lane, string label, CancellationToken ct) =>
         await Jobs.EnqueueAsync(
             new JobEnqueueRequest(TestNamespace, "lane-step", JobPayload.Json(new LaneStep(lane, label)), Lane: lane),
             ct

@@ -41,7 +41,7 @@ internal static class TestRunners
     /// <summary>
     /// Convenience overload taking the enqueue result directly: <c>Runtime.RunOnceAsync(enqueued, ct)</c>.
     /// </summary>
-    internal static Task<RunOnceOutcome> RunOnceAsync(this WorkerRuntime runtime, JobEnqueueOutcome enqueued, CancellationToken ct) =>
+    internal static Task<RunOnceOutcome> RunOnceAsync(this WorkerRuntime runtime, JobEnqueueResponse enqueued, CancellationToken ct) =>
         runtime.RunOnceAsync(enqueued.JobId, ct);
 
     /// <summary>
@@ -93,7 +93,7 @@ internal static class TestRunners
         int namespaceId,
         int workerId,
         int leaseTtlSeconds,
-        JobEnqueueOutcome enqueued,
+        JobEnqueueResponse enqueued,
         CancellationToken ct
     ) => execution.ClaimOneAsync(namespaceId, workerId, leaseTtlSeconds, enqueued.JobId, ct);
 

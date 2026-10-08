@@ -536,7 +536,7 @@ dotnet_diagnostic.CA2225.severity = none
 [src/Acta/Execution/JobHandlerInvokeDelegate.cs]
 dotnet_diagnostic.CA1711.severity = none
 
-# CA2225: the two implicit conversions into JobLookup, from JobRef and from JobEnqueueOutcome. The
+# CA2225: the two implicit conversions into JobLookup, from JobRef and from JobEnqueueResponse. The
 # friendly alternates CA2225 asks for already exist and are what the operators call - ByRef(JobRef)
 # and ById(long) - so the rule is satisfied in substance and fails only on the spelling: it wants
 # ToJobLookup / FromJobRef. Acta names lookup factories By* as a family - ByRef, ById,

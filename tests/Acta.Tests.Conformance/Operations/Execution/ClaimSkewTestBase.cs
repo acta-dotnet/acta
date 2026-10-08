@@ -67,7 +67,7 @@ public abstract class ClaimSkewTestBase : ActaRuntimeTestBase<ConformanceFixture
     }
 
     /// <summary>Enqueues <paramref name="count"/> rows in one batch, due at <paramref name="nextRunAtUtc"/> or now.</summary>
-    protected async Task<IReadOnlyList<JobEnqueueOutcome>> EnqueueManyAsync(
+    protected async Task<IReadOnlyList<JobEnqueueResponse>> EnqueueManyAsync(
         int count,
         JobPriorityCode? priority,
         DateTime? nextRunAtUtc,
@@ -75,7 +75,7 @@ public abstract class ClaimSkewTestBase : ActaRuntimeTestBase<ConformanceFixture
     ) => await Jobs.EnqueueBatchAsync([.. Enumerable.Range(0, count).Select(_ => Request(priority, nextRunAtUtc))], ct);
 
     /// <summary>Enqueues one row, due at <paramref name="nextRunAtUtc"/> or now.</summary>
-    protected async Task<JobEnqueueOutcome> EnqueueAsync(JobPriorityCode priority, DateTime? nextRunAtUtc, CancellationToken ct) =>
+    protected async Task<JobEnqueueResponse> EnqueueAsync(JobPriorityCode priority, DateTime? nextRunAtUtc, CancellationToken ct) =>
         await Jobs.EnqueueAsync(Request(priority, nextRunAtUtc), ct);
 
     private JobEnqueueRequest Request(JobPriorityCode? priority, DateTime? nextRunAtUtc) =>

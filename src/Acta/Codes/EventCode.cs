@@ -10,7 +10,7 @@ namespace Acta;
 /// There is deliberately no <c>job.enqueued</c> event: the Job row's own
 /// <c>(created_at_utc, namespace_id, definition_id)</c> already records the enqueue fact, and a
 /// separate event row would be pure write amplification on the narrow append-heavy events table.
-/// Dedup outcomes surface to the caller via <c>JobEnqueueOutcome.Action</c>; cross-job rate
+/// Dedup outcomes surface to the caller via <c>JobEnqueueResponse.Action</c>; cross-job rate
 /// analytics query <c>acta.jobs</c> directly.
 /// </remarks>
 [JsonConverter(typeof(EventCodeJsonConverter))]

@@ -217,7 +217,7 @@ public sealed class AlertThresholdReachedSpec : ActaRuntimeTestBase<ConformanceF
             ct
         );
 
-    private async Task RunUntilAttemptsAsync(JobEnqueueOutcome job, Func<int> attempts, int target, CancellationToken ct)
+    private async Task RunUntilAttemptsAsync(JobEnqueueResponse job, Func<int> attempts, int target, CancellationToken ct)
     {
         for (var i = 0; i < target + 12 && attempts() < target; i++)
         {

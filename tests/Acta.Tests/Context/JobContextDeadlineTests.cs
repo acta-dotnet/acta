@@ -52,13 +52,13 @@ public class JobContextDeadlineTests
         private protected override T? DeserializeSignalPayload<T>(byte valueFormatId, byte[] value)
             where T : default => throw new NotSupportedException();
 
-        private protected override Task<JobEnqueueOutcome> StartChildCoreAsync<TInput>(
+        private protected override Task<JobEnqueueResponse> StartChildCoreAsync<TInput>(
             TInput input,
             JobEnqueueOptions options,
             CancellationToken ct
         ) => throw new NotSupportedException();
 
-        private protected override Task<JobEnqueueOutcome> StartChildCoreAsync(JobEnqueueRequest request, CancellationToken ct) =>
+        private protected override Task<JobEnqueueResponse> StartChildCoreAsync(JobEnqueueRequest request, CancellationToken ct) =>
             throw new NotSupportedException();
 
         private protected override Task<TResult?> GetChildResultCoreAsync<TResult>(long childJobId, CancellationToken ct)

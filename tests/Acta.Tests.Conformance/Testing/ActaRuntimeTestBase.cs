@@ -142,7 +142,7 @@ public abstract class ActaRuntimeTestBase<TFixture, TManifest> : ActaTestBase<TF
     /// Enqueues <paramref name="input"/> as <paramref name="jobName"/> in the test namespace, drives one
     /// runtime tick to completion, and returns the enqueue outcome (internal id and public ref).
     /// </summary>
-    protected async Task<JobEnqueueOutcome> EnqueueAndRunAsync(string jobName, object input, CancellationToken ct)
+    protected async Task<JobEnqueueResponse> EnqueueAndRunAsync(string jobName, object input, CancellationToken ct)
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(input);

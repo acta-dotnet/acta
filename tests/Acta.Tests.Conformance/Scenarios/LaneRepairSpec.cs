@@ -134,7 +134,7 @@ public sealed class LaneRepairSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
     private JobEnqueueRequest Step(string lane, string label) =>
         new(TestNamespace, "lane-step", JobPayload.Json(new LaneStep(lane, label)), Lane: lane);
 
-    private async Task AssertUntouchedAsync(JobEnqueueOutcome follower, CancellationToken ct)
+    private async Task AssertUntouchedAsync(JobEnqueueResponse follower, CancellationToken ct)
     {
         Assert.Equal(JobStatusCode.Blocked, await StatusAsync(follower, ct));
         Assert.Empty(
@@ -145,15 +145,15 @@ public sealed class LaneRepairSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
     }
 
     // A hand UPDATE, the way an operator or a bug strands a lane: no settle runs, so nothing promotes.
-    private Task SetStatusAsync(JobEnqueueOutcome job, JobStatusCode status, CancellationToken ct) =>
+    private Task SetStatusAsync(JobEnqueueResponse job, JobStatusCode status, CancellationToken ct) =>
         Db.ExecuteRawAsync($"UPDATE {{schema}}.runtimes SET status_code = {(int)status} WHERE job_id = @p_id", ct, ("@p_id", job.JobId));
 
-    private async Task<JobEnqueueOutcome> StepAsync(string lane, string label, CancellationToken ct) =>
+    private async Task<JobEnqueueResponse> StepAsync(string lane, string label, CancellationToken ct) =>
         await Jobs.EnqueueAsync(
             new JobEnqueueRequest(TestNamespace, "lane-step", JobPayload.Json(new LaneStep(lane, label)), Lane: lane),
             ct
         );
 
-    private async Task<JobStatusCode> StatusAsync(JobEnqueueOutcome outcome, CancellationToken ct) =>
+    private async Task<JobStatusCode> StatusAsync(JobEnqueueResponse outcome, CancellationToken ct) =>
         (await ReadJobAsync(outcome.JobId, ct)).Status;
 }

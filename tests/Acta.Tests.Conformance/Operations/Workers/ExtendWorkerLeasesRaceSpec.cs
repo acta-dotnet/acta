@@ -100,7 +100,7 @@ public sealed class ExtendWorkerLeasesRaceSpec : ActaRuntimeTestBase<Conformance
 
     // Claims and starts the job as this namespace's worker and hands back its completion, unsent.
     private async Task<(int WorkerId, Func<Task<CompleteExecutionResult>> Complete)> StartedAsync(
-        JobEnqueueOutcome job,
+        JobEnqueueResponse job,
         CancellationToken ct
     )
     {

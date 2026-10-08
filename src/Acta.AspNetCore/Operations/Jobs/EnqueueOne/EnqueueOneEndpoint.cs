@@ -29,7 +29,7 @@ internal sealed record EnqueueOneHttpRequest(
     DateTime? NextRunAtUtc = null
 );
 
-/// <summary>HTTP projection of a <see cref="JobEnqueueOutcome"/>: the public ref and the coarse action.</summary>
+/// <summary>HTTP projection of a <see cref="JobEnqueueResponse"/>: the public ref and the coarse action.</summary>
 internal sealed record EnqueueOneHttpResponse(JobRef JobRef, JobEnqueueAction Action);
 
 /// <summary>

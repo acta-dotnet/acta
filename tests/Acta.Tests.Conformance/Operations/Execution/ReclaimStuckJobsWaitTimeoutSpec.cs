@@ -197,7 +197,7 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
     // The whole crash-after-the-flip staging, shared by the facts that go on to ask what it looked
     // like from outside: arm the wait, move it past its deadline, claim it with a lease that is
     // already dead, make the flip the lost worker made, and sweep.
-    private async Task ReclaimAfterResolvedWaitAsync(JobEnqueueOutcome enqueued, int ns, CancellationToken ct)
+    private async Task ReclaimAfterResolvedWaitAsync(JobEnqueueResponse enqueued, int ns, CancellationToken ct)
     {
         var worker = await ChaosSpecHelpers.WorkerIdAsync(Db, ns, ct);
         Assert.Equal(RunOnceOutcome.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));

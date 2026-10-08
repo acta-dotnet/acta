@@ -302,14 +302,14 @@ internal sealed class StepOptionsCapturingContext : JobContext
     private protected override T? DeserializeSignalPayload<T>(byte valueFormatId, byte[] value)
         where T : default => Unsupported<T?>();
 
-    private protected override Task<JobEnqueueOutcome> StartChildCoreAsync<TInput>(
+    private protected override Task<JobEnqueueResponse> StartChildCoreAsync<TInput>(
         TInput input,
         JobEnqueueOptions options,
         CancellationToken ct
-    ) => Unsupported<Task<JobEnqueueOutcome>>();
+    ) => Unsupported<Task<JobEnqueueResponse>>();
 
-    private protected override Task<JobEnqueueOutcome> StartChildCoreAsync(JobEnqueueRequest request, CancellationToken ct) =>
-        Unsupported<Task<JobEnqueueOutcome>>();
+    private protected override Task<JobEnqueueResponse> StartChildCoreAsync(JobEnqueueRequest request, CancellationToken ct) =>
+        Unsupported<Task<JobEnqueueResponse>>();
 
     private protected override Task<TResult?> GetChildResultCoreAsync<TResult>(long childJobId, CancellationToken ct)
         where TResult : default => Unsupported<Task<TResult?>>();

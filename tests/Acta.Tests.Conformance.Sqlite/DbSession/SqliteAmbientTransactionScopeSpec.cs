@@ -16,7 +16,7 @@ namespace Acta.Tests.Conformance.Sqlite.DbSession;
 /// </summary>
 public sealed class SqliteAmbientTransactionScopeSpec : ActaRuntimeTestBase<SqliteConformanceFixture, TestJobsManifest>
 {
-    private async Task<JobEnqueueOutcome> EnqueueAsync(CancellationToken ct)
+    private async Task<JobEnqueueResponse> EnqueueAsync(CancellationToken ct)
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(2, 3));
@@ -45,7 +45,7 @@ public sealed class SqliteAmbientTransactionScopeSpec : ActaRuntimeTestBase<Sqli
     {
         var ct = TestContext.Current.CancellationToken;
 
-        JobEnqueueOutcome outcome;
+        JobEnqueueResponse outcome;
         using (var scope = new TransactionScope(TransactionScopeOption.Suppress, TransactionScopeAsyncFlowOption.Enabled))
         {
             outcome = await EnqueueAsync(ct);

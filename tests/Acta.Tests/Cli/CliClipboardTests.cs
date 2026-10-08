@@ -256,7 +256,7 @@ public class CliRunnerClipboardTests
             CancellationToken ct = default
         ) => ValueTask.FromResult<JobLineageMap?>(null);
 
-        public ValueTask<JobEnqueueOutcome> EnqueueAsync(JobEnqueueRequest request, CancellationToken ct = default) =>
+        public ValueTask<JobEnqueueResponse> EnqueueAsync(JobEnqueueRequest request, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
         public ISchedules Schedules => throw new NotSupportedException();
@@ -282,7 +282,7 @@ public class CliRunnerClipboardTests
 
         public JobInputTemplate? GetInputTemplate(string jobNamespace, string jobName) => null;
 
-        public ValueTask<JobEnqueueOutcome> EnqueueAsync<TInput>(
+        public ValueTask<JobEnqueueResponse> EnqueueAsync<TInput>(
             TInput input,
             JobEnqueueOptions? options = null,
             CancellationToken ct = default
@@ -304,7 +304,7 @@ public class CliRunnerClipboardTests
             where TInput : notnull
             where TResult : notnull => throw new NotSupportedException();
 
-        public ValueTask<JobEnqueueOutcome> EnqueueAsync<TInput>(
+        public ValueTask<JobEnqueueResponse> EnqueueAsync<TInput>(
             JobContract<TInput> job,
             TInput input,
             JobEnqueueOptions? options = null,
@@ -312,7 +312,7 @@ public class CliRunnerClipboardTests
         )
             where TInput : notnull => throw new NotSupportedException();
 
-        public ValueTask<JobEnqueueOutcome> EnqueueAsync<TInput, TResult>(
+        public ValueTask<JobEnqueueResponse> EnqueueAsync<TInput, TResult>(
             JobContract<TInput, TResult> job,
             TInput input,
             JobEnqueueOptions? options = null,
@@ -320,7 +320,7 @@ public class CliRunnerClipboardTests
         )
             where TInput : notnull => throw new NotSupportedException();
 
-        public ValueTask<JobEnqueueOutcome> EnqueueAsync(
+        public ValueTask<JobEnqueueResponse> EnqueueAsync(
             JobContract<NoInput> job,
             JobEnqueueOptions? options = null,
             CancellationToken ct = default
@@ -335,18 +335,18 @@ public class CliRunnerClipboardTests
             where TInput : notnull
             where TResult : notnull => throw new NotSupportedException();
 
-        public ValueTask<IReadOnlyList<JobEnqueueOutcome>> EnqueueBatchAsync(
+        public ValueTask<IReadOnlyList<JobEnqueueResponse>> EnqueueBatchAsync(
             IReadOnlyList<JobEnqueueRequest> requests,
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
-        public ValueTask<JobEnqueueOutcome> EnqueueAsync(
+        public ValueTask<JobEnqueueResponse> EnqueueAsync(
             System.Data.Common.DbTransaction transaction,
             JobEnqueueRequest request,
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
-        public ValueTask<JobEnqueueOutcome> EnqueueAsync<TInput>(
+        public ValueTask<JobEnqueueResponse> EnqueueAsync<TInput>(
             System.Data.Common.DbTransaction transaction,
             TInput input,
             JobEnqueueOptions? options = null,
@@ -354,7 +354,7 @@ public class CliRunnerClipboardTests
         )
             where TInput : notnull => throw new NotSupportedException();
 
-        public ValueTask<JobEnqueueOutcome> EnqueueAsync<TInput>(
+        public ValueTask<JobEnqueueResponse> EnqueueAsync<TInput>(
             System.Data.Common.DbTransaction transaction,
             JobContract<TInput> job,
             TInput input,
@@ -363,7 +363,7 @@ public class CliRunnerClipboardTests
         )
             where TInput : notnull => throw new NotSupportedException();
 
-        public ValueTask<JobEnqueueOutcome> EnqueueAsync<TInput, TResult>(
+        public ValueTask<JobEnqueueResponse> EnqueueAsync<TInput, TResult>(
             System.Data.Common.DbTransaction transaction,
             JobContract<TInput, TResult> job,
             TInput input,
@@ -372,14 +372,14 @@ public class CliRunnerClipboardTests
         )
             where TInput : notnull => throw new NotSupportedException();
 
-        public ValueTask<JobEnqueueOutcome> EnqueueAsync(
+        public ValueTask<JobEnqueueResponse> EnqueueAsync(
             System.Data.Common.DbTransaction transaction,
             JobContract<NoInput> job,
             JobEnqueueOptions? options = null,
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
-        public ValueTask<IReadOnlyList<JobEnqueueOutcome>> EnqueueBatchAsync(
+        public ValueTask<IReadOnlyList<JobEnqueueResponse>> EnqueueBatchAsync(
             System.Data.Common.DbTransaction transaction,
             IReadOnlyList<JobEnqueueRequest> requests,
             CancellationToken ct = default

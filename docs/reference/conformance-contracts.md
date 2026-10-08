@@ -931,7 +931,7 @@
   - A tenant-scoped job's context carries the tenant id and its external key
 
 ### Handler sees its public JobRef matching the enqueue outcome
-- **Contract:** A handler receives the same public JobRef via ctx.JobRef that the caller gets from JobEnqueueOutcome.
+- **Contract:** A handler receives the same public JobRef via ctx.JobRef that the caller gets from JobEnqueueResponse.
 - **Guarantees:**
   - Handler reads the same JobRef the enqueue outcome returned, stable across claim and execution
 

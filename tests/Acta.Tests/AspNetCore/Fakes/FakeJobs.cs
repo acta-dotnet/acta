@@ -128,7 +128,7 @@ internal sealed class FakeJobs : IJobs
 
     public Func<string, string, JobInputTemplate?> GetInputTemplate { get; set; }
 
-    public Func<JobEnqueueRequest, CancellationToken, ValueTask<JobEnqueueOutcome>> Enqueue { get; set; }
+    public Func<JobEnqueueRequest, CancellationToken, ValueTask<JobEnqueueResponse>> Enqueue { get; set; }
 
     public Func<JobLookup, string?, string?, int?, CancellationToken, ValueTask<PauseJobResponse>> Pause { get; set; }
 
@@ -173,7 +173,7 @@ internal sealed class FakeJobs : IJobs
 
     JobInputTemplate? IJobs.GetInputTemplate(string jobNamespace, string jobName) => GetInputTemplate(jobNamespace, jobName);
 
-    ValueTask<JobEnqueueOutcome> IJobs.EnqueueAsync(JobEnqueueRequest request, CancellationToken ct) => Enqueue(request, ct);
+    ValueTask<JobEnqueueResponse> IJobs.EnqueueAsync(JobEnqueueRequest request, CancellationToken ct) => Enqueue(request, ct);
 
     ValueTask<PauseJobResponse> IJobs.PauseAsync(
         JobLookup job,
@@ -251,24 +251,24 @@ internal sealed class FakeJobs : IJobs
     ValueTask<RaiseSignalResponse> IJobs.RaiseSignalAsync<T>(JobLookup job, string name, T value, string? actorKey, CancellationToken ct) =>
         throw new NotSupportedException();
 
-    ValueTask<JobEnqueueOutcome> IJobs.EnqueueAsync<TInput>(TInput input, JobEnqueueOptions? options, CancellationToken ct) =>
+    ValueTask<JobEnqueueResponse> IJobs.EnqueueAsync<TInput>(TInput input, JobEnqueueOptions? options, CancellationToken ct) =>
         throw new NotSupportedException();
 
-    ValueTask<JobEnqueueOutcome> IJobs.EnqueueAsync<TInput>(
+    ValueTask<JobEnqueueResponse> IJobs.EnqueueAsync<TInput>(
         JobContract<TInput> job,
         TInput input,
         JobEnqueueOptions? options,
         CancellationToken ct
     ) => throw new NotSupportedException();
 
-    ValueTask<JobEnqueueOutcome> IJobs.EnqueueAsync<TInput, TResult>(
+    ValueTask<JobEnqueueResponse> IJobs.EnqueueAsync<TInput, TResult>(
         JobContract<TInput, TResult> job,
         TInput input,
         JobEnqueueOptions? options,
         CancellationToken ct
     ) => throw new NotSupportedException();
 
-    ValueTask<JobEnqueueOutcome> IJobs.EnqueueAsync(JobContract<NoInput> job, JobEnqueueOptions? options, CancellationToken ct) =>
+    ValueTask<JobEnqueueResponse> IJobs.EnqueueAsync(JobContract<NoInput> job, JobEnqueueOptions? options, CancellationToken ct) =>
         throw new NotSupportedException();
 
     ValueTask<JobOutcome> IJobs.RunAndWaitAsync<TInput>(TInput input, JobExecutionOptions? options, CancellationToken ct) =>
@@ -287,20 +287,20 @@ internal sealed class FakeJobs : IJobs
         CancellationToken ct
     ) => throw new NotSupportedException();
 
-    ValueTask<IReadOnlyList<JobEnqueueOutcome>> IJobs.EnqueueBatchAsync(IReadOnlyList<JobEnqueueRequest> requests, CancellationToken ct) =>
+    ValueTask<IReadOnlyList<JobEnqueueResponse>> IJobs.EnqueueBatchAsync(IReadOnlyList<JobEnqueueRequest> requests, CancellationToken ct) =>
         throw new NotSupportedException();
 
-    ValueTask<JobEnqueueOutcome> IJobs.EnqueueAsync(DbTransaction transaction, JobEnqueueRequest request, CancellationToken ct) =>
+    ValueTask<JobEnqueueResponse> IJobs.EnqueueAsync(DbTransaction transaction, JobEnqueueRequest request, CancellationToken ct) =>
         throw new NotSupportedException();
 
-    ValueTask<JobEnqueueOutcome> IJobs.EnqueueAsync<TInput>(
+    ValueTask<JobEnqueueResponse> IJobs.EnqueueAsync<TInput>(
         DbTransaction transaction,
         TInput input,
         JobEnqueueOptions? options,
         CancellationToken ct
     ) => throw new NotSupportedException();
 
-    ValueTask<JobEnqueueOutcome> IJobs.EnqueueAsync<TInput>(
+    ValueTask<JobEnqueueResponse> IJobs.EnqueueAsync<TInput>(
         DbTransaction transaction,
         JobContract<TInput> job,
         TInput input,
@@ -308,7 +308,7 @@ internal sealed class FakeJobs : IJobs
         CancellationToken ct
     ) => throw new NotSupportedException();
 
-    ValueTask<JobEnqueueOutcome> IJobs.EnqueueAsync<TInput, TResult>(
+    ValueTask<JobEnqueueResponse> IJobs.EnqueueAsync<TInput, TResult>(
         DbTransaction transaction,
         JobContract<TInput, TResult> job,
         TInput input,
@@ -316,14 +316,14 @@ internal sealed class FakeJobs : IJobs
         CancellationToken ct
     ) => throw new NotSupportedException();
 
-    ValueTask<JobEnqueueOutcome> IJobs.EnqueueAsync(
+    ValueTask<JobEnqueueResponse> IJobs.EnqueueAsync(
         DbTransaction transaction,
         JobContract<NoInput> job,
         JobEnqueueOptions? options,
         CancellationToken ct
     ) => throw new NotSupportedException();
 
-    ValueTask<IReadOnlyList<JobEnqueueOutcome>> IJobs.EnqueueBatchAsync(
+    ValueTask<IReadOnlyList<JobEnqueueResponse>> IJobs.EnqueueBatchAsync(
         DbTransaction transaction,
         IReadOnlyList<JobEnqueueRequest> requests,
         CancellationToken ct
@@ -363,7 +363,7 @@ internal sealed class FakeJobs : IJobs
         return null;
     }
 
-    private JobEnqueueOutcome Insert(JobEnqueueRequest request)
+    private JobEnqueueResponse Insert(JobEnqueueRequest request)
     {
         EnqueueRequests.Add(request);
 
@@ -371,7 +371,7 @@ internal sealed class FakeJobs : IJobs
         // endpoint distinguishes created from matched, so the fake has to as well.
         if (request.DeduplicationKey is { Length: > 0 } key && _deduplicated.TryGetValue(key, out var existing))
         {
-            return new JobEnqueueOutcome(existing.Id, existing.Ref, JobEnqueueAction.Deduplicated);
+            return new JobEnqueueResponse(existing.Id, existing.Ref, JobEnqueueAction.Deduplicated);
         }
 
         var id = 100 + EnqueueRequests.Count;
@@ -383,7 +383,7 @@ internal sealed class FakeJobs : IJobs
             _deduplicated[fresh] = (id, jobRef);
         }
 
-        return new JobEnqueueOutcome(id, jobRef, JobEnqueueAction.Inserted);
+        return new JobEnqueueResponse(id, jobRef, JobEnqueueAction.Inserted);
     }
 
     private UpdateJobInputResponse Amend(JobLookup job, JobPayload input)

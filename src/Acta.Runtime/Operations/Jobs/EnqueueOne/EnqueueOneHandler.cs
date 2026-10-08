@@ -17,7 +17,7 @@ internal sealed class EnqueueOneHandler(
 {
     private readonly int _maxInlinePayloadBytes = options.Value.MaxInlinePayloadBytes;
 
-    public async ValueTask<JobEnqueueOutcome> HandleAsync(EnqueueOneCommand command, CancellationToken ct)
+    public async ValueTask<JobEnqueueResponse> HandleAsync(EnqueueOneCommand command, CancellationToken ct)
     {
         var request = command.Request;
         (request, var row) = JobEnqueue.Prepare(request, nameof(request), 0, _maxInlinePayloadBytes);
@@ -31,7 +31,7 @@ internal sealed class EnqueueOneHandler(
             );
         }
 
-        var outcome = new JobEnqueueOutcome(rows[0].JobId, new JobRef(rows[0].JobRef), rows[0].Action);
+        var outcome = new JobEnqueueResponse(rows[0].JobId, new JobRef(rows[0].JobRef), rows[0].Action);
         if (command.Transaction is null && JobEnqueue.WakeReason(request, outcome.Action) is { } reason)
         {
             await wakeup.WakeAsync(WorkerWakeupChannel.WorkerNamespace(request.JobNamespace), reason, ct);

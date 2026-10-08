@@ -148,7 +148,7 @@ public sealed class ControlVerbsSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Null(result.Status);
     }
 
-    private async Task<JobEnqueueOutcome> EnqueueOneAsync(CancellationToken ct)
+    private async Task<JobEnqueueResponse> EnqueueOneAsync(CancellationToken ct)
     {
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(2, 3));

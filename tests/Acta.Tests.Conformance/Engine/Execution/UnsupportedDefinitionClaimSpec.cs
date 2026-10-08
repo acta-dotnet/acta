@@ -266,7 +266,7 @@ public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<Conform
     /// the way a deployment that removed the handler would. The catalog row stays: a definition is
     /// retired by registration, not by one worker's manifest, and the jobs outlive both.
     /// </summary>
-    private async Task<JobEnqueueOutcome> EnqueueAndForgetDescriptorAsync(string jobName, CancellationToken ct)
+    private async Task<JobEnqueueResponse> EnqueueAndForgetDescriptorAsync(string jobName, CancellationToken ct)
     {
         var payload = jobName == AuditedJob ? JobPayload.Json(new AddNumbers(2, 3)) : JobPayload.None;
         var enqueued = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, jobName, payload), ct);

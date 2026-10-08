@@ -6,7 +6,7 @@ namespace Acta;
 /// internal <see cref="JobId"/> and the public <see cref="JobRef"/>; callers read
 /// <see cref="Action"/> to distinguish a fresh insert from a <see cref="JobEnqueueRequest.DeduplicationKey"/>-based dedup match.
 /// </summary>
-public sealed record JobEnqueueOutcome(long JobId, JobRef JobRef, JobEnqueueAction Action);
+public sealed record JobEnqueueResponse(long JobId, JobRef JobRef, JobEnqueueAction Action);
 
 /// <summary>
 /// Coarse outcome classifier for one enqueued row.

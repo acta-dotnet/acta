@@ -45,10 +45,10 @@ internal static class ChaosSpecHelpers
         Assert.Equal(1, affected);
     }
 
-    public static async Task<JobEnqueueOutcome> EnqueueNoPayloadAsync(IJobs jobs, string ns, string jobName, CancellationToken ct) =>
+    public static async Task<JobEnqueueResponse> EnqueueNoPayloadAsync(IJobs jobs, string ns, string jobName, CancellationToken ct) =>
         await jobs.EnqueueAsync(new JobEnqueueRequest(ns, jobName, JobPayload.None), ct);
 
-    public static async Task<JobEnqueueOutcome> EnqueueAddNumbersAsync(
+    public static async Task<JobEnqueueResponse> EnqueueAddNumbersAsync(
         IServiceProvider services,
         IJobs jobs,
         string ns,
@@ -105,7 +105,7 @@ internal static class ChaosSpecHelpers
     public static async Task StopWorkerMidCompletionRetryAsync(
         WorkerRuntime runtime,
         StoreFaultPlan faults,
-        JobEnqueueOutcome enqueued,
+        JobEnqueueResponse enqueued,
         CancellationToken ct
     )
     {

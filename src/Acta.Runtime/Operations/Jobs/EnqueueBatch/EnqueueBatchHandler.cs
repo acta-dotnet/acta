@@ -22,7 +22,7 @@ internal sealed class EnqueueBatchHandler(
 
     private readonly int _maxInlinePayloadBytes = options.Value.MaxInlinePayloadBytes;
 
-    public async ValueTask<IReadOnlyList<JobEnqueueOutcome>> HandleAsync(EnqueueBatchCommand command, CancellationToken ct)
+    public async ValueTask<IReadOnlyList<JobEnqueueResponse>> HandleAsync(EnqueueBatchCommand command, CancellationToken ct)
     {
         var requests = command.Requests;
         ArgumentNullException.ThrowIfNull(requests);
@@ -56,10 +56,10 @@ internal sealed class EnqueueBatchHandler(
             );
         }
 
-        var outcomes = new JobEnqueueOutcome[rows.Length];
+        var outcomes = new JobEnqueueResponse[rows.Length];
         foreach (var row in outcomeRows)
         {
-            outcomes[row.Ordinal] = new JobEnqueueOutcome(row.JobId, new JobRef(row.JobRef), row.Action);
+            outcomes[row.Ordinal] = new JobEnqueueResponse(row.JobId, new JobRef(row.JobRef), row.Action);
         }
 
         if (command.Transaction is null)
@@ -130,7 +130,7 @@ internal sealed class EnqueueBatchHandler(
     /// One wake per distinct namespace; a due-now row's WorkAvailable outranks a delayed row's HorizonChanged for
     /// the same namespace (the wake itself is identical; the reason is metrics-only).
     /// </summary>
-    private async ValueTask WakeNamespacesAsync(JobEnqueueRequest[] requests, JobEnqueueOutcome[] outcomes, CancellationToken ct)
+    private async ValueTask WakeNamespacesAsync(JobEnqueueRequest[] requests, JobEnqueueResponse[] outcomes, CancellationToken ct)
     {
         Dictionary<string, WorkerWakeupReason>? wakes = null;
         for (var i = 0; i < outcomes.Length; i++)

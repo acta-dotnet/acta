@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// Result of the unbounded
-/// <see cref="JobContext.JoinAsync(IReadOnlyList{JobEnqueueOutcome}, CancellationToken)"/>: the child
+/// <see cref="JobContext.JoinAsync(IReadOnlyList{JobEnqueueResponse}, CancellationToken)"/>: the child
 /// outcomes in caller order. The join waits for every child and returns; it never throws because a
 /// child failed. Call <see cref="ThrowIfAnyFailed"/> to opt into escalation. The bounded overload
 /// returns a <see cref="ChildrenWaitResult"/> instead, which adds the group's timeout facts.

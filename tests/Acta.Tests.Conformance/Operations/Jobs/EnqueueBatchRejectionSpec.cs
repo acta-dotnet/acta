@@ -165,7 +165,7 @@ public sealed class EnqueueBatchRejectionSpec : ActaRuntimeTestBase<ConformanceF
         );
     }
 
-    private async Task<IReadOnlyList<JobEnqueueOutcome>> RunAsync(IReadOnlyList<JobEnqueueRow> command, CancellationToken ct)
+    private async Task<IReadOnlyList<JobEnqueueResponse>> RunAsync(IReadOnlyList<JobEnqueueRow> command, CancellationToken ct)
     {
         _ = Services.GetRequiredService<ISqlDialect>();
         return await EnqueueTestOps.EnqueueBatchAsync(Services, command, ct);

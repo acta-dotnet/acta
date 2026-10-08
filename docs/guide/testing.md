@@ -122,7 +122,7 @@ public sealed class SendWelcomeEmailTests : IAsyncLifetime
   `ApplyMigrationsOnStartup = true`; the host owns a fresh schema per test class.
 - `Run<TManifest>(...)` makes it a worker host. Without it the host is enqueue-only (for testing
   enqueue-side code such as HTTP handlers); `RunOnceAsync` then throws.
-- `GetStatusAsync(enqueued)` works because `JobEnqueueOutcome` converts implicitly to `JobLookup`;
+- `GetStatusAsync(enqueued)` works because `JobEnqueueResponse` converts implicitly to `JobLookup`;
   `JobLookup.ByRef(...)` and `JobLookup.ByDeduplicationKey(...)` are the explicit forms, and
   `JobLookup.ById(...)` is the debug path.
 - `RunOnceAsync(enqueued)` is sugar for `RunOnceAsync(enqueued.JobId)`. The by-id drive routes to

@@ -279,13 +279,13 @@ internal sealed class RuntimeJobContext(
         return serializer.Deserialize<T>(payload);
     }
 
-    private protected override async Task<JobEnqueueOutcome> StartChildCoreAsync<TInput>(
+    private protected override async Task<JobEnqueueResponse> StartChildCoreAsync<TInput>(
         TInput input,
         JobEnqueueOptions options,
         CancellationToken ct
     ) => await Jobs().EnqueueAsync(input, options, ct);
 
-    private protected override async Task<JobEnqueueOutcome> StartChildCoreAsync(JobEnqueueRequest request, CancellationToken ct) =>
+    private protected override async Task<JobEnqueueResponse> StartChildCoreAsync(JobEnqueueRequest request, CancellationToken ct) =>
         await Jobs().EnqueueAsync(request, ct);
 
     private protected override async Task<TResult?> GetChildResultCoreAsync<TResult>(long childJobId, CancellationToken ct)
