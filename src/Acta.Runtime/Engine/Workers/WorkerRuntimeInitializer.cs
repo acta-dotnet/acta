@@ -21,7 +21,7 @@ namespace Acta.Runtime;
 /// resolves.
 /// </remarks>
 internal sealed class WorkerRuntimeInitializer(
-    RegisterJobDefinitionsHandler registerDefinitions,
+    RegisterDefinitionsHandler registerDefinitions,
     GetDefinitionContractsHandler getDefinitionContracts,
     GetScheduleStateHandler getScheduleState,
     RegisterScheduledJobsHandler registerScheduledJobs,
@@ -127,7 +127,7 @@ internal sealed class WorkerRuntimeInitializer(
         // schedule set, which register_scheduled_jobs needs because it orphans, on each slot it is
         // given, the definition-origin schedules that slot's batch omits. Registration touches nothing
         // the batch does not name, so a definition absent from it keeps running. An empty combined set
-        // skips the call entirely (the RegisterJobDefinitions.Run early-return), so an enqueue-only /
+        // skips the call entirely (the RegisterDefinitions.Run early-return), so an enqueue-only /
         // manifest-less worker writes no catalog at all.
         // The shape checks run before the worker row below is written: a catalog that fails them
         // must leave no Active worker and no worker.started event behind for a process that will

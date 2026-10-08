@@ -1,4 +1,4 @@
-CREATE OR REPLACE FUNCTION {{schema}}.register_job_definitions(
+CREATE OR REPLACE FUNCTION {{schema}}.register_definitions(
     p_namespace_id INT,
     p_manifest_generation TIMESTAMPTZ,
     p_d_name VARCHAR [],

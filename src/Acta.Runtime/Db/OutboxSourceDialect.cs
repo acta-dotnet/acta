@@ -52,11 +52,11 @@ internal abstract class OutboxSourceDialect : ISqlDialect
     public void BindEnqueueBatch(DbCommand command, IReadOnlyList<JobEnqueueRow> rows, IReadOnlyList<Guid> jobRefs, string schema) =>
         throw NotOutbox();
 
-    public void BindRegisterJobDefinitions(
+    public void BindRegisterDefinitions(
         DbCommand command,
         int namespaceId,
         DateTime manifestGenerationUtc,
-        IReadOnlyList<JobDefinitionRow> rows,
+        IReadOnlyList<DefinitionRow> rows,
         string schema
     ) => throw NotOutbox();
 

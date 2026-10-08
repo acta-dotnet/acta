@@ -8,9 +8,9 @@ namespace Acta.Runtime;
 /// locks. Returns a name-to-id map for every descriptor. The database keeps the per-row generation/hash
 /// gate, so it holds under concurrent registrars.
 /// </summary>
-internal sealed class RegisterJobDefinitionsHandler(IDbSession session, ISqlDialect dialect)
+internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async Task<IReadOnlyDictionary<string, int>> HandleAsync(RegisterJobDefinitionsCommand command, CancellationToken ct)
+    public async Task<IReadOnlyDictionary<string, int>> HandleAsync(RegisterDefinitionsCommand command, CancellationToken ct)
     {
         var result = new Dictionary<string, int>(StringComparer.Ordinal);
         if (command.Descriptors.IsDefaultOrEmpty)
@@ -18,7 +18,7 @@ internal sealed class RegisterJobDefinitionsHandler(IDbSession session, ISqlDial
             return result;
         }
 
-        var rows = new List<JobDefinitionRow>(command.Descriptors.Length);
+        var rows = new List<DefinitionRow>(command.Descriptors.Length);
         foreach (var descriptor in command.Descriptors)
         {
             rows.Add(BuildRow(descriptor, command.NamespaceId));
@@ -60,9 +60,9 @@ internal sealed class RegisterJobDefinitionsHandler(IDbSession session, ISqlDial
         }
 
         var registered = await session.ExecuteAsync(
-            new StoreCommand("RegisterJobDefinitions"),
-            cmd => dialect.BindRegisterJobDefinitions(cmd, command.NamespaceId, command.ManifestGenerationUtc, rows, session.Schema),
-            DbProjectionResolver.Resolve<RegisterJobDefinitionsRow>(),
+            new StoreCommand("RegisterDefinitions"),
+            cmd => dialect.BindRegisterDefinitions(cmd, command.NamespaceId, command.ManifestGenerationUtc, rows, session.Schema),
+            DbProjectionResolver.Resolve<RegisterDefinitionsRow>(),
             ct
         );
         foreach (var (name, id) in registered)
@@ -72,7 +72,7 @@ internal sealed class RegisterJobDefinitionsHandler(IDbSession session, ISqlDial
 
         return result.Count != rows.Count
             ? throw new InvalidOperationException(
-                $"register_job_definitions returned {result.Count} name-to-id rows for {rows.Count} input definitions. "
+                $"register_definitions returned {result.Count} name-to-id rows for {rows.Count} input definitions. "
                     + "The routine must return exactly one row per registered definition."
             )
             : result;
@@ -86,7 +86,7 @@ internal sealed class RegisterJobDefinitionsHandler(IDbSession session, ISqlDial
     /// made stick; that keeps <see cref="SetDefinitionOverridesHandler"/> free to retune a meter.
     /// </summary>
     private static void ValidateJoiningRatesMatchOverriddenMeters(
-        List<JobDefinitionRow> rows,
+        List<DefinitionRow> rows,
         Dictionary<string, StoredDefinitionContract> storedByName,
         int namespaceId
     )
@@ -129,7 +129,7 @@ internal sealed class RegisterJobDefinitionsHandler(IDbSession session, ISqlDial
     /// rate would depend on arrival order rather than on anything declared. Only definitions that
     /// declare a rate take part, because one that declares none never asks the meter anything.
     /// </summary>
-    private static void ValidateSharedRateKeys(List<JobDefinitionRow> rows, int namespaceId)
+    private static void ValidateSharedRateKeys(List<DefinitionRow> rows, int namespaceId)
     {
         var rateByKey = new Dictionary<string, (string Name, string RateLimit)>(StringComparer.Ordinal);
         foreach (var row in rows)
@@ -155,7 +155,7 @@ internal sealed class RegisterJobDefinitionsHandler(IDbSession session, ISqlDial
         }
     }
 
-    private static JobDefinitionRow BuildRow(JobDescriptor descriptor, int namespaceId)
+    private static DefinitionRow BuildRow(JobDescriptor descriptor, int namespaceId)
     {
         var priorityCode = (byte)descriptor.Priority;
         var maxAttempts = descriptor.MaxAttempts;
@@ -213,7 +213,7 @@ internal sealed class RegisterJobDefinitionsHandler(IDbSession session, ISqlDial
             lane
         );
 
-        return new JobDefinitionRow(
+        return new DefinitionRow(
             Name: descriptor.JobName,
             PriorityCode: priorityCode,
             MaxAttempts: maxAttempts,

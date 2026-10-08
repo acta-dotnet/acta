@@ -5,11 +5,11 @@ using Xunit;
 namespace Acta.Tests.Runtime;
 
 /// <summary>
-/// <see cref="RegisterJobDefinitions"/>'s C#-side row building: the only remaining Backoff gate for
+/// <see cref="RegisterDefinitions"/>'s C#-side row building: the only remaining Backoff gate for
 /// hand-authored <see cref="IJobManifest"/> descriptors, which bypass the source generator's
 /// compile-time check. The exception fires before any DB call, so <c>db</c>/<c>dialect</c> are unused.
 /// </summary>
-public class RegisterJobDefinitionsTests
+public class RegisterDefinitionsTests
 {
     private static JobDescriptor Desc(string name, string? backoff) =>
         new(
@@ -41,8 +41,8 @@ public class RegisterJobDefinitionsTests
         var descriptors = ImmutableArray.Create(Desc("bad-job", "garbage"));
 
         var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
-            new RegisterJobDefinitionsHandler(null!, null!).HandleAsync(
-                new RegisterJobDefinitionsCommand(1, DateTime.UtcNow, descriptors, []),
+            new RegisterDefinitionsHandler(null!, null!).HandleAsync(
+                new RegisterDefinitionsCommand(1, DateTime.UtcNow, descriptors, []),
                 TestContext.Current.CancellationToken
             )
         );
@@ -58,8 +58,8 @@ public class RegisterJobDefinitionsTests
         var descriptors = ImmutableArray.Create(Desc("bad-length", tooLong));
 
         var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
-            new RegisterJobDefinitionsHandler(null!, null!).HandleAsync(
-                new RegisterJobDefinitionsCommand(1, DateTime.UtcNow, descriptors, []),
+            new RegisterDefinitionsHandler(null!, null!).HandleAsync(
+                new RegisterDefinitionsCommand(1, DateTime.UtcNow, descriptors, []),
                 TestContext.Current.CancellationToken
             )
         );

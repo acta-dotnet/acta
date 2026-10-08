@@ -6,7 +6,7 @@ ConsumeOutboxSignal
 ParkOutboxSignal
 RaiseAlert
 ReclaimStuckJobs
-RegisterJobDefinitions
+RegisterDefinitions
 RegisterScheduledJobs
 RetireDefinition
 StartExecution

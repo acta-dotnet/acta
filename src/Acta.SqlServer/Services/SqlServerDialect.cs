@@ -255,11 +255,11 @@ internal sealed class SqlServerDialect : ISqlDialect
         }
     }
 
-    public void BindRegisterJobDefinitions(
+    public void BindRegisterDefinitions(
         DbCommand command,
         int namespaceId,
         DateTime manifestGenerationUtc,
-        IReadOnlyList<JobDefinitionRow> rows,
+        IReadOnlyList<DefinitionRow> rows,
         string schema
     )
     {
@@ -310,11 +310,11 @@ internal sealed class SqlServerDialect : ISqlDialect
         new("lane", SqlDbType.VarChar, 128),
     ];
 
-    private static IEnumerable<SqlDataRecord>? BuildDefinitionRecords(IReadOnlyList<JobDefinitionRow> rows)
+    private static IEnumerable<SqlDataRecord>? BuildDefinitionRecords(IReadOnlyList<DefinitionRow> rows)
     {
         return rows.Count == 0 ? null : Stream(rows);
 
-        static IEnumerable<SqlDataRecord> Stream(IReadOnlyList<JobDefinitionRow> rows)
+        static IEnumerable<SqlDataRecord> Stream(IReadOnlyList<DefinitionRow> rows)
         {
             var record = new SqlDataRecord(DefinitionColumns);
             foreach (var row in rows)

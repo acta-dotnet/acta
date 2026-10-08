@@ -2229,7 +2229,7 @@
 | `ReclaimStuckJobs` | yes | yes | yes |
 | `RecordNote` | yes | yes | yes |
 | `RecordOutboxEvent` | yes | yes | yes |
-| `RegisterJobDefinitions` | yes | yes | yes |
+| `RegisterDefinitions` | yes | yes | yes |
 | `RegisterScheduledJobs` | yes | yes | yes |
 | `RegisterTenant` | yes | yes | yes |
 | `ReleaseClaimedOutbox` | yes | yes | yes |

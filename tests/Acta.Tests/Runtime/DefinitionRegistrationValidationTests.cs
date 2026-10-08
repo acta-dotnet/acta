@@ -5,7 +5,7 @@ using Xunit;
 namespace Acta.Tests.Runtime;
 
 /// <summary>
-/// Registration-time bounds in <see cref="RegisterJobDefinitionsHandler"/>: a code-declared ExecutionTimeout past
+/// Registration-time bounds in <see cref="RegisterDefinitionsHandler"/>: a code-declared ExecutionTimeout past
 /// CancelAfter's ceiling, a ConcurrencyLimit outside 1..1024, a malformed RateLimit or RateKey, two
 /// definitions disagreeing about the rate on a shared key, a non-ASCII or over-length RunbookUrl,
 /// or over-length display text fails worker init with a named error, the same contract the operator
@@ -43,8 +43,8 @@ public sealed class DefinitionRegistrationValidationTests
     private static Task RegisterAsync(params JobDescriptor[] descriptors) => RegisterAsync([.. descriptors], []);
 
     private static Task RegisterAsync(JobDescriptor[] descriptors, StoredDefinitionContract[] stored) =>
-        new RegisterJobDefinitionsHandler(new DbSessionStub(), null!).HandleAsync(
-            new RegisterJobDefinitionsCommand(1, Gen, [.. descriptors], stored),
+        new RegisterDefinitionsHandler(new DbSessionStub(), null!).HandleAsync(
+            new RegisterDefinitionsCommand(1, Gen, [.. descriptors], stored),
             TestContext.Current.CancellationToken
         );
 

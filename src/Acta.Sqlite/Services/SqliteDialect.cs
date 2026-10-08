@@ -272,11 +272,11 @@ internal sealed class SqliteDialect : ISqlDialect
         return start < 0 || end < start ? sql : sql[..start] + sql[(end + ChildOnlyEnd.Length)..];
     }
 
-    public void BindRegisterJobDefinitions(
+    public void BindRegisterDefinitions(
         DbCommand command,
         int namespaceId,
         DateTime manifestGenerationUtc,
-        IReadOnlyList<JobDefinitionRow> rows,
+        IReadOnlyList<DefinitionRow> rows,
         string schema
     )
     {

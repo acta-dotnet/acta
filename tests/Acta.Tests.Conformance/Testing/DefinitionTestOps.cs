@@ -23,8 +23,8 @@ internal static class DefinitionTestOps
             .GetRequiredService<GetDefinitionContractsHandler>()
             .HandleAsync(new GetDefinitionContractsQuery(namespaceId), ct);
         return await services
-            .GetRequiredService<RegisterJobDefinitionsHandler>()
-            .HandleAsync(new RegisterJobDefinitionsCommand(namespaceId, manifestGenerationUtc, descriptors, stored), ct);
+            .GetRequiredService<RegisterDefinitionsHandler>()
+            .HandleAsync(new RegisterDefinitionsCommand(namespaceId, manifestGenerationUtc, descriptors, stored), ct);
     }
 
     public static async Task<SetDefinitionOverridesResponse> UpdateOverridesAsync(

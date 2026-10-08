@@ -18,7 +18,7 @@ namespace Acta.Tests.Conformance.Operations.Definitions;
     Area = "Catalog",
     Contract = "Writes a definition only when the incoming manifest generation is at or above the stored one, and never touches a definition the manifest omits."
 )]
-public sealed class RegisterJobDefinitionsSpec : ActaStorageTestBase<ConformanceFixture>
+public sealed class RegisterDefinitionsSpec : ActaStorageTestBase<ConformanceFixture>
 {
     private static readonly DateTime Gen1 = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private static readonly DateTime Gen2 = new(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);

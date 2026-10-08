@@ -344,11 +344,11 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
     public async Task Definitions_that_share_a_rate_key_must_declare_the_same_rate()
     {
         var ct = TestContext.Current.CancellationToken;
-        var handler = Services.GetRequiredService<RegisterJobDefinitionsHandler>();
+        var handler = Services.GetRequiredService<RegisterDefinitionsHandler>();
 
         var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
             handler.HandleAsync(
-                new RegisterJobDefinitionsCommand(
+                new RegisterDefinitionsCommand(
                     NamespaceId,
                     DateTime.UtcNow,
                     [Descriptor("rl-mismatch-left", "10/s"), Descriptor("rl-mismatch-right", "5/s")],

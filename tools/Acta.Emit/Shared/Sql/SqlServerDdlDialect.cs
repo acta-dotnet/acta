@@ -151,7 +151,7 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
             GO
 
             -- Per-definition registration batch: one row per [Job] descriptor under a single namespace.
-            -- Consumed by acta.register_job_definitions's @p_definitions sproc parameter (one round trip per
+            -- Consumed by acta.register_definitions's @p_definitions sproc parameter (one round trip per
             -- worker regardless of definition count). name is the per-namespace natural key.
             IF TYPE_ID(N'{{schema}}.job_definition_batch') IS NULL
             EXEC(N'CREATE TYPE {{schema}}.job_definition_batch AS TABLE (

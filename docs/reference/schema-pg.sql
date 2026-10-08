@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 43)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 44)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -4189,7 +4189,7 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION acta.register_job_definitions(
+CREATE OR REPLACE FUNCTION acta.register_definitions(
     p_namespace_id INT,
     p_manifest_generation TIMESTAMPTZ,
     p_d_name VARCHAR [],
@@ -5207,7 +5207,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.43-c95abffaee725528edd1acca9e281681', 'acta');
+VALUES (-1, 'objects-1.44-f53af53a643c04ffa8bc000e226cee65', 'acta');
 
 COMMIT;
 

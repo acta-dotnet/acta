@@ -81,11 +81,11 @@ internal interface ISqlDialect
     void BindEnqueueBatch(DbCommand command, IReadOnlyList<JobEnqueueRow> rows, IReadOnlyList<Guid> jobRefs, string schema);
 
     /// <summary>Binds the whole-namespace definition registration batch in the provider-native shape.</summary>
-    void BindRegisterJobDefinitions(
+    void BindRegisterDefinitions(
         DbCommand command,
         int namespaceId,
         DateTime manifestGenerationUtc,
-        IReadOnlyList<JobDefinitionRow> rows,
+        IReadOnlyList<DefinitionRow> rows,
         string schema
     );
 

@@ -108,7 +108,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ListWorkersHandler>();
         services.TryAddSingleton<IWorkers, Workers>();
         services.TryAddSingleton<GetDefinitionContractsHandler>();
-        services.TryAddSingleton<RegisterJobDefinitionsHandler>();
+        services.TryAddSingleton<RegisterDefinitionsHandler>();
         services.TryAddSingleton<DefinitionKeyResolution>();
         services.TryAddSingleton<GetDefinitionHandler>();
         services.TryAddSingleton<ListDefinitionsHandler>();

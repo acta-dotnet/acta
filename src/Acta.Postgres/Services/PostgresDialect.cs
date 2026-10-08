@@ -233,11 +233,11 @@ internal sealed class PostgresDialect : ISqlDialect
         AddScalar(postgres, "@p_lane", NpgsqlDbType.Varchar, (object?)row.Lane ?? DBNull.Value);
     }
 
-    public void BindRegisterJobDefinitions(
+    public void BindRegisterDefinitions(
         DbCommand command,
         int namespaceId,
         DateTime manifestGenerationUtc,
-        IReadOnlyList<JobDefinitionRow> rows,
+        IReadOnlyList<DefinitionRow> rows,
         string schema
     )
     {
@@ -299,7 +299,7 @@ internal sealed class PostgresDialect : ISqlDialect
             definitionHashes[i] = row.DefinitionHash;
         }
 
-        // PostgreSQL routine arguments are positional; this order matches register_job_definitions.
+        // PostgreSQL routine arguments are positional; this order matches register_definitions.
         AddScalar(postgres, "@p_namespace_id", NpgsqlDbType.Integer, namespaceId);
         AddScalar(postgres, "@p_manifest_generation", NpgsqlDbType.TimestampTz, manifestGenerationUtc);
         AddArray(postgres, "@p_d_name", NpgsqlDbType.Varchar, names);

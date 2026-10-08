@@ -493,7 +493,7 @@ EXEC(N'CREATE TYPE {{schema}}.job_enqueue_tag_batch AS TABLE (
 GO
 
 -- Per-definition registration batch: one row per [Job] descriptor under a single namespace.
--- Consumed by acta.register_job_definitions's @p_definitions sproc parameter (one round trip per
+-- Consumed by acta.register_definitions's @p_definitions sproc parameter (one round trip per
 -- worker regardless of definition count). name is the per-namespace natural key.
 IF TYPE_ID(N'{{schema}}.job_definition_batch') IS NULL
 EXEC(N'CREATE TYPE {{schema}}.job_definition_batch AS TABLE (
@@ -574,7 +574,7 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 0)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-63d1bdfd309fcc678f53e6c8f81ca015', '{{schema}}');
+VALUES (0, 'baseline-b31e7a518364c6c383a27563aaa5b89e', '{{schema}}');
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 1)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}');

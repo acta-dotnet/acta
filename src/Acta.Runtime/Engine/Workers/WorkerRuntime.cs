@@ -73,7 +73,7 @@ internal sealed class WorkerRuntime
         }
 
         _initializer = new WorkerRuntimeInitializer(
-            rootServices.GetRequiredService<RegisterJobDefinitionsHandler>(),
+            rootServices.GetRequiredService<RegisterDefinitionsHandler>(),
             rootServices.GetRequiredService<GetDefinitionContractsHandler>(),
             rootServices.GetRequiredService<GetScheduleStateHandler>(),
             rootServices.GetRequiredService<RegisterScheduledJobsHandler>(),

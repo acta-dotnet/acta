@@ -5,7 +5,7 @@ namespace Acta.Runtime;
 /// overrides resolve to their framework defaults here, C#-side, so the providers cannot drift; the dialect
 /// binds the row into its native batch shape (TVP on SQL Server, typed arrays on PostgreSQL) verbatim.
 /// </summary>
-internal sealed record JobDefinitionRow(
+internal sealed record DefinitionRow(
     string Name,
     byte PriorityCode,
     int MaxAttempts,
