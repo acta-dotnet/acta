@@ -33,7 +33,7 @@ public interface IAlerts
     /// <paramref name="actorKey"/> is recorded on the audit event as the operator identity (e.g. the
     /// authenticated principal name); null when unknown.
     /// </summary>
-    ValueTask<ResolveJobAlertManualResponse> ResolveAsync(
+    ValueTask<ResolveAlertResponse> ResolveAsync(
         AlertRef alertRef,
         string? reasonMessage = null,
         string? actorKey = null,

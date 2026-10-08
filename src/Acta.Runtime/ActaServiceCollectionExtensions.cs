@@ -126,7 +126,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ResolveJobAlertsHandler>();
         services.TryAddSingleton<AlertLifecycle>();
         services.TryAddSingleton<AcknowledgeAlertHandler>();
-        services.TryAddSingleton<ResolveJobAlertManualHandler>();
+        services.TryAddSingleton<ResolveAlertHandler>();
         services.TryAddSingleton<GetAlertHandler>();
         services.TryAddSingleton<ListAlertsHandler>();
         services.TryAddSingleton<IAlerts, Alerts>();

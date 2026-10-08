@@ -214,7 +214,7 @@ its lifecycle; Acta does not police key choice, it deduplicates on it. The opera
 (`IAlerts.AcknowledgeAsync`, `IAlerts.ResolveAsync`) are idempotent, emit `alert.acknowledged` (140) /
 `alert.resolved` (141) regardless of the job's audit level (`EventCode.AlertAcknowledged`,
 `EventCode.AlertResolved`), and leave `last_projected_event_id` untouched
-(`ResolveJobAlertManual.*.sql`). Neither verb changes the underlying job.
+(`ResolveAlert.*.sql`). Neither verb changes the underlying job.
 
 Reminders follow the same split. A manual alert that delivers is notified once and never again: Acta
 has no way to tell whether one handler's statement still holds, so it schedules no reminder and the
@@ -327,7 +327,7 @@ The delivery guarantee:
 > retry attempts. A transport attempt already in progress may still complete.
 
 Both resolve paths settle the delivery they close (`ResolveJobAlerts.*.sql`,
-`ResolveJobAlertManual.*.sql`): a `Pending` or `RetryAfter` row moves to `Suppressed` and its
+`ResolveAlert.*.sql`): a `Pending` or `RetryAfter` row moves to `Suppressed` and its
 retry timer clears, so a notification queued for a condition that has cleared is cancelled rather than
 sent. An already-settled row (`Delivered`, `Failed`, `Suppressed`) keeps its status — resolving does
 not edit the record of what the send actually did. Selection itself excludes every resolved row
@@ -403,7 +403,7 @@ Acknowledge means an operator has seen the alert; resolve means the incident is 
 Neither changes the job. Acknowledging also does not quiet the alert: a reminder already due still
 fires, because seeing an outage is not fixing one. Resolving is what ends the reminders — it clears
 the row's scheduled instant along with everything else it settles
-(`ResolveJobAlertManual.*.sql`).
+(`ResolveAlert.*.sql`).
 
 Retention is separate from the job's. `sys.retention` deletes alerts older than `AlertRetention`
 (default 90 days, `JobsOptions.AlertRetention`) **whether or not delivery settled**

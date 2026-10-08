@@ -971,7 +971,7 @@ interface Acta.IAlerts
     System.Threading.Tasks.ValueTask<Acta.AcknowledgeAlertResponse> AcknowledgeAsync(Acta.AlertRef alertRef, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.AlertDetail> GetAsync(Acta.AlertRef alertRef, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.AlertListItem>> ListAsync(Acta.ListAlertsQuery query, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.ResolveJobAlertManualResponse> ResolveAsync(Acta.AlertRef alertRef, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.ResolveAlertResponse> ResolveAsync(Acta.AlertRef alertRef, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
 interface Acta.IControlResponse
     Acta.ControlAction Action { get; }
     System.Nullable<System.Int32> Version { get; }
@@ -1987,7 +1987,7 @@ sealed class Acta.ReservedCodeRangeAttribute
     System.Byte End { get; }
     System.Byte Start { get; }
     System.String Reason { get; }
-sealed class Acta.ResolveJobAlertManualResponse
+sealed class Acta.ResolveAlertResponse
     .ctor(Acta.AlertRef AlertRef, Acta.ControlAction Action, System.Nullable<System.DateTime> AcknowledgedAtUtc, System.Nullable<System.DateTime> ResolvedAtUtc)
     Acta.AlertRef AlertRef { get;init; }
     Acta.ControlAction Action { get;init; }

@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 36)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 37)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -5667,121 +5667,6 @@ BEGIN
     END CATCH;
 END;
 GO
-CREATE OR ALTER PROCEDURE acta.resolve_job_alert_manual
-    @p_alert_ref UNIQUEIDENTIFIER,
-    @p_actor_code TINYINT,
-    @p_actor_key NVARCHAR(128),
-    @p_reason_message NVARCHAR(512)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
-        DECLARE
-            @namespace_id INT, @job_id BIGINT, @job_ref UNIQUEIDENTIFIER,
-            @ack DATETIME2(7), @resolved DATETIME2(7),
-            @definition_id INT, @lineage_root_id BIGINT, @execution_number INT;
-
-        SELECT
-            @namespace_id = a.namespace_id,
-            @job_id = a.job_id,
-            @job_ref = a.job_ref,
-            @ack = a.acknowledged_at_utc,
-            @resolved = a.resolved_at_utc
-        FROM acta.alerts a WITH (UPDLOCK, ROWLOCK)
-        WHERE a.alert_ref = @p_alert_ref;
-
-        IF @namespace_id IS NULL
-            BEGIN
-
-                SELECT
-                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
-                    CAST(NULL AS DATETIME2(7)) AS acknowledged_at_utc,
-                    CAST(NULL AS DATETIME2(7)) AS resolved_at_utc;
-                GOTO Finish;
-            END;
-
-        IF @resolved IS NOT NULL
-            BEGIN
-
-                SELECT
-                    CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
-                    @ack AS acknowledged_at_utc,
-                    @resolved AS resolved_at_utc;
-                GOTO Finish;
-            END;
-
-        SELECT
-            @definition_id = j.definition_id,
-            @lineage_root_id = j.lineage_root_id
-        FROM acta.jobs j
-        WHERE j.id = @job_id;
-        SELECT @execution_number = r.execution_number
-        FROM acta.runtimes r
-        WHERE r.job_id = @job_id;
-
-        SET @resolved = @now;
-
-        UPDATE acta.alerts
-        SET
-            resolved_at_utc = @resolved,
-            /* Same settlement as the automatic resolve: a queued notification for a condition an operator
-               has declared cleared is cancelled, and an already-settled status stands as the record of
-               what the send actually did. */
-            delivery_status_code = CASE
-                WHEN delivery_status_code IN (10 /* AlertDeliveryStatusCode.Pending */, 20 /* AlertDeliveryStatusCode.RetryAfter */)
-                    THEN 30 /* AlertDeliveryStatusCode.Suppressed */
-                ELSE delivery_status_code
-            END,
-            retry_after_utc = NULL,
-            modified_at_utc = @now,
-            version = version + 1
-        WHERE alert_ref = @p_alert_ref;
-
-        INSERT INTO acta.events (
-            event_code, created_at_utc, namespace_id,
-            actor_code, actor_key,
-            job_id, job_ref, execution_number,
-            lineage_root_id, definition_id,
-            worker_id,
-            from_status_code, to_status_code,
-            execution_status_code, duration_ms,
-            reason_code, reason_message
-        )
-        VALUES (
-            141 /* EventCode.AlertResolved */, @now, @namespace_id,
-            @p_actor_code, @p_actor_key,
-            @job_id, @job_ref, @execution_number,
-            COALESCE(@lineage_root_id, @job_id), @definition_id,
-            NULL,
-            NULL, NULL,
-            NULL, NULL,
-            NULL, @p_reason_message
-        );
-
-        SELECT
-            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
-            @ack AS acknowledged_at_utc,
-            @resolved AS resolved_at_utc;
-
-    Finish:
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
 CREATE OR ALTER PROCEDURE acta.resolve_job_alerts
     @p_namespace_id INT,
     @p_job_id BIGINT,
@@ -6421,9 +6306,9 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.36-90b75568508e1dd0a9ee5da10c111510', 'acta'
+SELECT -1, 'objects-1.37-d80e5574356b87f7baaa5a9f1fe50bcc', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
-    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'acquire_lock', 'acquire_slot', 'apply_tags', 'arm_or_consume_sleep_timer', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_step', 'consume_outbox_signal', 'enqueue_batch', 'enqueue_one', 'extend_lock', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'purge_expired_data', 'raise_job_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_job_note', 'record_outbox_event', 'register_job_definitions', 'register_scheduled_jobs', 'release_lock', 'repair_recovery_slot', 'reserve_rate', 'resolve_job_alert_manual', 'resolve_job_alerts', 'set_job_definition_overrides', 'start_execution', 'start_step', 'update_alert_delivery', 'wait_signal')) = 43;
+    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'acquire_lock', 'acquire_slot', 'apply_tags', 'arm_or_consume_sleep_timer', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_step', 'consume_outbox_signal', 'enqueue_batch', 'enqueue_one', 'extend_lock', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'purge_expired_data', 'raise_job_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_job_note', 'record_outbox_event', 'register_job_definitions', 'register_scheduled_jobs', 'release_lock', 'repair_recovery_slot', 'reserve_rate', 'resolve_job_alerts', 'set_job_definition_overrides', 'start_execution', 'start_step', 'update_alert_delivery', 'wait_signal')) = 42;
 GO
 COMMIT TRANSACTION;
 GO

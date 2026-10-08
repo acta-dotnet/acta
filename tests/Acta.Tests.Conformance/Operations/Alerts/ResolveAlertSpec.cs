@@ -14,7 +14,7 @@ namespace Acta.Tests.Conformance.Operations.Alerts;
     Area = "Control",
     Contract = "Resolve stamps and audits alert.resolved once without a prior acknowledge, repeats without a second event, and suppresses a queued delivery."
 )]
-public sealed class ResolveJobAlertManualSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+public sealed class ResolveAlertSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // Raises an alert against a freshly-enqueued job, so its auto-increment JobId is guaranteed unique
     // (unlike a fabricated constant) and scopes the alert's audit events precisely even across repeated

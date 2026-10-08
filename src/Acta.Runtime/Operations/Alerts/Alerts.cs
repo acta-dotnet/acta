@@ -3,7 +3,7 @@ namespace Acta.Runtime;
 /// <summary><see cref="IAlerts"/>, one line per operation.</summary>
 internal sealed class Alerts(
     AcknowledgeAlertHandler acknowledgeAlert,
-    ResolveJobAlertManualHandler resolveJobAlertManual,
+    ResolveAlertHandler resolveAlert,
     ListAlertsHandler listAlerts,
     GetAlertHandler getAlert
 ) : IAlerts
@@ -15,12 +15,12 @@ internal sealed class Alerts(
         CancellationToken ct = default
     ) => acknowledgeAlert.HandleAsync(new AcknowledgeAlertCommand(alertRef, reasonMessage, actorKey), ct);
 
-    public ValueTask<ResolveJobAlertManualResponse> ResolveAsync(
+    public ValueTask<ResolveAlertResponse> ResolveAsync(
         AlertRef alertRef,
         string? reasonMessage = null,
         string? actorKey = null,
         CancellationToken ct = default
-    ) => resolveJobAlertManual.HandleAsync(new ResolveJobAlertManualCommand(alertRef, reasonMessage, actorKey), ct);
+    ) => resolveAlert.HandleAsync(new ResolveAlertCommand(alertRef, reasonMessage, actorKey), ct);
 
     public ValueTask<PagedResult<AlertListItem>> ListAsync(ListAlertsQuery query, CancellationToken ct = default) =>
         listAlerts.HandleAsync(query, ct);

@@ -2242,7 +2242,7 @@
 | `RescheduleOutbox` | yes | yes | yes |
 | `ReserveRate` | yes | yes | yes |
 | `ResetJobState` | yes | yes | yes |
-| `ResolveJobAlertManual` | yes | yes | yes |
+| `ResolveAlert` | yes | yes | yes |
 | `ResolveJobAlerts` | yes | yes | yes |
 | `ResolveJobIdByDeduplicationKey` | yes | yes | yes |
 | `ResolveJobIdByRef` | yes | yes | yes |

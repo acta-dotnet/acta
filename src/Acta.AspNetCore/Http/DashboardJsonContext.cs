@@ -60,7 +60,7 @@ namespace Acta.AspNetCore;
 [JsonSerializable(typeof(SetJobDefinitionOverridesResponse))]
 [JsonSerializable(typeof(RetireDefinitionResponse))]
 [JsonSerializable(typeof(AcknowledgeAlertResponse))]
-[JsonSerializable(typeof(ResolveJobAlertManualResponse))]
+[JsonSerializable(typeof(ResolveAlertResponse))]
 [JsonSerializable(typeof(UpdateTenantHttpRequest))]
 [JsonSerializable(typeof(UpdateNamespaceHttpRequest))]
 [JsonSerializable(typeof(AdminControlResult))]

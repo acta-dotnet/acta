@@ -107,7 +107,7 @@ public sealed class ControlContractTests
         .. DefinitionOverrides(),
         .. DefinitionRetire(),
         .. AlertVerb("acknowledge", typeof(AcknowledgeAlertResponse)),
-        .. AlertVerb("resolve", typeof(ResolveJobAlertManualResponse)),
+        .. AlertVerb("resolve", typeof(ResolveAlertResponse)),
         .. OutboxVerb("requeue", typeof(RequeueOutboxResponse)),
         .. OutboxVerb("discard", typeof(DiscardOutboxResponse)),
         .. AdminVerb("namespaces", "/namespaces/{jobNamespace}", "billing", "suspend", typeof(SuspendNamespaceResponse)),

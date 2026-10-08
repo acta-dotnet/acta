@@ -4076,7 +4076,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ResolveJobAlertManualResponse"
+                  "$ref": "#/components/schemas/ResolveAlertResponse"
                 }
               }
             }
@@ -4086,7 +4086,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ResolveJobAlertManualResponse"
+                  "$ref": "#/components/schemas/ResolveAlertResponse"
                 }
               }
             }
@@ -11455,7 +11455,7 @@
         },
         "description": "What rescheduling a job did, and the job's status and version after the attempt."
       },
-      "ResolveJobAlertManualResponse": {
+      "ResolveAlertResponse": {
         "required": [
           "alertRef",
           "action",

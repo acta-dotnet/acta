@@ -15,7 +15,7 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 | `GetDeliverableAlerts` | · | · | · | inline | inline | inline | · | `GetDeliverableAlertsSpec` |
 | `ListAlerts` | `IAlerts.ListAsync` | `GET /alerts` | · | inline | inline | inline | · | `ListAlertsFilterMatrixSpec`, `ListAlertsSpec` |
 | `RaiseJobAlert` | · | · | · | routine | routine | inline | `alerts` | `RaiseJobAlertRefStabilitySpec`, `RaiseJobAlertSpec` |
-| `ResolveJobAlertManual` | `IAlerts.ResolveAsync` | `POST /alerts/{alertRef}/resolve` | · | routine | routine | inline | `alerts`, `events` | `ResolveJobAlertManualSpec` |
+| `ResolveAlert` | `IAlerts.ResolveAsync` | `POST /alerts/{alertRef}/resolve` | · | inline | inline | inline | `alerts`, `events` | `ResolveAlertSpec` |
 | `ResolveJobAlerts` | · | · | · | routine | routine | inline | `alerts` | `ResolveJobAlertsSpec` |
 | `UpdateAlertDelivery` | · | · | · | routine | routine | inline | `alerts` | `UpdateAlertDeliverySpec` |
 
