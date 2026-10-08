@@ -128,33 +128,6 @@ internal static class BackoffExpressionValidator
         return true;
     }
 
-    public static string FormatDuration(TimeSpan value)
-    {
-        if (value == TimeSpan.Zero)
-        {
-            return "0s";
-        }
-        if (value.Ticks % TimeSpan.TicksPerDay == 0)
-        {
-            return FormatNumber(value.TotalDays) + "d";
-        }
-        if (value.Ticks % TimeSpan.TicksPerHour == 0)
-        {
-            return FormatNumber(value.TotalHours) + "h";
-        }
-        if (value.Ticks % TimeSpan.TicksPerMinute == 0)
-        {
-            return FormatNumber(value.TotalMinutes) + "m";
-        }
-        if (value.Ticks % TimeSpan.TicksPerSecond == 0)
-        {
-            return FormatNumber(value.TotalSeconds) + "s";
-        }
-        return value.Ticks % TimeSpan.TicksPerMillisecond == 0
-            ? FormatNumber(value.TotalMilliseconds) + "ms"
-            : FormatNumber(value.TotalSeconds) + "s";
-    }
-
     private static bool TryParseHuman(string s, out TimeSpan span, out Error error)
     {
         span = default;

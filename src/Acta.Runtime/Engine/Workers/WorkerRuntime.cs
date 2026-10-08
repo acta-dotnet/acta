@@ -288,13 +288,4 @@ internal sealed class WorkerRuntime
         await _lockHeartbeat.TickAsync(ct);
         await _watchdog.TickAsync(ct);
     }
-
-    /// <summary>
-    /// Run exactly one definition-policy reload pass: re-overlay the effective (override-or-default)
-    /// policy onto this worker's live descriptor index for every definition changed since the last sweep.
-    /// The deterministic single-shot the reload loop drives per tick; tests use it to observe an operator
-    /// override taking effect without a restart.
-    /// </summary>
-    public Task RunDefinitionReloadOnceAsync(CancellationToken ct) =>
-        WorkerNamespaceName is { } ns ? _policyReloader.TickAsync(ns, ct) : Task.CompletedTask;
 }

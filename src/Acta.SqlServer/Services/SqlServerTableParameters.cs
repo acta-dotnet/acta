@@ -322,18 +322,6 @@ internal static class SqlServerTableParameters
         }
     }
 
-    internal static void SetNullableByte(SqlDataRecord record, int ordinal, byte? value)
-    {
-        if (value is { } number)
-        {
-            record.SetByte(ordinal, number);
-        }
-        else
-        {
-            record.SetDBNull(ordinal);
-        }
-    }
-
     internal static void SetNullableInt32(SqlDataRecord record, int ordinal, int? value)
     {
         if (value is { } number)

@@ -7,7 +7,6 @@ internal static class JobsQueryLimits
 {
     public const int DefaultPageSize = 50;
     public const int MaxPageSize = 100;
-    public const int MaxTagFilters = TagLimits.MaxFiltersPerQuery;
 
     /// <summary>
     /// Applies the page-size rules: null defaults, below one throws, above the cap clamps.

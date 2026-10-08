@@ -36,8 +36,6 @@ internal static class EmbeddedDashboardAssets
         return buffer.ToArray();
     }
 
-    public static bool HasIndex() => Read("index.html") is not null;
-
     private static bool IsSafe(string path)
     {
         if (string.IsNullOrEmpty(path) || path.Contains('\\', StringComparison.Ordinal))

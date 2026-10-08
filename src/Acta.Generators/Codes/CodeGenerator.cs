@@ -142,7 +142,7 @@ public sealed class CodeGenerator : IIncrementalGenerator
                         Fatal: true
                     )
                 );
-                yield return new FamilyModel(ns, enumType.Name, codeKind, StorageKind.Byte, [], [], [], diagnostics.ToImmutable());
+                yield return new FamilyModel(ns, enumType.Name, codeKind, StorageKind.Byte, [], diagnostics.ToImmutable());
                 continue;
             }
 
@@ -169,16 +169,7 @@ public sealed class CodeGenerator : IIncrementalGenerator
 
             codes.Sort((a, b) => a.Id.CompareTo(b.Id));
 
-            yield return new FamilyModel(
-                ns,
-                enumType.Name,
-                codeKind,
-                storage,
-                [.. codes],
-                reservations,
-                reservedRanges,
-                diagnostics.ToImmutable()
-            );
+            yield return new FamilyModel(ns, enumType.Name, codeKind, storage, [.. codes], diagnostics.ToImmutable());
         }
     }
 
@@ -263,8 +254,6 @@ public sealed class CodeGenerator : IIncrementalGenerator
         string CodeKind,
         StorageKind Storage,
         ImmutableArray<CodeModel> Codes,
-        ImmutableArray<ReservationModel> Reservations,
-        ImmutableArray<ReservedRangeModel> ReservedRanges,
         ImmutableArray<DiagnosticRecord> Diagnostics
     );
 

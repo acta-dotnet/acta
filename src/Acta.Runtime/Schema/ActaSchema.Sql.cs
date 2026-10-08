@@ -31,22 +31,6 @@ internal static partial class ActaSchema
             nullable: true
         );
 
-        /// <summary>
-        /// Nullable scope targets for the settings operations: null means the scope narrows no further.
-        /// </summary>
-        public static readonly DbValueSpec<string?> ScopeNamespaceName = Sized<string?>(
-            "p_namespace_name",
-            DbKind.AsciiString,
-            128,
-            nullable: true
-        );
-
-        public static readonly DbValueSpec<string?> ScopeJobName = Sized<string?>("p_job_name", DbKind.AsciiString, 128, nullable: true);
-
-        public static readonly DbValueSpec<string> JobName = Sized<string>("p_job_name", DbKind.AsciiString, 128, nullable: false);
-
-        public static readonly DbValueSpec<byte?> PriorityOverride = Scalar<byte?>("p_priority_override", DbKind.Byte, nullable: true);
-
         public static readonly DbValueSpec<bool> ExecutionSucceeded = Scalar<bool>(
             "p_execution_succeeded",
             DbKind.Boolean,
