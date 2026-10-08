@@ -10,7 +10,7 @@ namespace Acta;
 /// <c>TenantKey</c>; <c>Status</c> Active resolves at enqueue and Suspended rejects it; <c>Version</c> is the row
 /// version a CAS control verb takes as expected.
 /// </summary>
-public sealed record TenantDetail(
+public sealed record GetTenantResponse(
     [property: JsonIgnore] int TenantId,
     string TenantKey,
     string? DisplayName,

@@ -129,7 +129,7 @@ internal sealed class CliCommandRunner(
         };
     }
 
-    private int Info(JobDetail snapshot, bool json)
+    private int Info(GetJobResponse snapshot, bool json)
     {
         CliOutput.WriteSnapshot(output, snapshot, json);
         return ExitOk;
@@ -232,7 +232,7 @@ internal sealed class CliCommandRunner(
     /// claimable; the race is accepted. The exit code reflects the attempt: a thrown handler counts as failed even
     /// when the retry budget re-arms the job.
     /// </summary>
-    private async Task<int> DebugAsync(JobDetail snapshot, bool json, bool breakAtHandler, CancellationToken ct)
+    private async Task<int> DebugAsync(GetJobResponse snapshot, bool json, bool breakAtHandler, CancellationToken ct)
     {
         var jobId = snapshot.JobId;
         var jobRef = snapshot.JobRef;

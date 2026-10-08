@@ -23,10 +23,10 @@ internal sealed class FakeSchedules : ISchedules
         TriggerNow = (schedule, reason, actor, _) => ValueTask.FromResult(Trigger(schedule, reason, actor));
         List = static (_, _) => ValueTask.FromResult(new ListSchedulesResponse([], null, false, 50, null));
         Preview = static (schedule, _, _) =>
-            ValueTask.FromResult<SchedulePreview?>(
+            ValueTask.FromResult<PreviewScheduleResponse?>(
                 schedule.ScheduleName == "missing"
                     ? null
-                    : new SchedulePreview("0 9 * * *", "UTC", [new DateTime(2026, 6, 12, 9, 0, 0, DateTimeKind.Utc)])
+                    : new PreviewScheduleResponse("0 9 * * *", "UTC", [new DateTime(2026, 6, 12, 9, 0, 0, DateTimeKind.Utc)])
             );
     }
 
@@ -62,7 +62,7 @@ internal sealed class FakeSchedules : ISchedules
 
     public Func<ListSchedulesQuery, CancellationToken, ValueTask<ListSchedulesResponse>> List { get; set; }
 
-    public Func<ScheduleLookup, int, CancellationToken, ValueTask<SchedulePreview?>> Preview { get; set; }
+    public Func<ScheduleLookup, int, CancellationToken, ValueTask<PreviewScheduleResponse?>> Preview { get; set; }
 
     ValueTask<PauseScheduleResponse> ISchedules.PauseAsync(
         ScheduleLookup schedule,
@@ -98,7 +98,7 @@ internal sealed class FakeSchedules : ISchedules
 
     ValueTask<ListSchedulesResponse> ISchedules.ListAsync(ListSchedulesQuery query, CancellationToken ct) => List(query, ct);
 
-    ValueTask<SchedulePreview?> ISchedules.PreviewAsync(ScheduleLookup schedule, int count, CancellationToken ct) =>
+    ValueTask<PreviewScheduleResponse?> ISchedules.PreviewAsync(ScheduleLookup schedule, int count, CancellationToken ct) =>
         Preview(schedule, count, ct);
 
     /// <summary>The two staged outcomes every schedule verb shares; null means the verb applies, so each verb keeps its

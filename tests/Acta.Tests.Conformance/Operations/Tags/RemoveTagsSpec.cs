@@ -33,7 +33,7 @@ public sealed class RemoveTagsSpec : ActaStorageTestBase<ConformanceFixture>
         var response = await Tags.RemoveAsync(target, "drop", ct: ct);
 
         Assert.Equal(TagMutationAction.Applied, response.Action);
-        Assert.Equal([new TagItem("keep", "y")], Assert.IsType<TagSet>(await Tags.GetAsync(target, ct)).Items);
+        Assert.Equal([new GetTagsItem("keep", "y")], Assert.IsType<GetTagsResponse>(await Tags.GetAsync(target, ct)).Items);
     }
 
     [Fact(DisplayName = "Removing a tag the target does not carry applies and changes nothing")]
@@ -47,7 +47,7 @@ public sealed class RemoveTagsSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Equal(TagMutationAction.Applied, (await Tags.RemoveAsync(target, "keep", ct: ct)).Action);
         Assert.Equal(TagMutationAction.Applied, (await Tags.RemoveAsync(target, "keep", ct: ct)).Action);
 
-        Assert.Empty(Assert.IsType<TagSet>(await Tags.GetAsync(target, ct)));
+        Assert.Empty(Assert.IsType<GetTagsResponse>(await Tags.GetAsync(target, ct)).Items);
     }
 
     [Fact(DisplayName = "Remove reaches only the addressed target")]
@@ -61,8 +61,8 @@ public sealed class RemoveTagsSpec : ActaStorageTestBase<ConformanceFixture>
 
         await Tags.RemoveAsync(first, "shared", ct: ct);
 
-        Assert.Empty(Assert.IsType<TagSet>(await Tags.GetAsync(first, ct)));
-        Assert.Equal([new TagItem("shared", "2")], Assert.IsType<TagSet>(await Tags.GetAsync(second, ct)).Items);
+        Assert.Empty(Assert.IsType<GetTagsResponse>(await Tags.GetAsync(first, ct)).Items);
+        Assert.Equal([new GetTagsItem("shared", "2")], Assert.IsType<GetTagsResponse>(await Tags.GetAsync(second, ct)).Items);
     }
 
     [Fact(DisplayName = "A malformed or reserved name throws even when the target is missing")]

@@ -67,7 +67,7 @@ internal sealed class JobRunAndWait(
     /// Between reads the wait sleeps on the job's completion channel, so a colocated or transported completion wake
     /// ends it at once; without one, PollInterval is the discovery floor.
     /// </summary>
-    private async ValueTask<(long JobId, JobDetail? Snapshot, bool TimedOut)> EnqueueAndAwaitAsync(
+    private async ValueTask<(long JobId, GetJobResponse? Snapshot, bool TimedOut)> EnqueueAndAwaitAsync(
         Func<JobExecutionOptions, EnqueueJobRequest> request,
         JobExecutionOptions? options,
         CancellationToken ct

@@ -6,7 +6,7 @@ namespace Acta.Runtime;
 /// </summary>
 internal sealed class GetOverviewHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<OverviewSnapshot> HandleAsync(GetOverviewQuery query, CancellationToken ct)
+    public async ValueTask<GetOverviewResponse> HandleAsync(GetOverviewQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
         var jobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace));
@@ -25,7 +25,7 @@ internal sealed class GetOverviewHandler(IDbSession session, ISqlDialect dialect
                     );
                 },
                 // The slow counts are null when skipped, which the snapshot reports as zero.
-                static reader => new OverviewSnapshot(
+                static reader => new GetOverviewResponse(
                     ReadyCount: reader.GetInt64(0),
                     OldestReadyAgeSeconds: reader.IsDBNull(1) ? null : reader.GetInt64(1),
                     ExecutingCount: reader.GetInt64(2),
@@ -41,6 +41,6 @@ internal sealed class GetOverviewHandler(IDbSession session, ISqlDialect dialect
                     ScheduleLagSeconds: reader.IsDBNull(12) ? null : reader.GetInt64(12)
                 ),
                 ct
-            ) ?? new OverviewSnapshot(0, null, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, null);
+            ) ?? new GetOverviewResponse(0, null, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, null);
     }
 }

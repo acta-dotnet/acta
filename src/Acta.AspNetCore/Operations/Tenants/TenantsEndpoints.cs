@@ -51,7 +51,7 @@ internal static class TenantsEndpoints
             "/tenants/{tenantKey}",
             "Read one tenant.",
             "Tenant",
-            DashboardJsonContext.Default.TenantDetail,
+            DashboardJsonContext.Default.GetTenantResponse,
             static async (http, call) =>
             {
                 try

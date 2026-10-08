@@ -16,19 +16,19 @@ internal static class TagRoutes
 {
     public static async Task<IResult> ReadAsync(IActaOperations operations, Func<TagTarget> resolve, CancellationToken ct)
     {
-        TagSet? set;
+        GetTagsResponse? response;
         try
         {
             // Both the resolver and ITags canonicalize identifiers, and either can report one
             // this API cannot address; that is caller input, so it is the 400 and never a miss.
-            set = await operations.Tags.GetAsync(resolve(), ct);
+            response = await operations.Tags.GetAsync(resolve(), ct);
         }
         catch (ArgumentException ex)
         {
             return InvalidTarget(ex);
         }
 
-        return set is null ? NotFound() : Results.Json(set.Items, DashboardJsonContext.Default.IReadOnlyListTagItem);
+        return response is null ? NotFound() : Results.Json(response.Items, DashboardJsonContext.Default.IReadOnlyListGetTagsItem);
     }
 
     public static async Task<IResult> UpsertAsync(

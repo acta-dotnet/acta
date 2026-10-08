@@ -182,7 +182,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/TagItem"
+                    "$ref": "#/components/schemas/GetTagsItem"
                   }
                 }
               }
@@ -1931,7 +1931,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/TagItem"
+                    "$ref": "#/components/schemas/GetTagsItem"
                   }
                 }
               }
@@ -2220,7 +2220,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/TagItem"
+                    "$ref": "#/components/schemas/GetTagsItem"
                   }
                 }
               }
@@ -2847,7 +2847,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/TagItem"
+                    "$ref": "#/components/schemas/GetTagsItem"
                   }
                 }
               }
@@ -3569,7 +3569,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TenantDetail"
+                  "$ref": "#/components/schemas/GetTenantResponse"
                 }
               }
             }
@@ -3759,7 +3759,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/TagItem"
+                    "$ref": "#/components/schemas/GetTagsItem"
                   }
                 }
               }
@@ -4520,7 +4520,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/TagItem"
+                    "$ref": "#/components/schemas/GetTagsItem"
                   }
                 }
               }
@@ -4841,7 +4841,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DefinitionDetail"
+                  "$ref": "#/components/schemas/GetDefinitionResponse"
                 }
               }
             }
@@ -5191,7 +5191,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/TagItem"
+                    "$ref": "#/components/schemas/GetTagsItem"
                   }
                 }
               }
@@ -5927,7 +5927,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobDetail"
+                  "$ref": "#/components/schemas/GetJobResponse"
                 }
               }
             }
@@ -6017,7 +6017,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobDetail"
+                  "$ref": "#/components/schemas/GetJobResponse"
                 }
               }
             }
@@ -6374,7 +6374,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/WorkerDetail"
+                  "$ref": "#/components/schemas/GetWorkerResponse"
                 }
               }
             }
@@ -6737,7 +6737,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AlertDetail"
+                  "$ref": "#/components/schemas/GetAlertResponse"
                 }
               }
             }
@@ -7296,7 +7296,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SchedulePreview"
+                  "$ref": "#/components/schemas/PreviewScheduleResponse"
                 }
               }
             }
@@ -7942,7 +7942,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OverviewSnapshot"
+                  "$ref": "#/components/schemas/GetOverviewResponse"
                 }
               }
             }
@@ -8045,116 +8045,25 @@
         },
         "description": "What acknowledging an alert did, and its timestamps after the attempt."
       },
-      "ActorCode": { },
-      "AlertDeliveryStatusCode": {
-        "description": "Delivery state of one alert row. Numeric bands are a readability convention only; behavior\nfollows the explicit members."
-      },
-      "AlertDetail": {
+      "Action": {
         "required": [
-          "alertRef",
-          "jobNamespace",
-          "jobRef",
-          "origin",
-          "severity",
           "kind",
-          "title",
-          "message",
-          "channelName",
-          "occurrenceCount",
-          "resolvedAtUtc",
-          "deliveryStatus",
-          "retryCount",
-          "retryAfterUtc",
-          "createdAtUtc",
-          "modifiedAtUtc",
-          "acknowledgedAtUtc"
+          "description"
         ],
         "type": "object",
         "properties": {
-          "alertRef": {
-            "$ref": "#/components/schemas/AlertRef"
-          },
-          "jobNamespace": {
-            "type": "string"
-          },
-          "jobRef": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JobRef"
-              }
-            ]
-          },
-          "origin": {
-            "$ref": "#/components/schemas/AlertOriginCode"
-          },
-          "severity": {
-            "$ref": "#/components/schemas/AlertSeverityCode"
-          },
           "kind": {
-            "$ref": "#/components/schemas/AlertKindCode"
-          },
-          "title": {
             "type": "string"
           },
-          "message": {
+          "description": {
             "type": "string"
-          },
-          "channelName": {
-            "type": "string"
-          },
-          "occurrenceCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "resolvedAtUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          },
-          "deliveryStatus": {
-            "$ref": "#/components/schemas/AlertDeliveryStatusCode"
-          },
-          "retryCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "retryAfterUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          },
-          "createdAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "modifiedAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "acknowledgedAtUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
           }
         },
-        "description": "The single-alert read model returned by ValueTask&lt;AlertDetail?&gt; IAlerts.GetAsync(AlertRef alertRef, CancellationToken ct = default(CancellationToken)). It carries the list row's fields today and\nis a distinct type because a detail read can grow additively (delivery history, the alerting event's detail)\nwithout the list row paying for it. Two delivery fields read differently than their names suggest:\n`RetryCount` is the attempts spent in the current send series, not over the row's life (a delivered send\nends the series and resets it), and `RetryAfterUtc` is the earliest instant the alert may be sent again, the\nnext retry while delivery is unsettled or the next reminder once it has settled, null when nothing is scheduled."
+        "description": "A suggested operator move. string Action.Kind is a stable slug\n(`raise-signal` | `cancel` | `resume` | `restart` | `inspect-timeline` |\n`wait-recovery` | `view-result` | `none`); string Action.Description is the prose shown to the operator."
+      },
+      "ActorCode": { },
+      "AlertDeliveryStatusCode": {
+        "description": "Delivery state of one alert row. Numeric bands are a readability convention only; behavior\nfollows the explicit members."
       },
       "AlertKindCode": {
         "description": "What condition an alert reports. Sparse catalog ids leave insertion room; numeric ordering is\nnot behavioral."
@@ -8284,6 +8193,36 @@
         "description": "Discriminator for `JobCheckpoint` rows: which durable substrate feature owns the\n`(job_id, kind_code, name)` slot. One physical table carries every simple job-internal\ndurable slot; the kind keeps the name spaces structurally separate (a user variable can never\ncollide with a signal or a child latch of the same name)."
       },
       "CheckpointStatusCode": { },
+      "Child": {
+        "required": [
+          "jobRef",
+          "jobName",
+          "status",
+          "createdAtUtc",
+          "modifiedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "jobRef": {
+            "$ref": "#/components/schemas/JobRef"
+          },
+          "jobName": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatusCode"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "modifiedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "A direct child of the focused Job, linkable to its own detail view."
+      },
       "ControlAction": {
         "enum": [
           "applied",
@@ -8310,7 +8249,383 @@
         "description": "How the engine treats a job that has passed its deadline."
       },
       "DefinitionAuditLevelCode": { },
-      "DefinitionDetail": {
+      "DefinitionPolicyOverrides": {
+        "type": "object",
+        "properties": {
+          "priority": { },
+          "maxAttempts": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "concurrencyLimit": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "rateLimit": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "backoff": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "executionTimeoutSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "deadlineSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "deadlineBehavior": { },
+          "jobRetentionSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "auditLevel": { },
+          "alertProfile": { },
+          "alertChannelName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "runbookUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "displayName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "The whole operator-override set for a definition's policy, applied as a unit: a non-null field sets its override\nand null clears it back to the code default, so the dashboard reads, edits, and writes the full set. Code defaults,\ncontract, formats, and `definition_hash` are never touched. A `DeadlineSeconds` override on a scheduled\ndefinition lands but is ignored: a deadline anchors to job creation, and a recurring slot lives forever.\n`RateLimit` applies to every definition sharing the meter (declared `RateKey`, or the name) in one\nwrite, clearing included, so the meter never carries two rates."
+      },
+      "DefinitionStatusCode": {
+        "description": "Lifecycle status of a job definition. Numeric bands are a readability convention only;\nbehavior follows the explicit members. There is no per-definition Deprecated state by design:\noperators pause individual Jobs via `IJobs.PauseAsync`."
+      },
+      "DiscardOutboxResponse": {
+        "required": [
+          "action",
+          "pendingSinceUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ControlAction"
+          },
+          "pendingSinceUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        },
+        "description": "What parking a discard of a source's quarantined rows did."
+      },
+      "EnqueueJobAction": {
+        "enum": [
+          "inserted",
+          "deduplicated"
+        ],
+        "description": "Coarse outcome classifier for one enqueued row."
+      },
+      "EnqueueOneHttpRequest": {
+        "type": "object",
+        "properties": {
+          "jobNamespace": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "jobName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "input": { },
+          "text": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "base64": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "formatId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "uint8"
+          },
+          "deduplicationKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "correlationKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tenantKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "priority": { },
+          "delaySeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "nextRunAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "EnqueueOneHttpResponse": {
+        "required": [
+          "jobRef",
+          "action"
+        ],
+        "type": "object",
+        "properties": {
+          "jobRef": {
+            "$ref": "#/components/schemas/JobRef"
+          },
+          "action": {
+            "$ref": "#/components/schemas/EnqueueJobAction"
+          }
+        }
+      },
+      "EventCode": {
+        "description": "Stable family-local event identifiers. Nearby values improve catalog readability but carry no runtime subject,\nsubgroup, or outcome semantics; match events by enum member or textual code. There is no `job.enqueued`\nevent on purpose: the Job row's own `(created_at_utc, namespace_id, definition_id)` records the enqueue fact,\nand a separate event row would be write amplification on the narrow append-heavy events table; dedup outcomes\nreach the caller via `EnqueueJobResponse.Action`, and cross-job rate analytics query `acta.jobs` directly."
+      },
+      "EventReasonCode": { },
+      "ExecutionLease": {
+        "required": [
+          "workerName",
+          "expiresAtUtc",
+          "expired",
+          "workerLastHeartbeatAtUtc",
+          "workerStale",
+          "recoveryExpectation",
+          "workerRef"
+        ],
+        "type": "object",
+        "properties": {
+          "workerName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expiresAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "expired": {
+            "type": "boolean"
+          },
+          "workerLastHeartbeatAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "workerStale": {
+            "type": "boolean"
+          },
+          "recoveryExpectation": {
+            "type": "string"
+          },
+          "workerRef": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorkerRef"
+              }
+            ]
+          }
+        },
+        "description": "The execution lease on a Dispatched or Executing Job and the liveness of the worker holding it. When\nbool ExecutionLease.Expired is true the lease has lapsed and `sys.recovery` reclaims the Job on its next tick;\nstring ExecutionLease.RecoveryExpectation says so in prose. string? ExecutionLease.WorkerName is the worker's deployment version, and\nbool ExecutionLease.WorkerStale is true once it has missed heartbeats past `JobsOptions.WorkerDeadAfter`. Both\nWorkerRef? ExecutionLease.WorkerRef and string? ExecutionLease.WorkerName go null when retention purged the owner's row: the timings\nstill describe the Job, but the holder is unidentifiable."
+      },
+      "ExecutionStatusCode": { },
+      "GetAlertResponse": {
+        "required": [
+          "alertRef",
+          "jobNamespace",
+          "jobRef",
+          "origin",
+          "severity",
+          "kind",
+          "title",
+          "message",
+          "channelName",
+          "occurrenceCount",
+          "resolvedAtUtc",
+          "deliveryStatus",
+          "retryCount",
+          "retryAfterUtc",
+          "createdAtUtc",
+          "modifiedAtUtc",
+          "acknowledgedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "alertRef": {
+            "$ref": "#/components/schemas/AlertRef"
+          },
+          "jobNamespace": {
+            "type": "string"
+          },
+          "jobRef": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobRef"
+              }
+            ]
+          },
+          "origin": {
+            "$ref": "#/components/schemas/AlertOriginCode"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/AlertSeverityCode"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/AlertKindCode"
+          },
+          "title": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "channelName": {
+            "type": "string"
+          },
+          "occurrenceCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "resolvedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "deliveryStatus": {
+            "$ref": "#/components/schemas/AlertDeliveryStatusCode"
+          },
+          "retryCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "retryAfterUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "modifiedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "acknowledgedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        },
+        "description": "The single-alert read model returned by ValueTask&lt;GetAlertResponse?&gt; IAlerts.GetAsync(AlertRef alertRef, CancellationToken ct = default(CancellationToken)). It carries the list row's fields today and\nis a distinct type because a detail read can grow additively (delivery history, the alerting event's detail)\nwithout the list row paying for it. Two delivery fields read differently than their names suggest:\n`RetryCount` is the attempts spent in the current send series, not over the row's life (a delivered send\nends the series and resets it), and `RetryAfterUtc` is the earliest instant the alert may be sent again, the\nnext retry while delivery is unsettled or the next reminder once it has settled, null when nothing is scheduled."
+      },
+      "GetDefinitionResponse": {
         "required": [
           "jobNamespace",
           "jobName",
@@ -8745,223 +9060,8 @@
             "format": "int32"
           }
         },
-        "description": "The whole `definitions` row ValueTask&lt;DefinitionDetail?&gt; IDefinitions.GetAsync(string jobNamespace, string jobName, CancellationToken ct = default(CancellationToken)) returns, in column order: identity and\ncontrol, contract and formats, each policy as its code default, operator override (null inherits), and\neffective value, and audit bookkeeping. The dashboard's definition editor reads it; the grid reads the slimmer\nListDefinitionsItem. A definition is addressed by namespace and name, and its catalog id stays off\nthe wire."
+        "description": "The whole `definitions` row ValueTask&lt;GetDefinitionResponse?&gt; IDefinitions.GetAsync(string jobNamespace, string jobName, CancellationToken ct = default(CancellationToken)) returns, in column order: identity and\ncontrol, contract and formats, each policy as its code default, operator override (null inherits), and\neffective value, and audit bookkeeping. The dashboard's definition editor reads it; the grid reads the slimmer\nListDefinitionsItem. A definition is addressed by namespace and name, and its catalog id stays off\nthe wire."
       },
-      "DefinitionPolicyOverrides": {
-        "type": "object",
-        "properties": {
-          "priority": { },
-          "maxAttempts": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "concurrencyLimit": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "rateLimit": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "backoff": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "executionTimeoutSeconds": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "deadlineSeconds": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "deadlineBehavior": { },
-          "jobRetentionSeconds": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "auditLevel": { },
-          "alertProfile": { },
-          "alertChannelName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "runbookUrl": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "displayName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "description": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        },
-        "description": "The whole operator-override set for a definition's policy, applied as a unit: a non-null field sets its override\nand null clears it back to the code default, so the dashboard reads, edits, and writes the full set. Code defaults,\ncontract, formats, and `definition_hash` are never touched. A `DeadlineSeconds` override on a scheduled\ndefinition lands but is ignored: a deadline anchors to job creation, and a recurring slot lives forever.\n`RateLimit` applies to every definition sharing the meter (declared `RateKey`, or the name) in one\nwrite, clearing included, so the meter never carries two rates."
-      },
-      "DefinitionStatusCode": {
-        "description": "Lifecycle status of a job definition. Numeric bands are a readability convention only;\nbehavior follows the explicit members. There is no per-definition Deprecated state by design:\noperators pause individual Jobs via `IJobs.PauseAsync`."
-      },
-      "DiscardOutboxResponse": {
-        "required": [
-          "action",
-          "pendingSinceUtc"
-        ],
-        "type": "object",
-        "properties": {
-          "action": {
-            "$ref": "#/components/schemas/ControlAction"
-          },
-          "pendingSinceUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          }
-        },
-        "description": "What parking a discard of a source's quarantined rows did."
-      },
-      "EnqueueJobAction": {
-        "enum": [
-          "inserted",
-          "deduplicated"
-        ],
-        "description": "Coarse outcome classifier for one enqueued row."
-      },
-      "EnqueueOneHttpRequest": {
-        "type": "object",
-        "properties": {
-          "jobNamespace": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "jobName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "input": { },
-          "text": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "base64": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "formatId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "uint8"
-          },
-          "deduplicationKey": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "correlationKey": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "tenantKey": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "priority": { },
-          "delaySeconds": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "nextRunAtUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          }
-        }
-      },
-      "EnqueueOneHttpResponse": {
-        "required": [
-          "jobRef",
-          "action"
-        ],
-        "type": "object",
-        "properties": {
-          "jobRef": {
-            "$ref": "#/components/schemas/JobRef"
-          },
-          "action": {
-            "$ref": "#/components/schemas/EnqueueJobAction"
-          }
-        }
-      },
-      "EventCode": {
-        "description": "Stable family-local event identifiers. Nearby values improve catalog readability but carry no runtime subject,\nsubgroup, or outcome semantics; match events by enum member or textual code. There is no `job.enqueued`\nevent on purpose: the Job row's own `(created_at_utc, namespace_id, definition_id)` records the enqueue fact,\nand a separate event row would be write amplification on the narrow append-heavy events table; dedup outcomes\nreach the caller via `EnqueueJobResponse.Action`, and cross-job rate analytics query `acta.jobs` directly."
-      },
-      "EventReasonCode": { },
-      "ExecutionStatusCode": { },
       "GetInputTemplateHttpResponse": {
         "required": [
           "jobNamespace",
@@ -9017,7 +9117,7 @@
         "type": "object",
         "properties": {
           "job": {
-            "$ref": "#/components/schemas/JobDetail"
+            "$ref": "#/components/schemas/GetJobResponse"
           },
           "input": {
             "$ref": "#/components/schemas/JobPayloadHttpResponse"
@@ -9044,7 +9144,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/JobExplanation"
+                "$ref": "#/components/schemas/GetJobExplanationResponse"
               }
             ]
           },
@@ -9054,7 +9154,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/JobLineageMap"
+                "$ref": "#/components/schemas/GetJobLineageMapResponse"
               }
             ]
           },
@@ -9108,7 +9208,137 @@
           }
         }
       },
-      "JobDetail": {
+      "GetJobExplanationResponse": {
+        "required": [
+          "jobRef",
+          "jobNamespace",
+          "jobName",
+          "status",
+          "statusMeaning",
+          "headline",
+          "activeWait",
+          "lease",
+          "lastExecutedBy",
+          "steps",
+          "reason",
+          "nextActions"
+        ],
+        "type": "object",
+        "properties": {
+          "jobRef": {
+            "$ref": "#/components/schemas/JobRef"
+          },
+          "jobNamespace": {
+            "type": "string"
+          },
+          "jobName": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatusCode"
+          },
+          "statusMeaning": {
+            "type": "string"
+          },
+          "headline": {
+            "type": "string"
+          },
+          "activeWait": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Wait"
+              }
+            ]
+          },
+          "lease": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ExecutionLease"
+              }
+            ]
+          },
+          "lastExecutedBy": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StepState"
+            }
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "nextActions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Action"
+            }
+          }
+        },
+        "description": "Plain-English explanation of a Job's current durable state: where the work is, why it moved there, and what an\noperator can do next, assembled from the same `runtimes`, `workers`, `steps`, `checkpoints`, and\n`events` rows a `SELECT` would read. Returned by ValueTask&lt;GetJobExplanationResponse?&gt; IJobs.ExplainAsync(JobLookup job, CancellationToken ct = default(CancellationToken)); the CLI renders it as\nprose, the dashboard as a panel. `Headline` is a one-sentence summary and `StatusMeaning` the\n`[Code]` description of `Status`; `ActiveWait` and `Lease` are set only in the relevant states,\n`LastExecutedBy` names the last worker when no lease is live, and `NextActions` are the operator's moves."
+      },
+      "GetJobLineageMapResponse": {
+        "required": [
+          "ancestors",
+          "job",
+          "steps",
+          "activeWait",
+          "children",
+          "childrenHasMore"
+        ],
+        "type": "object",
+        "properties": {
+          "ancestors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Node"
+            }
+          },
+          "job": {
+            "$ref": "#/components/schemas/Node"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StepState"
+            }
+          },
+          "activeWait": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Wait"
+              }
+            ]
+          },
+          "children": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Child"
+            }
+          },
+          "childrenHasMore": {
+            "type": "boolean"
+          }
+        },
+        "description": "A compact runtime truth map for one focused Job: the ancestor context up to the lineage root, the focused Job with\nits steps and the durable wait it is blocked on (the explanation's step and wait parts), and its direct children.\nReturned by ValueTask&lt;GetJobLineageMapResponse?&gt; IJobs.GetLineageMapAsync(JobLookup job, GetJobLineageMapOptions? options = null, CancellationToken ct = default(CancellationToken)); the dashboard renders it as a lineage panel. V1 is shallow:\n`Ancestors` is context only (root first, immediate parent last, no steps of their own), `Job` is the\nfocused subtree root, and `Children` are the direct children capped at\nint GetJobLineageMapOptions.ChildLimit with `ChildrenHasMore` flagging a truncated set."
+      },
+      "GetJobResponse": {
         "required": [
           "jobRef",
           "jobNamespace",
@@ -9285,222 +9515,266 @@
         },
         "description": "Read projection of a Job row exposed by `IJobs.GetAsync`: identity, linkage, status, scheduling, leasing,\nretention, and input format; the input payload itself is never returned. Property order mirrors the `jobs`\nentity (identity, scope and routing, caller keys, input) and then its 1:1 `runtimes` row, so the shape reads\nin schema order; a column resolved to a public value follows the id it came from, and the created/modified pair\ncloses the record. JSON carries the public refs and hides the numeric ids. `DefinitionId` is the surrogate\nfor the namespace+name pair, non-null because the row's definition_id is NOT NULL."
       },
-      "JobExplainAction": {
+      "GetOverviewResponse": {
         "required": [
-          "kind",
-          "description"
+          "readyCount",
+          "oldestReadyAgeSeconds",
+          "executingCount",
+          "failedCount",
+          "unresolvedAlertCount",
+          "unresolvedCriticalAlertCount",
+          "deadWorkerCount",
+          "staleWorkerCount",
+          "dueSoonScheduleCount",
+          "jobCount",
+          "systemJobCount",
+          "executorCapacity",
+          "scheduleLagSeconds"
         ],
         "type": "object",
         "properties": {
-          "kind": {
+          "readyCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "oldestReadyAgeSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "executingCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "failedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "unresolvedAlertCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "unresolvedCriticalAlertCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "deadWorkerCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "staleWorkerCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "dueSoonScheduleCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "jobCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "systemJobCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "executorCapacity": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "scheduleLagSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        },
+        "description": "One-shot health counters for the dashboard overview, computed on the database clock: ready jobs (all Ready plus\nSuspended jobs whose durable wait has expired) and the oldest one's claimable age, executing and failed jobs,\nunresolved alerts and the Critical ones among them, dead workers and stale ones (Active or Draining, not seen\nwithin the stale threshold), schedules due inside the due-soon window and the most overdue one's lag, all jobs in\nscope and the `sys.`-prefixed system jobs among them, and the executor capacity across live workers that\n`ExecutingCount` saturates against."
+      },
+      "GetTagsItem": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
             "type": "string"
+          },
+          "value": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "One normalized tag attached to a target."
+      },
+      "GetTenantResponse": {
+        "required": [
+          "tenantKey",
+          "displayName",
+          "description",
+          "status",
+          "createdAtUtc",
+          "modifiedAtUtc",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "tenantKey": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "description": {
-            "type": "string"
-          }
-        },
-        "description": "A suggested operator move. string JobExplainAction.Kind is a stable slug\n(`raise-signal` | `cancel` | `resume` | `restart` | `inspect-timeline` |\n`wait-recovery` | `view-result` | `none`); string JobExplainAction.Description is the prose shown to the operator."
-      },
-      "JobExplainLease": {
-        "required": [
-          "workerName",
-          "expiresAtUtc",
-          "expired",
-          "workerLastHeartbeatAtUtc",
-          "workerStale",
-          "recoveryExpectation",
-          "workerRef"
-        ],
-        "type": "object",
-        "properties": {
-          "workerName": {
             "type": [
               "null",
               "string"
             ]
           },
-          "expiresAtUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
+          "status": {
+            "$ref": "#/components/schemas/TenantStatusCode"
+          },
+          "createdAtUtc": {
+            "type": "string",
             "format": "date-time"
           },
-          "expired": {
-            "type": "boolean"
-          },
-          "workerLastHeartbeatAtUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
+          "modifiedAtUtc": {
+            "type": "string",
             "format": "date-time"
           },
-          "workerStale": {
-            "type": "boolean"
-          },
-          "recoveryExpectation": {
-            "type": "string"
-          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "The single-tenant read model returned by ValueTask&lt;GetTenantResponse?&gt; ITenants.GetAsync(string tenantKey, CancellationToken ct = default(CancellationToken)). It carries the same fields as\nListTenantsItem today and is a distinct type because a detail read can grow additively (usage counts,\nper-tenant policy) without the list row paying for it. `TenantId` is the DB-assigned id\n`job.tenant_id` references, internal and never serialized, since a tenant is addressed by its unique\n`TenantKey`; `Status` Active resolves at enqueue and Suspended rejects it; `Version` is the row\nversion a CAS control verb takes as expected."
+      },
+      "GetWorkerResponse": {
+        "required": [
+          "workerRef",
+          "jobNamespace",
+          "status",
+          "host",
+          "deploymentVersion",
+          "engineVersion",
+          "dotnetVersion",
+          "processId",
+          "maxConcurrency",
+          "lastHeartbeatAtUtc",
+          "startedAtUtc",
+          "modifiedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
           "workerRef": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/WorkerRef"
-              }
-            ]
-          }
-        },
-        "description": "The execution lease on a Dispatched or Executing Job and the liveness of the worker holding it. When\nbool JobExplainLease.Expired is true the lease has lapsed and `sys.recovery` reclaims the Job on its next tick;\nstring JobExplainLease.RecoveryExpectation says so in prose. string? JobExplainLease.WorkerName is the worker's deployment version, and\nbool JobExplainLease.WorkerStale is true once it has missed heartbeats past `JobsOptions.WorkerDeadAfter`. Both\nWorkerRef? JobExplainLease.WorkerRef and string? JobExplainLease.WorkerName go null when retention purged the owner's row: the timings\nstill describe the Job, but the holder is unidentifiable."
-      },
-      "JobExplainStep": {
-        "required": [
-          "name",
-          "status",
-          "explanation"
-        ],
-        "type": "object",
-        "properties": {
-          "name": {
+            "$ref": "#/components/schemas/WorkerRef"
+          },
+          "jobNamespace": {
             "type": "string"
           },
           "status": {
-            "$ref": "#/components/schemas/StepStatusCode"
+            "$ref": "#/components/schemas/WorkerStatusCode"
           },
-          "explanation": {
-            "type": "string"
-          }
-        },
-        "description": "One step slot's state, with string JobExplainStep.Explanation rendering it as a plain-English clause."
-      },
-      "JobExplainWait": {
-        "required": [
-          "kind",
-          "name",
-          "dueAtUtc"
-        ],
-        "type": "object",
-        "properties": {
-          "kind": {
-            "$ref": "#/components/schemas/CheckpointKindCode"
-          },
-          "name": {
+          "host": {
             "type": "string"
           },
-          "dueAtUtc": {
+          "deploymentVersion": {
+            "type": "string"
+          },
+          "engineVersion": {
             "type": [
               "null",
+              "string"
+            ]
+          },
+          "dotnetVersion": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "processId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
               "string"
             ],
+            "format": "int32"
+          },
+          "maxConcurrency": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "lastHeartbeatAtUtc": {
+            "type": "string",
             "format": "date-time"
-          }
-        },
-        "description": "The durable wait a Suspended Job is blocked on: a signal name, or a timer slot and its due instant."
-      },
-      "JobExplanation": {
-        "required": [
-          "jobRef",
-          "jobNamespace",
-          "jobName",
-          "status",
-          "statusMeaning",
-          "headline",
-          "activeWait",
-          "lease",
-          "lastExecutedBy",
-          "steps",
-          "reason",
-          "nextActions"
-        ],
-        "type": "object",
-        "properties": {
-          "jobRef": {
-            "$ref": "#/components/schemas/JobRef"
           },
-          "jobNamespace": {
-            "type": "string"
-          },
-          "jobName": {
-            "type": "string"
-          },
-          "status": {
-            "$ref": "#/components/schemas/JobStatusCode"
-          },
-          "statusMeaning": {
-            "type": "string"
-          },
-          "headline": {
-            "type": "string"
-          },
-          "activeWait": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JobExplainWait"
-              }
-            ]
-          },
-          "lease": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JobExplainLease"
-              }
-            ]
-          },
-          "lastExecutedBy": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "steps": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/JobExplainStep"
-            }
-          },
-          "reason": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "nextActions": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/JobExplainAction"
-            }
-          }
-        },
-        "description": "Plain-English explanation of a Job's current durable state: where the work is, why it moved there, and what an\noperator can do next, assembled from the same `runtimes`, `workers`, `steps`, `checkpoints`, and\n`events` rows a `SELECT` would read. Returned by ValueTask&lt;JobExplanation?&gt; IJobs.ExplainAsync(JobLookup job, CancellationToken ct = default(CancellationToken)); the CLI renders it as\nprose, the dashboard as a panel. `Headline` is a one-sentence summary and `StatusMeaning` the\n`[Code]` description of `Status`; `ActiveWait` and `Lease` are set only in the relevant states,\n`LastExecutedBy` names the last worker when no lease is live, and `NextActions` are the operator's moves."
-      },
-      "JobLineageChild": {
-        "required": [
-          "jobRef",
-          "jobName",
-          "status",
-          "createdAtUtc",
-          "modifiedAtUtc"
-        ],
-        "type": "object",
-        "properties": {
-          "jobRef": {
-            "$ref": "#/components/schemas/JobRef"
-          },
-          "jobName": {
-            "type": "string"
-          },
-          "status": {
-            "$ref": "#/components/schemas/JobStatusCode"
-          },
-          "createdAtUtc": {
+          "startedAtUtc": {
             "type": "string",
             "format": "date-time"
           },
@@ -9509,111 +9783,7 @@
             "format": "date-time"
           }
         },
-        "description": "A direct child of the focused Job, linkable to its own detail view."
-      },
-      "JobLineageJob": {
-        "required": [
-          "jobRef",
-          "jobNamespace",
-          "jobName",
-          "status",
-          "parentJobRef",
-          "lineageRootJobRef",
-          "createdAtUtc",
-          "modifiedAtUtc"
-        ],
-        "type": "object",
-        "properties": {
-          "jobRef": {
-            "$ref": "#/components/schemas/JobRef"
-          },
-          "jobNamespace": {
-            "type": "string"
-          },
-          "jobName": {
-            "type": "string"
-          },
-          "status": {
-            "$ref": "#/components/schemas/JobStatusCode"
-          },
-          "parentJobRef": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JobRef"
-              }
-            ]
-          },
-          "lineageRootJobRef": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JobRef"
-              }
-            ]
-          },
-          "createdAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "modifiedAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          }
-        },
-        "description": "A Job node in the lineage map - the focused Job or one of its ancestors. Carries the public\nJobRef JobLineageJob.JobRef forms alongside the JSON-hidden numeric ids, matching ListJobsItem."
-      },
-      "JobLineageMap": {
-        "required": [
-          "ancestors",
-          "job",
-          "steps",
-          "activeWait",
-          "children",
-          "childrenHasMore"
-        ],
-        "type": "object",
-        "properties": {
-          "ancestors": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/JobLineageJob"
-            }
-          },
-          "job": {
-            "$ref": "#/components/schemas/JobLineageJob"
-          },
-          "steps": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/JobExplainStep"
-            }
-          },
-          "activeWait": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JobExplainWait"
-              }
-            ]
-          },
-          "children": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/JobLineageChild"
-            }
-          },
-          "childrenHasMore": {
-            "type": "boolean"
-          }
-        },
-        "description": "A compact runtime truth map for one focused Job: the ancestor context up to the lineage root, the focused Job with\nits steps and the durable wait it is blocked on, and its direct children, assembled like JobExplanation\nfrom the same rows a `SELECT` would read. Returned by ValueTask&lt;JobLineageMap?&gt; IJobs.GetLineageMapAsync(JobLookup job, JobLineageMapOptions? options = null, CancellationToken ct = default(CancellationToken)); the dashboard\nrenders it as a lineage panel. V1 is shallow: `Ancestors` is context only (root first, immediate parent last,\nno steps of their own), `Job` is the focused subtree root, and `Children` are the direct children capped\nat int JobLineageMapOptions.ChildLimit with `ChildrenHasMore` flagging a truncated set."
+        "description": "Durable operator detail for one worker process registration."
       },
       "JobPayloadHttpResponse": {
         "required": [
@@ -9948,7 +10118,7 @@
             "format": "int32"
           }
         },
-        "description": "One definition in an ValueTask&lt;ListDefinitionsResponse&gt; IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct = default(CancellationToken)) page, trimmed to the dashboard grid: identity, status,\ncontract type names, the four policies the grid shows (priority, max attempts, concurrency limit, rate limit) as\noverride and effective so it can flag an operator override, and the rate key, which names the meter and so says\nwhich definitions share it. DefinitionDetail carries the whole row. A definition is addressed by\nnamespace and name, and its catalog id stays off the wire."
+        "description": "One definition in an ValueTask&lt;ListDefinitionsResponse&gt; IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct = default(CancellationToken)) page, trimmed to the dashboard grid: identity, status,\ncontract type names, the four policies the grid shows (priority, max attempts, concurrency limit, rate limit) as\noverride and effective so it can flag an operator override, and the rate key, which names the meter and so says\nwhich definitions share it. GetDefinitionResponse carries the whole row. A definition is addressed by\nnamespace and name, and its catalog id stays off the wire."
       },
       "ListDefinitionsResponse": {
         "required": [
@@ -11008,6 +11178,62 @@
       "NamespaceStatusCode": {
         "description": "Namespace state machine. 10-spaced ids; live states 10..80, mirroring\nTenantStatusCode."
       },
+      "Node": {
+        "required": [
+          "jobRef",
+          "jobNamespace",
+          "jobName",
+          "status",
+          "parentJobRef",
+          "lineageRootJobRef",
+          "createdAtUtc",
+          "modifiedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "jobRef": {
+            "$ref": "#/components/schemas/JobRef"
+          },
+          "jobNamespace": {
+            "type": "string"
+          },
+          "jobName": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatusCode"
+          },
+          "parentJobRef": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobRef"
+              }
+            ]
+          },
+          "lineageRootJobRef": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobRef"
+              }
+            ]
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "modifiedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "A Job node in the lineage map - the focused Job or one of its ancestors. Carries the public\nJobRef Node.JobRef forms alongside the JSON-hidden numeric ids, matching ListJobsItem."
+      },
       "OutboxControlHttpRequest": {
         "type": "object",
         "properties": {
@@ -11028,133 +11254,6 @@
             ]
           }
         }
-      },
-      "OverviewSnapshot": {
-        "required": [
-          "readyCount",
-          "oldestReadyAgeSeconds",
-          "executingCount",
-          "failedCount",
-          "unresolvedAlertCount",
-          "unresolvedCriticalAlertCount",
-          "deadWorkerCount",
-          "staleWorkerCount",
-          "dueSoonScheduleCount",
-          "jobCount",
-          "systemJobCount",
-          "executorCapacity",
-          "scheduleLagSeconds"
-        ],
-        "type": "object",
-        "properties": {
-          "readyCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int64"
-          },
-          "oldestReadyAgeSeconds": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int64"
-          },
-          "executingCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int64"
-          },
-          "failedCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int64"
-          },
-          "unresolvedAlertCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int64"
-          },
-          "unresolvedCriticalAlertCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int64"
-          },
-          "deadWorkerCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int64"
-          },
-          "staleWorkerCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int64"
-          },
-          "dueSoonScheduleCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int64"
-          },
-          "jobCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int64"
-          },
-          "systemJobCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int64"
-          },
-          "executorCapacity": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int64"
-          },
-          "scheduleLagSeconds": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int64"
-          }
-        },
-        "description": "One-shot health counters for the dashboard overview, computed on the database clock: ready jobs (all Ready plus\nSuspended jobs whose durable wait has expired) and the oldest one's claimable age, executing and failed jobs,\nunresolved alerts and the Critical ones among them, dead workers and stale ones (Active or Draining, not seen\nwithin the stale threshold), schedules due inside the due-soon window and the most overdue one's lag, all jobs in\nscope and the `sys.`-prefixed system jobs among them, and the executor capacity across live workers that\n`ExecutingCount` saturates against."
       },
       "PauseJobResponse": {
         "required": [
@@ -11255,6 +11354,30 @@
           }
         },
         "description": "What pausing a schedule did, and the schedule's state after the attempt."
+      },
+      "PreviewScheduleResponse": {
+        "required": [
+          "expression",
+          "timeZoneId",
+          "nextRunsUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "expression": {
+            "type": "string"
+          },
+          "timeZoneId": {
+            "type": "string"
+          },
+          "nextRunsUtc": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        "description": "A read-only forecast of a schedule's upcoming fire instants, computed live (no persisted state is\nread or written). string PreviewScheduleResponse.Expression and string PreviewScheduleResponse.TimeZoneId are the effective values\n(operator override when present, else the original); IReadOnlyList&lt;DateTime&gt; PreviewScheduleResponse.NextRunsUtc is strictly\nincreasing and may be shorter than requested when the expression is exhausted."
       },
       "ProblemDetails": {
         "type": "object",
@@ -11766,30 +11889,6 @@
       },
       "ScheduleExpressionKindCode": { },
       "ScheduleOriginCode": { },
-      "SchedulePreview": {
-        "required": [
-          "expression",
-          "timeZoneId",
-          "nextRunsUtc"
-        ],
-        "type": "object",
-        "properties": {
-          "expression": {
-            "type": "string"
-          },
-          "timeZoneId": {
-            "type": "string"
-          },
-          "nextRunsUtc": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "format": "date-time"
-            }
-          }
-        },
-        "description": "A read-only forecast of a schedule's upcoming fire instants, computed live (no persisted state is\nread or written). string SchedulePreview.Expression and string SchedulePreview.TimeZoneId are the effective values\n(operator override when present, else the original); IReadOnlyList&lt;DateTime&gt; SchedulePreview.NextRunsUtc is strictly\nincreasing and may be shorter than requested when the expression is exhausted."
-      },
       "ScheduleStatusCode": { },
       "SetDefinitionOverridesHttpRequest": {
         "type": "object",
@@ -11913,6 +12012,26 @@
         },
         "description": "What setting a schedule's overrides did, and the schedule's state after the attempt."
       },
+      "StepState": {
+        "required": [
+          "name",
+          "status",
+          "explanation"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StepStatusCode"
+          },
+          "explanation": {
+            "type": "string"
+          }
+        },
+        "description": "One step slot's state, with string StepState.Explanation rendering it as a plain-English clause."
+      },
       "StepStatusCode": {
         "description": "State machine for `JobStep` rows. INSERT-once on first invocation (`Pending`);\nUPDATE-in-place across retries; terminal transition to `Succeeded` (with `Result` populated),\n`Exhausted` (parent receives `StepExhaustedException`), or `Interrupted` (an\n`AtMostOnce` step re-entered before completion; parent receives `StepInterruptedException`). One row per\n`(JobId, Name)`; the framework never INSERTs a second step row for the same slot."
       },
@@ -11960,79 +12079,12 @@
         },
         "description": "What suspending a tenant did, and the tenant's version after the attempt."
       },
-      "TagItem": {
-        "required": [
-          "name"
-        ],
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "value": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        },
-        "description": "One normalized tag attached to a target."
-      },
       "TagMutationAction": {
         "enum": [
           "applied",
           "notFound"
         ],
         "description": "What a tag mutation did to its target."
-      },
-      "TenantDetail": {
-        "required": [
-          "tenantKey",
-          "displayName",
-          "description",
-          "status",
-          "createdAtUtc",
-          "modifiedAtUtc",
-          "version"
-        ],
-        "type": "object",
-        "properties": {
-          "tenantKey": {
-            "type": "string"
-          },
-          "displayName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "description": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "status": {
-            "$ref": "#/components/schemas/TenantStatusCode"
-          },
-          "createdAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "modifiedAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          }
-        },
-        "description": "The single-tenant read model returned by ValueTask&lt;TenantDetail?&gt; ITenants.GetAsync(string tenantKey, CancellationToken ct = default(CancellationToken)). It carries the same fields as\nListTenantsItem today and is a distinct type because a detail read can grow additively (usage counts,\nper-tenant policy) without the list row paying for it. `TenantId` is the DB-assigned id\n`job.tenant_id` references, internal and never serialized, since a tenant is addressed by its unique\n`TenantKey`; `Status` Active resolves at enqueue and Suspended rejects it; `Version` is the row\nversion a CAS control verb takes as expected."
       },
       "TenantStatusCode": {
         "description": "Tenant state machine. 10-spaced ids; live states 10..80."
@@ -12304,81 +12356,29 @@
           }
         }
       },
-      "WorkerDetail": {
+      "Wait": {
         "required": [
-          "workerRef",
-          "jobNamespace",
-          "status",
-          "host",
-          "deploymentVersion",
-          "engineVersion",
-          "dotnetVersion",
-          "processId",
-          "maxConcurrency",
-          "lastHeartbeatAtUtc",
-          "startedAtUtc",
-          "modifiedAtUtc"
+          "kind",
+          "name",
+          "dueAtUtc"
         ],
         "type": "object",
         "properties": {
-          "workerRef": {
-            "$ref": "#/components/schemas/WorkerRef"
+          "kind": {
+            "$ref": "#/components/schemas/CheckpointKindCode"
           },
-          "jobNamespace": {
+          "name": {
             "type": "string"
           },
-          "status": {
-            "$ref": "#/components/schemas/WorkerStatusCode"
-          },
-          "host": {
-            "type": "string"
-          },
-          "deploymentVersion": {
-            "type": "string"
-          },
-          "engineVersion": {
+          "dueAtUtc": {
             "type": [
               "null",
-              "string"
-            ]
-          },
-          "dotnetVersion": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "processId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
               "string"
             ],
-            "format": "int32"
-          },
-          "maxConcurrency": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "lastHeartbeatAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "startedAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "modifiedAtUtc": {
-            "type": "string",
             "format": "date-time"
           }
         },
-        "description": "Durable operator detail for one worker process registration."
+        "description": "The durable wait a Suspended Job is blocked on: a signal name, or a timer slot and its due instant."
       },
       "WorkerRef": { },
       "WorkerStatusCode": {

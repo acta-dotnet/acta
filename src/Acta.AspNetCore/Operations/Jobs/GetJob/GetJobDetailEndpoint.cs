@@ -13,12 +13,12 @@ namespace Acta.AspNetCore;
 /// collections ship their filter-wide counts. The unbounded event history keeps its own paged route.
 /// </summary>
 internal sealed record GetJobDetailHttpResponse(
-    JobDetail Job,
+    GetJobResponse Job,
     JobPayloadHttpResponse Input,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JobPayloadHttpResponse? Result,
     IReadOnlyList<CheckpointHttpResponse> Checkpoints,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JobExplanation? Explain,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JobLineageMap? Lineage,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] GetJobExplanationResponse? Explain,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] GetJobLineageMapResponse? Lineage,
     IReadOnlyList<ListSchedulesItem> Schedules,
     // Filter-wide count, so the frontend can tell a complete set from the first page of a larger one.
     long? SchedulesTotal,
@@ -46,7 +46,7 @@ internal sealed record GetJobDetailHttpResponse(
     public static async Task<GetJobDetailHttpResponse> ComposeAsync(
         IJobs jobs,
         IActaOperations operations,
-        JobDetail job,
+        GetJobResponse job,
         int maxInlineBytes,
         CancellationToken ct
     )
@@ -57,7 +57,7 @@ internal sealed record GetJobDetailHttpResponse(
         var result = await jobs.GetResultAsync(byId, ct);
         var checkpoints = await jobs.GetCheckpointsAsync(byId, ct);
         var explain = await jobs.ExplainAsync(byId, ct);
-        var lineage = await jobs.GetLineageMapAsync(byId, new JobLineageMapOptions(ChildLimit), ct);
+        var lineage = await jobs.GetLineageMapAsync(byId, new GetJobLineageMapOptions(ChildLimit), ct);
         var schedules = await operations.Schedules.ListAsync(
             new ListSchedulesQuery(
                 JobNamespace: job.JobNamespace,
@@ -96,7 +96,7 @@ internal sealed record GetJobDetailHttpResponse(
     }
 }
 
-/// <summary>HTTP projection of one <see cref="CheckpointItem"/>; the value carries the format-dispatched shape.</summary>
+/// <summary>HTTP projection of one <see cref="GetCheckpointsItem"/>; the value carries the format-dispatched shape.</summary>
 internal sealed record CheckpointHttpResponse(
     CheckpointKindCode Kind,
     string Name,
@@ -107,7 +107,7 @@ internal sealed record CheckpointHttpResponse(
     DateTime ModifiedAtUtc
 )
 {
-    public static CheckpointHttpResponse From(CheckpointItem item, int maxInlineBytes) =>
+    public static CheckpointHttpResponse From(GetCheckpointsItem item, int maxInlineBytes) =>
         new(
             item.Kind,
             item.Name,

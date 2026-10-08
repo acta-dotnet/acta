@@ -76,7 +76,7 @@ internal static class RouteTable
                     TagRoutes.ReadAsync(operations, () => target(http), ct)
             )
             .WithSummary($"Read the {entity}'s tags.")
-            .Produces<IReadOnlyList<TagItem>>(StatusCodes.Status200OK)
+            .Produces<IReadOnlyList<GetTagsItem>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         if (controls is null)

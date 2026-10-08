@@ -8,7 +8,7 @@ internal sealed class Tags(
     RemoveTagsHandler removeTags
 ) : ITags
 {
-    public ValueTask<TagSet?> GetAsync(TagTarget target, CancellationToken ct = default) =>
+    public ValueTask<GetTagsResponse?> GetAsync(TagTarget target, CancellationToken ct = default) =>
         getTags.HandleAsync(new GetTagsQuery(target), ct);
 
     public ValueTask<ReplaceTagsResponse> ReplaceAsync(

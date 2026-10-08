@@ -10,7 +10,7 @@ namespace Acta;
 /// closes the record. JSON carries the public refs and hides the numeric ids. <c>DefinitionId</c> is the surrogate
 /// for the namespace+name pair, non-null because the row's definition_id is NOT NULL.
 /// </summary>
-public sealed record JobDetail(
+public sealed record GetJobResponse(
     [property: JsonIgnore] long JobId,
     JobRef JobRef,
     string JobNamespace,

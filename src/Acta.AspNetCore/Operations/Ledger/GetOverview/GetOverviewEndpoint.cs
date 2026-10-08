@@ -22,12 +22,12 @@ internal static class GetOverviewEndpoint
                         StaleWorkerAfterSeconds: jobs.Value.LeaseTtlSeconds
                     );
                     return RouteTable.Run(async () =>
-                        Results.Json(await operations.Ledger.GetOverviewAsync(query, ct), DashboardJsonContext.Default.OverviewSnapshot)
+                        Results.Json(await operations.Ledger.GetOverviewAsync(query, ct), DashboardJsonContext.Default.GetOverviewResponse)
                     );
                 }
             )
             .WithSummary("Read the ledger's health-overview counters.")
-            .Produces<OverviewSnapshot>(StatusCodes.Status200OK)
+            .Produces<GetOverviewResponse>(StatusCodes.Status200OK)
             .WithQueryParameters([
                 new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Scope the overview to one namespace; omit for all."),
             ]);

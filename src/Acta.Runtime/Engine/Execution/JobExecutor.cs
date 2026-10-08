@@ -356,7 +356,7 @@ internal sealed class JobExecutor(
     }
 
     private async Task ReleaseOwnedClaimAsync(
-        JobDetail row,
+        GetJobResponse row,
         long jobId,
         int workerId,
         GetJobHandler getJob,

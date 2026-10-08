@@ -53,5 +53,5 @@ public interface ISchedules
     /// expression. Returns fewer entries, down to none, when the expression is exhausted (an unsatisfiable cron field
     /// combination); a missing schedule is null.
     /// </summary>
-    ValueTask<SchedulePreview?> PreviewAsync(ScheduleLookup schedule, int count = 10, CancellationToken ct = default);
+    ValueTask<PreviewScheduleResponse?> PreviewAsync(ScheduleLookup schedule, int count = 10, CancellationToken ct = default);
 }

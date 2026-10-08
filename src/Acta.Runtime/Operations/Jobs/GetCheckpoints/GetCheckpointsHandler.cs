@@ -3,21 +3,21 @@ namespace Acta.Runtime;
 /// <summary><see cref="IJobs.GetCheckpointsAsync"/>: resolves the lookup, then reads every slot; null for a missing job.</summary>
 internal sealed class GetCheckpointsHandler(JobLookupResolution lookup, IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<CheckpointSet?> HandleAsync(GetCheckpointsQuery query, CancellationToken ct) =>
+    public async ValueTask<GetCheckpointsResponse?> HandleAsync(GetCheckpointsQuery query, CancellationToken ct) =>
         await lookup.ResolveAsync(query.Job, ct) is { } jobId ? await ReadAsync(jobId, ct) : null;
 
-    /// <summary>Every checkpoint slot by job id; an empty set when the job has none, null when no job has the id.</summary>
-    internal Task<CheckpointSet?> ReadAsync(long jobId, CancellationToken ct)
+    /// <summary>Every checkpoint slot by job id, by kind and then name; empty when the job has none, null when no job has the id.</summary>
+    internal Task<GetCheckpointsResponse?> ReadAsync(long jobId, CancellationToken ct)
     {
         var read = DbProjectionResolver.Resolve<GetCheckpointsRow>();
         // The SQL answers one row with a null kind for a job without slots, and none for a missing one.
-        return session.QueryAsync<CheckpointSet?>(
+        return session.QueryAsync<GetCheckpointsResponse?>(
             "GetCheckpoints",
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.JobId, jobId)),
             async (reader, token) =>
             {
                 var found = false;
-                var items = new List<CheckpointItem>();
+                var items = new List<GetCheckpointsItem>();
                 while (await reader.ReadAsync(token))
                 {
                     found = true;
@@ -27,7 +27,11 @@ internal sealed class GetCheckpointsHandler(JobLookupResolution lookup, IDbSessi
                     }
                 }
 
-                return found ? new CheckpointSet(items) : null;
+                return found
+                    ? new GetCheckpointsResponse([
+                        .. items.OrderBy(static item => item.Kind).ThenBy(static item => item.Name, StringComparer.Ordinal),
+                    ])
+                    : null;
             },
             ct
         );

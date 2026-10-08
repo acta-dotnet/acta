@@ -17,7 +17,7 @@ internal sealed class Tenants(
         CancellationToken ct = default
     ) => registerTenant.HandleAsync(new RegisterTenantCommand(tenantKey, displayName, description), ct);
 
-    public ValueTask<TenantDetail?> GetAsync(string tenantKey, CancellationToken ct = default) =>
+    public ValueTask<GetTenantResponse?> GetAsync(string tenantKey, CancellationToken ct = default) =>
         getTenant.HandleAsync(new GetTenantQuery(tenantKey), ct);
 
     public ValueTask<ListTenantsResponse> ListAsync(ListTenantsQuery query, CancellationToken ct = default) =>

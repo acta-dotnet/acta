@@ -34,8 +34,8 @@ public sealed class ReplaceTagsSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Equal(TagMutationAction.Applied, (await Tags.ReplaceAsync(target, next, ct: ct)).Action);
         Assert.Equal(TagMutationAction.Applied, (await Tags.ReplaceAsync(target, next, ct: ct)).Action);
 
-        var tags = Assert.IsType<TagSet>(await Tags.GetAsync(target, ct));
-        Assert.Equal([new TagItem("added", "fresh"), new TagItem("kept", "new")], tags.Items);
+        var tags = Assert.IsType<GetTagsResponse>(await Tags.GetAsync(target, ct));
+        Assert.Equal([new GetTagsItem("added", "fresh"), new GetTagsItem("kept", "new")], tags.Items);
     }
 
     [Fact(DisplayName = "An empty list clears every tag and a full list of 32 is accepted")]
@@ -46,10 +46,10 @@ public sealed class ReplaceTagsSpec : ActaStorageTestBase<ConformanceFixture>
 
         var full = Enumerable.Range(0, TagLimits.MaxTagsPerTarget).Select(i => new TagInput($"tag-{i}")).ToArray();
         Assert.Equal(TagMutationAction.Applied, (await Tags.ReplaceAsync(target, full, ct: ct)).Action);
-        Assert.Equal(TagLimits.MaxTagsPerTarget, Assert.IsType<TagSet>(await Tags.GetAsync(target, ct)).Count);
+        Assert.Equal(TagLimits.MaxTagsPerTarget, Assert.IsType<GetTagsResponse>(await Tags.GetAsync(target, ct)).Items.Count);
 
         Assert.Equal(TagMutationAction.Applied, (await Tags.ReplaceAsync(target, [], ct: ct)).Action);
-        Assert.Empty(Assert.IsType<TagSet>(await Tags.GetAsync(target, ct)));
+        Assert.Empty(Assert.IsType<GetTagsResponse>(await Tags.GetAsync(target, ct)).Items);
     }
 
     [Fact(DisplayName = "Tag limits and duplicate normalized names reject before replacing existing state")]
@@ -74,7 +74,7 @@ public sealed class ReplaceTagsSpec : ActaStorageTestBase<ConformanceFixture>
             Tags.ReplaceAsync(target, [new TagInput("name", new string('v', TagLimits.MaxValueLength + 1))], ct: ct).AsTask()
         );
 
-        var unchanged = Assert.IsType<TagSet>(await Tags.GetAsync(target, ct));
-        Assert.Equal([new TagItem("kept", "value")], unchanged.Items);
+        var unchanged = Assert.IsType<GetTagsResponse>(await Tags.GetAsync(target, ct));
+        Assert.Equal([new GetTagsItem("kept", "value")], unchanged.Items);
     }
 }

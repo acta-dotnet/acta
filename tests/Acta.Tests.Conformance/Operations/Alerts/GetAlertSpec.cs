@@ -114,7 +114,7 @@ public sealed class GetAlertSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.Equal(1, fresh.OccurrenceCount);
     }
 
-    private static void AssertMatchesRow(AlertEntity row, AlertDetail detail)
+    private static void AssertMatchesRow(AlertEntity row, GetAlertResponse detail)
     {
         Assert.Equal(row.AlertRef, detail.AlertRef.Value);
         Assert.Equal(row.Id, detail.AlertId);

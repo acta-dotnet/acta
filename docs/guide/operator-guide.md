@@ -181,7 +181,7 @@ Every verb returns Applied / Rejected / NotFound rather than throwing on an ille
 
 Cancel, pause, resume, restart, reschedule, and reprioritize also take an optional `expectedVersion`
 after `actorKey`. Left null, the verb writes unconditionally, which is what an operator acting on a
-moving job wants. Pass the `Version` from a `JobDetail` (or from a previous control result) and the
+moving job wants. Pass the `Version` from a `GetJobResponse` (or from a previous control result) and the
 write becomes a compare-and-set: a row that changed underneath you answers `VersionConflict` with its
 current version instead of overwriting someone else's decision.
 

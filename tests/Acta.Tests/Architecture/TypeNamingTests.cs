@@ -24,6 +24,9 @@ public sealed class TypeNamingTests
         "Page",
         "Decision",
         "Outcome",
+        "Detail",
+        "Snapshot",
+        "Set",
     ];
 
     // Outcome stays as a domain noun for how a job, a child, or a wait ended, in handler code.
@@ -57,7 +60,7 @@ public sealed class TypeNamingTests
         var suffix = LastWord(name);
         var banned = suffix switch
         {
-            "Item" => !ListElement(type, name) && !SetElement(type, name),
+            "Item" => !ResponseElement(type, name),
             "Outcome" => !DomainOutcomes.Contains(name),
             _ => BannedSuffixes.Contains(suffix),
         };
@@ -85,15 +88,10 @@ public sealed class TypeNamingTests
         }
     }
 
-    // Item names the element of a list: ListJobsResponse is a page of ListJobsItem.
-    private static bool ListElement(Type type, string name) =>
-        type.Assembly.GetType($"{type.Namespace}.{name[..^"Item".Length]}Response") is { } response
-        && typeof(IPagedResponse<>).MakeGenericType(type).IsAssignableFrom(response);
-
-    // Item also names the element of a Set: TagSet is a list of TagItem.
-    private static bool SetElement(Type type, string name) =>
-        type.Assembly.GetType($"{type.Namespace}.{name[..^"Item".Length]}Set") is { } set
-        && typeof(IReadOnlyList<>).MakeGenericType(type).IsAssignableFrom(set);
+    // Item names the element of an operation's response: ListJobsResponse is a page of ListJobsItem, GetTagsResponse
+    // a list of GetTagsItem.
+    private static bool ResponseElement(Type type, string name) =>
+        type.Assembly.GetType($"{type.Namespace}.{name[..^"Item".Length]}Response") is not null;
 
     // A row is projected when the generator emitted its binder, Bind<Type>, whether the type declares
     // [DbProjection] or the code only resolves it.

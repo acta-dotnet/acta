@@ -87,7 +87,7 @@ public sealed class OrphanedClaimChaosSpec : ActaRuntimeTestBase<ConformanceFixt
 
         await Runtime.RunHeartbeatOnceAsync(ct);
         var deadline = DateTime.UtcNow + SpecWaits.Converge;
-        JobDetail? row;
+        GetJobResponse? row;
         do
         {
             row = await Jobs.GetAsync(JobLookup.ById(jobId), ct);

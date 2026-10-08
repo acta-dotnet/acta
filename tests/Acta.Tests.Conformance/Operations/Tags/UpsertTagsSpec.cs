@@ -33,8 +33,8 @@ public sealed class UpsertTagsSpec : ActaStorageTestBase<ConformanceFixture>
         var response = await Tags.UpsertAsync(target, new TagInput("added", "now"), ct: ct);
 
         Assert.Equal(TagMutationAction.Applied, response.Action);
-        var tags = Assert.IsType<TagSet>(await Tags.GetAsync(target, ct));
-        Assert.Equal([new TagItem("added", "now"), new TagItem("kept", "yes")], tags.Items);
+        var tags = Assert.IsType<GetTagsResponse>(await Tags.GetAsync(target, ct));
+        Assert.Equal([new GetTagsItem("added", "now"), new GetTagsItem("kept", "yes")], tags.Items);
     }
 
     [Fact(DisplayName = "Upserting an existing name overwrites its value, and repeating the write changes nothing")]
@@ -47,12 +47,12 @@ public sealed class UpsertTagsSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Equal(TagMutationAction.Applied, (await Tags.UpsertAsync(target, new TagInput("stage", "final"), ct: ct)).Action);
         Assert.Equal(TagMutationAction.Applied, (await Tags.UpsertAsync(target, new TagInput("stage", "final"), ct: ct)).Action);
 
-        var tags = Assert.IsType<TagSet>(await Tags.GetAsync(target, ct));
-        Assert.Equal([new TagItem("stage", "final")], tags.Items);
+        var tags = Assert.IsType<GetTagsResponse>(await Tags.GetAsync(target, ct));
+        Assert.Equal([new GetTagsItem("stage", "final")], tags.Items);
 
         // A null value is a value too: the upsert clears the old one rather than keeping it.
         await Tags.UpsertAsync(target, new TagInput("stage"), ct: ct);
-        Assert.Equal([new TagItem("stage")], Assert.IsType<TagSet>(await Tags.GetAsync(target, ct)).Items);
+        Assert.Equal([new GetTagsItem("stage")], Assert.IsType<GetTagsResponse>(await Tags.GetAsync(target, ct)).Items);
     }
 
     [Fact(DisplayName = "At the cap a new name is refused with nothing written, while an existing name still updates")]
@@ -67,12 +67,12 @@ public sealed class UpsertTagsSpec : ActaStorageTestBase<ConformanceFixture>
         );
 
         await Assert.ThrowsAsync<ArgumentException>(async () => await Tags.UpsertAsync(target, new TagInput("one-too-many"), ct: ct));
-        var full = Assert.IsType<TagSet>(await Tags.GetAsync(target, ct));
-        Assert.Equal(TagLimits.MaxTagsPerTarget, full.Count);
+        var full = Assert.IsType<GetTagsResponse>(await Tags.GetAsync(target, ct));
+        Assert.Equal(TagLimits.MaxTagsPerTarget, full.Items.Count);
         Assert.DoesNotContain(full.Items, t => t.Name == "one-too-many");
 
         Assert.Equal(TagMutationAction.Applied, (await Tags.UpsertAsync(target, new TagInput("tag-0", "updated"), ct: ct)).Action);
-        Assert.Contains(new TagItem("tag-0", "updated"), Assert.IsType<TagSet>(await Tags.GetAsync(target, ct)).Items);
+        Assert.Contains(new GetTagsItem("tag-0", "updated"), Assert.IsType<GetTagsResponse>(await Tags.GetAsync(target, ct)).Items);
     }
 
     [Fact(DisplayName = "A malformed name, a reserved sys name, or an oversize value throws before any write")]
@@ -87,6 +87,6 @@ public sealed class UpsertTagsSpec : ActaStorageTestBase<ConformanceFixture>
             await Tags.UpsertAsync(target, new TagInput("long", new string('v', TagLimits.MaxValueLength + 1)), ct: ct)
         );
 
-        Assert.Empty(Assert.IsType<TagSet>(await Tags.GetAsync(target, ct)));
+        Assert.Empty(Assert.IsType<GetTagsResponse>(await Tags.GetAsync(target, ct)).Items);
     }
 }

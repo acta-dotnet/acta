@@ -49,6 +49,6 @@ internal sealed class Schedules(
     public ValueTask<ListSchedulesResponse> ListAsync(ListSchedulesQuery query, CancellationToken ct = default) =>
         listSchedules.HandleAsync(query, ct);
 
-    public ValueTask<SchedulePreview?> PreviewAsync(ScheduleLookup schedule, int count = 10, CancellationToken ct = default) =>
+    public ValueTask<PreviewScheduleResponse?> PreviewAsync(ScheduleLookup schedule, int count = 10, CancellationToken ct = default) =>
         previewSchedule.HandleAsync(new PreviewScheduleQuery(schedule, count), ct);
 }

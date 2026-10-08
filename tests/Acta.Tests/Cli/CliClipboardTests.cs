@@ -209,10 +209,10 @@ public class CliRunnerClipboardTests
 
         private static readonly JobRef KnownJobRef = new(new Guid("019826f0-0000-7000-8000-00000000002a"));
 
-        public ValueTask<JobDetail?> GetAsync(JobLookup job, CancellationToken ct = default) =>
+        public ValueTask<GetJobResponse?> GetAsync(JobLookup job, CancellationToken ct = default) =>
             ValueTask.FromResult(
                 job.Kind == JobLookupKind.JobId && job.JobId == KnownJobId
-                    ? new JobDetail(
+                    ? new GetJobResponse(
                         JobId: KnownJobId,
                         JobRef: KnownJobRef,
                         JobNamespace: "shop",
@@ -247,14 +247,14 @@ public class CliRunnerClipboardTests
                     : null
             );
 
-        public ValueTask<JobExplanation?> ExplainAsync(JobLookup job, CancellationToken ct = default) =>
-            ValueTask.FromResult<JobExplanation?>(null);
+        public ValueTask<GetJobExplanationResponse?> ExplainAsync(JobLookup job, CancellationToken ct = default) =>
+            ValueTask.FromResult<GetJobExplanationResponse?>(null);
 
-        public ValueTask<JobLineageMap?> GetLineageMapAsync(
+        public ValueTask<GetJobLineageMapResponse?> GetLineageMapAsync(
             JobLookup job,
-            JobLineageMapOptions? options = null,
+            GetJobLineageMapOptions? options = null,
             CancellationToken ct = default
-        ) => ValueTask.FromResult<JobLineageMap?>(null);
+        ) => ValueTask.FromResult<GetJobLineageMapResponse?>(null);
 
         public ValueTask<EnqueueJobResponse> EnqueueAsync(EnqueueJobRequest request, CancellationToken ct = default) =>
             throw new NotSupportedException();
@@ -277,7 +277,7 @@ public class CliRunnerClipboardTests
         public ValueTask<ListEventsResponse> ListEventsAsync(ListEventsQuery query, CancellationToken ct = default) =>
             ValueTask.FromResult(new ListEventsResponse([], null, false, 50, null));
 
-        public ValueTask<OverviewSnapshot> GetOverviewAsync(GetOverviewQuery query, CancellationToken ct = default) =>
+        public ValueTask<GetOverviewResponse> GetOverviewAsync(GetOverviewQuery query, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
         public JobInputTemplate? GetInputTemplate(string jobNamespace, string jobName) => null;
@@ -398,7 +398,7 @@ public class CliRunnerClipboardTests
         public ValueTask<JobPayload?> GetResultAsync(JobLookup job, CancellationToken ct = default) =>
             ValueTask.FromResult<JobPayload?>(null);
 
-        public ValueTask<CheckpointSet?> GetCheckpointsAsync(JobLookup job, CancellationToken ct = default) =>
+        public ValueTask<GetCheckpointsResponse?> GetCheckpointsAsync(JobLookup job, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
         public ValueTask<TResult?> GetResultAsync<TResult>(JobLookup job, CancellationToken ct = default) =>

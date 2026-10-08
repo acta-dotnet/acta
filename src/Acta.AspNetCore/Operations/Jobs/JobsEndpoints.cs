@@ -43,7 +43,7 @@ internal static class JobsEndpoints
             "/jobs/{jobRef}",
             "Read one job.",
             "Job",
-            DashboardJsonContext.Default.JobDetail,
+            DashboardJsonContext.Default.GetJobResponse,
             (http, call) => call.Jobs.GetAsync(RouteKeys.Job(http, options), call.Ct)
         );
 
@@ -55,7 +55,7 @@ internal static class JobsEndpoints
                 "/jobs/by-key",
                 "Resolve a job by namespace and deduplication key.",
                 "Job",
-                DashboardJsonContext.Default.JobDetail,
+                DashboardJsonContext.Default.GetJobResponse,
                 static (http, call) =>
                     QueryReader.Bind(
                         http.Request,

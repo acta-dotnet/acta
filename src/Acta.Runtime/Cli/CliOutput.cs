@@ -39,7 +39,7 @@ internal static class CliOutput
         writer.WriteLine($"status: {(result.Status is { } s ? s.ToString() : "(none)")}");
     }
 
-    public static void WriteSnapshot(TextWriter writer, JobDetail snapshot, bool json)
+    public static void WriteSnapshot(TextWriter writer, GetJobResponse snapshot, bool json)
     {
         if (json)
         {
@@ -88,10 +88,10 @@ internal static class CliOutput
     /// <summary>
     /// Writes a job explanation. Plain output is flowing prose: an identity line, the one-sentence
     /// headline, a line per step, the recovery expectation when a lease has lapsed, and a trailing
-    /// "Next action" line. JSON emits the structured <see cref="JobExplanation"/> for tooling and the
+    /// "Next action" line. JSON emits the structured <see cref="GetJobExplanationResponse"/> for tooling and the
     /// dashboard.
     /// </summary>
-    public static void WriteExplanation(TextWriter writer, JobExplanation x, bool json)
+    public static void WriteExplanation(TextWriter writer, GetJobExplanationResponse x, bool json)
     {
         if (json)
         {
@@ -226,7 +226,7 @@ internal static class CliOutput
     /// Same identity rule the explanation prose uses: name (with the ref alongside when known),
     /// else the bare ref, else a non-identity phrase once the holder's row has been purged.
     /// </summary>
-    private static string LeaseWorkerLabel(JobExplainLease lease)
+    private static string LeaseWorkerLabel(GetJobExplanationResponse.ExecutionLease lease)
     {
         var worker = (lease.WorkerName is { Length: > 0 } ? lease.WorkerName : null, lease.WorkerRef) switch
         {

@@ -13,8 +13,9 @@ public sealed class DuplicateShapeTests
     // Below three properties, shared names are coincidence rather than copying.
     private const int MinProperties = 3;
 
-    // Every operation has its own input, response, and row, so two operations may match on purpose.
-    private static readonly string[] PerOperationSuffixes = ["Command", "Query", "Response", "Row"];
+    // Every operation has its own input, response, row, and response element, so two operations may match on purpose:
+    // a Get's response and its subject's list element are two types even where they match today.
+    private static readonly string[] PerOperationSuffixes = ["Command", "Query", "Response", "Row", "Item"];
 
     // An HTTP body is the wire copy of a command or model: Acta.AspNetCore sees only the public contract, and its
     // projection changes a member's representation, so the suffix marks the copy as deliberate.
@@ -33,9 +34,7 @@ public sealed class DuplicateShapeTests
             .Select(type => (Type: type, Shape: Shape(type)))
             .Where(entry => entry.Shape.Count >= MinProperties)
             .GroupBy(entry => string.Join(",", entry.Shape), StringComparer.Ordinal)
-            .Where(group =>
-                group.Count() > 1 && !group.All(entry => IsPerOperation(entry.Type)) && !IsReadModelPair(group.Select(entry => entry.Type))
-            )
+            .Where(group => group.Count() > 1 && !group.All(entry => IsPerOperation(entry.Type)))
             .SelectMany(group =>
                 group.Select(entry =>
                     (
@@ -49,15 +48,6 @@ public sealed class DuplicateShapeTests
             );
 
         Ratchet.Check("duplicate-shape", copies, "Return the existing type instead of copying it; SQL can fill a public model directly.");
-    }
-
-    // A Get and a List each own their read model, so a subject's Detail and its list's Item may match today and diverge later.
-    private static bool IsReadModelPair(IEnumerable<Type> types)
-    {
-        var names = types.Select(ShippedCode.SimpleName).ToList();
-        return names.Count == 2
-            && names.FirstOrDefault(name => name.EndsWith("Detail", StringComparison.Ordinal)) is { } detail
-            && names.Contains($"List{detail[..^"Detail".Length]}sItem", StringComparer.Ordinal);
     }
 
     private static bool IsPerOperation(Type type) =>

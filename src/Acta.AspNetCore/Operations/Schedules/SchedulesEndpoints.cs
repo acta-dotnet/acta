@@ -70,7 +70,7 @@ internal static class SchedulesEndpoints
                 "/schedules/{jobNamespace}/{jobName}/{scheduleName}/preview",
                 "Preview a schedule's upcoming fire instants.",
                 "Schedule",
-                DashboardJsonContext.Default.SchedulePreview,
+                DashboardJsonContext.Default.PreviewScheduleResponse,
                 static (http, call) =>
                     call.Operations.Schedules.PreviewAsync(
                         Key(http),

@@ -3,7 +3,7 @@ namespace Acta.Runtime;
 /// <summary><see cref="ITags.GetAsync"/>: resolves the target, then reads its tags in name order.</summary>
 internal sealed class GetTagsHandler(TagTargetResolution targets, IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<TagSet?> HandleAsync(GetTagsQuery query, CancellationToken ct)
+    public async ValueTask<GetTagsResponse?> HandleAsync(GetTagsQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query.Target, "target");
         var target = await targets.ResolveAsync(query.Target, ct);
@@ -14,23 +14,23 @@ internal sealed class GetTagsHandler(TagTargetResolution targets, IDbSession ses
 
         // The SQL answers one row with null name for a target that exists without tags, and none for a
         // missing one.
-        return await session.QueryAsync<TagSet?>(
+        return await session.QueryAsync<GetTagsResponse?>(
             "GetTags",
             cmd => target.Bind(cmd, dialect),
             static async (reader, token) =>
             {
                 var found = false;
-                var items = new List<TagItem>();
+                var items = new List<GetTagsItem>();
                 while (await reader.ReadAsync(token))
                 {
                     found = true;
                     if (!reader.IsDBNull(0))
                     {
-                        items.Add(new TagItem(reader.GetString(0), reader.IsDBNull(1) ? null : reader.GetString(1)));
+                        items.Add(new GetTagsItem(reader.GetString(0), reader.IsDBNull(1) ? null : reader.GetString(1)));
                     }
                 }
 
-                return found ? new TagSet(items) : null;
+                return found ? new GetTagsResponse([.. items.OrderBy(static item => item.Name, StringComparer.Ordinal)]) : null;
             },
             ct
         );

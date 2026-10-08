@@ -31,7 +31,7 @@ public sealed class GetTagsSpec : ActaStorageTestBase<ConformanceFixture>
 
         var tags = await Tags.GetAsync(target, ct);
         Assert.NotNull(tags);
-        Assert.Empty(tags);
+        Assert.Empty(tags.Items);
 
         Assert.Null(await Tags.GetAsync(TagTarget.ForTenant(TestKey("get-missing")), ct));
     }
@@ -43,9 +43,9 @@ public sealed class GetTagsSpec : ActaStorageTestBase<ConformanceFixture>
         var target = await TenantAsync("get-values", ct);
         await Tags.ReplaceAsync(target, [new TagInput("region", "EU West / Ljubljana"), new TagInput("flagged")], ct: ct);
 
-        var tags = Assert.IsType<TagSet>(await Tags.GetAsync(target, ct));
+        var tags = Assert.IsType<GetTagsResponse>(await Tags.GetAsync(target, ct));
 
-        Assert.Equal([new TagItem("flagged"), new TagItem("region", "EU West / Ljubljana")], tags.Items);
+        Assert.Equal([new GetTagsItem("flagged"), new GetTagsItem("region", "EU West / Ljubljana")], tags.Items);
     }
 
     [Fact(DisplayName = "A tenant key or job name addressed in another case reads the same target")]
@@ -60,10 +60,12 @@ public sealed class GetTagsSpec : ActaStorageTestBase<ConformanceFixture>
         await Seeder.SeedJobDefinitionAsync(TestNamespaceId, name: jobName, ct: ct);
         await Tags.UpsertAsync(TagTarget.ForDefinition(TestNamespace, jobName), new TagInput("owner", "billing"), ct: ct);
 
-        var tenant = Assert.IsType<TagSet>(await Tags.GetAsync(TagTarget.ForTenant(tenantKey.ToUpperInvariant()), ct));
-        Assert.Equal([new TagItem("tier", "gold")], tenant.Items);
-        var definition = Assert.IsType<TagSet>(await Tags.GetAsync(TagTarget.ForDefinition(TestNamespace, jobName.ToUpperInvariant()), ct));
-        Assert.Equal([new TagItem("owner", "billing")], definition.Items);
+        var tenant = Assert.IsType<GetTagsResponse>(await Tags.GetAsync(TagTarget.ForTenant(tenantKey.ToUpperInvariant()), ct));
+        Assert.Equal([new GetTagsItem("tier", "gold")], tenant.Items);
+        var definition = Assert.IsType<GetTagsResponse>(
+            await Tags.GetAsync(TagTarget.ForDefinition(TestNamespace, jobName.ToUpperInvariant()), ct)
+        );
+        Assert.Equal([new GetTagsItem("owner", "billing")], definition.Items);
     }
 
     [Fact(DisplayName = "A read returns only the addressed target's tags")]
@@ -75,7 +77,7 @@ public sealed class GetTagsSpec : ActaStorageTestBase<ConformanceFixture>
         await Tags.UpsertAsync(first, new TagInput("only-first"), ct: ct);
         await Tags.UpsertAsync(second, new TagInput("only-second"), ct: ct);
 
-        Assert.Equal([new TagItem("only-first")], Assert.IsType<TagSet>(await Tags.GetAsync(first, ct)).Items);
-        Assert.Equal([new TagItem("only-second")], Assert.IsType<TagSet>(await Tags.GetAsync(second, ct)).Items);
+        Assert.Equal([new GetTagsItem("only-first")], Assert.IsType<GetTagsResponse>(await Tags.GetAsync(first, ct)).Items);
+        Assert.Equal([new GetTagsItem("only-second")], Assert.IsType<GetTagsResponse>(await Tags.GetAsync(second, ct)).Items);
     }
 }

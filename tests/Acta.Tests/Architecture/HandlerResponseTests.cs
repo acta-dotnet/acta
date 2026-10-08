@@ -114,14 +114,7 @@ public sealed class HandlerResponseTests
                     .Select(type => (Name: type.Identifier.Text, file.Slice))
             )
             .ToList();
-        // A Set's element sits beside its Set: TagSet is a list of TagItem.
-        var sets = types
-            .Select(type => type.Name)
-            .Where(name => name.EndsWith("Set", StringComparison.Ordinal))
-            .ToHashSet(StringComparer.Ordinal);
-        var violations = types
-            .Where(type => !(type.Name.EndsWith("Item", StringComparison.Ordinal) && sets.Contains(type.Name[..^"Item".Length] + "Set")))
-            .SelectMany(type => SliceViolations(type.Name, type.Slice, users));
+        var violations = types.SelectMany(type => SliceViolations(type.Name, type.Slice, users));
 
         Ratchet.Check(
             "slice-members",

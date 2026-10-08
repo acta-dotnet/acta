@@ -10,7 +10,7 @@ namespace Acta;
 /// ends the series and resets it), and <c>RetryAfterUtc</c> is the earliest instant the alert may be sent again, the
 /// next retry while delivery is unsettled or the next reminder once it has settled, null when nothing is scheduled.
 /// </summary>
-public sealed record AlertDetail(
+public sealed record GetAlertResponse(
     AlertRef AlertRef,
     [property: JsonIgnore] long AlertId,
     string JobNamespace,

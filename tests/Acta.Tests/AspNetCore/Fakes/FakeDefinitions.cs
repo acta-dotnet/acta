@@ -41,7 +41,7 @@ internal sealed class FakeDefinitions : IDefinitions
 
     public Func<string, string, int, string?, string?, CancellationToken, ValueTask<RetireDefinitionResponse>> Retire { get; set; }
 
-    public Func<string, string, CancellationToken, ValueTask<DefinitionDetail?>> Get { get; set; }
+    public Func<string, string, CancellationToken, ValueTask<GetDefinitionResponse?>> Get { get; set; }
 
     public Func<ListDefinitionsQuery, CancellationToken, ValueTask<ListDefinitionsResponse>> List { get; set; }
 
@@ -64,7 +64,7 @@ internal sealed class FakeDefinitions : IDefinitions
         CancellationToken ct
     ) => Retire(jobNamespace, jobName, expectedVersion, reasonMessage, actorKey, ct);
 
-    ValueTask<DefinitionDetail?> IDefinitions.GetAsync(string jobNamespace, string jobName, CancellationToken ct) =>
+    ValueTask<GetDefinitionResponse?> IDefinitions.GetAsync(string jobNamespace, string jobName, CancellationToken ct) =>
         Get(jobNamespace, jobName, ct);
 
     ValueTask<ListDefinitionsResponse> IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct) => List(query, ct);
@@ -78,7 +78,7 @@ internal sealed class FakeDefinitions : IDefinitions
     /// Validates the key before it resolves, as DefinitionKeyResolution does, so a non-canonical key (uppercase, a
     /// wildcard) is an InvalidQueryException the edge maps to 400, never a miss.
     /// </summary>
-    private static DefinitionDetail? Detail(string jobNamespace, string jobName)
+    private static GetDefinitionResponse? Detail(string jobNamespace, string jobName)
     {
         try
         {
@@ -114,7 +114,7 @@ internal sealed class FakeDefinitions : IDefinitions
         2
     );
 
-    private static readonly DefinitionDetail SendInvoice = new(
+    private static readonly GetDefinitionResponse SendInvoice = new(
         DefinitionId: 5,
         JobNamespace: "billing",
         JobName: "send-invoice",

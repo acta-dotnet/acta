@@ -189,7 +189,7 @@ packages alone.
 
 ```csharp
 var outcome = await jobs.EnqueueAsync(new SendWelcomeEmail(...), ct: ct);
-var job     = await jobs.GetAsync(outcome, ct);   // JobDetail? with Status, attempts, timestamps
+var job     = await jobs.GetAsync(outcome, ct);   // GetJobResponse? with Status, attempts, timestamps
 ```
 
 Or with SQL, because the state is rows:

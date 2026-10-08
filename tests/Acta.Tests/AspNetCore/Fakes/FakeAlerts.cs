@@ -36,7 +36,7 @@ internal sealed class FakeAlerts : IAlerts
             return ValueTask.FromResult(new ResolveAlertResponse(alertRef, ControlAction.Applied, null, ResolvedAt));
         };
         List = static (_, _) => ValueTask.FromResult(new ListAlertsResponse([], null, false, 50, null));
-        Get = static (alertRef, _) => ValueTask.FromResult<AlertDetail?>(alertRef == KnownAlertRef ? Known : null);
+        Get = static (alertRef, _) => ValueTask.FromResult<GetAlertResponse?>(alertRef == KnownAlertRef ? Known : null);
     }
 
     public List<(AlertRef AlertRef, string? Note, string? ActorKey)> AcknowledgeCalls { get; } = [];
@@ -49,7 +49,7 @@ internal sealed class FakeAlerts : IAlerts
 
     public Func<ListAlertsQuery, CancellationToken, ValueTask<ListAlertsResponse>> List { get; set; }
 
-    public Func<AlertRef, CancellationToken, ValueTask<AlertDetail?>> Get { get; set; }
+    public Func<AlertRef, CancellationToken, ValueTask<GetAlertResponse?>> Get { get; set; }
 
     ValueTask<AcknowledgeAlertResponse> IAlerts.AcknowledgeAsync(
         AlertRef alertRef,
@@ -67,9 +67,9 @@ internal sealed class FakeAlerts : IAlerts
 
     ValueTask<ListAlertsResponse> IAlerts.ListAsync(ListAlertsQuery query, CancellationToken ct) => List(query, ct);
 
-    ValueTask<AlertDetail?> IAlerts.GetAsync(AlertRef alertRef, CancellationToken ct) => Get(alertRef, ct);
+    ValueTask<GetAlertResponse?> IAlerts.GetAsync(AlertRef alertRef, CancellationToken ct) => Get(alertRef, ct);
 
-    private static readonly AlertDetail Known = new(
+    private static readonly GetAlertResponse Known = new(
         KnownAlertRef,
         9001,
         "billing",

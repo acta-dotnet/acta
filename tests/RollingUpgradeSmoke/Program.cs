@@ -86,7 +86,7 @@ try
     {
         var before = await jobs.GetAsync(recurring, ct) ?? throw new InvalidOperationException("Recurring slot missing.");
         await operations.Schedules.TriggerNowAsync(new ScheduleLookup(recurring, "default"), ct: ct);
-        JobDetail after;
+        GetJobResponse after;
         while (true)
         {
             after = await jobs.GetAsync(recurring, ct) ?? throw new InvalidOperationException("Recurring slot lost.");

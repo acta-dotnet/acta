@@ -8,7 +8,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Jobs;
 
 /// <summary>
-/// Conformance for <c>GetJob</c>: a point-read that returns the <c>JobDetail</c> projection for a
+/// Conformance for <c>GetJob</c>: a point-read that returns the <c>GetJobResponse</c> projection for a
 /// known job id, and <c>null</c> for an unknown id. Exercises the column mapping (id, namespace,
 /// name, status, failure_count, reason_code) and the absent-row sentinel.
 /// </summary>
@@ -16,11 +16,11 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     "get-job.point-read",
     "GetJob returns the snapshot for a known id and null for an unknown id",
     Area = "Reads",
-    Contract = "GetJob returns the JobDetail projection for a matching job row and null when no row matches the supplied id."
+    Contract = "GetJob returns the GetJobResponse projection for a matching job row and null when no row matches the supplied id."
 )]
 public sealed class GetJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
-    [Fact(DisplayName = "A known job id returns a populated JobDetail whose id and Ready status match the enqueued row")]
+    [Fact(DisplayName = "A known job id returns a populated GetJobResponse whose id and Ready status match the enqueued row")]
     public async Task Returns_snapshot_for_known_job_id()
     {
         var ct = TestContext.Current.CancellationToken;

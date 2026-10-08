@@ -227,7 +227,12 @@ internal sealed class Primer(IJobs jobs, ConceptLab lab, CheckoutLabScenario sce
         lifetime.StopApplication();
     }
 
-    private async Task<JobDetail> WaitForAsync(long jobId, Func<JobDetail, bool> predicate, string description, CancellationToken ct)
+    private async Task<GetJobResponse> WaitForAsync(
+        long jobId,
+        Func<GetJobResponse, bool> predicate,
+        string description,
+        CancellationToken ct
+    )
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(TimeSpan.FromSeconds(60));

@@ -84,13 +84,13 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   `DefinitionAuditLevelCode` and `DefinitionTenantRequirementCode`. Their generated `Extensions` and
   `JsonConverter` classes follow, as does `JobStepStatusExtensions`, now `StepStatusExtensions`.
   Members, stored values, and JSON strings are unchanged; the OpenAPI schemas take the new names.
-- **Definition read models drop the `Job` prefix.** `JobDefinitionDetail` and `JobDefinitionPolicyOverrides`
-  are now `DefinitionDetail` and `DefinitionPolicyOverrides`; the list element is renamed with the other lists
-  below. Members and JSON are unchanged; the OpenAPI schemas take the new names.
-- **`IJobs.GetCheckpointsAsync` returns a `CheckpointSet`.** It was a list of `JobCheckpointItem`; the
-  set holds `CheckpointItem`, with the same members, ordered by kind and then by name. A job without
-  slots answers an empty set, and a lookup that matches no job now answers `null` instead of an empty
-  list, as `ITags.GetAsync` does.
+- **Definition read models drop the `Job` prefix.** `JobDefinitionPolicyOverrides` is now
+  `DefinitionPolicyOverrides`; the detail and the list element are renamed with the other reads below.
+  Members and JSON are unchanged; the OpenAPI schemas take the new names.
+- **`IJobs.GetCheckpointsAsync` returns a `GetCheckpointsResponse`.** It was a list of `JobCheckpointItem`;
+  the response's `Items` holds `GetCheckpointsItem`, with the same members, ordered by kind and then by name.
+  A job without slots answers an empty `Items`, and a lookup that matches no job now answers `null` instead
+  of an empty list, as `ITags.GetAsync` does.
 - **Only the hot paths stay installed routines.** Every operator verb and other cold write now runs as
   inline SQL in its own transaction: job, schedule, tenant, and namespace control, worker start and stop,
   alert acknowledge and resolve, definition overrides, job notes, and the three tag writes. Thirty routines
@@ -134,6 +134,19 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   `ListNamespacesQuery`. Code that reads a page through `var` and its members compiles unchanged. The JSON is
   unchanged; the OpenAPI schemas take the new names, so `PagedResultOfJobListItem` is now `ListJobsResponse`
   and `JobListItem` is now `ListJobsItem`.
+- **Each Get returns its own response.** The read models are named for the operation that returns them:
+  `JobDetail`, `AlertDetail`, `JobDefinitionDetail`, `TenantDetail`, and `WorkerDetail` are now
+  `GetJobResponse`, `GetAlertResponse`, `GetDefinitionResponse`, `GetTenantResponse`, and
+  `GetWorkerResponse`; `OverviewSnapshot` is now `GetOverviewResponse`, and `SchedulePreview` is now
+  `PreviewScheduleResponse`. `TagSet` is now `GetTagsResponse`, a record rather than a list, so read the tags
+  through its `Items`, whose element `TagItem` is now `GetTagsItem`. `JobExplanation` is now
+  `GetJobExplanationResponse`, and its parts are records nested in it: `JobExplainWait`, `JobExplainLease`,
+  `JobExplainStep`, and `JobExplainAction` are now `GetJobExplanationResponse.Wait`, `.ExecutionLease`,
+  `.StepState`, and `.Action`. `JobLineageMap` is now `GetJobLineageMapResponse`, with `JobLineageJob` and
+  `JobLineageChild` nested as `GetJobLineageMapResponse.Node` and `.Child`; its steps and wait are the
+  explanation's parts, and `JobLineageMapOptions` is now `GetJobLineageMapOptions`. The facade methods keep
+  their names, and members and JSON are unchanged; the OpenAPI schemas take the new names, a nested part
+  its own short name (`Wait`, `Node`).
 
 ### Additions
 

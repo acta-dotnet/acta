@@ -623,7 +623,7 @@ public sealed class DashboardApiEndpointTests
     /// <summary>
     /// The 200 path serializes through the source-generated context, so the response type must be
     /// registered there: an unregistered type fails only at runtime, which is exactly how the
-    /// TenantDetail introduction shipped a 500 no test saw.
+    /// GetTenantResponse introduction shipped a 500 no test saw.
     /// </summary>
     [Fact]
     public async Task Tenant_point_read_serializes_the_detail()

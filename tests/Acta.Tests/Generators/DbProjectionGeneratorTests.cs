@@ -234,6 +234,32 @@ public sealed class DbProjectionGeneratorTests
     }
 
     [Fact]
+    public void A_nested_type_from_a_referenced_assembly_binds_from_the_namespace_binder()
+    {
+        var library = CompileLibrary(
+            "namespace GenTests; public sealed record Outer(int Id) { public sealed record Inner(int Id, string Name); }"
+        );
+        var (result, compilation) = RunGenerator(
+            """
+            namespace GenTests;
+            using Acta.Runtime;
+
+            internal static class Caller
+            {
+                internal static object Read() => DbProjectionResolver.Resolve<Outer.Inner>();
+            }
+            """,
+            library
+        );
+
+        AssertNoCompileErrors(compilation);
+        var source = SingleGeneratedSource(result, "BindOuterInner");
+        Assert.Contains("internal static partial class DbProjectionBinder", source);
+        Assert.Contains("public static global::GenTests.Outer.Inner BindOuterInner(DbDataReader r, int[] o)", source);
+        Assert.Contains("internal static readonly string[] OuterInnerColumns = [\"id\", \"name\"];", source);
+    }
+
+    [Fact]
     public void ByName_projection_reads_each_parameter_from_its_snake_case_column()
     {
         var (result, compilation) = RunGenerator(
@@ -323,15 +349,17 @@ public sealed class DbProjectionGeneratorTests
         Assert.Equal(DiagnosticSeverity.Error, error.Severity);
     }
 
-    private static (GeneratorDriverRunResult Result, Compilation Compilation) RunGenerator(string projectionSource)
+    private static (GeneratorDriverRunResult Result, Compilation Compilation) RunGenerator(
+        string projectionSource,
+        params MetadataReference[] references
+    )
     {
-        var referencePaths = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator);
         var parseOptions = CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Preview);
 
         var compilation = CSharpCompilation.Create(
             "DbProjectionGeneratorTests",
             [CSharpSyntaxTree.ParseText(Stubs, parseOptions), CSharpSyntaxTree.ParseText(projectionSource, parseOptions)],
-            referencePaths.Select(p => MetadataReference.CreateFromFile(p)),
+            PlatformReferences().Concat(references),
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable)
         );
 
@@ -342,6 +370,26 @@ public sealed class DbProjectionGeneratorTests
         driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out _);
         return (driver.GetRunResult(), outputCompilation);
     }
+
+    // A referenced assembly's types reach the generator as metadata, never as source.
+    private static MetadataReference CompileLibrary(string source)
+    {
+        var library = CSharpCompilation.Create(
+            "DbProjectionGeneratorLibrary",
+            [CSharpSyntaxTree.ParseText(source)],
+            PlatformReferences(),
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary)
+        );
+        using var image = new MemoryStream();
+        var emitted = library.Emit(image);
+        Assert.True(emitted.Success, string.Join(Environment.NewLine, emitted.Diagnostics));
+        return MetadataReference.CreateFromImage(image.ToArray());
+    }
+
+    private static IEnumerable<MetadataReference> PlatformReferences() =>
+        ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!)
+            .Split(Path.PathSeparator)
+            .Select(path => (MetadataReference)MetadataReference.CreateFromFile(path));
 
     private static string SingleGeneratedSource(GeneratorDriverRunResult result, string requiredText) =>
         Assert.Single(result.GeneratedTrees.Select(t => t.GetText().ToString()), s => s.Contains(requiredText));

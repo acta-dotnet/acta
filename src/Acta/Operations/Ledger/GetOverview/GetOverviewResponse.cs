@@ -8,7 +8,7 @@ namespace Acta;
 /// scope and the <c>sys.</c>-prefixed system jobs among them, and the executor capacity across live workers that
 /// <c>ExecutingCount</c> saturates against.
 /// </summary>
-public sealed record OverviewSnapshot(
+public sealed record GetOverviewResponse(
     long ReadyCount,
     long? OldestReadyAgeSeconds,
     long ExecutingCount,

@@ -1,4 +1,4 @@
--- One row with a null kind for a job without slots, none for a missing job; CheckpointSet orders the slots.
+-- One row with a null kind for a job without slots, none for a missing job; the handler orders the slots.
 SELECT
     c.kind_code,
     c.name,

@@ -8,7 +8,7 @@ namespace Acta;
 /// job control verbs take an optional expectedVersion where the catalog controls require one: each is a status-conditional
 /// transition an operator fires by hand against a moving job, and a required token on a row that changes every few
 /// seconds would turn "pause it" into a retry loop. Null writes unconditionally, serialized and audited; a caller
-/// passing <see cref="JobDetail.Version"/> gets <see cref="ControlAction.VersionConflict"/>, not a lost update.
+/// passing <see cref="GetJobResponse.Version"/> gets <see cref="ControlAction.VersionConflict"/>, not a lost update.
 /// </summary>
 public interface IJobs
 {
@@ -224,11 +224,11 @@ public interface IJobs
     ValueTask<long?> GetJobIdAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
-    /// Read the full <see cref="JobDetail"/> for the job identified by <paramref name="job"/>.
+    /// Read the full <see cref="GetJobResponse"/> for the job identified by <paramref name="job"/>.
     /// Returns <c>null</c> when no row matches. Resolves <paramref name="job"/> to a
     /// <c>JobId</c> first; pin the resolved id when polling.
     /// </summary>
-    ValueTask<JobDetail?> GetAsync(JobLookup job, CancellationToken ct = default);
+    ValueTask<GetJobResponse?> GetAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
     /// Explain the durable state of the job identified by <paramref name="job"/> in plain English:
@@ -238,17 +238,21 @@ public interface IJobs
     /// operator could read directly - SQL is the operational interface. Resolves <paramref name="job"/> to a
     /// <c>JobId</c> first; pin the resolved id when polling.
     /// </summary>
-    ValueTask<JobExplanation?> ExplainAsync(JobLookup job, CancellationToken ct = default);
+    ValueTask<GetJobExplanationResponse?> ExplainAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
     /// Read a compact lineage map for the job identified by <paramref name="job"/>: its ancestor
     /// context up to the lineage root, the job itself with its steps and the durable wait it is blocked
-    /// on, and its direct children (capped at <see cref="JobLineageMapOptions.ChildLimit"/>, with
-    /// <see cref="JobLineageMap.ChildrenHasMore"/> flagging a truncated set). Returns <c>null</c> when no
+    /// on, and its direct children (capped at <see cref="GetJobLineageMapOptions.ChildLimit"/>, with
+    /// <see cref="GetJobLineageMapResponse.ChildrenHasMore"/> flagging a truncated set). Returns <c>null</c> when no
     /// row matches. V1 is shallow: ancestors are context only and children are not expanded recursively.
     /// Resolves <paramref name="job"/> to a <c>JobId</c> first; pin the resolved id when polling.
     /// </summary>
-    ValueTask<JobLineageMap?> GetLineageMapAsync(JobLookup job, JobLineageMapOptions? options = null, CancellationToken ct = default);
+    ValueTask<GetJobLineageMapResponse?> GetLineageMapAsync(
+        JobLookup job,
+        GetJobLineageMapOptions? options = null,
+        CancellationToken ct = default
+    );
 
     /// <summary>
     /// Cheap status probe. Returns the current <see cref="JobStatusCode"/> for the job identified
@@ -278,7 +282,7 @@ public interface IJobs
     /// latches) recorded for the job identified by <paramref name="job"/>. Returns an empty set when the
     /// job has no slots, and <c>null</c> when no job matches. Non-blocking point-in-time read.
     /// </summary>
-    ValueTask<CheckpointSet?> GetCheckpointsAsync(JobLookup job, CancellationToken ct = default);
+    ValueTask<GetCheckpointsResponse?> GetCheckpointsAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
     /// Typed variant of <see cref="GetResultAsync(JobLookup, CancellationToken)"/>: deserializes the

@@ -8,7 +8,8 @@ internal sealed class FakeTags : ITags
 {
     public FakeTags()
     {
-        Get = static (_, _) => ValueTask.FromResult<TagSet?>(new TagSet([new TagItem("env", "prod"), new TagItem("team")]));
+        Get = static (_, _) =>
+            ValueTask.FromResult<GetTagsResponse?>(new GetTagsResponse([new GetTagsItem("env", "prod"), new GetTagsItem("team")]));
         Upsert = (_, tag, _, _, _) =>
         {
             UpsertCalls.Add(tag);
@@ -27,13 +28,13 @@ internal sealed class FakeTags : ITags
 
     public List<string> RemoveCalls { get; } = [];
 
-    public Func<TagTarget, CancellationToken, ValueTask<TagSet?>> Get { get; set; }
+    public Func<TagTarget, CancellationToken, ValueTask<GetTagsResponse?>> Get { get; set; }
 
     public Func<TagTarget, TagInput, string?, string?, CancellationToken, ValueTask<UpsertTagsResponse>> Upsert { get; set; }
 
     public Func<TagTarget, string, string?, string?, CancellationToken, ValueTask<RemoveTagsResponse>> Remove { get; set; }
 
-    ValueTask<TagSet?> ITags.GetAsync(TagTarget target, CancellationToken ct) => Get(target, ct);
+    ValueTask<GetTagsResponse?> ITags.GetAsync(TagTarget target, CancellationToken ct) => Get(target, ct);
 
     ValueTask<UpsertTagsResponse> ITags.UpsertAsync(
         TagTarget target,

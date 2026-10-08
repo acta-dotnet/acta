@@ -15,7 +15,7 @@ namespace Acta.Tests.Conformance.Operations.Tenants;
     "get-tenant.point-read",
     "GetTenant reads a tenant by key and GetTenantKey reads its key by id",
     Area = "Catalog",
-    Contract = "GetTenant returns the TenantDetail for a known key in any status or null, and GetTenantKey returns that tenant's key for its id."
+    Contract = "GetTenant returns the GetTenantResponse for a known key in any status or null, and GetTenantKey returns that tenant's key for its id."
 )]
 public sealed class GetTenantSpec : ActaStorageTestBase<ConformanceFixture>
 {

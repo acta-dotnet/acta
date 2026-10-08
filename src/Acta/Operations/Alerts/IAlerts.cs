@@ -43,5 +43,5 @@ public interface IAlerts
     ValueTask<ListAlertsResponse> ListAsync(ListAlertsQuery query, CancellationToken ct = default);
 
     /// <summary>Point-read one alert by ref; null when it does not exist.</summary>
-    ValueTask<AlertDetail?> GetAsync(AlertRef alertRef, CancellationToken ct = default);
+    ValueTask<GetAlertResponse?> GetAsync(AlertRef alertRef, CancellationToken ct = default);
 }

@@ -83,12 +83,12 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Empty(await Db.From<ResultEntity>().Where(r => r.JobId == jobId).ToListAsync(ct));
         Assert.Null(await Operations.Tags.GetAsync(TagTarget.ForJob(JobLookup.ById(jobId)), ct));
         Assert.Equal(
-            [new TagItem("retention", "event")],
-            Assert.IsType<TagSet>(await Operations.Tags.GetAsync(TagTarget.ForEvent(eventRow.Id), ct)).Items
+            [new GetTagsItem("retention", "event")],
+            Assert.IsType<GetTagsResponse>(await Operations.Tags.GetAsync(TagTarget.ForEvent(eventRow.Id), ct)).Items
         );
         Assert.Equal(
-            [new TagItem("retention", "alert")],
-            Assert.IsType<TagSet>(await Operations.Tags.GetAsync(TagTarget.ForAlert(new AlertRef(alertRow.AlertRef)), ct)).Items
+            [new GetTagsItem("retention", "alert")],
+            Assert.IsType<GetTagsResponse>(await Operations.Tags.GetAsync(TagTarget.ForAlert(new AlertRef(alertRow.AlertRef)), ct)).Items
         );
     }
 

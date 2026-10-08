@@ -56,10 +56,10 @@ public class JobLineageMapperTests
     private static GetJobLineageMapCheckpointRow Checkpoint(CheckpointKindCode kind, string name, DateTime? due) =>
         new(kind, name, CheckpointStatusCode.Pending, due);
 
-    private static JobLineageMap Map(params GetJobLineageMapCheckpointRow[] checkpoints) =>
+    private static GetJobLineageMapResponse Map(params GetJobLineageMapCheckpointRow[] checkpoints) =>
         GetJobLineageMapHandler.Map(new GetJobLineageMapRows(Focus(), [], [], checkpoints, []), childLimit: 10);
 
-    private static JobLineageJob Focus() =>
+    private static GetJobLineageMapResponse.Node Focus() =>
         new(
             JobId: 4821,
             JobRef: new JobRef(Guid.NewGuid()),

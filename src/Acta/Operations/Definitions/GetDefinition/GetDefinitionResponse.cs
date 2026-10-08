@@ -9,7 +9,7 @@ namespace Acta;
 /// <see cref="ListDefinitionsItem"/>. A definition is addressed by namespace and name, and its catalog id stays off
 /// the wire.
 /// </summary>
-public sealed record DefinitionDetail(
+public sealed record GetDefinitionResponse(
     [property: JsonIgnore] int DefinitionId,
     string JobNamespace,
     string JobName,

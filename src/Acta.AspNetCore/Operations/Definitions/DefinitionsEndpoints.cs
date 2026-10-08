@@ -62,7 +62,7 @@ internal static class DefinitionsEndpoints
             "/definitions/{jobNamespace}/{jobName}",
             "Read one job definition and its effective policy.",
             "Definition",
-            DashboardJsonContext.Default.DefinitionDetail,
+            DashboardJsonContext.Default.GetDefinitionResponse,
             static (http, call) => call.Operations.Definitions.GetAsync(Key(http).Namespace, Key(http).Name, call.Ct)
         );
         reads.MapTags(controls, "/definitions/{jobNamespace}/{jobName}/tags", "definition", options, static http => TagTarget(http));

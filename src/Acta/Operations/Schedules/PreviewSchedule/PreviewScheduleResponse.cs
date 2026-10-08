@@ -6,4 +6,4 @@ namespace Acta;
 /// (operator override when present, else the original); <see cref="NextRunsUtc"/> is strictly
 /// increasing and may be shorter than requested when the expression is exhausted.
 /// </summary>
-public sealed record SchedulePreview(string Expression, string TimeZoneId, IReadOnlyList<DateTime> NextRunsUtc);
+public sealed record PreviewScheduleResponse(string Expression, string TimeZoneId, IReadOnlyList<DateTime> NextRunsUtc);

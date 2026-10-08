@@ -123,7 +123,7 @@ await lab.ShowAsync(
 
 await host.StopAsync();
 
-static async Task<JobDetail> WaitForAsync(IJobs jobs, long jobId, Func<JobDetail, bool> predicate, string description)
+static async Task<GetJobResponse> WaitForAsync(IJobs jobs, long jobId, Func<GetJobResponse, bool> predicate, string description)
 {
     using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
     try

@@ -36,9 +36,9 @@ internal sealed class FakeJobs : IJobs
         GetJobId = (job, _) => ValueTask.FromResult(Resolve(job));
         GetInput = (job, _) => ValueTask.FromResult(Input(job));
         GetResult = (job, _) => ValueTask.FromResult(Resolve(job) == 42 ? StoredResult : null);
-        GetCheckpoints = (job, _) => ValueTask.FromResult(Resolve(job) == 42 ? new CheckpointSet(StoredCheckpoints) : null);
-        Explain = static (job, _) => ValueTask.FromResult<JobExplanation?>(IsFound(job) ? Explanation() : null);
-        GetLineageMap = static (job, _, _) => ValueTask.FromResult<JobLineageMap?>(IsFound(job) ? Lineage() : null);
+        GetCheckpoints = (job, _) => ValueTask.FromResult(Resolve(job) == 42 ? new GetCheckpointsResponse(StoredCheckpoints) : null);
+        Explain = static (job, _) => ValueTask.FromResult<GetJobExplanationResponse?>(IsFound(job) ? Explanation() : null);
+        GetLineageMap = static (job, _, _) => ValueTask.FromResult<GetJobLineageMapResponse?>(IsFound(job) ? Lineage() : null);
         GetInputTemplate = InputTemplate;
         Enqueue = (request, _) => ValueTask.FromResult(Insert(request));
         Pause = (job, reason, actor, version, _) =>
@@ -83,7 +83,7 @@ internal sealed class FakeJobs : IJobs
     /// <summary>Result the found job has produced; null means none.</summary>
     public JobPayload? StoredResult { get; set; }
 
-    public IReadOnlyList<CheckpointItem> StoredCheckpoints { get; set; } = [];
+    public IReadOnlyList<GetCheckpointsItem> StoredCheckpoints { get; set; } = [];
 
     /// <summary>Tenant id on the found job's snapshot. Id 1 carries the key "cust-001"; any other id models a purged
     /// tenant row, an id without a key.</summary>
@@ -112,7 +112,7 @@ internal sealed class FakeJobs : IJobs
 
     public List<EnqueueJobRequest> EnqueueRequests { get; } = [];
 
-    public Func<JobLookup, CancellationToken, ValueTask<JobDetail?>> Get { get; set; }
+    public Func<JobLookup, CancellationToken, ValueTask<GetJobResponse?>> Get { get; set; }
 
     public Func<JobLookup, CancellationToken, ValueTask<long?>> GetJobId { get; set; }
 
@@ -120,11 +120,11 @@ internal sealed class FakeJobs : IJobs
 
     public Func<JobLookup, CancellationToken, ValueTask<JobPayload?>> GetResult { get; set; }
 
-    public Func<JobLookup, CancellationToken, ValueTask<CheckpointSet?>> GetCheckpoints { get; set; }
+    public Func<JobLookup, CancellationToken, ValueTask<GetCheckpointsResponse?>> GetCheckpoints { get; set; }
 
-    public Func<JobLookup, CancellationToken, ValueTask<JobExplanation?>> Explain { get; set; }
+    public Func<JobLookup, CancellationToken, ValueTask<GetJobExplanationResponse?>> Explain { get; set; }
 
-    public Func<JobLookup, JobLineageMapOptions?, CancellationToken, ValueTask<JobLineageMap?>> GetLineageMap { get; set; }
+    public Func<JobLookup, GetJobLineageMapOptions?, CancellationToken, ValueTask<GetJobLineageMapResponse?>> GetLineageMap { get; set; }
 
     public Func<string, string, JobInputTemplate?> GetInputTemplate { get; set; }
 
@@ -156,7 +156,7 @@ internal sealed class FakeJobs : IJobs
 
     public Func<JobLookup, string, JobPayload, string?, CancellationToken, ValueTask<RaiseSignalResponse>> RaiseSignal { get; set; }
 
-    ValueTask<JobDetail?> IJobs.GetAsync(JobLookup job, CancellationToken ct) => Get(job, ct);
+    ValueTask<GetJobResponse?> IJobs.GetAsync(JobLookup job, CancellationToken ct) => Get(job, ct);
 
     ValueTask<long?> IJobs.GetJobIdAsync(JobLookup job, CancellationToken ct) => GetJobId(job, ct);
 
@@ -164,11 +164,11 @@ internal sealed class FakeJobs : IJobs
 
     ValueTask<JobPayload?> IJobs.GetResultAsync(JobLookup job, CancellationToken ct) => GetResult(job, ct);
 
-    ValueTask<CheckpointSet?> IJobs.GetCheckpointsAsync(JobLookup job, CancellationToken ct) => GetCheckpoints(job, ct);
+    ValueTask<GetCheckpointsResponse?> IJobs.GetCheckpointsAsync(JobLookup job, CancellationToken ct) => GetCheckpoints(job, ct);
 
-    ValueTask<JobExplanation?> IJobs.ExplainAsync(JobLookup job, CancellationToken ct) => Explain(job, ct);
+    ValueTask<GetJobExplanationResponse?> IJobs.ExplainAsync(JobLookup job, CancellationToken ct) => Explain(job, ct);
 
-    ValueTask<JobLineageMap?> IJobs.GetLineageMapAsync(JobLookup job, JobLineageMapOptions? options, CancellationToken ct) =>
+    ValueTask<GetJobLineageMapResponse?> IJobs.GetLineageMapAsync(JobLookup job, GetJobLineageMapOptions? options, CancellationToken ct) =>
         GetLineageMap(job, options, ct);
 
     JobInputTemplate? IJobs.GetInputTemplate(string jobNamespace, string jobName) => GetInputTemplate(jobNamespace, jobName);
@@ -345,7 +345,7 @@ internal sealed class FakeJobs : IJobs
             var id => _enqueuedInputs.GetValueOrDefault(id.Value),
         };
 
-    private JobDetail? Detail(JobLookup job)
+    private GetJobResponse? Detail(JobLookup job)
     {
         if (IsFound(job) || (job.JobNamespace == "billing" && job.DeduplicationKey == "ck-1"))
         {
@@ -428,7 +428,7 @@ internal sealed class FakeJobs : IJobs
             ? new JobInputTemplate("Billing.SendInvoice", JobPayloadFormat.Json, """{"invoiceId":0,"note":null}""")
             : null;
 
-    private static JobDetail Snapshot(long jobId, string jobNamespace, string jobName, int? tenantId) =>
+    private static GetJobResponse Snapshot(long jobId, string jobNamespace, string jobName, int? tenantId) =>
         new(
             JobId: jobId,
             JobRef: jobId == 42 ? FoundJobRef : JobRef.New(),
@@ -462,7 +462,7 @@ internal sealed class FakeJobs : IJobs
             Version: CurrentJobVersion
         );
 
-    private static JobExplanation Explanation() =>
+    private static GetJobExplanationResponse Explanation() =>
         new(
             JobId: 42,
             JobRef: FoundJobRef,
@@ -476,13 +476,13 @@ internal sealed class FakeJobs : IJobs
             LastExecutedBy: null,
             Steps: [],
             Reason: null,
-            NextActions: [new JobExplainAction("none", "no action needed - a worker will claim it")]
+            NextActions: [new GetJobExplanationResponse.Action("none", "no action needed - a worker will claim it")]
         );
 
-    private static JobLineageMap Lineage() =>
+    private static GetJobLineageMapResponse Lineage() =>
         new(
             Ancestors: [],
-            Job: new JobLineageJob(
+            Job: new GetJobLineageMapResponse.Node(
                 JobId: 42,
                 JobRef: FoundJobRef,
                 JobNamespace: "billing",
@@ -499,7 +499,7 @@ internal sealed class FakeJobs : IJobs
             ActiveWait: null,
             Children:
             [
-                new JobLineageChild(
+                new GetJobLineageMapResponse.Child(
                     JobId: 7,
                     JobRef: ChildJobRef,
                     JobName: "render-pdf",

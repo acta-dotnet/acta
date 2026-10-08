@@ -25,7 +25,7 @@ internal sealed class JobExecutionHarness(
     StartExecutionAction startAction = StartExecutionAction.Started,
     bool startFailsOnce = false,
     StartExecutionAction? startAfterFailure = null,
-    JobDetail? rowAfterLostClaim = null,
+    GetJobResponse? rowAfterLostClaim = null,
     string? concurrencyKey = null,
     int? concurrencyLimit = null,
     bool slotGranted = true,
@@ -59,7 +59,7 @@ internal sealed class JobExecutionHarness(
     private readonly ScriptedLockStore _locks = new(slotGranted, rateResumeAtUtc, rateWaitMilliseconds, slotThrows, rateThrows);
 
     /// <summary>The row the reconciliation reads after a LostClaim, as a fact stages it; the claim is execution 3 at version 1.</summary>
-    public static JobDetail Row(JobStatusCode status, int version, int leasedByWorkerId = WorkerId, int executionNumber = 3) =>
+    public static GetJobResponse Row(JobStatusCode status, int version, int leasedByWorkerId = WorkerId, int executionNumber = 3) =>
         new(
             JobId: 4242,
             JobRef: new JobRef(Guid.CreateVersion7()),
@@ -480,7 +480,7 @@ internal sealed class JobExecutionHarness(
 
     // The by-id job read the reconciliation makes after a LostClaim, answered with the staged row; any
     // other read reaches the stub and throws.
-    private sealed class RowSession(JobDetail? row) : DbSessionStub
+    private sealed class RowSession(GetJobResponse? row) : DbSessionStub
     {
         public override Task<T> QueryAsync<T>(
             string stem,

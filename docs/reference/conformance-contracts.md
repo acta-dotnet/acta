@@ -263,7 +263,7 @@
   - The catalog holds only the asked namespace's definitions
 
 ### GetTenant reads a tenant by key and GetTenantKey reads its key by id
-- **Contract:** GetTenant returns the TenantDetail for a known key in any status or null, and GetTenantKey returns that tenant's key for its id.
+- **Contract:** GetTenant returns the GetTenantResponse for a known key in any status or null, and GetTenantKey returns that tenant's key for its id.
 - **Guarantees:**
   - A known key returns the populated row and its id reads back the key
   - A suspended tenant still resolves with status Suspended
@@ -1402,9 +1402,9 @@
   - An unknown job id returns null
 
 ### GetJob returns the snapshot for a known id and null for an unknown id
-- **Contract:** GetJob returns the JobDetail projection for a matching job row and null when no row matches the supplied id.
+- **Contract:** GetJob returns the GetJobResponse projection for a matching job row and null when no row matches the supplied id.
 - **Guarantees:**
-  - A known job id returns a populated JobDetail whose id and Ready status match the enqueued row
+  - A known job id returns a populated GetJobResponse whose id and Ready status match the enqueued row
   - A tenant-scoped job's snapshot carries the tenant id and its external key
   - An unknown job id returns null
 

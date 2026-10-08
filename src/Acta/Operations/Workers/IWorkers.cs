@@ -4,7 +4,7 @@ namespace Acta;
 public interface IWorkers
 {
     /// <summary>Get one worker by its public ref, or <see langword="null"/> when it no longer exists.</summary>
-    ValueTask<WorkerDetail?> GetAsync(WorkerRef workerRef, CancellationToken ct = default);
+    ValueTask<GetWorkerResponse?> GetAsync(WorkerRef workerRef, CancellationToken ct = default);
 
     /// <summary>List workers most recently seen first, optionally filtered by namespace and status.</summary>
     ValueTask<ListWorkersResponse> ListAsync(ListWorkersQuery query, CancellationToken ct = default);

@@ -3,13 +3,13 @@ namespace Acta.Runtime;
 /// <summary><see cref="IJobs.GetAsync"/>: resolves the lookup, then reads the full snapshot.</summary>
 internal sealed class GetJobHandler(JobLookupResolution lookup, IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<JobDetail?> HandleAsync(GetJobQuery query, CancellationToken ct) =>
+    public async ValueTask<GetJobResponse?> HandleAsync(GetJobQuery query, CancellationToken ct) =>
         await lookup.ResolveAsync(query.Job, ct) is { } jobId ? await ReadAsync(jobId, ct) : null;
 
     /// <summary>The snapshot by id, or null when no row matches; the engine reads it this way too.</summary>
-    internal async ValueTask<JobDetail?> ReadAsync(long jobId, CancellationToken ct)
+    internal async ValueTask<GetJobResponse?> ReadAsync(long jobId, CancellationToken ct)
     {
-        var read = DbProjectionResolver.Resolve<JobDetail>();
+        var read = DbProjectionResolver.Resolve<GetJobResponse>();
         return await session.QuerySingleAsync(
             "GetJob",
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.Id, jobId)),

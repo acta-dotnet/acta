@@ -57,7 +57,7 @@ public sealed class TagEndpointTests
     public async Task Get_tags_maps_an_addressable_unknown_target_to_404_and_a_malformed_one_to_400()
     {
         var fakes = new FakeOperations();
-        fakes.Tags.Get = (_, _) => ValueTask.FromResult<TagSet?>(null);
+        fakes.Tags.Get = (_, _) => ValueTask.FromResult<GetTagsResponse?>(null);
         var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
         await using var _ = app;
 

@@ -9,7 +9,7 @@ namespace Acta.Runtime;
 /// </summary>
 internal sealed class GetJobExplanationHandler(JobLookupResolution lookup, IDbSession session, ISqlDialect dialect, IActaClock clock)
 {
-    public async ValueTask<JobExplanation?> HandleAsync(GetJobExplanationQuery query, CancellationToken ct)
+    public async ValueTask<GetJobExplanationResponse?> HandleAsync(GetJobExplanationQuery query, CancellationToken ct)
     {
         if (await lookup.ResolveAsync(query.Job, ct) is not { } jobId || await ReadAsync(jobId, ct) is not { } data)
         {
@@ -60,23 +60,23 @@ internal sealed class GetJobExplanationHandler(JobLookupResolution lookup, IDbSe
         );
 
     /// <summary>
-    /// Narrates the rows as a plain-English <see cref="JobExplanation"/>: what the Job is doing, why, and the operator's
+    /// Narrates the rows as a plain-English <see cref="GetJobExplanationResponse"/>: what the Job is doing, why, and the operator's
     /// next move. A pure function over the rows plus the DB clock instant, so the timing math ("lease expired 2m ago")
     /// reads against the clock that stamped the rows and the branches stay deterministic and unit-testable. Decodes
     /// every status to its <c>[Code]</c> description rather than duplicating prose, and branches on Status in the
     /// order the troubleshooting guide prescribes.
     /// </summary>
-    internal static JobExplanation Explain(GetJobExplanationRows data, DateTime nowUtc)
+    internal static GetJobExplanationResponse Explain(GetJobExplanationRows data, DateTime nowUtc)
     {
         var h = data.Header;
         var status = h.Status;
         var steps = BuildSteps(data.Steps);
         var reason = h.LatestReasonMessage ?? (h.LatestReasonCode?.Description is { Length: > 0 } d ? d : null);
 
-        JobExplainWait? wait = null;
-        JobExplainLease? lease = null;
+        GetJobExplanationResponse.Wait? wait = null;
+        GetJobExplanationResponse.ExecutionLease? lease = null;
         string headline;
-        var actions = new List<JobExplainAction>();
+        var actions = new List<GetJobExplanationResponse.Action>();
 
         switch (status)
         {
@@ -88,8 +88,8 @@ internal sealed class GetJobExplanationHandler(JobLookupResolution lookup, IDbSe
                         headline = wait.DueAtUtc is { } expires
                             ? $"Suspended, waiting for signal \"{wait.Name}\"; times out at {Instant(expires)}."
                             : $"Suspended, waiting for signal \"{wait.Name}\".";
-                        actions.Add(new JobExplainAction("raise-signal", $"raise signal \"{wait.Name}\""));
-                        actions.Add(new JobExplainAction("cancel", "cancel the job"));
+                        actions.Add(Move("raise-signal", $"raise signal \"{wait.Name}\""));
+                        actions.Add(Move("cancel", "cancel the job"));
                         break;
                     case CheckpointKindCode.ChildLatch:
                     {
@@ -99,22 +99,22 @@ internal sealed class GetJobExplanationHandler(JobLookupResolution lookup, IDbSe
                         headline = wait.DueAtUtc is { } childDue
                             ? $"Suspended, waiting for {child}; times out at {Instant(childDue)}."
                             : $"Suspended, waiting for {child}; no timeout, so it waits until the child completes.";
-                        actions.Add(new JobExplainAction("none", $"no action needed - it resumes when {child} reaches a terminal status"));
-                        actions.Add(new JobExplainAction("inspect-timeline", $"inspect {child} with 'jobs explain'"));
-                        actions.Add(new JobExplainAction("cancel", "cancel the job if the wait is no longer needed"));
+                        actions.Add(Move("none", $"no action needed - it resumes when {child} reaches a terminal status"));
+                        actions.Add(Move("inspect-timeline", $"inspect {child} with 'jobs explain'"));
+                        actions.Add(Move("cancel", "cancel the job if the wait is no longer needed"));
                         break;
                     }
                     case CheckpointKindCode.Timer:
                         headline = wait.DueAtUtc is { } due
                             ? $"Suspended on durable sleep \"{wait.Name}\", {DuePhrase(due, nowUtc)}."
                             : $"Suspended on durable sleep \"{wait.Name}\".";
-                        actions.Add(new JobExplainAction("none", "no action needed - it resumes when the timer is due"));
-                        actions.Add(new JobExplainAction("cancel", "cancel the job if the wait is no longer needed"));
+                        actions.Add(Move("none", "no action needed - it resumes when the timer is due"));
+                        actions.Add(Move("cancel", "cancel the job if the wait is no longer needed"));
                         break;
                     default:
                         headline = "Suspended, but no pending signal, child, or timer checkpoint was found.";
-                        actions.Add(new JobExplainAction("inspect-timeline", "inspect the timeline with 'jobs events'"));
-                        actions.Add(new JobExplainAction("cancel", "cancel the job"));
+                        actions.Add(Move("inspect-timeline", "inspect the timeline with 'jobs events'"));
+                        actions.Add(Move("cancel", "cancel the job"));
                         break;
                 }
                 break;
@@ -122,29 +122,25 @@ internal sealed class GetJobExplanationHandler(JobLookupResolution lookup, IDbSe
             case JobStatusCode.Paused when h.NextRunAtUtc is null:
                 // Not held (ScheduleWalker.IsHeld): a recurring job whose schedules offer no run.
                 headline = "Paused because none of its schedules has an upcoming run.";
-                actions.Add(new JobExplainAction("none", "resume or edit one of its schedules to give it a next run"));
+                actions.Add(Move("none", "resume or edit one of its schedules to give it a next run"));
                 break;
 
             case JobStatusCode.Paused:
                 headline = "Paused; it will not run until it is resumed.";
-                actions.Add(new JobExplainAction("resume", "resume the job"));
-                actions.Add(new JobExplainAction("cancel", "cancel the job"));
+                actions.Add(Move("resume", "resume the job"));
+                actions.Add(Move("cancel", "cancel the job"));
                 break;
 
             case JobStatusCode.Ready:
                 if (h.NextRunAtUtc is { } next && next > nowUtc)
                 {
                     headline = $"Ready, scheduled to run in {Humanize(next - nowUtc)}.";
-                    actions.Add(
-                        new JobExplainAction("none", "no action needed - the job becomes claimable when its next run time arrives")
-                    );
+                    actions.Add(Move("none", "no action needed - the job becomes claimable when its next run time arrives"));
                 }
                 else
                 {
                     headline = "Ready and eligible for claim.";
-                    actions.Add(
-                        new JobExplainAction("none", $"ensure at least one live worker is running for namespace \"{h.JobNamespace}\"")
-                    );
+                    actions.Add(Move("none", $"ensure at least one live worker is running for namespace \"{h.JobNamespace}\""));
                 }
                 break;
 
@@ -155,10 +151,8 @@ internal sealed class GetJobExplanationHandler(JobLookupResolution lookup, IDbSe
                 {
                     var lapsed = h.LeaseExpiresAtUtc is { } exp ? $"expired {Ago(exp, nowUtc)}" : "has expired";
                     headline = $"{status}, but its lease {lapsed}.";
-                    actions.Add(
-                        new JobExplainAction("wait-recovery", "wait for sys.recovery to reclaim the job on the next maintenance tick")
-                    );
-                    actions.Add(new JobExplainAction("cancel", "cancel the job if it should not continue"));
+                    actions.Add(Move("wait-recovery", "wait for sys.recovery to reclaim the job on the next maintenance tick"));
+                    actions.Add(Move("cancel", "cancel the job if it should not continue"));
                 }
                 else
                 {
@@ -167,26 +161,26 @@ internal sealed class GetJobExplanationHandler(JobLookupResolution lookup, IDbSe
                         status == JobStatusCode.Executing
                             ? $"Executing on {WorkerLabel(h)}.{expires}"
                             : $"Dispatched to {WorkerLabel(h)}; the handler has not started yet.{expires}";
-                    actions.Add(new JobExplainAction("none", "no action needed unless the job exceeds its expected runtime"));
+                    actions.Add(Move("none", "no action needed unless the job exceeds its expected runtime"));
                 }
                 break;
 
             case JobStatusCode.Succeeded:
                 headline = "Succeeded.";
-                actions.Add(new JobExplainAction("view-result", "view the result with 'jobs result' if the job stores one"));
-                actions.Add(new JobExplainAction("inspect-timeline", "inspect the event timeline if needed"));
+                actions.Add(Move("view-result", "view the result with 'jobs result' if the job stores one"));
+                actions.Add(Move("inspect-timeline", "inspect the event timeline if needed"));
                 break;
 
             case JobStatusCode.Failed:
                 headline = "Failed.";
-                actions.Add(new JobExplainAction("inspect-timeline", "inspect the timeline with 'jobs events'"));
-                actions.Add(new JobExplainAction("restart", "restart the job only after the underlying cause is fixed"));
+                actions.Add(Move("inspect-timeline", "inspect the timeline with 'jobs events'"));
+                actions.Add(Move("restart", "restart the job only after the underlying cause is fixed"));
                 break;
 
             case JobStatusCode.Cancelled:
                 headline = "Cancelled.";
-                actions.Add(new JobExplainAction("inspect-timeline", "inspect the timeline with 'jobs events'"));
-                actions.Add(new JobExplainAction("restart", "restart the job only if the cancellation should be reversed"));
+                actions.Add(Move("inspect-timeline", "inspect the timeline with 'jobs events'"));
+                actions.Add(Move("restart", "restart the job only if the cancellation should be reversed"));
                 break;
 
             default:
@@ -194,7 +188,7 @@ internal sealed class GetJobExplanationHandler(JobLookupResolution lookup, IDbSe
                 break;
         }
 
-        return new JobExplanation(
+        return new GetJobExplanationResponse(
             h.JobId,
             new JobRef(h.JobRef),
             h.JobNamespace,
@@ -211,6 +205,9 @@ internal sealed class GetJobExplanationHandler(JobLookupResolution lookup, IDbSe
         );
     }
 
+    /// <summary>A suggested operator move: its stable slug and the prose shown with it.</summary>
+    private static GetJobExplanationResponse.Action Move(string kind, string description) => new(kind, description);
+
     /// <summary>
     /// The worker that last ran the job, under the same identity rule as the lease label. Distinct
     /// from Lease: it is set even for states with no live lease (Suspended, Failed), so the
@@ -226,27 +223,27 @@ internal sealed class GetJobExplanationHandler(JobLookupResolution lookup, IDbSe
     /// wait's timeout instant, carried through so the headline can name it; a timer's is when it
     /// resumes.
     /// </summary>
-    private static JobExplainWait? FindWait(IReadOnlyList<GetJobExplanationCheckpointRow> checkpoints)
+    private static GetJobExplanationResponse.Wait? FindWait(IReadOnlyList<GetJobExplanationCheckpointRow> checkpoints)
     {
         foreach (var c in checkpoints)
         {
             if (c.Kind == CheckpointKindCode.Signal && c.Status == CheckpointStatusCode.Pending)
             {
-                return new JobExplainWait(CheckpointKindCode.Signal, c.Name, c.DueAtUtc);
+                return new GetJobExplanationResponse.Wait(CheckpointKindCode.Signal, c.Name, c.DueAtUtc);
             }
         }
         foreach (var c in checkpoints)
         {
             if (c.Kind == CheckpointKindCode.ChildLatch && c.Status == CheckpointStatusCode.Pending)
             {
-                return new JobExplainWait(CheckpointKindCode.ChildLatch, c.Name, c.DueAtUtc);
+                return new GetJobExplanationResponse.Wait(CheckpointKindCode.ChildLatch, c.Name, c.DueAtUtc);
             }
         }
         foreach (var c in checkpoints)
         {
             if (c.Kind == CheckpointKindCode.Timer && c.Status == CheckpointStatusCode.Pending)
             {
-                return new JobExplainWait(CheckpointKindCode.Timer, c.Name, c.DueAtUtc);
+                return new GetJobExplanationResponse.Wait(CheckpointKindCode.Timer, c.Name, c.DueAtUtc);
             }
         }
         return null;
@@ -262,7 +259,7 @@ internal sealed class GetJobExplanationHandler(JobLookupResolution lookup, IDbSe
             ? $"child job {slotName[RaiseChildLatch.NamePrefix.Length..]}"
             : $"child latch \"{slotName}\"";
 
-    private static JobExplainLease? BuildLease(GetJobExplanationHeaderRow h, DateTime nowUtc)
+    private static GetJobExplanationResponse.ExecutionLease? BuildLease(GetJobExplanationHeaderRow h, DateTime nowUtc)
     {
         if (h.LeasedByWorkerId is not { } workerId)
         {
@@ -290,7 +287,7 @@ internal sealed class GetJobExplanationHandler(JobLookupResolution lookup, IDbSe
         // The lease is reported whenever runtimes still names a holder, because its timings describe the
         // Job. The ref and the name both come from the LEFT JOIN on that holder, so both go null together
         // once retention purges the workers row - the lease stands, its holder is simply unidentifiable.
-        return new JobExplainLease(
+        return new GetJobExplanationResponse.ExecutionLease(
             workerId,
             Blank(h.WorkerDeploymentVersion),
             h.LeaseExpiresAtUtc,
@@ -302,17 +299,17 @@ internal sealed class GetJobExplanationHandler(JobLookupResolution lookup, IDbSe
         );
     }
 
-    private static List<JobExplainStep> BuildSteps(IReadOnlyList<GetJobExplanationStepRow> rows)
+    private static List<GetJobExplanationResponse.StepState> BuildSteps(IReadOnlyList<GetJobExplanationStepRow> rows)
     {
         if (rows.Count == 0)
         {
             return [];
         }
 
-        var list = new List<JobExplainStep>(rows.Count);
+        var list = new List<GetJobExplanationResponse.StepState>(rows.Count);
         foreach (var s in rows)
         {
-            list.Add(new JobExplainStep(s.Name, s.Status, StepPhrase(s)));
+            list.Add(new GetJobExplanationResponse.StepState(s.Name, s.Status, StepPhrase(s)));
         }
         return list;
     }

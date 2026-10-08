@@ -45,8 +45,9 @@ public sealed class GetCheckpointsSpec : ActaRuntimeTestBase<ConformanceFixture,
                 ct
             );
 
-        var items = await Services.GetRequiredService<GetCheckpointsHandler>().ReadAsync(enqueued.JobId, ct);
-        Assert.NotNull(items);
+        var response = await Services.GetRequiredService<GetCheckpointsHandler>().ReadAsync(enqueued.JobId, ct);
+        Assert.NotNull(response);
+        var items = response.Items;
         Assert.Equal(2, items.Count);
 
         // Ordered by kind (Variable=10 before Signal=20) then name.
@@ -79,7 +80,7 @@ public sealed class GetCheckpointsSpec : ActaRuntimeTestBase<ConformanceFixture,
         var handler = Services.GetRequiredService<GetCheckpointsHandler>();
         var none = await handler.ReadAsync(enqueued.JobId, ct);
         Assert.NotNull(none);
-        Assert.Empty(none);
+        Assert.Empty(none.Items);
         Assert.Null(await handler.ReadAsync(-123_456_789L, ct));
     }
 }

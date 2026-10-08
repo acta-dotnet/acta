@@ -31,7 +31,7 @@ internal sealed class Definitions(
         CancellationToken ct = default
     ) => retireDefinition.HandleAsync(new RetireDefinitionCommand(jobNamespace, jobName, expectedVersion, reasonMessage, actorKey), ct);
 
-    public ValueTask<DefinitionDetail?> GetAsync(string jobNamespace, string jobName, CancellationToken ct = default) =>
+    public ValueTask<GetDefinitionResponse?> GetAsync(string jobNamespace, string jobName, CancellationToken ct = default) =>
         getDefinition.HandleAsync(new GetDefinitionQuery(jobNamespace, jobName), ct);
 
     public ValueTask<ListDefinitionsResponse> ListAsync(ListDefinitionsQuery query, CancellationToken ct = default) =>

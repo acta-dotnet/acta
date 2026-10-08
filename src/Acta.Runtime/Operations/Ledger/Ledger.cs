@@ -9,6 +9,6 @@ internal sealed class Ledger(ListJobsHandler listJobs, ListEventsHandler listEve
     public ValueTask<ListEventsResponse> ListEventsAsync(ListEventsQuery query, CancellationToken ct = default) =>
         listEvents.HandleAsync(query, ct);
 
-    public ValueTask<OverviewSnapshot> GetOverviewAsync(GetOverviewQuery query, CancellationToken ct = default) =>
+    public ValueTask<GetOverviewResponse> GetOverviewAsync(GetOverviewQuery query, CancellationToken ct = default) =>
         getOverview.HandleAsync(query, ct);
 }

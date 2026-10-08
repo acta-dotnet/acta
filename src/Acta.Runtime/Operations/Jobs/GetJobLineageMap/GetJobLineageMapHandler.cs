@@ -6,7 +6,7 @@ namespace Acta.Runtime;
 /// </summary>
 internal sealed class GetJobLineageMapHandler(JobLookupResolution lookup, IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<JobLineageMap?> HandleAsync(GetJobLineageMapQuery query, CancellationToken ct)
+    public async ValueTask<GetJobLineageMapResponse?> HandleAsync(GetJobLineageMapQuery query, CancellationToken ct)
     {
         if (await lookup.ResolveAsync(query.Job, ct) is not { } jobId)
         {
@@ -30,18 +30,18 @@ internal sealed class GetJobLineageMapHandler(JobLookupResolution lookup, IDbSes
             },
             static async (reader, token) =>
             {
-                var readJob = DbProjectionResolver.Resolve<JobLineageJob>();
+                var readJob = DbProjectionResolver.Resolve<GetJobLineageMapResponse.Node>();
                 var readStep = DbProjectionResolver.Resolve<GetJobLineageMapStepRow>();
                 var readCheckpoint = DbProjectionResolver.Resolve<GetJobLineageMapCheckpointRow>();
-                var readChild = DbProjectionResolver.Resolve<JobLineageChild>();
+                var readChild = DbProjectionResolver.Resolve<GetJobLineageMapResponse.Child>();
 
-                JobLineageJob? focus = null;
+                GetJobLineageMapResponse.Node? focus = null;
                 while (await reader.ReadAsync(token))
                 {
                     focus = readJob(reader);
                 }
 
-                var ancestors = new List<JobLineageJob>();
+                var ancestors = new List<GetJobLineageMapResponse.Node>();
                 if (await reader.NextResultAsync(token))
                 {
                     while (await reader.ReadAsync(token))
@@ -68,7 +68,7 @@ internal sealed class GetJobLineageMapHandler(JobLookupResolution lookup, IDbSes
                     }
                 }
 
-                var children = new List<JobLineageChild>();
+                var children = new List<GetJobLineageMapResponse.Child>();
                 if (await reader.NextResultAsync(token))
                 {
                     while (await reader.ReadAsync(token))
@@ -83,22 +83,22 @@ internal sealed class GetJobLineageMapHandler(JobLookupResolution lookup, IDbSes
         );
 
     /// <summary>
-    /// Maps the rows to a <see cref="JobLineageMap"/>: the focus job, its ancestor context, its steps, the durable wait
+    /// Maps the rows to a <see cref="GetJobLineageMapResponse"/>: the focus job, its ancestor context, its steps, the durable wait
     /// it is blocked on, and its direct children. A pure function over the rows plus the child limit; the read fetches
-    /// one child past the limit so the tail row here sets <see cref="JobLineageMap.ChildrenHasMore"/> without a second query.
+    /// one child past the limit so the tail row here sets <see cref="GetJobLineageMapResponse.ChildrenHasMore"/> without a second query.
     /// </summary>
-    internal static JobLineageMap Map(GetJobLineageMapRows data, int childLimit)
+    internal static GetJobLineageMapResponse Map(GetJobLineageMapRows data, int childLimit)
     {
         var hasMore = data.Children.Count > childLimit;
-        IReadOnlyList<JobLineageChild> children = hasMore ? [.. data.Children.Take(childLimit)] : data.Children;
+        IReadOnlyList<GetJobLineageMapResponse.Child> children = hasMore ? [.. data.Children.Take(childLimit)] : data.Children;
 
-        var steps = new List<JobExplainStep>(data.Steps.Count);
+        var steps = new List<GetJobExplanationResponse.StepState>(data.Steps.Count);
         foreach (var s in data.Steps)
         {
-            steps.Add(new JobExplainStep(s.Name, s.Status, s.Status.Description));
+            steps.Add(new GetJobExplanationResponse.StepState(s.Name, s.Status, s.Status.Description));
         }
 
-        return new JobLineageMap(data.Ancestors, data.Focus, steps, FindWait(data.Checkpoints), children, hasMore);
+        return new GetJobLineageMapResponse(data.Ancestors, data.Focus, steps, FindWait(data.Checkpoints), children, hasMore);
     }
 
     /// <summary>
@@ -108,27 +108,27 @@ internal sealed class GetJobLineageMapHandler(JobLookupResolution lookup, IDbSes
     /// leaves an unbounded wait's null; a parent parked on a child is the case a lineage map exists
     /// to show.
     /// </summary>
-    private static JobExplainWait? FindWait(IReadOnlyList<GetJobLineageMapCheckpointRow> checkpoints)
+    private static GetJobExplanationResponse.Wait? FindWait(IReadOnlyList<GetJobLineageMapCheckpointRow> checkpoints)
     {
         foreach (var c in checkpoints)
         {
             if (c.Kind == CheckpointKindCode.Signal && c.Status == CheckpointStatusCode.Pending)
             {
-                return new JobExplainWait(CheckpointKindCode.Signal, c.Name, c.DueAtUtc);
+                return new GetJobExplanationResponse.Wait(CheckpointKindCode.Signal, c.Name, c.DueAtUtc);
             }
         }
         foreach (var c in checkpoints)
         {
             if (c.Kind == CheckpointKindCode.ChildLatch && c.Status == CheckpointStatusCode.Pending)
             {
-                return new JobExplainWait(CheckpointKindCode.ChildLatch, c.Name, c.DueAtUtc);
+                return new GetJobExplanationResponse.Wait(CheckpointKindCode.ChildLatch, c.Name, c.DueAtUtc);
             }
         }
         foreach (var c in checkpoints)
         {
             if (c.Kind == CheckpointKindCode.Timer && c.Status == CheckpointStatusCode.Pending)
             {
-                return new JobExplainWait(CheckpointKindCode.Timer, c.Name, c.DueAtUtc);
+                return new GetJobExplanationResponse.Wait(CheckpointKindCode.Timer, c.Name, c.DueAtUtc);
             }
         }
         return null;

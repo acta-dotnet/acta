@@ -11,7 +11,7 @@ namespace Acta;
 public interface ITags
 {
     /// <summary>Returns null for a missing target, otherwise its normalized name-ordered tag set.</summary>
-    ValueTask<TagSet?> GetAsync(TagTarget target, CancellationToken ct = default);
+    ValueTask<GetTagsResponse?> GetAsync(TagTarget target, CancellationToken ct = default);
 
     /// <summary>Atomically replaces all tags on an existing target. An empty list clears the target.</summary>
     ValueTask<ReplaceTagsResponse> ReplaceAsync(

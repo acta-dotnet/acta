@@ -7,7 +7,7 @@ namespace Acta;
 /// instant, <see cref="Value"/> is null when the slot carries no payload, and <see cref="ModifiedAtUtc"/> moves on
 /// any write. User slots are named in dotted kebab, system slots <c>sys.*</c>.
 /// </summary>
-public sealed record CheckpointItem(
+public sealed record GetCheckpointsItem(
     CheckpointKindCode Kind,
     string Name,
     CheckpointStatusCode? Status,

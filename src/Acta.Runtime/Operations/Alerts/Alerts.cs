@@ -25,6 +25,6 @@ internal sealed class Alerts(
     public ValueTask<ListAlertsResponse> ListAsync(ListAlertsQuery query, CancellationToken ct = default) =>
         listAlerts.HandleAsync(query, ct);
 
-    public ValueTask<AlertDetail?> GetAsync(AlertRef alertRef, CancellationToken ct = default) =>
+    public ValueTask<GetAlertResponse?> GetAsync(AlertRef alertRef, CancellationToken ct = default) =>
         getAlert.HandleAsync(new GetAlertQuery(alertRef), ct);
 }

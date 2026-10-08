@@ -31,7 +31,7 @@ FlakyReportJob.DataSourceFixed = false;
 var outcome = await jobs.EnqueueAsync(new FlakyReport("report-1"));
 
 using var failureTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-JobDetail? snapshot;
+GetJobResponse? snapshot;
 while ((snapshot = await jobs.GetAsync(outcome, failureTimeout.Token))?.Status != JobStatusCode.Failed)
 {
     if (snapshot?.Status.IsTerminal == true)

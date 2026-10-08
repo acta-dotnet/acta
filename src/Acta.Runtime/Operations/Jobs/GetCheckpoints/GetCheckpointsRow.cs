@@ -16,7 +16,7 @@ internal sealed record GetCheckpointsRow(
     DateTime ModifiedAtUtc
 )
 {
-    public CheckpointItem ToItem() =>
+    public GetCheckpointsItem ToItem() =>
         new(
             Kind,
             Name,

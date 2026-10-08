@@ -1,4 +1,4 @@
-// Field order mirrors the server-side JobDetail record, which in turn mirrors the jobs entity and
+// Field order mirrors the server-side GetJobResponse record, which in turn mirrors the jobs entity and
 // then its runtimes row: identity, scope/routing, caller keys, input format, runtime state, audit.
 export interface JobDetail {
   jobRef: string;
