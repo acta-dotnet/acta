@@ -1,17 +1,13 @@
 namespace Acta;
 
 /// <summary>
-/// Durable payload format: the byte id and kebab-case name of an encoder pipeline. Id 0 means no
-/// payload, 1 through 127 are reserved for framework built-ins, and 128 through 255 are available for
-/// consumer-defined formats. Construction is gated through <see cref="Custom"/> (public) and
-/// <see cref="BuiltIn"/> (internal).
+/// Durable payload format: the byte id and kebab-case name of an encoder pipeline. Id 0 means no payload, 1 through
+/// 127 are reserved for framework built-ins, and 128 through 255 are available for consumer-defined formats;
+/// construction is gated through <see cref="Custom"/> (public) and <see cref="BuiltIn"/> (internal). The backing
+/// field is a nullable string so <c>default(JobPayloadFormat)</c> equals <see cref="None"/>, with <see cref="Name"/>
+/// normalizing the null to <c>"none"</c>; runtime dispatch keys on <see cref="Id"/>, and the record-struct equality
+/// exists for source-code ergonomics, not the hot path.
 /// </summary>
-/// <remarks>
-/// The backing field is a nullable string so <c>default(JobPayloadFormat)</c> is a valid value
-/// equivalent to <see cref="None"/>; <see cref="Name"/> normalizes the null backing to <c>"none"</c>
-/// at the public surface. Runtime dispatch keys on <see cref="Id"/>; the synthesised record-struct
-/// equality exists for source-code ergonomics but is not used on the hot path.
-/// </remarks>
 public readonly record struct JobPayloadFormat
 {
     public byte Id { get; }
@@ -84,16 +80,12 @@ public readonly record struct JobPayloadFormat
     public const string TextName = "text";
 
     /// <summary>
-    /// Returns the built-in <see cref="JobPayloadFormat"/> for <paramref name="id"/>, or a synthetic
-    /// <see cref="Custom"/> stand-in for ids in the consumer range (128..255) the caller hasn't
-    /// resolved through the serializer registry. Used by read paths that reconstitute a payload from a
-    /// stored format id without going through DI.
+    /// The built-in <see cref="JobPayloadFormat"/> for <paramref name="id"/>, or a synthetic <see cref="Custom"/>
+    /// stand-in for an id in the consumer range (128..255) the caller has not resolved through the serializer registry,
+    /// for read paths that reconstitute a payload from a stored id without DI. A custom format's real name needs the
+    /// registry, so the synthetic name round-trips the id and diagnostics still show the value; callers that need
+    /// the registered name use <see cref="IJobPayloadSerializerRegistry"/>.
     /// </summary>
-    /// <remarks>
-    /// Custom-range formats can't reconstitute their real name from the id alone without the
-    /// registry; the synthetic name round-trips the id so diagnostics still surface the value.
-    /// Callers that need the registered name use <see cref="IJobPayloadSerializerRegistry"/>.
-    /// </remarks>
     public static JobPayloadFormat ForId(byte id) =>
         id switch
         {

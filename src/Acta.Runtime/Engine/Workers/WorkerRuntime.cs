@@ -7,20 +7,13 @@ using Microsoft.Extensions.Options;
 namespace Acta.Runtime;
 
 /// <summary>
-/// Worker-runtime singleton. Owns everything for its namespace: catalog upsert (namespace +
-/// definitions + <c>workers</c>) in <see cref="InitializeAsync"/> (driven by the host during
-/// startup), the claim/dispatch poll loop in <see cref="RunLoopAsync"/>, the lease heartbeat, and the
-/// host-level <see cref="RunAsync"/> entry point that runs the loop and the heartbeat concurrently.
+/// Worker-runtime singleton owning everything for its namespace: the catalog upsert (namespace, definitions,
+/// <c>workers</c>) in <see cref="InitializeAsync"/>, driven by the host during startup, the claim/dispatch poll loop in
+/// <see cref="RunLoopAsync"/>, the lease heartbeat, and the host-level <see cref="RunAsync"/> that runs loop and
+/// heartbeat concurrently. A thin facade over <see cref="WorkerContext"/> (shared state), <see cref="WorkerRuntimeInitializer"/>
+/// (catalog upsert), <see cref="JobExecutor"/> with <see cref="JobExecution"/> (claimed-job execution), and
+/// <see cref="WorkerLoop"/> (the poll loop). An enqueue-only runtime skips the worker row and the loop but still bootstraps.
 /// </summary>
-/// <remarks>
-/// A thin facade over the runtime collaborators it composes from its constructor dependencies: the
-/// <see cref="WorkerContext"/> (shared state), <see cref="WorkerRuntimeInitializer"/> (catalog
-/// upsert), <see cref="JobExecutor"/> + <see cref="JobExecution"/> (claimed-job execution),
-/// and <see cref="WorkerLoop"/> (the claim/dispatch poll loop). Enqueue-only runtimes (a
-/// <c>j.Reference&lt;...&gt;(...)</c> host with no <c>j.Run&lt;...&gt;(...)</c> worker)
-/// skip the worker-row write and short-circuit the loop, but still run provider bootstraps so
-/// the schema is in place before any enqueue resolves.
-/// </remarks>
 internal sealed class WorkerRuntime
 {
     private readonly WorkerContext _context;

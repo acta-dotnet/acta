@@ -7,18 +7,10 @@ using Microsoft.Extensions.Options;
 namespace Acta;
 
 /// <summary>
-/// Entry point for wiring Acta into a DI container.
+/// Entry point for wiring Acta into a DI container: <c>services.UseActa(j =&gt; { j.UseSqlServer(...);
+/// j.Run&lt;UsersJobs&gt;("users", ownerTeam: "growth"); })</c>, where <c>UsersJobs</c> is the source-generated manifest
+/// for the project, not a class you write.
 /// </summary>
-/// <example>
-/// <code>
-/// services.UseActa(j =&gt;
-/// {
-///     j.UseSqlServer(sql =&gt; sql.ConnectionString = config.GetConnectionString("acta")!);
-///     // UsersJobs is the source-generated manifest for this project, not a class you write.
-///     j.Run&lt;UsersJobs&gt;(namespaceName: "users", ownerTeam: "growth");
-/// });
-/// </code>
-/// </example>
 public static class ActaServiceCollectionExtensions
 {
     /// <summary>Test seam: when non-null, supplies the detected CLI args instead of the process command line.</summary>

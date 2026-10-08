@@ -153,20 +153,12 @@ public readonly record struct WorkerWakeupChannel
 }
 
 /// <summary>
-/// The wake seam: a wake from a state-changing operation interrupts a waiter's sleep so the change is
-/// discovered without waiting out its poll floor. Not a message bus; a wake carries no payload ("go
-/// look") and the database row is the message. A wake never decides what runs; the waiter re-reads the
-/// database, whose claim and read paths are the sole source of truth. Channels: claim loops wait on
-/// <c>WorkerNamespace</c>, completion waiters on <c>JobCompletion</c>, and an <c>AllWorkerNamespaces</c>
-/// wake satisfies any worker-namespace wait. Each waiter keeps a poll floor
-/// (<see cref="JobsOptions.SafetyPollInterval"/> for claim loops, the caller's interval for completion
-/// waits) bounding discovery when wakes are lost. Delivery is best-effort: duplicate and missed wakes
-/// allowed, no ordering or exactly-once; <see cref="WaitAsync"/> may return spuriously, so the caller
-/// re-reads after every return. Auto-reset and coalescing: a wake with no waiter latches (on publish-
-/// allocating channels) and satisfies the next wait once; many collapse into one. Delta notifications
-/// (cache invalidation, change feeds) are out of scope. Implementations must honor the wait timeout
-/// (safety path) and avoid throwing on ordinary transport failures; Acta's publish path shields callers
-/// from non-cancellation failures, so a broken transport degrades to poll-floor latency, never failing an enqueue or control verb.
+/// The wake seam: a wake from a state-changing operation interrupts a waiter's sleep so the change is discovered
+/// without waiting out its poll floor. A wake carries no payload ("go look") and never decides what runs: the row is
+/// the message and the waiter re-reads the database. Claim loops wait on <c>WorkerNamespace</c>, completion waiters
+/// on <c>JobCompletion</c>, <c>AllWorkerNamespaces</c> satisfies any worker-namespace wait, and every waiter keeps a
+/// poll floor for lost wakes. Delivery is best-effort (duplicates, misses, spurious returns, no ordering) and
+/// coalescing (a wake with no waiter latches once); an implementation honors the wait timeout and swallows transport failures.
 /// </summary>
 public interface IWorkerWakeup
 {

@@ -3,18 +3,12 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// One schedule row in a <see cref="ISchedules.ListAsync"/> page. Expression and
-/// time zone are the effective values: the operator override when present, else the original.
+/// One schedule row in a <see cref="ISchedules.ListAsync"/> page. <c>Expression</c> and <c>TimeZoneId</c> are the
+/// effective values, the operator override when present and else the original; <c>LastRunAtUtc</c> is the most recent
+/// occurrence the schedule was advanced past, misfires included; <c>Status</c> is Active, Paused, or Orphaned, with
+/// <c>PausedUntilUtc</c> for a timed pause; <c>Version</c> is the row version a CAS control verb takes as expected;
+/// <c>JobRef</c> is the recurring slot job's public ref, null when the slot row was purged.
 /// </summary>
-/// <param name="JobScheduleId">Schedule row id.</param> <param name="JobId">Recurring slot job id.</param> <param name="DefinitionId">Catalog definition id.</param>
-/// <param name="JobNamespace">Owning namespace name.</param> <param name="JobName">Job definition name.</param> <param name="ScheduleName">Schedule name within the job.</param>
-/// <param name="Origin">How the schedule was registered.</param> <param name="ExpressionKind">Expression syntax kind.</param>
-/// <param name="Expression">Effective schedule expression.</param> <param name="TimeZoneId">Effective IANA time zone id.</param> <param name="MisfireStrategy">MisfireStrategy handling.</param>
-/// <param name="NextRunAtUtc">Next computed fire instant, or null.</param> <param name="LastRunAtUtc">Most recent occurrence this schedule was advanced past (including misfire skips), or null before the first advance.</param>
-/// <param name="Status">Lifecycle state (Active / Paused / Orphaned).</param> <param name="PausedUntilUtc">When a timed pause expires, or null.</param>
-/// <param name="CreatedAtUtc">Row insert instant.</param> <param name="ModifiedAtUtc">Last row change instant.</param>
-/// <param name="Version">Optimistic-concurrency row version; pass as the expected version to a CAS control verb.</param>
-/// <param name="JobRef">Recurring slot job's public ref, or null when the slot row was purged.</param>
 public sealed record ScheduleListItem(
     [property: JsonIgnore] long JobScheduleId,
     [property: JsonIgnore] long JobId,

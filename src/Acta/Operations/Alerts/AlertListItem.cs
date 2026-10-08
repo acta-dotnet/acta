@@ -3,21 +3,12 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// One alert row in a <see cref="IAlerts.ListAsync"/> page. Channel configuration,
-/// endpoints, and deduplication keys are delivery internals and are never exposed by list reads. JSON
-/// serialization carries the public job ref and hides the numeric job id; the ref goes null once
-/// the subject job row is purged (alerts outlive their job).
+/// One alert row in a <see cref="IAlerts.ListAsync"/> page. Channel configuration, endpoints, and deduplication keys
+/// are delivery internals, never exposed by list reads. JSON carries the public job ref and hides the numeric job id;
+/// the ref goes null once the subject job row is purged, since alerts outlive their job. <c>RetryCount</c> is the
+/// attempts spent in the current send series (a delivered send ends it), and <c>RetryAfterUtc</c> the earliest instant
+/// the alert may be sent again, the next retry while delivery is unsettled or the next reminder once settled.
 /// </summary>
-/// <param name="AlertRef">This alert's public ref.</param> <param name="AlertId">Internal alert row id.</param> <param name="JobNamespace">Owning namespace name.</param> <param name="JobId">Subject job id, or null.</param>
-/// <param name="JobRef">Subject job's public ref, or null when job-less or purged.</param>
-/// <param name="Origin">What raised the alert.</param> <param name="Severity">Alert severity.</param> <param name="Kind">Alert kind.</param>
-/// <param name="Title">Alert title.</param> <param name="Message">Alert message.</param>
-/// <param name="ChannelName">Logical delivery channel name.</param> <param name="OccurrenceCount">Deduplicated occurrence count.</param>
-/// <param name="ResolvedAtUtc">When the alert resolved, or null while open.</param> <param name="DeliveryStatus">Delivery pipeline status.</param>
-/// <param name="RetryCount">Attempts spent in the current send series; a delivered send ends the series and resets it.</param>
-/// <param name="RetryAfterUtc">Earliest instant this alert may be sent again - the next retry while delivery is unsettled, the next reminder once it has settled - or null when nothing is scheduled.</param>
-/// <param name="CreatedAtUtc">Row insert instant.</param> <param name="ModifiedAtUtc">Last row change instant.</param>
-/// <param name="AcknowledgedAtUtc">When the alert was acknowledged, or null while open.</param>
 public sealed record AlertListItem(
     AlertRef AlertRef,
     [property: JsonIgnore] long AlertId,

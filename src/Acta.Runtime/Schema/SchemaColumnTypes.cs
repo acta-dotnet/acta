@@ -50,20 +50,13 @@ internal enum DbKind
 }
 
 /// <summary>
-/// Provider-portable default-value selector for <see cref="DbColumnAttribute.Default"/>. The framework
-/// renders the provider-native DEFAULT clause from this value; consumer code never writes the literal SQL.
+/// Provider-portable default-value selector for <see cref="DbColumnAttribute.Default"/>; the framework renders the native
+/// DEFAULT clause. <see cref="None"/> emits none (the caller supplies the value at INSERT); <see cref="UtcNow"/> renders
+/// <c>SYSUTCDATETIME()</c> / <c>now()</c>; <see cref="Zero"/> <c>0</c>; <see cref="EmptyString"/> <c>''</c>;
+/// <see cref="NewGuid"/> <c>NEWID()</c> / <c>gen_random_uuid()</c>. Each value suits only matching <see cref="DbKind"/>s
+/// (<see cref="UtcNow"/> needs <see cref="DbKind.UtcInstant"/>), and the generator emits <c>ACTA0403</c> on a mismatch. An
+/// INSERT into a column with a non-<see cref="None"/> default must omit it from the column list and let the DEFAULT fire.
 /// </summary>
-/// <remarks>
-/// Per-value rendering (MSSQL / PostgreSQL): <see cref="None"/> emits no DEFAULT (caller supplies the
-/// value at INSERT); <see cref="UtcNow"/> renders <c>SYSUTCDATETIME()</c> / <c>now()</c>;
-/// <see cref="Zero"/> renders <c>0</c>; <see cref="EmptyString"/> renders <c>''</c>;
-/// <see cref="NewGuid"/> renders <c>NEWID()</c> / <c>gen_random_uuid()</c>.
-/// Each value is compatible only with matching <see cref="DbKind"/>s (for example <see cref="UtcNow"/>
-/// requires <see cref="DbKind.UtcInstant"/>), and the generator emits an <c>ACTA0403</c> diagnostic on a
-/// mismatch. Using an enum instead of a free-form SQL string keeps defaults provider-portable; the
-/// generator owns the grammar. Operations INSERTing a row whose columns carry a non-<see cref="None"/>
-/// default must omit those columns from the INSERT column list and let the DEFAULT fire.
-/// </remarks>
 internal enum DbDefault
 {
     /// <summary>No DEFAULT emitted. The caller must supply the value at INSERT.</summary>

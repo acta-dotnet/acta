@@ -3,21 +3,13 @@ using System.Diagnostics.CodeAnalysis;
 namespace Acta;
 
 /// <summary>
-/// Fluent builder for <see cref="JobEnqueueRequest"/> with named, validated, chainable setters. The
-/// builder produces wire-shaped requests only: no runtime dependencies, no provider coupling, and no
-/// direct reach into the durable substrate. Hand the result to <see cref="IJobs.EnqueueAsync(JobEnqueueRequest, CancellationToken)"/>.
+/// Fluent builder for <see cref="JobEnqueueRequest"/> with named, validated, chainable setters, producing wire-shaped
+/// requests only (no runtime or provider coupling) for <see cref="IJobs.EnqueueAsync(JobEnqueueRequest, CancellationToken)"/>.
+/// Validation is eager at the setter, not at <see cref="Build"/>: <see cref="ArgumentNullException"/> for nulls,
+/// <see cref="ArgumentException"/> for shape, length, or prefix violations. Tag dedup is last-write-wins in insertion
+/// order. <see cref="Build"/> is repeatable, snapshotting the fields into a fresh request each call, with
+/// <see cref="JobEnqueueRequest.Tags"/> null when no tags were added and a fresh array otherwise, never the builder's own.
 /// </summary>
-/// <remarks>
-/// Validation is eager: identifiers, lengths, and system-prefix rules are checked at the supplying
-/// call site, not at <see cref="Build"/> (<see cref="ArgumentNullException"/> for nulls,
-/// <see cref="ArgumentException"/> for shape, length, or prefix violations). Tag dedup is
-/// last-write-wins: repeated <see cref="Tag"/> calls or duplicate entries in <see cref="Tags"/> with
-/// the same name silently replace the previous value, preserving insertion order. <see cref="Build"/>
-/// is repeatable: each call snapshots the current field state into a fresh
-/// <see cref="JobEnqueueRequest"/>, so subsequent mutation cannot leak into a prior result, and the
-/// returned <see cref="JobEnqueueRequest.Tags"/> is <c>null</c> when no tags were added or a fresh
-/// <see cref="TagInput"/> array otherwise, never the builder's internal container.
-/// </remarks>
 public sealed class JobRequestBuilder
 {
     private readonly string _jobNamespace;

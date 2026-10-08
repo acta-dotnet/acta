@@ -3,14 +3,12 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// Read projection of a Job row exposed by <c>IJobs.GetAsync</c>: identity, linkage, status,
-/// scheduling, leasing, retention, and input format. The input payload itself is never returned.
-/// Property order mirrors the <c>jobs</c> entity (identity, scope/routing, caller keys, input) and
-/// then its 1:1 <c>runtimes</c> row, so the shape reads in the same order as the schema; a column
-/// resolved to a public value follows the id it came from, and the created/modified pair closes the
-/// record together. JSON serialization carries the public refs and hides the numeric ids.
-/// <c>DefinitionId</c> is the surrogate for the namespace+name pair; non-null because the job
-/// row's definition_id is NOT NULL.
+/// Read projection of a Job row exposed by <c>IJobs.GetAsync</c>: identity, linkage, status, scheduling, leasing,
+/// retention, and input format; the input payload itself is never returned. Property order mirrors the <c>jobs</c>
+/// entity (identity, scope and routing, caller keys, input) and then its 1:1 <c>runtimes</c> row, so the shape reads
+/// in schema order; a column resolved to a public value follows the id it came from, and the created/modified pair
+/// closes the record. JSON carries the public refs and hides the numeric ids. <c>DefinitionId</c> is the surrogate
+/// for the namespace+name pair, non-null because the row's definition_id is NOT NULL.
 /// </summary>
 public sealed record JobDetail(
     [property: JsonIgnore] long JobId,

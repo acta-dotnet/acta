@@ -1,17 +1,13 @@
 namespace Acta;
 
 /// <summary>
-/// Await-to-completion outcome returned by <see cref="IJobs.RunAndWaitAsync{TInput}"/>. Carries the
-/// terminal outcome (<c>Succeeded</c>, <c>Failed</c>, or <c>Cancelled</c>) plus the wait-timeout flag; it is
-/// returned, never thrown.
+/// Await-to-completion outcome returned by <see cref="IJobs.RunAndWaitAsync{TInput}"/>: the terminal outcome
+/// (<c>Succeeded</c>, <c>Failed</c>, or <c>Cancelled</c>) plus the wait-timeout flag; returned, never thrown.
+/// Construction is gated to the framework (private-protected constructor, internal factories) so no caller can
+/// synthesise an inconsistent <c>(TerminalStatus, IsTimedOut)</c> pair. The terminal cause is not carried here; read
+/// it from the Job's event timeline. <c>JobResult</c> names the durable payload entity (<c>acta.results</c>), so this
+/// wire-return type is <c>JobOutcome</c>.
 /// </summary>
-/// <remarks>
-/// Construction is gated to the framework (private-protected constructor, internal static factories)
-/// so callers cannot synthesise an inconsistent <c>(TerminalStatus, IsTimedOut)</c> combination. The
-/// terminal cause is not carried here; read it from the Job's event timeline. The name <c>JobResult</c>
-/// identifies the durable payload entity (table <c>acta.results</c>); this wire-return type is
-/// <c>JobOutcome</c>.
-/// </remarks>
 public class JobOutcome
 {
     private protected JobOutcome(long jobId, JobStatusCode terminalStatus, bool isTimedOut)

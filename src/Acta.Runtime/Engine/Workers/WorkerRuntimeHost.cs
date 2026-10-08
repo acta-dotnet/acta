@@ -5,18 +5,13 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Acta.Runtime;
 
 /// <summary>
-/// Process-level <see cref="BackgroundService"/>. Runs provider bootstrap exactly once (driver and schema
-/// preflight, then migrations) and every worker's <see cref="WorkerRuntime.InitializeAsync"/> during startup,
-/// then runs every registered worker's <see cref="WorkerRuntime.RunAsync"/> concurrently under the host stopping token.
+/// Process-level <see cref="BackgroundService"/>: runs provider bootstrap exactly once and every worker's
+/// <see cref="WorkerRuntime.InitializeAsync"/> during startup, then every registered worker's
+/// <see cref="WorkerRuntime.RunAsync"/> concurrently under the host stopping token. <see cref="WorkerRuntimeStartup"/>
+/// runs in <see cref="StartAsync"/>, before host startup completes, rather than in the background loop, so anything
+/// that runs after this service starts (subsequent <c>IHostedService</c>s, a caller that awaited <c>host.StartAsync()</c>)
+/// finds the schema and definitions before it enqueues; an enqueue-only process still bootstraps, then idles.
 /// </summary>
-/// <remarks>
-/// <see cref="WorkerRuntimeStartup"/> runs in <see cref="StartAsync"/> (once per process, before host
-/// startup completes) rather than inside the background loop, so anything that runs after this service
-/// starts (subsequent <c>IHostedService</c>s, a caller that <c>await host.StartAsync()</c>) is
-/// guaranteed the schema and this process's definitions exist before it enqueues (no startup race).
-/// An enqueue-only process registers no workers: bootstrap still runs so the catalog exists, then the
-/// host idles until shutdown.
-/// </remarks>
 internal sealed class WorkerRuntimeHost(
     IEnumerable<WorkerRuntime> runtimes,
     IEnumerable<IProviderBootstrap> bootstraps,
@@ -53,15 +48,12 @@ internal sealed class WorkerRuntimeHost(
     }
 
     /// <summary>
-    /// Graceful drain on stop: each runtime stops claiming new work and stamps <c>Draining</c> (via the
-    /// heartbeat), the heartbeat holds in-flight leases while handlers run to completion, then once every
-    /// runtime reports no in-flight work the base <see cref="BackgroundService"/> cancels
-    /// <see cref="ExecuteAsync"/> and each worker is stamped <c>Stopped</c>. The in-flight wait is bounded by
-    /// the host's shutdown token (<c>HostOptions.ShutdownTimeout</c>); if it elapses, the base stop cancels
-    /// the stragglers and <c>sys.recovery</c> reclaims them. Draining and Stopped writes run concurrently
-    /// under a short timeout linked to that same host deadline; a per-runtime failure is logged and never
-    /// blocks the others. A hard kill skips this path entirely, and <c>mark_dead_workers</c> then reaps the
-    /// worker as Dead.
+    /// Graceful drain on stop: each runtime stops claiming and stamps <c>Draining</c> via the heartbeat, which holds
+    /// in-flight leases while handlers run to completion; once every runtime reports no in-flight work the base
+    /// <see cref="BackgroundService"/> cancels <see cref="ExecuteAsync"/> and each worker is stamped <c>Stopped</c>. The
+    /// in-flight wait is bounded by the host's shutdown token (<c>HostOptions.ShutdownTimeout</c>); past it the base
+    /// stop cancels the stragglers and <c>sys.recovery</c> reclaims them. The Draining and Stopped writes share a short
+    /// timeout on that deadline and a failed one never blocks the others; a hard kill skips this path, and the worker is reaped Dead.
     /// </summary>
     public override async Task StopAsync(CancellationToken cancellationToken)
     {

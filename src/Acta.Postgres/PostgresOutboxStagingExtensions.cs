@@ -6,13 +6,12 @@ using NpgsqlTypes;
 namespace Acta.Postgres;
 
 /// <summary>
-/// Transactional external-outbox staging for PostgreSQL producers. Validates a <see cref="JobEnqueueRequest"/>
-/// through the shared staging core and executes one canonical <c>acta_outbox</c> INSERT on the caller's own
-/// open <see cref="NpgsqlTransaction"/>, so the outbox row commits or rolls back with the producer's own
-/// business writes. Zero configuration: no dependency injection, no <c>AddActa</c>, no ledger connection;
-/// reference the package, write <c>using Acta;</c>, and call the extension. The database defaults populate
-/// the operational columns (<c>created_at_utc</c>, <c>status_code</c>, <c>failure_count</c>,
-/// <c>next_attempt_at_utc</c>); the worker-side relay drains the table.
+/// Transactional external-outbox staging for PostgreSQL producers: validates a <see cref="JobEnqueueRequest"/>
+/// through the shared staging core and executes one canonical <c>acta_outbox</c> INSERT on the caller's own open
+/// <see cref="NpgsqlTransaction"/>, so the outbox row commits or rolls back with the producer's business writes. Zero
+/// configuration: no dependency injection, no <c>AddActa</c>, no ledger connection; reference the package, write
+/// <c>using Acta;</c>, and call the extension. The database defaults populate the operational columns
+/// (<c>created_at_utc</c>, <c>status_code</c>, <c>failure_count</c>, <c>next_attempt_at_utc</c>); the relay drains the table.
 /// </summary>
 public static class PostgresOutboxStagingExtensions
 {

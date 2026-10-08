@@ -5,13 +5,11 @@ using Microsoft.Extensions.Options;
 namespace Acta.Runtime;
 
 /// <summary>
-/// Renews the handler-acquired locks (<c>RunWithLock</c> and the concurrency slot) running attempts
-/// hold, through <see cref="Locks"/>, on its own loop - separate from the worker heartbeat so a lock
-/// outage and a worker-lease outage are told apart. Each
-/// tick feeds a still-held lock's deadline on a confirmed extend and cancels the attempt when a still-held
-/// lock is definitively lost (<see cref="Locks.ExtendLockAsync"/> returns <c>false</c>); an uncertain
-/// extend (exception/timeout) feeds nothing, left to the <see cref="AttemptWatchdog"/>. A no-op in
-/// enqueue-only mode.
+/// Renews the handler-acquired locks (<c>RunWithLock</c> and the concurrency slot) running attempts hold, through
+/// <see cref="Locks"/>, on its own loop, separate from the worker heartbeat so a lock outage and a worker-lease outage
+/// are told apart. Each tick feeds a still-held lock's deadline on a confirmed extend and cancels the attempt when a
+/// still-held lock is definitively lost (<see cref="Locks.ExtendLockAsync"/> returns <c>false</c>); an uncertain extend
+/// (exception, timeout) feeds nothing and is left to the <see cref="AttemptWatchdog"/>. A no-op in enqueue-only mode.
 /// </summary>
 internal sealed class LockLeaseHeartbeat(
     Locks locks,

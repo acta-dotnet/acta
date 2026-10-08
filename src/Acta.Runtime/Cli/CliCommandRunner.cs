@@ -225,14 +225,12 @@ internal sealed class CliCommandRunner(
     }
 
     /// <summary>
-    /// Runs an existing job in this process for debugging: initializes the owning worker's catalog,
-    /// resets a non-Ready job via restart semantics (a laned job restarted Blocked is reported, not run),
-    /// then claims exactly
-    /// that id and dispatches through the normal runner pipeline. Only this one job runs: the
-    /// worker's normal claim loop is never started, so no other jobs are claimed or executed in this
-    /// process during the run. A live worker stealing the row between reset and claim surfaces as not
-    /// claimable; the race is accepted. The exit code reflects the attempt: a thrown handler counts
-    /// as failed even when the retry budget re-arms the job.
+    /// Runs an existing job in this process for debugging: initializes the owning worker's catalog, resets a non-Ready
+    /// job via restart semantics (a laned job restarted Blocked is reported, not run), then claims exactly that id and
+    /// dispatches through the normal runner pipeline. Only this one job runs: the worker's claim loop never starts,
+    /// so nothing else is claimed or executed. A live worker stealing the row between reset and claim surfaces as not
+    /// claimable; the race is accepted. The exit code reflects the attempt: a thrown handler counts as failed even
+    /// when the retry budget re-arms the job.
     /// </summary>
     private async Task<int> DebugAsync(JobDetail snapshot, bool json, bool breakAtHandler, CancellationToken ct)
     {

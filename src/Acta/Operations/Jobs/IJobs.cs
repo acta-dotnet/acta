@@ -3,21 +3,13 @@ using System.Data.Common;
 namespace Acta;
 
 /// <summary>
-/// Jobs facade: enqueue (single and batch), a read surface (resolve, get, status, result), and the
-/// lifecycle and signal control verbs. Same-process and cross-process callers both reach the durable
-/// substrate through this seam.
+/// Jobs facade: enqueue (single and batch), reads (resolve, get, status, result), and the lifecycle and signal control
+/// verbs. No out-of-handler alert verb: alerts come from <c>ctx.AlertAsync</c> and the automatic failure alerts. The
+/// job control verbs take an optional expectedVersion where the catalog controls require one: each is a status-conditional
+/// transition an operator fires by hand against a moving job, and a required token on a row that changes every few
+/// seconds would turn "pause it" into a retry loop. Null writes unconditionally, serialized and audited; a caller
+/// passing <see cref="JobDetail.Version"/> gets <see cref="ControlAction.VersionConflict"/>, not a lost update.
 /// </summary>
-/// <remarks>
-/// There is deliberately no out-of-handler alert verb here: alerts are raised in-handler via
-/// <c>ctx.AlertAsync</c> and by the framework's automatic failure alerts, keeping the operator
-/// surface minimal. The job control verbs (cancel, pause, resume, restart, reschedule, reprioritize)
-/// take an optional expectedVersion, unlike the definition, schedule, tenant, and namespace controls
-/// whose token is mandatory: each is a status-conditional transition an operator must be able to fire
-/// by hand against a moving job, and a required token on a row that changes every few seconds would
-/// turn "pause it" into a retry loop. Null, the default, writes unconditionally; two such operators
-/// are serialized by the store and both audited, and the last transition wins. A caller holding a
-/// <see cref="JobDetail.Version"/> passes it instead and gets a <see cref="ControlAction.VersionConflict"/> carrying the current version, not a lost update.
-/// </remarks>
 public interface IJobs
 {
     /// <summary>
@@ -140,18 +132,12 @@ public interface IJobs
     );
 
     /// <summary>
-    /// Transactional twin of <see cref="EnqueueAsync(JobEnqueueRequest, CancellationToken)"/>:
-    /// inserts the job through the caller's already-started <paramref name="transaction"/>, so a
-    /// same-database business mutation and the enqueue share one commit outcome. The rules here
-    /// hold for every transactional twin below. The caller owns the transaction lifecycle; Acta
-    /// never opens, commits, rolls back, disposes, or independently retries it. Unlike the
-    /// Acta-owned path these publish NO worker wakeup - normal polling is the pickup path, since
-    /// Acta cannot know whether or when the caller commits. The returned
-    /// <see cref="JobEnqueueResponse"/> is provisional until the caller commits; a rollback means
-    /// that identity never became durable. Any transactional-enqueue exception requires the caller
-    /// to roll back the complete business transaction. There is deliberately no transactional
-    /// <c>RunAndWaitAsync</c>: the job is invisible to other connections until commit, so waiting
-    /// inside would be misleading.
+    /// Transactional twin of <see cref="EnqueueAsync(JobEnqueueRequest, CancellationToken)"/>: inserts the job through
+    /// the caller's open <paramref name="transaction"/>, so a same-database business mutation and the enqueue share one
+    /// commit. The rules hold for every transactional twin below: the caller owns the transaction (Acta never opens,
+    /// commits, rolls back, disposes, or retries it); no worker wakeup is published, since Acta cannot know when the
+    /// caller commits; the <see cref="JobEnqueueResponse"/> is provisional until commit, and any exception means rolling
+    /// back the whole business transaction. No transactional <c>RunAndWaitAsync</c>: the job is invisible until commit.
     /// </summary>
     ValueTask<JobEnqueueResponse> EnqueueAsync(DbTransaction transaction, JobEnqueueRequest request, CancellationToken ct = default);
 
@@ -306,14 +292,12 @@ public interface IJobs
     ValueTask<TResult?> GetResultAsync<TResult>(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
-    /// Cancel the job identified by <paramref name="job"/>: any non-terminal status moves to
-    /// <c>Cancelled</c>, and the cancel cascades recursively to the job's non-terminal descendant
-    /// subtree (descendants land <c>Cancelled</c> with <c>reason = ParentCancelled</c>). Stamps
-    /// <c>actor = Operator</c>, <c>reason = ControlManual</c> on the target;
-    /// <paramref name="reasonMessage"/> is persisted on the row and the audit event. <paramref name="actorKey"/> is
-    /// recorded on the audit event as the operator identity (e.g. the authenticated principal name); null when
-    /// unknown. An already-terminal job is <see cref="ControlAction.Rejected"/>; a missing job is
-    /// <see cref="ControlAction.NotFound"/>.
+    /// Cancel the job identified by <paramref name="job"/>: any non-terminal status moves to <c>Cancelled</c>, and the
+    /// cancel cascades to the job's non-terminal descendant subtree (<c>reason = ParentCancelled</c>). Stamps
+    /// <c>actor = Operator</c>, <c>reason = ControlManual</c> on the target; <paramref name="reasonMessage"/> is
+    /// persisted on the row and the audit event, and <paramref name="actorKey"/> is recorded on the audit event as the
+    /// operator identity (the authenticated principal name; null when unknown). An already-terminal job is
+    /// <see cref="ControlAction.Rejected"/>; a missing job is <see cref="ControlAction.NotFound"/>.
     /// </summary>
     ValueTask<CancelJobResponse> CancelAsync(
         JobLookup job,
@@ -324,13 +308,12 @@ public interface IJobs
     );
 
     /// <summary>
-    /// Pause the job identified by <paramref name="job"/>: a job at or before <c>Ready</c> moves to
-    /// <c>Paused</c>. Stamps <c>actor = Operator</c>, <c>reason = ControlManual</c>;
-    /// <paramref name="reasonMessage"/> is persisted on the row and the audit event. <paramref name="actorKey"/> is
-    /// recorded on the audit event as the operator identity (e.g. the authenticated principal name); null when
-    /// unknown. A running or terminal job is <see cref="ControlAction.Rejected"/>. <see
-    /// cref="RescheduleAsync"/> re-arms a <c>Paused</c> job to <c>Ready</c>, a documented path out of
-    /// <c>Paused</c>.
+    /// Pause the job identified by <paramref name="job"/>: a job at or before <c>Ready</c> moves to <c>Paused</c>.
+    /// Stamps <c>actor = Operator</c>, <c>reason = ControlManual</c>; <paramref name="reasonMessage"/> is persisted on
+    /// the row and the audit event, and <paramref name="actorKey"/> is recorded on the audit event as the operator
+    /// identity (the authenticated principal name; null when unknown). A running or terminal job is
+    /// <see cref="ControlAction.Rejected"/>. <see cref="RescheduleAsync"/> re-arms a <c>Paused</c> job to
+    /// <c>Ready</c>, the documented path out of <c>Paused</c>.
     /// </summary>
     ValueTask<PauseJobResponse> PauseAsync(
         JobLookup job,
@@ -356,15 +339,12 @@ public interface IJobs
     );
 
     /// <summary>
-    /// Restart the job identified by <paramref name="job"/>: any status except <c>Executing</c> moves
-    /// to <c>Ready</c> to run now. Resets the failure budget and clears the retention deadline; the
-    /// attempt counter is unchanged. Stamps <c>actor = Operator</c>, <c>reason = ControlManual</c>;
-    /// <paramref name="reasonMessage"/> is recorded on the audit event only. <paramref name="actorKey"/> is
-    /// recorded on the audit event as the operator identity (e.g. the authenticated principal name); null when
-    /// unknown. An executing job is <see cref="ControlAction.Rejected"/>.
-    /// A laned job restarts in place under its lane's lock: <c>Blocked</c> instead of <c>Ready</c> while
-    /// another member of the lane runs, or an older one is unfinished. Once the lane moves on it runs before
-    /// the members that were already waiting, because promotion takes the lowest-id member.
+    /// Restart the job identified by <paramref name="job"/>: any status except <c>Executing</c> moves to <c>Ready</c>
+    /// to run now, with the failure budget reset, the retention deadline cleared, and the attempt counter unchanged.
+    /// Stamps <c>actor = Operator</c>, <c>reason = ControlManual</c>; <paramref name="reasonMessage"/> and
+    /// <paramref name="actorKey"/> (the operator identity; null when unknown) go on the audit event only. An executing
+    /// job is <see cref="ControlAction.Rejected"/>. A laned job restarts in place under its lane's lock, <c>Blocked</c>
+    /// while another member runs or an older one is unfinished, then runs first, since promotion takes the lowest id.
     /// </summary>
     ValueTask<RestartJobResponse> RestartAsync(
         JobLookup job,
@@ -409,15 +389,12 @@ public interface IJobs
     );
 
     /// <summary>
-    /// Amend the stored input payload of the job identified by <paramref name="job"/>. Allowed in any
-    /// status except <c>Dispatched</c>/<c>Executing</c> (a mid-flight handler may already have read the
-    /// input); an in-flight job is <see cref="ControlAction.Rejected"/> and a missing job is
-    /// <see cref="ControlAction.NotFound"/>. On success the job's input and format are replaced and
-    /// the transition is audited (job.input-amended); the event detail carries bounded metadata about
-    /// the previous payload (format name and byte count), never the payload itself, so the amended-away
-    /// value cannot outlive the job's payload retention. <paramref name="reasonMessage"/> is recorded on the
-    /// audit event and <paramref name="actorKey"/> is recorded on the audit event as the operator
-    /// identity (e.g. the authenticated principal name); null when unknown.
+    /// Amend the stored input payload of the job identified by <paramref name="job"/>, in any status except
+    /// <c>Dispatched</c> and <c>Executing</c>, where a handler may already have read it: an in-flight job is
+    /// <see cref="ControlAction.Rejected"/>, a missing one <see cref="ControlAction.NotFound"/>. On success the input
+    /// and format are replaced and the transition is audited (<c>job.input-amended</c>); the event detail carries the
+    /// previous payload's format name and byte count, never the payload, so the amended-away value cannot outlive the
+    /// job's payload retention. <paramref name="reasonMessage"/> and <paramref name="actorKey"/> go on the audit event.
     /// </summary>
     ValueTask<UpdateJobInputResponse> UpdateJobInputAsync(
         JobLookup job,
@@ -428,17 +405,12 @@ public interface IJobs
     );
 
     /// <summary>
-    /// Hard-delete the terminal job identified by <paramref name="job"/>: deletes its <c>events</c>
-    /// and <c>alerts</c> rows, then the job row itself (CASCADEs to its
-    /// runtime/schedule/step/result/checkpoint/tag rows). Only a terminal job (<c>Succeeded</c>/<c>Failed</c>/
-    /// <c>Cancelled</c>) may be purged; a non-terminal job is <see cref="ControlAction.Rejected"/>, and
-    /// so is a terminal job that has child jobs (deleting it would orphan the child's lineage - <c>parent_id</c>
-    /// carries no DB cascade), and so is a child whose parent is not terminal, because the parent's replay
-    /// dedupes onto that child and reads its result. Always emits <c>job.purged</c> (not audit-gated), with <c>job_id</c>/<c>job_ref</c>
-    /// null on that row and the purged job's ref and name recorded on its <c>ReasonMessage</c> instead.
-    /// <paramref name="actorKey"/> is recorded on the audit event as the operator identity (e.g. the
-    /// authenticated principal name); null when unknown. Unlike the other control verbs there is no
-    /// caller reason message: purge carries no context beyond the audit trail itself.
+    /// Hard-delete the terminal job identified by <paramref name="job"/>: its <c>events</c> and <c>alerts</c> rows,
+    /// then the job row, which cascades to its runtime, schedule, step, result, checkpoint, and tag rows. A
+    /// non-terminal job is <see cref="ControlAction.Rejected"/>, and so is a terminal job with children (deleting it
+    /// would orphan their lineage; <c>parent_id</c> has no cascade) or a child whose parent is not terminal (the
+    /// parent's replay dedupes onto it and reads its result). Always emits <c>job.purged</c>, with a null job and the
+    /// purged ref and name on its <c>ReasonMessage</c>, stamped <paramref name="actorKey"/>; there is no caller reason.
     /// </summary>
     ValueTask<PurgeJobResponse> PurgeAsync(JobLookup job, string? actorKey = null, CancellationToken ct = default);
 
@@ -459,12 +431,11 @@ public interface IJobs
 
     /// <summary>
     /// Pre-formed-payload variant of
-    /// <see cref="RaiseSignalAsync(JobLookup, string, JobPayload, string?, CancellationToken)"/>. Stores
-    /// <paramref name="value"/> on the slot verbatim under its <c>Format</c>; a handler reads it via
-    /// <c>ctx.WaitSignalAsync&lt;T&gt;(name)</c>. <see cref="JobPayload.None"/> raises a presence-only
-    /// signal. The HTTP signal endpoint uses this overload to pass a request body through as a JSON
-    /// payload without binding the handler's type. <paramref name="actorKey"/> is recorded on the audit event
-    /// as the operator identity (e.g. the authenticated principal name); null when unknown.
+    /// <see cref="RaiseSignalAsync(JobLookup, string, JobPayload, string?, CancellationToken)"/>: stores
+    /// <paramref name="value"/> on the slot verbatim under its <c>Format</c>, read by
+    /// <c>ctx.WaitSignalAsync&lt;T&gt;(name)</c>; <see cref="JobPayload.None"/> raises a presence-only signal. The HTTP
+    /// signal endpoint uses it to pass a request body through as JSON without binding the handler's type.
+    /// <paramref name="actorKey"/> is recorded on the audit event as the operator identity; null when unknown.
     /// </summary>
     ValueTask<RaiseSignalResponse> RaiseSignalAsync(
         JobLookup job,

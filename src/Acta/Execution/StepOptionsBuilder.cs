@@ -1,15 +1,12 @@
 namespace Acta;
 
 /// <summary>
-/// Fluent override builder handed to the <c>ctx.RunStepAsync</c> <c>configure</c> callback. Each
-/// setter records a single partial override; unset fields inherit the parent <c>[Job]</c> retry
-/// policy. Validation is eager (at the setter), and the last write per field wins.
+/// Fluent override builder handed to the <c>ctx.RunStepAsync</c> <c>configure</c> callback: each setter records one
+/// partial override, unset fields inherit the parent <c>[Job]</c> retry policy, validation is eager at the setter,
+/// and the last write per field wins. Durations take <see cref="TimeSpan"/>, rounding sub-second values up to whole
+/// seconds, the persisted precision. The framework constructs the builder, runs the callback, then snapshots it via
+/// <see cref="Build"/>; callers never construct it or call <see cref="Build"/>.
 /// </summary>
-/// <remarks>
-/// Durations take <see cref="TimeSpan"/>; sub-second values round up to whole seconds (the persisted
-/// precision). The framework constructs the builder, runs the caller's callback, then snapshots it via
-/// <see cref="Build"/>; callers never construct or call <see cref="Build"/> directly.
-/// </remarks>
 public sealed class StepOptionsBuilder
 {
     private int? _maxAttempts;
@@ -100,21 +97,13 @@ public sealed class StepOptionsBuilder
     }
 
     /// <summary>
-    /// Runs the step body <b>at most once</b>: zero or one invocation, never retried. If the worker dies
-    /// after the framework durably records the step start but before recording the outcome, replay does
-    /// <em>not</em> re-run the body: the step becomes terminal <c>Interrupted</c> and
-    /// <c>ctx.RunStepAsync</c> throws <see cref="StepInterruptedException"/>. Use for non-idempotent side
-    /// effects (charge a card, send an email) where a double execution is worse than a skipped one; the
-    /// handler must reconcile the ambiguous outcome against the external system.
+    /// Runs the step body at most once: zero or one invocation, never retried, for non-idempotent effects (charge a
+    /// card, send an email) where a double execution is worse than a skipped one. If the worker dies after the step
+    /// start is recorded but before the outcome, replay does not re-run the body: the step becomes terminal
+    /// <c>Interrupted</c>, <c>ctx.RunStepAsync</c> throws <see cref="StepInterruptedException"/>, and the handler
+    /// reconciles against the external system. Any retry setting other than <c>MaxAttempts(1)</c> makes <see cref="Build"/>
+    /// throw, in either order; the policy is read from handler code on replay, so switching it mid-flight reinterprets pending steps.
     /// </summary>
-    /// <remarks>
-    /// Incompatible with retries by definition: any retry configuration other than <c>MaxAttempts(1)</c>
-    /// (a non-1 <see cref="MaxAttempts"/>, or any <see cref="Backoff(string)"/> / <see cref="WithPolicy(Acta.Backoff)"/> /
-    /// <see cref="RetryWindow"/> override) makes <see cref="Build"/> throw, in either call order.
-    /// The policy is resolved from the current handler code on replay (not persisted per step row), so
-    /// changing a step to or from <c>AtMostOnce()</c> while jobs are in flight may reinterpret a step
-    /// that is already pending.
-    /// </remarks>
     public StepOptionsBuilder AtMostOnce()
     {
         _atMostOnce = true;

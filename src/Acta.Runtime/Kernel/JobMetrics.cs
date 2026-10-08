@@ -4,17 +4,13 @@ using System.Diagnostics.Metrics;
 namespace Acta.Runtime;
 
 /// <summary>
-/// Owns the <c>Acta</c> meter and its instruments. A process-wide singleton: the runtime emits
-/// one execution measurement per durable completion in <see cref="Acta.Runtime.ExecutionCompletion"/>, one claim
-/// measurement per claim attempt in <see cref="Acta.Runtime.JobExecutor"/>, and observes the live in-flight count.
-/// Counters are additive: the backend aggregates and slices by tag, so no running totals are kept
-/// in process.
+/// Owns the <c>Acta</c> meter and its instruments, a process-wide singleton: one execution measurement per durable
+/// completion in <see cref="Acta.Runtime.ExecutionCompletion"/>, one claim measurement per claim attempt in
+/// <see cref="Acta.Runtime.JobExecutor"/>, and the live in-flight count. Counters are additive, so no running totals
+/// are kept in process. Tag keys and values are the operator-facing metric surface, pinned by <c>JobMetricsTests</c>
+/// and kept low-cardinality (namespace, job_name, outcome, reason_code, result); the unbounded job id and execution
+/// number stay off metrics and live on the logging scope and traces instead.
 /// </summary>
-/// <remarks>
-/// Tag keys and values are the operator-facing metric surface, pinned by <c>JobMetricsTests</c>. Tags
-/// are kept low-cardinality (namespace / job_name / outcome / reason_code / result); the unbounded job
-/// id and execution number stay off metrics and live on the logging scope and traces instead.
-/// </remarks>
 internal sealed class JobMetrics : IDisposable
 {
     public const string MeterName = "Acta";

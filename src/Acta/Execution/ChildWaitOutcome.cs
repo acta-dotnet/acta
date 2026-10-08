@@ -1,17 +1,13 @@
 namespace Acta;
 
 /// <summary>
-/// Outcome of a bounded <c>ctx.TryWaitChildAsync(childJobId, timeout)</c>: either the child reached a
-/// terminal status first (<see cref="Completed"/>, carrying its <see cref="Outcome"/>) or the wait
-/// re-entered its latch past the stored expiration with nothing landed and settled it <c>Expired</c>
-/// (<see cref="TimedOut"/>). Returned, never thrown.
+/// Outcome of a bounded <c>ctx.TryWaitChildAsync(childJobId, timeout)</c>: either the child reached a terminal status
+/// first (<see cref="Completed"/>, carrying its <see cref="Outcome"/>) or the wait re-entered its latch past the stored
+/// expiration with nothing landed and settled it <c>Expired</c> (<see cref="TimedOut"/>). Returned, never thrown. A
+/// child timeout never cancels the parent: the parent resumes and may compensate, retry with a new child, or cancel
+/// itself, and Acta cancels the timed-out child and its subtree before the handler resumes. Construction is gated to
+/// the framework (private constructor, internal factories), so no caller can synthesise both completed and timed out.
 /// </summary>
-/// <remarks>
-/// A child timeout never cancels the parent: the parent resumes and may compensate, retry with a new
-/// child, or cancel itself. Acta cancels the timed-out child and its descendant subtree before the
-/// handler resumes. Construction is gated to the framework (private constructor, internal factories)
-/// so a caller cannot synthesise a result that both completed and timed out.
-/// </remarks>
 public sealed record ChildWaitOutcome
 {
     private ChildWaitOutcome(long childJobId, ChildJobOutcome? outcome)

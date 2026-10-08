@@ -1,15 +1,12 @@
 namespace Acta.Runtime;
 
 /// <summary>
-/// Builds the per-attempt logging-scope state. <see cref="JobExecutor"/> opens it once around an
-/// attempt so every framework and handler log line emitted while the job runs carries the job
-/// identity. Because loggers from one factory share an external scope provider, opening the scope on
-/// the runtime logger also stamps the handler's own <c>ILogger&lt;T&gt;</c> output.
+/// Builds the per-attempt logging-scope state. <see cref="JobExecutor"/> opens it once around an attempt so every
+/// framework and handler log line emitted while the job runs carries the job identity; loggers from one factory share
+/// an external scope provider, so opening the scope on the runtime logger also stamps the handler's own
+/// <c>ILogger&lt;T&gt;</c> output. The key strings are the operator-facing log property names a structured-log query
+/// filters on, pinned by <c>JobLogScopeTests</c>.
 /// </summary>
-/// <remarks>
-/// The key strings are the operator-facing log property names, the same contract a structured-log
-/// query filters on, so they are pinned by <c>JobLogScopeTests</c>.
-/// </remarks>
 internal static class JobLogScope
 {
     public static IReadOnlyList<KeyValuePair<string, object>> For(

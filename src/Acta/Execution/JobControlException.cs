@@ -1,32 +1,22 @@
 namespace Acta;
 
 /// <summary>
-/// Base for non-error control-flow signals a handler raises to steer its own scheduling. The host
-/// catches the base type and translates the concrete signal into a scheduler action (re-arm, suspend)
-/// without charging the failure budget.
+/// Base for the non-error control-flow signals a handler raises to steer its own scheduling: the host catches the
+/// base type and translates the concrete signal into a scheduler action (re-arm, suspend) without charging the
+/// failure budget, and <paramref name="message"/> flows into the re-arm reason. Do not catch it in user code:
+/// swallowing it turns a deliberate reschedule, sleep, or termination into a silent fall-through. The family is
+/// closed to the framework; its public members are <see cref="RescheduleJobException"/> and the
+/// <see cref="HandlerControlException"/> family.
 /// </summary>
-/// <remarks>
-/// Do not catch this in user code: swallowing it converts a deliberate reschedule / sleep / handler
-/// termination into a silent fall-through. The family is closed to the framework; its public members
-/// are <see cref="RescheduleJobException"/> and the <see cref="HandlerControlException"/> family.
-/// </remarks>
-/// <remarks>
-/// Initializes the signal with an operator-readable <paramref name="message"/> that flows into the
-/// re-arm reason.
-/// </remarks>
 public abstract class JobControlException(string? message) : Exception(message) { }
 
 /// <summary>
-/// Re-arms the current Job to <c>Ready</c> with a forward-dated <c>NextRunAtUtc</c> and stops the
-/// attempt without charging the failure budget. Throw it directly, or call
-/// <c>ctx.RescheduleAsync</c> / <c>ctx.RescheduleUntilAsync</c>, which throw it for you.
+/// Re-arms the current Job to <c>Ready</c> with a forward-dated <c>NextRunAtUtc</c> and stops the attempt without
+/// charging the failure budget; throw it directly, or call <c>ctx.RescheduleAsync</c> / <c>ctx.RescheduleUntilAsync</c>,
+/// which throw it for you. Exactly one of <see cref="Delay"/> and <see cref="ResumeAtUtc"/> is set, and the host
+/// computes the due instant in <c>complete_execution</c> from DB UTC time: a delay becomes <c>db_now + delay</c>, an
+/// absolute instant is used verbatim, and a past one re-arms as immediately claimable.
 /// </summary>
-/// <remarks>
-/// The host computes the actual due instant in <c>complete_execution</c> from DB UTC time: a relative
-/// <see cref="Delay"/> becomes <c>db_now + delay</c>; an absolute <see cref="ResumeAtUtc"/> is used
-/// verbatim (a past instant simply re-arms as immediately claimable). Exactly one of
-/// <see cref="Delay"/> / <see cref="ResumeAtUtc"/> is set.
-/// </remarks>
 public sealed class RescheduleJobException : JobControlException
 {
     /// <summary>
@@ -56,19 +46,13 @@ public sealed class RescheduleJobException : JobControlException
 }
 
 /// <summary>
-/// Base for the deliberate handler-control terminations <c>ctx.FailAsync</c>, <c>ctx.CancelAsync</c>,
-/// and <c>ctx.PauseAsync</c>. Each stops the current attempt with an intended target Status and an
-/// optional operator-readable <see cref="ReasonMessage"/>, without charging the failure budget and
-/// without being recorded as an unhandled exception.
-/// </summary>
-/// <remarks>
-/// Unlike a thrown exception (a crash), these are intentional domain decisions: the host catches the
-/// concrete type and routes it through <c>complete_execution</c> to the matching terminal/hold Status.
+/// Base for the deliberate handler-control terminations <c>ctx.FailAsync</c>, <c>ctx.CancelAsync</c>, and
+/// <c>ctx.PauseAsync</c>: each stops the current attempt with an intended target Status and an optional
+/// operator-readable <paramref name="reasonMessage"/>, without charging the failure budget and without being recorded
+/// as an unhandled exception. Unlike a thrown exception (a crash) these are intentional domain decisions: the host
+/// catches the concrete type and routes it through <c>complete_execution</c> to the matching terminal or hold Status.
 /// Throw via the <c>ctx</c> verbs rather than constructing these directly.
-/// </remarks>
-/// <remarks>
-/// Initializes the control with an optional operator-readable <paramref name="reasonMessage"/>.
-/// </remarks>
+/// </summary>
 public abstract class HandlerControlException(string? reasonMessage) : JobControlException(reasonMessage)
 {
     /// <summary>Operator-readable reason, or <c>null</c> when the handler supplied none.</summary>

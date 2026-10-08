@@ -1,21 +1,13 @@
 namespace Acta;
 
 /// <summary>
-/// Filters and paging for <see cref="ILedger.ListJobsAsync"/>. Jobs are ordered newest first
-/// (created_at_utc descending, id descending).
+/// Filters and paging for <see cref="ILedger.ListJobsAsync"/>; jobs are ordered newest first (created_at_utc
+/// descending, id descending). <c>JobNamespace</c> is required with <c>JobName</c>; <c>TenantKey</c> and <c>Lane</c>
+/// fold lowercase, <c>CorrelationKey</c> matches verbatim and case-sensitively; <c>TerminalOnly</c> true restricts to
+/// Succeeded, Failed, and Cancelled, and <c>RecurringOnly</c> true to jobs with at least one live schedule (null or
+/// false skips either); <c>PageSize</c> null defaults to 50 and clamps at 100; <c>Cursor</c> is the previous page's
+/// <see cref="PagedResult{T}.NextCursor"/>; <c>Tags</c> restricts to jobs carrying every supplied tag filter.
 /// </summary>
-/// <param name="JobNamespace">Restrict to one namespace; required when <paramref name="JobName"/> is set.</param>
-/// <param name="Status">Restrict to one job status.</param>
-/// <param name="JobName">Restrict to one job definition name within <paramref name="JobNamespace"/>.</param>
-/// <param name="ParentJobId">Restrict to the direct children of one job.</param>
-/// <param name="TenantId">Restrict to one tenant (the resolved <c>tenants</c> id).</param> <param name="TenantKey">Restrict by the caller-supplied tenant key (folds lowercase).</param>
-/// <param name="CorrelationKey">Restrict to jobs stamped with this exact correlation id (a trace / request / order id). Case-sensitive: the value is matched verbatim against the stored id, which Acta never canonicalizes.</param>
-/// <param name="PageSize">Rows per page; null defaults to 50, values above 100 clamp to 100.</param>
-/// <param name="Cursor">Opaque continuation cursor from the previous page's <see cref="PagedResult{T}.NextCursor"/>.</param>
-/// <param name="IncludeTotal">Whether to also compute the filter-wide row count.</param>
-/// <param name="Tags">Restrict to jobs carrying every supplied tag filter.</param> <param name="Lane">Restrict to jobs in lanes of this name (folds lowercase), in every namespace unless <paramref name="JobNamespace"/> is given.</param>
-/// <param name="TerminalOnly">True restricts to terminal jobs (Succeeded, Failed, Cancelled); null or false skips the restriction.</param>
-/// <param name="RecurringOnly">True restricts to jobs with at least one live (non-orphaned) schedule attached; null or false skips the restriction.</param>
 public sealed record ListJobsQuery(
     string? JobNamespace = null,
     JobStatusCode? Status = null,

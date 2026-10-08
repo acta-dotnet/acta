@@ -3,16 +3,12 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// Stable family-local event identifiers. Nearby values improve catalog readability but carry no
-/// runtime subject, subgroup, or outcome semantics. Match events by enum member or textual code.
+/// Stable family-local event identifiers. Nearby values improve catalog readability but carry no runtime subject,
+/// subgroup, or outcome semantics; match events by enum member or textual code. There is no <c>job.enqueued</c>
+/// event on purpose: the Job row's own <c>(created_at_utc, namespace_id, definition_id)</c> records the enqueue fact,
+/// and a separate event row would be write amplification on the narrow append-heavy events table; dedup outcomes
+/// reach the caller via <c>JobEnqueueResponse.Action</c>, and cross-job rate analytics query <c>acta.jobs</c> directly.
 /// </summary>
-/// <remarks>
-/// There is deliberately no <c>job.enqueued</c> event: the Job row's own
-/// <c>(created_at_utc, namespace_id, definition_id)</c> already records the enqueue fact, and a
-/// separate event row would be pure write amplification on the narrow append-heavy events table.
-/// Dedup outcomes surface to the caller via <c>JobEnqueueResponse.Action</c>; cross-job rate
-/// analytics query <c>acta.jobs</c> directly.
-/// </remarks>
 [JsonConverter(typeof(EventCodeJsonConverter))]
 [ReservedCodeRange(224, 254, "Architecture-controlled reserve")]
 [CodeKind("event")]

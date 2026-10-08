@@ -1,15 +1,11 @@
 namespace Acta;
 
 /// <summary>
-/// Filters and paging for <see cref="INamespaces.ListAsync"/>. Namespaces are ordered
-/// alphabetically (name ascending).
+/// Filters and paging for <see cref="INamespaces.ListAsync"/>; namespaces are ordered by name ascending.
+/// <c>NameContains</c> matches a kebab-case fragment; <c>Status</c> is honored by the admin-row list only, null
+/// matching all; <c>PageSize</c> null defaults to 50 and clamps at 100; <c>Cursor</c> is the previous page's
+/// <see cref="PagedResult{T}.NextCursor"/>; <c>Tags</c> restricts to namespaces carrying every supplied exact filter.
 /// </summary>
-/// <param name="NameContains">Restrict to namespaces whose name contains this kebab-case fragment.</param>
-/// <param name="Status">Restrict to namespaces in this status; null matches all. Honored by the admin-row list only.</param>
-/// <param name="PageSize">Rows per page; null defaults to 50, values above 100 clamp to 100.</param>
-/// <param name="Cursor">Opaque continuation cursor from the previous page's <see cref="PagedResult{T}.NextCursor"/>.</param>
-/// <param name="IncludeTotal">Whether to also compute the filter-wide row count.</param>
-/// <param name="Tags">Restrict to namespaces carrying every supplied exact tag filter.</param>
 public sealed record ListNamespacesQuery(
     string? NameContains = null,
     NamespaceStatusCode? Status = null,

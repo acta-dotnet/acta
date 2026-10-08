@@ -16,13 +16,12 @@ namespace Acta;
 public sealed class JsonJobPayloadSerializer(JsonSerializerOptions options) : IJobPayloadSerializer
 {
     /// <summary>
-    /// Framework defaults: <see cref="JsonSerializerDefaults.Web"/> baseline (camelCase property naming
-    /// plus <see cref="JsonNumberHandling.AllowReadingFromString"/>); reads are case-insensitive for
-    /// property names and enum string values; enums emit as camelCase strings but tolerate numeric
-    /// fallbacks; trailing commas and <c>//</c> comments are accepted on input.
-    /// <see cref="JsonSerializerOptions.DefaultIgnoreCondition"/> is pinned to
-    /// <see cref="JsonIgnoreCondition.Never"/> so nulls and default values round-trip, letting the
-    /// receiver distinguish a field set to null from an omitted field.
+    /// Framework defaults: the <see cref="JsonSerializerDefaults.Web"/> baseline (camelCase names plus
+    /// <see cref="JsonNumberHandling.AllowReadingFromString"/>); reads are case-insensitive for property names and
+    /// enum strings; enums emit as camelCase strings but tolerate numbers; trailing commas and <c>//</c> comments are
+    /// accepted on input. <see cref="JsonSerializerOptions.DefaultIgnoreCondition"/> is pinned to
+    /// <see cref="JsonIgnoreCondition.Never"/> so nulls and defaults round-trip, letting the receiver tell a null field
+    /// from an omitted one.
     /// </summary>
     public static JsonSerializerOptions DefaultJsonOptions { get; } = BuildDefaults(resolver: null);
 

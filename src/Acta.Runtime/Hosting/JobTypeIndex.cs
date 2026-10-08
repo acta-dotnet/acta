@@ -8,18 +8,12 @@ internal readonly record struct JobRoute(string Namespace, string JobName, JobPa
 
 /// <summary>
 /// Maps a job input CLR type to its enqueue route, backing the typed
-/// <see cref="IJobs.EnqueueAsync{TInput}(TInput, JobEnqueueOptions, CancellationToken)"/> /
-/// <see cref="IJobs.RunAndWaitAsync{TInput}"/> facade. Built once
-/// at <see cref="ActaServiceCollectionExtensions.UseActa"/> from the declared catalogs (Reference
-/// and Run); the raw <see cref="JobEnqueueRequest"/> path needs no index (it carries the namespace + name
-/// directly).
+/// <see cref="IJobs.EnqueueAsync{TInput}(TInput, JobEnqueueOptions, CancellationToken)"/> and
+/// <see cref="IJobs.RunAndWaitAsync{TInput}"/> facade. Built once at <see cref="ActaServiceCollectionExtensions.UseActa"/>
+/// from the declared catalogs (Reference and Run); the raw <see cref="JobEnqueueRequest"/> path carries the namespace
+/// and name and needs no index. When one type is registered under several namespaces or appears as <c>NoInput</c> for
+/// several jobs in one, <see cref="Resolve"/> reports the ambiguity and points the caller at the namespace option or the raw path.
 /// </summary>
-/// <remarks>
-/// A single input type normally maps to one route. When the same type is registered under more than one
-/// namespace (multi-tenant reuse) or appears as <c>NoInput</c> for several jobs in one namespace,
-/// <see cref="Resolve"/> reports the ambiguity and points the caller at
-/// <c>JobEnqueueOptions.Namespace</c> or the raw request path.
-/// </remarks>
 internal sealed class JobTypeIndex
 {
     private readonly Dictionary<Type, List<JobRoute>> _routesByType;

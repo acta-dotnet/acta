@@ -6,19 +6,12 @@ using Microsoft.Extensions.Options;
 namespace Acta.Runtime;
 
 /// <summary>
-/// Recurring <c>sys.alerts</c> projector and delivery job, competitively claimed once per namespace.
-/// Generate classifies alertable events from their immutable transition triple, applies the definition
-/// profile, and collapses automatic alerts onto one open incident row per job and condition. It drains
-/// in bounded batches within one invocation, checkpointing its cursor after each, so a backlog clears
-/// in a tick rather than one batch per minute.
-/// Deterministic poison events are durably recorded on the projector job before its cursor advances;
-/// transient failures retain the cursor for retry. Deliver resolves logical channels and transports,
-/// then records delivered, suppressed, retryable, or terminal outcomes against the version the row
-/// carried at selection. Delivery is at least once: a crash after send but before settlement may
-/// resend a rare duplicate.
-///
-/// <para>An alert resolved before delivery selection is not sent. Resolution suppresses further pending
-/// and retry attempts. A transport attempt already in progress may still complete.</para>
+/// Recurring <c>sys.alerts</c> projector and delivery job, competitively claimed once per namespace. Generate classifies
+/// alertable events from their immutable transition triple, applies the definition profile, and collapses automatic
+/// alerts onto one open incident row per job and condition, draining in bounded batches and checkpointing its cursor
+/// after each; a deterministic poison event is recorded before the cursor advances, a transient failure keeps it for
+/// retry. Deliver resolves channels and transports and settles each row against its version at selection, at least once
+/// (a crash after send may resend). An alert resolved before selection is not sent, and resolution stops further attempts.
 /// </summary>
 internal sealed class AlertsJob(
     AlertLifecycle alerts,
@@ -49,15 +42,12 @@ internal sealed class AlertsJob(
     private const int DeliverBatchSize = 256;
 
     /// <summary>
-    /// The generate drain's two bounds, and the reason each one is where it is. 40 batches of 256
-    /// is 10,240 events in one invocation: a burst clears in a tick instead of the ~40 minutes that
-    /// one batch per minute took, while the pass still has a ceiling rather than scanning an
-    /// uncapped backlog. The 30s budget is soft and checked BETWEEN batches, so the batch in flight
-    /// always finishes and always checkpoints; it makes a long pass yield on its own terms well
-    /// inside the framework's 300s execution timeout, which sys.alerts inherits and which stays the
-    /// backstop. Delivery is deliberately NOT drained this way and stays at DeliverBatchSize per
-    /// invocation: pushing 10,000 webhooks through one tick would turn protecting the database into
-    /// an outage on the operator's own channel.
+    /// The generate drain's two bounds. 40 batches of 256 is 10,240 events in one invocation: a burst clears in a tick
+    /// instead of the ~40 minutes one batch per minute took, while the pass still has a ceiling. The 30s budget is
+    /// soft and checked between batches, so the batch in flight always finishes and checkpoints; it makes a long pass
+    /// yield well inside the 300s execution timeout sys.alerts inherits as the backstop. Delivery is not drained this
+    /// way and stays at DeliverBatchSize per invocation: 10,000 webhooks in one tick would turn protecting the
+    /// database into an outage on the operator's own channel.
     /// </summary>
     private const int GenerateMaxBatches = 40;
     private static readonly TimeSpan GenerateTimeBudget = TimeSpan.FromSeconds(30);
@@ -131,18 +121,12 @@ internal sealed class AlertsJob(
     }
 
     /// <summary>
-    /// One bounded drain per invocation: batches until the backlog runs out, the batch cap is
-    /// reached, or the elapsed budget is spent - whichever comes first. The cursor is written after
-    /// every completed batch rather than once at the end, so whatever ends the pass - a bound, a
-    /// crash, the execution timeout - keeps every batch already projected and the next invocation
-    /// resumes behind it. Re-offering the one batch that was in flight is safe by construction: the
-    /// raise and resolve paths refuse to move an incident an equal-or-newer event already marked.
-    /// <para>The cursor is the (stamp, id) pair of the last row read, never an id alone, because the
-    /// two orders can invert and an id cursor would step over a row for good. The read is bounded by
-    /// the safe horizon, behind which every alertable row has committed; a short batch is the
-    /// proof that nothing alertable is left behind that horizon, so the cursor's instant advances to
-    /// it and the next pass never rescans the history this one walked. Any change here that reads
-    /// events from a source other than AlertLifecycle.GetAlertableEventsAsync reopens that.</para>
+    /// One bounded drain per invocation, until the backlog, the batch cap, or the budget runs out. The cursor is
+    /// written after every batch, so whatever ends the pass keeps every batch already projected, and re-offering the
+    /// batch in flight is safe because raise and resolve refuse to move an incident an equal-or-newer event marked.
+    /// The cursor is the (stamp, id) pair of the last row read, never an id alone, since the two orders can invert;
+    /// the read is bounded by the safe horizon, behind which every alertable row has committed, so a short batch
+    /// advances the cursor's instant to it and nothing is rescanned; any other event source reopens that.
     /// </summary>
     private async Task GenerateAsync(JobContext ctx, DateTime nowUtc, CancellationToken ct)
     {
@@ -590,19 +574,12 @@ internal sealed class AlertsJob(
         a.Origin == AlertOriginCode.Automatic ? nowUtc + _reminderInterval : null;
 
     /// <summary>
-    /// Every settlement writes against the version the row carried when this pass selected it.
-    /// Losing that compare-and-swap is a correct outcome, not an error: the row moved on and the
-    /// newer state is the one that should stand. Three partners move it. An operator resolve, and a
-    /// competing worker's settlement of the same attempt, both leave the row settled, so the lost
-    /// write changes nothing that matters. The most frequent one is quieter: the raise path's
-    /// collapse arm bumps version too, so a repeat of the same condition - a ctx.AlertAsync landing
-    /// inside the send window - makes this settle lose, and the row keeps the state the read found
-    /// it in (Pending, RetryAfter with an instant already elapsed, or a settled row whose reminder
-    /// instant has passed), each of which the next pass selects again. That is a re-send on the
-    /// next pass, which delivery is allowed (at least once) and which is the better answer anyway:
-    /// the re-send carries the occurrence count the repeat just wrote. So there is no retry and no
-    /// warning here; the next pass re-selects whatever is genuinely due. Debug, because the only
-    /// reader who wants this line is someone tracing why one attempt left no trace.
+    /// Every settlement writes against the version the row carried at selection, and losing that compare-and-swap is
+    /// correct: the row moved on and the newer state stands, settled by an operator resolve or a competing worker. The
+    /// frequent partner is the raise path's collapse arm, which bumps the version when a repeat of the same condition
+    /// lands inside the send window, so this settle loses and the row keeps the state the read found (Pending, an
+    /// elapsed RetryAfter, or a settled row past its reminder), which the next pass selects again: a re-send, allowed
+    /// at least once, carrying the count the repeat wrote. No retry and no warning, only Debug for tracing one attempt.
     /// </summary>
     private async Task WriteSettlementAsync(
         DeliverableAlert a,
@@ -634,20 +611,12 @@ internal sealed class AlertsJob(
 internal sealed record AlertDrainBudget(int BatchSize, int MaxBatches, TimeSpan TimeBudget);
 
 /// <summary>
-/// The instant one <c>sys.alerts</c> pass stamps a settlement with: the database clock read once at the
-/// start of the pass, advanced by the monotonic time spent since that read.
-///
-/// <para>A pass is long enough for the difference to matter. The generate drain may spend a 30-second
-/// budget before delivery starts, and delivery then adds one transport round trip per row. Computing
-/// <c>retry_after_utc</c> from the pass-start instant alone therefore stamps a backoff or a reminder
-/// that part of the pass has already consumed, and a short backoff can land in the past outright -
-/// which makes the next pass re-select the row immediately and collapses the spacing the curve
-/// promises.</para>
-///
-/// <para>Monotonic rather than a second clock read per settlement: it costs no database round trip on
-/// the delivery path, and it cannot move backwards if the server's wall clock is adjusted mid-pass.
-/// The base instant stays the database's, so settlements remain comparable with every other stored
-/// instant; only the offset is local.</para>
+/// The instant one <c>sys.alerts</c> pass stamps a settlement with: the database clock read once at the start of the
+/// pass, advanced by the monotonic time spent since. A pass is long enough for the difference to matter: the generate
+/// drain may spend a 30-second budget before delivery starts, and delivery adds a transport round trip per row, so a
+/// <c>retry_after_utc</c> computed from the pass start stamps a backoff the pass already consumed, and a short one
+/// lands in the past and is re-selected at once. Monotonic rather than a second clock read: no round trip on the
+/// delivery path, no step backwards if the wall clock is adjusted, and the base stays the database's for comparability.
 /// </summary>
 internal readonly struct AlertSettlementClock(DateTime baseUtc, long startedTimestamp)
 {

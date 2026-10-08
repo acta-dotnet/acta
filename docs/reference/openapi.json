@@ -8154,7 +8154,7 @@
             "format": "date-time"
           }
         },
-        "description": "The single-alert read model returned by ValueTask&lt;AlertDetail?&gt; IAlerts.GetAsync(AlertRef alertRef, CancellationToken ct = default(CancellationToken)). Today it carries the\nlist row's fields; it is a distinct type because a detail read can grow additively (delivery\nhistory, the alerting event's detail) without the list row paying for it.\n\nTwo delivery fields read differently than their names suggest. RetryCount is the\nattempts spent in the current send series, not over the row's life: a delivered send ends the\nseries and resets it. RetryAfterUtc is the earliest instant the alert may be sent again -\nthe next retry while delivery is unsettled, the next reminder once it has settled - and null when\nnothing is scheduled."
+        "description": "The single-alert read model returned by ValueTask&lt;AlertDetail?&gt; IAlerts.GetAsync(AlertRef alertRef, CancellationToken ct = default(CancellationToken)). It carries the list row's fields today and\nis a distinct type because a detail read can grow additively (delivery history, the alerting event's detail)\nwithout the list row paying for it. Two delivery fields read differently than their names suggest:\n`RetryCount` is the attempts spent in the current send series, not over the row's life (a delivered send\nends the series and resets it), and `RetryAfterUtc` is the earliest instant the alert may be sent again, the\nnext retry while delivery is unsettled or the next reminder once it has settled, null when nothing is scheduled."
       },
       "AlertKindCode": {
         "description": "What condition an alert reports. Sparse catalog ids leave insertion room; numeric ordering is\nnot behavioral."
@@ -8182,12 +8182,10 @@
         "type": "object",
         "properties": {
           "alertRef": {
-            "description": "This alert's public ref.",
             "$ref": "#/components/schemas/AlertRef"
           },
           "jobNamespace": {
-            "type": "string",
-            "description": "Owning namespace name."
+            "type": "string"
           },
           "jobRef": {
             "oneOf": [
@@ -8195,34 +8193,27 @@
                 "type": "null"
               },
               {
-                "description": "Subject job's public ref, or null when job-less or purged.",
                 "$ref": "#/components/schemas/JobRef"
               }
             ]
           },
           "origin": {
-            "description": "What raised the alert.",
             "$ref": "#/components/schemas/AlertOriginCode"
           },
           "severity": {
-            "description": "Alert severity.",
             "$ref": "#/components/schemas/AlertSeverityCode"
           },
           "kind": {
-            "description": "Alert kind.",
             "$ref": "#/components/schemas/AlertKindCode"
           },
           "title": {
-            "type": "string",
-            "description": "Alert title."
+            "type": "string"
           },
           "message": {
-            "type": "string",
-            "description": "Alert message."
+            "type": "string"
           },
           "channelName": {
-            "type": "string",
-            "description": "Logical delivery channel name."
+            "type": "string"
           },
           "occurrenceCount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -8230,7 +8221,6 @@
               "integer",
               "string"
             ],
-            "description": "Deduplicated occurrence count.",
             "format": "int32"
           },
           "resolvedAtUtc": {
@@ -8238,11 +8228,9 @@
               "null",
               "string"
             ],
-            "description": "When the alert resolved, or null while open.",
             "format": "date-time"
           },
           "deliveryStatus": {
-            "description": "Delivery pipeline status.",
             "$ref": "#/components/schemas/AlertDeliveryStatusCode"
           },
           "retryCount": {
@@ -8251,7 +8239,6 @@
               "integer",
               "string"
             ],
-            "description": "Attempts spent in the current send series; a delivered send ends the series and resets it.",
             "format": "int32"
           },
           "retryAfterUtc": {
@@ -8259,17 +8246,14 @@
               "null",
               "string"
             ],
-            "description": "Earliest instant this alert may be sent again - the next retry while delivery is unsettled, the next reminder once it has settled - or null when nothing is scheduled.",
             "format": "date-time"
           },
           "createdAtUtc": {
             "type": "string",
-            "description": "Row insert instant.",
             "format": "date-time"
           },
           "modifiedAtUtc": {
             "type": "string",
-            "description": "Last row change instant.",
             "format": "date-time"
           },
           "acknowledgedAtUtc": {
@@ -8277,11 +8261,10 @@
               "null",
               "string"
             ],
-            "description": "When the alert was acknowledged, or null while open.",
             "format": "date-time"
           }
         },
-        "description": "One alert row in a ValueTask&lt;PagedResult&lt;AlertListItem&gt;&gt; IAlerts.ListAsync(ListAlertsQuery query, CancellationToken ct = default(CancellationToken)) page. Channel configuration,\nendpoints, and deduplication keys are delivery internals and are never exposed by list reads. JSON\nserialization carries the public job ref and hides the numeric job id; the ref goes null once\nthe subject job row is purged (alerts outlive their job)."
+        "description": "One alert row in a ValueTask&lt;PagedResult&lt;AlertListItem&gt;&gt; IAlerts.ListAsync(ListAlertsQuery query, CancellationToken ct = default(CancellationToken)) page. Channel configuration, endpoints, and deduplication keys\nare delivery internals, never exposed by list reads. JSON carries the public job ref and hides the numeric job id;\nthe ref goes null once the subject job row is purged, since alerts outlive their job. `RetryCount` is the\nattempts spent in the current send series (a delivered send ends it), and `RetryAfterUtc` the earliest instant\nthe alert may be sent again, the next retry while delivery is unsettled or the next reminder once settled."
       },
       "AlertOriginCode": { },
       "AlertProfileCode": { },
@@ -9202,7 +9185,7 @@
         }
       },
       "EventCode": {
-        "description": "Stable family-local event identifiers. Nearby values improve catalog readability but carry no\nruntime subject, subgroup, or outcome semantics. Match events by enum member or textual code."
+        "description": "Stable family-local event identifiers. Nearby values improve catalog readability but carry no runtime subject,\nsubgroup, or outcome semantics; match events by enum member or textual code. There is no `job.enqueued`\nevent on purpose: the Job row's own `(created_at_utc, namespace_id, definition_id)` records the enqueue fact,\nand a separate event row would be write amplification on the narrow append-heavy events table; dedup outcomes\nreach the caller via `JobEnqueueResponse.Action`, and cross-job rate analytics query `acta.jobs` directly."
       },
       "EventListItem": {
         "required": [
@@ -9234,28 +9217,23 @@
               "integer",
               "string"
             ],
-            "description": "Event row id.",
             "format": "int64"
           },
           "eventCode": {
-            "description": "What happened.",
             "$ref": "#/components/schemas/EventCode"
           },
           "createdAtUtc": {
             "type": "string",
-            "description": "When it happened.",
             "format": "date-time"
           },
           "jobNamespace": {
-            "type": "string",
-            "description": "Owning namespace name."
+            "type": "string"
           },
           "jobName": {
             "type": [
               "null",
               "string"
-            ],
-            "description": "Subject job's definition name resolved from the catalog (survives the purge), or null."
+            ]
           },
           "jobRef": {
             "oneOf": [
@@ -9263,7 +9241,6 @@
                 "type": "null"
               },
               {
-                "description": "Subject job's public ref, or null for namespace-level events; denormalized on the event row, so it survives the job's purge.",
                 "$ref": "#/components/schemas/JobRef"
               }
             ]
@@ -9274,7 +9251,6 @@
                 "type": "null"
               },
               {
-                "description": "Lineage root's public ref, or null when there is no lineage or the root row was purged.",
                 "$ref": "#/components/schemas/JobRef"
               }
             ]
@@ -9286,19 +9262,16 @@
               "integer",
               "string"
             ],
-            "description": "Attempt the event belongs to, or null.",
             "format": "int32"
           },
           "actorCode": {
-            "description": "Who initiated the transition.",
             "$ref": "#/components/schemas/ActorCode"
           },
           "actorKey": {
             "type": [
               "null",
               "string"
-            ],
-            "description": "Actor identity text, or null; a worker actor's key is its public ref."
+            ]
           },
           "fromStatus": {
             "oneOf": [
@@ -9306,7 +9279,6 @@
                 "type": "null"
               },
               {
-                "description": "Status before the transition, or null.",
                 "$ref": "#/components/schemas/JobStatusCode"
               }
             ]
@@ -9317,7 +9289,6 @@
                 "type": "null"
               },
               {
-                "description": "Status after the transition, or null.",
                 "$ref": "#/components/schemas/JobStatusCode"
               }
             ]
@@ -9328,7 +9299,6 @@
                 "type": "null"
               },
               {
-                "description": "Execution outcome attached to the event, or null.",
                 "$ref": "#/components/schemas/ExecutionStatusCode"
               }
             ]
@@ -9340,7 +9310,6 @@
               "integer",
               "string"
             ],
-            "description": "Execution duration, or null.",
             "format": "int32"
           },
           "reasonCode": {
@@ -9349,7 +9318,6 @@
                 "type": "null"
               },
               {
-                "description": "Reason recorded with the event, or null.",
                 "$ref": "#/components/schemas/EventReasonCode"
               }
             ]
@@ -9358,15 +9326,13 @@
             "type": [
               "null",
               "string"
-            ],
-            "description": "Reason text, or null."
+            ]
           },
           "detailText": {
             "type": [
               "null",
               "string"
-            ],
-            "description": "Free-form (text) or structured (json) detail decoded to text, or null when the event carries no detail or a non-text format."
+            ]
           },
           "workerRef": {
             "oneOf": [
@@ -9374,7 +9340,6 @@
                 "type": "null"
               },
               {
-                "description": "Acting worker's public ref, or null when no worker acted or its row was purged.",
                 "$ref": "#/components/schemas/WorkerRef"
               }
             ]
@@ -9383,11 +9348,10 @@
             "type": [
               "null",
               "string"
-            ],
-            "description": "Tenant key for job-scoped events, or null."
+            ]
           }
         },
-        "description": "One audit event row in a ValueTask&lt;PagedResult&lt;EventListItem&gt;&gt; ILedger.ListEventsAsync(ListEventsQuery query, CancellationToken ct = default(CancellationToken)) page. JSON serialization\ncarries the public job refs and hides the numeric job ids; events outlive their job, and each\nref parameter documents whether it survives the purge."
+        "description": "One audit event row in a ValueTask&lt;PagedResult&lt;EventListItem&gt;&gt; ILedger.ListEventsAsync(ListEventsQuery query, CancellationToken ct = default(CancellationToken)) page. JSON carries the public refs and hides the\nnumeric ids. Events outlive their job: `JobRef` is denormalized on the event row and survives the purge, as\ndoes `JobName`, resolved from the catalog; `LineageRootJobRef`, `TenantKey`, and `WorkerRef` are\nnull when absent or purged, and a worker actor's `ActorKey` is its public ref. `DetailText` is the\nfree-form or structured detail decoded to text, null when the event carries none or a non-text format."
       },
       "EventReasonCode": { },
       "ExecutionStatusCode": { },
@@ -9712,7 +9676,7 @@
             "format": "int32"
           }
         },
-        "description": "Read projection of a Job row exposed by `IJobs.GetAsync`: identity, linkage, status,\nscheduling, leasing, retention, and input format. The input payload itself is never returned.\nProperty order mirrors the `jobs` entity (identity, scope/routing, caller keys, input) and\nthen its 1:1 `runtimes` row, so the shape reads in the same order as the schema; a column\nresolved to a public value follows the id it came from, and the created/modified pair closes the\nrecord together. JSON serialization carries the public refs and hides the numeric ids.\n`DefinitionId` is the surrogate for the namespace+name pair; non-null because the job\nrow's definition_id is NOT NULL."
+        "description": "Read projection of a Job row exposed by `IJobs.GetAsync`: identity, linkage, status, scheduling, leasing,\nretention, and input format; the input payload itself is never returned. Property order mirrors the `jobs`\nentity (identity, scope and routing, caller keys, input) and then its 1:1 `runtimes` row, so the shape reads\nin schema order; a column resolved to a public value follows the id it came from, and the created/modified pair\ncloses the record. JSON carries the public refs and hides the numeric ids. `DefinitionId` is the surrogate\nfor the namespace+name pair, non-null because the row's definition_id is NOT NULL."
       },
       "JobEnqueueAction": {
         "enum": [
@@ -9789,7 +9753,7 @@
             ]
           }
         },
-        "description": "The execution lease on a Dispatched / Executing Job and the liveness of the worker that holds it.\nWhen bool JobExplainLease.Expired is true the lease has lapsed and `sys.recovery` reclaims the Job on\nits next maintenance tick; string JobExplainLease.RecoveryExpectation states that in prose.\nstring? JobExplainLease.WorkerName is the worker's deployment version; bool JobExplainLease.WorkerStale is true once\nthe worker has missed heartbeats past `JobsOptions.WorkerDeadAfter`. Both\nWorkerRef? JobExplainLease.WorkerRef and string? JobExplainLease.WorkerName go null when the lease owner's row is gone\n(retention purged it): the lease timings still describe the Job, but the holder is unidentifiable."
+        "description": "The execution lease on a Dispatched or Executing Job and the liveness of the worker holding it. When\nbool JobExplainLease.Expired is true the lease has lapsed and `sys.recovery` reclaims the Job on its next tick;\nstring JobExplainLease.RecoveryExpectation says so in prose. string? JobExplainLease.WorkerName is the worker's deployment version, and\nbool JobExplainLease.WorkerStale is true once it has missed heartbeats past `JobsOptions.WorkerDeadAfter`. Both\nWorkerRef? JobExplainLease.WorkerRef and string? JobExplainLease.WorkerName go null when retention purged the owner's row: the timings\nstill describe the Job, but the holder is unidentifiable."
       },
       "JobExplainStep": {
         "required": [
@@ -9915,7 +9879,7 @@
             }
           }
         },
-        "description": "Plain-English explanation of a Job's current durable state: where the work is, why it moved there,\nand what an operator can do next. Assembled from the same `runtimes` / `workers` /\n`steps` / `checkpoints` / `events` rows an operator could read with a `SELECT`:\nActa explains the work it runs rather than hiding it behind synthesized state. Returned by\nValueTask&lt;JobExplanation?&gt; IJobs.ExplainAsync(JobLookup job, CancellationToken ct = default(CancellationToken)); the CLI renders it as prose, the dashboard as a panel.\nStatusMeaning is the [Code] description of Status; Headline is a\none-sentence summary; ActiveWait / Lease are set only in the relevant states;\nLastExecutedBy names the worker that last ran the job (for states with no live lease);\nReason is the most recent reason on the timeline; NextActions are the operator's\nmoves, most relevant first."
+        "description": "Plain-English explanation of a Job's current durable state: where the work is, why it moved there, and what an\noperator can do next, assembled from the same `runtimes`, `workers`, `steps`, `checkpoints`, and\n`events` rows a `SELECT` would read. Returned by ValueTask&lt;JobExplanation?&gt; IJobs.ExplainAsync(JobLookup job, CancellationToken ct = default(CancellationToken)); the CLI renders it as\nprose, the dashboard as a panel. `Headline` is a one-sentence summary and `StatusMeaning` the\n`[Code]` description of `Status`; `ActiveWait` and `Lease` are set only in the relevant states,\n`LastExecutedBy` names the last worker when no lease is live, and `NextActions` are the operator's moves."
       },
       "JobLineageChild": {
         "required": [
@@ -10049,7 +10013,7 @@
             "type": "boolean"
           }
         },
-        "description": "A compact runtime truth map for one focused Job: the ancestor context up to the lineage root, the\nfocused Job itself with its steps and the durable wait it is blocked on, and its direct children.\nLike JobExplanation it is assembled from the same durable rows an operator could read\nwith a `SELECT` - Acta maps the work it runs rather than hiding it behind synthesized state.\nReturned by ValueTask&lt;JobLineageMap?&gt; IJobs.GetLineageMapAsync(JobLookup job, JobLineageMapOptions? options = null, CancellationToken ct = default(CancellationToken)); the dashboard renders it as a lineage panel.\nV1 is shallow: Ancestors is context only (root first, immediate parent last, no steps\nof their own), Job is the focused subtree root, and Children are the direct children\ncapped at int JobLineageMapOptions.ChildLimit with ChildrenHasMore flagging a\ntruncated set. Recursive descent below direct children is deferred."
+        "description": "A compact runtime truth map for one focused Job: the ancestor context up to the lineage root, the focused Job with\nits steps and the durable wait it is blocked on, and its direct children, assembled like JobExplanation\nfrom the same rows a `SELECT` would read. Returned by ValueTask&lt;JobLineageMap?&gt; IJobs.GetLineageMapAsync(JobLookup job, JobLineageMapOptions? options = null, CancellationToken ct = default(CancellationToken)); the dashboard\nrenders it as a lineage panel. V1 is shallow: `Ancestors` is context only (root first, immediate parent last,\nno steps of their own), `Job` is the focused subtree root, and `Children` are the direct children capped\nat int JobLineageMapOptions.ChildLimit with `ChildrenHasMore` flagging a truncated set."
       },
       "JobListItem": {
         "required": [
@@ -10073,23 +10037,19 @@
         "type": "object",
         "properties": {
           "jobRef": {
-            "description": "Public stable job reference.",
             "$ref": "#/components/schemas/JobRef"
           },
           "jobNamespace": {
-            "type": "string",
-            "description": "Owning namespace name."
+            "type": "string"
           },
           "jobName": {
-            "type": "string",
-            "description": "Job definition name."
+            "type": "string"
           },
           "tenantKey": {
             "type": [
               "null",
               "string"
-            ],
-            "description": "Tenant's caller-supplied key resolved from the catalog, or null."
+            ]
           },
           "parentJobRef": {
             "oneOf": [
@@ -10097,7 +10057,6 @@
                 "type": "null"
               },
               {
-                "description": "Parent job's public ref, or null for roots.",
                 "$ref": "#/components/schemas/JobRef"
               }
             ]
@@ -10108,7 +10067,6 @@
                 "type": "null"
               },
               {
-                "description": "Lineage root's public ref, or null.",
                 "$ref": "#/components/schemas/JobRef"
               }
             ]
@@ -10117,39 +10075,32 @@
             "type": [
               "null",
               "string"
-            ],
-            "description": "Caller-supplied deduplication key, or null."
+            ]
           },
           "correlationKey": {
             "type": [
               "null",
               "string"
-            ],
-            "description": "Caller-supplied correlation id (trace / request / order id), or null."
+            ]
           },
           "status": {
-            "description": "Current lifecycle status.",
             "$ref": "#/components/schemas/JobStatusCode"
           },
           "priority": {
-            "description": "Claim priority.",
             "$ref": "#/components/schemas/JobPriorityCode"
           },
           "lane": {
             "type": [
               "null",
               "string"
-            ],
-            "description": "The lane the job runs in, or null."
+            ]
           },
           "createdAtUtc": {
             "type": "string",
-            "description": "Row insert instant.",
             "format": "date-time"
           },
           "modifiedAtUtc": {
             "type": "string",
-            "description": "Last row change instant.",
             "format": "date-time"
           },
           "nextRunAtUtc": {
@@ -10157,7 +10108,6 @@
               "null",
               "string"
             ],
-            "description": "Next due instant, or null.",
             "format": "date-time"
           },
           "executionNumber": {
@@ -10166,7 +10116,6 @@
               "integer",
               "string"
             ],
-            "description": "Attempt counter.",
             "format": "int32"
           },
           "failureCount": {
@@ -10175,11 +10124,10 @@
               "integer",
               "string"
             ],
-            "description": "Consecutive-failure count behind the retry budget.",
             "format": "int32"
           }
         },
-        "description": "One job row in a ValueTask&lt;PagedResult&lt;JobListItem&gt;&gt; ILedger.ListJobsAsync(ListJobsQuery query, CancellationToken ct = default(CancellationToken)) page. Carries identity, lifecycle, and\naudit-facing fields only; the input payload is never exposed by list reads. JSON serialization\ncarries the public refs and hides the numeric ids."
+        "description": "One job row in a ValueTask&lt;PagedResult&lt;JobListItem&gt;&gt; ILedger.ListJobsAsync(ListJobsQuery query, CancellationToken ct = default(CancellationToken)) page: identity, lifecycle, and audit-facing fields only; the\ninput payload is never exposed by list reads. JSON carries the public refs and hides the numeric ids.\n`CorrelationKey` is the caller-supplied trace, request, or order id, `ExecutionNumber` the attempt\ncounter, and `FailureCount` the consecutive-failure count behind the retry budget."
       },
       "JobPayloadHttpResponse": {
         "required": [
@@ -10249,26 +10197,22 @@
         "type": "object",
         "properties": {
           "jobNamespace": {
-            "type": "string",
-            "description": "Operator-readable kebab-case namespace name. Unique."
+            "type": "string"
           },
           "status": {
-            "description": "Namespace lifecycle status (Active resolves at enqueue; Suspended rejects it).",
             "$ref": "#/components/schemas/NamespaceStatusCode"
           },
           "ownerTeam": {
             "type": [
               "null",
               "string"
-            ],
-            "description": "Owning-team identifier surfaced on dashboards, or null."
+            ]
           },
           "description": {
             "type": [
               "null",
               "string"
-            ],
-            "description": "Operator-readable description, or null."
+            ]
           },
           "version": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -10276,11 +10220,10 @@
               "integer",
               "string"
             ],
-            "description": "Optimistic-concurrency row version; pass as the expected version to a CAS control verb.",
             "format": "int32"
           }
         },
-        "description": "One namespace row in an ValueTask&lt;PagedResult&lt;NamespaceListItem&gt;&gt; INamespaces.ListAsync(ListNamespacesQuery query, CancellationToken ct = default(CancellationToken)) page, projected from the\n`namespaces` table, and the one representation `GET /namespaces` answers with.\nValueTask&lt;PagedResult&lt;string&gt;&gt; INamespaces.ListNamesAsync(ListNamespacesQuery query, CancellationToken ct = default(CancellationToken)) remains for callers that want only the names."
+        "description": "One namespace row in an ValueTask&lt;PagedResult&lt;NamespaceListItem&gt;&gt; INamespaces.ListAsync(ListNamespacesQuery query, CancellationToken ct = default(CancellationToken)) page, projected from the `namespaces` table and the\none representation `GET /namespaces` answers with; ValueTask&lt;PagedResult&lt;string&gt;&gt; INamespaces.ListNamesAsync(ListNamespacesQuery query, CancellationToken ct = default(CancellationToken)) remains for callers\nthat want only the names. `NamespaceId` is the DB-assigned id `job.namespace_id` references, internal and\nnever serialized, since a namespace is addressed by its unique kebab-case name; `Status` Active resolves at\nenqueue and Suspended rejects it; `Version` is the row version a CAS control verb takes as expected."
       },
       "NamespaceStatusCode": {
         "description": "Namespace state machine. 10-spaced ids; live states 10..80, mirroring\nTenantStatusCode."
@@ -10378,19 +10321,16 @@
         "type": "object",
         "properties": {
           "jobNamespace": {
-            "type": "string",
-            "description": "The worker namespace whose relay drains this source."
+            "type": "string"
           },
           "slotJobRef": {
-            "description": "The `sys.outbox` slot job's public ref (its audit trail holds the operator evidence).",
             "$ref": "#/components/schemas/JobRef"
           },
           "lastTickSummary": {
             "type": [
               "null",
               "string"
-            ],
-            "description": "The last successful tick's rendered accounting, verbatim; null before the first success."
+            ]
           },
           "backlog": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -10399,7 +10339,6 @@
               "integer",
               "string"
             ],
-            "description": "Pending rows still awaiting relay after the last tick; null when unknown.",
             "format": "int64"
           },
           "quarantineTotal": {
@@ -10409,15 +10348,13 @@
               "integer",
               "string"
             ],
-            "description": "Quarantined rows at the last tick; null when unknown.",
             "format": "int64"
           },
           "isLocal": {
-            "type": "boolean",
-            "description": "Whether this process registered the source, so ValueTask&lt;PagedResult&lt;OutboxQuarantinedListItem&gt;&gt; IOutbox.ListQuarantinedAsync(ListOutboxQuarantinedQuery query, CancellationToken ct = default(CancellationToken)) works here."
+            "type": "boolean"
           }
         },
-        "description": "One relay source as ValueTask&lt;PagedResult&lt;OutboxSourceListItem&gt;&gt; IOutbox.ListSourcesAsync(ListOutboxSourcesQuery query, CancellationToken ct = default(CancellationToken)) reports it: the namespace's\n`sys.outbox` slot plus the accounting parsed from the slot's persisted tick summary. The\nsummary (and the counters parsed from it) is null until the slot's first successful tick."
+        "description": "One relay source as ValueTask&lt;PagedResult&lt;OutboxSourceListItem&gt;&gt; IOutbox.ListSourcesAsync(ListOutboxSourcesQuery query, CancellationToken ct = default(CancellationToken)) reports it: the namespace's `sys.outbox` slot\n(`SlotJobRef`, whose audit trail holds the operator evidence) plus the accounting parsed from the slot's\npersisted tick summary: `LastTickSummary` verbatim, `Backlog` (pending rows still awaiting relay), and\n`QuarantineTotal`, all null until the slot's first successful tick. `IsLocal` says this process\nregistered the source, so ValueTask&lt;PagedResult&lt;OutboxQuarantinedListItem&gt;&gt; IOutbox.ListQuarantinedAsync(ListOutboxQuarantinedQuery query, CancellationToken ct = default(CancellationToken)) works here."
       },
       "OverviewSnapshot": {
         "required": [
@@ -10443,7 +10380,6 @@
               "integer",
               "string"
             ],
-            "description": "Jobs awaiting a worker: all Ready, plus Suspended jobs whose durable wait has expired.",
             "format": "int64"
           },
           "oldestReadyAgeSeconds": {
@@ -10453,7 +10389,6 @@
               "integer",
               "string"
             ],
-            "description": "Seconds the oldest such job has been claimable; null when none are due.",
             "format": "int64"
           },
           "executingCount": {
@@ -10462,7 +10397,6 @@
               "integer",
               "string"
             ],
-            "description": "Jobs currently Executing.",
             "format": "int64"
           },
           "failedCount": {
@@ -10471,7 +10405,6 @@
               "integer",
               "string"
             ],
-            "description": "Jobs currently Failed.",
             "format": "int64"
           },
           "unresolvedAlertCount": {
@@ -10480,7 +10413,6 @@
               "integer",
               "string"
             ],
-            "description": "Alerts without a resolution timestamp.",
             "format": "int64"
           },
           "unresolvedCriticalAlertCount": {
@@ -10489,7 +10421,6 @@
               "integer",
               "string"
             ],
-            "description": "Unresolved alerts at Critical severity.",
             "format": "int64"
           },
           "deadWorkerCount": {
@@ -10498,7 +10429,6 @@
               "integer",
               "string"
             ],
-            "description": "Workers marked Dead.",
             "format": "int64"
           },
           "staleWorkerCount": {
@@ -10507,7 +10437,6 @@
               "integer",
               "string"
             ],
-            "description": "Active or Draining workers not seen within the stale threshold.",
             "format": "int64"
           },
           "dueSoonScheduleCount": {
@@ -10516,7 +10445,6 @@
               "integer",
               "string"
             ],
-            "description": "Live schedules due inside the due-soon window.",
             "format": "int64"
           },
           "jobCount": {
@@ -10525,7 +10453,6 @@
               "integer",
               "string"
             ],
-            "description": "All jobs in scope, including system jobs.",
             "format": "int64"
           },
           "systemJobCount": {
@@ -10534,7 +10461,6 @@
               "integer",
               "string"
             ],
-            "description": "System jobs in scope (reserved `sys.`-prefixed names); JobCount minus this is the user total.",
             "format": "int64"
           },
           "executorCapacity": {
@@ -10543,7 +10469,6 @@
               "integer",
               "string"
             ],
-            "description": "Executor slots across live workers (Active or Draining, seen inside the stale threshold); what ExecutingCount saturates against.",
             "format": "int64"
           },
           "scheduleLagSeconds": {
@@ -10553,11 +10478,10 @@
               "integer",
               "string"
             ],
-            "description": "Seconds the most overdue live schedule is past its next run; null when none are overdue.",
             "format": "int64"
           }
         },
-        "description": "One-shot health counters for the dashboard overview, computed on the database clock."
+        "description": "One-shot health counters for the dashboard overview, computed on the database clock: ready jobs (all Ready plus\nSuspended jobs whose durable wait has expired) and the oldest one's claimable age, executing and failed jobs,\nunresolved alerts and the Critical ones among them, dead workers and stale ones (Active or Draining, not seen\nwithin the stale threshold), schedules due inside the due-soon window and the most overdue one's lag, all jobs in\nscope and the `sys.`-prefixed system jobs among them, and the executor capacity across live workers that\n`ExecutingCount` saturates against."
       },
       "PagedResultOfAlertListItem": {
         "required": [
@@ -11690,35 +11614,27 @@
         "type": "object",
         "properties": {
           "jobNamespace": {
-            "type": "string",
-            "description": "Owning namespace name."
+            "type": "string"
           },
           "jobName": {
-            "type": "string",
-            "description": "Job definition name."
+            "type": "string"
           },
           "scheduleName": {
-            "type": "string",
-            "description": "Schedule name within the job."
+            "type": "string"
           },
           "origin": {
-            "description": "How the schedule was registered.",
             "$ref": "#/components/schemas/ScheduleOriginCode"
           },
           "expressionKind": {
-            "description": "Expression syntax kind.",
             "$ref": "#/components/schemas/ScheduleExpressionKindCode"
           },
           "expression": {
-            "type": "string",
-            "description": "Effective schedule expression."
+            "type": "string"
           },
           "timeZoneId": {
-            "type": "string",
-            "description": "Effective IANA time zone id."
+            "type": "string"
           },
           "misfireStrategy": {
-            "description": "MisfireStrategy handling.",
             "$ref": "#/components/schemas/MisfireStrategyCode"
           },
           "nextRunAtUtc": {
@@ -11726,7 +11642,6 @@
               "null",
               "string"
             ],
-            "description": "Next computed fire instant, or null.",
             "format": "date-time"
           },
           "lastRunAtUtc": {
@@ -11734,11 +11649,9 @@
               "null",
               "string"
             ],
-            "description": "Most recent occurrence this schedule was advanced past (including misfire skips), or null before the first advance.",
             "format": "date-time"
           },
           "status": {
-            "description": "Lifecycle state (Active / Paused / Orphaned).",
             "$ref": "#/components/schemas/ScheduleStatusCode"
           },
           "pausedUntilUtc": {
@@ -11746,17 +11659,14 @@
               "null",
               "string"
             ],
-            "description": "When a timed pause expires, or null.",
             "format": "date-time"
           },
           "createdAtUtc": {
             "type": "string",
-            "description": "Row insert instant.",
             "format": "date-time"
           },
           "modifiedAtUtc": {
             "type": "string",
-            "description": "Last row change instant.",
             "format": "date-time"
           },
           "version": {
@@ -11765,7 +11675,6 @@
               "integer",
               "string"
             ],
-            "description": "Optimistic-concurrency row version; pass as the expected version to a CAS control verb.",
             "format": "int32"
           },
           "jobRef": {
@@ -11774,13 +11683,12 @@
                 "type": "null"
               },
               {
-                "description": "Recurring slot job's public ref, or null when the slot row was purged.",
                 "$ref": "#/components/schemas/JobRef"
               }
             ]
           }
         },
-        "description": "One schedule row in a ValueTask&lt;PagedResult&lt;ScheduleListItem&gt;&gt; ISchedules.ListAsync(ListSchedulesQuery query, CancellationToken ct = default(CancellationToken)) page. Expression and\ntime zone are the effective values: the operator override when present, else the original."
+        "description": "One schedule row in a ValueTask&lt;PagedResult&lt;ScheduleListItem&gt;&gt; ISchedules.ListAsync(ListSchedulesQuery query, CancellationToken ct = default(CancellationToken)) page. `Expression` and `TimeZoneId` are the\neffective values, the operator override when present and else the original; `LastRunAtUtc` is the most recent\noccurrence the schedule was advanced past, misfires included; `Status` is Active, Paused, or Orphaned, with\n`PausedUntilUtc` for a timed pause; `Version` is the row version a CAS control verb takes as expected;\n`JobRef` is the recurring slot job's public ref, null when the slot row was purged."
       },
       "ScheduleOriginCode": { },
       "SchedulePreview": {
@@ -12015,35 +11923,29 @@
         "type": "object",
         "properties": {
           "tenantKey": {
-            "type": "string",
-            "description": "Caller-supplied opaque external identifier. Unique."
+            "type": "string"
           },
           "displayName": {
             "type": [
               "null",
               "string"
-            ],
-            "description": "Human display label for dashboards, or null (dashboards fall back to the key)."
+            ]
           },
           "description": {
             "type": [
               "null",
               "string"
-            ],
-            "description": "Operator-readable description, or null."
+            ]
           },
           "status": {
-            "description": "Tenant lifecycle status (Active resolves at enqueue; Suspended rejects it).",
             "$ref": "#/components/schemas/TenantStatusCode"
           },
           "createdAtUtc": {
             "type": "string",
-            "description": "Row insert instant.",
             "format": "date-time"
           },
           "modifiedAtUtc": {
             "type": "string",
-            "description": "Last row change instant.",
             "format": "date-time"
           },
           "version": {
@@ -12052,11 +11954,10 @@
               "integer",
               "string"
             ],
-            "description": "Optimistic-concurrency row version; pass as the expected version to a CAS control verb.",
             "format": "int32"
           }
         },
-        "description": "The single-tenant read model returned by ValueTask&lt;TenantDetail?&gt; ITenants.GetAsync(string tenantKey, CancellationToken ct = default(CancellationToken)). Today it carries the\nsame fields as TenantListItem; it is a distinct type because a detail read can grow\nadditively (usage counts, per-tenant policy) without the list row paying for it."
+        "description": "The single-tenant read model returned by ValueTask&lt;TenantDetail?&gt; ITenants.GetAsync(string tenantKey, CancellationToken ct = default(CancellationToken)). It carries the same fields as\nTenantListItem today and is a distinct type because a detail read can grow additively (usage counts,\nper-tenant policy) without the list row paying for it. `TenantId` is the DB-assigned id\n`job.tenant_id` references, internal and never serialized, since a tenant is addressed by its unique\n`TenantKey`; `Status` Active resolves at enqueue and Suspended rejects it; `Version` is the row\nversion a CAS control verb takes as expected."
       },
       "TenantListItem": {
         "required": [
@@ -12071,35 +11972,29 @@
         "type": "object",
         "properties": {
           "tenantKey": {
-            "type": "string",
-            "description": "Caller-supplied opaque external identifier. Unique."
+            "type": "string"
           },
           "displayName": {
             "type": [
               "null",
               "string"
-            ],
-            "description": "Human display label for dashboards, or null (dashboards fall back to the key)."
+            ]
           },
           "description": {
             "type": [
               "null",
               "string"
-            ],
-            "description": "Operator-readable description, or null."
+            ]
           },
           "status": {
-            "description": "Tenant lifecycle status (Active resolves at enqueue; Suspended rejects it).",
             "$ref": "#/components/schemas/TenantStatusCode"
           },
           "createdAtUtc": {
             "type": "string",
-            "description": "Row insert instant.",
             "format": "date-time"
           },
           "modifiedAtUtc": {
             "type": "string",
-            "description": "Last row change instant.",
             "format": "date-time"
           },
           "version": {
@@ -12108,11 +12003,10 @@
               "integer",
               "string"
             ],
-            "description": "Optimistic-concurrency row version; pass as the expected version to a CAS control verb.",
             "format": "int32"
           }
         },
-        "description": "One tenant row in a ValueTask&lt;PagedResult&lt;TenantListItem&gt;&gt; ITenants.ListAsync(ListTenantsQuery query, CancellationToken ct = default(CancellationToken)) page, projected from\nthe `tenants` table. The string TenantListItem.TenantKey is the caller-supplied opaque external\nidentifier; the human label lives in string? TenantListItem.Description."
+        "description": "One tenant row in a ValueTask&lt;PagedResult&lt;TenantListItem&gt;&gt; ITenants.ListAsync(ListTenantsQuery query, CancellationToken ct = default(CancellationToken)) page, projected from the `tenants` table.\n`TenantKey` is the caller-supplied opaque external identifier, unique, and `DisplayName` the human label\n(dashboards fall back to the key); `TenantId` is the DB-assigned id `job.tenant_id` references, internal\nand never serialized, since a tenant is addressed by its key; `Status` Active resolves at enqueue and Suspended\nrejects it; `Version` is the row version a CAS control verb takes as expected."
       },
       "TenantStatusCode": {
         "description": "Tenant state machine. 10-spaced ids; live states 10..80."
@@ -12478,38 +12372,31 @@
         "type": "object",
         "properties": {
           "workerRef": {
-            "description": "Public stable reference for this worker registration.",
             "$ref": "#/components/schemas/WorkerRef"
           },
           "jobNamespace": {
-            "type": "string",
-            "description": "Namespace the worker executes for."
+            "type": "string"
           },
           "status": {
-            "description": "Current worker status.",
             "$ref": "#/components/schemas/WorkerStatusCode"
           },
           "host": {
-            "type": "string",
-            "description": "Machine name reported at start."
+            "type": "string"
           },
           "deploymentVersion": {
-            "type": "string",
-            "description": "Deployment version reported at start."
+            "type": "string"
           },
           "engineVersion": {
             "type": [
               "null",
               "string"
-            ],
-            "description": "Acta engine assembly version reported at start."
+            ]
           },
           "dotnetVersion": {
             "type": [
               "null",
               "string"
-            ],
-            "description": "Runtime framework description reported at start (e.g. \".NET 10.0.0\")."
+            ]
           },
           "processId": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -12518,7 +12405,6 @@
               "integer",
               "string"
             ],
-            "description": "OS process id of the worker process.",
             "format": "int32"
           },
           "maxConcurrency": {
@@ -12527,26 +12413,22 @@
               "integer",
               "string"
             ],
-            "description": "Effective per-process executor cap reported at start.",
             "format": "int32"
           },
           "lastHeartbeatAtUtc": {
             "type": "string",
-            "description": "Last heartbeat instant.",
             "format": "date-time"
           },
           "startedAtUtc": {
             "type": "string",
-            "description": "Worker start instant.",
             "format": "date-time"
           },
           "modifiedAtUtc": {
             "type": "string",
-            "description": "Last row change instant.",
             "format": "date-time"
           }
         },
-        "description": "One worker row in a ValueTask&lt;PagedResult&lt;WorkerListItem&gt;&gt; IWorkers.ListAsync(ListWorkersQuery query, CancellationToken ct = default(CancellationToken)) page."
+        "description": "One worker row in a ValueTask&lt;PagedResult&lt;WorkerListItem&gt;&gt; IWorkers.ListAsync(ListWorkersQuery query, CancellationToken ct = default(CancellationToken)) page: the registration's public ref and internal id, its\nnamespace and status, and what it reported at start (host machine, deployment version, engine version, runtime\nframework, process id, executor cap), with the last heartbeat, start, and last change instants."
       },
       "WorkerRef": { },
       "WorkerStatusCode": {

@@ -5,13 +5,12 @@ using Microsoft.Extensions.Options;
 namespace Acta.Runtime;
 
 /// <summary>
-/// The runtime-owned worker heartbeat loop. Every <see cref="JobsOptions.HeartbeatInterval"/> it renews
-/// this worker's batched job leases + <c>workers.last_seen_at_utc</c> via
-/// <see cref="WorkerLifecycle.ExtendWorkerLeasesAsync"/> and feeds each running attempt's job-lease deadline
-/// on a confirmed renewal of its own execution, cancelling one only when an authoritative refresh drops its
-/// execution (operator cancel, a reclaimed lease, or the job claimed again into a newer execution). It does not enforce deadlines on an outage - the <see cref="AttemptWatchdog"/>
-/// does - nor renew handler locks - <see cref="LockLeaseHeartbeat"/> does, so a lock outage stays
-/// apart from a worker-lease one. Runs on its own <see cref="PeriodicTimer"/>; a no-op in enqueue-only mode.
+/// The runtime-owned worker heartbeat loop. Every <see cref="JobsOptions.HeartbeatInterval"/> it renews this worker's
+/// batched job leases and <c>workers.last_seen_at_utc</c> via <see cref="WorkerLifecycle.ExtendWorkerLeasesAsync"/>,
+/// feeds each running attempt's job-lease deadline on a confirmed renewal of its own execution, and cancels one only
+/// when an authoritative refresh drops its execution (operator cancel, a reclaimed lease, or the job claimed again into
+/// a newer execution). It neither enforces deadlines on an outage (<see cref="AttemptWatchdog"/> does) nor renews handler
+/// locks (<see cref="LockLeaseHeartbeat"/> does, so a lock outage stays apart from a worker-lease one); a no-op in enqueue-only mode.
 /// </summary>
 internal sealed class WorkerHeartbeat(
     WorkerLifecycle workers,
@@ -201,13 +200,11 @@ internal sealed class WorkerHeartbeat(
     }
 
     /// <summary>
-    /// The rows this tick renewed that no attempt on their execution and no buffered claim of this process
-    /// accounts for.
-    /// A claim's answer can be lost after the store committed it: the rows are this worker's, the
-    /// refresh renews them from database state, and nothing would ever start or reclaim them. An id
-    /// must be unaccounted for on two consecutive authoritative ticks before it is released, so a
-    /// claim whose executor has not registered it yet is never mistaken for one. The release runs
-    /// detached: its writes repeat through an outage, and the heartbeat must keep beating meanwhile.
+    /// The rows this tick renewed that no attempt on their execution and no buffered claim of this process accounts
+    /// for: a claim's answer can be lost after the store committed it, the rows are this worker's, the refresh renews
+    /// them from database state, and nothing would ever start or reclaim them. An id must be unaccounted for on two
+    /// consecutive authoritative ticks before it is released, so a claim whose executor has not registered it yet is
+    /// never mistaken for one. The release runs detached: its writes repeat through an outage while the heartbeat beats.
     /// </summary>
     private void ReleaseOrphanedClaims(
         KeyValuePair<long, RunningAttempt>[] snapshot,
@@ -260,14 +257,12 @@ internal sealed class WorkerHeartbeat(
     }
 
     /// <summary>
-    /// For each attempt this process was running as of the pre-extend snapshot, matched on job and
-    /// execution: if an authoritative refresh renewed it, feed its job-lease deadline forward; if the
-    /// refresh reported it but skipped a row another transaction held, leave the deadline for the next
-    /// beat; if the authoritative refresh dropped it (operator cancel, a stolen or reclaimed lease, or the
-    /// job claimed again into a newer execution), cancel the attempt now. `live` is
-    /// null when the refresh threw (store unreachable): a definitive gone can't be told from a
-    /// blip, so nothing is fed or cancelled here - the deadline is left in place and the watchdog
-    /// cancels only once it is about to lapse.
+    /// For each attempt this process was running as of the pre-extend snapshot, matched on job and execution: a
+    /// renewal by an authoritative refresh feeds its job-lease deadline forward; a row the refresh reported but skipped
+    /// because another transaction held it keeps its deadline for the next beat; an execution the authoritative refresh
+    /// dropped (operator cancel, a stolen or reclaimed lease, or the job claimed again into a newer execution) is
+    /// cancelled now. <c>live</c> is null when the refresh threw (store unreachable): a definitive gone cannot be told
+    /// from a blip, so nothing is fed or cancelled and the watchdog cancels only once the deadline is about to lapse.
     /// </summary>
     private void FeedJobLeases(
         KeyValuePair<long, RunningAttempt>[] snapshot,

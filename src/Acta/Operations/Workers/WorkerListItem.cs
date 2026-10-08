@@ -3,16 +3,10 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// One worker row in a <see cref="IWorkers.ListAsync"/> page.
+/// One worker row in a <see cref="IWorkers.ListAsync"/> page: the registration's public ref and internal id, its
+/// namespace and status, and what it reported at start (host machine, deployment version, engine version, runtime
+/// framework, process id, executor cap), with the last heartbeat, start, and last change instants.
 /// </summary>
-/// <param name="WorkerRef">Public stable reference for this worker registration.</param> <param name="WorkerId">Internal worker row id.</param> <param name="JobNamespace">Namespace the worker executes for.</param> <param name="Status">Current worker status.</param>
-/// <param name="Host">Machine name reported at start.</param>
-/// <param name="DeploymentVersion">Deployment version reported at start.</param>
-/// <param name="EngineVersion">Acta engine assembly version reported at start.</param>
-/// <param name="DotnetVersion">Runtime framework description reported at start (e.g. ".NET 10.0.0").</param>
-/// <param name="ProcessId">OS process id of the worker process.</param>
-/// <param name="MaxConcurrency">Effective per-process executor cap reported at start.</param>
-/// <param name="LastHeartbeatAtUtc">Last heartbeat instant.</param> <param name="StartedAtUtc">Worker start instant.</param> <param name="ModifiedAtUtc">Last row change instant.</param>
 public sealed record WorkerListItem(
     WorkerRef WorkerRef,
     [property: JsonIgnore] int WorkerId,

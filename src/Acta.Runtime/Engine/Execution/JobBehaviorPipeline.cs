@@ -1,14 +1,11 @@
 namespace Acta.Runtime;
 
 /// <summary>
-/// Ordered pipeline-behavior resolvers for a worker. <see cref="Build"/> folds them around the
-/// innermost handler invocation, once per attempt.
-/// </summary>
-/// <remarks>
-/// Each resolver is a closed-generic <c>sp =&gt; sp.GetRequiredService&lt;TBehavior&gt;()</c> captured at
-/// registration, so resolution stays reflection-free with no by-type lookup. An empty set returns the
+/// Ordered pipeline-behavior resolvers for a worker; <see cref="Build"/> folds them around the innermost handler
+/// invocation, once per attempt. Each resolver is a closed-generic <c>sp =&gt; sp.GetRequiredService&lt;TBehavior&gt;()</c>
+/// captured at registration, so resolution stays reflection-free with no by-type lookup; an empty set returns the
 /// innermost delegate unchanged, so dispatch matches the no-behavior path exactly.
-/// </remarks>
+/// </summary>
 internal sealed class JobBehaviorPipeline(IReadOnlyList<Func<IServiceProvider, IJobPipelineBehavior>> resolvers)
 {
     private readonly IReadOnlyList<Func<IServiceProvider, IJobPipelineBehavior>> _resolvers = resolvers;

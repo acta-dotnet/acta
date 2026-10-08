@@ -225,14 +225,12 @@ internal sealed class RuntimeJobContext(
     }
 
     /// <summary>
-    /// The wait timed out, so this parent stopped waiting; the child and everything under it is
-    /// work nobody is going to read. Reason JobWaitTimedOut rather than JobParentCancelled, because
-    /// the parent was NOT cancelled and the timeline must not say it was.
-    /// <para>Follow-up transactions, like every other cascade, and NOT atomic with the Expired flip
-    /// that preceded them. A crash mid-walk leaves live stragglers, and no maintenance pass sweeps
-    /// them: the only repair is the parent replaying this wait, re-deriving TimedOut off the
-    /// Expired slot, and re-running the cancel. A parent that lands terminal without replaying
-    /// strands them, which docs/technical/known-limitations.md states as a known limitation.</para>
+    /// The wait timed out, so this parent stopped waiting, and the child and everything under it is work nobody will
+    /// read. Reason JobWaitTimedOut rather than JobParentCancelled, because the parent was not cancelled and the
+    /// timeline must not say it was. Follow-up transactions, like every cascade, not atomic with the Expired flip
+    /// that preceded them: a crash mid-walk leaves live stragglers no maintenance pass sweeps, and the only repair is
+    /// the parent replaying this wait, re-deriving TimedOut off the Expired slot, and re-running the cancel. A parent
+    /// that lands terminal without replaying strands them (docs/technical/known-limitations.md).
     /// </summary>
     private protected override async Task CancelTimedOutChildCoreAsync(long childJobId, CancellationToken ct)
     {
@@ -544,13 +542,11 @@ internal sealed class RuntimeJobContext(
     }
 
     /// <summary>
-    /// Rate admission, taken by the runner after the concurrency slot and before the handler. The meter
-    /// is the bucket row {ns_id}.rate.{key}, disjoint from the lock and slot key spaces, and holds
-    /// nothing: it is moved, never acquired, so there is no release. The key is canonicalized like the
-    /// slot key, system names allowed for the same reason. The grace a booked turn gets before the
-    /// sweep may take it is a constant, not the lease TTL: the turn is decoded as expiry minus grace,
-    /// so a value that moved with worker settings would shift every booked turn on a fleet-wide
-    /// heartbeat change.
+    /// Rate admission, taken by the runner after the concurrency slot and before the handler. The meter is the bucket
+    /// row {ns_id}.rate.{key}, disjoint from the lock and slot key spaces, and holds nothing: it is moved, never
+    /// acquired, so there is no release. The key is canonicalized like the slot key, system names allowed for the same
+    /// reason. The grace a booked turn gets before the sweep may take it is a constant, not the lease TTL: the turn is
+    /// decoded as expiry minus grace, so a value moving with worker settings would shift every booked turn.
     /// </summary>
     internal Task<RateReservation> ReserveRateAsync(string rateKey, RateLimitSpec rate, CancellationToken ct)
     {

@@ -3,17 +3,12 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// One tenant row in a <see cref="ITenants.ListAsync"/> page, projected from
-/// the <c>tenants</c> table. The <see cref="TenantKey"/> is the caller-supplied opaque external
-/// identifier; the human label lives in <see cref="Description"/>.
+/// One tenant row in a <see cref="ITenants.ListAsync"/> page, projected from the <c>tenants</c> table.
+/// <c>TenantKey</c> is the caller-supplied opaque external identifier, unique, and <c>DisplayName</c> the human label
+/// (dashboards fall back to the key); <c>TenantId</c> is the DB-assigned id <c>job.tenant_id</c> references, internal
+/// and never serialized, since a tenant is addressed by its key; <c>Status</c> Active resolves at enqueue and Suspended
+/// rejects it; <c>Version</c> is the row version a CAS control verb takes as expected.
 /// </summary>
-/// <param name="TenantId">DB-assigned tenant id, referenced by <c>job.tenant_id</c>; internal, never serialized (a tenant is addressed by its key).</param>
-/// <param name="TenantKey">Caller-supplied opaque external identifier. Unique.</param>
-/// <param name="DisplayName">Human display label for dashboards, or null (dashboards fall back to the key).</param>
-/// <param name="Description">Operator-readable description, or null.</param>
-/// <param name="Status">Tenant lifecycle status (Active resolves at enqueue; Suspended rejects it).</param>
-/// <param name="CreatedAtUtc">Row insert instant.</param> <param name="ModifiedAtUtc">Last row change instant.</param>
-/// <param name="Version">Optimistic-concurrency row version; pass as the expected version to a CAS control verb.</param>
 public sealed record TenantListItem(
     [property: JsonIgnore] int TenantId,
     string TenantKey,

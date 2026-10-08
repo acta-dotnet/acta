@@ -1,15 +1,11 @@
 namespace Acta;
 
 /// <summary>
-/// Thrown from <c>ctx.RunStepAsync&lt;TResult&gt;</c> on replay when a previously-<c>Succeeded</c>
-/// step's stored result bytes cannot be deserialized into the current <c>TResult</c>.
-/// Renaming a step's result type while jobs are in flight is a breaking change; this surfaces it
-/// clearly instead of returning a silently-wrong value.
+/// Thrown from <c>ctx.RunStepAsync&lt;TResult&gt;</c> on replay when a previously succeeded step's stored result
+/// bytes cannot be deserialized into the current <c>TResult</c>: renaming a step's result type while jobs are in
+/// flight is a breaking change, surfaced here instead of as a silently wrong value. Names the step, the
+/// <paramref name="expectedType"/>, and wraps the serializer's <paramref name="innerException"/>.
 /// </summary>
-/// <remarks>
-/// Creates the exception for step <paramref name="stepName"/> whose stored result could not
-/// be read as <paramref name="expectedType"/>, wrapping the serializer's <paramref name="innerException"/>.
-/// </remarks>
 public sealed class StepResultContractMismatchException(string stepName, Type expectedType, Exception innerException)
     : Exception(
         $"Step '{stepName}' has a stored result that cannot be deserialized into '{expectedType}'. "

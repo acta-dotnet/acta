@@ -3,16 +3,12 @@ using Microsoft.Extensions.Logging;
 namespace Acta.Runtime;
 
 /// <summary>
-/// Keeps crash recovery from depending on the one job that can be stranded. The reclaim sweep runs
-/// from the <c>sys.recovery</c> slot, and a worker can die holding that slot; the sweep that would free
-/// it is then the one that never runs, and everything stranded from then on queues behind it. This loop
-/// checks only that slot, on its own timer, and re-arms it when its lease has lapsed. It then runs that
-/// exact slot itself, through the ordinary execution lifecycle but outside the executor pool, so a
-/// worker whose executors are all busy can still sweep. Ordinary claiming keeps the slot too and remains
-/// the usual path: the slot's own lease decides which of them gets it, so the monitor is a backstop for
-/// saturation rather than a replacement. It never sweeps the namespace itself, so a hundred workers
-/// cost a hundred point statements every seven minutes rather than a hundred sweeps, and it never
-/// recreates a slot an operator removed.
+/// Keeps crash recovery from depending on the one job that can be stranded: the reclaim sweep runs from the
+/// <c>sys.recovery</c> slot, a worker can die holding it, and the sweep that would free it is then the one that never
+/// runs. This loop checks only that slot, on its own timer, re-arms it when its lease has lapsed, and runs it itself
+/// through the ordinary lifecycle but outside the executor pool, so a saturated worker can still sweep; ordinary
+/// claiming keeps the slot too and its lease decides who gets it, so this is a backstop for saturation. It never
+/// sweeps the namespace (a hundred workers cost a hundred point statements, not sweeps) nor recreates a removed slot.
 /// </summary>
 internal sealed class RecoverySlotMonitor(
     Execution execution,
@@ -25,13 +21,11 @@ internal sealed class RecoverySlotMonitor(
 )
 {
     /// <summary>
-    /// One check per worker every seven minutes, each worker offset by a random fraction of that
-    /// window. A slot that strands is found within the interval by whichever worker's check falls next,
-    /// so more workers find it sooner; a lone worker can take the whole seven minutes. That is a bound
-    /// on delay, not a promised recovery deadline, and the trade is deliberate: no cross-worker
-    /// coordination and no schema. The interval bounds the saturated case only, where nothing ordinary
-    /// is free to claim the slot; with executors available the slot's own once-a-minute schedule still
-    /// governs, because ordinary claiming never stopped taking it.
+    /// One check per worker every seven minutes, each worker offset by a random fraction of that window. A stranded
+    /// slot is found within the interval by whichever worker's check falls next, so more workers find it sooner and a
+    /// lone worker can take the whole seven minutes: a bound on delay, not a promised recovery deadline, traded for
+    /// no cross-worker coordination and no schema. It bounds the saturated case only; with executors free the slot's
+    /// own once-a-minute schedule still governs, because ordinary claiming never stopped taking it.
     /// </summary>
     internal static readonly TimeSpan Interval = TimeSpan.FromMinutes(7);
 

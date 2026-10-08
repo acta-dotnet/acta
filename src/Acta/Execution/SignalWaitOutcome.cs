@@ -1,15 +1,11 @@
 namespace Acta;
 
 /// <summary>
-/// Outcome of a bounded <c>ctx.TryWaitSignalAsync(name, timeout)</c>: either the signal arrived
-/// (<see cref="Received"/>) or the wait re-entered its slot past the stored expiration with nothing
-/// raised and settled it <c>Expired</c> (<see cref="TimedOut"/>). Returned, never thrown; the non-Try
-/// overloads cancel the Job instead of returning this.
+/// Outcome of a bounded <c>ctx.TryWaitSignalAsync(name, timeout)</c>: either the signal arrived (<see cref="Received"/>)
+/// or the wait re-entered its slot past the stored expiration with nothing raised and settled it <c>Expired</c>
+/// (<see cref="TimedOut"/>). Returned, never thrown; the non-Try overloads cancel the Job instead. Construction is
+/// gated to the framework (private constructor, internal factories), so no caller can synthesise both received and timed out.
 /// </summary>
-/// <remarks>
-/// Construction is gated to the framework (private constructor, internal factories) so a caller
-/// cannot synthesise a result that is both received and timed out.
-/// </remarks>
 public sealed record SignalWaitOutcome
 {
     private SignalWaitOutcome(bool timedOut) => TimedOut = timedOut;

@@ -1,21 +1,13 @@
 namespace Acta;
 
 /// <summary>
-/// Declares a named recurring schedule on a <c>[Job]</c> handler. Multiple schedules may decorate
-/// one handler; each becomes a <c>schedules</c> row under the definition's single recurring slot
-/// <c>job</c>. The slot's hot-path cursor is the MIN of its live schedules' next occurrences, and
-/// currently-due schedules coalesce into one execution whose due set the handler reads via
-/// <see cref="JobContext.TriggeringScheduleNames"/>.
+/// Declares a named recurring schedule on a <c>[Job]</c> handler. Several may decorate one handler; each becomes a
+/// <c>schedules</c> row under the definition's single recurring slot <c>job</c>, whose hot-path cursor is the MIN of
+/// its live schedules' next occurrences, and currently-due schedules coalesce into one execution whose due set the
+/// handler reads via <see cref="JobContext.TriggeringScheduleNames"/>.
 /// </summary>
-/// <remarks>Declares a schedule.</remarks>
-/// <param name="name">
-/// Operator-stable kebab-case schedule name, unique within the definition.
-/// </param>
-/// <param name="expression">
-/// Cron expression (Cronos dialect; 6 fields enables seconds), an ISO 8601 duration (<c>"PT5M"</c>),
-/// or a plain duration (<c>"5m"</c>, <c>"10s"</c>, <c>"1h"</c>); the generator tells them apart by
-/// the leading token.
-/// </param>
+/// <param name="name">Operator-stable kebab-case schedule name, unique within the definition.</param>
+/// <param name="expression">Cron (Cronos; 6 fields for seconds), an ISO 8601 duration ("PT5M"), or a plain one ("5m", "1h").</param>
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
 public sealed class JobScheduleAttribute(string name, string expression) : Attribute
 {

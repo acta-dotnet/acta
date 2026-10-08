@@ -4,16 +4,12 @@ using System.Text;
 namespace Acta;
 
 /// <summary>
-/// Built-in <see cref="IJobPayloadSerializer"/> for <see cref="JobPayloadFormat.Text"/>. Renders
-/// scalar values as UTF-8 text using <see cref="CultureInfo.InvariantCulture"/> on every format and
-/// parse, so culture cannot drift between producer and consumer: <c>decimal</c>, <c>double</c>, and
-/// <c>float</c> always use <c>.</c> as the decimal separator with no group separator. Strings pass
-/// through verbatim; <c>Guid</c> uses <c>"D"</c>; <c>DateTime</c> and <c>DateTimeOffset</c> use ISO 8601
-/// round-trip <c>"O"</c>; <c>TimeSpan</c> uses <c>"c"</c>; <c>DateOnly</c> uses <c>"yyyy-MM-dd"</c> and
-/// <c>TimeOnly</c> uses <c>"HH:mm:ss.fffffff"</c>; enums round-trip by name (case-insensitive parse);
-/// other numeric primitives, <c>bool</c>, and <c>char</c> use invariant-culture <c>IConvertible</c>.
-/// Any other input type is a programming error (the descriptor's payload-format inference would not
-/// have selected <c>text</c>).
+/// Built-in <see cref="IJobPayloadSerializer"/> for <see cref="JobPayloadFormat.Text"/>: renders scalar values as
+/// UTF-8 text with <see cref="CultureInfo.InvariantCulture"/> on every format and parse, so culture cannot drift
+/// between producer and consumer. Strings pass through verbatim; <c>Guid</c> uses <c>"D"</c>; <c>DateTime</c> and
+/// <c>DateTimeOffset</c> use round-trip <c>"O"</c>; <c>TimeSpan</c> <c>"c"</c>; <c>DateOnly</c> <c>"yyyy-MM-dd"</c>;
+/// <c>TimeOnly</c> <c>"HH:mm:ss.fffffff"</c>; enums round-trip by name, parsed case-insensitively; other numerics,
+/// <c>bool</c>, and <c>char</c> use invariant <c>IConvertible</c>. Any other type is a programming error.
 /// </summary>
 public sealed class TextJobPayloadSerializer : IJobPayloadSerializer
 {

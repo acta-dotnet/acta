@@ -1,14 +1,10 @@
 namespace Acta.Runtime;
 
 /// <summary>
-/// One entity's complete persistence shape: the runtime mirror of everything the attribute layer
-/// declares on a <c>[DbTable]</c> class.
+/// One entity's complete persistence shape: the runtime mirror of everything the attribute layer declares on a
+/// <c>[DbTable]</c> class. Instances are emitted as literals by the schema generator, with no runtime reflection;
+/// reach one via <c>ActaSchema.Job.Entity</c> (typed) or <c>ActaSchema.For&lt;TEntity&gt;()</c> (generic).
 /// </summary>
-/// <remarks>
-/// Instances are emitted as literals by <c>ActaDbGenerator</c> into <c>ActaSchema.Generated.cs</c>,
-/// with no runtime reflection. Reach an instance via <c>ActaSchema.Job.Entity</c> (typed) or
-/// <c>ActaSchema.For&lt;TEntity&gt;()</c> (generic).
-/// </remarks>
 internal sealed class DbEntitySpec
 {
     /// <summary>The CLR entity type.</summary>
@@ -57,21 +53,13 @@ internal sealed class DbEntitySpec
 }
 
 /// <summary>
-/// One column on a persisted entity, capturing every fact declared via
-/// <see cref="DbColumnAttribute"/> and the surrounding entity-level attributes. Consumed by
-/// provider operations (schema-aware SQL rendering) and schema emitters (migration DDL).
+/// One column on a persisted entity, every fact declared via <see cref="DbColumnAttribute"/> and the entity-level
+/// attributes, consumed by provider operations (schema-aware SQL) and the schema emitters (migration DDL). A coded
+/// column (<see cref="IsCoded"/>) is an enum property storing its underlying width in <see cref="Kind"/>, with
+/// <see cref="EnumTypeName"/> and the <see cref="CodeKind"/> discriminator for catalog seeding and docs; a manual
+/// primary key suppresses provider-native identity, so the caller assigns it at INSERT; a concurrency token
+/// increments on UPDATE via <c>SET version = version + 1</c>; <see cref="Generated"/> is a stored computed column's SQL.
 /// </summary>
-/// <param name="Name">Snake_case column name.</param> <param name="Kind">Storage kind (drives provider type mapping).</param> <param name="Size">For Ascii/Unicode/Bytes: max byte/char length; <c>null</c> elsewhere; <c>-1</c> means max length.</param>
-/// <param name="Precision">Decimal total digits.</param> <param name="Scale">Decimal digits right of the point.</param> <param name="IsNullable">Whether the CLR property is nullable (<c>T?</c> or reference + nullable annotation).</param>
-/// <param name="Default">Server-side DEFAULT selector (<see cref="DbDefault.None"/> = no DEFAULT, caller supplies the value at INSERT).</param>
-/// <param name="IsCoded"><c>true</c> iff the CLR property is an enum (the generator sets this). Coded columns store their enum's underlying width in <see cref="Kind"/> (<see cref="DbKind.Byte"/> / <see cref="DbKind.Int16"/> / <see cref="DbKind.Int32"/>); their values are not constrained, so a new code value needs no migration.</param>
-/// <param name="IsPrimaryKey"><c>true</c> iff this column is part of the entity's PK.</param> <param name="IsSolePrimaryKey"><c>true</c> iff the PK has exactly one column and this is it (drives identity emission).</param>
-/// <param name="IsManualPrimaryKey"><c>true</c> iff the PK is single-column with <c>Manual = true</c> (suppresses provider-native identity; caller assigns at INSERT).</param>
-/// <param name="IsConcurrencyToken"><c>true</c> iff the column carries <c>DbConcurrencyToken</c>; UPDATEs increment via <c>SET version = version + 1</c>.</param>
-/// <param name="EnumTypeName">CLR enum type name when the property is an enum; <c>null</c> otherwise; drives catalog seeding and docs.</param>
-/// <param name="CodeKind">Kebab catalog discriminator the source generator baked into the enum's companion (e.g. <c>"job-status"</c>); <c>null</c> when the enum has no companion (not a <c>[Code]</c> family) or the column is not enum-backed.</param>
-/// <param name="ClrPropertyName">The C# property name on the entity; used by emit-time tooling that reflects on the property (XML-doc lookup, diagnostics).</param>
-/// <param name="Generated">SQL expression for a store-generated (STORED/PERSISTED) computed column; <c>null</c> for an ordinary column.</param>
 internal sealed record DbColumnSpec(
     string Name,
     DbKind Kind,
@@ -195,27 +183,19 @@ internal sealed record DbPrimaryKeySpec(string Name, IReadOnlyList<string> Colum
 }
 
 /// <summary>
-/// One enforced foreign-key declaration on an entity. Acta declares enforced FKs only where the
-/// child row's lifetime is bounded by the parent's (see <c>docs/internals/design.md</c>, FK policy).
+/// One enforced foreign-key declaration on an entity, <paramref name="Column"/> to <paramref name="TargetColumn"/>
+/// on <paramref name="Target"/> with the provider's <paramref name="OnDelete"/> action; the name carries the
+/// <c>fk_</c> prefix. Acta declares enforced FKs only where the child row's lifetime is bounded by the parent's
+/// (<c>docs/internals/design.md</c>, FK policy).
 /// </summary>
-/// <param name="Name">Constraint name; must carry the <c>fk_</c> prefix.</param>
-/// <param name="Column">Snake_case local column name on the declaring entity.</param>
-/// <param name="Target">The referenced entity type.</param>
-/// <param name="TargetColumn">Snake_case column name on the target entity.</param>
-/// <param name="OnDelete">Provider <c>ON DELETE</c> action.</param>
 internal sealed record DbForeignKeySpec(string Name, string Column, Type Target, string TargetColumn, DbForeignKeyAction OnDelete);
 
 /// <summary>
-/// One index declared on an entity; unique and non-unique declarations collapse onto this single
-/// shape with <see cref="IsUnique"/> as the discriminator.
+/// One index declared on an entity; unique (<c>ux_*</c>) and non-unique (<c>ix_*</c>) declarations collapse onto this
+/// shape with <see cref="IsUnique"/> as the discriminator. <see cref="Columns"/> are the key columns in declaration
+/// order; <see cref="Includes"/>, <see cref="Descending"/>, and <see cref="Filter"/> are null when absent;
+/// <see cref="Usage"/> names the access pattern the index serves, for documentation only.
 /// </summary>
-/// <param name="Name">Constraint name; <c>ix_*</c> for non-unique, <c>ux_*</c> for unique.</param>
-/// <param name="Columns">Index key columns in declaration order.</param>
-/// <param name="Includes">Optional INCLUDE columns (covering-index payload). <c>null</c> when none.</param>
-/// <param name="Descending">Optional list of key columns sorted descending. <c>null</c> when none.</param>
-/// <param name="Filter">Optional filter predicate (filtered indexes / partial indexes). <c>null</c> when none.</param>
-/// <param name="Usage">The access pattern the index serves (for example <c>claim_hot_path</c>). Documentation-only.</param>
-/// <param name="IsUnique"><c>true</c> for unique indexes.</param>
 internal sealed record DbIndexSpec(
     string Name,
     IReadOnlyList<string> Columns,

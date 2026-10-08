@@ -7,13 +7,11 @@ using Microsoft.Extensions.Options;
 namespace Acta.Runtime;
 
 /// <summary>
-/// Executes one already-claimed job: resolves the descriptor, opens the per-attempt DI scope, plans
-/// a recurring slot fire, builds the <see cref="RuntimeJobContext"/> and publishes it on the scope,
-/// then hands the start-admit-invoke-complete lifecycle to <see cref="JobExecution"/> (whose admission takes the
-/// concurrency-key lock after the start CAS and bounces a loser back to Ready). Claiming jobs from the
-/// DB and dispatching them to executors is the worker loop's job.
-/// <para>A claim this deployment carries no handler for is returned to Ready instead of executed;
-/// see <see cref="ExecuteClaimedJobAsync"/>.</para>
+/// Executes one already-claimed job: resolves the descriptor, opens the per-attempt DI scope, plans a recurring slot
+/// fire, builds the <see cref="RuntimeJobContext"/> and publishes it on the scope, then hands the
+/// start-admit-invoke-complete lifecycle to <see cref="JobExecution"/>, whose admission takes the concurrency-key
+/// slot after the start CAS and bounces a loser back to Ready. Claiming jobs and dispatching them to executors is the
+/// worker loop's job. A claim this deployment carries no handler for is returned to Ready instead of executed.
 /// </summary>
 internal sealed class JobExecutor(
     Locks locks,
@@ -252,18 +250,12 @@ internal sealed class JobExecutor(
     }
 
     /// <summary>
-    /// Returns a claim this deployment has no handler for to Ready: budget-neutral, lease cleared, due
-    /// again after <see cref="JobsOptions.SafetyPollInterval"/>, so a worker that carries the
-    /// definition can take it. Claims are selected by namespace, so a namespace that still holds jobs
-    /// for a definition dropped from the manifest - and every rolling deploy - hands some worker a job
-    /// it cannot run. The caller has already excluded the definition from this worker's claims, so
-    /// each definition costs this worker one bounce rather than one per job per safety-poll interval.
-    /// <para>The claim was never an attempt: nothing is registered in
-    /// <c>WorkerContext.RunningAttempts</c>, no per-attempt scope is opened, and no handler is
-    /// invoked. Refusing the claim by throwing instead would strand the row - the claim has already
-    /// stamped the lease and the in-flight status, the worker loop swallows the exception and stays
-    /// healthy, and <c>extend_worker_leases</c> renews every row this worker leases from database
-    /// state alone, so the lease never lapses and <c>sys.recovery</c> never reclaims it.</para>
+    /// Returns a claim this deployment has no handler for to Ready: budget-neutral, lease cleared, due again after
+    /// <see cref="JobsOptions.SafetyPollInterval"/>, so a worker that carries the definition can take it (claims are
+    /// selected by namespace, so every rolling deploy hands some worker a job it cannot run). The caller has excluded
+    /// the definition from this worker's claims, so each costs one bounce rather than one per job per interval. The
+    /// claim was never an attempt: nothing registered, no scope, no handler. Throwing instead would strand the row, since
+    /// the heartbeat renews every leased row from database state alone and <c>sys.recovery</c> never reclaims it.
     /// </summary>
     private async Task<RunOnceStatus> ReleaseUnsupportedClaimAsync(
         ClaimedJob job,
@@ -301,16 +293,10 @@ internal sealed class JobExecutor(
     }
 
     /// <summary>
-    /// Returns a claim this worker will not run to Ready, budget-neutral, lease cleared, due again after
-    /// <see cref="JobsOptions.SafetyPollInterval"/>. Both writes are repeated until they land, because a
-    /// claim nothing settles stays leased for as long as this worker lives.
-    /// </summary>
-    /// <summary>
-    /// Returns to Ready the rows the heartbeat found leased by this process with no attempt behind
-    /// them: claims whose answer was lost after the store committed them. Each row is read again
-    /// first, and only one still leased by one of this process's workers, still Dispatched or
-    /// Executing, and still unaccounted for is released, through the same start-then-reschedule walk
-    /// an unsupported claim takes, so the ledger shows an attempt that ran nothing and re-armed.
+    /// Returns to Ready the rows the heartbeat found leased by this process with no attempt behind them: claims whose
+    /// answer was lost after the store committed them. Each row is read again first, and only one still leased by one
+    /// of this process's workers, still Dispatched or Executing, and still unaccounted for is released, through the
+    /// same start-then-reschedule walk an unsupported claim takes, so the ledger shows an attempt that ran nothing.
     /// </summary>
     public async Task ReleaseOrphanedClaimsAsync(IReadOnlyList<long> jobIds, string reason, CancellationToken ct)
     {
@@ -434,6 +420,11 @@ internal sealed class JobExecutor(
         );
     }
 
+    /// <summary>
+    /// Returns a claim this worker will not run to Ready, budget-neutral, lease cleared, due again after
+    /// <see cref="JobsOptions.SafetyPollInterval"/>. Both writes are repeated until they land, because a claim nothing
+    /// settles stays leased for as long as this worker lives.
+    /// </summary>
     private async Task<RunOnceStatus> ReleaseClaimAsync(
         ClaimedJob job,
         int workerId,

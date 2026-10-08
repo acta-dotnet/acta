@@ -267,15 +267,12 @@ internal sealed class DbSession : IDbSession
     }
 
     /// <summary>
-    /// Tears a failed attempt down without ever becoming the failure itself. The transaction goes first
-    /// (its dispose is what rolls back) and the connection goes regardless, because a rollback on a
-    /// connection the database already aborted is the likeliest thing here to throw, and losing the
-    /// connection to it would leak one per failed attempt. Both teardown failures are swallowed so the
-    /// attempt's own exception is what propagates: DeadlockRetry classifies whatever leaves this scope,
-    /// and a dispose exception in its place would make a transient stop looking like one and abandon a
-    /// retry that would have succeeded. Swallowed toward the caller is not swallowed outright: each one
-    /// is logged at warning, because a connection that failed to dispose never returns to the pool and
-    /// pool exhaustion is otherwise the first symptom an operator sees.
+    /// Tears a failed attempt down without ever becoming the failure itself. The transaction goes first (its dispose
+    /// rolls back) and the connection goes regardless, because a rollback on a connection the database already aborted
+    /// is the likeliest thing here to throw, and losing the connection to it would leak one per failed attempt. Both
+    /// teardown failures are swallowed so the attempt's own exception propagates: DeadlockRetry classifies whatever
+    /// leaves this scope, and a dispose exception in its place would hide a transient and abandon a retry that would
+    /// have succeeded. Each is still logged at warning, since a connection that failed to dispose never returns to the pool.
     /// </summary>
     private async ValueTask DisposeFailedAttemptAsync(DbTransaction? tx, DbConnection conn)
     {

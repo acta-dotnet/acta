@@ -9,17 +9,12 @@ using Microsoft.Extensions.Options;
 namespace Acta.Runtime;
 
 /// <summary>
-/// Owns the worker-runtime catalog upsert: namespace + definitions + <c>workers</c>, then the
-/// startup schedule reconcile. Runs provider bootstraps first so the schema is in place before any
-/// catalog write, then (worker mode only) populates the shared <see cref="WorkerContext"/> read on
-/// the claim/dispatch hot path.
+/// Owns the worker-runtime catalog upsert (namespace, definitions, <c>workers</c>) and the startup schedule reconcile.
+/// Runs provider bootstraps first so the schema is in place before any catalog write, then, in worker mode, populates
+/// the shared <see cref="WorkerContext"/> read on the claim/dispatch hot path. An enqueue-only runtime (a
+/// <c>j.Reference&lt;...&gt;(...)</c> host with no <c>j.Run&lt;...&gt;(...)</c> worker) skips the worker-row write and
+/// leaves the context empty, but still bootstraps so the schema exists before any enqueue resolves.
 /// </summary>
-/// <remarks>
-/// Enqueue-only runtimes (a <c>j.Reference&lt;...&gt;(...)</c> host with no <c>j.Run&lt;...&gt;(...)</c>
-/// worker) skip the worker-row write and leave the
-/// context empty, but still run provider bootstraps so the schema is in place before any enqueue
-/// resolves.
-/// </remarks>
 internal sealed class WorkerRuntimeInitializer(
     RegisterDefinitionsHandler registerDefinitions,
     GetDefinitionContractsHandler getDefinitionContracts,
@@ -363,15 +358,10 @@ internal sealed class WorkerRuntimeInitializer(
     }
 
     /// <summary>
-    /// Fail fast on a tenant-required recurring definition: schedule slots are enqueued tenant-less
-    /// by the runtime, so every slot fire would trip the enqueue guard instead of surfacing at
-    /// startup.
-    /// </summary>
-    /// <summary>
-    /// Retention deletes terminal jobs and a live recurring slot is never terminal, so the cap is the only
-    /// thing bounding a slot's result history, and zero means keep everything. Refused here, at startup and
-    /// by name, rather than on the completion request, which is built after the handler has run and sits
-    /// inside the write that is never abandoned.
+    /// Retention deletes terminal jobs and a live recurring slot is never terminal, so the cap is the only thing
+    /// bounding a slot's result history, and zero means keep everything. Refused here, at startup and by name, rather
+    /// than on the completion request, which is built after the handler has run and sits inside the write that is
+    /// never abandoned.
     /// </summary>
     internal static void ValidateRecurringResultCaps(ImmutableArray<JobDescriptor> descriptors)
     {
@@ -387,6 +377,10 @@ internal sealed class WorkerRuntimeInitializer(
         }
     }
 
+    /// <summary>
+    /// Fail fast on a tenant-required recurring definition: schedule slots are enqueued tenant-less by the runtime, so
+    /// every slot fire would trip the enqueue guard instead of surfacing at startup.
+    /// </summary>
     private static void ValidateTenantRequirements(ImmutableArray<JobDescriptor> descriptors)
     {
         foreach (var descriptor in descriptors)

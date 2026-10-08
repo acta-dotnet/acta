@@ -77,13 +77,12 @@ internal static class SchemaMigrationRunner
     }
 
     /// <summary>
-    /// The version-0 sentinel row carries the baseline stamp; a non-empty history without it (or with
-    /// a different stamp) was built by another baseline generation, including the pre-sentinel
-    /// bookkeeping shape, and cannot be translated onto this build's schema: every baseline statement
-    /// is existence-guarded, so such a database would take this build's baseline as a no-op and keep
-    /// running the shape it already has. Refusing here is what turns that silence into a verdict.
-    /// Shared with <see cref="MigrationHistoryPreflight"/> so the apply path and the always-runs
-    /// read-only preflight cannot drift into two different verdicts on the same history.
+    /// The version-0 sentinel row carries the baseline stamp; a non-empty history without it, or with a different
+    /// stamp, was built by another baseline generation (the pre-sentinel bookkeeping shape included) and cannot be
+    /// translated onto this build's schema: every baseline statement is existence-guarded, so such a database would
+    /// take this build's baseline as a no-op and keep running the shape it has. Refusing turns that silence into a
+    /// verdict. Shared with <see cref="MigrationHistoryPreflight"/> so the apply path and the always-runs read-only
+    /// preflight cannot drift into two verdicts on the same history.
     /// </summary>
     internal static void VerifyBaselineStamp(IReadOnlyDictionary<int, string> applied, string requiredStamp)
     {

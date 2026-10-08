@@ -4,13 +4,12 @@ using System.Text.Json;
 namespace Acta.Runtime;
 
 /// <summary>
-/// The EF-free staging core the provider packages consume. Normalizes and validates a raw
-/// <see cref="JobEnqueueRequest"/> through the shared enqueue validation from the <c>Acta</c> SDK
-/// (identifiers, tags, schedule mutual exclusion, priority, payload pair) and layers the two stricter
-/// outbox-only rules on top: a deduplication key is required and a parent id is rejected. A valid request
-/// projects into an <see cref="OutboxStagingValues"/> with a client-generated <c>outbox_id</c>. <see cref="Prepare"/>
-/// runs the whole provider-neutral prologue (identifier qualification, request projection, transaction
-/// guard, INSERT text), leaving each provider extension only its typed parameter binding and execution.
+/// The EF-free staging core the provider packages consume: normalizes and validates a raw
+/// <see cref="JobEnqueueRequest"/> through the shared enqueue validation from the <c>Acta</c> SDK (identifiers, tags,
+/// schedule mutual exclusion, priority, payload pair) and layers the two stricter outbox-only rules on top, a
+/// required deduplication key and no parent id, projecting a valid request into an <see cref="OutboxStagingValues"/>
+/// with a client-generated <c>outbox_id</c>. <see cref="Prepare"/> runs the whole provider-neutral prologue
+/// (identifier qualification, projection, transaction guard, INSERT text), leaving each provider its binding and execution.
 /// </summary>
 internal static class OutboxStaging
 {

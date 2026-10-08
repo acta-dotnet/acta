@@ -3,13 +3,12 @@ using Microsoft.Extensions.Options;
 namespace Acta.Runtime;
 
 /// <summary>
-/// Validates <see cref="JobsOptions"/> at host startup (paired with <c>ValidateOnStart</c>) so a
-/// deployment cannot boot with a dangerous configuration. Beyond the per-knob positive-value and
-/// retention checks, it enforces the distributed-coordination relationships between the lease window,
-/// the heartbeat cadence, and the dead-worker timeout: a lease at or below twice the heartbeat lets a
-/// live worker's own jobs get reclaimed and re-executed mid-run, and a dead-after below the lease
-/// retires a worker whose leases just lapsed but might still recover. All violations are aggregated so
-/// one boot surfaces every misconfiguration at once.
+/// Validates <see cref="JobsOptions"/> at host startup (paired with <c>ValidateOnStart</c>) so a deployment cannot
+/// boot with a dangerous configuration. Beyond the per-knob and retention checks it enforces the coordination
+/// relationships between the lease window, the heartbeat cadence, and the dead-worker timeout: a lease at or below
+/// twice the heartbeat lets a live worker's own jobs be reclaimed and re-executed mid-run, and a dead-after below the
+/// lease retires a worker whose leases just lapsed but might still recover. Violations are aggregated, so one boot
+/// surfaces every misconfiguration at once.
 /// </summary>
 internal sealed class JobsOptionsValidator : IValidateOptions<JobsOptions>
 {

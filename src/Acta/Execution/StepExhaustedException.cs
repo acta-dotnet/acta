@@ -1,21 +1,13 @@
 namespace Acta;
 
 /// <summary>
-/// Thrown from <c>ctx.RunStepAsync</c> when the named step slot has exhausted its retry budget
-/// (reached <c>MaxAttempts</c> or passed its <c>RetryWindow</c> without a successful invocation). The
-/// step row is terminal <c>Exhausted</c>; the body is not invoked again.
+/// Thrown from <c>ctx.RunStepAsync</c> when the named step slot has exhausted its retry budget (reached
+/// <c>MaxAttempts</c> or passed its <c>RetryWindow</c> without a successful invocation): the step row is terminal
+/// <c>Exhausted</c> and the body is not invoked again. An ordinary exception, not a control signal: left uncaught it
+/// fails the parent attempt under the normal retry rules, or a handler catches it to run compensation and continue.
+/// On a parent replay the slot is already <c>Exhausted</c>, so the next call for the same name re-throws at once until
+/// an operator restart gives the step a fresh budget. Carries the step name, the attempt count, and the final failure context.
 /// </summary>
-/// <remarks>
-/// An ordinary exception, not a framework control signal: left uncaught it propagates out of the
-/// handler and the parent attempt fails under the normal retry/failure rules. A handler may instead
-/// catch it to run compensation and continue. On a parent replay the slot is already <c>Exhausted</c>,
-/// so the next <c>RunStepAsync</c> call for the same name re-throws this immediately, until an operator
-/// restart gives the step a fresh budget.
-/// </remarks>
-/// <remarks>
-/// Creates the exception for the exhausted step <paramref name="stepName"/> after
-/// <paramref name="attemptCount"/> attempt(s), carrying the final failure context.
-/// </remarks>
 public sealed class StepExhaustedException(string stepName, int attemptCount, EventReasonCode? lastReasonCode, string? lastReasonMessage)
     : Exception(
         $"Step '{stepName}' exhausted after {attemptCount} attempt(s): {lastReasonMessage ?? lastReasonCode?.ToString() ?? "no reason recorded"}."

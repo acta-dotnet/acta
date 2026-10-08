@@ -5,17 +5,13 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Acta.Runtime;
 
 /// <summary>
-/// Auto-reset, coalescing async wake event. <see cref="Set"/> completes one pending waiter; with no
-/// waiter pending it latches a single slot so the next <see cref="WaitAsync"/> returns immediately
-/// once, so a wake raced against an in-flight re-read pass is never lost. Many sets between waits
-/// collapse onto the one latch slot.
+/// Auto-reset, coalescing async wake event. <see cref="Set"/> completes one pending waiter; with none pending it
+/// latches a single slot so the next <see cref="WaitAsync"/> returns immediately once, so a wake raced against an
+/// in-flight re-read pass is never lost, and many sets between waits collapse onto that slot. A waiter that times
+/// out or is cancelled retires its own completion source under the gate, and <see cref="Set"/> skips retired waiters,
+/// retrying until it wakes a live one or latches; completed heads are swept on enqueue so an idle loop's repeated
+/// timeouts never grow the queue, and the delay task is cancelled on a wake, so no timer outlives its wait.
 /// </summary>
-/// <remarks>
-/// Concurrency: a waiter that times out (or is cancelled) retires its own completion source under
-/// the gate, and <see cref="Set"/> skips retired waiters, retrying until it either wakes a live one
-/// or latches. Completed heads are swept on enqueue so an idle loop's repeated timeouts never grow
-/// the queue. The delay task is cancelled on a wake, so no timer outlives its wait.
-/// </remarks>
 internal sealed class AsyncWakeSignal
 {
     private readonly Queue<TaskCompletionSource> _waiters = new();
@@ -98,17 +94,12 @@ internal sealed class AsyncWakeSignal
 }
 
 /// <summary>
-/// Default <see cref="IWorkerWakeup"/>: same-process signaling with one <see cref="AsyncWakeSignal"/>
-/// per channel name. Worker-namespace channels (bounded keyspace) allocate on publish, so a keyed wake
-/// ahead of the first wait latches. <see cref="WorkerWakeupChannelKind.JobCompletion"/> channels
-/// (unbounded keyspace) never allocate on publish: a wake reaches existing waiters only, and the entry
-/// is removed when its last waiter leaves, so per-job wakes cannot grow the dictionary. An
-/// <see cref="WorkerWakeupChannel.AllWorkerNamespaces"/> wake sets each known non-job channel.
-/// Cross-process reach requires a transport implementation replacing this registration; processes
-/// without one fall back to their poll floors for changes made elsewhere. Registered unconditionally,
-/// so enqueue-only processes publish into it harmlessly (no waiters). The job-completion entry removal
-/// races a concurrent new waiter by design: the loser waits on an orphaned entry and times out into its
-/// poll floor, a permitted loss under the best-effort contract.
+/// Default <see cref="IWorkerWakeup"/>, registered unconditionally (an enqueue-only process publishes to no waiters):
+/// same-process signaling with one <see cref="AsyncWakeSignal"/> per channel name, and an
+/// <see cref="WorkerWakeupChannel.AllWorkerNamespaces"/> wake sets each known non-job channel. Worker-namespace
+/// channels (a bounded keyspace) allocate on publish, so a keyed wake ahead of the first wait latches; job-completion
+/// channels (unbounded) never allocate on publish and are removed when the last waiter leaves, so per-job wakes cannot
+/// grow the dictionary; a removal racing a new waiter loses it to the poll floor, by design. Cross-process reach needs a transport.
 /// </summary>
 internal sealed class InProcessWakeup : IWorkerWakeup
 {
@@ -171,13 +162,12 @@ internal sealed class InProcessWakeup : IWorkerWakeup
 }
 
 /// <summary>
-/// The publish-side seam every waking call site uses, never <see cref="IWorkerWakeup"/> directly.
-/// Centralizes what no transport can be trusted to promise: a wake never breaks its caller (all
-/// failures, including the caller's own cancellation, are caught, logged, and counted), and publish
-/// metrics are recorded once here so swapped transports cannot skew the counters. Every wake is
-/// published after its durable mutation committed, so surfacing cancellation here would report
-/// failure for an operation that already succeeded; delivery is best-effort and waiters keep a poll
-/// floor. The wait side (claim loops, completion waits) consumes <see cref="IWorkerWakeup"/> directly.
+/// The publish-side seam every waking call site uses, never <see cref="IWorkerWakeup"/> directly. It centralizes what
+/// no transport can be trusted to promise: a wake never breaks its caller (every failure, the caller's own
+/// cancellation included, is caught, logged, and counted), and publish metrics are recorded once here so a swapped
+/// transport cannot skew them. Every wake is published after its durable mutation committed, so surfacing cancellation
+/// would report failure for an operation that succeeded; delivery is best-effort and waiters keep a poll floor. The
+/// wait side (claim loops, completion waits) consumes <see cref="IWorkerWakeup"/> directly.
 /// </summary>
 internal sealed class WorkerWakeupPublisher(IWorkerWakeup wakeup, ILogger<WorkerWakeupPublisher>? log = null, JobMetrics? metrics = null)
 {

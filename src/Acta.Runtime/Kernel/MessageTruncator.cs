@@ -9,15 +9,12 @@ namespace Acta.Runtime;
 internal static class MessageTruncator
 {
     /// <summary>
-    /// Returns text no provider refuses: unpaired surrogates and U+0000 are replaced with U+FFFD and
-    /// a cut never splits a surrogate pair. Npgsql's UTF-8 encoder throws on a lone surrogate and
-    /// PostgreSQL rejects NUL in text outright, while SqlClient stores both and SQLite replaces the
-    /// surrogate - so without the replacement the same reason message succeeds, round-trips, or
-    /// fails depending on the provider, and a raw cut at the cap manufactures a lone surrogate out
-    /// of a valid emoji at the boundary. A failed write here is worst on the paths that carry reason
-    /// text: the completion or alert recording a failure would itself fail. Text this returns can
-    /// still differ per provider where a column is narrower than Unicode (a SQL Server varchar
-    /// folds non-ASCII); that is the column's contract, not this cut's.
+    /// Returns text no provider refuses: unpaired surrogates and U+0000 become U+FFFD, and a cut never splits a
+    /// surrogate pair. Npgsql's UTF-8 encoder throws on a lone surrogate and PostgreSQL rejects NUL in text outright,
+    /// while SqlClient stores both and SQLite replaces the surrogate, so without the replacement the same reason
+    /// message succeeds, round-trips, or fails by provider, and a raw cut at the cap manufactures a lone surrogate out
+    /// of a valid emoji at the boundary; a failed write is worst on the paths carrying reason text, where the
+    /// completion or alert recording a failure would itself fail. A column narrower than Unicode may still fold text.
     /// </summary>
     public static string? Truncate(this string? value, int? maxLength)
     {

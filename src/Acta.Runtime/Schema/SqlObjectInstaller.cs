@@ -78,13 +78,12 @@ internal static partial class SqlObjectInstaller
         StampStatements(schemaName, dialectToken, requiredObjects: null);
 
     /// <summary>
-    /// With <paramref name="requiredObjects"/>, the insert is conditional on every named view and routine
-    /// existing in the schema. The bootstrap never needs that: it installs and stamps in one transaction.
-    /// The published script does, because a client that continues past a failed batch, which sqlcmd and
-    /// the SQLite shell do by default, would otherwise reach the stamp and advertise a package that is not
-    /// there; an omitted stamp instead refuses the next startup, naming the script to run again.
-    /// PostgreSQL needs no guard: a failed statement aborts the script's transaction, and its commit rolls
-    /// back.
+    /// With <paramref name="requiredObjects"/>, the insert is conditional on every named view and routine existing in
+    /// the schema. The bootstrap never needs that: it installs and stamps in one transaction. The published script
+    /// does, because a client that continues past a failed batch, as sqlcmd and the SQLite shell do by default, would
+    /// otherwise reach the stamp and advertise a package that is not there; an omitted stamp instead refuses the next
+    /// startup, naming the script to run again. PostgreSQL needs no guard: a failed statement aborts the script's
+    /// transaction, and its commit rolls back.
     /// </summary>
     internal static IEnumerable<string> StampStatements(string schemaName, string dialectToken, IReadOnlyList<string>? requiredObjects)
     {

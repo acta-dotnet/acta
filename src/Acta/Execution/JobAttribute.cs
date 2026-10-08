@@ -1,16 +1,13 @@
 namespace Acta;
 
 /// <summary>
-/// Declares a <c>JobDefinition</c> on a handler method, registering it with the source generator.
-/// The operator-facing kebab-case <see cref="Name"/> is the identity copied into SQL, dashboards, and alerts.
+/// Declares a <c>JobDefinition</c> on a handler method, registering it with the source generator; the
+/// operator-facing kebab-case <see cref="Name"/> is the identity copied into SQL, dashboards, and alerts. Two knobs
+/// are absent on purpose: no <c>LeaseTtl</c>, since the lease window is one worker-wide value
+/// (<c>JobsOptions.LeaseTtlSeconds</c>) the heartbeat refreshes while a handler runs and a per-definition policy
+/// would re-add a JOIN on the hot claim path; and no per-definition <c>ExecutionRetention</c>, since every event row
+/// honors the single cluster knob <c>JobsOptions.JobEventsRetention</c>.
 /// </summary>
-/// <remarks>
-/// Two knobs are deliberately absent. No <c>LeaseTtl</c>: the lease window is a single
-/// worker-wide value (<c>JobsOptions.LeaseTtlSeconds</c>) that the heartbeat refreshes while a
-/// handler runs, and a per-definition policy would re-add a JOIN on the hot claim path. No
-/// per-definition <c>ExecutionRetention</c>: all <c>JobEvent</c> rows honor the single cluster
-/// knob <c>JobsOptions.JobEventsRetention</c>.
-/// </remarks>
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
 public sealed class JobAttribute(string name) : Attribute
 {
@@ -26,31 +23,22 @@ public sealed class JobAttribute(string name) : Attribute
     public int MaxAttempts { get; init; } = 15;
 
     /// <summary>
-    /// How many attempts may execute at once per concurrency key, 1..1024. Unset means no limit unless
-    /// an enqueue supplied a <c>ConcurrencyKey</c>, which alone means 1. The gate is the key: the
-    /// enqueue's key when there is one, otherwise the definition name, so two definitions that share a
-    /// key share its slots. Shared-key capacity is the largest limit among the participants; a
-    /// smaller-limit definition competes for the first N slots only, so lowering one definition never
-    /// reduces another participant's slots. A changed limit reaches a worker on its next definition
-    /// policy reload, so admissions may use the old limit until every worker has observed the change.
-    /// See <see cref="RateLimit"/> for the other half of admission control: how often, rather than how many.
+    /// How many attempts may execute at once per concurrency key, 1..1024; unset means no limit unless an enqueue
+    /// supplied a <c>ConcurrencyKey</c>, which alone means 1. The gate is the key, the enqueue's when there is one
+    /// and otherwise the definition name, so two definitions sharing a key share its slots: capacity is the largest
+    /// limit among them, and a smaller-limit definition competes for the first N slots only, so lowering one never
+    /// reduces another's. A changed limit reaches a worker on its next policy reload, so admissions may use the old
+    /// limit until every worker has seen it. <see cref="RateLimit"/> is the other gate: how often, not how many.
     /// </summary>
     public int ConcurrencyLimit { get; init; }
 
     /// <summary>
-    /// How often attempts of this definition may start across the namespace's workers, as <c>N/s</c>, <c>N/m</c>, or
-    /// <c>N/h</c> (<c>"10/s"</c>). Null means no rate limit. N is a positive whole number and the rate
-    /// may not exceed 1000 per second. Admission is a reservation, not a retry loop: a job that arrives
-    /// early is booked the instant the meter will admit it, waits it out in process when it is under a
-    /// quarter second away and is re-armed exactly once at it otherwise, so a backlog drains at the
-    /// rate. An idle meter admits one second's worth of the rate at once, at least one (<c>600/m</c> bursts
-    /// ten, then one per 100 ms), and allocates at most <c>R*T + B</c> turns in any <c>T</c> seconds
-    /// for that burst <c>B</c>; a booked turn stays valid for a second (one interval when longer), so
-    /// a window may hold that much of late turns on top: at most <c>R*(T + W) + B</c>. Rate and
-    /// <see cref="ConcurrencyLimit"/> are independent gates
-    /// and a job passes both; the concurrency slot is taken first and released when the rate denies.
-    /// The meter is per namespace and <see cref="RateKey"/>: definitions in different namespaces never
-    /// share one. The limit is an operator-overridable policy slot.
+    /// How often attempts of this definition may start across the namespace's workers: <c>N/s</c>, <c>N/m</c>, or
+    /// <c>N/h</c>, N a positive whole number up to 1000 per second, null for no limit. Admission is a reservation, not
+    /// a retry loop: an early job is booked the instant the meter admits it, waits in process when under a quarter
+    /// second away and is re-armed exactly once otherwise, so a backlog drains at the rate. An idle meter admits a
+    /// second's worth at once (<c>600/m</c> bursts ten), and a booked turn stays valid for a second. Per namespace and
+    /// <see cref="RateKey"/>, independent of <see cref="ConcurrencyLimit"/>, and an operator-overridable policy slot.
     /// </summary>
     public string? RateLimit { get; init; }
 
@@ -64,13 +52,11 @@ public sealed class JobAttribute(string name) : Attribute
     public string? RateKey { get; init; }
 
     /// <summary>
-    /// Default lane for this definition's jobs: the jobs of one lane in one namespace run one at a time,
-    /// in enqueue order, the equivalent of an SQS FIFO message group. An enqueue's
-    /// <see cref="JobEnqueueOptions.Lane"/> overrides it but cannot clear it. Code-owned, with no
-    /// operator override. Normalized like a concurrency key, trimmed and lowercased, and checked at
-    /// compile time. A laned definition cannot declare a
-    /// <see cref="JobScheduleAttribute"/>, because a recurring slot never finishes and would hold its
-    /// lane forever.
+    /// Default lane for this definition's jobs: the jobs of one lane in one namespace run one at a time, in enqueue
+    /// order, the equivalent of an SQS FIFO message group. An enqueue's <see cref="JobEnqueueOptions.Lane"/> overrides
+    /// it but cannot clear it. Code-owned, with no operator override; normalized like a concurrency key, trimmed and
+    /// lowercased, and checked at compile time. A laned definition cannot declare a <see cref="JobScheduleAttribute"/>,
+    /// because a recurring slot never finishes and would hold its lane forever.
     /// </summary>
     public string? Lane { get; init; }
 

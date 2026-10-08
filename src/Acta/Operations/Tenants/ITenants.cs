@@ -7,13 +7,11 @@ namespace Acta;
 public interface ITenants
 {
     /// <summary>
-    /// Register a tenant by opaque <paramref name="tenantKey"/> and return its stable numeric id.
-    /// Insert-or-return-existing: a new tenant is created Active with the supplied fields; when the
-    /// key already exists the existing id is returned and the row is left untouched (no status,
-    /// field, or version change). Status changes go through <see cref="SuspendAsync"/> /
-    /// <see cref="ResumeAsync"/>; field edits through <see cref="UpdateAsync"/>.
-    /// <paramref name="displayName"/> is the human display label for dashboards; null keeps the
-    /// column empty (dashboards fall back to the key).
+    /// Register a tenant by opaque <paramref name="tenantKey"/> and return its stable numeric id, insert-or-return-existing:
+    /// a new tenant is created Active with the supplied fields, while an existing key returns its id and leaves the
+    /// row untouched (no status, field, or version change). Status changes go through <see cref="SuspendAsync"/> and
+    /// <see cref="ResumeAsync"/>, field edits through <see cref="UpdateAsync"/>. <paramref name="displayName"/> is the
+    /// human label for dashboards; null keeps the column empty and dashboards fall back to the key.
     /// </summary>
     ValueTask<RegisterTenantResponse> RegisterAsync(
         string tenantKey,

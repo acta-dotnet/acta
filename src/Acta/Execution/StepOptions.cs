@@ -1,20 +1,13 @@
 namespace Acta;
 
 /// <summary>
-/// Immutable snapshot of the per-step retry overrides supplied through the
-/// <c>ctx.RunStepAsync</c> <c>configure</c> callback. Every retry field is nullable: a <c>null</c> field
-/// inherits the parent <c>[Job]</c> policy, resolved live each attempt. <see cref="AtMostOnce"/> is a
-/// distinct execution-semantics switch, not a retry override: when set the step body runs zero or one
-/// times (never retried), so it is incompatible with every retry field except <c>MaxAttempts(1)</c>.
-/// The framework never persists this snapshot; re-running the handler re-resolves it.
+/// Immutable snapshot of the per-step retry overrides supplied through the <c>ctx.RunStepAsync</c> <c>configure</c>
+/// callback. Every retry field is nullable, and a null inherits the parent <c>[Job]</c> policy, resolved live each
+/// attempt; <see cref="AtMostOnce"/> is an execution-semantics switch, not a retry override, under which the body runs
+/// zero or one times and every retry field but <c>MaxAttempts(1)</c> is incompatible. Construction is gated to
+/// <see cref="StepOptionsBuilder"/>, the one place that enforces the incompatibility, so no public constructor can
+/// build the contradiction; a <c>RunStepCore</c> override receives an instance, and <c>Inherit with { ... }</c> covers the rest.
 /// </summary>
-/// <remarks>
-/// Construction is gated to <see cref="StepOptionsBuilder"/>, which is the only place the
-/// <see cref="AtMostOnce"/>-versus-retry incompatibility is enforced. A public constructor would let a
-/// caller build the exact contradictory combination the builder rejects, so there is not one; a
-/// subclass overriding a <c>RunStepCore</c> sink receives an instance rather than making one, and
-/// <c>Inherit with { ... }</c> covers the rest.
-/// </remarks>
 public sealed record StepOptions
 {
     internal StepOptions(

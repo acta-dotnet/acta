@@ -3,14 +3,12 @@ using System.Globalization;
 namespace Acta;
 
 /// <summary>
-/// A parsed rate-limit declaration: <c>N/s</c>, <c>N/m</c>, or <c>N/h</c> resolved to the pair the
-/// engine meters with, a whole-millisecond emission interval and a burst. The interval is the period
-/// divided by N and rounded UP, so the realized rate is at or just under the declared one rather than
-/// over it. The burst is one second's worth of the rate, at least one, so <c>600/m</c> admits ten at
-/// once and then one per 100 ms rather than six hundred at once: a per-minute or per-hour rate reads
-/// as a smooth rate with a small cushion, and <c>N/s</c> keeps its N. The one parser for the format:
-/// the generator diagnostic, registration, the operator override gate, and admission all read a rate
-/// through here.
+/// A parsed rate-limit declaration, <c>N/s</c>, <c>N/m</c>, or <c>N/h</c>, resolved to the pair the engine meters
+/// with: a whole-millisecond emission interval and a burst. The interval is the period divided by N and rounded up,
+/// so the realized rate is at or just under the declared one. The burst is one second's worth of the rate, at least
+/// one, so <c>600/m</c> admits ten at once and then one per 100 ms rather than six hundred at once: a per-minute or
+/// per-hour rate reads as a smooth rate with a small cushion, and <c>N/s</c> keeps its N. The one parser for the
+/// format: the generator diagnostic, registration, the operator override gate, and admission all read a rate here.
 /// </summary>
 internal readonly record struct RateLimitSpec
 {

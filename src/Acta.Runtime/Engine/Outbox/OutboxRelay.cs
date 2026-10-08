@@ -95,13 +95,11 @@ internal sealed class OutboxRelay(OutboxSource source, EnqueueBatchHandler targe
     }
 
     /// <summary>
-    /// One shared per-tick work budget, measured in target-enqueue attempts. Both source claims
-    /// (each of which makes at least one attempt) and the per-group retries of a rejected batch
-    /// draw it down, so isolating a rejected batch is work inside the tick bound rather than a way
-    /// to bypass it. The cap equals the 5,120-row envelope (MaxBatches * BatchSize): the happy path
-    /// of 20 non-rejecting batches spends only 20 attempts, while a pathological all-rejecting
-    /// workload releases its unprocessed remainder once the envelope is spent instead of running
-    /// unbounded retries past the 180s source lease.
+    /// One shared per-tick work budget, measured in target-enqueue attempts. Source claims (each at least one
+    /// attempt) and the per-group retries of a rejected batch both draw it down, so isolating a rejected batch is work
+    /// inside the tick bound rather than a way past it. The cap equals the 5,120-row envelope (MaxBatches * BatchSize):
+    /// the happy path of 20 non-rejecting batches spends 20 attempts, while an all-rejecting workload releases its
+    /// unprocessed remainder once the envelope is spent instead of retrying past the 180s source lease.
     /// </summary>
     private const int MaxTargetEnqueues = MaxBatches * BatchSize;
 
@@ -522,13 +520,11 @@ internal sealed class OutboxRelay(OutboxSource source, EnqueueBatchHandler targe
 internal sealed record OutboxRelayTickOptions(string SourceName, int QuarantineThreshold, int LeaseTtlSeconds, int MaxInlinePayloadBytes);
 
 /// <summary>
-/// One relay tick's accounting, persisted as the <c>sys.outbox</c> job result on success: source rows
-/// claimed, new jobs inserted at the target, rows absorbed by deduplication (coalesced members plus
-/// already-present handoffs), rows quarantined (zero on every persisted summary, since a quarantine
-/// fails the tick), the source's remaining Pending backlog after finalization, and the current
-/// Quarantined total. The rendered string is the cross-peer contract: operator surfaces on peers
-/// without this source registration parse <c>backlog=</c> and <c>quarantine=</c> out of the slot's
-/// persisted result.
+/// One relay tick's accounting, persisted as the <c>sys.outbox</c> job result on success: source rows claimed, new
+/// jobs inserted, rows absorbed by deduplication (coalesced members plus already-present handoffs), rows quarantined
+/// (zero on every persisted summary, since a quarantine fails the tick), the source's remaining Pending backlog, and
+/// the Quarantined total. The rendered string is the cross-peer contract: operator surfaces on peers without this
+/// source registration parse <c>backlog=</c> and <c>quarantine=</c> out of the slot's persisted result.
 /// </summary>
 internal sealed record OutboxTickSummary(
     int Claimed,

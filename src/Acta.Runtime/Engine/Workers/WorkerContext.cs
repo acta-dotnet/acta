@@ -4,14 +4,11 @@ using System.Diagnostics;
 namespace Acta.Runtime;
 
 /// <summary>
-/// Shared mutable worker state threaded between the initializer (writer) and the claim/dispatch
-/// loop + dispatcher (readers). Populated by <see cref="WorkerRuntimeInitializer"/> at startup;
-/// consulted on the hot path to resolve the worker identity, the descriptor for a claimed job, and
-/// whether a claimed job is a recurring slot fire.
+/// Shared mutable worker state threaded between the initializer (writer) and the claim/dispatch loop and dispatcher
+/// (readers): populated by <see cref="WorkerRuntimeInitializer"/> at startup and consulted on the hot path for the
+/// worker identity, the descriptor for a claimed job, and whether a claimed job is a recurring slot fire. Every
+/// collection stays empty in enqueue-only mode (no <see cref="WorkerRegistration"/>).
 /// </summary>
-/// <remarks>
-/// All state collections stay empty in enqueue-only mode (no <see cref="WorkerRegistration"/>).
-/// </remarks>
 internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
 {
     public WorkerRegistration? WorkerRegistration { get; } = workerRegistration;
@@ -138,15 +135,12 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
     }
 
     /// <summary>
-    /// The executions some actor in this process is starting, running, or releasing right now, keyed
-    /// by job and execution number. An executor takes the entry before it registers the attempt and
-    /// holds it until the attempt is unwound; the orphan release takes it once the row has told it
-    /// the execution and holds it through the reschedule. Whoever fails to take it leaves the
-    /// execution to the holder. The store's version guard cannot tell the two apart on its own: a
-    /// start that lands after another actor's start reads as this worker's own lost answer, since
-    /// both carry the same worker and execution number, and the row would then be run by one and
-    /// rescheduled by the other. Keyed by execution rather than by job so a replacement attempt can
-    /// start while a stale one is still unwinding.
+    /// The executions some actor in this process is starting, running, or releasing right now, keyed by job and
+    /// execution number. An executor takes the entry before it registers the attempt and holds it until the attempt
+    /// unwinds; the orphan release takes it once the row has told it the execution and holds it through the
+    /// reschedule. The store's version guard cannot tell the two apart: a start landing after another actor's start
+    /// reads as this worker's own lost answer, both carrying the same worker and execution number, and the row would be
+    /// run by one and rescheduled by the other. Keyed by execution, not job, so a replacement can start while a stale one unwinds.
     /// </summary>
     public ConcurrentDictionary<(long JobId, int ExecutionNumber), byte> AttemptOwners { get; } = new();
 
@@ -190,14 +184,12 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
 }
 
 /// <summary>
-/// A job this worker is mid-execution on: the per-attempt linked <see cref="CancellationTokenSource"/>
-/// (cancelled to stop the handler) plus a conservative monotonic "good until" deadline for every lease it
-/// depends on - its job lease and each lock it holds through <c>RunWithLock</c> or the concurrency-key mutex.
-/// Two renewers feed these deadlines (the worker heartbeat the job lease, the lock heartbeat each lock via
-/// <see cref="Locks"/>) and the watchdog cancels once <see cref="EarliestLeaseGoodUntil"/>
-/// nears the unwind margin. Deadlines are monotonic Stopwatch timestamps so a clock correction cannot make
-/// a lapsed lease look live; the job-lease field is read/written through Volatile and the locks live in a
-/// ConcurrentDictionary, since a renewer writes while the watchdog and handler read.
+/// A job this worker is mid-execution on: the per-attempt linked <see cref="CancellationTokenSource"/> that stops the
+/// handler, plus a conservative monotonic "good until" deadline for every lease it depends on: its job lease and each
+/// lock held through <c>RunWithLock</c> or the concurrency-key mutex. The worker heartbeat feeds the job lease, the
+/// lock heartbeat each lock (via <see cref="Locks"/>), and the watchdog cancels once <see cref="EarliestLeaseGoodUntil"/>
+/// nears the unwind margin. Deadlines are monotonic Stopwatch timestamps, so a clock correction cannot revive a lapsed
+/// lease, and sit behind Volatile and a ConcurrentDictionary because renewers write while the watchdog and handler read.
 /// </summary>
 internal sealed class RunningAttempt(CancellationTokenSource cts, CancellationTokenSource? timeoutCts = null)
 {

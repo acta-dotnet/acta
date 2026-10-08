@@ -26,13 +26,11 @@ internal sealed record LiveSchedule(
 
 /// <summary>
 /// Persisted per-schedule cursor and operator lifecycle read at startup, keyed downstream by
-/// <c>(DefinitionId, ScheduleName)</c>. Drives misfire-aware reconciliation against the current
-/// descriptor schedules; <see cref="Status"/> and <see cref="PausedUntilUtc"/> keep a paused schedule
-/// out of (or, when timed, only a wake point in) the recomputed slot cursor across redeploys.
-/// <see cref="SlotStatus"/> and <see cref="SlotNextRunAtUtc"/> are the owning slot job's, the same on
-/// every row of one slot. <see cref="ExpressionKind"/>, <see cref="Expression"/>, <see cref="TimeZoneId"/>,
-/// <see cref="MisfireStrategy"/>, and <see cref="Description"/> are the stored declaration; an operator's
-/// <see cref="ExpressionOverride"/> was validated against its kind.
+/// <c>(DefinitionId, ScheduleName)</c>, driving misfire-aware reconciliation against the current descriptor schedules.
+/// <see cref="Status"/> and <see cref="PausedUntilUtc"/> keep a paused schedule out of the recomputed slot cursor across
+/// redeploys, or, when timed, only a wake point in it; <see cref="SlotStatus"/> and <see cref="SlotNextRunAtUtc"/> are
+/// the owning slot job's, the same on every row of one slot; the expression kind, expression, time zone, misfire
+/// strategy, and description are the stored declaration, and an operator's <see cref="ExpressionOverride"/> matches its kind.
 /// </summary>
 [DbProjection(ByName = true)]
 internal sealed record StoredScheduleState(

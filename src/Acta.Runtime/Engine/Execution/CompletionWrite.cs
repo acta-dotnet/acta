@@ -4,19 +4,12 @@ using Microsoft.Extensions.Logging;
 namespace Acta.Runtime;
 
 /// <summary>
-/// Repeats the one write an attempt cannot afford to lose until it settles or the worker stops. The
-/// heartbeat renews every row this worker leases from database state alone, so an abandoned completion
-/// leaves the row Executing under a lease that never lapses; a restart or an operator cancel frees it,
-/// nothing else. The write is a compare-and-swap on the attempt, so repeating it is safe, and every
-/// failure is repeated, not only a provider error: a defect that loops loudly in the log costs less than
-/// a row nothing can reclaim. The caller learns whether a retry happened, because a write that committed
-/// and then failed on the way back reports the lease as already cleared on the second try, and that is
-/// a settled write, not a loss. The token is the one way out, so it must be the worker's host token and
-/// never the attempt's: an external cancel, the attempt deadline, and the watchdog all cancel the
-/// attempt token, the last of them on the very lease-renewal outage that makes the write fail. A
-/// graceful drain leaves the host token live, so completions keep landing while the shutdown budget
-/// lasts; only a hard stop ends the repeat. The token bounds only the waits between tries, never the
-/// store call itself.
+/// Repeats the one write an attempt cannot afford to lose until it settles or the worker stops: the heartbeat renews
+/// every leased row from database state alone, so an abandoned completion leaves the row Executing under a lease that
+/// never lapses, freed only by a restart or an operator cancel. The write is a compare-and-swap, so repeating is
+/// safe, and every failure is repeated, since a defect that loops loudly costs less than an unreclaimable row; a write
+/// that committed and lost its answer reads as already cleared on the second try (a retry, not a loss). The token is
+/// the host token, never the attempt's, which the watchdog cancels on that very outage; it bounds only the waits between tries.
 /// </summary>
 internal static class CompletionWrite
 {

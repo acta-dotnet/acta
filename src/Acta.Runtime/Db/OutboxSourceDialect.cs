@@ -3,13 +3,11 @@ using System.Data.Common;
 namespace Acta.Runtime;
 
 /// <summary>
-/// Base <see cref="ISqlDialect"/> for the external-outbox source session. Unlike the ledger dialects,
-/// every provider drives its outbox claim/finalize commands through inline SQL (Acta installs no routine
-/// in a producer database). The claim's RETURNING /
-/// OUTPUT rows come from the last statement, and the two-statement claim runs under one write
-/// transaction. The ledger-only binder surface (enqueue / definition / completion) is never reached from
-/// the outbox store and throws. Providers supply connection creation, parameter binding, and transient
-/// classification.
+/// Base <see cref="ISqlDialect"/> for the external-outbox source session. Unlike the ledger dialects, every provider
+/// drives its outbox claim and finalize commands through inline SQL, since Acta installs no routine in a producer
+/// database; the claim's RETURNING or OUTPUT rows come from the last statement, and the two-statement claim runs
+/// under one write transaction. The ledger-only binder surface (enqueue, definition, completion) is never reached
+/// from the outbox store and throws. Providers supply connection creation, parameter binding, and transient classification.
 /// </summary>
 internal abstract class OutboxSourceDialect : ISqlDialect
 {

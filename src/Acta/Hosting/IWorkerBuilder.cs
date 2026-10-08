@@ -2,14 +2,10 @@ namespace Acta;
 
 /// <summary>
 /// Per-worker configuration surface passed to the
-/// <see cref="IActaBuilder.Run(string, System.Action{IWorkerBuilder})"/> overload. A worker hosts the
-/// manifests declared here under its own namespace.
+/// <see cref="IActaBuilder.Run(string, System.Action{IWorkerBuilder})"/> overload. A worker hosts the manifests
+/// declared here under its own namespace, which is how distinct namespaces get distinct job catalogs in a
+/// multi-worker process; manifests are never added globally.
 /// </summary>
-/// <remarks>
-/// Declaring manifests per worker is how distinct namespaces get distinct job catalogs in a multi-worker
-/// process; manifests are added through <see cref="IActaBuilder.Run(string, System.Action{IWorkerBuilder})"/>,
-/// never globally.
-/// </remarks>
 public interface IWorkerBuilder
 {
     /// <summary>
@@ -21,25 +17,22 @@ public interface IWorkerBuilder
         where TManifest : class, IJobManifest;
 
     /// <summary>
-    /// Declares an alert delivery channel for this worker namespace. Channel declarations are process
-    /// configuration, not database rows. Alert rows persist only the channel name; delivery resolves the
-    /// channel from the worker's startup configuration. <paramref name="transportKind"/> selects the
-    /// registered <c>IAlertTransport</c> (built-ins <see cref="AlertTransportKinds.Log"/> and
-    /// <see cref="AlertTransportKinds.SlackWebhook"/>); <paramref name="endpoint"/> is the transport
-    /// target (e.g. a Slack webhook URL). The framework provides an implicit <c>"default"</c> channel
-    /// (the log transport) that every alert without an explicit channel routes to; declaring
-    /// <c>"default"</c> here overrides that default.
+    /// Declares an alert delivery channel for this worker namespace: process configuration, not a database row, since
+    /// alert rows persist only the channel name and delivery resolves it from the worker's startup configuration.
+    /// <paramref name="transportKind"/> selects the registered <c>IAlertTransport</c> (built-ins
+    /// <see cref="AlertTransportKinds.Log"/> and <see cref="AlertTransportKinds.SlackWebhook"/>) and
+    /// <paramref name="endpoint"/> is its target, such as a Slack webhook URL. An implicit <c>"default"</c> channel on
+    /// the log transport takes every alert without an explicit channel; declaring <c>"default"</c> here replaces it.
     /// </summary>
     IWorkerBuilder AddAlertChannel(string name, string transportKind, string endpoint, Action<AlertChannelOptions>? configure = null);
 
     /// <summary>
-    /// Attach a single external-outbox relay source to this worker namespace. The relay claims due
-    /// <c>acta_outbox</c> rows, translates them, and enqueues into the Acta ledger via <c>sys.outbox</c>.
-    /// Registration adds the <c>sys.outbox</c> job plus its <c>sys.recovery</c> and <c>sys.alerts</c>
-    /// dependencies to this namespace even when automatic framework-job registration is off, and never
-    /// forces <c>sys.retention</c>. A namespace registers zero or one source; the source provider is
-    /// selected on <paramref name="configure"/> and is independent of the ledger provider. Nothing
-    /// connects to the source at startup; connectivity and shape are validated inside <c>sys.outbox</c>.
+    /// Attach a single external-outbox relay source to this worker namespace: the relay claims due <c>acta_outbox</c>
+    /// rows, translates them, and enqueues into the ledger via <c>sys.outbox</c>. Registration adds <c>sys.outbox</c>
+    /// with its <c>sys.recovery</c> and <c>sys.alerts</c> dependencies even when automatic framework-job registration
+    /// is off, and never forces <c>sys.retention</c>. A namespace registers zero or one source; the source provider is
+    /// selected on <paramref name="configure"/> and is independent of the ledger provider. Nothing connects to the
+    /// source at startup; connectivity and shape are validated inside <c>sys.outbox</c>.
     /// </summary>
     IWorkerBuilder AddOutboxRelay(string sourceName, Action<IOutboxSourceBuilder> configure);
 

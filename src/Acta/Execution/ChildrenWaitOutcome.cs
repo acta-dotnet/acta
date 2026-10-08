@@ -1,18 +1,13 @@
 namespace Acta;
 
 /// <summary>
-/// Result of a bounded group wait (<c>ctx.TryWaitChildrenAsync</c>, <c>ctx.WaitChildrenAsync</c> with a
-/// timeout, and the bounded <c>ctx.JoinAsync</c>): one entry per awaited child, in caller order. A child
-/// that landed before the group deadline carries its terminal outcome; one that did not carries
-/// <see cref="ChildJobOutcome.TimedOut"/>. Returned, never thrown; call <see cref="ThrowIfAnyFailed"/>
-/// to opt into escalation.
+/// Result of a bounded group wait (<c>ctx.TryWaitChildrenAsync</c>, <c>ctx.WaitChildrenAsync</c> with a timeout, the
+/// bounded <c>ctx.JoinAsync</c>): one entry per awaited child, in caller order. A child that landed before the group
+/// deadline carries its terminal outcome; one that did not carries <see cref="ChildJobOutcome.TimedOut"/>. Returned,
+/// never thrown; call <see cref="ThrowIfAnyFailed"/> to opt into escalation. The whole group shares one persisted
+/// deadline, so the wait cannot outlive it however many children it holds or however often the handler replays; only
+/// the unfinished children are cancelled on expiry, never the awaiting Job. Construction is gated to the framework.
 /// </summary>
-/// <remarks>
-/// The whole group shares one persisted deadline, so the wait cannot outlive it however many children
-/// it holds or however often the handler replays. Only the unfinished children are cancelled on
-/// expiry; the awaiting Job is never cancelled by a group timeout. Construction is gated to the
-/// framework (private constructor, internal factory).
-/// </remarks>
 public sealed record ChildrenWaitOutcome
 {
     private ChildrenWaitOutcome(IReadOnlyList<ChildJobOutcome> children) => Children = children;

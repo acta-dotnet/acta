@@ -1,17 +1,13 @@
 namespace Acta;
 
 /// <summary>
-/// Tunable settings for an Acta deployment, bound via <c>IOptions&lt;JobsOptions&gt;</c>.
-/// Per-definition policy (retry, backoff, retention, alert profile) lives on <c>JobDefinition</c> and
-/// <c>[Job(...)]</c>, not here.
+/// Tunable settings for an Acta deployment, bound via <c>IOptions&lt;JobsOptions&gt;</c>; per-definition policy
+/// (retry, backoff, retention, alert profile) lives on <c>JobDefinition</c> and <c>[Job(...)]</c>. The coordination
+/// triple (heartbeat, lease window, dead-worker window) must agree across every worker or the reclaim math desyncs,
+/// and nothing verifies that at runtime, so only <see cref="HeartbeatInterval"/> is settable and the other two derive
+/// from it. Engine tuning with no operator-legible meaning is not exposed. Per-process settings may differ;
+/// <see cref="DeploymentVersion"/> must differ across a rolling deploy.
 /// </summary>
-/// <remarks>
-/// The coordination triple - heartbeat, lease window, dead-worker window - must agree across every
-/// worker or the reclaim math desyncs, and nothing verifies that at runtime. So only
-/// <see cref="HeartbeatInterval"/> is settable and the other two derive from it, holding the ratio by
-/// construction. Engine tuning with no operator-legible meaning is not exposed at all. Per-process
-/// settings are safe to differ; <see cref="DeploymentVersion"/> must differ across a rolling deploy.
-/// </remarks>
 public sealed class JobsOptions
 {
     /// <summary>
@@ -82,27 +78,21 @@ public sealed class JobsOptions
     internal int ConcurrencyKeyBounceDelaySeconds { get; set; } = 2;
 
     /// <summary>
-    /// Coordination invariant, and the only one you set: cadence of the background loop that refreshes
-    /// every in-flight lease this process holds and stamps <c>workers.last_seen_at_utc</c>. Runs on its
-    /// own timer, so a flood of long-running handlers cannot starve it. Default 45s.
-    /// <para>
-    /// <see cref="LeaseTtlSeconds"/> and <see cref="WorkerDeadAfter"/> are derived from this rather than
-    /// set beside it. All three must agree across every worker in a deployment or the reclaim math
-    /// desyncs, and nothing can verify that agreement at runtime - so the ratios that matter are held by
-    /// construction instead of by validation. Shorten this to make a crash-recovery demo watchable and
-    /// the whole triple shortens with it, still correctly proportioned.
-    /// </para>
+    /// Coordination invariant, and the only one you set: cadence of the background loop that refreshes every
+    /// in-flight lease this process holds and stamps <c>workers.last_seen_at_utc</c>. Runs on its own timer, so a
+    /// flood of long-running handlers cannot starve it. <see cref="LeaseTtlSeconds"/> and
+    /// <see cref="WorkerDeadAfter"/> derive from it, since all three must agree across every worker and nothing can
+    /// verify that at runtime: shorten this for a watchable crash-recovery demo and the whole triple shortens with
+    /// it, still proportioned. Default 45s.
     /// </summary>
     public TimeSpan HeartbeatInterval { get; set; } = TimeSpan.FromSeconds(45);
 
     /// <summary>
-    /// Derived, <see cref="HeartbeatInterval"/> x4: worker-wide lease window in seconds, set on every
-    /// claim and refreshed by the heartbeat while a handler executes. The multiple is what keeps a live
-    /// worker's own jobs from being reclaimed mid-run (double execution) - it can miss three consecutive
-    /// beats before <c>sys.recovery</c> may take its leases. Long-running handlers stay alive through
-    /// heartbeating rather than through a longer lease, which is why nothing here needs to grow for
-    /// them. There is no per-definition override (that would re-add a JOIN to <c>definitions</c> on the
-    /// hot claim path). Default 180s.
+    /// Derived, <see cref="HeartbeatInterval"/> x4: worker-wide lease window in seconds, set on every claim and
+    /// refreshed by the heartbeat while a handler executes. The multiple keeps a live worker's own jobs from being
+    /// reclaimed mid-run: it can miss three beats before <c>sys.recovery</c> may take its leases. Long-running
+    /// handlers stay alive through heartbeating, not a longer lease, and there is no per-definition override, which
+    /// would re-add a JOIN to <c>definitions</c> on the hot claim path. Default 180s.
     /// </summary>
     public int LeaseTtlSeconds
     {
@@ -111,13 +101,11 @@ public sealed class JobsOptions
     }
 
     /// <summary>
-    /// Derived, <see cref="HeartbeatInterval"/> x7 - the lease window plus three further beats: how long
-    /// a worker may go without heartbeating before <c>sys.recovery</c> flips its <c>workers</c> row from
-    /// Active to Dead (measured against <c>last_seen_at_utc</c>). The margin past the lease is
-    /// deliberate, so a worker whose leases just lapsed is not retired while it might still recover.
-    /// <c>sys.recovery</c> applies the running worker's value, which is the second reason this is derived
-    /// rather than set. The retention sweep deletes Dead rows once they exceed
-    /// <see cref="WorkerRetention"/>. Default 315s.
+    /// Derived, <see cref="HeartbeatInterval"/> x7, the lease window plus three further beats: how long a worker may
+    /// go without heartbeating before <c>sys.recovery</c> flips its <c>workers</c> row from Active to Dead, measured
+    /// against <c>last_seen_at_utc</c>. The margin past the lease keeps a worker whose leases just lapsed from being
+    /// retired while it might still recover; <c>sys.recovery</c> applies the running worker's value, the second reason
+    /// this is derived. The retention sweep deletes Dead rows past <see cref="WorkerRetention"/>. Default 315s.
     /// </summary>
     public TimeSpan WorkerDeadAfter
     {
@@ -144,16 +132,12 @@ public sealed class JobsOptions
     private TimeSpan? _workerDeadAfter;
 
     /// <summary>
-    /// Per-process deployment environment name this worker runs as, the value a <c>[JobSchedule]</c>'s
-    /// <c>Environments</c> list is matched against (case-insensitively) to decide whether that schedule
-    /// registers here. A schedule with no declared environments is a wildcard active everywhere; a
-    /// scoped schedule registers only when its list contains this name, so a <c>"production"</c>-scoped
-    /// schedule never registers on a worker running as anything else. Defaults to the standard .NET host
-    /// environment (<c>DOTNET_ENVIRONMENT</c>, then <c>ASPNETCORE_ENVIRONMENT</c>, then
-    /// <c>"Production"</c>), so an unconfigured host behaves like the framework host's own default; set it
-    /// explicitly (e.g. <c>o.EnvironmentName = builder.Environment.EnvironmentName</c>) to bind it to your
-    /// host. A null or empty value means no environment is known, so every scoped schedule is withheld
-    /// and only wildcard schedules register.
+    /// Per-process deployment environment name this worker runs as, matched case-insensitively against a
+    /// <c>[JobSchedule]</c>'s <c>Environments</c> list to decide whether that schedule registers here. A schedule with
+    /// no declared environments is a wildcard; a scoped one registers only when its list contains this name. Defaults
+    /// to the .NET host environment (<c>DOTNET_ENVIRONMENT</c>, then <c>ASPNETCORE_ENVIRONMENT</c>, then
+    /// <c>"Production"</c>); set it explicitly (<c>o.EnvironmentName = builder.Environment.EnvironmentName</c>) to bind
+    /// it to your host. Null or empty means no environment is known, so only wildcard schedules register.
     /// </summary>
     public string? EnvironmentName { get; set; } =
         Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")
@@ -161,55 +145,32 @@ public sealed class JobsOptions
         ?? "Production";
 
     /// <summary>
-    /// Per-process (may differ; the upsert is idempotent, so one registering worker suffices). When
-    /// <c>true</c> (default), each worker namespace auto-registers the system jobs
-    /// (<c>sys.alerts</c>, <c>sys.recovery</c>, <c>sys.retention</c>) and their recurring slots. Set
-    /// <c>false</c> to opt out, for example when maintenance is driven externally or for tests that need
-    /// a namespace free of the competing recurring slots.
+    /// When <c>true</c> (default), each worker namespace auto-registers <c>sys.alerts</c>, <c>sys.recovery</c>, and
+    /// <c>sys.retention</c> with their recurring slots (idempotent, and may differ per process). <strong>Turning it
+    /// off disables crash recovery:</strong> <c>sys.recovery</c> alone marks dead workers and reclaims their in-flight
+    /// jobs, so without it a dead worker's jobs stay <c>Executing</c> forever; the runtime warns at startup, and
+    /// "driven externally" means you wrote the reclaim sweep yourself. <c>sys.outbox</c> registers only with
+    /// <c>AddOutboxRelay</c>, which re-registers <c>sys.recovery</c> and <c>sys.alerts</c> even when this is false.
     /// </summary>
-    /// <remarks>
-    /// <strong>Turning this off disables crash recovery:</strong> <c>sys.recovery</c> is the only thing
-    /// that marks dead workers and reclaims their in-flight jobs, so a dead worker's jobs stay
-    /// <c>Executing</c> behind a lapsed lease permanently. The runtime warns at startup when it is off.
-    /// <para>This flag does not govern <c>sys.outbox</c>: that job registers only with an explicit
-    /// <c>AddOutboxRelay</c>, and the relay re-registers <c>sys.recovery</c> and <c>sys.alerts</c>
-    /// as its dependencies even when this is false. "Driven externally" means you have written the
-    /// reclaim sweep yourself; nothing in the box does it.</para>
-    /// </remarks>
     public bool RegisterSystemJobs { get; set; } = true;
 
     /// <summary>
-    /// The one payload ceiling, 1 MiB by default. It governs both what may be stored inline
-    /// (<c>Job.Input</c>, <c>JobResult.Result</c>, <c>JobCheckpoint.Value</c>, <c>JobStep.Result</c>)
-    /// and the largest request body the HTTP endpoints accept, so a body that would be refused by the
-    /// ledger is refused at the edge with the same number rather than a second one.
-    /// <para>
-    /// Caller-controlled writes (enqueue, variables, progress, signals, step results) throw
-    /// <c>PayloadTooLargeException</c> past it. A handler result past it is dropped rather than
-    /// persisted: the job still succeeds and the events carry <c>job.result-oversized</c>.
-    /// </para>
-    /// <para>
-    /// An HTTP body is a JSON envelope around the payload it carries, so a payload of exactly this
-    /// size will not fit in a request of this size. That is deliberate: one number, applied to the
-    /// thing the caller can actually measure.
-    /// </para>
+    /// The one payload ceiling, 1 MiB by default: the largest inline value (<c>Job.Input</c>, <c>JobResult.Result</c>,
+    /// <c>JobCheckpoint.Value</c>, <c>JobStep.Result</c>) and the largest HTTP request body, so a body the ledger
+    /// would refuse is refused at the edge with the same number. Caller-controlled writes (enqueue, variables,
+    /// progress, signals, step results) throw <c>PayloadTooLargeException</c> past it; a handler result past it is
+    /// dropped, the job still succeeds, and the events carry <c>job.result-oversized</c>. An HTTP body is a JSON
+    /// envelope around its payload, so a payload of exactly this size does not fit a request of this size, on purpose.
     /// </summary>
     public int MaxInlinePayloadBytes { get; set; } = 1024 * 1024;
 
     /// <summary>
-    /// How often an alert that is still unresolved re-notifies its channel. An incident notifies once when
-    /// it opens; while it stays open, repeats collapse onto its row without re-sending. Once the row's
-    /// delivery has settled, it becomes eligible to be delivered again after this span has passed - at most
-    /// one reminder per incident per interval, so a job that has been broken all week pages daily rather
-    /// than on every failure. Default 24 hours.
-    ///
-    /// <para>Reminders belong to automatic alerts. A manual alert that delivered is notified once and not
-    /// reminded - the caller owns resolving it; only a manual alert whose send failed re-attempts on this
-    /// cadence, because nobody has been told.</para>
-    ///
-    /// <para>This is a delivery policy, not a deduplication rule: it never affects which
-    /// <c>alerts</c> rows exist or what <c>occurrence_count</c> they carry. Widen it for a noisy incident,
-    /// narrow it when a long-lived incident must keep nagging.</para>
+    /// How often an alert that is still unresolved re-notifies its channel. An incident notifies once when it opens;
+    /// while it stays open, repeats collapse onto its row without re-sending, and once delivery has settled the row
+    /// becomes deliverable again after this span: one reminder per incident per interval, so a job broken all week
+    /// pages daily rather than on every failure. A delivered manual alert is notified once and its caller owns
+    /// resolving it; only a manual alert whose send failed re-attempts on this cadence. A delivery policy, never a
+    /// deduplication rule: it affects neither which <c>alerts</c> rows exist nor their counts. Default 24 hours.
     /// </summary>
     public TimeSpan AlertReminderInterval { get; set; } = TimeSpan.FromHours(24);
 
@@ -222,19 +183,12 @@ public sealed class JobsOptions
     internal int AlertDeliveryMaxRetries { get; set; } = 5;
 
     /// <summary>
-    /// Number of failures within one incident at which an automatic failure alert escalates to
-    /// <c>ThresholdReached</c> (<c>Error</c> severity). The <c>sys.alerts</c> generate phase reads the
-    /// post-upsert <c>occurrence_count</c> from <c>raise_alert</c> and escalates when it meets this
-    /// value and the row's high-water mark names the event being projected - so a crash-replay re-fires
-    /// the escalation only for the event that actually crossed, recovering an emit lost mid-batch, and
-    /// never for the events around it; reset-immune, with no JOIN to the mutable
-    /// <c>runtimes.failure_count</c>. Default 3.
-    ///
-    /// <para>The count is monotonic within an incident - it starts at 1 when the incident opens and only
-    /// climbs until a success resolves it - so the escalation fires exactly once per incident and the
-    /// threshold reads as "N failures since this broke", whatever the job's cadence. A slow job takes
-    /// longer to reach it; it never becomes unreachable. The success that resolves the incident is what
-    /// resets the count, because the next failure opens a fresh row at 1.</para>
+    /// Failures within one incident at which an automatic failure alert escalates to <c>ThresholdReached</c>
+    /// (<c>Error</c> severity). The <c>sys.alerts</c> generate phase reads the post-upsert <c>occurrence_count</c>
+    /// from <c>raise_alert</c>, with no JOIN to the mutable <c>runtimes.failure_count</c>, and escalates when it meets
+    /// this value and the row's high-water mark names the event being projected, so a crash-replay re-fires only for
+    /// the event that crossed. The count starts at 1 when the incident opens and only climbs until a success resolves
+    /// it, so the escalation fires once per incident and reads as "N failures since this broke". Default 3.
     /// </summary>
     public int AlertFailureThreshold { get; set; } = 3;
 

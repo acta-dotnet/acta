@@ -5,12 +5,11 @@ using System.Text.Json;
 namespace Acta.Runtime;
 
 /// <summary>
-/// Catalog of one dialect's executable SQL, embedded in <c>Acta.Runtime</c> as <c>X.{dialect}.sql</c>
-/// beside its operation and addressed by file stem: the stem is unique per dialect, so a caller names
-/// <c>GetOverview</c> and never the folder it lives in. Ordered DDL migrations are not catalog resources
-/// and stay in the provider under <c>Schema/Migrations/</c>. Lookups never fall back across dialects; a
-/// missing resource is a defect and throws. Rendered text substitutes <c>{{schema}}</c>, <c>{{now}}</c>
-/// (the SQLite epoch-milliseconds instant encoding; only SQLite bodies carry the token), and
+/// Catalog of one dialect's executable SQL, embedded in <c>Acta.Runtime</c> as <c>X.{dialect}.sql</c> beside its
+/// operation and addressed by file stem, unique per dialect, so a caller names <c>GetOverview</c> and never its folder.
+/// Ordered DDL migrations are not catalog resources and stay in the provider under <c>Schema/Migrations/</c>. Lookups
+/// never fall back across dialects; a missing resource is a defect and throws. Rendered text substitutes
+/// <c>{{schema}}</c>, <c>{{now}}</c> (the SQLite epoch-milliseconds instant; only SQLite bodies carry it), and
 /// <c>{{decode:...}}</c> tokens, cached per resource for the process lifetime.
 /// </summary>
 internal sealed class SqlResourceCatalog

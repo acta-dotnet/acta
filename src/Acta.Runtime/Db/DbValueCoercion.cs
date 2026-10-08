@@ -10,13 +10,11 @@ namespace Acta.Runtime;
 internal static class DbValueCoercion
 {
     /// <summary>
-    /// Coerce <paramref name="value"/> into the form a <see cref="System.Data.Common.DbParameter"/>
-    /// expects: null becomes <see cref="DBNull.Value"/>, enums become their underlying numeric value,
-    /// a <see cref="DateTime"/> is normalized to <see cref="DateTimeKind.Utc"/> (every datetime column
-    /// is <c>DbKind.UtcInstant</c> = Postgres <c>timestamptz</c>, whose binding requires UTC kind), a
-    /// <see cref="Guid"/> becomes its string form on SQLite (which has no uuid type and stores the
-    /// column as text), and a <see cref="byte"/> becomes <see cref="short"/> on Postgres (which has no
-    /// 1-byte integer).
+    /// Coerce <paramref name="value"/> into the form a <see cref="System.Data.Common.DbParameter"/> expects: null
+    /// becomes <see cref="DBNull.Value"/>, an enum its underlying number, a <see cref="DateTime"/> is normalized to
+    /// <see cref="DateTimeKind.Utc"/> (every datetime column is <c>DbKind.UtcInstant</c>, Postgres <c>timestamptz</c>,
+    /// which binds only UTC), a <see cref="Guid"/> becomes its string form on SQLite (no uuid type; the column is
+    /// text), and a <see cref="byte"/> becomes <see cref="short"/> on Postgres (no 1-byte integer).
     /// </summary>
     public static object Coerce(object? value, Type clrType, DbProvider provider)
     {
@@ -60,11 +58,10 @@ internal static class DbValueCoercion
     }
 
     /// <summary>
-    /// Pins the parameter's type where the driver infers it wrongly from the value. A null
-    /// <c>byte[]</c> binds as <see cref="DBNull"/>, which SQL Server infers as <c>nvarchar</c> and then
-    /// refuses to assign to a <c>varbinary</c> column; the CLR property type is the only thing that
-    /// still knows it is binary. SQL Server infers a <see cref="DateTime"/> as legacy <c>datetime</c>,
-    /// whose 1/300 s ticks round a millisecond-exact instant (.306 becomes .307) before it reaches a
+    /// Pins the parameter's type where the driver infers it wrongly from the value. A null <c>byte[]</c> binds as
+    /// <see cref="DBNull"/>, which SQL Server infers as <c>nvarchar</c> and refuses to assign to <c>varbinary</c>;
+    /// only the CLR property type still knows it is binary. SQL Server infers a <see cref="DateTime"/> as legacy
+    /// <c>datetime</c>, whose 1/300 s ticks round a millisecond-exact instant (.306 becomes .307) before it reaches a
     /// <c>datetime2(3)</c> column, so it is pinned to <c>datetime2</c> there; PostgreSQL maps that
     /// <see cref="System.Data.DbType"/> to a naive timestamp and is left to infer. Other values are left alone.
     /// </summary>

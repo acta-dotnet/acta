@@ -1,15 +1,11 @@
 namespace Acta;
 
 /// <summary>
-/// Declares the stable <c>code_kind</c> discriminator string of a code family for this
-/// enum's code family. Required on every enum bearing <see cref="CodeAttribute"/> members; the
-/// generator emits <c>ACTA0201</c> if absent. The key is explicit on the attribute, so renaming the
-/// C# enum does not change the persisted catalog key.
+/// Declares the stable <c>code_kind</c> discriminator string of this enum's code family. Required on every enum
+/// bearing <see cref="CodeAttribute"/> members; the generator emits <c>ACTA0201</c> if absent. The key is explicit on
+/// the attribute, so renaming the C# enum does not change the persisted catalog key. Value pattern: kebab segments,
+/// optionally dotted, mirroring the per-member <c>Code</c> rule: <c>^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)*$</c>.
 /// </summary>
-/// <remarks>
-/// Value pattern: kebab segments, optionally dotted (mirrors the per-member <c>Code</c> rule used
-/// by <c>EventCode</c>): <c>^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)*$</c>.
-/// </remarks>
 [AttributeUsage(AttributeTargets.Enum, AllowMultiple = false, Inherited = false)]
 public sealed class CodeKindAttribute(string codeKind) : Attribute
 {

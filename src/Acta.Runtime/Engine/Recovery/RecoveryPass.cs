@@ -6,19 +6,13 @@ namespace Acta.Runtime;
 internal readonly record struct RecoveryPassReport(int DeadWorkersMarked, int ReclaimedJobs, int ReleasedChildLatches, int RepairedLanes);
 
 /// <summary>
-/// One recovery pass, and the only implementation of one: the <c>sys.recovery</c> handler and the
-/// test host's recovery drive both call this, so neither can model recovery differently from the
-/// other.
+/// One recovery pass, and the only implementation of one: the <c>sys.recovery</c> handler and the test host's recovery
+/// drive both call it, so neither models recovery differently. Three steps in order: <c>mark_dead_workers</c> sweeps all
+/// namespaces, retiring <c>workers</c> rows whose process stopped heartbeating past <c>JobsOptions.WorkerDeadAfter</c>;
+/// then, on the firing namespace only, <c>reclaim_stuck_jobs</c> recovers jobs whose lease expired past the heartbeat
+/// margin and releases the Blocked member of a stranded lane, and the child-latch backstop re-raises terminal statuses
+/// lost to a crash. Worker <c>last_seen</c> and per-job lease expiry are independent signals, so the order is not otherwise load-bearing.
 /// </summary>
-/// <remarks>
-/// The pass does three things in order. First, <c>mark_dead_workers</c> sweeps <em>all namespaces</em>:
-/// it retires <c>workers</c> rows whose process stopped heartbeating past
-/// <c>JobsOptions.WorkerDeadAfter</c>. Then <c>reclaim_stuck_jobs</c> and the child-latch backstop
-/// operate on the <em>firing namespace only</em>: reclaim recovers jobs whose lease expired past the
-/// heartbeat margin and releases the Blocked member of a stranded lane, and the latch passes re-raise
-/// terminal statuses lost to a crash. Dead workers are swept first; the two signals (worker
-/// <c>last_seen</c> vs per-job lease expiry) are independent so order is not otherwise load-bearing.
-/// </remarks>
 internal sealed class RecoveryPass(
     Signals signals,
     WorkerLifecycle workers,

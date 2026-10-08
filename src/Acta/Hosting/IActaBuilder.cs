@@ -5,13 +5,11 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Acta;
 
 /// <summary>
-/// Configuration surface returned by <c>services.UseActa(...)</c>. Provider packages extend
-/// this via <c>this IActaBuilder</c> extension methods (<c>j.UseSqlServer(...)</c>,
-/// <c>j.UsePostgres(...)</c>, or the embedded <c>j.UseSqlite(...)</c> for the durable provider).
-/// Workers (<c>Run</c>), payload serializers
-/// (<see cref="AddPayloadSerializer{TSerializer}"/>), and options (<see cref="ConfigureOptions"/>)
-/// are interface members rather than extensions so the fluent chain has a stable, single-assembly
-/// contract.
+/// Configuration surface returned by <c>services.UseActa(...)</c>. Provider packages extend it through
+/// <c>this IActaBuilder</c> extension methods (<c>j.UseSqlServer(...)</c>, <c>j.UsePostgres(...)</c>, or the embedded
+/// <c>j.UseSqlite(...)</c> for the durable provider). Workers (<c>Run</c>), payload serializers
+/// (<see cref="AddPayloadSerializer{TSerializer}"/>), and options (<see cref="ConfigureOptions"/>) are interface
+/// members rather than extensions, so the fluent chain has a stable, single-assembly contract.
 /// </summary>
 public interface IActaBuilder
 {
@@ -29,40 +27,29 @@ public interface IActaBuilder
 
     /// <summary>
     /// Declare a worker that claims <paramref name="namespaceName"/> and hosts the single manifest
-    /// <typeparamref name="TManifest"/>, shorthand for the lambda overload with one <c>AddManifest</c>
-    /// call.
+    /// <typeparamref name="TManifest"/>, shorthand for the lambda overload with one <c>AddManifest</c> call. A process
+    /// may host several workers, each owning a distinct namespace (call <c>Run</c> once per worker); two workers for
+    /// the same namespace throw at DI build. An enqueue-only runtime calls <see cref="Reference{TManifest}"/> instead.
     /// </summary>
-    /// <remarks>
-    /// A process may host several workers, each owning a distinct namespace (call <c>Run</c> once
-    /// per worker). Registering two workers for the same namespace throws at DI build. An
-    /// enqueue-only runtime calls <see cref="Reference{TManifest}"/> instead of <c>Run</c>.
-    /// </remarks>
     IActaBuilder Run<TManifest>(string namespaceName, string? ownerTeam = null, string? description = null)
         where TManifest : class, IJobManifest;
 
     /// <summary>
-    /// Declare a worker that claims <paramref name="namespaceName"/> and hosts the manifests declared
-    /// on the <see cref="IWorkerBuilder"/>.
+    /// Declare a worker that claims <paramref name="namespaceName"/> and hosts the manifests declared on the
+    /// <see cref="IWorkerBuilder"/>. At initialization the framework upserts the <c>namespaces</c> row (with the
+    /// owner team and description when supplied), upserts every declared manifest's <c>definitions</c> rows under
+    /// it, and inserts a <c>workers</c> row. A process may host several workers, each owning a distinct namespace;
+    /// two workers for the same namespace throw at DI build.
     /// </summary>
-    /// <remarks>
-    /// At initialization the framework upserts the <c>namespaces</c> row (carrying the worker's
-    /// owner-team + description when supplied), upserts every declared manifest's
-    /// <c>definitions</c> rows under that namespace, and INSERTs a <c>workers</c> row. A
-    /// process may host several workers, each owning a distinct namespace; registering two workers
-    /// for the same namespace throws at DI build.
-    /// </remarks>
     IActaBuilder Run(string namespaceName, Action<IWorkerBuilder> configure);
 
     /// <summary>
-    /// Make <typeparamref name="TManifest"/>'s jobs typed-enqueueable under
-    /// <paramref name="namespaceName"/> without running a worker in this process.
+    /// Make <typeparamref name="TManifest"/>'s jobs typed-enqueueable under <paramref name="namespaceName"/> without
+    /// running a worker in this process: the enqueue-only counterpart of <c>Run</c>, which feeds the typed
+    /// <c>IJobs.EnqueueAsync</c> route index but registers no worker, writes no catalog rows, and never claims jobs.
+    /// The namespace's worker owns migrations and definition registration, so start it once before the first
+    /// enqueue. <c>Run</c> implies Reference for its own namespace.
     /// </summary>
-    /// <remarks>
-    /// Reference is the enqueue-only counterpart of <c>Run</c>: it feeds the typed
-    /// <c>IJobs.EnqueueAsync</c> route index but registers no worker, writes no catalog rows, and
-    /// never claims jobs. The namespace's worker owns migrations and definition registration; start
-    /// it once before the first enqueue. <c>Run</c> implies Reference for its own namespace.
-    /// </remarks>
     IActaBuilder Reference<TManifest>(string namespaceName)
         where TManifest : class, IJobManifest;
 
@@ -92,19 +79,13 @@ public interface IActaBuilder
     IActaBuilder UseJsonPayloads(IJsonTypeInfoResolver resolver);
 
     /// <summary>
-    /// Register an <see cref="IJobPipelineBehavior"/> that wraps every handler invocation. Behaviors run
-    /// in registration order: the first registered is the outermost link, the last is closest to the
-    /// handler.
+    /// Register an <see cref="IJobPipelineBehavior"/> that wraps every handler invocation: behaviors run in
+    /// registration order, first outermost, and registering a type twice is a no-op. Each resolves from the
+    /// per-attempt DI scope, so it may take constructor-injected dependencies including the scoped
+    /// <see cref="JobContext"/>; it runs inside the attempt, after start and before complete, and must not own durable
+    /// state. The default <see cref="ServiceLifetime.Scoped"/> is one instance per attempt, which a behavior needing
+    /// <see cref="JobContext"/> requires; a stateless one may pass <see cref="ServiceLifetime.Singleton"/>.
     /// </summary>
-    /// <remarks>
-    /// Each behavior is resolved from the per-attempt dependency-injection scope, so it may take
-    /// constructor-injected dependencies (including the scoped <see cref="JobContext"/>). A behavior runs
-    /// inside the attempt, after start and before complete, and must not own durable state. Registering
-    /// the same behavior type twice is a no-op (the first registration's position wins). The default
-    /// lifetime is <see cref="ServiceLifetime.Scoped"/>, one instance per attempt, which a behavior
-    /// needing the scoped <see cref="JobContext"/> requires; a stateless behavior with no scoped
-    /// dependencies may pass <see cref="ServiceLifetime.Singleton"/> for one process-wide instance.
-    /// </remarks>
     IActaBuilder AddPipelineBehavior<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TBehavior>(
         ServiceLifetime lifetime = ServiceLifetime.Scoped
     )

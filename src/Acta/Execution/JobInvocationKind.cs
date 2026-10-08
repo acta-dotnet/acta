@@ -1,15 +1,11 @@
 namespace Acta;
 
 /// <summary>
-/// Generated/runtime dispatch shape of a discovered handler. The generator picks one of these
-/// six values per descriptor based on the handler's declared return type so the runtime invoker
-/// can normalize all 16 supported method shapes onto one
-/// <see cref="JobHandlerInvokeDelegate"/> contract.
+/// Dispatch shape of a discovered handler: the generator picks one of these values per descriptor from the handler's
+/// declared return type, so the runtime invoker normalizes all 16 supported method shapes onto one
+/// <see cref="JobHandlerInvokeDelegate"/> contract. Not persisted: the durable catalog holds the derived
+/// job-definition contract, and this belongs to the dispatch layer.
 /// </summary>
-/// <remarks>
-/// Not persisted in <c>jobs</c> rows. The durable catalog persists the derived job-definition contract;
-/// <see cref="JobInvocationKind"/> belongs to the dispatch layer, not to durable storage.
-/// </remarks>
 public enum JobInvocationKind : byte
 {
     /// <summary>Synchronous void return. <c>void Handle(TIn)</c> / <c>void Handle(TIn, CancellationToken)</c>.</summary>

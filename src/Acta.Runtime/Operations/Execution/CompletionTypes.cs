@@ -18,17 +18,13 @@ internal enum CompleteExecutionAction : byte
 }
 
 /// <summary>
-/// Completion outcome plus the job's resulting runtime state, read in the same round trip so the
-/// caller can react to where the row landed. Publishes a wakeup when the final status is <c>Ready</c>
-/// (immediate retry, recurring roll-over, or a signal that arrived <c>Set</c> while the handler ran),
-/// the one Ready transition no other publish site can see.
+/// Completion outcome plus the job's resulting runtime state, read in the same round trip. <c>Action</c> says whether
+/// this call completed the attempt, lost ownership, or found the job terminal; <c>FinalStatusCode</c> and
+/// <c>FinalNextRunAtUtc</c> are the row after this call (what this completion produced, or the current row on
+/// NotOwner and AlreadyTerminal; null when the row is gone), compared against <c>DbNowUtc</c> with no host-clock
+/// assumption; <c>ParentReleased</c> means a terminal landing flipped a Suspended parent to Ready, waking every worker
+/// namespace since the parent may live elsewhere, and <c>LanePromoted</c> that the lane's next member is now Ready.
 /// </summary>
-/// <param name="Action">Whether this call completed the attempt, lost ownership (NotOwner), or found the job already terminal.</param>
-/// <param name="FinalStatusCode">The job's <c>status_code</c> after this call: on <c>Completed</c> the status this completion produced; on NotOwner/AlreadyTerminal the row's current status (null when the row no longer exists).</param>
-/// <param name="FinalNextRunAtUtc">The job's <c>next_run_at_utc</c> after this call, on the same produced-vs-current basis as <paramref name="FinalStatusCode"/>.</param>
-/// <param name="DbNowUtc">The routine's clock reading, for due-now comparison against <paramref name="FinalNextRunAtUtc"/> with no host-clock assumption.</param>
-/// <param name="ParentReleased">True when this terminal landing's child-done raise flipped a Suspended parent to Ready; the caller wakes all worker namespaces (the parent may live in another namespace).</param>
-/// <param name="LanePromoted">True when this terminal landing handed its lane to the next member, which is now Ready; the caller wakes its namespace.</param>
 [DbProjection]
 internal sealed record CompleteExecutionRow(
     CompleteExecutionAction Action,

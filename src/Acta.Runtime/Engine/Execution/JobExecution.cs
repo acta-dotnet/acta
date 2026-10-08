@@ -6,13 +6,10 @@ namespace Acta.Runtime;
 /// <summary>
 /// The start-admit-invoke-complete lifecycle of a single attempt: the <c>start_execution</c> CAS here, then
 /// <see cref="ExecutionAdmission"/>, which settles a refused attempt, <see cref="HandlerInvocation"/>, which settles
-/// an admitted one, and <see cref="ExecutionCompletion"/>, which writes the <see cref="AttemptSettlement"/>.
-/// <para>Separate from <see cref="JobExecutor"/> on purpose, and the seam is not "claim versus
-/// run": both are strictly per-attempt, and the worker loop does the claiming. JobExecutor is the
-/// frame - four disposal obligations plus the running-attempt registration, all of which must
-/// unwind whatever happens in here; this is the body it wraps. "Execution" is the persisted
-/// vocabulary (execution_number, start_execution, ExecutionStatusCode - frozen at 1.0), while
-/// "run" names a scheduled time in this schema (next_run_at_utc), never an attempt.</para>
+/// an admitted one, and <see cref="ExecutionCompletion"/>, which writes the <see cref="AttemptSettlement"/>. The seam
+/// with <see cref="JobExecutor"/> is not "claim versus run" (the worker loop claims; both are per-attempt): the
+/// executor is the frame, four disposal obligations plus the running-attempt registration that unwind whatever
+/// happens here, and this is the body. "Execution" is the persisted vocabulary, frozen at 1.0; "run" is a scheduled time.
 /// </summary>
 internal sealed class JobExecution(
     GetJobHandler getJob,
@@ -36,14 +33,12 @@ internal sealed class JobExecution(
     private readonly ExecutionCompletion _completion = new(execution, cancelJob, wakeupPublisher, log, metrics);
 
     /// <summary>
-    /// Moves a claimed row to Executing and answers what the row is, not what one write said. The write
-    /// is repeated like the completion, on the host token, since a failure after the claim would
-    /// otherwise leave the Dispatched row under a lease the heartbeat keeps renewing. A LostClaim means
-    /// only that the version moved, and the row decides what that was: Executing under this worker at
-    /// this execution number is a start that committed and lost its answer, so the attempt proceeds;
-    /// Dispatched under this worker is an operator verb that bumped the version under the claim, and the
-    /// start is made again against the version the row carries now; anything else belongs to another
-    /// owner or a control verb, and the claim is gone.
+    /// Moves a claimed row to Executing and answers what the row is, not what one write said. The write is repeated
+    /// like the completion, on the host token, since a failure after the claim would leave the Dispatched row under a
+    /// lease the heartbeat keeps renewing. A LostClaim means only that the version moved, and the row decides what:
+    /// Executing under this worker at this execution number is a start that committed and lost its answer, so the
+    /// attempt proceeds; Dispatched under this worker is an operator verb that bumped the version, and the start is
+    /// made again against the version the row carries now; anything else belongs to another owner, and the claim is gone.
     /// </summary>
     internal static async Task<StartExecutionAction> StartReconciledAsync(
         Execution execution,

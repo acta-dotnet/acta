@@ -6,17 +6,12 @@ namespace Acta;
 
 /// <summary>
 /// Wire-format payload: the serializer output that lands in <c>Job.Input</c>, <c>JobResult.Result</c>,
-/// <c>JobCheckpoint.Value</c> or <c>JobStep.Result</c>. Pairs the encoded
-/// <see cref="Data"/> buffer with the <see cref="JobPayloadFormat"/> that produced it so the dispatcher
-/// can route the row through the correct decoder. <c>Format.IsNone</c> means there is no payload and the
-/// handler returns <c>Task</c> or <c>void</c>.
+/// <c>JobCheckpoint.Value</c>, or <c>JobStep.Result</c>, pairing the encoded <see cref="Data"/> buffer with the
+/// <see cref="JobPayloadFormat"/> that produced it so the dispatcher routes the row to the right decoder;
+/// <c>Format.IsNone</c> means no payload and a handler returning <c>Task</c> or <c>void</c>. A <c>readonly struct</c>
+/// since it appears on every payload at scale, constructed only through <see cref="FromBytes"/> (no copy, ownership
+/// transfer) and <see cref="CopyBytes"/> (defensive copy), so the pair stays valid and the hot path never allocates silently.
 /// </summary>
-/// <remarks>
-/// A <c>readonly struct</c> for stack-friendliness, since it appears on every input, result, and
-/// checkpoint payload at scale. Construction is gated through <see cref="FromBytes"/> (no copy,
-/// ownership transfer) and <see cref="CopyBytes"/> (defensive copy) so the <c>(Format, Data)</c> pair
-/// cannot reach an invalid state and the hot path never silently allocates.
-/// </remarks>
 public readonly struct JobPayload
 {
     public JobPayloadFormat Format { get; }

@@ -18,15 +18,11 @@ internal enum ClockSkewVerdict
 }
 
 /// <summary>
-/// One clock-skew measurement: the estimated offset of the DB clock from the local clock, plus the
-/// round-trip it cost to read the DB clock.
+/// One clock-skew measurement: the estimated offset of the DB clock from the local clock, plus the round-trip it
+/// cost to read the DB clock. The DB instant is sampled at some unknown point inside the round-trip, so the local
+/// clock at that point is estimated as the midpoint of the two bracketing local reads; the estimate's uncertainty is
+/// bounded by half the round-trip, which is why the validator keeps the sample with the smallest round-trip.
 /// </summary>
-/// <remarks>
-/// The DB instant is sampled at some unknown point inside the round-trip, so the local clock at that
-/// point is estimated as the midpoint of the two bracketing local reads. The estimate's uncertainty is
-/// bounded by half the round-trip, which is why the validator keeps the sample with the smallest
-/// round-trip across its repeated measurements.
-/// </remarks>
 internal readonly record struct ClockSkewSample(TimeSpan Skew, TimeSpan RoundTrip)
 {
     /// <summary>
@@ -60,17 +56,13 @@ internal readonly record struct ClockSkewSample(TimeSpan Skew, TimeSpan RoundTri
 }
 
 /// <summary>
-/// Worker-init guard against host/DB clock skew. Reads the DB server clock a few times, keeps the
-/// tightest measurement, and warns or fails when the offset from the local clock crosses the
-/// configured thresholds. A drifted host clock silently corrupts lease-expiry and schedule math, so
-/// catching it at startup turns a class of hard-to-diagnose distributed bugs into one clear failure.
+/// Worker-init guard against host/DB clock skew: reads the DB server clock a few times, keeps the tightest measurement,
+/// and warns or fails when the offset from the local clock crosses the configured thresholds. A drifted host clock
+/// silently corrupts lease-expiry and schedule math, so catching it at startup turns a class of hard-to-diagnose
+/// distributed bugs into one clear failure. The DB clock is read through the supplied delegate (the real
+/// <c>GetUtcNow</c> in production), not the schedule <c>IActaClock</c> tests substitute, so a fake-clock test never
+/// trips the guard; the local clock comes from an injected <see cref="TimeProvider"/> for the same reason.
 /// </summary>
-/// <remarks>
-/// The DB clock is read through the supplied delegate (the real <c>GetUtcNow</c> op in production), not
-/// the schedule <c>IActaClock</c>; tests substitute a deterministic schedule clock, and conflating the
-/// two would make every fake-clock test trip the skew guard. The local clock comes from an injected
-/// <see cref="TimeProvider"/> for the same testability reason.
-/// </remarks>
 internal sealed class ClockSkewValidator(
     Func<CancellationToken, Task<DateTime>> readDbNowUtc,
     TimeProvider localClock,

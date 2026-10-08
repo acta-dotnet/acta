@@ -3,16 +3,12 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// Plain-English explanation of a Job's current durable state: where the work is, why it moved there,
-/// and what an operator can do next. Assembled from the same <c>runtimes</c> / <c>workers</c> /
-/// <c>steps</c> / <c>checkpoints</c> / <c>events</c> rows an operator could read with a <c>SELECT</c>:
-/// Acta explains the work it runs rather than hiding it behind synthesized state. Returned by
-/// <see cref="IJobs.ExplainAsync"/>; the CLI renders it as prose, the dashboard as a panel.
-/// <para><c>StatusMeaning</c> is the <c>[Code]</c> description of <c>Status</c>; <c>Headline</c> is a
-/// one-sentence summary; <c>ActiveWait</c> / <c>Lease</c> are set only in the relevant states;
-/// <c>LastExecutedBy</c> names the worker that last ran the job (for states with no live lease);
-/// <c>Reason</c> is the most recent reason on the timeline; <c>NextActions</c> are the operator's
-/// moves, most relevant first.</para>
+/// Plain-English explanation of a Job's current durable state: where the work is, why it moved there, and what an
+/// operator can do next, assembled from the same <c>runtimes</c>, <c>workers</c>, <c>steps</c>, <c>checkpoints</c>, and
+/// <c>events</c> rows a <c>SELECT</c> would read. Returned by <see cref="IJobs.ExplainAsync"/>; the CLI renders it as
+/// prose, the dashboard as a panel. <c>Headline</c> is a one-sentence summary and <c>StatusMeaning</c> the
+/// <c>[Code]</c> description of <c>Status</c>; <c>ActiveWait</c> and <c>Lease</c> are set only in the relevant states,
+/// <c>LastExecutedBy</c> names the last worker when no lease is live, and <c>NextActions</c> are the operator's moves.
 /// </summary>
 public sealed record JobExplanation(
     [property: JsonIgnore] long JobId,
@@ -34,13 +30,12 @@ public sealed record JobExplanation(
 public sealed record JobExplainWait(CheckpointKindCode Kind, string Name, DateTime? DueAtUtc);
 
 /// <summary>
-/// The execution lease on a Dispatched / Executing Job and the liveness of the worker that holds it.
-/// When <see cref="Expired"/> is true the lease has lapsed and <c>sys.recovery</c> reclaims the Job on
-/// its next maintenance tick; <see cref="RecoveryExpectation"/> states that in prose.
-/// <see cref="WorkerName"/> is the worker's deployment version; <see cref="WorkerStale"/> is true once
-/// the worker has missed heartbeats past <c>JobsOptions.WorkerDeadAfter</c>. Both
-/// <see cref="WorkerRef"/> and <see cref="WorkerName"/> go null when the lease owner's row is gone
-/// (retention purged it): the lease timings still describe the Job, but the holder is unidentifiable.
+/// The execution lease on a Dispatched or Executing Job and the liveness of the worker holding it. When
+/// <see cref="Expired"/> is true the lease has lapsed and <c>sys.recovery</c> reclaims the Job on its next tick;
+/// <see cref="RecoveryExpectation"/> says so in prose. <see cref="WorkerName"/> is the worker's deployment version, and
+/// <see cref="WorkerStale"/> is true once it has missed heartbeats past <c>JobsOptions.WorkerDeadAfter</c>. Both
+/// <see cref="WorkerRef"/> and <see cref="WorkerName"/> go null when retention purged the owner's row: the timings
+/// still describe the Job, but the holder is unidentifiable.
 /// </summary>
 public sealed record JobExplainLease(
     [property: JsonIgnore] int WorkerId,

@@ -6,17 +6,12 @@ using System.Text;
 namespace Acta;
 
 /// <summary>
-/// Handler-facing per-attempt context (<c>ctx</c>). Exposes the job's identity, the per-attempt
-/// cancellation token, and substrate operations like <see cref="SetProgressAsync{T}"/>. The framework
-/// supplies it: <c>RuntimeJobContext</c> is the production implementation, and only Acta's own assemblies
-/// can derive from it; a test drives a handler through the <c>Acta.Testing</c> host.
+/// Handler-facing per-attempt context (<c>ctx</c>): the job's identity, the per-attempt cancellation token, and the
+/// durable operations (progress, variables, sleeps, signals, children, steps, locks, alerts, notes). The framework
+/// supplies it: <c>RuntimeJobContext</c> is the production implementation, only Acta's own assemblies derive from it,
+/// and a test drives a handler through the <c>Acta.Testing</c> host. Steps and signals are durable and replay-safe,
+/// timers suspend the job budget-neutrally, and a concrete subclass supplies the storage behind each <c>Core</c> sink.
 /// </summary>
-/// <remarks>
-/// Steps and signals are durable and replay-safe, timers (<see cref="SleepAsync"/>) suspend the
-/// job budget-neutrally, and <see cref="RunWithLockAsync(string, Func{Task}, TimeSpan?, LockScope, CancellationToken)"/>
-/// runs a critical section under a mutual-exclusion lease. Concrete subclasses supply the storage
-/// behind each <c>Core</c> sink.
-/// </remarks>
 public abstract class JobContext
 {
     private protected JobContext() { }
@@ -70,20 +65,11 @@ public abstract class JobContext
     public virtual IReadOnlyList<string> TriggeringScheduleNames => [];
 
     /// <summary>
-    /// Which attempt this is: <c>1</c> on the first execution, incrementing on every retry and on
-    /// every reclaim after a worker died mid-attempt. The same number the ledger records as
-    /// <c>execution_number</c>, so <c>(JobId, ExecutionNumber)</c> identifies this attempt in the
-    /// timeline and makes a stable idempotency key for an external call. Defaults to <c>1</c> for
-    /// test contexts that do not set it.
+    /// Which attempt this is: <c>1</c> on the first execution, incrementing on every retry and on every reclaim after
+    /// a worker died mid-attempt. The same number the ledger records as <c>execution_number</c>, so
+    /// <c>(JobId, ExecutionNumber)</c> identifies this attempt in the timeline and makes a stable idempotency key for
+    /// an external call. Defaults to <c>1</c> for test contexts that do not set it.
     /// </summary>
-    /// <example>
-    /// <code>
-    /// if (ctx.ExecutionNumber > 1)
-    /// {
-    ///     await ctx.NoteAsync($"retrying after {ctx.ExecutionNumber - 1} failed attempts");
-    /// }
-    /// </code>
-    /// </example>
     public virtual int ExecutionNumber => 1;
 
     /// <summary>
@@ -111,16 +97,9 @@ public abstract class JobContext
     public TimeSpan? TimeUntilDeadline => DeadlineAtUtc is { } due ? due - DateTime.UtcNow : null;
 
     /// <summary>
-    /// Reports progress as a typed value (JSON-serialized, written to the reserved <c>sys.progress</c>
-    /// <c>JobCheckpoint</c> progress slot). Last write wins. Silent: no event, no version bump.
+    /// Reports progress as a typed value, JSON-serialized into the reserved <c>sys.progress</c> checkpoint slot. Last
+    /// write wins. Silent: no event, no version bump.
     /// </summary>
-    /// <example>
-    /// <code>
-    /// await ctx.SetProgressAsync(42);
-    /// await ctx.SetProgressAsync("Stage 2: validating");
-    /// await ctx.SetProgressAsync(new MyProgress(42, "Halfway"));
-    /// </code>
-    /// </example>
     public async Task SetProgressAsync<T>(T value, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -296,21 +275,13 @@ public abstract class JobContext
     private protected abstract Task<bool> DeleteVariableCoreAsync(string name, CancellationToken ct);
 
     /// <summary>
-    /// Clears this Job's durable state (every <c>JobCheckpoint</c>, <c>JobStep</c>, and
-    /// <c>JobResult</c> row) so the next execution starts as new. Does not change the Job's status,
-    /// lease, failure budget, or schedule; the current attempt still completes normally. Emits
-    /// <c>job.state-reset</c>.
+    /// Clears this Job's durable state (every checkpoint, step, and result row) so the next execution starts as new;
+    /// the status, lease, failure budget, and schedule stay, the current attempt completes normally, and
+    /// <c>job.state-reset</c> is emitted. Meant as the final action of a handler that runs again, never its first:
+    /// mid-handler it discards the variables, timers, step checkpoints, and signals the rest of the attempt would read,
+    /// a finished child still dedupes by name and never re-raises (so waiting on it again hangs; use per-fire child
+    /// names), and an already-run <c>AtMostOnce</c> step loses its record and can run twice if the attempt aborts.
     /// </summary>
-    /// <remarks>
-    /// Intended as the final action of a handler that runs again (a recurring Job, or one that
-    /// re-arms), never its first: the next claim then sees none of this attempt's state. Calling
-    /// it mid-handler discards the variables, timers, step checkpoints, and signals the rest of the
-    /// attempt would read. Child outcome latches are cleared too, while a finished child still dedupes
-    /// by name and never re-raises, so waiting on it again hangs; use per-fire child names in handlers
-    /// that reset. It also breaks at-most-once: the reset deletes an already-run <c>AtMostOnce</c>
-    /// step's recorded outcome, so an attempt aborted afterwards re-arms, finds no record, and invokes
-    /// that step a second time. Mid-execution this is for tests and repair, never a handler's path.
-    /// </remarks>
     public async Task ResetStateAsync(CancellationToken ct = default)
     {
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
@@ -323,15 +294,11 @@ public abstract class JobContext
     private protected abstract Task ResetStateCoreAsync(CancellationToken ct);
 
     /// <summary>
-    /// Re-arms this Job to run again after <paramref name="delay"/> and stops the current attempt
-    /// without charging the failure budget. Throws <see cref="RescheduleJobException"/> synchronously;
-    /// code after this call in the current attempt is unreachable. The host computes the due instant
-    /// from DB UTC time (<c>db_now + delay</c>).
+    /// Re-arms this Job to run again after <paramref name="delay"/> and stops the current attempt without charging the
+    /// failure budget; the host computes the due instant as <c>db_now + delay</c>. Throws
+    /// <see cref="RescheduleJobException"/> synchronously, so code after the call is unreachable and a forgotten
+    /// <c>await</c> still stops the handler; the <see cref="Task"/> return mirrors <see cref="SleepAsync"/>.
     /// </summary>
-    /// <remarks>
-    /// The <see cref="Task"/> return type mirrors <see cref="SleepAsync"/> for call-site symmetry; the
-    /// throw is synchronous, so a forgotten <c>await</c> still stops the handler.
-    /// </remarks>
     public Task RescheduleAsync(TimeSpan delay, string? reasonMessage = null, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -350,16 +317,11 @@ public abstract class JobContext
     }
 
     /// <summary>
-    /// Deliberately ends this Job as terminal <c>Failed</c> for a business reason. Throws
-    /// <see cref="HandlerFailException"/> synchronously; code after this call in the current attempt is
-    /// unreachable. The attempt is not retried and the failure budget is untouched, distinct from
-    /// throwing an exception, which is recorded as an unhandled failure. Use the normal throw or failure
-    /// path when retry and backoff are wanted.
+    /// Deliberately ends this Job as terminal <c>Failed</c> for a business reason: no retry, failure budget untouched,
+    /// unlike a thrown exception, which is recorded as an unhandled failure and retried. Throws
+    /// <see cref="HandlerFailException"/> synchronously, so code after the call is unreachable and a forgotten
+    /// <c>await</c> still stops the handler; the <see cref="Task"/> return mirrors the other control verbs.
     /// </summary>
-    /// <remarks>
-    /// The <see cref="Task"/> return type mirrors the other control verbs for call-site symmetry; the
-    /// throw is synchronous, so a forgotten <c>await</c> still stops the handler.
-    /// </remarks>
     public Task FailAsync(string? reasonMessage = null, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -394,16 +356,9 @@ public abstract class JobContext
     }
 
     /// <summary>
-    /// Durable, replay-safe named wait. The first pass arms a timer checkpoint and suspends the Job
-    /// until <paramref name="delay"/> elapses; the replayed pass after the due instant consumes the
-    /// timer and returns so the handler proceeds. A zero <paramref name="delay"/> returns immediately
-    /// without arming a timer. Suspending is budget-neutral.
+    /// Durable, replay-safe named wait: the first pass arms a timer and suspends the Job budget-neutrally; the replay
+    /// after the due instant consumes it and returns. A zero delay returns at once; no worker is held meanwhile.
     /// </summary>
-    /// <remarks>
-    /// Use this rather than <c>Task.Delay</c> or <c>Thread.Sleep</c>: those hold a worker for the whole
-    /// duration and are lost if the process restarts, while a durable sleep parks the job and re-arms
-    /// it at the due instant, costing no worker in between.
-    /// </remarks>
     /// <param name="name">Dotted-kebab wait name, unique per Job; identifies the timer across replays.</param>
     /// <param name="delay">Wait length from DB now; whole-second precision (sub-second rounds up).</param>
     /// <param name="reasonMessage">Operator-readable suspend reason.</param>
@@ -476,19 +431,12 @@ public abstract class JobContext
 
     /// <summary>
     /// Bounded twin of <see cref="WaitSignalAsync(string, CancellationToken)"/>. The first pass stores
-    /// <c>db_now + timeout</c> as the slot's absolute expiration; a replay reuses that instant and never
-    /// extends it, so restarts and worker downtime cannot lengthen the wait. Passing that instant makes
-    /// the wait resolvable as timed out rather than closing the slot to a raise: it wakes the Suspended
-    /// Job, and the replayed wait settles the slot under its lock, so a raise landing before that
-    /// re-entry is still taken. Once the re-entry settles the slot <c>Expired</c>, Acta terminates the
-    /// Job <c>Cancelled</c> with reason <c>job.wait-timed-out</c> and this call does not return; use
-    /// <see cref="TryWaitSignalAsync(string, TimeSpan, CancellationToken)"/> to resume the handler
-    /// instead. The timeout is budget-neutral, and cancelling <paramref name="ct"/> stays a separate,
-    /// non-durable concern.
+    /// <c>db_now + timeout</c> (whole seconds, rounded up, positive) as the slot's expiration; a replay reuses that
+    /// instant and never extends it, so restarts cannot lengthen the wait. A raise landing before the replayed wait
+    /// settles the slot is still taken; once it settles <c>Expired</c>, Acta ends the Job <c>Cancelled</c> with reason
+    /// <c>job.wait-timed-out</c> and this call does not return. Use
+    /// <see cref="TryWaitSignalAsync(string, TimeSpan, CancellationToken)"/> to resume the handler instead.
     /// </summary>
-    /// <param name="name">Kebab-case signal name, unique per Job; identifies the slot across replays.</param>
-    /// <param name="timeout">Wait length from DB now; whole-second precision (sub-second rounds up). Must be positive.</param>
-    /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
     public async Task WaitSignalAsync(string name, TimeSpan timeout, CancellationToken ct = default)
     {
         name = IdentifierSyntax.CanonicalizeUserKebab(name, nameof(name), IdentifierSyntax.ExtendedMaxLength);
@@ -594,14 +542,12 @@ public abstract class JobContext
     private const string ChildSignalPrefix = "sys.child.";
 
     /// <summary>
-    /// Enqueues a child job from a typed input, replay-safe: <paramref name="name"/> becomes the
-    /// child's deduplication key, sibling-unique per parent, so a replay returns the existing child
-    /// (<see cref="JobEnqueueAction.Deduplicated"/>) instead of inserting a duplicate. The child runs
-    /// independently; pair with <see cref="WaitChildAsync"/> to join on its completion.
+    /// Enqueues a child job from a typed input, replay-safe: <paramref name="name"/> is the child's deduplication key,
+    /// so a replay returns the existing child (<see cref="JobEnqueueAction.Deduplicated"/>). Join with <see cref="WaitChildAsync"/>.
     /// </summary>
     /// <param name="name">Stable kebab-case child name, unique among this Job's children.</param>
     /// <param name="input">Typed input resolved to a job route via the generated manifest.</param>
-    /// <param name="configure">Optional enqueue options; the parent id and deduplication key are framework-set and win over configured values.</param>
+    /// <param name="configure">Optional enqueue options; the parent id and deduplication key are framework-set and win.</param>
     /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
     public async Task<JobEnqueueResponse> StartChildAsync<TInput>(
         string name,
@@ -619,10 +565,8 @@ public abstract class JobContext
     }
 
     /// <summary>
-    /// Convenience overload of
-    /// <see cref="StartChildAsync{TInput}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>:
-    /// <paramref name="ct"/> takes the third positional slot when no <c>configure</c> override is
-    /// needed, instead of requiring the named <c>ct: ct</c> form. Equivalent to <c>configure: null</c>.
+    /// <see cref="StartChildAsync{TInput}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/> with
+    /// <paramref name="ct"/> in the third slot: no <c>configure</c>, no named <c>ct: ct</c>.
     /// </summary>
     /// <param name="name">Stable kebab-case child name, unique among this Job's children.</param>
     /// <param name="input">Typed input resolved to a job route via the generated manifest.</param>
@@ -686,21 +630,13 @@ public abstract class JobContext
     }
 
     /// <summary>
-    /// Bounded twin of <see cref="WaitChildAsync"/>. The first pass stores <c>db_now + timeout</c> as
-    /// the latch's absolute expiration; a replay reuses that instant and never extends it, so restarts
-    /// and worker downtime cannot lengthen the wait. Passing that instant makes the wait resolvable as
-    /// timed out rather than closing the latch: the replayed wait settles it under its lock, so a child
-    /// landing before that re-entry is still taken. A child timeout never cancels this Job: the
-    /// handler resumes with <see cref="ChildWaitOutcome.TimedOut"/> and is free to compensate, start a
-    /// replacement child, or cancel itself. Acta cancels the unfinished child and its descendant
-    /// subtree (reason <c>job.wait-timed-out</c>) before this call returns. Waiting stays
-    /// budget-neutral, and cancelling <paramref name="ct"/> remains a separate, non-durable concern.
-    /// There is deliberately no non-Try twin: a child timeout resolves in the parent's favour, so
-    /// there is nothing for a non-returning overload to mean.
+    /// Bounded twin of <see cref="WaitChildAsync"/>. The first pass stores <c>db_now + timeout</c> (whole seconds,
+    /// rounded up, positive) as the latch's expiration; a replay reuses that instant and never extends it. A child
+    /// landing before the replayed wait settles the latch is still taken. A timeout never cancels this Job: the handler
+    /// resumes with <see cref="ChildWaitOutcome.TimedOut"/> after Acta cancels the unfinished child and its subtree
+    /// (<c>job.wait-timed-out</c>), free to compensate, start a replacement, or cancel itself. There is no non-Try twin:
+    /// a child timeout resolves in the parent's favour, so a non-returning overload would mean nothing.
     /// </summary>
-    /// <param name="childJobId">The child started by <c>StartChildAsync</c>.</param>
-    /// <param name="timeout">Wait length from DB now; whole-second precision (sub-second rounds up). Must be positive.</param>
-    /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
     public async Task<ChildWaitOutcome> TryWaitChildAsync(long childJobId, TimeSpan timeout, CancellationToken ct = default)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(childJobId);
@@ -758,10 +694,9 @@ public abstract class JobContext
     }
 
     /// <summary>
-    /// Bounded twin of <see cref="WaitChildrenAsync(IReadOnlyList{long}, CancellationToken)"/>, and the
-    /// same call as <see cref="TryWaitChildrenAsync"/>. It returns a
-    /// <see cref="ChildrenWaitOutcome"/> rather than the unbounded form's plain list, because a group
-    /// that ran out of time has more to report than an outcome per child.
+    /// Bounded twin of <see cref="WaitChildrenAsync(IReadOnlyList{long}, CancellationToken)"/>, the same call as
+    /// <see cref="TryWaitChildrenAsync"/>. It answers a <see cref="ChildrenWaitOutcome"/> rather than the unbounded
+    /// form's plain list, because a group that ran out of time has more to report than an outcome per child.
     /// </summary>
     /// <param name="childJobIds">The children to wait for, in the order the outcomes come back.</param>
     /// <param name="timeout">Budget for the whole group from DB now, not per child. Must be positive.</param>
@@ -770,20 +705,13 @@ public abstract class JobContext
         TryWaitChildrenAsync(childJobIds, timeout, ct);
 
     /// <summary>
-    /// Durable, replay-safe bounded wait for a whole group of children. The first pass stores
-    /// <c>db_now + timeout</c> once as the group's absolute deadline; every child in the group, on this
-    /// pass and on every replay, waits toward that one instant, so the budget cannot restart per child
-    /// or per replay. Children that landed before it keep their terminal outcome. On expiry Acta
-    /// cancels only the unfinished children and their descendant subtrees (reason
-    /// <c>job.wait-timed-out</c>); the awaiting Job is never cancelled and resumes with the result.
-    /// There is deliberately no non-Try twin, for the reason <see cref="TryWaitChildAsync"/> has none.
-    /// Waiting stays budget-neutral, and cancelling <paramref name="ct"/> stays a non-durable concern.
-    /// <see cref="ResetStateAsync"/> is the one exit from the never-restart rule: it clears the stored
-    /// deadline with every other checkpoint, so a group re-entered after a reset starts a fresh one.
+    /// Durable, replay-safe bounded wait for a whole group of children. The first pass stores <c>db_now + timeout</c>
+    /// once as the group's deadline (whole seconds, positive, for the group rather than per child), and every child on
+    /// every replay waits toward that one instant: the budget never restarts, except after <see cref="ResetStateAsync"/>,
+    /// which clears the stored deadline with every other checkpoint. Children that landed keep their outcome; on expiry
+    /// Acta cancels only the unfinished ones and their subtrees (<c>job.wait-timed-out</c>) and this Job resumes with
+    /// the result. There is no non-Try twin, for the reason <see cref="TryWaitChildAsync"/> has none.
     /// </summary>
-    /// <param name="childJobIds">The children to wait for, in the order the outcomes come back.</param>
-    /// <param name="timeout">Budget for the whole group from DB now, not per child. Must be positive.</param>
-    /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
     public async Task<ChildrenWaitOutcome> TryWaitChildrenAsync(
         IReadOnlyList<long> childJobIds,
         TimeSpan timeout,
@@ -813,19 +741,12 @@ public abstract class JobContext
     }
 
     /// <summary>
-    /// The one place the group deadline rule lives; every bounded group API funnels through it, and
-    /// a null timeout is the unbounded loop these wrappers have always run. At most one child arms
-    /// per pass (the first unresolvable wait suspends the attempt), but reaching it costs a store
-    /// round trip per already-resolved member, so the pass reads the DB clock once, anchors a
-    /// monotonic stopwatch to the moment of that reading, and carries it forward: each iteration's
-    /// remaining is measured at the moment it runs, so the arming member neither inherits the whole
-    /// walk as deadline overshoot nor loses budget it never spent (the alerting pass's settlement
-    /// clock uses the same technique; neither costs an extra clock round trip). Each arm rounds the
-    /// remaining UP to whole seconds - the deadline is a not-before, see
-    /// <see cref="RemainingWait"/> - so a slot's due lands at or up to one second past the group
-    /// deadline, plus one arm round trip of store skew; that residual never accumulates because
-    /// every arm measures from the deadline, not the previous arm. A slot armed on an earlier pass
-    /// keeps its own due, harmless because both derive from the same fixed instant.
+    /// The one home of the group deadline rule; every bounded group API funnels through it, and a null timeout is the
+    /// unbounded loop. At most one child arms per pass, but reaching it costs a round trip per resolved member, so the
+    /// pass reads the DB clock once, anchors a monotonic stopwatch to it, and measures each member's remaining budget
+    /// when it runs: the arming member neither inherits the walk as overshoot nor loses budget it never spent. Each
+    /// arm rounds the remaining up to whole seconds (<see cref="RemainingWait"/>), so a due lands at most a second
+    /// plus a round trip past the deadline, never accumulating since every arm measures from the deadline itself.
     /// </summary>
     private async Task<IReadOnlyList<ChildJobOutcome>> WaitChildGroupAsync(
         IReadOnlyList<long> childJobIds,
@@ -853,20 +774,12 @@ public abstract class JobContext
     }
 
     /// <summary>
-    /// The whole seconds left until the group deadline, rounded UP, with a floor of one. The anchor
-    /// is the pass's one DB clock reading advanced by the monotonic time spent since, so the walk
-    /// over already-resolved members is spent out of the group's budget rather than added to it. A
-    /// group deadline is a NOT-BEFORE, not a not-after: a member does not give up before the
-    /// instant, so the rounding must go up - a floored value armed a slot up to a second short of
-    /// the deadline, and a replay in that gap durably expired a child that was still inside its
-    /// budget. The store may still stamp the due a round trip past the deadline, which the
-    /// not-before semantics absorb. A wait must carry a positive bound, so an already-passed
-    /// deadline arms one second rather than zero; a child whose latch does not exist yet then
-    /// suspends once before it can expire (wait_signal resolves only a wait an earlier call armed),
-    /// costing one extra second-long tick per unfinished child - accepted because the alternative
-    /// is a special case inside the arbiter that every other wait would have to reason about.
-    /// Internal, over bare instants rather than the protected WaitDeadline, so a unit test can pin
-    /// the arithmetic directly: Stopwatch is a static monotonic source with no seam.
+    /// The whole seconds left until the group deadline, rounded up, floor one. The anchor is the pass's one DB clock
+    /// reading advanced by the monotonic time since, so the walk over resolved members is spent out of the budget, not
+    /// added to it. A group deadline is a not-before, so rounding goes up: a floored value once armed a slot a second
+    /// short, and a replay in that gap expired a child still inside its budget. A passed deadline arms one second, not
+    /// zero, so a child whose latch does not exist yet suspends once before it can expire: one extra tick, accepted
+    /// over a special case in the arbiter. Internal over bare instants so a unit test can pin the arithmetic.
     /// </summary>
     internal static TimeSpan RemainingWait(DateTime deadlineAtUtc, DateTime passNowUtc, TimeSpan elapsed)
     {
@@ -877,15 +790,12 @@ public abstract class JobContext
     }
 
     /// <summary>
-    /// Reserved deadline-slot name: the child ids hashed to a stable tail. The ids come back
-    /// identical on every replay (a child start dedupes onto the same row), so the name is stable,
-    /// and the sys. prefix is rejected for user variable names, so it cannot collide with one. Two
-    /// waits on the same children in the same Job are the same group and deliberately share the
-    /// deadline. Sorted and de-duplicated first, so the name is a property of the SET of children:
-    /// a handler that reorders the same ids - or lists one twice on one replay and once on the
-    /// next - would otherwise mint a second slot and hand the group a fresh budget, making
-    /// never-restart a promise about caller discipline instead of a structural one. Caller order
-    /// is not lost; the outcome array follows the order given.
+    /// Reserved deadline-slot name: the child ids hashed to a stable tail, under the <c>sys.</c> prefix user variables
+    /// cannot take. The ids come back identical on every replay (a child start dedupes onto the same row), so the
+    /// name is stable, and two waits on the same children in one Job share the deadline on purpose. The ids are
+    /// sorted and de-duplicated first, so the name is a property of the set: reordering them, or listing one twice on
+    /// one replay, would otherwise mint a second slot and a fresh budget, making never-restart a matter of caller
+    /// discipline. Caller order survives in the outcome array.
     /// </summary>
     internal static string GroupDeadlineName(IReadOnlyList<long> childJobIds)
     {
@@ -997,15 +907,10 @@ public abstract class JobContext
     /// <summary>
     /// Bounded twin of
     /// <see cref="ExecuteChildAsync{TInput}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>:
-    /// the child is started, then awaited under one stored absolute expiration that a replay reuses and
-    /// never extends. On expiry the outcome reports <see cref="JobOutcome.IsTimedOut"/>, Acta cancels
-    /// the child and its descendant subtree, and this Job resumes.
+    /// the child is started, then awaited under one stored expiration (<c>db_now + timeout</c>, whole seconds,
+    /// positive) that a replay reuses and never extends. On expiry the outcome reports
+    /// <see cref="JobOutcome.IsTimedOut"/>, Acta cancels the child and its descendant subtree, and this Job resumes.
     /// </summary>
-    /// <param name="name">Stable kebab-case child name, unique among this Job's children.</param>
-    /// <param name="input">Typed input resolved to a job route via the generated manifest.</param>
-    /// <param name="timeout">Wait length from DB now; whole-second precision (sub-second rounds up). Must be positive.</param>
-    /// <param name="configure">Optional enqueue options; the parent id and deduplication key are framework-set and win over configured values.</param>
-    /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
     public async Task<JobOutcome> ExecuteChildAsync<TInput>(
         string name,
         TInput input,
@@ -1093,15 +998,10 @@ public abstract class JobContext
     /// <summary>
     /// Bounded twin of
     /// <see cref="ExecuteChildAsync{TInput, TResult}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>:
-    /// the child is started, then awaited under one stored absolute expiration that a replay reuses and
-    /// never extends. On expiry the outcome reports <see cref="JobOutcome.IsTimedOut"/> with no value,
-    /// Acta cancels the child and its descendant subtree, and this Job resumes.
+    /// the child is started, then awaited under one stored expiration (<c>db_now + timeout</c>, whole seconds,
+    /// positive) that a replay reuses and never extends. On expiry the outcome reports
+    /// <see cref="JobOutcome.IsTimedOut"/> with no value, Acta cancels the child and its subtree, and this Job resumes.
     /// </summary>
-    /// <param name="name">Stable kebab-case child name, unique among this Job's children.</param>
-    /// <param name="input">Typed input resolved to a job route via the generated manifest.</param>
-    /// <param name="timeout">Wait length from DB now; whole-second precision (sub-second rounds up). Must be positive.</param>
-    /// <param name="configure">Optional enqueue options; the parent id and deduplication key are framework-set and win over configured values.</param>
-    /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
     public async Task<JobOutcome<TResult>> ExecuteChildAsync<TInput, TResult>(
         string name,
         TInput input,
@@ -1206,12 +1106,9 @@ public abstract class JobContext
         new(await WaitChildrenAsync(ChildIds(children), ct));
 
     /// <summary>
-    /// Bounded twin of <see cref="JoinAsync(IReadOnlyList{JobEnqueueResponse}, CancellationToken)"/>: the
-    /// whole join shares one stored absolute deadline that a replay reuses and never extends. It returns
-    /// a <see cref="ChildrenWaitOutcome"/> rather than a <see cref="JoinOutcome"/>, because the two carry
-    /// the same ordered child outcomes and only one of them can also say the group ran out of time;
-    /// minting a second near-identical record would have been the larger surface. On expiry Acta cancels
-    /// only the unfinished children and their subtrees, and this Job resumes.
+    /// Bounded twin of <see cref="JoinAsync(IReadOnlyList{JobEnqueueResponse}, CancellationToken)"/>: the whole join
+    /// shares one stored deadline a replay never extends. It answers a <see cref="ChildrenWaitOutcome"/>, which carries
+    /// the same ordered outcomes as a <see cref="JoinOutcome"/> and can also say the group ran out of time.
     /// </summary>
     /// <param name="children">The child handles to join on, in the order the outcomes come back.</param>
     /// <param name="timeout">Budget for the whole join from DB now, not per child. Must be positive.</param>
@@ -1243,16 +1140,12 @@ public abstract class JobContext
         ParallelCoreAsync(groupName, configure, timeout: null, ct);
 
     /// <summary>
-    /// Bounded twin of
-    /// <see cref="ParallelAsync(string, Action{ParallelBuilder}, CancellationToken)"/>: every branch
-    /// waits toward one stored absolute deadline that a replay reuses and never extends. A branch that
-    /// did not land by then reports <see cref="ChildJobOutcome.TimedOut"/> and is cancelled along with
-    /// its subtree; the branch keying is unchanged, and this Job resumes either way.
+    /// Bounded twin of <see cref="ParallelAsync(string, Action{ParallelBuilder}, CancellationToken)"/>: every branch
+    /// waits toward one stored absolute deadline (whole seconds, positive, for the group rather than per branch) that
+    /// a replay reuses and never extends. A branch that did not land by then reports
+    /// <see cref="ChildJobOutcome.TimedOut"/> and is cancelled along with its subtree; the branch keying is unchanged,
+    /// and this Job resumes either way. Each branch child is named <c>groupName-branchName</c>.
     /// </summary>
-    /// <param name="groupName">Kebab-case group name; each branch child is named <c>groupName-branchName</c>.</param>
-    /// <param name="configure">Branch builder; every branch is started before any is awaited.</param>
-    /// <param name="timeout">Budget for the whole group from DB now, not per branch. Must be positive.</param>
-    /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
     public Task<ParallelOutcome> ParallelAsync(
         string groupName,
         Action<ParallelBuilder> configure,
@@ -1309,13 +1202,11 @@ public abstract class JobContext
     }
 
     /// <summary>
-    /// Fans out one child job per item and waits for all of them, returning outcomes keyed back to
-    /// the original items. The caller supplies a stable item key; the group name plus key derives a
-    /// deterministic, parent-scoped child name (readable when the key is name-safe, otherwise a stable
-    /// hash), so a replay dedupes onto the same children. Duplicate keys are rejected before any child
-    /// is started; every child is started before any is awaited. Does not throw on a failed child and
-    /// does not limit runtime worker concurrency; branch on the outcome or call
-    /// <see cref="MapOutcome{TKey}.ThrowIfAnyFailed"/>.
+    /// Fans out one child job per item and waits for all of them, returning outcomes keyed back to the items. The
+    /// group name plus the caller's stable item key derives a deterministic, parent-scoped child name (readable when
+    /// the key is name-safe, otherwise a stable hash), so a replay dedupes onto the same children. Duplicate keys are
+    /// rejected before any child starts; every child starts before any is awaited. Does not throw on a failed child
+    /// and does not limit worker concurrency; branch on the outcome or call <see cref="MapOutcome{TKey}.ThrowIfAnyFailed"/>.
     /// </summary>
     public Task<MapOutcome<TKey>> MapAsync<TItem, TKey, TInput>(
         string groupName,
@@ -1330,17 +1221,11 @@ public abstract class JobContext
     /// <summary>
     /// Bounded twin of
     /// <see cref="MapAsync{TItem, TKey, TInput}(string, IEnumerable{TItem}, Func{TItem, TKey}, Func{TItem, TInput}, CancellationToken)"/>:
-    /// every fanned-out child waits toward one stored absolute deadline that a replay reuses and never
-    /// extends. An item whose child did not land by then reports
-    /// <see cref="ChildJobOutcome.TimedOut"/> and that child is cancelled along with its subtree; the
-    /// item keying is unchanged, and this Job resumes either way.
+    /// every fanned-out child waits toward one stored absolute deadline (whole seconds, positive, for the group rather
+    /// than per item) that a replay reuses and never extends. An item whose child did not land by then reports
+    /// <see cref="ChildJobOutcome.TimedOut"/> and that child is cancelled along with its subtree; the item keying is
+    /// unchanged, and this Job resumes either way.
     /// </summary>
-    /// <param name="groupName">Kebab-case group name; the group plus item key derives each child name.</param>
-    /// <param name="items">The items to fan out over, one child each.</param>
-    /// <param name="itemKey">Stable per-item key; duplicates are rejected before any child is started.</param>
-    /// <param name="child">Maps an item to the typed child input.</param>
-    /// <param name="timeout">Budget for the whole group from DB now, not per item. Must be positive.</param>
-    /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
     public Task<MapOutcome<TKey>> MapAsync<TItem, TKey, TInput>(
         string groupName,
         IEnumerable<TItem> items,
@@ -1455,21 +1340,13 @@ public abstract class JobContext
     }
 
     /// <summary>
-    /// Runs <paramref name="body"/> as a durable, replay-safe step identified by
-    /// <paramref name="name"/>. The first invocation runs the body and records the outcome; on a parent
-    /// replay a previously-succeeded step returns without re-running the body. A failure retries with
-    /// backoff (re-arming the parent budget-neutrally until the next attempt) until it succeeds or
-    /// exhausts its budget, at which point <see cref="StepExhaustedException"/> is thrown.
+    /// Runs <paramref name="body"/> as a durable, replay-safe step named <paramref name="name"/> (kebab-case, unique
+    /// per Job). The first pass runs the body and records the outcome; a replay of a succeeded step returns without
+    /// re-running it; a failure retries with backoff, re-arming the parent budget-neutrally, until it succeeds or
+    /// exhausts its budget and throws <see cref="StepExhaustedException"/>. The body must be idempotent: a crash after
+    /// the side effect but before the record re-runs it on replay, and bare handler code between steps re-runs on
+    /// every retry. <paramref name="configure"/> overrides the parent <c>[Job]</c> retry policy per step.
     /// </summary>
-    /// <remarks>
-    /// The body must be idempotent: a crash after the side effect runs but before the outcome is
-    /// recorded re-runs the body on replay. Only step-wrapped work is replay-skipped; bare handler
-    /// code between steps re-runs on every retry.
-    /// </remarks>
-    /// <param name="name">Stable kebab-case slot name, unique per Job; durable identity across replays.</param>
-    /// <param name="body">The side-effecting work; receives a cancellation token linked to the attempt.</param>
-    /// <param name="configure">Optional per-step retry overrides; unset fields inherit the parent <c>[Job]</c> policy.</param>
-    /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
     public async Task RunStepAsync(
         string name,
         Func<CancellationToken, Task> body,
@@ -1486,10 +1363,8 @@ public abstract class JobContext
     }
 
     /// <summary>
-    /// Convenience overload of
-    /// <see cref="RunStepAsync(string, Func{CancellationToken, Task}, Action{StepOptionsBuilder}, CancellationToken)"/>:
-    /// <paramref name="ct"/> takes the third positional slot when no <c>configure</c> override is
-    /// needed, instead of requiring the named <c>ct: ct</c> form. Equivalent to <c>configure: null</c>.
+    /// <see cref="RunStepAsync(string, Func{CancellationToken, Task}, Action{StepOptionsBuilder}, CancellationToken)"/>
+    /// with <paramref name="ct"/> in the third slot: no <c>configure</c>, no named <c>ct: ct</c>.
     /// </summary>
     /// <param name="name">Stable kebab-case slot name, unique per Job; durable identity across replays.</param>
     /// <param name="body">The side-effecting work; receives a cancellation token linked to the attempt.</param>
@@ -1499,15 +1374,11 @@ public abstract class JobContext
 
     /// <summary>
     /// Result-returning variant of
-    /// <see cref="RunStepAsync(string, Func{CancellationToken, Task}, Action{StepOptionsBuilder}, CancellationToken)"/>.
-    /// On replay of a succeeded step the stored result is deserialized into
-    /// <typeparamref name="TResult"/> and returned without re-running the body;
-    /// <see cref="StepResultContractMismatchException"/> is thrown if the stored result no longer fits.
-    /// <para>
-    /// Wrap each outside-world effect in its own named step rather than calling it directly in the
-    /// handler: jobs are at-least-once, so an unwrapped call repeats on every retry. One effect per
-    /// step, because a crash between two effects in one step re-runs both.
-    /// </para>
+    /// <see cref="RunStepAsync(string, Func{CancellationToken, Task}, Action{StepOptionsBuilder}, CancellationToken)"/>:
+    /// a replay of a succeeded step returns the stored result deserialized to <typeparamref name="TResult"/> without
+    /// re-running the body, or throws <see cref="StepResultContractMismatchException"/> when it no longer fits. Wrap
+    /// each outside-world effect in its own step, one effect per step: jobs are at-least-once, so an unwrapped call
+    /// repeats on every retry and a crash between two effects in one step re-runs both.
     /// </summary>
     public async Task<TResult> RunStepAsync<TResult>(
         string name,
@@ -1574,18 +1445,12 @@ public abstract class JobContext
     private static readonly TimeSpan DefaultLockTimeout = TimeSpan.FromSeconds(30);
 
     /// <summary>
-    /// Runs <paramref name="action"/> while holding a mutual-exclusion lock on <paramref name="key"/>.
-    /// Acquisition is immediate-then-retry with internal exponential backoff until acquired or the
-    /// timeout budget is spent; the lock is released when the action returns or throws.
+    /// Runs <paramref name="action"/> while holding a mutual-exclusion lock on <paramref name="key"/> (an opaque user
+    /// key, segmented and scoped internally; <paramref name="scope"/> is namespace-wide by default or cluster-wide,
+    /// see <see cref="LockScope"/>). Acquisition is immediate-then-retry with exponential backoff until the
+    /// <paramref name="timeout"/> budget is spent (null is about 30 s, <see cref="TimeSpan.Zero"/> one attempt); the
+    /// lock is released when the action returns or throws.
     /// </summary>
-    /// <param name="key">Opaque user lock key (segmented + scoped internally).</param>
-    /// <param name="action">The critical section to run under the lock.</param>
-    /// <param name="timeout">
-    /// Acquisition budget. <c>null</c> uses a default (about 30s); <see cref="TimeSpan.Zero"/> makes a
-    /// single immediate attempt with no retry.
-    /// </param>
-    /// <param name="scope">Namespace-scoped (default) or cluster-wide. See <see cref="LockScope"/>.</param>
-    /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
     /// <exception cref="LockAcquisitionTimeoutException">The lock was not acquired within the budget.</exception>
     public Task RunWithLockAsync(
         string key,
@@ -1706,14 +1571,12 @@ public abstract class JobContext
     private protected virtual void OnLockReleaseFailure(string key, LockScope scope, Exception exception) { }
 
     /// <summary>
-    /// Persists an operator-facing alert from inside the handler. The framework stamps the origin
-    /// (<c>source = Manual</c>, <c>reason = Manual</c>, <c>delivery = Pending</c>) and the job context
-    /// (namespace, job). A non-null <paramref name="deduplicationKey"/> collapses repeats onto the one
-    /// unresolved row carrying that key (<c>occurrence_count</c>++, content refreshed) and opens a fresh
-    /// row once that one is resolved; a null key always inserts a fresh row. A null <paramref name="channelName"/> routes to the
-    /// configured <c>default</c> channel. Writing the row is independent of delivery. Title and message
-    /// are capped to column width at the persistence boundary; <paramref name="ct"/> is linked with
-    /// the per-attempt token.
+    /// Persists an operator-facing alert from inside the handler, stamped <c>Manual</c> origin and reason, delivery
+    /// <c>Pending</c>, and this job's namespace and job. A non-null <paramref name="deduplicationKey"/> collapses
+    /// repeats onto the one unresolved row carrying it (<c>occurrence_count</c>++, content refreshed) and opens a
+    /// fresh row once that one is resolved; a null key always inserts. A null <paramref name="channelName"/> routes to
+    /// the <c>default</c> channel. Writing the row is independent of delivery; title and message are capped to column
+    /// width at persistence, and <paramref name="ct"/> is linked with the per-attempt token.
     /// </summary>
     public async Task AlertAsync(
         string title,
@@ -1749,19 +1612,13 @@ public abstract class JobContext
     );
 
     /// <summary>
-    /// Writes an application-authored note onto this job's timeline: what the handler decided and
-    /// why, recorded beside the framework's own events instead of in a log sink that is not joined to
-    /// the job row.
+    /// Writes an application-authored note onto this job's timeline, beside the framework's own events rather than in
+    /// a log sink not joined to the job row. Annotation, not logging: <c>events</c> is indexed for timeline queries,
+    /// so use <c>ILogger</c> for volume. Notes ignore <c>AuditLevel</c>, a volume control over events Acta chooses to
+    /// record, because dropping an explicit call would be data loss; bounding a job's event volume is the caller's.
+    /// Notes are the only event code an application can write and the runtime never emits, so an application can
+    /// annotate the ledger but never forge <c>job.execution-finished</c>; do not widen this to a second code.
     /// </summary>
-    /// <remarks>
-    /// Annotation, not logging: <c>events</c> is indexed for timeline queries, so use <c>ILogger</c>
-    /// for volume. Notes ignore <c>AuditLevel</c> (a volume control over events Acta chooses to
-    /// record; dropping an explicit call would be data loss, not filtering), so it no longer bounds
-    /// a job's total event volume - that is the caller's decision to make. Notes are the only event
-    /// code an application can write, and the runtime never emits it: an application can annotate
-    /// the ledger but can never forge <c>job.execution-finished</c>. Do not widen this to a second
-    /// code.
-    /// </remarks>
     public async Task NoteAsync(string message, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(message);

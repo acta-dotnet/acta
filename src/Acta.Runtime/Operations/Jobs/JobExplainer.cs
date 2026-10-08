@@ -3,13 +3,11 @@ using System.Globalization;
 namespace Acta.Runtime;
 
 /// <summary>
-/// Turns the durable rows read by <c>GetJobExplanationAsync</c> into a plain-English
-/// <see cref="JobExplanation"/>: what the Job is doing, why, and the operator's next move. Pure
-/// function over the rows plus the DB clock instant (<c>nowUtc</c> is passed in so the
-/// timing math ("lease expired 2m ago") reads against the same clock that stamped the rows, and so
-/// the branch logic stays deterministic and unit-testable). Decodes every status/state to its
-/// <c>[Code]</c> description rather than duplicating prose. Branches on Status in the order the
-/// troubleshooting guide (docs/10) prescribes.
+/// Turns the durable rows read by <c>GetJobExplanationAsync</c> into a plain-English <see cref="JobExplanation"/>:
+/// what the Job is doing, why, and the operator's next move. A pure function over the rows plus the DB clock instant,
+/// passed in so the timing math ("lease expired 2m ago") reads against the clock that stamped the rows and the
+/// branch logic stays deterministic and unit-testable. Decodes every status to its <c>[Code]</c> description rather
+/// than duplicating prose, and branches on Status in the order the troubleshooting guide prescribes.
 /// </summary>
 internal static class JobExplainer
 {

@@ -1,21 +1,13 @@
 namespace Acta;
 
 /// <summary>
-/// Wire-shaped enqueue request. Used by cross-process callers and by
-/// <c>IJobs.EnqueueAsync(JobEnqueueRequest)</c> when the caller already holds a serialized request.
+/// Wire-shaped enqueue request for cross-process callers and <c>IJobs.EnqueueAsync(JobEnqueueRequest)</c>. Two mutually
+/// exclusive channels feed the earliest claim instant: <paramref name="NextRunAtUtc"/>, an absolute UTC instant, and
+/// <see cref="DelaySeconds"/>, resolved on the database clock at insert so a frontend's clock never affects scheduling;
+/// both null means claimable at once. A non-null <paramref name="ParentJobId"/> enqueues a child of a non-terminal parent,
+/// inheriting its lineage root and, when unset, its correlation id and tenant, with sibling-unique dedup. A
+/// <paramref name="TenantKey"/> must name an active tenant; a cross-tenant child key needs <paramref name="OverrideParentTenant"/>.
 /// </summary>
-/// <remarks>
-/// Two mutually exclusive delayed-enqueue channels feed the earliest claim instant:
-/// <paramref name="NextRunAtUtc"/> is an absolute UTC instant (fixed wall-clock time), and
-/// <see cref="DelaySeconds"/> a relative delay resolved on the database clock at insert
-/// (<c>db_now + delay</c>), so an enqueue-only frontend's clock never affects scheduling. Both
-/// <c>null</c> means claimable immediately; an instant ahead of now holds the Job at <c>Ready</c>.
-/// A non-null <paramref name="ParentJobId"/> enqueues the row as a child of that Job: the parent must
-/// exist and be non-terminal, the child inherits the parent's lineage root and (when unset) its
-/// correlation id and tenant, and <paramref name="DeduplicationKey"/> dedup becomes sibling-unique.
-/// A non-null <paramref name="TenantKey"/> scopes the Job to that registered tenant; an unknown or
-/// inactive key rejects, as does a cross-tenant child key without <paramref name="OverrideParentTenant"/>.
-/// </remarks>
 public sealed record JobEnqueueRequest(
     string JobNamespace,
     string JobName,

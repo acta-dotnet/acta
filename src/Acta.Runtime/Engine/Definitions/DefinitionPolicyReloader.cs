@@ -4,13 +4,12 @@ using Microsoft.Extensions.Options;
 namespace Acta.Runtime;
 
 /// <summary>
-/// The runtime-owned definition-policy reload loop. Every <see cref="JobsOptions.SafetyPollInterval"/> it
-/// re-reads the namespace's effective policy (the DB-computed <c>*_effective</c> columns) and re-overlays
-/// it onto the live <see cref="WorkerContext.DescriptorByDefinitionId"/> index, so an operator override
-/// edited via the dashboard reaches a running worker's execution hot path (backoff / timeout / deadline /
-/// retention / max-attempts read from the descriptor) within one tick, no restart required. Started
-/// alongside the claim/dispatch loop and the heartbeat on its own <see cref="PeriodicTimer"/>; self-gates
-/// to a no-op in enqueue-only mode.
+/// The runtime-owned definition-policy reload loop. Every <see cref="JobsOptions.SafetyPollInterval"/> it re-reads the
+/// namespace's effective policy (the DB-computed <c>*_effective</c> columns) and re-overlays it onto the live
+/// <see cref="WorkerContext.DescriptorByDefinitionId"/> index, so an operator override edited in the dashboard reaches
+/// a running worker's hot path (backoff, timeout, deadline, retention, max attempts read from the descriptor) within
+/// one tick, no restart required. Started beside the claim loop and the heartbeat on its own
+/// <see cref="PeriodicTimer"/>; a no-op in enqueue-only mode.
 /// </summary>
 internal sealed class DefinitionPolicyReloader(
     GetDefinitionContractsHandler getDefinitionContracts,

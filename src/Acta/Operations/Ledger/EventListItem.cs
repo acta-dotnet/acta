@@ -3,21 +3,12 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// One audit event row in a <see cref="ILedger.ListEventsAsync"/> page. JSON serialization
-/// carries the public job refs and hides the numeric job ids; events outlive their job, and each
-/// ref parameter documents whether it survives the purge.
+/// One audit event row in a <see cref="ILedger.ListEventsAsync"/> page. JSON carries the public refs and hides the
+/// numeric ids. Events outlive their job: <c>JobRef</c> is denormalized on the event row and survives the purge, as
+/// does <c>JobName</c>, resolved from the catalog; <c>LineageRootJobRef</c>, <c>TenantKey</c>, and <c>WorkerRef</c> are
+/// null when absent or purged, and a worker actor's <c>ActorKey</c> is its public ref. <c>DetailText</c> is the
+/// free-form or structured detail decoded to text, null when the event carries none or a non-text format.
 /// </summary>
-/// <param name="JobEventId">Event row id.</param> <param name="EventCode">What happened.</param> <param name="CreatedAtUtc">When it happened.</param>
-/// <param name="JobNamespace">Owning namespace name.</param> <param name="JobName">Subject job's definition name resolved from the catalog (survives the purge), or null.</param> <param name="JobId">Subject job id, or null for namespace-level events.</param>
-/// <param name="JobRef">Subject job's public ref, or null for namespace-level events; denormalized on the event row, so it survives the job's purge.</param>
-/// <param name="LineageRootId">Root id of the subject's lineage tree, or null.</param> <param name="LineageRootJobRef">Lineage root's public ref, or null when there is no lineage or the root row was purged.</param>
-/// <param name="DefinitionId">Catalog definition id, or null.</param> <param name="TenantId">Tenant id for job-scoped events, or null.</param> <param name="TenantKey">Tenant key for job-scoped events, or null.</param>
-/// <param name="WorkerId">Acting worker's internal id, or null.</param> <param name="WorkerRef">Acting worker's public ref, or null when no worker acted or its row was purged.</param> <param name="ExecutionNumber">Attempt the event belongs to, or null.</param>
-/// <param name="ActorCode">Who initiated the transition.</param> <param name="ActorKey">Actor identity text, or null; a worker actor's key is its public ref.</param>
-/// <param name="FromStatus">Status before the transition, or null.</param> <param name="ToStatus">Status after the transition, or null.</param>
-/// <param name="ExecutionStatus">Execution outcome attached to the event, or null.</param> <param name="DurationMs">Execution duration, or null.</param>
-/// <param name="ReasonCode">Reason recorded with the event, or null.</param> <param name="ReasonMessage">Reason text, or null.</param>
-/// <param name="DetailText">Free-form (text) or structured (json) detail decoded to text, or null when the event carries no detail or a non-text format.</param>
 public sealed record EventListItem(
     long JobEventId,
     EventCode EventCode,

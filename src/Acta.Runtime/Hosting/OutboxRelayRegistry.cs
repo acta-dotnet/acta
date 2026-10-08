@@ -4,13 +4,12 @@ using Microsoft.Extensions.Logging;
 namespace Acta.Runtime;
 
 /// <summary>
-/// Resolves the outbox relay composition for a given worker namespace. Built from the declared
-/// <see cref="WorkerRegistration"/>s at startup so each namespace with a relay keeps its own source
-/// (schema/table/provider factory/quarantine threshold); <c>sys.outbox</c>, executing under a namespace,
-/// resolves ITS registration and a source + <see cref="OutboxRelay"/> bound to it. There is
-/// no process-wide winner: two namespaces relay two independent sources, and a namespace without a relay
-/// is never registered here. The per-namespace <see cref="OutboxRelay"/> (and its source) is
-/// created lazily on first tick and cached, opening no source connection until the store is used.
+/// Resolves the outbox relay composition for a worker namespace. Built from the declared <see cref="WorkerRegistration"/>s
+/// at startup, so each namespace with a relay keeps its own source (schema, table, provider factory, quarantine
+/// threshold) and <c>sys.outbox</c>, executing under a namespace, resolves its own registration with a source and
+/// <see cref="OutboxRelay"/> bound to it; there is no process-wide winner, two namespaces relay two independent
+/// sources, and a namespace without a relay is never registered here. The per-namespace relay and source are created
+/// lazily on first tick and cached, opening no source connection until used.
 /// </summary>
 internal sealed class OutboxRelayRegistry(
     IEnumerable<WorkerRegistration> workers,

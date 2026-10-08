@@ -46,14 +46,12 @@ public interface ISchedules
     ValueTask<PagedResult<ScheduleListItem>> ListAsync(ListSchedulesQuery query, CancellationToken ct = default);
 
     /// <summary>
-    /// Previews up to <paramref name="count"/> (clamped to [1, 50]) upcoming fire instants for the
-    /// schedule identified by <paramref name="schedule"/>, computed live from the current clock instant
-    /// using its effective expression/time zone; no persisted cursor is read or advanced, so this is a
-    /// pure "what would it do" projection, safe to poll. A paused schedule still previews: pause is an
-    /// operator override of whether the schedule fires, not a property of the expression itself, so the
-    /// answer to "what would it do if it were live" is unaffected. Returns fewer than <paramref name="count"/>
-    /// entries (down to none) when the expression is exhausted (e.g. an unsatisfiable cron field
-    /// combination). Missing schedule is null.
+    /// Previews up to <paramref name="count"/> (clamped to [1, 50]) upcoming fire instants for the schedule identified
+    /// by <paramref name="schedule"/>, computed live from the current clock with its effective expression and time
+    /// zone; no persisted cursor is read or advanced, so this is a pure "what would it do" projection, safe to poll. A
+    /// paused schedule still previews: pause is an operator override of whether it fires, not a property of the
+    /// expression. Returns fewer entries, down to none, when the expression is exhausted (an unsatisfiable cron field
+    /// combination); a missing schedule is null.
     /// </summary>
     ValueTask<SchedulePreview?> PreviewAsync(ScheduleLookup schedule, int count = 10, CancellationToken ct = default);
 }
