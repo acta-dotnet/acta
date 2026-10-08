@@ -14,4 +14,3 @@ ResolveJobAlertManual
 RetireDefinition
 StartExecution
 StopWorker
-TriggerScheduleNow

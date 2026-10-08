@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 25)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 26)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -6720,134 +6720,6 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION acta.trigger_schedule_now(
-    p_job_id BIGINT,
-    p_name VARCHAR,
-    p_actor_code SMALLINT,
-    p_actor_key VARCHAR,
-    p_reason_message VARCHAR
-)
-RETURNS TABLE (
-    out_action SMALLINT, out_status_code SMALLINT, out_paused_until_utc TIMESTAMPTZ, out_next_run_at_utc TIMESTAMPTZ, out_version INT
-)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_schedule_id BIGINT;
-    v_status SMALLINT;
-    v_paused TIMESTAMPTZ;
-    v_next TIMESTAMPTZ;
-    v_version INT;
-    v_slot_status SMALLINT;
-    v_slot_next TIMESTAMPTZ;
-    v_ns INT;
-    v_def INT;
-    v_lineage BIGINT;
-    v_en INT;
-    v_audit SMALLINT;
-    v_job_ref UUID;
-BEGIN
-    /* Lock the slot's runtimes row before the schedules row: register_scheduled_jobs writes
-       runtimes then schedules, so every writer of both must take runtimes first. The schedules row
-       is guard-only here (never updated): a manual trigger moves only the slot's cursor. */
-    SELECT r.status_code, r.next_run_at_utc, r.execution_number
-    INTO v_slot_status, v_slot_next, v_en
-    FROM acta.runtimes r
-    WHERE r.job_id = p_job_id
-    FOR UPDATE;
-
-    SELECT js.id, js.status_code, js.paused_until_utc, js.next_run_at_utc, js.version
-    INTO v_schedule_id, v_status, v_paused, v_next, v_version
-    FROM acta.schedules js
-    WHERE
-        js.job_id = p_job_id
-        AND js.name = p_name
-        AND js.status_code <> 230 /* ScheduleStatusCode.Orphaned */
-    FOR UPDATE;
-
-    IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT, NULL::TIMESTAMPTZ, NULL::TIMESTAMPTZ, NULL::INT;
-        RETURN;
-    END IF;
-
-    IF v_status = 30 /* ScheduleStatusCode.Paused */ THEN
-        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_status, v_paused, v_next, v_version;
-        RETURN;
-    END IF;
-
-    -- A held job (Paused with a next run; ScheduleWalker, "held") runs only once it is resumed.
-    IF v_slot_status IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
-        OR (v_slot_status = 30 /* JobStatusCode.Paused */ AND v_slot_next IS NOT NULL) THEN
-        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_status, v_paused, v_next, v_version;
-        RETURN;
-    END IF;
-
-    IF v_slot_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN
-        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_status, v_paused, v_next, v_version;
-        RETURN;
-    END IF;
-
-    SELECT j.namespace_id, j.definition_id, j.lineage_root_id, j.audit_level_code, j.job_ref
-    INTO v_ns, v_def, v_lineage, v_audit, v_job_ref
-    FROM acta.jobs j
-    WHERE j.id = p_job_id;
-
-    UPDATE acta.runtimes
-    SET
-        next_run_at_utc = now(),
-        status_code = 10 /* JobStatusCode.Ready */,
-        modified_at_utc = now(),
-        version = version + 1
-    WHERE
-        job_id = p_job_id
-        AND (
-            status_code IN (20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */)
-            OR (status_code = 30 /* JobStatusCode.Paused */ AND next_run_at_utc IS NULL)
-        );
-
-    IF v_audit = 20 /* DefinitionAuditLevelCode.Audit */ THEN
-        INSERT INTO acta.events (
-            event_code,
-            created_at_utc,
-            namespace_id,
-            actor_code,
-            actor_key,
-            job_id,
-            job_ref,
-            execution_number,
-            lineage_root_id,
-            definition_id,
-            worker_id,
-            from_status_code,
-            to_status_code,
-            execution_status_code,
-            duration_ms,
-            reason_code,
-            reason_message)
-        VALUES (
-            104 /* EventCode.ScheduleTriggered */,
-            now(),
-            v_ns,
-            p_actor_code,
-            p_actor_key,
-            p_job_id,
-            v_job_ref,
-            v_en,
-            COALESCE(v_lineage, p_job_id),
-            v_def,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            p_reason_message);
-    END IF;
-
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_status, v_paused, v_next, v_version;
-END;
-$$;
-
 CREATE OR REPLACE FUNCTION acta.update_alert_delivery(
     p_id BIGINT,
     p_version INT,
@@ -7131,7 +7003,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.25-7b91b299185842710102bc07db7fd436', 'acta');
+VALUES (-1, 'objects-1.26-64b5a2e8f43f27b0048affc762a33794', 'acta');
 
 COMMIT;
 
