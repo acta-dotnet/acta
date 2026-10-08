@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 20)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 21)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -8145,121 +8145,6 @@ BEGIN
     END CATCH;
 END;
 GO
-CREATE OR ALTER PROCEDURE acta.start_worker
-    @p_name VARCHAR(128),
-    @p_owner_team NVARCHAR(512),
-    @p_description NVARCHAR(512),
-    @p_catalog_hash VARCHAR(128),
-    @p_status_code TINYINT,
-    @p_deployment_version VARCHAR(128),
-    @p_host VARCHAR(256),
-    @p_engine_version VARCHAR(128),
-    @p_dotnet_version VARCHAR(64),
-    @p_process_id INT,
-    @p_max_concurrency INT,
-    @p_worker_ref UNIQUEIDENTIFIER
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE @ns_id INT;
-        DECLARE @worker_id INT;
-
-        UPDATE acta.namespaces
-        SET
-            owner_team = @p_owner_team,
-            description = @p_description,
-            catalog_hash = @p_catalog_hash,
-            modified_at_utc = @now,
-            version = version + 1
-        WHERE
-            name = @p_name
-            AND (catalog_hash <> @p_catalog_hash OR catalog_hash IS NULL);
-
-        INSERT INTO acta.namespaces
-        (name, owner_team, description, catalog_hash, status_code, created_at_utc, modified_at_utc, version)
-        SELECT
-            @p_name,
-            @p_owner_team,
-            @p_description,
-            @p_catalog_hash,
-            @p_status_code,
-            @now,
-            @now,
-            0
-        WHERE NOT EXISTS (
-            SELECT 1 FROM acta.namespaces
-            WHERE name = @p_name
-        );
-
-        SELECT @ns_id = id FROM acta.namespaces
-        WHERE name = @p_name;
-
-        INSERT INTO acta.workers
-        (
-            namespace_id,
-            worker_ref,
-            status_code,
-            deployment_version,
-            host,
-            engine_version,
-            dotnet_version,
-            process_id,
-            max_concurrency,
-            last_seen_at_utc,
-            created_at_utc,
-            modified_at_utc,
-            version
-        )
-        VALUES
-        (
-            @ns_id,
-            @p_worker_ref,
-            10 /* WorkerStatusCode.Active */,
-            @p_deployment_version,
-            @p_host,
-            @p_engine_version,
-            @p_dotnet_version,
-            @p_process_id,
-            @p_max_concurrency,
-            @now,
-            @now,
-            @now,
-            0
-        );
-        SET @worker_id = CAST(SCOPE_IDENTITY() AS INT);
-
-        INSERT INTO acta.events (
-            event_code, created_at_utc, namespace_id, actor_code, actor_key, job_id, execution_number,
-            lineage_root_id, definition_id, worker_id, from_status_code, to_status_code,
-            execution_status_code, duration_ms, reason_code, reason_message
-        )
-        VALUES (
-            120 /* EventCode.WorkerStarted */, @now, @ns_id, 70 /* ActorCode.Worker */, LOWER(CONVERT(varchar(36), @p_worker_ref)),
-            NULL, NULL, NULL, NULL, @worker_id, NULL, NULL, NULL, NULL, NULL, NULL
-        );
-
-        SELECT
-            @ns_id AS namespace_id,
-            @worker_id AS worker_id;
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
 CREATE OR ALTER PROCEDURE acta.stop_worker
     @p_namespace_id INT,
     @p_worker_id INT
@@ -8760,9 +8645,9 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.20-b984b261f5150fd1c1a4efa26b50fb7b', 'acta'
+SELECT -1, 'objects-1.21-b3cddabc7000fbcff9489605b1404f59', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
-    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'acknowledge_job_alert', 'acquire_lock', 'acquire_slot', 'apply_tags', 'arm_or_consume_sleep_timer', 'cancel_job', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_step', 'consume_outbox_signal', 'enqueue_batch', 'enqueue_one', 'extend_lock', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'pause_job', 'pause_schedule', 'purge_expired_data', 'purge_job', 'raise_job_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_job_note', 'record_outbox_event', 'register_job_definitions', 'register_scheduled_jobs', 'release_lock', 'repair_recovery_slot', 'reprioritize_job', 'reschedule_job', 'reserve_rate', 'reset_job_state', 'resolve_job_alert_manual', 'resolve_job_alerts', 'restart_job', 'resume_job', 'resume_schedule', 'set_job_definition_overrides', 'set_schedule_overrides', 'start_execution', 'start_step', 'start_worker', 'stop_worker', 'trigger_schedule_now', 'update_alert_delivery', 'update_job_input', 'wait_signal')) = 59;
+    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'acknowledge_job_alert', 'acquire_lock', 'acquire_slot', 'apply_tags', 'arm_or_consume_sleep_timer', 'cancel_job', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_step', 'consume_outbox_signal', 'enqueue_batch', 'enqueue_one', 'extend_lock', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'pause_job', 'pause_schedule', 'purge_expired_data', 'purge_job', 'raise_job_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_job_note', 'record_outbox_event', 'register_job_definitions', 'register_scheduled_jobs', 'release_lock', 'repair_recovery_slot', 'reprioritize_job', 'reschedule_job', 'reserve_rate', 'reset_job_state', 'resolve_job_alert_manual', 'resolve_job_alerts', 'restart_job', 'resume_job', 'resume_schedule', 'set_job_definition_overrides', 'set_schedule_overrides', 'start_execution', 'start_step', 'stop_worker', 'trigger_schedule_now', 'update_alert_delivery', 'update_job_input', 'wait_signal')) = 58;
 GO
 COMMIT TRANSACTION;
 GO
