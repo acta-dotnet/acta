@@ -33,7 +33,7 @@ public sealed class GetTenantSpec : ActaStorageTestBase<ConformanceFixture>
         var id = (await Tenants().RegisterAsync(key, "Acme Corp", "desc", ct)).TenantId;
 
         var byKey = await GetTenant().HandleAsync(new GetTenantQuery(key), ct);
-        var keyById = await GetTenantKey().HandleAsync(new GetTenantKeyQuery(id), ct);
+        var keyById = (await GetTenantKey().HandleAsync(new GetTenantKeyQuery(id), ct))?.TenantKey;
 
         Assert.NotNull(byKey);
         Assert.Equal(id, byKey!.TenantId);

@@ -77,7 +77,7 @@ internal static class GetJobInputEndpoint
                         return RouteTable.NotFound("Job");
                     }
 
-                    var input = await jobs.GetInputAsync(JobLookup.ById(snapshot.JobId), ct);
+                    var input = (await jobs.GetInputAsync(JobLookup.ById(snapshot.JobId), ct))?.Input;
                     return Results.Json(
                         JobPayloadHttpResponse.From(input ?? JobPayload.None, jobsOptions.Value.MaxInlinePayloadBytes),
                         DashboardJsonContext.Default.JobPayloadHttpResponse

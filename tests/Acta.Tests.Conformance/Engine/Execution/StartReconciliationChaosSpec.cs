@@ -44,7 +44,7 @@ public sealed class StartReconciliationChaosSpec : ActaRuntimeTestBase<Conforman
         _faults.RunBeforeStartOnce(async () => await Jobs.ReprioritizeAsync(enqueued, JobPriorityCode.High, ct: ct));
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
         Assert.Equal(1, ChaosProbes.CountingInvocations[enqueued.JobId]);
         Assert.Single(await GetEventsByJobId.Run(Services, enqueued.JobId, ct), e => e.EventCode == EventCode.JobExecutionStarted);
     }
@@ -66,7 +66,7 @@ public sealed class StartReconciliationChaosSpec : ActaRuntimeTestBase<Conforman
         });
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
         Assert.Equal(1, ChaosProbes.CountingInvocations[enqueued.JobId]);
         Assert.Single(await GetEventsByJobId.Run(Services, enqueued.JobId, ct), e => e.EventCode == EventCode.JobExecutionStarted);
     }
@@ -83,7 +83,7 @@ public sealed class StartReconciliationChaosSpec : ActaRuntimeTestBase<Conforman
         _faults.ThrowAfterStartOnce();
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
         Assert.Equal(1, ChaosProbes.CountingInvocations[enqueued.JobId]);
         Assert.Single(await GetEventsByJobId.Run(Services, enqueued.JobId, ct), e => e.EventCode == EventCode.JobExecutionStarted);
     }
@@ -115,7 +115,7 @@ public sealed class StartReconciliationChaosSpec : ActaRuntimeTestBase<Conforman
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.True(renewed);
-        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
         Assert.Equal(1, ChaosProbes.CountingInvocations[enqueued.JobId]);
         Assert.Single(await GetEventsByJobId.Run(Services, enqueued.JobId, ct), e => e.EventCode == EventCode.JobExecutionStarted);
     }
@@ -141,7 +141,7 @@ public sealed class StartReconciliationChaosSpec : ActaRuntimeTestBase<Conforman
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(1, reclaimed);
-        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
         Assert.Equal(1, ChaosProbes.CountingInvocations[enqueued.JobId]);
         Assert.Single(await GetEventsByJobId.Run(Services, enqueued.JobId, ct), e => e.EventCode == EventCode.JobExecutionStarted);
     }

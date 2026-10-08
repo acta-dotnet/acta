@@ -247,9 +247,9 @@ public sealed class RegisterSchedulesMisfireMatrixSpec : ActaStorageTestBase<Con
         CancellationToken ct
     )
     {
-        var stored = await Services
-            .GetRequiredService<GetScheduleStateHandler>()
-            .HandleAsync(new GetScheduleStateQuery(TestNamespaceId), ct);
+        var stored = (
+            await Services.GetRequiredService<GetScheduleStateHandler>().HandleAsync(new GetScheduleStateQuery(TestNamespaceId), ct)
+        ).States;
         var storedForDef = stored.Where(s => s.DefinitionId == defId).ToDictionary(s => s.ScheduleName, s => s, StringComparer.Ordinal);
 
         var declared = new[] { new ScheduleDescriptor(jobName, ScheduleName, expression, null, misfire, kind, null, []) };

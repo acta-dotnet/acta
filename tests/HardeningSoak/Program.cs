@@ -360,7 +360,7 @@ async Task RetentionAsync(CancellationToken token)
 
 async Task ObserveDurableCompletionAsync(EnqueueJobResponse job, long submitted, CancellationToken token)
 {
-    while (await host.Jobs.GetStatusAsync(job, token) != JobStatusCode.Succeeded)
+    while ((await host.Jobs.GetStatusAsync(job, token))?.Status != JobStatusCode.Succeeded)
     {
         await Task.Delay(20, token);
     }

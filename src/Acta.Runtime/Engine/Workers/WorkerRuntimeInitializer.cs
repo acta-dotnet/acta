@@ -97,7 +97,7 @@ internal sealed class WorkerRuntimeInitializer(
         // throws here (before register), Warn logs and continues. The SQL routine remains the
         // authoritative generation gate for the policy write itself.
         var manifestGenerationUtc = ManifestGenerationResolver.Resolve(_options.Value, Assembly.GetEntryAssembly(), _log);
-        var storedContracts = await getDefinitionContracts.HandleAsync(new GetDefinitionContractsQuery(namespaceId), ct);
+        var storedContracts = (await getDefinitionContracts.HandleAsync(new GetDefinitionContractsQuery(namespaceId), ct)).Contracts;
         var contractDrifts = ContractDriftDetector.Detect(manifestGenerationUtc, allDescriptors, storedContracts);
         ContractDriftPolicy.Apply(_options.Value.PayloadContractDriftMode, contractDrifts, ns, _log);
 
@@ -113,7 +113,7 @@ internal sealed class WorkerRuntimeInitializer(
         // descriptor is overlaid with the definition's effective (override-or-default) policy read from
         // the DB *_effective columns, so the execution hot path honors operator overrides. This is the
         // worker's live policy view; the reload tick re-overlays changed definitions without a restart.
-        var catalog = await getDefinitionContracts.HandleAsync(new GetDefinitionContractsQuery(namespaceId), ct);
+        var catalog = (await getDefinitionContracts.HandleAsync(new GetDefinitionContractsQuery(namespaceId), ct)).Contracts;
         var effectiveById = new Dictionary<int, EffectiveJobPolicy>(catalog.Count);
         foreach (var c in catalog)
         {
@@ -424,7 +424,7 @@ internal sealed class WorkerRuntimeInitializer(
     /// </summary>
     private async Task ReconcileSchedulesAsync(int namespaceId, CancellationToken ct)
     {
-        var stored = await getScheduleState.HandleAsync(new GetScheduleStateQuery(namespaceId), ct);
+        var stored = (await getScheduleState.HandleAsync(new GetScheduleStateQuery(namespaceId), ct)).States;
 
         // definition id -> (schedule name -> stored cursor + operator lifecycle)
         var storedByDefinition = new Dictionary<int, Dictionary<string, StoredScheduleState>>();

@@ -880,6 +880,13 @@ sealed class Acta.GetDefinitionResponse
     System.String RunbookUrl { get;init; }
     System.String RunbookUrlEffective { get;init; }
     System.String RunbookUrlOverride { get;init; }
+sealed class Acta.GetInputTemplateResponse
+    .ctor(System.String JobNamespace, System.String JobName, System.String InputTypeName, Acta.JobPayloadFormat InputFormat, System.String TemplateJson)
+    Acta.JobPayloadFormat InputFormat { get;init; }
+    System.String InputTypeName { get;init; }
+    System.String JobName { get;init; }
+    System.String JobNamespace { get;init; }
+    System.String TemplateJson { get;init; }
 sealed class Acta.GetJobExplanationResponse
     .ctor(System.Int64 JobId, Acta.JobRef JobRef, System.String JobNamespace, System.String JobName, Acta.JobStatusCode Status, System.String StatusMeaning, System.String Headline, Acta.GetJobExplanationResponse+Wait ActiveWait, Acta.GetJobExplanationResponse+ExecutionLease Lease, System.String LastExecutedBy, System.Collections.Generic.IReadOnlyList<Acta.GetJobExplanationResponse+StepState> Steps, System.String Reason, System.Collections.Generic.IReadOnlyList<Acta.GetJobExplanationResponse+Action> NextActions)
     Acta.GetJobExplanationResponse+ExecutionLease Lease { get;init; }
@@ -919,6 +926,12 @@ sealed class Acta.GetJobExplanationResponse+Wait
     Acta.CheckpointKindCode Kind { get;init; }
     System.Nullable<System.DateTime> DueAtUtc { get;init; }
     System.String Name { get;init; }
+sealed class Acta.GetJobIdResponse
+    .ctor(System.Int64 JobId)
+    System.Int64 JobId { get;init; }
+sealed class Acta.GetJobInputResponse
+    .ctor(Acta.JobPayload Input)
+    Acta.JobPayload Input { get;init; }
 sealed class Acta.GetJobLineageMapOptions
     .ctor(System.Int32 ChildLimit = default)
     System.Int32 ChildLimit { get;init; }
@@ -983,6 +996,9 @@ sealed class Acta.GetJobResponse
     System.String JobNamespace { get;init; }
     System.String Lane { get;init; }
     System.String TenantKey { get;init; }
+sealed class Acta.GetJobStatusResponse
+    .ctor(Acta.JobStatusCode Status)
+    Acta.JobStatusCode Status { get;init; }
 sealed class Acta.GetOverviewQuery
     .ctor(System.String JobNamespace = default, System.Int32 StaleWorkerAfterSeconds = default, System.Int32 DueSoonWindowSeconds = default, System.Boolean IncludeSlowCounts = default)
     System.Boolean IncludeSlowCounts { get;init; }
@@ -1004,6 +1020,9 @@ sealed class Acta.GetOverviewResponse
     System.Int64 UnresolvedCriticalAlertCount { get;init; }
     System.Nullable<System.Int64> OldestReadyAgeSeconds { get;init; }
     System.Nullable<System.Int64> ScheduleLagSeconds { get;init; }
+sealed class Acta.GetResultResponse
+    .ctor(Acta.JobPayload Result)
+    Acta.JobPayload Result { get;init; }
 sealed class Acta.GetTagsItem
     .ctor(System.String Name, System.String Value = default)
     System.String Name { get;init; }
@@ -1108,7 +1127,7 @@ interface Acta.IJobPayloadSerializerRegistry
 interface Acta.IJobPipelineBehavior
     System.Threading.Tasks.ValueTask<Acta.JobHandlerOutput> InvokeAsync(System.Object request, Acta.JobContext context, Acta.JobBehaviorDelegate next, System.Threading.CancellationToken ct)
 interface Acta.IJobs
-    Acta.JobInputTemplate GetInputTemplate(System.String jobNamespace, System.String jobName)
+    Acta.GetInputTemplateResponse GetInputTemplate(System.String jobNamespace, System.String jobName)
     System.Threading.Tasks.ValueTask<Acta.CancelJobResponse> CancelAsync(Acta.JobLookup job, System.String reasonMessage = default, System.String actorKey = default, System.Nullable<System.Int32> expectedVersion = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.EnqueueJobResponse> EnqueueAsync(Acta.EnqueueJobRequest request, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.EnqueueJobResponse> EnqueueAsync(Acta.JobContract<Acta.NoInput> job, Acta.JobEnqueueOptions options = default, System.Threading.CancellationToken ct = default)
@@ -1126,8 +1145,12 @@ interface Acta.IJobs
     System.Threading.Tasks.ValueTask<Acta.EnqueueJobsResponse> EnqueueBatchAsync(System.Data.Common.DbTransaction transaction, System.Collections.Generic.IReadOnlyList<Acta.EnqueueJobRequest> requests, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.GetCheckpointsResponse> GetCheckpointsAsync(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.GetJobExplanationResponse> ExplainAsync(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.GetJobIdResponse> GetJobIdAsync(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.GetJobInputResponse> GetInputAsync(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.GetJobLineageMapResponse> GetLineageMapAsync(Acta.JobLookup job, Acta.GetJobLineageMapOptions options = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.GetJobResponse> GetAsync(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.GetJobStatusResponse> GetStatusAsync(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.GetResultResponse> GetResultAsync(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.JobOutcome<TResult>> RunAndWaitAsync<TInput, TResult>(Acta.JobContract<TInput, TResult> job, TInput input, Acta.JobExecutionOptions options = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.JobOutcome<TResult>> RunAndWaitAsync<TInput, TResult>(TInput input, Acta.JobExecutionOptions options = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.JobOutcome> RunAndWaitAsync<TInput>(TInput input, Acta.JobExecutionOptions options = default, System.Threading.CancellationToken ct = default)
@@ -1140,10 +1163,6 @@ interface Acta.IJobs
     System.Threading.Tasks.ValueTask<Acta.RestartJobResponse> RestartAsync(Acta.JobLookup job, System.String reasonMessage = default, System.String actorKey = default, System.Nullable<System.Int32> expectedVersion = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ResumeJobResponse> ResumeAsync(Acta.JobLookup job, System.String reasonMessage = default, System.String actorKey = default, System.Nullable<System.Int32> expectedVersion = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.UpdateJobInputResponse> UpdateJobInputAsync(Acta.JobLookup job, Acta.JobPayload input, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<System.Nullable<Acta.JobPayload>> GetInputAsync(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<System.Nullable<Acta.JobPayload>> GetResultAsync(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<System.Nullable<Acta.JobStatusCode>> GetStatusAsync(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<System.Nullable<System.Int64>> GetJobIdAsync(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<TResult> GetResultAsync<TResult>(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
 interface Acta.ILedger
     System.Threading.Tasks.ValueTask<Acta.GetOverviewResponse> GetOverviewAsync(Acta.GetOverviewQuery query, System.Threading.CancellationToken ct = default)
@@ -1439,11 +1458,6 @@ struct Acta.JobHandlerOutput
     .ctor(System.Boolean HasResult, System.Object Result)
     System.Boolean HasResult { get;init; }
     System.Object Result { get;init; }
-sealed class Acta.JobInputTemplate
-    .ctor(System.String InputTypeName, Acta.JobPayloadFormat InputFormat, System.String TemplateJson)
-    Acta.JobPayloadFormat InputFormat { get;init; }
-    System.String InputTypeName { get;init; }
-    System.String TemplateJson { get;init; }
 enum Acta.JobInvocationKind
     Sync = 1
     SyncOfT = 2

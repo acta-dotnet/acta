@@ -8,7 +8,7 @@ internal sealed class Jobs(
     EnqueueJobHandler enqueueJob,
     EnqueueJobsHandler enqueueJobs,
     JobRunAndWait runAndWait,
-    JobLookupResolution lookup,
+    GetJobIdHandler getJobId,
     GetJobHandler getJob,
     GetJobExplanationHandler getJobExplanation,
     GetJobLineageMapHandler getJobLineageMap,
@@ -129,7 +129,8 @@ internal sealed class Jobs(
         where TResult : notnull =>
         runAndWait.RunAsync<TResult>(o => routing.FromContract((JobContract<TInput>)job, input, o, typeof(TResult)), options, ct);
 
-    public ValueTask<long?> GetJobIdAsync(JobLookup job, CancellationToken ct = default) => lookup.ResolveAsync(job, ct);
+    public ValueTask<GetJobIdResponse?> GetJobIdAsync(JobLookup job, CancellationToken ct = default) =>
+        getJobId.HandleAsync(new GetJobIdQuery(job), ct);
 
     public ValueTask<GetJobResponse?> GetAsync(JobLookup job, CancellationToken ct = default) =>
         getJob.HandleAsync(new GetJobQuery(job), ct);
@@ -143,17 +144,17 @@ internal sealed class Jobs(
         CancellationToken ct = default
     ) => getJobLineageMap.HandleAsync(new GetJobLineageMapQuery(job, options), ct);
 
-    public ValueTask<JobStatusCode?> GetStatusAsync(JobLookup job, CancellationToken ct = default) =>
+    public ValueTask<GetJobStatusResponse?> GetStatusAsync(JobLookup job, CancellationToken ct = default) =>
         getJobStatus.HandleAsync(new GetJobStatusQuery(job), ct);
 
-    public ValueTask<JobPayload?> GetInputAsync(JobLookup job, CancellationToken ct = default) =>
+    public ValueTask<GetJobInputResponse?> GetInputAsync(JobLookup job, CancellationToken ct = default) =>
         getJobInput.HandleAsync(new GetJobInputQuery(job), ct);
 
-    public ValueTask<JobPayload?> GetResultAsync(JobLookup job, CancellationToken ct = default) =>
+    public ValueTask<GetResultResponse?> GetResultAsync(JobLookup job, CancellationToken ct = default) =>
         getResult.HandleAsync(new GetResultQuery(job), ct);
 
-    public ValueTask<TResult?> GetResultAsync<TResult>(JobLookup job, CancellationToken ct = default) =>
-        getResult.HandleAsync<TResult>(new GetResultQuery(job), ct);
+    public async ValueTask<TResult?> GetResultAsync<TResult>(JobLookup job, CancellationToken ct = default) =>
+        await GetResultAsync(job, ct) is { } response ? routing.Decode<TResult>(response.Result) : default;
 
     public ValueTask<GetCheckpointsResponse?> GetCheckpointsAsync(JobLookup job, CancellationToken ct = default) =>
         getCheckpoints.HandleAsync(new GetCheckpointsQuery(job), ct);
@@ -235,6 +236,6 @@ internal sealed class Jobs(
         CancellationToken ct = default
     ) => raiseSignal.HandleAsync(new RaiseSignalCommand(job, name, value, actorKey), ct);
 
-    public JobInputTemplate? GetInputTemplate(string jobNamespace, string jobName) =>
+    public GetInputTemplateResponse? GetInputTemplate(string jobNamespace, string jobName) =>
         getInputTemplate.Handle(new GetInputTemplateQuery(jobNamespace, jobName));
 }

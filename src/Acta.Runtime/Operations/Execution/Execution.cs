@@ -126,15 +126,15 @@ internal sealed class Execution(
     /// Reads the ids of a job's direct children, terminal ones included: the per-level feed for the
     /// recursive cancel cascade, which must walk through a terminal child to reach live descendants.
     /// </summary>
-    public Task<IReadOnlyList<long>> GetChildJobIdsAsync(long parentJobId, CancellationToken ct) =>
-        getChildJobIds.HandleAsync(new GetChildJobIdsQuery(parentJobId), ct);
+    public async Task<IReadOnlyList<long>> GetChildJobIdsAsync(long parentJobId, CancellationToken ct) =>
+        (await getChildJobIds.HandleAsync(new GetChildJobIdsQuery(parentJobId), ct)).ChildJobIds;
 
     /// <summary>
     /// Maintenance backstop feed: finds Pending child-done latches in one namespace whose child
     /// landed terminal without setting them, so the caller can re-raise each and release the parent.
     /// </summary>
-    public Task<IReadOnlyList<StaleChildLatch>> GetStaleChildLatchesAsync(int namespaceId, CancellationToken ct) =>
-        getStaleChildLatches.HandleAsync(new GetStaleChildLatchesQuery(namespaceId), ct);
+    public async Task<IReadOnlyList<StaleChildLatch>> GetStaleChildLatchesAsync(int namespaceId, CancellationToken ct) =>
+        (await getStaleChildLatches.HandleAsync(new GetStaleChildLatchesQuery(namespaceId), ct)).Latches;
 
     /// <summary>
     /// Drives the sleep-timer arm/consume transition and returns its one-row decision. Caller owns

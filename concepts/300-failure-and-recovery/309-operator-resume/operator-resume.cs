@@ -38,7 +38,7 @@ JobStatusCode? status;
 do
 {
     await Task.Delay(300);
-    status = await jobs.GetStatusAsync(JobLookup.ById(jobId));
+    status = (await jobs.GetStatusAsync(JobLookup.ById(jobId)))?.Status;
 } while (status is not null && !status.Value.IsTerminal);
 
 Console.WriteLine($"Job finished with status={status}");

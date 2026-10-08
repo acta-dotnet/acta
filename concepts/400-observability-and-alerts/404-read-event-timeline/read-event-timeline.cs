@@ -28,7 +28,7 @@ JobStatusCode? parentStatus;
 do
 {
     await Task.Delay(200);
-    parentStatus = await jobs.GetStatusAsync(parentOutcome);
+    parentStatus = (await jobs.GetStatusAsync(parentOutcome))?.Status;
 } while (parentStatus is not null && !parentStatus.Value.IsTerminal);
 
 Console.WriteLine($"parent finished with status: {parentStatus}");

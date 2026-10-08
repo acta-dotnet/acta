@@ -8,19 +8,21 @@ internal sealed class GetAlertableEventsHandler(IDbSession session, ISqlDialect 
 {
     public TimeSpan SafeHorizonLag { get; } = TimeSpan.FromSeconds(SafeHorizonLagSeconds(options.CommandTimeout));
 
-    public Task<IReadOnlyList<AlertableEvent>> HandleAsync(GetAlertableEventsQuery query, CancellationToken ct) =>
-        session.QueryListAsync(
-            "GetAlertableEvents",
-            cmd =>
-            {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.NamespaceId, query.NamespaceId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AlertCursorUtc, query.CursorUtc));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorEventId, query.CursorEventId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AlertHorizonUtc, query.HorizonUtc));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AlertBatchSize, query.BatchSize));
-            },
-            DbProjectionResolver.Resolve<AlertableEvent>(),
-            ct
+    public async Task<GetAlertableEventsResponse> HandleAsync(GetAlertableEventsQuery query, CancellationToken ct) =>
+        new(
+            await session.QueryListAsync(
+                "GetAlertableEvents",
+                cmd =>
+                {
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Event.NamespaceId, query.NamespaceId));
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AlertCursorUtc, query.CursorUtc));
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorEventId, query.CursorEventId));
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AlertHorizonUtc, query.HorizonUtc));
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AlertBatchSize, query.BatchSize));
+                },
+                DbProjectionResolver.Resolve<AlertableEvent>(),
+                ct
+            )
         );
 
     /// <summary>The horizon lag in whole seconds for a command timeout, rounded up so a sub-second timeout never makes it zero.</summary>

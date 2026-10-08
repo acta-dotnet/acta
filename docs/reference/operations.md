@@ -63,8 +63,9 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 | `EnqueueJobs` | `IJobs.EnqueueBatchAsync` | · | · | routine | routine | inline | `jobs`, `lanes`, `runtimes`, `tags` | `EnqueueJobsConcurrencySpec`, `EnqueueJobsRejectionSpec`, `EnqueueJobsSpec` |
 | `GetCheckpoints` | `IJobs.GetCheckpointsAsync` | · | · | inline | inline | inline | · | `GetCheckpointsSpec` |
 | `GetInputTemplate` | `IJobs.GetInputTemplate` | `GET /jobs/input-template` | · | · | · | · | · | `GetInputTemplateSpec` |
-| `GetJob` | `IJobs.RunAndWaitAsync`<br>`IJobs.GetAsync` | `GET /jobs/{jobRef}`<br>`GET /jobs/by-key`<br>`GET /jobs/{jobRef}/detail` | · | inline | inline | inline | · | `GetJobExplanationSpec`, `GetJobInputSpec`, `GetJobLineageMapSpec`, `GetJobSpec`, `GetJobStatusSpec` |
+| `GetJob` | `IJobs.RunAndWaitAsync`<br>`IJobs.GetAsync` | `GET /jobs/{jobRef}`<br>`GET /jobs/by-key`<br>`GET /jobs/{jobRef}/detail` | · | inline | inline | inline | · | `GetJobExplanationSpec`, `GetJobIdSpec`, `GetJobInputSpec`, `GetJobLineageMapSpec`, `GetJobSpec`, `GetJobStatusSpec` |
 | `GetJobExplanation` | `IJobs.ExplainAsync` | · | `explain` | inline | inline | inline | · | `GetJobExplanationSpec` |
+| `GetJobId` | `IJobs.GetJobIdAsync` | · | · | · | · | · | · | `GetJobIdSpec` |
 | `GetJobInput` | `IJobs.GetInputAsync` | `GET /jobs/{jobRef}/input` | · | inline | inline | inline | · | `GetJobInputSpec` |
 | `GetJobLineageMap` | `IJobs.GetLineageMapAsync` | · | · | inline | inline | inline | · | `GetJobLineageMapSpec` |
 | `GetJobStatus` | `IJobs.GetStatusAsync` | · | `status` | inline | inline | inline | · | `GetJobStatusSpec` |
@@ -74,8 +75,8 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 | `ReprioritizeJob` | `IJobs.ReprioritizeAsync` | `POST /jobs/{jobRef}/reprioritize` | · | inline | inline | inline | `events`, `runtimes` | `ReprioritizeJobSpec` |
 | `RescheduleJob` | `IJobs.RescheduleAsync` | `POST /jobs/{jobRef}/reschedule` | · | inline | inline | inline | `events`, `runtimes` | `RescheduleJobSpec` |
 | `ResetJobState` | · | · | · | inline | inline | inline | `checkpoints`, `events`, `results`, `steps` | `ResetJobStateSpec` |
-| `ResolveJobIdByDeduplicationKey` | `IJobs.GetJobIdAsync` | · | · | inline | inline | inline | · | `ResolveJobIdByDeduplicationKeySpec` |
-| `ResolveJobIdByRef` | `IJobs.GetJobIdAsync` | · | · | inline | inline | inline | · | `ResolveJobIdByRefSpec` |
+| `ResolveJobIdByDeduplicationKey` | · | · | · | inline | inline | inline | · | `ResolveJobIdByDeduplicationKeySpec` |
+| `ResolveJobIdByRef` | · | · | · | inline | inline | inline | · | `ResolveJobIdByRefSpec` |
 | `RestartJob` | `IJobs.RestartAsync` | `POST /jobs/{jobRef}/restart` | `restart` | inline | inline | inline | `events`, `runtimes`, `steps` | `RestartJobSpec` |
 | `ResumeJob` | `IJobs.ResumeAsync` | `POST /jobs/{jobRef}/resume` | `resume` | inline | inline | inline | `events`, `runtimes` | `ResumeJobSpec` |
 | `UpdateJobInput` | `IJobs.UpdateJobInputAsync` | `POST /jobs/{jobRef}/input` | · | inline | inline | inline | `events`, `jobs` | `UpdateJobInputSpec` |

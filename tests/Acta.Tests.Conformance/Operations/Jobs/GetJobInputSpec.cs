@@ -29,7 +29,7 @@ public sealed class GetJobInputSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         Assert.Equal(input.Format.Id, record!.FormatId);
         Assert.Equal(input.Data.ToArray(), record.Input);
 
-        var payload = await Jobs.GetInputAsync(enqueued, ct);
+        var payload = (await Jobs.GetInputAsync(enqueued, ct))?.Input;
         Assert.NotNull(payload);
         Assert.Equal(input.Format.Id, payload!.Value.Format.Id);
         Assert.Equal(input.Data.ToArray(), payload.Value.Data.ToArray());

@@ -295,7 +295,7 @@ internal static class RouteTable
 
     /// <summary>The internal id of the job a filter names, or null with no filter; a filter naming no job is the 404.</summary>
     public static async ValueTask<long?> JobIdAsync(this ReadCall call, JobLookup? job) =>
-        job is { } lookup ? await call.Jobs.GetJobIdAsync(lookup, call.Ct) ?? throw new TargetNotFoundException("Job") : null;
+        job is { } lookup ? (await call.Jobs.GetJobIdAsync(lookup, call.Ct))?.JobId ?? throw new TargetNotFoundException("Job") : null;
 
     public static IResult BadRequest(string? detail) =>
         Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid request.", detail: detail);

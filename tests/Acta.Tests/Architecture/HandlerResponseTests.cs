@@ -8,7 +8,7 @@ namespace Acta.Tests.Architecture;
 /// <summary>
 /// Holds operations to "every operation has its own input and its own response" in <c>docs/internals/naming-conventions.md</c>:
 /// <c>XHandler.HandleAsync</c> takes <c>XCommand</c> or <c>XQuery</c>, a command returns <c>XResponse</c> or nothing, a list
-/// returns its own page, and a row, command, query, response, or list element is declared in its operation's folder under
+/// returns its own page, a Get its own <c>GetXResponse</c>, and a row, command, query, response, or list element is declared in its operation's folder under
 /// the operation's name, a row named by no other operation. What predates a rule is listed in its ratchet,
 /// <c>handler-response</c> or <c>slice-members</c>.
 /// </summary>
@@ -27,10 +27,10 @@ public sealed class HandlerResponseTests
             .Types.Where(type => type.Name.EndsWith("Handler", StringComparison.Ordinal))
             .SelectMany(type =>
                 type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
-                    .Where(method => method.Name == "HandleAsync")
+                    .Where(method => method.Name is "HandleAsync" or "Handle")
             )
             .Select(method =>
-                (Handler: method.DeclaringType!, Input: method.GetParameters()[0].ParameterType, Returns: Awaited(method.ReturnType))
+                (Handler: method.DeclaringType!, Input: method.GetParameters()[0].ParameterType, Returns: Returned(method.ReturnType))
             )
             .ToList();
 
@@ -56,12 +56,18 @@ public sealed class HandlerResponseTests
                 || (handler.Input.IsPublic && !Paged(handler.Returns))
             )
             .Select(handler => (ShippedCode.Key(handler.Handler), (string?)$"{handler.Input.Name} returns {Describe(handler.Returns)}"));
+        // A Get returns its own response, with or without a query; null stays its "nothing found".
+        var gets = handlers
+            .Select(handler => (handler.Handler, handler.Returns, Operation: handler.Handler.Name[..^"Handler".Length]))
+            .Where(handler => handler.Operation.StartsWith("Get", StringComparison.Ordinal))
+            .Where(handler => handler.Returns?.Name != handler.Operation + "Response")
+            .Select(handler => (ShippedCode.Key(handler.Handler), (string?)$"{handler.Operation} returns {Describe(handler.Returns)}"));
 
         Ratchet.Check(
             "handler-response",
-            inputs.Concat(responses).Concat(lists),
-            "Take the operation's own XCommand or XQuery in HandleAsync, return its own XResponse, or nothing, from a command, and "
-                + "its own ListXResponse : IPagedResponse<ListXItem> from a list."
+            inputs.Concat(responses).Concat(lists).Concat(gets),
+            "Take the operation's own XCommand or XQuery in HandleAsync, return its own XResponse, or nothing, from a command, "
+                + "its own ListXResponse : IPagedResponse<ListXItem> from a list, and its own GetXResponse from a Get."
         );
     }
 
@@ -153,8 +159,15 @@ public sealed class HandlerResponseTests
         }
     }
 
-    // What the caller awaits: the T of Task<T> or ValueTask<T>, nothing for the plain ones.
-    private static Type? Awaited(Type returnType) => returnType.IsGenericType ? returnType.GetGenericArguments()[0] : null;
+    // What the caller gets: the T of Task<T> or ValueTask<T>, nothing for the plain ones or void, and what a synchronous
+    // Handle returns.
+    private static Type? Returned(Type returnType) =>
+        returnType == typeof(void) || returnType == typeof(Task) || returnType == typeof(ValueTask) ? null
+        : returnType.IsGenericType
+        && returnType.GetGenericTypeDefinition() is var open
+        && (open == typeof(Task<>) || open == typeof(ValueTask<>))
+            ? returnType.GetGenericArguments()[0]
+        : returnType;
 
     private static string Describe(Type? type) =>
         type is null ? "nothing"

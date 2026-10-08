@@ -43,7 +43,7 @@ public static class ScriptProvisionedRuntime
     )
     {
         await using var host = await StartAsync(applyProvider, schema, ct);
-        Assert.Equal(JobStatusCode.Succeeded, await host.Jobs.GetStatusAsync(JobLookup.ByRef(job), ct));
+        Assert.Equal(JobStatusCode.Succeeded, (await host.Jobs.GetStatusAsync(JobLookup.ByRef(job), ct))?.Status);
         Assert.Equal(new AddNumbersResult(sum), await host.Jobs.GetResultAsync<AddNumbersResult>(JobLookup.ByRef(job), ct));
     }
 

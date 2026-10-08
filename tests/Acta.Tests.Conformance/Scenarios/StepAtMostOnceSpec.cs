@@ -240,7 +240,7 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
         var row = await ReadStepAsync(enqueued.JobId, ct);
         Assert.Equal(StepStatusCode.Interrupted, row.Status);
 
-        var status = await Jobs.GetStatusAsync(JobLookup.ById(enqueued.JobId), ct);
+        var status = (await Jobs.GetStatusAsync(JobLookup.ById(enqueued.JobId), ct))?.Status;
         Assert.Equal(JobStatusCode.Succeeded, status);
     }
 

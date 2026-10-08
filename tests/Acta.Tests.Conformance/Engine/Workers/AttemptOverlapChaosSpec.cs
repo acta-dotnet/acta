@@ -57,6 +57,6 @@ public sealed class AttemptOverlapChaosSpec : ActaRuntimeTestBase<ConformanceFix
         await AttemptOverlapProbe.Cancelled(enqueued.JobId, 2).WaitAsync(Timeout, ct);
 
         await replacementRun.WaitAsync(Timeout, ct);
-        Assert.Equal(JobStatusCode.Cancelled, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Cancelled, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
     }
 }

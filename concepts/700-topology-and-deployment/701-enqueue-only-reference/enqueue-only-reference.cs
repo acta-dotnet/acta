@@ -45,7 +45,7 @@ Console.WriteLine("Waiting for worker to drain...");
 var workerJobs = workerHost.Services.GetRequiredService<IJobs>();
 while (true)
 {
-    var status = await workerJobs.GetStatusAsync(outcome);
+    var status = (await workerJobs.GetStatusAsync(outcome))?.Status;
     if (status is { } s && s.IsTerminal)
     {
         break;

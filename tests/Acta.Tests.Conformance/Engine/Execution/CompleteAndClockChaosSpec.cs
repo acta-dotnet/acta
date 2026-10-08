@@ -35,7 +35,7 @@ public sealed class CompleteAndClockChaosSpec : ActaRuntimeTestBase<ConformanceF
         // --- 1. The only way the write is lost is the worker stopping while the store still refuses it.
         await ChaosSpecHelpers.StopWorkerMidCompletionRetryAsync(Runtime, _faults, enqueued, ct);
 
-        Assert.Equal(JobStatusCode.Executing, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Executing, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
         Assert.DoesNotContain(
             await GetEventsByJobId.Run(Services, enqueued.JobId, ct),
             e => e.EventCode == EventCode.JobExecutionFinished && e.ExecutionStatus == ExecutionStatusCode.Succeeded
@@ -62,7 +62,7 @@ public sealed class CompleteAndClockChaosSpec : ActaRuntimeTestBase<ConformanceF
         // so nothing waits for a lease to lapse, the handler ran once, and no recovery event exists.
         _faults.ThrowProviderErrorBeforeCompleteOnce();
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
         Assert.Equal(1, ChaosProbes.CountingInvocations[enqueued.JobId]);
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
@@ -81,7 +81,7 @@ public sealed class CompleteAndClockChaosSpec : ActaRuntimeTestBase<ConformanceF
         // than an anomaly, which is the reconciliation the Retried flag exists for.
         _faults.ThrowAfterCompleteOnce();
         Assert.Equal(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
 
         // --- 2. A retry finds nothing to claim; the handler ran exactly once.
         Assert.Equal(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(enqueued, ct));

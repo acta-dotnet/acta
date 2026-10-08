@@ -29,12 +29,12 @@ public sealed class JobAttemptIdentitySpec : ActaRuntimeTestBase<ConformanceFixt
 
         // Backoff is 0s, so the re-armed row is claimable on the very next tick; the loop is bounded
         // well above the two attempts this job needs so a wiring regression fails fast rather than hangs.
-        for (var i = 0; i < 6 && await Jobs.GetStatusAsync(enqueued, ct) is not JobStatusCode.Succeeded; i++)
+        for (var i = 0; i < 6 && (await Jobs.GetStatusAsync(enqueued, ct))?.Status is not JobStatusCode.Succeeded; i++)
         {
             await Runtime.RunOnceAsync(enqueued, ct);
         }
 
-        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
 
         var notes = await Operations.Ledger.ListEventsAsync(
             new ListEventsQuery(JobId: enqueued.JobId, EventCode: EventCode.JobNoteRecorded, PageSize: 50),

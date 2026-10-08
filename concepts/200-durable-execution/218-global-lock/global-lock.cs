@@ -35,8 +35,8 @@ Console.WriteLine("Enqueued jobs in ns-alpha and ns-beta; both contend for the s
 // Poll until both are terminal.
 while (true)
 {
-    var sa = await jobs.GetStatusAsync(alpha);
-    var sb = await jobs.GetStatusAsync(beta);
+    var sa = (await jobs.GetStatusAsync(alpha))?.Status;
+    var sb = (await jobs.GetStatusAsync(beta))?.Status;
     if (sa is { } a && sb is { } b && a.IsTerminal && b.IsTerminal)
     {
         Console.WriteLine($"ns-alpha: {a}  ns-beta: {b}");

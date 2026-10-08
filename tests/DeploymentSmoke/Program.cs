@@ -45,7 +45,7 @@ var job = await jobs.EnqueueAsync(
     new EnqueueJobRequest("deployment-smoke", "binary-probe", JobPayload.CopyBytes(JobPayloadFormat.Bytes, [1, 2, 3, 4])),
     deadline.Token
 );
-while (await jobs.GetStatusAsync(job, deadline.Token) != JobStatusCode.Succeeded)
+while ((await jobs.GetStatusAsync(job, deadline.Token))?.Status != JobStatusCode.Succeeded)
 {
     await Task.Delay(25, deadline.Token);
 }

@@ -39,8 +39,8 @@ Console.WriteLine("Waiting for jobs to complete...");
 for (var i = 0; i < 60; i++)
 {
     await Task.Delay(500);
-    var reportStatus = await jobs.GetStatusAsync(report);
-    var pollStatus = await jobs.GetStatusAsync(poll);
+    var reportStatus = (await jobs.GetStatusAsync(report))?.Status;
+    var pollStatus = (await jobs.GetStatusAsync(poll))?.Status;
     if (reportStatus == JobStatusCode.Succeeded && pollStatus == JobStatusCode.Succeeded)
     {
         break;

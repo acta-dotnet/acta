@@ -6,11 +6,13 @@ namespace Acta.Runtime;
 /// </summary>
 internal sealed class GetScheduleStateHandler(IDbSession session, ISqlDialect dialect)
 {
-    public Task<IReadOnlyList<StoredScheduleState>> HandleAsync(GetScheduleStateQuery query, CancellationToken ct) =>
-        session.QueryListAsync(
-            "GetScheduleState",
-            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.NamespaceId, query.NamespaceId)),
-            DbProjectionResolver.Resolve<StoredScheduleState>(),
-            ct
+    public async Task<GetScheduleStateResponse> HandleAsync(GetScheduleStateQuery query, CancellationToken ct) =>
+        new(
+            await session.QueryListAsync(
+                "GetScheduleState",
+                cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.NamespaceId, query.NamespaceId)),
+                DbProjectionResolver.Resolve<StoredScheduleState>(),
+                ct
+            )
         );
 }

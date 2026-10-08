@@ -280,7 +280,7 @@ public class CliRunnerClipboardTests
         public ValueTask<GetOverviewResponse> GetOverviewAsync(GetOverviewQuery query, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
-        public JobInputTemplate? GetInputTemplate(string jobNamespace, string jobName) => null;
+        public GetInputTemplateResponse? GetInputTemplate(string jobNamespace, string jobName) => null;
 
         public ValueTask<EnqueueJobResponse> EnqueueAsync<TInput>(
             TInput input,
@@ -385,18 +385,22 @@ public class CliRunnerClipboardTests
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
-        public ValueTask<long?> GetJobIdAsync(JobLookup job, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<GetJobIdResponse?> GetJobIdAsync(JobLookup job, CancellationToken ct = default) =>
+            throw new NotSupportedException();
 
-        public ValueTask<JobStatusCode?> GetStatusAsync(JobLookup job, CancellationToken ct = default) =>
-            ValueTask.FromResult<JobStatusCode?>(
-                JobVanishedAfterResolve || job.Kind != JobLookupKind.JobId || job.JobId != KnownJobId ? null : JobStatusCode.Ready
+        public ValueTask<GetJobStatusResponse?> GetStatusAsync(JobLookup job, CancellationToken ct = default) =>
+            ValueTask.FromResult<GetJobStatusResponse?>(
+                JobVanishedAfterResolve || job.Kind != JobLookupKind.JobId || job.JobId != KnownJobId
+                    ? null
+                    : new GetJobStatusResponse(JobStatusCode.Ready)
             );
 
-        public ValueTask<JobPayload?> GetInputAsync(JobLookup job, CancellationToken ct = default) => throw new NotSupportedException();
+        public ValueTask<GetJobInputResponse?> GetInputAsync(JobLookup job, CancellationToken ct = default) =>
+            throw new NotSupportedException();
 
         /// <summary>The job produced no result; whether it still exists is the status read.</summary>
-        public ValueTask<JobPayload?> GetResultAsync(JobLookup job, CancellationToken ct = default) =>
-            ValueTask.FromResult<JobPayload?>(null);
+        public ValueTask<GetResultResponse?> GetResultAsync(JobLookup job, CancellationToken ct = default) =>
+            ValueTask.FromResult<GetResultResponse?>(null);
 
         public ValueTask<GetCheckpointsResponse?> GetCheckpointsAsync(JobLookup job, CancellationToken ct = default) =>
             throw new NotSupportedException();

@@ -19,9 +19,9 @@ internal static class DefinitionTestOps
         CancellationToken ct
     )
     {
-        var stored = await services
-            .GetRequiredService<GetDefinitionContractsHandler>()
-            .HandleAsync(new GetDefinitionContractsQuery(namespaceId), ct);
+        var stored = (
+            await services.GetRequiredService<GetDefinitionContractsHandler>().HandleAsync(new GetDefinitionContractsQuery(namespaceId), ct)
+        ).Contracts;
         return (
             await services
                 .GetRequiredService<RegisterDefinitionsHandler>()

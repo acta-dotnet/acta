@@ -236,7 +236,7 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
     {
         var ct = TestContext.Current.CancellationToken;
         var lookup = JobLookup.ByDeduplicationKey(TestNamespace, "recurring-ping");
-        var jobId = Assert.IsType<long>(await Jobs.GetJobIdAsync(lookup, ct));
+        var jobId = Assert.IsType<long>((await Jobs.GetJobIdAsync(lookup, ct))?.JobId);
         var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
         var schedule = Assert.Single(
             await Db.From<ScheduleEntity>().Where(x => x.JobId == jobId && x.Name == "every-5-minutes").ToListAsync(ct)
@@ -302,7 +302,7 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
     {
         var ct = TestContext.Current.CancellationToken;
         var lookup = JobLookup.ByDeduplicationKey(TestNamespace, "recurring-ping");
-        var jobId = Assert.IsType<long>(await Jobs.GetJobIdAsync(lookup, ct));
+        var jobId = Assert.IsType<long>((await Jobs.GetJobIdAsync(lookup, ct))?.JobId);
         Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(lookup, ct: ct)).Action);
 
         var mutationTask = Operations.Tags.UpsertAsync(TagTarget.ForJob(lookup), new TagInput("race", "mutation"), ct: ct).AsTask();

@@ -194,7 +194,7 @@ public sealed class IntervalScheduleFireSpec : ActaRuntimeTestBase<ConformanceFi
 
     private async Task<long> SlotIdAsync(CancellationToken ct)
     {
-        var id = await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, JobName), ct);
+        var id = (await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, JobName), ct))?.JobId;
         Assert.NotNull(id);
         return id!.Value;
     }

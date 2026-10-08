@@ -320,9 +320,9 @@ public sealed class RegisterSchedulesSpec : ActaRuntimeTestBase<ConformanceFixtu
         CancellationToken ct
     )
     {
-        var stored = await Services
-            .GetRequiredService<GetScheduleStateHandler>()
-            .HandleAsync(new GetScheduleStateQuery(TestNamespaceId), ct);
+        var stored = (
+            await Services.GetRequiredService<GetScheduleStateHandler>().HandleAsync(new GetScheduleStateQuery(TestNamespaceId), ct)
+        ).States;
         var storedForDef = stored.Where(s => s.DefinitionId == defId).ToDictionary(s => s.ScheduleName, s => s, StringComparer.Ordinal);
         var declared = new[]
         {
@@ -342,7 +342,9 @@ public sealed class RegisterSchedulesSpec : ActaRuntimeTestBase<ConformanceFixtu
 
     private async Task<long> SlotIdAsync(string jobName, CancellationToken ct)
     {
-        var id = await Services.GetRequiredService<IJobs>().GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, jobName), ct);
+        var id = (
+            await Services.GetRequiredService<IJobs>().GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, jobName), ct)
+        )?.JobId;
         Assert.NotNull(id);
         return id!.Value;
     }

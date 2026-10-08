@@ -24,8 +24,8 @@ public sealed class GetLiveSchedulesSpec : ActaStorageTestBase<ConformanceFixtur
 
     private ISchedules Schedules => Services.GetRequiredService<IActaOperations>().Schedules;
 
-    private Task<IReadOnlyList<LiveSchedule>> ReadAsync(long slotId, CancellationToken ct) =>
-        Services.GetRequiredService<GetLiveSchedulesHandler>().HandleAsync(new GetLiveSchedulesQuery(slotId), ct);
+    private async Task<IReadOnlyList<LiveSchedule>> ReadAsync(long slotId, CancellationToken ct) =>
+        (await Services.GetRequiredService<GetLiveSchedulesHandler>().HandleAsync(new GetLiveSchedulesQuery(slotId), ct)).Schedules;
 
     [Fact(DisplayName = "A slot's schedules read back in name order with their declaration, cursor, and status")]
     public async Task Schedules_read_back_in_name_order()

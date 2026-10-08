@@ -65,7 +65,7 @@ public sealed class GoldenPathSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         Assert.Equal(TestNamespace, snapshot.JobNamespace);
         Assert.Equal(JobStatusCode.Succeeded, snapshot.Status);
 
-        var status = await Jobs.GetStatusAsync(enqueued, ct);
+        var status = (await Jobs.GetStatusAsync(enqueued, ct))?.Status;
         Assert.Equal(JobStatusCode.Succeeded, status);
 
         var jobId = enqueued.JobId;

@@ -64,7 +64,7 @@ internal sealed class ListOutboxSourcesHandler(IJobs jobs, INamespaces namespace
             return null;
         }
 
-        var result = await jobs.GetResultAsync(JobLookup.ById(slot.JobId), ct);
+        var result = (await jobs.GetResultAsync(JobLookup.ById(slot.JobId), ct))?.Result;
         var tick =
             result is { } payload && payload.Format.Id == JobPayloadFormat.Text.Id ? Encoding.UTF8.GetString(payload.Data.Span) : null;
 

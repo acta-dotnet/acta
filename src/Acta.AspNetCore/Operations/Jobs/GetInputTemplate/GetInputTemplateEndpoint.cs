@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Routing;
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// HTTP projection of a <see cref="JobInputTemplate"/>. <c>Template</c> is the skeleton inlined as raw
+/// HTTP projection of a <see cref="GetInputTemplateResponse"/>. <c>Template</c> is the skeleton inlined as raw
 /// JSON (never a string); a job this host does not know reports every field null with format "none".
 /// </summary>
 internal sealed record GetInputTemplateHttpResponse(

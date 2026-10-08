@@ -78,7 +78,7 @@ public sealed class ClaimAndControlRaceChaosSpec : ActaRuntimeTestBase<Conforman
         var pause = await Jobs.PauseAsync(enqueued, "race pause", ct: ct);
         Assert.Equal(ControlAction.Rejected, pause.Action);
         Assert.Equal(JobStatusCode.Dispatched, pause.Status);
-        Assert.Equal(JobStatusCode.Dispatched, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Dispatched, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
         Assert.DoesNotContain(await GetEventsByJobId.Run(Services, enqueued.JobId, ct), e => e.EventCode == EventCode.JobPaused);
     }
 
@@ -97,13 +97,13 @@ public sealed class ClaimAndControlRaceChaosSpec : ActaRuntimeTestBase<Conforman
         var restart = await Jobs.RestartAsync(enqueued, "race restart", ct: ct);
         Assert.Equal(ControlAction.Rejected, restart.Action);
         Assert.Equal(JobStatusCode.Executing, restart.Status);
-        Assert.Equal(JobStatusCode.Executing, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Executing, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
         Assert.DoesNotContain(await GetEventsByJobId.Run(Services, enqueued.JobId, ct), e => e.EventCode == EventCode.JobRestarted);
 
         // --- 3. Releasing the probe lets the original run finish Succeeded.
         ChaosProbes.Release(enqueued.JobId);
         Assert.Equal(RunOnceStatus.Completed, await run);
-        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
     }
 
     [Fact(DisplayName = "Cancel while executing records both execution-finished Cancelled and job-cancelled")]
@@ -125,7 +125,7 @@ public sealed class ClaimAndControlRaceChaosSpec : ActaRuntimeTestBase<Conforman
         await ChaosProbes.WaitCancelledAsync(enqueued.JobId, ct);
 
         Assert.Equal(RunOnceStatus.NothingClaimed, await run);
-        Assert.Equal(JobStatusCode.Cancelled, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Cancelled, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
 
         // --- 3. Timeline: one start, the Cancelled execution-finished, and the job-cancelled event.
         // cancel_job emits the finished event (Executing->Cancelled) before JobCancelled when it

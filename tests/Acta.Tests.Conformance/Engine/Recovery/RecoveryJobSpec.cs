@@ -125,7 +125,7 @@ public sealed class RecoveryJobSpec : ActaRuntimeTestBase<ConformanceFixture, Te
 
     private async Task<long> RecoverySlotIdAsync(CancellationToken ct)
     {
-        var id = await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, "sys.recovery"), ct);
+        var id = (await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, "sys.recovery"), ct))?.JobId;
         Assert.NotNull(id);
         return id!.Value;
     }

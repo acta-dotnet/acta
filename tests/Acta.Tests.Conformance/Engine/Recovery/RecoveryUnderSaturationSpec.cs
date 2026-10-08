@@ -59,7 +59,7 @@ public sealed class RecoveryUnderSaturationSpec : ActaRuntimeTestBase<Conformanc
             // slot is made due so the next claim can take it.
             var stranded = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-counting", ct);
             await StrandAsync(stranded.JobId, ct);
-            var slotId = await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, "sys.recovery"), ct);
+            var slotId = (await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, "sys.recovery"), ct))?.JobId;
             Assert.NotNull(slotId);
             await ChaosSpecHelpers.SetReadyAsync(Db, slotId!.Value, ct);
 

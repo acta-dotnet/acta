@@ -134,7 +134,7 @@ public sealed class ControlVerbsSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(ControlAction.Rejected, resume.Action);
         Assert.Equal(JobStatusCode.Ready, resume.Status);
 
-        var status = await Jobs.GetStatusAsync(enqueued, ct);
+        var status = (await Jobs.GetStatusAsync(enqueued, ct))?.Status;
         Assert.Equal(JobStatusCode.Ready, status);
     }
 

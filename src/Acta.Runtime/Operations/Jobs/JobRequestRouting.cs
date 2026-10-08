@@ -1,9 +1,10 @@
 namespace Acta.Runtime;
 
 /// <summary>
-/// Builds what the typed <see cref="IJobs"/> overloads pass on. An enqueue request resolves the route, serializes the
-/// input, and folds the options on; a None-format input carries <see cref="JobPayload.None"/> with no serializer
-/// round-trip. A signal value serializes as JSON.
+/// Builds what the typed <see cref="IJobs"/> overloads pass on, and decodes what they read back. An enqueue request
+/// resolves the route, serializes the input, and folds the options on; a None-format input carries
+/// <see cref="JobPayload.None"/> with no serializer round-trip. A signal value serializes as JSON, and a typed read
+/// decodes through its payload's own format.
 /// </summary>
 internal sealed class JobRequestRouting(IJobPayloadSerializerRegistry serializers, JobTypeIndex typeIndex, JobContractIndex contractIndex)
 {
@@ -55,6 +56,9 @@ internal sealed class JobRequestRouting(IJobPayloadSerializerRegistry serializer
     /// </summary>
     public JobPayload Json<T>(T value) =>
         serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(value ?? throw new ArgumentNullException(nameof(value)));
+
+    /// <summary>A payload a typed read returns, decoded through the serializer of its own format.</summary>
+    public T? Decode<T>(JobPayload payload) => serializers.Resolve(payload.Format.Id).Deserialize<T>(payload);
 
     private JobPayload Serialize<TInput>(JobPayloadFormat format, TInput input) =>
         format.IsNone ? JobPayload.None : serializers.Resolve(format.Id).Serialize(input);

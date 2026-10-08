@@ -78,7 +78,7 @@ internal sealed class DefinitionPolicyReloader(
             return;
         }
 
-        var catalog = await _getDefinitionContracts.HandleAsync(new GetDefinitionContractsQuery(namespaceId), ct);
+        var catalog = (await _getDefinitionContracts.HandleAsync(new GetDefinitionContractsQuery(namespaceId), ct)).Contracts;
         foreach (var c in catalog)
         {
             if (_context.DescriptorByDefinitionId.TryGetValue(c.Id, out var descriptor))

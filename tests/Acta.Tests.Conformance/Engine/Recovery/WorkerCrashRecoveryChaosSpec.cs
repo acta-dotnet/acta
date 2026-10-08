@@ -55,7 +55,7 @@ public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<Conforman
 
         // --- 3. A later tick completes the job exactly once.
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
         Assert.Equal(1, ChaosProbes.CountingInvocations[enqueued.JobId]);
     }
 
@@ -94,7 +94,7 @@ public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<Conforman
             .Where(e => e.EventCode == EventCode.JobExecutionFinished && e.ExecutionStatus == ExecutionStatusCode.Succeeded)
             .ToList();
         Assert.Single(finished);
-        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
     }
 
     [Fact(DisplayName = "Crash before CompleteExecution does not replay the durable step on recovery")]
@@ -108,7 +108,7 @@ public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<Conforman
         await ChaosSpecHelpers.StopWorkerMidCompletionRetryAsync(Runtime, _faults, enqueued, ct);
 
         Assert.Equal(1, JobStepProbes.BodyInvocations[enqueued.JobId]);
-        Assert.Equal(JobStatusCode.Executing, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Executing, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
 
         // --- 2. Reclaim and rerun; the durable step is not replayed.
         await ChaosSpecHelpers.ExpireLeaseAsync(Db, enqueued.JobId, ct);
@@ -156,7 +156,7 @@ public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<Conforman
         {
             Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         }
-        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
         Assert.Equal(2, ChaosProbes.CountingInvocations[enqueued.JobId]);
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);

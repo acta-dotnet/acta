@@ -1387,6 +1387,12 @@
   - A known job id returns a populated header (Ready) with no steps or checkpoints
   - An unknown job id returns null
 
+### GetJobId resolves a ref or deduplication key to the id, null for no match
+- **Contract:** GetJobId returns the internal id of the job a ref or a root deduplication key names, returns an id lookup's own id, and returns null when no job matches.
+- **Guarantees:**
+  - A ref and a deduplication key resolve to the enqueued job's id
+  - An id lookup answers its own id, and a ref or key that matches no job answers null
+
 ### GetJobLineageMap returns the focus job with ancestors and children or null
 - **Contract:** GetJobLineageMap returns the focus job, its ancestors root-first, its steps and checkpoints, and its capped direct children, or null when no row matches.
 - **Guarantees:**

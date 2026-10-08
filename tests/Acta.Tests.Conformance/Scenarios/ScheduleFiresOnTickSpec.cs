@@ -61,7 +61,7 @@ public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFix
         for (var i = 1; i <= 3; i++)
         {
             await FireOnceAsync(slotId, ct);
-            Assert.Equal(JobStatusCode.Ready, await Jobs.GetStatusAsync(JobLookup.ById(slotId), ct));
+            Assert.Equal(JobStatusCode.Ready, (await Jobs.GetStatusAsync(JobLookup.ById(slotId), ct))?.Status);
         }
 
         // One stable slot row - no per-firing row inflation; execution_number tracked the fires.
@@ -202,7 +202,7 @@ public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFix
 
         // First fire rolls over as usual; the second fire's handler calls ctx.CancelAsync.
         await FireOnceAsync(slotId, ct);
-        Assert.Equal(JobStatusCode.Ready, await Jobs.GetStatusAsync(JobLookup.ById(slotId), ct));
+        Assert.Equal(JobStatusCode.Ready, (await Jobs.GetStatusAsync(JobLookup.ById(slotId), ct))?.Status);
 
         RecurringPingHandler.CancelOnSequence[TestNamespace] = 2;
         await FireOnceAsync(slotId, ct);
@@ -220,7 +220,7 @@ public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFix
     private async Task<long> SlotIdAsync(CancellationToken ct)
     {
         // The recurring slot's deduplication_key is the definition's job name.
-        var id = await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, JobName), ct);
+        var id = (await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, JobName), ct))?.JobId;
         Assert.NotNull(id);
         return id!.Value;
     }

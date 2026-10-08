@@ -31,12 +31,12 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
 
         var pauseExit = await runner.RunAsync(Parse($"pause {enqueued.JobId} --reason hold"), ct);
         Assert.Equal(0, pauseExit);
-        Assert.Equal(JobStatusCode.Paused, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Paused, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
         Assert.Contains("status: Paused", output.ToString());
 
         var resumeExit = await runner.RunAsync(Parse($"resume {enqueued.JobId}"), ct);
         Assert.Equal(0, resumeExit);
-        Assert.Equal(JobStatusCode.Ready, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Ready, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
     }
 
     [Fact(DisplayName = "Cancel and restart verbs map to IJobs and apply the transitions")]
@@ -47,10 +47,10 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var runner = CreateRunner(out _);
 
         Assert.Equal(0, await runner.RunAsync(Parse($"cancel {enqueued.JobId} --reason done"), ct));
-        Assert.Equal(JobStatusCode.Cancelled, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Cancelled, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
 
         Assert.Equal(0, await runner.RunAsync(Parse($"restart {enqueued.JobId}"), ct));
-        Assert.Equal(JobStatusCode.Ready, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Ready, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
     }
 
     [Fact(DisplayName = "Exit codes follow action bands: illegal move exits one, missing job exits two")]
@@ -101,7 +101,7 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var runner = CreateRunner(out _);
 
         Assert.Equal(0, await runner.RunAsync(Parse($"pause {key} --ns {TestNamespace}"), ct));
-        Assert.Equal(JobStatusCode.Paused, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Paused, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
     }
 
     [Fact(DisplayName = "Debug claims only the targeted id, runs it in-process to Succeeded, and result surfaces the payload")]
@@ -114,7 +114,7 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var exit = await runner.RunAsync(Parse($"debug {enqueued.JobId}"), ct);
 
         Assert.Equal(0, exit);
-        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
         Assert.Contains("run: Completed", output.ToString());
 
         // The result verb surfaces the handler's payload: AddNumbers(2, 3) produced Sum = 5.
@@ -137,7 +137,7 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var text = output.ToString();
         Assert.Contains("run: Completed", text);
         Assert.Contains($"job: {finished.JobRef}", text);
-        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(finished, ct));
+        Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(finished, ct))?.Status);
     }
 
     [Fact(DisplayName = "Debug on a finished laned job restarted behind a live member reports it Blocked and stops")]
@@ -155,8 +155,8 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var text = output.ToString();
         Assert.Contains($"job {finished.JobRef} is Blocked behind its lane's head", text);
         Assert.DoesNotContain("run:", text);
-        Assert.Equal(JobStatusCode.Blocked, await Jobs.GetStatusAsync(finished, ct));
-        Assert.Equal(JobStatusCode.Ready, await Jobs.GetStatusAsync(follower, ct));
+        Assert.Equal(JobStatusCode.Blocked, (await Jobs.GetStatusAsync(finished, ct))?.Status);
+        Assert.Equal(JobStatusCode.Ready, (await Jobs.GetStatusAsync(follower, ct))?.Status);
     }
 
     [Fact(DisplayName = "Events verb prints the job timeline after a run")]

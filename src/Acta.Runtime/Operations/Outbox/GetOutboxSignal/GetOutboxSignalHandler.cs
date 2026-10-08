@@ -3,8 +3,8 @@ namespace Acta.Runtime;
 /// <summary>Reads the pending command row under one name, or null when that inbox slot is empty.</summary>
 internal sealed class GetOutboxSignalHandler(IDbSession session, ISqlDialect dialect)
 {
-    public Task<CheckpointValue?> HandleAsync(GetOutboxSignalQuery query, CancellationToken ct) =>
-        session.QuerySingleAsync(
+    public async Task<GetOutboxSignalResponse?> HandleAsync(GetOutboxSignalQuery query, CancellationToken ct) =>
+        await session.QuerySingleAsync(
             "GetOutboxSignal",
             cmd =>
             {
@@ -13,5 +13,8 @@ internal sealed class GetOutboxSignalHandler(IDbSession session, ISqlDialect dia
             },
             DbProjectionResolver.Resolve<CheckpointValue>(),
             ct
-        );
+        )
+            is { } signal
+            ? new GetOutboxSignalResponse(signal)
+            : null;
 }

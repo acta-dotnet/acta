@@ -171,7 +171,7 @@ public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture,
         var result = await Jobs.UpdateJobInputAsync(enqueued, newInput, "reformat", "spec-actor", ct);
         Assert.Equal(ControlAction.Applied, result.Action);
 
-        var stored = await Jobs.GetInputAsync(enqueued, ct);
+        var stored = (await Jobs.GetInputAsync(enqueued, ct))?.Input;
         Assert.NotNull(stored);
         Assert.Equal(JobPayloadFormat.Text.Id, stored!.Value.Format.Id);
         Assert.Equal(newInput.Data.ToArray(), stored.Value.Data.ToArray());

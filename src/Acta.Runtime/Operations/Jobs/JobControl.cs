@@ -58,7 +58,7 @@ internal static class JobControl
         CancellationToken ct
     )
     {
-        var live = await liveSchedules.HandleAsync(new GetLiveSchedulesQuery(jobId), ct);
+        var live = (await liveSchedules.HandleAsync(new GetLiveSchedulesQuery(jobId), ct)).Schedules;
         if (live.Count == 0)
         {
             return (false, null);

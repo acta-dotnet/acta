@@ -32,7 +32,7 @@ Console.WriteLine("waiting for terminal failure...");
 var jobId = outcome.JobId;
 while (true)
 {
-    var status = await jobs.GetStatusAsync(JobLookup.ById(jobId));
+    var status = (await jobs.GetStatusAsync(JobLookup.ById(jobId)))?.Status;
     if (status == JobStatusCode.Failed)
         break;
     await Task.Delay(200);

@@ -272,7 +272,7 @@ public sealed class SetScheduleOverridesSpec : ActaStorageTestBase<ConformanceFi
 
     private async Task<long> SlotIdAsync(string jobName, CancellationToken ct)
     {
-        var id = await Jobs().GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, jobName), ct);
+        var id = (await Jobs().GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, jobName), ct))?.JobId;
         Assert.NotNull(id);
         return id!.Value;
     }

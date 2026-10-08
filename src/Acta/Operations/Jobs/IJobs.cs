@@ -215,13 +215,13 @@ public interface IJobs
     );
 
     /// <summary>
-    /// Resolve <paramref name="job"/> to the internal <c>JobId</c>, or <c>null</c> when no row
+    /// Resolve <paramref name="job"/> to the internal <c>JobId</c> in <see cref="GetJobIdResponse"/>, or <c>null</c> when no row
     /// matches. A <see cref="JobLookupKind.JobId"/> lookup returns the id directly with no DB
     /// round-trip; a <see cref="JobLookupKind.JobRef"/> lookup resolves over the unique
     /// <c>job_ref</c> index; a <see cref="JobLookupKind.DeduplicationKey"/> lookup matches root jobs only
     /// (<c>parent_id IS NULL</c>). Pin the returned id and reuse it across polls and mutations.
     /// </summary>
-    ValueTask<long?> GetJobIdAsync(JobLookup job, CancellationToken ct = default);
+    ValueTask<GetJobIdResponse?> GetJobIdAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
     /// Read the full <see cref="GetJobResponse"/> for the job identified by <paramref name="job"/>.
@@ -255,11 +255,11 @@ public interface IJobs
     );
 
     /// <summary>
-    /// Cheap status probe. Returns the current <see cref="JobStatusCode"/> for the job identified
+    /// Cheap status probe. Returns the current <see cref="JobStatusCode"/> in <see cref="GetJobStatusResponse"/> for the job identified
     /// by <paramref name="job"/>, or <c>null</c> when no row matches. Resolves
     /// <paramref name="job"/> to a <c>JobId</c> first; pin the resolved id when polling.
     /// </summary>
-    ValueTask<JobStatusCode?> GetStatusAsync(JobLookup job, CancellationToken ct = default);
+    ValueTask<GetJobStatusResponse?> GetStatusAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
     /// Fetch the stored input payload the job identified by <paramref name="job"/> was enqueued with,
@@ -267,7 +267,7 @@ public interface IJobs
     /// point-in-time read: it does not wait for completion and reflects any <see cref="UpdateJobInputAsync"/>
     /// amendment already applied.
     /// </summary>
-    ValueTask<JobPayload?> GetInputAsync(JobLookup job, CancellationToken ct = default);
+    ValueTask<GetJobInputResponse?> GetInputAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
     /// Fetch the latest result payload the job identified by <paramref name="job"/> has produced, or
@@ -275,17 +275,17 @@ public interface IJobs
     /// Non-blocking point-in-time read: it does not wait for completion. To await the answer, poll
     /// <see cref="GetStatusAsync"/> until terminal and then read here.
     /// </summary>
-    ValueTask<JobPayload?> GetResultAsync(JobLookup job, CancellationToken ct = default);
+    ValueTask<GetResultResponse?> GetResultAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
     /// Read the durable checkpoint slots (variables, signals, sleep timers, the progress slot, child
-    /// latches) recorded for the job identified by <paramref name="job"/>. Returns an empty set when the
+    /// latches) recorded for the job identified by <paramref name="job"/>. Returns empty <c>Items</c> when the
     /// job has no slots, and <c>null</c> when no job matches. Non-blocking point-in-time read.
     /// </summary>
     ValueTask<GetCheckpointsResponse?> GetCheckpointsAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
-    /// Typed variant of <see cref="GetResultAsync(JobLookup, CancellationToken)"/>: deserializes the
+    /// Typed convenience over <see cref="GetResultAsync(JobLookup, CancellationToken)"/>: deserializes the
     /// latest result payload to <typeparamref name="TResult"/> via the registered serializer, or returns
     /// <c>default</c> when the job has produced no result. Non-blocking (does not wait for completion).
     /// </summary>
@@ -450,5 +450,5 @@ public interface IJobs
     /// database round-trip, no reflection. Returns null when this host has not registered the job's
     /// manifest (an enqueue-only dashboard pointed at a shared ledger), so callers degrade quietly.
     /// </summary>
-    JobInputTemplate? GetInputTemplate(string jobNamespace, string jobName);
+    GetInputTemplateResponse? GetInputTemplate(string jobNamespace, string jobName);
 }

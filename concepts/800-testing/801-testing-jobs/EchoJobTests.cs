@@ -16,12 +16,12 @@ public sealed class EchoJobTests(ActaHostFixture acta) : ActaTestBase(acta)
         var enqueued = await Jobs.EnqueueAsync(new Echo("hello"), ct: Ct);
 
         // Nothing executes until the test drives a tick.
-        Assert.Equal(JobStatusCode.Ready, await Jobs.GetStatusAsync(enqueued, Ct));
+        Assert.Equal(JobStatusCode.Ready, (await Jobs.GetStatusAsync(enqueued, Ct))?.Status);
 
         var outcome = await Host.RunOnceAsync(enqueued, Ct);
 
         Assert.Equal(ActaRunStatus.Completed, outcome);
-        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, Ct));
+        Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, Ct))?.Status);
         var result = await Jobs.GetResultAsync<EchoResult>(enqueued, Ct);
         Assert.Equal("hello", result!.Message);
     }
@@ -37,6 +37,6 @@ public sealed class EchoJobTests(ActaHostFixture acta) : ActaTestBase(acta)
 
         // Attempt 3 spends the MaxAttempts budget: terminal Failed.
         Assert.Equal(ActaRunStatus.Failed, await Host.RunOnceAsync(enqueued, Ct));
-        Assert.Equal(JobStatusCode.Failed, await Jobs.GetStatusAsync(enqueued, Ct));
+        Assert.Equal(JobStatusCode.Failed, (await Jobs.GetStatusAsync(enqueued, Ct))?.Status);
     }
 }

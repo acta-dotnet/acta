@@ -57,7 +57,7 @@ public sealed class RecurringSlotFromAnotherGenerationSpec : ActaRuntimeTestBase
         await newGeneration.GetServices<WorkerRuntime>().Single().InitializeAsync(ct);
         var triggered = await Operations.Schedules.TriggerNowAsync(new ScheduleLookup(Slot, ScheduleName), ct: ct);
         Assert.Equal(ControlAction.Applied, triggered.Action);
-        var slotId = (await Jobs.GetJobIdAsync(Slot, ct))!.Value;
+        var slotId = ((await Jobs.GetJobIdAsync(Slot, ct))?.JobId)!.Value;
         // Against the triggered due instant, not the clock: a run that ends just before a five-minute
         // boundary re-arms onto that boundary, which a check against now would read as not re-armed.
         var due = (await ReadJobAsync(slotId, ct)).NextRunAtUtc;

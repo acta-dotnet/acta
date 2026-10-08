@@ -18,7 +18,7 @@ public sealed class GetTenantKeySpec : ActaStorageTestBase<ConformanceFixture>
     private ITenants Tenants => Services.GetRequiredService<ITenants>();
 
     private async Task<string?> ReadAsync(int tenantId, CancellationToken ct) =>
-        await Services.GetRequiredService<GetTenantKeyHandler>().HandleAsync(new GetTenantKeyQuery(tenantId), ct);
+        (await Services.GetRequiredService<GetTenantKeyHandler>().HandleAsync(new GetTenantKeyQuery(tenantId), ct))?.TenantKey;
 
     [Fact(DisplayName = "A tenant registered with a mixed-case key reads back its lowercase key")]
     public async Task Id_resolves_to_the_normalized_key()

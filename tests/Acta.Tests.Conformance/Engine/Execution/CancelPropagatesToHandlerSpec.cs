@@ -43,6 +43,6 @@ public sealed class CancelPropagatesToHandlerSpec : ActaRuntimeTestBase<Conforma
         // The handler observed cancellation; the dispatch unwinds; the row is terminal Cancelled.
         Assert.True(await CancellableHandler.Observed(TestNamespace).WaitAsync(timeout, ct));
         await run.WaitAsync(timeout, ct);
-        Assert.Equal(JobStatusCode.Cancelled, await Jobs.GetStatusAsync(JobLookup.ById(enqueued.JobId), ct));
+        Assert.Equal(JobStatusCode.Cancelled, (await Jobs.GetStatusAsync(JobLookup.ById(enqueued.JobId), ct))?.Status);
     }
 }

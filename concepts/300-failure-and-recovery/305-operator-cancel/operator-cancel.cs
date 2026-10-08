@@ -18,7 +18,7 @@ var jobs = host.Services.GetRequiredService<IJobs>();
 
 var outcome = await jobs.EnqueueAsync(new BigExport("export-1"));
 await Task.Delay(500); // let it start running
-Console.WriteLine($"status while running: {await jobs.GetStatusAsync(outcome)}");
+Console.WriteLine($"status while running: {(await jobs.GetStatusAsync(outcome))?.Status}");
 
 // Operator cancel from outside the handler: any process holding an IJobs trips a running job's CancellationToken.
 var result = await jobs.CancelAsync(outcome, "operator aborted the export");

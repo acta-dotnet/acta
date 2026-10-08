@@ -28,7 +28,7 @@ public sealed class GetResultSpec : ActaRuntimeTestBase<ConformanceFixture, Test
             ct
         );
 
-        Assert.Null(await Jobs.GetResultAsync(enqueued, ct));
+        Assert.Null((await Jobs.GetResultAsync(enqueued, ct))?.Result);
         Assert.Null(await Jobs.GetResultAsync<AddNumbersResult>(enqueued, ct));
     }
 
@@ -47,7 +47,7 @@ public sealed class GetResultSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         Assert.NotNull(typed);
         Assert.Equal(5, typed!.Sum);
 
-        var raw = await Jobs.GetResultAsync(enqueued, ct);
+        var raw = (await Jobs.GetResultAsync(enqueued, ct))?.Result;
         Assert.NotNull(raw);
         Assert.Equal(JobPayloadFormat.Json.Id, raw!.Value.Format.Id);
     }

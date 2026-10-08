@@ -34,7 +34,7 @@ public sealed class RecordNoteSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
 
         await Runtime.RunOnceAsync(enqueued, ct);
 
-        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
 
         var events = await Operations.Ledger.ListEventsAsync(
             new ListEventsQuery(JobId: enqueued.JobId, EventCode: EventCode.JobNoteRecorded, PageSize: 50),

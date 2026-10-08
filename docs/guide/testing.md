@@ -111,7 +111,7 @@ public sealed class SendWelcomeEmailTests : IAsyncLifetime
         var outcome = await _host.RunOnceAsync(enqueued);
 
         Assert.Equal(ActaRunStatus.Completed, outcome);
-        Assert.Equal(JobStatusCode.Succeeded, await _host.Jobs.GetStatusAsync(enqueued));
+        Assert.Equal(JobStatusCode.Succeeded, (await _host.Jobs.GetStatusAsync(enqueued))?.Status);
         var sent = Assert.Single(_email.Sent);
         Assert.Equal(userId, sent.UserId);
     }
@@ -213,14 +213,14 @@ public async Task Waits_for_the_approval_signal_then_completes()
 
     // Tick 1: the handler reaches WaitSignalAsync and parks durably.
     Assert.Equal(ActaRunStatus.Rearmed, await _host.RunOnceAsync(enqueued));
-    Assert.Equal(JobStatusCode.Suspended, await _host.Jobs.GetStatusAsync(enqueued));
+    Assert.Equal(JobStatusCode.Suspended, (await _host.Jobs.GetStatusAsync(enqueued))?.Status);
 
     // Release: the signal moves the job back to Ready, due now.
     await _host.Jobs.RaiseSignalAsync(enqueued, "approval", true);
 
     // Tick 2: the handler resumes past the wait and completes.
     Assert.Equal(ActaRunStatus.Completed, await _host.RunOnceAsync(enqueued));
-    Assert.Equal(JobStatusCode.Succeeded, await _host.Jobs.GetStatusAsync(enqueued));
+    Assert.Equal(JobStatusCode.Succeeded, (await _host.Jobs.GetStatusAsync(enqueued))?.Status);
 }
 ```
 

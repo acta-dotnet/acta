@@ -218,7 +218,7 @@ internal static class AlertTestOps
         CancellationToken ct
     )
     {
-        var id = await services.GetRequiredService<IJobs>().GetJobIdAsync(JobLookup.ByDeduplicationKey(jobNamespace, jobName), ct);
+        var id = (await services.GetRequiredService<IJobs>().GetJobIdAsync(JobLookup.ByDeduplicationKey(jobNamespace, jobName), ct))?.JobId;
         Assert.NotNull(id);
         return id!.Value;
     }

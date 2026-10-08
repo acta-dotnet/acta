@@ -52,7 +52,7 @@ public sealed class HandlerLockHeartbeatSpec : ActaRuntimeTestBase<ConformanceFi
 
         LockHolder.Release(TestNamespace);
         await run.WaitAsync(Timeout, ct);
-        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(JobLookup.ById(enqueued.JobId), ct));
+        Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(JobLookup.ById(enqueued.JobId), ct))?.Status);
     }
 
     [Fact(DisplayName = "A lost held lock cancels the attempt")]
@@ -80,7 +80,7 @@ public sealed class HandlerLockHeartbeatSpec : ActaRuntimeTestBase<ConformanceFi
         // leased to this worker (the lock store is a separate failure domain), so the completion CAS
         // matches. The runner submits a retryable job.attempt-aborted failure and the job re-arms.
         Assert.Equal(RunOnceStatus.Rearmed, await run.WaitAsync(Timeout, ct));
-        Assert.Equal(JobStatusCode.Ready, await Jobs.GetStatusAsync(JobLookup.ById(enqueued.JobId), ct));
+        Assert.Equal(JobStatusCode.Ready, (await Jobs.GetStatusAsync(JobLookup.ById(enqueued.JobId), ct))?.Status);
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         var finished = Assert.Single(events, e => e.EventCode == EventCode.JobExecutionFinished);

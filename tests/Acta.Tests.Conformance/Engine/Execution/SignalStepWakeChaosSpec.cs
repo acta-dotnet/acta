@@ -41,7 +41,7 @@ public sealed class SignalStepWakeChaosSpec : ActaRuntimeTestBase<ConformanceFix
 
         // --- 2. One tick consumes the pre-set signal and completes without suspending.
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
 
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         Assert.Single(
@@ -60,7 +60,7 @@ public sealed class SignalStepWakeChaosSpec : ActaRuntimeTestBase<ConformanceFix
 
         // --- 1. First tick creates the waiter and suspends the job.
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal(JobStatusCode.Suspended, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Suspended, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
 
         // --- 2. Raising the signal resumes the job; the next tick completes it.
         var raise = await Jobs.RaiseSignalAsync(enqueued, "go", JobPayload.None, ct: ct);
@@ -124,7 +124,7 @@ public sealed class SignalStepWakeChaosSpec : ActaRuntimeTestBase<ConformanceFix
         // --- 1. Enqueue wakes the loop, then we drop the wake to force the poll path.
         var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-counting", ct);
         Assert.True(_wakeup.WakeCount > 0);
-        Assert.Equal(JobStatusCode.Ready, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Ready, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
         _wakeup.ReleaseWait(WorkerWakeupWaitStatus.TimedOut);
 
         // --- 2. The safety poll claims and completes the job without a delivered wake. The
@@ -136,6 +136,6 @@ public sealed class SignalStepWakeChaosSpec : ActaRuntimeTestBase<ConformanceFix
 
         await loopCts.CancelAsync();
         await loop;
-        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(enqueued, ct));
+        Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
     }
 }

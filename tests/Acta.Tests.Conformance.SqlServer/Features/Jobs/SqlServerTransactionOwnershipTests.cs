@@ -40,7 +40,7 @@ public sealed class SqlServerTransactionOwnershipTests : ActaRuntimeTestBase<Sql
         }
 
         // Because the procedure did not commit, the caller's rollback discarded the provisional job.
-        Assert.Null(await Jobs.GetStatusAsync(outcome, ct));
+        Assert.Null((await Jobs.GetStatusAsync(outcome, ct))?.Status);
     }
 
     [Fact(DisplayName = "A database rejection under XACT_ABORT terminates the caller transaction and persists nothing")]

@@ -53,8 +53,8 @@ internal sealed record GetJobDetailHttpResponse(
     {
         var byId = JobLookup.ById(job.JobId);
 
-        var input = await jobs.GetInputAsync(byId, ct);
-        var result = await jobs.GetResultAsync(byId, ct);
+        var input = (await jobs.GetInputAsync(byId, ct))?.Input;
+        var result = (await jobs.GetResultAsync(byId, ct))?.Result;
         var checkpoints = await jobs.GetCheckpointsAsync(byId, ct);
         var explain = await jobs.ExplainAsync(byId, ct);
         var lineage = await jobs.GetLineageMapAsync(byId, new GetJobLineageMapOptions(ChildLimit), ct);

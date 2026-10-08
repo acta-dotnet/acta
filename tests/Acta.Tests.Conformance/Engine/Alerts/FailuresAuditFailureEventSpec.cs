@@ -62,7 +62,7 @@ public sealed class FailuresAuditFailureEventSpec : ActaRuntimeTestBase<Conforma
         Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(job, ct: ct)).Action);
         FailuresAuditProbe.Reset(TestNamespace, failingAttempts: 0);
         await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => FailuresAuditProbe.Attempts(TestNamespace), 1, ct);
-        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(job, ct));
+        Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(job, ct))?.Status);
 
         var finished = await FinishedEventsAsync(job.JobId, ct);
         Assert.Equal(2, finished.Count);
@@ -85,7 +85,7 @@ public sealed class FailuresAuditFailureEventSpec : ActaRuntimeTestBase<Conforma
 
         // The status is asserted beside the silence, because an attempt that never ran would also write
         // nothing. This is the asymmetry a success rule applied too widely would break.
-        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(job, ct));
+        Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(job, ct))?.Status);
         Assert.Empty(await FinishedEventsAsync(job.JobId, ct));
 
         await RunAlertsAsync(job.JobId, ct);
@@ -102,7 +102,7 @@ public sealed class FailuresAuditFailureEventSpec : ActaRuntimeTestBase<Conforma
         await AlertTestOps.RunUntilAttemptsAsync(Runtime, job, () => FailuresAuditProbe.Attempts(TestNamespace), 3, ct);
 
         // The two throws were re-arms, which this level drops, so the success has no failure to answer.
-        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(job, ct));
+        Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(job, ct))?.Status);
         Assert.Empty(await FinishedEventsAsync(job.JobId, ct));
 
         await RunAlertsAsync(job.JobId, ct);

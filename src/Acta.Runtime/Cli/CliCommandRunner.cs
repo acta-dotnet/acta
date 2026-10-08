@@ -154,7 +154,7 @@ internal sealed class CliCommandRunner(
 
     private async Task<int> StatusAsync(JobLookup job, JobRef jobRef, bool json, CancellationToken ct)
     {
-        var status = await jobs.GetStatusAsync(job, ct);
+        var status = (await jobs.GetStatusAsync(job, ct))?.Status;
         if (status is null)
         {
             return await NotFoundAsync();
@@ -179,7 +179,7 @@ internal sealed class CliCommandRunner(
 
     private async Task<int> ResultAsync(JobLookup job, CancellationToken ct)
     {
-        var payload = await jobs.GetResultAsync(job, ct);
+        var payload = (await jobs.GetResultAsync(job, ct))?.Result;
         if (payload is null || payload.Value.IsNone)
         {
             // "No result" and "no job" both arrive as null here; only the second is an error.

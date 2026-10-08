@@ -120,7 +120,7 @@ finally
 async Task HoldAsync()
 {
     var job = await jobs.EnqueueAsync(new EnqueueJobRequest("upgrade-smoke", "hold-probe"), ct);
-    while (await jobs.GetStatusAsync(job, ct) is not (JobStatusCode.Succeeded or JobStatusCode.Failed or JobStatusCode.Cancelled))
+    while ((await jobs.GetStatusAsync(job, ct))?.Status is not (JobStatusCode.Succeeded or JobStatusCode.Failed or JobStatusCode.Cancelled))
     {
         await Task.Delay(100, ct);
     }
@@ -140,7 +140,7 @@ async Task VerifyProbeAsync(EnqueueJobResponse job, int expected)
 {
     while (true)
     {
-        var status = await jobs.GetStatusAsync(job, ct);
+        var status = (await jobs.GetStatusAsync(job, ct))?.Status;
         if (status == JobStatusCode.Succeeded)
         {
             break;
@@ -166,7 +166,7 @@ async Task<int> WatchLeaseRenewalsAsync(long jobId)
     await db.OpenAsync(ct);
     DateTime? last = null;
     var renewals = 0;
-    while (await jobs.GetStatusAsync(JobLookup.ById(jobId), ct) != JobStatusCode.Succeeded)
+    while ((await jobs.GetStatusAsync(JobLookup.ById(jobId), ct))?.Status != JobStatusCode.Succeeded)
     {
         await using var cmd = db.CreateCommand();
         cmd.CommandText = $"SELECT lease_expires_at_utc FROM {schema}.runtimes WHERE job_id = {jobId}";

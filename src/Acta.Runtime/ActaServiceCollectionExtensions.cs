@@ -184,6 +184,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ResolveJobIdByDeduplicationKeyHandler>();
         services.TryAddSingleton<JobLookupResolution>();
         services.TryAddSingleton<GetJobHandler>();
+        services.TryAddSingleton<GetJobIdHandler>();
         services.TryAddSingleton<GetJobStatusHandler>();
         services.TryAddSingleton<GetJobInputHandler>();
         services.TryAddSingleton<GetResultHandler>();

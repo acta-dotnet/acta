@@ -202,7 +202,7 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         var after = await Operations.Definitions.GetAsync(TestNamespace, "add-numbers", ct);
         Assert.Equal(DefinitionStatusCode.Active, after!.Status);
         Assert.Equal(before.Version, after.Version);
-        Assert.Equal(JobStatusCode.Ready, await Jobs.GetStatusAsync(parked, ct));
+        Assert.Equal(JobStatusCode.Ready, (await Jobs.GetStatusAsync(parked, ct))?.Status);
         Assert.Equal(eventsBefore, await CountDefinitionEventsAsync(before.DefinitionId, ct));
     }
 

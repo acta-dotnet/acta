@@ -29,7 +29,9 @@ public sealed class GetScheduleStateSpec : ActaRuntimeTestBase<ConformanceFixtur
         var ct = TestContext.Current.CancellationToken;
 
         // A namespace id that does not exist in this DB has no schedule rows.
-        var states = await Services.GetRequiredService<GetScheduleStateHandler>().HandleAsync(new GetScheduleStateQuery(int.MaxValue), ct);
+        var states = (
+            await Services.GetRequiredService<GetScheduleStateHandler>().HandleAsync(new GetScheduleStateQuery(int.MaxValue), ct)
+        ).States;
 
         Assert.Empty(states);
     }
@@ -40,7 +42,9 @@ public sealed class GetScheduleStateSpec : ActaRuntimeTestBase<ConformanceFixtur
         var ct = TestContext.Current.CancellationToken;
         var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
 
-        var states = await Services.GetRequiredService<GetScheduleStateHandler>().HandleAsync(new GetScheduleStateQuery(namespaceId), ct);
+        var states = (
+            await Services.GetRequiredService<GetScheduleStateHandler>().HandleAsync(new GetScheduleStateQuery(namespaceId), ct)
+        ).States;
 
         // TestJobs declares at least one recurring [JobSchedule], so InitializeAsync seeds at least one live row.
         Assert.NotEmpty(states);

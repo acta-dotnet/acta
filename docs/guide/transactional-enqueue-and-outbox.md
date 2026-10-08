@@ -375,8 +375,8 @@ Staging returns no identity, so the producer's durable lookup handle is `(JobNam
 After relay, resolve the public job identity by that key:
 
 ```csharp
-var jobId = await jobs.GetJobIdAsync(
-    JobLookup.ByDeduplicationKey("orders", orderId), ct);
+var jobId = (await jobs.GetJobIdAsync(
+    JobLookup.ByDeduplicationKey("orders", orderId), ct))?.JobId;
 ```
 
 A deduplication-key lookup matches root jobs only. It returns `null` until the relay has ingested the

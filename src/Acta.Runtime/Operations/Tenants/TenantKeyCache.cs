@@ -18,7 +18,7 @@ internal sealed class TenantKeyCache(GetTenantKeyHandler getTenantKey)
             return cached;
         }
 
-        var key = await getTenantKey.HandleAsync(new GetTenantKeyQuery(tenantId), ct);
+        var key = (await getTenantKey.HandleAsync(new GetTenantKeyQuery(tenantId), ct))?.TenantKey;
         return key is null ? null : _keys.GetOrAdd(tenantId, key);
     }
 }

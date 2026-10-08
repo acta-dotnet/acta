@@ -146,7 +146,7 @@ public sealed class RegisterDefinitionsSpec : ActaStorageTestBase<ConformanceFix
         var after = await ReadAsync(absent, ct);
         Assert.Equal(DefinitionStatusCode.Active, after.Status);
         Assert.Equal(before.Version, after.Version);
-        Assert.Equal(JobStatusCode.Ready, await jobs.GetStatusAsync(parked, ct));
+        Assert.Equal(JobStatusCode.Ready, (await jobs.GetStatusAsync(parked, ct))?.Status);
     }
 
     [Fact(DisplayName = "Older generation cannot reactivate or rewrite a newer retired definition")]
@@ -188,9 +188,11 @@ public sealed class RegisterDefinitionsSpec : ActaStorageTestBase<ConformanceFix
         await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen1, [Def(job, 1, typeof(int))], ct);
         var before = await ReadAsync(job, ct);
 
-        var stored = await Services
-            .GetRequiredService<GetDefinitionContractsHandler>()
-            .HandleAsync(new GetDefinitionContractsQuery(TestNamespaceId), ct);
+        var stored = (
+            await Services
+                .GetRequiredService<GetDefinitionContractsHandler>()
+                .HandleAsync(new GetDefinitionContractsQuery(TestNamespaceId), ct)
+        ).Contracts;
         var incoming = ImmutableArray.Create(Def(job, 1, typeof(string)));
         var drifts = ContractDriftDetector.Detect(Gen2, incoming, stored);
 

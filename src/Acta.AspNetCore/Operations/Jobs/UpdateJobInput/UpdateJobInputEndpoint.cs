@@ -75,13 +75,13 @@ internal static class UpdateJobInputEndpoint
                     // round-trips as itself. Neither early answer reads a status: an unresolvable ref is
                     // NotFound, and a job with no stored input (none) is Rejected, since it has nothing to amend.
                     var status = ControlStatus.Job<UpdateJobInputResponse>();
-                    var jobId = await jobs.GetJobIdAsync(JobLookup.ByRef(parsed), ct);
+                    var jobId = (await jobs.GetJobIdAsync(JobLookup.ByRef(parsed), ct))?.JobId;
                     if (jobId is null)
                     {
                         return RouteTable.Control(new UpdateJobInputResponse(0, ControlAction.NotFound, null, null), status);
                     }
 
-                    var current = await jobs.GetInputAsync(JobLookup.ById(jobId.Value), ct);
+                    var current = (await jobs.GetInputAsync(JobLookup.ById(jobId.Value), ct))?.Input;
                     if (current is not { } stored)
                     {
                         return RouteTable.Control(new UpdateJobInputResponse(jobId.Value, ControlAction.Rejected, null, null), status);

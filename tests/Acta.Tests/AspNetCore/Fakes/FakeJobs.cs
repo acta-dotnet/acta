@@ -33,9 +33,12 @@ internal sealed class FakeJobs : IJobs
     public FakeJobs()
     {
         Get = (job, _) => ValueTask.FromResult(Detail(job));
-        GetJobId = (job, _) => ValueTask.FromResult(Resolve(job));
-        GetInput = (job, _) => ValueTask.FromResult(Input(job));
-        GetResult = (job, _) => ValueTask.FromResult(Resolve(job) == 42 ? StoredResult : null);
+        GetJobId = (job, _) => ValueTask.FromResult<GetJobIdResponse?>(Resolve(job) is { } id ? new GetJobIdResponse(id) : null);
+        GetInput = (job, _) => ValueTask.FromResult<GetJobInputResponse?>(Input(job) is { } input ? new GetJobInputResponse(input) : null);
+        GetResult = (job, _) =>
+            ValueTask.FromResult<GetResultResponse?>(
+                Resolve(job) == 42 && StoredResult is { } result ? new GetResultResponse(result) : null
+            );
         GetCheckpoints = (job, _) => ValueTask.FromResult(Resolve(job) == 42 ? new GetCheckpointsResponse(StoredCheckpoints) : null);
         Explain = static (job, _) => ValueTask.FromResult<GetJobExplanationResponse?>(IsFound(job) ? Explanation() : null);
         GetLineageMap = static (job, _, _) => ValueTask.FromResult<GetJobLineageMapResponse?>(IsFound(job) ? Lineage() : null);
@@ -114,11 +117,11 @@ internal sealed class FakeJobs : IJobs
 
     public Func<JobLookup, CancellationToken, ValueTask<GetJobResponse?>> Get { get; set; }
 
-    public Func<JobLookup, CancellationToken, ValueTask<long?>> GetJobId { get; set; }
+    public Func<JobLookup, CancellationToken, ValueTask<GetJobIdResponse?>> GetJobId { get; set; }
 
-    public Func<JobLookup, CancellationToken, ValueTask<JobPayload?>> GetInput { get; set; }
+    public Func<JobLookup, CancellationToken, ValueTask<GetJobInputResponse?>> GetInput { get; set; }
 
-    public Func<JobLookup, CancellationToken, ValueTask<JobPayload?>> GetResult { get; set; }
+    public Func<JobLookup, CancellationToken, ValueTask<GetResultResponse?>> GetResult { get; set; }
 
     public Func<JobLookup, CancellationToken, ValueTask<GetCheckpointsResponse?>> GetCheckpoints { get; set; }
 
@@ -126,7 +129,7 @@ internal sealed class FakeJobs : IJobs
 
     public Func<JobLookup, GetJobLineageMapOptions?, CancellationToken, ValueTask<GetJobLineageMapResponse?>> GetLineageMap { get; set; }
 
-    public Func<string, string, JobInputTemplate?> GetInputTemplate { get; set; }
+    public Func<string, string, GetInputTemplateResponse?> GetInputTemplate { get; set; }
 
     public Func<EnqueueJobRequest, CancellationToken, ValueTask<EnqueueJobResponse>> Enqueue { get; set; }
 
@@ -158,11 +161,11 @@ internal sealed class FakeJobs : IJobs
 
     ValueTask<GetJobResponse?> IJobs.GetAsync(JobLookup job, CancellationToken ct) => Get(job, ct);
 
-    ValueTask<long?> IJobs.GetJobIdAsync(JobLookup job, CancellationToken ct) => GetJobId(job, ct);
+    ValueTask<GetJobIdResponse?> IJobs.GetJobIdAsync(JobLookup job, CancellationToken ct) => GetJobId(job, ct);
 
-    ValueTask<JobPayload?> IJobs.GetInputAsync(JobLookup job, CancellationToken ct) => GetInput(job, ct);
+    ValueTask<GetJobInputResponse?> IJobs.GetInputAsync(JobLookup job, CancellationToken ct) => GetInput(job, ct);
 
-    ValueTask<JobPayload?> IJobs.GetResultAsync(JobLookup job, CancellationToken ct) => GetResult(job, ct);
+    ValueTask<GetResultResponse?> IJobs.GetResultAsync(JobLookup job, CancellationToken ct) => GetResult(job, ct);
 
     ValueTask<GetCheckpointsResponse?> IJobs.GetCheckpointsAsync(JobLookup job, CancellationToken ct) => GetCheckpoints(job, ct);
 
@@ -171,7 +174,7 @@ internal sealed class FakeJobs : IJobs
     ValueTask<GetJobLineageMapResponse?> IJobs.GetLineageMapAsync(JobLookup job, GetJobLineageMapOptions? options, CancellationToken ct) =>
         GetLineageMap(job, options, ct);
 
-    JobInputTemplate? IJobs.GetInputTemplate(string jobNamespace, string jobName) => GetInputTemplate(jobNamespace, jobName);
+    GetInputTemplateResponse? IJobs.GetInputTemplate(string jobNamespace, string jobName) => GetInputTemplate(jobNamespace, jobName);
 
     ValueTask<EnqueueJobResponse> IJobs.EnqueueAsync(EnqueueJobRequest request, CancellationToken ct) => Enqueue(request, ct);
 
@@ -243,7 +246,7 @@ internal sealed class FakeJobs : IJobs
         CancellationToken ct
     ) => RaiseSignal(job, name, value, actorKey, ct);
 
-    ValueTask<JobStatusCode?> IJobs.GetStatusAsync(JobLookup job, CancellationToken ct) => throw new NotSupportedException();
+    ValueTask<GetJobStatusResponse?> IJobs.GetStatusAsync(JobLookup job, CancellationToken ct) => throw new NotSupportedException();
 
     ValueTask<TResult?> IJobs.GetResultAsync<TResult>(JobLookup job, CancellationToken ct)
         where TResult : default => throw new NotSupportedException();
@@ -423,9 +426,15 @@ internal sealed class FakeJobs : IJobs
         : (42, ControlAction.Applied, JobStatusCode.Paused, CurrentJobVersion + 1);
 
     /// <summary>Only ("billing", "send-invoice") is known to this fake host; anything else is unregistered.</summary>
-    private static JobInputTemplate? InputTemplate(string jobNamespace, string jobName) =>
+    private static GetInputTemplateResponse? InputTemplate(string jobNamespace, string jobName) =>
         jobNamespace == "billing" && jobName == "send-invoice"
-            ? new JobInputTemplate("Billing.SendInvoice", JobPayloadFormat.Json, """{"invoiceId":0,"note":null}""")
+            ? new GetInputTemplateResponse(
+                jobNamespace,
+                jobName,
+                "Billing.SendInvoice",
+                JobPayloadFormat.Json,
+                """{"invoiceId":0,"note":null}"""
+            )
             : null;
 
     private static GetJobResponse Snapshot(long jobId, string jobNamespace, string jobName, int? tenantId) =>

@@ -3,7 +3,7 @@ namespace Acta.Runtime;
 /// <summary><see cref="IJobs.GetInputAsync"/>: resolves the lookup, then reads the stored input.</summary>
 internal sealed class GetJobInputHandler(JobLookupResolution lookup, IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<JobPayload?> HandleAsync(GetJobInputQuery query, CancellationToken ct)
+    public async ValueTask<GetJobInputResponse?> HandleAsync(GetJobInputQuery query, CancellationToken ct)
     {
         if (await lookup.ResolveAsync(query.Job, ct) is not { } jobId)
         {
@@ -14,7 +14,7 @@ internal sealed class GetJobInputHandler(JobLookupResolution lookup, IDbSession 
         // A None-format row carries no input; surface it as null like a missing job.
         return record is null || record.FormatId == 0
             ? null
-            : JobPayload.FromBytes(JobPayloadFormat.ForId(record.FormatId), record.Input ?? []);
+            : new GetJobInputResponse(JobPayload.FromBytes(JobPayloadFormat.ForId(record.FormatId), record.Input ?? []));
     }
 
     /// <summary>The stored input payload and its format by id, or null when no row matches.</summary>

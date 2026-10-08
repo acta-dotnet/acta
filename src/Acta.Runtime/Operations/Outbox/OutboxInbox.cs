@@ -72,8 +72,8 @@ internal sealed class OutboxInbox(
             : (ControlAction.Rejected, admission.PendingSinceUtc);
     }
 
-    public Task<CheckpointValue?> GetAsync(long slotJobId, string name, CancellationToken ct) =>
-        get.HandleAsync(new GetOutboxSignalQuery(slotJobId, name), ct);
+    public async Task<CheckpointValue?> GetAsync(long slotJobId, string name, CancellationToken ct) =>
+        (await get.HandleAsync(new GetOutboxSignalQuery(slotJobId, name), ct))?.Signal;
 
     public Task<ConsumeOutboxSignalResponse> ConsumeAsync(long slotJobId, string name, int version, CancellationToken ct) =>
         consume.HandleAsync(new ConsumeOutboxSignalCommand(slotJobId, name, version), ct);

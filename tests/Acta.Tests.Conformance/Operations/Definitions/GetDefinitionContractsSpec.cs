@@ -17,8 +17,10 @@ public sealed class GetDefinitionContractsSpec : ActaStorageTestBase<Conformance
 {
     private static readonly DateTime Generation = new(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
 
-    private Task<IReadOnlyList<StoredDefinitionContract>> ReadAsync(int namespaceId, CancellationToken ct) =>
-        Services.GetRequiredService<GetDefinitionContractsHandler>().HandleAsync(new GetDefinitionContractsQuery(namespaceId), ct);
+    private async Task<IReadOnlyList<StoredDefinitionContract>> ReadAsync(int namespaceId, CancellationToken ct) =>
+        (
+            await Services.GetRequiredService<GetDefinitionContractsHandler>().HandleAsync(new GetDefinitionContractsQuery(namespaceId), ct)
+        ).Contracts;
 
     private async Task<int> RegisterAsync(int namespaceId, string name, int maxAttempts, CancellationToken ct) =>
         (await DefinitionTestOps.RegisterAsync(Services, namespaceId, Generation, [Def(name, maxAttempts)], ct))[name];

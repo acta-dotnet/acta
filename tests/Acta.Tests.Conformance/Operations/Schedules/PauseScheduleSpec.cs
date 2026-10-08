@@ -79,9 +79,9 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         string? description = null
     )
     {
-        var stored = await Services
-            .GetRequiredService<GetScheduleStateHandler>()
-            .HandleAsync(new GetScheduleStateQuery(TestNamespaceId), ct);
+        var stored = (
+            await Services.GetRequiredService<GetScheduleStateHandler>().HandleAsync(new GetScheduleStateQuery(TestNamespaceId), ct)
+        ).States;
         var storedForDef = stored.Where(s => s.DefinitionId == defId).ToDictionary(s => s.ScheduleName, s => s, StringComparer.Ordinal);
         var declared = new[]
         {
@@ -102,7 +102,7 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
 
     private async Task<long> SlotIdAsync(string jobName, CancellationToken ct)
     {
-        var id = await Jobs().GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, jobName), ct);
+        var id = (await Jobs().GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, jobName), ct))?.JobId;
         Assert.NotNull(id);
         return id!.Value;
     }

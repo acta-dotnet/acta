@@ -23,7 +23,7 @@ internal sealed class ScheduleTargetResolution(JobLookupResolution jobs, IActaCl
         }
 
         var nowUtc = await clock.GetUtcNowAsync(ct);
-        var live = await liveSchedules.HandleAsync(new GetLiveSchedulesQuery(jobId.Value), ct);
+        var live = (await liveSchedules.HandleAsync(new GetLiveSchedulesQuery(jobId.Value), ct)).Schedules;
         var target = live.FirstOrDefault(s => s.Name == scheduleName);
         return target is null ? null : new ScheduleTarget(jobId.Value, nowUtc, live, target);
     }

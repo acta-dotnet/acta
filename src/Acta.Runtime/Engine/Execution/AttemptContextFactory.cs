@@ -117,7 +117,7 @@ internal sealed class AttemptContextFactory(
         var (nowUtc, _) = await CompletionWrite.RetryAsync(async token => await clock.GetUtcNowAsync(token), log, job.JobId, ct, metrics);
         var liveSchedules = rootServices.GetRequiredService<GetLiveSchedulesHandler>();
         var (live, _) = await CompletionWrite.RetryAsync(
-            async token => await liveSchedules.HandleAsync(new GetLiveSchedulesQuery(job.JobId), token),
+            async token => (await liveSchedules.HandleAsync(new GetLiveSchedulesQuery(job.JobId), token)).Schedules,
             log,
             job.JobId,
             ct,

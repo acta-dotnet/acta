@@ -35,9 +35,9 @@ public sealed class RecurringJobPauseSpec : ActaRuntimeTestBase<ConformanceFixtu
         // A second startup on the same runtime re-runs registration and the schedule reconcile.
         await Runtime.InitializeAsync(ct);
 
-        Assert.Equal(JobStatusCode.Paused, await Jobs.GetStatusAsync(Slot, ct));
+        Assert.Equal(JobStatusCode.Paused, (await Jobs.GetStatusAsync(Slot, ct))?.Status);
         Assert.Equal(ControlAction.Applied, (await Jobs.ResumeAsync(Slot, ct: ct)).Action);
-        Assert.Equal(JobStatusCode.Ready, await Jobs.GetStatusAsync(Slot, ct));
+        Assert.Equal(JobStatusCode.Ready, (await Jobs.GetStatusAsync(Slot, ct))?.Status);
     }
 
     [Fact(DisplayName = "Pausing and resuming the only schedule of a paused recurring job leaves the job paused")]
@@ -50,9 +50,9 @@ public sealed class RecurringJobPauseSpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.Equal(ControlAction.Applied, (await Operations.Schedules.PauseAsync(lookup, ct: ct)).Action);
         Assert.Equal(ControlAction.Applied, (await Operations.Schedules.ResumeAsync(lookup, ct: ct)).Action);
 
-        Assert.Equal(JobStatusCode.Paused, await Jobs.GetStatusAsync(Slot, ct));
+        Assert.Equal(JobStatusCode.Paused, (await Jobs.GetStatusAsync(Slot, ct))?.Status);
         Assert.Equal(ControlAction.Applied, (await Jobs.ResumeAsync(Slot, ct: ct)).Action);
-        Assert.Equal(JobStatusCode.Ready, await Jobs.GetStatusAsync(Slot, ct));
+        Assert.Equal(JobStatusCode.Ready, (await Jobs.GetStatusAsync(Slot, ct))?.Status);
     }
 
     [Fact(DisplayName = "Editing or triggering a schedule of a paused recurring job leaves the job paused")]
@@ -60,7 +60,7 @@ public sealed class RecurringJobPauseSpec : ActaRuntimeTestBase<ConformanceFixtu
     {
         var ct = TestContext.Current.CancellationToken;
         Assert.Equal(ControlAction.Applied, (await Jobs.PauseAsync(Slot, ct: ct)).Action);
-        var slotId = (await Jobs.GetJobIdAsync(Slot, ct))!.Value;
+        var slotId = ((await Jobs.GetJobIdAsync(Slot, ct))?.JobId)!.Value;
         var schedule = Assert.Single(
             await Db.From<ScheduleEntity>().Where(s => s.JobId == slotId && s.Name == ScheduleName).ToListAsync(ct)
         );
@@ -68,10 +68,10 @@ public sealed class RecurringJobPauseSpec : ActaRuntimeTestBase<ConformanceFixtu
 
         var edited = await Operations.Schedules.UpdateOverridesAsync(lookup, schedule.Version, "*/10 * * * *", null, ct: ct);
         Assert.Equal(ControlAction.Applied, edited.Action);
-        Assert.Equal(JobStatusCode.Paused, await Jobs.GetStatusAsync(Slot, ct));
+        Assert.Equal(JobStatusCode.Paused, (await Jobs.GetStatusAsync(Slot, ct))?.Status);
 
         Assert.Equal(ControlAction.Rejected, (await Operations.Schedules.TriggerNowAsync(lookup, ct: ct)).Action);
-        Assert.Equal(JobStatusCode.Paused, await Jobs.GetStatusAsync(Slot, ct));
+        Assert.Equal(JobStatusCode.Paused, (await Jobs.GetStatusAsync(Slot, ct))?.Status);
     }
 
     [Fact(DisplayName = "A cancelled recurring job stays cancelled when the worker starts again")]
@@ -82,7 +82,7 @@ public sealed class RecurringJobPauseSpec : ActaRuntimeTestBase<ConformanceFixtu
 
         await Runtime.InitializeAsync(ct);
 
-        Assert.Equal(JobStatusCode.Cancelled, await Jobs.GetStatusAsync(Slot, ct));
+        Assert.Equal(JobStatusCode.Cancelled, (await Jobs.GetStatusAsync(Slot, ct))?.Status);
     }
 
     [Fact(DisplayName = "A deploy that drops a recurring job's schedules pauses it, and their return makes it Ready")]
@@ -95,7 +95,7 @@ public sealed class RecurringJobPauseSpec : ActaRuntimeTestBase<ConformanceFixtu
         {
             await dropped.GetServices<WorkerRuntime>().Single().InitializeAsync(ct);
         }
-        var slotId = (await Jobs.GetJobIdAsync(Slot, ct))!.Value;
+        var slotId = ((await Jobs.GetJobIdAsync(Slot, ct))?.JobId)!.Value;
         var idle = await ReadJobAsync(slotId, ct);
         Assert.Equal(JobStatusCode.Paused, idle.Status);
         Assert.Null(idle.NextRunAtUtc);

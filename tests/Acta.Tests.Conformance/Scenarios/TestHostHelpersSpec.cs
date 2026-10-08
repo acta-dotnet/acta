@@ -124,13 +124,13 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
     {
         for (var tick = 0; tick < MaxTicks; tick++)
         {
-            if (await host.Jobs.GetStatusAsync(JobLookup.ById(job.JobId), ct) == expected)
+            if ((await host.Jobs.GetStatusAsync(JobLookup.ById(job.JobId), ct))?.Status == expected)
             {
                 return;
             }
             await host.RunOnceAsync(job, ct);
         }
-        Assert.Equal(expected, await host.Jobs.GetStatusAsync(JobLookup.ById(job.JobId), ct));
+        Assert.Equal(expected, (await host.Jobs.GetStatusAsync(JobLookup.ById(job.JobId), ct))?.Status);
     }
 
     private static async Task<CheckpointEntity> RunUntilWaitingAsync(

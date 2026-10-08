@@ -56,7 +56,7 @@ public sealed class PayloadSizeLimitSpec : ActaRuntimeTestBase<ConformanceFixtur
 
         await Runtime.RunOnceAsync(enqueued, ct);
 
-        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(JobLookup.ById(enqueued.JobId), ct));
+        Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(JobLookup.ById(enqueued.JobId), ct))?.Status);
         Assert.Equal("caught", await Jobs.GetResultAsync<string>(enqueued, ct));
     }
 
@@ -70,7 +70,7 @@ public sealed class PayloadSizeLimitSpec : ActaRuntimeTestBase<ConformanceFixtur
 
         // The work happened, so the job is not failed over the size of what it returned. The body is
         // dropped rather than persisted, leaving the row in the existing "no result" shape.
-        Assert.Equal(JobStatusCode.Succeeded, await Jobs.GetStatusAsync(JobLookup.ById(enqueued.JobId), ct));
+        Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(JobLookup.ById(enqueued.JobId), ct))?.Status);
         Assert.Null(await Jobs.GetResultAsync<string>(enqueued, ct));
     }
 }
