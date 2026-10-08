@@ -1,81 +1,29 @@
-CREATE OR REPLACE FUNCTION {{schema}}.resume_tenant(
-    p_tenant_key VARCHAR,
-    p_actor_code SMALLINT,
-    p_actor_key VARCHAR,
-    p_reason_message VARCHAR
-)
-RETURNS TABLE (action SMALLINT, version INT)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_id INT;
-    v_status SMALLINT;
-    v_version INT;
-BEGIN
+-- One statement: the key's row is locked, then resumed and audited only when it is not active yet. The audit row
+-- belongs to the seeded sys namespace (id 1, M001) and names the tenant.
+WITH target AS (
     SELECT t.id, t.status_code, t.version
-    INTO v_id, v_status, v_version
     FROM {{schema}}.tenants t
-    WHERE t.tenant_key = p_tenant_key
-    FOR UPDATE;
-
-    IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::INT;
-        RETURN;
-    END IF;
-
-    IF v_status = 10 /* TenantStatusCode.Active */ THEN
-        RETURN QUERY SELECT 6 /* ControlAction.AlreadyInState */::SMALLINT, v_version;
-        RETURN;
-    END IF;
-
+    WHERE t.tenant_key = @p_tenant_key
+    FOR UPDATE
+),
+changed AS (
     UPDATE {{schema}}.tenants AS t
-    SET
-        status_code = 10 /* TenantStatusCode.Active */,
-        modified_at_utc = now(),
-        version = t.version + 1
-    WHERE t.id = v_id
-    RETURNING t.version INTO v_version;
-
-    -- namespace_id 1 is the seeded sys namespace (M001).
-    INSERT INTO {{schema}}.events (
-        event_code,
-        created_at_utc,
-        namespace_id,
-        actor_code,
-        actor_key,
-        job_id,
-        job_ref,
-        execution_number,
-        lineage_root_id,
-        definition_id,
-        tenant_id,
-        worker_id,
-        from_status_code,
-        to_status_code,
-        execution_status_code,
-        duration_ms,
-        reason_code,
-        reason_message)
-    VALUES (
-        11 /* EventCode.TenantResumed */,
-        now(),
-        1,
-        p_actor_code,
-        p_actor_key,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        v_id,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        NULL,
-        p_reason_message);
-
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_version;
-END;
-$$;
+    SET status_code = 10 /* TenantStatusCode.Active */, modified_at_utc = now(), version = t.version + 1
+    FROM target x
+    WHERE t.id = x.id AND x.status_code <> 10 /* TenantStatusCode.Active */
+    RETURNING t.id, t.version
+),
+audit AS (
+    INSERT INTO {{schema}}.events (event_code, created_at_utc, namespace_id, actor_code, actor_key, tenant_id, reason_message)
+    SELECT 11 /* EventCode.TenantResumed */, now(), 1, @p_actor_code, @p_actor_key, c.id, @p_reason_message
+    FROM changed c
+)
+SELECT 1 /* ControlAction.Applied */::SMALLINT AS action, c.version AS version
+FROM changed c
+UNION ALL
+SELECT 6 /* ControlAction.AlreadyInState */::SMALLINT AS action, x.version AS version
+FROM target x
+WHERE x.status_code = 10 /* TenantStatusCode.Active */
+UNION ALL
+SELECT 2 /* ControlAction.NotFound */::SMALLINT AS action, NULL::INT AS version
+WHERE NOT EXISTS (SELECT 1 FROM target);
