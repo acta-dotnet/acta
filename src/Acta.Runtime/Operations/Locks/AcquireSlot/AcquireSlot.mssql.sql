@@ -62,7 +62,7 @@ BEGIN
                     END;
             END;
 
-        SELECT lock_key FROM @out;
+        SELECT lock_key AS slot_key FROM @out;
 
         IF @entry_trancount = 0
             COMMIT TRANSACTION;
@@ -74,7 +74,7 @@ BEGIN
         -- A duplicate-key loser raced another admission onto the same slot and acquired nothing; the
         -- caller settles that as a plain miss. XACT_ABORT requires rollback before returning it.
         IF @entry_trancount = 0 AND ERROR_NUMBER() IN (2627, 2601)
-            SELECT CAST(NULL AS VARCHAR(256)) AS lock_key WHERE 1 = 0;
+            SELECT CAST(NULL AS VARCHAR(256)) AS slot_key WHERE 1 = 0;
         ELSE
             THROW;
     END CATCH;

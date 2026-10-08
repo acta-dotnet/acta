@@ -122,7 +122,7 @@ BEGIN
                 END;
             END
 
-        SELECT @action;
+        SELECT @action AS action;
 
         IF @entry_trancount = 0
             COMMIT TRANSACTION;

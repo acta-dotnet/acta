@@ -11,7 +11,7 @@ namespace Acta.Runtime;
 /// </summary>
 internal static class ObjectPackageHashes
 {
-    internal const string Mssql = "79de2391339422e4337e55423391af12";
+    internal const string Mssql = "16782713cce3cb81a271bc11509a5d60";
 
     internal const string Pg = "05d44970cfa96710a505e6f6c877bb47";
 

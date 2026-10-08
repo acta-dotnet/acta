@@ -373,10 +373,10 @@ BEGIN
         FROM @reclaimed
         UNION ALL
         SELECT
-            id,
-            CAST(10 /* JobStatusCode.Ready */ AS TINYINT),
-            NULL,
-            CAST(1 AS TINYINT)
+            id AS job_id,
+            CAST(10 /* JobStatusCode.Ready */ AS TINYINT) AS to_status,
+            NULL AS parent_id,
+            CAST(1 AS TINYINT) AS lane_repaired
         FROM @repaired;
 
         IF @entry_trancount = 0

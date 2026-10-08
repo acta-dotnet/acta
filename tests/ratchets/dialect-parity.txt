@@ -1,10 +1,1 @@
 # Known dialect-parity violations; entries may only be removed.
-AcquireSlot
-CompleteExecution
-ConsumeOutboxSignal
-ParkOutboxSignal
-RaiseAlert
-ReclaimStuckJobs
-RegisterDefinitions
-RegisterSchedules
-StartExecution

@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 46)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 47)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -1137,7 +1137,7 @@ BEGIN
                     END;
             END;
 
-        SELECT lock_key FROM @out;
+        SELECT lock_key AS slot_key FROM @out;
 
         IF @entry_trancount = 0
             COMMIT TRANSACTION;
@@ -1149,7 +1149,7 @@ BEGIN
         -- A duplicate-key loser raced another admission onto the same slot and acquired nothing; the
         -- caller settles that as a plain miss. XACT_ABORT requires rollback before returning it.
         IF @entry_trancount = 0 AND ERROR_NUMBER() IN (2627, 2601)
-            SELECT CAST(NULL AS VARCHAR(256)) AS lock_key WHERE 1 = 0;
+            SELECT CAST(NULL AS VARCHAR(256)) AS slot_key WHERE 1 = 0;
         ELSE
             THROW;
     END CATCH;
@@ -2470,12 +2470,12 @@ BEGIN
             END
 
         SELECT
-            @action,
-            @final_status,
-            @final_next_run,
-            @now,
-            @parent_released,
-            @lane_promoted;
+            @action AS action,
+            @final_status AS final_status_code,
+            @final_next_run AS final_next_run_at_utc,
+            @now AS db_now,
+            @parent_released AS parent_released,
+            @lane_promoted AS lane_promoted;
 
         IF @entry_trancount = 0
             COMMIT TRANSACTION;
@@ -4752,10 +4752,10 @@ BEGIN
         FROM @reclaimed
         UNION ALL
         SELECT
-            id,
-            CAST(10 /* JobStatusCode.Ready */ AS TINYINT),
-            NULL,
-            CAST(1 AS TINYINT)
+            id AS job_id,
+            CAST(10 /* JobStatusCode.Ready */ AS TINYINT) AS to_status,
+            NULL AS parent_id,
+            CAST(1 AS TINYINT) AS lane_repaired
         FROM @repaired;
 
         IF @entry_trancount = 0
@@ -4941,8 +4941,8 @@ BEGIN
         );
 
         SELECT
-            jd.name,
-            jd.id
+            jd.name AS def_name,
+            jd.id AS def_id
         FROM @p_definitions src
         INNER JOIN acta.definitions jd
             ON jd.namespace_id = @p_namespace_id AND jd.name = src.name;
@@ -5632,7 +5632,7 @@ BEGIN
                 END;
             END
 
-        SELECT @action;
+        SELECT @action AS action;
 
         IF @entry_trancount = 0
             COMMIT TRANSACTION;
@@ -5950,7 +5950,7 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.46-79de2391339422e4337e55423391af12', 'acta'
+SELECT -1, 'objects-1.47-16782713cce3cb81a271bc11509a5d60', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
     WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_step', 'consume_outbox_signal', 'enqueue_batch', 'enqueue_one', 'extend_lock', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'purge_expired_data', 'raise_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_outbox_event', 'register_definitions', 'register_schedules', 'release_lock', 'repair_recovery_slot', 'reserve_rate', 'resolve_alerts', 'start_execution', 'start_step', 'update_alert_delivery', 'wait_signal')) = 39;
 GO

@@ -272,5 +272,5 @@ WHERE
 SELECT rj.id AS job_id, rj.to_status, rj.parent_id, 0 AS lane_repaired
 FROM temp._reclaim_jobs rj
 UNION ALL
-SELECT rl.id, 10 /* JobStatusCode.Ready */, NULL, 1
+SELECT rl.id AS job_id, 10 /* JobStatusCode.Ready */ AS to_status, NULL AS parent_id, 1 AS lane_repaired
 FROM temp._repair_lanes rl;

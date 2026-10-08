@@ -32,4 +32,4 @@ SET
     expires_at_utc = excluded.expires_at_utc,
     hold_token = excluded.hold_token
 WHERE locks.expires_at_utc <= {{now}}
-RETURNING lock_key;
+RETURNING lock_key AS slot_key;

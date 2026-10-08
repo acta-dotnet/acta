@@ -113,8 +113,8 @@ BEGIN
         );
 
         SELECT
-            jd.name,
-            jd.id
+            jd.name AS def_name,
+            jd.id AS def_id
         FROM @p_definitions src
         INNER JOIN {{schema}}.definitions jd
             ON jd.namespace_id = @p_namespace_id AND jd.name = src.name;

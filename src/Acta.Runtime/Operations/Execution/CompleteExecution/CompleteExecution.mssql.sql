@@ -627,12 +627,12 @@ BEGIN
             END
 
         SELECT
-            @action,
-            @final_status,
-            @final_next_run,
-            @now,
-            @parent_released,
-            @lane_promoted;
+            @action AS action,
+            @final_status AS final_status_code,
+            @final_next_run AS final_next_run_at_utc,
+            @now AS db_now,
+            @parent_released AS parent_released,
+            @lane_promoted AS lane_promoted;
 
         IF @entry_trancount = 0
             COMMIT TRANSACTION;

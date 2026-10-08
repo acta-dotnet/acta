@@ -105,7 +105,9 @@ public sealed partial class DialectParityTests
             var returns = tokens.FindIndex(t => t.Text.Equals("RETURNS", StringComparison.OrdinalIgnoreCase));
             return tokens[returns + 1].Text.ToUpperInvariant() switch
             {
-                "TABLE" => [.. Items(tokens, returns + 3, stopAtListEnd: false).Select(item => Name(item[0].Text))],
+                // A RETURNS TABLE column is an OUT parameter, which plpgsql resolves against a same-named table
+                // column; routines prefix it out_ to keep the two apart, and the comparison drops the prefix.
+                "TABLE" => [.. Items(tokens, returns + 3, stopAtListEnd: false).Select(item => Name(item[0].Text)).Select(OutParameter)],
                 "VOID" => [],
                 _ => [Scalar],
             };
@@ -225,6 +227,8 @@ public sealed partial class DialectParityTests
     }
 
     private static string Name(string identifier) => identifier.Trim('"', '[', ']').ToLowerInvariant();
+
+    private static string OutParameter(string name) => name.StartsWith("out_", StringComparison.Ordinal) ? name["out_".Length..] : name;
 
     private static bool IsWord(string text) => text.Length > 0 && (char.IsLetter(text[0]) || text[0] is '_' or '"' or '[');
 
