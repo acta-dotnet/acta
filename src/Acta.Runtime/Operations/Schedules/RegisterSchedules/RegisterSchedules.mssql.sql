@@ -1,4 +1,4 @@
-CREATE OR ALTER PROCEDURE {{schema}}.register_scheduled_jobs
+CREATE OR ALTER PROCEDURE {{schema}}.register_schedules
     @p_namespace_id INT,
     @p_definitions {{schema}}.job_schedule_slot_batch READONLY,
     @p_schedules {{schema}}.job_schedule_upsert_batch READONLY
@@ -14,13 +14,13 @@ BEGIN
 
         DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
         DECLARE @lock_result INT;
-        DECLARE @lock_resource NVARCHAR(255) = N'{{schema}}.register_scheduled_jobs';
+        DECLARE @lock_resource NVARCHAR(255) = N'{{schema}}.register_schedules';
 
         EXEC @lock_result = sys.sp_getapplock @lock_resource, 'Exclusive', 'Transaction';
 
         IF @lock_result < 0
             BEGIN
-                THROW 50004, 'register_scheduled_jobs could not acquire the recurring slot lock.', 1;
+                THROW 50004, 'register_schedules could not acquire the recurring slot lock.', 1;
             END
 
         UPDATE j

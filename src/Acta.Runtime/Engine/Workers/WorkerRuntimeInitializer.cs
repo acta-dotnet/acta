@@ -24,7 +24,7 @@ internal sealed class WorkerRuntimeInitializer(
     RegisterDefinitionsHandler registerDefinitions,
     GetDefinitionContractsHandler getDefinitionContracts,
     GetScheduleStateHandler getScheduleState,
-    RegisterScheduledJobsHandler registerScheduledJobs,
+    RegisterSchedulesHandler registerSchedules,
     WorkerLifecycle workers,
     Execution execution,
     IActaClock clock,
@@ -124,7 +124,7 @@ internal sealed class WorkerRuntimeInitializer(
 
         // Register every manifest's descriptors in ONE batch (system + all user manifests): one round
         // trip, one set for the shape checks below, and every definition arrives with its complete
-        // schedule set, which register_scheduled_jobs needs because it orphans, on each slot it is
+        // schedule set, which register_schedules needs because it orphans, on each slot it is
         // given, the definition-origin schedules that slot's batch omits. Registration touches nothing
         // the batch does not name, so a definition absent from it keeps running. An empty combined set
         // skips the call entirely (the RegisterDefinitions.Run early-return), so an enqueue-only /
@@ -525,7 +525,7 @@ internal sealed class WorkerRuntimeInitializer(
             slotRefs[i] = JobRef.New().Value;
         }
 
-        var slots = await registerScheduledJobs.HandleAsync(new RegisterScheduledJobsCommand(definitions, slotRefs), ct);
+        var slots = await registerSchedules.HandleAsync(new RegisterSchedulesCommand(definitions, slotRefs), ct);
         if (slots.Count != definitions.Count)
         {
             // A recurring slot's deduplication key is its job name, so an ordinary job that took that key

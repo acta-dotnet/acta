@@ -7,7 +7,7 @@ ParkOutboxSignal
 RaiseAlert
 ReclaimStuckJobs
 RegisterDefinitions
-RegisterScheduledJobs
+RegisterSchedules
 RetireDefinition
 StartExecution
 StopWorker

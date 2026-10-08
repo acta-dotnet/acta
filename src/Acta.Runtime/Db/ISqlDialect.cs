@@ -90,7 +90,7 @@ internal interface ISqlDialect
     );
 
     /// <summary>Binds the scheduled-job slot + schedule registration batches in the provider-native shape.</summary>
-    void BindRegisterScheduledJobs(
+    void BindRegisterSchedules(
         DbCommand command,
         IReadOnlyList<DefinitionSchedules> definitions,
         IReadOnlyList<Guid> slotRefs,

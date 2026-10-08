@@ -5,4 +5,4 @@ namespace Acta.Runtime;
 /// positionally aligned with <c>Definitions</c>: a C#-allocated public ref per slot, used only when
 /// the slot job row is freshly inserted (an existing slot keeps its stored ref).
 /// </summary>
-internal sealed record RegisterScheduledJobsCommand(IReadOnlyList<DefinitionSchedules> Definitions, IReadOnlyList<Guid> SlotRefs);
+internal sealed record RegisterSchedulesCommand(IReadOnlyList<DefinitionSchedules> Definitions, IReadOnlyList<Guid> SlotRefs);

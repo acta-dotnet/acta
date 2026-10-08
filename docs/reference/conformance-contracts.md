@@ -2230,7 +2230,7 @@
 | `RecordNote` | yes | yes | yes |
 | `RecordOutboxEvent` | yes | yes | yes |
 | `RegisterDefinitions` | yes | yes | yes |
-| `RegisterScheduledJobs` | yes | yes | yes |
+| `RegisterSchedules` | yes | yes | yes |
 | `RegisterTenant` | yes | yes | yes |
 | `ReleaseClaimedOutbox` | yes | yes | yes |
 | `ReleaseLock` | yes | yes | yes |

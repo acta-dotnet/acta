@@ -13,7 +13,7 @@ namespace Acta.Tests.Conformance.Operations.Schedules;
     Area = "Scheduling",
     Contract = "Registering scheduled jobs stores the attribute description with the note left NULL, and a later re-sync never overwrites an operator note."
 )]
-public sealed class RegisterScheduledJobsNoteSpec : ActaStorageTestBase<ConformanceFixture>
+public sealed class RegisterSchedulesNoteSpec : ActaStorageTestBase<ConformanceFixture>
 {
     private static readonly DateTime Generation = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private const string Cron5 = "*/5 * * * *";

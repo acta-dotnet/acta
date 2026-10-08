@@ -1,5 +1,5 @@
 -- One batch, one implicit transaction; only the final SELECT returns rows. The slot's runtimes row is
--- locked before the schedules row (register_scheduled_jobs writes runtimes then schedules); the schedules
+-- locked before the schedules row (register_schedules writes runtimes then schedules); the schedules
 -- row is guard-only, since a manual trigger moves only the slot's cursor.
 DROP TABLE IF EXISTS pg_temp._trigger_schedule_now_slot;
 DROP TABLE IF EXISTS pg_temp._trigger_schedule_now_target;

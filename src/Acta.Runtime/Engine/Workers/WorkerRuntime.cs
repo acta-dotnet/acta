@@ -76,7 +76,7 @@ internal sealed class WorkerRuntime
             rootServices.GetRequiredService<RegisterDefinitionsHandler>(),
             rootServices.GetRequiredService<GetDefinitionContractsHandler>(),
             rootServices.GetRequiredService<GetScheduleStateHandler>(),
-            rootServices.GetRequiredService<RegisterScheduledJobsHandler>(),
+            rootServices.GetRequiredService<RegisterSchedulesHandler>(),
             rootServices.GetRequiredService<WorkerLifecycle>(),
             rootServices.GetRequiredService<Execution>(),
             clock,

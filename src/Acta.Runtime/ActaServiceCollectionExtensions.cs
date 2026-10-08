@@ -132,7 +132,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<IAlerts, Alerts>();
         services.TryAddSingleton<GetLiveSchedulesHandler>();
         services.TryAddSingleton<GetScheduleStateHandler>();
-        services.TryAddSingleton<RegisterScheduledJobsHandler>();
+        services.TryAddSingleton<RegisterSchedulesHandler>();
         services.TryAddSingleton<ScheduleTargetResolution>();
         services.TryAddSingleton<PauseScheduleHandler>();
         services.TryAddSingleton<ResumeScheduleHandler>();

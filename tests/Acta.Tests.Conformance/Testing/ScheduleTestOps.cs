@@ -22,8 +22,8 @@ internal static class ScheduleTestOps
         }
 
         var slots = await services
-            .GetRequiredService<RegisterScheduledJobsHandler>()
-            .HandleAsync(new RegisterScheduledJobsCommand(definitions, slotRefs), ct);
+            .GetRequiredService<RegisterSchedulesHandler>()
+            .HandleAsync(new RegisterSchedulesCommand(definitions, slotRefs), ct);
         return slots.ToDictionary(s => s.DefinitionId, s => s.SlotId);
     }
 }

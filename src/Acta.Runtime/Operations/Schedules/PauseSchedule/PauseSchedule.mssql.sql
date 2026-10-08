@@ -10,7 +10,7 @@ BEGIN TRY
     DECLARE @schedule_id BIGINT, @status TINYINT, @paused DATETIME2(7), @next DATETIME2(7), @version INT;
     DECLARE @ns INT, @def INT, @lineage BIGINT, @en INT, @audit TINYINT, @job_ref UNIQUEIDENTIFIER;
 
-    /* Lock the slot's runtimes row before the schedules row: register_scheduled_jobs writes
+    /* Lock the slot's runtimes row before the schedules row: register_schedules writes
        runtimes then schedules, so every writer of both must take runtimes first. */
     SELECT @en = r.execution_number
     FROM {{schema}}.runtimes r WITH (UPDLOCK, ROWLOCK)

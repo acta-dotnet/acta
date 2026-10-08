@@ -197,7 +197,7 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
             GO
 
             -- Per-definition recurring slot batch: one row per definition reconciled in a single
-            -- acta.register_scheduled_jobs call (all definitions share one namespace, passed as a scalar).
+            -- acta.register_schedules call (all definitions share one namespace, passed as a scalar).
             -- deduplication_key is the slot job's natural key (the job name).
             IF TYPE_ID(N'{{schema}}.job_schedule_slot_batch') IS NULL
             EXEC(N'CREATE TYPE {{schema}}.job_schedule_slot_batch AS TABLE (
@@ -212,7 +212,7 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
             );');
             GO
 
-            -- All definitions' reconciled schedules for one acta.register_scheduled_jobs call, tagged with
+            -- All definitions' reconciled schedules for one acta.register_schedules call, tagged with
             -- definition_id so each schedule links to its definition's slot. next_run_at_utc is the
             -- C#-computed cursor; description is the optional operator note.
             IF TYPE_ID(N'{{schema}}.job_schedule_upsert_batch') IS NULL

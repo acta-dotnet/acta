@@ -330,7 +330,7 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_d_lane", NpgsqlDbType.Varchar, rows.Select(row => row.Lane).ToArray());
     }
 
-    public void BindRegisterScheduledJobs(
+    public void BindRegisterSchedules(
         DbCommand command,
         IReadOnlyList<DefinitionSchedules> definitions,
         IReadOnlyList<Guid> slotRefs,
@@ -387,7 +387,7 @@ internal sealed class PostgresDialect : ISqlDialect
             }
         }
 
-        // PostgreSQL routine arguments are positional; this order matches register_scheduled_jobs.
+        // PostgreSQL routine arguments are positional; this order matches register_schedules.
         AddScalar(postgres, "@p_namespace_id", NpgsqlDbType.Integer, definitions[0].NamespaceId);
         AddArray(postgres, "@p_d_job_ref", NpgsqlDbType.Uuid, jobRefs);
         AddArray(postgres, "@p_d_definition_id", NpgsqlDbType.Integer, definitionIds);

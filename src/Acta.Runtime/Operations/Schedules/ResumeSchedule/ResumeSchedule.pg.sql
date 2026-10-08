@@ -1,5 +1,5 @@
 -- One batch, one implicit transaction; only the final SELECT returns rows. The slot's runtimes row is
--- locked before the schedules row: register_scheduled_jobs writes runtimes then schedules, so every
+-- locked before the schedules row: register_schedules writes runtimes then schedules, so every
 -- writer of both takes runtimes first.
 DROP TABLE IF EXISTS pg_temp._resume_schedule_slot;
 DROP TABLE IF EXISTS pg_temp._resume_schedule_target;

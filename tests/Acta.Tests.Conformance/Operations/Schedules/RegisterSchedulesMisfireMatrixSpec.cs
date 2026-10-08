@@ -10,7 +10,7 @@ namespace Acta.Tests.Conformance.Operations.Schedules;
 /// Conformance for the startup schedule-insert path: reading stored cursors, reconciling them against
 /// the declared schedule under its misfire policy, and upserting the result. Mirrors
 /// <c>WorkerRuntimeInitializer.ReconcileSchedulesAsync</c> (GetScheduleState then ScheduleWalker.Reconcile
-/// then RegisterScheduledJobs) and asserts the persisted cursor for every (kind x stored-state x misfire)
+/// then RegisterSchedules) and asserts the persisted cursor for every (kind x stored-state x misfire)
 /// cell, plus that re-registration upserts the single schedule row rather than duplicating it.
 /// </summary>
 [ConformanceSpec(
@@ -19,7 +19,7 @@ namespace Acta.Tests.Conformance.Operations.Schedules;
     Area = "Scheduling",
     Contract = "The startup schedule insert persists the misfire-reconciled next-run cursor and upserts the single schedule row."
 )]
-public sealed class RegisterScheduledJobsMisfireMatrixSpec : ActaStorageTestBase<ConformanceFixture>
+public sealed class RegisterSchedulesMisfireMatrixSpec : ActaStorageTestBase<ConformanceFixture>
 {
     private static readonly DateTime Generation = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private static readonly DateTime Base = new(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc);

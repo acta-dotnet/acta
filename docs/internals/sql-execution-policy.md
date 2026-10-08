@@ -83,7 +83,7 @@ The coordinator never retries the whole sweep. Committed undelivered-alert delet
 warning per sweep, including when a later batch fails or cancellation stops the sweep.
 
 Every SQL Server statement that updates `runtimes` through a join carries `WITH (FORCESEEK)`, except
-`register_scheduled_jobs` (see the foreign-key section below). The
+`register_schedules` (see the foreign-key section below). The
 driving set is always a CTE or table variable, which the optimizer estimates at low cardinality;
 without the hint it may source the update from a clustered scan of `runtimes`, take an update lock per
 row, escalate to a table lock once the backlog passes the escalation threshold, and hold it to commit,
@@ -155,7 +155,7 @@ child table, but it locks only the batch's own keys.
   optimizer can walk `pk_runtimes` from the oldest job until it meets the lane, a cost that grows with
   every job the table retains. Each lookup names `lane_id IS NOT NULL` and a status list inside the
   index filter, so the hint always compiles.
-- `register_scheduled_jobs` stays unhinted. It runs under one exclusive application lock, so two calls
+- `register_schedules` stays unhinted. It runs under one exclusive application lock, so two calls
   never race, and its set is one manifest's recurring definitions, which stays small.
 - Row-at-a-time writes, updates that leave foreign-key columns alone, and writes to `tags`, `events`,
   and `alerts`, which carry no foreign key, validate nothing.

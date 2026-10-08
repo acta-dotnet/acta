@@ -81,7 +81,7 @@ internal sealed record SlotSchedule(
 );
 
 /// <summary>
-/// All schedules for one definition, grouped for a single <c>register_scheduled_jobs</c> call. Carries
+/// All schedules for one definition, grouped for a single <c>register_schedules</c> call. Carries
 /// the slot's serialized default input, denormalized audit level, target status, and the slot cursor
 /// (<c>SlotMinNextRunAtUtc</c> is MIN over live schedules; null means Paused, exhausted, or removed).
 /// </summary>
@@ -98,7 +98,7 @@ internal sealed record DefinitionSchedules(
 );
 
 /// <summary>
-/// Definition/slot id pair returned by <c>register_scheduled_jobs</c>.
+/// Definition/slot id pair returned by <c>register_schedules</c>.
 /// </summary>
 [DbProjection]
 internal readonly record struct RegisteredScheduleSlot(int DefinitionId, long SlotId);

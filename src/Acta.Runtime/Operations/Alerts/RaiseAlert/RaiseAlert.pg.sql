@@ -12,7 +12,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.raise_alert(
     p_source_event_id BIGINT,
     p_alert_ref UUID
 )
--- out_-prefixed (RegisterScheduledJobs precedent): RETURNS TABLE names become plpgsql variables, and
+-- out_-prefixed (RegisterSchedules precedent): RETURNS TABLE names become plpgsql variables, and
 -- bare column names would make every occurrence_count / last_projected_event_id reference ambiguous.
 RETURNS TABLE (out_occurrence_count INT, out_last_projected_event_id BIGINT)
 LANGUAGE plpgsql

@@ -76,7 +76,7 @@ internal static partial class SqlServerSchemaMigrator
             // READ_COMMITTED_SNAPSHOT ON gives SQL Server row-versioned reads (parity with Postgres
             // MVCC): readers no longer take shared locks. It does NOT stop an UPDATE from locking the
             // rows its predicate scans, so writer-side deadlock-avoidance still lives in the routines
-            // (e.g. the register_scheduled_jobs orphan-sweep seeks by clustered id); RCSI's payoff there is that
+            // (e.g. the register_schedules orphan-sweep seeks by clustered id); RCSI's payoff there is that
             // the id-collect step reads lock-free. Idempotent; WITH ROLLBACK IMMEDIATE lets an existing
             // DB flip without waiting on open sessions (we are on master, so it never targets our own
             // connection). Infra-provisioned production DBs should set this too.

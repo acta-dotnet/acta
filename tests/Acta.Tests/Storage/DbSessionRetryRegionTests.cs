@@ -393,7 +393,7 @@ public class DbSessionRetryRegionTests
             string schema
         ) => throw new NotSupportedException();
 
-        public void BindRegisterScheduledJobs(
+        public void BindRegisterSchedules(
             DbCommand command,
             IReadOnlyList<DefinitionSchedules> definitions,
             IReadOnlyList<Guid> slotRefs,

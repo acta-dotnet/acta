@@ -539,7 +539,7 @@ EXEC(N'CREATE TYPE {{schema}}.job_schedule_advance_batch AS TABLE (
 GO
 
 -- Per-definition recurring slot batch: one row per definition reconciled in a single
--- acta.register_scheduled_jobs call (all definitions share one namespace, passed as a scalar).
+-- acta.register_schedules call (all definitions share one namespace, passed as a scalar).
 -- deduplication_key is the slot job's natural key (the job name).
 IF TYPE_ID(N'{{schema}}.job_schedule_slot_batch') IS NULL
 EXEC(N'CREATE TYPE {{schema}}.job_schedule_slot_batch AS TABLE (
@@ -554,7 +554,7 @@ EXEC(N'CREATE TYPE {{schema}}.job_schedule_slot_batch AS TABLE (
 );');
 GO
 
--- All definitions' reconciled schedules for one acta.register_scheduled_jobs call, tagged with
+-- All definitions' reconciled schedules for one acta.register_schedules call, tagged with
 -- definition_id so each schedule links to its definition's slot. next_run_at_utc is the
 -- C#-computed cursor; description is the optional operator note.
 IF TYPE_ID(N'{{schema}}.job_schedule_upsert_batch') IS NULL
@@ -574,7 +574,7 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 0)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
-VALUES (0, 'baseline-b31e7a518364c6c383a27563aaa5b89e', '{{schema}}');
+VALUES (0, 'baseline-da976ae46cb9ebab263ad0225a62ef09', '{{schema}}');
 IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE version = 1)
 INSERT INTO {{schema}}.migrations (version, name, installed_schema)
 VALUES (1, 'init', '{{schema}}');

@@ -319,7 +319,7 @@ internal sealed class SqliteDialect : ISqlDialect
         AddText(command, "@p_definitions", definitions);
     }
 
-    public void BindRegisterScheduledJobs(
+    public void BindRegisterSchedules(
         DbCommand command,
         IReadOnlyList<DefinitionSchedules> definitions,
         IReadOnlyList<Guid> slotRefs,

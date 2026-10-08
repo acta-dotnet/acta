@@ -60,7 +60,7 @@ internal abstract class OutboxSourceDialect : ISqlDialect
         string schema
     ) => throw NotOutbox();
 
-    public void BindRegisterScheduledJobs(
+    public void BindRegisterSchedules(
         DbCommand command,
         IReadOnlyList<DefinitionSchedules> definitions,
         IReadOnlyList<Guid> slotRefs,

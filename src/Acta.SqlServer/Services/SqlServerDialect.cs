@@ -350,7 +350,7 @@ internal sealed class SqlServerDialect : ISqlDialect
         }
     }
 
-    public void BindRegisterScheduledJobs(
+    public void BindRegisterSchedules(
         DbCommand command,
         IReadOnlyList<DefinitionSchedules> definitions,
         IReadOnlyList<Guid> slotRefs,
