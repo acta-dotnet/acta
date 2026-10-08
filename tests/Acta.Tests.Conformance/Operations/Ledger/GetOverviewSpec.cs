@@ -191,7 +191,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         var cr4 = await Services
             .GetRequiredService<Acta.Runtime.Execution>()
             .CompleteExecutionAsync(
-                new CompleteExecutionCommand(c4.JobId, w1.Id, c4.ExecutionNumber, ExecutionOutcome.Failed, 0, ReadOnlyMemory<byte>.Empty)
+                new CompleteExecutionCommand(c4.JobId, w1.Id, c4.ExecutionNumber, CompletionKind.Failed, 0, ReadOnlyMemory<byte>.Empty)
                 {
                     HandlerStatusCode = (byte)JobStatusCode.Failed,
                 },

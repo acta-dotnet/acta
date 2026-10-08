@@ -6,7 +6,7 @@ namespace Acta.Runtime;
 /// </summary>
 internal sealed class CompleteExecutionHandler(IDbSession session, ISqlDialect dialect)
 {
-    public Task<CompleteExecutionResult> HandleAsync(CompleteExecutionCommand command, CancellationToken ct) =>
+    public Task<CompleteExecutionRow> HandleAsync(CompleteExecutionCommand command, CancellationToken ct) =>
         session.ExecuteOneAsync(
             new StoreCommand("CompleteExecution"),
             cmd =>
@@ -25,7 +25,7 @@ internal sealed class CompleteExecutionHandler(IDbSession session, ISqlDialect d
                     dialect.BindRecurringCompletion(cmd, command, session.Schema);
                 }
             },
-            DbProjectionResolver.Resolve<CompleteExecutionResult>(),
+            DbProjectionResolver.Resolve<CompleteExecutionRow>(),
             ct
         );
 
@@ -41,7 +41,7 @@ internal sealed class CompleteExecutionHandler(IDbSession session, ISqlDialect d
             DbParams.For(ActaSchema.Event.ReasonMessage, command.ReasonMessage),
             DbParams.For(ActaSchema.Result.ResultFormatId, command.ResultFormatId),
             DbParams.For(ActaSchema.Result.Result, resultBytes),
-            DbParams.For(ActaSchema.Sql.ExecutionSucceeded, command.Outcome == ExecutionOutcome.Succeeded),
+            DbParams.For(ActaSchema.Sql.ExecutionSucceeded, command.Outcome == CompletionKind.Succeeded),
             DbParams.For(ActaSchema.Event.DurationMs, command.DurationMs is { } duration ? duration : null),
             DbParams.For(ActaSchema.Sql.RescheduleStatusCode, command.RescheduleStatusCode),
             DbParams.For(ActaSchema.Sql.RescheduleDelaySeconds, command.RescheduleDelaySeconds),

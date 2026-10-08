@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 45)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 46)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -889,7 +889,7 @@ BEGIN
 
     IF v_state = 10 /* CheckpointStatusCode.Pending */ AND v_existing_due > v_now THEN
 
-        RETURN QUERY SELECT 1 /* SleepOutcome.Suspend */::SMALLINT, v_existing_due;
+        RETURN QUERY SELECT 1 /* SleepOutcomeCode.Suspend */::SMALLINT, v_existing_due;
     ELSIF v_state = 10 /* CheckpointStatusCode.Pending */ THEN
 
         UPDATE acta.checkpoints jt
@@ -911,15 +911,15 @@ BEGIN
         WHERE
             r2.job_id = p_job_id
             AND r2.status_code = 50 /* JobStatusCode.Executing */;
-        RETURN QUERY SELECT 2 /* SleepOutcome.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
+        RETURN QUERY SELECT 2 /* SleepOutcomeCode.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
     ELSIF v_state IS NOT NULL THEN
 
-        RETURN QUERY SELECT 2 /* SleepOutcome.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
+        RETURN QUERY SELECT 2 /* SleepOutcomeCode.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
     ELSIF v_due <= v_now THEN
 
-        RETURN QUERY SELECT 2 /* SleepOutcome.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
+        RETURN QUERY SELECT 2 /* SleepOutcomeCode.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
     ELSIF EXISTS (SELECT 1 FROM acta.checkpoints jt WHERE jt.job_id = p_job_id AND jt.kind_code = 30 /* CheckpointKindCode.Timer */ AND jt.status_code = 10 /* CheckpointStatusCode.Pending */) THEN
-        RETURN QUERY SELECT 3 /* SleepOutcome.Reject */::SMALLINT, NULL::TIMESTAMPTZ;
+        RETURN QUERY SELECT 3 /* SleepOutcomeCode.Reject */::SMALLINT, NULL::TIMESTAMPTZ;
     ELSE
         INSERT INTO acta.checkpoints (
             job_id,
@@ -939,7 +939,7 @@ BEGIN
             now(),
             now(),
             0);
-        RETURN QUERY SELECT 1 /* SleepOutcome.Suspend */::SMALLINT, v_due;
+        RETURN QUERY SELECT 1 /* SleepOutcomeCode.Suspend */::SMALLINT, v_due;
     END IF;
 END;
 $$;
@@ -5207,7 +5207,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.45-0bfc3bd34ab69d66f5287a33376df7fa', 'acta');
+VALUES (-1, 'objects-1.46-05d44970cfa96710a505e6f6c877bb47', 'acta');
 
 COMMIT;
 

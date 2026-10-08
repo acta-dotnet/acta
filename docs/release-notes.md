@@ -100,7 +100,7 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   alert projection, the outbox inbox, and definition and schedule registration). Four of them take new
   names: `raise_alert`, `resolve_alerts`, `register_definitions`, and `register_schedules`. A database
   keeps the routines it already has, so older workers still find them during a rolling deploy; drop
-  the retired ones once no older worker runs. The object package moves to revision 45; the minimum
+  the retired ones once no older worker runs. The object package moves to revision 46; the minimum
   stays 9.
 - **Return types take one suffix per role.** `JobEnqueueOutcome`, what every `EnqueueAsync` and
   `EnqueueBatchAsync` overload returns, is now `JobEnqueueResponse`, the pair of `JobEnqueueRequest`.

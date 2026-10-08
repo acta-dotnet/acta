@@ -24,7 +24,7 @@ public sealed class JobExecutorUnsupportedClaimTests
         Assert.False(harness.HandlerRan);
 
         var released = harness.Completion;
-        Assert.Equal(ExecutionOutcome.Rescheduled, released.Outcome);
+        Assert.Equal(CompletionKind.Rescheduled, released.Outcome);
         Assert.Equal((byte)ExecutionStatusCode.Rescheduled, released.RescheduleStatusCode);
 
         // Budget-neutral, so a definition that stays missing cannot burn the job's retries: no failure
@@ -61,7 +61,7 @@ public sealed class JobExecutorUnsupportedClaimTests
         // the worker loop, which would leave the Dispatched row under a lease the heartbeat renews.
         Assert.Equal(RunOnceStatus.Rearmed, outcome);
         Assert.Equal(2, harness.StartAttempts);
-        Assert.Equal(ExecutionOutcome.Rescheduled, harness.Completion.Outcome);
+        Assert.Equal(CompletionKind.Rescheduled, harness.Completion.Outcome);
     }
 
     [Fact]
@@ -79,7 +79,7 @@ public sealed class JobExecutorUnsupportedClaimTests
 
         Assert.Equal(RunOnceStatus.Rearmed, outcome);
         Assert.Equal(2, harness.StartAttempts);
-        Assert.Equal(ExecutionOutcome.Rescheduled, harness.Completion.Outcome);
+        Assert.Equal(CompletionKind.Rescheduled, harness.Completion.Outcome);
     }
 
     [Fact]
@@ -98,7 +98,7 @@ public sealed class JobExecutorUnsupportedClaimTests
 
         Assert.Equal(RunOnceStatus.Rearmed, outcome);
         Assert.Equal([1, 2], harness.StartVersions);
-        Assert.Equal(ExecutionOutcome.Rescheduled, harness.Completion.Outcome);
+        Assert.Equal(CompletionKind.Rescheduled, harness.Completion.Outcome);
     }
 
     [Fact]

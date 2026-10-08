@@ -14,10 +14,10 @@ internal enum StartExecutionAction : byte
 /// </summary>
 internal enum StartStepOutcomeCode : byte
 {
-    /// <summary>Run the body for the attempt carried by <see cref="StartStepDecision.AttemptNumber"/>.</summary>
+    /// <summary>Run the body for the attempt carried by <see cref="StartStepRow.AttemptNumber"/>.</summary>
     Invoke = 1,
 
-    /// <summary>Pending with an unreached retry instant; re-arm the parent until <see cref="StartStepDecision.NextRetryAtUtc"/>.</summary>
+    /// <summary>Pending with an unreached retry instant; re-arm the parent until <see cref="StartStepRow.NextRetryAtUtc"/>.</summary>
     Suspend = 2,
 
     /// <summary>Already succeeded; return the stored result without running the body.</summary>
@@ -37,7 +37,7 @@ internal enum StartStepOutcomeCode : byte
 /// the final reason (Exhausted).
 /// </summary>
 [DbProjection]
-internal sealed record StartStepDecision(
+internal sealed record StartStepRow(
     StartStepOutcomeCode Outcome,
     int AttemptNumber,
     int Version,
@@ -73,4 +73,4 @@ internal enum CompleteStepOutcomeCode : byte
 /// The completion decision plus the retry instant when the outcome is <c>RetryScheduled</c>.
 /// </summary>
 [DbProjection]
-internal sealed record CompleteStepDecision(CompleteStepOutcomeCode Outcome, DateTime? NextRetryAtUtc);
+internal sealed record CompleteStepRow(CompleteStepOutcomeCode Outcome, DateTime? NextRetryAtUtc);

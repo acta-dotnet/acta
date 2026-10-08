@@ -188,7 +188,7 @@ internal sealed class JobExecutor(
             // single captured nowUtc. The due names are visible to the handler; the advances + slot
             // MIN apply at completion. Non-slot jobs keep the unchanged one-shot path.
             var isRecurring = _context.RecurringSlotJobIds.ContainsKey(job.JobId);
-            RecurringFireOutcome? fireOutcome = null;
+            RecurringFirePlan? fireOutcome = null;
             StepRetryDefaults stepRetryDefaults;
             string? tenantKey;
             // The claim is this worker's from here until something settles it, so the reads the handler
@@ -489,7 +489,7 @@ internal sealed class JobExecutor(
             jobId,
             workerId,
             row.ExecutionNumber,
-            ExecutionOutcome.Rescheduled,
+            CompletionKind.Rescheduled,
             0,
             ReadOnlyMemory<byte>.Empty,
             EventReasonCode.Unclassified,
@@ -562,7 +562,7 @@ internal sealed class JobExecutor(
             job.JobId,
             workerId,
             job.ExecutionNumber,
-            ExecutionOutcome.Rescheduled,
+            CompletionKind.Rescheduled,
             0,
             ReadOnlyMemory<byte>.Empty,
             EventReasonCode.Unclassified,

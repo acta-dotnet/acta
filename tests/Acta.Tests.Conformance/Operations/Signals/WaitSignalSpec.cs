@@ -18,7 +18,7 @@ public sealed class WaitSignalSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
 {
     private Acta.Runtime.Signals Slots => Services.GetRequiredService<Acta.Runtime.Signals>();
 
-    private Task<SignalWaitDecision> WaitAsync(long jobId, string name, int? timeoutSeconds, CancellationToken ct) =>
+    private Task<WaitSignalRow> WaitAsync(long jobId, string name, int? timeoutSeconds, CancellationToken ct) =>
         Slots.WaitSignalAsync(jobId, CheckpointKindCode.Signal, name, timeoutSeconds, ct);
 
     private async Task<CheckpointEntity> ReadSlotAsync(long jobId, CheckpointKindCode kind, string name, CancellationToken ct) =>

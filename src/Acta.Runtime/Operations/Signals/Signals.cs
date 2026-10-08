@@ -18,7 +18,7 @@ internal sealed class Signals(RaiseSignalHandler raiseSignal, WaitSignalHandler 
     /// <paramref name="timeoutSeconds"/> is the wait in database-clock seconds, stored as an absolute expiry
     /// only when the slot is first armed; null arms an unbounded wait. Never changes the job's status.
     /// </summary>
-    public Task<SignalWaitDecision> WaitSignalAsync(
+    public Task<WaitSignalRow> WaitSignalAsync(
         long jobId,
         CheckpointKindCode kind,
         string name,

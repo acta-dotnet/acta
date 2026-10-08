@@ -59,7 +59,7 @@ public sealed class JobExecutionAttemptContextTests
 
         var completion = harness.Completion;
         Assert.Equal(RunOnceStatus.Rearmed, outcome);
-        Assert.Equal(ExecutionOutcome.Failed, completion.Outcome);
+        Assert.Equal(CompletionKind.Failed, completion.Outcome);
 
         // Without the running attempt the runner cannot tell a timeout from an external cancel and
         // files this as JobAttemptAborted, which is what blinded every timeout test on this harness.

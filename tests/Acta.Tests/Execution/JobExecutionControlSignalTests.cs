@@ -21,7 +21,7 @@ public sealed class JobExecutionControlSignalTests
 
         var completion = harness.Completion;
         Assert.Equal(RunOnceStatus.Rearmed, outcome);
-        Assert.Equal(ExecutionOutcome.Failed, completion.Outcome);
+        Assert.Equal(CompletionKind.Failed, completion.Outcome);
         Assert.Equal(EventReasonCode.JobUnhandledException, completion.EventReasonCode);
         Assert.Contains(nameof(HomeMadeSignal), completion.ReasonMessage, StringComparison.Ordinal);
     }

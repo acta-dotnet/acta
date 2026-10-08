@@ -1,7 +1,7 @@
 namespace Acta.Runtime;
 
 /// <summary>Routine outcome for one <c>arm_or_consume_sleep_timer</c> call; mirrors the SQL <c>outcome_code</c>.</summary>
-internal enum SleepOutcome : byte
+internal enum SleepOutcomeCode : byte
 {
     /// <summary>The wait is armed (or still pending); the Job re-arms to <c>Ready</c> at the timer's due instant.</summary>
     Suspend = 1,
@@ -13,6 +13,6 @@ internal enum SleepOutcome : byte
     Reject = 3,
 }
 
-/// <summary>The arm/consume decision plus the stored due instant when the outcome is <see cref="SleepOutcome.Suspend"/>.</summary>
+/// <summary>The arm/consume decision plus the stored due instant when the outcome is <see cref="SleepOutcomeCode.Suspend"/>.</summary>
 [DbProjection]
-internal sealed record SleepDecision(SleepOutcome Outcome, DateTime? DueAtUtc);
+internal sealed record ArmOrConsumeSleepTimerRow(SleepOutcomeCode Outcome, DateTime? DueAtUtc);

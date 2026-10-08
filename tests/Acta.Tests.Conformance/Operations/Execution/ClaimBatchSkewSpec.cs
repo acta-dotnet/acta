@@ -69,7 +69,7 @@ public sealed class ClaimBatchSkewSpec : ClaimSkewTestBase
 
         var store = Services.GetRequiredService<Acta.Runtime.Execution>();
         var batches = new List<Guid[]>();
-        ClaimResult claimed;
+        ClaimResponse claimed;
         while ((claimed = await store.ClaimBatchAsync(new ClaimRequest(ns, workerId, MaxBatch: Batch), leaseTtl, ct)).Jobs.Count > 0)
         {
             batches.Add([.. claimed.Jobs.Select(j => j.JobRef).Order()]);

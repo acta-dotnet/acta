@@ -62,9 +62,9 @@ internal readonly record struct ClaimHorizon(DateTime DbNowUtc, DateTime? NextRe
 /// two carries information: a non-empty <c>Jobs</c> has a null <c>Horizon</c>, and an empty claim
 /// has it set (the routine emits one sentinel row in place of job rows).
 /// </summary>
-internal sealed record ClaimResult(IReadOnlyList<ClaimedJob> Jobs, ClaimHorizon? Horizon)
+internal sealed record ClaimResponse(IReadOnlyList<ClaimedJob> Jobs, ClaimHorizon? Horizon)
 {
-    public static readonly ClaimResult Empty = new([], null);
+    public static readonly ClaimResponse Empty = new([], null);
 }
 
 /// <summary>
@@ -93,16 +93,16 @@ internal sealed record ClaimReadyRow(
 );
 
 /// <summary>
-/// Provider-independent projection of the flat claim rows into a <see cref="ClaimResult"/>: job rows
+/// Provider-independent projection of the flat claim rows into a <see cref="ClaimResponse"/>: job rows
 /// map to <see cref="ClaimedJob"/>, the sentinel (null <c>JobId</c>) row becomes the horizon.
 /// </summary>
-internal static class ClaimResultMapper
+internal static class ClaimResponseMapper
 {
-    public static ClaimResult Map(IReadOnlyList<ClaimReadyRow> rows)
+    public static ClaimResponse Map(IReadOnlyList<ClaimReadyRow> rows)
     {
         if (rows.Count == 0)
         {
-            return ClaimResult.Empty;
+            return ClaimResponse.Empty;
         }
 
         ClaimHorizon? horizon = null;
@@ -119,7 +119,7 @@ internal static class ClaimResultMapper
             }
         }
 
-        return new ClaimResult(jobs, horizon);
+        return new ClaimResponse(jobs, horizon);
     }
 
     public static ClaimedJob ToClaimedJob(ClaimReadyRow row) =>

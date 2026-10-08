@@ -22,15 +22,15 @@ internal sealed record BoundCompletion(
     /// The attempt outcome the bound shape lands: a success, a handler's cancel or pause, a suspend, a budget-neutral
     /// re-arm (a re-arm with no failure count), and otherwise a failure, retried or terminal.
     /// </summary>
-    public ExecutionOutcome Outcome =>
+    public CompletionKind Outcome =>
         this switch
         {
-            { Succeeded: true } => ExecutionOutcome.Succeeded,
-            { HandlerStatusCode: (byte)JobStatusCode.Cancelled } => ExecutionOutcome.Cancelled,
-            { HandlerStatusCode: (byte)JobStatusCode.Paused } => ExecutionOutcome.Paused,
-            { RescheduleStatusCode: (byte)ExecutionStatusCode.Suspended } => ExecutionOutcome.Suspended,
-            { RescheduleStatusCode: not null, FailureCount: null } => ExecutionOutcome.Rescheduled,
-            _ => ExecutionOutcome.Failed,
+            { Succeeded: true } => CompletionKind.Succeeded,
+            { HandlerStatusCode: (byte)JobStatusCode.Cancelled } => CompletionKind.Cancelled,
+            { HandlerStatusCode: (byte)JobStatusCode.Paused } => CompletionKind.Paused,
+            { RescheduleStatusCode: (byte)ExecutionStatusCode.Suspended } => CompletionKind.Suspended,
+            { RescheduleStatusCode: not null, FailureCount: null } => CompletionKind.Rescheduled,
+            _ => CompletionKind.Failed,
         };
 
     public static BoundCompletion Read(BoundCall call) =>

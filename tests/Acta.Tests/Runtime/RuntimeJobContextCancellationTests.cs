@@ -113,7 +113,7 @@ public sealed class RuntimeJobContextCancellationTests
         new(call =>
             call.Stem switch
             {
-                "StartStep" => new StartStepDecision(
+                "StartStep" => new StartStepRow(
                     StartStepOutcomeCode.Invoke,
                     AttemptNumber: 1,
                     Version: 1,

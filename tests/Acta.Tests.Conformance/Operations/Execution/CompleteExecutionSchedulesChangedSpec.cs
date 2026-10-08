@@ -243,7 +243,7 @@ public sealed class CompleteExecutionSchedulesChangedSpec : ActaRuntimeTestBase<
         return worker.Id;
     }
 
-    private Task<CompleteExecutionResult> CompleteAsync(
+    private Task<CompleteExecutionRow> CompleteAsync(
         long jobId,
         int workerId,
         IReadOnlyList<ScheduleAdvance> advances,
@@ -258,7 +258,7 @@ public sealed class CompleteExecutionSchedulesChangedSpec : ActaRuntimeTestBase<
                     JobId: jobId,
                     WorkerId: workerId,
                     ExpectedExecutionNumber: Attempt,
-                    Outcome: ExecutionOutcome.Succeeded,
+                    Outcome: CompletionKind.Succeeded,
                     ResultFormatId: 0,
                     Result: ReadOnlyMemory<byte>.Empty,
                     ScheduleAdvances: advances,

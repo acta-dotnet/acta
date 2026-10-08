@@ -21,7 +21,7 @@ public sealed class JobExecutionOwnershipTests
 
         var completion = harness.Completion;
         Assert.Equal(RunOnceStatus.Rearmed, outcome);
-        Assert.Equal(ExecutionOutcome.Failed, completion.Outcome);
+        Assert.Equal(CompletionKind.Failed, completion.Outcome);
         Assert.Equal(EventReasonCode.JobAttemptAborted, completion.EventReasonCode);
         Assert.Contains(JobExecutionHarness.StepName, completion.ReasonMessage);
 
@@ -56,7 +56,7 @@ public sealed class JobExecutionOwnershipTests
 
         var completion = harness.Completion;
         Assert.Equal(RunOnceStatus.Rearmed, outcome);
-        Assert.Equal(ExecutionOutcome.Failed, completion.Outcome);
+        Assert.Equal(CompletionKind.Failed, completion.Outcome);
         Assert.Equal(EventReasonCode.JobAttemptAborted, completion.EventReasonCode);
         Assert.Contains(JobExecutionHarness.StepName, completion.ReasonMessage);
         Assert.DoesNotContain("boom", completion.ReasonMessage, StringComparison.Ordinal);
@@ -74,7 +74,7 @@ public sealed class JobExecutionOwnershipTests
 
         var completion = harness.Completion;
         Assert.Equal(RunOnceStatus.Failed, outcome);
-        Assert.Equal(ExecutionOutcome.Failed, completion.Outcome);
+        Assert.Equal(CompletionKind.Failed, completion.Outcome);
         Assert.Equal(EventReasonCode.JobAttemptAborted, completion.EventReasonCode);
         Assert.Contains(JobExecutionHarness.StepName, completion.ReasonMessage);
         Assert.Null(completion.RescheduleStatusCode);
@@ -97,8 +97,8 @@ public sealed class JobExecutionOwnershipTests
         submitted.AddRange(await Submissions(new JobExecutionHarness()));
 
         Assert.Equal(4, submitted.Count);
-        Assert.Contains(submitted, c => c.Outcome == ExecutionOutcome.Succeeded);
-        foreach (var completion in submitted.Where(c => c.Outcome == ExecutionOutcome.Failed))
+        Assert.Contains(submitted, c => c.Outcome == CompletionKind.Succeeded);
+        foreach (var completion in submitted.Where(c => c.Outcome == CompletionKind.Failed))
         {
             Assert.NotNull(completion.EventReasonCode);
             Assert.False(string.IsNullOrWhiteSpace(completion.ReasonMessage));

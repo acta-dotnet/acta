@@ -466,7 +466,7 @@ internal sealed class SqlServerDialect : ISqlDialect
         AddParameter(sql, "@p_reason_message", SqlDbType.NVarChar, (object?)request.ReasonMessage ?? DBNull.Value, size: 512);
         AddParameter(sql, "@p_result_format_id", SqlDbType.TinyInt, request.ResultFormatId);
         AddParameter(sql, "@p_result", SqlDbType.VarBinary, resultBytes);
-        AddParameter(sql, "@p_execution_succeeded", SqlDbType.Bit, request.Outcome == ExecutionOutcome.Succeeded);
+        AddParameter(sql, "@p_execution_succeeded", SqlDbType.Bit, request.Outcome == CompletionKind.Succeeded);
         AddParameter(sql, "@p_duration_ms", SqlDbType.Int, request.DurationMs is { } duration ? duration : DBNull.Value);
         // A re-arm status marks a fire that ran nothing; the slot's next run still comes from the schedules.
         AddParameter(sql, "@p_reschedule_status_code", SqlDbType.TinyInt, request.RescheduleStatusCode is { } rearm ? rearm : DBNull.Value);

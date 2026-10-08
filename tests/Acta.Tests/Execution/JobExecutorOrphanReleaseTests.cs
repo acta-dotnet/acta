@@ -22,6 +22,6 @@ public sealed class JobExecutorOrphanReleaseTests
         Assert.Equal(RunOnceStatus.NothingClaimed, lateClaim);
         Assert.False(harness.HandlerRan);
         Assert.Equal(1, harness.StartAttempts);
-        Assert.Equal(ExecutionOutcome.Rescheduled, harness.Completion.Outcome);
+        Assert.Equal(CompletionKind.Rescheduled, harness.Completion.Outcome);
     }
 }

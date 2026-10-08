@@ -354,7 +354,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
     /// SKIP LOCKED, and a spec's own row can sit under a parallel spec's lock. Which sweep arm counted
     /// the row, which is what these facts are about, is settled either way.
     /// </summary>
-    private Task<PurgeExpiredDataResult> PurgeAlertsUntilGoneAsync(int ns, CancellationToken ct) =>
+    private Task<PurgeExpiredDataResponse> PurgeAlertsUntilGoneAsync(int ns, CancellationToken ct) =>
         RetentionTestOps.PurgeUntilAsync(
             Services,
             ns,

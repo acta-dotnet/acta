@@ -3,12 +3,12 @@ namespace Acta.Runtime;
 /// <summary><see cref="Execution.ClaimBatchAsync"/>: one routine call claims up to the batch; a batch of none claims nothing.</summary>
 internal sealed class ClaimBatchHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async Task<ClaimResult> HandleAsync(ClaimBatchCommand command, CancellationToken ct)
+    public async Task<ClaimResponse> HandleAsync(ClaimBatchCommand command, CancellationToken ct)
     {
         var request = command.Request;
         if (request.MaxBatch <= 0)
         {
-            return ClaimResult.Empty;
+            return ClaimResponse.Empty;
         }
 
         var rows = await session.ExecuteAsync(
@@ -25,6 +25,6 @@ internal sealed class ClaimBatchHandler(IDbSession session, ISqlDialect dialect)
             DbProjectionResolver.Resolve<ClaimReadyRow>(),
             ct
         );
-        return ClaimResultMapper.Map(rows);
+        return ClaimResponseMapper.Map(rows);
     }
 }

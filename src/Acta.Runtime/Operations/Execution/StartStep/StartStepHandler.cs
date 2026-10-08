@@ -3,7 +3,7 @@ namespace Acta.Runtime;
 /// <summary><see cref="Execution.StartStepAsync"/>: one routine call answers the step's decision.</summary>
 internal sealed class StartStepHandler(IDbSession session, ISqlDialect dialect)
 {
-    public Task<StartStepDecision> HandleAsync(StartStepCommand command, CancellationToken ct) =>
+    public Task<StartStepRow> HandleAsync(StartStepCommand command, CancellationToken ct) =>
         session.ExecuteOneAsync(
             new StoreCommand("StartStep"),
             cmd =>
@@ -12,7 +12,7 @@ internal sealed class StartStepHandler(IDbSession session, ISqlDialect dialect)
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Step.Name, command.Name));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AtMostOnce, command.AtMostOnce));
             },
-            DbProjectionResolver.Resolve<StartStepDecision>(),
+            DbProjectionResolver.Resolve<StartStepRow>(),
             ct
         );
 }

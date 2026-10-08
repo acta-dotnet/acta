@@ -27,7 +27,7 @@ internal sealed class Execution(
     /// <c>execution_number</c> in the same <c>runtimes</c> UPDATE, via provider-native SKIP-LOCKED.
     /// Empty claim carries the horizon sentinel.
     /// </summary>
-    public Task<ClaimResult> ClaimBatchAsync(ClaimRequest request, int leaseTtlSeconds, CancellationToken ct) =>
+    public Task<ClaimResponse> ClaimBatchAsync(ClaimRequest request, int leaseTtlSeconds, CancellationToken ct) =>
         claimBatch.HandleAsync(new ClaimBatchCommand(request, leaseTtlSeconds), ct);
 
     /// <summary>
@@ -35,7 +35,7 @@ internal sealed class Execution(
     /// batch of one; an explicit <c>jobId</c> deterministically claims that specific Ready job for
     /// callers that already know which to run. The only claim API that accepts an explicit id.
     /// </summary>
-    public Task<ClaimResult> ClaimOneAsync(ClaimRequest request, int leaseTtlSeconds, long? jobId, CancellationToken ct) =>
+    public Task<ClaimResponse> ClaimOneAsync(ClaimRequest request, int leaseTtlSeconds, long? jobId, CancellationToken ct) =>
         claimOne.HandleAsync(new ClaimOneCommand(request, leaseTtlSeconds, jobId), ct);
 
     /// <summary>
@@ -65,7 +65,7 @@ internal sealed class Execution(
     /// from the schedules as they stand: one a deployment orphaned meanwhile is never advanced or reactivated, and the slot
     /// lands Ready at the earliest surviving cursor or Paused when none survives, its event carrying that same status.
     /// </summary>
-    public Task<CompleteExecutionResult> CompleteExecutionAsync(CompleteExecutionCommand command, CancellationToken ct) =>
+    public Task<CompleteExecutionRow> CompleteExecutionAsync(CompleteExecutionCommand command, CancellationToken ct) =>
         completeExecution.HandleAsync(command, ct);
 
     /// <summary>
@@ -75,7 +75,7 @@ internal sealed class Execution(
     /// surviving path never spends that retry: it returns to Suspended on the same past deadline, and the replay
     /// resolves the timeout as the waiting overload defines it.
     /// </summary>
-    public Task<ReclaimStuckJobsResult> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct) =>
+    public Task<ReclaimStuckJobsResponse> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct) =>
         reclaimStuckJobs.HandleAsync(new ReclaimStuckJobsCommand(namespaceId), ct);
 
     /// <summary>
@@ -93,14 +93,14 @@ internal sealed class Execution(
     /// invoke / replay / suspend / exhausted / interrupted, incrementing <c>attempt_number</c> before a
     /// retry invoke. Never mutates job status.
     /// </summary>
-    public Task<StartStepDecision> StartStepAsync(long jobId, string name, bool atMostOnce, CancellationToken ct) =>
+    public Task<StartStepRow> StartStepAsync(long jobId, string name, bool atMostOnce, CancellationToken ct) =>
         startStep.HandleAsync(new StartStepCommand(jobId, name, atMostOnce), ct);
 
     /// <summary>
     /// Records one invoked step attempt's outcome (store result + mark Succeeded, or decide
     /// retry-versus-exhaust against the precomputed policy), guarded by the <c>ExpectedVersion</c> CAS.
     /// </summary>
-    public Task<CompleteStepDecision> CompleteStepAsync(CompleteStepCommand command, CancellationToken ct) =>
+    public Task<CompleteStepRow> CompleteStepAsync(CompleteStepCommand command, CancellationToken ct) =>
         completeStep.HandleAsync(command, ct);
 
     /// <summary>
@@ -141,7 +141,7 @@ internal sealed class Execution(
     /// user-name validation and delay normalization; exactly one of <c>DelaySeconds</c> /
     /// <c>ResumeAtUtc</c> is set.
     /// </summary>
-    public Task<SleepDecision> ArmOrConsumeSleepTimerAsync(ArmOrConsumeSleepTimerCommand command, CancellationToken ct) =>
+    public Task<ArmOrConsumeSleepTimerRow> ArmOrConsumeSleepTimerAsync(ArmOrConsumeSleepTimerCommand command, CancellationToken ct) =>
         armOrConsumeSleepTimer.HandleAsync(command, ct);
 }
 

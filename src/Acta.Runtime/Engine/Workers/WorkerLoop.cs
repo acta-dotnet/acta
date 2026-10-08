@@ -371,7 +371,7 @@ internal sealed class WorkerLoop(
                     acquired++;
                 }
 
-                ClaimResult result;
+                ClaimResponse result;
                 try
                 {
                     result = await _execution.ClaimBatchAsync(

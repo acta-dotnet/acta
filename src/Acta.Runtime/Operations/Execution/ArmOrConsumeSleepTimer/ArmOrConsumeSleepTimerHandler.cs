@@ -3,7 +3,7 @@ namespace Acta.Runtime;
 /// <summary><see cref="Execution.ArmOrConsumeSleepTimerAsync"/>: one routine call answers the timer's decision.</summary>
 internal sealed class ArmOrConsumeSleepTimerHandler(IDbSession session, ISqlDialect dialect)
 {
-    public Task<SleepDecision> HandleAsync(ArmOrConsumeSleepTimerCommand command, CancellationToken ct) =>
+    public Task<ArmOrConsumeSleepTimerRow> HandleAsync(ArmOrConsumeSleepTimerCommand command, CancellationToken ct) =>
         session.ExecuteOneAsync(
             new StoreCommand("ArmOrConsumeSleepTimer"),
             cmd =>
@@ -13,7 +13,7 @@ internal sealed class ArmOrConsumeSleepTimerHandler(IDbSession session, ISqlDial
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.SleepDelaySeconds, command.DelaySeconds));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.SleepResumeAtUtc, command.ResumeAtUtc));
             },
-            DbProjectionResolver.Resolve<SleepDecision>(),
+            DbProjectionResolver.Resolve<ArmOrConsumeSleepTimerRow>(),
             ct
         );
 }

@@ -29,7 +29,7 @@ public sealed class ArmOrConsumeSleepTimerSpec : ActaRuntimeTestBase<Conformance
 
         var armed = await SleepAsync(job.JobId, TimerName, delaySeconds: 600, ct);
 
-        Assert.Equal(SleepOutcome.Suspend, armed.Outcome);
+        Assert.Equal(SleepOutcomeCode.Suspend, armed.Outcome);
         var due = Assert.NotNull(armed.DueAtUtc);
         Assert.InRange(due, dbNow.AddSeconds(599), dbNow.AddSeconds(660));
 
@@ -71,7 +71,7 @@ public sealed class ArmOrConsumeSleepTimerSpec : ActaRuntimeTestBase<Conformance
 
         var consumed = await SleepAsync(job.JobId, TimerName, delaySeconds: 600, ct);
 
-        Assert.Equal(new SleepDecision(SleepOutcome.Continue, null), consumed);
+        Assert.Equal(new ArmOrConsumeSleepTimerRow(SleepOutcomeCode.Continue, null), consumed);
         var timer = Assert.Single(await TimersAsync(job.JobId, ct));
         Assert.Equal(CheckpointStatusCode.Consumed, timer.Status);
         Assert.Equal(1, timer.Version);
@@ -89,10 +89,13 @@ public sealed class ArmOrConsumeSleepTimerSpec : ActaRuntimeTestBase<Conformance
         var job = await EnqueueAsync(ct);
         await SleepAsync(job.JobId, TimerName, delaySeconds: 600, ct);
         await MakeDueAsync(job.JobId, ct);
-        Assert.Equal(SleepOutcome.Continue, (await SleepAsync(job.JobId, TimerName, delaySeconds: 600, ct)).Outcome);
+        Assert.Equal(SleepOutcomeCode.Continue, (await SleepAsync(job.JobId, TimerName, delaySeconds: 600, ct)).Outcome);
         var consumed = Assert.Single(await TimersAsync(job.JobId, ct));
 
-        Assert.Equal(new SleepDecision(SleepOutcome.Continue, null), await SleepAsync(job.JobId, TimerName, delaySeconds: 600, ct));
+        Assert.Equal(
+            new ArmOrConsumeSleepTimerRow(SleepOutcomeCode.Continue, null),
+            await SleepAsync(job.JobId, TimerName, delaySeconds: 600, ct)
+        );
 
         var after = Assert.Single(await TimersAsync(job.JobId, ct));
         Assert.Equal(CheckpointStatusCode.Consumed, after.Status);
@@ -111,8 +114,8 @@ public sealed class ArmOrConsumeSleepTimerSpec : ActaRuntimeTestBase<Conformance
             ct
         );
 
-        Assert.Equal(new SleepDecision(SleepOutcome.Continue, null), zero);
-        Assert.Equal(new SleepDecision(SleepOutcome.Continue, null), past);
+        Assert.Equal(new ArmOrConsumeSleepTimerRow(SleepOutcomeCode.Continue, null), zero);
+        Assert.Equal(new ArmOrConsumeSleepTimerRow(SleepOutcomeCode.Continue, null), past);
         Assert.Empty(await TimersAsync(job.JobId, ct));
     }
 
@@ -121,18 +124,18 @@ public sealed class ArmOrConsumeSleepTimerSpec : ActaRuntimeTestBase<Conformance
     {
         var ct = TestContext.Current.CancellationToken;
         var job = await EnqueueAsync(ct);
-        Assert.Equal(SleepOutcome.Suspend, (await SleepAsync(job.JobId, TimerName, delaySeconds: 600, ct)).Outcome);
+        Assert.Equal(SleepOutcomeCode.Suspend, (await SleepAsync(job.JobId, TimerName, delaySeconds: 600, ct)).Outcome);
 
         var rival = await SleepAsync(job.JobId, "t.rival", delaySeconds: 600, ct);
 
-        Assert.Equal(new SleepDecision(SleepOutcome.Reject, null), rival);
+        Assert.Equal(new ArmOrConsumeSleepTimerRow(SleepOutcomeCode.Reject, null), rival);
         Assert.Equal(TimerName, Assert.Single(await TimersAsync(job.JobId, ct)).Name);
     }
 
     private async Task<JobEnqueueResponse> EnqueueAsync(CancellationToken ct) =>
         await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct);
 
-    private Task<SleepDecision> SleepAsync(long jobId, string name, int delaySeconds, CancellationToken ct) =>
+    private Task<ArmOrConsumeSleepTimerRow> SleepAsync(long jobId, string name, int delaySeconds, CancellationToken ct) =>
         Execution.ArmOrConsumeSleepTimerAsync(new ArmOrConsumeSleepTimerCommand(jobId, name, delaySeconds, null), ct);
 
     private async Task StartExecutingAsync(JobEnqueueResponse job, CancellationToken ct)

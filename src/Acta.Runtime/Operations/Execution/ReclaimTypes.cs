@@ -5,7 +5,7 @@ namespace Acta.Runtime;
 /// (budget exhausted) with their parent ids, so the caller can raise each child-done latch, and how many
 /// stranded lanes had their lowest Blocked member released.
 /// </summary>
-internal sealed record ReclaimStuckJobsResult(
+internal sealed record ReclaimStuckJobsResponse(
     int Reclaimed,
     IReadOnlyList<(long ChildId, long ParentId)> FailedChildren,
     int RepairedLanes
@@ -18,10 +18,10 @@ internal sealed record ReclaimStuckJobsResult(
 [DbProjection]
 internal readonly record struct ReclaimedJobRow(long JobId, JobStatusCode ToStatus, long? ParentId, bool LaneRepaired);
 
-/// <summary>Folds the reclaim rows into a <see cref="ReclaimStuckJobsResult"/>: counts plus the Failed children.</summary>
+/// <summary>Folds the reclaim rows into a <see cref="ReclaimStuckJobsResponse"/>: counts plus the Failed children.</summary>
 internal static class ReclaimResultMapper
 {
-    public static ReclaimStuckJobsResult Map(IReadOnlyList<ReclaimedJobRow> rows)
+    public static ReclaimStuckJobsResponse Map(IReadOnlyList<ReclaimedJobRow> rows)
     {
         List<(long, long)>? failed = null;
         var repaired = 0;
@@ -37,6 +37,6 @@ internal static class ReclaimResultMapper
             }
         }
 
-        return new ReclaimStuckJobsResult(rows.Count - repaired, failed ?? (IReadOnlyList<(long, long)>)[], repaired);
+        return new ReclaimStuckJobsResponse(rows.Count - repaired, failed ?? (IReadOnlyList<(long, long)>)[], repaired);
     }
 }

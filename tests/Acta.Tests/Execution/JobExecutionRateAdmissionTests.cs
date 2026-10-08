@@ -63,7 +63,7 @@ public sealed class JobExecutionRateAdmissionTests
         var completion = harness.Completion;
         Assert.Equal(RunOnceStatus.Rearmed, outcome);
         Assert.False(harness.HandlerRan);
-        Assert.Equal(ExecutionOutcome.Rescheduled, completion.Outcome);
+        Assert.Equal(CompletionKind.Rescheduled, completion.Outcome);
         Assert.Equal(EventReasonCode.JobRateLimited, completion.EventReasonCode);
 
         // The reserved turn verbatim, not a delay: the meter booked a place in its queue, so any
@@ -91,7 +91,7 @@ public sealed class JobExecutionRateAdmissionTests
         Assert.Equal(RunOnceStatus.Completed, outcome);
         Assert.True(harness.HandlerRan);
         Assert.Equal(2, harness.RateRequests.Count);
-        Assert.Equal(ExecutionOutcome.Succeeded, harness.Completion.Outcome);
+        Assert.Equal(CompletionKind.Succeeded, harness.Completion.Outcome);
         Assert.Null(harness.Completion.RescheduleResumeAtUtc);
         // The slot taken before the meter is kept through the wait and released after the handler.
         Assert.Single(harness.SlotRequests);
@@ -118,7 +118,7 @@ public sealed class JobExecutionRateAdmissionTests
         Assert.True(started.ElapsedMilliseconds < 150, "the cancelled wait was slept out in full");
         Assert.False(harness.HandlerRan);
         Assert.Single(harness.RateRequests);
-        Assert.NotEqual(ExecutionOutcome.Succeeded, harness.Completion.Outcome);
+        Assert.NotEqual(CompletionKind.Succeeded, harness.Completion.Outcome);
         Assert.Equal(1, harness.SlotReleases);
     }
 
@@ -162,7 +162,7 @@ public sealed class JobExecutionRateAdmissionTests
 
         Assert.Equal(RunOnceStatus.Completed, outcome);
         Assert.False(harness.HandlerRan);
-        Assert.Equal(ExecutionOutcome.Cancelled, harness.Completion.Outcome);
+        Assert.Equal(CompletionKind.Cancelled, harness.Completion.Outcome);
         Assert.Equal(EventReasonCode.JobDeadlineExceeded, harness.Completion.EventReasonCode);
         Assert.Equal(1, harness.SlotReleases);
     }

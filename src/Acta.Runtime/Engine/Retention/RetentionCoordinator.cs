@@ -3,11 +3,11 @@ namespace Acta.Runtime;
 /// <summary>Runs bounded atomic batches against cutoffs captured once from the database clock.</summary>
 internal sealed class RetentionCoordinator(PurgeExpiredDataHandler purgeExpiredData, IServerClock clock)
 {
-    public Task<PurgeExpiredDataResult> PurgeExpiredDataAsync(RetentionSweep command, CancellationToken ct) =>
+    public Task<PurgeExpiredDataResponse> PurgeExpiredDataAsync(RetentionSweep command, CancellationToken ct) =>
         PurgeExpiredDataAsync(command, null, ct);
 
     /// <summary>Reports committed undelivered-alert deletions once, including when the sweep fails or is cancelled.</summary>
-    public async Task<PurgeExpiredDataResult> PurgeExpiredDataAsync(
+    public async Task<PurgeExpiredDataResponse> PurgeExpiredDataAsync(
         RetentionSweep command,
         Action<int>? reportUndeliveredPurge,
         CancellationToken ct
@@ -43,7 +43,7 @@ internal sealed class RetentionCoordinator(PurgeExpiredDataHandler purgeExpiredD
                 }
             }
 
-            return new PurgeExpiredDataResult(counts[0], counts[1], counts[2], counts[3], counts[5], counts[6], counts[7]);
+            return new PurgeExpiredDataResponse(counts[0], counts[1], counts[2], counts[3], counts[5], counts[6], counts[7]);
         }
         finally
         {

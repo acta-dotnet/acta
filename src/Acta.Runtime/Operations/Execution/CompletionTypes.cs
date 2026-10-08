@@ -30,7 +30,7 @@ internal enum CompleteExecutionAction : byte
 /// <param name="ParentReleased">True when this terminal landing's child-done raise flipped a Suspended parent to Ready; the caller wakes all worker namespaces (the parent may live in another namespace).</param>
 /// <param name="LanePromoted">True when this terminal landing handed its lane to the next member, which is now Ready; the caller wakes its namespace.</param>
 [DbProjection]
-internal sealed record CompleteExecutionResult(
+internal sealed record CompleteExecutionRow(
     CompleteExecutionAction Action,
     byte? FinalStatusCode,
     DateTime? FinalNextRunAtUtc,

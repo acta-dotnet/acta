@@ -5,7 +5,7 @@ namespace Acta.Runtime;
 /// <see cref="UndeliveredAlertsPurged"/> is counted apart from <see cref="Alerts"/> because an alert
 /// aged out before delivery settled is a lost operator signal, not routine housekeeping.
 /// </summary>
-internal readonly record struct PurgeExpiredDataResult(
+internal readonly record struct PurgeExpiredDataResponse(
     int Jobs,
     int Events,
     int Alerts,

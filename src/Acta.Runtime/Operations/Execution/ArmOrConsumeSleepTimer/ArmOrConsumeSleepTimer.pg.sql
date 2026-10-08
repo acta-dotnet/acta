@@ -28,7 +28,7 @@ BEGIN
 
     IF v_state = 10 /* CheckpointStatusCode.Pending */ AND v_existing_due > v_now THEN
 
-        RETURN QUERY SELECT 1 /* SleepOutcome.Suspend */::SMALLINT, v_existing_due;
+        RETURN QUERY SELECT 1 /* SleepOutcomeCode.Suspend */::SMALLINT, v_existing_due;
     ELSIF v_state = 10 /* CheckpointStatusCode.Pending */ THEN
 
         UPDATE {{schema}}.checkpoints jt
@@ -50,15 +50,15 @@ BEGIN
         WHERE
             r2.job_id = p_job_id
             AND r2.status_code = 50 /* JobStatusCode.Executing */;
-        RETURN QUERY SELECT 2 /* SleepOutcome.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
+        RETURN QUERY SELECT 2 /* SleepOutcomeCode.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
     ELSIF v_state IS NOT NULL THEN
 
-        RETURN QUERY SELECT 2 /* SleepOutcome.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
+        RETURN QUERY SELECT 2 /* SleepOutcomeCode.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
     ELSIF v_due <= v_now THEN
 
-        RETURN QUERY SELECT 2 /* SleepOutcome.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
+        RETURN QUERY SELECT 2 /* SleepOutcomeCode.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
     ELSIF EXISTS (SELECT 1 FROM {{schema}}.checkpoints jt WHERE jt.job_id = p_job_id AND jt.kind_code = 30 /* CheckpointKindCode.Timer */ AND jt.status_code = 10 /* CheckpointStatusCode.Pending */) THEN
-        RETURN QUERY SELECT 3 /* SleepOutcome.Reject */::SMALLINT, NULL::TIMESTAMPTZ;
+        RETURN QUERY SELECT 3 /* SleepOutcomeCode.Reject */::SMALLINT, NULL::TIMESTAMPTZ;
     ELSE
         INSERT INTO {{schema}}.checkpoints (
             job_id,
@@ -78,7 +78,7 @@ BEGIN
             now(),
             now(),
             0);
-        RETURN QUERY SELECT 1 /* SleepOutcome.Suspend */::SMALLINT, v_due;
+        RETURN QUERY SELECT 1 /* SleepOutcomeCode.Suspend */::SMALLINT, v_due;
     END IF;
 END;
 $$;

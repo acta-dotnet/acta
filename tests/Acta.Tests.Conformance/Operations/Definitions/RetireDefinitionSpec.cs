@@ -134,7 +134,7 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
                     JobId: claimed.JobId,
                     WorkerId: workerId,
                     ExpectedExecutionNumber: claimed.ExecutionNumber,
-                    Outcome: ExecutionOutcome.Succeeded,
+                    Outcome: CompletionKind.Succeeded,
                     ResultFormatId: 0,
                     Result: ReadOnlyMemory<byte>.Empty
                 ),

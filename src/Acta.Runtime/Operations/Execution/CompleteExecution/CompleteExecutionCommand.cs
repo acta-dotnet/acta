@@ -11,7 +11,7 @@ internal sealed record CompleteExecutionCommand(
     long JobId,
     int WorkerId,
     int ExpectedExecutionNumber,
-    ExecutionOutcome Outcome,
+    CompletionKind Outcome,
     byte ResultFormatId,
     ReadOnlyMemory<byte> Result,
     EventReasonCode? EventReasonCode = null,

@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 45)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 46)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -1194,7 +1194,7 @@ BEGIN
         IF @existing_state = 10 /* CheckpointStatusCode.Pending */ AND @existing_due > @now
             BEGIN
 
-                SET @outcome = 1 /* SleepOutcome.Suspend */;
+                SET @outcome = 1 /* SleepOutcomeCode.Suspend */;
                 SET @result_due = @existing_due;
             END
         ELSE IF @existing_state = 10 /* CheckpointStatusCode.Pending */
@@ -1216,17 +1216,17 @@ BEGIN
                     version = version + 1
                 WHERE job_id = @p_job_id AND status_code = 50 /* JobStatusCode.Executing */;
 
-                SET @outcome = 2 /* SleepOutcome.Continue */;
+                SET @outcome = 2 /* SleepOutcomeCode.Continue */;
             END
         ELSE IF @existing_state IS NOT NULL
             BEGIN
 
-                SET @outcome = 2 /* SleepOutcome.Continue */;
+                SET @outcome = 2 /* SleepOutcomeCode.Continue */;
             END
         ELSE IF @due <= @now
             BEGIN
 
-                SET @outcome = 2 /* SleepOutcome.Continue */;
+                SET @outcome = 2 /* SleepOutcomeCode.Continue */;
             END
         ELSE IF
             EXISTS (
@@ -1236,7 +1236,7 @@ BEGIN
             /* CheckpointStatusCode.Pending */
             )
             BEGIN
-                SET @outcome = 3 /* SleepOutcome.Reject */;
+                SET @outcome = 3 /* SleepOutcomeCode.Reject */;
             END
         ELSE
             BEGIN
@@ -1249,7 +1249,7 @@ BEGIN
                     @now, @now, 0
                 );
 
-                SET @outcome = 1 /* SleepOutcome.Suspend */;
+                SET @outcome = 1 /* SleepOutcomeCode.Suspend */;
                 SET @result_due = @due;
             END
 
@@ -5950,7 +5950,7 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.45-048b00666d6b9bdf9f66a9c585995fbe', 'acta'
+SELECT -1, 'objects-1.46-79de2391339422e4337e55423391af12', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
     WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_step', 'consume_outbox_signal', 'enqueue_batch', 'enqueue_one', 'extend_lock', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'purge_expired_data', 'raise_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_outbox_event', 'register_definitions', 'register_schedules', 'release_lock', 'repair_recovery_slot', 'reserve_rate', 'resolve_alerts', 'start_execution', 'start_step', 'update_alert_delivery', 'wait_signal')) = 39;
 GO

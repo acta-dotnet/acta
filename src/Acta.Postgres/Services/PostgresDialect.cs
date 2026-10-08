@@ -420,7 +420,7 @@ internal sealed class PostgresDialect : ISqlDialect
         AddScalar(postgres, "@p_reason_message", NpgsqlDbType.Varchar, (object?)request.ReasonMessage ?? DBNull.Value);
         AddScalar(postgres, "@p_result_format_id", NpgsqlDbType.Smallint, (short)request.ResultFormatId);
         AddScalar(postgres, "@p_result", NpgsqlDbType.Bytea, resultBytes);
-        AddScalar(postgres, "@p_execution_succeeded", NpgsqlDbType.Boolean, request.Outcome == ExecutionOutcome.Succeeded);
+        AddScalar(postgres, "@p_execution_succeeded", NpgsqlDbType.Boolean, request.Outcome == CompletionKind.Succeeded);
         AddScalar(postgres, "@p_duration_ms", NpgsqlDbType.Integer, request.DurationMs is { } duration ? duration : DBNull.Value);
         // A re-arm status marks a fire that ran nothing; the slot's next run still comes from the schedules.
         AddScalar(

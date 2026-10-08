@@ -1,7 +1,7 @@
 namespace Acta.Runtime;
 
 /// <summary>Coarse outcome the worker reports back after handler invocation.</summary>
-internal enum ExecutionOutcome : byte
+internal enum CompletionKind : byte
 {
     /// <summary>Handler returned normally. Terminal status <c>Succeeded</c> (100).</summary>
     Succeeded = 1,

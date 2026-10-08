@@ -21,7 +21,7 @@ public class RecurringOutcomeTests
         // attempt's reason rides along on the rollover, which is what makes the failure alertable and
         // attributable even though the status says the slot is armed again.
         var (status, failureCount, reason, message) = JobExecution.ComputeRecurringOutcome(
-            ExecutionOutcome.Failed,
+            CompletionKind.Failed,
             Job(failureCount: 5),
             Descriptor(maxAttempts: 2),
             Fire(NextRun),
@@ -39,7 +39,7 @@ public class RecurringOutcomeTests
     public void Succeeded_resets_the_failure_counter_to_zero()
     {
         var (status, failureCount, reason, message) = JobExecution.ComputeRecurringOutcome(
-            ExecutionOutcome.Succeeded,
+            CompletionKind.Succeeded,
             Job(failureCount: 9),
             Descriptor(maxAttempts: 2),
             Fire(NextRun),
@@ -60,7 +60,7 @@ public class RecurringOutcomeTests
     public void Exhausted_schedule_pauses_with_schedules_exhausted()
     {
         var (status, _, reason, _) = JobExecution.ComputeRecurringOutcome(
-            ExecutionOutcome.Succeeded,
+            CompletionKind.Succeeded,
             Job(failureCount: 0),
             Descriptor(maxAttempts: 2),
             Fire(null),
@@ -72,7 +72,7 @@ public class RecurringOutcomeTests
         Assert.Equal(EventReasonCode.JobSchedulesExhausted, reason);
     }
 
-    private static RecurringFireOutcome Fire(DateTime? nextRun) => new([], [], nextRun);
+    private static RecurringFirePlan Fire(DateTime? nextRun) => new([], [], nextRun);
 
     private static ClaimedJob Job(int failureCount) =>
         new(

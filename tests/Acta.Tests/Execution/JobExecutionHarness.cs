@@ -415,10 +415,10 @@ internal sealed class JobExecutionHarness(
             return (byte)(StartAttempts > 1 && startAfterFailure is { } after ? after : startAction);
         }
 
-        private StartStepDecision StartStep(string name)
+        private StartStepRow StartStep(string name)
         {
             _startedSteps.Add(name);
-            return new StartStepDecision(
+            return new StartStepRow(
                 StartStepOutcomeCode.Invoke,
                 AttemptNumber: 1,
                 Version: 1,
@@ -430,20 +430,20 @@ internal sealed class JobExecutionHarness(
             );
         }
 
-        private CompleteStepDecision CompleteStep()
+        private CompleteStepRow CompleteStep()
         {
             OnStepCompletion?.Invoke();
-            return new CompleteStepDecision(stepOutcome, NextRetryAtUtc: DateTime.UtcNow.AddSeconds(30));
+            return new CompleteStepRow(stepOutcome, NextRetryAtUtc: DateTime.UtcNow.AddSeconds(30));
         }
 
-        private CompleteExecutionResult Complete(BoundCompletion completion)
+        private CompleteExecutionRow Complete(BoundCompletion completion)
         {
             _submitted.Add(completion);
             if (completionAction != CompleteExecutionAction.Completed)
             {
                 // The CAS matched no row: nothing is written, and the reported status is the row's
                 // current one rather than anything this attempt asked for.
-                return new CompleteExecutionResult(
+                return new CompleteExecutionRow(
                     completionAction,
                     (byte)JobStatusCode.Executing,
                     FinalNextRunAtUtc: null,
@@ -453,7 +453,7 @@ internal sealed class JobExecutionHarness(
             }
 
             _applied.Add(completion);
-            return new CompleteExecutionResult(
+            return new CompleteExecutionRow(
                 CompleteExecutionAction.Completed,
                 FinalStatus(completion),
                 FinalNextRunAtUtc: null,
@@ -470,8 +470,8 @@ internal sealed class JobExecutionHarness(
             {
                 { RescheduleStatusCode: not null } => (byte)JobStatusCode.Ready,
                 { HandlerStatusCode: { } handler } => handler,
-                { Outcome: ExecutionOutcome.Succeeded } => (byte)JobStatusCode.Succeeded,
-                { Outcome: ExecutionOutcome.Cancelled } => (byte)JobStatusCode.Cancelled,
+                { Outcome: CompletionKind.Succeeded } => (byte)JobStatusCode.Succeeded,
+                { Outcome: CompletionKind.Cancelled } => (byte)JobStatusCode.Cancelled,
                 _ => (byte)JobStatusCode.Failed,
             };
     }

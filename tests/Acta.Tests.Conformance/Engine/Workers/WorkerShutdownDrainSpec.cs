@@ -14,7 +14,7 @@ namespace Acta.Tests.Conformance.Engine.Workers;
 /// worker-shutdown -&gt; retry/reclaim contract.
 /// </summary>
 /// <remarks>
-/// A shutdown-cancelled handler maps to <c>ExecutionOutcome.Failed</c> with no reason, so without the runner's
+/// A shutdown-cancelled handler maps to <c>CompletionKind.Failed</c> with no reason, so without the runner's
 /// worker-shutdown guard a routine restart would finalize every in-flight job as terminal Failed. Concrete
 /// per-profile specs derive from this base.
 /// </remarks>

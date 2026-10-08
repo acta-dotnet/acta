@@ -260,9 +260,9 @@ public sealed class ClaimBatchSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
     /// schema can transiently hide a row; production loops tick again, and so does this read. On
     /// timeout the last result is returned so the caller's asserts fail with the observed values.
     /// </summary>
-    private static async Task<ClaimResult> ReadClaimUntilAsync(
-        Func<Task<ClaimResult>> read,
-        Func<ClaimResult, bool> settled,
+    private static async Task<ClaimResponse> ReadClaimUntilAsync(
+        Func<Task<ClaimResponse>> read,
+        Func<ClaimResponse, bool> settled,
         CancellationToken ct
     )
     {

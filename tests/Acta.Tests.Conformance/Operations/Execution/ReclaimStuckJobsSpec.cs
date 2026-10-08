@@ -217,7 +217,7 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
             new ArmOrConsumeSleepTimerCommand(enqueued.JobId, TimerName, 600, null),
             ct
         );
-        Assert.Equal(SleepOutcome.Suspend, armed.Outcome);
+        Assert.Equal(SleepOutcomeCode.Suspend, armed.Outcome);
 
         // Back-dating the arm's due instant is what puts the next call on the consume arm, which is the
         // one that clears next_run_at_utc; without it the call would simply re-suspend.
@@ -246,7 +246,7 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
             new ArmOrConsumeSleepTimerCommand(enqueued.JobId, TimerName, 600, null),
             ct
         );
-        Assert.Equal(SleepOutcome.Continue, consumed.Outcome);
+        Assert.Equal(SleepOutcomeCode.Continue, consumed.Outcome);
 
         var after = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, after.Status);

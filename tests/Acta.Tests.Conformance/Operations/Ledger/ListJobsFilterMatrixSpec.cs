@@ -72,14 +72,7 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         var cr3 = await Services
             .GetRequiredService<Acta.Runtime.Execution>()
             .CompleteExecutionAsync(
-                new CompleteExecutionCommand(
-                    c3.JobId,
-                    worker.Id,
-                    c3.ExecutionNumber,
-                    ExecutionOutcome.Failed,
-                    0,
-                    ReadOnlyMemory<byte>.Empty
-                )
+                new CompleteExecutionCommand(c3.JobId, worker.Id, c3.ExecutionNumber, CompletionKind.Failed, 0, ReadOnlyMemory<byte>.Empty)
                 {
                     HandlerStatusCode = (byte)JobStatusCode.Failed,
                 },
@@ -130,7 +123,7 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
                 claim.JobId,
                 worker.Id,
                 claim.ExecutionNumber,
-                ExecutionOutcome.Failed,
+                CompletionKind.Failed,
                 0,
                 ReadOnlyMemory<byte>.Empty
             )

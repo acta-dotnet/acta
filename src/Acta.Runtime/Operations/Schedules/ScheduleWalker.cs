@@ -5,7 +5,7 @@ namespace Acta.Runtime;
 /// cursor advances to apply on completion, and the post-advance slot MIN (null when the slot is
 /// exhausted).
 /// </summary>
-internal sealed record RecurringFireOutcome(
+internal sealed record RecurringFirePlan(
     IReadOnlyList<string> TriggeringScheduleNames,
     IReadOnlyList<ScheduleAdvance> Advances,
     DateTime? SlotMinNextRunAtUtc
@@ -35,7 +35,7 @@ internal static class ScheduleWalker
     /// <c>complete_execution</c>); a timed pause still ahead contributes only its <c>PausedUntilUtc</c> as
     /// the slot's wake point.
     /// </summary>
-    public static RecurringFireOutcome PlanFire(IReadOnlyList<LiveSchedule> live, DateTime nowUtc)
+    public static RecurringFirePlan PlanFire(IReadOnlyList<LiveSchedule> live, DateTime nowUtc)
     {
         var due = new List<LiveSchedule>();
         var advances = new List<ScheduleAdvance>();
@@ -83,7 +83,7 @@ internal static class ScheduleWalker
             )
         );
 
-        return new RecurringFireOutcome(due.Select(s => s.Name).ToList(), advances, slotMin);
+        return new RecurringFirePlan(due.Select(s => s.Name).ToList(), advances, slotMin);
     }
 
     /// <summary>

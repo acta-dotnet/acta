@@ -6,7 +6,7 @@ namespace Acta.Runtime;
 /// </summary>
 internal sealed class ClaimOneHandler(ClaimBatchHandler claimBatch, IDbSession session, ISqlDialect dialect)
 {
-    public async Task<ClaimResult> HandleAsync(ClaimOneCommand command, CancellationToken ct)
+    public async Task<ClaimResponse> HandleAsync(ClaimOneCommand command, CancellationToken ct)
     {
         var request = command.Request;
         if (command.JobId is not { } jobId)
@@ -27,6 +27,6 @@ internal sealed class ClaimOneHandler(ClaimBatchHandler claimBatch, IDbSession s
             DbProjectionResolver.Resolve<ClaimReadyRow>(),
             ct
         );
-        return rows.Count == 0 ? ClaimResult.Empty : new ClaimResult(rows.Select(ClaimResultMapper.ToClaimedJob).ToList(), null);
+        return rows.Count == 0 ? ClaimResponse.Empty : new ClaimResponse(rows.Select(ClaimResponseMapper.ToClaimedJob).ToList(), null);
     }
 }

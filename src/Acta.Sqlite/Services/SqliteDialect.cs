@@ -383,7 +383,7 @@ internal sealed class SqliteDialect : ISqlDialect
         AddNullableText(command, "@p_reason_message", request.ReasonMessage);
         AddInt(command, "@p_result_format_id", request.ResultFormatId);
         AddNullableBlob(command, "@p_result", resultBytes);
-        AddInt(command, "@p_execution_succeeded", request.Outcome == ExecutionOutcome.Succeeded ? 1 : 0);
+        AddInt(command, "@p_execution_succeeded", request.Outcome == CompletionKind.Succeeded ? 1 : 0);
         AddNullableInt(command, "@p_duration_ms", request.DurationMs);
         // Signal and handler-status scalars are inert on the recurring path; bind NULL so the inline body's
         // named-parameter set is always complete. A re-arm status marks a fire that ran nothing.

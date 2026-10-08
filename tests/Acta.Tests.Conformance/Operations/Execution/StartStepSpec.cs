@@ -151,7 +151,7 @@ public sealed class StartStepSpec : ActaRuntimeTestBase<ConformanceFixture, Test
     private async Task<long> EnqueueAsync(CancellationToken ct) =>
         (await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct)).JobId;
 
-    private Task<CompleteStepDecision> CompleteAsync(long jobId, bool succeeded, int version, int maxAttempts, CancellationToken ct) =>
+    private Task<CompleteStepRow> CompleteAsync(long jobId, bool succeeded, int version, int maxAttempts, CancellationToken ct) =>
         Execution.CompleteStepAsync(
             succeeded
                 ? new CompleteStepCommand(

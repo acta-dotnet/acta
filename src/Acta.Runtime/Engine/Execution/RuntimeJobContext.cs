@@ -183,9 +183,9 @@ internal sealed class RuntimeJobContext(
         );
         switch (decision.Outcome)
         {
-            case SleepOutcome.Continue:
+            case SleepOutcomeCode.Continue:
                 return;
-            case SleepOutcome.Suspend:
+            case SleepOutcomeCode.Suspend:
                 // The host writes the stored due to runtimes.next_run_at_utc and finalizes the attempt Suspended.
                 throw new SuspendSignal(decision.DueAtUtc!.Value, reason);
             default:

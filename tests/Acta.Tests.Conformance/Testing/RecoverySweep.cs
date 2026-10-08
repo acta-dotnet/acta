@@ -24,7 +24,7 @@ internal static class RecoverySweep
     // seconds however long each sweep's own round trip takes.
     private static readonly TimeSpan Window = TimeSpan.FromSeconds(15);
 
-    public static async Task<ReclaimStuckJobsResult> ReclaimAtLeastOneAsync(
+    public static async Task<ReclaimStuckJobsResponse> ReclaimAtLeastOneAsync(
         IServiceProvider services,
         int namespaceId,
         CancellationToken ct

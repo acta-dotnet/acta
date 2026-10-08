@@ -3,7 +3,7 @@ namespace Acta.Runtime;
 /// <summary><see cref="Signals.WaitSignalAsync"/>: one routine call answering the wait decision.</summary>
 internal sealed class WaitSignalHandler(IDbSession session, ISqlDialect dialect)
 {
-    public Task<SignalWaitDecision> HandleAsync(WaitSignalCommand command, CancellationToken ct) =>
+    public Task<WaitSignalRow> HandleAsync(WaitSignalCommand command, CancellationToken ct) =>
         session.ExecuteOneAsync(
             new StoreCommand("WaitSignal"),
             cmd =>
@@ -13,7 +13,7 @@ internal sealed class WaitSignalHandler(IDbSession session, ISqlDialect dialect)
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.Name, command.Name));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.WaitTimeoutSeconds, command.TimeoutSeconds));
             },
-            DbProjectionResolver.Resolve<SignalWaitDecision>(),
+            DbProjectionResolver.Resolve<WaitSignalRow>(),
             ct
         );
 }
