@@ -2159,7 +2159,6 @@
 | `AcquireSchemaLock` | yes | yes | yes |
 | `AcquireSlot` | yes | yes | yes |
 | `AlertsView` | yes | yes | yes |
-| `ApplyTags` | yes | yes | yes |
 | `ArmOrConsumeSleepTimer` | yes | yes | yes |
 | `CancelJob` | yes | yes | yes |
 | `CheckpointSlot` | yes | yes | yes |
@@ -2235,7 +2234,9 @@
 | `RegisterTenant` | yes | yes | yes |
 | `ReleaseClaimedOutbox` | yes | yes | yes |
 | `ReleaseLock` | yes | yes | yes |
+| `RemoveTags` | yes | yes | yes |
 | `RepairRecoverySlot` | yes | yes | yes |
+| `ReplaceTags` | yes | yes | yes |
 | `ReprioritizeJob` | yes | yes | yes |
 | `RequeueQuarantinedOutbox` | yes | yes | yes |
 | `RescheduleJob` | yes | yes | yes |
@@ -2268,6 +2269,7 @@
 | `UpdateJobInput` | yes | yes | yes |
 | `UpdateNamespace` | yes | yes | yes |
 | `UpdateTenant` | yes | yes | yes |
+| `UpsertTags` | yes | yes | yes |
 | `WaitSignal` | yes | yes | yes |
 | `WorkersView` | yes | yes | yes |
 

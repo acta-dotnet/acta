@@ -5,7 +5,7 @@ namespace Acta.Runtime;
 /// <summary><see cref="ITags.UpsertAsync"/>: normalizes the tag, resolves the target, then one upsert.</summary>
 internal sealed class UpsertTagsHandler(TagTargetResolution targets, IDbSession session, ISqlDialect dialect)
 {
-    // The ApplyTags SQL raises this when a new name would pass the cap.
+    // The UpsertTags SQL raises this when a new name would pass the cap.
     private const string CapRaised = "may carry at most 32 tags";
 
     public async ValueTask<UpsertTagsResponse> HandleAsync(UpsertTagsCommand command, CancellationToken ct)
@@ -21,8 +21,8 @@ internal sealed class UpsertTagsHandler(TagTargetResolution targets, IDbSession 
         try
         {
             return await session.ExecuteOneAsync(
-                new StoreCommand("ApplyTags"),
-                cmd => TagWrites.Bind(cmd, dialect, target, TagMutationKind.Upsert, json),
+                new StoreCommand("UpsertTags"),
+                cmd => TagWrites.Bind(cmd, dialect, target, json),
                 DbProjectionResolver.Resolve<UpsertTagsResponse>(),
                 ct
             );

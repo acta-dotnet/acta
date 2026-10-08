@@ -1,4 +1,4 @@
--- Apply one normalized tag mutation atomically to the resolved target.
+-- Apply one normalized tag write atomically to the resolved target.
 DROP TABLE IF EXISTS temp._tag_target;
 
 CREATE TEMP TABLE _tag_target AS
@@ -36,8 +36,7 @@ WHERE @p_scope_code = 90 /* TagScopeCode.Event */ AND e.id = @p_lookup_id;
 
 SELECT acta_error('A target may carry at most 32 tags.')
 WHERE
-    @p_mutation = 2 /* TagMutationKind.Upsert */
-    AND EXISTS (SELECT 1 FROM temp._tag_target)
+    EXISTS (SELECT 1 FROM temp._tag_target)
     AND EXISTS (
         SELECT 1
         FROM json_each(@p_items_json) i
@@ -54,12 +53,6 @@ WHERE
         WHERE t.scope_code = @p_scope_code AND t.scope_id = x.scope_id
     ) >= 32;
 
-DELETE FROM {{schema}}.tags
-WHERE
-    @p_mutation = 1 /* TagMutationKind.Replace */
-    AND scope_code = @p_scope_code
-    AND scope_id = (SELECT scope_id FROM temp._tag_target);
-
 INSERT INTO {{schema}}.tags (scope_code, scope_id, namespace_id, name, value, value_search)
 SELECT
     @p_scope_code,
@@ -69,29 +62,11 @@ SELECT
     json_extract(i.value, '$.value'),
     json_extract(i.value, '$.value_search')
 FROM temp._tag_target x, json_each(@p_items_json) i
-WHERE @p_mutation = 1 /* TagMutationKind.Replace */;
-
-INSERT INTO {{schema}}.tags (scope_code, scope_id, namespace_id, name, value, value_search)
-SELECT
-    @p_scope_code,
-    x.scope_id,
-    x.namespace_id,
-    json_extract(i.value, '$.name'),
-    json_extract(i.value, '$.value'),
-    json_extract(i.value, '$.value_search')
-FROM temp._tag_target x, json_each(@p_items_json) i
-WHERE @p_mutation = 2 /* TagMutationKind.Upsert */
+WHERE true
 ON CONFLICT (scope_code, scope_id, name) DO UPDATE SET
     namespace_id = excluded.namespace_id,
     value = excluded.value,
     value_search = excluded.value_search;
-
-DELETE FROM {{schema}}.tags
-WHERE
-    @p_mutation = 3 /* TagMutationKind.Remove */
-    AND scope_code = @p_scope_code
-    AND scope_id = (SELECT scope_id FROM temp._tag_target)
-    AND name IN (SELECT json_extract(value, '$.name') FROM json_each(@p_items_json));
 
 SELECT
     CASE

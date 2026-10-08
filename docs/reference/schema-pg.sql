@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 39)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 40)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -857,130 +857,6 @@ AS $$
         hold_token = EXCLUDED.hold_token
     WHERE locks.expires_at_utc <= now()
     RETURNING locks.lock_key;
-$$;
-
-CREATE OR REPLACE FUNCTION acta.apply_tags(
-    p_scope_code SMALLINT,
-    p_lookup_id BIGINT,
-    p_lookup_name VARCHAR,
-    p_mutation SMALLINT,
-    p_items_json VARCHAR
-)
-RETURNS TABLE (action SMALLINT)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_scope_id BIGINT;
-    v_namespace_id INT;
-BEGIN
-    CASE p_scope_code
-        WHEN 20 /* TagScopeCode.Tenant */ THEN
-            SELECT t.id::BIGINT, NULL::INT INTO v_scope_id, v_namespace_id
-            FROM acta.tenants t
-            WHERE t.tenant_key = p_lookup_name
-            FOR UPDATE;
-        WHEN 30 /* TagScopeCode.Namespace */ THEN
-            SELECT n.id::BIGINT, n.id INTO v_scope_id, v_namespace_id
-            FROM acta.namespaces n
-            WHERE n.name = p_lookup_name
-            FOR UPDATE;
-        WHEN 40 /* TagScopeCode.Definition */ THEN
-            SELECT d.id::BIGINT, d.namespace_id INTO v_scope_id, v_namespace_id
-            FROM acta.definitions d
-            WHERE d.id = p_lookup_id
-            FOR UPDATE;
-        WHEN 50 /* TagScopeCode.Job */ THEN
-            SELECT j.id, j.namespace_id INTO v_scope_id, v_namespace_id
-            FROM acta.jobs j
-            WHERE j.id = p_lookup_id
-            FOR UPDATE;
-        WHEN 60 /* TagScopeCode.Schedule */ THEN
-            SELECT s.id, s.namespace_id INTO v_scope_id, v_namespace_id
-            FROM acta.schedules s
-            WHERE
-                s.job_id = p_lookup_id
-                AND s.name = p_lookup_name
-            FOR UPDATE;
-        WHEN 70 /* TagScopeCode.Worker */ THEN
-            SELECT w.id::BIGINT, w.namespace_id INTO v_scope_id, v_namespace_id
-            FROM acta.workers w
-            WHERE w.id = p_lookup_id
-            FOR UPDATE;
-        WHEN 80 /* TagScopeCode.Alert */ THEN
-            SELECT a.id, a.namespace_id INTO v_scope_id, v_namespace_id
-            FROM acta.alerts a
-            WHERE a.id = p_lookup_id
-            FOR UPDATE;
-        WHEN 90 /* TagScopeCode.Event */ THEN
-            SELECT e.id, e.namespace_id INTO v_scope_id, v_namespace_id
-            FROM acta.events e
-            WHERE e.id = p_lookup_id
-            FOR UPDATE;
-        ELSE
-            RAISE EXCEPTION 'Unsupported tag scope code %.', p_scope_code;
-    END CASE;
-
-    IF v_scope_id IS NULL THEN
-        RETURN QUERY SELECT 2 /* TagMutationAction.NotFound */::SMALLINT;
-        RETURN;
-    END IF;
-
-    IF p_mutation = 1 /* TagMutationKind.Replace */ THEN
-        DELETE FROM acta.tags
-        WHERE
-            scope_code = p_scope_code
-            AND scope_id = v_scope_id;
-
-        INSERT INTO acta.tags(scope_code, scope_id, namespace_id, name, value, value_search)
-        SELECT
-            p_scope_code,
-            v_scope_id,
-            v_namespace_id,
-            item->>'name',
-            item->>'value',
-            item->>'value_search'
-        FROM jsonb_array_elements(p_items_json::JSONB) item;
-    ELSIF p_mutation = 2 /* TagMutationKind.Upsert */ THEN
-        IF EXISTS (
-            SELECT 1
-            FROM jsonb_array_elements(p_items_json::JSONB) item
-            WHERE NOT EXISTS (
-                SELECT 1 FROM acta.tags t
-                WHERE
-                    t.scope_code = p_scope_code
-                    AND t.scope_id = v_scope_id
-                    AND t.name = item->>'name'))
-            AND (SELECT COUNT(*) FROM acta.tags t
-                WHERE t.scope_code = p_scope_code AND t.scope_id = v_scope_id) >= 32 THEN
-            RAISE EXCEPTION 'A target may carry at most 32 tags.';
-        END IF;
-
-        INSERT INTO acta.tags(scope_code, scope_id, namespace_id, name, value, value_search)
-        SELECT
-            p_scope_code,
-            v_scope_id,
-            v_namespace_id,
-            item->>'name',
-            item->>'value',
-            item->>'value_search'
-        FROM jsonb_array_elements(p_items_json::JSONB) item
-        ON CONFLICT (scope_code, scope_id, name) DO UPDATE SET
-            namespace_id = EXCLUDED.namespace_id,
-            value = EXCLUDED.value,
-            value_search = EXCLUDED.value_search;
-    ELSIF p_mutation = 3 /* TagMutationKind.Remove */ THEN
-        DELETE FROM acta.tags t
-        USING jsonb_array_elements(p_items_json::JSONB) item
-        WHERE
-            t.scope_code = p_scope_code
-            AND t.scope_id = v_scope_id
-            AND t.name = item->>'name';
-    ELSE
-        RAISE EXCEPTION 'Unsupported tag mutation code %.', p_mutation;
-    END IF;
-
-    RETURN QUERY SELECT 1 /* TagMutationAction.Applied */::SMALLINT;
-END;
 $$;
 
 CREATE OR REPLACE FUNCTION acta.arm_or_consume_sleep_timer(
@@ -5331,7 +5207,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.39-619a7142fa3df66bf9e84a3f891881ce', 'acta');
+VALUES (-1, 'objects-1.40-c20414d0d089f1de5da4876763743b4e', 'acta');
 
 COMMIT;
 

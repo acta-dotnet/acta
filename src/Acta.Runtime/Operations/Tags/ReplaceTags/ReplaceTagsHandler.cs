@@ -12,8 +12,8 @@ internal sealed class ReplaceTagsHandler(TagTargetResolution targets, IDbSession
         return target is null
             ? new ReplaceTagsResponse(TagMutationAction.NotFound)
             : await session.ExecuteOneAsync(
-                new StoreCommand("ApplyTags"),
-                cmd => TagWrites.Bind(cmd, dialect, target, TagMutationKind.Replace, json),
+                new StoreCommand("ReplaceTags"),
+                cmd => TagWrites.Bind(cmd, dialect, target, json),
                 DbProjectionResolver.Resolve<ReplaceTagsResponse>(),
                 ct
             );

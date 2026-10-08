@@ -635,15 +635,6 @@ internal static partial class ActaSchema
             IsNullable: true
         );
 
-        public static readonly DbValueSpec<byte> TagMutation = new(
-            ParameterName: "p_mutation",
-            Kind: DbKind.Byte,
-            Size: null,
-            Precision: null,
-            Scale: null,
-            IsNullable: false
-        );
-
         public static readonly DbValueSpec<string> TagItemsJson = new(
             ParameterName: "p_items_json",
             Kind: DbKind.UnicodeString,

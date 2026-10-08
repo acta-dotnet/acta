@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 39)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 40)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -1152,175 +1152,6 @@ BEGIN
             SELECT CAST(NULL AS VARCHAR(256)) AS lock_key WHERE 1 = 0;
         ELSE
             THROW;
-    END CATCH;
-END;
-GO
-CREATE OR ALTER PROCEDURE acta.apply_tags
-    @p_scope_code TINYINT,
-    @p_lookup_id BIGINT,
-    @p_lookup_name VARCHAR(128),
-    @p_mutation TINYINT,
-    @p_items_json NVARCHAR(MAX)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @scope_id BIGINT, @namespace_id INT;
-        DECLARE @items TABLE (
-            name VARCHAR(128) NOT NULL PRIMARY KEY,
-            value NVARCHAR(128) NULL,
-            value_search NVARCHAR(128) NULL
-        );
-
-        INSERT INTO @items (name, value, value_search)
-        SELECT
-            name,
-            value,
-            value_search
-        FROM
-            OPENJSON (@p_items_json)
-            WITH (
-                name VARCHAR(128) '$.name',
-                value NVARCHAR(128) '$.value',
-                value_search NVARCHAR(128) '$.value_search'
-            );
-
-        IF @p_scope_code = 20 /* TagScopeCode.Tenant */
-            SELECT
-                @scope_id = CONVERT(BIGINT, t.id),
-                @namespace_id = NULL
-            FROM acta.tenants t WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
-            WHERE t.tenant_key = @p_lookup_name;
-        ELSE IF @p_scope_code = 30 /* TagScopeCode.Namespace */
-            SELECT
-                @scope_id = CONVERT(BIGINT, n.id),
-                @namespace_id = n.id
-            FROM acta.namespaces n WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
-            WHERE n.name = @p_lookup_name;
-        ELSE IF @p_scope_code = 40 /* TagScopeCode.Definition */
-            SELECT
-                @scope_id = CONVERT(BIGINT, d.id),
-                @namespace_id = d.namespace_id
-            FROM acta.definitions d WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
-            WHERE d.id = @p_lookup_id;
-        ELSE IF @p_scope_code = 50 /* TagScopeCode.Job */
-            SELECT
-                @scope_id = j.id,
-                @namespace_id = j.namespace_id
-            FROM acta.jobs j WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
-            WHERE j.id = @p_lookup_id;
-        ELSE IF @p_scope_code = 60 /* TagScopeCode.Schedule */
-            SELECT
-                @scope_id = s.id,
-                @namespace_id = s.namespace_id
-            FROM acta.schedules s WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
-            WHERE s.job_id = @p_lookup_id AND s.name = @p_lookup_name;
-        ELSE IF @p_scope_code = 70 /* TagScopeCode.Worker */
-            SELECT
-                @scope_id = CONVERT(BIGINT, w.id),
-                @namespace_id = w.namespace_id
-            FROM acta.workers w WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
-            WHERE w.id = @p_lookup_id;
-        ELSE IF @p_scope_code = 80 /* TagScopeCode.Alert */
-            SELECT
-                @scope_id = a.id,
-                @namespace_id = a.namespace_id
-            FROM acta.alerts a WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
-            WHERE a.id = @p_lookup_id;
-        ELSE IF @p_scope_code = 90 /* TagScopeCode.Event */
-            SELECT
-                @scope_id = e.id,
-                @namespace_id = e.namespace_id
-            FROM acta.events e WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
-            WHERE e.id = @p_lookup_id;
-        ELSE
-            THROW 50000, 'Unsupported tag scope code.', 1;
-
-        IF @scope_id IS NULL
-            BEGIN
-
-                SELECT CAST(2 /* TagMutationAction.NotFound */ AS TINYINT) AS action;
-                GOTO Finish;
-            END;
-
-        IF @p_mutation = 1 /* TagMutationKind.Replace */
-            BEGIN
-                DELETE FROM acta.tags
-                WHERE scope_code = @p_scope_code AND scope_id = @scope_id;
-
-                INSERT INTO acta.tags (scope_code, scope_id, namespace_id, name, value, value_search)
-                SELECT
-                    @p_scope_code,
-                    @scope_id,
-                    @namespace_id,
-                    name,
-                    value,
-                    value_search
-                FROM @items;
-            END
-        ELSE IF @p_mutation = 2 /* TagMutationKind.Upsert */
-            BEGIN
-                IF
-                    EXISTS (
-                        SELECT 1 FROM @items i
-                        WHERE NOT EXISTS (
-                            SELECT 1 FROM acta.tags t
-                            WHERE t.scope_code = @p_scope_code AND t.scope_id = @scope_id AND t.name = i.name
-                        )
-                    )
-                    AND (
-                        SELECT COUNT(*) FROM acta.tags t
-                        WHERE t.scope_code = @p_scope_code AND t.scope_id = @scope_id
-                    ) >= 32
-                    THROW 50000, 'A target may carry at most 32 tags.', 1;
-
-                UPDATE t
-                SET namespace_id = @namespace_id, value = i.value, value_search = i.value_search
-                FROM acta.tags t
-                JOIN @items i ON i.name = t.name
-                WHERE t.scope_code = @p_scope_code AND t.scope_id = @scope_id;
-
-                INSERT INTO acta.tags (scope_code, scope_id, namespace_id, name, value, value_search)
-                SELECT
-                    @p_scope_code,
-                    @scope_id,
-                    @namespace_id,
-                    i.name,
-                    i.value,
-                    i.value_search
-                FROM @items i
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM acta.tags t
-                    WHERE t.scope_code = @p_scope_code AND t.scope_id = @scope_id AND t.name = i.name
-                );
-            END
-        ELSE IF @p_mutation = 3 /* TagMutationKind.Remove */
-            BEGIN
-                DELETE t
-                FROM acta.tags t
-                JOIN @items i ON i.name = t.name
-                WHERE t.scope_code = @p_scope_code AND t.scope_id = @scope_id;
-            END
-        ELSE
-            THROW 50000, 'Unsupported tag mutation code.', 1;
-
-        SELECT CAST(1 /* TagMutationAction.Applied */ AS TINYINT) AS action;
-
-    Finish:
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
     END CATCH;
 END;
 GO
@@ -6119,9 +5950,9 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.39-e70c631181ef6cb3648b923684148502', 'acta'
+SELECT -1, 'objects-1.40-1fdd81466505f6764af7ffb13917d2f1', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
-    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'acquire_lock', 'acquire_slot', 'apply_tags', 'arm_or_consume_sleep_timer', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_step', 'consume_outbox_signal', 'enqueue_batch', 'enqueue_one', 'extend_lock', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'purge_expired_data', 'raise_job_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_outbox_event', 'register_job_definitions', 'register_scheduled_jobs', 'release_lock', 'repair_recovery_slot', 'reserve_rate', 'resolve_job_alerts', 'start_execution', 'start_step', 'update_alert_delivery', 'wait_signal')) = 40;
+    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'acquire_lock', 'acquire_slot', 'arm_or_consume_sleep_timer', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_step', 'consume_outbox_signal', 'enqueue_batch', 'enqueue_one', 'extend_lock', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'purge_expired_data', 'raise_job_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_outbox_event', 'register_job_definitions', 'register_scheduled_jobs', 'release_lock', 'repair_recovery_slot', 'reserve_rate', 'resolve_job_alerts', 'start_execution', 'start_step', 'update_alert_delivery', 'wait_signal')) = 39;
 GO
 COMMIT TRANSACTION;
 GO
