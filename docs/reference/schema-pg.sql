@@ -48,7 +48,7 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
         WHERE version > 1
-            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 26)
+            OR (version = -1 AND name LIKE 'objects-1.%-%' AND substring(name from '^objects-1\.([0-9]+)-')::INT > 27)
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
@@ -5821,82 +5821,6 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION acta.reset_job_state(
-    p_id BIGINT
-)
-RETURNS INT
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_status SMALLINT;
-    v_namespace_id INT;
-    v_lineage_root_id BIGINT;
-    v_definition_id INT;
-    v_tenant_id INT;
-    v_execution_number INT;
-    v_audit_level SMALLINT;
-    v_job_ref UUID;
-BEGIN
-    SELECT r.status_code, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id, r.execution_number, j.audit_level_code, j.job_ref
-    INTO v_status, v_namespace_id, v_lineage_root_id, v_definition_id, v_tenant_id, v_execution_number, v_audit_level, v_job_ref
-    FROM acta.runtimes r
-    JOIN acta.jobs j ON j.id = r.job_id
-    WHERE r.job_id = p_id
-    FOR UPDATE OF r;
-
-    IF NOT FOUND THEN
-        RETURN 1;
-    END IF;
-
-    DELETE FROM acta.checkpoints WHERE job_id = p_id;
-    DELETE FROM acta.steps WHERE job_id = p_id;
-    DELETE FROM acta.results WHERE job_id = p_id;
-
-    IF v_audit_level = 20 /* DefinitionAuditLevelCode.Audit */ THEN
-        INSERT INTO acta.events (
-            event_code,
-            created_at_utc,
-            namespace_id,
-            actor_code,
-            actor_key,
-            job_id,
-            job_ref,
-            execution_number,
-            lineage_root_id,
-            definition_id,
-            tenant_id,
-            worker_id,
-            from_status_code,
-            to_status_code,
-            execution_status_code,
-            duration_ms,
-            reason_code,
-            reason_message)
-        VALUES (
-            81 /* EventCode.JobStateReset */,
-            now(),
-            v_namespace_id,
-            50 /* ActorCode.Job */,
-            p_id::varchar,
-            p_id,
-            v_job_ref,
-            v_execution_number,
-            COALESCE(v_lineage_root_id, p_id),
-            v_definition_id,
-            v_tenant_id,
-            NULL,
-            v_status,
-            v_status,
-            NULL,
-            NULL,
-            NULL,
-            NULL);
-    END IF;
-
-    RETURN 1;
-END;
-$$;
-
 CREATE OR REPLACE FUNCTION acta.resolve_job_alert_manual(
     p_alert_ref UUID,
     p_actor_code SMALLINT,
@@ -7003,7 +6927,7 @@ $$;
 
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-VALUES (-1, 'objects-1.26-64b5a2e8f43f27b0048affc762a33794', 'acta');
+VALUES (-1, 'objects-1.27-493f2bb4cc7980cbaf45cadbc314c67b', 'acta');
 
 COMMIT;
 

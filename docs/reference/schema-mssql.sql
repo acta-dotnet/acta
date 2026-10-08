@@ -73,7 +73,7 @@ GO
 IF EXISTS (
     SELECT 1 FROM acta.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 26)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND TRY_CAST(SUBSTRING(name, 11, NULLIF(CHARINDEX('-', name, 11), 0) - 11) AS INT) > 27)
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -6653,86 +6653,6 @@ BEGIN
     END CATCH;
 END;
 GO
-CREATE OR ALTER PROCEDURE acta.reset_job_state
-    @p_id BIGINT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    DECLARE @entry_trancount INT = @@TRANCOUNT;
-    BEGIN TRY
-        IF @entry_trancount = 0
-            BEGIN TRANSACTION;
-
-        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-        DECLARE
-            @status TINYINT, @namespace_id INT,
-            @lineage_root_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number INT, @audit_level TINYINT,
-            @job_ref UNIQUEIDENTIFIER;
-
-        SELECT
-            @status = r.status_code,
-            @namespace_id = j.namespace_id,
-            @lineage_root_id = j.lineage_root_id,
-            @definition_id = j.definition_id,
-            @tenant_id = j.tenant_id,
-            @execution_number = r.execution_number,
-            @audit_level = j.audit_level_code,
-            @job_ref = j.job_ref
-        FROM acta.runtimes r WITH (UPDLOCK, ROWLOCK)
-        INNER JOIN acta.jobs j ON j.id = r.job_id
-        WHERE r.job_id = @p_id;
-
-        IF @status IS NULL
-            BEGIN
-
-                GOTO Finish;
-            END;
-
-        DELETE FROM acta.checkpoints
-        WHERE job_id = @p_id;
-        DELETE FROM acta.steps
-        WHERE job_id = @p_id;
-        DELETE FROM acta.results
-        WHERE job_id = @p_id;
-
-        IF @audit_level = 20 /* DefinitionAuditLevelCode.Audit */
-            BEGIN
-                INSERT INTO acta.events (
-                    event_code, created_at_utc, namespace_id,
-                    actor_code, actor_key,
-                    job_id, job_ref, execution_number,
-                    lineage_root_id, definition_id, tenant_id,
-                    worker_id,
-                    from_status_code, to_status_code,
-                    execution_status_code, duration_ms,
-                    reason_code, reason_message
-                )
-                VALUES (
-                    81 /* EventCode.JobStateReset */, @now, @namespace_id,
-                    50 /* ActorCode.Job */, CONVERT(VARCHAR(128), @p_id),
-                    @p_id, @job_ref, @execution_number,
-                    COALESCE(@lineage_root_id, @p_id), @definition_id, @tenant_id,
-                    NULL,
-                    @status, @status,
-                    NULL, NULL,
-                    NULL, NULL
-                );
-            END
-
-    Finish:
-
-        IF @entry_trancount = 0
-            COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @entry_trancount = 0 AND XACT_STATE() <> 0
-            ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH;
-END;
-GO
 CREATE OR ALTER PROCEDURE acta.resolve_job_alert_manual
     @p_alert_ref UNIQUEIDENTIFIER,
     @p_actor_code TINYINT,
@@ -8008,9 +7928,9 @@ GO
 GO
 DELETE FROM acta.migrations WHERE version = -1;
 INSERT INTO acta.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.26-dd0c9c9517a152b83d0907d9e1da60cf', 'acta'
+SELECT -1, 'objects-1.27-6dccf343f952b8702514cf545d8f6704', 'acta'
 WHERE (SELECT COUNT(*) FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
-    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'acknowledge_job_alert', 'acquire_lock', 'acquire_slot', 'apply_tags', 'arm_or_consume_sleep_timer', 'cancel_job', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_step', 'consume_outbox_signal', 'enqueue_batch', 'enqueue_one', 'extend_lock', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'pause_job', 'purge_expired_data', 'purge_job', 'raise_job_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_job_note', 'record_outbox_event', 'register_job_definitions', 'register_scheduled_jobs', 'release_lock', 'repair_recovery_slot', 'reprioritize_job', 'reschedule_job', 'reserve_rate', 'reset_job_state', 'resolve_job_alert_manual', 'resolve_job_alerts', 'restart_job', 'resume_job', 'set_job_definition_overrides', 'start_execution', 'start_step', 'update_alert_delivery', 'update_job_input', 'wait_signal')) = 53;
+    WHERE s.name = 'acta' AND o.type IN ('V', 'P', 'FN', 'IF', 'TF') AND o.name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view', 'acknowledge_job_alert', 'acquire_lock', 'acquire_slot', 'apply_tags', 'arm_or_consume_sleep_timer', 'cancel_job', 'checkpoint_slot', 'claim_batch', 'claim_one', 'complete_execution', 'complete_step', 'consume_outbox_signal', 'enqueue_batch', 'enqueue_one', 'extend_lock', 'extend_worker_leases', 'mark_dead_workers', 'park_outbox_signal', 'pause_job', 'purge_expired_data', 'purge_job', 'raise_job_alert', 'raise_signal', 'reclaim_stuck_jobs', 'record_job_note', 'record_outbox_event', 'register_job_definitions', 'register_scheduled_jobs', 'release_lock', 'repair_recovery_slot', 'reprioritize_job', 'reschedule_job', 'reserve_rate', 'resolve_job_alert_manual', 'resolve_job_alerts', 'restart_job', 'resume_job', 'set_job_definition_overrides', 'start_execution', 'start_step', 'update_alert_delivery', 'update_job_input', 'wait_signal')) = 52;
 GO
 COMMIT TRANSACTION;
 GO

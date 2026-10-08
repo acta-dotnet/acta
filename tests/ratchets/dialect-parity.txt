@@ -9,7 +9,6 @@ RaiseJobAlert
 ReclaimStuckJobs
 RegisterJobDefinitions
 RegisterScheduledJobs
-ResetJobState
 ResolveJobAlertManual
 RetireDefinition
 StartExecution
