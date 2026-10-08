@@ -11,13 +11,7 @@ internal static class JobLineageMapper
     public static JobLineageMap Map(JobLineageRows data, int childLimit)
     {
         var hasMore = data.Children.Count > childLimit;
-        var childRows = hasMore ? data.Children.Take(childLimit) : data.Children;
-
-        var ancestors = new List<JobLineageJob>(data.Ancestors.Count);
-        foreach (var a in data.Ancestors)
-        {
-            ancestors.Add(ToJob(a));
-        }
+        IReadOnlyList<JobLineageChild> children = hasMore ? [.. data.Children.Take(childLimit)] : data.Children;
 
         var steps = new List<JobExplainStep>(data.Steps.Count);
         foreach (var s in data.Steps)
@@ -25,29 +19,8 @@ internal static class JobLineageMapper
             steps.Add(new JobExplainStep(s.Name, s.Status, s.Status.Description));
         }
 
-        var children = new List<JobLineageChild>();
-        foreach (var c in childRows)
-        {
-            children.Add(new JobLineageChild(c.JobId, new JobRef(c.JobRef), c.JobName, c.Status, c.CreatedAtUtc, c.ModifiedAtUtc));
-        }
-
-        return new JobLineageMap(ancestors, ToJob(data.Focus), steps, FindWait(data.Checkpoints), children, hasMore);
+        return new JobLineageMap(data.Ancestors, data.Focus, steps, FindWait(data.Checkpoints), children, hasMore);
     }
-
-    private static JobLineageJob ToJob(LineageJobRow r) =>
-        new(
-            r.JobId,
-            new JobRef(r.JobRef),
-            r.JobNamespace,
-            r.JobName,
-            r.Status,
-            r.ParentJobId,
-            r.ParentJobRef is { } p ? new JobRef(p) : null,
-            r.LineageRootId,
-            r.LineageRootJobRef is { } lr ? new JobRef(lr) : null,
-            r.CreatedAtUtc,
-            r.ModifiedAtUtc
-        );
 
     /// <summary>
     /// The focused job is blocked on a pending signal, child latch, or timer checkpoint; the

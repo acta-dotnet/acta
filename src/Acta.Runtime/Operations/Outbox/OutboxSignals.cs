@@ -34,10 +34,6 @@ internal sealed partial class OutboxSignalJsonContext : JsonSerializerContext;
 [DbProjection]
 internal sealed record OutboxSignalAdmissionRow(byte Action, DateTime? PendingSinceUtc);
 
-/// <summary>One pending command row as the applying tick reads it; <c>Version</c> feeds the consume CAS.</summary>
-[DbProjection]
-internal sealed record OutboxSignalRow(byte ValueFormatId, byte[] Value, int Version);
-
 /// <summary>The consume outcome projection: how many rows the version-CAS delete removed (0 or 1).</summary>
 [DbProjection]
 internal sealed record OutboxSignalConsumeRow(long Consumed);

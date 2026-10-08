@@ -30,18 +30,18 @@ internal sealed class GetJobLineageMapHandler(JobLookupResolution lookup, IDbSes
             },
             static async (reader, token) =>
             {
-                var readJob = DbProjectionResolver.Resolve<LineageJobRow>();
+                var readJob = DbProjectionResolver.Resolve<JobLineageJob>();
                 var readStep = DbProjectionResolver.Resolve<LineageStepRow>();
                 var readCheckpoint = DbProjectionResolver.Resolve<ExplainCheckpointRow>();
-                var readChild = DbProjectionResolver.Resolve<LineageChildRow>();
+                var readChild = DbProjectionResolver.Resolve<JobLineageChild>();
 
-                LineageJobRow? focus = null;
+                JobLineageJob? focus = null;
                 while (await reader.ReadAsync(token))
                 {
                     focus = readJob(reader);
                 }
 
-                var ancestors = new List<LineageJobRow>();
+                var ancestors = new List<JobLineageJob>();
                 if (await reader.NextResultAsync(token))
                 {
                     while (await reader.ReadAsync(token))
@@ -68,7 +68,7 @@ internal sealed class GetJobLineageMapHandler(JobLookupResolution lookup, IDbSes
                     }
                 }
 
-                var children = new List<LineageChildRow>();
+                var children = new List<JobLineageChild>();
                 if (await reader.NextResultAsync(token))
                 {
                     while (await reader.ReadAsync(token))

@@ -93,7 +93,7 @@ public sealed class GetOutboxSignalSpec : ActaStorageTestBase<ConformanceFixture
         Assert.NotNull(await GetAsync(pendingJob, OutboxSignalNames.Requeue, ct));
     }
 
-    private Task<OutboxSignalRow?> GetAsync(long jobId, string name, CancellationToken ct) =>
+    private Task<CheckpointValue?> GetAsync(long jobId, string name, CancellationToken ct) =>
         Services.GetRequiredService<GetOutboxSignalHandler>().HandleAsync(new GetOutboxSignalQuery(jobId, name), ct);
 
     private Task<OutboxSignalAdmissionRow> ParkAsync(

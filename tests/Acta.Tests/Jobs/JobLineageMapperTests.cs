@@ -59,10 +59,10 @@ public class JobLineageMapperTests
     private static JobLineageMap Map(params ExplainCheckpointRow[] checkpoints) =>
         JobLineageMapper.Map(new JobLineageRows(Focus(), [], [], checkpoints, []), childLimit: 10);
 
-    private static LineageJobRow Focus() =>
+    private static JobLineageJob Focus() =>
         new(
             JobId: 4821,
-            JobRef: Guid.NewGuid(),
+            JobRef: new JobRef(Guid.NewGuid()),
             JobNamespace: "payments",
             JobName: "checkout",
             Status: JobStatusCode.Suspended,

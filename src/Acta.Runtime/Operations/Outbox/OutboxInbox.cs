@@ -72,7 +72,7 @@ internal sealed class OutboxInbox(
             : (ControlAction.Rejected, admission.PendingSinceUtc);
     }
 
-    public Task<OutboxSignalRow?> GetAsync(long slotJobId, string name, CancellationToken ct) =>
+    public Task<CheckpointValue?> GetAsync(long slotJobId, string name, CancellationToken ct) =>
         get.HandleAsync(new GetOutboxSignalQuery(slotJobId, name), ct);
 
     public Task<bool> ConsumeAsync(long slotJobId, string name, int version, CancellationToken ct) =>

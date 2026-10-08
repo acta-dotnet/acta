@@ -51,44 +51,17 @@ internal sealed record JobExplanationRows(
     IReadOnlyList<ExplainCheckpointRow> Checkpoints
 );
 
-/// <summary>One Job node (focus or ancestor) for the lineage read, in SELECT order.</summary>
-[DbProjection]
-internal sealed record LineageJobRow(
-    long JobId,
-    Guid JobRef,
-    string JobNamespace,
-    string JobName,
-    JobStatusCode Status,
-    long? ParentJobId,
-    Guid? ParentJobRef,
-    long? LineageRootId,
-    Guid? LineageRootJobRef,
-    DateTime CreatedAtUtc,
-    DateTime ModifiedAtUtc
-);
-
 /// <summary>One <c>steps</c> row of the focused Job for the lineage read, in SELECT order.</summary>
 [DbProjection]
 internal sealed record LineageStepRow(string Name, StepStatusCode Status);
 
-/// <summary>One direct child of the focused Job for the lineage read, in SELECT order.</summary>
-[DbProjection]
-internal sealed record LineageChildRow(
-    long JobId,
-    Guid JobRef,
-    string JobName,
-    JobStatusCode Status,
-    DateTime CreatedAtUtc,
-    DateTime ModifiedAtUtc
-);
-
-/// <summary>The five raw result sets the lineage read returns for one focused Job.</summary>
+/// <summary>The five result sets the lineage read returns for one focused Job; the job nodes bind the public models.</summary>
 internal sealed record JobLineageRows(
-    LineageJobRow Focus,
-    IReadOnlyList<LineageJobRow> Ancestors,
+    JobLineageJob Focus,
+    IReadOnlyList<JobLineageJob> Ancestors,
     IReadOnlyList<LineageStepRow> Steps,
     IReadOnlyList<ExplainCheckpointRow> Checkpoints,
-    IReadOnlyList<LineageChildRow> Children
+    IReadOnlyList<JobLineageChild> Children
 );
 
 /// <summary>Flat input row (input_format_id, input); the input buffer is NULL for a no-input job.</summary>

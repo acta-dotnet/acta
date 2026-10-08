@@ -3,12 +3,12 @@
 
 -- 1) Focus job.
 SELECT
-    j.id,
+    j.id AS job_id,
     j.job_ref,
-    ns.name AS namespace_name,
+    ns.name AS job_namespace,
     jd.name AS job_name,
-    r.status_code,
-    j.parent_id,
+    r.status_code AS status,
+    j.parent_id AS parent_job_id,
     pj.job_ref AS parent_job_ref,
     j.lineage_root_id,
     lr.job_ref AS lineage_root_job_ref,
@@ -33,12 +33,12 @@ WITH RECURSIVE anc (id, parent_id, depth) AS (
     INNER JOIN anc ON p.id = anc.parent_id
 )
 SELECT
-    j.id,
+    j.id AS job_id,
     j.job_ref,
-    ns.name AS namespace_name,
+    ns.name AS job_namespace,
     jd.name AS job_name,
-    r.status_code,
-    j.parent_id,
+    r.status_code AS status,
+    j.parent_id AS parent_job_id,
     pj.job_ref AS parent_job_ref,
     j.lineage_root_id,
     lr.job_ref AS lineage_root_job_ref,
@@ -67,10 +67,10 @@ ORDER BY c.kind_code, c.name;
 
 -- 5) Direct children, newest first, capped at the fetch limit (ChildLimit + 1).
 SELECT
-    j.id,
+    j.id AS job_id,
     j.job_ref,
     jd.name AS job_name,
-    r.status_code,
+    r.status_code AS status,
     j.created_at_utc,
     r.modified_at_utc
 FROM {{schema}}.jobs j

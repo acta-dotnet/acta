@@ -1,12 +1,6 @@
 # Known duplicate-shape violations; entries may only be removed.
 AlertDetail
 AlertListItem
-CheckpointValue
-JobLineageChild
-JobLineageJob
-LineageChildRow
-LineageJobRow
-OutboxSignalRow
 TenantDetail
 TenantListItem
 WorkerDetail
