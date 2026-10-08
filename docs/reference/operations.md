@@ -72,7 +72,7 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 | `PauseJob` | `IJobs.PauseAsync` | `POST /jobs/{jobRef}/pause` | `pause` | routine | routine | inline | `events`, `runtimes` | `PauseJobSpec` |
 | `PurgeJob` | `IJobs.PurgeAsync` | `POST /jobs/{jobRef}/purge` | · | inline | inline | inline | `alerts`, `events`, `jobs`, `tags` | `PurgeJobSpec` |
 | `ReprioritizeJob` | `IJobs.ReprioritizeAsync` | `POST /jobs/{jobRef}/reprioritize` | · | inline | inline | inline | `events`, `runtimes` | `ReprioritizeJobSpec` |
-| `RescheduleJob` | `IJobs.RescheduleAsync` | `POST /jobs/{jobRef}/reschedule` | · | routine | routine | inline | `events`, `runtimes` | `RescheduleJobSpec` |
+| `RescheduleJob` | `IJobs.RescheduleAsync` | `POST /jobs/{jobRef}/reschedule` | · | inline | inline | inline | `events`, `runtimes` | `RescheduleJobSpec` |
 | `ResetJobState` | · | · | · | inline | inline | inline | `checkpoints`, `events`, `results`, `steps` | `ResetJobStateSpec` |
 | `ResolveJobIdByDeduplicationKey` | `IJobs.GetJobIdAsync` | · | · | inline | inline | inline | · | `ResolveJobIdByDeduplicationKeySpec` |
 | `ResolveJobIdByRef` | `IJobs.GetJobIdAsync` | · | · | inline | inline | inline | · | `ResolveJobIdByRefSpec` |
