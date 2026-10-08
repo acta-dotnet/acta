@@ -1,123 +1,72 @@
-CREATE OR REPLACE FUNCTION {{schema}}.update_job_input(
-    p_id BIGINT,
-    p_input_format_id SMALLINT,
-    p_input BYTEA,
-    p_actor_code SMALLINT,
-    p_actor_key VARCHAR,
-    p_reason_code SMALLINT,
-    p_reason_message VARCHAR
-)
-RETURNS TABLE (action SMALLINT, status_code SMALLINT)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_from_status SMALLINT;
-    v_namespace_id INT;
-    v_lineage BIGINT;
-    v_definition INT;
-    v_tenant INT;
-    v_en INT;
-    v_audit SMALLINT;
-    v_job_ref UUID;
-    v_old_format_id SMALLINT;
-    v_old_input BYTEA;
-    v_detail_format_id SMALLINT := 0 /* JobPayloadFormat.None */;
-    v_detail BYTEA;
-BEGIN
-    SELECT
-        r.status_code,
-        j.namespace_id,
-        j.lineage_root_id,
-        j.definition_id,
-        j.tenant_id,
-        r.execution_number,
-        j.audit_level_code,
-        j.job_ref,
-        j.input_format_id,
-        j.input
-    INTO v_from_status, v_namespace_id, v_lineage, v_definition, v_tenant, v_en, v_audit, v_job_ref, v_old_format_id, v_old_input
-    FROM {{schema}}.jobs j
-    JOIN {{schema}}.runtimes r ON r.job_id = j.id
-    WHERE j.id = p_id
-    FOR UPDATE;
+-- One batch, one implicit transaction; only the final SELECT returns rows. The job's rows are locked, and a
+-- job that is not in flight takes the new input.
+DROP TABLE IF EXISTS pg_temp._update_job_input;
+CREATE TEMP TABLE _update_job_input (
+    from_status SMALLINT NOT NULL,
+    namespace_id INT NOT NULL,
+    lineage_root_id BIGINT,
+    definition_id INT NOT NULL,
+    tenant_id INT,
+    execution_number INT NOT NULL,
+    audit_level_code SMALLINT NOT NULL,
+    job_ref UUID NOT NULL,
+    old_format_id SMALLINT NOT NULL,
+    old_bytes INT
+) ON COMMIT DROP;
 
-    IF NOT FOUND THEN
-        RETURN QUERY SELECT 2 /* ControlAction.NotFound */::SMALLINT, NULL::SMALLINT;
-        RETURN;
-    END IF;
+INSERT INTO _update_job_input (
+    from_status, namespace_id, lineage_root_id, definition_id, tenant_id, execution_number, audit_level_code, job_ref,
+    old_format_id, old_bytes)
+SELECT
+    r.status_code, j.namespace_id, j.lineage_root_id, j.definition_id, j.tenant_id, r.execution_number, j.audit_level_code,
+    j.job_ref, j.input_format_id, octet_length(j.input)
+FROM {{schema}}.jobs j
+JOIN {{schema}}.runtimes r ON r.job_id = j.id
+WHERE j.id = @p_id
+FOR UPDATE;
 
-    IF v_from_status IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */) THEN
-        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status;
-        RETURN;
-    END IF;
+UPDATE {{schema}}.jobs
+SET
+    input = @p_input,
+    input_format_id = @p_input_format_id
+WHERE
+    id = @p_id
+    AND EXISTS (
+        SELECT 1 FROM _update_job_input s
+        WHERE s.from_status NOT IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */)
+    );
 
-    UPDATE {{schema}}.jobs
-    SET
-        input = p_input,
-        input_format_id = p_input_format_id
-    WHERE id = p_id;
+-- The event carries only bounded JSON metadata about the previous payload (format name and byte count), never
+-- the payload itself, so nothing outlives the job's payload retention.
+INSERT INTO {{schema}}.events (
+    event_code, created_at_utc, namespace_id, actor_code, actor_key, job_id, job_ref, execution_number,
+    lineage_root_id, definition_id, tenant_id, detail_format_id, detail, reason_code, reason_message)
+SELECT
+    76 /* EventCode.JobInputAmended */, now(), s.namespace_id, @p_actor_code, @p_actor_key, @p_id, s.job_ref,
+    s.execution_number, COALESCE(s.lineage_root_id, @p_id), s.definition_id, s.tenant_id,
+    CASE WHEN s.old_format_id <> 0 /* JobPayloadFormat.None */ THEN 1 /* JobPayloadFormat.Json */ ELSE 0 /* JobPayloadFormat.None */ END,
+    CASE WHEN s.old_format_id <> 0 /* JobPayloadFormat.None */ THEN convert_to(
+        '{"format":"'
+        || CASE s.old_format_id
+            WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
+            WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
+            WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
+            ELSE 'custom-' || s.old_format_id::text
+        END
+        || '","bytes":' || s.old_bytes::text || '}',
+        'UTF8') END,
+    @p_reason_code, @p_reason_message
+FROM _update_job_input s
+WHERE
+    s.audit_level_code = 20 /* DefinitionAuditLevelCode.Audit */
+    AND s.from_status NOT IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */);
 
-    IF v_audit = 20 /* DefinitionAuditLevelCode.Audit */ THEN
-        -- The event carries only bounded JSON metadata about the previous payload (format name and
-        -- byte count), never the payload itself, so nothing outlives the job's payload retention.
-        IF v_old_format_id <> 0 /* JobPayloadFormat.None */ THEN
-            v_detail_format_id := 1 /* JobPayloadFormat.Json */;
-            v_detail := convert_to(
-                '{"format":"'
-                    || CASE v_old_format_id
-                        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
-                        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
-                        WHEN 3 /* JobPayloadFormat.Text */ THEN 'text'
-                        ELSE 'custom-' || v_old_format_id::text
-                    END
-                    || '","bytes":' || octet_length(v_old_input)::text || '}',
-                'UTF8');
-        END IF;
-
-        INSERT INTO {{schema}}.events (
-            event_code,
-            created_at_utc,
-            namespace_id,
-            actor_code,
-            actor_key,
-            job_id,
-            job_ref,
-            execution_number,
-            lineage_root_id,
-            definition_id,
-            tenant_id,
-            worker_id,
-            from_status_code,
-            to_status_code,
-            execution_status_code,
-            duration_ms,
-            detail_format_id,
-            detail,
-            reason_code,
-            reason_message)
-        VALUES (
-            76 /* EventCode.JobInputAmended */,
-            now(),
-            v_namespace_id,
-            p_actor_code,
-            p_actor_key,
-            p_id,
-            v_job_ref,
-            v_en,
-            COALESCE(v_lineage, p_id),
-            v_definition,
-            v_tenant,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            NULL,
-            v_detail_format_id,
-            v_detail,
-            p_reason_code,
-            p_reason_message);
-    END IF;
-
-    RETURN QUERY SELECT 1 /* ControlAction.Applied */::SMALLINT, v_from_status;
-END;
-$$;
+SELECT
+    CASE
+        WHEN s.from_status IS NULL THEN 2 /* ControlAction.NotFound */
+        WHEN s.from_status IN (40 /* JobStatusCode.Dispatched */, 50 /* JobStatusCode.Executing */) THEN 3 /* ControlAction.Rejected */
+        ELSE 1 /* ControlAction.Applied */
+    END::SMALLINT AS action,
+    s.from_status AS status_code
+FROM (SELECT 1) one
+LEFT JOIN _update_job_input s ON true;

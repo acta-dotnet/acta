@@ -60,7 +60,7 @@ INSERT INTO release_guard
 SELECT EXISTS (
     SELECT 1 FROM main.migrations
     WHERE version > 1
-        OR (version = -1 AND name LIKE 'objects-1.%-%' AND CAST(substr(name, 11) AS INTEGER) > 29)
+        OR (version = -1 AND name LIKE 'objects-1.%-%' AND CAST(substr(name, 11) AS INTEGER) > 30)
 );
 DROP TABLE release_guard;
 
@@ -804,7 +804,7 @@ JOIN main.namespaces AS ns ON ns.id = w.namespace_id;
 
 DELETE FROM main.migrations WHERE version = -1;
 INSERT INTO main.migrations (version, name, installed_schema)
-SELECT -1, 'objects-1.29-453df7afd2b658ca3a3ac43fc24ce124', 'main'
+SELECT -1, 'objects-1.30-453df7afd2b658ca3a3ac43fc24ce124', 'main'
 WHERE (SELECT COUNT(*) FROM sqlite_master WHERE type = 'view' AND name IN ('alerts_view', 'checkpoints_view', 'definitions_view', 'events_view', 'jobs_view', 'schedules_view', 'steps_view', 'tags_view', 'workers_view')) = 9;
 
 COMMIT;

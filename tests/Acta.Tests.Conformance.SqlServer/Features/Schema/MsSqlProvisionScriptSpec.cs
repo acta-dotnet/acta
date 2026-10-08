@@ -87,7 +87,7 @@ public sealed partial class MsSqlProvisionScriptSpec
             Assert.True(await reader.ReadAsync(ct));
             Assert.Equal(migrations, reader.GetInt32(0));
             Assert.Equal(0, reader.GetInt32(1));
-            Assert.Equal(41, reader.GetInt32(2));
+            Assert.Equal(40, reader.GetInt32(2));
         }
         finally
         {
