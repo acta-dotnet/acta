@@ -125,8 +125,23 @@ JOIN {{schema}}.runtimes r ON r.job_id = j.id
 WHERE j.id IN (SELECT id FROM temp._claimed)
 UNION ALL
 SELECT
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    {{now}},
+    NULL AS id,
+    NULL AS namespace_id,
+    NULL AS definition_id,
+    NULL AS execution_number,
+    NULL AS deduplication_key,
+    NULL AS correlation_key,
+    NULL AS concurrency_key,
+    NULL AS input_format_id,
+    NULL AS input,
+    NULL AS next_run_at_utc,
+    NULL AS lease_expires_at_utc,
+    NULL AS created_at_utc,
+    NULL AS failure_count,
+    NULL AS version,
+    NULL AS job_ref,
+    NULL AS tenant_id,
+    {{now}} AS db_now,
     /* The earliest head across the bands: each band's first index row is its earliest instant. */
     (
         SELECT
@@ -153,6 +168,6 @@ SELECT
                 LIMIT 1
             ))
         FROM temp._claim_bands b
-    )
+    ) AS next_ready_at_utc
 WHERE NOT EXISTS (SELECT 1 FROM temp._claimed)
 ORDER BY id;

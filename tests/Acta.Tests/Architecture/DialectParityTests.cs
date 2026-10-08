@@ -160,8 +160,9 @@ public sealed partial class DialectParityTests
             start += tokens[start + 1].Text == "(" ? tokens.FindIndex(start + 1, t => t.Text == ")" && t.Depth == 0) - start + 1 : 2;
         }
         var items = Items(tokens, start, stopAtListEnd: true);
-        var end = start + items.Sum(item => item.Count) + items.Count - 1;
-        if (end + 1 < tokens.Count && tokens[end + 1].Text.Equals("INTO", StringComparison.OrdinalIgnoreCase))
+        // The token right after the list: its items plus the commas between them.
+        var next = start + items.Sum(item => item.Count) + items.Count - 1;
+        if (next < tokens.Count && tokens[next].Text.Equals("INTO", StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }

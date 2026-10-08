@@ -1,6 +1,5 @@
 # Known dialect-parity violations; entries may only be removed.
 AcquireSlot
-ClaimBatch
 CompleteExecution
 ConsumeOutboxSignal
 ParkOutboxSignal
@@ -8,6 +7,4 @@ RaiseAlert
 ReclaimStuckJobs
 RegisterDefinitions
 RegisterSchedules
-RetireDefinition
 StartExecution
-StopWorker

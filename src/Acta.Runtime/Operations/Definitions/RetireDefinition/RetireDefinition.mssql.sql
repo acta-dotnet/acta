@@ -262,10 +262,10 @@ BEGIN TRY
     INNER JOIN @parked p ON p.job_id = c.job_id
     UNION ALL
     SELECT
-        @action,
-        CAST(NULL AS BIGINT),
-        CAST(NULL AS BIGINT),
-        CAST(CASE WHEN @promoted > 0 THEN 1 ELSE 0 END AS BIT)
+        @action AS action,
+        CAST(NULL AS BIGINT) AS job_id,
+        CAST(NULL AS BIGINT) AS parent_id,
+        CAST(CASE WHEN @promoted > 0 THEN 1 ELSE 0 END AS BIT) AS lane_promoted
     WHERE NOT EXISTS (SELECT 1 FROM @cancelled);
 
     IF @entry_trancount = 0
