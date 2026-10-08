@@ -11,7 +11,6 @@ RegisterJobDefinitions
 RegisterScheduledJobs
 ResetJobState
 ResolveJobAlertManual
-ResumeSchedule
 RetireDefinition
 SetScheduleOverrides
 StartExecution

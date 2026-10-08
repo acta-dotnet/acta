@@ -147,7 +147,7 @@ One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`
 | `PauseSchedule` | `ISchedules.PauseAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/pause` | · | inline | inline | inline | `events`, `runtimes`, `schedules` | `PauseScheduleSpec` |
 | `PreviewSchedule` | `ISchedules.PreviewAsync` | `GET /schedules/{jobNamespace}/{jobName}/{scheduleName}/preview` | · | · | · | · | · | `PreviewScheduleSysNameSpec` |
 | `RegisterScheduledJobs` | · | · | · | routine | routine | inline | `jobs`, `runtimes`, `schedules` | `RegisterScheduledJobsMisfireMatrixSpec`, `RegisterScheduledJobsNoteSpec`, `RegisterScheduledJobsSpec` |
-| `ResumeSchedule` | `ISchedules.ResumeAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/resume` | · | routine | routine | inline | `events`, `runtimes`, `schedules` | `ResumeScheduleSpec` |
+| `ResumeSchedule` | `ISchedules.ResumeAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/resume` | · | inline | inline | inline | `events`, `runtimes`, `schedules` | `ResumeScheduleSpec` |
 | `SetScheduleOverrides` | `ISchedules.UpdateOverridesAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/overrides` | · | routine | routine | inline | `events`, `runtimes`, `schedules` | `SetScheduleOverridesSpec` |
 | `TriggerScheduleNow` | `ISchedules.TriggerNowAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/trigger` | · | routine | routine | inline | `events`, `runtimes` | `TriggerScheduleNowSpec` |
 
