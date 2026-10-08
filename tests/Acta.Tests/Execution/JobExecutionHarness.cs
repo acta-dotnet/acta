@@ -201,8 +201,7 @@ internal sealed class JobExecutionHarness(
             job,
             context,
             WorkerId,
-            isRecurring: false,
-            fireOutcome: null,
+            fire: null,
             alreadyStarted: false,
             _workerCts.Token
         );
@@ -654,7 +653,7 @@ internal sealed class JobExecutionHarness(
                 return new RateReservation(false, DateTime.UtcNow.AddMilliseconds(wait), wait);
             }
             return rateResumeAtUtc is { } resumeAt
-                ? new RateReservation(false, resumeAt, JobExecution.RateTurnWaitMilliseconds + 1)
+                ? new RateReservation(false, resumeAt, ExecutionAdmission.RateTurnWaitMilliseconds + 1)
                 : new RateReservation(true, DateTime.UtcNow, 0);
         }
     }

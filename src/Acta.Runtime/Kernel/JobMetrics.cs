@@ -5,7 +5,7 @@ namespace Acta.Runtime;
 
 /// <summary>
 /// Owns the <c>Acta</c> meter and its instruments. A process-wide singleton: the runtime emits
-/// one execution measurement per durable completion in <see cref="Acta.Runtime.JobExecution"/>, one claim
+/// one execution measurement per durable completion in <see cref="Acta.Runtime.ExecutionCompletion"/>, one claim
 /// measurement per claim attempt in <see cref="Acta.Runtime.JobExecutor"/>, and observes the live in-flight count.
 /// Counters are additive: the backend aggregates and slices by tag, so no running totals are kept
 /// in process.

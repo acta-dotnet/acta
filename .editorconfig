@@ -673,11 +673,11 @@ dotnet_diagnostic.CA1031.severity = none
 dotnet_diagnostic.CA1031.severity = none
 
 # CA1031: the executor's per-attempt boundary, where an arbitrary user handler's exception becomes a
-# recorded Failed outcome with JobUnhandledException (or the non-retryable reason for NotImplemented /
-# NotSupported), the job landed, the retry budget applied and the timeline written. Handlers can throw
+# Failed settlement with JobUnhandledException (or the non-retryable reason for NotImplemented /
+# NotSupported) for the completion write to land under the retry budget. Handlers can throw
 # anything, so the catch cannot be narrowed. Escaping would tear down the worker loop and leave the row
 # Executing until its lease expired - a durable job silently turned into a recovery case.
-[src/Acta.Runtime/Engine/Execution/JobExecution.cs]
+[src/Acta.Runtime/Engine/Execution/HandlerInvocation.cs]
 dotnet_diagnostic.CA1031.severity = none
 
 # CA1031: best-effort release of the concurrency-key lease, on a path that runs after the attempt's

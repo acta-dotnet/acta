@@ -214,7 +214,7 @@ free and it grows with every line anyone adds.
   single quotes some templates used around a value (`'{Detail}'`), so the vocabulary has one delimiter
   instead of three.
 - **Log `Outcome` values and metric `outcome` tags diverge on purpose, and neither should be "fixed" to
-  match the other.** `JobExecution.OutcomeTag` emits `succeeded` / `failed` / `rescheduled` lowercase
+  match the other.** `ExecutionCompletion.OutcomeTag` emits `succeeded` / `failed` / `rescheduled` lowercase
   into `JobMetrics`, because metric tag values follow OpenTelemetry's lowercase convention and freeze
   at 1.0; a log field mirrors the C# code and does not freeze. Two surfaces, each internally consistent,
   beats one convention bent across both. Persisted code tokens are a third such surface and stay kebab

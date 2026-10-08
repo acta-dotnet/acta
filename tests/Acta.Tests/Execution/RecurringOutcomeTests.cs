@@ -4,7 +4,7 @@ using Xunit;
 namespace Acta.Tests.Execution;
 
 /// <summary>
-/// Unit-pins <see cref="JobExecution.ComputeRecurringOutcome"/>: a recurring slot re-arms Ready on failure
+/// Unit-pins <see cref="ExecutionCompletion.ComputeRecurringOutcome"/>: a recurring slot re-arms Ready on failure
 /// regardless of the consecutive-failure count (MaxAttempts is the one-off budget only) while still carrying
 /// the attempt's reason through, a success resets the counter to zero,
 /// and an exhausted schedule pauses.
@@ -20,10 +20,9 @@ public class RecurringOutcomeTests
         // recurring slot re-arms Ready and just bumps the counter. Re-arming is not forgetting: the
         // attempt's reason rides along on the rollover, which is what makes the failure alertable and
         // attributable even though the status says the slot is armed again.
-        var (status, failureCount, reason, message) = JobExecution.ComputeRecurringOutcome(
+        var (status, failureCount, reason, message) = ExecutionCompletion.ComputeRecurringOutcome(
             CompletionKind.Failed,
             Job(failureCount: 5),
-            Descriptor(maxAttempts: 2),
             Fire(NextRun),
             EventReasonCode.JobUnhandledException,
             "boom"
@@ -38,10 +37,9 @@ public class RecurringOutcomeTests
     [Fact]
     public void Succeeded_resets_the_failure_counter_to_zero()
     {
-        var (status, failureCount, reason, message) = JobExecution.ComputeRecurringOutcome(
+        var (status, failureCount, reason, message) = ExecutionCompletion.ComputeRecurringOutcome(
             CompletionKind.Succeeded,
             Job(failureCount: 9),
-            Descriptor(maxAttempts: 2),
             Fire(NextRun),
             null,
             null
@@ -59,10 +57,9 @@ public class RecurringOutcomeTests
     [Fact]
     public void Exhausted_schedule_pauses_with_schedules_exhausted()
     {
-        var (status, _, reason, _) = JobExecution.ComputeRecurringOutcome(
+        var (status, _, reason, _) = ExecutionCompletion.ComputeRecurringOutcome(
             CompletionKind.Succeeded,
             Job(failureCount: 0),
-            Descriptor(maxAttempts: 2),
             Fire(null),
             null,
             null
@@ -92,30 +89,5 @@ public class RecurringOutcomeTests
             CreatedAtUtc: default,
             FailureCount: failureCount,
             Version: 1
-        );
-
-    private static JobDescriptor Descriptor(int maxAttempts) =>
-        new(
-            JobName: "recurring-unit",
-            HandlerType: typeof(RecurringOutcomeTests),
-            MethodName: "N/A",
-            InputType: typeof(NoInput),
-            OutputType: null,
-            InputPayloadFormat: JobPayloadFormat.None,
-            OutputPayloadFormat: null,
-            InvocationKind: JobInvocationKind.Task,
-            RequiresJobContextParameter: true,
-            RequiresCancellationToken: true,
-            Priority: JobPriorityCode.Normal,
-            MaxAttempts: maxAttempts,
-            AuditLevel: DefinitionAuditLevelCode.Audit,
-            AlertProfile: AlertProfileCode.OnFailure,
-            Invoker: static async (_, _, _, _) =>
-            {
-                await Task.CompletedTask;
-                return new JobHandlerOutput(false, null);
-            },
-            DeserializeInput: static (_, _) => new NoInput(),
-            SerializeOutput: null
         );
 }

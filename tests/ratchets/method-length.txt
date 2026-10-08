@@ -4,7 +4,6 @@ ActaManifestGenerator.ReadAttributePolicy
 ActaSchemaGenerator.Transform
 ActaServiceCollectionExtensions.UseActa
 CodeGenerator.GroupByContainingEnum
-JobExecution.RunAsync
 JobExecutor.ExecuteOwnedClaimAsync
 JobsOptionsValidator.Validate
 WorkerRuntimeInitializer.InitializeOnceAsync

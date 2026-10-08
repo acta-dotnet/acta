@@ -107,8 +107,8 @@ own incident, since it runs at `Failures` itself. The evidence is the failure ev
 Everything else is invisible to alerting. Two exclusions are worth stating outright:
 
 - **A `Cancelled` landing never alerts, under any profile.** An operator cancel, `ctx.CancelAsync`
-  (`JobExecution.RunAsync`), and a whole-job deadline — both the "overdue at admission" and the
-  "next retry would exceed the deadline" paths (`JobExecution.RunAsync`) — all land the job
+  (`HandlerInvocation`), and a whole-job deadline — both the "overdue at admission" and the
+  "next retry would exceed the deadline" paths (`ExecutionAdmission`, `ExecutionCompletion`) — all land the job
   `Cancelled`, and the alertable set has no `Cancelled` branch.
 - **Not every re-arm alerts.** A budget-neutral re-arm carrying `job.concurrency-key-held` (62),
   `job.rate-limited` (66), `job.step-retry-scheduled` (61), `job.attempt-aborted` (25), or
@@ -118,7 +118,7 @@ Everything else is invisible to alerting. Two exclusions are worth stating outri
   `EventReasonCode.JobStepRetryScheduled`, `EventReasonCode.JobAttemptAborted`).
 
 A recurring slot's rollover carries the failed attempt's reason through onto its `Ready` event
-(`JobExecution.ComputeRecurringOutcome`). That is the only reason a nightly job that throws every
+(`ExecutionCompletion.ComputeRecurringOutcome`). That is the only reason a nightly job that throws every
 night is visible to the projector at all.
 
 ## Profiles
@@ -254,7 +254,7 @@ reason it hits), not 2–3 accumulated rows per job per rolling window under the
 
 | | One-shot job | Recurring slot |
 | --- | --- | --- |
-| Failures before it stops | at most `MaxAttempts` (default 15, `JobAttribute.MaxAttempts`) | unbounded; the slot re-arms forever (`JobExecution.ComputeRecurringOutcome`) |
+| Failures before it stops | at most `MaxAttempts` (default 15, `JobAttribute.MaxAttempts`) | unbounded; the slot re-arms forever (`ExecutionCompletion.ComputeRecurringOutcome`) |
 | Alert rows on defaults | at most three: `FirstFailure`, `ThresholdReached`, `FinalFailure` | two, for as long as the slot stays broken |
 | Ends by itself | yes, at the terminal `Failed` | only on a success, or operator intervention |
 
@@ -423,7 +423,7 @@ The intended rule is that one profile means one thing for every job and the aler
 independent of how the job was started. Two divergences remain, and both trace to a single root
 cause: **a recurring slot has no terminal state.** `MaxAttempts` is the one-shot retry budget, and a
 recurring slot re-arms instead of terminalizing however many consecutive runs throw
-(`JobExecution.ComputeRecurringOutcome`). That is deliberate — a nightly job must not die permanently
+(`ExecutionCompletion.ComputeRecurringOutcome`). That is deliberate — a nightly job must not die permanently
 after three bad nights — but the alerting consequences are real.
 
 ### 1. `OnTerminal` and `Info` are silent for a recurring job's ordinary failures
@@ -435,16 +435,16 @@ choose `OnFailure` for recurring work you want to hear about — is the right on
 
 They do still fire on the terminal `Failed` shapes a recurring slot can reach, all three of which
 route through the handler-status completion path and stop the whole slot
-(`JobExecution.RunAsync`):
+(`ExecutionCompletion`):
 
 | Shape | Reason code | Where |
 | --- | --- | --- |
-| Handler declares failure with `ctx.FailAsync` | `job.handler-failed` (52) | `JobExecution.RunAsync` |
-| Handler throws `NotImplementedException` / `NotSupportedException` | `job.non-retryable-exception` (23) | `JobExecution.RunAsync` |
-| An `AtMostOnce()` step was re-entered before its outcome was recorded, uncaught | `job.step-interrupted` (63) | `JobExecution.RunAsync` |
+| Handler declares failure with `ctx.FailAsync` | `job.handler-failed` (52) | `HandlerInvocation` |
+| Handler throws `NotImplementedException` / `NotSupportedException` | `job.non-retryable-exception` (23) | `HandlerInvocation` |
+| An `AtMostOnce()` step was re-entered before its outcome was recorded, uncaught | `job.step-interrupted` (63) | `HandlerInvocation` |
 
 A whole-job deadline is **not** one of them: the deadline lands the job `Cancelled`, not `Failed`
-(`JobExecution.RunAsync`, `EventReasonCode.JobDeadlineExceeded`), and the alertable set has no
+(`ExecutionAdmission`, `ExecutionCompletion`, `EventReasonCode.JobDeadlineExceeded`), and the alertable set has no
 `Cancelled` branch (`GetAlertableEvents.sql`). No profile alerts on a deadline — the `on-terminal`
 `[Code]` description (`AlertProfileCode.OnTerminal`) and
 [Known limitations](../technical/known-limitations.md) both say the same.

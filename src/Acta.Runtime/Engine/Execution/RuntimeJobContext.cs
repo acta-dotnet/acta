@@ -59,7 +59,7 @@ internal sealed class RuntimeJobContext(
 
     /// <summary>
     /// Whether this attempt's cancellation was the execution-timeout firing rather than an external
-    /// cancel, read by <see cref="JobExecution"/> to record the timeout reason and apply the retry budget.
+    /// cancel, read by <see cref="HandlerInvocation"/> to record the timeout reason, which the retry budget then applies to.
     /// </summary>
     internal bool AttemptTimedOut => _runningAttempt?.TimedOut ?? false;
 
@@ -368,7 +368,7 @@ internal sealed class RuntimeJobContext(
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             // A business failure: record it and let the routine decide retry-vs-exhaust. A genuine parent
-            // or caller cancel is NOT caught here: it propagates so JobExecution/caller cancellation handles it,
+            // or caller cancel is NOT caught here: it propagates so HandlerInvocation/caller cancellation handles it,
             // never recording a step failure.
             var delaySeconds = BackoffSchedule.ComputeDelaySeconds(
                 start.AttemptNumber,
@@ -627,8 +627,8 @@ internal sealed class RuntimeJobContext(
 
     /// <summary>
     /// Caller-controlled handler writes (variables, progress) HARD-THROW past the inline cap; the
-    /// write never reaches storage. Handler results take a separate warn-and-persist path in
-    /// JobExecution.
+    /// write never reaches storage. Handler results take a separate warn-and-drop path in
+    /// HandlerInvocation.
     /// </summary>
     private void EnsureInlineSize(string entryPoint, JobPayload payload)
     {

@@ -9,7 +9,7 @@ namespace Acta.Runtime;
 /// <summary>
 /// Executes one already-claimed job: resolves the descriptor, opens the per-attempt DI scope, plans
 /// a recurring slot fire, builds the <see cref="RuntimeJobContext"/> and publishes it on the scope,
-/// then hands the start-invoke-complete lifecycle to <see cref="JobExecution"/> (which takes the
+/// then hands the start-admit-invoke-complete lifecycle to <see cref="JobExecution"/> (whose admission takes the
 /// concurrency-key lock after the start CAS and bounces a loser back to Ready). Claiming jobs from the
 /// DB and dispatching them to executors is the worker loop's job.
 /// <para>A claim this deployment carries no handler for is returned to Ready instead of executed;
@@ -310,17 +310,7 @@ internal sealed class JobExecutor(
             // The handler resolves from this same scope, so the scoped accessor carries the set value.
             attemptServices.GetRequiredService<IJobContextAccessor>().JobContext = jobContext;
 
-            return await _jobExecution.RunAsync(
-                attemptServices,
-                descriptor,
-                job,
-                jobContext,
-                workerId,
-                isRecurring,
-                fireOutcome,
-                alreadyStarted,
-                ct
-            );
+            return await _jobExecution.RunAsync(attemptServices, descriptor, job, jobContext, workerId, fireOutcome, alreadyStarted, ct);
         }
         finally
         {

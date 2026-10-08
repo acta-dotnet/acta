@@ -173,8 +173,8 @@ public sealed class JobExecutionRateAdmissionTests
         // A turn farther than the wait goes back through the claim path and must still be valid when
         // the worker picks it up, so the wait can never exceed the second a turn stays honoured; and
         // it stays short, about the pickup latency, so executors are not held for metered backlogs.
-        Assert.Equal(250, JobExecution.RateTurnWaitMilliseconds);
-        Assert.True(JobExecution.RateTurnWaitMilliseconds <= 1000);
+        Assert.Equal(250, ExecutionAdmission.RateTurnWaitMilliseconds);
+        Assert.True(ExecutionAdmission.RateTurnWaitMilliseconds <= 1000);
     }
 
     [Fact]

@@ -6,6 +6,5 @@ AlertsJob.cs
 CodeGenerator.cs
 DbProjectionGenerator.cs
 JobContext.cs
-JobExecution.cs
 RuntimeJobContext.cs
 SqlServerDialect.cs
