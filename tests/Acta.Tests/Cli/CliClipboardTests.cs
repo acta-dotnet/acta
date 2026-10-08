@@ -277,7 +277,7 @@ public class CliRunnerClipboardTests
         public ValueTask<PagedResult<EventListItem>> ListEventsAsync(ListEventsQuery query, CancellationToken ct = default) =>
             ValueTask.FromResult(new PagedResult<EventListItem>([], null, false, 50, null));
 
-        public ValueTask<OverviewSnapshot> GetOverviewAsync(OverviewQuery query, CancellationToken ct = default) =>
+        public ValueTask<OverviewSnapshot> GetOverviewAsync(GetOverviewQuery query, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
         public JobInputTemplate? GetInputTemplate(string jobNamespace, string jobName) => null;

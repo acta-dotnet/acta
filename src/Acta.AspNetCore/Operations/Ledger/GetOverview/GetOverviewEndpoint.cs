@@ -17,7 +17,7 @@ internal static class GetOverviewEndpoint
                     // Staleness and executor capacity key on this deployment's own lease window rather than
                     // the query default: past the lease a worker's jobs are already reclaimable, so its
                     // slots are not capacity. A host that widens the lease widens both readings with it.
-                    var query = new OverviewQuery(
+                    var query = new GetOverviewQuery(
                         JobNamespace: QueryBinding.Text(http.Request.Query, "jobNamespace"),
                         StaleWorkerAfterSeconds: jobs.Value.LeaseTtlSeconds
                     );

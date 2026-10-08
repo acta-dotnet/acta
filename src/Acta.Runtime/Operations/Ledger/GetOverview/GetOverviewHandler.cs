@@ -6,7 +6,7 @@ namespace Acta.Runtime;
 /// </summary>
 internal sealed class GetOverviewHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<OverviewSnapshot> HandleAsync(OverviewQuery query, CancellationToken ct)
+    public async ValueTask<OverviewSnapshot> HandleAsync(GetOverviewQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
         var jobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace));

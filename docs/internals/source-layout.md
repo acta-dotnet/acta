@@ -61,7 +61,7 @@ tests/Acta.Tests.Conformance/Operations/Jobs/RescheduleJobSpec.cs
 |---|---|
 | `OperationLayoutTests` | operation folders and depth, file names, all three dialects or none, no SQL outside `Operations/` and `Schema/`; once a group's Runtime folder holds C#, a handler per operation and a Runtime twin for each public operation folder; no `Operations/` file names a type declared under `Engine/` |
 | `TypeNamingTests` | the banned suffixes, the `Row` rule, and `Entity` on every table model |
-| `HandlerResponseTests` | `HandleAsync(XCommand)` returns `XResponse`; rows, commands, and queries declared in their slice under its name, a row named by no other slice |
+| `HandlerResponseTests` | `XHandler.HandleAsync` takes `XCommand` or `XQuery`, and `HandleAsync(XCommand)` returns `XResponse`; rows, commands, and queries declared in their slice under its name, a row named by no other slice |
 | `DuplicateShapeTests` | no two types declaring the same property names, except operations' own inputs, responses, and rows |
 | `DialectParityTests` | an operation's three SQL files return the same columns |
 | `FileLengthTests` | at most 600 lines per source file; the 150-line method cap is MA0051's, in the build |

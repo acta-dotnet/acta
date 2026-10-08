@@ -42,7 +42,7 @@ public sealed class AnvilStateReader(
         // reported to the cockpit but never used to decide who is live.
         var overviewTask = operations
             .Ledger.GetOverviewAsync(
-                new OverviewQuery(_namespaceName, StaleWorkerAfterSeconds: _leaseTtlSeconds, IncludeSlowCounts: true),
+                new GetOverviewQuery(_namespaceName, StaleWorkerAfterSeconds: _leaseTtlSeconds, IncludeSlowCounts: true),
                 ct
             )
             .AsTask();

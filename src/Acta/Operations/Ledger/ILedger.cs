@@ -14,5 +14,5 @@ public interface ILedger
     ValueTask<PagedResult<EventListItem>> ListEventsAsync(ListEventsQuery query, CancellationToken ct = default);
 
     /// <summary>One-shot dashboard health counters, optionally scoped to a namespace.</summary>
-    ValueTask<OverviewSnapshot> GetOverviewAsync(OverviewQuery query, CancellationToken ct = default);
+    ValueTask<OverviewSnapshot> GetOverviewAsync(GetOverviewQuery query, CancellationToken ct = default);
 }

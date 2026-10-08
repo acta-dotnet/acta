@@ -74,7 +74,7 @@ A type is named `{Subject}{Role}`, and each role has exactly one suffix. An oper
 - **A type takes the subject of the table it describes.** `StepStatusCode` maps `steps.status_code`, `DefinitionAuditLevelCode` maps `definitions.audit_level_code`, and `EventReasonCode` maps `events.reason_code`. `Job` prefixes only what describes a job itself (`JobStatusCode`, `JobDetail`).
 - **`Outcome` is a handler-code noun, never an operation's return.** It names how a job, a child, a map, or a wait ended inside handler code; what an operation returns is a `Response`.
 - **Banned suffixes:** `Result`, `Dto`, `Data`, `Info`, `Model`, `Entity` outside table models, `Record`, `Item` outside `ListItem` and a `Set`'s element, `Store`, `Service`, `Api`, `Page`, `PageRequest`, `Decision`.
-- **`TypeNamingTests` enforces the banned suffixes, the `Row` rule, and the `Entity` rule** over every shipped assembly, and **`HandlerResponseTests` holds `HandleAsync(XCommand)` to returning `XResponse`, and every row, command, and query to its slice.** Names and handlers that predate the rules are listed in `tests/ratchets/naming.txt` and `tests/ratchets/handler-response.txt`, and entries may only be removed.
+- **`TypeNamingTests` enforces the banned suffixes, the `Row` rule, and the `Entity` rule** over every shipped assembly, and **`HandlerResponseTests` holds `XHandler.HandleAsync` to taking its own `XCommand` or `XQuery`, `HandleAsync(XCommand)` to returning `XResponse`, and every row, command, and query to its slice.** Names and handlers that predate the rules are listed in `tests/ratchets/naming.txt` and `tests/ratchets/handler-response.txt`, and entries may only be removed.
 
 ## Public identity: refs and the wire boundary
 

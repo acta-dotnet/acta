@@ -230,7 +230,7 @@ internal sealed class Jobs(
         T value,
         string? actorKey = null,
         CancellationToken ct = default
-    ) => raiseSignal.HandleAsync(job, name, value, actorKey, ct);
+    ) => RaiseSignalAsync(job, name, routing.Json(value), actorKey, ct);
 
     public ValueTask<RaiseSignalResponse> RaiseSignalAsync(
         JobLookup job,

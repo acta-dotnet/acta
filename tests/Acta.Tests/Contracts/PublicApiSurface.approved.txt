@@ -923,6 +923,12 @@ static class Acta.ExecutionStatusExtensions
     Acta.ExecutionBehavior GetBehavior(Acta.ExecutionStatusCode value)
     System.Boolean get_ChargesFailureBudget(Acta.ExecutionStatusCode value)
     System.Boolean get_IsTerminal(Acta.ExecutionStatusCode value)
+sealed class Acta.GetOverviewQuery
+    .ctor(System.String JobNamespace = default, System.Int32 StaleWorkerAfterSeconds = default, System.Int32 DueSoonWindowSeconds = default, System.Boolean IncludeSlowCounts = default)
+    System.Boolean IncludeSlowCounts { get;init; }
+    System.Int32 DueSoonWindowSeconds { get;init; }
+    System.Int32 StaleWorkerAfterSeconds { get;init; }
+    System.String JobNamespace { get;init; }
 sealed class Acta.HandlerCancelException
     .ctor(System.String reasonMessage = default)
 abstract class Acta.HandlerControlException
@@ -1033,11 +1039,11 @@ interface Acta.IJobs
     System.Threading.Tasks.ValueTask<System.Nullable<System.Int64>> GetJobIdAsync(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<TResult> GetResultAsync<TResult>(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
 interface Acta.ILedger
-    System.Threading.Tasks.ValueTask<Acta.OverviewSnapshot> GetOverviewAsync(Acta.OverviewQuery query, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.OverviewSnapshot> GetOverviewAsync(Acta.GetOverviewQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.EventListItem>> ListEventsAsync(Acta.ListEventsQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.JobListItem>> ListJobsAsync(Acta.ListJobsQuery query, System.Threading.CancellationToken ct = default)
 interface Acta.INamespaces
-    System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.NamespaceListItem>> ListAsync(Acta.ListNamespacesQuery query, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.PagedResult<Acta.NamespaceListItem>> ListAsync(Acta.ListNamespaceItemsQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PagedResult<System.String>> ListNamesAsync(Acta.ListNamespacesQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ResumeNamespaceResponse> ResumeAsync(System.String name, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.SuspendNamespaceResponse> SuspendAsync(System.String name, System.String reasonMessage = default, System.String actorKey = default, System.Threading.CancellationToken ct = default)
@@ -1720,11 +1726,18 @@ sealed class Acta.ListJobsQuery
     System.String JobNamespace { get;init; }
     System.String Lane { get;init; }
     System.String TenantKey { get;init; }
-sealed class Acta.ListNamespacesQuery
+sealed class Acta.ListNamespaceItemsQuery
     .ctor(System.String NameContains = default, System.Nullable<Acta.NamespaceStatusCode> Status = default, System.Nullable<System.Int32> PageSize = default, System.String Cursor = default, System.Boolean IncludeTotal = default, System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags = default)
     System.Boolean IncludeTotal { get;init; }
     System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags { get;init; }
     System.Nullable<Acta.NamespaceStatusCode> Status { get;init; }
+    System.Nullable<System.Int32> PageSize { get;init; }
+    System.String Cursor { get;init; }
+    System.String NameContains { get;init; }
+sealed class Acta.ListNamespacesQuery
+    .ctor(System.String NameContains = default, System.Nullable<System.Int32> PageSize = default, System.String Cursor = default, System.Boolean IncludeTotal = default, System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags = default)
+    System.Boolean IncludeTotal { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags { get;init; }
     System.Nullable<System.Int32> PageSize { get;init; }
     System.String Cursor { get;init; }
     System.String NameContains { get;init; }
@@ -1868,12 +1881,6 @@ sealed class Acta.OutboxStatusCodeJsonConverter
     .ctor()
     Acta.OutboxStatusCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.OutboxStatusCode value, System.Text.Json.JsonSerializerOptions options)
-sealed class Acta.OverviewQuery
-    .ctor(System.String JobNamespace = default, System.Int32 StaleWorkerAfterSeconds = default, System.Int32 DueSoonWindowSeconds = default, System.Boolean IncludeSlowCounts = default)
-    System.Boolean IncludeSlowCounts { get;init; }
-    System.Int32 DueSoonWindowSeconds { get;init; }
-    System.Int32 StaleWorkerAfterSeconds { get;init; }
-    System.String JobNamespace { get;init; }
 sealed class Acta.OverviewSnapshot
     .ctor(System.Int64 ReadyCount, System.Nullable<System.Int64> OldestReadyAgeSeconds, System.Int64 ExecutingCount, System.Int64 FailedCount, System.Int64 UnresolvedAlertCount, System.Int64 UnresolvedCriticalAlertCount, System.Int64 DeadWorkerCount, System.Int64 StaleWorkerCount, System.Int64 DueSoonScheduleCount, System.Int64 JobCount, System.Int64 SystemJobCount, System.Int64 ExecutorCapacity, System.Nullable<System.Int64> ScheduleLagSeconds)
     System.Int64 DeadWorkerCount { get;init; }

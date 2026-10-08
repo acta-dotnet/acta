@@ -11,7 +11,6 @@ internal sealed class RaiseSignalHandler(
     ISqlDialect dialect,
     JobLookupResolution jobs,
     WorkerWakeupPublisher wakeup,
-    IJobPayloadSerializerRegistry serializers,
     IOptions<JobsOptions> options
 )
 {
@@ -39,21 +38,6 @@ internal sealed class RaiseSignalHandler(
         await JobControl.WakeIfReadyAsync(wakeup, row.Action, row.Status, ct);
         return new RaiseSignalResponse(jobId, row.Action, row.Status, null);
     }
-
-    /// <summary>
-    /// The typed raise: <paramref name="value"/> serializes through the registry, which honours UseJsonPayloads,
-    /// rather than the reflection-based static helper.
-    /// </summary>
-    public ValueTask<RaiseSignalResponse> HandleAsync<T>(JobLookup job, string name, T value, string? actorKey, CancellationToken ct) =>
-        HandleAsync(
-            new RaiseSignalCommand(
-                job,
-                name,
-                serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(value ?? throw new ArgumentNullException(nameof(value))),
-                actorKey
-            ),
-            ct
-        );
 
     /// <summary><see cref="Signals.RaiseSignalAsync"/>: one routine call for any slot kind, the operator's raise among them.</summary>
     internal Task<RaiseSignalRow> RaiseSlotAsync(SignalSlotRaise raise, CancellationToken ct) =>

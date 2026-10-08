@@ -1,15 +1,14 @@
 namespace Acta.Runtime;
 
 /// <summary>
-/// <see cref="INamespaces.ListNamesAsync"/>: namespace names ascending, one keyset page at a time. The
-/// names carry no status, so the status filter does not apply.
+/// <see cref="INamespaces.ListNamesAsync"/>: namespace names ascending, one keyset page at a time.
 /// </summary>
 internal sealed class ListNamespacesHandler(IDbSession session, ISqlDialect dialect)
 {
     public async ValueTask<PagedResult<string>> HandleAsync(ListNamespacesQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
-        var (fragment, pattern) = NamespaceNames.Search(query);
+        var (fragment, pattern) = NamespaceNames.Search(query.NameContains);
         var tags = TagFilterJson.Normalize(query.Tags, nameof(ListNamespacesQuery));
         var paging = Paging.Start(
             "ListNamespaces",

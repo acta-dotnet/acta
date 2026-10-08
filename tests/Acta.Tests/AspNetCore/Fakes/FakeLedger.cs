@@ -54,15 +54,15 @@ internal sealed class FakeLedger : ILedger
 
     public Func<ListEventsQuery, CancellationToken, ValueTask<PagedResult<EventListItem>>> ListEvents { get; set; }
 
-    public Func<OverviewQuery, CancellationToken, ValueTask<OverviewSnapshot>> GetOverview { get; set; }
+    public Func<GetOverviewQuery, CancellationToken, ValueTask<OverviewSnapshot>> GetOverview { get; set; }
 
     ValueTask<PagedResult<JobListItem>> ILedger.ListJobsAsync(ListJobsQuery query, CancellationToken ct) => ListJobs(query, ct);
 
     ValueTask<PagedResult<EventListItem>> ILedger.ListEventsAsync(ListEventsQuery query, CancellationToken ct) => ListEvents(query, ct);
 
-    ValueTask<OverviewSnapshot> ILedger.GetOverviewAsync(OverviewQuery query, CancellationToken ct) => GetOverview(query, ct);
+    ValueTask<OverviewSnapshot> ILedger.GetOverviewAsync(GetOverviewQuery query, CancellationToken ct) => GetOverview(query, ct);
 
-    private static OverviewSnapshot Overview(OverviewQuery query) =>
+    private static OverviewSnapshot Overview(GetOverviewQuery query) =>
         query.JobNamespace is not null && query.JobNamespace.Any(ch => !char.IsAsciiLetterLower(ch) && !char.IsAsciiDigit(ch) && ch != '-')
             ? throw new InvalidQueryException("JobNamespace must be a kebab-case identifier.")
             : new OverviewSnapshot(3, 120, 1, 2, 4, 1, 1, 2, 5, 10, 3, 8, 90);

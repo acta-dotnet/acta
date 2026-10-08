@@ -12,7 +12,7 @@ internal sealed class Namespaces(
     public ValueTask<PagedResult<string>> ListNamesAsync(ListNamespacesQuery query, CancellationToken ct = default) =>
         listNamespaces.HandleAsync(query, ct);
 
-    public ValueTask<PagedResult<NamespaceListItem>> ListAsync(ListNamespacesQuery query, CancellationToken ct = default) =>
+    public ValueTask<PagedResult<NamespaceListItem>> ListAsync(ListNamespaceItemsQuery query, CancellationToken ct = default) =>
         listNamespaceItems.HandleAsync(query, ct);
 
     public ValueTask<SuspendNamespaceResponse> SuspendAsync(

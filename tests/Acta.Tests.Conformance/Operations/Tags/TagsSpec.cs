@@ -129,10 +129,10 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
             x => x.TenantKey == targets.TenantKey
         );
 
-        var namespaces = await Operations.Namespaces.ListAsync(new ListNamespacesQuery(Tags: filters), ct);
+        var namespaces = await Operations.Namespaces.ListAsync(new ListNamespaceItemsQuery(Tags: filters), ct);
         Assert.Contains(namespaces.Items, x => x.JobNamespace == TestNamespace);
         Assert.DoesNotContain(
-            (await Operations.Namespaces.ListAsync(new ListNamespacesQuery(Tags: mismatch), ct)).Items,
+            (await Operations.Namespaces.ListAsync(new ListNamespaceItemsQuery(Tags: mismatch), ct)).Items,
             x => x.JobNamespace == TestNamespace
         );
 

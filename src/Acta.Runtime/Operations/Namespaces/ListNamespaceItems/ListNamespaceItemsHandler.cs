@@ -5,11 +5,11 @@ namespace Acta.Runtime;
 /// <summary><see cref="INamespaces.ListAsync"/>: namespaces by name ascending, one keyset page at a time.</summary>
 internal sealed class ListNamespaceItemsHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<PagedResult<NamespaceListItem>> HandleAsync(ListNamespacesQuery query, CancellationToken ct)
+    public async ValueTask<PagedResult<NamespaceListItem>> HandleAsync(ListNamespaceItemsQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
-        var (fragment, pattern) = NamespaceNames.Search(query);
-        var tags = TagFilterJson.Normalize(query.Tags, nameof(ListNamespacesQuery));
+        var (fragment, pattern) = NamespaceNames.Search(query.NameContains);
+        var tags = TagFilterJson.Normalize(query.Tags, nameof(ListNamespaceItemsQuery));
         var paging = Paging.Start(
             "ListNamespaceItems",
             "name asc",

@@ -43,7 +43,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
             ct
         );
 
-        var ns = await Operations.Ledger.GetOverviewAsync(new OverviewQuery(TestNamespace, 180, 3600), ct);
+        var ns = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(TestNamespace, 180, 3600), ct);
 
         Assert.True(ns.ReadyCount >= 1, $"Expected ReadyCount >= 1 in namespace {TestNamespace}, got {ns.ReadyCount}.");
         Assert.NotNull(ns.OldestReadyAgeSeconds);
@@ -60,7 +60,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         Assert.True(ns.SystemJobCount >= 0);
         Assert.True(ns.JobCount >= ns.SystemJobCount, "JobCount includes system jobs, so it must be >= SystemJobCount.");
 
-        var global = await Operations.Ledger.GetOverviewAsync(new OverviewQuery(null, 180, 3600), ct);
+        var global = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(null, 180, 3600), ct);
 
         Assert.True(
             global.ReadyCount >= ns.ReadyCount,
@@ -77,7 +77,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var result = await Operations.Ledger.GetOverviewAsync(new OverviewQuery("no-such-namespace-xyz", 180, 3600), ct);
+        var result = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery("no-such-namespace-xyz", 180, 3600), ct);
 
         Assert.Equal(0, result.ReadyCount);
         Assert.Null(result.OldestReadyAgeSeconds);
@@ -114,7 +114,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
     public async Task Backlog_counts_a_suspended_wait_only_once_expired()
     {
         var ct = TestContext.Current.CancellationToken;
-        var before = await Operations.Ledger.GetOverviewAsync(new OverviewQuery(TestNamespace, 3600, 1), ct);
+        var before = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(TestNamespace, 3600, 1), ct);
 
         // An unbounded wait is never backlog: no worker will ever claim it, and only a raise can move it.
         var unbounded = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
@@ -125,7 +125,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         var bounded = await Jobs.EnqueueAsync(new JobEnqueueRequest(TestNamespace, "job-wait-signal-timeout", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(bounded, ct));
 
-        var waiting = await Operations.Ledger.GetOverviewAsync(new OverviewQuery(TestNamespace, 3600, 1), ct);
+        var waiting = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(TestNamespace, 3600, 1), ct);
         Assert.Equal(before.ReadyCount, waiting.ReadyCount);
 
         // Past the deadline it is backlog, because the claim will now take it and a worker is what it
@@ -134,7 +134,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
             .Where(r => r.Id == bounded.JobId)
             .UpdateOnlyAsync(() => new RuntimeEntity { NextRunAtUtc = DateTime.UtcNow.AddMinutes(-1) }, ct);
 
-        var expired = await Operations.Ledger.GetOverviewAsync(new OverviewQuery(TestNamespace, 3600, 1), ct);
+        var expired = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(TestNamespace, 3600, 1), ct);
         Assert.Equal(before.ReadyCount + 1, expired.ReadyCount);
         Assert.NotNull(expired.OldestReadyAgeSeconds);
     }
@@ -155,7 +155,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         // Runtime.InitializeAsync seeds one Ready slot job for every schedule whose environments list
         // is empty (currently: recurring-ping with "every-5-minutes"). Take a before-snapshot now so
         // ReadyCount and JobCount assertions use deltas and remain correct if the manifest changes.
-        var before = await Operations.Ledger.GetOverviewAsync(new OverviewQuery(TestNamespace, 3600, 1), ct);
+        var before = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(TestNamespace, 3600, 1), ct);
         // Confirm the namespace is otherwise clean (fresh, unique per test-instance).
         Assert.Equal(0, before.ExecutingCount);
         Assert.Equal(0, before.FailedCount);
@@ -266,7 +266,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
             );
 
         // ── Narrow-threshold assertion (staleAfterSeconds = 1 min) ───────────────────────────────
-        var ovNarrow = await Operations.Ledger.GetOverviewAsync(new OverviewQuery(TestNamespace, 60, 1), ct);
+        var ovNarrow = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(TestNamespace, 60, 1), ct);
 
         // ReadyCount and JobCount: delta from before (before includes slot jobs seeded by InitializeAsync).
         Assert.Equal(before.ReadyCount + 2, ovNarrow.ReadyCount); // j1, j2 added; j3 Executing, j4 Failed
@@ -287,7 +287,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         Assert.Null(ovNarrow.ScheduleLagSeconds); // the harness parks slot cursors a day out, so none is past due
 
         // ── Wide-threshold assertion (staleAfterSeconds = 4 h): count flips to 0 ────────────────
-        var ovWide = await Operations.Ledger.GetOverviewAsync(new OverviewQuery(TestNamespace, 14400, 1), ct);
+        var ovWide = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(TestNamespace, 14400, 1), ct);
 
         Assert.Equal(0, ovWide.StaleWorkerCount); // threshold crossed: W2's 2 min < 4 h
         Assert.Equal(1, ovWide.ExecutorCapacity); // same crossing, other direction: W2's single slot is live again

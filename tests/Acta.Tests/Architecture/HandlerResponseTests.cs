@@ -7,9 +7,9 @@ namespace Acta.Tests.Architecture;
 
 /// <summary>
 /// Holds operations to "every operation has its own input and its own response" in <c>docs/internals/naming-conventions.md</c>:
-/// <c>HandleAsync(XCommand)</c> returns <c>XResponse</c>, and a row, command, or query is declared in its operation's folder
-/// under the operation's name, a row named by no other operation. What predates a rule is listed in its ratchet,
-/// <c>handler-response</c> or <c>slice-members</c>.
+/// <c>XHandler.HandleAsync</c> takes <c>XCommand</c> or <c>XQuery</c> and returns <c>XResponse</c> for a command, and a row,
+/// command, or query is declared in its operation's folder under the operation's name, a row named by no other
+/// operation. What predates a rule is listed in its ratchet, <c>handler-response</c> or <c>slice-members</c>.
 /// </summary>
 public sealed class HandlerResponseTests
 {
@@ -19,22 +19,41 @@ public sealed class HandlerResponseTests
     private static readonly string[] SliceRoles = ["Row", "Command", "Query"];
 
     [Fact]
-    public void A_command_handler_returns_its_operations_response()
+    public void A_handler_takes_its_operations_input_and_returns_its_response()
     {
-        var violations = ShippedCode
+        var handlers = ShippedCode
             .Types.Where(type => type.Name.EndsWith("Handler", StringComparison.Ordinal))
             .SelectMany(type =>
                 type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
                     .Where(method => method.Name == "HandleAsync")
             )
             .Select(method =>
-                (Handler: method.DeclaringType!, Command: method.GetParameters()[0].ParameterType, Returns: Awaited(method.ReturnType))
+                (Handler: method.DeclaringType!, Input: method.GetParameters()[0].ParameterType, Returns: Awaited(method.ReturnType))
             )
-            .Where(handler => handler.Command.Name.EndsWith("Command", StringComparison.Ordinal))
-            .Where(handler => handler.Returns?.Name != handler.Command.Name[..^"Command".Length] + "Response")
-            .Select(handler => (ShippedCode.Key(handler.Handler), (string?)$"{handler.Command.Name} returns {Describe(handler.Returns)}"));
+            .ToList();
 
-        Ratchet.Check("handler-response", violations, "Return the operation's own XResponse from HandleAsync(XCommand).");
+        // An operation with no input takes only the token.
+        var inputs = handlers
+            .Where(handler => handler.Input != typeof(CancellationToken) && !OwnInput(handler.Handler, handler.Input))
+            .Select(handler =>
+                ($"{ShippedCode.Key(handler.Handler)} (takes {Describe(handler.Input)})", (string?)"HandleAsync takes another input")
+            );
+        var responses = handlers
+            .Where(handler => handler.Input.Name.EndsWith("Command", StringComparison.Ordinal))
+            .Where(handler => handler.Returns?.Name != handler.Input.Name[..^"Command".Length] + "Response")
+            .Select(handler => (ShippedCode.Key(handler.Handler), (string?)$"{handler.Input.Name} returns {Describe(handler.Returns)}"));
+
+        Ratchet.Check(
+            "handler-response",
+            inputs.Concat(responses),
+            "Take the operation's own XCommand or XQuery in HandleAsync, and return its own XResponse from a command."
+        );
+    }
+
+    private static bool OwnInput(Type handler, Type input)
+    {
+        var operation = handler.Name[..^"Handler".Length];
+        return input.Name == operation + "Command" || input.Name == operation + "Query";
     }
 
     [Fact]
