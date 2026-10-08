@@ -1,4 +1,3 @@
-using Acta.Runtime;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -149,12 +148,12 @@ public sealed class OutboxRelayBuilderTests
     {
         Assert.Equal(
             ["sys.alerts", "sys.outbox", "sys.recovery"],
-            Acta.Runtime.FrameworkJobs.For(registerSystemJobs: false, hasRelay: true).Order(StringComparer.Ordinal)
+            Acta.FrameworkJobs.For(registerSystemJobs: false, hasRelay: true).Order(StringComparer.Ordinal)
         );
         Assert.Equal(
             ["sys.alerts", "sys.recovery", "sys.retention"],
-            Acta.Runtime.FrameworkJobs.For(registerSystemJobs: true, hasRelay: false).Order(StringComparer.Ordinal)
+            Acta.FrameworkJobs.For(registerSystemJobs: true, hasRelay: false).Order(StringComparer.Ordinal)
         );
-        Assert.Empty(Acta.Runtime.FrameworkJobs.For(registerSystemJobs: false, hasRelay: false));
+        Assert.Empty(Acta.FrameworkJobs.For(registerSystemJobs: false, hasRelay: false));
     }
 }

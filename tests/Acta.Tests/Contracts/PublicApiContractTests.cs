@@ -24,7 +24,6 @@ public sealed class PublicApiContractTests
     private static readonly string[] ShippedAssemblies =
     [
         "Acta.dll",
-        "Acta.Runtime.dll",
         "Acta.AspNetCore.dll",
         "Acta.Postgres.dll",
         "Acta.SqlServer.dll",

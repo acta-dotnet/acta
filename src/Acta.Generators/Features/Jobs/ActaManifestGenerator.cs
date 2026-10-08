@@ -292,8 +292,8 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         string rootNamespace
     )
     {
-        // Framework assemblies alone may use the reserved `sys.` name prefix.
-        var isFrameworkAssembly = rootNamespace is "Acta" or "Acta.Runtime";
+        // The framework assembly alone may use the reserved `sys.` name prefix.
+        var isFrameworkAssembly = rootNamespace is "Acta";
 
         var customFormatById = ValidatePayloadFormats(spc, customFormats);
 

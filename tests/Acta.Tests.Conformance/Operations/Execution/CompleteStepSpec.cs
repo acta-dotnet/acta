@@ -1,5 +1,4 @@
 using System.Text;
-using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,7 +20,7 @@ public sealed class CompleteStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
     private const string Reason = "carrier offline";
     private static readonly byte[] Result = Encoding.UTF8.GetBytes("{\"tracking\":\"x1\"}");
 
-    private Acta.Runtime.Execution Execution => Services.GetRequiredService<Acta.Runtime.Execution>();
+    private Acta.Execution Execution => Services.GetRequiredService<Acta.Execution>();
 
     [Fact(DisplayName = "A success stores the result, marks the slot Succeeded, and clears an earlier failure's reason and retry instant")]
     public async Task Success_stores_the_result_and_clears_the_failure()

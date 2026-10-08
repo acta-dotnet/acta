@@ -1,4 +1,3 @@
-using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -37,7 +36,7 @@ public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<Conforman
 
         // --- 1. Claim the row, then crash before StartExecution by expiring the lease.
         var claimed = Assert.Single(
-            await Services.GetRequiredService<Acta.Runtime.Execution>().ClaimOneAsync(ns, worker, LeaseTtlSeconds, enqueued, ct)
+            await Services.GetRequiredService<Acta.Execution>().ClaimOneAsync(ns, worker, LeaseTtlSeconds, enqueued, ct)
         );
         Assert.Equal(enqueued.JobId, claimed.JobId);
         await ChaosSpecHelpers.ExpireLeaseAsync(Db, enqueued.JobId, ct);
@@ -70,13 +69,13 @@ public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<Conforman
 
         // --- 1. Claim and start, then crash before the handler completes by expiring the lease.
         var claimed = Assert.Single(
-            await Services.GetRequiredService<Acta.Runtime.Execution>().ClaimOneAsync(ns, worker, LeaseTtlSeconds, enqueued, ct)
+            await Services.GetRequiredService<Acta.Execution>().ClaimOneAsync(ns, worker, LeaseTtlSeconds, enqueued, ct)
         );
         Assert.Equal(
             StartExecutionAction.Started,
             (
                 await Services
-                    .GetRequiredService<Acta.Runtime.Execution>()
+                    .GetRequiredService<Acta.Execution>()
                     .StartExecutionAsync(enqueued.JobId, worker, claimed.ExecutionNumber, claimed.Version, LeaseTtlSeconds, ct)
             ).Action
         );
@@ -174,11 +173,11 @@ public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<Conforman
 
         // recurring-ping declares MaxAttempts = 2: one accumulated failed occurrence plus this
         // crashed one lands exactly on the budget - the count the Failed arm used to fire on.
-        var affected = await Db.From<Acta.Runtime.RuntimeEntity>()
+        var affected = await Db.From<Acta.RuntimeEntity>()
             .Where(r => r.Id == slotId)
             .UpdateOnlyAsync(
                 () =>
-                    new Acta.Runtime.RuntimeEntity
+                    new Acta.RuntimeEntity
                     {
                         Status = JobStatusCode.Executing,
                         FailureCount = 1,

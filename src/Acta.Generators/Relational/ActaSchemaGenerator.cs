@@ -18,15 +18,15 @@ namespace Acta.Generators;
 [Generator(LanguageNames.CSharp)]
 public sealed class ActaSchemaGenerator : IIncrementalGenerator
 {
-    internal const string DbTableAttr = "Acta.Runtime.DbTableAttribute";
-    internal const string DbColumnAttr = "Acta.Runtime.DbColumnAttribute";
-    internal const string DbIgnoreAttr = "Acta.Runtime.DbIgnoreAttribute";
-    internal const string DbPrimaryKeyAttr = "Acta.Runtime.DbPrimaryKeyAttribute";
-    internal const string DbIndexAttr = "Acta.Runtime.DbIndexAttribute";
-    internal const string DbUniqueIndexAttr = "Acta.Runtime.DbUniqueIndexAttribute";
-    internal const string DbCheckAttr = "Acta.Runtime.DbCheckAttribute";
-    internal const string DbForeignKeyAttr = "Acta.Runtime.DbForeignKeyAttribute";
-    internal const string DbConcurrencyTokenAttr = "Acta.Runtime.DbConcurrencyTokenAttribute";
+    internal const string DbTableAttr = "Acta.DbTableAttribute";
+    internal const string DbColumnAttr = "Acta.DbColumnAttribute";
+    internal const string DbIgnoreAttr = "Acta.DbIgnoreAttribute";
+    internal const string DbPrimaryKeyAttr = "Acta.DbPrimaryKeyAttribute";
+    internal const string DbIndexAttr = "Acta.DbIndexAttribute";
+    internal const string DbUniqueIndexAttr = "Acta.DbUniqueIndexAttribute";
+    internal const string DbCheckAttr = "Acta.DbCheckAttribute";
+    internal const string DbForeignKeyAttr = "Acta.DbForeignKeyAttribute";
+    internal const string DbConcurrencyTokenAttr = "Acta.DbConcurrencyTokenAttribute";
     internal const string CodeKindAttr = "Acta.CodeKindAttribute";
 
     /// <summary>

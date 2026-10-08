@@ -85,7 +85,7 @@ internal static class ProjectionSourceWriter
         var targets = namespaceTargets.Concat(nestedTargets).OrderBy(static t => t, StringComparer.Ordinal).ToArray();
 
         var sb = NewSourceBuilder();
-        sb.AppendLine("namespace Acta.Runtime;");
+        sb.AppendLine("namespace Acta;");
         sb.AppendLine();
         sb.AppendLine("internal static class DbProjectionResolver");
         sb.AppendLine("{");
@@ -196,7 +196,7 @@ internal static class ProjectionSourceWriter
         sb.AppendLine("using System;");
         sb.AppendLine("using System.Data.Common;");
         sb.AppendLine("using System.Globalization;");
-        sb.AppendLine("using Acta.Runtime;");
+        sb.AppendLine("using Acta;");
         sb.AppendLine();
         return sb;
     }
@@ -267,7 +267,7 @@ internal static class ProjectionSourceWriter
             sb.Append(indent).Append("    if (typeof(T) == typeof(").Append(projection.TypeFqn).AppendLine("))");
             sb.Append(indent).AppendLine("    {");
             sb.Append(indent)
-                .Append("        read = (Func<DbDataReader, T>)(object)global::Acta.Runtime.DbProjectionResolver.")
+                .Append("        read = (Func<DbDataReader, T>)(object)global::Acta.DbProjectionResolver.")
                 .Append(projection.ByName ? "ByName<" : "ByPosition<")
                 .Append(projection.TypeFqn)
                 .Append(projection.ByName ? ">(\"" + projection.TypeName + "\", " : ">(")

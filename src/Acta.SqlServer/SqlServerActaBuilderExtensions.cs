@@ -1,5 +1,3 @@
-using Acta.Runtime;
-
 namespace Acta.SqlServer;
 
 /// <summary>SQL Server provider registration: the dialect, bootstrap, and options; core owns everything else.</summary>

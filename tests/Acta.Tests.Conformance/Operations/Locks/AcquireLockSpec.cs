@@ -1,4 +1,3 @@
-using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,7 +22,7 @@ public sealed class AcquireLockSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Concurrent_acquires_have_one_winner()
     {
         var ct = TestContext.Current.CancellationToken;
-        var store = Services.GetRequiredService<Acta.Runtime.Locks>();
+        var store = Services.GetRequiredService<Acta.Locks>();
         var key = TestKey("lock-race");
         var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var attempts = Enumerable
@@ -37,7 +36,7 @@ public sealed class AcquireLockSpec : ActaStorageTestBase<ConformanceFixture>
         start.SetResult();
         var tokens = await Task.WhenAll(attempts);
         var winner = Assert.Single(tokens, t => t.HasValue)!.Value;
-        var row = await Db.From<Acta.Runtime.LockEntity>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct);
+        var row = await Db.From<Acta.LockEntity>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct);
         Assert.NotNull(row);
         Assert.Equal(winner.HoldToken, row.HoldToken);
         Assert.True((await store.ReleaseLockAsync(winner, ct)).Released);
@@ -47,13 +46,13 @@ public sealed class AcquireLockSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Acquire_lands_a_lease_row_and_blocks_a_competing_acquire()
     {
         var ct = TestContext.Current.CancellationToken;
-        var locks = Services.GetRequiredService<Acta.Runtime.Locks>();
+        var locks = Services.GetRequiredService<Acta.Locks>();
         var key = TestKey("ck.acquire-lock-spec");
 
         var token = (await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -1, ct)).Token;
         Assert.NotNull(token);
 
-        var lease = await Db.From<Acta.Runtime.LockEntity>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct);
+        var lease = await Db.From<Acta.LockEntity>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct);
         Assert.NotNull(lease);
         Assert.Equal(key, lease!.LockKey);
         Assert.Equal(-1L, lease.JobId);
@@ -71,7 +70,7 @@ public sealed class AcquireLockSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Competing_acquire_steals_expired_lease_and_bumps_version()
     {
         var ct = TestContext.Current.CancellationToken;
-        var locks = Services.GetRequiredService<Acta.Runtime.Locks>();
+        var locks = Services.GetRequiredService<Acta.Locks>();
         var key = TestKey("ck.steal-on-expiry");
 
         // Initial acquire: lands a lease row. Owners are negative synthetic ids so they can never
@@ -82,9 +81,9 @@ public sealed class AcquireLockSpec : ActaStorageTestBase<ConformanceFixture>
         // Deterministically expire the lease by back-dating expires_at_utc.
         {
             var expired = DateTime.UtcNow.AddHours(-1);
-            await Db.From<Acta.Runtime.LockEntity>()
+            await Db.From<Acta.LockEntity>()
                 .Where(l => l.LockKey == key)
-                .UpdateOnlyAsync(() => new Acta.Runtime.LockEntity { ExpiresAtUtc = expired }, ct);
+                .UpdateOnlyAsync(() => new Acta.LockEntity { ExpiresAtUtc = expired }, ct);
         }
 
         // A competing acquire on the now-expired lease must succeed (steal). Poll briefly: under SQL Server
@@ -104,7 +103,7 @@ public sealed class AcquireLockSpec : ActaStorageTestBase<ConformanceFixture>
         // steal, in which case AcquireLockAsync re-inserts a fresh lease (version resets) rather than
         // updating it in place.
         {
-            var postSteal = await Db.From<Acta.Runtime.LockEntity>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct);
+            var postSteal = await Db.From<Acta.LockEntity>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct);
             Assert.NotNull(postSteal);
             Assert.Equal(-2L, postSteal!.JobId);
         }

@@ -6,14 +6,16 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
-    <!-- The public SDK: one Acta namespace; folders group by operation group or capability. -->
+    <!-- One Acta namespace; folders group by operation group or capability. -->
     <RootNamespace>Acta</RootNamespace>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)Generated</CompilerGeneratedFilesOutputPath>
-    <!-- Emit XML doc file so Acta.Emit can read summaries (e.g., JobPayloadFormat fields). -->
+    <!-- Emit XML doc file so Acta.Emit can read summaries: JobPayloadFormat fields, and the entity and property
+         summaries for docs/reference/data-model.md. -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Suppress "missing XML comment" warnings: not every public member needs one. -->
     <NoWarn>$(NoWarn);1591</NoWarn>
-    <Description>The Acta public API: [Job]/[JobSchedule] attributes, IJobs, JobContext, and code families. Ships the source generator and ACTA analyzers.</Description>
+    <Description>Acta: the [Job]/[JobSchedule] attributes, IJobs, JobContext, and code families, with the engine, its operations, database access, the schema, and hosting. Ships the source generator and ACTA analyzers; the provider packages bring the SQL dialect.</Description>
   </PropertyGroup>
 
   <ItemGroup>
@@ -29,23 +31,41 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- JobRunAndWait (in Acta.Runtime) builds JobOutcome via its private-ctor internal static factories. -->
-    <InternalsVisibleTo Include="Acta.Runtime" />
-    <!-- Tests need access to internal validators and canonicalizers. -->
+    <!-- Tests need access to internal validators, canonicalizers, and helpers such as SchemaMigrationDiscovery. -->
     <InternalsVisibleTo Include="Acta.Tests" />
     <!-- The test host stages a bounded group wait's expiry, which means finding the framework-owned
          deadline slot by the one reserved name JobContext writes it under. A copy of that name in the
-         testing package could drift silently and make a staged expiry a no-op. -->
+         testing package could drift silently and make a staged expiry a no-op. It also composes internal
+         runtime services for deterministic host control and diagnostics. -->
     <InternalsVisibleTo Include="Acta.Testing" />
     <!-- Conformance drives engine tuning that is deliberately not on the public surface: a bounce delay
          of 0, a batch size of 2, an alert delivery retry cap of 2. A spec proving the behaviour has to
-         reach the knob a deployment must not. -->
+         reach the knob a deployment must not. The provider conformance heads also build the internal
+         outbox source store through the provider factory, so they must see the internal IOutboxRelayStore. -->
     <InternalsVisibleTo Include="Acta.Tests.Conformance" />
     <InternalsVisibleTo Include="Acta.Tests.Conformance.Postgres" />
     <InternalsVisibleTo Include="Acta.Tests.Conformance.SqlServer" />
     <InternalsVisibleTo Include="Acta.Tests.Conformance.Sqlite" />
+    <!-- Provider assemblies implement the internal semantic store contracts without exposing those
+         ports as public product API. -->
+    <InternalsVisibleTo Include="Acta.Postgres" />
+    <InternalsVisibleTo Include="Acta.SqlServer" />
+    <InternalsVisibleTo Include="Acta.Sqlite" />
+    <!-- The Redis wake transport composes the internal InProcessWakeup for its local delivery layer. -->
+    <InternalsVisibleTo Include="Acta.Redis" />
+    <!-- Code-emission tool reads the [DbTable]/[DbColumn] attribute graph and the ActaSchema metadata
+         to render DDL and docs. -->
+    <InternalsVisibleTo Include="Acta.Emit" />
     <!-- The benchmark sweeps the lease window as an experiment variable, which a deployment cannot. -->
     <InternalsVisibleTo Include="Anvil.Bench" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Every dialect's SQL beside its operation, and the schema commands and operator views; the catalog
+         selects one dialect by the X.<token>.sql suffix. -->
+    <EmbeddedResource Include="Operations/**/*.sql;Schema/**/*.sql" Exclude="$(DefaultItemExcludes)">
+      <LogicalName>$(AssemblyName).$([MSBuild]::ValueOrDefault('%(RelativeDir)', '').Replace('\', '.').Replace('/', '.'))%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 
   <!-- Packing without the generator assembly would ship a package whose [Job] source generation
@@ -58,10 +78,16 @@
   </Target>
 
   <ItemGroup>
+    <!-- Generates the code families, the system-job manifest, the table binders, and the row projections. -->
     <ProjectReference Include="..\Acta.Generators\Acta.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <!-- Generated per-handler invokers call ActivatorUtilities.CreateInstance<T>(IServiceProvider).
          Carried transitively so consuming assemblies (concepts / user manifests) compile cleanly
          without an explicit reference. -->
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+    <!-- Cron parsing for recurring schedules (6-field seconds support). Used by
+         NextOccurrenceCalculator only, never in SQL. -->
+    <PackageReference Include="Cronos" />
   </ItemGroup>
 </Project>

@@ -1,0 +1,194 @@
+namespace Acta;
+
+/// <summary>
+/// The hot, mutable state of one job, one row per <c>jobs</c> row, split out so claim and complete churn never
+/// rewrites the identity and input row. Every state transition updates it and bumps <see cref="Version"/>, the CAS
+/// token; the lease (<see cref="LeasedByWorkerId"/>, <see cref="LeaseExpiresAtUtc"/>) lives here too, so a claim is
+/// one update and a heartbeat extends the lease without bumping the version. The creation instant is on the jobs row.
+/// </summary>
+[DbTable("runtimes")]
+[DbPrimaryKey(Name = "pk_runtimes", Columns = ["job_id"], Manual = true, OptimizeForSequentialKey = true)]
+[DbForeignKey(
+    Name = "fk_runtimes_jobs",
+    Target = typeof(JobEntity),
+    TargetColumn = "id",
+    Column = "job_id",
+    OnDelete = DbForeignKeyAction.Cascade
+)]
+[DbForeignKey(
+    Name = "fk_runtimes_lanes",
+    Target = typeof(LaneEntity),
+    TargetColumn = "id",
+    Column = "lane_id",
+    OnDelete = DbForeignKeyAction.NoAction
+)]
+// Holds exactly the rows that can come due by time: Ready rows, and Suspended rows carrying a durable
+// wait's expiration in next_run_at_utc. A Suspended row with a NULL next_run_at_utc is an unbounded wait
+// that only a signal or a child settle can wake, and it stays out of the index, because SQL Server and
+// SQLite sort NULLs first and every claim would otherwise read past every parked wait in its band. A SQL
+// Server filtered index accepts AND-ed simple predicates only, and every query that must use the index
+// restates the whole filter as top-level AND terms. The claim seeks one priority band at a time on
+// (namespace_id, priority_code, next_run_at_utc) and stops at the band's first row past the current instant.
+// status_code trails the seek and sort keys purely to keep the claim covering: the claim reports the
+// status each row leaves, and without the column every candidate row costs a heap lookup on the hottest
+// query in the system.
+[DbIndex(
+    Name = "ix_runtimes_claim_ready",
+    Columns = ["namespace_id", "priority_code", "next_run_at_utc", "job_id", "status_code"],
+    Descending = ["priority_code"],
+    Filter = "status_code IN (10, 20) AND next_run_at_utc IS NOT NULL",
+    Usage = "claim_hot_path"
+)]
+// OptimizeForSequentialKey: retention instants ascend, so completions insert at this index's tail; a
+// per-index page-latch attribution measured 9.5 s of wait on that tail page at 16 workers.
+[DbIndex(
+    Name = "ix_runtimes_retention",
+    Columns = ["namespace_id", "retention_until_utc", "job_id"],
+    Filter = "retention_until_utc IS NOT NULL AND status_code IN (100, 200, 220)",
+    Usage = "maintenance",
+    OptimizeForSequentialKey = true
+)]
+// status_code stays in the filter but out of the key, which is all the heartbeat needs: keying on it
+// would move every in-flight entry to a new key on the Dispatched-to-Executing transition, and one
+// worker's entries share a leaf page, so that write lands on this index's hottest page.
+[DbIndex(
+    Name = "ix_runtimes_worker_inflight",
+    Columns = ["leased_by_worker_id", "job_id"],
+    Filter = "leased_by_worker_id IS NOT NULL AND status_code IN (40, 50)",
+    Usage = "heartbeat"
+)]
+// A lane's unfinished members, in job-id order: enqueue asks whether the lane has one, and a settle
+// finds the lowest-id Blocked member to promote. The filter lists the unfinished statuses positively,
+// because a SQL Server filtered index accepts IN but not NOT IN, and every query that must use the
+// index restates it.
+[DbIndex(
+    Name = "ix_runtimes_lane",
+    Columns = ["lane_id", "job_id"],
+    Filter = "lane_id IS NOT NULL AND status_code IN (10, 15, 20, 30, 40, 50)",
+    Usage = "lane"
+)]
+// Every member of a lane, finished or not: retention asks whether any runtime still references a lane
+// before deleting it, and the fk_runtimes_lanes check on that delete seeks it too. lane_id never
+// changes, so only a laned insert or purge writes it.
+[DbIndex(Name = "ix_runtimes_lane_member", Columns = ["lane_id"], Filter = "lane_id IS NOT NULL", Usage = "maintenance")]
+// Only a laned Job can wait behind its lane.
+[DbCheck(Name = "ck_runtimes_blocked_lane", Sql = "status_code <> 15 OR lane_id IS NOT NULL")]
+[DbCheck(
+    Name = "ck_runtimes_lease_consistency",
+    Sql = "(leased_by_worker_id IS NULL AND lease_expires_at_utc IS NULL) OR (leased_by_worker_id IS NOT NULL AND lease_expires_at_utc IS NOT NULL)"
+)]
+[DbCheck(Name = "ck_runtimes_counters", Sql = "execution_number >= 0 AND failure_count >= 0")]
+// Both directions, so with ck_runtimes_lease_consistency an in-flight status and a complete lease pair
+// are the same fact. ClaimOne, ClaimBatch and StartExecution are the only routines that enter 40/50,
+// and each writes the lease in the same statement. Every routine that nulls the lease leaves 40/50 in
+// the same statement: CompleteExecution, ReclaimStuckJobs, RepairRecoverySlot, CancelJob, RestartJob.
+[DbCheck(Name = "ck_runtimes_status_lease", Sql = "status_code IN (40, 50) OR leased_by_worker_id IS NULL")]
+[DbCheck(Name = "ck_runtimes_inflight_leased", Sql = "status_code NOT IN (40, 50) OR leased_by_worker_id IS NOT NULL")]
+// A Ready row is due at a known instant, which is what lets ix_runtimes_claim_ready leave out NULL instants
+// without losing a Ready row, and lets the claim seek it in its own order instead of sorting. Every routine that lands Ready writes the instant
+// in the same statement: EnqueueJob, EnqueueJobs, RegisterSchedules, RestartJob, ResumeJob,
+// RescheduleJob, TriggerScheduleNow, RaiseSignal, CompleteExecution (re-arm and signal release),
+// ReclaimStuckJobs, RepairRecoverySlot. NULL is reserved for a Suspended row's unbounded wait.
+[DbCheck(Name = "ck_runtimes_ready_due", Sql = "status_code <> 10 OR next_run_at_utc IS NOT NULL")]
+internal sealed class RuntimeEntity : IEntity<long>
+{
+    /// <summary>
+    /// Owning Job; primary key (1:1 with <c>jobs</c>) and CASCADE FK, so a purged job sweeps its
+    /// runtime row in the same transaction. Supplied by enqueue, never DB-assigned.
+    /// </summary>
+    [DbColumn("job_id", DbKind.Int64)]
+    public long Id { get; init; }
+
+    /// <summary>
+    /// Immutable copy of the owning Job's namespace, denormalized so the hot claim, reclaim, and
+    /// retention scans filter and seek without joining <c>jobs</c> (<c>ix_runtimes_claim_ready</c> /
+    /// <c>ix_runtimes_retention</c> lead with it). Written once at insert, never updated.
+    /// </summary>
+    [DbColumn("namespace_id", DbKind.Int32)]
+    public int NamespaceId { get; init; }
+
+    /// <summary>
+    /// The owning Job's lane, NULL for an unlaned Job. Written once at insert, never updated.
+    /// A laned Job enters Ready only while no older member of its lane is unfinished; otherwise it
+    /// enters <c>Blocked</c> and the settle of the member ahead of it promotes it.
+    /// </summary>
+    [DbColumn("lane_id", DbKind.Int64)]
+    public long? LaneId { get; init; }
+
+    /// <summary>
+    /// Durable lifecycle of the Job (Paused / Suspended / Ready / Dispatched / Executing / Succeeded / Failed / Cancelled).
+    /// </summary>
+    [DbColumn("status_code")]
+    public JobStatusCode Status { get; set; }
+
+    /// <summary>
+    /// Claim-order key set from the definition policy, definition override, or per-enqueue override.
+    /// </summary>
+    [DbColumn("priority_code")]
+    public JobPriorityCode Priority { get; set; }
+
+    /// <summary>
+    /// Next claim instant; the hot-path claim filter compares against this. A <c>Ready</c> row always
+    /// carries it, enforced by <c>ck_runtimes_ready_due</c>. On a <c>Suspended</c> row it carries the
+    /// awaited slot's expiration, or NULL for an unbounded wait, which is what keeps an unbounded wait
+    /// unclaimable while a bounded one wakes at its deadline.
+    /// </summary>
+    [DbColumn("next_run_at_utc", DbKind.UtcInstant)]
+    public DateTime? NextRunAtUtc { get; set; }
+
+    /// <summary>
+    /// Monotonic-lifetime claim counter; incremented atomically on each claim. It follows claims, not
+    /// scheduled occurrences, so retries and reclaims advance it too. Int32 is a deliberate width: a
+    /// recurring slot claimed once a second for its whole life would take about sixty-eight years to
+    /// exhaust it, and exhaustion lies outside the supported lifetime of one durable slot. The
+    /// providers raise on overflow rather than wrap (SQLite stores a wider integer, and the Int32
+    /// mapper rejects it on read), so the failure mode is an error, never a negative attempt number.
+    /// </summary>
+    [DbColumn("execution_number", DbKind.Int32)]
+    public int ExecutionNumber { get; set; }
+
+    /// <summary>
+    /// Failure counter for the current cycle, compared against <c>MaxAttempts</c> on a one-off job. A
+    /// recurring slot is not terminalized for crossing that budget, so its counter keeps climbing across
+    /// occurrences.
+    /// </summary>
+    [DbColumn("failure_count", DbKind.Int32)]
+    public int FailureCount { get; set; }
+
+    /// <summary>
+    /// Worker that currently holds the in-flight execution lease, if any. No FK; write-time
+    /// validation in the claim routine. Paired with <see cref="LeaseExpiresAtUtc"/> by
+    /// <c>ck_runtimes_lease_consistency</c>, and bound to <see cref="Status"/> in both directions by
+    /// <c>ck_runtimes_status_lease</c> and <c>ck_runtimes_inflight_leased</c>: set exactly while the
+    /// status is <c>Dispatched</c> or <c>Executing</c>, NULL otherwise.
+    /// </summary>
+    [DbColumn("leased_by_worker_id", DbKind.Int32)]
+    public int? LeasedByWorkerId { get; set; }
+
+    /// <summary>
+    /// Execution lease expiry instant; the heartbeat pushes it forward without bumping
+    /// <see cref="Version"/>, and <c>sys.recovery</c> reclaims in-flight rows past it.
+    /// </summary>
+    [DbColumn("lease_expires_at_utc", DbKind.UtcInstant)]
+    public DateTime? LeaseExpiresAtUtc { get; set; }
+
+    /// <summary>
+    /// When <c>sys.retention</c> deletes the owning job row (this row cascades with it).
+    /// </summary>
+    [DbColumn("retention_until_utc", DbKind.UtcInstant)]
+    public DateTime? RetentionUntilUtc { get; set; }
+
+    /// <summary>When the runtime row was last updated. Set server-side on every mutation.</summary>
+    [DbColumn("modified_at_utc", DbKind.UtcInstant, Default = DbDefault.UtcNow)]
+    public DateTime ModifiedAtUtc { get; set; }
+
+    /// <summary>
+    /// Optimistic-concurrency token for state transitions, bumped by every update except the heartbeat, so a
+    /// buffered claim still passes the start CAS. Int32 on purpose, the width of the public <c>expectedVersion</c>: a
+    /// recurring slot firing every second (three bumps each) lasts about twenty-two years, and the providers raise on
+    /// overflow rather than wrap, so a token never comes back negative.
+    /// </summary>
+    [DbColumn("version", DbKind.Int32, Default = DbDefault.Zero)]
+    [DbConcurrencyToken]
+    public int Version { get; set; }
+}

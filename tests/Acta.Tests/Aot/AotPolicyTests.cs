@@ -23,15 +23,7 @@ public sealed partial class AotPolicyTests
     /// is an ASP.NET Web-SDK dashboard host (not an AOT target), Acta.Redis is an optional wakeup
     /// accelerator, and Acta.Testing is test-support that runs in test hosts, not the production runtime.
     /// </summary>
-    private static readonly string[] RuntimeRoots =
-    [
-        "src/Acta",
-        "src/Acta.Runtime",
-        "src/Acta.Runtime",
-        "src/Acta.SqlServer",
-        "src/Acta.Postgres",
-        "src/Acta.Sqlite",
-    ];
+    private static readonly string[] RuntimeRoots = ["src/Acta", "src/Acta.SqlServer", "src/Acta.Postgres", "src/Acta.Sqlite"];
 
     /// <summary>
     /// One forbidden API pattern + the per-file allowlist of legitimate current callers.
@@ -53,7 +45,7 @@ public sealed partial class AotPolicyTests
         new(
             "GetCustomAttribute",
             new Regex(@"\bGetCustomAttribute\b", RegexOptions.Compiled),
-            Allow("src/Acta.Runtime/Engine/Workers/WorkerRuntimeInitializer.cs")
+            Allow("src/Acta/Engine/Workers/WorkerRuntimeInitializer.cs")
         ),
         new("MakeGenericMethod", new Regex(@"\bMakeGenericMethod\b", RegexOptions.Compiled), Allow()),
         new("Activator.CreateInstance", new Regex(@"\bActivator\.CreateInstance\b", RegexOptions.Compiled), Allow()),
@@ -92,7 +84,7 @@ public sealed partial class AotPolicyTests
             "C# transaction begin/open",
             new Regex(@"\b(BeginTransaction|OpenTransaction)\b", RegexOptions.Compiled),
             Allow(
-                "src/Acta.Runtime/Schema/SchemaMigrationRunner.cs",
+                "src/Acta/Schema/SchemaMigrationRunner.cs",
                 "src/Acta.Sqlite/Services/SqliteDialect.cs",
                 "src/Acta.Sqlite/Services/SqliteOutboxDialect.cs"
             )
@@ -101,12 +93,12 @@ public sealed partial class AotPolicyTests
         new(
             "C# transaction commit",
             new Regex(@"\bCommitAsync\b", RegexOptions.Compiled),
-            Allow("src/Acta.Runtime/Schema/SchemaMigrationRunner.cs", "src/Acta.Runtime/Db/DbSession.cs")
+            Allow("src/Acta/Schema/SchemaMigrationRunner.cs", "src/Acta/Db/DbSession.cs")
         ),
         new(
             "C# transaction rollback",
             new Regex(@"\bRollbackAsync\b", RegexOptions.Compiled),
-            Allow("src/Acta.Runtime/Schema/SchemaMigrationRunner.cs")
+            Allow("src/Acta/Schema/SchemaMigrationRunner.cs")
         ),
         new(
             "direct DbParameterSpec scalar factory",

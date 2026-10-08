@@ -38,7 +38,7 @@ else {
 
     # Redis and Testing are packed here and consumed below; Acta.AspNetCore needs Node-built dashboard
     # assets so it is only consumed when an existing feed (CI) already contains it.
-    foreach ($project in @('Acta', 'Acta.Runtime', 'Acta.Redis', 'Acta.Testing') + $providers) {
+    foreach ($project in @('Acta', 'Acta.Redis', 'Acta.Testing') + $providers) {
         dotnet pack "$root/src/$project/$project.csproj" -c Release -o $feed --nologo
         if ($LASTEXITCODE -ne 0) { throw "pack failed: $project" }
     }

@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -111,13 +110,13 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
             ct
         );
         var claimed = Assert.Single(
-            await Services.GetRequiredService<Acta.Runtime.Execution>().ClaimOneAsync(ns, workerId, leaseTtl, running.JobId, ct)
+            await Services.GetRequiredService<Acta.Execution>().ClaimOneAsync(ns, workerId, leaseTtl, running.JobId, ct)
         );
         Assert.Equal(
             StartExecutionAction.Started,
             (
                 await Services
-                    .GetRequiredService<Acta.Runtime.Execution>()
+                    .GetRequiredService<Acta.Execution>()
                     .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version, leaseTtl, ct)
             ).Action
         );
@@ -130,7 +129,7 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(0, await CountEventsAsync(running.JobId, EventCode.JobCancelled, ct));
 
         var completion = await Services
-            .GetRequiredService<Acta.Runtime.Execution>()
+            .GetRequiredService<Acta.Execution>()
             .CompleteExecutionAsync(
                 new CompleteExecutionCommand(
                     JobId: claimed.JobId,

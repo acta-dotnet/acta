@@ -1,4 +1,3 @@
-using Acta.Runtime;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -37,7 +36,7 @@ public sealed class RuntimeJobContextCancellationTests
             resetJobState: null!,
             signals: null!,
             alerts: null!,
-            executionStore: db.Services().GetRequiredService<Acta.Runtime.Execution>(),
+            executionStore: db.Services().GetRequiredService<Acta.Execution>(),
             new ThrowingSerializerRegistry(),
             ScriptedSession.Unreachable.GetRequiredService<Locks>(),
             cancellationToken: CancellationToken.None,
@@ -89,7 +88,7 @@ public sealed class RuntimeJobContextCancellationTests
             resetJobState: null!,
             signals: null!,
             alerts: null!,
-            executionStore: db.Services().GetRequiredService<Acta.Runtime.Execution>(),
+            executionStore: db.Services().GetRequiredService<Acta.Execution>(),
             new ThrowingSerializerRegistry(),
             ScriptedSession.Unreachable.GetRequiredService<Locks>(),
             cancellationToken: CancellationToken.None,

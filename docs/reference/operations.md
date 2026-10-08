@@ -3,7 +3,7 @@
 > Generated from the source tree. Do not edit by hand. Regenerate:
 > `ACTA_EMIT_DOCS=1 dotnet test tests/Acta.Tests --filter OperationsIndexTests`.
 
-One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`. **Facade** is the public method that runs it; an operation with none is engine-only. **HTTP** routes sit under `{mount}/v1`. The dialect columns say whether the SQL is a routine or inline. **Writes** lists the tables its SQL inserts into, updates, or deletes from. **Specs** are in `tests/Acta.Tests.Conformance/Operations/<Group>/`.
+One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`. **Facade** is the public method that runs it; an operation with none is engine-only. **HTTP** routes sit under `{mount}/v1`. The dialect columns say whether the SQL is a routine or inline. **Writes** lists the tables its SQL inserts into, updates, or deletes from. **Specs** are in `tests/Acta.Tests.Conformance/Operations/<Group>/`.
 
 ## Alerts
 

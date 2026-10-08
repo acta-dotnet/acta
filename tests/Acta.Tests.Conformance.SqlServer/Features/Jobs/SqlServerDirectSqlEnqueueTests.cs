@@ -1,4 +1,3 @@
-using Acta.Runtime;
 using Acta.Tests.Conformance.SqlServer.Testing;
 using Acta.Tests.Conformance.Testing;
 using TestJobs;

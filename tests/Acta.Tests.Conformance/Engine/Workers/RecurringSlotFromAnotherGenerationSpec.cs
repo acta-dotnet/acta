@@ -1,4 +1,3 @@
-using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -101,6 +100,6 @@ public sealed class RecurringSlotFromAnotherGenerationSpec : ActaRuntimeTestBase
         Assert.Contains(UnscheduledPingManifest.JobName, refused.Message, StringComparison.Ordinal);
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(head.JobId, ct)).Status);
         Assert.Equal(JobStatusCode.Blocked, (await ReadJobAsync(behind.JobId, ct)).Status);
-        Assert.Empty(await Db.From<Acta.Runtime.ScheduleEntity>().Where(s => s.JobId == behind.JobId).ToListAsync(ct));
+        Assert.Empty(await Db.From<Acta.ScheduleEntity>().Where(s => s.JobId == behind.JobId).ToListAsync(ct));
     }
 }

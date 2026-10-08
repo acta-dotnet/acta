@@ -9,14 +9,6 @@ public sealed class ArchitectureBoundaryTests
 {
     private static readonly string[] ProviderProjects = ["Acta.Postgres", "Acta.SqlServer", "Acta.Sqlite"];
 
-    /// <summary>The public SDK knows nothing about its implementation.</summary>
-    [Fact]
-    public void Public_sdk_references_no_implementation_assembly()
-    {
-        var references = typeof(IJobs).Assembly.GetReferencedAssemblies().Select(reference => reference.Name).ToArray();
-        Assert.DoesNotContain("Acta.Runtime", references);
-    }
-
     /// <summary>
     /// Concrete schema migrators are implementation mechanics, not a consumer contract: provider
     /// installation goes through the builder extensions (with ApplyMigrationsOnStartup), so the
@@ -40,7 +32,8 @@ public sealed class ArchitectureBoundaryTests
 
     /// <summary>
     /// The operations adapter consumes the public Acta API only: provider and schema capabilities
-    /// arrive through SDK types (SqlProviderOptions), never through relational or runtime internals.
+    /// arrive through SDK types (SqlProviderOptions), never through a provider, and Acta grants it no
+    /// internals.
     /// </summary>
     [Fact]
     public void AspNetCore_references_only_the_public_api()
@@ -50,7 +43,7 @@ public sealed class ArchitectureBoundaryTests
             .Select(reference => reference.Name)
             .ToArray();
         Assert.Contains("Acta", references);
-        Assert.DoesNotContain("Acta.Runtime", references);
+        Assert.DoesNotContain(references, name => name!.StartsWith("Acta.", StringComparison.Ordinal));
     }
 
     /// <summary>
@@ -134,9 +127,9 @@ public sealed class ArchitectureBoundaryTests
         var sourceRoot = Path.Combine(repoRoot, "src");
         var failures = new List<string>();
 
-        if (Directory.Exists(Path.Combine(sourceRoot, "Acta.Runtime", "Features")))
+        if (Directory.Exists(Path.Combine(sourceRoot, "Acta", "Features")))
         {
-            failures.Add("Acta.Runtime contains a product Features folder.");
+            failures.Add("Acta contains a product Features folder.");
         }
 
         string[] horizontalNames = ["Api", "Services", "Rules", "Stores", "Delivery"];
@@ -176,7 +169,7 @@ public sealed class ArchitectureBoundaryTests
         foreach (var provider in ProviderProjects)
         {
             var providerRoot = Path.Combine(sourceRoot, provider);
-            // Stores are consolidated into shared Acta.Runtime implementations; a provider owns no
+            // Stores are consolidated into shared Acta implementations; a provider owns no
             // store classes anywhere, only its dialect, options, bootstrap, migrations, and SQL.
             var stores = Directory.EnumerateFiles(providerRoot, "*Store.cs", SearchOption.AllDirectories).ToArray();
             failures.AddRange(stores.Select(path => $"provider retains a feature store after consolidation: {Relative(repoRoot, path)}"));

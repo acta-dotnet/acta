@@ -1,4 +1,3 @@
-using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,7 +20,7 @@ public sealed class GetStaleChildLatchesSpec : ActaRuntimeTestBase<ConformanceFi
 {
     private int NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 
-    private Acta.Runtime.Execution Execution => Services.GetRequiredService<Acta.Runtime.Execution>();
+    private Acta.Execution Execution => Services.GetRequiredService<Acta.Execution>();
 
     [Fact(
         DisplayName = "A Pending latch is not reported while its child is live, and is reported with the child's status once it lands terminal unraised"

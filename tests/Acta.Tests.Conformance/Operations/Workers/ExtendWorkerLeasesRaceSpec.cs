@@ -1,5 +1,4 @@
 using System.Data.Common;
-using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -104,7 +103,7 @@ public sealed class ExtendWorkerLeasesRaceSpec : ActaRuntimeTestBase<Conformance
         CancellationToken ct
     )
     {
-        var store = Services.GetRequiredService<Acta.Runtime.Execution>();
+        var store = Services.GetRequiredService<Acta.Execution>();
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var leaseTtl = Services.GetRequiredService<IOptions<JobsOptions>>().Value.LeaseTtlSeconds;
         var worker = await Db.From<WorkerEntity>().Where(w => w.NamespaceId == ns).SingleOrDefaultAsync(ct);

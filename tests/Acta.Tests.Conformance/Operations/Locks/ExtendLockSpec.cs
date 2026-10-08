@@ -1,4 +1,3 @@
-using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,7 +23,7 @@ public sealed class ExtendLockSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task ExtendLock_renews_a_held_lock_and_misses_after_release()
     {
         var ct = TestContext.Current.CancellationToken;
-        var locks = Services.GetRequiredService<Acta.Runtime.Locks>();
+        var locks = Services.GetRequiredService<Acta.Locks>();
         var key = TestKey("ck.lease-renewal");
 
         var token = (await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -1, ct)).Token;

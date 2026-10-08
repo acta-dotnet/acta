@@ -1,5 +1,4 @@
 using System.Data;
-using Acta.Runtime;
 using Npgsql;
 
 namespace Acta.Postgres;

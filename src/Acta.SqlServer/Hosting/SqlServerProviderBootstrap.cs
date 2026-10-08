@@ -1,4 +1,3 @@
-using Acta.Runtime;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 

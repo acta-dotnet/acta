@@ -1,7 +1,6 @@
 using System.Data.Common;
 using System.Globalization;
 using System.Reflection;
-using Acta.Runtime;
 
 namespace Acta.Testing;
 

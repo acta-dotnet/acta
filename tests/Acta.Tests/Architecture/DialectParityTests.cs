@@ -81,7 +81,7 @@ public sealed partial class DialectParityTests
         foreach (var (path, relative) in ShippedCode.SourceFiles("*.sql"))
         {
             var parts = relative.Split('/');
-            if (parts[1] == "Acta.Runtime" && parts[2] == "Operations" && OperationFile().Match(parts[^1]) is { Success: true } match)
+            if (parts[1] == "Acta" && parts[2] == "Operations" && OperationFile().Match(parts[^1]) is { Success: true } match)
             {
                 yield return (path, match.Groups[1].Value, match.Groups[2].Value);
             }

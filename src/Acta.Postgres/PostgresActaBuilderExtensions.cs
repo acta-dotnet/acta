@@ -1,5 +1,3 @@
-using Acta.Runtime;
-
 namespace Acta.Postgres;
 
 /// <summary>PostgreSQL provider registration: the dialect, bootstrap, and options; core owns everything else.</summary>

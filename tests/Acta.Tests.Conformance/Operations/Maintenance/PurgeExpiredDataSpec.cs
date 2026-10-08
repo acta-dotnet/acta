@@ -1,4 +1,3 @@
-using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -416,17 +415,11 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         var liveKey = TestKey("reap-spec.live");
         var deadKey = TestKey("reap-spec.dead");
         var liveToken = (
-            await Services
-                .GetRequiredService<Acta.Runtime.Locks>()
-                .AcquireLockAsync(liveKey, TimeSpan.FromSeconds(3600), ownerJobId: -1, ct)
+            await Services.GetRequiredService<Acta.Locks>().AcquireLockAsync(liveKey, TimeSpan.FromSeconds(3600), ownerJobId: -1, ct)
         ).Token;
         Assert.NotNull(liveToken);
         Assert.NotNull(
-            (
-                await Services
-                    .GetRequiredService<Acta.Runtime.Locks>()
-                    .AcquireLockAsync(deadKey, TimeSpan.FromSeconds(-1), ownerJobId: -1, ct)
-            ).Token
+            (await Services.GetRequiredService<Acta.Locks>().AcquireLockAsync(deadKey, TimeSpan.FromSeconds(-1), ownerJobId: -1, ct)).Token
         );
 
         try
@@ -441,17 +434,17 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
                 NoWorkerPurgeSeconds,
                 1000,
                 50,
-                async () => await Db.From<Acta.Runtime.LockEntity>().Where(l => l.LockKey == deadKey).SingleOrDefaultAsync(ct) is null,
+                async () => await Db.From<Acta.LockEntity>().Where(l => l.LockKey == deadKey).SingleOrDefaultAsync(ct) is null,
                 ct
             );
 
-            Assert.Null(await Db.From<Acta.Runtime.LockEntity>().Where(l => l.LockKey == deadKey).SingleOrDefaultAsync(ct));
-            Assert.NotNull(await Db.From<Acta.Runtime.LockEntity>().Where(l => l.LockKey == liveKey).SingleOrDefaultAsync(ct));
+            Assert.Null(await Db.From<Acta.LockEntity>().Where(l => l.LockKey == deadKey).SingleOrDefaultAsync(ct));
+            Assert.NotNull(await Db.From<Acta.LockEntity>().Where(l => l.LockKey == liveKey).SingleOrDefaultAsync(ct));
         }
         finally
         {
             // Drop the held row so the shared schema carries no hour-long lease out of this test.
-            await Services.GetRequiredService<Acta.Runtime.Locks>().ReleaseLockAsync(liveToken!.Value, ct);
+            await Services.GetRequiredService<Acta.Locks>().ReleaseLockAsync(liveToken!.Value, ct);
         }
     }
 
@@ -547,7 +540,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var locks = Services.GetRequiredService<Acta.Runtime.Locks>();
+        var locks = Services.GetRequiredService<Acta.Locks>();
 
         // Three immediately-reapable rows (negative TTL) plus one live row. The reap is global, so a
         // concurrent spec's full purge may sweep some dead rows first; the call's OWN count is still
@@ -583,7 +576,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
                 var remaining = new List<string>();
                 foreach (var key in deadKeys)
                 {
-                    if (await Db.From<Acta.Runtime.LockEntity>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct) is not null)
+                    if (await Db.From<Acta.LockEntity>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct) is not null)
                     {
                         remaining.Add(key);
                     }
@@ -595,7 +588,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
                 Assert.True(attempt < 10, "expired locks never drained: " + string.Join(", ", remaining));
                 await Task.Delay(100, ct);
             }
-            Assert.NotNull(await Db.From<Acta.Runtime.LockEntity>().Where(l => l.LockKey == liveKey).SingleOrDefaultAsync(ct));
+            Assert.NotNull(await Db.From<Acta.LockEntity>().Where(l => l.LockKey == liveKey).SingleOrDefaultAsync(ct));
         }
         finally
         {

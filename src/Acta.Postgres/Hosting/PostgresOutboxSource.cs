@@ -1,5 +1,3 @@
-using Acta.Runtime;
-
 namespace Acta.Postgres;
 
 /// <summary>

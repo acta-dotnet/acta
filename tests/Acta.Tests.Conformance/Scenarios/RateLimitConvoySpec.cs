@@ -1,6 +1,5 @@
 using System.Data.Common;
 using System.Diagnostics;
-using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;

@@ -1,4 +1,3 @@
-using Acta.Runtime;
 using Xunit;
 using static Acta.Tests.Runtime.WorkerLoopClaimFailureTests;
 

@@ -1,6 +1,5 @@
 using System.Data.Common;
 using System.Globalization;
-using Acta.Runtime;
 using Microsoft.Data.Sqlite;
 
 namespace Acta.Sqlite;

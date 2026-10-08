@@ -42,12 +42,12 @@ public sealed class SchemaCommandsTests : IDisposable
 
         // The object-package ledger is read from the tree, not from the assembly, so `check` in the
         // throwaway root needs the released identities the real one recorded.
-        var schemaDir = Path.Combine(_root, "src", "Acta.Runtime", "Schema");
+        var schemaDir = Path.Combine(_root, "src", "Acta", "Schema");
         Directory.CreateDirectory(schemaDir);
         foreach (var name in new[] { "object-packages.json", "ObjectPackageHashes.g.cs" })
         {
             File.Copy(
-                Path.Combine(IntegrationConfig.FindRepoRoot(), "src", "Acta.Runtime", "Schema", name),
+                Path.Combine(IntegrationConfig.FindRepoRoot(), "src", "Acta", "Schema", name),
                 Path.Combine(schemaDir, name),
                 overwrite: true
             );

@@ -1,4 +1,3 @@
-using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -252,7 +251,7 @@ public sealed class CompleteExecutionSchedulesChangedSpec : ActaRuntimeTestBase<
         CancellationToken ct
     ) =>
         Services
-            .GetRequiredService<Acta.Runtime.Execution>()
+            .GetRequiredService<Acta.Execution>()
             .CompleteExecutionAsync(
                 new CompleteExecutionCommand(
                     JobId: jobId,

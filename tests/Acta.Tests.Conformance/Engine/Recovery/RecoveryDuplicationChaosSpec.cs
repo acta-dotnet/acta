@@ -1,4 +1,3 @@
-using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -51,10 +50,10 @@ public sealed class RecoveryDuplicationChaosSpec : ActaRuntimeTestBase<Conforman
 
         var dialect = Services.GetRequiredService<ISqlDialect>();
         var first = Services
-            .GetRequiredService<Acta.Runtime.Execution>()
+            .GetRequiredService<Acta.Execution>()
             .ClaimOneAsync(new ClaimRequest(ns, workers[0].Id, MaxBatch: 1), LeaseTtlSeconds, maintenanceJob.Id, ct);
         var secondClaim = Services
-            .GetRequiredService<Acta.Runtime.Execution>()
+            .GetRequiredService<Acta.Execution>()
             .ClaimOneAsync(new ClaimRequest(ns, workers[1].Id, MaxBatch: 1), LeaseTtlSeconds, maintenanceJob.Id, ct);
         await Task.WhenAll(first, secondClaim);
 

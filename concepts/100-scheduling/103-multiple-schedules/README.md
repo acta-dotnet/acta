@@ -64,5 +64,5 @@ outside the Acta database.
 
 - [The related Engineering Lab](../../../docs/engineering-labs.md)
 - [`multiple-schedules.cs`](./multiple-schedules.cs)
-- [`ScheduleWalker.cs`](../../../src/Acta.Runtime/Operations/Schedules/ScheduleWalker.cs)
-- [`SchedulesView.sqlite.sql`](../../../src/Acta.Runtime/Schema/Views/SchedulesView.sqlite.sql)
+- [`ScheduleWalker.cs`](../../../src/Acta/Operations/Schedules/ScheduleWalker.cs)
+- [`SchedulesView.sqlite.sql`](../../../src/Acta/Schema/Views/SchedulesView.sqlite.sql)

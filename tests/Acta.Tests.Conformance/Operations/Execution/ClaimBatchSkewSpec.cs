@@ -1,4 +1,3 @@
-using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -67,7 +66,7 @@ public sealed class ClaimBatchSkewSpec : ClaimSkewTestBase
             expected.Add((await EnqueueAsync(priority, null, ct)).JobRef.Value);
         }
 
-        var store = Services.GetRequiredService<Acta.Runtime.Execution>();
+        var store = Services.GetRequiredService<Acta.Execution>();
         var batches = new List<Guid[]>();
         ClaimBatchResponse claimed;
         while ((claimed = await store.ClaimBatchAsync(new ClaimRequest(ns, workerId, MaxBatch: Batch), leaseTtl, ct)).Jobs.Count > 0)

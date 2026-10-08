@@ -1,5 +1,4 @@
 using System.Data;
-using Acta.Runtime;
 using Microsoft.Data.SqlClient.Server;
 
 namespace Acta.SqlServer;

@@ -1,4 +1,3 @@
-using Acta.Runtime;
 using Acta.Tests.Runtime;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -360,10 +359,10 @@ internal sealed class JobExecutionHarness(
         private readonly List<string> _startedSteps = [];
         private readonly List<int> _startVersions = [];
         private bool _startFailsOnce = startFailsOnce;
-        private Acta.Runtime.Execution? _execution;
+        private Acta.Execution? _execution;
 
-        public Acta.Runtime.Execution Execution =>
-            _execution ??= new ScriptedSession((call, _) => AnswerAsync(call)).Services().GetRequiredService<Acta.Runtime.Execution>();
+        public Acta.Execution Execution =>
+            _execution ??= new ScriptedSession((call, _) => AnswerAsync(call)).Services().GetRequiredService<Acta.Execution>();
 
         /// <summary>How many times the start write was attempted, so a retry is visible.</summary>
         public int StartAttempts { get; private set; }
@@ -522,7 +521,7 @@ internal sealed class JobExecutionHarness(
     // The services the executor resolves for an attempt, and a scope that is the provider itself: the
     // stores are the scripted ones, the signal seam and the alert sink are never reached by a handler
     // that runs one step, and anything else resolves to null.
-    private sealed class StoreOnlyServices(Acta.Runtime.Execution store, GetJobHandler getJob, CancelJobHandler cancelJob)
+    private sealed class StoreOnlyServices(Acta.Execution store, GetJobHandler getJob, CancelJobHandler cancelJob)
         : IServiceProvider,
             IServiceScopeFactory,
             IServiceScope,
@@ -535,7 +534,7 @@ internal sealed class JobExecutionHarness(
         public IServiceProvider ServiceProvider => this;
 
         public object? GetService(Type serviceType) =>
-            serviceType == typeof(Acta.Runtime.Execution) ? store
+            serviceType == typeof(Acta.Execution) ? store
             : serviceType == typeof(GetJobHandler) ? getJob
             : serviceType == typeof(CancelJobHandler) ? cancelJob
             : serviceType == typeof(ResetJobStateHandler) ? _resetJobState

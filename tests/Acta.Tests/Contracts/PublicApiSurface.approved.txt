@@ -64,17 +64,6 @@ sealed class Acta.Redis.RedisWakeupOptions
     System.TimeSpan MaxRemoteWakeJitter
     System.TimeSpan RemoteWakeJitter { get;set; }
 
-## Acta.Runtime
-static class Acta.ActaServiceCollectionExtensions
-    Microsoft.Extensions.DependencyInjection.IServiceCollection UseActa(Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<Acta.IActaBuilder> configure)
-sealed class Acta.Runtime.RuntimeJobs
-    .ctor()
-    Acta.JobContract<Acta.NoInput, System.String> SysOutbox { get; }
-    Acta.JobContract<Acta.NoInput> SysAlerts { get; }
-    Acta.JobContract<Acta.NoInput> SysRecovery { get; }
-    Acta.JobContract<Acta.NoInput> SysRetention { get; }
-    Acta.JobDescriptorManifest Descriptors { get; }
-
 ## Acta.SqlServer
 static class Acta.SqlServer.SqlServerActaBuilderExtensions
     Acta.IActaBuilder UseSqlServer(Acta.IActaBuilder builder, System.Action<Acta.SqlServer.SqlServerProviderOptions> configure)
@@ -145,6 +134,15 @@ sealed class Acta.AcknowledgeAlertResponse
     Acta.ControlAction Action { get;init; }
     System.Nullable<System.DateTime> AcknowledgedAtUtc { get;init; }
     System.Nullable<System.DateTime> ResolvedAtUtc { get;init; }
+sealed class Acta.ActaJobs
+    .ctor()
+    Acta.JobContract<Acta.NoInput, System.String> SysOutbox { get; }
+    Acta.JobContract<Acta.NoInput> SysAlerts { get; }
+    Acta.JobContract<Acta.NoInput> SysRecovery { get; }
+    Acta.JobContract<Acta.NoInput> SysRetention { get; }
+    Acta.JobDescriptorManifest Descriptors { get; }
+static class Acta.ActaServiceCollectionExtensions
+    Microsoft.Extensions.DependencyInjection.IServiceCollection UseActa(Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<Acta.IActaBuilder> configure)
 enum Acta.ActorCode
     Job = 50
     Operator = 20

@@ -3,7 +3,6 @@ using System.Text;
 using System.Text.Json;
 using Acta.Emit.Features.Migrations;
 using Acta.Emit.Shared;
-using Acta.Runtime;
 
 namespace Acta.Emit.Features.Docs;
 
@@ -359,10 +358,10 @@ internal static class ProvisionScriptEmitter
 
     private static readonly string[] SqlFolders = ["Operations", "Schema"];
 
-    // One dialect's files as Acta.Runtime embeds them: X.<token>.sql under Operations/ and Schema/.
+    // One dialect's files as Acta embeds them: X.<token>.sql under Operations/ and Schema/.
     private static IEnumerable<(string Stem, string Body)> SqlFiles(string repoRoot, string token) =>
         SqlFolders
-            .Select(folder => Path.Combine(repoRoot, "src", "Acta.Runtime", folder))
+            .Select(folder => Path.Combine(repoRoot, "src", "Acta", folder))
             .Where(Directory.Exists)
             .SelectMany(root => Directory.EnumerateFiles(root, $"*.{token}.sql", SearchOption.AllDirectories))
             .Select(path => (Path.GetFileName(path).Split('.')[0], File.ReadAllText(path)));

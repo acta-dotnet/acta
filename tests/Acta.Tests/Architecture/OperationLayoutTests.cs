@@ -8,9 +8,9 @@ namespace Acta.Tests.Architecture;
 /// <summary>
 /// Holds <c>src/</c> to the operation layout in <c>docs/internals/source-layout.md</c>: <c>Operations/Group/Operation/</c>
 /// and no deeper, files named after their operation, all three dialects or none, and SQL only under <c>Operations/</c>
-/// and <c>Schema/</c>, every Schema stem in all three dialects, and no stem twice in one dialect. Once a group's Runtime folder holds C#, each of its operations needs a handler and each public
-/// operation folder a Runtime twin, and no Operations file names a type declared under <c>Engine/</c>. What still differs is
-/// listed in the <c>layout</c> ratchet.
+/// and <c>Schema/</c>, every Schema stem in all three dialects, and no stem twice in one dialect. Each operation has a
+/// handler, and no Operations file names a type declared under <c>Engine/</c>. What still differs is listed in the
+/// <c>layout</c> ratchet.
 /// </summary>
 public sealed class OperationLayoutTests
 {
@@ -23,28 +23,12 @@ public sealed class OperationLayoutTests
     public void Operations_follow_the_source_layout()
     {
         var root = IntegrationConfig.FindRepoRoot();
-        var runtime = Path.Combine(root, "src", "Acta.Runtime", "Operations");
-        var contract = Path.Combine(root, "src", "Acta", "Operations");
-        var violations = SqlPlacement().Concat(SqlStems(Path.Combine(root, "src", "Acta.Runtime"))).ToList();
+        var acta = Path.Combine(root, "src", "Acta");
+        var violations = SqlPlacement().Concat(SqlStems(acta)).ToList();
 
-        foreach (var operation in OperationFolders(runtime))
+        foreach (var operation in OperationFolders(Path.Combine(acta, "Operations")))
         {
-            var landed = Directory.EnumerateFiles(Path.GetDirectoryName(operation)!, "*.cs", SearchOption.AllDirectories).Any();
-            violations.AddRange(CheckOperation(root, operation, requireHandler: landed));
-        }
-        foreach (var operation in OperationFolders(contract))
-        {
-            violations.AddRange(CheckOperation(root, operation, requireHandler: false));
-            var twin = Path.Combine(runtime, Path.GetRelativePath(contract, operation));
-            var group = Path.GetDirectoryName(twin)!;
-            if (
-                Directory.Exists(group)
-                && Directory.EnumerateFiles(group, "*.cs", SearchOption.AllDirectories).Any()
-                && !Directory.Exists(twin)
-            )
-            {
-                violations.Add($"mirror: {Relative(root, operation)}");
-            }
+            violations.AddRange(CheckOperation(root, operation));
         }
 
         Ratchet.Check("layout", violations, "Move the file to match docs/internals/source-layout.md.");
@@ -53,7 +37,7 @@ public sealed class OperationLayoutTests
     private static IEnumerable<string> OperationFolders(string operations) =>
         Directory.Exists(operations) ? Directory.EnumerateDirectories(operations).SelectMany(Directory.EnumerateDirectories) : [];
 
-    private static IEnumerable<string> CheckOperation(string root, string folder, bool requireHandler)
+    private static IEnumerable<string> CheckOperation(string root, string folder)
     {
         var name = Path.GetFileName(folder);
         foreach (var nested in Directory.EnumerateDirectories(folder))
@@ -66,7 +50,7 @@ public sealed class OperationLayoutTests
         {
             yield return $"file-name: {Relative(root, folder)}/{file}";
         }
-        if (requireHandler && !files.Contains(name + "Handler.cs"))
+        if (!files.Contains(name + "Handler.cs"))
         {
             yield return $"handler: {Relative(root, folder)}";
         }
@@ -78,12 +62,12 @@ public sealed class OperationLayoutTests
     }
 
     // Schema SQL has no operation folder, so its dialects are held per stem. The catalog loads by stem, so a stem has
-    // one file per dialect across the whole Runtime tree.
-    private static IEnumerable<string> SqlStems(string runtime)
+    // one file per dialect across the whole project.
+    private static IEnumerable<string> SqlStems(string project)
     {
         var files = Directory
-            .EnumerateFiles(runtime, "*.sql", SearchOption.AllDirectories)
-            .Select(path => (Relative: Path.GetRelativePath(runtime, path), Parts: Path.GetFileName(path).Split('.')))
+            .EnumerateFiles(project, "*.sql", SearchOption.AllDirectories)
+            .Select(path => (Relative: Path.GetRelativePath(project, path), Parts: Path.GetFileName(path).Split('.')))
             .Where(file => file.Parts.Length == 3 && Dialects.Contains(file.Parts[1]))
             .ToList();
         foreach (var twice in files.GroupBy(file => $"{file.Parts[0]}.{file.Parts[1]}").Where(group => group.Count() > 1))
@@ -115,18 +99,15 @@ public sealed class OperationLayoutTests
     [Fact]
     public void Operations_never_reference_the_engine()
     {
-        var files = ShippedCode
-            .SourceFiles("*.cs")
-            .Where(file => file.Relative.StartsWith("src/Acta.Runtime/", StringComparison.Ordinal))
-            .ToList();
+        var files = ShippedCode.SourceFiles("*.cs").Where(file => file.Relative.StartsWith("src/Acta/", StringComparison.Ordinal)).ToList();
         var engineTypes = files
-            .Where(file => file.Relative.StartsWith("src/Acta.Runtime/Engine/", StringComparison.Ordinal))
+            .Where(file => file.Relative.StartsWith("src/Acta/Engine/", StringComparison.Ordinal))
             .SelectMany(file => DeclaredTypes(file.Path))
             .ToHashSet();
         Assert.NotEmpty(engineTypes);
 
         var violations = files
-            .Where(file => file.Relative.StartsWith("src/Acta.Runtime/Operations/", StringComparison.Ordinal))
+            .Where(file => file.Relative.StartsWith("src/Acta/Operations/", StringComparison.Ordinal))
             .SelectMany(file => NamesUsed(file.Path).Where(engineTypes.Contains).Distinct().Select(name => $"{file.Relative}: {name}"))
             .Order(StringComparer.Ordinal)
             .ToList();

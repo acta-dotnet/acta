@@ -23,15 +23,7 @@ public sealed partial class CommentStyleTests
     /// providers (matching AotPolicyTests). Acta.AspNetCore (Web-SDK dashboard host), Acta.Redis
     /// (optional wakeup), and Acta.Testing (test-support) ship too but are out of this boundary by design.
     /// </summary>
-    private static readonly string[] ProductionRoots =
-    [
-        "src/Acta",
-        "src/Acta.Runtime",
-        "src/Acta.Runtime",
-        "src/Acta.SqlServer",
-        "src/Acta.Postgres",
-        "src/Acta.Sqlite",
-    ];
+    private static readonly string[] ProductionRoots = ["src/Acta", "src/Acta.SqlServer", "src/Acta.Postgres", "src/Acta.Sqlite"];
 
     private const int MaxXmlDocBlockLines = 8;
 
@@ -67,32 +59,32 @@ public sealed partial class CommentStyleTests
     // contracts; each entry here is a cleared exception of that kind. Clearing a file after a
     // scrub tightens the policy; never add a file for plain narration.
     private static readonly HashSet<string> InternalRemarksAllowlist = Allow(
-        "src/Acta.Runtime/Entities/StepEntity.cs",
-        "src/Acta.Runtime/Entities/LockEntity.cs",
-        "src/Acta.Runtime/Entities/ResultEntity.cs",
-        "src/Acta.Runtime/Entities/CheckpointEntity.cs",
-        "src/Acta.Runtime/Engine/Execution/StepOwnershipLostException.cs",
-        "src/Acta.Runtime/Engine/Execution/StepRetrySignal.cs",
-        "src/Acta.Runtime/Engine/Execution/SignalSuspendSignal.cs",
-        "src/Acta.Runtime/Engine/Execution/SuspendSignal.cs",
-        "src/Acta.Runtime/Engine/Alerts/AlertsJob.cs",
-        "src/Acta.Runtime/Engine/Recovery/RecoveryPass.cs",
-        "src/Acta.Runtime/Engine/Retention/RetentionJob.cs",
-        "src/Acta.Runtime/Operations/Jobs/JobEnqueueValues.cs",
-        "src/Acta.Runtime/Kernel/CatalogHash.cs",
-        "src/Acta.Runtime/Engine/Workers/ClockSkewValidator.cs",
-        "src/Acta.Runtime/Engine/Execution/JobBehaviorPipeline.cs",
-        "src/Acta.Runtime/Engine/Execution/JobLogScope.cs",
-        "src/Acta.Runtime/Kernel/JobMetrics.cs",
-        "src/Acta.Runtime/Hosting/JobTypeIndex.cs",
-        "src/Acta.Runtime/Engine/Workers/WorkerContext.cs",
-        "src/Acta.Runtime/Engine/Workers/WorkerHeartbeat.cs",
-        "src/Acta.Runtime/Engine/Workers/WorkerRuntime.cs",
-        "src/Acta.Runtime/Engine/Workers/WorkerRuntimeHost.cs",
-        "src/Acta.Runtime/Engine/Workers/WorkerRuntimeInitializer.cs",
-        "src/Acta.Runtime/Kernel/WorkerWakeup.cs",
-        "src/Acta.Runtime/Schema/SchemaModel.cs",
-        "src/Acta.Runtime/Schema/SchemaColumnTypes.cs"
+        "src/Acta/Entities/StepEntity.cs",
+        "src/Acta/Entities/LockEntity.cs",
+        "src/Acta/Entities/ResultEntity.cs",
+        "src/Acta/Entities/CheckpointEntity.cs",
+        "src/Acta/Engine/Execution/StepOwnershipLostException.cs",
+        "src/Acta/Engine/Execution/StepRetrySignal.cs",
+        "src/Acta/Engine/Execution/SignalSuspendSignal.cs",
+        "src/Acta/Engine/Execution/SuspendSignal.cs",
+        "src/Acta/Engine/Alerts/AlertsJob.cs",
+        "src/Acta/Engine/Recovery/RecoveryPass.cs",
+        "src/Acta/Engine/Retention/RetentionJob.cs",
+        "src/Acta/Operations/Jobs/JobEnqueueValues.cs",
+        "src/Acta/Kernel/CatalogHash.cs",
+        "src/Acta/Engine/Workers/ClockSkewValidator.cs",
+        "src/Acta/Engine/Execution/JobBehaviorPipeline.cs",
+        "src/Acta/Engine/Execution/JobLogScope.cs",
+        "src/Acta/Kernel/JobMetrics.cs",
+        "src/Acta/Hosting/JobTypeIndex.cs",
+        "src/Acta/Engine/Workers/WorkerContext.cs",
+        "src/Acta/Engine/Workers/WorkerHeartbeat.cs",
+        "src/Acta/Engine/Workers/WorkerRuntime.cs",
+        "src/Acta/Engine/Workers/WorkerRuntimeHost.cs",
+        "src/Acta/Engine/Workers/WorkerRuntimeInitializer.cs",
+        "src/Acta/Kernel/WorkerWakeup.cs",
+        "src/Acta/Schema/SchemaModel.cs",
+        "src/Acta/Schema/SchemaColumnTypes.cs"
     );
 
     [Fact]

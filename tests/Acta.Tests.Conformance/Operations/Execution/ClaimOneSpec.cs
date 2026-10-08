@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,7 +20,7 @@ public sealed class ClaimOneSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
 
     private int NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 
-    private Acta.Runtime.Execution Execution => Services.GetRequiredService<Acta.Runtime.Execution>();
+    private Acta.Execution Execution => Services.GetRequiredService<Acta.Execution>();
 
     [Fact(DisplayName = "The named Ready job goes Dispatched under the worker's lease, one attempt and one version on")]
     public async Task Named_ready_job_is_dispatched_under_the_lease()

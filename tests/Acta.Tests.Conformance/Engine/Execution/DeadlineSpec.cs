@@ -1,4 +1,3 @@
-using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,7 +37,7 @@ public sealed class DeadlineSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.Equal(EventReasonCode.JobDeadlineExceeded, finished.EventReasonCode);
 
         var ran = await CheckpointSlot.GetAsync(
-            Services.GetRequiredService<Acta.Runtime.Execution>(),
+            Services.GetRequiredService<Acta.Execution>(),
             enqueued.JobId,
             CheckpointKindCode.Variable,
             "ran",
@@ -78,7 +77,7 @@ public sealed class DeadlineSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.Equal(0, snapshot.FailureCount);
 
         var overdue = await CheckpointSlot.GetAsync(
-            Services.GetRequiredService<Acta.Runtime.Execution>(),
+            Services.GetRequiredService<Acta.Execution>(),
             enqueued.JobId,
             CheckpointKindCode.Variable,
             "overdue",

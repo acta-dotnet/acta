@@ -1,4 +1,3 @@
-using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,7 +22,7 @@ public sealed class RepairRecoverySlotSpec : ActaRuntimeTestBase<ConformanceFixt
 
     private int NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 
-    private Acta.Runtime.Execution Execution => Services.GetRequiredService<Acta.Runtime.Execution>();
+    private Acta.Execution Execution => Services.GetRequiredService<Acta.Execution>();
 
     [Fact(DisplayName = "A slot in flight under a lapsed lease is re-armed Ready and due now, with the lost attempt recorded once")]
     public async Task Lapsed_slot_is_re_armed_due_now()

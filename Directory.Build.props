@@ -65,9 +65,9 @@
          deliberately omit the parameterless and message-only constructors so a caller cannot throw one
          without the context it exists to carry; CA1032 asks for exactly those constructors. -->
     <NoWarn>$(NoWarn);CA1032</NoWarn>
-    <!-- The same boundary drawn the other way round. Acta's catchable exception surface is the Acta
-         contract package - JobFailedException, PayloadTooLargeException, the JobControlException
-         family - and every type CA1064 flags is instead internal to Acta.Runtime, thrown as an engine
+    <!-- The same boundary drawn the other way round. Acta's catchable exception surface is the public
+         one - JobFailedException, PayloadTooLargeException, the JobControlException family - and
+         every type CA1064 flags is instead internal to the engine, thrown as an engine
          control signal that one frame catches. AlertProjectionDataException is the projector's own
          poison classification, thrown and caught inside AlertsJob. StepOwnershipLostException is the
          complete_step CAS miss, thrown by RuntimeJobContext and caught by JobExecution. The meta

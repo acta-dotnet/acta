@@ -1,4 +1,3 @@
-using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -42,7 +41,7 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         );
 
         var dialect = Services.GetRequiredService<ISqlDialect>();
-        var claim = await Services.GetRequiredService<Acta.Runtime.Execution>().ClaimOneAsync(ns, workerId, LeaseTtlSeconds, enqueued, ct);
+        var claim = await Services.GetRequiredService<Acta.Execution>().ClaimOneAsync(ns, workerId, LeaseTtlSeconds, enqueued, ct);
         Assert.Equal(enqueued.JobId, Assert.Single(claim).JobId);
 
         var reclaimed = await RecoverySweep.ReclaimAtLeastOneAsync(Services, ns, ct);
@@ -87,9 +86,7 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         // it goes terminal Failed.
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            var claim = await Services
-                .GetRequiredService<Acta.Runtime.Execution>()
-                .ClaimOneAsync(ns, workerId, LeaseTtlSeconds, enqueued, ct);
+            var claim = await Services.GetRequiredService<Acta.Execution>().ClaimOneAsync(ns, workerId, LeaseTtlSeconds, enqueued, ct);
             Assert.Equal(enqueued.JobId, Assert.Single(claim).JobId);
 
             Assert.Equal(1, (await RecoverySweep.ReclaimAtLeastOneAsync(Services, ns, ct)).Reclaimed);
@@ -121,11 +118,11 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         // Claim with a live lease, then transition to Executing. The job lands Executing(50).
         const int LiveLeaseTtl = 30;
         var claimed = Assert.Single(
-            await Services.GetRequiredService<Acta.Runtime.Execution>().ClaimOneAsync(ns, workerId, LiveLeaseTtl, enqueued, ct)
+            await Services.GetRequiredService<Acta.Execution>().ClaimOneAsync(ns, workerId, LiveLeaseTtl, enqueued, ct)
         );
         var started = (
             await Services
-                .GetRequiredService<Acta.Runtime.Execution>()
+                .GetRequiredService<Acta.Execution>()
                 .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct)
         ).Action;
         Assert.Equal(StartExecutionAction.Started, started);
@@ -167,17 +164,17 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         // Claim then start with a live (future) lease: the row lands Executing(50) with lease_expires_at_utc > now.
         const int LiveLeaseTtl = 30;
         var claimed = Assert.Single(
-            await Services.GetRequiredService<Acta.Runtime.Execution>().ClaimOneAsync(ns, workerId, LiveLeaseTtl, enqueued, ct)
+            await Services.GetRequiredService<Acta.Execution>().ClaimOneAsync(ns, workerId, LiveLeaseTtl, enqueued, ct)
         );
         var started = (
             await Services
-                .GetRequiredService<Acta.Runtime.Execution>()
+                .GetRequiredService<Acta.Execution>()
                 .StartExecutionAsync(claimed.JobId, workerId, claimed.ExecutionNumber, claimed.Version, LiveLeaseTtl, ct)
         ).Action;
         Assert.Equal(StartExecutionAction.Started, started);
 
         // One direct reclaim pass: must NOT touch the live-lease Executing row.
-        var result = await Services.GetRequiredService<Acta.Runtime.Execution>().ReclaimStuckJobsAsync(ns, ct);
+        var result = await Services.GetRequiredService<Acta.Execution>().ReclaimStuckJobsAsync(ns, ct);
         Assert.Equal(0, result.Reclaimed);
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
@@ -202,7 +199,7 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var workerId = await WorkerIdAsync(Db, ns, ct);
-        var execution = Services.GetRequiredService<Acta.Runtime.Execution>();
+        var execution = Services.GetRequiredService<Acta.Execution>();
 
         var enqueued = await Jobs.EnqueueAsync(
             new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),

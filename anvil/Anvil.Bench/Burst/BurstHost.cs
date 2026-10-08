@@ -53,12 +53,12 @@ internal sealed class BurstHost : IAsyncDisposable
         // UseLocalDatabase quiets the framework to Warning so a lab program's own output stands out. The
         // projector's drain-bound line is the exception worth hearing: it names which bound ended a pass,
         // which is the engine's own account of the number this certification measures.
-        builder.Logging.AddFilter("Acta.Runtime.AlertsJob", LogLevel.Information);
+        builder.Logging.AddFilter("Acta.AlertsJob", LogLevel.Information);
         // The other direction, and it matters at this scale: every seeded job is MEANT to throw, and the
         // worker logs one warning with a full stack trace per failed attempt. At 100K jobs that is 100K
         // stack traces competing for the console with the numbers the run exists to print, and the writes
         // themselves show up in the seeding wall clock. Errors still come through.
-        builder.Logging.AddFilter("Acta.Runtime.WorkerRuntime", LogLevel.Error);
+        builder.Logging.AddFilter("Acta.WorkerRuntime", LogLevel.Error);
 
         builder.Services.UseActa(j =>
         {

@@ -1,5 +1,4 @@
 using System.Text;
-using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,7 +18,7 @@ public sealed class StartStepSpec : ActaRuntimeTestBase<ConformanceFixture, Test
 {
     private const string StepName = "charge";
 
-    private Acta.Runtime.Execution Execution => Services.GetRequiredService<Acta.Runtime.Execution>();
+    private Acta.Execution Execution => Services.GetRequiredService<Acta.Execution>();
 
     [Fact(DisplayName = "A first start opens a Pending slot at attempt 1 and invokes it")]
     public async Task First_start_opens_a_pending_slot()

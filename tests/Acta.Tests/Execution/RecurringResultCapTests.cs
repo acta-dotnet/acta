@@ -1,6 +1,5 @@
 using System.Collections.Immutable;
 using Acta;
-using Acta.Runtime;
 using Xunit;
 
 namespace Acta.Tests.Execution;

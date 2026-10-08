@@ -1,6 +1,5 @@
 using System.Text.Json;
 using Acta.Postgres;
-using Acta.Runtime;
 using Acta.Sqlite;
 using Acta.SqlServer;
 using Acta.Tests.Conformance.Sql;

@@ -1,4 +1,3 @@
-using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -172,28 +171,28 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         var j4 = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(4, 5))), ct);
 
         // j3 → Executing: claim + StartExecution, leave running (no CompleteExecution call).
-        var c3 = Assert.Single(await Services.GetRequiredService<Acta.Runtime.Execution>().ClaimOneAsync(ns, w1!.Id, LeaseTtl, j3, ct));
+        var c3 = Assert.Single(await Services.GetRequiredService<Acta.Execution>().ClaimOneAsync(ns, w1!.Id, LeaseTtl, j3, ct));
         Assert.Equal(
             StartExecutionAction.Started,
             (
                 await Services
-                    .GetRequiredService<Acta.Runtime.Execution>()
+                    .GetRequiredService<Acta.Execution>()
                     .StartExecutionAsync(c3.JobId, w1.Id, c3.ExecutionNumber, c3.Version, LeaseTtl, ct)
             ).Action
         );
 
         // j4 → Failed: claim + start + ctx.FailAsync-style complete (HandlerStatusCode = 200 bypasses the failure budget).
-        var c4 = Assert.Single(await Services.GetRequiredService<Acta.Runtime.Execution>().ClaimOneAsync(ns, w1.Id, LeaseTtl, j4, ct));
+        var c4 = Assert.Single(await Services.GetRequiredService<Acta.Execution>().ClaimOneAsync(ns, w1.Id, LeaseTtl, j4, ct));
         Assert.Equal(
             StartExecutionAction.Started,
             (
                 await Services
-                    .GetRequiredService<Acta.Runtime.Execution>()
+                    .GetRequiredService<Acta.Execution>()
                     .StartExecutionAsync(c4.JobId, w1.Id, c4.ExecutionNumber, c4.Version, LeaseTtl, ct)
             ).Action
         );
         var cr4 = await Services
-            .GetRequiredService<Acta.Runtime.Execution>()
+            .GetRequiredService<Acta.Execution>()
             .CompleteExecutionAsync(
                 new CompleteExecutionCommand(c4.JobId, w1.Id, c4.ExecutionNumber, CompletionKind.Failed, 0, ReadOnlyMemory<byte>.Empty)
                 {

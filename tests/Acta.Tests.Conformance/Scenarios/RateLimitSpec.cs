@@ -1,6 +1,5 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
-using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -528,9 +527,9 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         var justPast = DateTime.UtcNow.AddSeconds(RuntimeJobContext.RateReservationGraceSeconds).AddMilliseconds(-50);
         Assert.Equal(
             1,
-            await Db.From<Acta.Runtime.LockEntity>()
+            await Db.From<Acta.LockEntity>()
                 .Where(l => l.LockKey == reservation)
-                .UpdateOnlyAsync(() => new Acta.Runtime.LockEntity { ExpiresAtUtc = justPast }, ct)
+                .UpdateOnlyAsync(() => new Acta.LockEntity { ExpiresAtUtc = justPast }, ct)
         );
         Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(enqueued, ct: ct)).Action);
 
@@ -587,9 +586,9 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         // instant: the acquire's lease is whole seconds and a turn is staged to the millisecond.
         await Locks.AcquireLockAsync(reservation, TimeSpan.FromMinutes(10), jobId, ct);
         var expires = DateTime.UtcNow.Add(age).AddSeconds(GraceSeconds);
-        var affected = await Db.From<Acta.Runtime.LockEntity>()
+        var affected = await Db.From<Acta.LockEntity>()
             .Where(l => l.LockKey == reservation)
-            .UpdateOnlyAsync(() => new Acta.Runtime.LockEntity { ExpiresAtUtc = expires }, ct);
+            .UpdateOnlyAsync(() => new Acta.LockEntity { ExpiresAtUtc = expires }, ct);
         Assert.Equal(1, affected);
     }
 
@@ -605,8 +604,8 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
             ct
         );
 
-    private Task<Acta.Runtime.LockEntity?> ReadLockAsync(string lockKey, CancellationToken ct) =>
-        Db.From<Acta.Runtime.LockEntity>().Where(l => l.LockKey == lockKey).SingleOrDefaultAsync(ct);
+    private Task<Acta.LockEntity?> ReadLockAsync(string lockKey, CancellationToken ct) =>
+        Db.From<Acta.LockEntity>().Where(l => l.LockKey == lockKey).SingleOrDefaultAsync(ct);
 
     // Counted on job.rescheduled alone: one bounce also stamps the reason onto its
     // job.execution-finished row, so an unfiltered count of the reason doubles every re-arm.

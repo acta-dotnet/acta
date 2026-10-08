@@ -20,7 +20,7 @@ namespace Acta.Generators;
 [Generator(LanguageNames.CSharp)]
 public sealed class DbProjectionGenerator : IIncrementalGenerator
 {
-    internal const string DbProjectionAttr = "Acta.Runtime.DbProjectionAttribute";
+    internal const string DbProjectionAttr = "Acta.DbProjectionAttribute";
     internal const string ResolverMethodName = "__ActaTryResolveDbProjection";
 
     internal static readonly DiagnosticDescriptor ProjectionDeclaration = new(
@@ -98,7 +98,7 @@ public sealed class DbProjectionGenerator : IIncrementalGenerator
             spc.AddSource($"{HintPart(group.Key)}.DbProjectionBinder.g.cs", EmitNestedBinder(ordered));
         }
 
-        spc.AddSource("Acta.Runtime.DbProjectionResolver.g.cs", EmitResolver([.. emittable]));
+        spc.AddSource("Acta.DbProjectionResolver.g.cs", EmitResolver([.. emittable]));
     }
 
     internal readonly record struct ProjectionInfo(

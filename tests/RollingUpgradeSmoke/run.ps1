@@ -152,8 +152,8 @@ $evidence = @{
     CurrentBuildCommit = $currentBuildCommit
     CurrentBuildWorktreeDirty = $currentBuildDirty
     CurrentEndCommit = (git -C $taskRoot rev-parse HEAD)
-    PreviousRuntimeHash = (Get-FileHash -LiteralPath (Join-Path $artifactRoot 'tests/previous-consumer/bin/Debug/net10.0/Acta.Runtime.dll')).Hash
-    CurrentRuntimeHash = (Get-FileHash -LiteralPath (Join-Path $artifactRoot 'tests/current-consumer/bin/Debug/net10.0/Acta.Runtime.dll')).Hash
+    PreviousActaHash = (Get-FileHash -LiteralPath (Join-Path $artifactRoot 'tests/previous-consumer/bin/Debug/net10.0/Acta.dll')).Hash
+    CurrentActaHash = (Get-FileHash -LiteralPath (Join-Path $artifactRoot 'tests/current-consumer/bin/Debug/net10.0/Acta.dll')).Hash
     Phases = $Phases
     Results = $results
 }

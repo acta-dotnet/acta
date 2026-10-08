@@ -1,4 +1,3 @@
-using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Operations.Namespaces;
 using Acta.Tests.Conformance.Testing;

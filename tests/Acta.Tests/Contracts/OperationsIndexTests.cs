@@ -60,10 +60,10 @@ public sealed partial class OperationsIndexTests
 
     private static string Generate(string root)
     {
-        var operations = Path.Combine(root, "src", "Acta.Runtime", "Operations");
+        var operations = Path.Combine(root, "src", "Acta", "Operations");
         var facadeMethods = FacadeMethods(operations);
         var routes = Routes(Path.Combine(root, "src", "Acta.AspNetCore", "Operations"), facadeMethods);
-        var verbs = CliVerbs(Path.Combine(root, "src", "Acta.Runtime", "Cli", "CliCommandRunner.cs"), facadeMethods);
+        var verbs = CliVerbs(Path.Combine(root, "src", "Acta", "Cli", "CliCommandRunner.cs"), facadeMethods);
 
         var sb = new StringBuilder();
         sb.AppendLine("# Operations");
@@ -72,7 +72,7 @@ public sealed partial class OperationsIndexTests
         sb.AppendLine("> `ACTA_EMIT_DOCS=1 dotnet test tests/Acta.Tests --filter OperationsIndexTests`.");
         sb.AppendLine();
         sb.AppendLine(
-            "One row per operation folder, `src/Acta.Runtime/Operations/<Group>/<Operation>/`. **Facade** is the public method that runs it; an operation with none is engine-only. **HTTP** routes sit under `{mount}/v1`. The dialect columns say whether the SQL is a routine or inline. **Writes** lists the tables its SQL inserts into, updates, or deletes from. **Specs** are in `tests/Acta.Tests.Conformance/Operations/<Group>/`."
+            "One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`. **Facade** is the public method that runs it; an operation with none is engine-only. **HTTP** routes sit under `{mount}/v1`. The dialect columns say whether the SQL is a routine or inline. **Writes** lists the tables its SQL inserts into, updates, or deletes from. **Specs** are in `tests/Acta.Tests.Conformance/Operations/<Group>/`."
         );
         sb.AppendLine();
 

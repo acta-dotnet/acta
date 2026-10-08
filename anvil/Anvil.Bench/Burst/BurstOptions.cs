@@ -5,7 +5,7 @@ namespace Anvil.Bench;
 
 /// <summary>
 /// The shipped bounds this certification is measured against, copied here with the symbol that owns each
-/// one named. They are internal to <c>Acta.Runtime</c> (<c>AlertsJob.DefaultDrain</c>, its
+/// one named. They are internal to <c>Acta</c> (<c>AlertsJob.DefaultDrain</c>, its
 /// <c>DeliverBatchSize</c>), so a harness outside that assembly cannot read them - and a certification
 /// that silently re-derived them from whatever the engine currently does would assert nothing. If a bound
 /// moves, this file is the one edit, and the run that follows says so on its verdict line.

@@ -1,6 +1,5 @@
 using System.Data;
 using System.Data.Common;
-using Acta.Runtime;
 using Acta.Tests.Runtime;
 using Xunit;
 

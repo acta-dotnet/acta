@@ -1,0 +1,149 @@
+using System.Diagnostics;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+
+namespace Acta;
+
+/// <summary>
+/// Renews the handler-acquired locks (<c>RunWithLock</c> and the concurrency slot) running attempts hold, through
+/// <see cref="Locks"/>, on its own loop, separate from the worker heartbeat so a lock outage and a worker-lease outage
+/// are told apart. Each tick feeds a still-held lock's deadline on a confirmed extend and cancels the attempt when a
+/// still-held lock is definitively lost (<see cref="Locks.ExtendLockAsync"/> returns <c>false</c>); an uncertain extend
+/// (exception, timeout) feeds nothing and is left to the <see cref="AttemptWatchdog"/>. A no-op in enqueue-only mode.
+/// </summary>
+internal sealed class LockLeaseHeartbeat(
+    Locks locks,
+    IOptions<JobsOptions> options,
+    WorkerRegistration? workerRegistration,
+    WorkerContext context,
+    ILogger log
+)
+{
+    private readonly Locks _locks = locks;
+    private readonly WorkerRegistration? _workerRegistration = workerRegistration;
+    private readonly WorkerContext _context = context;
+    private readonly TimeSpan _interval = options.Value.HeartbeatInterval;
+    private readonly TimeSpan _lockTtl = TimeSpan.FromSeconds(options.Value.LeaseTtlSeconds);
+    private readonly long _ttlStopwatchTicks = (long)(options.Value.LeaseTtlSeconds * (double)Stopwatch.Frequency);
+    private readonly ILogger _log = log;
+
+    /// <summary>Serializes TickAsync so the loop cannot race itself (double extends against one lock).</summary>
+    private readonly SemaphoreSlim _tickGate = new(1, 1);
+
+    public async Task RunAsync(CancellationToken ct)
+    {
+        if (_workerRegistration is null)
+        {
+            return;
+        }
+
+        _log.LogInformation(
+            "WorkerRuntime: starting lock-lease heartbeat loop (interval {DurationMs}ms).",
+            (long)_interval.TotalMilliseconds
+        );
+
+        try
+        {
+            try
+            {
+                await TickAsync(ct);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // Shutdown landed before the first tick; the periodic wait below exits through the outer catch.
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "WorkerRuntime: initial lock-lease tick failed; retrying on the interval.");
+            }
+
+            using var timer = new PeriodicTimer(_interval);
+            while (await timer.WaitForNextTickAsync(ct))
+            {
+                try
+                {
+                    await TickAsync(ct);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    _log.LogError(ex, "WorkerRuntime: lock-lease tick failed; retrying next tick.");
+                }
+            }
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // Normal shutdown.
+        }
+    }
+
+    /// <summary>
+    /// One lock-lease pass: extend every lock each running attempt holds, feeding a confirmed
+    /// extend's deadline forward and cancelling on a definitive loss. The deterministic single-shot
+    /// the loop drives per tick; tests drive it via WorkerRuntime.RunHeartbeatOnceAsync.
+    /// </summary>
+    public async Task TickAsync(CancellationToken ct)
+    {
+        await _tickGate.WaitAsync(ct);
+        try
+        {
+            foreach (var (jobId, attempt) in _context.RunningAttempts)
+            {
+                foreach (var token in attempt.HeldLocks)
+                {
+                    // Capture the request-start BEFORE the extend: the store stamps the refreshed expiry no
+                    // earlier than this instant, so requestStart + TTL is a conservative lower bound on it.
+                    var requestedAt = Stopwatch.GetTimestamp();
+
+                    // Bound the extend so a hung lock round trip cannot hold the
+                    // tick past a beat; a timeout surfaces as an OCE off callCts (ct not cancelled) and is
+                    // handled exactly like a transient throw below.
+                    using var callCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    callCts.CancelAfter(_interval);
+                    try
+                    {
+                        var stillHeld = (await _locks.ExtendLockAsync(token, _lockTtl, callCts.Token)).Extended;
+                        if (stillHeld)
+                        {
+                            // Confirmed extend: advance this lock's deadline (no-op if the handler released
+                            // and untracked it while the extend was in flight).
+                            attempt.ExtendLock(token, requestedAt + _ttlStopwatchTicks);
+                        }
+                        else if (attempt.Holds(token))
+                        {
+                            // Definitive steal while the handler still relies on the lock: its critical
+                            // section is no longer mutually exclusive, so stop the attempt. (A false for a
+                            // lock the handler already released is untracked first, so Holds() is false.)
+                            attempt.Cancel();
+                            _log.LogWarning("WorkerRuntime: cancelling job {JobId}; a held lock was lost.", jobId);
+                            break;
+                        }
+                    }
+                    catch (Exception ex) when (!ct.IsCancellationRequested)
+                    {
+                        if (!attempt.Holds(token))
+                        {
+                            // The handler released and untracked the lock while this extend was in flight,
+                            // so it no longer relies on the lease; not a renewal failure.
+                            continue;
+                        }
+                        // Uncertain extend (transient fault or timeout): feed nothing and leave the lock's
+                        // deadline for the watchdog to enforce if the outage outlasts it.
+                        _log.LogWarning(
+                            ex,
+                            "WorkerRuntime: could not extend a held lock for job {JobId} this tick; leaving its deadline for the watchdog.",
+                            jobId
+                        );
+                    }
+                }
+            }
+        }
+        finally
+        {
+            _tickGate.Release();
+        }
+    }
+}

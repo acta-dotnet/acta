@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Reflection;
 using System.Text.RegularExpressions;
-using Acta.Runtime;
 
 namespace Acta.Tests.Conformance.Sql;
 
@@ -27,7 +26,6 @@ public static partial class ConstantCatalog
     {
         var constants = new Dictionary<string, int>(StringComparer.Ordinal);
         AddEnums(constants, typeof(JobStatusCode).Assembly);
-        AddEnums(constants, typeof(StartExecutionAction).Assembly);
         AddConstant(constants, $"{nameof(JobPayloadFormat)}.{nameof(JobPayloadFormat.None)}", JobPayloadFormat.None.Id);
         AddConstant(constants, $"{nameof(JobPayloadFormat)}.{nameof(JobPayloadFormat.Json)}", JobPayloadFormat.Json.Id);
         AddConstant(constants, $"{nameof(JobPayloadFormat)}.{nameof(JobPayloadFormat.Bytes)}", JobPayloadFormat.Bytes.Id);

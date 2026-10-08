@@ -1,0 +1,300 @@
+using System.Collections.Concurrent;
+using System.Diagnostics;
+
+namespace Acta;
+
+/// <summary>
+/// Shared mutable worker state threaded between the initializer (writer) and the claim/dispatch loop and dispatcher
+/// (readers): populated by <see cref="WorkerRuntimeInitializer"/> at startup and consulted on the hot path for the
+/// worker identity, the descriptor for a claimed job, and whether a claimed job is a recurring slot fire. Every
+/// collection stays empty in enqueue-only mode (no <see cref="WorkerRegistration"/>).
+/// </summary>
+internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
+{
+    public WorkerRegistration? WorkerRegistration { get; } = workerRegistration;
+
+    public Dictionary<string, int> NamespaceIds { get; } = new(StringComparer.Ordinal);
+    public Dictionary<string, int> WorkerIdByNamespace { get; } = new(StringComparer.Ordinal);
+    public Dictionary<string, Dictionary<string, int>> DefinitionIdsByNamespace { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// definitions.id to JobDescriptor for hot-path claim dispatch. Built in InitializeAsync after
+    /// UpsertDefinitionsAsync returns the DB-assigned ids; consulted in RunOnceAsync to resolve the
+    /// descriptor by ClaimedJob.DefinitionId, keeping <c>claim_batch</c> free of any JOIN to
+    /// definitions. Each descriptor carries the definition's effective (override-or-default)
+    /// policy. Concurrent because the definition-policy reload tick re-overlays entries while
+    /// executor threads read them.
+    /// </summary>
+    public ConcurrentDictionary<int, JobDescriptor> DescriptorByDefinitionId { get; } = new();
+
+    /// <summary>
+    /// definitions.id values this worker bounced for want of a handler, and therefore stops claiming.
+    /// Per process and never persisted: a build that carries the handler is a new process, so the set
+    /// never shrinks in production and an operator needs no way to clear it. Claims are by namespace,
+    /// so during a rolling deploy an old worker keeps claiming a definition only the new build can run
+    /// and hands it straight back; learning the definition bounds that to the batch already claimed
+    /// (every row of it still bounces, and only the first bounce warns): the next claim skips it.
+    /// </summary>
+    public ConcurrentDictionary<int, byte> UnsupportedDefinitionIds { get; } = new();
+
+    private readonly object _unsupportedGate = new();
+
+    private volatile int[] _unsupportedDefinitionIdsSnapshot = [];
+
+    /// <summary>
+    /// The excluded set as an array to bind into a claim, rebuilt on each change. Readers take the
+    /// whole array, so a claim binds a set that was coherent at some instant rather than one
+    /// enumerated while a bounce was adding to it.
+    /// </summary>
+    public int[] UnsupportedDefinitionIdsSnapshot => _unsupportedDefinitionIdsSnapshot;
+
+    /// <summary>
+    /// Excludes <paramref name="definitionId"/> from this worker's claims. Returns true only for the
+    /// first worker thread to add it, which is what makes the bounce warn once per definition.
+    /// </summary>
+    public bool ExcludeDefinition(int definitionId)
+    {
+        if (!UnsupportedDefinitionIds.TryAdd(definitionId, 0))
+        {
+            return false;
+        }
+        RebuildUnsupportedSnapshot();
+        return true;
+    }
+
+    /// <summary>
+    /// Drops <paramref name="definitionId"/> from the excluded set so this worker claims it again.
+    /// A test seam: production never forgets, because the deployment that carries the handler is a
+    /// different process.
+    /// </summary>
+    public bool ForgetUnsupportedDefinition(int definitionId)
+    {
+        if (!UnsupportedDefinitionIds.TryRemove(definitionId, out _))
+        {
+            return false;
+        }
+        RebuildUnsupportedSnapshot();
+        return true;
+    }
+
+    /// <summary>
+    /// Republishes the snapshot, reading the set and storing it under one lock: two concurrent changes
+    /// could otherwise interleave so the one that read the smaller set publishes last, hiding an id.
+    /// </summary>
+    private void RebuildUnsupportedSnapshot()
+    {
+        lock (_unsupportedGate)
+        {
+            _unsupportedDefinitionIdsSnapshot = [.. UnsupportedDefinitionIds.Keys];
+        }
+    }
+
+    /// <summary>
+    /// Slot job ids (one per recurring definition): those the startup schedule upsert returned, and any
+    /// slot another runtime registered that an executor recognized on claiming it. Consulted on the
+    /// execution hot path to branch a claimed slot fire into the recurring path.
+    /// </summary>
+    public ConcurrentDictionary<long, byte> RecurringSlotJobIds { get; } = new();
+
+    /// <summary>
+    /// The <c>sys.recovery</c> slot job id per namespace this worker registered, captured at the startup
+    /// schedule upsert. The recovery monitor checks exactly this row and never recreates it: a slot an
+    /// operator removed stays removed.
+    /// </summary>
+    public ConcurrentDictionary<int, long> RecoverySlotJobIdByNamespace { get; } = new();
+
+    /// <summary>
+    /// Jobs this worker is mid-execution on: job_id to the attempt's cancellation source + held
+    /// locks. The dispatcher registers an entry around each attempt; the heartbeat cancels the
+    /// source when extend_worker_leases reports the job left this worker's lease set (externally
+    /// cancelled / stolen) and extends every lock the attempt holds through <see cref="Locks"/> while it
+    /// stays.
+    /// </summary>
+    public ConcurrentDictionary<long, RunningAttempt> RunningAttempts { get; } = new();
+
+    /// <summary>
+    /// Jobs the Buffered claim loop holds between their claim and their executor: registered as the
+    /// claim returns, removed as an executor takes the row. With <see cref="RunningAttempts"/> this is
+    /// every claim this process can account for; a row the heartbeat renews that is in neither is a
+    /// claim whose answer was lost after the store committed it.
+    /// </summary>
+    public ConcurrentDictionary<long, byte> BufferedClaims { get; } = new();
+
+    /// <summary>
+    /// Cancel the attempt this process still runs for a job a claim just returned. The claim means the
+    /// attempt's lease lapsed and the job was reclaimed, and the replacement shares its key here, so the
+    /// heartbeat would renew the stale attempt on the replacement's lease and the watchdog, once the entry
+    /// is replaced, would never see it.
+    /// </summary>
+    public void CancelDisplacedAttempt(long jobId)
+    {
+        if (RunningAttempts.TryGetValue(jobId, out var stale))
+        {
+            stale.Cancel();
+        }
+    }
+
+    /// <summary>
+    /// The executions some actor in this process is starting, running, or releasing right now, keyed by job and
+    /// execution number. An executor takes the entry before it registers the attempt and holds it until the attempt
+    /// unwinds; the orphan release takes it once the row has told it the execution and holds it through the
+    /// reschedule. The store's version guard cannot tell the two apart: a start landing after another actor's start
+    /// reads as this worker's own lost answer, both carrying the same worker and execution number, and the row would be
+    /// run by one and rescheduled by the other. Keyed by execution, not job, so a replacement can start while a stale one unwinds.
+    /// </summary>
+    public ConcurrentDictionary<(long JobId, int ExecutionNumber), byte> AttemptOwners { get; } = new();
+
+    public IReadOnlyDictionary<string, int> RegisteredNamespaceIds => NamespaceIds;
+
+    public bool TryGetDefinitionId(string namespaceName, string jobName, out int definitionId)
+    {
+        if (DefinitionIdsByNamespace.TryGetValue(namespaceName, out var byName) && byName.TryGetValue(jobName, out var id))
+        {
+            definitionId = id;
+            return true;
+        }
+        definitionId = 0;
+        return false;
+    }
+
+    /// <summary>
+    /// Resolves and validates the (namespaceId, workerId) pair for the registered worker namespace.
+    /// Shared by RunOnceAsync and the production claim loop.
+    /// </summary>
+    public (int NamespaceId, int WorkerId) ResolveWorker(string namespaceName)
+    {
+        if (WorkerRegistration is null)
+        {
+            throw new InvalidOperationException("Worker mode required. Call j.Run<TManifest>(namespaceName, ...) inside UseActa.");
+        }
+        if (namespaceName != WorkerRegistration.NamespaceName)
+        {
+            throw new InvalidOperationException(
+                $"Namespace mismatch: this runtime is registered as the worker for '{WorkerRegistration.NamespaceName}', not '{namespaceName}'."
+            );
+        }
+        if (!NamespaceIds.TryGetValue(namespaceName, out var namespaceId))
+        {
+            throw new InvalidOperationException($"Namespace '{namespaceName}' has no id yet. Call InitializeAsync before claiming.");
+        }
+        return !WorkerIdByNamespace.TryGetValue(namespaceName, out var workerId)
+            ? throw new InvalidOperationException($"Worker id for namespace '{namespaceName}' not assigned. Call InitializeAsync first.")
+            : ((int NamespaceId, int WorkerId))(namespaceId, workerId);
+    }
+}
+
+/// <summary>
+/// A job this worker is mid-execution on: the per-attempt linked <see cref="CancellationTokenSource"/> that stops the
+/// handler, plus a conservative monotonic "good until" deadline for every lease it depends on: its job lease and each
+/// lock held through <c>RunWithLock</c> or the concurrency-key mutex. The worker heartbeat feeds the job lease, the
+/// lock heartbeat each lock (via <see cref="Locks"/>), and the watchdog cancels once <see cref="EarliestLeaseGoodUntil"/>
+/// nears the unwind margin. Deadlines are monotonic Stopwatch timestamps, so a clock correction cannot revive a lapsed
+/// lease, and sit behind Volatile and a ConcurrentDictionary because renewers write while the watchdog and handler read.
+/// </summary>
+internal sealed class RunningAttempt(CancellationTokenSource cts, CancellationTokenSource? timeoutCts = null)
+{
+    private readonly CancellationTokenSource _cts = cts;
+    private readonly CancellationTokenSource? _timeoutCts = timeoutCts;
+
+    /// <summary>
+    /// The execution this attempt runs. The heartbeat matches a renewal on job and execution, so a row the
+    /// job was claimed again into never renews an older attempt still running under the same job.
+    /// </summary>
+    public int ExecutionNumber { get; init; }
+
+    /// <summary>Held lock to the monotonic Stopwatch timestamp its lease is conservatively good until.</summary>
+    private readonly ConcurrentDictionary<LockToken, long> _heldLocks = new();
+
+    /// <summary>
+    /// Job lease's conservative good-until (monotonic Stopwatch timestamp). Written by the worker
+    /// heartbeat, read by the watchdog on another thread - accessed only through Volatile.
+    /// </summary>
+    private long _jobLeaseGoodUntil;
+
+    /// <summary>
+    /// The job lease's conservative good-until as a monotonic <see cref="Stopwatch"/> timestamp. Seeded
+    /// when the attempt is registered and advanced by the worker heartbeat to <c>requestStart + TTL</c> on
+    /// every confirmed renewal (a lower bound on the store-stamped expiry).
+    /// </summary>
+    public long JobLeaseGoodUntil
+    {
+        get => Volatile.Read(ref _jobLeaseGoodUntil);
+        set => Volatile.Write(ref _jobLeaseGoodUntil, value);
+    }
+
+    /// <summary>
+    /// The earliest good-until across the job lease and every held lock: the instant one of this attempt's
+    /// leases first lapses, and so what the watchdog measures its unwind margin against.
+    /// </summary>
+    public long EarliestLeaseGoodUntil()
+    {
+        var earliest = Volatile.Read(ref _jobLeaseGoodUntil);
+        foreach (var goodUntil in _heldLocks.Values)
+        {
+            if (goodUntil < earliest)
+            {
+                earliest = goodUntil;
+            }
+        }
+        return earliest;
+    }
+
+    /// <summary>
+    /// Whether the cancellation came from the execution-timeout source (not an external cancel or
+    /// lease steal), so the runner records a timeout distinctly and routes it through the retry budget.
+    /// </summary>
+    public bool TimedOut => _timeoutCts is { IsCancellationRequested: true };
+
+    /// <summary>
+    /// Register a lock this attempt now holds, conservatively good until <paramref name="goodUntil"/>
+    /// (a monotonic Stopwatch timestamp). Idempotent; a re-acquire refreshes the deadline.
+    /// </summary>
+    public void TrackLock(LockToken token, long goodUntil) => _heldLocks[token] = goodUntil;
+
+    /// <summary>
+    /// Advance a still-held lock's good-until after a confirmed extend. Returns false when the handler
+    /// released and untracked the lock while the extend was in flight, so a stale renewal never re-adds it.
+    /// </summary>
+    public bool ExtendLock(LockToken token, long goodUntil)
+    {
+        while (_heldLocks.TryGetValue(token, out var current))
+        {
+            if (_heldLocks.TryUpdate(token, goodUntil, current))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Stop tracking a lock the handler released, so no renewer extends it and no lost-extend is mistaken
+    /// for a steal. Called before the store release so the two never race.
+    /// </summary>
+    public void UntrackLock(LockToken token) => _heldLocks.TryRemove(token, out _);
+
+    /// <summary>
+    /// Whether the attempt still holds <paramref name="token"/>, used to tell a genuine steal (still
+    /// tracked) from a normal release (already untracked) when an extend fails.
+    /// </summary>
+    public bool Holds(LockToken token) => _heldLocks.ContainsKey(token);
+
+    /// <summary>
+    /// Snapshot of the locks currently held by this attempt, safe to enumerate while the handler
+    /// thread adds or removes locks.
+    /// </summary>
+    public IReadOnlyCollection<LockToken> HeldLocks => [.. _heldLocks.Keys];
+
+    /// <summary>
+    /// Cancel the attempt's token. Swallows <see cref="ObjectDisposedException"/> so a renewer/watchdog
+    /// tick racing the completing attempt's dispose is a no-op rather than a fault.
+    /// </summary>
+    public void Cancel()
+    {
+        try
+        {
+            _cts.Cancel();
+        }
+        catch (ObjectDisposedException) { }
+    }
+}

@@ -16,12 +16,7 @@ public sealed class DuplicateShapeTests
     // Below three properties, shared names are coincidence rather than copying.
     private const int MinProperties = 3;
 
-    // The operation folders of both halves, with the one namespace each project declares.
-    private static readonly (string Root, string Namespace)[] OperationRoots =
-    [
-        ("src/Acta.Runtime/Operations/", "Acta.Runtime"),
-        ("src/Acta/Operations/", "Acta"),
-    ];
+    private const string OperationRoot = "src/Acta/Operations/";
 
     // An HTTP body is the wire copy of a command or model: Acta.AspNetCore sees only the public contract, and its
     // projection changes a member's representation, so the suffix marks the copy as deliberate.
@@ -74,15 +69,12 @@ public sealed class DuplicateShapeTests
         return owners.GetValueOrDefault($"{outer.Namespace}.{ShippedCode.SimpleName(outer)}");
     }
 
-    // Every top-level type declared in Operations/<Group>/<Operation>/, by namespace-qualified name.
+    // Every top-level type declared in Operations/<Group>/<Operation>/, by namespace-qualified name; Acta has one namespace.
     private static Dictionary<string, string> Owners() =>
         ShippedCode
             .SourceFiles("*.cs")
-            .SelectMany(file =>
-                OperationRoots
-                    .Where(root => file.Relative.StartsWith(root.Root, StringComparison.Ordinal))
-                    .Select(root => (file.Path, root.Namespace, Below: file.Relative[root.Root.Length..].Split('/')))
-            )
+            .Where(file => file.Relative.StartsWith(OperationRoot, StringComparison.Ordinal))
+            .Select(file => (file.Path, Below: file.Relative[OperationRoot.Length..].Split('/')))
             .Where(file => file.Below.Length == 3)
             .SelectMany(file =>
                 CSharpSyntaxTree
@@ -91,9 +83,7 @@ public sealed class DuplicateShapeTests
                     .DescendantNodes()
                     .OfType<BaseTypeDeclarationSyntax>()
                     .Where(declaration => declaration.Parent is not BaseTypeDeclarationSyntax)
-                    .Select(declaration =>
-                        (Key: $"{file.Namespace}.{declaration.Identifier.Text}", Owner: $"{file.Below[0]}/{file.Below[1]}")
-                    )
+                    .Select(declaration => (Key: $"Acta.{declaration.Identifier.Text}", Owner: $"{file.Below[0]}/{file.Below[1]}"))
             )
             .ToDictionary(entry => entry.Key, entry => entry.Owner, StringComparer.Ordinal);
 

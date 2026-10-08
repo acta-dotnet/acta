@@ -1,4 +1,3 @@
-using Acta.Runtime;
 using Acta.Tests.Conformance.Postgres.Testing;
 using Acta.Tests.Conformance.Testing;
 using TestJobs;

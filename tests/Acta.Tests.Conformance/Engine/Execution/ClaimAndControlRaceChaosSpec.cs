@@ -1,4 +1,3 @@
-using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -42,10 +41,10 @@ public sealed class ClaimAndControlRaceChaosSpec : ActaRuntimeTestBase<Conforman
 
         // --- 1. Two workers race to claim the same Ready row.
         var first = Services
-            .GetRequiredService<Acta.Runtime.Execution>()
+            .GetRequiredService<Acta.Execution>()
             .ClaimOneAsync(new ClaimRequest(ns, worker1, MaxBatch: 1), LeaseTtlSeconds, enqueued.JobId, ct);
         var second = Services
-            .GetRequiredService<Acta.Runtime.Execution>()
+            .GetRequiredService<Acta.Execution>()
             .ClaimOneAsync(new ClaimRequest(ns, worker2, MaxBatch: 1), LeaseTtlSeconds, enqueued.JobId, ct);
         await Task.WhenAll(first, second);
 
@@ -72,7 +71,7 @@ public sealed class ClaimAndControlRaceChaosSpec : ActaRuntimeTestBase<Conforman
         var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-counting", ct);
 
         // --- 1. Claim the row so it is Dispatched.
-        Assert.Single(await Services.GetRequiredService<Acta.Runtime.Execution>().ClaimOneAsync(ns, worker, LeaseTtlSeconds, enqueued, ct));
+        Assert.Single(await Services.GetRequiredService<Acta.Execution>().ClaimOneAsync(ns, worker, LeaseTtlSeconds, enqueued, ct));
 
         // --- 2. Pause is rejected and leaves the row Dispatched with no JobPaused event.
         var pause = await Jobs.PauseAsync(enqueued, "race pause", ct: ct);

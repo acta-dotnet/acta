@@ -1,4 +1,3 @@
-using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,7 +35,7 @@ public sealed class ReleaseLockSpec : ActaStorageTestBase<ConformanceFixture>
     public async Task Release_deletes_the_row_and_returns_false_for_stale_token()
     {
         var ct = TestContext.Current.CancellationToken;
-        var locks = Services.GetRequiredService<Acta.Runtime.Locks>();
+        var locks = Services.GetRequiredService<Acta.Locks>();
         var key = TestKey("ck.release-lock-spec");
 
         var token = (await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -1, ct)).Token;
@@ -47,7 +46,7 @@ public sealed class ReleaseLockSpec : ActaStorageTestBase<ConformanceFixture>
         // Gone, not expired in place: the query carries no expiry filter, so an expire-style
         // release would still return the row and fail here. See the class remarks for why
         // absence (table stays O(currently held)) is the contract.
-        var lease = await Db.From<Acta.Runtime.LockEntity>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct);
+        var lease = await Db.From<Acta.LockEntity>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct);
         Assert.Null(lease);
 
         // Releasing again with the same (now-stale) token is a token-CAS miss.

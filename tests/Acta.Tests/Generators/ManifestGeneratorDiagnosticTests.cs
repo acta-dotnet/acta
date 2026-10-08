@@ -154,7 +154,7 @@ public class ManifestGeneratorDiagnosticTests
                 public static void Run() { }
             }
             """,
-            rootNamespace: "Acta.Runtime"
+            rootNamespace: "Acta"
         );
 
         Assert.Empty(result.Diagnostics);

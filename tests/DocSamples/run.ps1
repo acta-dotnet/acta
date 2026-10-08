@@ -59,7 +59,7 @@ else {
 
     # Acta.Sqlite's own dependency chain has to resolve from the local feed too: the source mapping
     # in nuget.config pins every Acta* id here, so an unpacked link would fail the restore.
-    foreach ($project in @('Acta', 'Acta.Runtime', 'Acta.Sqlite')) {
+    foreach ($project in @('Acta', 'Acta.Sqlite')) {
         dotnet pack "$root/src/$project/$project.csproj" -c Release -o $feed --nologo
         if ($LASTEXITCODE -ne 0) { throw "pack failed: $project" }
     }

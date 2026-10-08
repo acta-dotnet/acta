@@ -1,5 +1,3 @@
-using Acta.Runtime;
-
 namespace Acta.SqlServer;
 
 /// <summary>

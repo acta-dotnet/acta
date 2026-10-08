@@ -43,9 +43,7 @@ public sealed class ProvisionScriptChainTests : IDisposable
         var providerTarget = Path.Combine(_tempRoot, "src", "Acta.Sqlite");
         SchemaCommandsTests.CopySql(
             _tempRoot,
-            path =>
-                path.StartsWith("src/Acta.Runtime/", StringComparison.Ordinal)
-                || path.StartsWith("src/Acta.Sqlite/", StringComparison.Ordinal)
+            path => path.StartsWith("src/Acta/", StringComparison.Ordinal) || path.StartsWith("src/Acta.Sqlite/", StringComparison.Ordinal)
         );
         await File.WriteAllTextAsync(Path.Combine(providerTarget, "Schema", "Migrations", "M002_add_widgets.sql"), FabricatedM002, ct);
 

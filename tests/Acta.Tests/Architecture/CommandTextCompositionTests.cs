@@ -32,7 +32,7 @@ public sealed class CommandTextCompositionTests
 {
     /// <summary>
     /// Methods that return embedded SQL. <c>SqlResourceCatalog.Load</c> reads a <c>.sql</c> file compiled
-    /// into <c>Acta.Runtime</c>, so its result is authored text with no runtime component beyond the
+    /// into <c>Acta</c>, so its result is authored text with no runtime component beyond the
     /// substitution tokens the catalog renders - and those are the validated identifiers pinned by the
     /// second test below.
     /// </summary>
@@ -81,9 +81,9 @@ public sealed class CommandTextCompositionTests
         // migration scripts, provider view and routine bodies) split into batches by the provider
         // hooks; the only substitution is {{schema}}, and the CREATE VIEW wrapper's qualified name is
         // that same schema plus a name derived from the resource file name.
-        ["Acta.Runtime/Schema/SchemaMigrationRunner.cs::ApplyAsync"] = (2, "embedded migration/prelude DDL, {{schema}} only"),
-        ["Acta.Runtime/Schema/SqlObjectInstaller.cs::Run"] = (1, "embedded view/routine DDL batch"),
-        ["Acta.Runtime/Schema/SqlObjectInstaller.cs::CurrentDefinition"] = (1, "provider-owned hook SQL, name bound as @p_name"),
+        ["Acta/Schema/SchemaMigrationRunner.cs::ApplyAsync"] = (2, "embedded migration/prelude DDL, {{schema}} only"),
+        ["Acta/Schema/SqlObjectInstaller.cs::Run"] = (1, "embedded view/routine DDL batch"),
+        ["Acta/Schema/SqlObjectInstaller.cs::CurrentDefinition"] = (1, "provider-owned hook SQL, name bound as @p_name"),
         // The three provider staging extensions. The INSERT text is built once by OutboxStaging.Prepare
         // over an OutboxIdentifier.Qualify'd table reference and handed here as a parameter; every
         // column value is added as a provider DbParameter in the lines below the assignment.
@@ -205,9 +205,9 @@ public sealed class CommandTextCompositionTests
         [
             // The Schema every {{schema}} substitution and every routine header uses, rejected at
             // host startup by ValidateOnStart before a single command is built.
-            ("src/Acta.Runtime/Hosting/SqlProviderOptionsValidator.cs", "IdentifierSyntax.IsBareIdentifier(options.Schema)"),
+            ("src/Acta/Hosting/SqlProviderOptionsValidator.cs", "IdentifierSyntax.IsBareIdentifier(options.Schema)"),
             // The external-outbox schema and table, the only physical names an application chooses.
-            ("src/Acta.Runtime/Hosting/OutboxIdentifier.cs", "IdentifierSyntax.ValidateBareIdentifier(value, kind)"),
+            ("src/Acta/Hosting/OutboxIdentifier.cs", "IdentifierSyntax.ValidateBareIdentifier(value, kind)"),
             // The routine name each dialect interpolates into its call header.
             ("src/Acta.Postgres/Services/PostgresDialect.cs", "IdentifierSyntax.ValidateBareIdentifier(routineName"),
             ("src/Acta.SqlServer/Services/SqlServerDialect.cs", "IdentifierSyntax.ValidateBareIdentifier(routineName"),

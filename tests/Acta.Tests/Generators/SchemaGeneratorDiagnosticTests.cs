@@ -7,13 +7,13 @@ namespace Acta.Tests.Generators;
 
 /// <summary>
 /// Drives <see cref="ActaSchemaGenerator"/> through Roslyn over small in-memory compilations and
-/// asserts the schema diagnostics it reports. The Db* attributes are internal to Acta.Runtime, so the
+/// asserts the schema diagnostics it reports. The Db* attributes are internal to Acta, so the
 /// test source declares stand-ins with the same metadata names; the generator matches by name.
 /// </summary>
 public class SchemaGeneratorDiagnosticTests
 {
     private const string Stubs = """
-        namespace Acta.Runtime
+        namespace Acta
         {
             using System;
 
@@ -130,7 +130,7 @@ public class SchemaGeneratorDiagnosticTests
         var result = RunGenerator(
             """
             namespace GenTests;
-            using Acta.Runtime;
+            using Acta;
 
             [DbTable("widget")]
             internal sealed class Widget
@@ -151,7 +151,7 @@ public class SchemaGeneratorDiagnosticTests
         var result = RunGenerator(
             """
             namespace GenTests;
-            using Acta.Runtime;
+            using Acta;
 
             [DbTable("widget")]
             [DbPrimaryKey(Name = "primary_widget", Columns = ["id"])]
@@ -172,7 +172,7 @@ public class SchemaGeneratorDiagnosticTests
         var result = RunGenerator(
             """
             namespace GenTests;
-            using Acta.Runtime;
+            using Acta;
 
             [DbTable("widget")]
             [DbPrimaryKey(Name = "pk_widget", Columns = ["missing"])]
@@ -193,7 +193,7 @@ public class SchemaGeneratorDiagnosticTests
         var result = RunGenerator(
             """
             namespace GenTests;
-            using Acta.Runtime;
+            using Acta;
 
             [DbTable("widget")]
             [DbPrimaryKey(Name = "pk_widget", Columns = ["id"])]
@@ -215,7 +215,7 @@ public class SchemaGeneratorDiagnosticTests
         var result = RunGenerator(
             """
             namespace GenTests;
-            using Acta.Runtime;
+            using Acta;
 
             [DbTable("widget")]
             [DbPrimaryKey(Name = "pk_widget", Columns = ["id"])]
@@ -237,7 +237,7 @@ public class SchemaGeneratorDiagnosticTests
         var result = RunGenerator(
             """
             namespace GenTests;
-            using Acta.Runtime;
+            using Acta;
 
             [DbTable("widget")]
             [DbPrimaryKey(Name = "pk_widget", Columns = ["id"])]
@@ -266,7 +266,7 @@ public class SchemaGeneratorDiagnosticTests
         var result = RunGenerator(
             """
             namespace GenTests;
-            using Acta.Runtime;
+            using Acta;
 
             [DbTable("parent")]
             [DbPrimaryKey(Name = "pk_parent", Columns = ["id"])]
@@ -296,7 +296,7 @@ public class SchemaGeneratorDiagnosticTests
         var result = RunGenerator(
             """
             namespace GenTests;
-            using Acta.Runtime;
+            using Acta;
 
             [DbTable("parent")]
             [DbPrimaryKey(Name = "pk_parent", Columns = ["id"])]
@@ -329,7 +329,7 @@ public class SchemaGeneratorDiagnosticTests
         var result = RunGenerator(
             """
             namespace GenTests;
-            using Acta.Runtime;
+            using Acta;
 
             internal sealed class NotAnEntity
             {
@@ -360,7 +360,7 @@ public class SchemaGeneratorDiagnosticTests
         var result = RunGenerator(
             """
             namespace GenTests;
-            using Acta.Runtime;
+            using Acta;
 
             [DbTable("widget")]
             [DbPrimaryKey(Name = "pk_widget", Columns = ["id"])]
@@ -385,7 +385,7 @@ public class SchemaGeneratorDiagnosticTests
         var result = RunGenerator(
             """
             namespace GenTests;
-            using Acta.Runtime;
+            using Acta;
 
             [DbTable("widget")]
             [DbPrimaryKey(Name = "pk_widget", Columns = ["id"])]
@@ -409,7 +409,7 @@ public class SchemaGeneratorDiagnosticTests
         var result = RunGenerator(
             """
             namespace GenTests;
-            using Acta.Runtime;
+            using Acta;
 
             [DbTable("widget")]
             [DbPrimaryKey(Name = "pk_widget", Columns = ["id"])]
@@ -433,7 +433,7 @@ public class SchemaGeneratorDiagnosticTests
         var result = RunGenerator(
             """
             namespace GenTests;
-            using Acta.Runtime;
+            using Acta;
 
             [CodeKind("widget-status")]
             internal enum WidgetStatusCode : long
@@ -465,7 +465,7 @@ public class SchemaGeneratorDiagnosticTests
         var result = RunGenerator(
             """
             namespace GenTests;
-            using Acta.Runtime;
+            using Acta;
 
             [DbTable("widget")]
             [DbPrimaryKey(Name = "pk_widget", Columns = ["id"])]
@@ -490,7 +490,7 @@ public class SchemaGeneratorDiagnosticTests
         var result = RunGenerator(
             """
             namespace GenTests;
-            using Acta.Runtime;
+            using Acta;
 
             [DbTable("widget")]
             [DbPrimaryKey(Name = "pk_widget", Columns = ["id"])]
@@ -514,7 +514,7 @@ public class SchemaGeneratorDiagnosticTests
         var result = RunGenerator(
             """
             namespace GenTests;
-            using Acta.Runtime;
+            using Acta;
 
             [DbTable("widget")]
             [DbPrimaryKey(Name = "pk_widget", Columns = ["id"])]
@@ -537,7 +537,7 @@ public class SchemaGeneratorDiagnosticTests
         var result = RunGenerator(
             """
             namespace GenTests;
-            using Acta.Runtime;
+            using Acta;
 
             [DbTable("parent")]
             [DbPrimaryKey(Name = "pk_parent", Columns = ["id"])]
@@ -583,7 +583,7 @@ public class SchemaGeneratorDiagnosticTests
         var result = RunGenerator(
             $$"""
             namespace GenTests;
-            using Acta.Runtime;
+            using Acta;
 
             [DbTable("widget")]
             [DbPrimaryKey(Name = "pk_widget", Columns = ["id"])]
@@ -608,7 +608,7 @@ public class SchemaGeneratorDiagnosticTests
         var result = RunGenerator(
             $$"""
             namespace GenTests;
-            using Acta.Runtime;
+            using Acta;
 
             [DbTable("widget")]
             [DbPrimaryKey(Name = "pk_widget", Columns = ["id"])]
@@ -634,7 +634,7 @@ public class SchemaGeneratorDiagnosticTests
         var result = RunGenerator(
             $$"""
             namespace GenTests;
-            using Acta.Runtime;
+            using Acta;
 
             [DbTable("widget")]
             [DbPrimaryKey(Name = "pk_widget", Columns = ["id"])]

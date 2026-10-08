@@ -11,7 +11,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Acta.Runtime\Acta.Runtime.csproj" PrivateAssets="none" />
+    <ProjectReference Include="..\Acta\Acta.csproj" PrivateAssets="none" />
     <ProjectReference Include="..\Acta.Generators\Acta.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
@@ -25,7 +25,7 @@
     <PackageReference Include="Microsoft.Data.SqlClient" />
   </ItemGroup>
   <ItemGroup>
-    <!-- The ordered migrations; every other SQL file lives beside its operation in Acta.Runtime. -->
+    <!-- The ordered migrations; every other SQL file lives beside its operation in Acta. -->
     <EmbeddedResource Include="Schema/Migrations/**/*.sql" Exclude="$(DefaultItemExcludes)">
       <LogicalName>$(AssemblyName).$([MSBuild]::ValueOrDefault('%(RelativeDir)', '').Replace('\', '.').Replace('/', '.'))%(Filename)%(Extension)</LogicalName>
     </EmbeddedResource>

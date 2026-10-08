@@ -1,4 +1,3 @@
-using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -277,11 +276,11 @@ public sealed class RaiseAlertSpec : ActaStorageTestBase<ConformanceFixture>
             leaseTtlSeconds: 180,
             cancelJob: Services.GetRequiredService<CancelJobHandler>(),
             resetJobState: Services.GetRequiredService<ResetJobStateHandler>(),
-            signals: Services.GetRequiredService<Acta.Runtime.Signals>(),
+            signals: Services.GetRequiredService<Acta.Signals>(),
             alerts: Services.GetRequiredService<AlertLifecycle>(),
-            executionStore: Services.GetRequiredService<Acta.Runtime.Execution>(),
+            executionStore: Services.GetRequiredService<Acta.Execution>(),
             serializers: Services.GetRequiredService<IJobPayloadSerializerRegistry>(),
-            locks: Services.GetRequiredService<Acta.Runtime.Locks>(),
+            locks: Services.GetRequiredService<Acta.Locks>(),
             cancellationToken: CancellationToken.None,
             triggeringScheduleNames: [],
             deadlineAtUtc: null

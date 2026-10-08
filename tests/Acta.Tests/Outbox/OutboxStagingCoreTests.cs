@@ -1,11 +1,10 @@
-using Acta.Runtime;
 using Microsoft.Data.Sqlite;
 using Xunit;
 
 namespace Acta.Tests.Outbox;
 
 /// <summary>
-/// Homes the canonical-outbox-shape table-contract coverage onto the staging core in Acta.Runtime:
+/// Homes the canonical-outbox-shape table-contract coverage onto the staging core in Acta:
 /// the shared <see cref="OutboxStaging"/> validation and projection, and the <see cref="OutboxMetaWriter"/>
 /// meta.tags shape. A staged row is reconstructed the way the relay will (from the columns, parsing meta
 /// with the relay's own <see cref="OutboxMetaReader"/> reader) so a new request member cannot silently drop.

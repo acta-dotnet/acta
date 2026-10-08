@@ -1,4 +1,3 @@
-using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -128,10 +127,10 @@ public sealed class ControlVerbAuditGatingSpec : ActaRuntimeTestBase<Conformance
         await SetAuditLevelAsync(Db, jobF, DefinitionAuditLevelCode.Audit, ct);
 
         var outcomeL = await Services
-            .GetRequiredService<Acta.Runtime.Signals>()
+            .GetRequiredService<Acta.Signals>()
             .RaiseSignalAsync(new SignalSlotRaise(jobL, CheckpointKindCode.Signal, "gate", 0, null, input), ct);
         var outcomeF = await Services
-            .GetRequiredService<Acta.Runtime.Signals>()
+            .GetRequiredService<Acta.Signals>()
             .RaiseSignalAsync(new SignalSlotRaise(jobF, CheckpointKindCode.Signal, "gate", 0, null, input), ct);
 
         Assert.Equal(ControlAction.Applied, outcomeL.Action);

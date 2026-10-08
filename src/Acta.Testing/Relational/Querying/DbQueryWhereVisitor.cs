@@ -2,7 +2,6 @@ using System.Data.Common;
 using System.Globalization;
 using System.Linq.Expressions;
 using System.Text;
-using Acta.Runtime;
 
 namespace Acta.Testing;
 

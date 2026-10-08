@@ -1,4 +1,3 @@
-using Acta.Runtime;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Xunit;
@@ -77,7 +76,7 @@ public sealed class RecoveryPassTests
 
     private static RecoveryPass Pass(
         ScriptedSession workers,
-        Acta.Runtime.Execution execution,
+        Acta.Execution execution,
         Signals signals,
         TimeSpan? deadAfter = null,
         RecordingWakeup? wakeup = null
@@ -124,7 +123,7 @@ public sealed class RecoveryPassTests
     private static ScriptedSession WorkerSweep(int marked = 0) => new(_ => marked);
 
     // The reclaim answers the rows it touched and the latch read its stale latches; nothing else is reached.
-    private static Acta.Runtime.Execution ExecutionStore(ReclaimStuckJobsRow[]? reclaimed = null, StaleChildLatch[]? staleLatches = null) =>
+    private static Acta.Execution ExecutionStore(ReclaimStuckJobsRow[]? reclaimed = null, StaleChildLatch[]? staleLatches = null) =>
         new ScriptedSession(call =>
             call.Stem switch
             {
@@ -132,5 +131,5 @@ public sealed class RecoveryPassTests
                 "GetStaleChildLatches" => staleLatches ?? [],
                 _ => throw new NotSupportedException(call.Stem),
             }
-        ).Services().GetRequiredService<Acta.Runtime.Execution>();
+        ).Services().GetRequiredService<Acta.Execution>();
 }

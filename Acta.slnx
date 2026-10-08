@@ -19,7 +19,6 @@
     <Project Path="src/Acta.Sqlite/Acta.Sqlite.csproj" />
     <Project Path="src/Acta.SqlServer/Acta.SqlServer.csproj" />
     <Project Path="src/Acta.Testing/Acta.Testing.csproj" />
-    <Project Path="src/Acta.Runtime/Acta.Runtime.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Acta.Tests/Acta.Tests.csproj" />

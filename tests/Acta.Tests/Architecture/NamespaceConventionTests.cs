@@ -6,8 +6,7 @@ namespace Acta.Tests.Architecture;
 
 /// <summary>
 /// Pins one namespace per assembly: every source file declares its project's root namespace, whatever
-/// folder it sits in, so a move between folders never touches a using. One exception: the core registration
-/// entry point lives in <c>Acta</c> beside the public surface it registers.
+/// folder it sits in, so a move between folders never touches a using.
 /// </summary>
 public sealed partial class NamespaceConventionTests
 {
@@ -53,12 +52,11 @@ public sealed partial class NamespaceConventionTests
                 }
 
                 inspected++;
-                var isActaConsumerEntry =
-                    Path.GetFileName(projectDirectory) == "Acta.Runtime" && relative == "ActaServiceCollectionExtensions.cs";
-                var expected = isActaConsumerEntry ? "Acta" : rootNamespace;
-                if (match.Groups[1].Value != expected)
+                if (match.Groups[1].Value != rootNamespace)
                 {
-                    failures.Add($"{Path.GetRelativePath(repoRoot, file)}: namespace is '{match.Groups[1].Value}', expected '{expected}'");
+                    failures.Add(
+                        $"{Path.GetRelativePath(repoRoot, file)}: namespace is '{match.Groups[1].Value}', expected '{rootNamespace}'"
+                    );
                 }
             }
         }

@@ -22,7 +22,7 @@ internal static class SchemaSourceWriter
         sb.AppendLine("using System;");
         sb.AppendLine("using System.Collections.Generic;");
         sb.AppendLine();
-        sb.AppendLine("namespace Acta.Runtime;");
+        sb.AppendLine("namespace Acta;");
         sb.AppendLine();
         sb.AppendLine("internal static partial class ActaSchema");
         sb.AppendLine("{");
@@ -285,7 +285,7 @@ internal static class SchemaSourceWriter
         sb.AppendLine("using System;");
         sb.AppendLine("using System.Data.Common;");
         sb.AppendLine();
-        sb.AppendLine("namespace Acta.Runtime;");
+        sb.AppendLine("namespace Acta;");
         sb.AppendLine();
         sb.AppendLine("internal static partial class EntityBinder");
         sb.AppendLine("{");

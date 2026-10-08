@@ -1,0 +1,21 @@
+namespace Acta;
+
+/// <summary><see cref="Execution.CheckpointSlotAsync"/>: one routine call per slot action, answering exactly one row.</summary>
+internal sealed class CheckpointSlotHandler(IDbSession session, ISqlDialect dialect)
+{
+    public Task<CheckpointSlotResponse> HandleAsync(CheckpointSlotCommand command, CancellationToken ct) =>
+        session.ExecuteOneAsync(
+            new StoreCommand("CheckpointSlot"),
+            cmd =>
+            {
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.SlotAction, (short)command.Action));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.JobId, command.JobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.KindCode, command.Kind));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.Name, command.Name));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.ValueFormatId, command.ValueFormatId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.Value, command.Value));
+            },
+            DbProjectionResolver.Resolve<CheckpointSlotResponse>(),
+            ct
+        );
+}

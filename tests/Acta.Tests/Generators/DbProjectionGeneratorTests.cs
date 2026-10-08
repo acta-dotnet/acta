@@ -10,7 +10,7 @@ public sealed class DbProjectionGeneratorTests
     private const string Stubs = """
         #nullable enable
 
-        namespace Acta.Runtime
+        namespace Acta
         {
             using System;
             using System.Data;
@@ -36,7 +36,7 @@ public sealed class DbProjectionGeneratorTests
             """
             namespace GenTests;
             using System;
-            using Acta.Runtime;
+            using Acta;
 
             internal enum ProjectionAction : byte
             {
@@ -62,12 +62,12 @@ public sealed class DbProjectionGeneratorTests
         Assert.Contains("internal static void __ActaTryResolveDbProjection<T>(ref Func<DbDataReader, T>? read)", source);
         Assert.Contains("if (typeof(T) == typeof(global::GenTests.EnqueueOutcomeRow))", source);
         Assert.Contains(
-            "read = (Func<DbDataReader, T>)(object)global::Acta.Runtime.DbProjectionResolver.ByPosition<global::GenTests.EnqueueOutcomeRow>(EnqueueOutcomeRowColumns.Length, BindEnqueueOutcomeRow);",
+            "read = (Func<DbDataReader, T>)(object)global::Acta.DbProjectionResolver.ByPosition<global::GenTests.EnqueueOutcomeRow>(EnqueueOutcomeRowColumns.Length, BindEnqueueOutcomeRow);",
             source
         );
 
         var resolver = SingleGeneratedSource(result, "TryResolveGenerated");
-        Assert.Contains("namespace Acta.Runtime;", resolver);
+        Assert.Contains("namespace Acta;", resolver);
         Assert.Contains("public static Func<DbDataReader, T> Resolve<T>()", resolver);
         Assert.Contains("global::GenTests.DbProjectionBinder.__ActaTryResolveDbProjection(ref read);", resolver);
     }
@@ -79,7 +79,7 @@ public sealed class DbProjectionGeneratorTests
             """
             namespace GenTests;
             using System;
-            using Acta.Runtime;
+            using Acta;
 
             [AttributeUsage(AttributeTargets.Enum)]
             internal sealed class CodeKindAttribute(string kind) : Attribute
@@ -128,7 +128,7 @@ public sealed class DbProjectionGeneratorTests
         var (result, compilation) = RunGenerator(
             """
             namespace GenTests;
-            using Acta.Runtime;
+            using Acta;
 
             internal sealed record ExternalOutcome(int Id, string DisplayName);
 
@@ -150,7 +150,7 @@ public sealed class DbProjectionGeneratorTests
         var (result, compilation) = RunGenerator(
             """
             namespace GenTests;
-            using Acta.Runtime;
+            using Acta;
 
             [DbProjection]
             internal sealed record PositionalRow(int Id, string Name);
@@ -178,7 +178,7 @@ public sealed class DbProjectionGeneratorTests
             """
             namespace GenTests;
             using System;
-            using Acta.Runtime;
+            using Acta;
 
             [DbProjection]
             internal sealed class PayloadRow(
@@ -205,7 +205,7 @@ public sealed class DbProjectionGeneratorTests
         var (result, compilation) = RunGenerator(
             """
             namespace GenTests;
-            using Acta.Runtime;
+            using Acta;
 
             internal static partial class Operation
             {
@@ -225,7 +225,7 @@ public sealed class DbProjectionGeneratorTests
         Assert.Contains("internal static void __ActaTryResolveDbProjection<T>(ref Func<DbDataReader, T>? read)", source);
         Assert.Contains("if (typeof(T) == typeof(global::GenTests.Operation.PrivateRow))", source);
         Assert.Contains(
-            "read = (Func<DbDataReader, T>)(object)global::Acta.Runtime.DbProjectionResolver.ByPosition<global::GenTests.Operation.PrivateRow>(DbProjectionBinder.PrivateRowColumns.Length, DbProjectionBinder.BindPrivateRow);",
+            "read = (Func<DbDataReader, T>)(object)global::Acta.DbProjectionResolver.ByPosition<global::GenTests.Operation.PrivateRow>(DbProjectionBinder.PrivateRowColumns.Length, DbProjectionBinder.BindPrivateRow);",
             source
         );
 
@@ -240,7 +240,7 @@ public sealed class DbProjectionGeneratorTests
             """
             namespace GenTests;
             using System;
-            using Acta.Runtime;
+            using Acta;
 
             [DbProjection(ByName = true)]
             internal sealed record ListRow(long JobId, string JobNamespace, DateTime CreatedAtUtc);
@@ -251,7 +251,7 @@ public sealed class DbProjectionGeneratorTests
         var source = SingleGeneratedSource(result, "BindListRow");
         Assert.Contains("internal static readonly string[] ListRowColumns = [\"job_id\", \"job_namespace\", \"created_at_utc\"];", source);
         Assert.Contains(
-            "read = (Func<DbDataReader, T>)(object)global::Acta.Runtime.DbProjectionResolver.ByName<global::GenTests.ListRow>(\"ListRow\", ListRowColumns, BindListRow);",
+            "read = (Func<DbDataReader, T>)(object)global::Acta.DbProjectionResolver.ByName<global::GenTests.ListRow>(\"ListRow\", ListRowColumns, BindListRow);",
             source
         );
     }
@@ -279,7 +279,6 @@ public sealed class DbProjectionGeneratorTests
             namespace GenTests
             {
                 using Acta;
-                using Acta.Runtime;
 
                 [DbProjection(ByName = true)]
                 internal sealed record DetailRow(JobRef JobRef, JobRef? ParentJobRef, JobPayload Input, JobPayload? Result);
@@ -312,7 +311,7 @@ public sealed class DbProjectionGeneratorTests
             """
             namespace GenTests;
             using System;
-            using Acta.Runtime;
+            using Acta;
 
             [DbProjection]
             internal sealed record BadProjection(Uri Value);

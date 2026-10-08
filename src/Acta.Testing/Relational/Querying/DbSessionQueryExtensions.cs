@@ -1,5 +1,3 @@
-using Acta.Runtime;
-
 namespace Acta.Testing;
 
 /// <summary>Test-only fluent access to the relational entity model.</summary>

@@ -1,4 +1,3 @@
-using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -62,17 +61,17 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         var j2 = outcomes[1].JobId;
         var j3 = outcomes[2].JobId;
 
-        var c3 = Assert.Single(await Services.GetRequiredService<Acta.Runtime.Execution>().ClaimOneAsync(ns, worker!.Id, LeaseTtl, j3, ct));
+        var c3 = Assert.Single(await Services.GetRequiredService<Acta.Execution>().ClaimOneAsync(ns, worker!.Id, LeaseTtl, j3, ct));
         Assert.Equal(
             StartExecutionAction.Started,
             (
                 await Services
-                    .GetRequiredService<Acta.Runtime.Execution>()
+                    .GetRequiredService<Acta.Execution>()
                     .StartExecutionAsync(c3.JobId, worker.Id, c3.ExecutionNumber, c3.Version, LeaseTtl, ct)
             ).Action
         );
         var cr3 = await Services
-            .GetRequiredService<Acta.Runtime.Execution>()
+            .GetRequiredService<Acta.Execution>()
             .CompleteExecutionAsync(
                 new CompleteExecutionCommand(c3.JobId, worker.Id, c3.ExecutionNumber, CompletionKind.Failed, 0, ReadOnlyMemory<byte>.Empty)
                 {
@@ -114,7 +113,7 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         var ready = outcomes[0].JobId;
         var failed = outcomes[1].JobId;
 
-        var execution = Services.GetRequiredService<Acta.Runtime.Execution>();
+        var execution = Services.GetRequiredService<Acta.Execution>();
         var claim = Assert.Single(await execution.ClaimOneAsync(ns, worker!.Id, LeaseTtl, failed, ct));
         Assert.Equal(
             StartExecutionAction.Started,

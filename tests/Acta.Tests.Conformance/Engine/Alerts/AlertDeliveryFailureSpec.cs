@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Scenarios;
 using Acta.Tests.Conformance.Testing;
@@ -567,7 +566,7 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
             resetJobState: Services.GetRequiredService<ResetJobStateHandler>(),
             signals: Services.GetRequiredService<Signals>(),
             alerts: Services.GetRequiredService<AlertLifecycle>(),
-            executionStore: Services.GetRequiredService<Acta.Runtime.Execution>(),
+            executionStore: Services.GetRequiredService<Acta.Execution>(),
             serializers: Services.GetRequiredService<IJobPayloadSerializerRegistry>(),
             locks: Services.GetRequiredService<Locks>(),
             cancellationToken: CancellationToken.None,

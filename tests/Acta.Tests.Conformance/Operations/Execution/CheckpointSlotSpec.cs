@@ -1,6 +1,5 @@
 using System.Data.Common;
 using System.Text;
-using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,7 +19,7 @@ public sealed class CheckpointSlotSpec : ActaRuntimeTestBase<ConformanceFixture,
 {
     private static readonly byte Json = JobPayloadFormat.Json.Id;
 
-    private Acta.Runtime.Execution Execution => Services.GetRequiredService<Acta.Runtime.Execution>();
+    private Acta.Execution Execution => Services.GetRequiredService<Acta.Execution>();
 
     [Fact(DisplayName = "Set inserts a slot and a later Set overwrites its value in place, one version on")]
     public async Task Set_inserts_then_overwrites_in_place()

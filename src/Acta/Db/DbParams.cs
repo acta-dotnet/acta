@@ -1,0 +1,136 @@
+using System.Data.Common;
+using System.Globalization;
+using System.Text;
+
+namespace Acta;
+
+/// <summary>
+/// One bound parameter for a provider command. Production code binds through
+/// <c>dialect.CreateParameter(ActaSchema..., value)</c> so generated metadata owns name, kind,
+/// width, and scale; code that needs the spec itself (a parameter list) calls <c>DbParams.For</c>.
+/// </summary>
+internal sealed record DbParameterSpec(string Name, object? Value, DbKind Kind, int? Size = null, int? Precision = null, int? Scale = null);
+
+/// <summary>
+/// Parameter spec helpers: build a <see cref="DbParameterSpec"/> from generated column /
+/// value metadata, coerce its value to the driver-expected CLR type, and validate the spec
+/// at bind time so under-specified metadata surfaces deterministically.
+/// </summary>
+internal static class DbParams
+{
+    public static DbParameterSpec For<T>(DbColumnSpec<T> spec, object? value) =>
+        new(Name: spec.ParameterName, Value: value, Kind: spec.Kind, Size: spec.Size, Precision: spec.Precision, Scale: spec.Scale);
+
+    public static DbParameterSpec For<T>(DbValueSpec<T> spec, T value) =>
+        new(Name: spec.ParameterName, Value: value, Kind: spec.Kind, Size: spec.Size, Precision: spec.Precision, Scale: spec.Scale);
+
+    public static object Coerce(DbParameterSpec p)
+    {
+        if (p.Value is null)
+        {
+            return DBNull.Value;
+        }
+
+        if (p.Kind == DbKind.UtcInstant && p.Value is DateTime dt)
+        {
+            return ToUtc(dt);
+        }
+
+        if (p.Kind == DbKind.Byte && p.Value is not byte)
+        {
+            return Convert.ToByte(p.Value, CultureInfo.InvariantCulture);
+        }
+        if (p.Kind == DbKind.Int16 && p.Value is not short)
+        {
+            return Convert.ToInt16(p.Value, CultureInfo.InvariantCulture);
+        }
+        if (p.Kind == DbKind.Int32 && p.Value is not int)
+        {
+            return Convert.ToInt32(p.Value, CultureInfo.InvariantCulture);
+        }
+        return p.Kind == DbKind.Int64 && p.Value is not long ? Convert.ToInt64(p.Value, CultureInfo.InvariantCulture) : p.Value;
+    }
+
+    /// <summary>
+    /// Normalizes a caller-supplied instant to UTC for the bulk binders, which build provider rows
+    /// directly and bypass <see cref="Coerce"/>: Local is converted, Unspecified is tagged UTC.
+    /// </summary>
+    public static DateTime ToUtc(DateTime value) =>
+        value.Kind switch
+        {
+            DateTimeKind.Utc => value,
+            DateTimeKind.Local => value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(value, DateTimeKind.Utc),
+        };
+
+    /// <summary>
+    /// JSON array text (<c>[1,2]</c>) for the dialects whose SQL expands an id set with OPENJSON or
+    /// json_each; null for an empty set, which those bodies bind as DBNull and read as "no filter".
+    /// </summary>
+    public static string? JsonIdArray(int[]? values)
+    {
+        if (values is not { Length: > 0 })
+        {
+            return null;
+        }
+
+        var text = new StringBuilder("[");
+        for (var i = 0; i < values.Length; i++)
+        {
+            if (i > 0)
+            {
+                text.Append(',');
+            }
+            text.Append(values[i].ToString(CultureInfo.InvariantCulture));
+        }
+        return text.Append(']').ToString();
+    }
+
+    public static void Validate(DbParameterSpec p)
+    {
+        if (string.IsNullOrWhiteSpace(p.Name))
+        {
+            throw new InvalidOperationException("SQL parameter name is required.");
+        }
+
+        switch (p.Kind)
+        {
+            case DbKind.AsciiString:
+            case DbKind.UnicodeString:
+            case DbKind.Bytes:
+                if (p.Size is null)
+                {
+                    throw new InvalidOperationException(
+                        $"SQL parameter '{p.Name}' (DbKind.{p.Kind}) requires explicit Size: bind via DbParams.For(...) with generated metadata."
+                    );
+                }
+                break;
+
+            case DbKind.Decimal:
+                if (p.Precision is null || p.Scale is null)
+                {
+                    throw new InvalidOperationException(
+                        $"SQL decimal parameter '{p.Name}' requires Precision and Scale: bind via DbParams.For(...) so the column's precision/scale flow through."
+                    );
+                }
+                break;
+        }
+    }
+}
+
+/// <summary>
+/// Binds generated column / value metadata straight to a provider parameter:
+/// <c>dialect.CreateParameter(ActaSchema.Schedule.Name, command.ScheduleName)</c>. Sugar over
+/// <see cref="DbParams.For{T}(DbColumnSpec{T}, object?)"/> plus the provider's single normalized
+/// <see cref="ISqlDialect.CreateParameter(DbParameterSpec)"/> seam, so the ordinary binding path
+/// never names the intermediate spec. Code that needs the spec itself (building a
+/// <see cref="DbParameterSpec"/> list) still calls <c>DbParams.For</c> directly.
+/// </summary>
+internal static class SqlDialectParameterExtensions
+{
+    public static DbParameter CreateParameter<T>(this ISqlDialect dialect, DbColumnSpec<T> spec, object? value) =>
+        dialect.CreateParameter(DbParams.For(spec, value));
+
+    public static DbParameter CreateParameter<T>(this ISqlDialect dialect, DbValueSpec<T> spec, T value) =>
+        dialect.CreateParameter(DbParams.For(spec, value));
+}

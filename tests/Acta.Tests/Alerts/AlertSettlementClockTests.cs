@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using Acta.Runtime;
 using Xunit;
 
 namespace Acta.Tests.Alerts;

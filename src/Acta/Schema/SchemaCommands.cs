@@ -1,0 +1,103 @@
+using System.Data.Common;
+using System.Globalization;
+
+namespace Acta;
+
+/// <summary>Mechanical execution of the provider-owned schema-management command set.</summary>
+internal static class SchemaCommands
+{
+    /// <summary>
+    /// The per-schema lock every installer takes before it reads migration history: the bootstrap here,
+    /// and the published provisioning scripts, which name the same key. The schema is its only word, so a
+    /// script relocated by replacing the schema name throughout keeps naming the key its bootstrap takes.
+    /// </summary>
+    internal static string LockKey(string schemaName) => $"{schemaName}-migrations";
+
+    public static async Task AcquireLock(
+        DbConnection conn,
+        DbTransaction tx,
+        string schemaName,
+        SchemaMigrationProviderHooks hooks,
+        SqlResourceCatalog sql,
+        CancellationToken ct
+    )
+    {
+        await using var cmd = conn.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.CommandTimeout = hooks.CommandTimeoutSeconds;
+        cmd.CommandText = sql.Load("AcquireSchemaLock");
+        var parameter = cmd.CreateParameter();
+        parameter.ParameterName = "@p_key";
+        parameter.Value = LockKey(schemaName);
+        cmd.Parameters.Add(parameter);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    public static async Task EnsureMigrations(
+        DbConnection conn,
+        DbTransaction tx,
+        SchemaMigrationProviderHooks hooks,
+        SqlResourceCatalog sql,
+        CancellationToken ct
+    )
+    {
+        await using var cmd = conn.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.CommandTimeout = hooks.CommandTimeoutSeconds;
+        cmd.CommandText = sql.Load("EnsureMigrations");
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    /// <summary>
+    /// Whether the migration-history ledger exists at all. The read-only preflight asks this first so
+    /// an unprovisioned database is reported as unprovisioned rather than as whatever the provider's
+    /// "no such table" error happens to be.
+    /// </summary>
+    public static async Task<bool> MigrationsTableExists(
+        DbConnection conn,
+        SchemaMigrationProviderHooks hooks,
+        SqlResourceCatalog sql,
+        CancellationToken ct
+    )
+    {
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandTimeout = hooks.CommandTimeoutSeconds;
+        cmd.CommandText = sql.Load("MigrationsTableExists");
+        var found = await cmd.ExecuteScalarAsync(ct);
+        return found is not null and not DBNull && Convert.ToInt64(found, CultureInfo.InvariantCulture) > 0;
+    }
+
+    /// <summary>
+    /// tx is nullable because the read-only preflight runs outside a transaction: it takes no schema
+    /// lock and writes nothing, so there is no boundary for it to join.
+    /// </summary>
+    public static async Task<IReadOnlyDictionary<int, string>> LoadAppliedVersions(
+        DbConnection conn,
+        DbTransaction? tx,
+        SchemaMigrationProviderHooks hooks,
+        SqlResourceCatalog sql,
+        CancellationToken ct
+    )
+    {
+        var applied = new Dictionary<int, string>();
+        await using var cmd = conn.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.CommandTimeout = hooks.CommandTimeoutSeconds;
+        cmd.CommandText = sql.Load("LoadAppliedVersions");
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            applied.Add(reader.GetInt32(0), reader.GetString(1));
+        }
+
+        return applied;
+    }
+
+    public static async Task DropSchema(DbConnection conn, SchemaMigrationProviderHooks hooks, SqlResourceCatalog sql, CancellationToken ct)
+    {
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = sql.Load("DropSchema");
+        cmd.CommandTimeout = hooks.CommandTimeoutSeconds;
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+}

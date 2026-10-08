@@ -4,7 +4,7 @@ namespace Acta.Tests.Conformance.Sql;
 
 /// <summary>
 /// Enumerates one dialect's executable SQL as the catalog sees it, the <c>X.{dialect}.sql</c> files
-/// <c>Acta.Runtime</c> embeds, and on request the provider's ordered migrations.
+/// <c>Acta</c> embeds, and on request the provider's ordered migrations.
 /// </summary>
 internal static class ProviderSqlResources
 {

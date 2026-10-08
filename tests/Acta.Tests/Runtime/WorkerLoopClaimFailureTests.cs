@@ -1,4 +1,3 @@
-using Acta.Runtime;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -161,7 +160,7 @@ public sealed class WorkerLoopClaimFailureTests
 
         public int Calls => Volatile.Read(ref _calls);
 
-        public Acta.Runtime.Execution Execution() => new ScriptedSession(
+        public Acta.Execution Execution() => new ScriptedSession(
                 (call, ct) =>
                 {
                     if (call.Stem != "ClaimBatch")
@@ -172,7 +171,7 @@ public sealed class WorkerLoopClaimFailureTests
                     Interlocked.Increment(ref _calls);
                     return Task.FromResult<object?>(onClaim(ct));
                 }
-            ).Services().GetRequiredService<Acta.Runtime.Execution>();
+            ).Services().GetRequiredService<Acta.Execution>();
     }
 
     internal sealed class IdleWakeup : IWorkerWakeup

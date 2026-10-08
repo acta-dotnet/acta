@@ -22,7 +22,7 @@
                bench out of the numbers. Acta.Generators is included: it ships in the SDK package
                and the unit suite drives it through Roslyn. -->
           <Include>
-            [Acta]*,[Acta.Runtime]*,[Acta.AspNetCore]*,[Acta.Postgres]*,[Acta.Sqlite]*,[Acta.SqlServer]*,[Acta.Redis]*,[Acta.Testing]*,[Acta.Generators]*
+            [Acta]*,[Acta.AspNetCore]*,[Acta.Postgres]*,[Acta.Sqlite]*,[Acta.SqlServer]*,[Acta.Redis]*,[Acta.Testing]*,[Acta.Generators]*
           </Include>
           <ExcludeByAttribute>
             Obsolete,GeneratedCodeAttribute,CompilerGeneratedAttribute,ExcludeFromCodeCoverageAttribute

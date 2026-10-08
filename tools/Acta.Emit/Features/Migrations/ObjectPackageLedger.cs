@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
 using Acta.Emit.Shared;
-using Acta.Runtime;
 
 namespace Acta.Emit.Features.Migrations;
 
@@ -19,7 +18,7 @@ internal static class ObjectPackageLedger
 {
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
 
-    internal static string PathFor(string repoRoot) => Path.Combine(repoRoot, "src", "Acta.Runtime", "Schema", "object-packages.json");
+    internal static string PathFor(string repoRoot) => Path.Combine(repoRoot, "src", "Acta", "Schema", "object-packages.json");
 
     internal static IReadOnlyList<ObjectPackageRelease> Read(string repoRoot)
     {

@@ -1,4 +1,0 @@
-namespace Acta.Runtime;
-
-/// <summary>The Pending child latches whose child is already terminal or gone.</summary>
-internal sealed record GetStaleChildLatchesResponse(IReadOnlyList<StaleChildLatch> Latches);

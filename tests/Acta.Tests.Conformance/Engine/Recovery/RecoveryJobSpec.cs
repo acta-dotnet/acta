@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,7 +35,7 @@ public sealed class RecoveryJobSpec : ActaRuntimeTestBase<ConformanceFixture, Te
 
     private int TestNamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 
-    private Acta.Runtime.Execution Execution => Services.GetRequiredService<Acta.Runtime.Execution>();
+    private Acta.Execution Execution => Services.GetRequiredService<Acta.Execution>();
 
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
     {

@@ -15,8 +15,7 @@ namespace Acta.Tests.Architecture;
 /// </summary>
 public sealed class HandlerResponseTests
 {
-    // The Runtime half and the public half of the operation folders; an operation's slice is the same in both.
-    private static readonly string[] OperationRoots = ["src/Acta.Runtime/Operations/", "src/Acta/Operations/"];
+    private const string OperationRoot = "src/Acta/Operations/";
 
     // What an operation owns outright; of these, only a row is also kept from every other operation.
     private static readonly string[] SliceRoles = ["Row", "Command", "Query", "Response", "Item"];
@@ -89,17 +88,13 @@ public sealed class HandlerResponseTests
     {
         var files = ShippedCode
             .SourceFiles("*.cs")
+            .Where(file => file.Relative.StartsWith(OperationRoot, StringComparison.Ordinal))
             .Select(file =>
                 (
-                    file.Path,
-                    Below: OperationRoots
-                        .Where(root => file.Relative.StartsWith(root, StringComparison.Ordinal))
-                        .Select(root => file.Relative[root.Length..])
-                        .FirstOrDefault()
+                    Slice: Slice(file.Relative[OperationRoot.Length..]),
+                    Root: CSharpSyntaxTree.ParseText(File.ReadAllText(file.Path)).GetRoot()
                 )
             )
-            .Where(file => file.Below is not null)
-            .Select(file => (Slice: Slice(file.Below!), Root: CSharpSyntaxTree.ParseText(File.ReadAllText(file.Path)).GetRoot()))
             .ToList();
 
         // The operation folders that name each identifier, crefs included; a group-level file may name any row.

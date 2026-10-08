@@ -1,5 +1,4 @@
 using System.Text;
-using Acta.Runtime;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,7 +26,7 @@ public sealed class JobRefContextSpec : ActaRuntimeTestBase<ConformanceFixture, 
         await Runtime.RunOnceAsync(enqueued, ct).WaitAsync(SpecWaits.Gate, ct);
 
         var seen = await CheckpointSlot.GetAsync(
-            Services.GetRequiredService<Acta.Runtime.Execution>(),
+            Services.GetRequiredService<Acta.Execution>(),
             enqueued.JobId,
             CheckpointKindCode.Variable,
             "seen-ref",
