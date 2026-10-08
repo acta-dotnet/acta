@@ -54,10 +54,7 @@ internal static class ProjectionReader
 
         var containers = ImmutableArray.CreateBuilder<ContainingTypeInfo>();
         var containingTypes = ContainingTypesOf(type).ToArray();
-        // A nested type from a referenced assembly binds from the namespace binder under its outer names: its
-        // containers take no partial part in this compilation, and the call that resolves it proves it accessible here.
-        var referenced = containingTypes.Length > 0 && type.DeclaringSyntaxReferences.IsEmpty;
-        foreach (var containingType in referenced ? Array.Empty<INamedTypeSymbol>() : containingTypes)
+        foreach (var containingType in containingTypes)
         {
             if (containingType.IsGenericType)
             {
@@ -122,12 +119,11 @@ internal static class ProjectionReader
         }
 
         var ns = type.ContainingNamespace.IsGlobalNamespace ? "" : type.ContainingNamespace.ToDisplayString();
-        var name = referenced ? string.Concat(containingTypes.Select(static c => c.Name)) + type.Name : type.Name;
         return new ProjectionInfo(
             NamespaceName: ns,
-            TypeName: name,
+            TypeName: type.Name,
             TypeFqn: type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
-            MethodName: "Bind" + name,
+            MethodName: "Bind" + type.Name,
             ByName: byName,
             Containers: containers.ToImmutable(),
             Members: members.ToImmutable(),

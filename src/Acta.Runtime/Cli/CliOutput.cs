@@ -226,7 +226,7 @@ internal static class CliOutput
     /// Same identity rule the explanation prose uses: name (with the ref alongside when known),
     /// else the bare ref, else a non-identity phrase once the holder's row has been purged.
     /// </summary>
-    private static string LeaseWorkerLabel(GetJobExplanationResponse.ExecutionLease lease)
+    private static string LeaseWorkerLabel(GetJobExplanationLease lease)
     {
         var worker = (lease.WorkerName is { Length: > 0 } ? lease.WorkerName : null, lease.WorkerRef) switch
         {

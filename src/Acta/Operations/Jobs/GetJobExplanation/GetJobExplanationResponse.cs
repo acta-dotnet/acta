@@ -18,43 +18,10 @@ public sealed record GetJobExplanationResponse(
     JobStatusCode Status,
     string StatusMeaning,
     string Headline,
-    GetJobExplanationResponse.Wait? ActiveWait,
-    GetJobExplanationResponse.ExecutionLease? Lease,
+    GetJobExplanationWait? ActiveWait,
+    GetJobExplanationLease? Lease,
     string? LastExecutedBy,
-    IReadOnlyList<GetJobExplanationResponse.StepState> Steps,
+    IReadOnlyList<GetJobExplanationStep> Steps,
     string? Reason,
-    IReadOnlyList<GetJobExplanationResponse.Action> NextActions
-)
-{
-    /// <summary>The durable wait a Suspended Job is blocked on: a signal name, or a timer slot and its due instant.</summary>
-    public sealed record Wait(CheckpointKindCode Kind, string Name, DateTime? DueAtUtc);
-
-    /// <summary>
-    /// The execution lease on a Dispatched or Executing Job and the liveness of the worker holding it. When
-    /// <see cref="Expired"/> is true the lease has lapsed and <c>sys.recovery</c> reclaims the Job on its next tick;
-    /// <see cref="RecoveryExpectation"/> says so in prose. <see cref="WorkerName"/> is the worker's deployment version, and
-    /// <see cref="WorkerStale"/> is true once it has missed heartbeats past <c>JobsOptions.WorkerDeadAfter</c>. Both
-    /// <see cref="WorkerRef"/> and <see cref="WorkerName"/> go null when retention purged the owner's row: the timings
-    /// still describe the Job, but the holder is unidentifiable.
-    /// </summary>
-    public sealed record ExecutionLease(
-        [property: JsonIgnore] int WorkerId,
-        string? WorkerName,
-        DateTime? ExpiresAtUtc,
-        bool Expired,
-        DateTime? WorkerLastHeartbeatAtUtc,
-        bool WorkerStale,
-        string RecoveryExpectation,
-        WorkerRef? WorkerRef
-    );
-
-    /// <summary>One step slot's state, with <see cref="Explanation"/> rendering it as a plain-English clause.</summary>
-    public sealed record StepState(string Name, StepStatusCode Status, string Explanation);
-
-    /// <summary>
-    /// A suggested operator move. <see cref="Kind"/> is a stable slug
-    /// (<c>raise-signal</c> | <c>cancel</c> | <c>resume</c> | <c>restart</c> | <c>inspect-timeline</c> |
-    /// <c>wait-recovery</c> | <c>view-result</c> | <c>none</c>); <see cref="Description"/> is the prose shown to the operator.
-    /// </summary>
-    public sealed record Action(string Kind, string Description);
-}
+    IReadOnlyList<GetJobExplanationAction> NextActions
+);

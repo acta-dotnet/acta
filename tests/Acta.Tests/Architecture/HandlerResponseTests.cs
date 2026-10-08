@@ -8,8 +8,9 @@ namespace Acta.Tests.Architecture;
 /// <summary>
 /// Holds operations to "every operation has its own input and its own response" in <c>docs/internals/naming-conventions.md</c>:
 /// <c>XHandler.HandleAsync</c> takes <c>XCommand</c> or <c>XQuery</c>, a command returns <c>XResponse</c> or nothing, a list
-/// returns its own page, a Get its own <c>GetXResponse</c>, and a row, command, query, response, or list element is declared in its operation's folder under
-/// the operation's name, a row named by no other operation. What predates a rule is listed in its ratchet,
+/// returns its own page, a Get its own <c>GetXResponse</c>, and a row, command, query, response, or response element is
+/// declared in its operation's folder under the operation's name, a row named by no other operation; any other type in
+/// that folder but an enum, such as a response's part, starts with the operation's name. What predates a rule is listed in its ratchet,
 /// <c>handler-response</c> or <c>slice-members</c>.
 /// </summary>
 public sealed class HandlerResponseTests
@@ -117,10 +118,10 @@ public sealed class HandlerResponseTests
                 file.Root.DescendantNodes()
                     .OfType<BaseTypeDeclarationSyntax>()
                     .Where(type => type is not InterfaceDeclarationSyntax)
-                    .Select(type => (Name: type.Identifier.Text, file.Slice))
+                    .Select(type => (Name: type.Identifier.Text, file.Slice, Enum: type is EnumDeclarationSyntax))
             )
             .ToList();
-        var violations = types.SelectMany(type => SliceViolations(type.Name, type.Slice, users));
+        var violations = types.SelectMany(type => SliceViolations(type.Name, type.Slice, type.Enum, users));
 
         Ratchet.Check(
             "slice-members",
@@ -132,21 +133,31 @@ public sealed class HandlerResponseTests
     // "Group/Operation" for a file in an operation folder, null for a group-level file; the path is below Operations/.
     private static string? Slice(string path) => path.Split('/') is [var group, var operation, _] ? $"{group}/{operation}" : null;
 
-    private static IEnumerable<(string Key, string? Detail)> SliceViolations(string name, string? slice, ILookup<string, string> users)
+    private static IEnumerable<(string Key, string? Detail)> SliceViolations(
+        string name,
+        string? slice,
+        bool isEnum,
+        ILookup<string, string> users
+    )
     {
         var role = SliceRoles.FirstOrDefault(role => name.EndsWith(role, StringComparison.Ordinal));
-        if (role is null)
-        {
-            yield break;
-        }
         if (slice is null)
         {
-            yield return ($"{name} (outside a slice)", "declared in a group-level file");
+            if (role is not null)
+            {
+                yield return ($"{name} (outside a slice)", "declared in a group-level file");
+            }
             yield break;
         }
 
+        // A row, and every type without a role (a response's part, a handler, an option), is named for its operation. An
+        // enum is exempt: it is the vocabulary the operation's SQL answers in, and installed routine bodies name it.
+        if (role is null && isEnum)
+        {
+            yield break;
+        }
         var operation = slice[(slice.IndexOf('/') + 1)..];
-        if (role == "Row" ? !name.StartsWith(operation, StringComparison.Ordinal) : name != operation + role)
+        if (role is null or "Row" ? !name.StartsWith(operation, StringComparison.Ordinal) : name != operation + role)
         {
             yield return ($"{name} (named for another operation)", $"declared in {slice}");
         }

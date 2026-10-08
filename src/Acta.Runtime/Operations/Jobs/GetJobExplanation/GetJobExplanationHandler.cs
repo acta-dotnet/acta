@@ -73,10 +73,10 @@ internal sealed class GetJobExplanationHandler(JobLookupResolution lookup, IDbSe
         var steps = BuildSteps(data.Steps);
         var reason = h.LatestReasonMessage ?? (h.LatestReasonCode?.Description is { Length: > 0 } d ? d : null);
 
-        GetJobExplanationResponse.Wait? wait = null;
-        GetJobExplanationResponse.ExecutionLease? lease = null;
+        GetJobExplanationWait? wait = null;
+        GetJobExplanationLease? lease = null;
         string headline;
-        var actions = new List<GetJobExplanationResponse.Action>();
+        var actions = new List<GetJobExplanationAction>();
 
         switch (status)
         {
@@ -206,7 +206,7 @@ internal sealed class GetJobExplanationHandler(JobLookupResolution lookup, IDbSe
     }
 
     /// <summary>A suggested operator move: its stable slug and the prose shown with it.</summary>
-    private static GetJobExplanationResponse.Action Move(string kind, string description) => new(kind, description);
+    private static GetJobExplanationAction Move(string kind, string description) => new(kind, description);
 
     /// <summary>
     /// The worker that last ran the job, under the same identity rule as the lease label. Distinct
@@ -223,27 +223,27 @@ internal sealed class GetJobExplanationHandler(JobLookupResolution lookup, IDbSe
     /// wait's timeout instant, carried through so the headline can name it; a timer's is when it
     /// resumes.
     /// </summary>
-    private static GetJobExplanationResponse.Wait? FindWait(IReadOnlyList<GetJobExplanationCheckpointRow> checkpoints)
+    private static GetJobExplanationWait? FindWait(IReadOnlyList<GetJobExplanationCheckpointRow> checkpoints)
     {
         foreach (var c in checkpoints)
         {
             if (c.Kind == CheckpointKindCode.Signal && c.Status == CheckpointStatusCode.Pending)
             {
-                return new GetJobExplanationResponse.Wait(CheckpointKindCode.Signal, c.Name, c.DueAtUtc);
+                return new GetJobExplanationWait(CheckpointKindCode.Signal, c.Name, c.DueAtUtc);
             }
         }
         foreach (var c in checkpoints)
         {
             if (c.Kind == CheckpointKindCode.ChildLatch && c.Status == CheckpointStatusCode.Pending)
             {
-                return new GetJobExplanationResponse.Wait(CheckpointKindCode.ChildLatch, c.Name, c.DueAtUtc);
+                return new GetJobExplanationWait(CheckpointKindCode.ChildLatch, c.Name, c.DueAtUtc);
             }
         }
         foreach (var c in checkpoints)
         {
             if (c.Kind == CheckpointKindCode.Timer && c.Status == CheckpointStatusCode.Pending)
             {
-                return new GetJobExplanationResponse.Wait(CheckpointKindCode.Timer, c.Name, c.DueAtUtc);
+                return new GetJobExplanationWait(CheckpointKindCode.Timer, c.Name, c.DueAtUtc);
             }
         }
         return null;
@@ -259,7 +259,7 @@ internal sealed class GetJobExplanationHandler(JobLookupResolution lookup, IDbSe
             ? $"child job {slotName[RaiseChildLatch.NamePrefix.Length..]}"
             : $"child latch \"{slotName}\"";
 
-    private static GetJobExplanationResponse.ExecutionLease? BuildLease(GetJobExplanationHeaderRow h, DateTime nowUtc)
+    private static GetJobExplanationLease? BuildLease(GetJobExplanationHeaderRow h, DateTime nowUtc)
     {
         if (h.LeasedByWorkerId is not { } workerId)
         {
@@ -287,7 +287,7 @@ internal sealed class GetJobExplanationHandler(JobLookupResolution lookup, IDbSe
         // The lease is reported whenever runtimes still names a holder, because its timings describe the
         // Job. The ref and the name both come from the LEFT JOIN on that holder, so both go null together
         // once retention purges the workers row - the lease stands, its holder is simply unidentifiable.
-        return new GetJobExplanationResponse.ExecutionLease(
+        return new GetJobExplanationLease(
             workerId,
             Blank(h.WorkerDeploymentVersion),
             h.LeaseExpiresAtUtc,
@@ -299,17 +299,17 @@ internal sealed class GetJobExplanationHandler(JobLookupResolution lookup, IDbSe
         );
     }
 
-    private static List<GetJobExplanationResponse.StepState> BuildSteps(IReadOnlyList<GetJobExplanationStepRow> rows)
+    private static List<GetJobExplanationStep> BuildSteps(IReadOnlyList<GetJobExplanationStepRow> rows)
     {
         if (rows.Count == 0)
         {
             return [];
         }
 
-        var list = new List<GetJobExplanationResponse.StepState>(rows.Count);
+        var list = new List<GetJobExplanationStep>(rows.Count);
         foreach (var s in rows)
         {
-            list.Add(new GetJobExplanationResponse.StepState(s.Name, s.Status, StepPhrase(s)));
+            list.Add(new GetJobExplanationStep(s.Name, s.Status, StepPhrase(s)));
         }
         return list;
     }

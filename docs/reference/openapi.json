@@ -8045,22 +8045,6 @@
         },
         "description": "What acknowledging an alert did, and its timestamps after the attempt."
       },
-      "Action": {
-        "required": [
-          "kind",
-          "description"
-        ],
-        "type": "object",
-        "properties": {
-          "kind": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
-          }
-        },
-        "description": "A suggested operator move. string Action.Kind is a stable slug\n(`raise-signal` | `cancel` | `resume` | `restart` | `inspect-timeline` |\n`wait-recovery` | `view-result` | `none`); string Action.Description is the prose shown to the operator."
-      },
       "ActorCode": { },
       "AlertDeliveryStatusCode": {
         "description": "Delivery state of one alert row. Numeric bands are a readability convention only; behavior\nfollows the explicit members."
@@ -8193,36 +8177,6 @@
         "description": "Discriminator for `JobCheckpoint` rows: which durable substrate feature owns the\n`(job_id, kind_code, name)` slot. One physical table carries every simple job-internal\ndurable slot; the kind keeps the name spaces structurally separate (a user variable can never\ncollide with a signal or a child latch of the same name)."
       },
       "CheckpointStatusCode": { },
-      "Child": {
-        "required": [
-          "jobRef",
-          "jobName",
-          "status",
-          "createdAtUtc",
-          "modifiedAtUtc"
-        ],
-        "type": "object",
-        "properties": {
-          "jobRef": {
-            "$ref": "#/components/schemas/JobRef"
-          },
-          "jobName": {
-            "type": "string"
-          },
-          "status": {
-            "$ref": "#/components/schemas/JobStatusCode"
-          },
-          "createdAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "modifiedAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          }
-        },
-        "description": "A direct child of the focused Job, linkable to its own detail view."
-      },
       "ControlAction": {
         "enum": [
           "applied",
@@ -8463,60 +8417,6 @@
         "description": "Stable family-local event identifiers. Nearby values improve catalog readability but carry no runtime subject,\nsubgroup, or outcome semantics; match events by enum member or textual code. There is no `job.enqueued`\nevent on purpose: the Job row's own `(created_at_utc, namespace_id, definition_id)` records the enqueue fact,\nand a separate event row would be write amplification on the narrow append-heavy events table; dedup outcomes\nreach the caller via `EnqueueJobResponse.Action`, and cross-job rate analytics query `acta.jobs` directly."
       },
       "EventReasonCode": { },
-      "ExecutionLease": {
-        "required": [
-          "workerName",
-          "expiresAtUtc",
-          "expired",
-          "workerLastHeartbeatAtUtc",
-          "workerStale",
-          "recoveryExpectation",
-          "workerRef"
-        ],
-        "type": "object",
-        "properties": {
-          "workerName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "expiresAtUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          },
-          "expired": {
-            "type": "boolean"
-          },
-          "workerLastHeartbeatAtUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          },
-          "workerStale": {
-            "type": "boolean"
-          },
-          "recoveryExpectation": {
-            "type": "string"
-          },
-          "workerRef": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/WorkerRef"
-              }
-            ]
-          }
-        },
-        "description": "The execution lease on a Dispatched or Executing Job and the liveness of the worker holding it. When\nbool ExecutionLease.Expired is true the lease has lapsed and `sys.recovery` reclaims the Job on its next tick;\nstring ExecutionLease.RecoveryExpectation says so in prose. string? ExecutionLease.WorkerName is the worker's deployment version, and\nbool ExecutionLease.WorkerStale is true once it has missed heartbeats past `JobsOptions.WorkerDeadAfter`. Both\nWorkerRef? ExecutionLease.WorkerRef and string? ExecutionLease.WorkerName go null when retention purged the owner's row: the timings\nstill describe the Job, but the holder is unidentifiable."
-      },
       "ExecutionStatusCode": { },
       "GetAlertResponse": {
         "required": [
@@ -9208,6 +9108,76 @@
           }
         }
       },
+      "GetJobExplanationAction": {
+        "required": [
+          "kind",
+          "description"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "description": "A suggested operator move. string GetJobExplanationAction.Kind is a stable slug\n(`raise-signal` | `cancel` | `resume` | `restart` | `inspect-timeline` |\n`wait-recovery` | `view-result` | `none`); string GetJobExplanationAction.Description is the prose shown to the operator."
+      },
+      "GetJobExplanationLease": {
+        "required": [
+          "workerName",
+          "expiresAtUtc",
+          "expired",
+          "workerLastHeartbeatAtUtc",
+          "workerStale",
+          "recoveryExpectation",
+          "workerRef"
+        ],
+        "type": "object",
+        "properties": {
+          "workerName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expiresAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "expired": {
+            "type": "boolean"
+          },
+          "workerLastHeartbeatAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "workerStale": {
+            "type": "boolean"
+          },
+          "recoveryExpectation": {
+            "type": "string"
+          },
+          "workerRef": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorkerRef"
+              }
+            ]
+          }
+        },
+        "description": "The execution lease on a Dispatched or Executing Job and the liveness of the worker holding it. When\nbool GetJobExplanationLease.Expired is true the lease has lapsed and `sys.recovery` reclaims the Job on its next tick;\nstring GetJobExplanationLease.RecoveryExpectation says so in prose. string? GetJobExplanationLease.WorkerName is the worker's deployment version, and\nbool GetJobExplanationLease.WorkerStale is true once it has missed heartbeats past `JobsOptions.WorkerDeadAfter`. Both\nWorkerRef? GetJobExplanationLease.WorkerRef and string? GetJobExplanationLease.WorkerName go null when retention purged the owner's row: the timings\nstill describe the Job, but the holder is unidentifiable."
+      },
       "GetJobExplanationResponse": {
         "required": [
           "jobRef",
@@ -9249,7 +9219,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/Wait"
+                "$ref": "#/components/schemas/GetJobExplanationWait"
               }
             ]
           },
@@ -9259,7 +9229,7 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/ExecutionLease"
+                "$ref": "#/components/schemas/GetJobExplanationLease"
               }
             ]
           },
@@ -9272,7 +9242,7 @@
           "steps": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/StepState"
+              "$ref": "#/components/schemas/GetJobExplanationStep"
             }
           },
           "reason": {
@@ -9284,11 +9254,141 @@
           "nextActions": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Action"
+              "$ref": "#/components/schemas/GetJobExplanationAction"
             }
           }
         },
         "description": "Plain-English explanation of a Job's current durable state: where the work is, why it moved there, and what an\noperator can do next, assembled from the same `runtimes`, `workers`, `steps`, `checkpoints`, and\n`events` rows a `SELECT` would read. Returned by ValueTask&lt;GetJobExplanationResponse?&gt; IJobs.ExplainAsync(JobLookup job, CancellationToken ct = default(CancellationToken)); the CLI renders it as\nprose, the dashboard as a panel. `Headline` is a one-sentence summary and `StatusMeaning` the\n`[Code]` description of `Status`; `ActiveWait` and `Lease` are set only in the relevant states,\n`LastExecutedBy` names the last worker when no lease is live, and `NextActions` are the operator's moves."
+      },
+      "GetJobExplanationStep": {
+        "required": [
+          "name",
+          "status",
+          "explanation"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StepStatusCode"
+          },
+          "explanation": {
+            "type": "string"
+          }
+        },
+        "description": "One step slot's state, with string GetJobExplanationStep.Explanation rendering it as a plain-English clause."
+      },
+      "GetJobExplanationWait": {
+        "required": [
+          "kind",
+          "name",
+          "dueAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/CheckpointKindCode"
+          },
+          "name": {
+            "type": "string"
+          },
+          "dueAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        },
+        "description": "The durable wait a Suspended Job is blocked on: a signal name, or a timer slot and its due instant."
+      },
+      "GetJobLineageMapChild": {
+        "required": [
+          "jobRef",
+          "jobName",
+          "status",
+          "createdAtUtc",
+          "modifiedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "jobRef": {
+            "$ref": "#/components/schemas/JobRef"
+          },
+          "jobName": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatusCode"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "modifiedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "A direct child of the focused Job, linkable to its own detail view."
+      },
+      "GetJobLineageMapNode": {
+        "required": [
+          "jobRef",
+          "jobNamespace",
+          "jobName",
+          "status",
+          "parentJobRef",
+          "lineageRootJobRef",
+          "createdAtUtc",
+          "modifiedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "jobRef": {
+            "$ref": "#/components/schemas/JobRef"
+          },
+          "jobNamespace": {
+            "type": "string"
+          },
+          "jobName": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatusCode"
+          },
+          "parentJobRef": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobRef"
+              }
+            ]
+          },
+          "lineageRootJobRef": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobRef"
+              }
+            ]
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "modifiedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "A Job node in the lineage map - the focused Job or one of its ancestors. Carries the public\nJobRef GetJobLineageMapNode.JobRef forms alongside the JSON-hidden numeric ids, matching ListJobsItem."
       },
       "GetJobLineageMapResponse": {
         "required": [
@@ -9304,16 +9404,16 @@
           "ancestors": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Node"
+              "$ref": "#/components/schemas/GetJobLineageMapNode"
             }
           },
           "job": {
-            "$ref": "#/components/schemas/Node"
+            "$ref": "#/components/schemas/GetJobLineageMapNode"
           },
           "steps": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/StepState"
+              "$ref": "#/components/schemas/GetJobLineageMapStep"
             }
           },
           "activeWait": {
@@ -9322,21 +9422,65 @@
                 "type": "null"
               },
               {
-                "$ref": "#/components/schemas/Wait"
+                "$ref": "#/components/schemas/GetJobLineageMapWait"
               }
             ]
           },
           "children": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Child"
+              "$ref": "#/components/schemas/GetJobLineageMapChild"
             }
           },
           "childrenHasMore": {
             "type": "boolean"
           }
         },
-        "description": "A compact runtime truth map for one focused Job: the ancestor context up to the lineage root, the focused Job with\nits steps and the durable wait it is blocked on (the explanation's step and wait parts), and its direct children.\nReturned by ValueTask&lt;GetJobLineageMapResponse?&gt; IJobs.GetLineageMapAsync(JobLookup job, GetJobLineageMapOptions? options = null, CancellationToken ct = default(CancellationToken)); the dashboard renders it as a lineage panel. V1 is shallow:\n`Ancestors` is context only (root first, immediate parent last, no steps of their own), `Job` is the\nfocused subtree root, and `Children` are the direct children capped at\nint GetJobLineageMapOptions.ChildLimit with `ChildrenHasMore` flagging a truncated set."
+        "description": "A compact runtime truth map for one focused Job: the ancestor context up to the lineage root, the focused Job with\nits steps and the durable wait it is blocked on, and its direct children. Returned by\nValueTask&lt;GetJobLineageMapResponse?&gt; IJobs.GetLineageMapAsync(JobLookup job, GetJobLineageMapOptions? options = null, CancellationToken ct = default(CancellationToken)); the dashboard renders it as a lineage panel. V1 is shallow: `Ancestors`\nis context only (root first, immediate parent last, no steps of their own), `Job` is the focused subtree root,\nand `Children` are the direct children capped at int GetJobLineageMapOptions.ChildLimit with\n`ChildrenHasMore` flagging a truncated set."
+      },
+      "GetJobLineageMapStep": {
+        "required": [
+          "name",
+          "status",
+          "explanation"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StepStatusCode"
+          },
+          "explanation": {
+            "type": "string"
+          }
+        },
+        "description": "One step slot of the focused Job, with string GetJobLineageMapStep.Explanation its status in plain English."
+      },
+      "GetJobLineageMapWait": {
+        "required": [
+          "kind",
+          "name",
+          "dueAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/CheckpointKindCode"
+          },
+          "name": {
+            "type": "string"
+          },
+          "dueAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        },
+        "description": "The durable wait the focused Job is blocked on: a signal, child latch, or timer slot, and its due instant."
       },
       "GetJobResponse": {
         "required": [
@@ -11178,62 +11322,6 @@
       "NamespaceStatusCode": {
         "description": "Namespace state machine. 10-spaced ids; live states 10..80, mirroring\nTenantStatusCode."
       },
-      "Node": {
-        "required": [
-          "jobRef",
-          "jobNamespace",
-          "jobName",
-          "status",
-          "parentJobRef",
-          "lineageRootJobRef",
-          "createdAtUtc",
-          "modifiedAtUtc"
-        ],
-        "type": "object",
-        "properties": {
-          "jobRef": {
-            "$ref": "#/components/schemas/JobRef"
-          },
-          "jobNamespace": {
-            "type": "string"
-          },
-          "jobName": {
-            "type": "string"
-          },
-          "status": {
-            "$ref": "#/components/schemas/JobStatusCode"
-          },
-          "parentJobRef": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JobRef"
-              }
-            ]
-          },
-          "lineageRootJobRef": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JobRef"
-              }
-            ]
-          },
-          "createdAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "modifiedAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          }
-        },
-        "description": "A Job node in the lineage map - the focused Job or one of its ancestors. Carries the public\nJobRef Node.JobRef forms alongside the JSON-hidden numeric ids, matching ListJobsItem."
-      },
       "OutboxControlHttpRequest": {
         "type": "object",
         "properties": {
@@ -12012,26 +12100,6 @@
         },
         "description": "What setting a schedule's overrides did, and the schedule's state after the attempt."
       },
-      "StepState": {
-        "required": [
-          "name",
-          "status",
-          "explanation"
-        ],
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "status": {
-            "$ref": "#/components/schemas/StepStatusCode"
-          },
-          "explanation": {
-            "type": "string"
-          }
-        },
-        "description": "One step slot's state, with string StepState.Explanation rendering it as a plain-English clause."
-      },
       "StepStatusCode": {
         "description": "State machine for `JobStep` rows. INSERT-once on first invocation (`Pending`);\nUPDATE-in-place across retries; terminal transition to `Succeeded` (with `Result` populated),\n`Exhausted` (parent receives `StepExhaustedException`), or `Interrupted` (an\n`AtMostOnce` step re-entered before completion; parent receives `StepInterruptedException`). One row per\n`(JobId, Name)`; the framework never INSERTs a second step row for the same slot."
       },
@@ -12355,30 +12423,6 @@
             "format": "int32"
           }
         }
-      },
-      "Wait": {
-        "required": [
-          "kind",
-          "name",
-          "dueAtUtc"
-        ],
-        "type": "object",
-        "properties": {
-          "kind": {
-            "$ref": "#/components/schemas/CheckpointKindCode"
-          },
-          "name": {
-            "type": "string"
-          },
-          "dueAtUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          }
-        },
-        "description": "The durable wait a Suspended Job is blocked on: a signal name, or a timer slot and its due instant."
       },
       "WorkerRef": { },
       "WorkerStatusCode": {

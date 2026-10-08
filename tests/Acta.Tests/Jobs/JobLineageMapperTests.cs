@@ -59,7 +59,7 @@ public class JobLineageMapperTests
     private static GetJobLineageMapResponse Map(params GetJobLineageMapCheckpointRow[] checkpoints) =>
         GetJobLineageMapHandler.Map(new GetJobLineageMapRows(Focus(), [], [], checkpoints, []), childLimit: 10);
 
-    private static GetJobLineageMapResponse.Node Focus() =>
+    private static GetJobLineageMapNode Focus() =>
         new(
             JobId: 4821,
             JobRef: new JobRef(Guid.NewGuid()),

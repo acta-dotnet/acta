@@ -30,18 +30,18 @@ internal sealed class GetJobLineageMapHandler(JobLookupResolution lookup, IDbSes
             },
             static async (reader, token) =>
             {
-                var readJob = DbProjectionResolver.Resolve<GetJobLineageMapResponse.Node>();
+                var readJob = DbProjectionResolver.Resolve<GetJobLineageMapNode>();
                 var readStep = DbProjectionResolver.Resolve<GetJobLineageMapStepRow>();
                 var readCheckpoint = DbProjectionResolver.Resolve<GetJobLineageMapCheckpointRow>();
-                var readChild = DbProjectionResolver.Resolve<GetJobLineageMapResponse.Child>();
+                var readChild = DbProjectionResolver.Resolve<GetJobLineageMapChild>();
 
-                GetJobLineageMapResponse.Node? focus = null;
+                GetJobLineageMapNode? focus = null;
                 while (await reader.ReadAsync(token))
                 {
                     focus = readJob(reader);
                 }
 
-                var ancestors = new List<GetJobLineageMapResponse.Node>();
+                var ancestors = new List<GetJobLineageMapNode>();
                 if (await reader.NextResultAsync(token))
                 {
                     while (await reader.ReadAsync(token))
@@ -68,7 +68,7 @@ internal sealed class GetJobLineageMapHandler(JobLookupResolution lookup, IDbSes
                     }
                 }
 
-                var children = new List<GetJobLineageMapResponse.Child>();
+                var children = new List<GetJobLineageMapChild>();
                 if (await reader.NextResultAsync(token))
                 {
                     while (await reader.ReadAsync(token))
@@ -90,12 +90,12 @@ internal sealed class GetJobLineageMapHandler(JobLookupResolution lookup, IDbSes
     internal static GetJobLineageMapResponse Map(GetJobLineageMapRows data, int childLimit)
     {
         var hasMore = data.Children.Count > childLimit;
-        IReadOnlyList<GetJobLineageMapResponse.Child> children = hasMore ? [.. data.Children.Take(childLimit)] : data.Children;
+        IReadOnlyList<GetJobLineageMapChild> children = hasMore ? [.. data.Children.Take(childLimit)] : data.Children;
 
-        var steps = new List<GetJobExplanationResponse.StepState>(data.Steps.Count);
+        var steps = new List<GetJobLineageMapStep>(data.Steps.Count);
         foreach (var s in data.Steps)
         {
-            steps.Add(new GetJobExplanationResponse.StepState(s.Name, s.Status, s.Status.Description));
+            steps.Add(new GetJobLineageMapStep(s.Name, s.Status, s.Status.Description));
         }
 
         return new GetJobLineageMapResponse(data.Ancestors, data.Focus, steps, FindWait(data.Checkpoints), children, hasMore);
@@ -108,27 +108,27 @@ internal sealed class GetJobLineageMapHandler(JobLookupResolution lookup, IDbSes
     /// leaves an unbounded wait's null; a parent parked on a child is the case a lineage map exists
     /// to show.
     /// </summary>
-    private static GetJobExplanationResponse.Wait? FindWait(IReadOnlyList<GetJobLineageMapCheckpointRow> checkpoints)
+    private static GetJobLineageMapWait? FindWait(IReadOnlyList<GetJobLineageMapCheckpointRow> checkpoints)
     {
         foreach (var c in checkpoints)
         {
             if (c.Kind == CheckpointKindCode.Signal && c.Status == CheckpointStatusCode.Pending)
             {
-                return new GetJobExplanationResponse.Wait(CheckpointKindCode.Signal, c.Name, c.DueAtUtc);
+                return new GetJobLineageMapWait(CheckpointKindCode.Signal, c.Name, c.DueAtUtc);
             }
         }
         foreach (var c in checkpoints)
         {
             if (c.Kind == CheckpointKindCode.ChildLatch && c.Status == CheckpointStatusCode.Pending)
             {
-                return new GetJobExplanationResponse.Wait(CheckpointKindCode.ChildLatch, c.Name, c.DueAtUtc);
+                return new GetJobLineageMapWait(CheckpointKindCode.ChildLatch, c.Name, c.DueAtUtc);
             }
         }
         foreach (var c in checkpoints)
         {
             if (c.Kind == CheckpointKindCode.Timer && c.Status == CheckpointStatusCode.Pending)
             {
-                return new GetJobExplanationResponse.Wait(CheckpointKindCode.Timer, c.Name, c.DueAtUtc);
+                return new GetJobLineageMapWait(CheckpointKindCode.Timer, c.Name, c.DueAtUtc);
             }
         }
         return null;

@@ -485,13 +485,13 @@ internal sealed class FakeJobs : IJobs
             LastExecutedBy: null,
             Steps: [],
             Reason: null,
-            NextActions: [new GetJobExplanationResponse.Action("none", "no action needed - a worker will claim it")]
+            NextActions: [new GetJobExplanationAction("none", "no action needed - a worker will claim it")]
         );
 
     private static GetJobLineageMapResponse Lineage() =>
         new(
             Ancestors: [],
-            Job: new GetJobLineageMapResponse.Node(
+            Job: new GetJobLineageMapNode(
                 JobId: 42,
                 JobRef: FoundJobRef,
                 JobNamespace: "billing",
@@ -508,7 +508,7 @@ internal sealed class FakeJobs : IJobs
             ActiveWait: null,
             Children:
             [
-                new GetJobLineageMapResponse.Child(
+                new GetJobLineageMapChild(
                     JobId: 7,
                     JobRef: ChildJobRef,
                     JobName: "render-pdf",

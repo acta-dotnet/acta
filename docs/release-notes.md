@@ -140,18 +140,19 @@ hand again. The public API and the HTTP routes stay as they are except where lis
   `GetWorkerResponse`; `OverviewSnapshot` is now `GetOverviewResponse`, and `SchedulePreview` is now
   `PreviewScheduleResponse`. `TagSet` is now `GetTagsResponse`, a record rather than a list, so read the tags
   through its `Items`, whose element `TagItem` is now `GetTagsItem`. `JobExplanation` is now
-  `GetJobExplanationResponse`, and its parts are records nested in it: `JobExplainWait`, `JobExplainLease`,
-  `JobExplainStep`, and `JobExplainAction` are now `GetJobExplanationResponse.Wait`, `.ExecutionLease`,
-  `.StepState`, and `.Action`. `JobLineageMap` is now `GetJobLineageMapResponse`, with `JobLineageJob` and
-  `JobLineageChild` nested as `GetJobLineageMapResponse.Node` and `.Child`; its steps and wait are the
-  explanation's parts, and `JobLineageMapOptions` is now `GetJobLineageMapOptions`. The `IJobs` reads that
+  `GetJobExplanationResponse`, and its parts are named for it: `JobExplainWait`, `JobExplainLease`,
+  `JobExplainStep`, and `JobExplainAction` are now `GetJobExplanationWait`, `GetJobExplanationLease`,
+  `GetJobExplanationStep`, and `GetJobExplanationAction`. `JobLineageMap` is now `GetJobLineageMapResponse`, with
+  `JobLineageJob` and `JobLineageChild` now `GetJobLineageMapNode` and `GetJobLineageMapChild`; its steps and wait,
+  which were the explanation's types, are its own `GetJobLineageMapStep` and `GetJobLineageMapWait`, with the same
+  members, and `JobLineageMapOptions` is now `GetJobLineageMapOptions`. The `IJobs` reads that
   answered a bare value wrap it the same way, still `null` when nothing is found: `GetJobIdAsync` returns
   `GetJobIdResponse` (read `.JobId`), `GetStatusAsync` `GetJobStatusResponse` (`.Status`), `GetInputAsync`
   `GetJobInputResponse` (`.Input`), and `GetResultAsync` `GetResultResponse` (`.Result`), while the typed
   `GetResultAsync<T>` still returns `T`. `GetInputTemplate` returns `GetInputTemplateResponse`, which replaces
   `JobInputTemplate` and also carries the `JobNamespace` and `JobName` it was asked for. The facade methods keep
   their names, the renamed read models keep their members, and the JSON is unchanged; the OpenAPI schemas take
-  the new names, a nested part its own short name (`Wait`, `Node`).
+  the new names.
 
 ### Additions
 

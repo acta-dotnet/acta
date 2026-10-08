@@ -887,26 +887,11 @@ sealed class Acta.GetInputTemplateResponse
     System.String JobName { get;init; }
     System.String JobNamespace { get;init; }
     System.String TemplateJson { get;init; }
-sealed class Acta.GetJobExplanationResponse
-    .ctor(System.Int64 JobId, Acta.JobRef JobRef, System.String JobNamespace, System.String JobName, Acta.JobStatusCode Status, System.String StatusMeaning, System.String Headline, Acta.GetJobExplanationResponse+Wait ActiveWait, Acta.GetJobExplanationResponse+ExecutionLease Lease, System.String LastExecutedBy, System.Collections.Generic.IReadOnlyList<Acta.GetJobExplanationResponse+StepState> Steps, System.String Reason, System.Collections.Generic.IReadOnlyList<Acta.GetJobExplanationResponse+Action> NextActions)
-    Acta.GetJobExplanationResponse+ExecutionLease Lease { get;init; }
-    Acta.GetJobExplanationResponse+Wait ActiveWait { get;init; }
-    Acta.JobRef JobRef { get;init; }
-    Acta.JobStatusCode Status { get;init; }
-    System.Collections.Generic.IReadOnlyList<Acta.GetJobExplanationResponse+Action> NextActions { get;init; }
-    System.Collections.Generic.IReadOnlyList<Acta.GetJobExplanationResponse+StepState> Steps { get;init; }
-    System.Int64 JobId { get;init; }
-    System.String Headline { get;init; }
-    System.String JobName { get;init; }
-    System.String JobNamespace { get;init; }
-    System.String LastExecutedBy { get;init; }
-    System.String Reason { get;init; }
-    System.String StatusMeaning { get;init; }
-sealed class Acta.GetJobExplanationResponse+Action
+sealed class Acta.GetJobExplanationAction
     .ctor(System.String Kind, System.String Description)
     System.String Description { get;init; }
     System.String Kind { get;init; }
-sealed class Acta.GetJobExplanationResponse+ExecutionLease
+sealed class Acta.GetJobExplanationLease
     .ctor(System.Int32 WorkerId, System.String WorkerName, System.Nullable<System.DateTime> ExpiresAtUtc, System.Boolean Expired, System.Nullable<System.DateTime> WorkerLastHeartbeatAtUtc, System.Boolean WorkerStale, System.String RecoveryExpectation, System.Nullable<Acta.WorkerRef> WorkerRef)
     System.Boolean Expired { get;init; }
     System.Boolean WorkerStale { get;init; }
@@ -916,12 +901,27 @@ sealed class Acta.GetJobExplanationResponse+ExecutionLease
     System.Nullable<System.DateTime> WorkerLastHeartbeatAtUtc { get;init; }
     System.String RecoveryExpectation { get;init; }
     System.String WorkerName { get;init; }
-sealed class Acta.GetJobExplanationResponse+StepState
+sealed class Acta.GetJobExplanationResponse
+    .ctor(System.Int64 JobId, Acta.JobRef JobRef, System.String JobNamespace, System.String JobName, Acta.JobStatusCode Status, System.String StatusMeaning, System.String Headline, Acta.GetJobExplanationWait ActiveWait, Acta.GetJobExplanationLease Lease, System.String LastExecutedBy, System.Collections.Generic.IReadOnlyList<Acta.GetJobExplanationStep> Steps, System.String Reason, System.Collections.Generic.IReadOnlyList<Acta.GetJobExplanationAction> NextActions)
+    Acta.GetJobExplanationLease Lease { get;init; }
+    Acta.GetJobExplanationWait ActiveWait { get;init; }
+    Acta.JobRef JobRef { get;init; }
+    Acta.JobStatusCode Status { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.GetJobExplanationAction> NextActions { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.GetJobExplanationStep> Steps { get;init; }
+    System.Int64 JobId { get;init; }
+    System.String Headline { get;init; }
+    System.String JobName { get;init; }
+    System.String JobNamespace { get;init; }
+    System.String LastExecutedBy { get;init; }
+    System.String Reason { get;init; }
+    System.String StatusMeaning { get;init; }
+sealed class Acta.GetJobExplanationStep
     .ctor(System.String Name, Acta.StepStatusCode Status, System.String Explanation)
     Acta.StepStatusCode Status { get;init; }
     System.String Explanation { get;init; }
     System.String Name { get;init; }
-sealed class Acta.GetJobExplanationResponse+Wait
+sealed class Acta.GetJobExplanationWait
     .ctor(Acta.CheckpointKindCode Kind, System.String Name, System.Nullable<System.DateTime> DueAtUtc)
     Acta.CheckpointKindCode Kind { get;init; }
     System.Nullable<System.DateTime> DueAtUtc { get;init; }
@@ -932,18 +932,7 @@ sealed class Acta.GetJobIdResponse
 sealed class Acta.GetJobInputResponse
     .ctor(Acta.JobPayload Input)
     Acta.JobPayload Input { get;init; }
-sealed class Acta.GetJobLineageMapOptions
-    .ctor(System.Int32 ChildLimit = default)
-    System.Int32 ChildLimit { get;init; }
-sealed class Acta.GetJobLineageMapResponse
-    .ctor(System.Collections.Generic.IReadOnlyList<Acta.GetJobLineageMapResponse+Node> Ancestors, Acta.GetJobLineageMapResponse+Node Job, System.Collections.Generic.IReadOnlyList<Acta.GetJobExplanationResponse+StepState> Steps, Acta.GetJobExplanationResponse+Wait ActiveWait, System.Collections.Generic.IReadOnlyList<Acta.GetJobLineageMapResponse+Child> Children, System.Boolean ChildrenHasMore)
-    Acta.GetJobExplanationResponse+Wait ActiveWait { get;init; }
-    Acta.GetJobLineageMapResponse+Node Job { get;init; }
-    System.Boolean ChildrenHasMore { get;init; }
-    System.Collections.Generic.IReadOnlyList<Acta.GetJobExplanationResponse+StepState> Steps { get;init; }
-    System.Collections.Generic.IReadOnlyList<Acta.GetJobLineageMapResponse+Child> Children { get;init; }
-    System.Collections.Generic.IReadOnlyList<Acta.GetJobLineageMapResponse+Node> Ancestors { get;init; }
-sealed class Acta.GetJobLineageMapResponse+Child
+sealed class Acta.GetJobLineageMapChild
     .ctor(System.Int64 JobId, Acta.JobRef JobRef, System.String JobName, Acta.JobStatusCode Status, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc)
     Acta.JobRef JobRef { get;init; }
     Acta.JobStatusCode Status { get;init; }
@@ -951,7 +940,7 @@ sealed class Acta.GetJobLineageMapResponse+Child
     System.DateTime ModifiedAtUtc { get;init; }
     System.Int64 JobId { get;init; }
     System.String JobName { get;init; }
-sealed class Acta.GetJobLineageMapResponse+Node
+sealed class Acta.GetJobLineageMapNode
     .ctor(System.Int64 JobId, Acta.JobRef JobRef, System.String JobNamespace, System.String JobName, Acta.JobStatusCode Status, System.Nullable<System.Int64> ParentJobId, System.Nullable<Acta.JobRef> ParentJobRef, System.Nullable<System.Int64> LineageRootId, System.Nullable<Acta.JobRef> LineageRootJobRef, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc)
     Acta.JobRef JobRef { get;init; }
     Acta.JobStatusCode Status { get;init; }
@@ -964,6 +953,27 @@ sealed class Acta.GetJobLineageMapResponse+Node
     System.Nullable<System.Int64> ParentJobId { get;init; }
     System.String JobName { get;init; }
     System.String JobNamespace { get;init; }
+sealed class Acta.GetJobLineageMapOptions
+    .ctor(System.Int32 ChildLimit = default)
+    System.Int32 ChildLimit { get;init; }
+sealed class Acta.GetJobLineageMapResponse
+    .ctor(System.Collections.Generic.IReadOnlyList<Acta.GetJobLineageMapNode> Ancestors, Acta.GetJobLineageMapNode Job, System.Collections.Generic.IReadOnlyList<Acta.GetJobLineageMapStep> Steps, Acta.GetJobLineageMapWait ActiveWait, System.Collections.Generic.IReadOnlyList<Acta.GetJobLineageMapChild> Children, System.Boolean ChildrenHasMore)
+    Acta.GetJobLineageMapNode Job { get;init; }
+    Acta.GetJobLineageMapWait ActiveWait { get;init; }
+    System.Boolean ChildrenHasMore { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.GetJobLineageMapChild> Children { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.GetJobLineageMapNode> Ancestors { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.GetJobLineageMapStep> Steps { get;init; }
+sealed class Acta.GetJobLineageMapStep
+    .ctor(System.String Name, Acta.StepStatusCode Status, System.String Explanation)
+    Acta.StepStatusCode Status { get;init; }
+    System.String Explanation { get;init; }
+    System.String Name { get;init; }
+sealed class Acta.GetJobLineageMapWait
+    .ctor(Acta.CheckpointKindCode Kind, System.String Name, System.Nullable<System.DateTime> DueAtUtc)
+    Acta.CheckpointKindCode Kind { get;init; }
+    System.Nullable<System.DateTime> DueAtUtc { get;init; }
+    System.String Name { get;init; }
 sealed class Acta.GetJobResponse
     .ctor(System.Int64 JobId, Acta.JobRef JobRef, System.String JobNamespace, System.Int32 DefinitionId, System.String JobName, System.Nullable<System.Int64> LineageRootId, System.Nullable<Acta.JobRef> LineageRootJobRef, System.Nullable<System.Int64> ParentJobId, System.Nullable<Acta.JobRef> ParentJobRef, System.Nullable<System.Int32> TenantId, System.String TenantKey, System.String DeduplicationKey, System.String CorrelationKey, System.String ConcurrencyKey, System.Byte InputFormatId, Acta.JobStatusCode Status, Acta.JobPriorityCode Priority, System.String Lane, System.Nullable<System.Int64> BlockedBehindJobId, System.Nullable<Acta.JobRef> BlockedBehindJobRef, System.Nullable<System.DateTime> NextRunAtUtc, System.Int32 ExecutionNumber, System.Int32 FailureCount, System.Nullable<System.Int32> LeasedByWorkerId, System.Nullable<System.DateTime> LeaseExpiresAtUtc, System.Nullable<System.DateTime> RetentionUntilUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Nullable<Acta.WorkerRef> LeasedByWorkerRef, System.Int32 Version)
     Acta.JobPriorityCode Priority { get;init; }
